@@ -133,6 +133,7 @@ const coreEntries = entryMap([
 
 const toolEntries = entryMap([
   'src/index.ts',
+  'src/tool-catalog.ts',
   'src/builtin.ts',
   'src/browser/index.ts',
   // Agent-facing management tools (council, fallback, MCP control, plugin
@@ -283,6 +284,8 @@ const profiles = {
     external: [],
   },
   '@wrongstack/persistence': standard(),
+  // Vendored WrongMemory daemon client (WrongMemory packages/client-ts @ 50a9d9f).
+  '@wrongstack/wrongmemory-client': standard(),
   // Agent role catalog and project-agent identity, extracted below core
   // (src/coordination/agents) on 2026-10-24; ships its role prompts in
   // instructions/agents.
@@ -452,7 +455,12 @@ const profiles = {
       'project-server': 'src/project-server.ts',
       'middleware/tool-call-memory': 'src/middleware/tool-call-memory.ts',
     },
-    external: ['@wrongstack/core', '@wrongstack/core/utils', '@wrongstack/persistence'],
+    external: [
+      '@wrongstack/core',
+      '@wrongstack/core/utils',
+      '@wrongstack/persistence',
+      '@wrongstack/wrongmemory-client',
+    ],
   },
   '@wrongstack/sage-mcp': {
     entries: {

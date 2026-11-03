@@ -19,6 +19,7 @@
 import type { Tool, ToolSettlement } from '@wrongstack/contracts/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { exportToolCatalog } from '@wrongstack/tools';
 import {
   createToolGateway,
   parseCapabilityGrants,
@@ -81,6 +82,12 @@ export async function runToolsCli(
     return serveToolsCommand(args, deps, io);
   }
   const flags = deps.flags ?? {};
+  if (verb === 'catalog') {
+    const registry = resolveGatewayRegistry(deps.toolRegistry, deps.config);
+    const catalog = { ...exportToolCatalog(registry), scope: 'registered' as const };
+    io.stdout(`${JSON.stringify(catalog)}\n`);
+    return flags['check'] === true && catalog.tools.some((tool) => tool.issues.length > 0) ? 1 : 0;
+  }
   const json = flags['json'] === true;
   let allow: string[];
   try {

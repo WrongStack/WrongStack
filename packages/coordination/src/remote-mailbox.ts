@@ -449,7 +449,7 @@ export class RemoteMailbox implements Mailbox {
       return;
     }
     const mailboxId = `${path.basename(this.projectDir)}:mailbox`;
-    const inFlight = this.query({ includeDeleted: true, limit: 100 })
+    const inFlight = this.query({ ids: [event.messageId], includeDeleted: true, limit: 1 })
       .then((messages) => {
         const message = messages.find((candidate) => candidate.id === event.messageId);
         const action = event.type === 'message.sent' ? 'message.sent' : 'message.updated';

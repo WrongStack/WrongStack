@@ -2,6 +2,7 @@ import type { ContentBlock, TextBlock } from './blocks.js';
 import type { ImageGenerationRequest, ImageGenerationResult } from './image-generation.js';
 import type { Message } from './messages.js';
 import type { Tool } from './tool.js';
+import type { Usage } from './usage.js';
 
 export { isSafetyPolicyCode } from './provider-error-codes.js';
 export type { ProviderErrorBody, ProviderErrorKind } from './provider-errors.js';
@@ -114,15 +115,7 @@ export interface SafetySetting {
   threshold: string;
 }
 
-export interface Usage {
-  input: number;
-  output: number;
-  cacheRead?: number | undefined;
-  /** Back-compat aggregate of all cache-write tokens. Prefer TTL-specific fields when present. */
-  cacheWrite?: number | undefined;
-  cacheWrite5m?: number | undefined;
-  cacheWrite1h?: number | undefined;
-}
+export type { Usage } from './usage.js';
 
 /**
  * Effective prompt tokens loaded by the model for one request.

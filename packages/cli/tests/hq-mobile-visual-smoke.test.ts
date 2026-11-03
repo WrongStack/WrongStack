@@ -7,7 +7,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION } from '@wrongstack/hq';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RawData } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
@@ -41,6 +41,12 @@ function waitForCommand(socket: WebSocket): Promise<Record<string, unknown>> {
 }
 
 describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
+  // A real browser against a real server: right after a heavy test run a
+  // render can take longer than the 1 s `expect.poll` default. Waiting longer
+  // changes no assertion, only how long a correct page may take to appear.
+  beforeAll(() => vi.setConfig({ expect: { poll: { timeout: 5_000 } } }));
+  afterAll(() => vi.resetConfig());
+
   it('logs in with a password and delivers a live-console message', {
     timeout: 120_000,
   }, async () => {
@@ -505,6 +511,11 @@ describe.skipIf(!E2E)('HQ mobile visual smoke (WSTACK_E2E=1)', () => {
       expect(await detail.textContent()).toContain('VPS-MOBILE is short of memory');
       expect(await detail.textContent()).toContain('load 1.90 on 2 cores');
       await shot('03c-fleet');
+      // Labels are edited from the phone too (the phone session may enqueue).
+      await detail.getByRole('button', { name: 'Add labels' }).click();
+      await detail.getByRole('textbox').fill('edge');
+      await detail.getByRole('button', { name: 'Save labels' }).click();
+      await expect.poll(() => vps.textContent()).toContain('edge');
       // Its attention link opens the item's card in the installed app, not the desktop.
       expect(
         await detail.getByRole('link', { name: /short of memory/ }).getAttribute('href'),

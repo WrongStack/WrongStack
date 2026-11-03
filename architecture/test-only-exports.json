@@ -559,6 +559,9 @@
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
     ],
+    "packages/cli/src/subcommands/handlers/sage-service.ts": [
+      "installWrongMemory"
+    ],
     "packages/cli/src/subcommands/handlers/sage.ts": [
       "findExecutableOnPath"
     ],
@@ -1055,9 +1058,7 @@
       "discoverSlotCapabilities"
     ],
     "packages/mcp/src/server-dispatch.ts": [
-      "INVALID_REQUEST",
-      "MAX_REPORTED_SCHEMA_ERRORS",
-      "METHOD_NOT_FOUND"
+      "MAX_REPORTED_SCHEMA_ERRORS"
     ],
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
@@ -1515,11 +1516,7 @@
     ],
     "packages/tools/src/codebase-index/wrongindex/client.ts": [
       "BASELINE_PROFILE_ID",
-      "encodeFrame",
-      "FrameReader",
-      "MAX_FRAME_BYTES",
-      "PROTOCOL_MAJOR",
-      "PROTOCOL_MINOR"
+      "FrameReader"
     ],
     "packages/tools/src/codebase-index/wrongindex/owner-lock.ts": [
       "OWNER_INFO_FILE",

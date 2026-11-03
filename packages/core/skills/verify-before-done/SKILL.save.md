@@ -1,11 +1,11 @@
 # Verify Before Done (Compact)
 
-<!-- source-version: 1.2.1 -->
+<!-- source-version: 1.2.2 -->
 
 ## Selection card
 - Task: Prove a claimed fix or completion actually works. / TR: Düzeltme veya tamamlanma iddiasını çalıştırarak kanıtla.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: List what changed and which checks the project defines for those files (scripts, CI jobs).
+- Finish: Each relevant check was run with its result recorded, and the report states exactly what was and was not verified.
 
 ## Overview
 

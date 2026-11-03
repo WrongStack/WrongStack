@@ -1,11 +1,11 @@
 # Git Workflow (Compact)
 
-<!-- source-version: 2.1.1 -->
+<!-- source-version: 2.1.2 -->
 
 ## Selection card
 - Task: Manage scoped commits, branches and pull requests. / TR: Kapsamlı commit, branch ve pull request yönet.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run git status, git branch -vv and git log --oneline -5 to see branch, upstream and uncommitted work before changing anything.
+- Finish: The commit, branch or PR exists as intended, nobody else's work was touched, and the final git status is clean or explained.
 
 ## Overview
 

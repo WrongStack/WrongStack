@@ -1,5 +1,6 @@
 import { AlertTriangle, ChevronDown, CircleAlert, Sparkles } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { isMobileViewport } from '@/hooks/useViewport';
 import type { KanbanAuditIssue, KanbanAuditSummary } from '@/lib/kanban-cleaner';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +11,7 @@ export function KanbanCleanerAlert({
   audit: KanbanAuditSummary;
   onSelectTask: (taskId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(() => !isMobileViewport() || audit.counts.error > 0);
   const contentId = useId();
   // Issue ids seen on the previous audit pass. Auto-expanding on a count
   // *change* (old behavior) fought the user's collapse whenever an issue

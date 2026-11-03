@@ -66,6 +66,18 @@ async function wstackTools(argv: string[], io: ToolsCliIo): Promise<number> {
 }
 
 describe('tool gateway', () => {
+  it('exports the registered catalog without granting execution or leaking functions', async () => {
+    const io = capture();
+    expect(await wstackTools(['catalog', '--json', '--check'], io)).toBe(0);
+    const catalog = JSON.parse(io.out);
+    expect(catalog).toMatchObject({ schemaVersion: 1, scope: 'registered' });
+    expect(catalog.tools.find((tool: { name: string }) => tool.name === 'clarify')).toBeDefined();
+    expect(catalog.tools.find((tool: { name: string }) => tool.name === 'write')).toMatchObject({
+      permission: 'confirm',
+      mutating: true,
+    });
+    expect(catalog.tools.every((tool: Record<string, unknown>) => !('execute' in tool))).toBe(true);
+  });
   it('withholds exactly these session-bound built-ins (a rename must not re-expose one)', async () => {
     const reg = registry();
     const gateway = await createToolGateway({
@@ -189,6 +201,25 @@ describe('wstack tools list / describe', () => {
 });
 
 describe('wstack tools run', () => {
+  it('resolves aliases through the exposed set and keeps disabled or withheld targets inaccessible', async () => {
+    const reg = registry();
+    reg.wrap('read', (tool) => ({ ...tool, aliases: ['old_read'] }));
+    reg.wrap('write', (tool) => ({ ...tool, aliases: ['old_write'] }));
+    async function invoke(name: string, input: Record<string, unknown>) {
+      const options = deps({ json: true, input: JSON.stringify(input) });
+      (options as unknown as { toolRegistry: ToolRegistry }).toolRegistry = reg;
+      const io = capture();
+      return { code: await runToolsCli('run', [name], options, io), io };
+    }
+    expect((await invoke('read', { path: 'hello.txt' })).code).toBe(0);
+    expect((await invoke('old_read', { path: 'hello.txt' })).code).toBe(0);
+    expect((await invoke('old_write', { path: 'hello.txt', content: 'overwrite' })).code).toBe(3);
+    expect(await fs.readFile(path.join(root, 'hello.txt'), 'utf8')).toBe(
+      'hello from the project\n',
+    );
+    reg.disable('read');
+    expect((await invoke('old_read', { path: 'hello.txt' })).code).toBe(3);
+  });
   it('runs a tool from inline JSON and prints its result on stdout', async () => {
     const io = capture();
     const code = await wstackTools(['run', 'read', '--input', '{"path":"hello.txt"}'], io);

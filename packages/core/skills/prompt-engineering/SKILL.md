@@ -1,9 +1,10 @@
 ---
 name: prompt-engineering
 description: |
+  Prompt and instruction text: system prompts, tool and skill descriptions, few-shot examples, evals, and models ignoring instructions.
   Use this skill when designing, critiquing, or fixing system prompts, tool descriptions, skill definitions, or other LLM instruction text — including when a model ignores, over-applies, or misreads its instructions.
   Triggers: user mentions "prompt", "system prompt", "system instruction", "tool description", "skill description", "few-shot", "the model keeps ignoring", "eval", "usage hint".
-version: 2.1.1
+version: 2.1.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Design grounded instructions and output contracts.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Collect the current instruction text, the failing transcripts or examples, and a description of correct behavior.
+- Finish: The revised text fixes the observed failures in a re-run or eval without breaking the cases that already passed.
 
 ## Overview
 

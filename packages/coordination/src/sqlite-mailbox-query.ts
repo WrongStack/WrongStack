@@ -91,10 +91,13 @@ export async function query(
     where.push('reply_to = ?');
     params.push(query.replyTo);
   }
+  if (
+    (query.unreadBy !== undefined || query.readerRole !== undefined) &&
+    !isMailboxLeader(query.unreadBy ?? query.to ?? '', query.readerRole)
+  ) {
+    where.push("COALESCE(json_extract(data, '$.audience'), 'all') <> 'leaders'");
+  }
   if (query.unreadBy !== undefined) {
-    if (!isMailboxLeader(query.unreadBy, query.readerRole)) {
-      where.push("COALESCE(json_extract(data, '$.audience'), 'all') <> 'leaders'");
-    }
     if (!query.incompleteOnly) {
       where.push(`NOT EXISTS (
           SELECT 1 FROM message_receipts AS unread_receipt
@@ -154,8 +157,8 @@ export async function query(
     if (query.from !== undefined && message.from !== query.from) return false;
     if (query.sessionId !== undefined && message.senderSessionId !== query.sessionId) return false;
     if (
-      query.unreadBy !== undefined &&
-      !isMailboxMessageVisibleTo(message, query.unreadBy, query.readerRole)
+      (query.unreadBy !== undefined || query.readerRole !== undefined) &&
+      !isMailboxMessageVisibleTo(message, query.unreadBy ?? query.to ?? '', query.readerRole)
     )
       return false;
     if (!query.incompleteOnly && query.unreadBy !== undefined && query.unreadBy in message.readBy)

@@ -69,6 +69,31 @@ describe('KanbanCleanerAlert', () => {
     ).toBe('false');
   });
 
+  it('starts warning-only audits collapsed on mobile', () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    });
+
+    try {
+      const warningOnly = {
+        ...audit,
+        issues: audit.issues.filter((issue) => issue.severity === 'warning'),
+        counts: { error: 0, warning: 2 },
+      };
+      render(<KanbanCleanerAlert audit={warningOnly} onSelectTask={vi.fn()} />);
+
+      expect(screen.getByRole('button', { name: 'Expand Kanban Cleaner issues' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Open Repair lease/ })).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    }
+  });
+
   it('renders nothing for a clean board', () => {
     const { container } = render(
       <KanbanCleanerAlert

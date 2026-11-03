@@ -1,9 +1,10 @@
 ---
 name: codebase-navigation
 description: |
+  Orientation in an unfamiliar codebase: where code lives, how a request flows, what calls or depends on it, where a change belongs.
   Use this skill when starting work in an unfamiliar codebase or area — finding where something is implemented, how a request flows, what depends on a piece of code, or where a change should go — before reading files one by one.
   Triggers: user says "where is", "how does this work", "find the code that", "explain this codebase", "what calls", "what uses", "architecture", "entry point", "which file handles", "get familiar with".
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [code.inspect]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Locate repository entry points and owning modules.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: State the question (where, how, what depends on it) and query the codebase index tools before opening files one by one.
+- Finish: The answer names the files, symbols and call path with file:line references, and says what was not checked.
 
 ## Overview
 

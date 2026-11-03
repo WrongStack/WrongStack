@@ -1040,4 +1040,90 @@ describe('FileSessionWriter', () => {
       // Suppress close errors — we're testing flush error handling, not close
     }
   });
+
+  it('preserves metadataDirty when an event is appended during an in-flight metadata checkpoint and after restoreRedo', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-f911-'));
+    try {
+      const filePath = path.join(dir, 'session.jsonl');
+      const realHandle = await fsp.open(filePath, 'a', 0o600);
+      let resolveEntered!: () => void;
+      const entered = new Promise<void>((r) => {
+        resolveEntered = r;
+      });
+      let releaseSink!: () => void;
+      const sinkBarrier = new Promise<void>((r) => {
+        releaseSink = r;
+      });
+      const counts: Array<number | undefined> = [];
+
+      const w = new FileSessionWriter(
+        TEST_ID,
+        realHandle as never,
+        STARTED_AT,
+        makeMeta(),
+        undefined,
+        {
+          dir,
+          filePath,
+          metadataCheckpointMs: 0,
+          onMetadataCheckpoint: async (summary) => {
+            counts.push(summary.toolCallCount);
+            if (counts.length === 1) {
+              resolveEntered();
+              await sinkBarrier;
+            }
+          },
+        },
+      );
+
+      await w.writeCheckpoint(0, 'p0');
+      await w.append({
+        type: 'tool_call_start',
+        ts: now(),
+        id: 'tc-1',
+        name: 'read_file',
+        input: {},
+      } as SessionEvent);
+
+      const cp1 = (
+        w as unknown as { runMetadataCheckpoint: () => Promise<void> }
+      ).runMetadataCheckpoint();
+      await entered;
+
+      await w.writeCheckpoint(1, 'p1');
+      await w.append({
+        type: 'tool_call_start',
+        ts: now(),
+        id: 'tc-2',
+        name: 'write_file',
+        input: {},
+      } as SessionEvent);
+
+      releaseSink();
+      await cp1;
+
+      expect((w as unknown as { metadataDirty: boolean }).metadataDirty).toBe(true);
+      await (
+        w as unknown as { runMetadataCheckpoint: () => Promise<void> }
+      ).runMetadataCheckpoint();
+      expect(counts).toEqual([1, 2]);
+
+      await w.truncateToCheckpoint(1);
+      await (
+        w as unknown as { runMetadataCheckpoint: () => Promise<void> }
+      ).runMetadataCheckpoint();
+      expect(counts.at(-1)).toBe(1);
+
+      expect(await w.restoreRedo()).toBeGreaterThan(0);
+      expect((w as unknown as { metadataDirty: boolean }).metadataDirty).toBe(true);
+      await (
+        w as unknown as { runMetadataCheckpoint: () => Promise<void> }
+      ).runMetadataCheckpoint();
+      expect(counts.at(-1)).toBe(2);
+
+      await w.close();
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

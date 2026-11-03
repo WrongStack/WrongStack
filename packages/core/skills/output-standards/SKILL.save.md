@@ -1,11 +1,11 @@
 # Output Standards — WrongStack (Compact)
 
-<!-- source-version: 1.2.1 -->
+<!-- source-version: 1.2.2 -->
 
 ## Selection card
 - Task: Apply precise evidence and response formatting. / TR: Kesin kanıt ve yanıt biçimini uygula.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Identify which output contract applies: final message, next_steps block, auto mode or subagent report.
+- Finish: The response matches the contract exactly, including parser-sensitive markers, with no invented options or claims.
 
 ## Rules
 

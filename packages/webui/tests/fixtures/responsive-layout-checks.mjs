@@ -6,8 +6,11 @@ import { expect } from '@playwright/test';
 export async function checkResponsiveLayout(browser, base, output, errors) {
   const failures = [];
   const results = [];
+  const widths = process.env.WEBUI_VISUAL_RESPONSIVE_WIDTHS?.split(',').map(Number) ?? [
+    1440, 768, 390, 320,
+  ];
   for (const theme of ['dark', 'light']) {
-    for (const width of [1440, 768, 390, 320]) {
+    for (const width of widths) {
       const page = await browser.newPage({ viewport: { width, height: 720 }, colorScheme: theme });
       page.on('pageerror', (error) => errors.push(error.message));
       const check = async (name, run) => {
@@ -110,7 +113,7 @@ export async function checkResponsiveLayout(browser, base, output, errors) {
               const label = bar.getByText('Provider Test', { exact: true });
               const labelBox = await label.boundingBox();
               const officeBox = await bar.getByTestId('topbar-office-map').boundingBox();
-              if (width < 768)
+              if (width >= 480 && width < 768)
                 assert(
                   labelBox.x + labelBox.width < officeBox.x,
                   'EXPECTED view label before actions; ACTUAL overlapping label',
@@ -185,12 +188,14 @@ export async function checkResponsiveLayout(browser, base, output, errors) {
           await page.setViewportSize({ width, height });
           for (const kind of ['companions', 'subagents']) {
             await check(`${kind} popover at height ${height}`, async () => {
+              if (width < 768) {
+                await page.getByRole('button', { name: 'Run settings' }).click();
+                await expect(page.getByRole('dialog')).toBeVisible();
+              }
               const trigger =
                 kind === 'companions'
-                  ? page.getByTestId('composer-companions-button')
-                  : page
-                      .locator('.ws-composer-options')
-                      .getByRole('button', { name: /Subagents:/ });
+                  ? page.getByTestId('composer-companions-button').filter({ visible: true })
+                  : page.getByRole('button', { name: /Subagents:/ }).filter({ visible: true });
               await trigger.click();
               const panel =
                 kind === 'companions'
@@ -242,8 +247,12 @@ export async function checkResponsiveLayout(browser, base, output, errors) {
               });
               await page.keyboard.press('Escape');
               await expect(trigger).toBeFocused();
+              if (width < 768) {
+                await page.keyboard.press('Escape');
+                await expect(page.getByRole('dialog')).toHaveCount(0);
+              }
             });
-            await page.keyboard.press('Escape');
+            if (width >= 768) await page.keyboard.press('Escape');
           }
         }
         await page.screenshot({

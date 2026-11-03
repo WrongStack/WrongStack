@@ -1,15 +1,15 @@
 # TypeScript Strict (Compact)
 
-<!-- source-version: 2.1.2 -->
+<!-- source-version: 2.2.1 -->
 
 ## Selection card
 - Task: TypeScript contracts and narrowing without any. / TR: any kullanmadan TypeScript sözleşmeleri ve daraltma.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run the project's type check and read the tsconfig strictness flags before touching types.
+- Finish: The type check passes without new any, unchecked casts or suppressions, and the types match runtime behavior.
 
 ## Overview
 
-Target TypeScript 7.0.2, verified from npm on 2026-10-23. Static types protect
+Target TypeScript 7.0.2, verified from npm on 2026-11-02. Static types protect
 compile-time contracts; external data still needs runtime validation. Work
 within the project strictness and module-resolution contract.
 

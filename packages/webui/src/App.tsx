@@ -238,7 +238,13 @@ function AppInner() {
   });
 
   return (
-    <div className={cn('ws-app-root flex min-h-0 min-w-0 overflow-hidden', theme)}>
+    <div
+      className={cn(
+        'ws-app-root flex min-h-0 min-w-0 overflow-hidden',
+        currentView !== 'setup' && 'max-md:pb-14',
+        theme,
+      )}
+    >
       {/* ── Skip to content (a11y) — visible on focus only ── */}
       <a
         href="#main-content"

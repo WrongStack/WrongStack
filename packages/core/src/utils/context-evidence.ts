@@ -536,7 +536,12 @@ export function recordCompletedWorkEvidence(
   const entry: CompletedWorkEvidence = {
     key: input.key,
     source: input.source,
-    summary: normalizeWhitespace(input.summary).slice(0, 300),
+    // `sliceWellFormed`, not `.slice`: this cap is measured in UTF-16 units, so
+    // a summary whose 300th unit is the high half of an emoji would otherwise
+    // store a LONE surrogate — and this entry is rendered into the per-request
+    // model prompt by formatCompletedWorkLedger, where an unpaired half is
+    // invalid on the wire (the rule the helper's docblock states).
+    summary: sliceWellFormed(normalizeWhitespace(input.summary), 300),
     completedAt: input.completedAt ?? Date.now(),
     ...(input.evidence !== undefined && { evidence: input.evidence }),
   };

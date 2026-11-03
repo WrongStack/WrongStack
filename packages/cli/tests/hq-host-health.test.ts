@@ -210,6 +210,12 @@ describe('HQ machine health', () => {
         cpuCount: 8,
       }),
     ]);
+    const overview = (await (
+      await fetch(`http://127.0.0.1:${handle!.port}/api/machines/health-overview`)
+    ).json()) as { machines: Array<{ key: string; points: unknown[] }> };
+    expect(overview.machines).toEqual([
+      { key: 'host:lab-02', points: [expect.objectContaining({ diskFreeBytes: 10e9 })] },
+    ]);
     expect((await read('key=nope')).status).toBe(400);
     expect((await read('key=host%3Aunknown')).status).toBe(200);
     expect(

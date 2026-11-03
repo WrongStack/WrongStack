@@ -32,6 +32,7 @@ function handlers(): SessionRouteHandlers {
     inspectSession: vi.fn(async () => undefined),
     listCheckpoints: vi.fn(async () => undefined),
     rewindSession: vi.fn(async () => undefined),
+    redoSession: vi.fn(async () => undefined),
     subscribeSessions: vi.fn(async () => undefined),
   };
 }
@@ -70,6 +71,7 @@ describe('handleSessionRoute dispatcher characterization', () => {
     'session.inspect',
     'session.checkpoints',
     'session.rewind',
+    'session.redo',
   ])('dispatches %s to the correct handler and returns true', async (type) => {
     const ws = mockWs();
     const h = handlers();
@@ -95,6 +97,7 @@ describe('handleSessionRoute dispatcher characterization', () => {
       'session.inspect': h.inspectSession as ReturnType<typeof vi.fn>,
       'session.checkpoints': h.listCheckpoints as ReturnType<typeof vi.fn>,
       'session.rewind': h.rewindSession as ReturnType<typeof vi.fn>,
+      'session.redo': h.redoSession as ReturnType<typeof vi.fn>,
     };
 
     await expect(handleSessionRoute(ws, { type, payload: {} }, h)).resolves.toBe(true);

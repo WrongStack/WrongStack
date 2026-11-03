@@ -57,6 +57,7 @@ export function MachinesView(): ReactNode {
   const { items, outside } = useAttentionQueue();
   const all = useMemo(() => [...items, ...outside], [items, outside]);
   const everyMachine = useMemo(() => machineSummaries(snapshot, all), [snapshot, all]);
+  const scope = useFleetScope();
   const counts = useMemo(() => labelCounts(everyMachine), [everyMachine]);
   const labelParam = params.get('label');
   const label = counts.some((entry) => entry.label === labelParam) ? labelParam : null;
@@ -106,7 +107,22 @@ export function MachinesView(): ReactNode {
         </div>
       </header>
 
-      <LabelFilter counts={counts} current={label} hrefFor={hrefFor} />
+      <div className="flex flex-wrap items-center gap-3">
+        <LabelFilter counts={counts} current={label} hrefFor={hrefFor} />
+        {label !== null && (
+          <button
+            type="button"
+            onClick={() => setFleetScope({ kind: 'label', id: label })}
+            disabled={scope.kind === 'label' && scope.id === label}
+            className="inline-flex h-8 items-center gap-2 border border-border px-2.5 text-sm hover:bg-muted disabled:opacity-60"
+          >
+            <Crosshair className="size-4" />
+            {scope.kind === 'label' && scope.id === label
+              ? `HQ is scoped to ${label} machines`
+              : `Scope HQ to ${label} machines`}
+          </button>
+        )}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <ul className="flex flex-col gap-2" aria-label="Machines">

@@ -31,7 +31,9 @@ export function useStoredScope(): FleetScope {
       ? { kind: 'machine', id: fleet.machineId }
       : fleet.scope === 'project'
         ? { kind: 'project', id: fleet.projectId }
-        : ALL_SCOPE;
+        : fleet.scope === 'label'
+          ? { kind: 'label', id: fleet.label }
+          : ALL_SCOPE;
   }, [fleet, surface]);
 }
 
@@ -48,6 +50,7 @@ export function setFleetScope(scope: FleetScope, surface: HqSurface = 'desktop')
     setHqFleetPrefs({ phoneScope: scope.kind, phoneScopeId: scope.kind === 'all' ? '' : scope.id });
   } else if (scope.kind === 'machine') setHqFleetPrefs({ scope: 'machine', machineId: scope.id });
   else if (scope.kind === 'project') setHqFleetPrefs({ scope: 'project', projectId: scope.id });
+  else if (scope.kind === 'label') setHqFleetPrefs({ scope: 'label', label: scope.id });
   else setHqFleetPrefs({ scope: 'all' });
 }
 

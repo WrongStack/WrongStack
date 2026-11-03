@@ -46,7 +46,7 @@
     "@wrongstack/core/execution": {
       "files": 109,
       "typeOnly": 25,
-      "runtimeOrMixed": 100
+      "runtimeOrMixed": 98
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -74,9 +74,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/models": {
-      "files": 45,
+      "files": 46,
       "typeOnly": 11,
-      "runtimeOrMixed": 35
+      "runtimeOrMixed": 36
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 192,
+      "files": 196,
       "typeOnly": 79,
-      "runtimeOrMixed": 116
+      "runtimeOrMixed": 120
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -131,7 +131,7 @@
     "@wrongstack/core/security": {
       "files": 263,
       "typeOnly": 26,
-      "runtimeOrMixed": 240
+      "runtimeOrMixed": 239
     },
     "@wrongstack/core/session-catalog": {
       "files": 18,
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 948,
+      "files": 951,
       "typeOnly": 69,
-      "runtimeOrMixed": 916
+      "runtimeOrMixed": 917
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -3978,7 +3978,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/tools/src/management/council-tool.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -4919,6 +4919,12 @@
     {
       "specifier": "@wrongstack/core/models",
       "file": "packages/providers/tests/overlay-invalidation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/providers/tests/trusted-presets.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6238,6 +6244,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/coordination/tests/tool-contract-governance.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/fleet/src/host-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6556,6 +6568,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tools/src/tool-catalog.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tools/src/tool-tier.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6587,6 +6605,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/tools/tests/management/plugin-manager.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/tools/tests/tool-contract-governance.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6811,6 +6835,12 @@
       "file": "packages/webui-server/src/server/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/introspection-routes.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8094,7 +8124,7 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/management/plugin-manager.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -11650,6 +11680,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/sage-mcp-owner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/commit-message.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12551,6 +12587,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/sage-doctor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/sage-service.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14398,6 +14440,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/src/wrongmemory-port.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/tests/injected-evidence-freshness.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15006,7 +15054,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/management/mcp-control.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

@@ -121,6 +121,8 @@ export function makeSpawnTool(
   };
   return {
     name: 'spawn_subagent',
+    cost: { kind: 'paid', fanOut: true },
+    retrySafe: false,
     description:
       'Create a new subagent under this director (own LLM context, own budget). NON-BLOCKING: returns a `subagentId` immediately without triggering any model call. Pair with `assign_task` to send work and `await_tasks` to retrieve the result later — this is the async-delegation pattern that lets the leader keep working while the subagent runs in its own context.',
     usageHint:

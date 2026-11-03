@@ -72,6 +72,7 @@
     "collapseInput": "Contraer",
     "startListening": "Entrada de voz (Voz a texto)",
     "stopListening": "Escuchando... (Haz clic para detener)",
+    "runSettings": "Configuración de ejecución",
     "promptsMenu": "Prompts"
   },
   "header": {

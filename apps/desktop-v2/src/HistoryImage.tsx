@@ -60,11 +60,7 @@ export function HistoryImage({
       <strong>Image attachment</strong>
       <span>{mediaType}</span>
       {image ? (
-        <img
-          className="history-image"
-          src={image}
-          alt={`Retained image attachment, ${mediaType}`}
-        />
+        <img className="history-image" src={image} alt={`Retained attachment, ${mediaType}`} />
       ) : (
         <button
           type="button"

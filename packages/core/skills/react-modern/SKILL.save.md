@@ -1,11 +1,11 @@
 # Modern React (Compact)
 
-<!-- source-version: 2.1.2 -->
+<!-- source-version: 2.2.1 -->
 
 ## Selection card
 - Task: React component state, forms and hooks. / TR: React bileşen durumu, form ve hook.
-- Start: Locate the affected route/component and its runtime/lockfile.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read the component, its parents and the React version and framework setup (Vite, Next.js, Remix or other).
+- Finish: The component behaves correctly in tests or the browser with no new effect loops, key warnings or hydration errors.
 
 ## Overview
 

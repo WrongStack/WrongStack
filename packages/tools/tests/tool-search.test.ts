@@ -11,6 +11,34 @@ const executeToolSearch = (
 ) => toolSearchTool.execute(input, ctx, { signal: new AbortController().signal });
 
 describe('toolSearchTool', () => {
+  it('finds old names and renders lifecycle, cost and recovery guidance on demand', async () => {
+    const ctx = makeCtx([
+      {
+        name: 'canonical',
+        aliases: ['old_name'],
+        description: 'A fixture.',
+        permission: 'confirm',
+        mutating: true,
+        inputSchema: { type: 'object' },
+        deprecated: { since: '1.4', replacedBy: 'replacement' },
+        cost: { kind: 'paid', fanOut: true },
+        retrySafe: false,
+        preconditions: ['Index ready'],
+      },
+    ]);
+    const output = await executeToolSearch({ query: 'old_name' }, ctx);
+    expect(output.tools[0]).toMatchObject({
+      name: 'canonical',
+      aliases: ['old_name'],
+      cost: { kind: 'paid' },
+      retrySafe: false,
+      preconditions: ['Index ready'],
+    });
+    const rendered = toolSearchTool.serialize!(output, { query: 'old_name' });
+    expect(rendered).toContain('replacement');
+    expect(rendered).toContain('paid');
+    expect(rendered).toContain('Index ready');
+  });
   it('has correct metadata', () => {
     expect(toolSearchTool.name).toBe('tool_search');
     expect(toolSearchTool.permission).toBe('auto');

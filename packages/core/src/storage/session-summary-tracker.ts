@@ -107,7 +107,7 @@ export class SessionSummaryTracker {
    * pretending the session ended cleanly.
    */
   snapshot(): SessionSummary {
-    const { lastUserMessage: _lastUserMessage, ...rest } = this.summary;
+    const { lastUserMessage: _lastUserMessage, outcome: _outcome, ...rest } = this.summary;
     return {
       ...rest,
       messageCount: this.messageCount,
@@ -242,7 +242,11 @@ export class SessionSummaryTracker {
     this.tokenIn = 0;
     this.tokenOut = 0;
     this.baseTokenTotal = 0;
-    const { lastUserMessage: _lastUserMessage, ...summaryWithoutPreview } = this.summary;
+    const {
+      lastUserMessage: _lastUserMessage,
+      outcome: _outcome,
+      ...summaryWithoutPreview
+    } = this.summary;
     this.summary = {
       ...summaryWithoutPreview,
       title: '(empty session)',

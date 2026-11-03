@@ -1,9 +1,10 @@
 ---
 name: audit-log
 description: |
+  WrongStack session journal forensics: tool failures, token spend, cache hit rate, compactions, delegations, loops and errors.
   Use this skill when analyzing WrongStack session journals to explain what happened in a session — tool usage and failures, token spend and cache efficiency, compactions, delegations, loops, and errors.
   Triggers: user says "audit", "session analysis", "analyze the session", "log analysis", "why did this session cost so much", "token usage", "what went wrong in that run", "usage patterns".
-version: 2.1.1
+version: 2.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [execution.shell, code.inspect]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Inspect session journal evidence and provenance.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Locate the journal files for the session in question and confirm their time range and session id.
+- Finish: The report explains what happened with counts and quoted journal evidence: tool failures, token and cache numbers, compactions, delegations and loops.
 
 ## Overview
 

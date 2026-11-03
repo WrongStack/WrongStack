@@ -7,6 +7,7 @@ import {
   ShieldOff,
   SlidersHorizontal,
   Sparkles,
+  WifiOff,
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -140,6 +141,11 @@ export function WelcomeScreen() {
   const bugOpen = fullChrome || openLauncher === 'bug' || bugHuntState !== 'idle';
   const perfOpen = fullChrome || openLauncher === 'perf' || perfState !== 'idle';
   const scopeDirectories = directoryPaths(projectTree);
+  const heroSubtitle = !wsConnected
+    ? t('setup:welcome.heroSubtitleDisconnected')
+    : savedCount === 0
+      ? t('setup:welcome.heroSubtitleNeedsProvider')
+      : t('setup:welcome.heroSubtitle');
   useEffect(() => {
     if (!wsConnected) return;
     const client = getWSClient(wsUrl);
@@ -327,8 +333,18 @@ Record the baseline, every attempt, and every keep/revert verdict in \`PERF_LOG.
               : t('setup:welcome.heroTitle')}
           </h2>
           <p className="mt-3 max-w-md text-sm text-muted-foreground leading-relaxed">
-            {t('setup:welcome.heroSubtitle')}
+            {heroSubtitle}
           </p>
+          {!wsConnected && (
+            <button
+              type="button"
+              onClick={() => getWSClient(wsUrl).retryNow()}
+              className="mt-4 inline-flex min-h-9 items-center gap-2 border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15 pointer-coarse:min-h-11"
+            >
+              <WifiOff className="h-4 w-4" aria-hidden />
+              {t('setup:welcome.reconnect')}
+            </button>
+          )}
           <div className="ws-welcome-meta">
             {provider && model && (
               <p>

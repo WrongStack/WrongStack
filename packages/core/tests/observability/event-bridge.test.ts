@@ -230,7 +230,7 @@ describe('wireMetricsToEvents', () => {
     bus.emit('tool.executed', { id: 't1', name: 'read', durationMs: 25, ok: true });
     bus.emit('tool.executed', { id: 't2', name: 'bash', durationMs: 100, ok: false });
     const usage = handle.getToolUsage();
-    expect(usage.get('read')?.invocations).toBe(2);
+    expect(usage.get('read')?.invocations).toBe(1);
     expect(usage.get('read')?.failures).toBe(0);
     expect(usage.get('read')?.durationMsTotal).toBe(25);
     expect(usage.get('bash')?.invocations).toBe(1);
@@ -246,7 +246,7 @@ describe('wireMetricsToEvents', () => {
     bus.emit('tool.started', { name: 'mcp__srv__tool', id: 't1' });
     bus.emit('tool.executed', { id: 't1', name: 'mcp__srv__tool', durationMs: 5, ok: true });
     const usage = handle.getToolUsage();
-    expect(usage.get('mcp_proxy')?.invocations).toBe(2);
+    expect(usage.get('mcp_proxy')?.invocations).toBe(1);
     expect(usage.has('mcp__srv__tool')).toBe(false);
     handle.dispose();
   });

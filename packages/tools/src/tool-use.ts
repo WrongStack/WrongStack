@@ -67,7 +67,9 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
       throw new ToolValidationError({ message: 'tool_use: tool name is required', field: 'tool' });
     }
 
-    const tool = (ctx.catalogTools ?? ctx.tools).find((t: Tool) => t.name === input.tool);
+    const tool = (ctx.catalogTools ?? ctx.tools).find(
+      (t: Tool) => t.name === input.tool || t.aliases?.includes(input.tool),
+    );
     if (!tool) {
       throw new ToolValidationError({
         message: `tool_use: tool "${input.tool}" not found`,
@@ -96,6 +98,8 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
     const caller = (ctx as { nestedToolCall?: NestedToolCaller | undefined }).nestedToolCall;
     if (caller) {
       const nested = await caller({
+        // Keep the requested alias in the journal; the registry resolves it
+        // to canonical metadata before reachability and permission checks.
         name: input.tool,
         input: input.input ?? {},
         parentToolUseId: opts?.toolUseId ?? `tool-use-${start.toString(36)}`,
@@ -119,7 +123,7 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
       throw new Error('tool_use: governed nested execution is unavailable; call the tool directly');
     }
 
-    const result = await governedExecute(input.tool, input.input ?? {});
+    const result = await governedExecute(tool.name, input.input ?? {});
     if (!result.success) {
       throw new Error(`tool_use: "${input.tool}" failed: ${result.error ?? 'nested tool failed'}`);
     }

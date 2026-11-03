@@ -271,7 +271,9 @@ export function makeTerminateTool(director: Pick<Host.DirectorLifecyclePort, 'te
     name: 'terminate_subagent',
     description:
       'Forcibly abort a subagent. The subagent finishes its current iteration then exits with status "stopped".',
-    permission: 'auto',
+    usageHint:
+      'Stop only the specified subagent in this fleet. In-flight work may be interrupted; inspect fleet state before choosing the target.',
+    permission: 'confirm',
     mutating: true,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
     inputSchema: {
@@ -298,8 +300,12 @@ export function makeTerminateAllTool(
       '"aborted_by_parent" completion immediately. ' +
       'Use this when the fleet is wedged, looping, or you need a clean slate. ' +
       'Compare: work_complete stops spawning but lets running agents finish naturally.',
-    permission: 'auto',
+    usageHint:
+      'Stops every agent in this fleet and drains pending work. Use work_complete to let running work finish; use terminate_subagent to stop only one agent.',
+    permission: 'confirm',
     mutating: true,
+    riskTier: 'destructive',
+    retrySafe: false,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
     inputSchema: { type: 'object', properties: {}, required: [] },
     async execute() {

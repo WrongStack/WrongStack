@@ -1,7 +1,7 @@
 ---
 name: multi-agent
-description: "Coordinate authorized independent agent subtasks with explicit scopes, ownership and evidence. Use when delegation, a fleet, parallel agent work or result synthesis is requested or appropriate under host instructions; keep sequential or small work in one agent."
-version: 2.1.1
+description: "Multi-agent work: delegate subtasks, run parallel agents or a fleet, brief workers, partition file ownership and merge results. Use when delegation, a fleet, parallel agent work or result synthesis is requested or appropriate under host instructions; keep sequential or small work in one agent."
+version: 2.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [verification.run, web.research, filesystem.write, fleet.delegate]
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Plan coordinated work when delegation is authorized.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Split the work into independent subtasks with explicit file ownership and acceptance criteria before spawning any agent.
+- Finish: Every delegated result was checked against its criteria and integrated, conflicts resolved, and no agents are left running.
 
 ## Overview
 

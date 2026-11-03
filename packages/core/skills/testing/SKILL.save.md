@@ -1,11 +1,11 @@
 # Testing (Compact)
 
-<!-- source-version: 2.2.2 -->
+<!-- source-version: 2.2.4 -->
 
 ## Selection card
 - Task: Write meaningful behavior and regression tests. / TR: Anlamlı davranış ve regresyon testleri yaz.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Find the project's test runner, a neighbouring test and how CI runs the suite.
+- Finish: New or fixed tests fail without the change, pass with it, and run deterministically in the project's own runner.
 
 ## Overview
 

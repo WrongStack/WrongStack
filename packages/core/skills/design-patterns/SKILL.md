@@ -1,28 +1,28 @@
 ---
 name: design-patterns
-description: |
-  Model-independent catalog of UI design patterns, each expressed as anatomy, measurable ranges, use/avoid conditions, failure modes, acceptance checks and layout signals with a stable kebab-case id. Use to choose or adapt a layout, page section, navigation, data display, form flow or feedback state, and to name a pattern seen on a reference site.
-  Triggers: "which layout should I use", "which pattern fits", "pattern for X", "landing page structure", "hero section", "pricing page", "dashboard layout", "admin console", "settings page", "onboarding flow", "checkout flow", "empty state", "loading state", "toast or banner", "bento grid", "sidebar or top nav", "command palette", "what pattern is this site using", "identify the layout of this reference".
-version: 1.0.1
+description: "UI pattern catalog by stable id: app shells, landing sections, navigation, tables, forms, wizards, empty, loading and error states. Use to choose or adapt a layout, page section, navigation, data display, form flow or feedback state — hero, pricing page, dashboard, admin console, settings, onboarding, checkout, toast vs banner, bento grid, sidebar vs top nav, command palette — or to name the pattern a reference site uses. Not for visual styling (use design-craft) or tokens (use design-system)."
+version: 1.0.3
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [web.research, browser.interact]
-trigger: "Choose, adapt, verify or identify a UI design pattern (layout, landing section, navigation, data display, form flow, feedback state) by stable id with measurable anatomy and acceptance checks."
+trigger: "Use when a region's structure must be chosen, adapted, verified or identified by a stable pattern id with measurable checks."
 metadata:
   routing-group: design
 ---
 
 # Design Patterns — WrongStack
 
+## Selection card
+- Task: Pick, adapt, verify or identify a UI pattern for a concrete surface.
+- Start: Split the surface into regions and write, per region, the one-line job, the content shape and the density it needs.
+- Finish: One pattern id per region, adapted only along its declared Variables, passing its Accept checks.
+
+## Overview
+
 A pattern is a solved arrangement for a recurring job. This catalog describes each
 one with numbers and observable checks instead of adjectives, so the same pattern
 produces the same structure whichever model applies it. It decides *structure*;
 visual direction, type, color and copy stay with the sibling skills.
-
-## Selection card
-- Task: Pick, adapt, verify or identify a UI pattern for a concrete surface.
-- Start: Name the user task, the content shape and the density the surface needs.
-- Finish: One pattern id per region, adapted only along its declared Variables, passing its Accept checks.
 
 ## How this skill relates to the design series
 

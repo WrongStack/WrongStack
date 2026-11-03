@@ -548,4 +548,27 @@ describe('SessionMemoryConsolidator operations', () => {
     expect(stderr).not.toHaveBeenCalledWith(expect.stringContaining('deleted'));
     expect(stderr).not.toHaveBeenCalledWith(expect.stringContaining('edited'));
   });
+
+  it('consolidates via oneShotOrchestrator even when no direct provider is supplied', async () => {
+    const oneShotOrchestrator = {
+      call: vi.fn(async () => ({
+        text: JSON.stringify({
+          operations: [{ action: 'add', text: 'fact via oneShotOrchestrator', type: 'fact' }],
+        }),
+      })),
+    };
+    const c = new SessionMemoryConsolidator({
+      memoryStore: store,
+      oneShotOrchestrator: oneShotOrchestrator as never,
+    });
+
+    await c.afterRun(ctx(), result());
+
+    expect(oneShotOrchestrator.call).toHaveBeenCalledTimes(1);
+    expect(store.remember).toHaveBeenCalledWith(
+      'fact via oneShotOrchestrator',
+      undefined,
+      expect.objectContaining({ type: 'fact' }),
+    );
+  });
 });

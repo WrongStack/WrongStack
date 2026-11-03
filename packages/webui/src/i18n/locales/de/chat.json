@@ -72,6 +72,7 @@
     "collapseInput": "Einklappen",
     "startListening": "Spracheingabe (Speech to text)",
     "stopListening": "Zuhören... (Zum Stoppen klicken)",
+    "runSettings": "Ausführungseinstellungen",
     "promptsMenu": "Prompts"
   },
   "header": {

@@ -15,7 +15,7 @@ import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { HQ_PROTOCOL_VERSION, type HqSnapshot } from '@wrongstack/hq';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { resolveHqDistDir } from '../src/hq-static-serve.js';
 import { CLI_VERSION } from '../src/version.js';
@@ -24,6 +24,12 @@ import { WebSocket } from '../src/ws-runtime.js';
 const E2E = process.env.WSTACK_E2E === '1';
 
 describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
+  // A real browser against a real server: right after a heavy test run a
+  // render can take longer than the 1 s `expect.poll` default. Waiting longer
+  // changes no assertion, only how long a correct page may take to appear.
+  beforeAll(() => vi.setConfig({ expect: { poll: { timeout: 5_000 } } }));
+  afterAll(() => vi.resetConfig());
+
   it('renders every view of the built panel with live data', { timeout: 360_000 }, async () => {
     expect(
       resolveHqDistDir(),
@@ -861,7 +867,26 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         '1 of 1 lab machine online',
       );
       await shot('17-machines');
+      // The label becomes a scope for the whole of HQ, then back to the fleet.
+      await main.getByRole('button', { name: 'Scope HQ to lab machines' }).click();
+      await expect
+        .poll(() => page.getByTestId('scope-picker').textContent())
+        .toContain('lab machines');
+      await page.getByTestId('scope-picker').click();
+      await page.getByRole('menuitem', { name: 'Whole fleet' }).click();
+      await expect.poll(() => page.getByRole('menu').count()).toBe(0);
       await page.goto(`${base}/fleet/machines/`);
+
+      // Fleet health: both machines side by side, the filling lab disk on top.
+      await page.goto(`${base}/fleet/health/`);
+      const firstRow = main.locator('[data-health-row]').first();
+      await firstRow.waitFor({ timeout: 10_000 });
+      await expect.poll(() => firstRow.getAttribute('data-health-row')).toBe('host:lab-02');
+      await expect
+        .poll(() => firstRow.textContent())
+        .toMatch(/Full (within a day|in about \d+ days?)/);
+      expect(await main.locator('[data-health-row]').count()).toBe(2);
+      await shot('17b-fleet-health');
 
       // The drift reaches the attention queue as one fleet-wide item.
       await page.goto(`${base}/`);
@@ -1138,6 +1163,14 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         expect(hooks[0]).toMatchObject({ title: 'WrongStack HQ test notification' });
         await expect.poll(async () => channel.textContent()).toContain('Test message delivered.');
         await shot('22-notifications');
+        // Limit the channel to the lab machines; the fleet-wide budget alert
+        // below must still reach it (it is about no single machine).
+        await channel.getByRole('button', { name: 'Change' }).click();
+        await channel.getByRole('textbox').fill('lab');
+        await channel.getByRole('button', { name: 'Save' }).click();
+        await expect
+          .poll(() => channel.getByTestId('channel-machines').textContent())
+          .toContain('Only lab machines');
 
         // A daily budget on the lab project, which already spent $0.25: the
         // next alert check fires it, the channel is told, and the alert

@@ -10,6 +10,7 @@ import { initSchema, SQLITE_SCHEMA_VERSION } from './sqlite-store-schema.js';
 import { normalizeTextKey } from './store-helpers.js';
 import type { Sage, SageManifest } from './types.js';
 import { SAGE_SCHEMA_VERSION } from './types.js';
+import { assertStoreNotOwnedByWrongMemory } from './wrongmemory-owner-guard.js';
 
 type SqliteStatement = ReturnType<DatabaseSync['prepare']>;
 
@@ -23,6 +24,8 @@ export async function initializeSqliteSageStore(input: {
 }): Promise<void> {
   const { paths, now, stmt, setDb, syncAnchorEdges, migrateFromJsonl } = input;
   await ensureDir(paths.rootDir);
+  // WM-107: never a second writer next to a live WrongMemory owner.
+  assertStoreNotOwnedByWrongMemory(paths.rootDir);
   const dbPath = path.join(paths.rootDir, 'sage.db');
   const DBCtor = loadDatabaseSync();
   const db = new DBCtor(dbPath);

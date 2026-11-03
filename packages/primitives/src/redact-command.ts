@@ -36,11 +36,19 @@
  *     re-admits are cosmetic next to that.
  *
  * Both profiles share one separator rule: the separator is the FIRST character
- * after the flag name, and it may be `=`, whitespace, `:` or `,` — the last two
- * being separators the pattern lists already declare (`(?:[=\s,][^\s]*)?`,
- * `[=\s,][A-Za-z0-9+/=]{32,}`, `\s*[=:]`). Deriving it from the flag-name
+ * after the flag name, and it may be `=`, whitespace, `:` or `,` — every one of
+ * them declared in the pattern lists' separator class (`(?:[=\s,:][^\s]*)?`,
+ * `[=\s,:][A-Za-z0-9+/=]{32,}`, `\s*[=:]`). Deriving it from the flag-name
  * boundary rather than from delimiter precedence is what keeps a colon inside a
  * value from being read as the separator.
+ *
+ * `:` belongs in the PATTERN class, not only in the boundary rule: with
+ * `--password:hunter2` excluded from the named-flag match, the match collapsed
+ * to the bare flag name, whose boundary is `''` — so neither profile took the
+ * separator branch. The command profile printed the value verbatim, and the
+ * outbound profile wiped the flag name into `**redacted**` and left
+ * `:hunter2` behind, which is the worst shape: text that reads as redacted
+ * while the credential is still on the wire.
  *
  * This module must stay dependency-free: `@wrongstack/primitives` is a
  * dependency leaf and is imported by the lowest tiers of the workspace graph.
@@ -117,7 +125,7 @@ const OUTBOUND_SHORT_FLAG_SECRET_PATTERN =
   /(?<![-\w])-(?:password|p|a)(?:[=\s]+)?(?:"[^"\n]*"|'[^'\n]*'|[^\s,]+)/gi;
 /** Shared: high-entropy value behind a secret-looking flag name. */
 const HIGH_ENTROPY_FLAG_PATTERN =
-  /--[\w-]*(?:token|key|secret|password|passwd|auth|credential)[\w-]*[=\s,]\s*[A-Za-z0-9+/=]{32,}/g;
+  /--[\w-]*(?:token|key|secret|password|passwd|auth|credential)[\w-]*[=\s,:]\s*[A-Za-z0-9+/=]{32,}/g;
 /**
  * Shared: an HTTP Authorization header value (`curl -H "Authorization: Bearer
  * …"`, `Basic …`, `token …`) — the most common way a credential sits on a
@@ -198,7 +206,7 @@ const COMMAND_PATTERNS: readonly RegExp[] = [
   // space, or the whole quoted value).
   // `\s*` after the separator: `--password   hunter2` must not match only the
   // first space and leave the value to be printed.
-  new RegExp(`--(?:[\\w-]+-)?(?:${KEYWORDS})(?:[=\\s,]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`, 'gi'),
+  new RegExp(`--(?:[\\w-]+-)?(?:${KEYWORDS})(?:[=\\s,:]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`, 'gi'),
   SHORT_FLAG_TOKEN_PATTERN,
   SHORT_FLAG_SECRET_PATTERN,
   // env var–style secrets: TOKEN=x, API_KEY=y, TOKEN:z, PASSWORD="x y", …
@@ -219,7 +227,7 @@ const COMMAND_PATTERNS: readonly RegExp[] = [
 const OUTBOUND_PATTERNS: readonly RegExp[] = [
   // Same named long flags plus DATABASE_URL / CONNECTION_STRING spellings.
   new RegExp(
-    `--(?:[\\w-]+-)?(?:${KEYWORDS}|database[-_]?url|connection[-_]?string)(?:[=\\s,]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`,
+    `--(?:[\\w-]+-)?(?:${KEYWORDS}|database[-_]?url|connection[-_]?string)(?:[=\\s,:]\\s*(?:${QUOTED_VALUE}|[^\\s]*))?`,
     'gi',
   ),
   // Glued short forms match here too, closing the `curl -tSECRET` /

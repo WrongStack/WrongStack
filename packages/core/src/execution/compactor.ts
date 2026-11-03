@@ -93,9 +93,12 @@ export class HybridCompactor implements Compactor {
     if (elide.saved > 0) reductions.push({ phase: 'elision', saved: elide.saved });
 
     // Phase 1b: collapse superseded repeated reads that slipped under eliseThreshold.
-    const dedup = dedupStaleReads(ctx.messages, ctx.contextEvidence?.repeatedReads ?? [], {
-      preserveK,
-    });
+    const dedup = dedupStaleReads(
+      ctx.messages,
+      ctx.contextEvidence?.repeatedReads ?? [],
+      { preserveK },
+      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k)),
+    );
     if (dedup.changed) ctx.state.replaceMessages(dedup.messages);
     if (dedup.saved > 0) reductions.push({ phase: 'elision', saved: dedup.saved });
 

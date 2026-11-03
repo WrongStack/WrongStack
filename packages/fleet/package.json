@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/fleet",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "license": "MIT",
   "description": "WrongStack multi-agent fleet host: MultiAgentHost, the delegation runtime, ACP and WrongForge workers, and the explore, memory and skill companions. Built on @wrongstack/coordination and @wrongstack/core.",

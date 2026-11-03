@@ -2,7 +2,7 @@
 
 Updated: 2026-11-02. This is the handoff for the next implementation agent.
 
-## Release status (2026-11-02)
+## Release status (2026-11-03)
 
 Desktop v2 is feature-complete for its first release. The release build with the bundled engine
 ran the full native matrix, the default suite and all 35 scope flags: 33 of 36 passed first, the
@@ -11,12 +11,20 @@ three failures led to the fixes recorded in the validation log ("Release-build n
 intermittent close of the refinement review after "Refine again", recorded there and not yet
 explained. The intermittent `files.tree` timeouts are explained and fixed (replies behind a
 journal replay), and views of one project now share one journal reader. The full matrix on the
-build with that reader passed 36 of 36 (2026-11-02), under unrelated heavy load. The backlog below is depth work for later releases, not a release blocker.
+build with that reader passed 36 of 36 (2026-11-02), under unrelated heavy load. The backlog
+below is depth work for later releases, not a release blocker.
 
-What remains before publishing, and needs the owner's authorization:
+The Desktop v2 source shipped in WrongStack 1.4.0 (tag `v1.4.0` on `c3e7f9efe`, GitHub Release
+2026-11-02 with the eight `wstack` binaries, both installers and `SHA256SUMS`). `release:check`
+passed 18 of 19 gates on that commit; coverage failed a different set of four to seven
+timing-sensitive tests in each of three runs on a saturated machine (CPU 83 to 99 %), and every
+failing test passed three times in isolation. CI's release gate passed on Linux.
 
-- Signed installer/update artifacts and the hosted release pipeline (`release-check`, tag push;
-  release is binary-only).
+What remains, and needs the owner:
+
+- The desktop app is not a release asset yet: it is built locally (`bun run desktop:v2:build`,
+  portable under `apps/desktop-v2/dist-native/`). Signed installer and update artifacts and a
+  release job that builds them are still to come.
 - Manual passes the harness cannot do: a real microphone for dictation, a screen reader, and
   long localized labels.
 

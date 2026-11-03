@@ -242,10 +242,58 @@ export function isLoopbackHost(host: string): boolean {
     // The entire 127.0.0.0/8 block is loopback, not just 127.0.0.1.
     return normalized.startsWith('127.');
   }
-  if (family === 6) {
-    // ::1 is the IPv6 loopback address. Also accept the IPv4-mapped
-    // form ::ffff:127.x.x.x which resolves to loopback on dual-stack.
-    return normalized === '::1' || /^::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
+  if (family === 6) return isLoopbackIPv6(normalized);
+  return false;
+}
+
+/**
+ * True for every legal loopback spelling of an IPv6 host.
+ *
+ * `::1` has aliases that a string comparison misses and that callers really
+ * hand us: the expanded `0:0:0:0:0:0:0:1`, and the IPv4-mapped form of
+ * 127.0.0.1 — written dotted by a user, but serialised in hex by the WHATWG
+ * URL parser (`new URL('http://[::ffff:127.0.0.1]/').hostname` gives
+ * `[::ffff:7f00:1]`), which is exactly how `settings.ts` (endpoint
+ * validation) and `webui-server`'s `ws-auth.ts` (Host/Origin guard) obtain the
+ * hostname. Comparing the literal text treated those local endpoints and
+ * origins as remote.
+ */
+function isLoopbackIPv6(normalized: string): boolean {
+  // A dotted IPv4 tail (`::ffff:127.0.0.1`) is legal IPv6 that `expandIPv6`
+  // cannot parse — its groups must be hex. Expand the prefix with the two
+  // zero groups the quad replaces, then require the mapped shape.
+  const lastColon = normalized.lastIndexOf(':');
+  if (normalized.indexOf('.', lastColon) !== -1) {
+    const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(
+      normalized.slice(lastColon + 1),
+    );
+    const prefix = expandIPv6(`${normalized.slice(0, lastColon + 1)}0:0`);
+    return (
+      octets !== null &&
+      octets[1] === '127' &&
+      prefix !== null &&
+      prefix[0] === 0 &&
+      prefix[1] === 0 &&
+      prefix[2] === 0 &&
+      prefix[3] === 0 &&
+      prefix[4] === 0 &&
+      prefix[5] === 0xffff
+    );
+  }
+  const groups = expandIPv6(normalized);
+  if (groups === null) return false; // net.isIP() accepted it; stay conservative
+  // ::1 in any legal spelling.
+  if (groups.slice(0, 7).every((group) => group === 0) && groups[7] === 1) return true;
+  // IPv4-mapped ::ffff:a.b.c.d — loopback only when the embedded IPv4 is 127/8.
+  if (
+    groups[0] === 0 &&
+    groups[1] === 0 &&
+    groups[2] === 0 &&
+    groups[3] === 0 &&
+    groups[4] === 0 &&
+    groups[5] === 0xffff
+  ) {
+    return quad(groups[6], groups[7]).startsWith('127.');
   }
   return false;
 }

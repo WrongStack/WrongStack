@@ -1,0 +1,1543 @@
+{
+  "schemaVersion": 1,
+  "source": "explicit-journal-sample",
+  "sampledSessions": 20,
+  "window": {
+    "from": "2026-10-01T00:00:00.000Z",
+    "to": "2026-10-31T23:59:59.999Z"
+  },
+  "unrecognizedCalls": 0,
+  "unsettledCalls": 0,
+  "tools": [
+    {
+      "name": "agent_model_assign",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "ask_result",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "ask_subagent",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "assign_task",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "audit",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "await_tasks",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_click",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_close",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_drag",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_evaluate",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_hover",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_list",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_navigate",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_open",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_press",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_screenshot",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_select",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_snapshot",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_type",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_upload",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "browser_wait",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "checkpoint_create",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "checkpoint_list",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "checkpoint_restore",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "clarify",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-ast-replace",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-atlas",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-context",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-diff-impact",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-flow-trace",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-impact-analysis",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-index",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-invariant-check",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-lsp-search",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-onboard",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-outgoing-calls",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-read-symbol",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-repo-map",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-search",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-skeleton",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-stats",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-targeted-test",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "collab_debug",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "config_validator_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "context_manager",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "council",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "coverage_gate_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "cron_cancel",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "cron_list",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "cron_schedule",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "dead-code-fix",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "define_subagent",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "delegate",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "dep_guard_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "design",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "design_reference",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "diff",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "e2e_plan",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "error_lens_history",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "exec",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fallback_chain_manage",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fallback_profile_manage",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "favorite_manage",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fetch",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "find_related_memories",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "flake_detect",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "flake_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fleet",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fleet_emit",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "fleet_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "forget",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "format",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "git",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "git_autocommit",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "gitignore_guard_append",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "gitignore_guard_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "handoff_note",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "handoff_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "image_generate",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "injection_shield_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "install",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "jev_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "json",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "kanban",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "kanban_queue",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "language",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "language_info",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "language_package",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "leader_effort_set",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "leader_model_set",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "leader_tier_set",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lint",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lint_gate_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "llm",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "logs",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "loop_breaker_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_code_actions",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_completion",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_definition",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_diagnostics",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_execute_command",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_hover",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_references",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_rename",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_request",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "lsp_symbols",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mail_inbox",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mail_send",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mailbox",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mcp_control",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mcp_use",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_backfill_recoverable",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_candidates",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_delete",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_for_file",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_for_path",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_gather_batch",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_graph",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_hygiene",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_recover",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_search",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_search_explain",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_update",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "memory_verify",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "mutation_test",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "nextsteps",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "outdated",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "patch",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "pin_add",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "pin_list",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "pin_remove",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "plan",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "plugin_manager",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "present_artifact",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "process_guard_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "project_kit",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "project_kit_run",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "prompt_firewall_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "provider_key_set",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "provider_manage",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "quality_gate",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "read_url_content",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "replace",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "roll_up",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "search",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "search_memory",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "secret_scanner_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "secret_scanner_test",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "security-ast-scan",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "semver_bump",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "semver_changelog",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "semver_current",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "session_note",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "session_recap_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "session_rename",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "spawn_subagent",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "system_config_view",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "task",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "telegram_approve",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "telegram_read",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "telegram_send",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "terminate_all",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "terminate_subagent",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "test",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "test_impact_analyze",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "todo",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "todo_listener_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "tool_script",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "tree",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "type_gate_status",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "typecheck",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "watch_list",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "watch_start",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "watch_stop",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "work_complete",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "workspace_health_analyze",
+      "invocations": 0,
+      "failures": 0,
+      "sessions": 0,
+      "lastInvokedAt": null,
+      "observation": "not-observed"
+    },
+    {
+      "name": "codebase-incoming-calls",
+      "invocations": 1,
+      "failures": 0,
+      "sessions": 1,
+      "lastInvokedAt": "2026-10-31T10:24:13.565Z",
+      "observation": "observed"
+    },
+    {
+      "name": "dead-code-scan",
+      "invocations": 1,
+      "failures": 0,
+      "sessions": 1,
+      "lastInvokedAt": "2026-10-31T10:17:17.368Z",
+      "observation": "observed"
+    },
+    {
+      "name": "remember",
+      "invocations": 1,
+      "failures": 0,
+      "sessions": 1,
+      "lastInvokedAt": "2026-10-29T20:25:52.142Z",
+      "observation": "observed"
+    },
+    {
+      "name": "tool_use",
+      "invocations": 3,
+      "failures": 0,
+      "sessions": 2,
+      "lastInvokedAt": "2026-10-31T10:24:13.766Z",
+      "observation": "observed"
+    },
+    {
+      "name": "glob",
+      "invocations": 12,
+      "failures": 0,
+      "sessions": 5,
+      "lastInvokedAt": "2026-10-31T15:48:18.088Z",
+      "observation": "observed"
+    },
+    {
+      "name": "tool_search",
+      "invocations": 19,
+      "failures": 0,
+      "sessions": 4,
+      "lastInvokedAt": "2026-10-31T15:51:51.909Z",
+      "observation": "observed"
+    },
+    {
+      "name": "write",
+      "invocations": 50,
+      "failures": 0,
+      "sessions": 5,
+      "lastInvokedAt": "2026-10-31T15:54:29.063Z",
+      "observation": "observed"
+    },
+    {
+      "name": "pwsh",
+      "invocations": 51,
+      "failures": 0,
+      "sessions": 2,
+      "lastInvokedAt": "2026-10-31T12:04:40.256Z",
+      "observation": "observed"
+    },
+    {
+      "name": "skill",
+      "invocations": 62,
+      "failures": 0,
+      "sessions": 5,
+      "lastInvokedAt": "2026-10-31T12:01:30.945Z",
+      "observation": "observed"
+    },
+    {
+      "name": "edit",
+      "invocations": 82,
+      "failures": 1,
+      "sessions": 5,
+      "lastInvokedAt": "2026-10-31T15:55:07.733Z",
+      "observation": "observed"
+    },
+    {
+      "name": "grep",
+      "invocations": 133,
+      "failures": 3,
+      "sessions": 6,
+      "lastInvokedAt": "2026-10-31T15:48:34.627Z",
+      "observation": "observed"
+    },
+    {
+      "name": "read",
+      "invocations": 333,
+      "failures": 6,
+      "sessions": 4,
+      "lastInvokedAt": "2026-10-31T12:02:32.668Z",
+      "observation": "observed"
+    },
+    {
+      "name": "bash",
+      "invocations": 915,
+      "failures": 10,
+      "sessions": 6,
+      "lastInvokedAt": "2026-10-31T16:50:30.804Z",
+      "observation": "observed"
+    }
+  ],
+  "inventoryScope": "2026-10-31 audit inventory plus current built-ins; not a live host export",
+  "selection": {
+    "eligibleStableJournals": 37,
+    "selectedJournals": 20,
+    "selectedBytes": 44744146,
+    "maximumJournals": 20,
+    "maximumBytes": 134217728,
+    "excludedActiveWindowMinutes": 5
+  },
+  "removalEvidence": "Sample only. No automatic removals or tier changes are authorized by non-observation."
+}

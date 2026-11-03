@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/sage-mcp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "license": "MIT",
   "description": "WrongStack SAGE Memory as an MCP (Model Context Protocol) server: STDIO and loopback HTTP, additive to the existing SAGE IPC server.",

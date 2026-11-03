@@ -1,11 +1,11 @@
 # Security Scanner (Compact)
 
-<!-- source-version: 1.4.1 -->
+<!-- source-version: 1.5.0 -->
 
 ## Selection card
 - Task: Review source trust boundaries and defensive security. / TR: Kaynak güven sınırlarını ve savunma güvenliğini incele.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Fix the scope (paths, dependencies, configuration) and the threat model before running scanners.
+- Finish: Each finding has file:line, an exploit scenario, severity and remediation; scanner noise and unreachable code are filtered out.
 
 ## Overview
 

@@ -1,11 +1,11 @@
 ---
 name: design-system
-description: "Create and maintain coherent visual tokens, themes and shared component states using the existing project system or WrongStack Design Studio. Use when designing or substantially restyling interfaces, palettes, typography or themes; small UI fixes should extend the existing system without a kit migration."
-version: 2.5.1
+description: "Design tokens and themes: DESIGN.md, Tailwind v4 @theme, CSS variables, Design Studio kits, light/dark roles, component states. Use when creating or extending a token system, dealing, pinning or tuning a Design Studio kit, adding a theme, or restyling palette, type, spacing, radii or motion across an app; small UI fixes extend the existing system without a kit migration. Not for a one-off artifact theme (use theme-factory) or screen composition (use design-craft)."
+version: 2.5.3
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
-trigger: "designing or substantially restyling interfaces, palettes, typography or themes; small UI fixes should extend the existing system without a kit migration."
+trigger: "Use when tokens, themes, DESIGN.md or a Design Studio kit are created, tuned, captured or verified."
 metadata:
   routing-group: design
 paths: ["DESIGN.md", "design-tokens.*", "design_tokens.dart"]
@@ -15,13 +15,13 @@ paths: ["DESIGN.md", "design-tokens.*", "design_tokens.dart"]
 
 ## Selection card
 - Task: Define shared colors, typography and component tokens.
-- Start: Identify the target surface, reference, user task and existing tokens.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Find the token source — `DESIGN.md`, the `@theme` or `:root` block, `theme.ts`/`theme.dart`, or a pinned kit — and the app entry or theme provider that imports it.
+- Finish: tokens changed at the source and imported by the app, `design {action:"verify"}` (pinned kit) or the DESIGN.md diff shows no FAIL, and each supported theme was rendered with its contrast pairs checked.
 
 ## Overview
 
 Build from a real token source and verify the rendered result. Latest web target
-checked 2026-10-23: Tailwind CSS 4.3.3 with CSS-first theme variables.
+checked 2026-11-02: Tailwind CSS 4.3.3 with CSS-first theme variables.
 An existing theme is a valid source; Design Studio is a useful system generator,
 not a requirement to replace an established design. When `DESIGN.md` or a
 conventional token file (`src/index.css`, `src/theme/theme.ts`,
@@ -43,6 +43,14 @@ it; run capture only for a token source kept at another path.
    quality. Scanner percentages are not visual or WCAG certificates.
 6. Treat documented accessibility thresholds accurately; target-size AA/AAA and
    project touch preferences differ. Preserve keyboard and reduced-motion behavior.
+7. Layer tokens: primitives (raw ramps) → semantic roles (`surface`, `fg`,
+   `accent`, `danger`) → component tokens only where a component truly differs.
+   Screens reference semantic roles; themes swap semantic values, never primitives' names.
+
+In Tailwind v4, a theme variable that points at another variable belongs in
+`@theme inline`, so utilities resolve the runtime value and a `.dark` or
+`[data-theme]` override reaches `bg-*`/`text-*`; a dark variant keyed to a class
+needs `@custom-variant dark (&:where(.dark, .dark *));`.
 
 ## Design Studio loop
 

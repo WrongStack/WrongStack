@@ -1,11 +1,11 @@
 # Debugging (Compact)
 
-<!-- source-version: 1.2.1 -->
+<!-- source-version: 1.2.2 -->
 
 ## Selection card
 - Task: Reproduce and diagnose a reported failure. / TR: Bildirilen hatayı yeniden üret ve teşhis et.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Capture the exact error, command and environment, then get a reproduction that fails on demand.
+- Finish: The root cause explains every symptom, the fix sits at the cause, and the regression test went red then green.
 
 ## Overview
 

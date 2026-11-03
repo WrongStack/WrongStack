@@ -374,7 +374,13 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
         p['boardId'].length === 0 ||
         typeof p['taskId'] !== 'string' ||
         p['taskId'].length === 0 ||
-        !['backlog', 'todo', 'running', 'review', 'done'].includes(String(p['to'])) ||
+        // Type check BEFORE the membership test: `String(p['to'])` let any value
+        // that stringifies into the closed set through (`["done"]` → `"done"`),
+        // and threw on a JSON-representable object whose own `toString` is not
+        // callable — so a malformed payload escaped the 400 path at
+        // `hq-server/routes/command-handlers.ts` instead of being rejected.
+        typeof p['to'] !== 'string' ||
+        !['backlog', 'todo', 'running', 'review', 'done'].includes(p['to']) ||
         typeof p['comment'] !== 'string' ||
         p['comment'].trim().length === 0
       ) {

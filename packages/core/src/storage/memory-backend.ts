@@ -52,19 +52,24 @@ const TYPE_PRIORITY_RE = /^\[(\w+)\|(\w+)\]\s+/;
 const TAG_RE = /#([\w-]+)/g;
 const MAX_MEMORY_CONSOLIDATE_BACKUPS = 5;
 
-function formatMetadata(entry: MemoryEntry): string {
-  const parts: string[] = [];
-  if (entry.type && entry.priority) {
-    parts.push(`[${entry.type}|${entry.priority}]`);
-  } else if (entry.type) {
-    parts.push(`[${entry.type}]`);
-  } else if (entry.priority) {
-    parts.push(`[${entry.priority}]`);
-  }
-  if (entry.tags && entry.tags.length > 0) {
-    parts.push(entry.tags.map((t) => `#${t}`).join(' '));
-  }
-  return parts.length > 0 ? ` ${parts.join(' ')}` : '';
+/**
+ * `[TYPE|PRIORITY]` prefix — written BEFORE the id because that is the order
+ * `lineToEntry` reads (`- [ISO] [TYPE|PRIORITY] mem_<id> text #tags`, the
+ * format this module documents). Writer and parser used to disagree: the id
+ * came first, so `TYPE_PRIORITY_RE` (anchored at the start of the remainder)
+ * never matched, every remembered entry lost its `type`/`priority` on the next
+ * read, and the bracket leaked into the text injected into the model context.
+ */
+function formatTypePriority(entry: MemoryEntry): string {
+  if (entry.type && entry.priority) return ` [${entry.type}|${entry.priority}]`;
+  if (entry.type) return ` [${entry.type}]`;
+  if (entry.priority) return ` [${entry.priority}]`;
+  return '';
+}
+
+/** `#tag` suffix — trailing, where the parser's TAG_RE scan reads it. */
+function formatTags(entry: MemoryEntry): string {
+  return entry.tags && entry.tags.length > 0 ? ` ${entry.tags.map((t) => `#${t}`).join(' ')}` : '';
 }
 
 function lineToEntry(line: string, scope: MemoryScope): MemoryEntry | null {
@@ -92,6 +97,21 @@ function lineToEntry(line: string, scope: MemoryScope): MemoryEntry | null {
       priority = a;
     }
     rest = rest.slice(tpMatch[0].length).trim();
+  } else {
+    // Bare `[TYPE]` / `[PRIORITY]` slot: the writer emits it when only one of
+    // the two is set (`[preference]`, `[critical]`). Without this branch those
+    // entries came back with the bracket stuck in the text and no metadata.
+    // Only a recognized type/priority is consumed, so user text that merely
+    // starts with a bracket (`[IMPORTANT] …`) is preserved verbatim.
+    const bareMatch = rest.match(/^\[(\w+)\]\s+/);
+    const bare = bareMatch?.[1] ?? '';
+    if (bareMatch && isMemoryType(bare)) {
+      type = bare;
+      rest = rest.slice(bareMatch[0].length).trim();
+    } else if (bareMatch && isPriority(bare)) {
+      priority = bare;
+      rest = rest.slice(bareMatch[0].length).trim();
+    }
   }
 
   // Parse optional entry ID: `mem_<ts>_<rand>`
@@ -376,8 +396,7 @@ export class FileMemoryBackend implements MemoryBackend {
   async remember(scope: MemoryScope, entry: MemoryEntry, filePath: string): Promise<void> {
     const file = this.resolveFile(filePath, scope);
     const id = `mem_${Date.now()}_${randomUUID().slice(0, 8)}`;
-    const meta = formatMetadata(entry);
-    const line = `- [${entry.ts}] ${id}${meta} ${entry.text.replace(/\n/g, ' ')}\n`;
+    const line = `- [${entry.ts}]${formatTypePriority(entry)} ${id} ${entry.text.replace(/\n/g, ' ')}${formatTags(entry)}\n`;
 
     // The legacy implementation read and atomically rewrote the entire
     // Markdown file for every new memory. Besides O(file size) I/O per append,

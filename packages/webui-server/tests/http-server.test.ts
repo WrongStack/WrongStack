@@ -144,7 +144,7 @@ describe('buildCspHeader', () => {
   // this project already rejected on 2026-07-15.
   //
   // Verified rather than assumed before flipping: the Vite builds for webui
-  // and webui-hq contain zero inline `<script>` without `src`.
+  // and hq-next contain zero inline `<script>` without `src`.
   it('keeps script-src strict — no unsafe-inline, no per-extension hashes', () => {
     const csp = buildCspHeader();
     // The rejected narrow workaround must not creep back either.

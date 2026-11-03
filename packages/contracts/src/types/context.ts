@@ -33,26 +33,11 @@ import type { Provider, Usage } from './provider.js';
 import type { RunEnv } from './run-env.js';
 import type { SessionEvent, SessionWriter } from './session.js';
 import type { SideEffect } from './side-effect.js';
+import type { TodoItem } from './todo.js';
 import type { Tool } from './tool.js';
 import type { UserInputAwaiter, UserInputRequest, UserInputResponse } from './user-input.js';
 
-/** A single todo row projected to the model and the UI. */
-export interface TodoItem {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  activeForm?: string | undefined;
-  /** When promoted from a plan item, stores the plan item's id. */
-  promotedFromPlan?: string | undefined;
-  /** When promoted from a task, stores the task's id. */
-  promotedFromTask?: string | undefined;
-  /** Durable Kanban owner when the todo row is a UI projection of a real card. */
-  kanbanBoardId?: string | undefined;
-  /** Durable Kanban card represented by this todo row. */
-  kanbanTaskId?: string | undefined;
-  /** Titles of the unfinished work this row waits on (board-derived). */
-  blockedBy?: string[] | undefined;
-}
+export type { TodoItem } from './todo.js';
 // Roadmap 10A note: the original TodoItem JSDoc on blockedBy is preserved
 // below from the class file; the projection must carry the *reason* a card
 // is blocked — the board computes readiness on every mutation, and dropping

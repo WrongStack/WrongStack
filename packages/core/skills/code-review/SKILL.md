@@ -1,9 +1,10 @@
 ---
 name: code-review
 description: |
+  Code review of a PR, branch, commit range or current diff: correctness, security and maintainability findings before merge.
   Use this skill when asked to review code changes — a pull request, a branch, a commit range, or the current diff — for correctness, security, and maintainability before they merge.
   Triggers: user says "review", "code review", "review this PR", "review my changes", "look over the diff", "is this ready to merge", "PR feedback", "anything wrong with this change".
-version: 1.1.1
+version: 1.1.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [version-control.manage, code.inspect, verification.run]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Review implementation correctness and maintainability.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Pin the exact diff under review (PR, branch range or working tree) and what it is meant to change.
+- Finish: Findings are ranked by severity with file:line, failure scenario and suggested fix; areas checked and found clean are stated, not padded.
 
 ## Overview
 

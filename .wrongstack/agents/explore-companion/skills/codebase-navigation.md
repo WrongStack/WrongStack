@@ -12,8 +12,6 @@
 
 ## WrongForge Error Prefix
 
-- When an error message is prefixed `WrongForge: `, the wrapper is `packages/cli/src/wrongforge-leader/wrongforge-leader-provider.ts` `providerError()` (plus `fleet/wrongforge-runner.ts` `subagentError('bridge_failed', ...)` for delegated tasks). The text *after* the prefix is produced by the external WrongForge service at `http://127.0.0.1:8787` (via `resolveWrongForgeEndpoint`/`wrongForgeConfigured` in `packages/cli/src/fleet/wrongforge-client.ts`), so a zero-hit repo grep for that body text is evidence of upstream ownership, not a missing string. Treat `context_overflow` from any provider as non-fallback-eligible (compaction-owned) per `packages/core` fallback kind-gating tests.
-
 ## Kanban WebUI Cross-Pin
 
 - For `packages/webui-server/src/server/kanban-*.ts`, grep for cross-package source-pin tests that read the file's raw text — e.g. `packages/webui/tests/lib/kanban-board-active.test.ts` `readFileSync`-es `packages/webui-server/src/server/kanban-route-pagination.ts` and asserts `isActive` matches the client twin `packages/webui/src/lib/kanban-board-active.ts`, so logic edits there fail a test in another package with zero import links. Close consumers via the `kanban-routes.js` barrel (`server/index.ts` re-exports `KanbanBoardPage`/`paginateKanbanBoards` as public API) — module-specifier greps on the paginated file alone undercount.

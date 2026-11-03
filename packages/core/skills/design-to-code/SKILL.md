@@ -1,8 +1,8 @@
 ---
 name: design-to-code
-description: "Implement a supplied Figma design, screenshot, live reference site or design specification as a working interface, and prove the match with measured fidelity scores per axis (color, type, space, shape, layout, motion) instead of eyeballing. Use when matching a reference or handling design handoff; preserve its layout, content and interaction intent."
-trigger: "Implement a supplied Figma design, screenshot, live reference site or design specification as a working interface, and prove the match with measured fidelity scores per axis instead of eyeballing."
-version: 2.0.0
+description: "Build a Figma design, screenshot, mockup or live site as working UI and prove the match with measured per-axis fidelity scores. Use when matching a reference or handling design handoff (Figma frames, PNG mockups, a written spec, a URL whose look must be reproduced); preserve its layout, content and interaction intent. Not for measuring a reference without building (use design-reference-read) or inventing a new direction (use design-craft)."
+trigger: "Use when a supplied design or reference must be implemented and its visual fidelity proven, not eyeballed."
+version: 2.0.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research, browser.interact]
@@ -21,8 +21,12 @@ justified adaptation.
 
 ## Selection card
 - Task: Implement a supplied design or reference and prove fidelity.
-- Start: Reference access, viewports, the literal-match vs adaptation decision, existing tokens.
-- Finish: `fidelity.md` with every axis ≥ the agreed bar, screenshots compared, interactions exercised.
+- Start: Open the reference (URL extract, image record or Figma frames), record its viewports and match-or-adapt per region in `.design/brief.md`, and list the project's existing tokens.
+- Finish: the last `fidelity.md` has every axis ≥ 0.9 for a literal match (≥ 0.75 for an authorized adaptation) or a recorded adaptation, screenshots were compared per width, and keyboard and state checks passed.
+
+## Overview
+
+Implementing a supplied design is finished only when the match is measured: read the reference's numbers, build to them, and prove fidelity per axis on the rendered result.
 
 ## 1. Get a measurable reference
 
@@ -50,6 +54,16 @@ per region, and what the user owns or licensed (fonts, imagery, copy).
 4. Fonts and assets: verify the licence and the loaded weights. A substitute
    font changes line breaks and heights — record the substitution, then expect
    the type axis to show it.
+
+Figma values do not copy one-to-one:
+- Auto layout is flexbox: spacing becomes `gap`, padding stays padding, "hug" is
+  content-sized, "fill" is `flex: 1` (or `align-self: stretch` on the cross axis).
+- Letter spacing in % is em/100 (−2% → `-0.02em`); a percentage line height is a
+  unitless multiplier (150% → 1.5); "Auto" follows the font's own metrics.
+- Variables and styles map to tokens; a frame's fixed width is one breakpoint,
+  not the layout — read its constraints before hard-coding widths.
+- Export icons and illustrations as SVG from the source component, not from a
+  flattened frame, then apply design-assets hygiene.
 
 ## 3. Build in this order
 

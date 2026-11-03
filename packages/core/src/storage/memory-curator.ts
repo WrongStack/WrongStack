@@ -346,7 +346,11 @@ export class SessionMemoryCurator implements AgentExtension {
 
           if (op.action === 'supersede' && typeof op.targetId === 'string') {
             const target = targetMap.get(op.targetId);
-            if (target?.persistence === 'permanent') continue; // permanent kararlar otomatik silinmez
+            // Only memories the model actually reviewed may be retired. An id
+            // outside `targetMap` (hallucinated, or planted in content the model
+            // read) used to pass this guard — `undefined?.persistence` is not
+            // 'permanent' — and was superseded anyway, permanent or not.
+            if (!target || target.persistence === 'permanent') continue; // permanent kararlar otomatik silinmez
             await this.Sage.updateSage(op.targetId, {
               status: 'superseded',
               ...(op.supersededBy ? { supersedes: [op.supersededBy] } : {}),
@@ -354,13 +358,22 @@ export class SessionMemoryCurator implements AgentExtension {
             supersededCount++;
           } else if (op.action === 'contradict' && typeof op.targetId === 'string') {
             const target = targetMap.get(op.targetId);
-            if (target?.persistence === 'permanent') continue;
+            if (!target || target.persistence === 'permanent') continue;
             await this.Sage.updateSage(op.targetId, {
               status: 'contradicted',
               ...(op.contradictsWith ? { contradicts: [op.contradictsWith] } : {}),
             });
             supersededCount++;
           } else if (op.action === 'merge' && Array.isArray(op.targetIds) && op.text?.trim()) {
+            const validTargetIds = op.targetIds.filter((oldId): oldId is string => {
+              if (typeof oldId !== 'string') return false;
+              const old = targetMap.get(oldId);
+              return Boolean(old && old.persistence !== 'permanent');
+            });
+            if (validTargetIds.length === 0 || validTargetIds.length !== op.targetIds.length) {
+              continue;
+            }
+
             // 1. Yeni birleştirilmiş hafızayı kaydet
             const remembered = (await this.Sage.rememberSage({
               text: op.text.trim(),
@@ -370,21 +383,18 @@ export class SessionMemoryCurator implements AgentExtension {
               tags: op.tags,
               anchors: op.anchors,
               persistence: 'long_lived',
-              supersedes: op.targetIds,
+              supersedes: validTargetIds,
               sources: [{ type: 'session', sessionId: ctx.session.id }],
             })) as { id?: string } | undefined;
 
             const newId = remembered?.id;
 
             // 2. Birleştirilen eski hafızaları superseded olarak işaretle
-            for (const oldId of op.targetIds) {
-              const old = targetMap.get(oldId);
-              if (old?.persistence !== 'permanent') {
-                await this.Sage.updateSage(oldId, {
-                  status: 'superseded',
-                  ...(newId ? { supersedes: [newId] } : {}),
-                });
-              }
+            for (const oldId of validTargetIds) {
+              await this.Sage.updateSage(oldId, {
+                status: 'superseded',
+                ...(newId ? { supersedes: [newId] } : {}),
+              });
             }
             mergedCount++;
           } else if (
@@ -392,9 +402,13 @@ export class SessionMemoryCurator implements AgentExtension {
             typeof op.targetId === 'string' &&
             Array.isArray(op.items)
           ) {
+            const target = targetMap.get(op.targetId);
+            if (!target || target.persistence === 'permanent') continue;
+            const validItems = op.items.slice(0, 4).filter((item) => Boolean(item?.text?.trim()));
+            if (validItems.length === 0) continue;
+
             // 1. Her bir bölünmüş parçayı kaydet
-            for (const item of op.items.slice(0, 4)) {
-              if (!item.text?.trim()) continue;
+            for (const item of validItems) {
               await this.Sage.rememberSage({
                 text: item.text.trim(),
                 kind: toSageKind(item.type),
@@ -409,12 +423,12 @@ export class SessionMemoryCurator implements AgentExtension {
             }
 
             // 2. Orijinal geniş kaydı superseded yap
-            const target = targetMap.get(op.targetId);
-            if (target?.persistence !== 'permanent') {
-              await this.Sage.updateSage(op.targetId, { status: 'superseded' });
-            }
+            await this.Sage.updateSage(op.targetId, { status: 'superseded' });
             splitCount++;
           } else if (op.action === 'recalibrate' && typeof op.targetId === 'string') {
+            // Only reviewed memories may be recalibrated (same rule as above).
+            const target = targetMap.get(op.targetId);
+            if (!target) continue;
             const patch: Partial<CuratorSageRecord> = {};
             if (typeof op.importance === 'number')
               patch.importance = Math.max(0, Math.min(1, op.importance));

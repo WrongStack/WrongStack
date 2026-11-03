@@ -1,7 +1,7 @@
 ---
 name: security-scanner
-description: "Review owned source, configuration and dependency metadata for supported security findings with precise evidence and remediation. Use when assessing authorization, data exposure, unsafe boundaries, credentials or advisories; treat scanner hits as candidates and scope severity to actual reachability and impact."
-version: 1.4.1
+description: "Security review of code, config and dependencies: injection, authz/IDOR, SSRF, path traversal, secrets, unsafe deserialization, CVEs. Reviews owned source, configuration and dependency metadata with precise evidence and remediation. Use when assessing authorization, data exposure, unsafe boundaries, credentials or advisories; treat scanner hits as candidates and scope severity to actual reachability and impact."
+version: 1.5.0
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [verification.run, web.research, filesystem.write]
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Review source trust boundaries and defensive security.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Fix the scope (paths, dependencies, configuration) and the threat model before running scanners.
+- Finish: Each finding has file:line, an exploit scenario, severity and remediation; scanner noise and unreachable code are filtered out.
 
 ## Overview
 
@@ -66,6 +66,30 @@ Use local, non-destructive tests of defensive behavior where appropriate.
 - Keep secrets out of source, logs, artifacts and error responses. Removing a
   committed credential is incomplete without the owner's rotation/revocation process.
 - Apply URL/origin policies and trusted service boundaries according to real deployment.
+
+## Source-to-sink checklist
+
+| Class | Sink to find | What makes it real |
+|---|---|---|
+| Injection (SQL, NoSQL, LDAP) | String-built queries, raw query helpers, `$where`/operator objects from JSON | Attacker-controlled value reaches the query text or operator position |
+| Command injection | Shell invocations with interpolated strings, `shell: true`, `os.system` | Input reaches the shell parser rather than an argument array |
+| Path traversal | File reads/writes, archive extraction, static serving joined with user paths | Resolved path escapes the owned root (check symlinks and `..` after decoding) |
+| SSRF | Server-side fetch of user-supplied URLs, webhooks, image proxies | Private, link-local or metadata addresses reachable, including via redirects and DNS rebinding |
+| Broken access control (IDOR) | Handlers loading objects by id | No owner or tenant check between lookup and use |
+| XSS | HTML sinks (`innerHTML`, unsafe template flags, markdown renderers) | Untrusted text rendered as HTML without sanitization or escaping |
+| Unsafe deserialization | `pickle`, Java native serialization, YAML full loaders, prototype-polluting merges | Untrusted bytes reach a loader that can instantiate types or mutate prototypes |
+| Secrets | Literals, committed env files, logs and error bodies | A value that authenticates to a real service; dummy fixtures excluded with evidence |
+| Crypto misuse | Custom crypto, ECB, static IVs, MD5/SHA-1 for passwords, non-constant-time comparisons | Used for a security property, not checksums |
+| ReDoS and resource exhaustion | Backtracking regexes on input, unbounded body, upload or pagination sizes | Input size controlled by the caller with no bound |
+
+## Proof commands
+
+Use what the project already configures first; these are common read-only defaults:
+
+- Dependencies: `npm audit --omit=dev`, `pip-audit`, `cargo audit`, `govulncheck ./...`, or `osv-scanner scan -r .` across ecosystems
+- Secrets: `gitleaks detect --no-banner --redact` on the working tree (and history only when in scope)
+- Static rules: `semgrep scan --config p/default --error` when installed; WrongStack hosts also offer the security-ast-scan tool
+- Containers and IaC: `trivy fs --scanners vuln,misconfig .` when in scope
 
 ## Proof-driven round (/sechunt, /secproof)
 

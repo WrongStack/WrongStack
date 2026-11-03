@@ -1,8 +1,8 @@
 import type { Config } from '@wrongstack/contracts/types/config';
 import { ToolValidationError } from '@wrongstack/contracts/types/errors';
 import type { Tool } from '@wrongstack/contracts/types/tool';
-import { describe, expect, it, vi } from 'vitest';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import { describe, expect, it, vi } from 'vitest';
 import { createPluginManagerTool } from '../../src/management/plugin-manager.js';
 
 const catalog = [
@@ -50,6 +50,7 @@ describe('plugin_manager', () => {
     });
 
     expect(tool.description).toContain('discovery-first');
+    expect(tool.permission).toBe('confirm');
     expect(tool.usageHint).toContain('never enable a guessed plugin name');
     expect(tool.usageHint).toContain('"action":"search"');
     expect(tool.usageHint).toContain('generate_release_notes');

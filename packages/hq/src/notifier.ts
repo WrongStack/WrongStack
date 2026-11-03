@@ -41,6 +41,8 @@ export interface HqNotification {
   dedupeKey: string;
   /** Dashboard path (`/fleet/machines/?machine=…`); joined to `publicUrl`. */
   path?: string;
+  /** The machine this is about (`host:…` / `mid:…`), when it is about one. */
+  machineKey?: string;
 }
 
 /** What the dashboard sees of a channel: no URL, only its masked form. */
@@ -52,6 +54,7 @@ export interface HqNotifyChannelView {
   enabled: boolean;
   kinds: readonly HqNotifyKind[];
   minSeverity: HqNotifySeverity;
+  machineLabels: readonly string[];
   lastDeliveredAt?: string;
   lastError?: { at: string; message: string };
   delivered: number;
@@ -185,6 +188,7 @@ export class HqNotifier {
   private config: HqNotifyConfigFile = emptyHqNotifyConfig();
   private readonly status = new Map<string, ChannelStatus>();
   private readonly sentKeys = new Map<string, number>();
+  private labelsOf: (machineKey: string) => readonly string[] = () => [];
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
   private readonly inflight = new Set<Promise<void>>();
@@ -231,7 +235,8 @@ export class HqNotifier {
         channel.enabled &&
         channel.kinds.includes(note.kind) &&
         (note.kind !== 'alert' ||
-          SEVERITY_RANK[note.severity] >= SEVERITY_RANK[channel.minSeverity]),
+          SEVERITY_RANK[note.severity] >= SEVERITY_RANK[channel.minSeverity]) &&
+        this.aboutChannelMachines(channel, note),
     );
     if (targets.length === 0) return;
     let sent = false;
@@ -257,6 +262,21 @@ export class HqNotifier {
         }
       }
     }
+  }
+
+  /**
+   * Where operator labels come from (the machine roster). Until it is set, a
+   * label-limited channel hears only notifications about no single machine.
+   */
+  setMachineLabels(labelsOf: (machineKey: string) => readonly string[]): void {
+    this.labelsOf = labelsOf;
+  }
+
+  private aboutChannelMachines(channel: HqNotifyChannel, note: HqNotification): boolean {
+    const wanted = channel.machineLabels ?? [];
+    if (wanted.length === 0 || note.machineKey === undefined) return true;
+    const labels = this.labelsOf(note.machineKey);
+    return wanted.some((label) => labels.includes(label));
   }
 
   /** Send a test message to one channel and report the outcome. */
@@ -291,6 +311,7 @@ export class HqNotifier {
           enabled: channel.enabled,
           kinds: channel.kinds,
           minSeverity: channel.minSeverity,
+          machineLabels: channel.machineLabels ?? [],
           ...(status.lastDeliveredAt !== undefined
             ? { lastDeliveredAt: status.lastDeliveredAt }
             : {}),

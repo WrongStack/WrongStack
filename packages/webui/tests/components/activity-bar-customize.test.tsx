@@ -210,8 +210,8 @@ describe('activity-bar · customize dialog behaviour', () => {
 
   it('never shows more icons than the budget allows', () => {
     const { container } = render(<ActivityBar />);
-    const labels = Array.from(container.querySelectorAll('.ws-nav-button')).map((el) =>
-      el.getAttribute('aria-label'),
+    const labels = Array.from(container.querySelectorAll('.ws-activity-rail .ws-nav-button')).map(
+      (el) => el.getAttribute('aria-label'),
     );
     // Panels + views only — the launcher and the "…" button are chrome.
     const contentIcons = labels.filter((label) => label !== null).length;

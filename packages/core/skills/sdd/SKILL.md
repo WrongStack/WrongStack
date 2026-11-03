@@ -1,11 +1,12 @@
 ---
 name: sdd
 description: |
+  Spec-driven development and /sdd: written specs, acceptance criteria and task graphs before a non-trivial implementation.
   Use this skill when the user wants a written spec, acceptance criteria, or a task
   graph before a non-trivial implementation, or runs the WrongStack /sdd workflow.
   Triggers: user says "/sdd", "spec", "specification", "task graph", "SDD",
   "acceptance criteria".
-version: 2.2.1
+version: 2.2.2
 required-capabilities: [work.plan, filesystem.write]
 required-tools: []
 trigger: "Use this skill when the user wants a written spec, acceptance criteria, or a task graph before a non-trivial implementation, or runs the WrongStack /sdd workflow."
@@ -17,8 +18,8 @@ metadata:
 
 ## Selection card
 - Task: Define acceptance criteria and dependent tasks.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read the request and the code it touches, then write acceptance criteria before any task list.
+- Finish: The spec and task graph exist, each task has a verifiable done condition, and execution status is tracked through /sdd.
 
 ## Overview
 

@@ -1,8 +1,8 @@
 ---
 name: manim-video
-version: 1.0.2
-description: "Create mathematical, geometric and scientific videos with Manim Community in Python. Use when animating equations, graphs, transformations or educational explanations; distinguish Manim Community from ManimGL and deliver a rendered, inspected video."
-trigger: "animating equations, graphs, transformations or educational explanations; distinguish Manim Community from ManimGL and deliver a rendered, inspected video."
+version: 1.1.1
+description: "Manim Community Python videos: MathTex equations, Axes plots, geometry, transforms, ValueTracker updaters, rendered MP4 scenes. Use when animating an equation derivation, function plot, proof or physics/CS explainer in Python, or fixing a failing manim render or LaTeX error; ManimGL (3b1b) code is a different API. Not for UI demos or code walkthroughs (use media-production or motion-canvas-video)."
+trigger: "Use when a request mentions manim, a Scene class with construct(), MathTex or Tex, or an animated math or science explanation."
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -13,76 +13,101 @@ metadata:
 # Manim Video
 
 ## Selection card
-- Task: Render mathematical animation with Manim Community.
-- Start: Identify the existing engine, scene, timeline and delivery format.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Task: Plan, render and inspect mathematical or scientific animation with Manim Community.
+- Start: In the project environment run `python -m manim --version`, check whether code imports `manim` or `manimlib`, and run `latex --version` and `dvisvgm --version` if formulas are needed.
+- Finish: the scene renders at the agreed quality, the final MP4 was probed and its densest frames viewed, and every formula and label was checked for mathematical correctness.
 
 ## Overview
 
-Target Manim Community 0.22.0, checked against PyPI and stable documentation on
-2026-10-23. Confirm Python/system requirements from package metadata and the
-installation guide. ManimGL is a different project with different APIs.
+A Manim video is a visual proof: the math must be right independently of the render, every transform must imply a true equivalence, and every frame must stay readable at delivery resolution.
+Target Manim Community 0.22.1, checked against PyPI and stable documentation on 2026-10-23. Confirm Python/system requirements from package metadata and the installation guide. ManimGL is a different project with different APIs.
+A successful render proves only that Python ran; it says nothing about correct math, overlapping labels or pacing.
 
 ## Rules
 
-1. Inspect the project's environment and imports. Use its virtual environment
-   and dependency manager; avoid global installation or copying ManimGL examples
-   into Manim Community.
-2. Derive the explanation before the animation: quantities, units, assumptions,
-   equation steps, axes and what each transformation means.
-3. Use Scene or a supported specialized scene, explicit run_time and deliberate
-   waits. Updaters must have bounded ownership and be removed when no longer needed.
-4. Validate mathematical correctness independently from a successful render.
-   Avoid transforms that visually imply an invalid equivalence.
-5. Distinguish Text from Tex/MathTex. LaTeX requires external tooling; prototype
-   one formula and required font before building a long sequence.
-6. Select the renderer for needed capabilities. Do not assume Cairo and OpenGL
-   have identical output or plugin support.
+1. Confirm the flavor first: `from manim import *` is Manim Community; `from manimlib import *`, `ShowCreation`, `self.embed()` and `CONFIG` dicts are ManimGL. Translate examples, never paste across.
+2. Derive the explanation before animating: quantities, units, assumptions and each equation step; the animation order follows the logical dependency order.
+3. A morph asserts equality: apply `TransformMatchingTex` or `ReplacementTransform` only between expressions that are actually equal, or show the operation that changes them.
+4. `Text` and `MarkupText` use Pango and installed fonts; `MathTex` and `Tex` need a LaTeX distribution plus dvisvgm. Prototype one formula with every required package before building the sequence.
+5. Updaters are owned: anything added with `add_updater`, `always_redraw` or a `ValueTracker` dependency is removed (`clear_updaters`) when its role ends. Updaters run during every `wait()` and slow every frame.
+6. Time explicitly: `run_time` per animation, deliberate `rate_func`, waits derived from the narration, and `self.next_section()` to split long videos.
+7. Keep content in frame: the default frame is 8 units high and about 14.2 wide. Place with `to_edge(buff=...)` and `scale_to_fit_width(config.frame_width - 1)`; check the densest frame at final quality.
+
+## First moves by situation
+
+| Request or symptom | First moves |
+|---|---|
+| Equation derivation | Split terms with `{{ }}` or `substrings_to_isolate`; `TransformMatchingTex` between steps; one color per variable via `set_color_by_tex` |
+| Function plot | `Axes(x_range=[a, b, step], y_range=..., x_length=..., y_length=...)`; `axes.plot(f, x_range=..., discontinuities=[...])`; place points with `axes.c2p` |
+| Parameter sweep | `ValueTracker` plus `always_redraw`; animate with `tracker.animate.set_value(v)` |
+| Zoom or pan | `MovingCameraScene` and `self.camera.frame.animate.scale(0.5).move_to(target)` |
+| 3D surface | `ThreeDScene`, `set_camera_orientation(phi=..., theta=...)`, `Surface`; preview at low quality because Cairo 3D is slow |
+| LaTeX compile error | Render a single `MathTex` alone; read the `.log` under `media/Tex`; check raw strings and missing packages in a custom `TexTemplate` |
+| Slow render | Look for heavy `always_redraw` bodies, updaters left running, high `-q` during iteration; keep caching on |
+| Narration sync | Sections per narration beat; waits from measured voice durations, or the manim-voiceover plugin after checking its support for 0.22 |
+| ManimGL example given | Map APIs to Community equivalents (ShowCreation to Create, `CONFIG` to `__init__` arguments) and re-test |
+
+## Patterns and pitfalls
+
+- **Raw strings** — write `MathTex(r"\frac{a}{b}")`; in a plain string `\f` is a form feed and `\b` a backspace.
+- **Isolation boundaries** — an isolated substring that cuts through a LaTeX group (inside `\frac{...}`) fails to compile; isolate whole groups.
+- **Transform semantics** — `Transform(a, b)` reshapes `a` and leaves `b` off the scene, so later animations on `b` show nothing; `ReplacementTransform(a, b)` is right when code continues with the target.
+- **`.animate` interpolates end states** — `mob.animate.rotate(PI)` morphs straight to the end pose (it can shrink through the center); use `Rotate(mob, angle=PI)` for a true rotation.
+- **Shared mobjects** — one mobject can only be in one place; `.copy()` it for a second appearance, and remove helper mobjects created inside updaters.
+- **Layering** — later-added mobjects draw on top; `set_z_index` keeps labels above graphs and backgrounds below.
+- **Quality presets** — `-ql` 480p15, `-qm` 720p30, `-qh` 1080p60, `-qp` 1440p60, `-qk` 2160p60. Previews at 15 fps look choppy, not slower. Custom output: `--resolution 1920,1080 --fps 30`.
+- **Caching** — partial movies are cached by content hash under `media/videos/<module>/<quality>/partial_movie_files`; `--flush_cache` when a stale segment appears. Seed `random`/`numpy` yourself for reproducible layouts.
+- **Fonts** — `Text(..., font="Inter")` falls back silently if the font is missing; list available fonts with `manimpango.list_fonts()`.
+- **Renderer** — Cairo is the default and reference; `--renderer=opengl` previews faster but plugin and feature coverage differ, so verify the final render on the renderer you deliver from.
+- **Backgrounds** — the default is black; for light themes set `config.background_color` and switch text, axes and stroke colors together.
+- **Outputs** — `-s` saves the last frame as PNG, `--format gif` writes a GIF, `-t` renders with transparency; check `python -m manim render --help` for the container each flag produces.
 
 ## Workflow
 
-1. Plan the narration and visual proof with representative formulas.
-2. Create reusable labels, axes, colors and transformations with a stable visual
-   identity. Keep critical content inside the output frame.
-3. Render a low-quality preview and inspect layout, glyphs, direction of motion
-   and timing. Re-render boundary frames after corrections.
-4. Render the final scene at the agreed dimensions/fps. Add narration or subtitles
-   through the installed integration or final media assembly.
-5. Probe and play the final artifact; inspect numerical labels and every equation.
-   Provide the scene class, environment/lockfile and exact render command.
+1. Script narration beats against visual beats and equations; check each algebraic step (sympy `simplify(lhs - rhs) == 0` where applicable).
+2. Verify the environment with `python -m manim checkhealth`; pin manim in the project's lockfile.
+3. Create a style module: colors per variable, fonts, sizes, axes config, reusable helpers.
+4. Build section by section; iterate with `-ql` and `-s` stills for layout.
+5. Review the densest frames at `-qh`; fix overlaps and off-frame content.
+6. Render the final quality; add narration through sections or media assembly; probe and play.
+7. Report scene classes, exact command, environment and output paths.
 
-## Minimal scene
+## Proof
 
-~~~python
-from manim import Circle, Create, Scene, Transform, Square
+- Environment: `python -m manim checkhealth`
+- Layout still: `python -m manim -ql -s scene.py Derivation`
+- Final render: `python -m manim -qh scene.py Derivation`
+- Streams: `ffprobe -v error -show_entries stream=width,height,r_frame_rate,pix_fmt:format=duration -of json media/videos/scene/1080p60/Derivation.mp4`
+- Frames: `ffmpeg -ss 5 -i media/videos/scene/1080p60/Derivation.mp4 -frames:v 1 -update 1 f05.png` at each equation step; view them for overlaps and clipping.
+- Math: a sympy check per transformed step, recorded in the report.
 
-class ShapeTransition(Scene):
-    def construct(self):
-        shape = Circle()
-        self.play(Create(shape), run_time=1)
-        self.play(Transform(shape, Square()), run_time=1)
-        self.wait(0.5)
-~~~
+## Stop and ask
 
-From the selected environment: python -m manim -ql scene.py ShapeTransition.
-Use python -m manim --help for current quality, renderer and output flags.
-This example avoids LaTeX; mathematical scenes should verify its availability.
+- The project uses ManimGL and the request would move it to Community (or the reverse).
+- A LaTeX distribution or system packages (Cairo, Pango, FFmpeg) must be installed machine-wide.
+- A mathematical or scientific claim cannot be verified from a derivation or a cited source.
+- Narration requires paid voice generation.
+
+## Before returning
+
+- [ ] Manim Community APIs only; no manimlib imports or ManimGL idioms
+- [ ] Every equation step and transform checked as mathematically valid
+- [ ] LaTeX and fonts compile and render as intended; raw strings used
+- [ ] Updaters removed when finished; no stray mobjects left on screen
+- [ ] Densest frames viewed at final quality: no overlaps, nothing outside the frame
+- [ ] Final MP4 probed for resolution, fps, duration and pixel format, and played back
+- [ ] Scene class, render command and environment reported
 
 ## Sources
 
 [Installation](https://docs.manim.community/en/stable/installation.html),
 [quickstart](https://docs.manim.community/en/stable/tutorials/quickstart.html),
+[reference manual](https://docs.manim.community/en/stable/reference.html),
 [PyPI](https://pypi.org/pypi/manim/json).
-
-## Acceptance checks
-
-- [ ] Manim Community (`manim` 0.22.0) APIs used consistently without mixing incompatible `manimgl` imports or methods
-- [ ] Mathematical equations, coordinate axes, units, and step-by-step transformations verified for accuracy
-- [ ] LaTeX (`MathTex` / `Tex`) compilation, frame safe-area bounds, and updater removal (`remove_updater`) verified
-- [ ] Final video rendered, inspected with `ffprobe`, and played back to confirm resolution, fps, duration, and zero overlapping labels
 
 ## Skills in scope
 
-- media-production — combining rendered Manim scenes with audio stems, captions, and FFmpeg final delivery.
-- audio-studio — generating spoken narration timed to mathematical proof steps and `self.wait()` pauses.
-- tech-stack — managing Python virtual environments, Cairo/Pango/FFmpeg/LaTeX system dependencies, and `pyproject.toml` pins.
+- media-production — combining rendered scenes with audio stems, captions and final FFmpeg delivery.
+- audio-studio — spoken narration timed to proof steps and waits.
+- tech-stack — Python environments, Cairo/Pango/FFmpeg/LaTeX system dependencies and pins.
+- motion-canvas-video — code walkthroughs and diagrams that are not mathematical scenes.

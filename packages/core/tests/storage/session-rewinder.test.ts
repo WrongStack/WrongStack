@@ -391,6 +391,46 @@ describe('DefaultSessionRewinder', () => {
       expect(result.revertedFiles).toEqual([]);
       expect(result.errors).toEqual([]);
     });
+
+    it('deduplicates checkpoints left behind by an earlier rewind and rewinds non-zero-based sessions when N exceeds count', async () => {
+      const dupFile = path.join(tmp, 'dup.txt');
+      await fs.writeFile(dupFile, 'v2', 'utf8');
+      const dupId = await writeSession([
+        makeCheckpoint(0, 'p0'),
+        makeFileSnapshot(0, [{ path: dupFile, action: 'modified', before: 'v0', after: 'v1' }]),
+        makeCheckpoint(1, 'p1-old'),
+        { type: 'rewound', ts: new Date().toISOString(), toPromptIndex: 1, revertedFiles: [] },
+        makeCheckpoint(1, 'p1-new'),
+        makeFileSnapshot(1, [{ path: dupFile, action: 'modified', before: 'v1', after: 'v2' }]),
+      ]);
+
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+      const listed = await rewind.listCheckpoints(dupId);
+      expect(listed).toMatchObject([
+        { promptIndex: 0, promptPreview: 'p0', fileCount: 1 },
+        { promptIndex: 1, promptPreview: 'p1-new', fileCount: 1 },
+      ]);
+
+      const dupResult = await rewind.rewindLastN(dupId, 2);
+      expect(dupResult.toPromptIndex).toBe(0);
+      expect(await fs.readFile(dupFile, 'utf8')).toBe('v0');
+
+      const oneBasedFile = path.join(tmp, 'onebased.txt');
+      await fs.writeFile(oneBasedFile, 'b2', 'utf8');
+      const oneBasedId = await writeSession([
+        makeCheckpoint(1, 'p1'),
+        makeFileSnapshot(1, [
+          { path: oneBasedFile, action: 'modified', before: 'b0', after: 'b1' },
+        ]),
+        makeCheckpoint(2, 'p2'),
+        makeFileSnapshot(2, [
+          { path: oneBasedFile, action: 'modified', before: 'b1', after: 'b2' },
+        ]),
+      ]);
+      const oneBasedResult = await rewind.rewindLastN(oneBasedId, 10);
+      expect(oneBasedResult.toPromptIndex).toBe(1);
+      expect(await fs.readFile(oneBasedFile, 'utf8')).toBe('b0');
+    });
   });
 
   describe('rewindToStart', () => {

@@ -9,12 +9,15 @@ import {
   RUNTIME_CAPABILITY_MANIFEST,
   runtimeToolReferencesFromText,
 } from '@wrongstack/contracts/types/runtime-capability-manifest';
+import { buildProgressiveSkillManifestText } from '../../../src/core/system-prompt-skill-bodies.js';
 import { DefaultSkillLoader } from '../../../src/execution/skill-loader.js';
 import {
   parseSkillFrontmatter,
   stripFrontmatter,
   validateSkillDocument,
 } from '../../../src/skills/frontmatter.js';
+import { SKILL_LIMITS } from '../../../src/skills/limits.js';
+import { skillUseWhenText } from '../../../src/skills/prompt-discovery.js';
 import { resolveWstackPaths } from '../../../src/utils/wstack-paths.js';
 
 // Read-only authoring check using the same parser, capabilities and loader as runtime.
@@ -62,6 +65,26 @@ for (const entry of entries) {
     errors.push(entry.name + ': missing routing-group metadata');
   if (!/^## (?:Before returning|Acceptance checks)\s*$/m.test(body))
     errors.push(entry.name + ': missing explicit acceptance checks');
+  // Without a hand-written SKILL.save.md, fleet subagents and compact prompts
+  // get an auto-compacted body built from whole Overview sentences: the first
+  // one must exist and fit, or the skill's essence never reaches them.
+  if (!(await fs.stat(path.join(root, 'SKILL.save.md')).catch(() => undefined))) {
+    const overview = /^## Overview\s*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(body)?.[1];
+    const flat = (overview ?? '').replace(/\s+/g, ' ').trim();
+    const stop = [...flat.matchAll(/[.!?](?=\s|$)/g)].find(
+      (match) => !/\b(?:e\.g|i\.e|etc|vs|cf)$/i.test(flat.slice(0, match.index ?? 0)),
+    )?.index;
+    const first = stop === undefined ? flat : flat.slice(0, stop + 1);
+    if (!first) errors.push(entry.name + ': missing ## Overview for the compact body');
+    else if (first.length > SKILL_LIMITS.COMPACT_OVERVIEW_MAX)
+      errors.push(
+        entry.name +
+          ': first Overview sentence is ' +
+          first.length +
+          ' chars; compact bodies keep only whole sentences within ' +
+          SKILL_LIMITS.COMPACT_OVERVIEW_MAX,
+      );
+  }
   if (raw.split('\n').length > 200)
     errors.push(
       entry.name + ': entrypoint exceeds 200 lines; move conditional details to resources',
@@ -163,6 +186,35 @@ for (const entry of entries) {
   } else if (!(await loader.readSaveBody(entry.name))?.trim()) {
     errors.push(entry.name + ': empty runtime compact body');
   }
+}
+
+// The progressive catalog is the only text the model sees before choosing a
+// skill, and it cuts each description short. The first sentence must survive
+// whole, so authors lead with the frameworks, files and symptoms a request names.
+const catalog = await buildProgressiveSkillManifestText(loader, allTools);
+const rows = new Map(
+  [...catalog.matchAll(/^\| `([a-z0-9-]+)`[^|]*\| (.*) \|$/gm)].map((match) => [
+    match[1] ?? '',
+    (match[2] ?? '').replace(/\\\|/g, '|'),
+  ]),
+);
+for (const manifest of manifests) {
+  const row = rows.get(manifest.name);
+  if (manifest.source !== 'bundled' || row === undefined) continue;
+  const useWhen = skillUseWhenText(manifest.description, manifest.trigger)
+    .replace(/\s+/g, ' ')
+    .trim();
+  const end = [...useWhen.matchAll(/[.!?](?=\s|$)/g)].find(
+    (match) => !/\b(?:e\.g|i\.e|etc|vs|cf)$/i.test(useWhen.slice(0, match.index ?? 0)),
+  )?.index;
+  const sentence = end === undefined ? useWhen : useWhen.slice(0, end + 1);
+  if (!row.startsWith(sentence))
+    errors.push(
+      manifest.name +
+        ': catalog row cuts the first description sentence (' +
+        sentence.length +
+        ' chars); keep it near 135 and lead with the request vocabulary',
+    );
 }
 
 if (errors.length) {

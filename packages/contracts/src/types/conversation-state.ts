@@ -14,8 +14,8 @@
  * existing import paths).
  */
 import type { ContentBlock } from './blocks.js';
-import type { TodoItem } from './context.js';
 import type { Message } from './messages.js';
+import type { TodoItem } from './todo.js';
 
 export type StateChange =
   | { kind: 'message_appended'; message: Message }

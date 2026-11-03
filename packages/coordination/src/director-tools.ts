@@ -46,7 +46,7 @@ export function makeKanbanQueueTool(
       'Claim dependency-ready Kanban tasks and dispatch them into the Director fleet. Preserves per-task provider/model/role/tool routing metadata, seeds lease metadata (claimedAt, leaseExpiresAt, heartbeatAt), assigns each claimed task to a spawned subagent, instructs workers to call kanban heartbeat_assignment periodically, and can await results while writing completion back to Kanban.',
     usageHint:
       'Use action:"dispatch_ready" with optional boardId/taskId/maxTasks. Set heartbeatIntervalMs (default 60s) and leaseTtlMs (default 5m) to size stale-recovery windows. Set awaitCompletion:true when you want this call to update Kanban to completed/failed before returning; otherwise use await_tasks and kanban mark_assignment later.',
-    permission: 'auto',
+    permission: 'confirm',
     mutating: true,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN, ToolCapabilities.FS_WRITE],
     inputSchema: {

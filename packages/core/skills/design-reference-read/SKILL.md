@@ -1,29 +1,29 @@
 ---
 name: design-reference-read
-description: |
-  Read a reference website or screenshot the way a designer does — by measuring it. Produces a dated "design DNA" record (color roles, type scale and ratio, spacing unit, radii, elevation, motion, section rhythm per viewport, component geometry, declared tokens) with measured and inferred values kept apart, names the patterns it uses by design-patterns ids, and turns the lessons into a brief or Design Studio tokens without copying the brand.
-  Triggers: "make it look like <site>", "use this site as reference", "inspired by", "analyze this site's design", "what makes this design good", "extract the design system from", "match this screenshot", "steal like an artist", "reverse-engineer the styling of", "design tokens from this URL", "how does <site> do its layout".
-version: 1.0.0
+description: "Measure a reference site or screenshot into design DNA: color roles, type scale, spacing unit, radii, motion, layout and pattern ids. Use when asked to make something look like a site, use a URL or screenshot as reference or inspiration, extract a design system or tokens from a URL, reverse-engineer a site's styling, or explain why a design works; lessons go into the brief without copying the brand. Not for building and scoring the match (use design-to-code)."
+version: 1.0.1
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [browser.interact, web.research, verification.run]
-trigger: "Measure a reference website or screenshot into a design DNA record (color roles, type scale, spacing unit, radii, motion, section rhythm, components), name its patterns, and carry the lessons into a brief or tokens without copying the brand."
+trigger: "Use when a URL or screenshot is supplied as a design reference to match, borrow from or analyze."
 metadata:
   routing-group: design
 ---
 
 # Design Reference Read — WrongStack
 
+## Selection card
+- Task: Turn a supplied reference (URL or screenshot) into measured design decisions.
+- Start: Classify the intent (match, borrow or analyze), then measure: `design_reference {action:"extract", url, viewports:[1440, 768, 390]}` for a URL, or the screenshot procedure for an image.
+- Finish: `.design/references/<slug>/dna.md` read and cited, patterns named by id, lessons recorded in the brief, no brand assets copied.
+
+## Overview
+
 Looking at a screenshot and describing it ("clean, modern, lots of whitespace") is
 where models differ most and where they invent most. Measuring it is not. This
 skill replaces the description with numbers taken from the rendered page, so a
 small model and a frontier model leave with the same facts, and the fidelity of
 the result can later be scored against the same numbers.
-
-## Selection card
-- Task: Turn a supplied reference (URL or screenshot) into measured design decisions.
-- Start: The reference, what the user wants from it (match, borrow, or analyze), and the target surface.
-- Finish: `.design/references/<slug>/dna.md` read and cited, patterns named by id, lessons recorded in the brief, no brand assets copied.
 
 ## 1. Decide what the reference is for
 
@@ -53,7 +53,7 @@ design_reference {action:"extract", url:"https://example.com", viewports:[1440, 
   rhythm, takes a first-screen screenshot per width, and writes
   `.design/references/<slug>/{dna.md, dna.json, raw.json, DESIGN.md, <width>.png}`
   (`.design/` is self-ignored by git).
-- Add a third width (`768`) when tablet behavior matters. Measure each page
+- Keep `768` when tablet behavior matters; `[1440, 390]` is the minimum pair. Measure each page
   type separately (home, pricing, docs, app screen); one URL is one page.
 - A localhost or private address needs `/browser allow <origin>` first.
 - The tool is hidden wherever outbound network is denied (restricted mode, a

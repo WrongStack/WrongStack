@@ -22,6 +22,7 @@ import { BellRing, Send, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { relativeTime } from '@/features/attention/model';
+import { splitLabels } from '@/features/machines/machine-labels';
 import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
 import { AlertRulesForm } from './alert-rules-form';
@@ -209,6 +210,7 @@ function ChannelRow({
               .join(' · ')}
             {channel.kinds.includes('alert') && ` · ${SEVERITY_LABEL[channel.minSeverity]}`}
           </p>
+          <ChannelMachines channel={channel} disabled={busy} run={run} />
           <p className="text-xs text-muted-foreground">
             {channel.lastDeliveredAt !== undefined
               ? `Last delivered ${relativeTime(channel.lastDeliveredAt, now)} · ${channel.delivered} sent`
@@ -301,6 +303,7 @@ function AddChannel({ onAdded }: { onAdded: () => Promise<void> }): ReactNode {
   const [kinds, setKinds] = useState<Kind[]>(['alert', 'machine', 'approval', 'question']);
   const [minSeverity, setMinSeverity] =
     useState<NonNullable<NotifyChannelInput['minSeverity']>>('warn');
+  const [machineLabels, setMachineLabels] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selected = TYPES.find((entry) => entry.type === type) ?? TYPES[0]!;
@@ -315,9 +318,11 @@ function AddChannel({ onAdded }: { onAdded: () => Promise<void> }): ReactNode {
         url,
         kinds,
         minSeverity,
+        machineLabels: splitLabels(machineLabels),
       });
       setName('');
       setUrl('');
+      setMachineLabels('');
       await onAdded();
     } catch (cause) {
       setError(errorText(cause));
@@ -427,6 +432,25 @@ function AddChannel({ onAdded }: { onAdded: () => Promise<void> }): ReactNode {
             </select>
           </div>
         )}
+        <div className="flex flex-col gap-1.5 sm:max-w-md">
+          <label htmlFor={`${id}-labels`} className="text-sm font-medium">
+            Only machines labelled
+          </label>
+          <input
+            id={`${id}-labels`}
+            className={cn(field, 'font-mono')}
+            value={machineLabels}
+            onChange={(event) => setMachineLabels(event.target.value)}
+            placeholder="prod gpu"
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby={`${id}-labels-hint`}
+          />
+          <p id={`${id}-labels-hint`} className="text-xs text-muted-foreground">
+            Leave empty to hear about every machine. Fleet-wide alerts, and requests HQ cannot place
+            on a machine, arrive either way.
+          </p>
+        </div>
         {error !== null && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -540,5 +564,87 @@ function Settings({
         </div>
       </form>
     </section>
+  );
+}
+
+/**
+ * Which machines a channel hears about: every one, or only those carrying
+ * some labels. Changed in place; the server validates the labels.
+ */
+function ChannelMachines({
+  channel,
+  disabled,
+  run,
+}: {
+  channel: HqNotifyChannelView;
+  disabled: boolean;
+  run: (work: () => Promise<string>) => Promise<void>;
+}): ReactNode {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const inputId = useId();
+  const labels = channel.machineLabels;
+  if (editing) {
+    return (
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void run(async () => {
+            const next = splitLabels(text);
+            await updateNotifyChannel(channel.id, { machineLabels: next });
+            setEditing(false);
+            return next.length === 0
+              ? 'Now hears about every machine.'
+              : `Now hears only about ${next.join(', ')} machines.`;
+          });
+        }}
+      >
+        <label htmlFor={inputId} className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Only machines labelled (empty: every machine)
+          <input
+            id={inputId}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            className={cn(field, 'h-8 font-mono')}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        <button type="submit" disabled={disabled} className={button}>
+          Save
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          className="inline-flex h-8 items-center px-2 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => setEditing(false)}
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="channel-machines">
+      {labels.length === 0 ? (
+        <span>Every machine</span>
+      ) : (
+        <span>
+          Only <span className="font-mono">{labels.join(', ')}</span> machines
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={disabled}
+        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        onClick={() => {
+          setText(labels.join(' '));
+          setEditing(true);
+        }}
+      >
+        Change
+      </button>
+    </p>
   );
 }

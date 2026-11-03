@@ -103,7 +103,7 @@ describe('profile usage summary', () => {
     const handlers = createProjectHandlers({
       globalConfigPath: path.join(globalRoot, 'config.json'),
       wpaths: { globalRoot },
-      sendMessage: (_ws, message) => sent.push(message as never),
+      sendMessage: (_ws: unknown, message: unknown) => sent.push(message as never),
     } as never);
     await handlers.listProjects({} as never, { type: 'projects.list', payload: {} } as never);
     await handlers.listProjects(
@@ -128,7 +128,7 @@ describe('profile usage summary', () => {
       ws as never,
       { type: 'projects.list', payload: { usageSummary: true, requestId: 'r1' } } as never,
       {
-        listProjects: async (socket) => send(socket, { type: 'projects.list', payload: {} }),
+        listProjects: async (socket: never) => send(socket, { type: 'projects.list', payload: {} }),
       } as never,
     );
     expect(frames[0]?.payload['requestId']).toBe('r1');

@@ -32,7 +32,7 @@ export function reapExpiredCatalogEntries(db: DatabaseSync, now = Date.now()): v
         row.session_id,
         row.lease_id,
       );
-    } else if (row.status !== 'lost') {
+    } else if (row.status !== 'lost' && row.status !== 'closing') {
       db.prepare("UPDATE session_leases SET status='lost' WHERE session_id=? AND lease_id=?").run(
         row.session_id,
         row.lease_id,

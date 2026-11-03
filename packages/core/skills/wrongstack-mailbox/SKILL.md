@@ -9,7 +9,7 @@ description: |
   fleet", "tell the wrongstack agents", "is anyone online in
   wrongstack", or "register me with wrongstack".
 audience: roster
-version: 1.2.1
+version: 1.2.3
 required-capabilities: []
 required-tools: [mailbox]
 optional-capabilities: [mcp.dynamic, web.research]
@@ -39,8 +39,12 @@ agent) how to talk to it.
 
 ## Selection card
 - Task: Use the roster mailbox client protocol.
-- Start: Identify the host, protocol, enabled integration and authorization scope.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Confirm the bridge endpoint, token source and your agent identity before reading or sending.
+- Finish: Messages were read or sent through the documented client contract, and nothing was written to the mailbox store directly.
+
+## Overview
+
+External agents reach a WrongStack project mailbox only through the bridge client contract: authenticate with the bridge token, read and send messages, never touch the store.
 
 ## What this skill assumes
 

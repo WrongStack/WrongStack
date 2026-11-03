@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   breakdown,
   count,
+  labelSpend,
   niceCeiling,
   projectSpend,
+  samplesForMachines,
   sessionSpend,
   TREND_RANGES,
   trendTotals,
@@ -157,5 +159,37 @@ describe('niceCeiling', () => {
     expect(niceCeiling(0)).toBe(0);
     expect(niceCeiling(-3)).toBe(0);
     expect(niceCeiling(Number.NaN)).toBe(0);
+  });
+});
+
+describe('label spend', () => {
+  const entry = (costUsd: number) => ({ costUsd, inputTokens: 10, outputTokens: 5, toolCalls: 1 });
+  const samples = [
+    {
+      ts: 0,
+      costUsd: 6,
+      inputTokens: 30,
+      outputTokens: 15,
+      byMachine: { 'host:desk': entry(1), 'host:lab': entry(2), 'host:spare': entry(3) },
+    },
+    { ts: 1, costUsd: 4, inputTokens: 10, outputTokens: 5, byMachine: { 'host:lab': entry(4) } },
+  ] as unknown as HqTimeseriesSample[];
+  const labels = { 'host:desk': ['gpu', 'lab'], 'host:lab': ['lab'] };
+
+  it('narrows the series to a set of machines', () => {
+    const lab = samplesForMachines(samples, new Set(['host:desk', 'host:lab']));
+    expect(lab.map((sample) => sample.costUsd)).toEqual([3, 4]);
+    expect(lab[0]).toMatchObject({ inputTokens: 20, outputTokens: 10, toolCalls: 2 });
+  });
+
+  it('sums spend per label, counts multi-label machines twice and keeps the rest as one row', () => {
+    const rows = labelSpend(samples, labels);
+    expect(rows.map((row) => [row.key, row.costUsd])).toEqual([
+      ['lab', 7],
+      ['gpu', 1],
+      ['no label', 3],
+    ]);
+    // Shares are of the whole fleet's 10.
+    expect(rows[0]?.share).toBeCloseTo(0.7);
   });
 });

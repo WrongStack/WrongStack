@@ -26,7 +26,7 @@ import { useMemo, useRef, useState } from 'react';
 import { AddMachineButton, ConnectMachineSteps } from '@/components/connect-machine';
 import { plural } from '@/features/overview/model';
 import { cn } from '@/lib/cn';
-import { machineIdsForKey } from '@/lib/scope';
+import { machineIdsForScope, scopeLabel } from '@/lib/scope';
 import { useFleetScope } from '@/lib/use-scope';
 import { FleetGraph } from './fleet-graph';
 import { FleetList } from './fleet-list';
@@ -76,12 +76,12 @@ export function FleetView(): ReactNode {
     () =>
       filterFleetTopology(
         full,
-        scope.kind,
+        scope.kind === 'label' ? 'machine' : scope.kind,
         scope.kind === 'all'
           ? undefined
-          : scope.kind === 'machine'
-            ? machineIdsForKey(snapshot, scope.id)
-            : scope.id,
+          : scope.kind === 'project'
+            ? scope.id
+            : machineIdsForScope(scope, snapshot),
       ),
     [full, scope, snapshot],
   );
@@ -192,9 +192,11 @@ export function FleetView(): ReactNode {
       <div className="relative min-h-0 flex-1">
         {topology.nodes.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">
-            {query.length > 0
-              ? 'Nothing in the fleet matches this search.'
-              : 'No agent is working right now. Turn off “Hide idle” to see the rest.'}
+            {scoped.nodes.length === 0
+              ? `Nothing in ${scopeLabel(scope, snapshot)} is connected right now.`
+              : query.length > 0
+                ? 'Nothing in the fleet matches this search.'
+                : 'No agent is working right now. Turn off “Hide idle” to see the rest.'}
           </p>
         ) : prefs.layout === 'map' ? (
           <FleetGraph

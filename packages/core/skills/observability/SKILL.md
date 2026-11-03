@@ -1,9 +1,10 @@
 ---
 name: observability
 description: |
+  Logging, metrics and tracing with OpenTelemetry: structured logs, correlation ids, spans, alerts, and undiagnosable production bugs.
   Use this skill when adding or reviewing logging, metrics, or tracing in an application, or when a production problem can't be diagnosed from the signals that exist today.
   Triggers: user says "logging", "logs", "trace", "tracing", "metrics", "observability", "instrument", "OpenTelemetry", "structured logging", "log level", "correlation id", "monitoring", "alert".
-version: 2.1.1
+version: 2.1.2
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [code.inspect]
@@ -16,8 +17,8 @@ metadata:
 
 ## Selection card
 - Task: Instrument logs, traces, metrics and service signals.
-- Start: Identify the data owner, query/schema, consistency and recovery contract.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Name the question the signals must answer and inventory the logging, metrics and tracing stack already in place.
+- Finish: The new signal appears in a real run and answers the question (a log query, metric or trace shown), without secrets or unbounded labels.
 
 ## Overview
 

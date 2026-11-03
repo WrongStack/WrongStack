@@ -1,10 +1,11 @@
 ---
 name: debugging
 description: |
+  Debug a failure to its root cause: failing tests, crashes, stack traces, wrong output, regressions, hangs and flaky behavior.
   Use this skill when something is broken and the cause is unknown — a failing test, a crash, an error message, wrong output, a regression, a hang, or behaviour that differs between environments — and it has to be found and fixed at the root.
   Also use it to build the failing proof for a suspected defect before fixing it, as in a proof-driven bug hunt.
   Triggers: user says "debug", "broken", "doesn't work", "failing", "error", "exception", "stack trace", "crash", "regression", "it used to work", "hangs", "why does", "root cause", "works on my machine", "reproduce", "prove it".
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [execution.shell, verification.run, code.inspect, version-control.manage]
@@ -17,8 +18,8 @@ metadata:
 
 ## Selection card
 - Task: Reproduce and diagnose a reported failure.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Capture the exact error, command and environment, then get a reproduction that fails on demand.
+- Finish: The root cause explains every symptom, the fix sits at the cause, and the regression test went red then green.
 
 ## Overview
 

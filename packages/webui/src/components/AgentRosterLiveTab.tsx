@@ -256,7 +256,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
               type="button"
               onClick={() => setSelectedId(selectedId === agent.id ? null : agent.id)}
               className={cn(
-                'w-full text-left rounded-lg border px-3 py-2 transition-colors flex items-center gap-2',
+                'w-full text-left rounded-lg border px-3 py-2 transition-colors flex flex-wrap items-center gap-2',
                 selectedId === agent.id
                   ? 'border-primary/50 bg-primary/[0.06]'
                   : 'border-border/60 hover:border-primary/30 hover:bg-primary/[0.03]',
@@ -274,22 +274,22 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
               </span>
               {agent.id === leaderId && <Crown className="h-3 w-3 shrink-0 text-warning" />}
               {agent.model && (
-                <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[6rem] shrink-0">
+                <span className="text-[10px] sm:text-[9px] text-muted-foreground font-mono truncate max-w-[6rem] shrink-0">
                   {agent.model}
                 </span>
               )}
-              <span className="text-[9px] text-muted-foreground tabular-nums shrink-0">
+              <span className="text-[10px] sm:text-[9px] text-muted-foreground tabular-nums shrink-0">
                 {agent.iteration}it · {agent.toolCalls}t
               </span>
               {agent.status === 'running' && (
-                <span className="text-[9px] text-foreground tabular-nums shrink-0 ml-auto">
+                <span className="text-[10px] sm:text-[9px] text-foreground tabular-nums shrink-0 ml-auto">
                   {fmtElapsed(Date.now() - agent.startedAt)}
                 </span>
               )}
               {agent.status !== 'running' && (
                 <span
                   className={cn(
-                    'text-[9px] tabular-nums shrink-0 ml-auto',
+                    'text-[10px] sm:text-[9px] tabular-nums shrink-0 ml-auto',
                     STATUS_META[agent.status]?.color ?? 'text-muted-foreground',
                   )}
                 >
@@ -297,12 +297,12 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
                 </span>
               )}
               {agent.costUsd > 0 && (
-                <span className="text-[9px] text-success tabular-nums font-medium shrink-0">
+                <span className="text-[10px] sm:text-[9px] text-success tabular-nums font-medium shrink-0">
                   {fmtCost(agent.costUsd)}
                 </span>
               )}
               {agent.status === 'running' && agent.currentTool && (
-                <span className="text-[9px] text-foreground font-mono truncate max-w-[6rem] shrink-0">
+                <span className="text-[10px] sm:text-[9px] text-foreground font-mono truncate max-w-[6rem] shrink-0">
                   → {agent.currentTool}
                 </span>
               )}
@@ -369,7 +369,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold">{agent.name}</span>
             {agent.id === leaderId && (
-              <span className="inline-flex items-center gap-1 rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[9px] font-medium text-warning">
+              <span className="inline-flex items-center gap-1 rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] sm:text-[9px] font-medium text-warning">
                 <Crown className="h-2.5 w-2.5" /> {t('activity:agentRoster.leader')}
               </span>
             )}
@@ -396,19 +396,19 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <div className="ws-metric rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+          <span className="text-[10px] sm:text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.iterations')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{agent.iteration}</div>
         </div>
         <div className="ws-metric rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+          <span className="text-[10px] sm:text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.toolCalls')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{agent.toolCalls}</div>
         </div>
         <div className="ws-metric rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+          <span className="text-[10px] sm:text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.cost')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5 text-success">
@@ -416,7 +416,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
           </div>
         </div>
         <div className="ws-metric rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+          <span className="text-[10px] sm:text-[9px] text-muted-foreground uppercase tracking-wider">
             {t('activity:agentRoster.context')}
           </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{ctxPct}%</div>

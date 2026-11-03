@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "scope": "Built-in schemas using the shared provider-wire projection; excludes system prompt and provider-specific wrappers.",
+  "estimator": "runtime heuristic, not billed tokens",
+  "profiles": {
+    "off": {
+      "count": 78,
+      "wireBytes": 98611,
+      "estimatedTokens": 27281
+    },
+    "minimal": {
+      "count": 30,
+      "wireBytes": 31626,
+      "estimatedTokens": 8691
+    },
+    "light": {
+      "count": 30,
+      "wireBytes": 31626,
+      "estimatedTokens": 8691
+    },
+    "medium": {
+      "count": 54,
+      "wireBytes": 84215,
+      "estimatedTokens": 23436
+    },
+    "aggressive": {
+      "count": 30,
+      "wireBytes": 31626,
+      "estimatedTokens": 8691
+    },
+    "lean": {
+      "count": 6,
+      "wireBytes": 5186,
+      "estimatedTokens": 1415
+    }
+  }
+}

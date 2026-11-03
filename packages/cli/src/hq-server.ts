@@ -311,7 +311,7 @@ async function startHqServerWithAuth(
     })().catch(() => {});
     const hqSessionTag = randomUUID().slice(0, 8);
 
-    const notify = createHqNotifyRuntime(dataDir, clients);
+    const notify = createHqNotifyRuntime(dataDir, clients, () => persistence.machines.labelMap());
     const alertEngine = new HqAlertEngine({
       onAlert: (alert) => {
         notify.onAlert(alert);

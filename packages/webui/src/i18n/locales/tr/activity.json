@@ -1850,6 +1850,7 @@
     "sendSelectionAction": "Seçimi sohbete gönder",
     "noFilesOpen": "Açık dosya yok",
     "selectToEdit": "Düzenlemeye başlamak için gezginden bir dosya seçin",
+    "openExplorer": "Dosya gezginini aç",
     "sendSelectedTitle": "Seçili satırları sohbete gönder",
     "mentionFileTitle": "Bu dosyayı sohbette bahset",
     "sendToChat": "Sohbete gönder",

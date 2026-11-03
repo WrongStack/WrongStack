@@ -454,6 +454,10 @@ export async function createToolGateway(options: ToolGatewayOptions): Promise<To
   };
   const tools = selected.filter((t) => !withheld(t.name));
   const byName = new Map(tools.map((t) => [t.name, t]));
+  const exposedTool = (name: string): Tool | undefined => {
+    const current = registry.get(name);
+    return current && byName.has(current.name) ? current : undefined;
+  };
 
   const catchUpIndex =
     options.catchUpIndex ??
@@ -490,11 +494,15 @@ export async function createToolGateway(options: ToolGatewayOptions): Promise<To
     capabilities,
     projectRoot,
     tools,
-    get: (name) => byName.get(name),
-    withheldBy: (name) => (withheld(name) ? oneShotWithholdReason(name) : undefined),
+    get: exposedTool,
+    withheldBy: (name) => {
+      const canonical = registry.get(name)?.name ?? name;
+      return withheld(canonical) ? oneShotWithholdReason(canonical) : undefined;
+    },
     async call(name, input, callOptions) {
-      const tool = byName.get(name);
+      const tool = exposedTool(name);
       if (!tool) return { kind: 'not_exposed' };
+      name = tool.name;
       if (readsCodebaseIndex(name) && (catchUpInFlight || indexNeedsCatchUp())) {
         catchUpInFlight ??= runCatchUp();
         await catchUpInFlight;

@@ -446,6 +446,10 @@ export function CodeEditor() {
         icon={<FileText className="h-6 w-6" />}
         title={t('activity:codeEditor.noFilesOpen')}
         description={t('activity:codeEditor.selectToEdit')}
+        action={{
+          label: t('activity:codeEditor.openExplorer'),
+          onClick: () => showPanel('files'),
+        }}
       />
     );
   }

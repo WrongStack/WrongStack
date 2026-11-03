@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/hq-next",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "WrongStack HQ command center rebuilt on the Next.js App Router as a static export served by the HQ server.",
   "license": "MIT",

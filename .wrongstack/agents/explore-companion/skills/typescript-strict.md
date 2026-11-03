@@ -15,4 +15,3 @@
 ## WrongForge error provenance
 
 - Trace any `WrongForge: …` message from its two mint sites in `packages/cli/src/wrongforge-leader/wrongforge-leader-provider.ts`: `taskError()` formats failed task records as `` `${code}: ${message}` `` and special-cases `context_overflow` → HTTP 413 / kind `context_overflow`, while `providerError()` wraps direct `WfHttpError` calls where a generic 400 becomes kind `invalid_request`. [applied 33×, 33 ok]
-- Attribute the text after the `WrongForge: ` prefix to the external service at `WRONGFORGE_URL` (default `http://127.0.0.1:8787`, resolved by `resolveWrongForgeEndpoint` in `packages/cli/src/fleet/wrongforge-client.ts`) — expect zero repo-grep hits for it, and treat `context_overflow` as compaction-owned and non-fallback-eligible per `docs/agents.md` recovery-layer rules.

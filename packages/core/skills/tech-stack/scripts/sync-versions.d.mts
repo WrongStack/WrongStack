@@ -12,6 +12,12 @@ export type NpmVersionMap = Record<string, { version?: string; latestTag?: strin
 /** PyPI versions keyed by project name. */
 export type PypiVersionMap = Record<string, string | undefined>;
 
+/** Newest stable and newest LTS version (without `v`) from nodejs.org/dist/index.json; prereleases skipped. */
+export declare function selectNodeReleases(list: unknown): {
+  current: string | undefined;
+  lts: string | undefined;
+};
+
 export declare function collectEcosystemVersions(): Promise<EcosystemVersions>;
 
 /** `x.y.z` -> `x.y.(z+1)`; anything else is returned unchanged. */

@@ -1,7 +1,7 @@
 ---
 name: skill-creator
-description: "Create, improve and validate WrongStack SKILL.md bundles with precise discovery, progressive resources and current runtime contracts. Use when authoring skills, improving triggers or maintaining bundled skills; respect the requested destination and preserve existing audience and capability metadata."
-version: 1.4.2
+description: "Write, improve or validate SKILL.md skills: discovery-ready descriptions, frontmatter, references, checker runs and catalogs. Use when authoring skills, improving triggers or maintaining bundled skills; respect the requested destination and preserve existing audience and capability metadata."
+version: 1.5.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 trigger: "authoring skills, improving triggers or maintaining bundled skills; respect the requested destination and preserve existing audience and capability metadata."
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Author and validate bundled or project skills.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Identify the destination layer, the skill's role, and realistic requests that should and should not trigger it.
+- Finish: The bundle checker passes and the skill is discovered and loaded for its positive cases.
 
 ## Overview
 
@@ -28,6 +28,9 @@ was reviewed on 2026-10-23; WrongStack adds audience and runtime capability fiel
 
 1. Use a 1–64 character lowercase kebab-case name matching its directory.
    Description is 1–1024 characters and states capability plus activation context.
+   Its first sentence is the catalog row the model chooses from: keep it near
+   135 characters and lead with request vocabulary (frameworks, files,
+   commands, symptoms), then "Use when …" and a "Not for … (use x)" boundary.
 2. Respect the requested destination. Default new project skills to
    .wrongstack/skills/<name>/SKILL.md; bundled maintenance belongs in
    packages/core/skills/<name>/SKILL.md when that is the user's requested scope.
@@ -38,10 +41,15 @@ was reviewed on 2026-10-23; WrongStack adds audience and runtime capability fiel
    conditions and authorization in the entrypoint.
 5. Verify latest stable technology targets from official sources. Record exact
    version/date/URL and refresh before installs; no version guesses or stale
-   examples presented as current.
+   examples presented as current. Phrase stamps the way the tech-stack
+   sync-versions writer matches them ("Checked <date>: Python 3.x.y", "Go
+   target: 1.x.y"), then `bun run skill:sync-versions` keeps them current.
 6. Declare only real runtime requirements. Optional tools should appear in
    plain prose: backticked canonical names are inferred as required by the
-   prompt builder even when the sentence says “optional”.
+   prompt builder even when the sentence says “optional”. So is any single
+   backticked word right after use, run, call or invoke, or right before the
+   word tool; an unknown one fails the checker. Write multi-word commands
+   (`pytest -x -q`) or plain prose.
 
 ## Workflow
 
@@ -72,7 +80,8 @@ bun run packages/core/skills/skill-creator/scripts/check-bundle.ts
 ~~~
 
 This helper checks frontmatter, real tool/capability names, related skill
-targets, local resource links and runtime discovery. It does not install
+targets, local resource links, runtime discovery and that each progressive
+catalog row shows the complete first description sentence. It does not install
 dependencies, change files or invoke a model.
 
 ## Optional authoring surfaces

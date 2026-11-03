@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
+import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
 import { loadDatabaseSync } from '../utils/sqlite-database.js';
 import type {
   CatalogSessionRecord,
@@ -94,15 +95,31 @@ export class SessionCatalogStore {
     const rowCount = Number(
       (this.db.prepare('SELECT COUNT(*) AS count FROM sessions').get() as { count: number }).count,
     );
-    if (
-      rowCount === 0 &&
-      (walkSessionFiles(this.sessionsDir, '.jsonl').some(
-        (file) => !file.endsWith('_index.jsonl') && !file.endsWith('.replay.jsonl'),
-      ) ||
-        walkSessionFiles(this.sessionsDir, '.jsonl.gz').length > 0)
-    ) {
+    if (rowCount === 0 && this.hasIndexableTranscriptOnDisk()) {
       this.rebuildCatalog();
     }
+  }
+
+  /**
+   * True when the sessions directory holds at least one REAL transcript.
+   *
+   * Uses the canonical {@link isSessionTranscriptFileName} predicate instead of
+   * a local blocklist. The hand-rolled version here excluded only
+   * `_index.jsonl` and `.replay.jsonl`, so the store-level `_mailbox.jsonl` and
+   * the `.audit.jsonl` / `.annotations.jsonl` sidecars counted as transcripts:
+   * a sessions directory holding only sidecars (every session deleted, mailbox
+   * still present) rebuilt the whole catalog on EVERY open — writing
+   * `last_reconciliation` and bumping the generation that is the catalog's
+   * change signal for every client.
+   */
+  private hasIndexableTranscriptOnDisk(): boolean {
+    for (const suffix of ['.jsonl', '.jsonl.gz']) {
+      const found = walkSessionFiles(this.sessionsDir, suffix).some((file) =>
+        isSessionTranscriptFileName(path.basename(file)),
+      );
+      if (found) return true;
+    }
+    return false;
   }
 
   private configureDatabase(): void {

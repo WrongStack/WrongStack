@@ -1,7 +1,7 @@
 ---
 name: research-web
-description: "Research current facts using primary sources, precise citations and dated evidence. Use when checking latest releases, API changes, standards, product capabilities or conflicting claims; direct known URLs can be fetched without a preliminary search."
-version: 1.2.1
+description: "Web research with primary sources and dated citations: latest releases, changelogs, API changes, limits, pricing, CVEs and standards. Use when checking latest releases, API changes, standards, product capabilities or conflicting claims; direct known URLs can be fetched without a preliminary search. Not for package upgrade execution (use tech-stack) or browser support verdicts (use web-platform-baseline)."
+version: 1.3.0
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [verification.run, web.research, filesystem.write]
@@ -14,8 +14,8 @@ metadata:
 
 ## Selection card
 - Task: Research a question using authoritative web sources.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Split the question into separate claims and choose the primary source for each.
+- Finish: Each claim has a dated citation from a primary source, and conflicts or unknowns are stated plainly.
 
 ## Overview
 
@@ -54,6 +54,20 @@ package version than several blogs repeating an old announcement.
    drift-prone claims for a later install or important decision.
 5. Cite direct supporting pages near claims. Label inference and assumptions.
    Respect quotations and source usage limits.
+
+## Source ladder
+
+| Claim | Strongest source | Weak substitutes to avoid |
+|---|---|---|
+| Latest package version | Registry API (npm, PyPI, crates.io, Maven Central) stable tag plus release notes | Blog posts, AI summaries, README badges |
+| API behavior or breaking change | Versioned docs and the changelog or migration guide for the exact release | Undated tutorials, Stack Overflow answers |
+| Browser support | MDN with browser-compat-data or web-features Baseline status | "Can I use" screenshots in articles |
+| Vulnerability | GitHub Security Advisory, NVD or the vendor advisory with affected ranges | Scanner marketing pages |
+| Limits, quotas and pricing | The vendor's current pricing or limits page, quoted with retrieval date | Third-party comparison tables |
+| Standards | The specification at a named version or date | Explainers that predate the final text |
+| Product capability for this account | The product's own settings, API response or documentation for the plan | General marketing claims |
+
+Search operators help reach primary sources fast: `site:` the vendor domain, the exact error string in quotes, and the version number.
 
 ## Result shape
 

@@ -1,6 +1,6 @@
 import type { Config, ConfigStore, ModelsRegistry } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
-import { runBrowserPolicyCommand } from '@wrongstack/tools';
+import { exportToolCatalog, runBrowserPolicyCommand } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
@@ -282,7 +282,19 @@ export async function handleIntrospectionRoute(
           permission: tool.permission ?? 'auto',
         };
       });
-      ctx.send(ws, { type: 'tools.list', payload: withRequestId(message.payload, { tools }) });
+      const includeCatalog =
+        (message.payload as { catalog?: unknown } | undefined)?.catalog === true;
+      const catalog =
+        includeCatalog && typeof agent.tools.exportCatalog === 'function'
+          ? { ...exportToolCatalog(agent.tools), scope: 'registered' as const }
+          : undefined;
+      ctx.send(ws, {
+        type: 'tools.list',
+        payload: withRequestId(message.payload, {
+          tools,
+          ...(includeCatalog ? { catalog: catalog ?? null } : {}),
+        }),
+      });
       return true;
     }
     case 'browser.policy': {

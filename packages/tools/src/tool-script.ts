@@ -21,6 +21,7 @@
 import type { NestedToolCaller, Tool } from '@wrongstack/contracts/types';
 import { TOOL_MEMORY_GUARD_BYTES } from '@wrongstack/contracts/types';
 import type { QuickJSContext, QuickJSHandle, QuickJSWASMModule } from 'quickjs-emscripten-core';
+import { toolDiscoveryMetadata } from './tool-discovery-metadata.js';
 
 export interface ToolScriptInput {
   script: string;
@@ -189,6 +190,7 @@ export const toolScriptTool: Tool<ToolScriptInput, string> = {
       (tool) => tool.name !== TOOL_SCRIPT_NAME,
     );
     const toolNames = catalog.map((tool) => tool.name);
+    const callableNames = catalog.flatMap((tool) => [tool.name, ...(tool.aliases ?? [])]);
 
     const module = await loadQuickJs();
     // Another call may have acquired the context while WebAssembly was loading.
@@ -350,7 +352,7 @@ export const toolScriptTool: Tool<ToolScriptInput, string> = {
       );
       vm.setProp(toolsObject, 'data', dataFn);
       dataFn.dispose();
-      for (const name of toolNames) {
+      for (const name of callableNames) {
         if (['call', 'data', 'names', 'describe'].includes(name)) continue;
         const fn = vm.newFunction(name, (inputHandle) => {
           const nameHandle = vm.newString(name);
@@ -377,7 +379,7 @@ export const toolScriptTool: Tool<ToolScriptInput, string> = {
       namesFn.dispose();
       const describeFn = vm.newFunction('describe', (nameHandle) => {
         const name = vm.getString(nameHandle);
-        const tool = catalog.find((entry) => entry.name === name);
+        const tool = catalog.find((entry) => entry.name === name || entry.aliases?.includes(name));
         if (!tool)
           return {
             error: vm.newError(
@@ -392,6 +394,7 @@ export const toolScriptTool: Tool<ToolScriptInput, string> = {
           usageHint: tool.usageHint,
           permission: tool.permission,
           mutating: tool.mutating,
+          ...toolDiscoveryMetadata(tool),
         };
         return vm.unwrapResult(
           vm.evalCode(`JSON.parse(${JSON.stringify(JSON.stringify(description))})`),

@@ -481,4 +481,41 @@ describe('deactivateProxyOnConnectionFailure', () => {
     expect(deactivateProxyOnConnectionFailure(err)).toBe(true);
     expect(getProxyConfig().active).toBe(false);
   });
+
+  // Gateway codes must be STANDALONE numeric tokens. The old bare-substring
+  // checks (`msg.includes('502')`) also matched those digits inside longer
+  // runs, so an unrelated provider error — a 429 with a 5024ms retry hint, a
+  // byte count, a port — silently deactivated WrongProxy mid-session, and
+  // every provider built afterwards bypassed the configured proxy.
+  it('does not deactivate on unrelated errors whose digit runs merely contain 502/503/504', () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    expect(
+      deactivateProxyOnConnectionFailure(
+        new Error('HTTP 429 Too Many Requests: retry after 5024ms'),
+      ),
+    ).toBe(false);
+    expect(
+      deactivateProxyOnConnectionFailure(
+        new Error('payload 502413 bytes exceeds the provider limit'),
+      ),
+    ).toBe(false);
+    expect(
+      deactivateProxyOnConnectionFailure(
+        new Error('upstream socket 127.0.0.1:15021 closed by peer'),
+      ),
+    ).toBe(false);
+    expect(getProxyConfig().active).toBe(true);
+  });
+
+  it('deactivates on bare gateway status tokens at any message position', () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    expect(deactivateProxyOnConnectionFailure(new Error('503 Service Unavailable'))).toBe(true);
+    expect(getProxyConfig().active).toBe(false);
+
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    expect(deactivateProxyOnConnectionFailure(new Error('upstream returned 504, aborting'))).toBe(
+      true,
+    );
+    expect(getProxyConfig().active).toBe(false);
+  });
 });

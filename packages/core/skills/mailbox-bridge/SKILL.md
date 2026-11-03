@@ -1,6 +1,7 @@
 ---
 name: mailbox-bridge
 description: |
+  External agents (Claude Code, Aider, scripts) on the WrongStack mailbox via a loopback HTTP bridge: expose, read and send messages.
   Use this skill when external coding agents (Claude Code, Aider, custom
   scripts) need to participate in the project's shared WrongStack mailbox,
   or when a user asks to "expose the mailbox", "let Claude Code read the
@@ -8,7 +9,7 @@ description: |
   bridge". Starts a loopback HTTP façade over the same GlobalMailbox that
   WrongStack-internal agents already share, so any agent with curl or
   fetch can read, send, and acknowledge messages.
-version: 1.2.1
+version: 1.2.2
 required-capabilities: [execution.shell]
 required-tools: []
 optional-capabilities: [web.research]
@@ -27,8 +28,8 @@ metadata:
 
 ## Selection card
 - Task: Connect an authorized external agent to a mailbox.
-- Start: Identify the host, protocol, enabled integration and authorization scope.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Confirm the project directory and whether a mailbox bridge is already running for it.
+- Finish: The external agent read or sent a message through the bridge, which is bound to loopback with its token kept out of logs and chat.
 
 ## Overview
 

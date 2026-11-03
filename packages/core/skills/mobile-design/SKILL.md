@@ -1,8 +1,8 @@
 ---
 name: mobile-design
-description: "Design and implement mobile interfaces for touch, keyboards, safe areas and native navigation. Use when creating phone/tablet/foldable screens or adapting web ideas to mobile; platform behavior and device evidence matter alongside visual tokens."
-trigger: "Design and implement mobile interfaces for touch, keyboards, safe areas and native navigation. Use when creating phone/tablet/foldable screens or adapting web ideas to mobile; platform behavior and device evidence matter alongside visual tokens."
-version: 1.1.1
+description: "Mobile UI design: touch targets, safe areas, keyboard insets, tab bars, sheets, gestures, Dynamic Type and phone/tablet/foldable layouts. Use when designing or reviewing a mobile screen or flow, adapting a web design to phones, or fixing cramped, clipped or unreachable mobile UI; device evidence matters alongside visual tokens. Not for platform code mechanics (use swift-ios, kotlin-android, flutter-mobile or react-native-expo) or desktop web layout (use design-craft)."
+trigger: "Use when a mobile screen, sheet, tab bar, form or gesture is designed, reviewed or fixed for touch, keyboard, safe-area or large-text behavior."
+version: 1.2.2
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, execution.shell, verification.run, web.research]
@@ -14,11 +14,13 @@ metadata:
 # Mobile Design
 
 ## Selection card
-- Task: Design native touch layouts and safe-area behavior.
-- Start: Identify the platform, screen, device and native integration boundary.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Task: Design or fix mobile layouts, navigation and touch behavior for phones, tablets and foldables.
+- Start: Name the platform(s), the screen's primary task, the smallest supported device and the existing components and tokens.
+- Finish: the measurable acceptance table below holds on a device, simulator or 390/320 px viewport (stated which), with evidence for keyboard-open, large-text and landscape states.
 
 ## Overview
+
+A mobile screen succeeds when its primary task stays reachable under the worst conditions — keyboard open, largest text, smallest device, one thumb — so design from those, not the mockup.
 
 Mobile interface design adapts user tasks to thumb zones, dynamic safe-area insets (notches, Dynamic Island, gesture bars), on-screen virtual keyboards, variable window size classes (compact phones, foldables, tablets), and native iOS HIG / Material 3 navigation idioms. High-craft mobile UI keeps primary actions reachable when the keyboard is open and respects OS-level Dynamic Type and gesture expectations.
 
@@ -32,6 +34,27 @@ Use current iOS/Android guidance and the app supported OS/device matrix. Refresh
 4. Use touch affordances and spacing suitable for the task/device; web CSS pixels and native logical units are not interchangeable.
 5. Support dynamic text, localized content, dark/forced contrast and screen-reader semantics.
 6. Preserve drafts and communicate interrupted/network/permission states rather than assuming uninterrupted foreground use.
+
+## First moves by situation
+
+| Situation | First moves |
+|---|---|
+| Web design ported to phone | Reduce to one primary task per screen; move secondary actions into overflow or sheets; check 320 px width |
+| Submit button hidden by keyboard | Pin the primary action above the keyboard inset or scroll the focused field into view; test from the last field |
+| Content under notch or home indicator | Apply safe-area insets only where content reaches the edge; check landscape |
+| Text truncates at large sizes | Let labels wrap, stack rows vertically at large text, remove fixed heights around text |
+| Too many navigation destinations | Bottom tab bar for 3–5 top-level destinations; the rest inside screens; never hide the back path |
+| Gesture-only feature | Add a visible alternative (swipe-to-delete also needs an edit or menu action) |
+| Tablet or foldable looks stretched | Use width classes: list-detail or two panes above compact width; cap readable line length |
+
+## Patterns and pitfalls
+
+- **Thumb reach** — primary actions low on phones; destructive actions away from the primary one, and undoable or confirmed.
+- **Sheets** — partial-height sheets for short tasks, full screens for long forms; a sheet holding unsaved input asks before dismissing.
+- **Platform idioms** — iOS swipe-back and large titles, Android system and predictive back; do not imitate one platform's core navigation on the other.
+- **Forms** — correct keyboard types, autofill hints, next/done actions, and inline validation that does not jump the layout.
+- **Empty, offline and permission states** — designed screens that explain why and offer the next step, not blank space.
+- **Motion and haptics** — subtle and consistent; respect reduced-motion settings.
 
 ## Workflow
 
@@ -67,7 +90,7 @@ viewports:[390, 320], surface:"app"}` with 0 FAIL. Native screens are outside
 
 ## Sources
 
-Versioned facts checked 2026-10-23; refresh authoritative sources before new installs/upgrades.
+Versioned facts checked 2026-11-02; refresh authoritative sources before new installs/upgrades.
 [Android mobile design](https://developer.android.com/design/ui/mobile), [Apple HIG](https://developer.apple.com/design/human-interface-guidelines).
 
 ## Skills in scope

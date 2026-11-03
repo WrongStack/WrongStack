@@ -533,6 +533,14 @@ describe('filterFleetTopology', () => {
     ]);
   });
 
+  it('shows several machines for a label, and nothing for a label with none live', () => {
+    const both = filterFleetTopology(topology, 'machine', new Set(['m1', 'm2']));
+    expect(both.nodes).toHaveLength(topology.nodes.length);
+    const none = filterFleetTopology(topology, 'machine', new Set<string>());
+    expect(none.nodes).toEqual([]);
+    expect(none.edges).toEqual([]);
+  });
+
   it('shows one project across every participating machine', () => {
     const filtered = filterFleetTopology(topology, 'project', 'p1');
     expect(filtered.nodes.map((node) => node.id)).toEqual([

@@ -62,10 +62,12 @@ export interface HqLocalPrefs {
     palette: HqPaletteId;
   };
   fleet: {
-    scope: 'all' | 'machine' | 'project';
+    scope: 'all' | 'machine' | 'project' | 'label';
     layout: 'map' | 'compact';
     machineId: string;
     projectId: string;
+    /** The operator label for `scope: 'label'`. */
+    label: string;
     /**
      * Hide idle workers. One shared flag for the Fleet Map and the Cockpit
      * Fleet card: when true, agents that are neither working, waiting on
@@ -76,8 +78,8 @@ export interface HqLocalPrefs {
      * The phone's own scope. Prefs are shared per origin, so the desktop's
      * scope must not silently narrow the phone; each surface keeps its own.
      */
-    phoneScope: 'all' | 'machine' | 'project';
-    /** Machine key or project id for `phoneScope`. */
+    phoneScope: 'all' | 'machine' | 'project' | 'label';
+    /** Machine key, project id or label for `phoneScope`. */
     phoneScopeId: string;
   };
   console: {
@@ -118,6 +120,7 @@ const DEFAULT_PREFS: HqLocalPrefs = {
     scope: 'all',
     layout: 'map',
     machineId: '',
+    label: '',
     projectId: '',
     hideIdle: false,
     phoneScope: 'all',
@@ -196,13 +199,19 @@ function mergeWithDefaults(input: unknown): HqLocalPrefs {
         : 'signal',
     },
     fleet: {
-      scope: fleet['scope'] === 'machine' || fleet['scope'] === 'project' ? fleet['scope'] : 'all',
+      scope:
+        fleet['scope'] === 'machine' || fleet['scope'] === 'project' || fleet['scope'] === 'label'
+          ? fleet['scope']
+          : 'all',
       layout: fleet['layout'] === 'compact' ? 'compact' : 'map',
       machineId: typeof fleet['machineId'] === 'string' ? fleet['machineId'] : '',
       projectId: typeof fleet['projectId'] === 'string' ? fleet['projectId'] : '',
+      label: typeof fleet['label'] === 'string' ? fleet['label'] : '',
       hideIdle: fleet['hideIdle'] === true,
       phoneScope:
-        fleet['phoneScope'] === 'machine' || fleet['phoneScope'] === 'project'
+        fleet['phoneScope'] === 'machine' ||
+        fleet['phoneScope'] === 'project' ||
+        fleet['phoneScope'] === 'label'
           ? fleet['phoneScope']
           : 'all',
       phoneScopeId: typeof fleet['phoneScopeId'] === 'string' ? fleet['phoneScopeId'] : '',

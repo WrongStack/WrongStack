@@ -349,8 +349,13 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'call built-in tools from any script or external agent. Read-only unless --allow <caps> ' +
       '(e.g. fs.write) or --yolo. Exit: 0 ok, 1 failed, 2 bad input, 3 not exposed/denied, 4 needs confirmation.',
     usage:
-      'wstack tools [list|describe <tool>|run <tool> [--input <json|@file|stdin>] [-- --<field> <value>]|batch|agent-guide] [--json] [--allow <caps>|--yolo]',
+      'wstack tools [catalog [--check]|list|describe <tool>|run <tool> [--input <json|@file|stdin>] [-- --<field> <value>]|batch|agent-guide] [--json] [--allow <caps>|--yolo]',
     subcommands: [
+      {
+        name: 'catalog',
+        description:
+          'Export registered tool contracts as JSON; --check fails on declaration issues. Includes session-bound tools, not an execution grant.',
+      },
       { name: 'list', description: 'Tools callable from outside a session, one line each.' },
       { name: 'describe <tool>', description: 'Description, capabilities and input JSON schema.' },
       {

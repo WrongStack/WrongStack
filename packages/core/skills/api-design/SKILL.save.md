@@ -1,11 +1,11 @@
 # API Design (Compact)
 
-<!-- source-version: 2.1.2 -->
+<!-- source-version: 2.1.4 -->
 
 ## Selection card
 - Task: Define HTTP contracts, pagination and error schemas. / TR: HTTP sözleşmesi, sayfalama ve hata şeması tanımla.
-- Start: Locate the endpoint, schema, authentication boundary and caller.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Find the existing routes, error envelope, pagination style, auth scheme and OpenAPI document the change must match.
+- Finish: The contract (schemas, status codes, errors, pagination, auth, idempotency) is specified or reviewed, with a request/response example for success and each error case.
 
 ## Overview
 
@@ -22,7 +22,7 @@ OpenAPI spec — follow them; consistency beats any rule below.
    `serde`/`validator`, `go-playground/validator`, `jakarta.validation`), existing router
    (Hono/Fastify/Next.js, Axum/Actix, FastAPI/Django, Gin/Chi, Spring Boot, ASP.NET Core),
    and the existing OpenAPI specification in the repo; current target is OpenAPI 3.2.1
-   (checked 2026-10-23 at https://spec.openapis.org/oas/latest.html). Query live documentation
+   (checked 2026-11-02 at https://spec.openapis.org/oas/latest.html). Query live documentation
    to verify protocol standards (such as RFC 9457 Problem Details) before designing new routes.
 2. Authorize every request against the specific object, not just "is logged
    in". Loading `/orders/:id` must check the caller may see that order

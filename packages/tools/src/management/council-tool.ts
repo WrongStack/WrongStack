@@ -7,13 +7,13 @@ import type {
 } from '@wrongstack/contracts/types/council';
 import type { JSONSchema, Tool } from '@wrongstack/contracts/types/tool';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
-import { CouncilOrchestrator } from '@wrongstack/core/execution';
 import type { CouncilPersonaRegistry } from '@wrongstack/core/execution';
 import {
+  CouncilOrchestrator,
   type CouncilProfileRegistry,
   DEFAULT_COUNCIL_PROFILE_REGISTRY,
+  validateCouncilOptions,
 } from '@wrongstack/core/execution';
-import { validateCouncilOptions } from '@wrongstack/core/execution';
 
 export const COUNCIL_TOOL_NAME = 'council';
 
@@ -93,6 +93,8 @@ export function createCouncilTool(
     category: 'meta',
     inputSchema: INPUT_SCHEMA,
     permission: 'auto',
+    cost: { kind: 'paid', fanOut: true },
+    retrySafe: false,
     mutating: false,
     riskTier: 'safe',
     managesOwnTimeout: true,

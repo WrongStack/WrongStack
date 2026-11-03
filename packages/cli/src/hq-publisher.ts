@@ -1,6 +1,7 @@
 import type { Config } from '@wrongstack/contracts/types';
 import type { CreateHqPublisherOptions, HqPublisher, HqSocketLike } from '@wrongstack/hq';
 import { createHqPublisherFromEnv, resolveHqConfig } from '@wrongstack/hq';
+import { createWrongMemoryHqSyncConnection } from '@wrongstack/sage';
 import { createKanbanHqSync, type KanbanHqSyncStats } from './kanban-hq-sync.js';
 import { createSageHqSync } from './sage-hq-sync.js';
 import { CLI_VERSION } from './version.js';
@@ -169,6 +170,12 @@ export function startCliHqConnection(options: CliHqConnectionOptions): CliHqConn
         options.projectRoot,
         next,
         current.appConfig?.Sage?.storage?.directory,
+        // In `wrongmemory` (or a resolved `auto`) mode the daemon owns the
+        // store; never open the SAGE project server alongside it.
+        createWrongMemoryHqSyncConnection({
+          projectRoot: options.projectRoot,
+          service: current.appConfig?.Sage?.service,
+        }),
       );
     next.connect();
     if (kanbanSync !== undefined) {

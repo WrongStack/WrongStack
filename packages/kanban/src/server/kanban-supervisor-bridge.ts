@@ -56,6 +56,28 @@ export function bridgeKanbanSupervisor(
     unsubscribeDisconnect = null;
   };
 
+  /**
+   * Release the connection a disposed owner's in-flight connect produced.
+   *
+   * `getKanbanServerConnection` caches process-wide and opens a ref'd socket,
+   * so a connect that settles after `dispose()` used to leave that socket
+   * cached for an owner that no longer exists: on an in-process WebUI restart
+   * each dispose/connect race leaked one, and a test worker could never exit
+   * because the handle stayed referenced. Close it only when nobody depends on
+   * it (`isEvictable`: no in-flight request, no event or disconnect listener) —
+   * a shared connection another consumer subscribed to is left alone.
+   */
+  const releaseAbandonedConnection = (
+    conn: NonNullable<Awaited<ReturnType<typeof getKanbanServerConnection>>> | null,
+  ): void => {
+    if (!conn) return;
+    try {
+      if (conn.isEvictable()) conn.close('kanban supervisor bridge disposed during connect');
+    } catch {
+      // Releasing an abandoned connection is best-effort; disposal must not throw.
+    }
+  };
+
   const subscribe = (): void => {
     if (disposed || connecting) {
       // Re-arm so a reconnect that collides with an in-flight connection is
@@ -67,7 +89,11 @@ export function bridgeKanbanSupervisor(
     void (async () => {
       try {
         const conn = await getKanbanServerConnection(projectRoot);
-        if (disposed || !conn) return;
+        if (disposed || !conn) {
+          // A connect that settles after disposal must not outlive its owner.
+          if (disposed) releaseAbandonedConnection(conn);
+          return;
+        }
         clearConnectionSubscriptions();
         unsubscribe = conn.subscribe((ev) => {
           try {

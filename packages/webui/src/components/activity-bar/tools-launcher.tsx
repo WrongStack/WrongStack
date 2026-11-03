@@ -108,40 +108,49 @@ const TOOL_GROUPS: readonly ToolGroup[] = [
 
 export function ToolsLauncher({
   onCustomize,
+  variant = 'rail',
 }: {
   /** Enter the activity bar's reorder mode (choose which views stay on the bar). */
   onCustomize: () => void;
+  variant?: 'rail' | 'mobile';
 }) {
   const { t } = useAppTranslation();
   const currentView = useUIStore((s) => s.currentView);
   const activeInLauncher = TOOL_GROUPS.some((g) => g.tools.some((d) => d.view === currentView));
   const label = t('activity:launcher.title');
+  const mobile = variant === 'mobile';
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          data-testid="activity-bar-tools-launcher"
+          data-testid={
+            mobile ? 'mobile-activity-bar-tools-launcher' : 'activity-bar-tools-launcher'
+          }
           aria-label={label}
           title={label}
           className={cn(
-            'ws-nav-button relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors',
+            'ws-nav-button relative flex shrink-0 items-center justify-center transition-colors',
+            mobile
+              ? 'min-h-12 min-w-0 flex-col gap-0.5 px-1 text-[10px] font-medium'
+              : 'h-11 w-11 rounded-md',
             'text-muted-foreground hover:border-border/70 hover:text-foreground hover:bg-muted/60',
             'data-[state=open]:text-primary data-[state=open]:bg-primary/10',
             activeInLauncher && 'text-primary',
           )}
         >
-          <span className="h-5 w-5 flex items-center justify-center">
+          <span className="flex h-5 w-5 items-center justify-center">
             <LayoutGrid size={16} />
           </span>
+          {mobile && <span className="max-w-full truncate">{label}</span>}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        side="right"
-        align="start"
+        side={mobile ? 'top' : 'right'}
+        align={mobile ? 'end' : 'start'}
         sideOffset={8}
-        className="w-[min(30rem,calc(100vw-4rem))] p-2"
+        className="w-[min(30rem,calc(100vw-2rem))] p-2"
       >
         <div className="grid grid-cols-1 gap-x-2 gap-y-1 sm:grid-cols-2">
           {TOOL_GROUPS.map((group) => (

@@ -1,9 +1,10 @@
 ---
 name: git-flow
 description: |
+  Git workflow: commits, branches, pull requests, rebases, merge conflicts and recovering from mistakes such as a bad reset or push.
   Use this skill when committing, branching, opening a pull request, resolving conflicts, or recovering from a git mistake in any repository.
   Triggers: user mentions "commit", "branch", "PR", "pull request", "merge", "rebase", "conflict", "stash", "cherry-pick", "revert", "bisect", "reflog", "force push".
-version: 2.1.1
+version: 2.1.2
 required-capabilities: [version-control.manage]
 required-tools: []
 trigger: "Use this skill when committing, branching, opening a pull request, resolving conflicts, or recovering from a git mistake in any repository."
@@ -15,8 +16,8 @@ metadata:
 
 ## Selection card
 - Task: Manage scoped commits, branches and pull requests.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Run git status, git branch -vv and git log --oneline -5 to see branch, upstream and uncommitted work before changing anything.
+- Finish: The commit, branch or PR exists as intended, nobody else's work was touched, and the final git status is clean or explained.
 
 ## Overview
 

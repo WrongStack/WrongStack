@@ -78,7 +78,8 @@ export function matchSessionPermissionOverride(
   subject: string | undefined,
 ): { override: SessionPermissionOverride; index: number } | undefined {
   for (const [index, override] of overrides.entries()) {
-    if (override.effect !== effect || !toolMatches(override, tool.name)) continue;
+    const names = effect === 'deny' ? [tool.name, ...(tool.aliases ?? [])] : [tool.name];
+    if (override.effect !== effect || !names.some((name) => toolMatches(override, name))) continue;
     if (override.pattern === undefined) return { override, index };
     if (subject === undefined) continue;
     const matches =
@@ -101,7 +102,10 @@ export function sessionDenyUnevaluated(
   return (
     subject === undefined &&
     overrides.some(
-      (o) => o.effect === 'deny' && o.pattern !== undefined && toolMatches(o, tool.name),
+      (o) =>
+        o.effect === 'deny' &&
+        o.pattern !== undefined &&
+        [tool.name, ...(tool.aliases ?? [])].some((name) => toolMatches(o, name)),
     )
   );
 }

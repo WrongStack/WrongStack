@@ -18,7 +18,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { plural } from '@/features/overview/model';
 import { cn } from '@/lib/cn';
-import { machineKeyOf } from '@/lib/scope';
+import { inScope, machineKeyOf } from '@/lib/scope';
 import { useFleetScope } from '@/lib/use-scope';
 import {
   chainRows,
@@ -145,7 +145,19 @@ export function EventsView(): ReactNode {
     };
   }, [clients, projectName]);
 
-  const days = useMemo(() => groupByDay(chainRows(data)), [data]);
+  // A label scope covers several machines; the server filters by one, so the
+  // page is narrowed here (records HQ cannot place stay visible).
+  const snapshot = useHqStore((state) => state.snapshot);
+  const visible = useMemo(
+    () =>
+      scope.kind !== 'label' || params.get('machine') !== null
+        ? data
+        : data.filter((event) =>
+            inScope({ clientId: event.clientId, machineId: event.machineId }, scope, snapshot),
+          ),
+    [data, scope, snapshot, params],
+  );
+  const days = useMemo(() => groupByDay(chainRows(visible)), [visible]);
   const filtered = type !== '' || clientId !== '' || params.get('machine') !== null;
   const select = 'h-9 max-w-[16rem] border border-border bg-background px-2 text-sm';
   const nextSize = PAGE_SIZES.find((size) => size > limit);
@@ -226,7 +238,7 @@ export function EventsView(): ReactNode {
         <span className="ml-auto text-sm text-muted-foreground" aria-live="polite">
           {loading
             ? 'Loading…'
-            : `${plural(data.length, 'event')}${data.length >= limit ? ` — the newest ${limit}` : ''}`}
+            : `${plural(visible.length, 'event')}${data.length >= limit ? ` — the newest ${limit}` : ''}`}
         </span>
         <button
           type="button"
@@ -251,7 +263,7 @@ export function EventsView(): ReactNode {
         </p>
       )}
 
-      {!loading && error === null && data.length === 0 && (
+      {!loading && error === null && visible.length === 0 && (
         <p className="py-10 text-base text-muted-foreground">
           {filtered || since?.ms !== null
             ? `No event matches in ${since?.label.toLowerCase() ?? 'this window'}. Widen the time or clear the filters.`

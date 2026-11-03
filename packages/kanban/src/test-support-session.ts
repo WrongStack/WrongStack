@@ -33,12 +33,17 @@ export const TEST_EVENT_CONTEXT: KanbanEventContext = {
  * so too — otherwise every bound call site is a compile error that the test run
  * itself never sees. Two trailing slots are relaxed, not one: a few signatures
  * (`moveTask`'s `targetOrder`) carry an explicit `| undefined` slot just before
- * the context, and tests legitimately omit both.
+ * the context, and tests legitimately omit both. A signature whose context is
+ * followed by an optional options object keeps that options type instead.
  */
 type WithBoundTail<F> = F extends (...args: infer A) => infer R
-  ? A extends [...infer Head, infer Penult, infer _Last]
-    ? (...args: [...Head, Penult?, KanbanEventContext?]) => R
-    : A extends [...infer Head2, infer _Only]
+  ? Required<A> extends [...infer Head, infer Penult, infer Last]
+    ? // The context followed by an optional trailing options slot
+      // (`updateTask(..., eventContext, options = {})`): keep the options type.
+      [Penult] extends [KanbanEventContext]
+      ? (...args: [...Head, Penult?, Last?]) => R
+      : (...args: [...Head, Penult?, KanbanEventContext?]) => R
+    : Required<A> extends [...infer Head2, infer _Only]
       ? (...args: [...Head2, KanbanEventContext?]) => R
       : F
   : F;
@@ -111,7 +116,19 @@ export const setTaskChain = bindTrailing(domain.setTaskChain, 4);
 export const splitTask = bindTrailing(domain.splitTask, 5);
 export const updateCheckOnTask = bindTrailing(domain.updateCheckOnTask, 6);
 export const updateGoalMetricOnTask = bindTrailing(domain.updateGoalMetricOnTask, 6);
-export const updateTask = bindTrailing(domain.updateTask, 5);
+// updateTask has options AFTER its event context. A trailing-context wrapper
+// cannot infer that optional suffix or fill an omitted context before it.
+type UpdateTaskArgs = Parameters<typeof domain.updateTask>;
+export function updateTask(
+  projectRoot: UpdateTaskArgs[0],
+  boardId: UpdateTaskArgs[1],
+  taskId: UpdateTaskArgs[2],
+  input: UpdateTaskArgs[3],
+  eventContext: KanbanEventContext = TEST_EVENT_CONTEXT,
+  options?: UpdateTaskArgs[5],
+): ReturnType<typeof domain.updateTask> {
+  return domain.updateTask(projectRoot, boardId, taskId, input, eventContext, options);
+}
 export const updateTaskAssignment = bindTrailing(domain.updateTaskAssignment, 5);
 export const upsertContractNode = bindTrailing(domain.upsertContractNode, 4);
 export const assessTaskAtomicity = bindOptions(domain.assessTaskAtomicity, 3);

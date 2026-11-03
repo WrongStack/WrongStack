@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * The header's scope picker: whole fleet, one machine, or one project. Every
+ * The header's scope picker: whole fleet, one machine, the machines carrying
+ * a label, or one project. Every
  * screen of a surface reads the same choice; the phone keeps its own. When the scope hides something that
  * needs a person, the trigger says how many, so narrowing never means missing
  * an approval on another machine.
@@ -50,6 +51,13 @@ export function ScopePicker({
     }
     return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [snapshot?.clients]);
+  const labels = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const keys of Object.values(snapshot?.machineLabels ?? {})) {
+      for (const label of keys) counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [snapshot?.machineLabels]);
   const projects = useMemo(
     () =>
       [...(snapshot?.projects ?? [])]
@@ -109,6 +117,15 @@ export function ScopePicker({
                 machine.label,
                 machine.online ? undefined : 'offline',
               ),
+            )}
+          </>
+        )}
+        {labels.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Labels</DropdownMenuLabel>
+            {labels.map(([label, machinesWith]) =>
+              option({ kind: 'label', id: label }, `${label} machines`, `${machinesWith}`),
             )}
           </>
         )}

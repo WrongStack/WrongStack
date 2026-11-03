@@ -117,6 +117,7 @@ export class SqliteMailbox implements Mailbox {
   private readonly lastClientHeartbeat = new Map<string, number>();
   private autoCompactTimer: NodeJS.Timeout | null = null;
   private autoCompactInFlight: Promise<AutoCompactResult> | undefined;
+  private readonly sweepsInFlight = new Set<Promise<unknown>>();
   private closePromise: Promise<void> | undefined;
   private closed = false;
 
@@ -594,16 +595,24 @@ export class SqliteMailbox implements Mailbox {
   }
 
   async purgeStale(options?: PurgeOptions): Promise<PurgeResult> {
-    return purgeStale(this.compactionCtx(), options);
+    const inFlight = purgeStale(this.compactionCtx(), options);
+    this.sweepsInFlight.add(inFlight);
+    try {
+      return await inFlight;
+    } finally {
+      this.sweepsInFlight.delete(inFlight);
+    }
   }
 
   async autoCompact(options?: AutoCompactOptions): Promise<AutoCompactResult> {
     if (this.autoCompactInFlight !== undefined) return this.autoCompactInFlight;
     const inFlight = autoCompact(this.compactionCtx(), options);
     this.autoCompactInFlight = inFlight;
+    this.sweepsInFlight.add(inFlight);
     try {
       return await inFlight;
     } finally {
+      this.sweepsInFlight.delete(inFlight);
       if (this.autoCompactInFlight === inFlight) this.autoCompactInFlight = undefined;
     }
   }
@@ -713,16 +722,18 @@ export class SqliteMailbox implements Mailbox {
     this.closed = true;
     if (this.autoCompactTimer !== null) clearInterval(this.autoCompactTimer);
     this.autoCompactTimer = null;
-    const inFlightCompaction = this.autoCompactInFlight;
-    if (inFlightCompaction === undefined) {
+    if (this.sweepsInFlight.size === 0) {
       // Preserve the historical close contract for callers that do not await:
       // with no owned async work, the SQLite handle is released before return.
       this.db.close();
       return;
     }
-    // autoCompact yields after reading agent status, then resumes with more
-    // SQLite work. All concurrent close callers share this one drain.
-    this.closePromise = inFlightCompaction.then(() => undefined).finally(() => this.db.close());
+    // autoCompact and purgeStale yield after reading agent status, then resume
+    // with more SQLite work. All concurrent close callers share this one drain.
+    const pending = [...this.sweepsInFlight];
+    this.closePromise = Promise.allSettled(pending)
+      .then(() => undefined)
+      .finally(() => this.db.close());
     return this.closePromise;
   }
 

@@ -1,6 +1,7 @@
 ---
 name: bug-hunter
 description: |
+  Bug hunting: scan files for real defects, leaks, races, anti-patterns and code smells, or run a proof-driven /bughunt round.
   Use this skill when scanning source code for bugs, anti-patterns, code smells,
   or quality issues in a codebase, or when running a proof-driven bug hunt that
   must find, prove, fix, and verify one real defect. Trigger on the explicit
@@ -11,7 +12,7 @@ description: |
   dangerous here", "clean pass before release". Also use it when running as a
   cascade agent behind a chimera review, or as a fan-out worker auditing a chunk
   of files in parallel — those modes have extra constraints documented below.
-version: 2.2.1
+version: 2.2.2
 required-capabilities: [filesystem.read, code.inspect]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -28,8 +29,8 @@ can prove, and hands it to the proof, fix, and verification discipline.
 
 ## Selection card
 - Task: Run the WrongStack bug-hunt and cascade workflow.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Fix the scope (files, module or diff) and the mode: scan, proof-driven round, chimera cascade or fan-out worker.
+- Finish: Every reported finding cites file:line with a concrete failure scenario; in a proof-driven round exactly one defect is proven red, fixed and green.
 
 ## Rules
 

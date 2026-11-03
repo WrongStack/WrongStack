@@ -13,6 +13,7 @@ export type HqViewId =
   | 'fleet'
   | 'machines'
   | 'projects'
+  | 'health'
   | 'console'
   | 'mailbox'
   | 'kanban'

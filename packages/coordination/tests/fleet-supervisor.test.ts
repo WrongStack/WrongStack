@@ -688,4 +688,45 @@ describe('FleetSupervisor looping-worker signal', () => {
     expect(h.actions.terminate).not.toHaveBeenCalled();
     h.supervisor.stop();
   });
+
+  it('does not head-of-line block other workers or discard streaks when a worker is on cooldown or out of intervention budget', async () => {
+    const h = makeHarness(approveBrain(), {
+      failureStreak: 2,
+      overloadPinnedThreshold: 2,
+      cooldownMs: 120_000,
+      maxInterventionsPerSubagent: 1,
+    });
+    h.supervisor.start();
+    h.state.subagents = [sub('w1', 'running'), sub('w2', 'running'), sub('idle-1', 'idle')];
+
+    for (let i = 0; i < 2; i++) {
+      h.events.emit('subagent.task_completed', {
+        subagentId: 'w1',
+        taskId: `w1-f-${i}`,
+        status: 'failed',
+        iterations: 1,
+        toolCalls: 1,
+        durationMs: 10,
+      });
+    }
+    await h.supervisor.evaluate();
+    expect(h.actions.steerAgent).toHaveBeenCalledTimes(1);
+
+    // w1 is now out of intervention budget and on cooldown; it fails 2 more tasks while w2 is overloaded
+    for (let i = 2; i < 4; i++) {
+      h.events.emit('subagent.task_completed', {
+        subagentId: 'w1',
+        taskId: `w1-f-${i}`,
+        status: 'failed',
+        iterations: 1,
+        toolCalls: 1,
+        durationMs: 10,
+      });
+    }
+    h.state.pending = [task('w2-t1', 'w2'), task('w2-t2', 'w2')];
+
+    await h.supervisor.evaluate();
+    expect(h.actions.retargetPendingTask).toHaveBeenCalledWith('w2-t2', 'idle-1');
+    h.supervisor.stop();
+  });
 });

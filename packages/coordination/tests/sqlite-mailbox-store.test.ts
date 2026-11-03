@@ -950,4 +950,18 @@ describe('SqliteMailbox transaction safety and statement edge cases', () => {
     const count = await mb.unreadCount('agent-a');
     expect(count).toBe(2);
   });
+
+  it('drains in-flight purgeStale() before closing the SQLite database', async () => {
+    await mb.send({
+      from: 'agent-a',
+      to: 'agent-b',
+      type: 'note',
+      subject: 'stale',
+      body: 'body',
+    });
+    const purgePromise = mb.purgeStale({ completedMaxAgeMs: -1000, incompleteMaxAgeMs: -1000 });
+    const closePromise = mb.close();
+    const [purgeResult] = await Promise.all([purgePromise, closePromise]);
+    expect(purgeResult.totalPurged).toBe(1);
+  });
 });

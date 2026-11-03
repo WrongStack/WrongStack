@@ -47,9 +47,15 @@ const builtinFile = 'packages/tools/src/builtin.ts';
 const descriptions = declaration(builtinFile, 'BUILTIN_TOOL_DESCRIPTIONS');
 if (!ts.isObjectLiteralExpression(descriptions))
   throw new Error('Expected tool descriptions object');
-const tools = descriptions.properties
+const sourceToolNames = descriptions.properties
   .map((p) => p.name.getText().replace(/^['"]|['"]$/g, ''))
   .sort();
+const tools = JSON.parse(read('architecture/tool-catalog.json'))
+  .tools.map((tool) => tool.name)
+  .sort();
+if (JSON.stringify(sourceToolNames) !== JSON.stringify(tools)) {
+  throw new Error('Built-in catalog artifact is stale; run bun run tools:catalog:write');
+}
 const browserCount = array('packages/tools/src/browser/tools.ts', 'browserTools').length;
 const rawTools = array(builtinFile, 'rawBuiltinTools');
 // The one spread must remain the browser suite; changed source shapes require review.

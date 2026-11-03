@@ -291,6 +291,8 @@ export interface NotifyChannelInput {
   enabled?: boolean;
   kinds?: HqNotifyChannelView['kinds'];
   minSeverity?: HqNotifyChannelView['minSeverity'];
+  /** Only notifications about machines with one of these labels; `[]` = every machine. */
+  machineLabels?: readonly string[];
 }
 
 export function addNotifyChannel(input: NotifyChannelInput): Promise<HqNotifyChannelView> {
@@ -406,6 +408,13 @@ export function fetchHealthHistory(
 ): Promise<{ key: string; points: HqHealthPoint[] }> {
   const query = new URLSearchParams({ key, hours: String(hours) });
   return fetchJson(`/api/machines/health-history?${query.toString()}`);
+}
+
+/** Every machine's readings over the last 7 days, about 84 points each. */
+export function fetchHealthOverview(): Promise<{
+  machines: { key: string; points: HqHealthPoint[] }[];
+}> {
+  return fetchJson('/api/machines/health-overview');
 }
 
 // ── Ended sessions (`/api/sessions/history`) ────────────────────────────────

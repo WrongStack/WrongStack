@@ -100,7 +100,7 @@ const theme = params.get('theme') || 'dark';
 function Fixture() {
   const currentView = useUIStore(s => s.currentView);
   return <ThemeProvider defaultTheme={theme} storageKey="visual-smoke-theme">
-    <div className="ws-app-root flex min-h-0 min-w-0 overflow-hidden">
+    <div className="ws-app-root flex min-h-0 min-w-0 overflow-hidden max-md:pb-14">
       <ActivityBar />
       <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <WorkbenchTopbar currentView={currentView} projectName="WrongStack" isLoading={false} iteration={null} onPalette={() => {}} onSettings={() => useUIStore.getState().setCurrentView('settings')} />
@@ -288,7 +288,9 @@ try {
         await page.goto(
           `http://127.0.0.1:${address.port}/__workbench_visual?theme=${theme}&views=1&view=${view}`,
         );
-        await expect(page.locator('.ws-activity-rail')).toBeVisible();
+        await expect(
+          page.locator(width < 768 ? '[data-testid="mobile-activity-bar"]' : '.ws-activity-rail'),
+        ).toBeVisible();
         if (view === 'chat') await expect(page.locator('.ws-welcome h2')).toBeVisible();
         else await expect(page.locator(`[data-workbench-view="${view}"]`)).toBeVisible();
         await expect(page.locator('.ws-loading-art')).toHaveCount(0, { timeout: 15000 });

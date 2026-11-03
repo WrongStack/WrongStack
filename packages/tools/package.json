@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/tools",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "license": "MIT",
   "description": "WrongStack built-in tools: read/write/edit, bash/exec, grep/glob, git, fetch, test, lint, and more.",
@@ -17,6 +17,10 @@
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "exports": {
+    "./tool-catalog": {
+      "types": "./dist/tool-catalog.d.ts",
+      "import": "./dist/tool-catalog.js"
+    },
     "./artifact-presentation": {
       "types": "./dist/artifact-presentation.d.ts",
       "import": "./dist/artifact-presentation.js"

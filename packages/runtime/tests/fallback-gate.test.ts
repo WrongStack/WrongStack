@@ -1,4 +1,4 @@
-import { EventBus } from '@wrongstack/contracts/kernel';
+import { EventBus, type EventMap } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
 import { createFallbackGate } from '../src/index.js';
 
@@ -23,10 +23,9 @@ describe('createFallbackGate (runtime)', () => {
 
   it('emits provider.fallback_pending and resolves with the matching manual choice', async () => {
     const events = new EventBus();
-    const pending: Array<Record<string, unknown>> = [];
+    const pending: Array<EventMap['provider.fallback_pending']> = [];
     events.on('provider.fallback_pending', (payload) => {
-      const p = payload as Record<string, unknown>;
-      pending.push(p);
+      pending.push(payload);
       // A reply for another gate must be ignored.
       events.emit('provider.fallback_choice', {
         requestId: 'someone-else',
@@ -34,7 +33,7 @@ describe('createFallbackGate (runtime)', () => {
         model: 'y',
       });
       events.emit('provider.fallback_choice', {
-        requestId: p['requestId'],
+        requestId: payload.requestId,
         providerId: 'google',
         model: 'gemini-pro',
       });
@@ -51,8 +50,7 @@ describe('createFallbackGate (runtime)', () => {
   it('auto-switches (null) when the UI replies autoSwitch', async () => {
     const events = new EventBus();
     events.on('provider.fallback_pending', (payload) => {
-      const p = payload as Record<string, unknown>;
-      events.emit('provider.fallback_choice', { requestId: p['requestId'], autoSwitch: true });
+      events.emit('provider.fallback_choice', { requestId: payload.requestId, autoSwitch: true });
     });
     await expect(createFallbackGate(events)(params(events, 'r2'))).resolves.toBeNull();
   });

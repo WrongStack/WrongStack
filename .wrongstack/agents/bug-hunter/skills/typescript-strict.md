@@ -1,7 +1,6 @@
 ## Live-tree adjudication
 
 - Before editing a co-modified path, re-read the exact file immediately: `exec` `git diff --stat`, then `git diff -U0 -- <path>`, and repeat before a guarded `edit`. If `edit` reports external modification/no-match, re-anchor to live text; report externally fixed findings as resolved with live `file:line` anchors, and never retry unchanged. Re-read `packages/vibeui/src/lib/use-session.ts` immediately before every edit.
-- Adjudicate duplicate-identifier, compile-failure, missing-field, quote, and EOF claims against live source and covering checks; keep out-of-diff diagnostics separate with exact `file:line`. Clean results close false positives such as `packages/webui-hq/src/data/local-prefs.ts:hideIdle`.
 - For one-liner or missing-EOF-newline claims, inspect final bytes with `[System.IO.File]::ReadAllBytes(...)`, not rendered diffs. For trailing delimiters, inspect `(Get-Content <path>)[n][-30..-1] -join ''`. Use guarded `edit`, not PowerShell `String.Replace` with double-quoted backticks.
 - Adjudicate TDZ claims about a `closure over a later-declared let` by checking whether any synchronous path can invoke it during module evaluation. `net` server `'connection'`, timers, and IPC callbacks cannot interleave with synchronous module-body execution. In `packages/sage/src/project-server.ts`, `createSlowOperationReporter(() => ({ pendingRequests, clients: clients.size }))` and the `createHygieneRunner` `isBusy` lambda are intentional startup-safe closures; check `packages/sage/tests/project-server-maintenance.test.ts`.
 

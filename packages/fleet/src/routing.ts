@@ -5,15 +5,30 @@ import type {
   SubagentRunner,
   TaskSpec,
 } from '@wrongstack/contracts/types';
-import { makeAgentSubagentRunner, NULL_FLEET_BUS } from '@wrongstack/coordination';
+import {
+  type AgentFactory,
+  type Director,
+  makeAgentSubagentRunner,
+  NULL_FLEET_BUS,
+} from '@wrongstack/coordination';
 import { expectDefined } from '@wrongstack/core/utils';
 import { runWithQuotaHold } from './acp-quota-hold.js';
-import type { MultiAgentHost } from './host.js';
 import { WRONGFORGE_AGENT_ID } from './wrongforge-client.js';
+/**
+ * What the routing runner needs from the fleet host. Declared here, not
+ * imported from `host.ts`, so the host can build its router without the two
+ * modules importing each other (`MultiAgentHost` satisfies it structurally).
+ */
+export interface RoutingRunnerHost {
+  makeSubagentFactory(config: Config): AgentFactory;
+  getDirector(): Director | undefined;
+  buildACPRunner(subagentId: string): Promise<SubagentRunner>;
+}
+
 /**
  * Routing runner — dispatches tasks to standard or ACP runner based on provider.
  */
-export function buildRoutingRunner(config: Config, host: MultiAgentHost): SubagentRunner {
+export function buildRoutingRunner(config: Config, host: RoutingRunnerHost): SubagentRunner {
   const standardRunner = makeAgentSubagentRunner({
     factory: host.makeSubagentFactory(config),
     fleetBus: host.getDirector()?.fleet ?? NULL_FLEET_BUS,

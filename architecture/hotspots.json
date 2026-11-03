@@ -23,7 +23,7 @@
       "relativeImports": 1
     },
     "packages/coordination/src/multi-agent-coordinator.ts": {
-      "lines": 725,
+      "lines": 726,
       "relativeImports": 13
     },
     "packages/coordination/src/provider-status-tracker.ts": {
@@ -31,7 +31,7 @@
       "relativeImports": 4
     },
     "packages/coordination/src/sqlite-mailbox.ts": {
-      "lines": 737,
+      "lines": 748,
       "relativeImports": 14
     },
     "packages/core/src/core/agent-tools.ts": {
@@ -41,6 +41,10 @@
     "packages/core/src/execution/auto-compaction-middleware.ts": {
       "lines": 703,
       "relativeImports": 18
+    },
+    "packages/core/src/storage/file-session-writer.ts": {
+      "lines": 707,
+      "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
       "lines": 756,
@@ -53,6 +57,10 @@
     "packages/plugins/src/audit/index.ts": {
       "lines": 715,
       "relativeImports": 0
+    },
+    "packages/sage/src/wrongmemory-port.ts": {
+      "lines": 1696,
+      "relativeImports": 14
     },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {
       "lines": 703,
@@ -124,10 +132,6 @@
     },
     "packages/webui-server/src/server/pref-helpers.ts": {
       "lines": 712,
-      "relativeImports": 3
-    },
-    "packages/webui-server/src/server/provider-routes.ts": {
-      "lines": 766,
       "relativeImports": 3
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {

@@ -1,6 +1,6 @@
 # FFmpeg Encoding, Assembly & Delivery Reference
 
-Current stable release checked 2026-10-23: FFmpeg 9.0.2.
+Current stable release checked 2026-11-02: FFmpeg 9.0.2.
 Read [download/release information](https://ffmpeg.org/download.html) and the
 [filter documentation](https://ffmpeg.org/ffmpeg-filters.html).
 Check installed build, encoders and filters before generating commands.

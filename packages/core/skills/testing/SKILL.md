@@ -1,10 +1,11 @@
 ---
 name: testing
 description: |
+  Tests in any runner (Vitest, Jest, pytest, go test, cargo test): write, fix, de-flake, mock, or turn a bug proof into a regression.
   Use this skill when writing, fixing, reviewing, or planning tests in any project, in whatever runner the project already uses.
   Also use it to write the failing proof for a suspected bug and to promote that proof into a durable regression test.
   Triggers: user says "test", "unit test", "integration test", "e2e", "mock", "coverage", "flaky", "failing test", "regression test", "write tests", "vitest", "jest", "pytest", "go test", "proof", "red/green".
-version: 2.2.2
+version: 2.2.4
 required-capabilities: [filesystem.read, verification.run]
 required-tools: []
 optional-capabilities: [execution.shell, code.inspect]
@@ -17,8 +18,8 @@ metadata:
 
 ## Selection card
 - Task: Write meaningful behavior and regression tests.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Find the project's test runner, a neighbouring test and how CI runs the suite.
+- Finish: New or fixed tests fail without the change, pass with it, and run deterministically in the project's own runner.
 
 ## Overview
 
@@ -171,7 +172,7 @@ describe('withRetry', () => {
 
 ## Source resolution and safe red runs
 
-Current stable targets checked 2026-10-23: Vitest 5.0.5 and Playwright 1.64.1.
+Current stable targets checked 2026-11-02: Vitest 5.1.0 and Playwright 1.64.1.
 Inspect their engine/peer requirements and installed configuration before upgrades.
 Pin runtime/source resolution so tests do not compare two stale builds.
 For red/green checks in a shared tree, use preserved snapshots or an isolated

@@ -1,8 +1,8 @@
 ---
 name: plugin-author
-description: "Create and maintain WrongStack plugins with accurate registration, configuration and lifecycle ownership. Use when implementing tools, hooks or host API extensions in packages/plugins; verify contracts from current source and test multiple instances, failed setup and reload."
+description: "WrongStack plugin authoring: register tools, hooks, slash commands and host API extensions with config and clean teardown. Use when implementing tools, hooks or host API extensions in packages/plugins; verify contracts from current source and test multiple instances, failed setup and reload."
 audience: roster
-version: 1.2.1
+version: 1.3.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run, web.research]
@@ -15,8 +15,8 @@ metadata:
 
 ## Selection card
 - Task: Author WrongStack plugin hooks and registration.
-- Start: Identify the host, protocol, enabled integration and authorization scope.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Read an existing plugin of the same kind and the Plugin and PluginAPI contracts it implements.
+- Finish: The plugin loads, registers its surfaces, tears down cleanly, and its tests pass.
 
 ## Overview
 
@@ -55,6 +55,50 @@ owner; “put everything at module scope” is not a safe universal rule.
   calls through host services instead of handling secret credentials directly.
 - Unregister or restore only owned registrations/wrappers. A stale teardown must
   not remove a successor's tool or another plugin's hook.
+
+## Skeleton
+
+Shape only — copy apiVersion, config handling and helpers from a neighbouring
+plugin, and re-read packages/contracts/src/types/plugin.ts before relying on a field.
+
+~~~ts
+import type { Plugin } from '@wrongstack/contracts/types';
+
+export function createExamplePlugin(): Plugin {
+  const disposers: Array<() => void> = []; // per instance, not module scope
+  return {
+    name: 'example',
+    version: '0.1.0',
+    apiVersion: '^0.1.10', // match the neighbours' current value
+    capabilities: { tools: true, hooks: true },
+    async setup(api, opts) {
+      api.tools.register({
+        name: 'example_count',
+        description: 'Count lines in a project file. Read-only.',
+        inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+        permission: 'auto',
+        mutating: false,
+        async execute(input, ctx, { signal }) { /* bounded, abortable work */ },
+      });
+      disposers.push(() => api.tools.unregister('example_count'));
+      disposers.push(api.registerHook('PostToolUse', 'edit', async () => undefined));
+      disposers.push(api.onConfigChange(() => { /* re-read options */ }));
+      opts?.signal?.addEventListener('abort', () => { /* stop partial setup */ });
+    },
+    async teardown() {
+      for (const dispose of disposers.splice(0).reverse()) dispose();
+    },
+    async health() {
+      return { ok: true };
+    },
+  };
+}
+~~~
+
+Registration methods return disposers (`registerHook`, `onEvent`, `onPattern`,
+`onConfigChange`, `registerSystemPromptContributor`); keep each one and call it in
+teardown, newest first. Tool `permission` is `auto`, `confirm` or `deny`;
+`mutating: true` for anything that writes, sends or spends.
 
 ## Integration
 

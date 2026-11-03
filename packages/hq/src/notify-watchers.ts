@@ -45,6 +45,7 @@ export class HqMachineWatch {
           body: 'A WrongStack client on this machine connected to HQ again.',
           dedupeKey: `machine-online:${key}:${now}`,
           path: `/fleet/machines/?machine=${encodeURIComponent(key)}`,
+          machineKey: key,
         });
       }
       this.seenLive.add(key);
@@ -65,6 +66,7 @@ export class HqMachineWatch {
         }`,
         dedupeKey: `machine-offline:${machine.key}:${machine.lastSeenAt}`,
         path: `/fleet/machines/?machine=${encodeURIComponent(machine.key)}`,
+        machineKey: machine.key,
       });
     }
     // A forgotten machine is neither live nor offline: stop tracking it.
@@ -129,6 +131,7 @@ export class HqHostHealthWatch {
         : `${gib(health.memAvailableBytes)} available of ${gib(health.memTotalBytes)}.`,
       dedupeKey: `host-${problem}:${machine.key}:${now}`,
       path: `/fleet/machines/?machine=${encodeURIComponent(machine.key)}`,
+      machineKey: machine.key,
     };
   }
 }
@@ -137,6 +140,8 @@ export class HqHostHealthWatch {
 export interface HqRequestOrigin {
   hostname: string;
   projectName: string;
+  /** The machine the request came from, when HQ knows the client. */
+  machineKey?: string | undefined;
 }
 
 interface Pending {
@@ -171,6 +176,7 @@ export class HqPendingRequestWatch {
         body: `${origin.projectName} — ${risky ? 'a destructive call' : 'a tool call'} is waiting for a decision.`,
         dedupeKey: `approval:${payload.toolUseId}`,
         path: '/inbox/',
+        ...(origin.machineKey !== undefined ? { machineKey: origin.machineKey } : {}),
       });
     } else if (event.type === 'approval.resolved' && typeof payload.toolUseId === 'string') {
       this.cancel(`${event.clientId}|approval:${payload.toolUseId}`);
@@ -185,6 +191,7 @@ export class HqPendingRequestWatch {
         body: `${origin.projectName} — ${title}`,
         dedupeKey: `question:${request.id}`,
         path: '/inbox/',
+        ...(origin.machineKey !== undefined ? { machineKey: origin.machineKey } : {}),
       });
     } else if (event.type === 'user_input.resolved' && typeof payload.requestId === 'string') {
       this.cancel(`${event.clientId}|question:${payload.requestId}`);

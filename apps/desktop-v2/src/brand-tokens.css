@@ -10,13 +10,13 @@
   --ws-muted-foreground: 43.6 5.8% 37.1%;
   --ws-accent: 38 70% 90%;
   --ws-accent-foreground: 33.9 100% 30.2%;
-  --ws-destructive: 0 72% 48%;
+  --ws-destructive: 0 72% 46%;
   --ws-border: 42.9 17.9% 84.7%;
   --ws-input: 40 14.3% 75.3%;
   --ws-ring: 344.8 74.6% 47.8%;
   --ws-success: 150 58% 30%;
-  --ws-warning: 32 92% 44%;
-  --ws-info: 200 80% 40%;
+  --ws-warning: 32 92% 31%;
+  --ws-info: 200 80% 33%;
   --ws-running: 344.8 74.6% 47.8%;
 }
 :root[data-mode="dark"] {

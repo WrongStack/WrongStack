@@ -1,11 +1,11 @@
 # Web Research (Compact)
 
-<!-- source-version: 1.2.1 -->
+<!-- source-version: 1.3.0 -->
 
 ## Selection card
 - Task: Research a question using authoritative web sources. / TR: Yetkili web kaynaklarıyla soruyu araştır.
-- Start: Identify the requested artifact, repository owner and acceptance criteria.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Split the question into separate claims and choose the primary source for each.
+- Finish: Each claim has a dated citation from a primary source, and conflicts or unknowns are stated plainly.
 
 ## Overview
 

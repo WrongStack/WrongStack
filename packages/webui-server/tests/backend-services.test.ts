@@ -130,6 +130,9 @@ vi.mock('@wrongstack/core/storage', () => ({
 }));
 
 vi.mock('@wrongstack/sage', () => ({
+  // Local-SAGE project: no WrongMemory panel override or action refusal.
+  wrongMemoryPanelHealth: async () => undefined,
+  wrongMemoryServiceActionRefusal: () => undefined,
   createSageToolCallMiddleware: vi.fn(() => ({ name: 'sage-tc', handler: vi.fn() })),
   createSageTurnMiddleware: vi.fn(() => ({ name: 'sage-turn', handler: vi.fn() })),
   getSageRetrieval: vi.fn(() => null),

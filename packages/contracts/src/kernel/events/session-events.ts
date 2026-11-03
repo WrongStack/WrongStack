@@ -1,7 +1,7 @@
 import type { AgentContext } from '../../types/context.js';
 import type { Usage } from '../../types/provider.js';
 import type { WorkspaceCheckpointRef } from '../../types/session.js';
-import type { TrackedAgentSnapshot } from '../events.js';
+import type { TrackedAgentSnapshot } from './shared-types.js';
 
 export interface SessionEventMap {
   'session.started': { id: string; sessionId?: string | undefined };

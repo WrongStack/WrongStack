@@ -18,34 +18,80 @@ import { SKILL_LIMITS } from '../skills/limits.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
 /**
- * Compact a full skill body for token-saving fallback.
- * Extracts the Overview and Rules sections, trims to the compact budget.
+ * Longest prefix of `text` (whitespace collapsed) that ends a sentence within
+ * `max` characters. When even the first sentence is longer, cut at a word
+ * boundary and mark the cut, so a reader never mistakes a fragment for a
+ * complete instruction.
+ */
+function clipToSentence(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= max) return flat;
+  let end = 0;
+  for (const match of flat.matchAll(/[.!?](?=\s|$)/g)) {
+    const stop = (match.index ?? 0) + 1;
+    if (stop > max) break;
+    if (!NON_TERMINAL_ABBREVIATION.test(flat.slice(0, stop - 1))) end = stop;
+  }
+  if (end > 0) return flat.slice(0, end);
+  const cut = flat.lastIndexOf(' ', max - 1);
+  return `${flat.slice(0, cut > max / 2 ? cut : max - 1)}…`;
+}
+
+/** Markdown list items with their indented continuation lines folded in. */
+function listItems(section: string): string[] {
+  const items: string[] = [];
+  let open = false;
+  for (const line of section.split('\n')) {
+    if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+      items.push(line.trim());
+      open = true;
+    } else if (open && /^\s+\S/.test(line)) {
+      items[items.length - 1] += ` ${line.trim()}`;
+    } else {
+      open = false;
+    }
+  }
+  return items;
+}
+
+/**
+ * Compact a full skill body for token-saving fallback: whole leading
+ * sentences of the Overview, then whole Rules items in order while they fit
+ * the remaining budget. Fixed-offset slicing used to hand subagents half a
+ * sentence and half a rule ("2. Pass the caller's `context.C…").
  */
 function compactSkillBody(body: string): string {
+  const total = SKILL_LIMITS.COMPACT_TOTAL_MAX;
   const sections: string[] = [];
   const overviewMatch = body.match(/##\s*Overview\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
   const overview = overviewMatch?.[1];
   if (overview?.trim()) {
-    sections.push(overview.trim().slice(0, SKILL_LIMITS.COMPACT_OVERVIEW_MAX));
+    sections.push(clipToSentence(overview, SKILL_LIMITS.COMPACT_OVERVIEW_MAX));
   }
   const rulesMatch = body.match(/##\s*Rules\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
   const rules = rulesMatch?.[1];
   if (rules?.trim()) {
-    const trimmed = rules.trim().slice(0, SKILL_LIMITS.COMPACT_RULES_MAX);
-    const ruleLines = trimmed
-      .split('\n')
-      .filter((l) => /^\s*[-*]\s/.test(l) || /^\s*\d+[.)]\s/.test(l))
-      .slice(0, 6)
-      .join('\n');
-    if (ruleLines) sections.push(ruleLines);
+    const used = sections.reduce((sum, section) => sum + section.length + 2, 0);
+    const budget = Math.min(SKILL_LIMITS.COMPACT_RULES_MAX, total - used);
+    const kept: string[] = [];
+    let size = 0;
+    for (const item of listItems(rules).slice(0, 6)) {
+      const cost = item.length + (kept.length > 0 ? 1 : 0);
+      if (size + cost > budget) {
+        if (kept.length === 0 && budget > 40) kept.push(clipToSentence(item, budget));
+        break;
+      }
+      kept.push(item);
+      size += cost;
+    }
+    if (kept.length > 0) sections.push(kept.join('\n'));
   }
   if (sections.length === 0) {
-    const first = body.trim().slice(0, SKILL_LIMITS.COMPACT_OVERVIEW_MAX);
+    const first = clipToSentence(body, SKILL_LIMITS.COMPACT_OVERVIEW_MAX);
     if (first) sections.push(first);
   }
   const result = sections.join('\n\n');
-  const total = SKILL_LIMITS.COMPACT_TOTAL_MAX;
-  return result.length > total ? result.slice(0, total - 3) + '…' : result;
+  return result.length > total ? `${result.slice(0, total - 1)}…` : result;
 }
 
 /**

@@ -81,15 +81,24 @@ export class DefaultSessionRewinder implements SessionRewinder {
 
     // Build a map of promptIndex -> file snapshot count
     const fileCountMap = new Map<number, number>();
-    const checkpoints: Array<Omit<CheckpointInfo, 'fileCount'>> = [];
+    const checkpointMap = new Map<number, Omit<CheckpointInfo, 'fileCount'>>();
     for await (const event of this.readEvents(file)) {
+      if (event.type === 'rewound') {
+        const to = (event as { toPromptIndex: number }).toPromptIndex;
+        for (const key of checkpointMap.keys()) {
+          if (key > to) checkpointMap.delete(key);
+        }
+        for (const key of fileCountMap.keys()) {
+          if (key >= to) fileCountMap.delete(key);
+        }
+      }
       if (event.type === 'file_snapshot') {
         const e = event as { promptIndex: number; files: FileSnapshot[] };
         fileCountMap.set(e.promptIndex, (fileCountMap.get(e.promptIndex) ?? 0) + e.files.length);
       }
       if (event.type === 'checkpoint') {
         const e = event as { promptIndex: number; promptPreview: string; ts: string };
-        checkpoints.push({
+        checkpointMap.set(e.promptIndex, {
           promptIndex: e.promptIndex,
           promptPreview: e.promptPreview,
           ts: e.ts,
@@ -97,7 +106,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
       }
     }
 
-    return checkpoints.map((checkpoint) => ({
+    return [...checkpointMap.values()].map((checkpoint) => ({
       ...checkpoint,
       fileCount: fileCountMap.get(checkpoint.promptIndex) ?? 0,
     }));
@@ -187,12 +196,19 @@ export class DefaultSessionRewinder implements SessionRewinder {
   async rewindLastN(sessionId: string, n: number): Promise<RewindResultExtended> {
     const file = this.sessionFile(sessionId);
 
-    const checkpoints: Array<{ promptIndex: number; ts: string }> = [];
+    const checkpointMap = new Map<number, { promptIndex: number; ts: string }>();
     for await (const event of this.readEvents(file)) {
+      if (event.type === 'rewound') {
+        const to = (event as { toPromptIndex: number }).toPromptIndex;
+        for (const key of checkpointMap.keys()) {
+          if (key > to) checkpointMap.delete(key);
+        }
+      }
       if (event.type === 'checkpoint') {
-        checkpoints.push({ promptIndex: event.promptIndex, ts: event.ts });
+        checkpointMap.set(event.promptIndex, { promptIndex: event.promptIndex, ts: event.ts });
       }
     }
+    const checkpoints = [...checkpointMap.values()];
 
     if (checkpoints.length === 0 || n <= 0) {
       return { revertedFiles: [], errors: [], toPromptIndex: 0, removedEvents: 0 };
@@ -201,9 +217,11 @@ export class DefaultSessionRewinder implements SessionRewinder {
     // Undoing the last N prompts means rewinding TO the Nth-newest checkpoint,
     // because rewinding to checkpoint K reverts prompt K and everything after
     // it. So n=1 targets the newest checkpoint — index n-1, not n. Falling back
-    // to 0 when n exceeds the checkpoint count rewinds the whole session.
+    // to the earliest checkpoint when n exceeds the checkpoint count rewinds
+    // the whole session even when prompt indices start above 0.
     checkpoints.sort((a, b) => b.promptIndex - a.promptIndex);
-    const targetIndex = checkpoints[n - 1]?.promptIndex ?? 0;
+    const targetIndex =
+      checkpoints[n - 1]?.promptIndex ?? checkpoints[checkpoints.length - 1]!.promptIndex;
 
     const snapshotsToRevert: Array<{ promptIndex: number; files: FileSnapshot[] }> = [];
     let shouldRevert = false;

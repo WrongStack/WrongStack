@@ -44,10 +44,18 @@ describe('parseHqStartSession', () => {
       validateHqCommand({
         commandId: 'c1',
         type: 'start-session',
+        createdAt: '2026-11-02T00:00:00.000Z',
         payload: { prompt: 'write the release notes', sessionId: 'ignored' },
       }),
     ).toEqual({ type: 'start-session', prompt: 'write the release notes' });
-    expect(validateHqCommand({ commandId: 'c2', type: 'start-session', payload: {} })).toBeNull();
+    expect(
+      validateHqCommand({
+        commandId: 'c2',
+        type: 'start-session',
+        createdAt: '2026-11-02T00:00:00.000Z',
+        payload: {},
+      }),
+    ).toBeNull();
   });
 });
 

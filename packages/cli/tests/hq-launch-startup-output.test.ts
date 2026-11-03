@@ -22,6 +22,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(ReadlineInputReader.prototype, 'readLine')
+    // Launch menu: 5 = HQ (1 TUI, 2 REPL, 3 WebUI, 4 VibeUI).
     .mockResolvedValueOnce('5')
     .mockResolvedValueOnce('3499')
     .mockResolvedValueOnce('0.0.0.0');

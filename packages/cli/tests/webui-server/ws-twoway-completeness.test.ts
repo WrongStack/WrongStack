@@ -105,6 +105,15 @@ const INTENTIONALLY_UNHANDLED = new Set<string>([
   // files.search; its own search UI uses a separate implementation. The native
   // FileContentSearch consumes these correlated replies through EngineOperations.
   'files.search',
+  // Desktop-owned multi-item file operations: FileWorkspace issues
+  // files.copy_many / move_many / delete_many and consumes these correlated
+  // replies through EngineOperations. The WebUI does not issue them.
+  'files.copied_many',
+  'files.moved_many',
+  'files.deleted_many',
+  // Desktop engine-state clears its fallback banner on this; the WebUI shows
+  // the fallback through provider.fallback and has no restored-state surface.
+  'provider.primary_restored',
   // Desktop's GitWorkspace owns correlated hunk/conflict review requests;
   // the WebUI does not issue these requests (it uses git.diff instead).
   'git.hunks',
@@ -153,6 +162,23 @@ const INTENTIONALLY_UNHANDLED = new Set<string>([
   // Redundant design-state echo. The gallery mirrors activeKit/stack/overrides
   // from the `design.list` payload (handled) and never issues `design.state`.
   'design.state',
+  // Bulk file-operation replies. The bulk copy/move/delete dialogs live in the
+  // desktop client (`FileWorkspace.tsx` issues `files.copy_many`/`move_many`/
+  // `delete_many` and awaits `['files.copied_many']`/`['files.moved_many']`/
+  // `['files.deleted_many']`); the browser WebUI has no bulk-file UI and never
+  // sends those requests, so these correlated replies have no browser consumer.
+  'files.copied_many',
+  'files.deleted_many',
+  'files.moved_many',
+  // SAGE injection audit reply. Only the desktop client's injection history
+  // (`SageInjectionHistory.tsx`) requests `memory.sage.audit`; the browser
+  // WebUI never sends it, so the correlated reply has no browser consumer.
+  'memory.sage.audit',
+  // Provider-failover signal. The desktop engine state consumes it
+  // (`engine-state.ts` re-reads the active engine on `provider.fallback` /
+  // `provider.primary_restored`); the browser renders provider state from its
+  // own provider responses and registers no handler for this event.
+  'provider.primary_restored',
   // Task-activity stream for the open-ledger panel enhancement. The handler is
   // registered via `ws.on.bind(ws)` in KanbanView.tsx, which the static
   // `.on('...')` regex cannot detect; non-critical — dropped messages merely

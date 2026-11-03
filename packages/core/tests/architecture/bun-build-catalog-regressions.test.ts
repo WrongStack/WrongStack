@@ -100,6 +100,11 @@ describe('website tool catalog uniqueness', () => {
     );
     put(
       dir,
+      'packages/tools/dist/tool-catalog.js',
+      "import { builtinTools } from './builtin.js'; export function createBuiltinToolCatalog() { return { tools: builtinTools }; }",
+    );
+    put(
+      dir,
       'website/src/data/runtime-catalog.ts',
       `export const toolCatalog = ${JSON.stringify(duplicate ? [entry, entry, entry] : [entry])} as const;\n// generated:tool-tier-counts\nexport const TOOL_TIER_COUNTS = { short: 1 } as const;`,
     );

@@ -72,6 +72,7 @@
     "collapseInput": "Recolher",
     "startListening": "Entrada de voz (Voz para texto)",
     "stopListening": "Ouvindo... (Clique para parar)",
+    "runSettings": "Configurações de execução",
     "promptsMenu": "Prompts"
   },
   "header": {

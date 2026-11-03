@@ -11,6 +11,7 @@ import { expectDefined } from './expect-defined.js';
 
 import * as fsp from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
+
 const GLOB_CHARS = new Set(['*', '?', '[']);
 const IS_WINDOWS = typeof process !== 'undefined' && process.platform === 'win32';
 const SEP = IS_WINDOWS ? '\\' : '/';
@@ -149,7 +150,11 @@ export async function expandGlob(pattern: string): Promise<string[]> {
     if (pat === '**') {
       for (const e of entries) {
         const full = `${dir}${SEP}${e.name}`;
-        results.add(abs ? resolve(full) : full);
+        // Directories are traversed, never returned: this resolves a pattern to
+        // FILE paths (see the module docblock). Returning them made callers
+        // that count the result as files over-count — `collab_debug` refused a
+        // target with 3 files as "5 files, which exceeds the limit".
+        if (!e.isDirectory()) results.add(abs ? resolve(full) : full);
         if (e.isDirectory()) {
           await walk(full, '**');
         }
@@ -162,7 +167,10 @@ export async function expandGlob(pattern: string): Promise<string[]> {
       // Leaf segment (e.g. *.ts or ?.js)
       const re = globToRegex(pat);
       for (const e of entries) {
-        if (re.test(e.name)) {
+        // File paths only — a directory whose NAME matches the leaf pattern
+        // (src/* matching src/deep) is traversed by the caller's own walk,
+        // not returned as a match.
+        if (!e.isDirectory() && re.test(e.name)) {
           const full = `${dir}${SEP}${e.name}`;
           results.add(abs ? resolve(full) : full);
         }

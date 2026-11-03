@@ -7,14 +7,16 @@ import type {
 /** Keep one operator-selected slice while preserving the hierarchy needed to
  * understand it. Project scope intentionally spans machines: selecting a
  * project shows every machine currently working on that project. A machine
- * scope may name several raw machine ids — every process on one computer. */
+ * scope may name several raw machine ids — every process on one computer, or
+ * every machine carrying a label. An empty id set matches nothing (a label
+ * whose machines are all offline), never everything. */
 export function filterFleetTopology(
   topology: FleetTopology,
   scope: FleetTopologyScope,
   scopeId?: string | ReadonlySet<string>,
 ): FleetTopology {
   if (scope === 'all' || scopeId === undefined) return topology;
-  if (typeof scopeId === 'string' ? scopeId.length === 0 : scopeId.size === 0) return topology;
+  if (typeof scopeId === 'string' && scopeId.length === 0) return topology;
 
   const included = new Set<string>();
   if (scope === 'machine') {

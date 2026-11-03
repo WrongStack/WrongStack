@@ -12,6 +12,8 @@ unchecked tasks do not by themselves prove a current product gap.
 | [HQ improvements](hq-improvements-2026-09.md) | Delivered slices plus deferred RFCs |
 | [Coverage program](test-coverage-100-2026-08.md) | Target program; proposed exclusion registry is not an existing file |
 | [Codebase index refactor](codebase-index-refactor.md) | Proposal; reviewed source links, with the duplicate root copy archived |
+| [WrongIndex service](wrongindex/README.md) | Proposed standalone Rust daemon and desktop program; storage compatibility, delivery backlog, and acceptance gates |
+| [WrongMemory service](wrongmemory/README.md) | Proposed multi-project Rust SAGE memory service; source research, independent MCP clients, WrongStack connection, migration, and acceptance gates |
 | [Authority-first decision](adr-003-authority-first-refactor-program.md) | Accepted historical decision retained under its original identifier |
 | [Core/Runtime ownership](adr-004-core-runtime-export-and-config-ownership.md) | Accepted ownership decision; exported subpaths are defined by current manifests |
 

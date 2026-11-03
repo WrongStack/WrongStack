@@ -1,6 +1,7 @@
 ---
 name: chimera
 description: |
+  Chimera post-session review: report new, evidenced quality issues in files the WrongStack session added or modified.
   Use this skill for post-session code quality review of files added or modified
   during a WrongStack session. It runs automatically when a session ends, and on
   demand. Trigger on the explicit vocabulary — "review", "code review", "quality
@@ -11,7 +12,7 @@ description: |
   produces a severity-ranked report and minimal fix suggestions. If the user
   wants the fixes actually applied, that is bug-hunter or security-scanner, not
   this skill — but review first, then hand off.
-version: 2.1.1
+version: 2.1.2
 required-capabilities: [filesystem.read, code.inspect]
 required-tools: []
 optional-capabilities: [version-control.manage]
@@ -24,8 +25,8 @@ metadata:
 
 ## Selection card
 - Task: Review session changes through the read-only guardian.
-- Start: Identify the scope and obtain an executable before-proof or review evidence.
-- Finish: apply the acceptance checks below; report observed results and unresolved constraints.
+- Start: Collect the files added or modified in the session and read their diffs before judging anything.
+- Finish: The report lists only new, evidenced issues with file:line and severity, or states that nothing qualified; no mutating follow-up was started.
 
 ## Overview
 

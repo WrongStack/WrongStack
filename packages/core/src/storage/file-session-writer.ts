@@ -318,6 +318,7 @@ export class FileSessionWriter implements SessionWriter {
   private runMetadataCheckpoint(): Promise<void> {
     if (this.closed || !this.metadataDirty) return Promise.resolve();
     if (this.metadataCheckpointInFlight) return this.metadataCheckpointInFlight;
+    this.metadataDirty = false;
     const run = runMetadataCheckpointOperation(
       {
         sessionId: this.id,
@@ -329,7 +330,6 @@ export class FileSessionWriter implements SessionWriter {
         onMetadataCheckpointCb: this.onMetadataCheckpointCb,
       },
       () => {
-        this.metadataDirty = false;
         if (this.metadataDirty && !this.closed) this.scheduleMetadataCheckpoint();
       },
       () => {
@@ -338,6 +338,7 @@ export class FileSessionWriter implements SessionWriter {
       },
     ).finally(() => {
       this.metadataCheckpointInFlight = null;
+      if (this.metadataDirty && !this.closed) this.scheduleMetadataCheckpoint();
     });
     this.metadataCheckpointInFlight = run;
     return run;
@@ -602,7 +603,13 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   async restoreRedo(): Promise<number | null> {
-    return executeSessionRedo(this.journalRewriteContext());
+    await this.workspaceCapture;
+    const restored = await executeSessionRedo(this.journalRewriteContext());
+    if (restored !== null) {
+      this.metadataDirty = true;
+      this.scheduleMetadataCheckpoint();
+    }
+    return restored;
   }
 
   /** Writer state a rewind or redo needs to rewrite the journal in place. */

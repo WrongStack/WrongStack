@@ -40,7 +40,7 @@ latest stable; record compatibility blockers instead of silently downgrading.
 | @fal-ai/client | 1.10.1 | [npm](https://registry.npmjs.org/@fal-ai/client/latest) |
 | @motion-canvas/core, @motion-canvas/2d, @motion-canvas/vite-plugin, @motion-canvas/ffmpeg | 3.17.2 | [npm plugin](https://registry.npmjs.org/@motion-canvas/vite-plugin/latest) |
 | Manim Community | 0.22.0 | [PyPI](https://pypi.org/pypi/manim/json) |
-| Node.js | 26.12.1 Current / 24.22.1 LTS | [official releases](https://nodejs.org/dist/index.json) |
+| Node.js | Node.js 26.13.0 newest stable / LTS 26.13.0 (Node 24 in maintenance) | [official releases](https://nodejs.org/dist/index.json) |
 | Bun | 1.4.4 | [official releases](https://github.com/oven-sh/bun/releases/latest) |
 | FFmpeg | 9.0.2 | [official releases](https://ffmpeg.org/download.html) |
 | Suno | v6 / v6-mini | [official model guide](https://help.suno.com/en/articles/13924737) |
@@ -49,7 +49,7 @@ latest stable; record compatibility blockers instead of silently downgrading.
 
 ## Additional web, mobile, backend and operations targets
 
-Checked 2026-10-23. Runtime/server versions and SDK/client versions are distinct.
+Checked 2026-11-02. Runtime/server versions and SDK/client versions are distinct.
 
 | Technology | Checked release/channel | Source |
 |---|---|---|
@@ -101,7 +101,7 @@ Checked 2026-10-23. Runtime/server versions and SDK/client versions are distinct
 | FastAPI | 0.162.0 | [official source](https://pypi.org/pypi/fastapi/json) |
 | Django | 6.1.2 | [official source](https://pypi.org/pypi/django/json) |
 | uv | 0.13.5 | [official source](https://pypi.org/pypi/uv/json) |
-| .NET | SDK 10.0.402 / runtime 10.0.13 stable; 11 RC excluded | [official source](https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/10.0/releases.json) |
+| .NET | SDK 10.0.403 / runtime 10.0.14 stable; 11 RC excluded | [official source](https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/10.0/releases.json) |
 | JDK | 27 GA; 28 early access excluded | [official source](https://jdk.java.net/) |
 | Spring Boot | 4.1.2 stable; 4.2.0-RC1 excluded | [official source](https://repo1.maven.org/maven2/org/springframework/boot/spring-boot/maven-metadata.xml) |
 | PHP | 8.5.12 | [official source](https://www.php.net/downloads.php) |
@@ -127,9 +127,9 @@ Checked 2026-10-23. Runtime/server versions and SDK/client versions are distinct
 
 ## Compatibility blockers found in this expansion
 
-- Expo SDK 58 (58.0.17) bundles React Native 0.88.0, Reanimated 4.7.1 and Expo Router 58.0.25; Expo Router's RSC peer range declares `react-server-dom-webpack` `~19.3.0` while independent `react` / `react-dom` are at `19.3.1`. Choose the verified `npx expo install --check` matrix or a bare RN path; do not silently mix versions or suppress validation.
+- Expo SDK 58 (58.0.17) bundles React Native 0.88.1, Reanimated 4.7.1 and Expo Router 58.0.29; Expo Router's RSC peer range declares `react-server-dom-webpack` `~19.3.0` while independent `react` / `react-dom` are at `19.3.1`. Choose the verified `npx expo install --check` matrix or a bare RN path; do not silently mix versions or suppress validation.
 - Angular compiler-cli 22.2.3 declares TypeScript >=6.0 <6.1; TypeScript 7.0.2 is outside the supported peer range.
-- SvelteKit 3.1.0 declares `typescript: ^6.0.0` and `@pulumi/pulumi` 3.272.0 declares `typescript: >= 3.8.3 < 7`; TypeScript 7.0.2 is outside those peer ranges.
+- SvelteKit 3.1.1 declares `typescript: ^6.0.0` and `@pulumi/pulumi` 3.272.0 declares `typescript: >= 3.8.3 < 7`; TypeScript 7.0.2 is outside those peer ranges.
 - Prisma latest tag is 8.0.0-rc.27; highest published non-deprecated stable is 7.10.1, matching `@prisma/client` 7.10.1. Spring Boot (4.2.0-RC1) and .NET (11 RC) indexes contain milestone/RC targets that must also be excluded from stable selection.
 - Nginx stable (1.30.6) and mainline (1.31.8) are separate published channels.
 - MongoDB stable series (9.0) was confirmed; exact server patch and managed provider eligibility remain deployment-time checks.
@@ -139,9 +139,9 @@ Checked 2026-10-23. Runtime/server versions and SDK/client versions are distinct
 - Motion Canvas vite-plugin 3.17.2 declares Vite 4.x or 5.x. Latest Vite 8.3.5 is outside that peer range. Keep this blocker visible; do not bypass it with force.
 - React DOM 19.3.1 requires React ^19.3.1; upgrade the pair.
 - R3F 9.8.2 declares React >=19 <19.4, compatible with the checked 19.3.1.
-- Vitest 5.0.5 requires supported Node ranges (`^22.12.0 || ^24.0.0 || >=26.0.0`) and matching 5.0.5 coverage/browser plugins.
-- Wrangler 4.152.0 requires Node >=22.0.0 and `@cloudflare/workers-types` ^5.20261019.1.
-- Node Current (26.12.1) is distinct from Active LTS (24.22.1 Krypton). Choose latest stable for the requested target and state a deployment runtime restriction when it prevents adoption.
+- Vitest 5.1.0 requires supported Node ranges (`^22.12.0 || ^24.0.0 || >=26.0.0`) and matching 5.0.5 coverage/browser plugins.
+- Wrangler 4.156.2 requires Node >=22.0.0 and `@cloudflare/workers-types` ^5.20261019.1.
+- Node.js 26.13.0 is the newest stable release and, since 2026-10-28, also the active LTS line (LTS 26.13.0); Node 24 is in maintenance. index.json also lists Node 27 alpha builds: never report an alpha as latest stable. Choose latest stable for the requested target and state a deployment runtime restriction when it prevents adoption.
 
 The entrypoint describes cross-ecosystem lookup; this snapshot does not claim
 every package or hosted model has been checked. Unavailable sources stay unknown.

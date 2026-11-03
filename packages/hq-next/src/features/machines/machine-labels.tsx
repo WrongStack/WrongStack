@@ -2,8 +2,10 @@
 
 /**
  * Operator labels on a machine ("prod", "gpu", "eu"): shown as chips, edited
- * in place as one line of words. The server normalises and validates them;
- * the snapshot broadcast brings the saved labels back to every dashboard.
+ * in place as one line of words, on the desktop and on the phone (both need
+ * `control.enqueue`, as the server does). The server normalises and validates
+ * them; the snapshot broadcast brings the saved labels back to every
+ * dashboard.
  */
 import { setMachineLabels } from '@hq/data/api';
 import {
@@ -18,7 +20,7 @@ import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
 
 /** "prod, gpu  eu" → ["prod", "gpu", "eu"]; the server does the rest. */
-function splitLabels(text: string): string[] {
+export function splitLabels(text: string): string[] {
   return text
     .split(/[\s,]+/)
     .map((word) => word.trim())

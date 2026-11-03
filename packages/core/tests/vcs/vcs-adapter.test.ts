@@ -345,4 +345,24 @@ describe('adapters against the real binaries', () => {
     expect(normalizeVcsPath('C:../outside')).toBeNull();
     expect(normalizeVcsPath('C:secret.txt')).toBeNull();
   });
+
+  it('never returns an absolute or root-escaping path for .//-prefixed input', async () => {
+    const { normalizeVcsPath } = await import('../../src/vcs/vcs-adapter.js');
+    // `.//x` denotes the file `x`; stripping the `./` prefix by hand used to
+    // leave `/x`, which normalize read as ABSOLUTE.
+    expect(normalizeVcsPath('.//x')).toBe('x');
+    expect(normalizeVcsPath('.//./x')).toBe('x');
+    expect(normalizeVcsPath('a/.//b')).toBe('a/b');
+    // Same shape, climbing out: previously returned `/x` instead of rejecting.
+    expect(normalizeVcsPath('.//../x')).toBeNull();
+    expect(normalizeVcsPath('.\\..\\x')).toBeNull();
+    expect(normalizeVcsPath('a//../b')).toBe('b');
+
+    for (const input of ['.//x', './/./x', 'a/.//b', 'a//../b']) {
+      const result = normalizeVcsPath(input);
+      expect(result, input).not.toBeNull();
+      expect(result?.startsWith('/'), input).toBe(false);
+      expect(result?.startsWith('../'), input).toBe(false);
+    }
+  });
 });

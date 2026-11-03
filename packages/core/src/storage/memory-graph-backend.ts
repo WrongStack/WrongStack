@@ -101,13 +101,13 @@ export class GraphMemoryBackend implements MemoryBackend {
     const nodeId = this.nodeId(entry);
     const existing = this.nodes.get(nodeId);
     if (existing) {
+      // Update inverted index for the modified node's text and tags before overwriting existing.entry
+      this.updateNodeIndex(nodeId, entry);
       existing.count++;
       existing.entry = entry;
       existing.type = entry.type;
       existing.tags = entry.tags;
       existing.priority = entry.priority;
-      // Update inverted index for the modified node's text and tags
-      this.updateNodeIndex(nodeId, entry);
     } else {
       this.nodes.set(nodeId, {
         id: nodeId,
@@ -156,20 +156,27 @@ export class GraphMemoryBackend implements MemoryBackend {
     const removed = await this.file.forget(scope, query, filePath);
     if (removed > 0) {
       await this.loadGraph(scope);
-      // Remove nodes whose entry text matches the query
-      const n = query.toLowerCase();
+      // Prune to what the FILE still holds instead of matching the query text.
+      // The file layer also deletes by exact entry id (`mem_<ts>_<rand>`, see
+      // FileMemoryBackend.forget), and an id contains no memory text — so a
+      // text-only match left that node (and its edges) in the graph, and
+      // `list()`'s graph-only branch then served the deleted entry on every
+      // read. Scope-checked because the graph file is shared across scopes.
+      const surviving = new Set(
+        (await this.file.list(scope, filePath)).map((entry) => normalizeNodeText(entry.text)),
+      );
       const toRemove: string[] = [];
       for (const [id, node] of this.nodes) {
-        if (node.entry.text.toLowerCase().includes(n)) {
-          toRemove.push(id);
-        }
+        if (node.entry.scope !== scope) continue;
+        if (!surviving.has(normalizeNodeText(node.entry.text))) toRemove.push(id);
       }
       for (const id of toRemove) {
         // Remove from inverted index before deleting the node
         this.removeNodeFromIndex(id, this.nodes.get(id)?.entry);
         this.nodes.delete(id);
       }
-      this.edges = this.edges.filter((e) => !toRemove.includes(e.from) && !toRemove.includes(e.to));
+      const removedIds = new Set(toRemove);
+      this.edges = this.edges.filter((e) => !removedIds.has(e.from) && !removedIds.has(e.to));
       this._saveDone = this._saveGraph(scope);
       await this._saveDone;
     }
@@ -204,6 +211,7 @@ export class GraphMemoryBackend implements MemoryBackend {
     // Add graph-only nodes not in file (shouldn't happen normally, but safety)
     const fileIds = new Set(fileEntries.map((e) => this.nodeId(e)));
     for (const [id, node] of this.nodes) {
+      if (node.entry.scope !== scope) continue;
       if (!fileIds.has(id)) {
         enriched.push(node.entry);
       }
@@ -332,8 +340,7 @@ export class GraphMemoryBackend implements MemoryBackend {
 
   private nodeId(entry: MemoryEntry): string {
     // Stable ID from scope + normalized text
-    const norm = entry.text.toLowerCase().trim().replace(/\s+/g, ' ');
-    return `${entry.scope ?? 'mem'}::${simpleHash(norm)}`;
+    return `${entry.scope ?? 'mem'}::${simpleHash(normalizeNodeText(entry.text))}`;
   }
 
   private async loadGraph(scope: MemoryScope): Promise<void> {
@@ -511,6 +518,11 @@ function sharedTags(a: string[], b: string[]): number {
   let shared = 0;
   for (const t of a) if (setB.has(t)) shared++;
   return shared / Math.max(a.length, b.length);
+}
+
+/** Stable text form shared by `nodeId` and the forget prune. */
+function normalizeNodeText(text: string): string {
+  return text.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
 /** Fast non-crypto hash for stable node IDs. */

@@ -1,9 +1,10 @@
-import { BookOpen, ChevronDown, Cpu, FileText, History } from 'lucide-react';
+import { BookOpen, ChevronDown, Cpu, FileText, History, SlidersHorizontal } from 'lucide-react';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
 import type { useFileReferenceStore } from '@/stores';
 import { FileReferenceChip } from '../FileReferenceChip.js';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../ui/dialog.js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -262,9 +263,35 @@ export function ModelAndPromptBar({
           {(sessionModel ?? fallbackModel) || t('chat:header.noModel')}
         </span>
       </button>
-      <SessionEffortSelect />
-      <SubagentModelsButton />
-      <CompanionsButton />
+      <div className="hidden md:contents">
+        <SessionEffortSelect />
+        <SubagentModelsButton />
+        <CompanionsButton />
+      </div>
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={t('chat:input.runSettings')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-accent/50 hover:text-foreground md:hidden"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {t('chat:input.runSettings')}
+            <ChevronDown className="h-3 w-3 opacity-60" />
+          </button>
+        </DialogTrigger>
+        <DialogContent
+          aria-describedby={undefined}
+          className="w-[min(24rem,calc(100vw-2rem))] p-4 md:hidden"
+        >
+          <DialogTitle className="text-base">{t('chat:input.runSettings')}</DialogTitle>
+          <div className="ws-mobile-run-settings grid gap-3">
+            <SessionEffortSelect />
+            <SubagentModelsButton />
+            <CompanionsButton />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

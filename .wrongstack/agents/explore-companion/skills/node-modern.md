@@ -11,7 +11,6 @@
 ## Discovery and verification
 
 - Treat zero-result globs under `.temp_files/**` as inconclusive because ignore rules can suppress traversal. Before cleanup, inspect the target tree and confirm no nested `node_modules` junctions remain.
-- Before reporting zero dependency consumers, rerun the exact repo-wide grep; concurrent changes to `bun.lock` or `packages/webui-hq/package.json` can invalidate earlier results.
 - Declare `packages/plugins/tests/*.test.ts` orphaned only after checking `packages/plugins/vitest.config.ts`, root `vitest.config.ts`, `bun run check:test-types`, and `docs/reports/architecture-health-current.json`.
 - Test `@wrongstack/tools` and `@wrongstack/providers` through their `scripts.test`: `vitest run --root ../.. packages/tools/tests` and `vitest run --root ../.. packages/providers/tests`.
 

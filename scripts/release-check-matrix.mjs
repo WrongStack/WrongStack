@@ -227,7 +227,7 @@ const GATES = [
   {
     id: 'website-tool-catalog',
     label: 'Website tool catalog and detail projections',
-    cmd: 'bun run website:tools:check',
+    cmd: 'bun run tools:catalog:check && bun run website:tools:check',
     prereq: 'build',
   },
   {

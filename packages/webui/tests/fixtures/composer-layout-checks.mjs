@@ -17,11 +17,11 @@ export async function checkComposerLayout(browser, base, output, errors) {
         await input.fill('Review the workspace layout and keyboard controls.');
         await expect(input).toBeFocused();
         await expect(page.getByTestId('send-submit')).toBeEnabled();
-        const companions = page.getByTestId('composer-companions-button');
-        assert(
-          (await companions.boundingBox()).height >= (width < 640 ? 36 : 32),
-          'Composer toolbar controls must retain their minimum height',
-        );
+        if (width < 768) await page.getByRole('button', { name: 'Run settings' }).click();
+        const companions = page.getByTestId('composer-companions-button').filter({ visible: true });
+        await expect
+          .poll(async () => (await companions.boundingBox()).height)
+          .toBeGreaterThanOrEqual(width < 640 ? 36 : 32);
         await companions.click();
         const switches = page.getByTestId(/^composer-companion-switch-/);
         await expect(switches).toHaveCount(3);
@@ -44,6 +44,10 @@ export async function checkComposerLayout(browser, base, output, errors) {
         });
         await page.keyboard.press('Escape');
         await expect(switches).toHaveCount(0);
+        if (width < 768) {
+          await page.keyboard.press('Escape');
+          await expect(page.getByRole('dialog')).toHaveCount(0);
+        }
         await input.focus();
         // Long user-configured model names must fit without a document scrollbar.
         await page.evaluate(() => {

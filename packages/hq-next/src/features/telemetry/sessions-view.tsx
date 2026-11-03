@@ -7,6 +7,7 @@
  * scope; the full figures live server-side in `session-history.jsonl`.
  */
 import { fetchSessionHistory } from '@hq/data/api';
+import { useHqStore } from '@hq/data/store/index';
 import { formatUsd } from '@hq/lib/format';
 import type { HqSessionHistoryEntry } from '@wrongstack/hq';
 import { Download, History, MessageSquareText } from 'lucide-react';
@@ -16,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { plural } from '@/features/overview/model';
 import { cn } from '@/lib/cn';
 import { errorText } from '@/lib/error-text';
+import { machineKeysWithLabel } from '@/lib/scope';
 import { useFleetScope } from '@/lib/use-scope';
 import { groupByDay, historyCsv, sessionDuration, summarizeHistory } from './session-history-model';
 
@@ -62,11 +64,19 @@ export function SessionsView(): ReactNode {
     };
   }, [scope.kind, scope.id]);
 
+  // A label scope is a set of machines: the server filters by one machine, so
+  // the fleet's history is narrowed here.
+  const snapshot = useHqStore((state) => state.snapshot);
+  const scoped = useMemo(() => {
+    if (entries === null || scope.kind !== 'label') return entries ?? [];
+    const keys = machineKeysWithLabel(snapshot, scope.id);
+    return entries.filter((entry) => keys.has(entry.machineKey));
+  }, [entries, scope.kind, scope.id, snapshot]);
   const shown = useMemo(
-    () => (entries ?? []).filter((entry) => !onlyLost || entry.outcome === 'lost'),
-    [entries, onlyLost],
+    () => scoped.filter((entry) => !onlyLost || entry.outcome === 'lost'),
+    [scoped, onlyLost],
   );
-  const summary = useMemo(() => summarizeHistory(entries ?? []), [entries]);
+  const summary = useMemo(() => summarizeHistory(scoped), [scoped]);
   const days = useMemo(() => groupByDay(shown), [shown]);
 
   if (entries === null) {

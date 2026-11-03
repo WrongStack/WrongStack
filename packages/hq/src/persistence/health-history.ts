@@ -127,6 +127,31 @@ export class HqHealthHistory {
     return (this.series.get(key) ?? []).filter((point) => Date.parse(point.at) >= sinceMs);
   }
 
+  /**
+   * Every machine's points since `sinceMs`, thinned so two kept points are at
+   * least `everyMs` apart (the newest is always kept): enough to draw and
+   * project a trend for the whole fleet in one answer, at a fixed size per
+   * machine however often readings were taken.
+   */
+  overview(sinceMs: number, everyMs: number): { key: string; points: HqHealthPoint[] }[] {
+    const machines: { key: string; points: HqHealthPoint[] }[] = [];
+    for (const [key, list] of this.series) {
+      const recent = list.filter((point) => Date.parse(point.at) >= sinceMs);
+      if (recent.length === 0) continue;
+      const kept: HqHealthPoint[] = [];
+      let lastAt = Number.NEGATIVE_INFINITY;
+      for (const [index, point] of recent.entries()) {
+        const at = Date.parse(point.at);
+        if (at - lastAt >= everyMs || index === recent.length - 1) {
+          kept.push(point);
+          lastAt = at;
+        }
+      }
+      machines.push({ key, points: kept });
+    }
+    return machines;
+  }
+
   /** Forget a machine (it was forgotten from the roster). */
   forget(key: string): void {
     this.series.delete(key);

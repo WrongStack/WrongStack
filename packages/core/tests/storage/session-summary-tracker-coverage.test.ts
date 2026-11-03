@@ -408,11 +408,29 @@ describe('SessionSummaryTracker — coverage', () => {
         outcome: 'error',
       },
     });
+    expect(tracker.snapshot().outcome).toBeUndefined();
     const summary = await tracker.finalize();
     // What the test name always claimed: a resumed session re-derives its
     // verdict from the events it goes on to observe. It observed none, so there
     // is no verdict — and crucially the inherited 'error' is gone.
     expect(summary.outcome).toBeUndefined();
+  });
+
+  it('recomputeFromDisk clears a stale outcome after rewinding past an error', async () => {
+    const filePath = path.join(dir, 'recompute-outcome.jsonl');
+    await fsp.writeFile(
+      filePath,
+      JSON.stringify(ev({ type: 'user_input', content: 'clean turn' })) + '\n',
+      'utf8',
+    );
+    const tracker = new SessionSummaryTracker({ id: 's25b', startedAt: ts, meta: baseMeta });
+    tracker.observe(ev({ type: 'error', message: 'boom', phase: 'agent' }) as never);
+    await tracker.finalize();
+    expect(tracker.currentSummary.outcome).toBe('error');
+
+    await tracker.recomputeFromDisk(filePath);
+    expect(tracker.currentSummary.outcome).toBeUndefined();
+    expect(tracker.snapshot().outcome).toBeUndefined();
   });
 
   it('handles llm_response content with non-tool_use blocks', () => {
