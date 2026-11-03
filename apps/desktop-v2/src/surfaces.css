@@ -27,3 +27,16 @@
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
+
+/* A canvas surface takes the whole project page, as the file workspace does. */
+.project-page-content:has(> .ws-surface-frame.is-fill) {
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+}
+.ws-surface-frame.is-fill {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T09:49:26.122Z",
+  "generatedAt": "2026-11-03T10:15:17.528Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5748,
-    "testFiles": 4916,
-    "sourceLines": 1239987,
-    "workspaceEdges": 235,
-    "moduleEdges": 16830,
+    "sourceFiles": 5790,
+    "testFiles": 4917,
+    "sourceLines": 1240577,
+    "workspaceEdges": 236,
+    "moduleEdges": 16919,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 185,
+    "testsWithoutTypecheck": 186,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1036
+    "testOnlyExports": 1034
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 374,
-      "testFiles": 185,
+      "sourceFiles": 376,
+      "testFiles": 186,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -731,9 +731,10 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 59,
+      "sourceFiles": 97,
       "testFiles": 0,
       "workspaceDependencies": [
+        "@wrongstack/contracts",
         "@wrongstack/core"
       ],
       "tsconfigs": [
@@ -1102,7 +1103,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 775,
+      "sourceFiles": 777,
       "testFiles": 513,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1560,6 +1561,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/design-studio-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31106,6 +31113,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/draft-merge.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32141,6 +32155,11 @@
       "syntax": "import"
     },
     {
+      "from": "packages/project-surfaces/src/office/AgentOfficeView.tsx",
+      "specifier": "./AgentOfficeView.css",
+      "syntax": "import"
+    },
+    {
       "from": "packages/project-surfaces/src/sage/vector/VectorMemoryPanel.tsx",
       "specifier": "./vector-memory-panel.css",
       "syntax": "import"
@@ -32158,11 +32177,6 @@
     {
       "from": "packages/vibeui/src/lib/build-info.ts",
       "specifier": "../../package.json",
-      "syntax": "import"
-    },
-    {
-      "from": "packages/webui/src/components/AgentOfficeView.tsx",
-      "specifier": "./AgentOfficeView.css",
       "syntax": "import"
     },
     {
@@ -32988,11 +33002,6 @@
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
       "lines": 889,
       "relativeImports": 7
-    },
-    {
-      "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 702,
-      "relativeImports": 9
     }
   ],
   "hotspots": [
@@ -35517,6 +35526,18 @@
       "name": "windowSpend"
     },
     {
+      "file": "packages/project-surfaces/src/office/AgentOfficeView/model.ts",
+      "name": "shortModelName"
+    },
+    {
+      "file": "packages/project-surfaces/src/office/OfficeMapCanvas/utils.ts",
+      "name": "AGENT_COLS"
+    },
+    {
+      "file": "packages/project-surfaces/src/office/OfficeMapCanvas/utils.ts",
+      "name": "layoutClientXs"
+    },
+    {
       "file": "packages/providers/src/ai-gateway.ts",
       "name": "resolveGatewayWireBaseUrl"
     },
@@ -36753,10 +36774,6 @@
       "name": "PANEL_ORDER"
     },
     {
-      "file": "packages/webui/src/components/AgentOfficeView/model.ts",
-      "name": "shortModelName"
-    },
-    {
       "file": "packages/webui/src/components/AgentsPage.tsx",
       "name": "getIterations"
     },
@@ -36835,14 +36852,6 @@
     {
       "file": "packages/webui/src/components/MessageBubble/ToolCallOverview.tsx",
       "name": "TOOL_OVERVIEW_REGISTRY"
-    },
-    {
-      "file": "packages/webui/src/components/OfficeMapCanvas/utils.ts",
-      "name": "AGENT_COLS"
-    },
-    {
-      "file": "packages/webui/src/components/OfficeMapCanvas/utils.ts",
-      "name": "layoutClientXs"
     },
     {
       "file": "packages/webui/src/components/ProviderWaitingRoom.tsx",
@@ -37351,14 +37360,6 @@
     {
       "file": "packages/webui/src/stores/memory-lifecycle-store.ts",
       "name": "toMemoryLifecycleItem"
-    },
-    {
-      "file": "packages/webui/src/stores/monitor-store.ts",
-      "name": "clientBucket"
-    },
-    {
-      "file": "packages/webui/src/stores/monitor-store.ts",
-      "name": "deriveMonitorStats"
     },
     {
       "file": "packages/webui/src/stores/notification-store.ts",

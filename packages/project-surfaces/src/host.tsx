@@ -1,4 +1,12 @@
-import { createContext, type ReactNode, type RefObject, useContext, useLayoutEffect } from 'react';
+import {
+  type ComponentType,
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useLayoutEffect,
+} from 'react';
+import type { OfficeFeed } from './office/feed-types';
 
 /**
  * A server frame as a surface handler receives it. Payloads are the engine's own reply shapes;
@@ -98,6 +106,10 @@ export interface SurfaceHost {
     payload: Record<string, unknown>,
     signal?: AbortSignal,
   ): Promise<unknown>;
+  /** The live data the office surfaces render; hosts without an office leave it out. */
+  office?: OfficeFeed | undefined;
+  /** Renders a message's markdown the way the application renders its own messages. */
+  Markdown?: ComponentType<{ children: string }> | undefined;
 }
 
 let currentHost: SurfaceHost | null = null;

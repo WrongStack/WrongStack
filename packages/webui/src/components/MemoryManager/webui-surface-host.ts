@@ -4,19 +4,44 @@ import {
   type SurfaceHost,
   setDefaultSurfaceHost,
 } from '@wrongstack/project-surfaces/host';
+import { type OfficeFeed, WEBUI_SELF } from '@wrongstack/project-surfaces/office/feed';
 import { useCallback } from 'react';
 import { confirmModal } from '@/components/ConfirmModal';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { sendRosterMessage } from '@/lib/roster-ws';
 import { getWSClient } from '@/lib/ws-client';
-import { useConfigStore, useUIStore } from '@/stores';
+import {
+  useConfigStore,
+  useFleetStore,
+  useMailboxStore,
+  useMonitorStore,
+  useSessionStore,
+  useUIStore,
+  useVizStore,
+} from '@/stores';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import { WebuiSurfaceMarkdown } from './webui-surface-markdown';
 
 function useNavigateBack() {
   const setCurrentView = useUIStore((state) => state.setCurrentView);
   return useCallback(() => setCurrentView('chat'), [setCurrentView]);
 }
+
+/** The office surfaces read the WebUI's own fleet, mailbox, monitor and activity stores. */
+const webuiOfficeFeed: OfficeFeed = {
+  useLiveSessions: () => useMonitorStore((state) => state.liveSessions),
+  useCurrentSession: () => useMonitorStore((state) => state.currentSession),
+  useFleetAgents: () => useFleetStore((state) => state.agents),
+  useAgentTranscripts: () => useFleetStore((state) => state.agentTranscripts),
+  useLeaderId: () => useFleetStore((state) => state.leaderId),
+  useMailboxMessages: () => useMailboxStore((state) => state.messages),
+  useMailboxAgents: () => useMailboxStore((state) => state.agents),
+  useVizEvents: () => useVizStore((state) => state.events),
+  useToolEvents: () => useVizStore((state) => state.toolEvents),
+  useProjectName: () => useSessionStore((state) => state.projectName),
+  self: WEBUI_SELF,
+};
 
 /**
  * The WebUI side of the shared project surfaces: its WebSocket client, stores and confirm
@@ -39,5 +64,7 @@ export const webuiSurfaceHost: SurfaceHost = {
   confirm: (options) => confirmModal(options),
   fetch: (path, init) => globalThis.fetch(path, init),
   requestRoster: (type, payload, signal) => sendRosterMessage(type, payload, signal),
+  office: webuiOfficeFeed,
+  Markdown: WebuiSurfaceMarkdown,
 };
 setDefaultSurfaceHost(webuiSurfaceHost);

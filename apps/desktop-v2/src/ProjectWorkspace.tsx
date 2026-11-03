@@ -5,6 +5,7 @@ import {
   BookOpen,
   Box,
   Brain,
+  Building2,
   CalendarClock,
   Folder,
   GitBranch,
@@ -25,6 +26,7 @@ import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectGoals } from './ProjectGoals';
 import { type KanbanFocus, ProjectKanban } from './ProjectKanban';
 import { ProjectMailbox } from './ProjectMailbox';
+import { ProjectOffice } from './ProjectOffice';
 import { ProjectSage } from './ProjectSage';
 import { ProjectSdd } from './ProjectSdd';
 import { ProjectWorktrees } from './ProjectWorktrees';
@@ -170,6 +172,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectMailbox key={project.id} command={command} projectId={project.id} state={state} />
       ) : vm.projectPage === 'worktrees' ? (
         <ProjectWorktrees key={project.id} state={state} send={send} />
+      ) : vm.projectPage === 'office' ? (
+        <ProjectOffice projectId={project.id} projectName={project.name} http={http} />
       ) : vm.projectPage === 'live-fleet' ? (
         <Suspense fallback={<p role="status">Opening live project fleet…</p>}>
           <ProjectLiveFleet
@@ -570,6 +574,14 @@ function ProjectOverview({
           <div>
             <strong>Live fleet</strong>
             <span>Registered sessions, agents, recent activity and reviewed controls.</span>
+          </div>
+          <ArrowRight size={16} />
+        </button>
+        <button type="button" onClick={() => vm.setProjectPage('office')}>
+          <Building2 size={21} />
+          <div>
+            <strong>Agent office</strong>
+            <span>Every session's agents at their desks: tools, mail, todos and the topology.</span>
           </div>
           <ArrowRight size={16} />
         </button>

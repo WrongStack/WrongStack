@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./WatchMessageBubble.js', () => ({}));
 
-vi.mock('@/components/WatchMessageBubble.js', () => ({
+vi.mock('@wrongstack/project-surfaces/office/WatchMessageBubble', () => ({
   WatchMessageBubble: ({
     entry,
     isContinuation,

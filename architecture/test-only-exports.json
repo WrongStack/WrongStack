@@ -1228,6 +1228,13 @@
       "pruneWindow",
       "windowSpend"
     ],
+    "packages/project-surfaces/src/office/AgentOfficeView/model.ts": [
+      "shortModelName"
+    ],
+    "packages/project-surfaces/src/office/OfficeMapCanvas/utils.ts": [
+      "AGENT_COLS",
+      "layoutClientXs"
+    ],
     "packages/providers/src/ai-gateway.ts": [
       "resolveGatewayWireBaseUrl"
     ],
@@ -1935,9 +1942,6 @@
     "packages/webui/src/components/activity-bar/index.tsx": [
       "PANEL_ORDER"
     ],
-    "packages/webui/src/components/AgentOfficeView/model.ts": [
-      "shortModelName"
-    ],
     "packages/webui/src/components/AgentsPage.tsx": [
       "getIterations",
       "getLastEventAt"
@@ -1983,10 +1987,6 @@
     ],
     "packages/webui/src/components/MessageBubble/ToolCallOverview.tsx": [
       "TOOL_OVERVIEW_REGISTRY"
-    ],
-    "packages/webui/src/components/OfficeMapCanvas/utils.ts": [
-      "AGENT_COLS",
-      "layoutClientXs"
     ],
     "packages/webui/src/components/ProviderWaitingRoom.tsx": [
       "siblingTriggerOf"
@@ -2214,10 +2214,6 @@
     ],
     "packages/webui/src/stores/memory-lifecycle-store.ts": [
       "toMemoryLifecycleItem"
-    ],
-    "packages/webui/src/stores/monitor-store.ts": [
-      "clientBucket",
-      "deriveMonitorStats"
     ],
     "packages/webui/src/stores/notification-store.ts": [
       "MAX_NOTIFICATIONS"

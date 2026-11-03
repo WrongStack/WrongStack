@@ -63,28 +63,32 @@ function validateSavedDraft(value: SavedDraft): SavedDraft {
     throw Error('Saved draft revisions are invalid.');
   return value;
 }
-export type ProjectPage =
-  | 'overview'
-  | 'memory'
-  | 'kanban'
-  | 'goals'
-  | 'sdd'
-  | 'atlas'
-  | 'automations'
-  | 'chronicle'
-  | 'mailbox'
-  | 'worktrees'
-  | 'kit'
-  | 'techstack'
-  | 'deadcode'
-  | 'design'
-  | 'reviews'
-  | 'history'
-  | 'roster'
-  | 'live-fleet'
-  | 'skills'
-  | 'files'
-  | 'changes';
+/** Every page a project can show; a saved page outside this list is ignored. */
+export const PROJECT_PAGES = [
+  'overview',
+  'memory',
+  'kanban',
+  'goals',
+  'sdd',
+  'atlas',
+  'automations',
+  'chronicle',
+  'mailbox',
+  'worktrees',
+  'kit',
+  'techstack',
+  'deadcode',
+  'design',
+  'reviews',
+  'history',
+  'roster',
+  'live-fleet',
+  'office',
+  'skills',
+  'files',
+  'changes',
+] as const;
+export type ProjectPage = (typeof PROJECT_PAGES)[number];
 export function useDesktop() {
   useEffect(() => {
     // File drops belong to explicit workspaces; never navigate the shell away
@@ -283,31 +287,7 @@ export function useDesktop() {
               )
             )
               setSection(saved['section'] as Section);
-            if (
-              [
-                'overview',
-                'memory',
-                'kanban',
-                'goals',
-                'sdd',
-                'atlas',
-                'automations',
-                'chronicle',
-                'mailbox',
-                'worktrees',
-                'kit',
-                'techstack',
-                'deadcode',
-                'design',
-                'reviews',
-                'history',
-                'roster',
-                'live-fleet',
-                'skills',
-                'files',
-                'changes',
-              ].includes(String(saved['projectPage']))
-            )
+            if ((PROJECT_PAGES as readonly string[]).includes(String(saved['projectPage'])))
               setProjectPage(saved['projectPage'] as ProjectPage);
             setOpenSessionIds(restoreSessionTabs(saved, next.sessions));
             if (

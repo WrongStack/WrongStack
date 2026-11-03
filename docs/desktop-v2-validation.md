@@ -6161,3 +6161,37 @@ copies, starting with SAGE memory.
   finds something new, and an unchanged snapshot at most every five minutes (commit `2ca6e2695`,
   test in `packages/cli/tests/kanban-supervisor.test.ts`). The engine binary needs a rebuild
   before the desktop sees it; journals already on disk keep their size.
+
+### Agent office is the WebUI's own office map (2026-11-03)
+
+- Projects have an Agent office page (Project tools > Agent office): the WebUI's office map with
+  its two views, the desk office (one room per live session: agents at desks, their tools, mail,
+  todos and the break room) and the topology canvas (Fleet HQ, clients, agents, Mailbox Hub,
+  live feed, minimap, broadcast), plus its display settings beside it.
+- `packages/project-surfaces/src/office` holds the office components, the office settings store,
+  the session watch and agent transcript panels, and the data shapes they render (live
+  sessions, fleet agents, mailbox, activity events), which the WebUI stores now re-export. The
+  components read an `OfficeFeed` from the host: the WebUI's feed reads its monitor, fleet,
+  mailbox, activity and session stores; message markdown is the host's (`Markdown`).
+  `OfficeWorkspace` is the office tab of both apps. Mailbox retention, the session snapshot's
+  context clamp and the mailbox activity entry are shared functions (`feed-model.ts`).
+- Desktop: `desktop-office-feed.ts` builds the feed from the project's frames: the session
+  registry snapshot (`sessions.status_update`, asked for at once through `/api/fleet/ping`), the
+  mailbox (asked for on start, after mailbox traffic and at most every five seconds with the
+  snapshot) and mailbox sends as the activity feed. Fleet agents and their transcripts are
+  conversation frames and stay empty here; the snapshot already carries each agent's tools,
+  mail, todos and activity. A canvas surface fills the project page (`SurfaceFrame fill`), and
+  the office stylesheet's dark rules follow the desktop's `data-mode`. Tests:
+  `desktop-office-feed.test.ts`.
+- Fixed for both apps: the activity feed read a send only as `mailbox.sent`, but the mailbox emits
+  `mailbox.message_sent`, so every send showed as a delivery; and agent and client heartbeats
+  (4,556 of 4,576 mailbox frames in this project's journal) each made a `← ?` entry. Sends now
+  read as sends and heartbeats make no entry (`viz-store.test.ts`).
+- Seen in the native window on build `c9e8c6188af8-9c5c09cb1682`, light and dark: the office and
+  topology views with this machine's two live sessions and the mailbox hub (three messages),
+  no page errors.
+- Open: desktop sessions register in the session registry as `webui`, so the office labels them
+  "WebUI"; the minimap and zoom buttons keep React Flow's light colors in dark mode (as in the
+  WebUI).
+- Checks: desktop 707 tests and WebUI 6,232 tests pass; typecheck clean for the package, the
+  WebUI and the desktop; architecture health passes.

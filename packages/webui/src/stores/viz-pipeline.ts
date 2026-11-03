@@ -1,3 +1,4 @@
+import { mailboxVizEvent } from '@wrongstack/project-surfaces/office/feed-model';
 import { contextPctFromLoad, nextId } from './viz-graph-helpers.js';
 import { NODE_COLORS, type VizEvent } from './viz-types.js';
 
@@ -294,25 +295,8 @@ export function wsToVizEvent(wsType: string, payload: Record<string, unknown>): 
       }
       return null;
     }
-    case 'mailbox.event': {
-      const eventName = payload.event as string;
-      const from = (payload.from as string) ?? '?';
-      const to = (payload.to as string) ?? '?';
-      const subject = (payload.subject as string) ?? '';
-      const isSend = eventName === 'mailbox.sent';
-      return {
-        id: nextId(),
-        kind: isSend ? 'mailbox:send' : 'mailbox:deliver',
-        timestamp: Date.now(),
-        source: from,
-        target: to,
-        label: subject || (isSend ? `→ ${to}` : `← ${from}`),
-        magnitude: 1,
-        data: payload as Record<string, unknown>,
-        color: NODE_COLORS.mailbox,
-        flowGroup: 'mailbox',
-      };
-    }
+    case 'mailbox.event':
+      return mailboxVizEvent(payload, nextId());
     case 'iteration.started': {
       const idx = (payload.index as number) ?? 0;
       return {

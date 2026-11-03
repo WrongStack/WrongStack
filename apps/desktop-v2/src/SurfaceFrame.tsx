@@ -40,10 +40,13 @@ export function useSurfaceConfirm() {
 export function SurfaceFrame({
   host,
   confirm,
+  fill = false,
   children,
 }: {
   host: SurfaceHost;
   confirm: ReturnType<typeof useSurfaceConfirm>;
+  /** Fills the project page edge to edge instead of scrolling inside its padding (canvases). */
+  fill?: boolean;
   children: ReactNode;
 }) {
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
@@ -52,7 +55,7 @@ export function SurfaceFrame({
     <I18nextProvider i18n={surfaceI18n}>
       <SurfaceHostProvider host={host}>
         <SurfacePortalContext.Provider value={portal}>
-          <div className="ws-surfaces ws-surface-frame">{children}</div>
+          <div className={`ws-surfaces ws-surface-frame${fill ? ' is-fill' : ''}`}>{children}</div>
           {createPortal(<div className="ws-surfaces" ref={setPortal} />, document.body)}
           <Dialog open={pending !== null} onOpenChange={(open) => !open && confirm.settle(false)}>
             {pending && (

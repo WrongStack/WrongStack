@@ -1,57 +1,11 @@
+import type { VizEvent, VizEventKind } from '@wrongstack/project-surfaces/office/types';
+
 // ── Event types ───────────────────────────────────────────────────────
 
-/** Categories the cinematic renderer understands. */
-export type VizEventKind =
-  | 'provider:call' // LLM provider call started
-  | 'provider:delta' // Streaming text delta
-  | 'provider:response' // Provider response received
-  | 'agent:spawned' // Agent (leader or subagent) spawned
-  | 'agent:tool' // Agent executed a tool
-  | 'agent:status' // Agent status change (running → completed/failed)
-  | 'agent:ctx' // Agent context pressure update
-  | 'agent:text' // Agent streaming/partial text
-  | 'tool:started' // Tool execution started
-  | 'tool:executed' // Tool execution completed
-  | 'tool:progress' // Tool progress update
-  | 'mailbox:send' // Mailbox message sent
-  | 'mailbox:deliver' // Mailbox message delivered/read
-  | 'collab:event' // Collaboration observer/control event
-  | 'memory:event' // SAGE retrieval/verification/hygiene event
-  | 'brain:council_vote' // One Brain council seat cast its vote
-  | 'session:start' // Session started/resumed
-  | 'session:end' // Session ended
-  | 'iteration:start' // Iteration started
-  | 'iteration:end' // Iteration completed
-  | 'eternal:iteration' // Eternal-autonomy journal tick
-  | 'error' // Error occurred
-  | 'context:compacted' // Context compaction
-  | 'context:repaired' // Context repair
-  | 'budget:warning' // Agent budget warning
-  | 'budget:extended' // Agent budget extended
-  | 'cost:update' // Cost/token update
-  | 'fleet:snapshot'; // Cross-process fleet snapshot (sessions + agents)
-
-export interface VizEvent {
-  id: string;
-  kind: VizEventKind;
-  timestamp: number;
-  /** Source node id (e.g. provider id, agent id, tool name) */
-  source: string;
-  /** Target node id (optional — e.g. provider for tool calls) */
-  target?: string | undefined;
-  /** Display label */
-  label: string;
-  /** Numeric magnitude (tokens, cost, duration) for size/color mapping */
-  magnitude?: number | undefined;
-  /** Extra structured payload for the renderer */
-  data?: Record<string, unknown> | undefined;
-  /** The raw WS payload for drill-down in detail panels */
-  raw?: unknown;
-  /** Grouping key for the flow (e.g. 'iteration:3', 'agent:leader') */
-  flowGroup?: string | undefined;
-  /** Color hint for the renderer */
-  color?: string | undefined;
-}
+export type {
+  VizEvent,
+  VizEventKind,
+} from '@wrongstack/project-surfaces/office/types';
 
 /** Active connection between two nodes in the flow graph. */
 export interface VizEdge {

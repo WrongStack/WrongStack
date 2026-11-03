@@ -700,37 +700,37 @@
    same low-alpha values are imperceptible, collapsing the scene's spatial
    depth and the identity panel's role-colored aura to a single flat color.
    Bump the alpha for dark mode so each desk retains its visual structure. */
-.dark .agent-office__lane {
+:is(.dark, [data-mode="dark"]) .agent-office__lane {
   --desk-wall: hsl(var(--info) / 0.16);
   --desk-floor: hsl(var(--warning) / 0.16);
   --desk-aura: hsl(var(--warning) / 0.14);
 }
 
-.dark .agent-office__lane.is-desk-mint {
+:is(.dark, [data-mode="dark"]) .agent-office__lane.is-desk-mint {
   --desk-wall: hsl(var(--success) / 0.18);
   --desk-floor: hsl(var(--info) / 0.14);
   --desk-aura: hsl(var(--success) / 0.16);
 }
 
-.dark .agent-office__lane.is-desk-ocean {
+:is(.dark, [data-mode="dark"]) .agent-office__lane.is-desk-ocean {
   --desk-wall: hsl(var(--info) / 0.2);
   --desk-floor: hsl(var(--primary) / 0.14);
   --desk-aura: hsl(var(--info) / 0.16);
 }
 
-.dark .agent-office__lane.is-desk-plum {
+:is(.dark, [data-mode="dark"]) .agent-office__lane.is-desk-plum {
   --desk-wall: hsl(var(--primary) / 0.18);
   --desk-floor: hsl(var(--warning) / 0.14);
   --desk-aura: hsl(var(--primary) / 0.16);
 }
 
-.dark .agent-office__lane.is-desk-rose {
+:is(.dark, [data-mode="dark"]) .agent-office__lane.is-desk-rose {
   --desk-wall: hsl(var(--destructive) / 0.16);
   --desk-floor: hsl(var(--warning) / 0.14);
   --desk-aura: hsl(var(--destructive) / 0.14);
 }
 
-.dark .agent-office__lane.is-desk-graphite {
+:is(.dark, [data-mode="dark"]) .agent-office__lane.is-desk-graphite {
   --desk-wall: hsl(var(--muted-foreground) / 0.14);
   --desk-floor: hsl(var(--foreground) / 0.1);
   --desk-aura: hsl(var(--muted-foreground) / 0.12);
@@ -2443,40 +2443,40 @@ button.agent-office__parcel:hover {
 /* Dark surfaces need more chroma-bearing area than the light theme. Keep each
    tool category on its semantic token so the default Signal palette does not
    tint the whole menu primary red. */
-.dark .agent-office__tool-glyph {
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph {
   border-color: hsl(var(--border));
   color: hsl(var(--muted-foreground));
   background: hsl(var(--muted) / 0.82);
 }
 
-.dark .agent-office__tool-glyph.is-read,
-.dark .agent-office__tool-glyph.is-web {
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-read,
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-web {
   border-color: hsl(var(--info) / 0.38);
   color: hsl(var(--info));
   background: hsl(var(--info) / 0.18);
 }
 
-.dark .agent-office__tool-glyph.is-write,
-.dark .agent-office__tool-glyph.is-edit {
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-write,
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-edit {
   border-color: hsl(var(--warning) / 0.38);
   color: hsl(var(--warning));
   background: hsl(var(--warning) / 0.18);
 }
 
-.dark .agent-office__tool-glyph.is-terminal {
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-terminal {
   border-color: hsl(var(--success) / 0.38);
   color: hsl(var(--success));
   background: hsl(var(--success) / 0.18);
 }
 
-.dark .agent-office__tool-glyph.is-search,
-.dark .agent-office__tool-glyph.is-memory {
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-search,
+:is(.dark, [data-mode="dark"]) .agent-office__tool-glyph.is-memory {
   border-color: hsl(var(--primary) / 0.38);
   color: hsl(var(--primary));
   background: hsl(var(--primary) / 0.17);
 }
 
-.dark .agent-office__monitor .agent-office__tool-glyph {
+:is(.dark, [data-mode="dark"]) .agent-office__monitor .agent-office__tool-glyph {
   border: 0;
   background: transparent;
 }

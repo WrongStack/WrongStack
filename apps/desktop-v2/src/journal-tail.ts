@@ -29,7 +29,9 @@ export class JournalTail {
   }
   /** Resolves once the tail has a position, so a request sent after it is never missed. */
   ready(): Promise<void> {
-    return this.offset !== null ? Promise.resolve() : (this.pending ??= this.locate());
+    if (this.offset !== null) return Promise.resolve();
+    this.pending ??= this.locate();
+    return this.pending;
   }
   private pending: Promise<void> | undefined;
   private async locate() {

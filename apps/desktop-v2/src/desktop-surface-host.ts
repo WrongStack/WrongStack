@@ -24,7 +24,7 @@ export function desktopSurfaceHost(
   tail: JournalTail,
   http: EngineHttp,
   confirm: (options: ConfirmOptions) => Promise<boolean>,
-): { host: SurfaceHost; attach: () => () => void } {
+): { host: SurfaceHost; attach: () => () => void; send: SurfaceSend } {
   const own = new Set<string>();
   const handlers = new Map<string, Set<(message: SurfaceMessage) => void>>();
   const deliver = (message: SurfaceMessage) => {
@@ -98,5 +98,5 @@ export function desktopSurfaceHost(
     requestRoster: (type, payload) =>
       stream.operations.request(type, payload, [type, 'list'], { timeoutMs: 15000 }),
   };
-  return { host, attach };
+  return { host, attach, send };
 }
