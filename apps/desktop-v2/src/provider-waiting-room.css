@@ -1,7 +1,7 @@
 .waiting-room {
   margin: 0 0 8px;
   border: 1px solid var(--border);
-  border-left: 3px solid hsl(var(--warning));
+  border-left: 3px solid hsl(var(--ws-warning));
   border-radius: 8px;
   background: var(--raised);
   font-size: 12px;
@@ -27,7 +27,7 @@
 }
 .waiting-summary svg {
   flex: none;
-  color: hsl(var(--warning));
+  color: hsl(var(--ws-warning));
 }
 .waiting-summary span,
 .waiting-left {
@@ -70,7 +70,7 @@ button.waiting-pair {
   cursor: pointer;
 }
 .waiting-pair > svg {
-  color: hsl(var(--warning));
+  color: hsl(var(--ws-warning));
 }
 .waiting-pair code {
   overflow-wrap: anywhere;
@@ -80,10 +80,10 @@ button.waiting-pair {
   padding: 1px 6px;
   border-radius: 4px;
   color: var(--muted);
-  background: var(--subtle);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
 }
 .waiting-state {
-  color: hsl(var(--warning));
+  color: hsl(var(--ws-warning));
 }
 .waiting-state.scheduled {
   color: var(--accent);
