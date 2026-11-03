@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
+import { ProviderCloudSettings } from './ProviderCloudSettings';
 import { ProviderConnectionWiring } from './ProviderConnectionWiring';
 import { ProviderOAuth } from './ProviderOAuth';
 import { ProviderProbe } from './ProviderProbe';
@@ -365,6 +366,7 @@ export function ProviderSettings({
                     )}
                     <ProviderProbe providerId={provider.id} command={command} />
                     <ProviderConnectionWiring provider={provider} command={command} />
+                    <ProviderCloudSettings provider={provider} command={command} />
                   </article>
                 ))}
             </div>

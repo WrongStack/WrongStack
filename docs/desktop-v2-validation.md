@@ -6724,3 +6724,13 @@ copies, starting with SAGE memory.
   WebUI keeps its path as a re-export.
 - Checks: the frame folding, the room and the calendar row are tested (10, jsdom for the room);
   WebUI calendar tests pass (55); typecheck clean for the desktop, WebUI and package.
+
+### Cloud routing settings for native cloud connections (2026-11-04)
+
+- A saved Amazon Bedrock, Google Vertex or Azure connection now has the WebUI's cloud routing
+  form under Settings > Providers: AWS region, Google Cloud project and Vertex location, or the
+  Azure resource name. Values are saved on the profile with `provider.update` and override the
+  environment; empty fields fall back to it. The form uses the same validator the engine applies
+  (`@wrongstack/contracts/types/native-cloud`), so a value it would refuse is reported before
+  anything is sent. Other providers show no form.
+- Checks: tested in jsdom (saved values, save, refusal, no form for other types); typecheck clean.

@@ -1,3 +1,4 @@
+import type { NativeCloudSettings } from '@wrongstack/contracts/types/native-cloud';
 import { type EngineState, entries } from './engine-state';
 
 export interface ProviderChoice {
@@ -16,6 +17,10 @@ export interface ProviderChoice {
   models?: string[] | null;
   /** Saved endpoint override; empty when the provider's own endpoint is used. */
   baseUrl?: string;
+  /** The saved connection's provider type, which decides its native cloud fields. */
+  type?: string;
+  /** Saved native cloud routing values (region, project, location, resource name). */
+  cloud?: NativeCloudSettings;
 }
 export function providerChoices(state: EngineState): ProviderChoice[] {
   const choices = new Map<string, ProviderChoice>();
@@ -41,6 +46,10 @@ export function providerChoices(state: EngineState): ProviderChoice[] {
         ? row['models'].filter((model): model is string => typeof model === 'string')
         : null,
       baseUrl: typeof row['baseUrl'] === 'string' ? row['baseUrl'] : '',
+      ...(typeof row['type'] === 'string' ? { type: row['type'] } : {}),
+      ...(row['cloud'] && typeof row['cloud'] === 'object'
+        ? { cloud: row['cloud'] as NativeCloudSettings }
+        : {}),
       keys: entries(row['apiKeys']).map((key) => ({
         label: String(key['label']),
         maskedKey: String(key['maskedKey'] ?? '••••'),
