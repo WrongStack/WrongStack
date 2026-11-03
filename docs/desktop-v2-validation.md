@@ -6549,3 +6549,17 @@ copies, starting with SAGE memory.
 - Checks: desktop tests pass (751, plus the graph-layout timing test, which passes alone and
   now fails under full-suite load on this machine in every run of this session); typecheck and
   Biome clean.
+
+### Message times and day separators (2026-11-03)
+
+- Each message shows the time it was written beside "You" / "WrongStack" (the full date and
+  time on hover), and a conversation that spans days shows a day line ("Today", "Yesterday", or
+  the date) where the day changes, as the WebUI does.
+- The times come from the engine journal: the native host now stamps every frame it writes with
+  the time it received it (`at`, epoch ms). Token deltas and progress ticks stay unstamped, since
+  they are most of the journal; an answer takes the time of the frame before its first delta.
+  The user's own prompts were already stamped. Frames already in a journal keep no time, so
+  messages from before this build show none.
+- Checks: Rust `engine::tests` pass (5, with a new stamping test); desktop tests pass (755, plus
+  the graph-layout timing test, which passes alone); typecheck and Biome clean.
+- Not verified in the native window, for the same disconnected-engine reason as above.

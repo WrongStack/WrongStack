@@ -41,11 +41,15 @@ export { contentText, entries, record } from './engine-values.js';
 export interface EngineEvent {
   type: string;
   payload: Record<string, unknown>;
+  /** When the desktop received the frame (epoch ms); token deltas and older journals have none. */
+  at?: number;
 }
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** When it was written, from the frame that added it (epoch ms); unknown in older journals. */
+  at?: number;
   attachments?: ComposerAttachment[];
   streamId?: string;
   /** A Brain council's decision, drawn as the WebUI's council card. */
@@ -118,10 +122,13 @@ export interface EngineState {
   nextSteps: ParsedNextStep[];
   results: Record<string, Record<string, unknown>>;
   error: string;
+  /** The latest frame time seen, for messages a token delta starts. */
+  lastAt: number;
 }
 /** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
 export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
+  lastAt: 0,
   hydrating: false,
   synced: true,
   pendingUserMessages: {},
@@ -163,7 +170,12 @@ export const emptyEngineState: EngineState = {
 export function engineEvent(value: unknown): EngineEvent | null {
   const row = record(value);
   if (typeof row['type'] !== 'string' || !row['type']) return null;
-  return { type: row['type'], payload: record(row['payload']) };
+  const at = row['at'];
+  return {
+    type: row['type'],
+    payload: record(row['payload']),
+    ...(typeof at === 'number' && at > 0 ? { at } : {}),
+  };
 }
 /** A partial native journal page is not yet authoritative for delivery mode. */
 export function replayEngineBatch(
@@ -177,9 +189,21 @@ export function replayEngineBatch(
     synced: state.synced || !hasMore,
   };
 }
+/** Applies one frame; messages it adds take the frame's time, or the latest time seen. */
 export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const event = engineEvent(input);
   if (!event) return state;
+  const next = reduceFrame(state, event);
+  if (next === state) return state;
+  const at = event.at ?? state.lastAt;
+  if (at && next.messages.length > state.messages.length)
+    next.messages = next.messages.map((message, index) =>
+      index < state.messages.length || message.at ? message : { ...message, at },
+    );
+  if (event.at) next.lastAt = event.at;
+  return next;
+}
+function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   const p = event.payload;
   // Each native engine is bound to one registered project. Project workflows may
   // be owned by another core session; conversation/permission frames remain lane-scoped.

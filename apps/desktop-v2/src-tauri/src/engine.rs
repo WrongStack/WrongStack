@@ -33,6 +33,19 @@ pub(crate) fn is_live_frame(message: &Value) -> bool {
     message["type"] == "browser.live.frame"
 }
 
+/// Records when the desktop received a frame, so the transcript can say when a message was
+/// written. Per-token deltas and progress ticks stay unstamped: they are most of the journal,
+/// and the frame before them already carries the time.
+fn stamp_frame(message: &mut Value, at: i64) {
+    let kind = message["type"].as_str().unwrap_or_default();
+    if kind.ends_with("_delta") || kind.ends_with(".progress") || kind.ends_with("_progress") {
+        return;
+    }
+    if let Some(frame) = message.as_object_mut() {
+        frame.entry("at").or_insert(json!(at));
+    }
+}
+
 fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
     if bind_session {
         if let Some(id) = identity["sessionId"].as_str() {
@@ -46,10 +59,29 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_live_frame, scope_message, Engine};
+    use super::{is_live_frame, scope_message, stamp_frame, Engine};
     use serde_json::json;
     use std::fs;
     use uuid::Uuid;
+
+    #[test]
+    fn stamps_frames_with_their_arrival_but_not_token_deltas() {
+        let mut result = json!({"type": "run.result", "payload": {"status": "done"}});
+        stamp_frame(&mut result, 42);
+        assert_eq!(result["at"], json!(42));
+        let mut earlier = json!({"type": "run.result", "at": 7});
+        stamp_frame(&mut earlier, 42);
+        assert_eq!(earlier["at"], json!(7));
+        for kind in [
+            "provider.text_delta",
+            "provider.thinking_delta",
+            "tool.progress",
+        ] {
+            let mut delta = json!({"type": kind, "payload": {}});
+            stamp_frame(&mut delta, 42);
+            assert!(delta.get("at").is_none(), "{kind} was stamped");
+        }
+    }
 
     #[test]
     fn live_browser_frames_bypass_the_event_log() {
@@ -185,7 +217,7 @@ impl Engine {
                     }
                     match socket.read() {
                         Ok(Message::Text(text)) => {
-                            let message: Value = serde_json::from_str(&text).map_err(err)?;
+                            let mut message: Value = serde_json::from_str(&text).map_err(err)?;
                             if is_live_frame(&message) {
                                 let mut frame = owner.live_frame.lock().map_err(err)?;
                                 *frame = (frame.0 + 1, message["payload"].clone());
@@ -195,6 +227,7 @@ impl Engine {
                                 let mut identity = owner.identity.lock().map_err(err)?;
                                 *identity = message["payload"].clone();
                             }
+                            stamp_frame(&mut message, now());
                             record(&mut log, &message).map_err(err)?;
                         }
                         Ok(Message::Ping(_)) => {

@@ -88,7 +88,7 @@ export type EngineTab =
   | 'kanban';
 export type { EngineSend } from './engine-operations';
 
-import { hiddenMessageCount, TRANSCRIPT_WINDOW } from './transcript-window';
+import { dayLabel, hiddenMessageCount, TRANSCRIPT_WINDOW } from './transcript-window';
 
 export function EngineWorkspace({
   id,
@@ -431,6 +431,7 @@ export function EngineWorkspace({
                     onOpenFile={openFile}
                     edit={editAction(message)}
                     mark={finder.mark(message.id)}
+                    day={dayLabel(message, index ? shown[index - 1] : undefined)}
                     askAgain={
                       index === shown.length - 1 && message.role === 'assistant'
                         ? askAgainAction()

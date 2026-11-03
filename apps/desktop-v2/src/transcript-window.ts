@@ -22,3 +22,28 @@ export function transcriptSearchText(
     )
     .join('\n');
 }
+
+const dayKey = (at: number) => new Date(at).toDateString();
+
+/**
+ * The day separator before `message`: its day when the message before it was written on another
+ * day (or has no time), so a long conversation reads by day as in the WebUI. Messages without a
+ * time (older journals) get none.
+ */
+export function dayLabel(
+  message: { at?: number | undefined },
+  previous: { at?: number | undefined } | undefined,
+  now = Date.now(),
+): string | undefined {
+  if (!message.at) return undefined;
+  if (previous?.at && dayKey(previous.at) === dayKey(message.at)) return undefined;
+  if (dayKey(message.at) === dayKey(now)) return 'Today';
+  if (dayKey(message.at) === dayKey(now - 86_400_000)) return 'Yesterday';
+  return new Date(message.at).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year:
+      new Date(message.at).getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric',
+  });
+}
