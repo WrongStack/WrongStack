@@ -1,6 +1,7 @@
 import { LoaderCircle, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
+import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
 import { SessionActivity } from './SessionActivity';
 import { turnToolSummary } from './turn-tools';
@@ -15,10 +16,12 @@ export function TurnTools({
   events,
   stats,
   onOpenFile,
+  command,
 }: {
   events: readonly EngineEvent[];
   stats?: TurnStats | undefined;
   onOpenFile: (path: string) => void;
+  command?: EngineCommand | undefined;
 }) {
   const summary = turnToolSummary(events);
   const meta = stats ? turnMeta(stats) : '';
@@ -33,7 +36,7 @@ export function TurnTools({
             {summary.calls === 1 ? 'tool call' : 'tool calls'}
             {summary.failed ? ` · ${summary.failed} failed` : ''} · {summary.text}
           </summary>
-          <SessionActivity compact events={events} onOpenFile={onOpenFile} />
+          <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />
         </details>
       )}
     </>
@@ -89,9 +92,11 @@ export function AgentWorking({
 export function LiveRunActivity({
   events,
   onOpenFile,
+  command,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
+  command?: EngineCommand | undefined;
 }) {
   if (!events.length) return null;
   const summary = turnToolSummary(events);
@@ -109,7 +114,7 @@ export function LiveRunActivity({
         {summary.failed ? ` · ${summary.failed} failed` : ''}
         {summary.text ? ` · ${summary.text}` : ''}
       </summary>
-      <SessionActivity compact events={events} onOpenFile={onOpenFile} />
+      <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />
     </details>
   );
 }

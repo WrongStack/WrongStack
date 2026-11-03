@@ -5,6 +5,7 @@ import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { AttachmentPreview } from './ComposerAttachments';
 import { CopyButton } from './CopyButton';
 import { referenceKey, referenceLabel, splitReferenceMessage } from './composer-resources-model';
+import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { HuntRoundCard } from './HuntRounds';
 import { MarkdownContent } from './MarkdownContent';
@@ -27,6 +28,7 @@ export function TranscriptMessage({
   state,
   onLink,
   onOpenFile,
+  command,
   edit,
   askAgain,
   mark,
@@ -36,6 +38,8 @@ export function TranscriptMessage({
   state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
   onLink: (href: string) => void;
   onOpenFile: (path: string) => void;
+  /** The conversation's engine, for the pictures a turn's tools saved. */
+  command?: EngineCommand | undefined;
   /** Puts this prompt into the composer. */
   edit?: MessageAction | undefined;
   /** Sends the prompt that produced this answer again. */
@@ -126,6 +130,7 @@ export function TranscriptMessage({
             events={state.turnActivity[message.id] ?? []}
             stats={state.turnStats[message.id]}
             onOpenFile={onOpenFile}
+            command={command}
           />
         )}
       </article>

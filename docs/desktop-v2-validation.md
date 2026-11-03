@@ -6598,3 +6598,17 @@ copies, starting with SAGE memory.
   `TurnFollowUps.tsx`; the composer's line ratchet drops to 1,068.
 - Checks: desktop tests pass (762, plus the graph-layout timing test, which passes alone);
   typecheck and Biome clean. The native next-steps scenario's button label is unchanged.
+
+### Tool output actions and generated-image previews (2026-11-03)
+
+- A tool call's output (in the Activity view and in each turn's "Worked with N tool calls")
+  has Copy and Save beside its heading, and shows the exit code when the output ends with one
+  ("exit code: 1", "[exit 2]"), marked when it is not 0. This is the WebUI tool card's rule.
+  Both take the output the engine reported, which for a long result is a preview.
+- An `image_generate` call shows the pictures it saved under its output, as the WebUI's tool
+  card does: each file its result lists is read from the project with `files.image`, one after
+  another, and toggles between a thumbnail and full width; a file that is too large, not an
+  image or unreadable says so.
+- Checks: desktop tests pass (766, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
+  reason above.

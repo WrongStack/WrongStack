@@ -10,10 +10,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
+import { GeneratedImages } from './GeneratedImages';
 import { activityRows } from './session-activity-model';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
+import { ToolOutputActions } from './ToolOutputActions';
 import './session-activity.css';
 
 function readableOutput(value: string): unknown {
@@ -34,10 +37,13 @@ export function SessionActivity({
   events,
   onOpenFile,
   compact = false,
+  command,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
   compact?: boolean;
+  /** The conversation's engine, to show the pictures an `image_generate` call saved. */
+  command?: EngineCommand | undefined;
 }) {
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
   const rows = useMemo(() => activityRows(events), [events]);
@@ -153,7 +159,7 @@ export function SessionActivity({
               )}
               {row.output && (
                 <section>
-                  <h4>
+                  <h4 className="activity-output-heading">
                     {row.kind === 'reasoning'
                       ? 'Thinking'
                       : row.kind === 'retry'
@@ -162,10 +168,16 @@ export function SessionActivity({
                             row.outputBytes > new TextEncoder().encode(row.output).length
                           ? 'Output preview'
                           : 'Output'}
+                    {row.kind === 'tool' && (
+                      <ToolOutputActions tool={row.title} output={row.output} />
+                    )}
                   </h4>
                   <div className="approval-arguments">
                     <StructuredToolValue value={readableOutput(row.output)} />
                   </div>
+                  {command && row.kind === 'tool' && row.title === 'image_generate' && (
+                    <GeneratedImages output={row.output} command={command} />
+                  )}
                 </section>
               )}
               {row.files.length > 0 && (

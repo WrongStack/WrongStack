@@ -1,0 +1,52 @@
+.generated-images {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+.generated-images figure {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.generated-images figure > button {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: zoom-in;
+}
+.generated-images img {
+  display: block;
+  max-height: 11rem;
+  max-width: 100%;
+  object-fit: contain;
+}
+.generated-images img.large {
+  max-height: 70vh;
+  cursor: zoom-out;
+}
+.generated-images figcaption {
+  overflow: hidden;
+  font-size: 10px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.generated-image-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  width: 6rem;
+  height: 6rem;
+  padding: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}

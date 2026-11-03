@@ -429,6 +429,7 @@ export function EngineWorkspace({
                     state={state}
                     onLink={openLink}
                     onOpenFile={openFile}
+                    command={command}
                     edit={editAction(message)}
                     mark={finder.mark(message.id)}
                     day={dayLabel(message, index ? shown[index - 1] : undefined)}
@@ -458,13 +459,7 @@ export function EngineWorkspace({
               />
             ))}
             {state.running && !state.inputs.length && (
-              <LiveRunActivity
-                events={state.runTimeline}
-                onOpenFile={(path) => {
-                  setFileTarget(path);
-                  setTab('files');
-                }}
-              />
+              <LiveRunActivity events={state.runTimeline} command={command} onOpenFile={openFile} />
             )}
             {state.running && (
               <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
@@ -642,13 +637,7 @@ export function EngineWorkspace({
           }}
         />
       ) : tab === 'activity' ? (
-        <SessionActivity
-          events={state.activity}
-          onOpenFile={(path) => {
-            setFileTarget(path);
-            setTab('files');
-          }}
-        />
+        <SessionActivity events={state.activity} command={command} onOpenFile={openFile} />
       ) : tab === 'skills' || tab === 'files' || tab === 'changes' ? (
         <ProjectSessionTools
           projectId={projectId}
