@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T21:15:42.214Z",
+  "generatedAt": "2026-11-04T22:04:00.156Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6007,
-    "testFiles": 5014,
-    "sourceLines": 1248525,
+    "testFiles": 5015,
+    "sourceLines": 1248546,
     "workspaceEdges": 240,
     "moduleEdges": 17668,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 277,
+    "testsWithoutTypecheck": 278,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1039
   },
@@ -394,7 +394,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 441,
-      "testFiles": 277,
+      "testFiles": 278,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1884,6 +1884,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/file-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/file-row-name.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32070,6 +32076,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/file-row-name.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/file-save.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34280,7 +34293,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2034,
+      "lines": 2032,
       "relativeImports": 31
     },
     {
@@ -34352,7 +34365,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2034,
+      "lines": 2032,
       "relativeImports": 31
     },
     {

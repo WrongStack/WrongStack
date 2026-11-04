@@ -8546,3 +8546,31 @@ copies, starting with SAGE memory.
     "Session name" field, and the portable is built from the working tree. The composer
     scope stops at the same step. These three scopes, and the Kanban task-execution step
     after it, need a rerun once that change lands with its scenario update.
+
+### Accessibility pass: serious WCAG 2.2 AA findings fixed (2026-11-05)
+
+- Why: the native `--a11y` scope (axe, WCAG 2.2 A/AA, light and dark) reported 0 critical and
+  25 serious findings on the release build.
+- Fixes:
+  - Target size (2.5.8): the project row's new-session button and the Code Atlas tree's
+    expand and open-map buttons are at least 24 by 24 px. Surfaces use a 13px root, so the
+    sizes are explicit pixels, not `h-6`.
+  - Visible text in the accessible name (2.5.3): file-manager folder rows are named by
+    their action, path and every column they show (`fileRowName`), and change rows by their
+    own text, so speech input can say what is on screen. Code Atlas cards are named by their
+    own text; their open-map button says "Open file map: <name>".
+  - Contrast (1.4.3): new `success-foreground` theme token for text on a success fill
+    (5.4:1 light, 7.6:1 dark), the active Kanban view tab uses the accent foreground, and
+    the selected settings section and the review tray's header button use the accent ink.
+  - Keyboard access to scrolling content (2.1.1): the Kanban board's scroll area is a
+    focusable region named after the board.
+- Gate: `native-accessibility.mjs` now fails on serious as well as critical violations.
+  Target size is checked outside the Code Atlas canvas, whose cards scale with the canvas
+  zoom; every card action is also offered at full size in the code tree and the inspector
+  (the "equivalent" exception of 2.5.8).
+- Scenario lookups that used the old names (folder rows, change rows, Atlas cards) match the
+  new names by their leading text.
+- Results (release portable, `--release --bundled`): a11y PASSED with 0 violations of any
+  impact on all 14 audited screens (39 s); files PASSED (89 s). Desktop 975 unit tests,
+  WebUI codemap, Kanban and memory component tests (184), and the desktop, WebUI and
+  project-surfaces typechecks pass. `FileWorkspace.tsx` hotspot ratchet lowered to 2032.

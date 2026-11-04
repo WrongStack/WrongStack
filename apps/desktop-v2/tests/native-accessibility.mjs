@@ -9,7 +9,7 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 /**
  * An automated accessibility pass over the native window: axe audits the settled page of each
  * main screen, in light and dark appearance. It reports every violation with its screen, rule,
- * impact and first nodes, and fails on critical ones. It does not replace a screen-reader or
+ * impact and first nodes, and fails on critical or serious ones. It does not replace a screen-reader or
  * keyboard-only walkthrough.
  */
 export async function exerciseNativeAccessibility({ page, project, artifactDir }) {
@@ -23,8 +23,18 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir }
         .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
         .every((animation) => animation.playState !== 'running'),
     );
-    const result = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-    for (const violation of result.violations)
+    const result = await new AxeBuilder({ page })
+      .withTags(TAGS)
+      .disableRules(['target-size'])
+      .analyze();
+    // Target size is checked outside the Code Atlas canvas: its cards scale with the canvas zoom,
+    // and every card action is also offered at full size in the code tree and the inspector
+    // (the "equivalent" exception of WCAG 2.5.8).
+    const sized = await new AxeBuilder({ page })
+      .withRules(['target-size'])
+      .exclude('.react-flow__node')
+      .analyze();
+    for (const violation of [...result.violations, ...sized.violations])
       found.push({
         screen,
         id: violation.id,
@@ -32,6 +42,9 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir }
         help: violation.help,
         count: violation.nodes.length,
         nodes: violation.nodes.slice(0, 4).map((node) => node.target.join(' ')),
+        // The first node's own explanation: contrast ratios and colours, missing names.
+        detail: violation.nodes[0]?.failureSummary ?? '',
+        text: violation.nodes.slice(0, 4).map((node) => node.html.slice(0, 160)),
       });
     await page.screenshot({ path: join(artifactDir, `a11y-${screen}.png`), fullPage: true });
   };
@@ -72,9 +85,9 @@ export async function exerciseNativeAccessibility({ page, project, artifactDir }
   for (const item of found)
     console.log(`  ${item.impact} ${item.screen} ${item.id} ×${item.count}: ${item.help}`);
   assert.deepEqual(
-    found.filter((item) => item.impact === 'critical'),
+    found.filter((item) => item.impact === 'critical' || item.impact === 'serious'),
     [],
-    'No critical WCAG 2.2 A/AA violation on the main native screens',
+    'No critical or serious WCAG 2.2 A/AA violation on the main native screens',
   );
-  console.log('PASS: main native screens have no critical WCAG 2.2 A/AA violation');
+  console.log('PASS: main native screens have no critical or serious WCAG 2.2 A/AA violation');
 }

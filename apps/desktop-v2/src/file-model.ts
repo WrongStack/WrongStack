@@ -89,6 +89,25 @@ export function byteSize(bytes: number) {
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / 1048576).toFixed(1)} MB`;
 }
+/**
+ * A file manager row's accessible name: its action and path, then every column the row shows
+ * (folder in search results, kind, size), so speech input can say any visible part of it.
+ */
+export function fileRowName(
+  t: (key: string, values: Record<string, string>) => string,
+  node: FileNode,
+  selecting: boolean,
+  search: boolean,
+) {
+  return [
+    t(selecting ? 'fileView.selectPath' : 'fileView.openPath', { path: node.path }),
+    search ? parentPath(node.path) : '',
+    node.type === 'directory' ? t('fileView.folder', {}) : fileLanguage(node.path),
+    node.size === undefined ? '—' : byteSize(node.size),
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 export function fileLanguage(path: string) {
   const extension = path.split('.').at(-1)?.toLowerCase() ?? '';
   return (

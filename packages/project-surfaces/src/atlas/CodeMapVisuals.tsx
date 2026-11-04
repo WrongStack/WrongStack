@@ -210,7 +210,7 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
           if (canOpen) data.onOpen(graphNode);
           else data.onSelect(graphNode);
         }}
-        aria-label={`${graphNode.kind} ${graphNode.label}`}
+        // Named by the card's own text (kind, label, path, counts), as speech input expects.
       >
         <div className="flex items-start gap-3 p-3">
           <span
@@ -343,7 +343,7 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
               data.onOpen(graphNode);
             }}
             title={openLabel}
-            aria-label={`Open ${graphNode.label} map`}
+            aria-label={`${openLabel}: ${graphNode.label}`}
           >
             <ExternalLink className="h-3.5 w-3.5 shrink-0" />{' '}
             <span className="truncate">{openLabel}</span>

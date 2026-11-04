@@ -27,7 +27,7 @@ export function KanbanViewModeTabs({
           className={cn(
             'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
             viewMode === mode
-              ? 'bg-primary/10 text-primary'
+              ? 'bg-accent text-accent-foreground'
               : 'text-muted-foreground hover:bg-muted',
           )}
         >

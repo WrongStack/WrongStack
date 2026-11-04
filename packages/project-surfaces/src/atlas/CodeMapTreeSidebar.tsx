@@ -246,7 +246,7 @@ export function CodeMapTreeSidebar({
                 >
                   <button
                     type="button"
-                    className="flex h-6 w-5 items-center justify-center text-muted-foreground"
+                    className="flex h-[24px] w-[24px] shrink-0 items-center justify-center text-muted-foreground"
                     onClick={() => togglePackage(packageNode)}
                     aria-label={`${expanded ? 'Collapse' : 'Expand'} ${packageName}`}
                   >
@@ -274,7 +274,7 @@ export function CodeMapTreeSidebar({
                   </button>
                   <button
                     type="button"
-                    className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
+                    className="ml-1 hidden h-[24px] w-[24px] items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                     onClick={() => navigate({ level: 'files', package: packageName })}
                     title={t('activity:codeMapTree.openFileMap')}
                     aria-label={`Open ${packageName} map`}

@@ -56,6 +56,7 @@ import {
   type FileNode,
   fileLanguage,
   fileName,
+  fileRowName,
   fileTree,
   flattenFiles,
   parentPath,
@@ -1159,7 +1160,7 @@ export function FileWorkspace({
                         >
                           <button
                             type="button"
-                            aria-label={t('fileView.reviewPath', { path: String(file['path']) })}
+                            title={t('fileView.reviewPath', { path: String(file['path']) })}
                             onClick={() => {
                               const path = fromGitPath(String(file['path']));
                               if (file['status'] === 'U' || file['status'] === 'D') {
@@ -1657,9 +1658,7 @@ export function FileWorkspace({
                     type="button"
                     className={`file-folder-row${picked.includes(node.path) ? ' picked' : ''}`}
                     key={node.path}
-                    aria-label={t(selecting ? 'fileView.selectPath' : 'fileView.openPath', {
-                      path: node.path,
-                    })}
+                    aria-label={fileRowName(t, node, selecting, Boolean(search))}
                     {...(selecting ? { 'aria-pressed': picked.includes(node.path) } : {})}
                     onClick={(event) => {
                       // Ctrl/Cmd-click picks items without entering selection mode.
@@ -1691,13 +1690,12 @@ export function FileWorkspace({
                         <FileCode2 size={17} />
                       )}
                       <span>
-                        {node.name}
-                        {search && <small>{parentPath(node.path)}</small>}
+                        {node.name} {search && <small>{parentPath(node.path)}</small>}
                       </span>
-                    </span>
+                    </span>{' '}
                     <span>
                       {node.type === 'directory' ? t('fileView.folder') : fileLanguage(node.path)}
-                    </span>
+                    </span>{' '}
                     <span>{node.size === undefined ? '—' : byteSize(node.size)}</span>
                   </button>
                 ))}

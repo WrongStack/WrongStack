@@ -46,7 +46,8 @@
   font-size: 12px;
 }
 .project-new-session {
-  width: 23px;
+  /* WCAG 2.2 target size: at least 24 by 24 px. */
+  width: 24px;
   height: 27px;
   display: grid;
   place-items: center;

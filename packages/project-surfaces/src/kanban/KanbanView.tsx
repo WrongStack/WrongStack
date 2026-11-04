@@ -62,7 +62,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const [boardPage, setBoardPage] = useState(1);
   const registrySessionIds = useKanbanRegistrySessionIds();
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const boardScrollRef = useRef<HTMLElement>(null);
   useHorizontalScroll(boardScrollRef);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -555,9 +555,13 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
           </div>
         )}
 
-        <div
+        {/* Focusable so the columns scroll from the keyboard; named after the board it shows. */}
+        <section
           ref={boardScrollRef}
           className="kanban-scroll-area min-h-64 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain md:min-h-0"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region needs keyboard focus (WCAG 2.1.1).
+          tabIndex={0}
+          aria-label={activeBoard?.title ?? t('activity:kanban.noBoardSelected')}
         >
           {showHistory ? (
             <div className="h-full overflow-y-auto p-4">
@@ -659,7 +663,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               panel={false}
             />
           )}
-        </div>
+        </section>
       </main>
 
       {/*

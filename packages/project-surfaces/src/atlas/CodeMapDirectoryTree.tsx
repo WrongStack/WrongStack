@@ -133,7 +133,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
             >
               <button
                 type="button"
-                className="flex h-6 w-4 shrink-0 items-center justify-center text-muted-foreground"
+                className="flex h-[24px] w-[24px] shrink-0 items-center justify-center text-muted-foreground"
                 onClick={() => onToggleFile(file)}
                 aria-label={`${expanded ? 'Collapse' : 'Expand'} ${file.label}`}
               >
@@ -167,7 +167,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
               </button>
               <button
                 type="button"
-                className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
+                className="ml-1 hidden h-[24px] w-[24px] items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                 onClick={() => onOpenFile(file)}
                 title={t('activity:codeMap.openSymbolMap')}
                 aria-label={`Open ${file.label} map`}

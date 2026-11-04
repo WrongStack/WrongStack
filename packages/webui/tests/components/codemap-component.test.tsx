@@ -129,7 +129,7 @@ async function openCoreFileMap(): Promise<void> {
   await waitFor(() => expect(graphNode('@wrongstack/core')).toBeDefined());
   const open = graphNode('@wrongstack/core')
     .closest('.react-flow__node')
-    ?.querySelector('button[aria-label="Open @wrongstack/core map"]');
+    ?.querySelector('button[aria-label="Open file map: @wrongstack/core"]');
   expect(open).toBeTruthy();
   fireEvent.click(open!);
   await waitFor(() => expect(graphNode('agent.ts')).toBeDefined());
@@ -303,7 +303,7 @@ describe('CodeMap component', () => {
     fireEvent.click(graphAction('agent.ts', 'Activity: agent.ts'));
     expect(screen.getByText(agentFile)).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Close activity' }));
-    fireEvent.click(graphAction('agent.ts', 'Open agent.ts map'));
+    fireEvent.click(graphAction('agent.ts', 'Open symbol map: agent.ts'));
     await waitFor(() => expect(graphNode('runAgent')).toBeDefined());
   });
 
