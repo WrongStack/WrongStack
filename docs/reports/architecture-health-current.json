@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T18:57:21.453Z",
+  "generatedAt": "2026-11-04T19:02:47.082Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 4999,
-    "sourceLines": 1248039,
+    "testFiles": 5000,
+    "sourceLines": 1248059,
     "workspaceEdges": 240,
-    "moduleEdges": 17619,
+    "moduleEdges": 17623,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 262,
+    "testsWithoutTypecheck": 263,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -392,7 +392,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 262,
+      "testFiles": 263,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2386,6 +2386,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-views-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/prompt-library-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32560,6 +32566,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-views-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/prompt-library-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

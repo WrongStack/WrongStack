@@ -2,6 +2,7 @@ import { BookOpen, Clock3, LoaderCircle, Plus, RefreshCw, Search, Star, X } from
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import { type PromptVariable, renderPromptTemplate } from './composer-resources-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -25,6 +26,7 @@ export function PromptWorkspace({
   onInsert?: ((text: string) => void) | undefined;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const [dirty, setDirty] = useState(false),
     [locked, setLocked] = useState(false),
     [leave, setLeave] = useState(false);
@@ -38,16 +40,16 @@ export function PromptWorkspace({
       <div className="composer-dialog resource-dialog">
         <header>
           <div>
-            <span className="eyebrow">PROJECT RESOURCES</span>
+            <span className="eyebrow">{t('promptWorkspace.eyebrow')}</span>
             <h2 id="dialog-title">
               {kind === 'library' ? <BookOpen size={20} /> : <Clock3 size={20} />}
-              {kind === 'library' ? 'Prompt library' : 'Prompt journal'}
+              {kind === 'library' ? t('promptWorkspace.library') : t('promptWorkspace.journal')}
             </h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close prompt workspace"
+            aria-label={t('promptWorkspace.close')}
             disabled={locked}
             onClick={close}
           >
@@ -56,12 +58,12 @@ export function PromptWorkspace({
         </header>
         {leave && (
           <div className="resource-leave">
-            <p>Your new template has unsaved changes.</p>
+            <p>{t('promptWorkspace.unsaved')}</p>
             <button type="button" className="button secondary" onClick={() => setLeave(false)}>
-              Keep editing template
+              {t('promptWorkspace.keepEditing')}
             </button>
             <button type="button" className="button primary" onClick={onClose}>
-              Discard template draft
+              {t('promptWorkspace.discard')}
             </button>
           </div>
         )}
@@ -96,6 +98,7 @@ function ProjectPrompts({
   onDirty: (dirty: boolean) => void;
   onLocked: (locked: boolean) => void;
 }) {
+  const { t } = useDesktopText();
   const [connectionError, setConnectionError] = useState('');
   const report = useCallback(
     (e: unknown) => setConnectionError(e instanceof Error ? e.message : String(e)),
@@ -105,7 +108,8 @@ function ProjectPrompts({
   if (!state.connected)
     return (
       <p className="resource-loading" role="status">
-        <LoaderCircle size={15} className="spin" /> Connecting project resources… {connectionError}
+        <LoaderCircle size={15} className="spin" /> {t('promptWorkspace.connecting')}{' '}
+        {connectionError}
       </p>
     );
   return kind === 'journal' ? (
@@ -125,6 +129,7 @@ function PromptLibrary({
   onDirty: (dirty: boolean) => void;
   onLocked: (locked: boolean) => void;
 }) {
+  const { t } = useDesktopText();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]),
     [content, setContent] = useState<Record<string, unknown> | null>(null),
     [query, setQuery] = useState(''),
@@ -179,8 +184,7 @@ function PromptLibrary({
     try {
       const doc = await command('prompts.content', { slug }, ['prompts.content']);
       if (own !== generation.current) return;
-      if (doc['found'] !== true)
-        throw Error('This prompt is no longer available. Refresh the library.');
+      if (doc['found'] !== true) throw Error(t('promptLibrary.missing'));
       setContent(doc);
       const available = Object.entries(record(doc['variants'])).filter(
         (entry) => typeof entry[1] === 'string',
@@ -256,26 +260,23 @@ function PromptLibrary({
     );
   return (
     <>
-      <p>
-        Templates are read from this project, your user library and bundled sources. Insert fills
-        your draft; it does not send it.
-      </p>
+      <p>{t('promptLibrary.intro')}</p>
       <div className="resource-toolbar">
         <label>
           <Search size={14} />
           <input
-            aria-label="Search prompt library"
+            aria-label={t('promptLibrary.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a prompt…"
+            placeholder={t('promptLibrary.placeholder')}
           />
         </label>
         <select
-          aria-label="Prompt category"
+          aria-label={t('promptLibrary.category')}
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
-          <option value="">All categories</option>
+          <option value="">{t('promptLibrary.allCategories')}</option>
           {[...new Set(rows.map((row) => String(row['category'] ?? 'uncategorized')))]
             .sort()
             .map((name) => (
@@ -283,18 +284,18 @@ function PromptLibrary({
             ))}
         </select>
         <select
-          aria-label="Prompt library filter"
+          aria-label={t('promptLibrary.filter')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         >
-          <option value="all">All prompts</option>
-          <option value="favorites">Favorites</option>
-          <option value="recent">Recently used</option>
+          <option value="all">{t('promptLibrary.all')}</option>
+          <option value="favorites">{t('promptLibrary.favorites')}</option>
+          <option value="recent">{t('promptLibrary.recent')}</option>
         </select>
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh prompt library"
+          aria-label={t('promptLibrary.refresh')}
           disabled={loading || busy}
           onClick={() => void load().catch((e) => setError(String(e)))}
         >
@@ -306,7 +307,7 @@ function PromptLibrary({
           disabled={!enabled || loading || busy}
           onClick={() => setCreating(true)}
         >
-          <Plus size={14} /> New template
+          <Plus size={14} /> {t('promptLibrary.newTemplate')}
         </button>
       </div>
       {error && (
@@ -315,12 +316,12 @@ function PromptLibrary({
         </p>
       )}
       {!enabled ? (
-        <p className="resource-empty">The prompt library is disabled in this runtime.</p>
+        <p className="resource-empty">{t('promptLibrary.disabled')}</p>
       ) : (
         <div className="prompt-library-layout">
-          <section className="resource-list" aria-label="Prompt templates">
+          <section className="resource-list" aria-label={t('promptLibrary.templates')}>
             {loading ? (
-              <p role="status">Loading prompt library…</p>
+              <p role="status">{t('promptLibrary.loading')}</p>
             ) : visible.length ? (
               visible.map((row) => (
                 <button
@@ -339,12 +340,12 @@ function PromptLibrary({
                 </button>
               ))
             ) : (
-              <p className="resource-empty">No prompts match these filters.</p>
+              <p className="resource-empty">{t('promptLibrary.noMatch')}</p>
             )}
           </section>
-          <section className="resource-detail" aria-label="Prompt template details">
+          <section className="resource-detail" aria-label={t('promptLibrary.details')}>
             {reading ? (
-              <p role="status">Reading template…</p>
+              <p role="status">{t('promptLibrary.reading')}</p>
             ) : content ? (
               <>
                 <header>
@@ -362,15 +363,15 @@ function PromptLibrary({
                   >
                     <Star size={13} />{' '}
                     {rows.find((row) => row['slug'] === content['slug'])?.['favorite'] === true
-                      ? 'Unfavorite'
-                      : 'Favorite'}
+                      ? t('promptLibrary.unfavorite')
+                      : t('promptLibrary.favorite')}
                   </button>
                 </header>
                 {variants.length > 0 && (
                   <label>
-                    Detail level
+                    {t('promptLibrary.level')}
                     <select
-                      aria-label="Prompt detail level"
+                      aria-label={t('promptLibrary.levelLabel')}
                       value={level}
                       onChange={(e) => setLevel(e.target.value)}
                     >
@@ -382,7 +383,7 @@ function PromptLibrary({
                 )}
                 {variables.length > 0 && (
                   <fieldset className="prompt-variables">
-                    <legend>Fill template variables</legend>
+                    <legend>{t('promptLibrary.variables')}</legend>
                     {variables.map((variable) => (
                       <label key={variable.name} htmlFor={`prompt-var-${variable.name}`}>
                         {variable.name}
@@ -391,13 +392,13 @@ function PromptLibrary({
                         {variable.enum?.length ? (
                           <select
                             id={`prompt-var-${variable.name}`}
-                            aria-label={`Prompt variable ${variable.name}`}
+                            aria-label={t('promptLibrary.variable', { name: variable.name })}
                             value={values[variable.name] ?? ''}
                             onChange={(e) =>
                               setValues({ ...values, [variable.name]: e.target.value })
                             }
                           >
-                            <option value="">Choose…</option>
+                            <option value="">{t('promptLibrary.choose')}</option>
                             {variable.enum.map((value) => (
                               <option key={value}>{value}</option>
                             ))}
@@ -405,7 +406,7 @@ function PromptLibrary({
                         ) : variable.multiline ? (
                           <textarea
                             id={`prompt-var-${variable.name}`}
-                            aria-label={`Prompt variable ${variable.name}`}
+                            aria-label={t('promptLibrary.variable', { name: variable.name })}
                             value={values[variable.name] ?? ''}
                             onChange={(e) =>
                               setValues({ ...values, [variable.name]: e.target.value })
@@ -414,7 +415,7 @@ function PromptLibrary({
                         ) : (
                           <input
                             id={`prompt-var-${variable.name}`}
-                            aria-label={`Prompt variable ${variable.name}`}
+                            aria-label={t('promptLibrary.variable', { name: variable.name })}
                             value={values[variable.name] ?? ''}
                             onChange={(e) =>
                               setValues({ ...values, [variable.name]: e.target.value })
@@ -429,7 +430,9 @@ function PromptLibrary({
                   <MarkdownContent text={rendered} />
                 </div>
                 {missing.length > 0 && (
-                  <p className="field-help">Required: {missing.map((v) => v.name).join(', ')}</p>
+                  <p className="field-help">
+                    {t('promptLibrary.required', { names: missing.map((v) => v.name).join(', ') })}
+                  </p>
                 )}
                 <footer>
                   <button
@@ -443,19 +446,17 @@ function PromptLibrary({
                       onInsert?.(rendered);
                     }}
                   >
-                    Insert into draft
+                    {t('promptLibrary.insert')}
                   </button>
-                  <CopyButton text={rendered} label="Copy prompt template" />
-                  {!onInsert && (
-                    <small>Open a project chat to insert this template into its draft.</small>
-                  )}
+                  <CopyButton text={rendered} label={t('promptLibrary.copy')} />
+                  {!onInsert && <small>{t('promptLibrary.openChat')}</small>}
                 </footer>
               </>
             ) : (
               <div className="resource-empty">
                 <BookOpen size={26} />
-                <h3>A prompt for the work ahead.</h3>
-                <p>Select a template to preview its instructions and variables.</p>
+                <h3>{t('promptLibrary.emptyTitle')}</h3>
+                <p>{t('promptLibrary.emptyBody')}</p>
               </div>
             )}
           </section>

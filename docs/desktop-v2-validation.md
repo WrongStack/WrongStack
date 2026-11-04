@@ -8262,3 +8262,14 @@ copies, starting with SAGE memory.
 - Checks: new `kit-i18n.test.ts` renders the form, value view, schema details, creation
   request and page in English and Turkish and words form feedback in Turkish; desktop tests
   pass (PASSED); typecheck clean.
+
+### Prompt library, template form and journal in the display language (2026-11-04)
+
+- The prompt workspace dialog (`promptWorkspace`), the prompt library with its filters,
+  preview, variables and insert actions (`promptLibrary`), the template authoring form
+  (`promptTemplate`) and the prompt journal with its filters, entries, paging and export
+  notices (`promptJournal`) follow the display language in all seven languages.
+- Still English by design: template titles, categories, sources, variant names, variable
+  names, prompt text, engine errors, and the exported Markdown/JSONL file contents.
+- Checks: new `prompt-library-i18n.test.ts` renders the template form and a journal page in
+  English and Turkish; desktop tests pass (PASSED); typecheck clean.
