@@ -1137,7 +1137,10 @@
     "saveClose": "Save and close",
     "reload": "Reload from disk",
     "overwrite": "Overwrite with my draft",
-    "working": "Working…"
+    "working": "Working…",
+    "plainEditor": "Plain text editor",
+    "loadingEditor": "Loading the code editor…",
+    "editorUnavailable": "The code editor could not load, so this file opens in the plain text editor."
   },
   "find": {
     "placeholder": "Find",

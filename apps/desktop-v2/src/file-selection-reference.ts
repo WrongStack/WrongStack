@@ -30,6 +30,12 @@ function viewerOffset(root: HTMLElement, content: string, node: Node, offset: nu
 function selectionOffsets(root: HTMLElement, doc: ViewedDocument): [number, number] | null {
   const editor = root.querySelector<HTMLTextAreaElement>('textarea.file-code-editor');
   if (doc.editing && editor) return [editor.selectionStart, editor.selectionEnd];
+  // The code editor keeps its selection on its holder as start and end offsets.
+  const code = root.querySelector<HTMLElement>('[data-editor-selection]');
+  if (doc.editing && code) {
+    const [start = 0, end = 0] = (code.dataset['editorSelection'] ?? '').split(':').map(Number);
+    return [Math.min(start, end), Math.max(start, end)];
+  }
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode)
     return null;

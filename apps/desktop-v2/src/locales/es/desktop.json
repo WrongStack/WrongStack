@@ -1137,7 +1137,10 @@
     "saveClose": "Guardar y cerrar",
     "reload": "Recargar desde el disco",
     "overwrite": "Sobrescribir con mi borrador",
-    "working": "Trabajando…"
+    "working": "Trabajando…",
+    "plainEditor": "Editor de texto plano",
+    "loadingEditor": "Cargando el editor de código…",
+    "editorUnavailable": "No se pudo cargar el editor de código, así que este archivo se abre en el editor de texto plano."
   },
   "find": {
     "placeholder": "Buscar",

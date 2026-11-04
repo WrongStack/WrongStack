@@ -1137,7 +1137,10 @@
     "saveClose": "Kaydet ve kapat",
     "reload": "Diskten yeniden yükle",
     "overwrite": "Taslağımla üzerine yaz",
-    "working": "Çalışıyor…"
+    "working": "Çalışıyor…",
+    "plainEditor": "Düz metin düzenleyici",
+    "loadingEditor": "Kod düzenleyici yükleniyor…",
+    "editorUnavailable": "Kod düzenleyici yüklenemedi; bu dosya düz metin düzenleyicide açılıyor."
   },
   "find": {
     "placeholder": "Bul",

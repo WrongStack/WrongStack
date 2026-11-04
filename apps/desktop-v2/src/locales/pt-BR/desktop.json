@@ -1137,7 +1137,10 @@
     "saveClose": "Salvar e fechar",
     "reload": "Recarregar do disco",
     "overwrite": "Sobrescrever com meu rascunho",
-    "working": "Processando…"
+    "working": "Processando…",
+    "plainEditor": "Editor de texto simples",
+    "loadingEditor": "Carregando o editor de código…",
+    "editorUnavailable": "Não foi possível carregar o editor de código, então este arquivo abre no editor de texto simples."
   },
   "find": {
     "placeholder": "Localizar",

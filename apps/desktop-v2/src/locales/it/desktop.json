@@ -1137,7 +1137,10 @@
     "saveClose": "Salva e chiudi",
     "reload": "Ricarica dal disco",
     "overwrite": "Sovrascrivi con la mia bozza",
-    "working": "In corso…"
+    "working": "In corso…",
+    "plainEditor": "Editor di testo semplice",
+    "loadingEditor": "Caricamento dell’editor di codice…",
+    "editorUnavailable": "Impossibile caricare l’editor di codice, quindi questo file si apre nell’editor di testo semplice."
   },
   "find": {
     "placeholder": "Trova",

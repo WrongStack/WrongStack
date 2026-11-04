@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CodeEditorSlot, plainEditorPreferred, rememberPlainEditor } from './CodeEditorSlot';
 import type { ComposerFileReference } from './composer-resources-model';
 import { BinaryChange, DiffPreview } from './DiffPreview';
 import { DraftMergeChoices } from './DraftMergeChoices';
@@ -155,6 +156,7 @@ export function FileWorkspace({
     [search, setSearch] = useState(''),
     [loading, setLoading] = useState(''),
     [busy, setBusy] = useState(false),
+    [plainEditor, setPlainEditor] = useState(plainEditorPreferred),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [diff, setDiff] = useState<Record<string, unknown> | null>(null),
@@ -1290,6 +1292,15 @@ export function FileWorkspace({
                     {document.editing ? t('fileView.readView') : t('fileView.editFile')}
                   </button>
                 )}
+                {document?.editing && mode === 'files' && (
+                  <button
+                    type="button"
+                    aria-pressed={plainEditor}
+                    onClick={() => setPlainEditor(rememberPlainEditor(!plainEditor))}
+                  >
+                    {t('fileView.plainEditor')}
+                  </button>
+                )}
                 {change && (
                   <button
                     type="button"
@@ -1406,6 +1417,19 @@ export function FileWorkspace({
                     <h3>{document.binary ? t('fileView.binary') : t('fileView.tooLarge')}</h3>
                     <p>{t('fileView.staysOnDisk')}</p>
                   </div>
+                ) : document?.editing && !plainEditor ? (
+                  <CodeEditorSlot
+                    path={active}
+                    value={document.content}
+                    label={t('fileView.editLabel', { path: active })}
+                    command={command}
+                    loading={t('fileView.loadingEditor')}
+                    onChange={(text) => updateDocument(active, { content: text })}
+                    onUnavailable={() => {
+                      setPlainEditor(true);
+                      setNotice(t('fileView.editorUnavailable'));
+                    }}
+                  />
                 ) : document?.editing ? (
                   <>
                     {finding && (

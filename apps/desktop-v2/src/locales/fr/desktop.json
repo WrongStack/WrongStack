@@ -1137,7 +1137,10 @@
     "saveClose": "Enregistrer et fermer",
     "reload": "Recharger depuis le disque",
     "overwrite": "Écraser avec mon brouillon",
-    "working": "Traitement…"
+    "working": "Traitement…",
+    "plainEditor": "Éditeur de texte brut",
+    "loadingEditor": "Chargement de l’éditeur de code…",
+    "editorUnavailable": "L’éditeur de code n’a pas pu se charger ; ce fichier s’ouvre donc dans l’éditeur de texte brut."
   },
   "find": {
     "placeholder": "Rechercher",

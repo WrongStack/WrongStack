@@ -7907,3 +7907,30 @@ copies, starting with SAGE memory.
   - Desktop tests pass (916). WebUI tests pass (6239) apart from two context-timeline
     number-format checks that fail under a non-English default locale, unrelated to this change.
   - Typecheck is clean for desktop, WebUI and project-surfaces.
+
+### Language-aware file editor (2026-11-04)
+
+- Editing a file now opens the code editor the WebUI uses: Monaco 0.57 through
+  `@monaco-editor/react` 4.7, the same versions the WebUI pins, bundled with the desktop (never a
+  CDN copy; the content policy only allows the app's own scripts and workers). It brings syntax
+  highlighting by file extension, Monaco's own find and replace, multi-cursor editing and, for
+  TypeScript, JavaScript, JSON, CSS and HTML, the language workers Monaco ships.
+- Completions use the WebUI's `completion.request` workflow: the text around the caret, the
+  whole file while it is small, and whether the engine may ask a model, with the same rules and
+  cache. The pure rules moved to `@wrongstack/project-surfaces/lib/completion`; the WebUI path
+  is a re-export.
+- The editor loads the first time a file is edited (its chunks stay out of the start-up
+  bundle), follows the light, dark and high-contrast appearance, and keeps its selection on its
+  holder so Reference and Quote work as they do in the plain editor.
+- A "Plain text editor" toggle next to Edit file switches back to the earlier textarea editor
+  and its helpers; the choice is remembered on this desktop. When the code editor cannot load,
+  the file opens in the plain editor with a notice.
+- `native-files.mjs` waits for the code editor and then switches to the plain editor for its
+  existing textarea checks. Not run in this pass (native checks are batched at the end).
+- Checks:
+  - New `code-editor.test.ts`: the completion request and its cache key, reply parsing, the
+    remembered editor choice with and without storage, and quoting the code editor's
+    selection.
+  - WebUI completion tests pass through the re-export (21).
+  - Desktop tests pass (920); typecheck clean for desktop, WebUI and project-surfaces; a
+    production build places Monaco in its own lazy chunks with its workers and icon font.

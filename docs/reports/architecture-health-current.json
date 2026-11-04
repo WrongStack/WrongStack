@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T16:12:55.045Z",
+  "generatedAt": "2026-11-04T16:51:59.935Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5989,
-    "testFiles": 4978,
-    "sourceLines": 1246604,
+    "sourceFiles": 5993,
+    "testFiles": 4979,
+    "sourceLines": 1247038,
     "workspaceEdges": 240,
-    "moduleEdges": 17512,
+    "moduleEdges": 17517,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 241,
+    "testsWithoutTypecheck": 242,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 426,
-      "testFiles": 241,
+      "sourceFiles": 429,
+      "testFiles": 242,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -737,7 +737,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 242,
+      "sourceFiles": 243,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1521,6 +1521,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/code-assist-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/code-editor.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31431,6 +31437,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/code-editor.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/compaction-outcome.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33784,8 +33797,8 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2010,
-      "relativeImports": 30
+      "lines": 2034,
+      "relativeImports": 31
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
@@ -33856,8 +33869,8 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2010,
-      "relativeImports": 30
+      "lines": 2034,
+      "relativeImports": 31
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",

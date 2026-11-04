@@ -1137,7 +1137,10 @@
     "saveClose": "Speichern und schließen",
     "reload": "Von der Festplatte neu laden",
     "overwrite": "Mit meinem Entwurf überschreiben",
-    "working": "Arbeite…"
+    "working": "Arbeite…",
+    "plainEditor": "Einfacher Texteditor",
+    "loadingEditor": "Code-Editor wird geladen…",
+    "editorUnavailable": "Der Code-Editor konnte nicht geladen werden, daher öffnet sich diese Datei im einfachen Texteditor."
   },
   "find": {
     "placeholder": "Suchen",
