@@ -1,5 +1,6 @@
 import { Link2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -30,6 +31,7 @@ export function KanbanTaskChain({
   disabled: boolean;
   onDone: () => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const taskId = String(task['id']);
   const chainId = typeof task['chainId'] === 'string' ? task['chainId'] : '';
   const others = tasks.filter((item) => typeof item['id'] === 'string' && item['id'] !== taskId);
@@ -66,11 +68,13 @@ export function KanbanTaskChain({
       const cards = chainCards(reply['data']);
       setCurrent(cards);
       setOrder([]);
-      setResult(`Chained ${cards.length} cards.`);
+      setResult(t('kanbanChain.chained', { number: cards.length }));
       await onDone();
     } catch (failure) {
       setResult(
-        `The chain was not saved: ${failure instanceof Error ? failure.message : String(failure)}.`,
+        t('kanbanChain.failed', {
+          message: failure instanceof Error ? failure.message : String(failure),
+        }),
       );
     } finally {
       setBusy(false);
@@ -79,11 +83,13 @@ export function KanbanTaskChain({
   return (
     <details className="kanban-task-merge">
       <summary>
-        <Link2 size={13} /> Chain{' '}
-        {current.length ? `· ${current.length} cards` : 'with other cards'}
+        <Link2 size={13} />{' '}
+        {current.length
+          ? t('kanbanChain.summaryCount', { number: current.length })
+          : t('kanbanChain.summaryEmpty')}
       </summary>
       {current.length > 0 && (
-        <ol aria-label="Cards in this chain">
+        <ol aria-label={t('kanbanChain.cards')}>
           {current.map(([id, name]) => (
             <li key={id}>{id === taskId ? <strong>{name}</strong> : name}</li>
           ))}
@@ -91,7 +97,7 @@ export function KanbanTaskChain({
       )}
       {others.length > 0 && (
         <fieldset disabled={disabled || busy}>
-          <legend>Cards that follow this one, in the order you pick them</legend>
+          <legend>{t('kanbanChain.legend')}</legend>
           <ul>
             {others.map((item) => {
               const id = String(item['id']);
@@ -115,14 +121,16 @@ export function KanbanTaskChain({
               );
             })}
           </ul>
-          {picked.length > 0 && <p>Order: {[taskId, ...picked].map(title).join(' → ')}</p>}
+          {picked.length > 0 && (
+            <p>{t('kanbanChain.order', { cards: [taskId, ...picked].map(title).join(' → ') })}</p>
+          )}
           <label>
             <input
               type="checkbox"
               checked={enforce}
               onChange={(event) => setEnforce(event.target.checked)}
             />
-            Each card waits for the one before it
+            {t('kanbanChain.enforce')}
           </label>
           <button
             type="button"
@@ -130,7 +138,7 @@ export function KanbanTaskChain({
             disabled={!picked.length}
             onClick={() => void save()}
           >
-            Save chain
+            {t('kanbanChain.save')}
           </button>
         </fieldset>
       )}

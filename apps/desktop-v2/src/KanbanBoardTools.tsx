@@ -1,16 +1,22 @@
 import type { KanbanBoard } from '@wrongstack/kanban';
 import { Download, ListPlus, Network } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { BoardDialog } from './KanbanBoardDialog';
 import { KanbanContractMap } from './KanbanContractMap';
 
 /** Saves the board as a task graph JSON file (`kanban.taskgraph.export`; read-only). */
-async function exportTaskGraph(command: EngineCommand, boardId: string, title: string) {
+async function exportTaskGraph(
+  command: EngineCommand,
+  boardId: string,
+  title: string,
+  missing: string,
+) {
   const reply = await command('kanban.taskgraph.export', { boardId }, ['kanban.taskgraph.export']);
   const graph = record(reply['data'])['taskGraph'];
-  if (!graph) throw Error('The engine did not return a task graph.');
+  if (!graph) throw Error(missing);
   const link = document.createElement('a');
   link.href = URL.createObjectURL(
     new Blob([JSON.stringify(graph, null, 2)], { type: 'application/json' }),
@@ -33,6 +39,7 @@ export function KanbanBoardTools({
   board: KanbanBoard;
   onSelectBoard: (boardId: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [dialog, setDialog] = useState<'contracts' | 'generate' | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -53,21 +60,23 @@ export function KanbanBoardTools({
     setDialog(null);
   };
   return (
-    <div className="kanban-desktop-tools" role="toolbar" aria-label="Board tools">
+    <div className="kanban-desktop-tools" role="toolbar" aria-label={t('kanbanBoard.tools')}>
       <button type="button" className="button secondary" onClick={() => setDialog('contracts')}>
-        <Network size={13} /> Contract map…
+        <Network size={13} /> {t('kanbanBoard.contractMap')}
       </button>
       <button
         type="button"
         className="button secondary"
-        title="Cards, dependencies and status as a task graph JSON file; the board is not changed."
+        title={t('kanbanBoard.exportHint')}
         disabled={busy}
-        onClick={() => void run(() => exportTaskGraph(command, board.id, board.title))}
+        onClick={() =>
+          void run(() => exportTaskGraph(command, board.id, board.title, t('kanbanBoard.noGraph')))
+        }
       >
-        <Download size={13} /> Export task graph
+        <Download size={13} /> {t('kanbanBoard.export')}
       </button>
       <button type="button" className="button secondary" onClick={() => setDialog('generate')}>
-        <ListPlus size={13} /> New board from a list…
+        <ListPlus size={13} /> {t('kanbanBoard.fromList')}
       </button>
       {error && (
         <p role="alert" className="session-error">

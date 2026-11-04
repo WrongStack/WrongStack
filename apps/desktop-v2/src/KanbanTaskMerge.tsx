@@ -1,5 +1,6 @@
 import { Merge } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 
@@ -23,6 +24,7 @@ export function KanbanTaskMerge({
   disabled: boolean;
   onDone: (mergedTaskId: string) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const taskId = String(task['id']);
   const others = tasks.filter((item) => typeof item['id'] === 'string' && item['id'] !== taskId);
   const [picked, setPicked] = useState<string[]>([]),
@@ -49,13 +51,20 @@ export function KanbanTaskMerge({
         ['kanban.task.merge'],
       );
       const merged = record(record(reply['data'])['task']);
-      if (typeof merged['id'] !== 'string') throw Error('The engine did not report the new card.');
-      setResult(`Merged ${chosen.length + 1} cards into "${String(merged['title'] ?? title)}".`);
+      if (typeof merged['id'] !== 'string') throw Error(t('kanbanMerge.noCard'));
+      setResult(
+        t('kanbanMerge.merged', {
+          number: chosen.length + 1,
+          title: String(merged['title'] ?? title),
+        }),
+      );
       setPicked([]);
       await onDone(merged['id']);
     } catch (failure) {
       setResult(
-        `The merge did not complete: ${failure instanceof Error ? failure.message : String(failure)}.`,
+        t('kanbanMerge.failed', {
+          message: failure instanceof Error ? failure.message : String(failure),
+        }),
       );
     } finally {
       setBusy(false);
@@ -64,10 +73,10 @@ export function KanbanTaskMerge({
   return (
     <details className="kanban-task-merge">
       <summary>
-        <Merge size={13} /> Merge with other cards
+        <Merge size={13} /> {t('kanbanMerge.title')}
       </summary>
       <fieldset disabled={disabled || busy}>
-        <legend>Cards to merge into this one</legend>
+        <legend>{t('kanbanMerge.legend')}</legend>
         <ul>
           {others.map((item) => {
             const id = String(item['id']);
@@ -92,7 +101,7 @@ export function KanbanTaskMerge({
           })}
         </ul>
         <label>
-          Title of the merged card
+          {t('kanbanMerge.newTitle')}
           <input value={title} onChange={(event) => setTitle(event.target.value)} />
         </label>
         <label>
@@ -101,7 +110,7 @@ export function KanbanTaskMerge({
             checked={closeSources}
             onChange={(event) => setCloseSources(event.target.checked)}
           />
-          Close the merged source cards
+          {t('kanbanMerge.closeSources')}
         </label>
         <button
           type="button"
@@ -109,7 +118,7 @@ export function KanbanTaskMerge({
           disabled={!chosen.length || !title.trim()}
           onClick={() => void merge()}
         >
-          Merge {chosen.length ? chosen.length + 1 : ''} cards
+          {t('kanbanMerge.merge', { number: chosen.length ? chosen.length + 1 : '' })}
         </button>
       </fieldset>
       {result && <p role="status">{result}</p>}

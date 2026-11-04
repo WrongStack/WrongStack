@@ -1,6 +1,7 @@
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { useKanbanStore } from '@wrongstack/project-surfaces/kanban/kanban-store';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { KanbanTaskTransfer } from './KanbanTaskTransfer';
 
@@ -17,6 +18,7 @@ export function KanbanTaskTools({
   board: KanbanBoard;
   task: KanbanTask;
 }) {
+  const { t } = useDesktopText();
   const boards = useKanbanStore((state) => state.boards);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +40,7 @@ export function KanbanTaskTools({
         ['kanban.task.release'],
         { timeoutMs: 45000 },
       );
-      setNotice('Claim released. A worker that is already running keeps running.');
+      setNotice(t('kanbanTask.released'));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -46,7 +48,7 @@ export function KanbanTaskTools({
     }
   };
   return (
-    <section className="kanban-desktop-task-tools" aria-label="Task tools">
+    <section className="kanban-desktop-task-tools" aria-label={t('kanbanTask.tools')}>
       <KanbanTaskTransfer
         command={command}
         board={board as unknown as Record<string, unknown>}
@@ -62,7 +64,7 @@ export function KanbanTaskTools({
           disabled={busy}
           onClick={() => void release()}
         >
-          Release claim
+          {t('kanbanTask.release')}
         </button>
       )}
       {notice && <p className="field-help">{notice}</p>}

@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -98,12 +99,14 @@ export function endpointLabel(
   endpoint: string,
   nodes: readonly ContractNode[],
   tasks: readonly Record<string, unknown>[],
+  kind: (value: string) => string = (value) => value,
+  card: (title: string) => string = (title) => `Card: ${title}`,
 ): string {
   const node = nodes.find((item) => item.id === endpoint);
-  if (node) return `${node.kind}: ${node.title}`;
+  if (node) return `${kind(node.kind)}: ${node.title}`;
   const taskId = endpoint.startsWith('task:') ? endpoint.slice(5) : '';
   const task = tasks.find((item) => item['id'] === taskId);
-  return task ? `Card: ${String(task['title'] ?? taskId)}` : endpoint;
+  return task ? card(String(task['title'] ?? taskId)) : endpoint;
 }
 
 /**
@@ -120,6 +123,12 @@ export function KanbanContractMap({
   board: Record<string, unknown>;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
+  /** Engine enum values worded in the display language; unknown values stay as sent. */
+  const word = (group: 'kind' | 'state' | 'enforcement' | 'edge', value: string) =>
+    t(`contractMap.${group}.${value}`, { defaultValue: value.replaceAll('_', ' ') });
+  const kind = (value: string) => word('kind', value);
+  const card = (title: string) => t('contractMap.card', { title });
   const boardId = String(board['id'] ?? '');
   const tasks = entries(board['tasks']).filter((task) => typeof task['id'] === 'string');
   const [graph, setGraph] = useState<ContractGraph | null>(null),
@@ -159,10 +168,13 @@ export function KanbanContractMap({
   const taskTitle = (taskId: string) =>
     String(tasks.find((task) => task['id'] === taskId)?.['title'] ?? taskId);
   const endpoints = [
-    ...(graph?.nodes ?? []).map((node) => ({ id: node.id, label: `${node.kind}: ${node.title}` })),
+    ...(graph?.nodes ?? []).map((node) => ({
+      id: node.id,
+      label: `${kind(node.kind)}: ${node.title}`,
+    })),
     ...tasks.map((task) => ({
       id: `task:${String(task['id'])}`,
-      label: `Card: ${String(task['title'] ?? task['id'])}`,
+      label: card(String(task['title'] ?? task['id'])),
     })),
   ];
   const setState = (node: ContractNode, state: string) => {
@@ -179,24 +191,21 @@ export function KanbanContractMap({
     });
   };
   return (
-    <Modal title="Contract map" onClose={() => !busy && onClose()}>
+    <Modal title={t('contractMap.title')} onClose={() => !busy && onClose()}>
       <div className="kanban-contract-map">
-        <h2>Contract map</h2>
-        <p className="settings-defaults-note">
-          What each card optimizes, must preserve and is verified by. Contracts are separate from
-          card dependencies; enforcement decides whether open contracts stop a card from starting.
-        </p>
+        <h2>{t('contractMap.title')}</h2>
+        <p className="settings-defaults-note">{t('contractMap.intro')}</p>
         {error && (
           <p role="alert" className="session-error">
             {error}
           </p>
         )}
         {!graph ? (
-          <p role="status">Reading the contract map…</p>
+          <p role="status">{t('contractMap.reading')}</p>
         ) : (
           <>
             <label className="kanban-contract-enforcement">
-              Board enforcement
+              {t('contractMap.boardEnforcement')}
               <select
                 value={graph.enforcement}
                 disabled={busy}
@@ -206,18 +215,14 @@ export function KanbanContractMap({
               >
                 {GRAPH_ENFORCEMENTS.map((value) => (
                   <option key={value} value={value}>
-                    {value === 'off'
-                      ? 'Off · not checked'
-                      : value === 'advisory'
-                        ? 'Advisory · reported, never blocks'
-                        : 'Strict · blocking contracts stop a start'}
+                    {t(`contractMap.graph.${value}`)}
                   </option>
                 ))}
               </select>
             </label>
-            <section aria-label="Contracts by card">
-              <h3>Contracts</h3>
-              {!graph.nodes.length && <p className="field-help">No contracts yet.</p>}
+            <section aria-label={t('contractMap.byCard')}>
+              <h3>{t('contractMap.contracts')}</h3>
+              {!graph.nodes.length && <p className="field-help">{t('contractMap.noContracts')}</p>}
               {tasks
                 .filter((task) => graph.nodes.some((node) => node.taskId === task['id']))
                 .map((task) => (
@@ -228,31 +233,33 @@ export function KanbanContractMap({
                         .filter((node) => node.taskId === task['id'])
                         .map((node) => (
                           <li key={node.id}>
-                            <span className="kanban-contract-kind">{node.kind}</span>
+                            <span className="kanban-contract-kind">{kind(node.kind)}</span>
                             <span>
                               {node.title}
                               <small>
                                 {' '}
-                                · {node.enforcement}
-                                {node.waiver ? ` · waived by ${node.waiver}` : ''}
+                                · {word('enforcement', node.enforcement)}
+                                {node.waiver
+                                  ? t('contractMap.waivedBy', { waiver: node.waiver })
+                                  : ''}
                               </small>
                             </span>
                             <select
-                              aria-label={`State of ${node.title}`}
+                              aria-label={t('contractMap.stateOf', { title: node.title })}
                               value={node.state}
                               disabled={busy}
                               onChange={(event) => setState(node, event.target.value)}
                             >
                               {NODE_STATES.map((state) => (
                                 <option key={state} value={state}>
-                                  {state}
+                                  {word('state', state)}
                                 </option>
                               ))}
                             </select>
                             <button
                               type="button"
                               className="icon-button danger"
-                              aria-label={`Remove contract ${node.title}`}
+                              aria-label={t('contractMap.removeContract', { title: node.title })}
                               disabled={busy}
                               onClick={() =>
                                 void run('kanban.contract.node.remove', { nodeId: node.id })
@@ -268,7 +275,7 @@ export function KanbanContractMap({
               {waiver && (
                 <form
                   className="kanban-contract-form"
-                  aria-label="Waive contract"
+                  aria-label={t('contractMap.waiveLabel')}
                   onSubmit={(event) => {
                     event.preventDefault();
                     const node = graph.nodes.find((item) => item.id === waiver.nodeId);
@@ -284,16 +291,20 @@ export function KanbanContractMap({
                     }).then((data) => data && setWaiver(null));
                   }}
                 >
-                  <strong>Waive “{graph.nodes.find((n) => n.id === waiver.nodeId)?.title}”</strong>
+                  <strong>
+                    {t('contractMap.waiveTitle', {
+                      title: graph.nodes.find((n) => n.id === waiver.nodeId)?.title ?? '',
+                    })}
+                  </strong>
                   <label>
-                    Waived by
+                    {t('contractMap.waivedByField')}
                     <input
                       value={waiver.actor}
                       onChange={(event) => setWaiver({ ...waiver, actor: event.target.value })}
                     />
                   </label>
                   <label>
-                    Reason
+                    {t('contractMap.reason')}
                     <input
                       value={waiver.reason}
                       onChange={(event) => setWaiver({ ...waiver, reason: event.target.value })}
@@ -305,14 +316,14 @@ export function KanbanContractMap({
                       className="button primary small"
                       disabled={busy || !waiver.actor.trim() || !waiver.reason.trim()}
                     >
-                      Waive
+                      {t('contractMap.waive')}
                     </button>
                     <button
                       type="button"
                       className="button secondary small"
                       onClick={() => setWaiver(null)}
                     >
-                      Cancel
+                      {t('contractMap.cancel')}
                     </button>
                   </div>
                 </form>
@@ -320,7 +331,7 @@ export function KanbanContractMap({
               {tasks.length > 0 && (
                 <form
                   className="kanban-contract-form"
-                  aria-label="Add contract"
+                  aria-label={t('contractMap.addContract')}
                   onSubmit={(event) => {
                     event.preventDefault();
                     void run('kanban.contract.node.upsert', {
@@ -330,7 +341,7 @@ export function KanbanContractMap({
                   }}
                 >
                   <label>
-                    Card
+                    {t('contractMap.cardField')}
                     <select
                       value={nodeDraft.taskId}
                       onChange={(event) =>
@@ -345,18 +356,20 @@ export function KanbanContractMap({
                     </select>
                   </label>
                   <label>
-                    Kind
+                    {t('contractMap.kindField')}
                     <select
                       value={nodeDraft.kind}
                       onChange={(event) => setNodeDraft({ ...nodeDraft, kind: event.target.value })}
                     >
-                      {NODE_KINDS.map((kind) => (
-                        <option key={kind}>{kind}</option>
+                      {NODE_KINDS.map((value) => (
+                        <option key={value} value={value}>
+                          {kind(value)}
+                        </option>
                       ))}
                     </select>
                   </label>
                   <label>
-                    Enforcement
+                    {t('contractMap.enforcementField')}
                     <select
                       value={nodeDraft.enforcement}
                       onChange={(event) =>
@@ -364,15 +377,17 @@ export function KanbanContractMap({
                       }
                     >
                       {ENFORCEMENTS.map((value) => (
-                        <option key={value}>{value}</option>
+                        <option key={value} value={value}>
+                          {word('enforcement', value)}
+                        </option>
                       ))}
                     </select>
                   </label>
                   <label className="kanban-contract-wide">
-                    Contract
+                    {t('contractMap.contractField')}
                     <input
                       value={nodeDraft.title}
-                      placeholder="e.g. Keep p95 latency under 200 ms"
+                      placeholder={t('contractMap.contractPlaceholder')}
                       onChange={(event) =>
                         setNodeDraft({ ...nodeDraft, title: event.target.value })
                       }
@@ -383,27 +398,27 @@ export function KanbanContractMap({
                     className="button secondary small"
                     disabled={busy || !nodeDraft.taskId || !nodeDraft.title.trim()}
                   >
-                    <Plus size={13} /> Add contract
+                    <Plus size={13} /> {t('contractMap.addContract')}
                   </button>
                 </form>
               )}
             </section>
-            <section aria-label="Contract relations">
-              <h3>Relations</h3>
-              {!graph.edges.length && <p className="field-help">No relations yet.</p>}
+            <section aria-label={t('contractMap.relations')}>
+              <h3>{t('contractMap.relationsTitle')}</h3>
+              {!graph.edges.length && <p className="field-help">{t('contractMap.noRelations')}</p>}
               <ul className="kanban-contract-edges">
                 {graph.edges.map((edge) => (
                   <li key={edge.id}>
                     <span>
-                      {endpointLabel(edge.from, graph.nodes, tasks)}{' '}
-                      <strong>{edge.type.replaceAll('_', ' ')}</strong>{' '}
-                      {endpointLabel(edge.to, graph.nodes, tasks)}
+                      {endpointLabel(edge.from, graph.nodes, tasks, kind, card)}{' '}
+                      <strong>{word('edge', edge.type)}</strong>{' '}
+                      {endpointLabel(edge.to, graph.nodes, tasks, kind, card)}
                       {edge.rationale && <small> · {edge.rationale}</small>}
                     </span>
                     <button
                       type="button"
                       className="icon-button danger"
-                      aria-label={`Remove relation ${edge.type}`}
+                      aria-label={t('contractMap.removeRelation', { type: edge.type })}
                       disabled={busy}
                       onClick={() => void run('kanban.contract.edge.remove', { edgeId: edge.id })}
                     >
@@ -415,7 +430,7 @@ export function KanbanContractMap({
               {endpoints.length > 1 && (
                 <form
                   className="kanban-contract-form"
-                  aria-label="Add relation"
+                  aria-label={t('contractMap.addRelation')}
                   onSubmit={(event) => {
                     event.preventDefault();
                     void run('kanban.contract.edge.add', {
@@ -433,14 +448,14 @@ export function KanbanContractMap({
                 >
                   {(['from', 'to'] as const).map((side) => (
                     <label key={side}>
-                      {side === 'from' ? 'From' : 'To'}
+                      {side === 'from' ? t('contractMap.from') : t('contractMap.to')}
                       <select
                         value={edgeDraft[side]}
                         onChange={(event) =>
                           setEdgeDraft({ ...edgeDraft, [side]: event.target.value })
                         }
                       >
-                        <option value="">Choose…</option>
+                        <option value="">{t('contractMap.choose')}</option>
                         {endpoints.map((endpoint) => (
                           <option key={endpoint.id} value={endpoint.id}>
                             {endpoint.label}
@@ -450,20 +465,20 @@ export function KanbanContractMap({
                     </label>
                   ))}
                   <label>
-                    Relation
+                    {t('contractMap.relationField')}
                     <select
                       value={edgeDraft.type}
                       onChange={(event) => setEdgeDraft({ ...edgeDraft, type: event.target.value })}
                     >
                       {EDGE_TYPES.map((type) => (
                         <option key={type} value={type}>
-                          {type.replaceAll('_', ' ')}
+                          {word('edge', type)}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="kanban-contract-wide">
-                    Why (optional)
+                    {t('contractMap.why')}
                     <input
                       value={edgeDraft.rationale}
                       onChange={(event) =>
@@ -478,24 +493,24 @@ export function KanbanContractMap({
                       busy || !edgeDraft.from || !edgeDraft.to || edgeDraft.from === edgeDraft.to
                     }
                   >
-                    <Plus size={13} /> Add relation
+                    <Plus size={13} /> {t('contractMap.addRelation')}
                   </button>
                 </form>
               )}
             </section>
             {tasks.length > 0 && (
-              <section aria-label="Check a card">
-                <h3>Check a card</h3>
+              <section aria-label={t('contractMap.checkCard')}>
+                <h3>{t('contractMap.checkCard')}</h3>
                 <div className="kanban-contract-check">
                   <select
-                    aria-label="Card to check"
+                    aria-label={t('contractMap.cardToCheck')}
                     value={checkTask}
                     onChange={(event) => {
                       setCheckTask(event.target.value);
                       setCheck(null);
                     }}
                   >
-                    <option value="">Choose a card…</option>
+                    <option value="">{t('contractMap.chooseCard')}</option>
                     {tasks.map((task) => (
                       <option key={String(task['id'])} value={String(task['id'])}>
                         {String(task['title'] ?? task['id'])}
@@ -519,16 +534,15 @@ export function KanbanContractMap({
                       })
                     }
                   >
-                    Check contracts
+                    {t('contractMap.check')}
                   </button>
                 </div>
                 {check && (
                   <div role="status">
                     <p>
-                      {taskTitle(checkTask)}:{' '}
                       {check.allowed
-                        ? 'its contracts allow it to start.'
-                        : 'open blocking contracts stop it from starting.'}
+                        ? t('contractMap.allowed', { title: taskTitle(checkTask) })
+                        : t('contractMap.blocked', { title: taskTitle(checkTask) })}
                     </p>
                     {check.issues.length > 0 && (
                       <ul>

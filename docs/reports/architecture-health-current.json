@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T19:20:38.865Z",
+  "generatedAt": "2026-11-04T19:27:54.086Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 5003,
-    "sourceLines": 1248086,
+    "testFiles": 5005,
+    "sourceLines": 1248144,
     "workspaceEdges": 240,
-    "moduleEdges": 17633,
+    "moduleEdges": 17641,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 266,
+    "testsWithoutTypecheck": 268,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -393,7 +393,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 266,
+      "testFiles": 268,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2014,6 +2014,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/kanban-board-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-source.test.ts",
         "projects": [
           "root-node"
@@ -2027,6 +2033,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-task-chain.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-task-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32150,6 +32162,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/kanban-board-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-source.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32165,6 +32184,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/kanban-task-chain.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/kanban-task-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

@@ -8311,3 +8311,19 @@ copies, starting with SAGE memory.
   copied or appended to the draft with its source attribution.
 - Checks: new `mcp-content-i18n.test.ts` renders the picker, the content browser and the tool
   runner in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Desktop Kanban tools in the display language (2026-11-04)
+
+- The desktop-only Kanban tools follow the display language in all seven languages: task
+  release and board transfer (`kanbanTask`), merge (`kanbanMerge`), chain (`kanbanChain`),
+  goal metrics with their statuses (`kanbanMetrics`), the board toolbar and the board creation
+  dialog (`kanbanBoard`), and the contract map with its kinds, states, enforcement levels and
+  relation types (`contractMap`).
+- Metric status, contract kind and enforcement options now carry an explicit `value`, so the
+  engine still receives the enum value while the label is translated; `endpointLabel` takes the
+  kind and card wording (English by default).
+- Still English by design: card, board, metric and contract titles, waiver actors and reasons,
+  engine messages, the release reason sent to the engine, and the exported task graph.
+- Checks: new `kanban-task-i18n.test.ts` and `kanban-board-i18n.test.ts` render the task tools,
+  the board dialog and the contract map in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.
