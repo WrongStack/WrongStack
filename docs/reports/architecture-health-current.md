@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-04T13:45:14.677Z
+**Generated:** 2026-11-04T13:55:29.569Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 5986 |
-| Production source lines | 1245918 |
+| Production source lines | 1245987 |
 | Test files | 4970 |
 | Workspace dependency edges | 240 |
-| Relative module edges | 17463 |
+| Relative module edges | 17467 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -117,6 +117,7 @@ None.
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 743 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
+| 733 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 732 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |
@@ -124,7 +125,6 @@ None.
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
-| 715 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 715 | `packages/plugins/src/audit/index.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |

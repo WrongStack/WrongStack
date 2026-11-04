@@ -7550,3 +7550,26 @@ copies, starting with SAGE memory.
     Turkish.
   - A new unit test covers the restore outcome words.
   - Catalog parity and the key guard pass; desktop tests pass (896); typecheck clean.
+
+### Chronicle in the display language (2026-11-04)
+
+- The project Chronicle, its insights and its prompt manifest now follow the display language in
+  all seven languages: the heading, metrics, filters, the timeline and lineage views with their
+  export notices, the event inspector with its facts and identities, journal health, provider,
+  task and file insights, and the manifest tables.
+- The key group is `chronicleView`, because these files quote `chronicle.*` engine messages.
+- Event outcomes are named per language with the engine value as the fallback. The insight view
+  buttons keep their lowercase English names (`providers`, `tasks`, `files`), which the native
+  insights scenario addresses.
+- The filter labels now read "Event type", "Outcome", "Provider", "Model" and "Agent" in English
+  instead of the derived "event Type" and "provider". Their accessible names are unchanged
+  (`Chronicle eventType` and so on).
+- `chronicleQuery` takes optional words for its two date errors, with English as the default.
+- Still English by design: the exported Markdown and JSONL documents, engine messages, event
+  titles taken from recorded evidence, and symbol and provider identifiers.
+- ProjectChronicle grew by 17 lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The jsdom test opens a Chronicle event in English and then in Turkish.
+  - A new unit test covers the date error words.
+  - Catalog parity and the key guard pass; desktop tests pass (897); typecheck clean.

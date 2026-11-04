@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T13:45:14.677Z",
+  "generatedAt": "2026-11-04T13:55:29.569Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4970,
-    "sourceLines": 1245918,
+    "sourceLines": 1245987,
     "workspaceEdges": 240,
-    "moduleEdges": 17463,
+    "moduleEdges": 17467,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33700,8 +33700,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 715,
-      "relativeImports": 8
+      "lines": 733,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
@@ -33876,6 +33876,11 @@
       "relativeImports": 3
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 733,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
@@ -33909,11 +33914,6 @@
       "file": "packages/project-surfaces/src/sage/useMemoryManagerState.ts",
       "lines": 718,
       "relativeImports": 14
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 715,
-      "relativeImports": 8
     },
     {
       "file": "packages/plugins/src/audit/index.ts",

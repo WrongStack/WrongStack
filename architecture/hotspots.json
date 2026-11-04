@@ -155,8 +155,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
-      "lines": 715,
-      "relativeImports": 8
+      "lines": 733,
+      "relativeImports": 9
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
       "lines": 788,

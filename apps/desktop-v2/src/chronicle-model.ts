@@ -27,7 +27,13 @@ export function initialChronicleFilters(): ChronicleFilters {
     to: '',
   };
 }
-export function chronicleQuery(filters: ChronicleFilters): Record<string, unknown> {
+export function chronicleQuery(
+  filters: ChronicleFilters,
+  words = {
+    invalidDate: 'Choose valid UTC dates.',
+    endBeforeStart: 'The end time must follow the start time.',
+  },
+): Record<string, unknown> {
   const query: Record<string, unknown> = { order: 'desc', limit: 100 };
   for (const key of ['text', 'path', 'providerId', 'modelId', 'agentId', 'sessionId'] as const)
     if (filters[key].trim()) query[key] = filters[key].trim();
@@ -36,11 +42,11 @@ export function chronicleQuery(filters: ChronicleFilters): Record<string, unknow
   for (const key of ['from', 'to'] as const) {
     if (!filters[key]) continue;
     const time = new Date(`${filters[key]}Z`);
-    if (!Number.isFinite(time.getTime())) throw new Error('Choose valid UTC dates.');
+    if (!Number.isFinite(time.getTime())) throw new Error(words.invalidDate);
     query[key] = time.toISOString();
   }
   if (query['from'] && query['to'] && String(query['from']) > String(query['to']))
-    throw new Error('The end time must follow the start time.');
+    throw new Error(words.endBeforeStart);
   return query;
 }
 export function eventTitle(event: Record<string, unknown>): string {

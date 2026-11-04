@@ -26,6 +26,12 @@ describe('Chronicle project evidence', () => {
       limit: 100,
     });
     expect(() => chronicleQuery({ ...filters, to: '2026-10-25T10:00' })).toThrow('end time');
+    expect(() =>
+      chronicleQuery(
+        { ...filters, to: '2026-10-25T10:00' },
+        { invalidDate: 'bad date', endBeforeStart: 'end first' },
+      ),
+    ).toThrow('end first');
   });
   it('shows only stored graph relationships and preserves their confidence', () => {
     const graph = chronicleGraph({
