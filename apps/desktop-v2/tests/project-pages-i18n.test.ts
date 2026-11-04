@@ -4,6 +4,7 @@ import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { AutomationEnvironmentEditor } from '../src/AutomationEnvironmentEditor';
 import { AutomationRunComparison } from '../src/AutomationRunComparison';
 import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
@@ -101,6 +102,15 @@ const inspector = () =>
   createElement(AutomationRunInspector, {
     run: automationRun('cccccccc3', 'queued'),
     http: vi.fn(pending),
+    onClose: vi.fn(),
+  });
+
+const environmentEditor = (projectId: string) =>
+  createElement(AutomationEnvironmentEditor, {
+    image: 'wrongstack:latest',
+    projectId,
+    jobId: undefined,
+    onApply: vi.fn(),
     onClose: vi.fn(),
   });
 
@@ -275,5 +285,33 @@ describe('the project pages in the display language', () => {
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toContain('Otomasyon pull request incelemesi');
+  });
+
+  it('show the automation environment editor in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(environmentEditor('environment-en'));
+    for (const text of [
+      'Prepare the workspace.',
+      'Setup commands',
+      'No supporting services.',
+      'Apply environment to draft',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Environment profile name', 'Close automation environment']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(environmentEditor('environment-tr'));
+    for (const text of [
+      'Çalışma alanını hazırla.',
+      'Kurulum komutları',
+      'Destek servisi yok.',
+      'Ortamı taslağa uygula',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Ortam profili adı', 'Otomasyon ortamını kapat']),
+    );
   });
 });

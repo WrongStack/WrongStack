@@ -7362,3 +7362,16 @@ copies, starting with SAGE memory.
   - The inspector test now also checks the panel heading, button and label in English and then in
     Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.
+
+### Automation environment editor in the display language (2026-11-04)
+
+- The reusable environment editor now follows the display language in all seven languages: profile
+  fields, setup commands, service containers, package caches, local preview ports, import and
+  export, the restored and older-draft notices, and the leave confirmation.
+- Field ids inside labels such as "Service 1 name" stay as they are, so the native automation
+  scenario keeps finding them.
+- This completes the automation page: workspace, templates and configuration, run inspector and
+  comparison, pull request panel and environment editor.
+- Checks:
+  - The editor renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (883); typecheck clean.
