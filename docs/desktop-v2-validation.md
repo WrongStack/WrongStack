@@ -7319,3 +7319,17 @@ copies, starting with SAGE memory.
 - Checks:
   - The workspace renders in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.
+
+### Automation templates and job configuration in the display language (2026-11-04)
+
+- The template picker and its review dialog, the reusable-environment summary, credential
+  references and the GitHub event trigger with its filters now follow the display language in all
+  seven languages.
+- Template names, prompts and setup requirements still come from the shared template catalog in
+  English.
+- Field ids inside labels such as "Credential 1 envName" stay as they are, so the native automation
+  scenario keeps finding them.
+- Checks:
+  - The workspace test now also checks the templates, environment, credentials and GitHub sections
+    in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.

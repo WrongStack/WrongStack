@@ -163,10 +163,19 @@ describe('the project pages in the display language', () => {
       'Recent runs',
       'Create automation',
       'Save automation',
+      'Start with a workflow',
+      'Reusable environment',
+      'No saved credentials referenced.',
+      'GitHub events',
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
-      expect.arrayContaining(['Automation jobs', 'Automation name', 'Automation schedule']),
+      expect.arrayContaining([
+        'Automation jobs',
+        'Automation name',
+        'Automation schedule',
+        'Use GitHub automation trigger',
+      ]),
     );
 
     await surfaceI18n.changeLanguage('tr');
@@ -178,10 +187,19 @@ describe('the project pages in the display language', () => {
       'Son çalıştırmalar',
       'Otomasyon oluştur',
       'Otomasyonu kaydet',
+      'Bir iş akışıyla başla',
+      'Yeniden kullanılabilir ortam',
+      'Referans verilen kayıtlı kimlik bilgisi yok.',
+      'GitHub olayları',
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
-      expect.arrayContaining(['Otomasyon işleri', 'Otomasyon adı', 'Otomasyon zamanlaması']),
+      expect.arrayContaining([
+        'Otomasyon işleri',
+        'Otomasyon adı',
+        'Otomasyon zamanlaması',
+        'GitHub otomasyon tetikleyicisini kullan',
+      ]),
     );
   });
 });
