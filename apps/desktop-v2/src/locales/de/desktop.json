@@ -5338,5 +5338,344 @@
       "help": "Wähle ein Modell für den Stichentscheid oder leere das Feld, damit die Engine den Richter aus dem Pool ableitet.",
       "derive": "Abgeleiteten Richter verwenden"
     }
+  },
+  "brainPolicy": {
+    "label": "Brain-Richtlinieneinstellungen",
+    "eyebrow": "AKTIVES PROFIL · ENTSCHEIDUNGSRICHTLINIE",
+    "title": "Brain-Richtlinie",
+    "intro": "Konfiguriere die Entscheidungsleiter: deterministische Regeln, Heuristiken, Cache, Rat, Modelle und Eskalation an den Operator.",
+    "reloadDiscard": "Gespeicherte Brain-Werte neu laden (Entwürfe verwerfen)",
+    "refresh": "Brain-Richtlinie aktualisieren",
+    "scope": "Im aktiven Profil gespeichert und auf diese Einstellungs-Laufzeit angewendet. Andere laufende Projekt- und Unterhaltungslaufzeiten behalten ihre eigene Konfiguration. Entscheidungsverläufe gehören zu ihren Ursprungslaufzeiten.",
+    "reading": "Brain-Richtlinie wird gelesen…",
+    "unavailable": "Die Brain-Konfiguration ist nicht verfügbar. Zum erneuten Versuch aktualisieren.",
+    "fact": {
+      "hits": "<strong>{{n}}</strong> Cache-Treffer",
+      "misses": "<strong>{{n}}</strong> Cache-Fehlschläge",
+      "size": "<strong>{{n}}</strong> zwischengespeicherte Entscheidungen",
+      "council": "Wirksamer Rat: <strong>{{state}}</strong>",
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "jumpLabel": "Gruppen der Brain-Richtlinie",
+    "jump": "Zu Abschnitt springen",
+    "models": "Modelle & Rat",
+    "monitor": {
+      "preview": "Die Engine-Standards werden unten als Vorschau gezeigt. Speichere die Brain-Richtlinie, um jede Monitor-Überschreibung zu entfernen, einschließlich eigener Werkzeugzuordnung und zusätzlicher Signaleinstellungen.",
+      "overridden": "Dieses Profil hat gespeicherte Monitor-Überschreibungen. Das Zurücksetzen entfernt die gesamte Monitor-Überschreibungsgruppe; andere Brain-Einstellungen bleiben erhalten.",
+      "inherited": "Dieses Profil übernimmt die Monitor-Standards der Engine.",
+      "keep": "Gespeicherte Monitor-Überschreibungen behalten",
+      "reset": "Übernommene Monitor-Standards verwenden"
+    },
+    "automatic": "Automatisch / übernehmen",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "inherit": "Engine-Standard übernehmen",
+    "unsaved": "{{n}} nicht gespeicherte Brain-Änderungen",
+    "matches": "Die Brain-Richtlinie entspricht den gespeicherten Werten",
+    "discard": "Brain-Änderungen verwerfen",
+    "saving": "Wird gespeichert…",
+    "save": "Brain-Richtlinie speichern",
+    "alreadySaved": "Die Brain-Richtlinie entspricht bereits den gespeicherten Werten.",
+    "savedVerified": "Brain-Richtlinie in dieser Profil-Laufzeit gespeichert und überprüft.",
+    "error": {
+      "notPersisted": "Die Brain-Richtlinie wurde auf der Festplatte nicht bestätigt. Lade ihre aktuelle Konfiguration neu, bevor du es erneut versuchst.",
+      "monitorNotCleared": "Die Monitor-Überschreibungen wurden nicht entfernt. Lade die gespeicherten Brain-Werte neu, bevor du es erneut versuchst.",
+      "mismatch": "{{label}} stimmt nicht mit der gespeicherten Brain-Konfiguration überein. Lade vor einem neuen Versuch neu.",
+      "unreadable": "Die Engine hat keine lesbare Brain-Konfiguration zurückgegeben.",
+      "monitorChanged": "Die Monitor-Überschreibungen wurden an anderer Stelle geändert. Lade die gespeicherten Brain-Werte vor dem Zurücksetzen neu.",
+      "changed": "{{label}} wurde an anderer Stelle geändert. Lade die gespeicherten Brain-Werte neu, bevor du diese Änderung anwendest.",
+      "wholeNumber": "{{label}} braucht eine gültige ganze Zahl im zulässigen Bereich.",
+      "number": "{{label}} braucht eine gültige Zahl im zulässigen Bereich.",
+      "choice": "Wähle eine gültige Option für {{label}}.",
+      "toggle": "{{label}} braucht den Wert aktiviert oder deaktiviert.",
+      "signals": "Aktualisiere die Brain-Konfiguration, bevor du Monitor-Signale änderst."
+    },
+    "option": {
+      "off": "aus",
+      "low": "niedrig",
+      "medium": "mittel",
+      "high": "hoch",
+      "critical": "kritisch",
+      "all": "alle",
+      "interactive": "interaktiv",
+      "headless": "ohne Oberfläche",
+      "conservative": "konservativ",
+      "deny-all": "alles ablehnen",
+      "continue-on-recommended": "mit Empfehlung fortfahren",
+      "never": "nie",
+      "when-decided": "wenn entschieden",
+      "always": "immer",
+      "none": "keine",
+      "model": "Modell",
+      "provider": "Anbieter",
+      "redacted": "geschwärzt",
+      "full": "vollständig",
+      "llm": "LLM",
+      "steer": "steuern",
+      "observe": "beobachten"
+    },
+    "group": {
+      "risk": {
+        "title": "Risiko & Eskalation",
+        "description": "Wähle, welche Entscheidungen automatisiert werden dürfen und wie offene Entscheidungen einen Operator erreichen."
+      },
+      "heuristics": {
+        "title": "Deterministische Heuristiken",
+        "description": "Schnelle Entscheidungswege, die erkannte Situationen vor einem Modellaufruf klären können."
+      },
+      "quality": {
+        "title": "Entscheidungsqualität",
+        "description": "Verlange verwertbare Antworten von der Einzelmodell-Stufe und wähle, wie Ablehnungen eine Entscheidung beenden."
+      },
+      "cache": {
+        "title": "Entscheidungs-Cache",
+        "description": "Verwende ein früheres Modell- oder Ratsurteil für eine identische Frage erneut. Dies sind Einstellungen des Entscheidungs-Caches, getrennt vom Prompt-Caching des Anbieters."
+      },
+      "monitor": {
+        "title": "Laufzeitmonitor",
+        "description": "Konfiguriere, wie der Monitor auf stockende oder fehlschlagende Arbeit reagiert."
+      },
+      "council": {
+        "title": "Ratsrichtlinie",
+        "description": "Steuere, wann ein Mehrmodell-Gremium zusammentritt. Wirksame Sitze und Richter werden unten angezeigt."
+      },
+      "ledger": {
+        "title": "Ledger & Trace",
+        "description": "Wähle die gespeicherten Entscheidungsbelege und den Inhalt des Replay-Trace für diese Laufzeit."
+      }
+    },
+    "field": {
+      "maxAutoRisk": {
+        "label": "Obergrenze für automatisches Risiko",
+        "help": "Höchstes Risiko, das die Modell-Entscheidungsstufe berücksichtigt."
+      },
+      "mode": {
+        "label": "Eskalationsmodus",
+        "help": "Interaktiv fragt einen Operator; ohne Oberfläche gilt die Endrichtlinie."
+      },
+      "terminalPolicy": {
+        "label": "Entscheidungsrichtlinie ohne Oberfläche",
+        "help": "Konservativ folgt sicheren Empfehlungen; alles ablehnen verweigert die Eskalation; mit Empfehlung fortfahren akzeptiert die empfohlene Option bei jedem Risiko."
+      },
+      "decisionTimeoutMs": {
+        "label": "Zeitlimit für Modellentscheidungen",
+        "help": "Millisekunden pro Modellaufruf. Leer übernimmt den Engine-Standard."
+      },
+      "humanTimeoutMs": {
+        "label": "Zeitlimit für Operator-Antworten",
+        "help": "Wartezeit in Millisekunden; null wartet unbegrenzt. Leer übernimmt den Engine-Standard."
+      },
+      "decisionLogMaxEntries": {
+        "label": "Kapazität für letzte Entscheidungen",
+        "help": "Anzahl der Entscheidungen im rollierenden Protokoll dieser Laufzeit."
+      },
+      "heuristics": {
+        "lowRiskAutoAnswer": {
+          "label": "Schneller Weg bei geringem Risiko",
+          "help": "Die integrierte Heuristik für geringes Risiko erlauben."
+        },
+        "blockedResolved": {
+          "label": "Gelöste Blocker",
+          "help": "Erkennen, wenn ein früherer Blocker gelöst wurde."
+        },
+        "deadlockSkip": {
+          "label": "Deadlock-Auflösung",
+          "help": "Die integrierte Heuristik zum Überspringen von Deadlocks erlauben."
+        },
+        "retryExhausted": {
+          "label": "Ausgeschöpfte Wiederholungen",
+          "help": "Die integrierte Bedingung für ausgeschöpfte Wiederholungen erkennen."
+        },
+        "continuePing": {
+          "label": "Fortsetzungs-Prompts",
+          "help": "Erkannte Fortsetzungs-Pings ohne Modellaufruf behandeln."
+        }
+      },
+      "llm": {
+        "rejectUncertain": {
+          "label": "Unsichere Antworten ablehnen",
+          "help": "Abgelehnte oder leere Antworten als unentschiedene Stufe behandeln."
+        },
+        "minConfidence": {
+          "label": "Minimale gemeldete Zuversicht",
+          "help": "Anteil von null bis eins; null deaktiviert diese Schwelle."
+        },
+        "maxTokens": {
+          "label": "Obergrenze der Entscheidungsausgabe",
+          "help": "Optionale Token-Grenze inklusive Modell-Denken. Leer nutzt die eigene Obergrenze des Modells."
+        },
+        "denyIsTerminal": {
+          "label": "Richtlinie für Modellablehnungen",
+          "help": "„Wenn entschieden“ beendet echte Ablehnungen und lässt Infrastrukturfehler eskalieren."
+        }
+      },
+      "cache": {
+        "enabled": {
+          "label": "Zwischengespeicherte Entscheidungen wiederverwenden",
+          "help": "Wiederverwendung gespeicherter Entscheidungen aktivieren."
+        },
+        "ttlMs": {
+          "label": "Lebensdauer des Entscheidungs-Caches",
+          "help": "Millisekunden, bis eine gespeicherte Entscheidung abläuft."
+        },
+        "maxEntries": {
+          "label": "Kapazität des Entscheidungs-Caches",
+          "help": "Höchstzahl aktiver zwischengespeicherter Entscheidungen."
+        }
+      },
+      "council": {
+        "enabled": {
+          "label": "Aktivierung des Rats",
+          "help": "Automatisch nutzt die Pool- und Wählerregeln der Engine."
+        },
+        "minRisk": {
+          "label": "Mindestrisiko für den Rat",
+          "help": "Nur Entscheidungen ab diesem Risiko berufen den Rat ein."
+        },
+        "quorum": {
+          "label": "Quorum des Rats",
+          "help": "Anteil der Sitze, die eine gültige Stimme abgeben müssen. Leer übernimmt den Standard."
+        },
+        "approval": {
+          "label": "Zustimmungsschwelle des Rats",
+          "help": "Anteil des abgegebenen Stimmgewichts, den die siegreiche Option überschreiten muss."
+        },
+        "distinctness": {
+          "label": "Vielfalt des Gremiums",
+          "help": "Unterschiedliche Modelle oder Anbieter verlangen, um korrelierte Entscheidungen zu verringern."
+        },
+        "perCallTimeoutMs": {
+          "label": "Zeitlimit pro Ratssitz",
+          "help": "Millisekunden pro Sitz; leer übernimmt das Entscheidungszeitlimit."
+        },
+        "maxConcurrency": {
+          "label": "Gleichzeitige Ratssitze",
+          "help": "Gleichzeitig abgefragte Sitze, von eins bis acht."
+        },
+        "deliberationRounds": {
+          "label": "Beratungsrunden des Rats",
+          "help": "Leer übernimmt den Produktstandard. Die Engine prüft ihr unterstütztes Limit."
+        },
+        "voterMaxTokens": {
+          "label": "Ausgabegrenze der Wähler",
+          "help": "Optionale Token-Grenze; leer nutzt die Ausgabegrenze jedes Modells."
+        },
+        "judgeMaxTokens": {
+          "label": "Ausgabegrenze des Richters",
+          "help": "Optionale Token-Grenze für den Richter beim Stichentscheid."
+        }
+      },
+      "ledger": {
+        "enabled": {
+          "label": "Entscheidungs-Ledger aufzeichnen",
+          "help": "Entscheidungen und beobachtete Ergebnisse im Laufzeit-Ledger behalten."
+        },
+        "autoDenyAfterFailures": {
+          "label": "Schwelle für Ablehnung nach Fehlern",
+          "help": "Aufeinanderfolgende beobachtete Fehler vor einer deterministischen Ablehnung; null deaktiviert den Schutz."
+        },
+        "maxMemoryEntries": {
+          "label": "Speicherkapazität des Ledgers",
+          "help": "Höchstzahl der Einträge im Speicher und Größe des Startbestands von der Festplatte."
+        },
+        "interventionRetryWindowMs": {
+          "label": "Wiederholungsfenster für Eingriffe",
+          "help": "Millisekunden, in denen ein wiederholter Eingriff die frühere Steuerung als fehlgeschlagen markiert."
+        }
+      },
+      "trace": {
+        "enabled": {
+          "label": "Replay-Trace aufzeichnen",
+          "help": "Stufe, Modell und Stimmbelege pro Entscheidung in die Trace-Datei schreiben."
+        },
+        "content": {
+          "label": "Inhalt des Replay-Trace",
+          "help": "Vollständig behält den Entscheidungstext; geschwärzt kürzt freien Text; keine zeichnet nur Metadaten auf."
+        },
+        "path": {
+          "label": "Pfad des Replay-Trace",
+          "help": "Optionales JSONL-Ziel. Leer lassen, um den Standardort dieser Laufzeit zu nutzen."
+        },
+        "maxOpenRecords": {
+          "label": "Limit offener Trace-Einträge",
+          "help": "Höchstzahl gleichzeitig unentschiedener Trace-Einträge."
+        }
+      },
+      "monitor": {
+        "enabled": {
+          "label": "Brain-Monitor aktivieren",
+          "help": "Laufzeitsignale mit der konfigurierten Monitor-Richtlinie beobachten."
+        },
+        "policy": {
+          "label": "Monitor-Reaktion",
+          "help": "LLM befragt Brain, steuern greift ein und beobachten zeichnet Beobachtungen ohne Eingriff auf."
+        },
+        "signals": {
+          "toolFailureStreak": {
+            "label": "Signal für Werkzeugfehler",
+            "help": "Aufeinanderfolgende Fehler desselben Werkzeugs beobachten."
+          },
+          "errorStorm": {
+            "label": "Signal für Fehlerhäufung",
+            "help": "Fehler beobachten, die sich in einem gleitenden Zeitfenster häufen."
+          },
+          "agentStall": {
+            "label": "Signal für stockende Agenten",
+            "help": "Aktive Arbeit beobachten, die keinen Fortschritt mehr macht."
+          },
+          "fileChurn": {
+            "label": "Signal für Dateiumwälzung",
+            "help": "Wiederholte Bearbeitungen derselben Datei beobachten."
+          }
+        },
+        "toolFailureStreak": {
+          "label": "Aufeinanderfolgende Werkzeugfehler",
+          "help": "Anzahl der Fehler, bevor der Monitor eingreift."
+        },
+        "errorStormCount": {
+          "label": "Schwelle für Fehlerhäufung",
+          "help": "Fehler im konfigurierten Fenster, bevor eingegriffen wird."
+        },
+        "errorStormWindowMs": {
+          "label": "Fenster für Fehlerhäufung",
+          "help": "Gleitendes Fenster in Millisekunden."
+        },
+        "stallMs": {
+          "label": "Zeitlimit für Stillstand",
+          "help": "Millisekunden ohne Fortschritt; null deaktiviert die Stillstandsschwelle."
+        },
+        "stallCheckIntervalMs": {
+          "label": "Prüfintervall für Stillstand",
+          "help": "Millisekunden zwischen Watchdog-Prüfungen."
+        },
+        "fileChurnThreshold": {
+          "label": "Schwelle für Dateiumwälzung",
+          "help": "Bearbeitungen derselben Datei, bevor eingegriffen wird."
+        },
+        "fileChurnWindowMs": {
+          "label": "Fenster für Dateiumwälzung",
+          "help": "Gleitendes Zählfenster für Bearbeitungen in Millisekunden."
+        },
+        "cooldownMs": {
+          "label": "Abklingzeit für Monitor-Signale",
+          "help": "Millisekunden zwischen erneuten Eingriffen für dasselbe Signal."
+        },
+        "fileEditTools": {
+          "label": "Namen der Dateibearbeitungswerkzeuge",
+          "help": "Ein Werkzeugname pro Zeile. Ersetzt die Zuordnungsliste; eine leere Liste deaktiviert die Zuordnung von Dateibearbeitungen."
+        }
+      }
+    },
+    "rules": {
+      "title": "Deterministische Regeln",
+      "count": "{{n}} konfiguriert",
+      "help": "Werden vor jedem Anbieteraufruf ausgewertet; der erste Treffer gewinnt. Bearbeite sie in der globalen Konfigurationsdatei; diese Ansicht ist schreibgeschützt.",
+      "rule": "Regel {{n}}",
+      "noAction": "keine Aktion",
+      "off": "aus",
+      "droppedOne": "{{n}} Regel verworfen",
+      "droppedMany": "{{n}} Regeln verworfen"
+    }
   }
 }

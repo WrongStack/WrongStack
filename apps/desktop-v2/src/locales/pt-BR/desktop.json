@@ -5338,5 +5338,344 @@
       "help": "Escolha um modelo de desempate ou deixe vazio para o mecanismo derivar o juiz do pool.",
       "derive": "Usar o juiz derivado"
     }
+  },
+  "brainPolicy": {
+    "label": "Configurações da política do Brain",
+    "eyebrow": "PERFIL ATIVO · POLÍTICA DE DECISÃO",
+    "title": "Política do Brain",
+    "intro": "Configure a escada de decisão: regras determinísticas, heurísticas, cache, conselho, modelos e escalonamento ao operador.",
+    "reloadDiscard": "Recarregar os valores salvos do Brain (descartar rascunhos)",
+    "refresh": "Atualizar a política do Brain",
+    "scope": "Salvo no perfil ativo e aplicado a este runtime de configurações. Os outros runtimes de projeto e de conversa em execução mantêm a própria configuração. Os históricos de decisão pertencem aos runtimes de origem.",
+    "reading": "Lendo a política do Brain…",
+    "unavailable": "A configuração do Brain está indisponível. Atualize para tentar novamente.",
+    "fact": {
+      "hits": "<strong>{{n}}</strong> acertos de cache",
+      "misses": "<strong>{{n}}</strong> falhas de cache",
+      "size": "<strong>{{n}}</strong> decisões em cache",
+      "council": "Conselho efetivo: <strong>{{state}}</strong>",
+      "active": "Ativo",
+      "inactive": "Inativo"
+    },
+    "jumpLabel": "Grupos da política do Brain",
+    "jump": "Ir para a seção",
+    "models": "Modelos e conselho",
+    "monitor": {
+      "preview": "Os padrões do mecanismo são pré-visualizados abaixo. Salve a política do Brain para remover todas as substituições do monitor, incluindo a correspondência personalizada de ferramentas e as configurações adicionais de sinais.",
+      "overridden": "Este perfil tem substituições do monitor salvas. Redefinir remove todo o grupo de substituições do monitor; as outras configurações do Brain são mantidas.",
+      "inherited": "Este perfil herda os padrões do monitor do mecanismo.",
+      "keep": "Manter as substituições do monitor salvas",
+      "reset": "Usar os padrões herdados do monitor"
+    },
+    "automatic": "Automático / herdar",
+    "enabled": "Ativado",
+    "disabled": "Desativado",
+    "inherit": "Herdar o padrão do mecanismo",
+    "unsaved": "{{n}} alterações do Brain não salvas",
+    "matches": "A política do Brain corresponde aos valores salvos",
+    "discard": "Descartar as alterações do Brain",
+    "saving": "Salvando…",
+    "save": "Salvar a política do Brain",
+    "alreadySaved": "A política do Brain já corresponde aos valores salvos.",
+    "savedVerified": "Política do Brain salva e verificada neste runtime do perfil.",
+    "error": {
+      "notPersisted": "A política do Brain não foi confirmada no disco. Recarregue a configuração ativa antes de tentar novamente.",
+      "monitorNotCleared": "As substituições do monitor não foram removidas. Recarregue os valores salvos do Brain antes de tentar novamente.",
+      "mismatch": "{{label}} não corresponde à configuração salva do Brain. Recarregue antes de tentar novamente.",
+      "unreadable": "O mecanismo não retornou uma configuração do Brain legível.",
+      "monitorChanged": "As substituições do monitor foram alteradas em outro lugar. Recarregue os valores salvos do Brain antes de redefinir.",
+      "changed": "{{label}} foi alterado em outro lugar. Recarregue os valores salvos do Brain antes de aplicar esta alteração.",
+      "wholeNumber": "{{label}} precisa de um número inteiro válido no intervalo permitido.",
+      "number": "{{label}} precisa de um número válido no intervalo permitido.",
+      "choice": "Escolha uma opção válida para {{label}}.",
+      "toggle": "{{label}} precisa estar ativado ou desativado.",
+      "signals": "Atualize a configuração do Brain antes de alterar os sinais do monitor."
+    },
+    "option": {
+      "off": "desativado",
+      "low": "baixo",
+      "medium": "médio",
+      "high": "alto",
+      "critical": "crítico",
+      "all": "todos",
+      "interactive": "interativo",
+      "headless": "sem interface",
+      "conservative": "conservador",
+      "deny-all": "negar tudo",
+      "continue-on-recommended": "continuar com o recomendado",
+      "never": "nunca",
+      "when-decided": "quando decidido",
+      "always": "sempre",
+      "none": "nenhum",
+      "model": "modelo",
+      "provider": "provedor",
+      "redacted": "censurado",
+      "full": "completo",
+      "llm": "LLM",
+      "steer": "direcionar",
+      "observe": "observar"
+    },
+    "group": {
+      "risk": {
+        "title": "Risco e escalonamento",
+        "description": "Escolha quais decisões podem ser automatizadas e como as decisões não resolvidas chegam a um operador."
+      },
+      "heuristics": {
+        "title": "Heurísticas determinísticas",
+        "description": "Caminhos de decisão rápidos que podem resolver situações reconhecidas antes de uma chamada ao modelo."
+      },
+      "quality": {
+        "title": "Qualidade das decisões",
+        "description": "Exija respostas utilizáveis do nível de modelo único e escolha como as recusas encerram uma decisão."
+      },
+      "cache": {
+        "title": "Cache de decisões",
+        "description": "Reutilize um veredito anterior do modelo ou do conselho para uma pergunta idêntica. Estas são configurações do cache de decisões, separadas do cache de prompts do provedor."
+      },
+      "monitor": {
+        "title": "Monitor de runtime",
+        "description": "Configure como o monitor responde a trabalho travado ou com falha."
+      },
+      "council": {
+        "title": "Política do conselho",
+        "description": "Controle quando um painel de vários modelos se reúne. Os assentos e o juiz efetivos são mostrados abaixo."
+      },
+      "ledger": {
+        "title": "Registro e rastro",
+        "description": "Escolha as evidências de decisão retidas e o conteúdo do rastro de reprodução para este runtime."
+      }
+    },
+    "field": {
+      "maxAutoRisk": {
+        "label": "Teto de risco automático",
+        "help": "Risco máximo considerado pelo nível de decisão do modelo."
+      },
+      "mode": {
+        "label": "Modo de escalonamento",
+        "help": "O modo interativo pergunta a um operador; o modo sem interface usa a política final."
+      },
+      "terminalPolicy": {
+        "label": "Política de decisão sem interface",
+        "help": "Conservador segue as recomendações seguras; negar tudo recusa o escalonamento; continuar com o recomendado aceita a opção recomendada em qualquer risco."
+      },
+      "decisionTimeoutMs": {
+        "label": "Tempo limite da decisão do modelo",
+        "help": "Milissegundos por chamada ao modelo. Vazio herda o padrão do mecanismo."
+      },
+      "humanTimeoutMs": {
+        "label": "Tempo limite de resposta do operador",
+        "help": "Milissegundos de espera; zero espera indefinidamente. Vazio herda o padrão do mecanismo."
+      },
+      "decisionLogMaxEntries": {
+        "label": "Capacidade de decisões recentes",
+        "help": "Número de decisões retidas no registro rotativo deste runtime."
+      },
+      "heuristics": {
+        "lowRiskAutoAnswer": {
+          "label": "Caminho rápido de baixo risco",
+          "help": "Permitir a heurística integrada de baixo risco."
+        },
+        "blockedResolved": {
+          "label": "Bloqueios resolvidos",
+          "help": "Reconhecer quando um bloqueio anterior foi resolvido."
+        },
+        "deadlockSkip": {
+          "label": "Recuperação de impasse",
+          "help": "Permitir a heurística integrada de contorno de impasse."
+        },
+        "retryExhausted": {
+          "label": "Tentativas esgotadas",
+          "help": "Reconhecer a condição integrada de tentativas esgotadas."
+        },
+        "continuePing": {
+          "label": "Prompts de continuação",
+          "help": "Tratar os avisos de continuação reconhecidos sem chamar o modelo."
+        }
+      },
+      "llm": {
+        "rejectUncertain": {
+          "label": "Rejeitar respostas incertas",
+          "help": "Tratar respostas recusadas ou vazias como um nível indeciso."
+        },
+        "minConfidence": {
+          "label": "Confiança mínima informada",
+          "help": "Fração de zero a um; zero desativa este limite."
+        },
+        "maxTokens": {
+          "label": "Teto de saída da decisão",
+          "help": "Limite de tokens opcional, incluindo o raciocínio do modelo. Vazio usa o teto do próprio modelo."
+        },
+        "denyIsTerminal": {
+          "label": "Política de recusa do modelo",
+          "help": "“Quando decidido” encerra recusas reais e permite que falhas de infraestrutura sejam escalonadas."
+        }
+      },
+      "cache": {
+        "enabled": {
+          "label": "Reutilizar decisões em cache",
+          "help": "Ativar a reutilização de decisões registradas."
+        },
+        "ttlMs": {
+          "label": "Vida útil do cache de decisões",
+          "help": "Milissegundos até uma decisão armazenada expirar."
+        },
+        "maxEntries": {
+          "label": "Capacidade do cache de decisões",
+          "help": "Número máximo de decisões ativas em cache."
+        }
+      },
+      "council": {
+        "enabled": {
+          "label": "Ativação do conselho",
+          "help": "Automático usa as regras de pool e votantes do mecanismo."
+        },
+        "minRisk": {
+          "label": "Risco mínimo do conselho",
+          "help": "Somente decisões com este risco ou acima reúnem o conselho."
+        },
+        "quorum": {
+          "label": "Quórum do conselho",
+          "help": "Fração de assentos que precisam retornar um voto válido. Vazio herda o padrão."
+        },
+        "approval": {
+          "label": "Limite de aprovação do conselho",
+          "help": "Fração do peso dos votos emitidos que a opção vencedora precisa superar."
+        },
+        "distinctness": {
+          "label": "Diversidade do painel",
+          "help": "Pedir modelos ou provedores distintos para reduzir decisões correlacionadas."
+        },
+        "perCallTimeoutMs": {
+          "label": "Tempo limite por assento do conselho",
+          "help": "Milissegundos por assento; vazio herda o tempo limite da decisão."
+        },
+        "maxConcurrency": {
+          "label": "Assentos do conselho simultâneos",
+          "help": "Assentos consultados ao mesmo tempo, de um a oito."
+        },
+        "deliberationRounds": {
+          "label": "Rodadas de deliberação do conselho",
+          "help": "Vazio herda o padrão do produto. O mecanismo valida o limite suportado."
+        },
+        "voterMaxTokens": {
+          "label": "Teto de saída dos votantes",
+          "help": "Limite de tokens opcional; vazio usa o teto de saída de cada modelo."
+        },
+        "judgeMaxTokens": {
+          "label": "Teto de saída do juiz",
+          "help": "Limite de tokens opcional para o juiz de desempate."
+        }
+      },
+      "ledger": {
+        "enabled": {
+          "label": "Registrar o livro de decisões",
+          "help": "Manter as decisões e os resultados observados no livro do runtime."
+        },
+        "autoDenyAfterFailures": {
+          "label": "Limite de negação por falhas",
+          "help": "Falhas consecutivas observadas antes de uma negação determinística; zero desativa a proteção."
+        },
+        "maxMemoryEntries": {
+          "label": "Capacidade de memória do livro",
+          "help": "Número máximo de entradas em memória e tamanho da carga inicial do disco."
+        },
+        "interventionRetryWindowMs": {
+          "label": "Janela de nova tentativa de intervenções",
+          "help": "Milissegundos durante os quais uma intervenção repetida marca o direcionamento anterior como falho."
+        }
+      },
+      "trace": {
+        "enabled": {
+          "label": "Registrar o rastro de reprodução",
+          "help": "Gravar o nível, o modelo e os votos de cada decisão no arquivo de rastro."
+        },
+        "content": {
+          "label": "Conteúdo do rastro de reprodução",
+          "help": "Completo mantém o texto da decisão; censurado corta o texto livre; nenhum registra apenas metadados."
+        },
+        "path": {
+          "label": "Caminho do rastro de reprodução",
+          "help": "Destino JSONL opcional. Deixe vazio para usar o local padrão deste runtime."
+        },
+        "maxOpenRecords": {
+          "label": "Limite de registros de rastro abertos",
+          "help": "Número máximo de registros de rastro indecisos ao mesmo tempo."
+        }
+      },
+      "monitor": {
+        "enabled": {
+          "label": "Ativar o monitor do Brain",
+          "help": "Observar os sinais de runtime com a política de monitor configurada."
+        },
+        "policy": {
+          "label": "Resposta do monitor",
+          "help": "LLM consulta o Brain, direcionar intervém e observar registra observações sem intervir."
+        },
+        "signals": {
+          "toolFailureStreak": {
+            "label": "Sinal de falha de ferramenta",
+            "help": "Observar falhas consecutivas da mesma ferramenta."
+          },
+          "errorStorm": {
+            "label": "Sinal de tempestade de erros",
+            "help": "Observar erros acumulados em uma janela de tempo deslizante."
+          },
+          "agentStall": {
+            "label": "Sinal de agente travado",
+            "help": "Observar trabalho ativo que para de avançar."
+          },
+          "fileChurn": {
+            "label": "Sinal de alterações repetidas em arquivos",
+            "help": "Observar edições repetidas no mesmo arquivo."
+          }
+        },
+        "toolFailureStreak": {
+          "label": "Falhas consecutivas de ferramenta",
+          "help": "Número de falhas antes de o monitor agir."
+        },
+        "errorStormCount": {
+          "label": "Limite de tempestade de erros",
+          "help": "Erros na janela configurada antes de agir."
+        },
+        "errorStormWindowMs": {
+          "label": "Janela de tempestade de erros",
+          "help": "Janela deslizante em milissegundos."
+        },
+        "stallMs": {
+          "label": "Tempo limite de travamento",
+          "help": "Milissegundos sem progresso; zero desativa o limite de travamento."
+        },
+        "stallCheckIntervalMs": {
+          "label": "Intervalo de verificação de travamento",
+          "help": "Milissegundos entre verificações do watchdog."
+        },
+        "fileChurnThreshold": {
+          "label": "Limite de alterações repetidas em arquivos",
+          "help": "Edições no mesmo arquivo antes de agir."
+        },
+        "fileChurnWindowMs": {
+          "label": "Janela de alterações repetidas em arquivos",
+          "help": "Janela deslizante de contagem de edições em milissegundos."
+        },
+        "cooldownMs": {
+          "label": "Intervalo de espera dos sinais do monitor",
+          "help": "Milissegundos entre novas ações para o mesmo sinal."
+        },
+        "fileEditTools": {
+          "label": "Nomes das ferramentas de edição de arquivos",
+          "help": "Um nome de ferramenta por linha. Substitui a lista de correspondência; uma lista vazia desativa a detecção de edições de arquivos."
+        }
+      }
+    },
+    "rules": {
+      "title": "Regras determinísticas",
+      "count": "{{n}} configuradas",
+      "help": "Avaliadas antes de qualquer chamada ao provedor; a primeira correspondência vence. Edite-as no arquivo de configuração global; esta visualização é somente leitura.",
+      "rule": "regra {{n}}",
+      "noAction": "nenhuma ação",
+      "off": "desativada",
+      "droppedOne": "{{n}} regra descartada",
+      "droppedMany": "{{n}} regras descartadas"
+    }
   }
 }

@@ -15,8 +15,15 @@ export interface BrainField {
   read?: string;
   fallback?: string;
 }
-export const brainGroups: { title: string; description: string; fields: BrainField[] }[] = [
+/** Each group's `id` names it in the display catalog; `title` and `description` are the English source. */
+export const brainGroups: {
+  id: string;
+  title: string;
+  description: string;
+  fields: BrainField[];
+}[] = [
   {
+    id: 'risk',
     title: 'Risk & escalation',
     description:
       'Choose which decisions may be automated and how unresolved decisions reach an operator.',
@@ -68,6 +75,7 @@ export const brainGroups: { title: string; description: string; fields: BrainFie
     ],
   },
   {
+    id: 'heuristics',
     title: 'Deterministic heuristics',
     description: 'Fast decision paths that can settle recognized situations before a model call.',
     fields: [
@@ -104,6 +112,7 @@ export const brainGroups: { title: string; description: string; fields: BrainFie
     ],
   },
   {
+    id: 'quality',
     title: 'Decision quality',
     description:
       'Require usable answers from the single-model tier and choose how refusals end a decision.',
@@ -141,6 +150,7 @@ export const brainGroups: { title: string; description: string; fields: BrainFie
     ],
   },
   {
+    id: 'cache',
     title: 'Decision cache',
     description:
       'Reuse a previous model or council verdict for an identical question. These are decision-cache settings, separate from provider prompt caching.',
@@ -168,11 +178,13 @@ export const brainGroups: { title: string; description: string; fields: BrainFie
     ],
   },
   {
+    id: 'monitor',
     title: 'Runtime monitor',
     description: 'Configure how the monitor responds to stalled or failing work.',
     fields: [...brainMonitorFields],
   },
   {
+    id: 'council',
     title: 'Council policy',
     description:
       'Control when a multi-model panel convenes. Effective seats and judge are shown below.',
@@ -265,6 +277,7 @@ export const brainGroups: { title: string; description: string; fields: BrainFie
     ],
   },
   {
+    id: 'ledger',
     title: 'Ledger & trace',
     description: 'Choose retained decision evidence and replay-trace content for this runtime.',
     fields: [
@@ -333,15 +346,19 @@ export type BrainDraft = Record<string, string | boolean>;
 export function brainMonitorResetPatch(
   baseline: Record<string, unknown>,
   live: Record<string, unknown>,
+  changed = 'Monitor overrides changed elsewhere. Reload saved Brain values before resetting.',
 ): Record<string, unknown> {
   const current = record(live['monitor']);
   if (Object.keys(current).length && !sameSetting(record(baseline['monitor']), current))
-    throw Error('Monitor overrides changed elsewhere. Reload saved Brain values before resetting.');
+    throw Error(changed);
   return { monitor: null };
 }
 export const brainValue = (config: Record<string, unknown>, path: string): unknown =>
   path.split('.').reduce<unknown>((value, key) => record(value)[key], config);
-export function brainSnapshot(reply: Record<string, unknown>): Record<string, unknown> {
+export function brainSnapshot(
+  reply: Record<string, unknown>,
+  unreadable = 'The engine did not return a readable Brain configuration.',
+): Record<string, unknown> {
   const config = record(reply['config']);
   if (
     typeof config['maxAutoRisk'] !== 'string' ||
@@ -350,7 +367,7 @@ export function brainSnapshot(reply: Record<string, unknown>): Record<string, un
     !config['cache'] ||
     !config['council']
   )
-    throw Error('The engine did not return a readable Brain configuration.');
+    throw Error(unreadable);
   return config;
 }
 export function brainDraft(config: Record<string, unknown>): BrainDraft {
@@ -372,20 +389,29 @@ export function brainDraft(config: Record<string, unknown>): BrainDraft {
       }),
   );
 }
+const englishPatchWords = {
+  label: (field: BrainField) => field.label,
+  changed: (label: string) =>
+    `${label} changed elsewhere. Reload saved Brain values before applying this edit.`,
+  number: (label: string, whole: boolean) =>
+    `${label} needs a valid ${whole ? 'whole number' : 'number'} in its allowed range.`,
+  choice: (label: string) => `Choose a valid ${label.toLowerCase()}.`,
+  toggle: (label: string) => `${label} needs an enabled or disabled value.`,
+  signals: 'Refresh the Brain configuration before changing monitor signals.',
+};
 export function brainPatch(
   base: BrainDraft,
   draft: BrainDraft,
   live: BrainDraft,
   currentConfig?: Record<string, unknown>,
+  words = englishPatchWords,
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   for (const field of brainGroups.flatMap((group) => group.fields)) {
     const value = draft[field.key];
     if (sameSetting(base[field.key], value)) continue;
     if (!sameSetting(base[field.key], live[field.key]) && !sameSetting(value, live[field.key]))
-      throw Error(
-        `${field.label} changed elsewhere. Reload saved Brain values before applying this edit.`,
-      );
+      throw Error(words.changed(words.label(field)));
     let converted: unknown = value;
     if (value === '' && field.optional) converted = null;
     else if (field.kind === 'number') {
@@ -397,12 +423,9 @@ export function brainPatch(
         Number(converted) < (field.min ?? 0) ||
         Number(converted) > (field.max ?? Infinity)
       )
-        throw Error(
-          `${field.label} needs a valid ${field.step === undefined ? 'whole number' : 'number'} in its allowed range.`,
-        );
+        throw Error(words.number(words.label(field), field.step === undefined));
     } else if (field.kind === 'select') {
-      if (!field.options?.includes(String(value)))
-        throw Error(`Choose a valid ${field.label.toLowerCase()}.`);
+      if (!field.options?.includes(String(value))) throw Error(words.choice(words.label(field)));
       if (value === 'true' || value === 'false') converted = value === 'true';
     } else if (field.kind === 'lines') {
       converted = String(value)
@@ -411,8 +434,7 @@ export function brainPatch(
         .filter(Boolean);
     } else if (field.kind === 'text') {
       converted = String(value).trim();
-    } else if (typeof value !== 'boolean')
-      throw Error(`${field.label} needs an enabled or disabled value.`);
+    } else if (typeof value !== 'boolean') throw Error(words.toggle(words.label(field)));
     const path = field.key.split('.');
     let owner = patch;
     for (const key of path.slice(0, -1)) {
@@ -424,8 +446,7 @@ export function brainPatch(
   }
   const monitor = record(patch['monitor']);
   if (monitor['signals']) {
-    if (!currentConfig)
-      throw Error('Refresh the Brain configuration before changing monitor signals.');
+    if (!currentConfig) throw Error(words.signals);
     monitor['signals'] = {
       ...record(brainValue(currentConfig, 'monitor.signals')),
       ...record(monitor['signals']),

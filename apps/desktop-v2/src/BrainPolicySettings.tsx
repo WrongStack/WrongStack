@@ -1,10 +1,12 @@
 import { Brain, RefreshCw, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { BrainPolicyEvidence } from './BrainPolicyEvidence';
 import { BrainRules } from './BrainRules';
 import { BrainTargetEditor } from './BrainTargetEditor';
 import {
   type BrainDraft,
+  type BrainField,
   brainDraft,
   brainGroups,
   brainMonitorResetPatch,
@@ -19,12 +21,20 @@ import {
   mergeBrainPatches,
   verifyBrainTargets,
 } from './brain-targets-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { sameSetting } from './settings-save-model';
+import { surfaceI18n } from './surface-i18n';
 import './brain-policy.css';
 
 export function BrainPolicySettings({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
+  // Read through a ref so a language change does not reread the Brain configuration.
+  const words = useRef(t);
+  words.current = t;
+  const label = (field: BrainField) =>
+    t(`brainPolicy.field.${field.key}.label`, { defaultValue: field.label });
   const policy = useRef<HTMLElement>(null);
   const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null);
   const [base, setBase] = useState<BrainDraft>({}),
@@ -41,6 +51,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
     async () =>
       brainSnapshot(
         await command('brain.config.get', {}, ['brain.config', 'key.operation_result']),
+        words.current('brainPolicy.error.unreadable'),
       ),
     [command],
   );
@@ -105,15 +116,27 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
         : draft;
       const patch = mergeBrainPatches(
         {
-          ...brainPatch(base, policyDraft, brainDraft(live), live),
-          ...(resetMonitor ? brainMonitorResetPatch(snapshot ?? {}, live) : {}),
+          ...brainPatch(base, policyDraft, brainDraft(live), live, {
+            label,
+            changed: (name) => t('brainPolicy.error.changed', { label: name }),
+            number: (name, whole) =>
+              t(whole ? 'brainPolicy.error.wholeNumber' : 'brainPolicy.error.number', {
+                label: name,
+              }),
+            choice: (name) => t('brainPolicy.error.choice', { label: name }),
+            toggle: (name) => t('brainPolicy.error.toggle', { label: name }),
+            signals: t('brainPolicy.error.signals'),
+          }),
+          ...(resetMonitor
+            ? brainMonitorResetPatch(snapshot ?? {}, live, t('brainPolicy.error.monitorChanged'))
+            : {}),
         },
         brainTargetsPatch(targetBase, targets, brainTargetsDraft(live)),
       );
       if (!Object.keys(patch).length) {
         if (current === generation.current) {
           accept(live);
-          setNotice('Brain policy already matches saved values.');
+          setNotice(t('brainPolicy.alreadySaved'));
         }
         return;
       }
@@ -121,15 +144,10 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
         'brain.config',
         'key.operation_result',
       ]);
-      if (result['persisted'] !== true)
-        throw Error(
-          'The Brain policy was not confirmed on disk. Reload its live configuration before retrying.',
-        );
+      if (result['persisted'] !== true) throw Error(t('brainPolicy.error.notPersisted'));
       const saved = await read();
       if (resetMonitor && Object.keys(record(saved['monitor'])).length)
-        throw Error(
-          'Monitor overrides were not cleared. Reload saved Brain values before retrying.',
-        );
+        throw Error(t('brainPolicy.error.monitorNotCleared'));
       verifyBrainTargets(patch, saved);
       for (const field of brainGroups.flatMap((group) => group.fields)) {
         const desired = brainValue(patch, field.key);
@@ -143,13 +161,11 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
               : brainValue(saved, field.read ?? field.key),
           )
         )
-          throw Error(
-            `${field.label} did not match the saved Brain configuration. Reload before retrying.`,
-          );
+          throw Error(t('brainPolicy.error.mismatch', { label: label(field) }));
       }
       if (current === generation.current) {
         accept(saved);
-        setNotice('Brain policy saved and verified in this profile runtime.');
+        setNotice(t('brainPolicy.savedVerified'));
       }
     } catch (error) {
       if (current === generation.current)
@@ -162,17 +178,14 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
   const cache = record(snapshot?.['cache']),
     council = record(snapshot?.['council']);
   return (
-    <section className="brain-policy" aria-label="Brain policy settings" ref={policy}>
+    <section className="brain-policy" aria-label={t('brainPolicy.label')} ref={policy}>
       <header>
         <div>
-          <span className="eyebrow">ACTIVE PROFILE · DECISION POLICY</span>
+          <span className="eyebrow">{t('brainPolicy.eyebrow')}</span>
           <h2>
-            <Brain size={24} /> Brain policy
+            <Brain size={24} /> {t('brainPolicy.title')}
           </h2>
-          <p>
-            Configure the decision ladder: deterministic rules, heuristics, cache, council, models
-            and operator escalation.
-          </p>
+          <p>{t('brainPolicy.intro')}</p>
         </div>
         <button
           type="button"
@@ -181,14 +194,10 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
           onClick={() => void reload()}
         >
           <RefreshCw size={14} />
-          {dirty.length ? 'Reload saved Brain values (discard drafts)' : 'Refresh Brain policy'}
+          {dirty.length ? t('brainPolicy.reloadDiscard') : t('brainPolicy.refresh')}
         </button>
       </header>
-      <p className="brain-scope-note">
-        Saved to the active profile and applied to this settings runtime. Other running project and
-        conversation runtimes keep their own configuration. Decision histories belong to their
-        originating runtimes.
-      </p>
+      <p className="brain-scope-note">{t('brainPolicy.scope')}</p>
       {error && (
         <p role="alert" className="session-error">
           {error}
@@ -200,32 +209,51 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
         </p>
       )}
       {!snapshot ? (
-        <p role="status">
-          {busy ? 'Reading Brain policy…' : 'Brain configuration is unavailable. Refresh to retry.'}
-        </p>
+        <p role="status">{busy ? t('brainPolicy.reading') : t('brainPolicy.unavailable')}</p>
       ) : (
         <>
           <div className="brain-facts">
+            {(
+              [
+                ['hits', cache['hits']],
+                ['misses', cache['misses']],
+                ['size', cache['size']],
+              ] as const
+            ).map(([fact, value]) => (
+              <span key={fact}>
+                <Trans
+                  i18n={surfaceI18n}
+                  ns="desktop"
+                  i18nKey={`brainPolicy.fact.${fact}`}
+                  values={{ n: String(value ?? '—') }}
+                  components={{ strong: <strong /> }}
+                />
+              </span>
+            ))}
             <span>
-              <strong>{String(cache['hits'] ?? '—')}</strong> cache hits
-            </span>
-            <span>
-              <strong>{String(cache['misses'] ?? '—')}</strong> cache misses
-            </span>
-            <span>
-              <strong>{String(cache['size'] ?? '—')}</strong> cached decisions
-            </span>
-            <span>
-              <strong>{council['enabled'] === true ? 'Active' : 'Inactive'}</strong> effective
-              council
+              <Trans
+                i18n={surfaceI18n}
+                ns="desktop"
+                i18nKey="brainPolicy.fact.council"
+                values={{
+                  state:
+                    council['enabled'] === true
+                      ? t('brainPolicy.fact.active')
+                      : t('brainPolicy.fact.inactive'),
+                }}
+                components={{ strong: <strong /> }}
+              />
             </span>
           </div>
           <BrainRules snapshot={snapshot} />
-          <nav className="brain-jump" aria-label="Brain policy groups">
-            <span>Jump to section</span>
+          <nav className="brain-jump" aria-label={t('brainPolicy.jumpLabel')}>
+            <span>{t('brainPolicy.jump')}</span>
             {[
-              { id: 'models', title: 'Models & council' },
-              ...brainGroups.map((group, index) => ({ id: String(index), title: group.title })),
+              { id: 'models', title: t('brainPolicy.models') },
+              ...brainGroups.map((group, index) => ({
+                id: String(index),
+                title: t(`brainPolicy.group.${group.id}.title`, { defaultValue: group.title }),
+              })),
             ].map((group) => (
               <button
                 type="button"
@@ -261,17 +289,23 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
               {brainGroups.map((group, index) => (
                 <article className="brain-policy-card" key={group.title} data-brain-group={index}>
                   <header>
-                    <h3>{group.title}</h3>
-                    <p>{group.description}</p>
+                    <h3>
+                      {t(`brainPolicy.group.${group.id}.title`, { defaultValue: group.title })}
+                    </h3>
+                    <p>
+                      {t(`brainPolicy.group.${group.id}.description`, {
+                        defaultValue: group.description,
+                      })}
+                    </p>
                   </header>
-                  {group.title === 'Runtime monitor' && (
+                  {group.id === 'monitor' && (
                     <div className="brain-monitor-reset">
                       <p>
                         {resetMonitor
-                          ? 'Engine defaults are previewed below. Save Brain policy to remove every monitor override, including custom tool matching and additional signal settings.'
+                          ? t('brainPolicy.monitor.preview')
                           : Object.keys(record(snapshot['monitor'])).length
-                            ? 'This profile has saved monitor overrides. Resetting removes the entire monitor override group; other Brain settings are kept.'
-                            : 'This profile inherits the engine monitor defaults.'}
+                            ? t('brainPolicy.monitor.overridden')
+                            : t('brainPolicy.monitor.inherited')}
                       </p>
                       <button
                         type="button"
@@ -298,8 +332,8 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                         }}
                       >
                         {resetMonitor
-                          ? 'Keep saved monitor overrides'
-                          : 'Use inherited monitor defaults'}
+                          ? t('brainPolicy.monitor.keep')
+                          : t('brainPolicy.monitor.reset')}
                       </button>
                     </div>
                   )}
@@ -311,14 +345,16 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                         key={field.key}
                       >
                         <span>
-                          <strong>{field.label}</strong>
-                          <small>{field.help}</small>
+                          <strong>{label(field)}</strong>
+                          <small>
+                            {t(`brainPolicy.field.${field.key}.help`, { defaultValue: field.help })}
+                          </small>
                         </span>
                         {field.kind === 'toggle' ? (
                           <input
                             id={`brain-${field.key}`}
                             type="checkbox"
-                            aria-label={field.label}
+                            aria-label={label(field)}
                             disabled={resetMonitor && field.key.startsWith('monitor.')}
                             checked={draft[field.key] === true}
                             onChange={(event) => change(field.key, event.target.checked)}
@@ -326,27 +362,31 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                         ) : field.kind === 'select' ? (
                           <select
                             id={`brain-${field.key}`}
-                            aria-label={field.label}
+                            aria-label={label(field)}
                             disabled={resetMonitor && field.key.startsWith('monitor.')}
                             required={!field.optional}
                             value={String(draft[field.key] ?? '')}
                             onChange={(event) => change(field.key, event.target.value)}
                           >
-                            {field.optional && <option value="">Automatic / inherit</option>}
+                            {field.optional && (
+                              <option value="">{t('brainPolicy.automatic')}</option>
+                            )}
                             {field.options?.map((value) => (
                               <option key={value} value={value}>
                                 {value === 'true'
-                                  ? 'Enabled'
+                                  ? t('brainPolicy.enabled')
                                   : value === 'false'
-                                    ? 'Disabled'
-                                    : value.replaceAll('-', ' ')}
+                                    ? t('brainPolicy.disabled')
+                                    : t(`brainPolicy.option.${value}`, {
+                                        defaultValue: value.replaceAll('-', ' '),
+                                      })}
                               </option>
                             ))}
                           </select>
                         ) : field.kind === 'lines' ? (
                           <textarea
                             id={`brain-${field.key}`}
-                            aria-label={field.label}
+                            aria-label={label(field)}
                             disabled={resetMonitor && field.key.startsWith('monitor.')}
                             rows={5}
                             value={String(draft[field.key] ?? '')}
@@ -356,14 +396,14 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                           <input
                             id={`brain-${field.key}`}
                             type={field.kind === 'text' ? 'text' : 'number'}
-                            aria-label={field.label}
+                            aria-label={label(field)}
                             disabled={resetMonitor && field.key.startsWith('monitor.')}
                             min={field.min}
                             max={field.max}
                             step={field.step ?? 1}
                             required={field.kind === 'number' && !field.optional}
                             value={String(draft[field.key] ?? '')}
-                            placeholder={field.optional ? 'Inherit engine default' : undefined}
+                            placeholder={field.optional ? t('brainPolicy.inherit') : undefined}
                             onChange={(event) => change(field.key, event.target.value)}
                           />
                         )}
@@ -376,8 +416,8 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
             <div className="brain-save-bar">
               <span>
                 {dirty.length
-                  ? `${dirty.length} unsaved Brain changes`
-                  : 'Brain policy matches saved values'}
+                  ? t('brainPolicy.unsaved', { n: dirty.length })
+                  : t('brainPolicy.matches')}
               </span>
               <button
                 type="button"
@@ -391,11 +431,11 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                   setNotice('');
                 }}
               >
-                Discard Brain changes
+                {t('brainPolicy.discard')}
               </button>
               <button type="submit" className="button primary" disabled={busy || !dirty.length}>
                 <Save size={14} />
-                {busy ? 'Saving…' : 'Save Brain policy'}
+                {busy ? t('brainPolicy.saving') : t('brainPolicy.save')}
               </button>
             </div>
           </form>

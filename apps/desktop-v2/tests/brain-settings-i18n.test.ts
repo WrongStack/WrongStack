@@ -3,6 +3,7 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { BrainPolicySettings } from '../src/BrainPolicySettings';
 import { BrainTargetEditor } from '../src/BrainTargetEditor';
 import { surfaceI18n } from '../src/surface-i18n';
 
@@ -44,6 +45,28 @@ const targets = () =>
       ],
     },
     command: vi.fn(async (type: string) => (type === 'providers.saved' ? { providers: [] } : {})),
+  });
+
+// A readable Brain configuration with cache counts, an active council, one rule and one dropped.
+const policy = () =>
+  createElement(BrainPolicySettings, {
+    command: vi.fn(async (type: string) =>
+      type === 'brain.config.get'
+        ? {
+            config: {
+              maxAutoRisk: 'medium',
+              mode: 'interactive',
+              models: [],
+              cache: { hits: 3, misses: 1, size: 2 },
+              council: { enabled: true },
+              rules: [{ id: 'deny-rm', then: { action: 'deny' } }],
+              ruleErrors: ['rule 2 has no action'],
+            },
+          }
+        : type === 'providers.saved'
+          ? { providers: [] }
+          : {},
+    ),
   });
 
 describe('the Brain settings in the display language', () => {
@@ -108,6 +131,71 @@ describe('the Brain settings in the display language', () => {
         'Brain oy vericisi 1 merceği',
         'Kaldır: Brain koltuk varsayılanı 1',
         'Konsey hakemi model kimliği',
+      ]),
+    );
+  });
+
+  it('show the Brain policy page in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(policy());
+    for (const text of [
+      'ACTIVE PROFILE · DECISION POLICY',
+      'Refresh Brain policy',
+      '3 cache hits',
+      'Active effective council',
+      'Deterministic rules',
+      '1 configured',
+      '1 rule dropped',
+      'Jump to section',
+      'Models & council',
+      'Risk & escalation',
+      'Automatic risk ceiling',
+      'Maximum risk considered by the model decision tier.',
+      'deny all',
+      'continue on recommended',
+      'This profile inherits the engine monitor defaults.',
+      'Enable Brain monitor',
+      'Brain policy matches saved values',
+      'Save Brain policy',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Brain policy settings',
+        'Brain policy groups',
+        'Automatic risk ceiling',
+        'Deterministic rules',
+      ]),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(policy());
+    for (const text of [
+      'ETKİN PROFİL · KARAR POLİTİKASI',
+      'Brain politikasını yenile',
+      '3 önbellek isabeti',
+      'Geçerli konsey: Etkin',
+      'Deterministik kurallar',
+      '1 yapılandırıldı',
+      '1 kural atlandı',
+      'Bölüme git',
+      'Modeller ve konsey',
+      'Risk ve yükseltme',
+      'Otomatik risk tavanı',
+      'Model karar katmanının dikkate aldığı en yüksek risk.',
+      'hepsini reddet',
+      'Bu profil motorun monitör varsayılanlarını devralır.',
+      'Brain monitörünü etkinleştir',
+      'Brain politikası kayıtlı değerlerle eşleşiyor',
+      'Brain politikasını kaydet',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Brain politikası ayarları',
+        'Brain politikası grupları',
+        'Otomatik risk tavanı',
+        'Deterministik kurallar',
       ]),
     );
   });

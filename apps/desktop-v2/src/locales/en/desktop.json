@@ -5338,5 +5338,344 @@
       "help": "Choose a tie-breaking model, or clear it to let the engine derive the judge from the pool.",
       "derive": "Use derived judge"
     }
+  },
+  "brainPolicy": {
+    "label": "Brain policy settings",
+    "eyebrow": "ACTIVE PROFILE · DECISION POLICY",
+    "title": "Brain policy",
+    "intro": "Configure the decision ladder: deterministic rules, heuristics, cache, council, models and operator escalation.",
+    "reloadDiscard": "Reload saved Brain values (discard drafts)",
+    "refresh": "Refresh Brain policy",
+    "scope": "Saved to the active profile and applied to this settings runtime. Other running project and conversation runtimes keep their own configuration. Decision histories belong to their originating runtimes.",
+    "reading": "Reading Brain policy…",
+    "unavailable": "Brain configuration is unavailable. Refresh to retry.",
+    "fact": {
+      "hits": "<strong>{{n}}</strong> cache hits",
+      "misses": "<strong>{{n}}</strong> cache misses",
+      "size": "<strong>{{n}}</strong> cached decisions",
+      "council": "<strong>{{state}}</strong> effective council",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "jumpLabel": "Brain policy groups",
+    "jump": "Jump to section",
+    "models": "Models & council",
+    "monitor": {
+      "preview": "Engine defaults are previewed below. Save Brain policy to remove every monitor override, including custom tool matching and additional signal settings.",
+      "overridden": "This profile has saved monitor overrides. Resetting removes the entire monitor override group; other Brain settings are kept.",
+      "inherited": "This profile inherits the engine monitor defaults.",
+      "keep": "Keep saved monitor overrides",
+      "reset": "Use inherited monitor defaults"
+    },
+    "automatic": "Automatic / inherit",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "inherit": "Inherit engine default",
+    "unsaved": "{{n}} unsaved Brain changes",
+    "matches": "Brain policy matches saved values",
+    "discard": "Discard Brain changes",
+    "saving": "Saving…",
+    "save": "Save Brain policy",
+    "alreadySaved": "Brain policy already matches saved values.",
+    "savedVerified": "Brain policy saved and verified in this profile runtime.",
+    "error": {
+      "notPersisted": "The Brain policy was not confirmed on disk. Reload its live configuration before retrying.",
+      "monitorNotCleared": "Monitor overrides were not cleared. Reload saved Brain values before retrying.",
+      "mismatch": "{{label}} did not match the saved Brain configuration. Reload before retrying.",
+      "unreadable": "The engine did not return a readable Brain configuration.",
+      "monitorChanged": "Monitor overrides changed elsewhere. Reload saved Brain values before resetting.",
+      "changed": "{{label}} changed elsewhere. Reload saved Brain values before applying this edit.",
+      "wholeNumber": "{{label}} needs a valid whole number in its allowed range.",
+      "number": "{{label}} needs a valid number in its allowed range.",
+      "choice": "Choose a valid option for {{label}}.",
+      "toggle": "{{label}} needs an enabled or disabled value.",
+      "signals": "Refresh the Brain configuration before changing monitor signals."
+    },
+    "option": {
+      "off": "off",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "critical": "critical",
+      "all": "all",
+      "interactive": "interactive",
+      "headless": "headless",
+      "conservative": "conservative",
+      "deny-all": "deny all",
+      "continue-on-recommended": "continue on recommended",
+      "never": "never",
+      "when-decided": "when decided",
+      "always": "always",
+      "none": "none",
+      "model": "model",
+      "provider": "provider",
+      "redacted": "redacted",
+      "full": "full",
+      "llm": "llm",
+      "steer": "steer",
+      "observe": "observe"
+    },
+    "group": {
+      "risk": {
+        "title": "Risk & escalation",
+        "description": "Choose which decisions may be automated and how unresolved decisions reach an operator."
+      },
+      "heuristics": {
+        "title": "Deterministic heuristics",
+        "description": "Fast decision paths that can settle recognized situations before a model call."
+      },
+      "quality": {
+        "title": "Decision quality",
+        "description": "Require usable answers from the single-model tier and choose how refusals end a decision."
+      },
+      "cache": {
+        "title": "Decision cache",
+        "description": "Reuse a previous model or council verdict for an identical question. These are decision-cache settings, separate from provider prompt caching."
+      },
+      "monitor": {
+        "title": "Runtime monitor",
+        "description": "Configure how the monitor responds to stalled or failing work."
+      },
+      "council": {
+        "title": "Council policy",
+        "description": "Control when a multi-model panel convenes. Effective seats and judge are shown below."
+      },
+      "ledger": {
+        "title": "Ledger & trace",
+        "description": "Choose retained decision evidence and replay-trace content for this runtime."
+      }
+    },
+    "field": {
+      "maxAutoRisk": {
+        "label": "Automatic risk ceiling",
+        "help": "Maximum risk considered by the model decision tier."
+      },
+      "mode": {
+        "label": "Escalation mode",
+        "help": "Interactive asks an operator; headless uses the terminal policy."
+      },
+      "terminalPolicy": {
+        "label": "Headless decision policy",
+        "help": "Conservative follows safe recommendations; deny-all refuses escalation; continue-on-recommended accepts the recommended option at any risk."
+      },
+      "decisionTimeoutMs": {
+        "label": "Model decision timeout",
+        "help": "Milliseconds per model call. Empty inherits the engine default."
+      },
+      "humanTimeoutMs": {
+        "label": "Operator response timeout",
+        "help": "Milliseconds to wait; zero waits indefinitely. Empty inherits the engine default."
+      },
+      "decisionLogMaxEntries": {
+        "label": "Recent decision capacity",
+        "help": "Number of decisions retained in this runtime’s rolling log."
+      },
+      "heuristics": {
+        "lowRiskAutoAnswer": {
+          "label": "Low-risk fast path",
+          "help": "Allow the built-in low-risk heuristic."
+        },
+        "blockedResolved": {
+          "label": "Resolved blockers",
+          "help": "Recognize when an earlier blocker has been resolved."
+        },
+        "deadlockSkip": {
+          "label": "Deadlock recovery",
+          "help": "Allow the built-in deadlock-skip heuristic."
+        },
+        "retryExhausted": {
+          "label": "Exhausted retries",
+          "help": "Recognize the built-in exhausted-retry condition."
+        },
+        "continuePing": {
+          "label": "Continuation prompts",
+          "help": "Handle recognized continuation pings without a model call."
+        }
+      },
+      "llm": {
+        "rejectUncertain": {
+          "label": "Reject uncertain responses",
+          "help": "Treat declined or empty answers as an undecided tier."
+        },
+        "minConfidence": {
+          "label": "Minimum reported confidence",
+          "help": "Fraction from zero to one; zero disables this threshold."
+        },
+        "maxTokens": {
+          "label": "Decision output ceiling",
+          "help": "Optional token cap, including model reasoning. Empty uses the model’s own ceiling."
+        },
+        "denyIsTerminal": {
+          "label": "Model refusal policy",
+          "help": "When-decided ends genuine refusals while allowing infrastructure failures to escalate."
+        }
+      },
+      "cache": {
+        "enabled": {
+          "label": "Reuse cached decisions",
+          "help": "Enable recorded decision reuse."
+        },
+        "ttlMs": {
+          "label": "Decision cache lifetime",
+          "help": "Milliseconds before a stored decision expires."
+        },
+        "maxEntries": {
+          "label": "Decision cache capacity",
+          "help": "Maximum number of live cached decisions."
+        }
+      },
+      "council": {
+        "enabled": {
+          "label": "Council enablement",
+          "help": "Automatic uses the engine’s pool and voter rules."
+        },
+        "minRisk": {
+          "label": "Council minimum risk",
+          "help": "Only decisions at or above this risk convene the council."
+        },
+        "quorum": {
+          "label": "Council quorum",
+          "help": "Fraction of seats that must return a valid vote. Empty inherits the default."
+        },
+        "approval": {
+          "label": "Council approval threshold",
+          "help": "Fraction of cast vote weight the winning option must exceed."
+        },
+        "distinctness": {
+          "label": "Panel diversity",
+          "help": "Ask for distinct models or providers to reduce correlated decisions."
+        },
+        "perCallTimeoutMs": {
+          "label": "Council seat timeout",
+          "help": "Milliseconds per seat; empty inherits the decision timeout."
+        },
+        "maxConcurrency": {
+          "label": "Concurrent council seats",
+          "help": "Seats polled concurrently, from one to eight."
+        },
+        "deliberationRounds": {
+          "label": "Council deliberation rounds",
+          "help": "Empty inherits the product default. The engine validates its supported limit."
+        },
+        "voterMaxTokens": {
+          "label": "Voter output ceiling",
+          "help": "Optional token cap; empty uses each model’s output ceiling."
+        },
+        "judgeMaxTokens": {
+          "label": "Judge output ceiling",
+          "help": "Optional token cap for the tie-breaking judge."
+        }
+      },
+      "ledger": {
+        "enabled": {
+          "label": "Record decision ledger",
+          "help": "Keep decisions and observed outcomes in the runtime ledger."
+        },
+        "autoDenyAfterFailures": {
+          "label": "Failure denial threshold",
+          "help": "Consecutive observed failures before deterministic denial; zero disables the guard."
+        },
+        "maxMemoryEntries": {
+          "label": "Ledger memory capacity",
+          "help": "Maximum in-memory entries and disk seed size."
+        },
+        "interventionRetryWindowMs": {
+          "label": "Intervention retry window",
+          "help": "Milliseconds during which repeated intervention marks the earlier steer as failed."
+        }
+      },
+      "trace": {
+        "enabled": {
+          "label": "Record replay trace",
+          "help": "Write per-decision tier, model and vote evidence to the trace file."
+        },
+        "content": {
+          "label": "Replay trace content",
+          "help": "Full keeps decision text; redacted truncates free text; none records metadata only."
+        },
+        "path": {
+          "label": "Replay trace path",
+          "help": "Optional JSONL destination. Leave empty to use this runtime’s default location."
+        },
+        "maxOpenRecords": {
+          "label": "Open trace record limit",
+          "help": "Maximum concurrently undecided trace records."
+        }
+      },
+      "monitor": {
+        "enabled": {
+          "label": "Enable Brain monitor",
+          "help": "Watch runtime signals using the configured monitor policy."
+        },
+        "policy": {
+          "label": "Monitor response",
+          "help": "LLM consults Brain, steer intervenes, and observe records observations without intervention."
+        },
+        "signals": {
+          "toolFailureStreak": {
+            "label": "Tool-failure signal",
+            "help": "Watch consecutive failures of the same tool."
+          },
+          "errorStorm": {
+            "label": "Error-storm signal",
+            "help": "Watch errors accumulating within a sliding time window."
+          },
+          "agentStall": {
+            "label": "Agent-stall signal",
+            "help": "Watch active work that stops making progress."
+          },
+          "fileChurn": {
+            "label": "File-churn signal",
+            "help": "Watch repeated edits to the same file."
+          }
+        },
+        "toolFailureStreak": {
+          "label": "Consecutive tool failures",
+          "help": "Number of failures before engaging the monitor."
+        },
+        "errorStormCount": {
+          "label": "Error-storm threshold",
+          "help": "Errors in the configured window before engaging."
+        },
+        "errorStormWindowMs": {
+          "label": "Error-storm window",
+          "help": "Sliding window in milliseconds."
+        },
+        "stallMs": {
+          "label": "Stall timeout",
+          "help": "Milliseconds without progress; zero disables the stall threshold."
+        },
+        "stallCheckIntervalMs": {
+          "label": "Stall check interval",
+          "help": "Milliseconds between watchdog checks."
+        },
+        "fileChurnThreshold": {
+          "label": "File-churn threshold",
+          "help": "Edits to the same file before engaging."
+        },
+        "fileChurnWindowMs": {
+          "label": "File-churn window",
+          "help": "Sliding edit-count window in milliseconds."
+        },
+        "cooldownMs": {
+          "label": "Monitor signal cooldown",
+          "help": "Milliseconds between re-engagements for the same signal."
+        },
+        "fileEditTools": {
+          "label": "File-edit tool names",
+          "help": "One tool name per line. This replaces the matching list; an empty list disables file-edit matching."
+        }
+      }
+    },
+    "rules": {
+      "title": "Deterministic rules",
+      "count": "{{n}} configured",
+      "help": "Evaluated before any provider call; the first match wins. Edit them in the global config file; this view is read-only.",
+      "rule": "rule {{n}}",
+      "noAction": "no action",
+      "off": "off",
+      "droppedOne": "{{n}} rule dropped",
+      "droppedMany": "{{n}} rules dropped"
+    }
   }
 }

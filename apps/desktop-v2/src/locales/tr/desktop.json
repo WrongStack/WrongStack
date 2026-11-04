@@ -5338,5 +5338,344 @@
       "help": "Eşitliği bozacak bir model seç ya da motorun hakemi havuzdan türetmesi için temizle.",
       "derive": "Türetilen hakemi kullan"
     }
+  },
+  "brainPolicy": {
+    "label": "Brain politikası ayarları",
+    "eyebrow": "ETKİN PROFİL · KARAR POLİTİKASI",
+    "title": "Brain politikası",
+    "intro": "Karar merdivenini yapılandır: deterministik kurallar, sezgiseller, önbellek, konsey, modeller ve operatöre yükseltme.",
+    "reloadDiscard": "Kayıtlı Brain değerlerini yeniden yükle (taslakları at)",
+    "refresh": "Brain politikasını yenile",
+    "scope": "Etkin profile kaydedilir ve bu ayarlar çalışma zamanına uygulanır. Çalışan diğer proje ve konuşma çalışma zamanları kendi yapılandırmalarını korur. Karar geçmişleri kaynaklandıkları çalışma zamanlarına aittir.",
+    "reading": "Brain politikası okunuyor…",
+    "unavailable": "Brain yapılandırması kullanılamıyor. Yeniden denemek için yenile.",
+    "fact": {
+      "hits": "<strong>{{n}}</strong> önbellek isabeti",
+      "misses": "<strong>{{n}}</strong> önbellek ıskası",
+      "size": "<strong>{{n}}</strong> önbellekteki karar",
+      "council": "Geçerli konsey: <strong>{{state}}</strong>",
+      "active": "Etkin",
+      "inactive": "Devre dışı"
+    },
+    "jumpLabel": "Brain politikası grupları",
+    "jump": "Bölüme git",
+    "models": "Modeller ve konsey",
+    "monitor": {
+      "preview": "Motor varsayılanları aşağıda önizleniyor. Özel araç eşleştirme ve ek sinyal ayarları dahil tüm monitör geçersiz kılmalarını kaldırmak için Brain politikasını kaydet.",
+      "overridden": "Bu profilde kayıtlı monitör geçersiz kılmaları var. Sıfırlamak tüm monitör geçersiz kılma grubunu kaldırır; diğer Brain ayarları korunur.",
+      "inherited": "Bu profil motorun monitör varsayılanlarını devralır.",
+      "keep": "Kayıtlı monitör geçersiz kılmalarını koru",
+      "reset": "Devralınan monitör varsayılanlarını kullan"
+    },
+    "automatic": "Otomatik / devral",
+    "enabled": "Etkin",
+    "disabled": "Devre dışı",
+    "inherit": "Motor varsayılanını devral",
+    "unsaved": "{{n}} kaydedilmemiş Brain değişikliği",
+    "matches": "Brain politikası kayıtlı değerlerle eşleşiyor",
+    "discard": "Brain değişikliklerini at",
+    "saving": "Kaydediliyor…",
+    "save": "Brain politikasını kaydet",
+    "alreadySaved": "Brain politikası zaten kayıtlı değerlerle eşleşiyor.",
+    "savedVerified": "Brain politikası bu profil çalışma zamanında kaydedildi ve doğrulandı.",
+    "error": {
+      "notPersisted": "Brain politikası diskte doğrulanmadı. Yeniden denemeden önce canlı yapılandırmasını yeniden yükle.",
+      "monitorNotCleared": "Monitör geçersiz kılmaları temizlenmedi. Yeniden denemeden önce kayıtlı Brain değerlerini yeniden yükle.",
+      "mismatch": "{{label}} kayıtlı Brain yapılandırmasıyla eşleşmedi. Yeniden denemeden önce yeniden yükle.",
+      "unreadable": "Motor okunabilir bir Brain yapılandırması döndürmedi.",
+      "monitorChanged": "Monitör geçersiz kılmaları başka bir yerde değişti. Sıfırlamadan önce kayıtlı Brain değerlerini yeniden yükle.",
+      "changed": "{{label}} başka bir yerde değişti. Bu düzenlemeyi uygulamadan önce kayıtlı Brain değerlerini yeniden yükle.",
+      "wholeNumber": "{{label}} izin verilen aralıkta geçerli bir tam sayı olmalı.",
+      "number": "{{label}} izin verilen aralıkta geçerli bir sayı olmalı.",
+      "choice": "{{label}} için geçerli bir seçenek seç.",
+      "toggle": "{{label}} etkin ya da devre dışı olmalı.",
+      "signals": "Monitör sinyallerini değiştirmeden önce Brain yapılandırmasını yenile."
+    },
+    "option": {
+      "off": "kapalı",
+      "low": "düşük",
+      "medium": "orta",
+      "high": "yüksek",
+      "critical": "kritik",
+      "all": "tümü",
+      "interactive": "etkileşimli",
+      "headless": "arayüzsüz",
+      "conservative": "temkinli",
+      "deny-all": "hepsini reddet",
+      "continue-on-recommended": "önerilenle devam et",
+      "never": "asla",
+      "when-decided": "karar verildiğinde",
+      "always": "her zaman",
+      "none": "yok",
+      "model": "model",
+      "provider": "sağlayıcı",
+      "redacted": "kısaltılmış",
+      "full": "tam",
+      "llm": "llm",
+      "steer": "yönlendir",
+      "observe": "gözlemle"
+    },
+    "group": {
+      "risk": {
+        "title": "Risk ve yükseltme",
+        "description": "Hangi kararların otomatikleştirilebileceğini ve çözülemeyen kararların operatöre nasıl ulaşacağını seç."
+      },
+      "heuristics": {
+        "title": "Deterministik sezgiseller",
+        "description": "Tanınan durumları bir model çağrısından önce çözebilen hızlı karar yolları."
+      },
+      "quality": {
+        "title": "Karar kalitesi",
+        "description": "Tek model katmanından kullanılabilir yanıtlar iste ve retlerin bir kararı nasıl bitireceğini seç."
+      },
+      "cache": {
+        "title": "Karar önbelleği",
+        "description": "Aynı soru için önceki bir model veya konsey kararını yeniden kullan. Bunlar karar önbelleği ayarlarıdır; sağlayıcı istem önbelleğinden ayrıdır."
+      },
+      "monitor": {
+        "title": "Çalışma zamanı monitörü",
+        "description": "Monitörün duran veya başarısız olan işe nasıl yanıt vereceğini yapılandır."
+      },
+      "council": {
+        "title": "Konsey politikası",
+        "description": "Çok modelli bir panelin ne zaman toplanacağını denetle. Geçerli koltuklar ve hakem aşağıda gösterilir."
+      },
+      "ledger": {
+        "title": "Defter ve iz",
+        "description": "Bu çalışma zamanı için saklanan karar kanıtını ve yeniden oynatma izinin içeriğini seç."
+      }
+    },
+    "field": {
+      "maxAutoRisk": {
+        "label": "Otomatik risk tavanı",
+        "help": "Model karar katmanının dikkate aldığı en yüksek risk."
+      },
+      "mode": {
+        "label": "Yükseltme kipi",
+        "help": "Etkileşimli kip bir operatöre sorar; arayüzsüz kip son karar politikasını kullanır."
+      },
+      "terminalPolicy": {
+        "label": "Arayüzsüz karar politikası",
+        "help": "Temkinli güvenli önerileri izler; hepsini reddet yükseltmeyi reddeder; önerilenle devam et her risk düzeyinde önerilen seçeneği kabul eder."
+      },
+      "decisionTimeoutMs": {
+        "label": "Model kararı zaman aşımı",
+        "help": "Model çağrısı başına milisaniye. Boş bırakılırsa motor varsayılanı devralınır."
+      },
+      "humanTimeoutMs": {
+        "label": "Operatör yanıtı zaman aşımı",
+        "help": "Beklenecek milisaniye; sıfır süresiz bekler. Boş bırakılırsa motor varsayılanı devralınır."
+      },
+      "decisionLogMaxEntries": {
+        "label": "Son karar kapasitesi",
+        "help": "Bu çalışma zamanının dönen günlüğünde tutulan karar sayısı."
+      },
+      "heuristics": {
+        "lowRiskAutoAnswer": {
+          "label": "Düşük riskli hızlı yol",
+          "help": "Yerleşik düşük risk sezgiseline izin ver."
+        },
+        "blockedResolved": {
+          "label": "Çözülen engeller",
+          "help": "Önceki bir engelin çözüldüğünü tanı."
+        },
+        "deadlockSkip": {
+          "label": "Kilitlenme kurtarma",
+          "help": "Yerleşik kilitlenme atlama sezgiseline izin ver."
+        },
+        "retryExhausted": {
+          "label": "Tükenen yeniden denemeler",
+          "help": "Yerleşik yeniden deneme tükenmesi durumunu tanı."
+        },
+        "continuePing": {
+          "label": "Devam istemleri",
+          "help": "Tanınan devam sinyallerini model çağrısı olmadan ele al."
+        }
+      },
+      "llm": {
+        "rejectUncertain": {
+          "label": "Belirsiz yanıtları reddet",
+          "help": "Reddedilen veya boş yanıtları kararsız katman say."
+        },
+        "minConfidence": {
+          "label": "En düşük bildirilen güven",
+          "help": "Sıfırla bir arasında bir oran; sıfır bu eşiği devre dışı bırakır."
+        },
+        "maxTokens": {
+          "label": "Karar çıktısı tavanı",
+          "help": "Model akıl yürütmesi dahil isteğe bağlı token sınırı. Boş bırakılırsa modelin kendi tavanı kullanılır."
+        },
+        "denyIsTerminal": {
+          "label": "Model reddi politikası",
+          "help": "Karar verildiğinde seçeneği gerçek retleri bitirir, altyapı hatalarının yükseltilmesine izin verir."
+        }
+      },
+      "cache": {
+        "enabled": {
+          "label": "Önbellekteki kararları yeniden kullan",
+          "help": "Kaydedilmiş kararların yeniden kullanımını etkinleştir."
+        },
+        "ttlMs": {
+          "label": "Karar önbelleği ömrü",
+          "help": "Saklanan bir kararın süresi dolmadan önceki milisaniye."
+        },
+        "maxEntries": {
+          "label": "Karar önbelleği kapasitesi",
+          "help": "Önbellekte tutulan en fazla canlı karar sayısı."
+        }
+      },
+      "council": {
+        "enabled": {
+          "label": "Konsey etkinliği",
+          "help": "Otomatik, motorun havuz ve oy verici kurallarını kullanır."
+        },
+        "minRisk": {
+          "label": "Konsey en düşük riski",
+          "help": "Yalnızca bu risk düzeyinde veya üstündeki kararlar konseyi toplar."
+        },
+        "quorum": {
+          "label": "Konsey yeter sayısı",
+          "help": "Geçerli oy döndürmesi gereken koltuk oranı. Boş bırakılırsa varsayılan devralınır."
+        },
+        "approval": {
+          "label": "Konsey onay eşiği",
+          "help": "Kazanan seçeneğin aşması gereken kullanılmış oy ağırlığı oranı."
+        },
+        "distinctness": {
+          "label": "Panel çeşitliliği",
+          "help": "İlişkili kararları azaltmak için farklı modeller veya sağlayıcılar iste."
+        },
+        "perCallTimeoutMs": {
+          "label": "Konsey koltuğu zaman aşımı",
+          "help": "Koltuk başına milisaniye; boş bırakılırsa karar zaman aşımı devralınır."
+        },
+        "maxConcurrency": {
+          "label": "Eşzamanlı konsey koltukları",
+          "help": "Aynı anda sorgulanan koltuklar, birden sekize kadar."
+        },
+        "deliberationRounds": {
+          "label": "Konsey müzakere turları",
+          "help": "Boş bırakılırsa ürün varsayılanı devralınır. Motor desteklenen sınırı doğrular."
+        },
+        "voterMaxTokens": {
+          "label": "Oy verici çıktı tavanı",
+          "help": "İsteğe bağlı token sınırı; boş bırakılırsa her modelin çıktı tavanı kullanılır."
+        },
+        "judgeMaxTokens": {
+          "label": "Hakem çıktı tavanı",
+          "help": "Eşitliği bozan hakem için isteğe bağlı token sınırı."
+        }
+      },
+      "ledger": {
+        "enabled": {
+          "label": "Karar defterini kaydet",
+          "help": "Kararları ve gözlenen sonuçları çalışma zamanı defterinde tut."
+        },
+        "autoDenyAfterFailures": {
+          "label": "Hata reddi eşiği",
+          "help": "Deterministik retten önce art arda gözlenen hata sayısı; sıfır korumayı devre dışı bırakır."
+        },
+        "maxMemoryEntries": {
+          "label": "Defter bellek kapasitesi",
+          "help": "Bellekteki en fazla kayıt ve diskten yükleme boyutu."
+        },
+        "interventionRetryWindowMs": {
+          "label": "Müdahale yeniden deneme penceresi",
+          "help": "Tekrarlanan müdahalenin önceki yönlendirmeyi başarısız saydığı milisaniye süresi."
+        }
+      },
+      "trace": {
+        "enabled": {
+          "label": "Yeniden oynatma izini kaydet",
+          "help": "Her karar için katman, model ve oy kanıtını iz dosyasına yaz."
+        },
+        "content": {
+          "label": "Yeniden oynatma izi içeriği",
+          "help": "Tam, karar metnini tutar; kısaltılmış, serbest metni kırpar; yok yalnızca üst verileri kaydeder."
+        },
+        "path": {
+          "label": "Yeniden oynatma izi yolu",
+          "help": "İsteğe bağlı JSONL hedefi. Bu çalışma zamanının varsayılan konumunu kullanmak için boş bırak."
+        },
+        "maxOpenRecords": {
+          "label": "Açık iz kaydı sınırı",
+          "help": "Aynı anda kararsız kalabilecek en fazla iz kaydı."
+        }
+      },
+      "monitor": {
+        "enabled": {
+          "label": "Brain monitörünü etkinleştir",
+          "help": "Yapılandırılmış monitör politikasıyla çalışma zamanı sinyallerini izle."
+        },
+        "policy": {
+          "label": "Monitör yanıtı",
+          "help": "LLM Brain’e danışır, yönlendir müdahale eder, gözlemle ise müdahale etmeden gözlem kaydeder."
+        },
+        "signals": {
+          "toolFailureStreak": {
+            "label": "Araç hatası sinyali",
+            "help": "Aynı aracın art arda hatalarını izle."
+          },
+          "errorStorm": {
+            "label": "Hata fırtınası sinyali",
+            "help": "Kayan bir zaman penceresinde biriken hataları izle."
+          },
+          "agentStall": {
+            "label": "Ajan duraklaması sinyali",
+            "help": "İlerlemeyi durduran etkin işi izle."
+          },
+          "fileChurn": {
+            "label": "Dosya çalkantısı sinyali",
+            "help": "Aynı dosyada tekrarlanan düzenlemeleri izle."
+          }
+        },
+        "toolFailureStreak": {
+          "label": "Art arda araç hataları",
+          "help": "Monitör devreye girmeden önceki hata sayısı."
+        },
+        "errorStormCount": {
+          "label": "Hata fırtınası eşiği",
+          "help": "Devreye girmeden önce yapılandırılmış penceredeki hata sayısı."
+        },
+        "errorStormWindowMs": {
+          "label": "Hata fırtınası penceresi",
+          "help": "Milisaniye cinsinden kayan pencere."
+        },
+        "stallMs": {
+          "label": "Duraklama zaman aşımı",
+          "help": "İlerleme olmadan geçen milisaniye; sıfır duraklama eşiğini devre dışı bırakır."
+        },
+        "stallCheckIntervalMs": {
+          "label": "Duraklama denetim aralığı",
+          "help": "Bekçi denetimleri arasındaki milisaniye."
+        },
+        "fileChurnThreshold": {
+          "label": "Dosya çalkantısı eşiği",
+          "help": "Devreye girmeden önce aynı dosyadaki düzenleme sayısı."
+        },
+        "fileChurnWindowMs": {
+          "label": "Dosya çalkantısı penceresi",
+          "help": "Milisaniye cinsinden kayan düzenleme sayım penceresi."
+        },
+        "cooldownMs": {
+          "label": "Monitör sinyali bekleme süresi",
+          "help": "Aynı sinyal için yeniden devreye girmeler arasındaki milisaniye."
+        },
+        "fileEditTools": {
+          "label": "Dosya düzenleme aracı adları",
+          "help": "Her satıra bir araç adı. Bu, eşleştirme listesinin yerini alır; boş liste dosya düzenleme eşleştirmesini devre dışı bırakır."
+        }
+      }
+    },
+    "rules": {
+      "title": "Deterministik kurallar",
+      "count": "{{n}} yapılandırıldı",
+      "help": "Herhangi bir sağlayıcı çağrısından önce değerlendirilir; ilk eşleşme kazanır. Bunları genel yapılandırma dosyasında düzenle; bu görünüm salt okunurdur.",
+      "rule": "kural {{n}}",
+      "noAction": "eylem yok",
+      "off": "kapalı",
+      "droppedOne": "{{n}} kural atlandı",
+      "droppedMany": "{{n}} kural atlandı"
+    }
   }
 }

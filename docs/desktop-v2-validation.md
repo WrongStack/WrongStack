@@ -7824,3 +7824,33 @@ copies, starting with SAGE memory.
   - A new jsdom test renders a pool model, a voter using a catalog lens, an empty seat default
     and an empty judge, in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (911); typecheck clean.
+
+### Brain policy page in the display language (2026-11-04)
+
+- The Brain policy page now follows the display language in all seven languages: the heading,
+  intro and scope note, the cache and council facts, the deterministic rules card, section
+  navigation, all seven setting groups with their 51 fields, help texts and option names, the
+  monitor reset notes and buttons, the save bar, and the save, verification and validation
+  messages.
+- The key group is `brainPolicy`, because the page quotes `brain.*` engine messages. The field
+  tables in `brain-policy-model.ts` and `brain-monitor-fields.ts` stay the English source; the
+  page words each field through `brainPolicy.field.<key>.label|help` with the source text as
+  the fallback, and option values through `brainPolicy.option.*` (English keeps the engine value
+  with hyphens read as spaces).
+- Groups gained an `id` (risk, heuristics, quality, cache, monitor, council, ledger); the monitor
+  reset block used to be found by the English title "Runtime monitor" and now uses the id.
+- `brainPatch`, `brainSnapshot` and `brainMonitorResetPatch` take their wording from the caller
+  and keep English as the default, so their unit tests and messages outside the page are
+  unchanged.
+- One unreachable message differs in English on the page: an invalid select value now reads
+  "Choose a valid option for …" instead of lowercasing the field name, which does not work in
+  every language. The page's selects only offer valid values.
+- Not yet translated: the decision evidence panel below the form and the Brain model-pool
+  validation messages. They follow in the next change.
+- Still English by design: rule ids and actions, dropped-rule reasons and engine replies.
+- Checks:
+  - The Brain settings jsdom test now also renders the policy page with cache counts, an active
+    council, a rule and a dropped rule, in English and then in Turkish.
+  - A check run against the catalog confirmed every one of the 51 fields, all option values and
+    all seven groups have English text identical to the model source.
+  - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.

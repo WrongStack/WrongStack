@@ -5338,5 +5338,344 @@
       "help": "Choisissez un modèle pour départager, ou videz le champ pour que le moteur déduise l’arbitre du pool.",
       "derive": "Utiliser l’arbitre déduit"
     }
+  },
+  "brainPolicy": {
+    "label": "Paramètres de la politique Brain",
+    "eyebrow": "PROFIL ACTIF · POLITIQUE DE DÉCISION",
+    "title": "Politique Brain",
+    "intro": "Configurez l’échelle de décision : règles déterministes, heuristiques, cache, conseil, modèles et escalade vers l’opérateur.",
+    "reloadDiscard": "Recharger les valeurs Brain enregistrées (abandonner les brouillons)",
+    "refresh": "Actualiser la politique Brain",
+    "scope": "Enregistré dans le profil actif et appliqué à ce runtime de paramètres. Les autres runtimes de projet et de conversation en cours gardent leur propre configuration. Les historiques de décision appartiennent à leurs runtimes d’origine.",
+    "reading": "Lecture de la politique Brain…",
+    "unavailable": "La configuration Brain est indisponible. Actualisez pour réessayer.",
+    "fact": {
+      "hits": "<strong>{{n}}</strong> succès de cache",
+      "misses": "<strong>{{n}}</strong> échecs de cache",
+      "size": "<strong>{{n}}</strong> décisions en cache",
+      "council": "Conseil effectif : <strong>{{state}}</strong>",
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "jumpLabel": "Groupes de la politique Brain",
+    "jump": "Aller à la section",
+    "models": "Modèles et conseil",
+    "monitor": {
+      "preview": "Les valeurs par défaut du moteur sont prévisualisées ci-dessous. Enregistrez la politique Brain pour supprimer toutes les surcharges du moniteur, y compris la correspondance d’outils personnalisée et les réglages de signaux supplémentaires.",
+      "overridden": "Ce profil contient des surcharges du moniteur enregistrées. La réinitialisation supprime tout le groupe de surcharges du moniteur ; les autres paramètres Brain sont conservés.",
+      "inherited": "Ce profil hérite des valeurs par défaut du moniteur du moteur.",
+      "keep": "Conserver les surcharges du moniteur enregistrées",
+      "reset": "Utiliser les valeurs par défaut héritées du moniteur"
+    },
+    "automatic": "Automatique / hériter",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "inherit": "Hériter de la valeur du moteur",
+    "unsaved": "{{n}} modifications Brain non enregistrées",
+    "matches": "La politique Brain correspond aux valeurs enregistrées",
+    "discard": "Abandonner les modifications Brain",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer la politique Brain",
+    "alreadySaved": "La politique Brain correspond déjà aux valeurs enregistrées.",
+    "savedVerified": "Politique Brain enregistrée et vérifiée dans ce runtime de profil.",
+    "error": {
+      "notPersisted": "La politique Brain n’a pas été confirmée sur le disque. Rechargez sa configuration active avant de réessayer.",
+      "monitorNotCleared": "Les surcharges du moniteur n’ont pas été supprimées. Rechargez les valeurs Brain enregistrées avant de réessayer.",
+      "mismatch": "{{label}} ne correspond pas à la configuration Brain enregistrée. Rechargez avant de réessayer.",
+      "unreadable": "Le moteur n’a pas renvoyé de configuration Brain lisible.",
+      "monitorChanged": "Les surcharges du moniteur ont été modifiées ailleurs. Rechargez les valeurs Brain enregistrées avant de réinitialiser.",
+      "changed": "{{label}} a été modifié ailleurs. Rechargez les valeurs Brain enregistrées avant d’appliquer cette modification.",
+      "wholeNumber": "{{label}} doit être un nombre entier valide dans sa plage autorisée.",
+      "number": "{{label}} doit être un nombre valide dans sa plage autorisée.",
+      "choice": "Choisissez une option valide pour {{label}}.",
+      "toggle": "{{label}} doit être activé ou désactivé.",
+      "signals": "Actualisez la configuration Brain avant de modifier les signaux du moniteur."
+    },
+    "option": {
+      "off": "désactivé",
+      "low": "faible",
+      "medium": "moyen",
+      "high": "élevé",
+      "critical": "critique",
+      "all": "tous",
+      "interactive": "interactif",
+      "headless": "sans interface",
+      "conservative": "prudent",
+      "deny-all": "tout refuser",
+      "continue-on-recommended": "continuer avec la recommandation",
+      "never": "jamais",
+      "when-decided": "une fois décidé",
+      "always": "toujours",
+      "none": "aucun",
+      "model": "modèle",
+      "provider": "fournisseur",
+      "redacted": "expurgé",
+      "full": "complet",
+      "llm": "LLM",
+      "steer": "orienter",
+      "observe": "observer"
+    },
+    "group": {
+      "risk": {
+        "title": "Risque et escalade",
+        "description": "Choisissez les décisions pouvant être automatisées et la manière dont les décisions non résolues parviennent à un opérateur."
+      },
+      "heuristics": {
+        "title": "Heuristiques déterministes",
+        "description": "Chemins de décision rapides qui peuvent régler des situations reconnues avant un appel au modèle."
+      },
+      "quality": {
+        "title": "Qualité des décisions",
+        "description": "Exigez des réponses exploitables du niveau à modèle unique et choisissez comment les refus terminent une décision."
+      },
+      "cache": {
+        "title": "Cache des décisions",
+        "description": "Réutilisez un verdict antérieur du modèle ou du conseil pour une question identique. Ce sont des réglages du cache des décisions, distincts de la mise en cache des invites du fournisseur."
+      },
+      "monitor": {
+        "title": "Moniteur d’exécution",
+        "description": "Configurez la réaction du moniteur face à un travail bloqué ou en échec."
+      },
+      "council": {
+        "title": "Politique du conseil",
+        "description": "Contrôlez quand un panel multi-modèles se réunit. Les sièges et l’arbitre effectifs sont affichés ci-dessous."
+      },
+      "ledger": {
+        "title": "Registre et trace",
+        "description": "Choisissez les preuves de décision conservées et le contenu de la trace de rejeu pour ce runtime."
+      }
+    },
+    "field": {
+      "maxAutoRisk": {
+        "label": "Plafond de risque automatique",
+        "help": "Risque maximal pris en compte par le niveau de décision du modèle."
+      },
+      "mode": {
+        "label": "Mode d’escalade",
+        "help": "Le mode interactif interroge un opérateur ; le mode sans interface applique la politique finale."
+      },
+      "terminalPolicy": {
+        "label": "Politique de décision sans interface",
+        "help": "Prudent suit les recommandations sûres ; tout refuser rejette l’escalade ; continuer avec la recommandation accepte l’option recommandée quel que soit le risque."
+      },
+      "decisionTimeoutMs": {
+        "label": "Délai de décision du modèle",
+        "help": "Millisecondes par appel au modèle. Vide hérite de la valeur du moteur."
+      },
+      "humanTimeoutMs": {
+        "label": "Délai de réponse de l’opérateur",
+        "help": "Millisecondes d’attente ; zéro attend indéfiniment. Vide hérite de la valeur du moteur."
+      },
+      "decisionLogMaxEntries": {
+        "label": "Capacité des décisions récentes",
+        "help": "Nombre de décisions conservées dans le journal tournant de ce runtime."
+      },
+      "heuristics": {
+        "lowRiskAutoAnswer": {
+          "label": "Chemin rapide à faible risque",
+          "help": "Autoriser l’heuristique intégrée à faible risque."
+        },
+        "blockedResolved": {
+          "label": "Blocages résolus",
+          "help": "Reconnaître qu’un blocage antérieur a été résolu."
+        },
+        "deadlockSkip": {
+          "label": "Sortie d’interblocage",
+          "help": "Autoriser l’heuristique intégrée de contournement d’interblocage."
+        },
+        "retryExhausted": {
+          "label": "Relances épuisées",
+          "help": "Reconnaître la condition intégrée de relances épuisées."
+        },
+        "continuePing": {
+          "label": "Invites de poursuite",
+          "help": "Traiter les relances de poursuite reconnues sans appel au modèle."
+        }
+      },
+      "llm": {
+        "rejectUncertain": {
+          "label": "Rejeter les réponses incertaines",
+          "help": "Traiter les réponses refusées ou vides comme un niveau indécis."
+        },
+        "minConfidence": {
+          "label": "Confiance minimale déclarée",
+          "help": "Fraction de zéro à un ; zéro désactive ce seuil."
+        },
+        "maxTokens": {
+          "label": "Plafond de sortie de décision",
+          "help": "Plafond de jetons facultatif, raisonnement du modèle compris. Vide utilise le plafond propre au modèle."
+        },
+        "denyIsTerminal": {
+          "label": "Politique de refus du modèle",
+          "help": "« Une fois décidé » met fin aux vrais refus tout en laissant les pannes d’infrastructure remonter."
+        }
+      },
+      "cache": {
+        "enabled": {
+          "label": "Réutiliser les décisions en cache",
+          "help": "Activer la réutilisation des décisions enregistrées."
+        },
+        "ttlMs": {
+          "label": "Durée de vie du cache des décisions",
+          "help": "Millisecondes avant qu’une décision stockée n’expire."
+        },
+        "maxEntries": {
+          "label": "Capacité du cache des décisions",
+          "help": "Nombre maximal de décisions actives en cache."
+        }
+      },
+      "council": {
+        "enabled": {
+          "label": "Activation du conseil",
+          "help": "Automatique utilise les règles de pool et de votants du moteur."
+        },
+        "minRisk": {
+          "label": "Risque minimal du conseil",
+          "help": "Seules les décisions à ce niveau de risque ou au-dessus réunissent le conseil."
+        },
+        "quorum": {
+          "label": "Quorum du conseil",
+          "help": "Part des sièges qui doivent rendre un vote valide. Vide hérite de la valeur par défaut."
+        },
+        "approval": {
+          "label": "Seuil d’approbation du conseil",
+          "help": "Part du poids des votes exprimés que l’option gagnante doit dépasser."
+        },
+        "distinctness": {
+          "label": "Diversité du panel",
+          "help": "Demander des modèles ou fournisseurs distincts pour réduire les décisions corrélées."
+        },
+        "perCallTimeoutMs": {
+          "label": "Délai par siège du conseil",
+          "help": "Millisecondes par siège ; vide hérite du délai de décision."
+        },
+        "maxConcurrency": {
+          "label": "Sièges du conseil simultanés",
+          "help": "Sièges interrogés simultanément, de un à huit."
+        },
+        "deliberationRounds": {
+          "label": "Tours de délibération du conseil",
+          "help": "Vide hérite de la valeur du produit. Le moteur vérifie sa limite prise en charge."
+        },
+        "voterMaxTokens": {
+          "label": "Plafond de sortie des votants",
+          "help": "Plafond de jetons facultatif ; vide utilise le plafond de sortie de chaque modèle."
+        },
+        "judgeMaxTokens": {
+          "label": "Plafond de sortie de l’arbitre",
+          "help": "Plafond de jetons facultatif pour l’arbitre départageant."
+        }
+      },
+      "ledger": {
+        "enabled": {
+          "label": "Enregistrer le registre des décisions",
+          "help": "Conserver les décisions et les résultats observés dans le registre du runtime."
+        },
+        "autoDenyAfterFailures": {
+          "label": "Seuil de refus après échecs",
+          "help": "Échecs consécutifs observés avant un refus déterministe ; zéro désactive la protection."
+        },
+        "maxMemoryEntries": {
+          "label": "Capacité mémoire du registre",
+          "help": "Nombre maximal d’entrées en mémoire et taille de l’amorçage depuis le disque."
+        },
+        "interventionRetryWindowMs": {
+          "label": "Fenêtre de relance des interventions",
+          "help": "Millisecondes pendant lesquelles une intervention répétée marque l’orientation précédente comme échouée."
+        }
+      },
+      "trace": {
+        "enabled": {
+          "label": "Enregistrer la trace de rejeu",
+          "help": "Écrire le niveau, le modèle et les votes de chaque décision dans le fichier de trace."
+        },
+        "content": {
+          "label": "Contenu de la trace de rejeu",
+          "help": "Complet conserve le texte de décision ; expurgé tronque le texte libre ; aucun n’enregistre que les métadonnées."
+        },
+        "path": {
+          "label": "Chemin de la trace de rejeu",
+          "help": "Destination JSONL facultative. Laissez vide pour utiliser l’emplacement par défaut de ce runtime."
+        },
+        "maxOpenRecords": {
+          "label": "Limite d’enregistrements de trace ouverts",
+          "help": "Nombre maximal d’enregistrements de trace indécis simultanés."
+        }
+      },
+      "monitor": {
+        "enabled": {
+          "label": "Activer le moniteur Brain",
+          "help": "Surveiller les signaux d’exécution avec la politique de moniteur configurée."
+        },
+        "policy": {
+          "label": "Réponse du moniteur",
+          "help": "LLM consulte Brain, orienter intervient et observer enregistre des observations sans intervenir."
+        },
+        "signals": {
+          "toolFailureStreak": {
+            "label": "Signal d’échec d’outil",
+            "help": "Surveiller les échecs consécutifs d’un même outil."
+          },
+          "errorStorm": {
+            "label": "Signal de tempête d’erreurs",
+            "help": "Surveiller les erreurs qui s’accumulent dans une fenêtre temporelle glissante."
+          },
+          "agentStall": {
+            "label": "Signal de blocage d’agent",
+            "help": "Surveiller le travail actif qui cesse de progresser."
+          },
+          "fileChurn": {
+            "label": "Signal de remaniement de fichier",
+            "help": "Surveiller les modifications répétées d’un même fichier."
+          }
+        },
+        "toolFailureStreak": {
+          "label": "Échecs d’outil consécutifs",
+          "help": "Nombre d’échecs avant l’intervention du moniteur."
+        },
+        "errorStormCount": {
+          "label": "Seuil de tempête d’erreurs",
+          "help": "Erreurs dans la fenêtre configurée avant l’intervention."
+        },
+        "errorStormWindowMs": {
+          "label": "Fenêtre de tempête d’erreurs",
+          "help": "Fenêtre glissante en millisecondes."
+        },
+        "stallMs": {
+          "label": "Délai de blocage",
+          "help": "Millisecondes sans progrès ; zéro désactive le seuil de blocage."
+        },
+        "stallCheckIntervalMs": {
+          "label": "Intervalle de vérification du blocage",
+          "help": "Millisecondes entre deux vérifications du chien de garde."
+        },
+        "fileChurnThreshold": {
+          "label": "Seuil de remaniement de fichier",
+          "help": "Modifications du même fichier avant l’intervention."
+        },
+        "fileChurnWindowMs": {
+          "label": "Fenêtre de remaniement de fichier",
+          "help": "Fenêtre glissante de comptage des modifications en millisecondes."
+        },
+        "cooldownMs": {
+          "label": "Délai de récupération des signaux du moniteur",
+          "help": "Millisecondes entre deux interventions pour le même signal."
+        },
+        "fileEditTools": {
+          "label": "Noms des outils de modification de fichiers",
+          "help": "Un nom d’outil par ligne. Ceci remplace la liste de correspondance ; une liste vide désactive la détection des modifications de fichiers."
+        }
+      }
+    },
+    "rules": {
+      "title": "Règles déterministes",
+      "count": "{{n}} configurées",
+      "help": "Évaluées avant tout appel au fournisseur ; la première correspondance l’emporte. Modifiez-les dans le fichier de configuration global ; cette vue est en lecture seule.",
+      "rule": "règle {{n}}",
+      "noAction": "aucune action",
+      "off": "désactivée",
+      "droppedOne": "{{n}} règle écartée",
+      "droppedMany": "{{n}} règles écartées"
+    }
   }
 }
