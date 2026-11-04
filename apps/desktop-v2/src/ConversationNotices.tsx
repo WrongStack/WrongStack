@@ -1,6 +1,9 @@
 import { AlertTriangle, Info, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ConversationNotice } from './conversation-notices';
+
+/** How long a passing notice stays before it closes by itself. */
+const TRANSIENT_NOTICE_MS = 8000;
 
 /** Engine reports about this conversation, shown above the composer until dismissed. */
 export function ConversationNotices({
@@ -13,6 +16,20 @@ export function ConversationNotices({
 }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
+  // A passing notice closes by itself, as a WebUI toast does.
+  useEffect(() => {
+    const timers = notices
+      .filter((notice) => notice.transient && !dismissed.includes(notice.id))
+      .map((notice) =>
+        window.setTimeout(
+          () => setDismissed((ids) => (ids.includes(notice.id) ? ids : [...ids, notice.id])),
+          Math.max(0, notice.at + TRANSIENT_NOTICE_MS - Date.now()),
+        ),
+      );
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [notices, dismissed]);
   const shown = notices.filter((notice) => !dismissed.includes(notice.id));
   if (!shown.length) return null;
   return (

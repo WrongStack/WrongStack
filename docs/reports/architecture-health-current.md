@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-03T23:26:37.280Z
+**Generated:** 2026-11-04T07:35:39.374Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,14 +9,14 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 5975 |
-| Production source lines | 1244062 |
-| Test files | 4954 |
+| Production source lines | 1244195 |
+| Test files | 4955 |
 | Workspace dependency edges | 240 |
 | Relative module edges | 17340 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 218 |
+| Tests without TypeScript test-project coverage | 219 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -40,7 +40,7 @@
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 697 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 414 | 218 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 414 | 219 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -151,7 +151,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 218 test files are not included in a package TypeScript test project.
+- 219 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:26:37.280Z",
+  "generatedAt": "2026-11-04T07:35:39.374Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5975,
-    "testFiles": 4954,
-    "sourceLines": 1244062,
+    "testFiles": 4955,
+    "sourceLines": 1244195,
     "workspaceEdges": 240,
     "moduleEdges": 17340,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 218,
+    "testsWithoutTypecheck": 219,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1042
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 414,
-      "testFiles": 218,
+      "testFiles": 219,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2373,6 +2373,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/run-event-notices.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32275,6 +32281,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/roster-runtime-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/run-event-notices.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

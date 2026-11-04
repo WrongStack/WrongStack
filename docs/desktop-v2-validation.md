@@ -6888,3 +6888,16 @@ copies, starting with SAGE memory.
 - Checks: tested in jsdom with a stand-in delete (confirmation, keep, owner hides delete, resume
   unchanged, empty cleanup); no recorded session was deleted for verification. Desktop tests
   pass; typecheck clean.
+
+### Run events announced in the conversation (2026-11-04)
+
+- A message-type comparison found engine events the WebUI announces that the desktop ignored.
+  They now become conversation notices with the WebUI's wording: a provider stream warning,
+  background delegation results ready, an auto-wake turn and an auto-wake held by the chain cap
+  (lasting, as the WebUI's system lines are), and a model switch, a written checkpoint, a cost
+  that cannot be estimated (once per conversation), a persisted approval, and an MCP server that
+  dropped for good or came back (a dropped server stays until dismissed).
+- What the WebUI shows as a toast is a passing notice here: it appears only when it happens live,
+  never when a journal is replayed, and closes by itself after eight seconds.
+- Checks: wording, quiet cases, once-per-conversation, replay vs live and the self-closing notice
+  are tested (jsdom for the notice list); desktop tests pass; typecheck clean.

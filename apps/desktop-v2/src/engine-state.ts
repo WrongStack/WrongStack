@@ -364,7 +364,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   // The fallback chain moved the conversation to another model, or back to its primary: show
   // the model that actually serves the next request.
   const notice = conversationNotice(event.type, p, `${event.type}:${state.noticeCount}`);
-  if (notice) {
+  // A passing notice belongs to the moment it happened; a replayed journal does not show it.
+  if (notice && !(notice.transient && !state.synced)) {
     next.notices = appendNotice(state.notices, notice);
     next.noticeCount = state.noticeCount + 1;
   }
