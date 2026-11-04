@@ -114,7 +114,8 @@
     "shared": "Project knowledge and settings have their own workspace.",
     "projectWorkspace": "Project workspace",
     "projectHint": "Memory · Kanban · Code Atlas",
-    "settings": "WrongStack settings"
+    "settings": "WrongStack settings",
+    "openingProject": "Opening project tools…"
   },
   "settings": {
     "back": "Back to conversation",
@@ -6385,5 +6386,146 @@
     "confirm": "Confirm MCP cancellation request",
     "otherSession": "Task action acknowledgement belongs to another session.",
     "acknowledged": "The engine acknowledged the task request."
+  },
+  "composerQueue": {
+    "one": "1 queued prompt",
+    "many": "{{number}} queued prompts",
+    "note": "Engine-owned · runs after this turn",
+    "pending": "Pending prompts",
+    "clear": "Clear queue",
+    "references": "Project file references",
+    "referencedFiles": "{{number}} referenced files",
+    "attachments": "{{number}} attachments",
+    "copyTitle": "Copy queued text into the composer; the original stays queued",
+    "copyTextOnly": "Copy text only",
+    "copyToDraft": "Copy to draft",
+    "remove": "Remove queued prompt {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "Pasted text looks like code.",
+    "looksLikeLanguage": "Pasted text looks like {{language}} code.",
+    "wrap": "Wrap in code block",
+    "wrapped": "Wrapped the pasted text in a code block.",
+    "undo": "Undo wrap",
+    "dismiss": "Dismiss paste hint"
+  },
+  "agentMode": {
+    "title": "The agent mode for this conversation.",
+    "label": "Agent mode",
+    "default": "Default mode"
+  },
+  "contextLive": {
+    "label": "Reported context use",
+    "notReported": "Not reported",
+    "latest": "Latest request",
+    "fromCache": "From cache",
+    "cacheDetail": "{{read}} read, {{written}} written",
+    "tokensOne": "Prompt / completion tokens over 1 response",
+    "tokensMany": "Prompt / completion tokens over {{number}} responses",
+    "meter": "Context window used by the latest request",
+    "limit": "The provider accepts {{max}} tokens, less than the {{configured}} configured for this model.",
+    "compaction": "Last compaction: {{before}} → {{after}} message tokens, saved {{saved}}."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Injected",
+      "empty": "Nothing injected",
+      "error": "Injector error"
+    },
+    "label": "Memory in context",
+    "carriedOne": "The latest request carried 1 SAGE memory · {{entered}} entered · {{left}} left ({{at}}).",
+    "carriedMany": "The latest request carried {{number}} SAGE memories · {{entered}} entered · {{left}} left ({{at}}).",
+    "notYet": "The engine has not reported the memory context of a request yet.",
+    "noRuns": "The engine has reported no memory injector runs for this conversation.",
+    "runs": "Memory injector runs",
+    "oneMemory": "1 memory",
+    "memories": "{{number}} memories",
+    "turn": "turn",
+    "counts": "{{candidates}} candidates · {{eligible}} eligible",
+    "scoreBar": "score bar {{score}}",
+    "chars": "{{number}} characters added",
+    "rejected": "Rejected: {{list}}",
+    "injectedList": "Injected memories",
+    "score": "score {{score}}"
+  },
+  "agentTabs": {
+    "label": "Conversation and its agents",
+    "conversation": "Conversation",
+    "transcript": "{{name}} transcript",
+    "readOnly": "Read only: what you send goes to the conversation's leader.",
+    "tool": "Tool",
+    "running": "Running…",
+    "failed": "Failed",
+    "completed": "Completed",
+    "thinking": "Thinking",
+    "status": {
+      "running": "running",
+      "completed": "completed",
+      "failed": "failed",
+      "timeout": "timeout",
+      "stopped": "stopped",
+      "cancelled": "cancelled"
+    }
+  },
+  "shortcutsView": {
+    "title": "Keyboard shortcuts",
+    "close": "Close keyboard shortcuts",
+    "group": {
+      "desktop": "Desktop",
+      "conversation": "Conversation",
+      "views": "Views"
+    },
+    "item": {
+      "find": "Find a project or conversation",
+      "newSession": "Start a new session",
+      "switchTab": "Switch to an open conversation tab",
+      "help": "Show these shortcuts (also F1)",
+      "closeDialog": "Close a dialog",
+      "focus": "Focus the composer",
+      "send": "Send",
+      "newLine": "New line",
+      "recall": "Recall earlier prompts",
+      "commands": "Desktop commands (type /help for all)",
+      "mention": "Mention a file or a skill",
+      "stop": "Stop the running turn (in the composer)"
+    }
+  },
+  "modelCompare": {
+    "back": "Back to models",
+    "label": "Model comparison",
+    "fact": "Fact",
+    "best": "best",
+    "choose": "Choose",
+    "use": "Use {{name}}",
+    "note": "Catalog facts as reported by the engine. Unknown values are not estimated; the highlighted value is the largest limit or lowest price among known values.",
+    "row": {
+      "context": "Context",
+      "output": "Output",
+      "inputPrice": "Input / 1M",
+      "outputPrice": "Output / 1M",
+      "status": "Status"
+    },
+    "cap": {
+      "tools": "Tools",
+      "reasoning": "Reasoning",
+      "vision": "Images",
+      "openWeights": "Open weights"
+    },
+    "unknown": "Unknown",
+    "yes": "Yes",
+    "notReported": "Not reported"
+  },
+  "refineCompare": {
+    "tooLong": "These texts are too long to compare word by word. Review the full version instead.",
+    "label": "Changes from your original draft",
+    "oneWord": "1 word added · {{removed}} removed",
+    "words": "{{added}} words added · {{removed}} removed",
+    "none": "No changes from your original draft."
+  },
+  "terminalPane": {
+    "label": "Session terminal"
+  },
+  "pdfFrame": {
+    "invalid": "These bytes are not a PDF document."
   }
 }

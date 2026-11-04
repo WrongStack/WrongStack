@@ -8086,3 +8086,20 @@ copies, starting with SAGE memory.
 - Checks: new `session-panels-i18n.test.ts` renders plan templates while a turn runs, a model
   ranked chain suggestion, and an MCP task waiting for input in English and Turkish; desktop
   tests pass (PASSED); typecheck clean.
+
+### Conversation parts in the display language (2026-11-04)
+
+- The remaining conversation pieces follow the display language in all seven languages: the
+  engine prompt queue (`composerQueue`), the paste-as-code hint (`pasteHint`), the agent mode
+  select (`agentMode`), the reported context figures (`contextLive`), the memory injector runs
+  (`memoryInjections`), the agent transcript tabs and their tool steps (`agentTabs`), the
+  keyboard shortcuts dialog (`shortcutsView`), the model comparison table (`modelCompare`), the
+  refined draft word diff (`refineCompare`), and the terminal, PDF and project tools states.
+- `shortcutGroups` gives each group and fixed shortcut an id for its translated text;
+  `comparisonRows` takes a `ComparisonWords` object with English as the default.
+- Still English by design: queued prompt text, agent and mode names, memory text and gates,
+  model names and catalog values, and the function key rows of the shortcuts dialog, which
+  use the desktop command descriptions (worded with the commands).
+- Checks: new `conversation-parts-i18n.test.ts` renders the queue, context figures, memory
+  panel, shortcuts dialog and draft diff in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.

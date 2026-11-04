@@ -114,7 +114,8 @@
     "shared": "O conhecimento e as configurações do projeto têm seu próprio espaço de trabalho.",
     "projectWorkspace": "Espaço de trabalho do projeto",
     "projectHint": "Memória · Kanban · Code Atlas",
-    "settings": "Configurações do WrongStack"
+    "settings": "Configurações do WrongStack",
+    "openingProject": "Abrindo as ferramentas do projeto…"
   },
   "settings": {
     "back": "Voltar à conversa",
@@ -6385,5 +6386,146 @@
     "confirm": "Confirmar a solicitação de cancelamento MCP",
     "otherSession": "A confirmação da ação pertence a outra sessão.",
     "acknowledged": "O motor confirmou a solicitação da tarefa."
+  },
+  "composerQueue": {
+    "one": "1 prompt na fila",
+    "many": "{{number}} prompts na fila",
+    "note": "Gerida pelo motor · roda após este turno",
+    "pending": "Prompts pendentes",
+    "clear": "Limpar a fila",
+    "references": "Referências a arquivos do projeto",
+    "referencedFiles": "{{number}} arquivos referenciados",
+    "attachments": "{{number}} anexos",
+    "copyTitle": "Copiar o texto da fila para a caixa de mensagem; o original continua na fila",
+    "copyTextOnly": "Copiar só o texto",
+    "copyToDraft": "Copiar para o rascunho",
+    "remove": "Remover o prompt da fila {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "O texto colado parece código.",
+    "looksLikeLanguage": "O texto colado parece código {{language}}.",
+    "wrap": "Envolver em um bloco de código",
+    "wrapped": "O texto colado foi envolvido em um bloco de código.",
+    "undo": "Desfazer",
+    "dismiss": "Fechar a dica de colagem"
+  },
+  "agentMode": {
+    "title": "O modo de agente desta conversa.",
+    "label": "Modo de agente",
+    "default": "Modo padrão"
+  },
+  "contextLive": {
+    "label": "Uso de contexto informado",
+    "notReported": "Não informado",
+    "latest": "Última solicitação",
+    "fromCache": "Do cache",
+    "cacheDetail": "{{read}} lidos, {{written}} gravados",
+    "tokensOne": "Tokens de prompt / resposta em 1 resposta",
+    "tokensMany": "Tokens de prompt / resposta em {{number}} respostas",
+    "meter": "Janela de contexto usada pela última solicitação",
+    "limit": "O provedor aceita {{max}} tokens, menos que os {{configured}} configurados para este modelo.",
+    "compaction": "Última compactação: {{before}} → {{after}} tokens de mensagens, {{saved}} economizados."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Injetada",
+      "empty": "Nada injetado",
+      "error": "Erro do injetor"
+    },
+    "label": "Memória no contexto",
+    "carriedOne": "A última solicitação levou 1 memória SAGE · {{entered}} entraram · {{left}} saíram ({{at}}).",
+    "carriedMany": "A última solicitação levou {{number}} memórias SAGE · {{entered}} entraram · {{left}} saíram ({{at}}).",
+    "notYet": "O motor ainda não informou o contexto de memória de uma solicitação.",
+    "noRuns": "O motor não informou execuções do injetor de memória para esta conversa.",
+    "runs": "Execuções do injetor de memória",
+    "oneMemory": "1 memória",
+    "memories": "{{number}} memórias",
+    "turn": "turno",
+    "counts": "{{candidates}} candidatos · {{eligible}} elegíveis",
+    "scoreBar": "limite de pontuação {{score}}",
+    "chars": "{{number}} caracteres adicionados",
+    "rejected": "Rejeitadas: {{list}}",
+    "injectedList": "Memórias injetadas",
+    "score": "pontuação {{score}}"
+  },
+  "agentTabs": {
+    "label": "A conversa e seus agentes",
+    "conversation": "Conversa",
+    "transcript": "Transcrição de {{name}}",
+    "readOnly": "Somente leitura: o que você envia vai para o líder da conversa.",
+    "tool": "Ferramenta",
+    "running": "Executando…",
+    "failed": "Falhou",
+    "completed": "Concluído",
+    "thinking": "Raciocínio",
+    "status": {
+      "running": "executando",
+      "completed": "concluído",
+      "failed": "falhou",
+      "timeout": "tempo esgotado",
+      "stopped": "parado",
+      "cancelled": "cancelado"
+    }
+  },
+  "shortcutsView": {
+    "title": "Atalhos de teclado",
+    "close": "Fechar os atalhos de teclado",
+    "group": {
+      "desktop": "Desktop",
+      "conversation": "Conversa",
+      "views": "Visualizações"
+    },
+    "item": {
+      "find": "Encontrar um projeto ou uma conversa",
+      "newSession": "Iniciar uma nova sessão",
+      "switchTab": "Mudar para uma aba de conversa aberta",
+      "help": "Mostrar estes atalhos (também F1)",
+      "closeDialog": "Fechar uma caixa de diálogo",
+      "focus": "Focar a caixa de mensagem",
+      "send": "Enviar",
+      "newLine": "Nova linha",
+      "recall": "Recuperar prompts anteriores",
+      "commands": "Comandos do desktop (digite /help para todos)",
+      "mention": "Mencionar um arquivo ou uma skill",
+      "stop": "Parar o turno em andamento (na caixa de mensagem)"
+    }
+  },
+  "modelCompare": {
+    "back": "Voltar aos modelos",
+    "label": "Comparação de modelos",
+    "fact": "Dado",
+    "best": "melhor",
+    "choose": "Escolher",
+    "use": "Usar {{name}}",
+    "note": "Dados do catálogo conforme informados pelo motor. Valores desconhecidos não são estimados; o valor destacado é o maior limite ou o menor preço entre os conhecidos.",
+    "row": {
+      "context": "Contexto",
+      "output": "Saída",
+      "inputPrice": "Entrada / 1M",
+      "outputPrice": "Saída / 1M",
+      "status": "Status"
+    },
+    "cap": {
+      "tools": "Ferramentas",
+      "reasoning": "Raciocínio",
+      "vision": "Imagens",
+      "openWeights": "Pesos abertos"
+    },
+    "unknown": "Desconhecido",
+    "yes": "Sim",
+    "notReported": "Não informado"
+  },
+  "refineCompare": {
+    "tooLong": "Estes textos são longos demais para comparar palavra por palavra. Revise a versão completa.",
+    "label": "Mudanças em relação ao seu rascunho original",
+    "oneWord": "1 palavra adicionada · {{removed}} removidas",
+    "words": "{{added}} palavras adicionadas · {{removed}} removidas",
+    "none": "Nenhuma mudança em relação ao seu rascunho original."
+  },
+  "terminalPane": {
+    "label": "Terminal da sessão"
+  },
+  "pdfFrame": {
+    "invalid": "Estes bytes não são um documento PDF."
   }
 }

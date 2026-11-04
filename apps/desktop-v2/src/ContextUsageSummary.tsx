@@ -1,27 +1,32 @@
 import { type ContextUsage, cacheHitPercent, contextPercent, contextZone } from './context-usage';
+import { useDesktopText } from './desktop-i18n';
 import './session-status.css';
 
 /** The live figures the engine reported, shown above the estimated section breakdown. */
 export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
+  const { t } = useDesktopText();
   const percent = contextPercent(usage);
   const hit = cacheHitPercent(usage);
   const zone = contextZone(percent);
   return (
-    <section className="context-live" aria-label="Reported context use">
+    <section className="context-live" aria-label={t('contextLive.label')}>
       <div className="context-summary">
         <div>
           <strong className={`context-${zone}`}>
-            {usage.tokens ? usage.tokens.toLocaleString() : 'Not reported'}
+            {usage.tokens ? usage.tokens.toLocaleString() : t('contextLive.notReported')}
             {percent !== null ? ` (${percent}%)` : ''}
           </strong>
-          <span>Latest request</span>
+          <span>{t('contextLive.latest')}</span>
         </div>
         <div>
-          <strong>{hit !== null ? `${hit}%` : 'Not reported'}</strong>
+          <strong>{hit !== null ? `${hit}%` : t('contextLive.notReported')}</strong>
           <span>
-            From cache
+            {t('contextLive.fromCache')}
             {hit !== null
-              ? ` · ${usage.cacheRead.toLocaleString()} read, ${usage.cacheWrite.toLocaleString()} written`
+              ? ` · ${t('contextLive.cacheDetail', {
+                  read: usage.cacheRead.toLocaleString(),
+                  written: usage.cacheWrite.toLocaleString(),
+                })}`
               : ''}
           </span>
         </div>
@@ -35,8 +40,9 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
             / {usage.totals.output.toLocaleString()}
           </strong>
           <span>
-            Prompt / completion tokens over {usage.responses}{' '}
-            {usage.responses === 1 ? 'response' : 'responses'}
+            {usage.responses === 1
+              ? t('contextLive.tokensOne')
+              : t('contextLive.tokensMany', { number: usage.responses })}
           </span>
         </div>
       </div>
@@ -49,20 +55,24 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
           high={85}
           optimum={0}
           value={percent}
-          aria-label="Context window used by the latest request"
+          aria-label={t('contextLive.meter')}
         />
       )}
       {usage.decreasedFrom > 0 && (
         <p role="status">
-          The provider accepts {usage.max.toLocaleString()} tokens, less than the{' '}
-          {usage.decreasedFrom.toLocaleString()} configured for this model.
+          {t('contextLive.limit', {
+            max: usage.max.toLocaleString(),
+            configured: usage.decreasedFrom.toLocaleString(),
+          })}
         </p>
       )}
       {usage.compaction && (
         <p>
-          Last compaction: {usage.compaction.before.toLocaleString()} →{' '}
-          {usage.compaction.after.toLocaleString()} message tokens, saved{' '}
-          {usage.compaction.saved.toLocaleString()}.
+          {t('contextLive.compaction', {
+            before: usage.compaction.before.toLocaleString(),
+            after: usage.compaction.after.toLocaleString(),
+            saved: usage.compaction.saved.toLocaleString(),
+          })}
         </p>
       )}
     </section>

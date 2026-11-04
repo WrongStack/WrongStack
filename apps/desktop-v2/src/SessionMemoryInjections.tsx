@@ -1,12 +1,7 @@
 import { Brain } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import type { MemoryContext, MemoryInjectorRun } from './memory-injections';
 import { recoveryDate } from './session-recovery-model';
-
-const OUTCOME: Record<MemoryInjectorRun['outcome'], string> = {
-  injected: 'Injected',
-  empty: 'Nothing injected',
-  error: 'Injector error',
-};
 
 /**
  * What SAGE put into this conversation's model context, as the engine reported it: the
@@ -20,25 +15,34 @@ export function SessionMemoryInjections({
   runs: MemoryInjectorRun[];
   context: MemoryContext | null;
 }) {
+  const { t } = useDesktopText();
+  const memories = (count: number) =>
+    count === 1
+      ? t('memoryInjections.oneMemory')
+      : t('memoryInjections.memories', { number: count });
   return (
-    <section className="memory-injections" aria-label="Memory in context">
+    <section className="memory-injections" aria-label={t('memoryInjections.label')}>
       <header>
         <Brain size={14} />
-        <strong>Memory in context</strong>
+        <strong>{t('memoryInjections.label')}</strong>
       </header>
       <p className="settings-defaults-note">
         {context
-          ? `The latest request carried ${context.active.length} SAGE ${
-              context.active.length === 1 ? 'memory' : 'memories'
-            } · ${context.entered.length} entered · ${context.exited.length} left (${recoveryDate(context.at)}).`
-          : 'The engine has not reported the memory context of a request yet.'}
+          ? t(
+              context.active.length === 1
+                ? 'memoryInjections.carriedOne'
+                : 'memoryInjections.carriedMany',
+              {
+                number: context.active.length,
+                entered: context.entered.length,
+                left: context.exited.length,
+                at: recoveryDate(context.at),
+              },
+            )
+          : t('memoryInjections.notYet')}
       </p>
-      {!runs.length && (
-        <p className="quiet-state">
-          The engine has reported no memory injector runs for this conversation.
-        </p>
-      )}
-      <ol aria-label="Memory injector runs">
+      {!runs.length && <p className="quiet-state">{t('memoryInjections.noRuns')}</p>}
+      <ol aria-label={t('memoryInjections.runs')}>
         {runs
           .slice()
           .reverse()
@@ -46,21 +50,30 @@ export function SessionMemoryInjections({
             <li key={run.runId}>
               <details>
                 <summary>
-                  <strong>{OUTCOME[run.outcome]}</strong>
-                  {run.outcome === 'injected' &&
-                    ` · ${run.injected.length} ${run.injected.length === 1 ? 'memory' : 'memories'}`}
+                  <strong>{t(`memoryInjections.outcome.${run.outcome}`)}</strong>
+                  {run.outcome === 'injected' && ` · ${memories(run.injected.length)}`}
                   {' · '}
-                  {run.toolName || run.trigger || 'turn'} · {recoveryDate(run.at)}
+                  {run.toolName || run.trigger || t('memoryInjections.turn')} ·{' '}
+                  {recoveryDate(run.at)}
                 </summary>
                 {run.queryPreview && <p className="memory-injection-query">{run.queryPreview}</p>}
                 <p>
-                  {run.candidates} candidates · {run.eligible} eligible
-                  {run.minScore === null ? '' : ` · score bar ${run.minScore}`}
-                  {run.injectedChars ? ` · ${run.injectedChars} characters added` : ''}
+                  {t('memoryInjections.counts', {
+                    candidates: run.candidates,
+                    eligible: run.eligible,
+                  })}
+                  {run.minScore === null
+                    ? ''
+                    : ` · ${t('memoryInjections.scoreBar', { score: run.minScore })}`}
+                  {run.injectedChars
+                    ? ` · ${t('memoryInjections.chars', { number: run.injectedChars })}`
+                    : ''}
                 </p>
                 {run.rejected.length > 0 && (
                   <p>
-                    Rejected: {run.rejected.map((item) => `${item.gate} ${item.count}`).join(' · ')}
+                    {t('memoryInjections.rejected', {
+                      list: run.rejected.map((item) => `${item.gate} ${item.count}`).join(' · '),
+                    })}
                   </p>
                 )}
                 {run.error && (
@@ -69,12 +82,14 @@ export function SessionMemoryInjections({
                   </p>
                 )}
                 {run.injected.length > 0 && (
-                  <ul aria-label="Injected memories">
+                  <ul aria-label={t('memoryInjections.injectedList')}>
                     {run.injected.map((memory) => (
                       <li key={memory.id}>
                         <small>
                           {memory.kind}
-                          {memory.score === null ? '' : ` · score ${memory.score.toFixed(2)}`}
+                          {memory.score === null
+                            ? ''
+                            : ` · ${t('memoryInjections.score', { score: memory.score.toFixed(2) })}`}
                         </small>
                         <span>{memory.text}</span>
                       </li>

@@ -114,7 +114,8 @@
     "shared": "Les connaissances et les paramètres du projet ont leur propre espace de travail.",
     "projectWorkspace": "Espace de travail du projet",
     "projectHint": "Mémoire · Kanban · Code Atlas",
-    "settings": "Paramètres WrongStack"
+    "settings": "Paramètres WrongStack",
+    "openingProject": "Ouverture des outils du projet…"
   },
   "settings": {
     "back": "Retour à la conversation",
@@ -6385,5 +6386,146 @@
     "confirm": "Confirmer la demande d’annulation MCP",
     "otherSession": "L’accusé de réception de l’action appartient à une autre session.",
     "acknowledged": "Le moteur a accusé réception de la demande."
+  },
+  "composerQueue": {
+    "one": "1 prompt en file d’attente",
+    "many": "{{number}} prompts en file d’attente",
+    "note": "Gérée par le moteur · s’exécute après ce tour",
+    "pending": "Prompts en attente",
+    "clear": "Vider la file",
+    "references": "Références de fichiers du projet",
+    "referencedFiles": "{{number}} fichiers référencés",
+    "attachments": "{{number}} pièces jointes",
+    "copyTitle": "Copier le texte en attente dans la zone de saisie ; l’original reste dans la file",
+    "copyTextOnly": "Copier le texte seulement",
+    "copyToDraft": "Copier dans le brouillon",
+    "remove": "Retirer le prompt en attente {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "Le texte collé ressemble à du code.",
+    "looksLikeLanguage": "Le texte collé ressemble à du code {{language}}.",
+    "wrap": "Mettre dans un bloc de code",
+    "wrapped": "Le texte collé a été mis dans un bloc de code.",
+    "undo": "Annuler",
+    "dismiss": "Fermer l’astuce de collage"
+  },
+  "agentMode": {
+    "title": "Le mode d’agent de cette conversation.",
+    "label": "Mode d’agent",
+    "default": "Mode par défaut"
+  },
+  "contextLive": {
+    "label": "Utilisation du contexte signalée",
+    "notReported": "Non signalé",
+    "latest": "Dernière requête",
+    "fromCache": "Depuis le cache",
+    "cacheDetail": "{{read}} lus, {{written}} écrits",
+    "tokensOne": "Tokens de prompt / complétion sur 1 réponse",
+    "tokensMany": "Tokens de prompt / complétion sur {{number}} réponses",
+    "meter": "Fenêtre de contexte utilisée par la dernière requête",
+    "limit": "Le fournisseur accepte {{max}} tokens, moins que les {{configured}} configurés pour ce modèle.",
+    "compaction": "Dernier compactage : {{before}} → {{after}} tokens de messages, {{saved}} économisés."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Injectée",
+      "empty": "Rien d’injecté",
+      "error": "Erreur de l’injecteur"
+    },
+    "label": "Mémoire dans le contexte",
+    "carriedOne": "La dernière requête portait 1 mémoire SAGE · {{entered}} entrées · {{left}} sorties ({{at}}).",
+    "carriedMany": "La dernière requête portait {{number}} mémoires SAGE · {{entered}} entrées · {{left}} sorties ({{at}}).",
+    "notYet": "Le moteur n’a pas encore signalé le contexte mémoire d’une requête.",
+    "noRuns": "Le moteur n’a signalé aucune exécution de l’injecteur de mémoire pour cette conversation.",
+    "runs": "Exécutions de l’injecteur de mémoire",
+    "oneMemory": "1 mémoire",
+    "memories": "{{number}} mémoires",
+    "turn": "tour",
+    "counts": "{{candidates}} candidats · {{eligible}} éligibles",
+    "scoreBar": "seuil de score {{score}}",
+    "chars": "{{number}} caractères ajoutés",
+    "rejected": "Rejetées : {{list}}",
+    "injectedList": "Mémoires injectées",
+    "score": "score {{score}}"
+  },
+  "agentTabs": {
+    "label": "La conversation et ses agents",
+    "conversation": "Conversation",
+    "transcript": "Transcription de {{name}}",
+    "readOnly": "Lecture seule : ce que tu envoies va au meneur de la conversation.",
+    "tool": "Outil",
+    "running": "En cours…",
+    "failed": "Échec",
+    "completed": "Terminé",
+    "thinking": "Réflexion",
+    "status": {
+      "running": "en cours",
+      "completed": "terminé",
+      "failed": "échec",
+      "timeout": "délai dépassé",
+      "stopped": "arrêté",
+      "cancelled": "annulé"
+    }
+  },
+  "shortcutsView": {
+    "title": "Raccourcis clavier",
+    "close": "Fermer les raccourcis clavier",
+    "group": {
+      "desktop": "Bureau",
+      "conversation": "Conversation",
+      "views": "Vues"
+    },
+    "item": {
+      "find": "Trouver un projet ou une conversation",
+      "newSession": "Démarrer une nouvelle session",
+      "switchTab": "Passer à un onglet de conversation ouvert",
+      "help": "Afficher ces raccourcis (aussi F1)",
+      "closeDialog": "Fermer une boîte de dialogue",
+      "focus": "Placer le focus sur la zone de saisie",
+      "send": "Envoyer",
+      "newLine": "Nouvelle ligne",
+      "recall": "Rappeler les prompts précédents",
+      "commands": "Commandes du bureau (tape /help pour toutes)",
+      "mention": "Mentionner un fichier ou une compétence",
+      "stop": "Arrêter le tour en cours (dans la zone de saisie)"
+    }
+  },
+  "modelCompare": {
+    "back": "Retour aux modèles",
+    "label": "Comparaison des modèles",
+    "fact": "Donnée",
+    "best": "meilleur",
+    "choose": "Choisir",
+    "use": "Utiliser {{name}}",
+    "note": "Données du catalogue telles que signalées par le moteur. Les valeurs inconnues ne sont pas estimées ; la valeur mise en avant est la plus grande limite ou le prix le plus bas parmi les valeurs connues.",
+    "row": {
+      "context": "Contexte",
+      "output": "Sortie",
+      "inputPrice": "Entrée / 1M",
+      "outputPrice": "Sortie / 1M",
+      "status": "Statut"
+    },
+    "cap": {
+      "tools": "Outils",
+      "reasoning": "Raisonnement",
+      "vision": "Images",
+      "openWeights": "Poids ouverts"
+    },
+    "unknown": "Inconnu",
+    "yes": "Oui",
+    "notReported": "Non signalé"
+  },
+  "refineCompare": {
+    "tooLong": "Ces textes sont trop longs pour être comparés mot à mot. Examine plutôt la version complète.",
+    "label": "Modifications par rapport à ton brouillon d’origine",
+    "oneWord": "1 mot ajouté · {{removed}} supprimés",
+    "words": "{{added}} mots ajoutés · {{removed}} supprimés",
+    "none": "Aucune modification par rapport à ton brouillon d’origine."
+  },
+  "terminalPane": {
+    "label": "Terminal de la session"
+  },
+  "pdfFrame": {
+    "invalid": "Ces octets ne forment pas un document PDF."
   }
 }

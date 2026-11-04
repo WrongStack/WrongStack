@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { wordDiff } from './word-diff';
 
 /** Inline word-level changes from the original draft to the version under review. */
 export function RefinementComparison({ original, text }: { original: string; text: string }) {
+  const { t } = useDesktopText();
   const parts = useMemo(() => wordDiff(original, text), [original, text]);
   if (!parts)
     return (
       <p className="field-help" role="status">
-        These texts are too long to compare word by word. Review the full version instead.
+        {t('refineCompare.tooLong')}
       </p>
     );
   const count = (kind: 'add' | 'remove') =>
@@ -17,11 +19,13 @@ export function RefinementComparison({ original, text }: { original: string; tex
   const added = count('add'),
     removed = count('remove');
   return (
-    <section className="refine-comparison" aria-label="Changes from your original draft">
+    <section className="refine-comparison" aria-label={t('refineCompare.label')}>
       <p className="field-help">
         {added || removed
-          ? `${added} ${added === 1 ? 'word' : 'words'} added · ${removed} removed`
-          : 'No changes from your original draft.'}
+          ? added === 1
+            ? t('refineCompare.oneWord', { removed })
+            : t('refineCompare.words', { added, removed })
+          : t('refineCompare.none')}
       </p>
       <p className="refine-comparison-text">
         {parts.map((part, index) =>

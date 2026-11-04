@@ -1,5 +1,6 @@
 import { Code2, Undo2, X } from 'lucide-react';
 import { type ClipboardEvent, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { fencePaste, insideFence, pastedCode, pastedText } from './paste-code';
 
 type Hint =
@@ -12,6 +13,7 @@ type Hint =
  * still exactly the wrapped result.
  */
 export function usePasteHint(draft: string, replace: (text: string, cursor: number) => void) {
+  const { t } = useDesktopText();
   const [hint, setHint] = useState<Hint | null>(null);
   const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     // A textarea stores pasted line breaks as LF; Windows clipboards supply CRLF.
@@ -29,7 +31,11 @@ export function usePasteHint(draft: string, replace: (text: string, cursor: numb
       <div className="composer-paste-hint" role="status">
         {hint.kind === 'offer' ? (
           <>
-            <span>Pasted text looks like {hint.language ? `${hint.language} ` : ''}code.</span>
+            <span>
+              {hint.language
+                ? t('pasteHint.looksLikeLanguage', { language: hint.language })
+                : t('pasteHint.looksLike')}
+            </span>
             <button
               type="button"
               className="button secondary small"
@@ -45,12 +51,12 @@ export function usePasteHint(draft: string, replace: (text: string, cursor: numb
               }}
             >
               <Code2 size={13} />
-              Wrap in code block
+              {t('pasteHint.wrap')}
             </button>
           </>
         ) : (
           <>
-            <span>Wrapped the pasted text in a code block.</span>
+            <span>{t('pasteHint.wrapped')}</span>
             <button
               type="button"
               className="button secondary small"
@@ -60,14 +66,14 @@ export function usePasteHint(draft: string, replace: (text: string, cursor: numb
               }}
             >
               <Undo2 size={13} />
-              Undo wrap
+              {t('pasteHint.undo')}
             </button>
           </>
         )}
         <button
           type="button"
           className="icon-button"
-          aria-label="Dismiss paste hint"
+          aria-label={t('pasteHint.dismiss')}
           onClick={() => setHint(null)}
         >
           <X size={13} />

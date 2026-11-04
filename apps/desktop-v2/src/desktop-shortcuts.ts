@@ -23,35 +23,45 @@ export function functionKeyTarget(key: string): DesktopNavigation | undefined {
 }
 
 export interface ShortcutGroup {
+  /** Stable id for the group's translated title. */
+  id: 'desktop' | 'conversation' | 'views';
   title: string;
-  shortcuts: ReadonlyArray<{ keys: readonly string[]; description: string }>;
+  /** `id` names the translated description; the views are worded by their command. */
+  shortcuts: ReadonlyArray<{ keys: readonly string[]; description: string; id?: string }>;
 }
 
 export function shortcutGroups(): ShortcutGroup[] {
   return [
     {
+      id: 'desktop',
       title: 'Desktop',
       shortcuts: [
-        { keys: ['Ctrl', 'K'], description: 'Find a project or conversation' },
-        { keys: ['Ctrl', 'N'], description: 'Start a new session' },
-        { keys: ['Alt', '1…9'], description: 'Switch to an open conversation tab' },
-        { keys: ['?'], description: 'Show these shortcuts (also F1)' },
-        { keys: ['Esc'], description: 'Close a dialog' },
+        { id: 'find', keys: ['Ctrl', 'K'], description: 'Find a project or conversation' },
+        { id: 'newSession', keys: ['Ctrl', 'N'], description: 'Start a new session' },
+        {
+          id: 'switchTab',
+          keys: ['Alt', '1…9'],
+          description: 'Switch to an open conversation tab',
+        },
+        { id: 'help', keys: ['?'], description: 'Show these shortcuts (also F1)' },
+        { id: 'closeDialog', keys: ['Esc'], description: 'Close a dialog' },
       ],
     },
     {
+      id: 'conversation',
       title: 'Conversation',
       shortcuts: [
-        { keys: ['Ctrl', '/'], description: 'Focus the composer' },
-        { keys: ['Enter'], description: 'Send' },
-        { keys: ['Shift', 'Enter'], description: 'New line' },
-        { keys: ['↑', '↓'], description: 'Recall earlier prompts' },
-        { keys: ['/'], description: 'Desktop commands (type /help for all)' },
-        { keys: ['@', '$'], description: 'Mention a file or a skill' },
-        { keys: ['Esc'], description: 'Stop the running turn (in the composer)' },
+        { id: 'focus', keys: ['Ctrl', '/'], description: 'Focus the composer' },
+        { id: 'send', keys: ['Enter'], description: 'Send' },
+        { id: 'newLine', keys: ['Shift', 'Enter'], description: 'New line' },
+        { id: 'recall', keys: ['↑', '↓'], description: 'Recall earlier prompts' },
+        { id: 'commands', keys: ['/'], description: 'Desktop commands (type /help for all)' },
+        { id: 'mention', keys: ['@', '$'], description: 'Mention a file or a skill' },
+        { id: 'stop', keys: ['Esc'], description: 'Stop the running turn (in the composer)' },
       ],
     },
     {
+      id: 'views',
       title: 'Views',
       shortcuts: Object.entries(FUNCTION_KEY_COMMANDS).map(([key, name]) => ({
         keys: [key],

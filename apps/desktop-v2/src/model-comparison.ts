@@ -20,6 +20,32 @@ const CAPABILITY_LABELS: Record<string, string> = {
   open_weights: 'Open weights',
 };
 
+/** The words of the comparison rows; the dialog passes the display language's. */
+export interface ComparisonWords {
+  context: string;
+  output: string;
+  inputPrice: string;
+  outputPrice: string;
+  status: string;
+  /** Labels of the catalog capabilities; one not listed shows its id. */
+  capabilities: Record<string, string>;
+  unknown: string;
+  yes: string;
+  notReported: string;
+}
+
+const ENGLISH_WORDS: ComparisonWords = {
+  context: 'Context',
+  output: 'Output',
+  inputPrice: 'Input / 1M',
+  outputPrice: 'Output / 1M',
+  status: 'Status',
+  capabilities: CAPABILITY_LABELS,
+  unknown: 'Unknown',
+  yes: 'Yes',
+  notReported: 'Not reported',
+};
+
 /** Adds or removes a model; adding past the limit is refused rather than dropping another. */
 export function toggleCompared(ids: readonly string[], id: string): string[] {
   if (ids.includes(id)) return ids.filter((item) => item !== id);
@@ -33,6 +59,7 @@ function numericRow(
   values: (number | undefined)[],
   format: (value: number) => string,
   better: 'high' | 'low',
+  unknown: string,
 ): ComparisonRow {
   const known = values.filter((value): value is number => value !== undefined);
   const target =
@@ -44,7 +71,7 @@ function numericRow(
   return {
     label,
     cells: values.map((value) => ({
-      text: value === undefined ? 'Unknown' : format(value),
+      text: value === undefined ? unknown : format(value),
       best: value !== undefined && value === target,
     })),
   };
@@ -55,47 +82,54 @@ function numericRow(
  * a "best" mark needs at least two known, differing values. A price of 0 reads as
  * "$0" because only both prices at 0 mean "no catalog price" for a single model.
  */
-export function comparisonRows(models: readonly PickerModel[]): ComparisonRow[] {
+export function comparisonRows(
+  models: readonly PickerModel[],
+  words: ComparisonWords = ENGLISH_WORDS,
+): ComparisonRow[] {
   const price = (value: number) => `$${value}`;
   const rows = [
     numericRow(
-      'Context',
+      words.context,
       models.map((model) => model.contextWindow),
       compactCount,
       'high',
+      words.unknown,
     ),
     numericRow(
-      'Output',
+      words.output,
       models.map((model) => model.maxOutput),
       compactCount,
       'high',
+      words.unknown,
     ),
     numericRow(
-      'Input / 1M',
+      words.inputPrice,
       models.map((model) => model.inputCost),
       price,
       'low',
+      words.unknown,
     ),
     numericRow(
-      'Output / 1M',
+      words.outputPrice,
       models.map((model) => model.outputCost),
       price,
       'low',
+      words.unknown,
     ),
   ];
   const capabilities = [...new Set(models.flatMap((model) => model.capabilities))];
   for (const capability of capabilities)
     rows.push({
-      label: CAPABILITY_LABELS[capability] ?? capability,
+      label: words.capabilities[capability] ?? capability,
       cells: models.map((model) => ({
-        text: model.capabilities.includes(capability) ? 'Yes' : 'Not reported',
+        text: model.capabilities.includes(capability) ? words.yes : words.notReported,
         best: false,
       })),
     });
   if (models.some((model) => model.status && model.status !== 'active'))
     rows.push({
-      label: 'Status',
-      cells: models.map((model) => ({ text: model.status ?? 'Unknown', best: false })),
+      label: words.status,
+      cells: models.map((model) => ({ text: model.status ?? words.unknown, best: false })),
     });
   return rows;
 }

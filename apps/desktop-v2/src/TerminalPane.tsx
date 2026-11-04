@@ -1,6 +1,7 @@
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { request, streamTerminal } from './platform';
 import '@xterm/xterm/css/xterm.css';
 
@@ -13,6 +14,7 @@ export function TerminalPane({
   writable: boolean;
   onError: (error: unknown) => void;
 }) {
+  const { t } = useDesktopText();
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!container.current) return;
@@ -81,5 +83,7 @@ export function TerminalPane({
       terminal.dispose();
     };
   }, [id, writable, onError]);
-  return <section className="terminal-surface" ref={container} aria-label="Session terminal" />;
+  return (
+    <section className="terminal-surface" ref={container} aria-label={t('terminalPane.label')} />
+  );
 }

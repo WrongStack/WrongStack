@@ -114,7 +114,8 @@
     "shared": "Projektwissen und Einstellungen haben einen eigenen Arbeitsbereich.",
     "projectWorkspace": "Projekt-Arbeitsbereich",
     "projectHint": "Speicher · Kanban · Code Atlas",
-    "settings": "WrongStack-Einstellungen"
+    "settings": "WrongStack-Einstellungen",
+    "openingProject": "Projektwerkzeuge werden geöffnet…"
   },
   "settings": {
     "back": "Zurück zur Unterhaltung",
@@ -6385,5 +6386,146 @@
     "confirm": "MCP-Abbruchanfrage bestätigen",
     "otherSession": "Die Bestätigung der Aufgabenaktion gehört zu einer anderen Sitzung.",
     "acknowledged": "Die Engine hat die Aufgabenanfrage bestätigt."
+  },
+  "composerQueue": {
+    "one": "1 Prompt in der Warteschlange",
+    "many": "{{number}} Prompts in der Warteschlange",
+    "note": "Gehört der Engine · läuft nach diesem Zug",
+    "pending": "Ausstehende Prompts",
+    "clear": "Warteschlange leeren",
+    "references": "Verweise auf Projektdateien",
+    "referencedFiles": "{{number}} referenzierte Dateien",
+    "attachments": "{{number}} Anhänge",
+    "copyTitle": "Text aus der Warteschlange ins Eingabefeld kopieren; das Original bleibt in der Warteschlange",
+    "copyTextOnly": "Nur Text kopieren",
+    "copyToDraft": "In den Entwurf kopieren",
+    "remove": "Prompt aus der Warteschlange entfernen: {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "Der eingefügte Text sieht wie Code aus.",
+    "looksLikeLanguage": "Der eingefügte Text sieht wie {{language}}-Code aus.",
+    "wrap": "In Codeblock einschließen",
+    "wrapped": "Der eingefügte Text wurde in einen Codeblock eingeschlossen.",
+    "undo": "Einschließen rückgängig machen",
+    "dismiss": "Einfügehinweis schließen"
+  },
+  "agentMode": {
+    "title": "Der Agentenmodus dieser Unterhaltung.",
+    "label": "Agentenmodus",
+    "default": "Standardmodus"
+  },
+  "contextLive": {
+    "label": "Gemeldete Kontextnutzung",
+    "notReported": "Nicht gemeldet",
+    "latest": "Letzte Anfrage",
+    "fromCache": "Aus dem Cache",
+    "cacheDetail": "{{read}} gelesen, {{written}} geschrieben",
+    "tokensOne": "Prompt-/Antwort-Tokens über 1 Antwort",
+    "tokensMany": "Prompt-/Antwort-Tokens über {{number}} Antworten",
+    "meter": "Von der letzten Anfrage genutztes Kontextfenster",
+    "limit": "Der Anbieter akzeptiert {{max}} Tokens, weniger als die für dieses Modell eingestellten {{configured}}.",
+    "compaction": "Letzte Verdichtung: {{before}} → {{after}} Nachrichten-Tokens, {{saved}} gespart."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Eingefügt",
+      "empty": "Nichts eingefügt",
+      "error": "Injektorfehler"
+    },
+    "label": "Gedächtnis im Kontext",
+    "carriedOne": "Die letzte Anfrage enthielt 1 SAGE-Erinnerung · {{entered}} neu · {{left}} entfernt ({{at}}).",
+    "carriedMany": "Die letzte Anfrage enthielt {{number}} SAGE-Erinnerungen · {{entered}} neu · {{left}} entfernt ({{at}}).",
+    "notYet": "Die Engine hat den Gedächtniskontext einer Anfrage noch nicht gemeldet.",
+    "noRuns": "Die Engine hat für diese Unterhaltung keine Läufe des Gedächtnisinjektors gemeldet.",
+    "runs": "Läufe des Gedächtnisinjektors",
+    "oneMemory": "1 Erinnerung",
+    "memories": "{{number}} Erinnerungen",
+    "turn": "Zug",
+    "counts": "{{candidates}} Kandidaten · {{eligible}} geeignet",
+    "scoreBar": "Punkteschwelle {{score}}",
+    "chars": "{{number}} Zeichen hinzugefügt",
+    "rejected": "Abgelehnt: {{list}}",
+    "injectedList": "Eingefügte Erinnerungen",
+    "score": "Punktzahl {{score}}"
+  },
+  "agentTabs": {
+    "label": "Unterhaltung und ihre Agenten",
+    "conversation": "Unterhaltung",
+    "transcript": "Verlauf von {{name}}",
+    "readOnly": "Nur lesen: Was du sendest, geht an den Leiter der Unterhaltung.",
+    "tool": "Werkzeug",
+    "running": "Läuft…",
+    "failed": "Fehlgeschlagen",
+    "completed": "Abgeschlossen",
+    "thinking": "Denken",
+    "status": {
+      "running": "läuft",
+      "completed": "abgeschlossen",
+      "failed": "fehlgeschlagen",
+      "timeout": "Zeitüberschreitung",
+      "stopped": "gestoppt",
+      "cancelled": "abgebrochen"
+    }
+  },
+  "shortcutsView": {
+    "title": "Tastenkürzel",
+    "close": "Tastenkürzel schließen",
+    "group": {
+      "desktop": "Desktop",
+      "conversation": "Unterhaltung",
+      "views": "Ansichten"
+    },
+    "item": {
+      "find": "Projekt oder Unterhaltung finden",
+      "newSession": "Neue Sitzung starten",
+      "switchTab": "Zu einem offenen Unterhaltungs-Tab wechseln",
+      "help": "Diese Tastenkürzel anzeigen (auch F1)",
+      "closeDialog": "Dialog schließen",
+      "focus": "Eingabefeld fokussieren",
+      "send": "Senden",
+      "newLine": "Neue Zeile",
+      "recall": "Frühere Prompts abrufen",
+      "commands": "Desktop-Befehle (/help zeigt alle)",
+      "mention": "Eine Datei oder einen Skill erwähnen",
+      "stop": "Laufenden Zug stoppen (im Eingabefeld)"
+    }
+  },
+  "modelCompare": {
+    "back": "Zurück zu den Modellen",
+    "label": "Modellvergleich",
+    "fact": "Angabe",
+    "best": "beste",
+    "choose": "Auswählen",
+    "use": "{{name}} verwenden",
+    "note": "Katalogangaben, wie die Engine sie meldet. Unbekannte Werte werden nicht geschätzt; hervorgehoben ist das größte Limit oder der niedrigste Preis unter den bekannten Werten.",
+    "row": {
+      "context": "Kontext",
+      "output": "Ausgabe",
+      "inputPrice": "Eingabe / 1M",
+      "outputPrice": "Ausgabe / 1M",
+      "status": "Status"
+    },
+    "cap": {
+      "tools": "Werkzeuge",
+      "reasoning": "Schlussfolgern",
+      "vision": "Bilder",
+      "openWeights": "Offene Gewichte"
+    },
+    "unknown": "Unbekannt",
+    "yes": "Ja",
+    "notReported": "Nicht gemeldet"
+  },
+  "refineCompare": {
+    "tooLong": "Diese Texte sind zu lang für einen Wort-für-Wort-Vergleich. Prüfe stattdessen die vollständige Fassung.",
+    "label": "Änderungen gegenüber deinem ursprünglichen Entwurf",
+    "oneWord": "1 Wort hinzugefügt · {{removed}} entfernt",
+    "words": "{{added}} Wörter hinzugefügt · {{removed}} entfernt",
+    "none": "Keine Änderungen gegenüber deinem ursprünglichen Entwurf."
+  },
+  "terminalPane": {
+    "label": "Sitzungsterminal"
+  },
+  "pdfFrame": {
+    "invalid": "Diese Bytes sind kein PDF-Dokument."
   }
 }

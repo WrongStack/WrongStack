@@ -114,7 +114,8 @@
     "shared": "Proje bilgisi ve ayarların kendi çalışma alanı var.",
     "projectWorkspace": "Proje çalışma alanı",
     "projectHint": "Bellek · Kanban · Code Atlas",
-    "settings": "WrongStack ayarları"
+    "settings": "WrongStack ayarları",
+    "openingProject": "Proje araçları açılıyor…"
   },
   "settings": {
     "back": "Konuşmaya dön",
@@ -6385,5 +6386,146 @@
     "confirm": "MCP iptal isteğini onayla",
     "otherSession": "Görev işlemi onayı başka bir oturuma ait.",
     "acknowledged": "Motor görev isteğini onayladı."
+  },
+  "composerQueue": {
+    "one": "1 sıradaki istem",
+    "many": "{{number}} sıradaki istem",
+    "note": "Motorun sırası · bu turdan sonra çalışır",
+    "pending": "Bekleyen istemler",
+    "clear": "Sırayı temizle",
+    "references": "Proje dosyası referansları",
+    "referencedFiles": "{{number}} referans dosya",
+    "attachments": "{{number}} ek",
+    "copyTitle": "Sıradaki metni mesaj kutusuna kopyala; asıl istem sırada kalır",
+    "copyTextOnly": "Yalnızca metni kopyala",
+    "copyToDraft": "Taslağa kopyala",
+    "remove": "Sıradaki istemi kaldır: {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "Yapıştırılan metin koda benziyor.",
+    "looksLikeLanguage": "Yapıştırılan metin {{language}} koduna benziyor.",
+    "wrap": "Kod bloğuna sar",
+    "wrapped": "Yapıştırılan metin kod bloğuna sarıldı.",
+    "undo": "Sarmayı geri al",
+    "dismiss": "Yapıştırma ipucunu kapat"
+  },
+  "agentMode": {
+    "title": "Bu konuşmanın ajan kipi.",
+    "label": "Ajan kipi",
+    "default": "Varsayılan kip"
+  },
+  "contextLive": {
+    "label": "Bildirilen bağlam kullanımı",
+    "notReported": "Bildirilmedi",
+    "latest": "Son istek",
+    "fromCache": "Önbellekten",
+    "cacheDetail": "{{read}} okundu, {{written}} yazıldı",
+    "tokensOne": "1 yanıt boyunca istem / tamamlama tokenları",
+    "tokensMany": "{{number}} yanıt boyunca istem / tamamlama tokenları",
+    "meter": "Son isteğin kullandığı bağlam penceresi",
+    "limit": "Sağlayıcı {{max}} token kabul ediyor; bu model için ayarlanan {{configured}} değerinden az.",
+    "compaction": "Son sıkıştırma: {{before}} → {{after}} mesaj tokenı, {{saved}} kazanıldı."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Enjekte edildi",
+      "empty": "Hiçbir şey enjekte edilmedi",
+      "error": "Enjektör hatası"
+    },
+    "label": "Bağlamdaki bellek",
+    "carriedOne": "Son istek 1 SAGE belleği taşıdı · {{entered}} girdi · {{left}} çıktı ({{at}}).",
+    "carriedMany": "Son istek {{number}} SAGE belleği taşıdı · {{entered}} girdi · {{left}} çıktı ({{at}}).",
+    "notYet": "Motor henüz bir isteğin bellek bağlamını bildirmedi.",
+    "noRuns": "Motor bu konuşma için bellek enjektörü çalışması bildirmedi.",
+    "runs": "Bellek enjektörü çalışmaları",
+    "oneMemory": "1 bellek",
+    "memories": "{{number}} bellek",
+    "turn": "tur",
+    "counts": "{{candidates}} aday · {{eligible}} uygun",
+    "scoreBar": "puan eşiği {{score}}",
+    "chars": "{{number}} karakter eklendi",
+    "rejected": "Reddedilen: {{list}}",
+    "injectedList": "Enjekte edilen bellekler",
+    "score": "puan {{score}}"
+  },
+  "agentTabs": {
+    "label": "Konuşma ve ajanları",
+    "conversation": "Konuşma",
+    "transcript": "{{name}} dökümü",
+    "readOnly": "Salt okunur: gönderdiğin şey konuşmanın liderine gider.",
+    "tool": "Araç",
+    "running": "Çalışıyor…",
+    "failed": "Başarısız",
+    "completed": "Tamamlandı",
+    "thinking": "Düşünme",
+    "status": {
+      "running": "çalışıyor",
+      "completed": "tamamlandı",
+      "failed": "başarısız",
+      "timeout": "zaman aşımı",
+      "stopped": "durduruldu",
+      "cancelled": "iptal edildi"
+    }
+  },
+  "shortcutsView": {
+    "title": "Klavye kısayolları",
+    "close": "Klavye kısayollarını kapat",
+    "group": {
+      "desktop": "Masaüstü",
+      "conversation": "Konuşma",
+      "views": "Görünümler"
+    },
+    "item": {
+      "find": "Proje veya konuşma bul",
+      "newSession": "Yeni oturum başlat",
+      "switchTab": "Açık bir konuşma sekmesine geç",
+      "help": "Bu kısayolları göster (F1 de olur)",
+      "closeDialog": "İletişim kutusunu kapat",
+      "focus": "Mesaj kutusuna odaklan",
+      "send": "Gönder",
+      "newLine": "Yeni satır",
+      "recall": "Önceki istemleri geri çağır",
+      "commands": "Masaüstü komutları (hepsi için /help yaz)",
+      "mention": "Bir dosyayı veya beceriyi an",
+      "stop": "Çalışan turu durdur (mesaj kutusunda)"
+    }
+  },
+  "modelCompare": {
+    "back": "Modellere dön",
+    "label": "Model karşılaştırması",
+    "fact": "Bilgi",
+    "best": "en iyi",
+    "choose": "Seç",
+    "use": "{{name}} kullan",
+    "note": "Motorun bildirdiği katalog bilgileri. Bilinmeyen değerler tahmin edilmez; vurgulanan değer bilinen değerler arasındaki en yüksek sınır veya en düşük fiyattır.",
+    "row": {
+      "context": "Bağlam",
+      "output": "Çıktı",
+      "inputPrice": "Girdi / 1M",
+      "outputPrice": "Çıktı / 1M",
+      "status": "Durum"
+    },
+    "cap": {
+      "tools": "Araçlar",
+      "reasoning": "Akıl yürütme",
+      "vision": "Görseller",
+      "openWeights": "Açık ağırlıklar"
+    },
+    "unknown": "Bilinmiyor",
+    "yes": "Evet",
+    "notReported": "Bildirilmedi"
+  },
+  "refineCompare": {
+    "tooLong": "Bu metinler kelime kelime karşılaştırmak için çok uzun. Bunun yerine tam sürümü incele.",
+    "label": "Asıl taslağına göre değişiklikler",
+    "oneWord": "1 kelime eklendi · {{removed}} silindi",
+    "words": "{{added}} kelime eklendi · {{removed}} silindi",
+    "none": "Asıl taslağına göre değişiklik yok."
+  },
+  "terminalPane": {
+    "label": "Oturum terminali"
+  },
+  "pdfFrame": {
+    "invalid": "Bu baytlar bir PDF belgesi değil."
   }
 }

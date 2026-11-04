@@ -114,7 +114,8 @@
     "shared": "El conocimiento y los ajustes del proyecto tienen su propio espacio de trabajo.",
     "projectWorkspace": "Espacio de trabajo del proyecto",
     "projectHint": "Memoria · Kanban · Code Atlas",
-    "settings": "Ajustes de WrongStack"
+    "settings": "Ajustes de WrongStack",
+    "openingProject": "Abriendo las herramientas del proyecto…"
   },
   "settings": {
     "back": "Volver a la conversación",
@@ -6385,5 +6386,146 @@
     "confirm": "Confirmar la solicitud de cancelación MCP",
     "otherSession": "La confirmación de la acción pertenece a otra sesión.",
     "acknowledged": "El motor confirmó la solicitud de la tarea."
+  },
+  "composerQueue": {
+    "one": "1 prompt en cola",
+    "many": "{{number}} prompts en cola",
+    "note": "Gestionada por el motor · se ejecuta tras este turno",
+    "pending": "Prompts pendientes",
+    "clear": "Vaciar la cola",
+    "references": "Referencias a archivos del proyecto",
+    "referencedFiles": "{{number}} archivos referenciados",
+    "attachments": "{{number}} adjuntos",
+    "copyTitle": "Copiar el texto en cola al cuadro de mensaje; el original sigue en la cola",
+    "copyTextOnly": "Copiar solo el texto",
+    "copyToDraft": "Copiar al borrador",
+    "remove": "Quitar el prompt en cola {{text}}"
+  },
+  "pasteHint": {
+    "looksLike": "El texto pegado parece código.",
+    "looksLikeLanguage": "El texto pegado parece código {{language}}.",
+    "wrap": "Envolver en un bloque de código",
+    "wrapped": "El texto pegado se envolvió en un bloque de código.",
+    "undo": "Deshacer",
+    "dismiss": "Cerrar la sugerencia de pegado"
+  },
+  "agentMode": {
+    "title": "El modo de agente de esta conversación.",
+    "label": "Modo de agente",
+    "default": "Modo predeterminado"
+  },
+  "contextLive": {
+    "label": "Uso de contexto informado",
+    "notReported": "No informado",
+    "latest": "Última solicitud",
+    "fromCache": "Desde la caché",
+    "cacheDetail": "{{read}} leídos, {{written}} escritos",
+    "tokensOne": "Tokens de prompt / respuesta en 1 respuesta",
+    "tokensMany": "Tokens de prompt / respuesta en {{number}} respuestas",
+    "meter": "Ventana de contexto usada por la última solicitud",
+    "limit": "El proveedor acepta {{max}} tokens, menos que los {{configured}} configurados para este modelo.",
+    "compaction": "Última compactación: {{before}} → {{after}} tokens de mensajes, {{saved}} ahorrados."
+  },
+  "memoryInjections": {
+    "outcome": {
+      "injected": "Inyectada",
+      "empty": "No se inyectó nada",
+      "error": "Error del inyector"
+    },
+    "label": "Memoria en el contexto",
+    "carriedOne": "La última solicitud llevó 1 memoria SAGE · {{entered}} entraron · {{left}} salieron ({{at}}).",
+    "carriedMany": "La última solicitud llevó {{number}} memorias SAGE · {{entered}} entraron · {{left}} salieron ({{at}}).",
+    "notYet": "El motor aún no ha informado del contexto de memoria de una solicitud.",
+    "noRuns": "El motor no ha informado de ejecuciones del inyector de memoria para esta conversación.",
+    "runs": "Ejecuciones del inyector de memoria",
+    "oneMemory": "1 memoria",
+    "memories": "{{number}} memorias",
+    "turn": "turno",
+    "counts": "{{candidates}} candidatos · {{eligible}} aptos",
+    "scoreBar": "umbral de puntuación {{score}}",
+    "chars": "{{number}} caracteres añadidos",
+    "rejected": "Rechazadas: {{list}}",
+    "injectedList": "Memorias inyectadas",
+    "score": "puntuación {{score}}"
+  },
+  "agentTabs": {
+    "label": "La conversación y sus agentes",
+    "conversation": "Conversación",
+    "transcript": "Transcripción de {{name}}",
+    "readOnly": "Solo lectura: lo que envíes va al líder de la conversación.",
+    "tool": "Herramienta",
+    "running": "En ejecución…",
+    "failed": "Fallido",
+    "completed": "Completado",
+    "thinking": "Razonamiento",
+    "status": {
+      "running": "en ejecución",
+      "completed": "completado",
+      "failed": "fallido",
+      "timeout": "tiempo agotado",
+      "stopped": "detenido",
+      "cancelled": "cancelado"
+    }
+  },
+  "shortcutsView": {
+    "title": "Atajos de teclado",
+    "close": "Cerrar los atajos de teclado",
+    "group": {
+      "desktop": "Escritorio",
+      "conversation": "Conversación",
+      "views": "Vistas"
+    },
+    "item": {
+      "find": "Buscar un proyecto o una conversación",
+      "newSession": "Iniciar una nueva sesión",
+      "switchTab": "Cambiar a una pestaña de conversación abierta",
+      "help": "Mostrar estos atajos (también F1)",
+      "closeDialog": "Cerrar un cuadro de diálogo",
+      "focus": "Enfocar el cuadro de mensaje",
+      "send": "Enviar",
+      "newLine": "Nueva línea",
+      "recall": "Recuperar prompts anteriores",
+      "commands": "Comandos de escritorio (escribe /help para verlos todos)",
+      "mention": "Mencionar un archivo o una habilidad",
+      "stop": "Detener el turno en curso (en el cuadro de mensaje)"
+    }
+  },
+  "modelCompare": {
+    "back": "Volver a los modelos",
+    "label": "Comparación de modelos",
+    "fact": "Dato",
+    "best": "mejor",
+    "choose": "Elegir",
+    "use": "Usar {{name}}",
+    "note": "Datos del catálogo tal como los informa el motor. Los valores desconocidos no se estiman; el valor resaltado es el mayor límite o el menor precio entre los conocidos.",
+    "row": {
+      "context": "Contexto",
+      "output": "Salida",
+      "inputPrice": "Entrada / 1M",
+      "outputPrice": "Salida / 1M",
+      "status": "Estado"
+    },
+    "cap": {
+      "tools": "Herramientas",
+      "reasoning": "Razonamiento",
+      "vision": "Imágenes",
+      "openWeights": "Pesos abiertos"
+    },
+    "unknown": "Desconocido",
+    "yes": "Sí",
+    "notReported": "No informado"
+  },
+  "refineCompare": {
+    "tooLong": "Estos textos son demasiado largos para compararlos palabra por palabra. Revisa la versión completa.",
+    "label": "Cambios respecto a tu borrador original",
+    "oneWord": "1 palabra añadida · {{removed}} eliminadas",
+    "words": "{{added}} palabras añadidas · {{removed}} eliminadas",
+    "none": "Sin cambios respecto a tu borrador original."
+  },
+  "terminalPane": {
+    "label": "Terminal de la sesión"
+  },
+  "pdfFrame": {
+    "invalid": "Estos bytes no son un documento PDF."
   }
 }
