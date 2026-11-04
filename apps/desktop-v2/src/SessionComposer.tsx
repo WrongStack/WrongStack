@@ -40,7 +40,7 @@ import {
 import { DesktopCommandHelp } from './DesktopCommandHelp';
 import { DraftCounter } from './DraftCounter';
 import { type DesktopCommandContext, runDesktopCommand } from './desktop-command-runner';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -548,7 +548,7 @@ export function SessionComposer({
                 <X size={18} />
               </button>
             </header>
-            <p>{topic.reason}</p>
+            <p>{localizedText(topic.reason, 'composerMessage', t)}</p>
             {topic.nextTopic && (
               <p>
                 <strong>{t('composer.topic.suggested')}</strong> {topic.nextTopic}
@@ -616,12 +616,12 @@ export function SessionComposer({
       />
       {error && (
         <p className="composer-error" role="alert">
-          {error}
+          {localizedText(error, 'composerMessage', t)}
         </p>
       )}
       {notice && (
         <p className="composer-notice" role="status">
-          {notice}
+          {localizedText(notice, 'composerMessage', t)}
         </p>
       )}
       {restore !== null && (

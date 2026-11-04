@@ -8382,3 +8382,167 @@ copies, starting with SAGE memory.
   `data-find-input` marker that names its scope. Accessible names are unchanged.
 - Checks: new `translated-focus-shortcuts.test.ts` presses both shortcuts in a Turkish window
   and checks where focus lands; desktop tests pass (PASSED); typecheck clean.
+
+### Conversation notices in the display language (2026-11-04)
+
+- Gap: the notices above the composer (stream warnings, model switches and reroutes,
+  checkpoints, missing cost estimates, persisted approvals, background delegation results,
+  MCP servers dropping or returning, iteration limits, loop stops, damaged journals, failed
+  compaction, blocked providers and tier proposals) were built as English sentences in the
+  engine-state reducer and shown as they were in every language.
+- Change: each notice now keeps its wording as catalog lines under `notices` with their
+  values, nesting lines for the words that vary (an unknown event, the provider, id lists).
+  `ConversationNotices` renders that wording in the display language, including the hint and
+  the tier proposal's action label. The English `text`, still what repeats are recognised
+  by, is rendered from the English catalog, so it stays byte-identical; engine content (error
+  details, reasons, prompt previews) is shown as it came. Delegation notices use their own
+  lines instead of the WebUI protocol's English formatters. 52 keys in all seven languages.
+- Checks: new `conversation-notices-i18n.test.ts` pins the English of all 34 notice branches
+  to the earlier sentences, checks every key each branch uses exists in all seven languages,
+  and renders notices, hints and an action in Turkish; the existing notice tests and the
+  catalog guard pass; typecheck clean.
+
+### Composer messages in the display language (2026-11-04)
+
+- Gap: what the composer reports when a message cannot be sent, is queued, steers a run or
+  carries attachments (history still syncing, no provider, pending questions, an older
+  engine, queue and steer outcomes, BTW receipts, attachment type, size and count limits,
+  unreadable files, draft conflicts, the topic-change prompt) was English text from the
+  composer model, the attachment model and the composer itself, shown as it was in every
+  language.
+- Change: those messages are now lines of a `composerMessage` catalog group. The models build
+  their English from the English catalog (`englishText`, in the new pure `desktop-text.ts`),
+  so it stays byte-identical, and the composer, its attachment picker and its topic prompt
+  render error, notice and reason text through `localizedText`, which recognises an English
+  line of the group (values carried over) and shows it in the display language; other text,
+  such as an engine's own message or a slash command's output, is shown as it came.
+  `SessionComposer` keeps its line count (1054). 40 keys in all seven languages.
+- Checks: new `composer-messages-i18n.test.ts` pins the earlier English of the model
+  messages, turns every English line of the group back into its line in six languages with
+  its values, checks that each line is recognised as itself only, that other text passes
+  through, and that the English the composer still writes matches its catalog lines; desktop
+  tests pass (274 files, 966 tests); typecheck clean.
+
+### Settings editor messages in the display language (2026-11-04)
+
+- Gap: the validation messages of the price-tier, role runtime, session model plan and tool
+  confirmation editors (invalid thresholds and prices, budgets, availability, model policy,
+  lane counts, plans or modes changed elsewhere) were English in every language. The role
+  runtime editor also showed them with an `Error:` prefix.
+- Change: the four models build those messages from a `settingsMessage` catalog group in
+  English (`englishText`), unchanged, and the session model plan, role runtime, WrongStack
+  settings and model catalog pages show their error through `localizedText`, so a known
+  line appears in the display language with its values; other errors are shown as they came.
+  The role runtime editor shows the error message without the `Error:` prefix. No hotspot
+  grew. 21 keys in all seven languages.
+- Remaining English by design: field names inside a few of these lines (a price field or
+  budget label written by the model), engine protocol-integrity errors and slash command
+  output.
+- Checks: new `settings-messages-i18n.test.ts` pins the earlier English of the validators,
+  turns every line of the group back into its line in six languages with its values, and
+  checks each line is recognised as itself only; desktop tests pass (275 files, 969 tests);
+  typecheck clean.
+
+### SAGE recover and mark-permanent answer on the desktop (2026-11-04)
+
+- Defect (found by the rewritten native Memory scenario): in the desktop's shared SAGE
+  surface, Recover on a deleted memory and Mark as Permanent always ended with "The memory
+  store did not respond" after 20 seconds, although the engine had recovered the record and
+  replied at once (the reply is in the project journal). The shared ack helper waits for a
+  reply carrying its own `ack_` request id and hands that id to the send callback; these two
+  calls ignored it. The WebUI sends them untagged and the server echoes no id, so the reply
+  matched there; the desktop host tags every request, so the reply came back under an id
+  the ack treated as another operation's.
+- Fix: both calls send under the ack's id, as the candidate accept and reject calls already
+  did; the server strips `requestId` from an update patch and echoes it on every reply.
+- Checks: new `sage-ack-request-id.test.ts` requires every ack-awaited SAGE request in the
+  shared manager to send under the ack id and checks the desktop host keeps that id; the
+  WebUI memory-manager tests pass with the recover request now carrying it; desktop tests
+  pass (276 files, 971 tests); typecheck clean. Native confirmation follows with the Memory
+  scenario rerun.
+
+### Monaco language workers start in the native app (2026-11-04)
+
+- Defect (found by the native files scope once it reached the editor): Monaco wrapped each of
+  its language workers in a `blob:` script, which the desktop's content policy refuses
+  (`script-src 'self'`, no `worker-src`). In the release build the editor ran without its
+  language services and the page reported four uncaught `Event` errors.
+- Fix: `monaco-workers.ts` sets `MonacoEnvironment.getWorker` before the editor loads and
+  starts each worker from its bundled file of the app's own origin (Vite `?worker` imports of
+  Monaco's exported worker entries), chosen by language label in `monaco-worker-kind.ts`.
+  The content policy is unchanged.
+- The native scenario now logs each renderer page error with its stack and each console error
+  with its source, so an uncaught non-Error (such as an `Event`) can be traced.
+- Checks: new `monaco-workers.test.ts` covers the label-to-worker choice, that the setup loads
+  before the editor's loader, uses five file workers and that the policy allows no `blob:`
+  scripts or workers; native release `--files` scope PASSED on the rebuilt portable with no
+  renderer errors (10 steps).
+
+### Ranked SAGE search answers on every host (2026-11-04)
+
+- Defect (found by the rewritten native SAGE scenario): the shared SAGE library's ranked
+  results ("Ranked SAGE results") never loaded on the desktop, for two reasons.
+  - The native HTTP bridge adds the selected session to every engine API request, and the
+    ranked memory search and vector memory search refuse any `sessionId` (they always apply
+    the non-session visibility policy and reject a selector they cannot honour, on purpose).
+    The desktop showed "Unsupported search parameter: sessionId".
+  - The HTTP API router reads the SAGE store for `/api/memory/search-page`,
+    `/api/memory/resolve` and `/api/memory/search` from `getMemoryStore`, but no host passed it,
+    so those routes answered 503 "SAGE search unavailable" on the desktop and in the WebUI alike.
+- Fix: the bridge adds no session selector to those two searches (a caller's own selector is
+  still dropped); `getMemoryStore` is part of the HTTP server options, settled for both hosts in
+  `resolveCreateHttpServerOptions`, and both the standalone WebUI and the CLI-embedded host
+  pass the same store the WebSocket memory routes use.
+- Checks: new bridge test `adds_no_session_selector_to_searches_that_refuse_one` (7/7 bridge
+  tests pass); the options parity test now requires `getMemoryStore` from both hosts; the
+  memory search, router, static-serve and start wiring tests pass (74); webui-server and cli
+  typecheck clean; on the rebuilt native release portable the SAGE scenario's ranked retrieval
+  and the Memory recover step PASSED.
+
+### Native scenarios on the shared surfaces, accessibility pass and matrix (2026-11-04)
+
+- Why: the release matrix (33 scopes on a fresh portable) failed in every scope at its shared
+  settings step, because a profile without a provider now opens on Quick setup, and the
+  Memory, Kanban and Code Atlas scenarios still drove the desktop pages the shared WebUI
+  surfaces replaced (SAGE in d560fd3bf, Kanban and Atlas after it).
+- Scenario changes:
+  - `native-smoke.mjs`: the two settings steps go through "Providers & models"; the files
+    scope accepts a proposal from the shared review queue; renderer page errors and console
+    errors are logged with their source; new `--a11y` scope.
+  - `native-sage.mjs`, `native-sage-validity.mjs`, the Memory part of `native-projects.mjs`:
+    the shared SAGE library, editor, review queue, health, audience and vector lenses. Current
+    source evidence is checked through `memory.sage.get` with `reviewValidity`, because the
+    desktop host offers no validity review hook to the shared surface.
+  - `native-kanban-run.mjs`, `native-kanban-execution.mjs`, the Kanban part of
+    `native-projects.mjs`, `native-new-surfaces.mjs`: the shared board, inspector, model
+    picker, boundary sections and Kanban Agent bar. Cards are selected from the keyboard,
+    because in an 800x640 window the board toolbar covers them.
+  - `native-atlas.mjs`, the Atlas part of `native-projects.mjs`: the shared code tree, canvas,
+    tabs, toolbar and inspector. The canvas draws only what is in view and cannot zoom out
+    far enough for a large scope, so the selection is proven by the inspector; that Smart
+    scope keeps a selected node is the map model's rule (WebUI `codemap-model` test).
+  - `native-file-tree-scale.mjs`: waits for the full `aria-setsize`, which can arrive after
+    the first row.
+  - Steps the shared surfaces no longer offer were dropped (desktop-only SAGE retention field
+    and injection history, Kanban board description, list view and typed-title deletion,
+    Atlas sort and source pane); each is named in the scenario rewrite.
+- New `native-accessibility.mjs`: axe (WCAG 2.2 A/AA) audits Mission control, Files,
+  Changes, Memory, Kanban, Code Atlas and provider settings in light and dark appearance and
+  fails on critical violations. Baseline on the release build: 0 critical, 25 serious
+  findings (target size on small icon buttons on every screen, visible text missing from the
+  accessible name on Changes and Code Atlas, one contrast finding on Code Atlas and on four
+  dark screens, the Kanban board's scrollable region without keyboard access). Report:
+  `.temp_files/desktop-v2-native/accessibility/native-accessibility.json`.
+- Product defects the rewritten scenarios found and fixed: SAGE recover and mark-permanent
+  (b32ae9cd3), Monaco workers under the content policy (d72d698a2), ranked SAGE search
+  (9e26fc8ef).
+- Results (release portable, `--release --bundled`):
+  - Full matrix earlier today: 27/33 scopes passed. Since then on rebuilt portables: files,
+    sage, atlas, goals, surfaces and a11y PASSED; history and mcp, which timed out under
+    matrix load, PASSED alone (186 s, 34 s).
+  - companion and default run through the Memory, Kanban, Atlas, settings, SAGE, model
+    catalog, files, evidence and skills steps (23 PASS lines), then stop at the new-session
+    dialog: an uncommitted change in the working tree, not part of this work, removed its
+    "Session name" field, and the portable is built from the working tree. The composer
+    scope stops at the same step. These three scopes, and the Kanban task-execution step
+    after it, need a rerun once that change lands with its scenario update.

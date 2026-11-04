@@ -19,119 +19,95 @@ export async function exerciseNativeProjects({
   // The header row names the project; the overview itself shows its destinations.
   await page.locator('.project-overview').waitFor();
   await openProjectView(page, project, 'Memory');
-  await page.getByRole('heading', { name: 'SAGE Memory', exact: true }).waitFor();
-  assert.equal(await page.getByLabel('Memory status', { exact: true }).inputValue(), 'all');
-  assert.equal(
-    await page.getByRole('region', { name: 'SAGE relationship graph', exact: true }).count(),
-    1,
-    'SAGE opens its stored relationship map',
-  );
-  assert.equal(
-    await page.locator('.memory-library').count(),
-    0,
-    'Full record library is not loaded on entry',
-  );
-  await page.getByRole('button', { name: 'Library', exact: true }).click();
-  assert.equal(await page.getByRole('heading', { name: 'Vector Memory', exact: true }).count(), 0);
-  await page
-    .locator('.memory-library')
-    .getByRole('button', { name: 'A SAGE decision awaiting revalidation.', exact: true })
-    .waitFor();
+  // Project memory is the WebUI's shared SAGE surface: a library with Active, Review, Deleted
+  // and Health views beside the record detail, where records are read, edited and mapped.
+  const sage = page.locator('[data-workbench-view="memory"]');
+  await sage.getByRole('heading', { level: 1, name: 'SAGE', exact: true }).waitFor();
+  const library = sage.getByRole('region', { name: 'Memory library', exact: true });
+  const libraryView = (name) =>
+    library
+      .getByRole('tablist', { name: 'Memory view', exact: true })
+      .getByRole('tab', { name: new RegExp(`^${name}`) });
+  const memoryList = library.getByRole('region', { name: 'Memories', exact: true });
+  const memoryCard = (text) => memoryList.locator('.ws-memory-card').filter({ hasText: text });
+  const memoryDetail = sage.getByRole('region', { name: 'Memory detail', exact: true });
+  const statusFilter = library.getByLabel('Filter by status', { exact: true });
+  const staleDecision = 'A SAGE decision awaiting revalidation.';
+  assert.equal(await statusFilter.inputValue(), 'all');
+  await memoryCard(staleDecision).waitFor();
   await page.screenshot({ path: join(artifactDir, 'native-sage-library.png'), fullPage: true });
-  await page
-    .locator('.memory-library')
-    .getByRole('button', { name: 'A SAGE decision awaiting revalidation.', exact: true })
-    .click();
-  await page.getByRole('region', { name: 'SAGE record detail', exact: true }).waitFor();
+  await memoryCard(staleDecision).click();
+  await memoryDetail.getByText(staleDecision, { exact: true }).first().waitFor();
   assert.equal(
-    await page.getByLabel('Memory text', { exact: true }).count(),
+    await memoryDetail.getByLabel('Memory content', { exact: true }).count(),
     0,
     'Reading SAGE does not open an editor',
   );
-  await page.getByLabel('Memory status', { exact: true }).selectOption('active');
+  await statusFilter.selectOption('active');
   await waitFor(
-    async () =>
-      !(await page
-        .locator('.memory-library')
-        .getByRole('button', { name: 'A SAGE decision awaiting revalidation.', exact: true })
-        .count()),
+    async () => !(await memoryCard(staleDecision).count()),
     'Active filter excludes stale SAGE records',
   );
-  await page.getByLabel('Memory status', { exact: true }).selectOption('all');
-  await page
-    .locator('.memory-library')
-    .getByRole('button', { name: 'A SAGE decision awaiting revalidation.', exact: true })
-    .waitFor();
-  await page.getByRole('button', { name: 'New memory', exact: true }).first().click();
-  await page
-    .getByLabel('Memory text', { exact: true })
-    .fill('Keep provider credentials in the encrypted vault.');
-  await page.getByLabel('Memory tags', { exact: true }).fill('security, architecture');
-  await page.getByRole('button', { name: 'Save memory', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Keep provider credentials in the encrypted vault.', exact: true })
-    .waitFor();
-  await page.getByRole('button', { name: 'New memory', exact: true }).click();
-  await page
-    .getByLabel('Memory text', { exact: true })
-    .fill('Every project owns its memory and planning boards.');
-  await page.getByLabel('Memory kind', { exact: true }).selectOption('decision');
-  await page.getByLabel('Memory tags', { exact: true }).fill('architecture, project-scope');
-  await page.getByRole('button', { name: 'Save memory', exact: true }).click();
-  await page
-    .getByRole('button', {
-      name: 'Every project owns its memory and planning boards.',
-      exact: true,
-    })
-    .waitFor();
-  await page.getByRole('button', { name: 'Map', exact: true }).click();
-  await page.getByRole('button', { name: 'Clear memory selection', exact: true }).click();
-  await waitFor(
-    async () => (await page.locator('.react-flow__edge').count()) >= 1,
-    'Persisted SAGE relationship edges',
-  );
-  await page.locator('.react-flow__edge-text').filter({ hasText: 'about file' }).first().waitFor();
-  const before = await page.locator('.react-flow__viewport').getAttribute('style');
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
-  await waitFor(
-    async () => (await page.locator('.react-flow__viewport').getAttribute('style')) !== before,
-    'React Flow zoom',
-  );
-  await page.getByRole('button', { name: 'Fit map', exact: true }).click();
-  await page.screenshot({ path: join(artifactDir, 'native-project-memory.png'), fullPage: true });
-  const memoryCard = page.getByRole('button', {
-    name: 'Every project owns its memory and planning boards.',
+  await statusFilter.selectOption('all');
+  await memoryCard(staleDecision).waitFor();
+  const createMemory = async ({ text, kind, tags, anchor }) => {
+    await sage.getByRole('button', { name: 'New memory', exact: true }).click();
+    await memoryDetail.getByLabel('Memory content', { exact: true }).fill(text);
+    if (kind) await memoryDetail.getByLabel('Kind', { exact: true }).selectOption(kind);
+    await memoryDetail.getByLabel('Tags', { exact: true }).fill(tags);
+    if (anchor) {
+      await memoryDetail.getByRole('button', { name: 'Add anchor', exact: true }).click();
+      await memoryDetail.getByLabel('Anchor 1 value', { exact: true }).fill(anchor);
+    }
+    await memoryDetail.getByRole('button', { name: 'Create memory', exact: true }).click();
+    await memoryCard(text).waitFor();
+  };
+  await createMemory({
+    text: 'Keep provider credentials in the encrypted vault.',
+    tags: 'security, architecture',
+  });
+  const planning = 'Every project owns its memory and planning boards.';
+  await createMemory({
+    text: planning,
+    kind: 'decision',
+    tags: 'architecture, project-scope',
+    anchor: 'packages/alpha/src/index.ts',
+  });
+  // A saved record opens with its relationship map: the memory and the file it is anchored to.
+  const relationships = memoryDetail.getByRole('region', {
+    name: 'Memory relationship graph',
     exact: true,
   });
-  await memoryCard.focus();
-  await memoryCard.press('Enter');
-  await page.getByRole('button', { name: 'Delete memory', exact: true }).click();
-  const deletion = page.getByRole('dialog', { name: 'Delete project memory' });
-  assert.equal(
-    await deletion.getByRole('button', { name: 'Delete memory', exact: true }).isEnabled(),
-    false,
-    'Project deletion requires explicit human authorization',
+  // The map sits below the record and only draws what is in view.
+  await relationships.scrollIntoViewIfNeeded();
+  await waitFor(
+    async () => (await relationships.locator('.react-flow__edge').count()) >= 1,
+    'SAGE relationship edge to the anchored file',
   );
-  await deletion
-    .getByRole('checkbox', { name: 'I explicitly authorize deleting this memory', exact: true })
-    .check();
+  const viewport = relationships.locator('.react-flow__viewport');
+  const before = await viewport.getAttribute('style');
+  await relationships.locator('.react-flow__controls-zoomin').click();
+  await waitFor(async () => (await viewport.getAttribute('style')) !== before, 'React Flow zoom');
+  await relationships.locator('.react-flow__controls-fitview').click();
+  await page.screenshot({ path: join(artifactDir, 'native-project-memory.png'), fullPage: true });
+  await memoryCard(planning).click();
+  await memoryDetail.getByRole('button', { name: 'Delete', exact: true }).click();
+  const deletion = page.getByRole('dialog', { name: 'Delete this memory?', exact: true });
+  assert.equal(
+    await deletion
+      .getByRole('checkbox', { name: /^Also block from context injection/ })
+      .isChecked(),
+    false,
+    'Blocking a memory from context is a separate, explicit choice',
+  );
   await deletion.getByRole('button', { name: 'Delete memory', exact: true }).click();
   await deletion.waitFor({ state: 'hidden' });
-  await page.getByLabel('Memory status', { exact: true }).selectOption('deleted');
-  await page
-    .getByRole('button', {
-      name: 'Every project owns its memory and planning boards.',
-      exact: true,
-    })
-    .click();
-  await page.getByRole('button', { name: 'Restore memory', exact: true }).click();
-  await page.getByLabel('Memory status', { exact: true }).selectOption('active');
-  await page
-    .getByRole('button', {
-      name: 'Every project owns its memory and planning boards.',
-      exact: true,
-    })
-    .waitFor();
+  await libraryView('Deleted').click();
+  await memoryCard(planning).click();
+  await memoryDetail.getByRole('button', { name: 'Recover', exact: true }).click();
+  await sage.getByRole('status').filter({ hasText: 'Recovered' }).waitFor();
+  await libraryView('Active').click();
+  await memoryCard(planning).waitFor();
   await page.locator('.project-item').filter({ hasText: otherProject.name }).click();
   await waitFor(
     async () => (await rpc('project.status', { projectId: otherProject.id })).status === 'running',
@@ -143,242 +119,210 @@ export async function exerciseNativeProjects({
     .getByRole('navigation', { name: `${otherProject.name} workspace` })
     .getByRole('button', { name: 'Memory', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Library', exact: true }).click();
-  await page.getByRole('heading', { name: 'No SAGE records in this view.', exact: true }).waitFor();
+  await sage.getByRole('heading', { name: 'Build your memory graph', exact: true }).waitFor();
   assert.equal(
-    await page
-      .getByRole('button', {
-        name: 'Keep provider credentials in the encrypted vault.',
-        exact: true,
-      })
-      .count(),
+    await memoryCard('Keep provider credentials in the encrypted vault.').count(),
     0,
     'Project Beta never shows Project Alpha memory',
   );
+
+  // Project Kanban is the WebUI's shared board; the desktop's card tools sit in the task
+  // inspector's Breakdown tab.
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   await openProjectView(page, project, 'Kanban');
-  await page.getByRole('button', { name: 'Create your first board', exact: true }).click();
-  await page.getByLabel('Board name', { exact: true }).fill('Desktop roadmap');
-  await page
-    .getByLabel('Board description', { exact: true })
-    .fill('Project-owned work that survives every conversation.');
-  await page.getByRole('button', { name: 'Create board', exact: true }).click();
-  await page
-    .getByRole('navigation', { name: 'Project boards', exact: true })
-    .getByRole('button', { name: 'Desktop roadmap', exact: true })
-    .waitFor();
-  await page
-    .locator('.studio-toolbar')
-    .getByRole('button', { name: 'Add task', exact: true })
-    .click();
-  await page.getByLabel('Task title', { exact: true }).fill('Build project memory map');
-  await page
-    .getByLabel('Task description', { exact: true })
+  const kanban = page.locator('.kanban-surface');
+  const boardItem = (title) =>
+    kanban.getByRole('button').filter({ hasText: new RegExp(`^${title}\\s*\\d+ tasks`) });
+  const boardHeading = (title) =>
+    kanban.getByRole('heading', { level: 1, name: title, exact: true });
+  const cardButton = (title) =>
+    kanban.getByRole('button', { name: `Select task: ${title}`, exact: true });
+  const createBoard = async (title) => {
+    await kanban.getByLabel('New board title', { exact: true }).fill(title);
+    await kanban.getByLabel('New board title', { exact: true }).press('Enter');
+    await boardHeading(title).waitFor();
+  };
+  const addTask = async (title) => {
+    await kanban.getByLabel('New task title', { exact: true }).fill(title);
+    await kanban.getByLabel('New task title', { exact: true }).press('Enter');
+    await cardButton(title).waitFor();
+  };
+  const inspector = kanban.getByRole('complementary', { name: 'Task inspector', exact: true });
+  const tab = (name) => inspector.getByRole('tab', { name: new RegExp(`^${name}\\b`) });
+  const closeInspector = async () => {
+    await inspector.getByRole('button', { name: 'Close', exact: true }).first().click();
+    await inspector.waitFor({ state: 'detached' });
+  };
+  const saveContract = () =>
+    inspector.getByRole('button', { name: 'Save task contract', exact: true }).click();
+  await createBoard('Desktop roadmap');
+  await addTask('Build project memory map');
+  await cardButton('Build project memory map').press('Enter');
+  await inspector
+    .getByLabel('Description / working context')
     .fill('Show real memories and topic connections independently of conversations.');
-  await page.getByLabel('Task priority', { exact: true }).selectOption('high');
-  await page.getByLabel('Task labels', { exact: true }).fill('desktop, knowledge');
-  await page.getByRole('button', { name: 'Save task', exact: true }).click();
-  const card = page.getByRole('button', { name: 'Build project memory map', exact: true });
-  await card.waitFor();
-  const target = page.locator('.kanban-column').nth(1);
-  await card.dragTo(target);
-  const transition = page.getByRole('dialog', { name: 'Move managed task' });
-  if (await transition.count()) {
-    await transition
-      .getByLabel('Task transition reason', { exact: true })
-      .fill('Ready to implement the project map.');
-    await transition.getByRole('button', { name: 'Move task', exact: true }).click();
-  }
-  await target.getByRole('button', { name: 'Build project memory map', exact: true }).waitFor();
+  await inspector.getByLabel(/^Priority/).selectOption('high');
+  await inspector
+    .getByLabel('Labels (comma separated)', { exact: true })
+    .fill('desktop, knowledge');
+  await saveContract();
+  await kanban
+    .locator('.ws-task-card')
+    .filter({ hasText: 'Show real memories and topic connections' })
+    .waitFor();
+  await closeInspector();
+  const target = kanban.locator('.ws-kanban-column').nth(1);
+  await cardButton('Build project memory map').dragTo(target.locator('ul'));
+  await target
+    .getByRole('button', { name: 'Select task: Build project memory map', exact: true })
+    .waitFor();
   await page.screenshot({ path: join(artifactDir, 'native-project-kanban.png'), fullPage: true });
-  await target.getByRole('button', { name: 'Build project memory map', exact: true }).click();
-  await page.getByLabel('Task title', { exact: true }).fill('Build a shared project memory map');
-  await page.getByRole('button', { name: 'Save task', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
-    .waitFor();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
-  const taskList = page.getByRole('region', { name: 'Board task list', exact: true });
-  await taskList
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
-    .click();
-  await page.getByLabel('Task due date', { exact: true }).fill('2026-12-20');
-  await page.getByLabel('Task type', { exact: true }).selectOption('feature');
-  await page.getByLabel('Task estimated hours', { exact: true }).fill('3.5');
-  await page.getByLabel('Task cost ceiling', { exact: true }).fill('15');
-  await page.getByRole('button', { name: 'Save task', exact: true }).click();
-  // The inspector closes once the save is acknowledged. Reopening before that reads the old
-  // inspector (the board ignores task clicks while busy) and it closes under the next step.
-  await page.getByLabel('Task cost ceiling', { exact: true }).waitFor({ state: 'detached' });
-  await taskList
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
-    .click();
-  assert.equal(await page.getByLabel('Task estimated hours', { exact: true }).inputValue(), '3.5');
-  assert.equal(await page.getByLabel('Task due date', { exact: true }).inputValue(), '2026-12-20');
-  const taskSections = () =>
-    page.getByRole('navigation', { name: 'Task detail sections', exact: true });
-  await taskSections().getByRole('button', { name: 'Evidence', exact: true }).click();
-  await page
-    .getByLabel('New acceptance check', { exact: true })
+  await cardButton('Build project memory map').press('Enter');
+  await inspector.getByLabel('Title', { exact: true }).fill('Build a shared project memory map');
+  await saveContract();
+  const shared = 'Build a shared project memory map';
+  await cardButton(shared).waitFor();
+  // The cost ceiling lives with execution; the contract save carries it with the other fields.
+  await tab('Execution').click();
+  await inspector.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await inspector.getByLabel('Cost ceiling USD', { exact: true }).fill('15');
+  await tab('Definition').click();
+  await inspector.getByLabel('Due date (ISO or YYYY-MM-DD)', { exact: true }).fill('2026-12-20');
+  await inspector.getByLabel(/^Type/).selectOption('feature');
+  await inspector.getByLabel('Estimated hours', { exact: true }).fill('3.5');
+  await saveContract();
+  // An inspector reads the stored card when it opens; reopen until the save is stored.
+  await waitFor(async () => {
+    await closeInspector();
+    await cardButton(shared).press('Enter');
+    return (await inspector.getByLabel('Estimated hours', { exact: true }).inputValue()) === '3.5';
+  }, 'Task contract persisted');
+  assert.match(
+    await inspector.getByLabel('Due date (ISO or YYYY-MM-DD)', { exact: true }).inputValue(),
+    /^2026-12-20/,
+  );
+  assert.equal(await inspector.getByLabel(/^Type/).inputValue(), 'feature');
+  await tab('Execution').click();
+  await inspector.getByRole('button', { name: 'Advanced', exact: true }).click();
+  assert.equal(await inspector.getByLabel('Cost ceiling USD', { exact: true }).inputValue(), '15');
+  await tab('Evidence').click();
+  await inspector
+    .getByLabel('New check', { exact: true })
     .fill('SAGE records remain project scoped.');
-  await page.getByRole('button', { name: 'Add check', exact: true }).click();
-  await page
-    .getByLabel('Check status: SAGE records remain project scoped.', { exact: true })
-    .selectOption('passed');
+  await inspector.getByLabel('New check', { exact: true }).press('Enter');
+  const checkStatus = inspector.getByLabel('Check status', { exact: true });
+  await checkStatus.selectOption('passed');
   await waitFor(
-    async () =>
-      (await page
-        .getByLabel('Check status: SAGE records remain project scoped.', { exact: true })
-        .inputValue()) === 'passed',
-    'Acceptance check persisted',
+    async () => (await checkStatus.inputValue()) === 'passed',
+    'Completion check persisted',
   );
-  await page.getByRole('button', { name: 'Run verification', exact: true }).click();
-  await waitFor(
-    async () => (await page.locator('.task-verdict > strong').textContent())?.trim() === 'passed',
-    'Persisted verification report',
-  );
-  await taskSections().getByRole('button', { name: 'History', exact: true }).click();
-  await page
-    .getByLabel('New task note', { exact: true })
+  await inspector.getByRole('button', { name: 'Run verification', exact: true }).click();
+  await inspector.getByRole('button', { name: 'Re-run verification', exact: true }).waitFor();
+  await inspector.getByText('Passed', { exact: true }).first().waitFor();
+  await tab('History').click();
+  await inspector
+    .getByLabel('Activity note', { exact: true })
     .fill('Review both project stores before closing.');
-  await page.getByRole('button', { name: 'Add note', exact: true }).click();
-  await page
-    .locator('.task-note')
-    .filter({ hasText: 'Review both project stores before closing.' })
-    .waitFor();
+  await inspector
+    .getByRole('button', { name: 'Record task decision or outcome', exact: true })
+    .click();
+  await inspector.getByText('Review both project stores before closing.').first().waitFor();
+  await tab('Execution').click();
+  await inspector.getByLabel(/^Role/).selectOption('reviewer');
+  await inspector.getByRole('button', { name: 'Assign required skills…', exact: true }).click();
+  const skillOptions = inspector
+    .getByLabel('Filter options', { exact: true })
+    .locator('xpath=ancestor::div[2]')
+    .getByRole('button');
+  await skillOptions.first().click();
+  await inspector.getByRole('button', { name: 'Assign required skills…', exact: true }).click();
+  await inspector.getByLabel('Agent name (optional)', { exact: true }).fill('desktop-reviewer');
+  await inspector.getByRole('button', { name: 'Assign', exact: true }).click();
+  const runStatus = inspector
+    .getByText('Live run', { exact: true })
+    .locator('xpath=following-sibling::span[1]');
   await waitFor(
-    async () => (await page.locator('.task-timeline li').count()) > 0,
-    'Canonical task activity',
-  );
-  await taskSections().getByRole('button', { name: 'Execution', exact: true }).click();
-  await page.getByLabel('Task agent ID', { exact: true }).fill('desktop-reviewer');
-  await page.getByLabel('Task agent role', { exact: true }).selectOption('reviewer');
-  await page
-    .getByRole('group', { name: /Agentic skills/ })
-    .getByRole('checkbox')
-    .first()
-    .check();
-  await page.getByRole('button', { name: 'Save assignment', exact: true }).click();
-  await page.locator('.task-facts dd').getByText('assigned', { exact: true }).waitFor();
-  await waitFor(
-    async () =>
-      await page.getByRole('button', { name: 'Save assignment', exact: true }).isEnabled(),
+    async () => (await runStatus.textContent())?.trim() === 'assigned',
     'Assignment acknowledgement',
   );
   await page.screenshot({
     path: join(artifactDir, 'native-kanban-task-details.png'),
     fullPage: true,
   });
-  await page.getByRole('button', { name: 'Close task details', exact: true }).click();
-  const boardList = page.getByRole('navigation', { name: 'Project boards', exact: true });
-  assert.match(
-    await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).innerText(),
-    /1 tasks/,
-  );
-  await boardList.getByRole('button', { name: 'New board', exact: true }).click();
-  await page.getByLabel('Board name', { exact: true }).fill('Release checklist');
-  await page.getByRole('button', { name: 'Create board', exact: true }).click();
-  await boardList.getByRole('button', { name: 'Release checklist', exact: true }).waitFor();
-  await page
-    .locator('.studio-toolbar')
-    .getByRole('button', { name: 'Add task', exact: true })
-    .click();
-  await page.getByLabel('Task title', { exact: true }).fill('Split a bounded change');
-  await page.getByRole('button', { name: 'Save task', exact: true }).click();
-  await taskList.getByRole('button', { name: 'Split a bounded change', exact: true }).click();
-  await taskSections().getByRole('button', { name: 'Breakdown', exact: true }).click();
-  await page
-    .getByLabel('Child task titles', { exact: true })
-    .fill('Implement the boundary\nVerify the boundary');
-  await page.getByRole('button', { name: 'Split into child tasks', exact: true }).click();
-  const breakdown = page.getByRole('region', { name: 'Task breakdown', exact: true });
-  await breakdown.getByRole('button', { name: 'Implement the boundary', exact: false }).waitFor();
-  await breakdown.getByRole('button', { name: 'Verify the boundary', exact: false }).waitFor();
-  await page.getByRole('button', { name: 'Expand task details', exact: true }).click();
+  await closeInspector();
+  assert.match(await boardItem('Desktop roadmap').innerText(), /1 tasks/);
+  await createBoard('Release checklist');
+  await addTask('Split a bounded change');
+  await cardButton('Split a bounded change').press('Enter');
+  await tab('Breakdown').click();
+  await inspector.locator('details.kanban-task-merge').first().waitFor();
+  await inspector.getByRole('button', { name: 'Expand task details', exact: true }).click();
   await page.screenshot({ path: join(artifactDir, 'native-kanban-breakdown.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Close task details', exact: true }).click();
-  await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).click();
-  await taskList
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
+  await inspector.getByRole('button', { name: 'Collapse task details', exact: true }).click();
+  await closeInspector();
+  await boardItem('Desktop roadmap').click();
+  await cardButton(shared).waitFor();
+  // Board actions: duplicate the board and read its history, move the card from the copy to
+  // another board, and delete both with the two-step delete. The original board is not touched.
+  const copy = 'Desktop roadmap Copy';
+  await kanban.getByRole('button', { name: 'Duplicate board', exact: true }).click();
+  await boardHeading(copy).waitFor();
+  await kanban.getByRole('button', { name: 'Board history', exact: true }).click();
+  await kanban.getByRole('heading', { name: 'Board history', exact: true }).waitFor();
+  await kanban
+    .getByText(/duplicated$/)
+    .first()
     .waitFor();
-  // Board actions: duplicate with and without cards, read the history, move a card between the
-  // copies and delete both copies by typing their titles. The original board is not touched.
-  const boardAction = async (name) => {
-    const menu = page.locator('details.kanban-board-actions');
-    if (!(await menu.evaluate((element) => element.open))) await menu.locator('summary').click();
-    await menu.getByRole('button', { name, exact: true }).click();
-  };
-  const duplicate = async (title, withCards) => {
-    await boardAction('Duplicate board…');
-    const form = page.getByRole('dialog', { name: 'Duplicate board', exact: true });
-    await form.getByLabel('New board title', { exact: true }).fill(title);
-    const cards = form.getByRole('checkbox', { name: /Copy its \d+ cards/ });
-    if ((await cards.isChecked()) !== withCards) await cards.click();
-    await form.getByRole('button', { name: 'Duplicate board', exact: true }).click();
-    await form.waitFor({ state: 'detached' });
-    await page.locator('.board-current-title').filter({ hasText: title }).waitFor();
-  };
-  await duplicate('Roadmap copy A', true);
-  await boardAction('Board history');
-  const historyDialog = page.getByRole('dialog', { name: 'Board history', exact: true });
-  await historyDialog
-    .getByRole('list', { name: 'Board history entries', exact: true })
-    .getByText('Copied from Desktop roadmap', { exact: false })
-    .waitFor();
-  await page.keyboard.press('Escape');
-  await historyDialog.waitFor({ state: 'detached' });
-  await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).click();
-  await duplicate('Roadmap copy B', false);
-  assert.match(
-    await boardList.getByRole('button', { name: 'Roadmap copy B', exact: true }).innerText(),
-    /0 tasks/,
-  );
-  await boardList.getByRole('button', { name: 'Roadmap copy A', exact: true }).click();
-  await taskList
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
-    .click();
-  const transfer = page.getByRole('region', { name: 'Copy or move to another board', exact: true });
-  await transfer.getByLabel('Another board').selectOption({ label: 'Roadmap copy B' });
+  await kanban.getByRole('button', { name: 'Board history', exact: true }).click();
+  const moveTarget = 'Roadmap move target';
+  await createBoard(moveTarget);
+  await boardItem(copy).click();
+  await boardHeading(copy).waitFor();
+  await cardButton(shared).press('Enter');
+  await tab('Breakdown').click();
+  const transfer = inspector.getByRole('region', {
+    name: 'Copy or move to another board',
+    exact: true,
+  });
+  await transfer.getByLabel('Another board').selectOption({ label: moveTarget });
   await transfer.getByRole('button', { name: 'Move card', exact: true }).click();
+  // The move reports its result, unless the card already left this board and closed the inspector.
+  await page.waitForFunction(() => {
+    const open = document.querySelector('aside[aria-label="Task inspector"]');
+    return (
+      !open ||
+      [...open.querySelectorAll('[role="status"]')].some((node) =>
+        node.textContent?.includes('Moved to'),
+      )
+    );
+  });
+  if (await inspector.count()) await closeInspector();
+  // The sidebar's board list is read again from the engine.
+  await kanban.getByRole('button', { name: 'Refresh', exact: true }).click();
   await waitFor(
     async () =>
-      /1 tasks/.test(
-        await boardList.getByRole('button', { name: 'Roadmap copy B', exact: true }).innerText(),
-      ) &&
-      /0 tasks/.test(
-        await boardList.getByRole('button', { name: 'Roadmap copy A', exact: true }).innerText(),
-      ),
-    'Card moved between board copies',
+      /1 tasks/.test(await boardItem(moveTarget).innerText()) &&
+      /0 tasks/.test(await boardItem(copy).innerText()),
+    'Card moved between boards',
   );
-  for (const title of ['Roadmap copy A', 'Roadmap copy B']) {
-    await boardList.getByRole('button', { name: title, exact: true }).click();
-    await page.locator('.board-current-title').filter({ hasText: title }).waitFor();
-    await boardAction('Delete board…');
-    const confirm = page.getByRole('dialog', { name: 'Delete board', exact: true });
-    const remove = confirm.getByRole('button', { name: 'Delete board permanently', exact: true });
-    assert.equal(await remove.isDisabled(), true, 'Deleting needs the typed title');
-    await confirm.getByLabel('Type the board title to confirm', { exact: true }).fill(title);
-    await remove.click();
-    await confirm.waitFor({ state: 'detached' });
-    await boardList
-      .getByRole('button', { name: title, exact: true })
-      .waitFor({ state: 'detached' });
+  for (const title of [copy, moveTarget]) {
+    await boardItem(title).click();
+    await boardHeading(title).waitFor();
+    await kanban.getByRole('button', { name: 'Delete board', exact: true }).click();
+    assert.equal(await boardItem(title).count(), 1, 'Deleting needs a second, confirming click');
+    await kanban.getByRole('button', { name: 'Confirm?', exact: true }).click();
+    await boardItem(title).waitFor({ state: 'detached' });
   }
-  await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).click();
-  assert.match(
-    await boardList.getByRole('button', { name: 'Desktop roadmap', exact: true }).innerText(),
-    /1 tasks/,
-  );
-  await taskList
-    .getByRole('button', { name: 'Build a shared project memory map', exact: true })
-    .waitFor();
+  await boardItem('Desktop roadmap').click();
+  assert.match(await boardItem('Desktop roadmap').innerText(), /1 tasks/);
+  await cardButton(shared).waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-kanban-board-list.png'),
     fullPage: true,
   });
   await openProjectView(page, project, 'Code Atlas');
   console.log(
-    'PASS: project Kanban board list/switch/create/edit/drag, task list, contract readback, check status, notes and activity',
+    'PASS: project Kanban board list/switch/create/edit/drag, contract readback, check status, verification, activity, assignment, duplicate/history/move/delete',
   );
   await page.getByRole('button', { name: 'Index project', exact: true }).click();
   await waitFor(
@@ -394,26 +338,31 @@ export async function exerciseNativeProjects({
     'Real project code indexing',
     120000,
   );
+  // The shared Code Atlas: code tree, dependency canvas and relation inspector.
+  const atlas = page.locator('.atlas-surface');
+  const atlasTree = atlas.locator('.ws-code-sidebar');
   await waitFor(
-    async () => (await page.locator('.graph-node').count()) >= 2,
+    async () => (await atlas.locator('.ws-code-canvas .react-flow__node').count()) >= 2,
     'Code Atlas package nodes',
   );
-  await page.locator('.graph-node').first().click();
-  await page.getByRole('button', { name: 'Explore files', exact: true }).click();
-  await waitFor(
-    async () => (await page.locator('.graph-node').count()) >= 1,
-    'Code Atlas file drill-down',
-  );
-  await page.locator('.graph-node').filter({ hasText: 'index.ts' }).first().click();
-  await page.getByRole('button', { name: 'Explore symbols', exact: true }).click();
-  // The previous file graph remains visible while the symbol request is in flight.
-  // Wait for the fixture symbol rather than clicking the stale file again.
-  await page.locator('.graph-node').getByText('feature', { exact: true }).waitFor();
-  await page.locator('.graph-node', { hasText: 'feature' }).click();
-  await page.getByRole('button', { name: 'Read source', exact: true }).click();
-  await page.locator('.atlas-source pre').filter({ hasText: 'export' }).waitFor();
+  await atlasTree.getByRole('button', { name: 'Expand @fixture/alpha', exact: true }).click();
+  await atlasTree.getByRole('button', { name: 'Expand index.ts', exact: true }).click();
+  // A symbol picked in the tree opens its file's symbol map with the symbol selected.
+  await atlasTree
+    .getByRole('button')
+    .filter({ hasText: /^feature/ })
+    .click();
+  await atlas
+    .locator('.ws-code-canvas')
+    .getByRole('button', { name: 'symbol feature', exact: true })
+    .waitFor();
+  await atlas
+    .locator('.ws-code-inspector')
+    .getByTitle('feature', { exact: true })
+    .first()
+    .waitFor();
   await page.screenshot({ path: join(artifactDir, 'native-project-atlas.png'), fullPage: true });
-  console.log('PASS: project Code Atlas indexing/drilldown/source');
+  console.log('PASS: project Code Atlas indexing/tree drilldown/symbol inspector');
   assert.equal(
     (await rpc('snapshot')).sessions.length,
     0,
@@ -538,16 +487,14 @@ export async function exerciseNativeProjects({
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   for (const name of ['Memory', 'Kanban', 'Code Atlas']) {
     await openProjectView(page, project, name);
-    await page
-      .getByRole('heading', { name: name === 'Memory' ? 'SAGE Memory' : name, exact: true })
-      .waitFor();
+    // The shared surfaces: SAGE memory cards, Kanban columns, Code Atlas map nodes.
     await waitFor(
       async () =>
         name === 'Memory'
-          ? (await page.locator('.react-flow__node').count()) > 0
+          ? (await page.locator('[data-workbench-view="memory"] .ws-memory-card').count()) > 0
           : name === 'Kanban'
-            ? (await page.locator('.kanban-column').count()) > 0
-            : (await page.locator('.graph-node').count()) >= 2,
+            ? (await page.locator('.kanban-surface .ws-kanban-column').count()) > 0
+            : (await page.locator('.atlas-surface .ws-code-canvas .react-flow__node').count()) >= 2,
       `Loaded ${name} before visual capture`,
     );
     await page.locator('.project-page-content').evaluate((element) => {
@@ -581,6 +528,6 @@ export async function exerciseNativeProjects({
     .getByRole('button', { name: 'Mission control', exact: true })
     .click();
   console.log(
-    'PASS: session-free project memory map, Kanban create/edit/drag, indexed Code Atlas drill-down/source, and separate profile settings/MCP',
+    'PASS: session-free project memory map, Kanban create/edit/drag, indexed Code Atlas drill-down, and separate profile settings/MCP',
   );
 }

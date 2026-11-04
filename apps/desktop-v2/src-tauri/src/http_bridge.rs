@@ -9,6 +9,10 @@ pub struct EngineHttp {
     token: String,
     client: Client,
 }
+/// Searches that take no session selector: they always apply the non-session visibility policy
+/// and refuse a selector they cannot honour, so the bridge does not add one.
+const SESSIONLESS_PATHS: [&str; 2] = ["/api/memory/search-page", "/api/vector-memory/search"];
+
 impl EngineHttp {
     pub fn new(port: u16, token: &str) -> Result<Self> {
         let client = Client::builder()
@@ -23,6 +27,7 @@ impl EngineHttp {
             client,
         })
     }
+    /// Sends one engine feature API request as the selected native session.
     pub fn request(
         &self,
         method: &str,
@@ -53,10 +58,14 @@ impl EngineHttp {
             .filter(|(key, _)| key != "sessionId" && key != "token")
             .map(|(k, v)| (k.into_owned(), v.into_owned()))
             .collect();
+        let sessionless = SESSIONLESS_PATHS.contains(&url.path());
         url.set_query(None);
-        url.query_pairs_mut()
-            .extend_pairs(query)
-            .append_pair("sessionId", session);
+        let mut pairs = url.query_pairs_mut();
+        pairs.extend_pairs(query);
+        if !sessionless {
+            pairs.append_pair("sessionId", session);
+        }
+        drop(pairs);
         let mut request = self
             .client
             .request(Method::from_bytes(method.as_bytes()).map_err(err)?, url)
@@ -189,6 +198,39 @@ mod tests {
         assert_eq!(value["data"]["jobs"], json!([]));
         assert!(!value.to_string().contains("native-fixture-token"));
         assert!(!value.to_string().contains("127.0.0.1"));
+        server.join().unwrap();
+    }
+    #[test]
+    fn adds_no_session_selector_to_searches_that_refuse_one() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            while !bytes.windows(4).any(|part| part == b"\r\n\r\n") {
+                let mut chunk = [0; 1024];
+                let count = socket.read(&mut chunk).unwrap();
+                assert!(count > 0 && bytes.len() < 16384);
+                bytes.extend_from_slice(&chunk[..count]);
+            }
+            let input = String::from_utf8_lossy(&bytes).to_lowercase();
+            assert!(input.starts_with("get /api/memory/search-page?q=vault "));
+            assert!(!input.contains("sessionid="));
+            socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}").unwrap();
+        });
+        let bridge = EngineHttp::new(port, "native-fixture-token").unwrap();
+        bridge
+            .request(
+                "GET",
+                "/api/memory/search-page?q=vault&sessionId=other",
+                &Value::Null,
+                "core-selected",
+                None,
+            )
+            .unwrap();
         server.join().unwrap();
     }
     #[test]

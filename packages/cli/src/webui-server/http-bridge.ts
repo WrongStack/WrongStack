@@ -96,10 +96,9 @@ export async function startWebuiHttpBridge(input: WebuiHttpBridgeInput) {
         ? (meta[urlKey] as string)
         : undefined;
     },
-    // The same store the WebSocket memory routes use; without it the Memory
-    // Manager's ranked search and search links answer 503.
-    getMemoryStore: () => opts.memoryStore,
     ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
+    // The same SAGE store the WebSocket memory routes use, for the ranked HTTP search.
+    ...(opts.memoryStore ? { getMemoryStore: () => opts.memoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
       : {}),

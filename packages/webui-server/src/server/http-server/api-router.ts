@@ -95,9 +95,10 @@ export interface ApiRouterDeps {
   /** Model cache directory for the vector memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
   /**
-   * Optional SAGE memory store for `/api/memory/search-page`,
-   * `/api/memory/resolve/:id` and `/api/memory/search`. Without it those
-   * routes answer 503. Hosts supply it through `CreateHttpServerOptions`.
+   * Optional SAGE memory store. When provided, the
+   * `GET /api/memory/search?q=…&explain=1` route becomes active. Same
+   * strict opt-in contract as the vector memory store — non-CLI hosts
+   * that don't wire a memory store stay on their existing surface.
    */
   getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
 }

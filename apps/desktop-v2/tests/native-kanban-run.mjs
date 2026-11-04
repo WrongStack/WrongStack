@@ -3,41 +3,47 @@ import { openProjectView } from './native-project-navigation.mjs';
 
 /**
  * A board launched as a Goal run from Kanban: the project engine starts the run from the board's
- * cards and binds it back to the same board, which then mirrors the run.
+ * cards and binds it back to the same board, which then mirrors the run. The desktop's Kanban is
+ * the WebUI's shared board (`@wrongstack/project-surfaces/kanban`).
  */
 export async function exerciseNativeKanbanRun({ page, project, artifactDir }) {
   await openProjectView(page, project, 'Kanban');
-  await page
-    .locator('.studio-heading')
-    .getByRole('button', { name: 'New board', exact: true })
-    .click();
-  await page.getByLabel('Board name', { exact: true }).fill('Native board run');
-  await page.getByRole('button', { name: 'Create board', exact: true }).click();
-  await page
-    .getByRole('navigation', { name: 'Project boards', exact: true })
-    .getByRole('button', { name: 'Native board run', exact: true })
-    .waitFor();
-  await page.getByRole('button', { name: 'Add task to To Do', exact: true }).click();
-  await page.getByLabel('Task title', { exact: true }).fill('Native board run task');
-  await page
-    .getByLabel('Task description', { exact: true })
-    .fill('Return a final completion message. Do not call tools or change project files.');
-  await page.getByRole('button', { name: 'Save task', exact: true }).click();
-  await page.getByRole('button', { name: 'Native board run task', exact: true }).waitFor();
+  const kanban = page.locator('.kanban-surface');
+  const title = 'Native board run';
+  const taskTitle = 'Native board run task';
+  const description =
+    'Return a final completion message. Do not call tools or change project files.';
+  await kanban.getByLabel('New board title', { exact: true }).fill(title);
+  await kanban.getByLabel('New board title', { exact: true }).press('Enter');
+  const heading = kanban.getByRole('heading', { level: 1, name: title, exact: true });
+  await heading.waitFor();
+  await kanban.getByLabel('New task title', { exact: true }).fill(taskTitle);
+  await kanban.getByLabel('New task title', { exact: true }).press('Enter');
+  const card = kanban.getByRole('button', { name: `Select task: ${taskTitle}`, exact: true });
+  // A narrow window can put the board toolbar over the card; select it from the keyboard.
+  await card.press('Enter');
+  const inspector = kanban.getByRole('complementary', { name: 'Task inspector', exact: true });
+  await inspector.getByLabel('Description / working context').fill(description);
+  await inspector.getByRole('button', { name: 'Save task contract', exact: true }).click();
+  // The run is built from the stored board: the card shows the description once the engine
+  // has stored it.
+  await kanban.locator('.ws-task-card').filter({ hasText: description }).waitFor();
+  await inspector.getByRole('button', { name: 'Close', exact: true }).first().click();
+  await inspector.waitFor({ state: 'detached' });
 
-  await page.getByLabel('Board actions', { exact: true }).click();
-  await page.getByRole('button', { name: 'Run board…', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Run board', exact: true });
-  await dialog.getByRole('radio', { name: /^Goal/ }).check();
+  const startAsGoal = kanban.getByRole('button', { name: 'Start as Goal', exact: true });
+  await kanban.getByText('Run this board as a live agent job:', { exact: true }).waitFor();
   await page.screenshot({
-    path: join(artifactDir, 'native-kanban-run-dialog.png'),
+    path: join(artifactDir, 'native-kanban-run-start.png'),
     fullPage: true,
   });
-  await dialog.getByRole('button', { name: 'Start run', exact: true }).click();
-  await dialog.waitFor({ state: 'detached', timeout: 60000 });
-  await page.getByText('A Goal run started from this board.', { exact: true }).waitFor();
-  // The run binds back to this board instead of creating another one.
-  await page.getByText(/^Mirrors a Goal run/).waitFor({ timeout: 30000 });
+  await startAsGoal.click();
+  // The run binds back to this board instead of creating another one: the board stays selected
+  // and now carries the run's controls in place of the launch bar.
+  await kanban
+    .getByText('Live run — steer it from here', { exact: true })
+    .waitFor({ timeout: 60000 });
+  await startAsGoal.waitFor({ state: 'detached' });
   await page.screenshot({ path: join(artifactDir, 'native-kanban-run.png'), fullPage: true });
   console.log('PASS: a Kanban board starts a Goal run that mirrors back onto the same board');
 }

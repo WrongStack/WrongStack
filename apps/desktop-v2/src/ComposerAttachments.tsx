@@ -9,7 +9,7 @@ import {
   validateAttachments,
 } from './composer-attachments';
 import { DictationButton } from './DictationButton';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { PdfFrame } from './PdfFrame';
 import './composer-attachments.css';
@@ -191,7 +191,7 @@ export function ComposerAttachments({
       )}
       {control.error && (
         <p role="alert" className="composer-error">
-          {control.error}
+          {localizedText(control.error, 'composerMessage', t)}
         </p>
       )}
       {control.dragging && (

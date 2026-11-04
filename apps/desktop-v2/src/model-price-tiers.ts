@@ -1,3 +1,4 @@
+import { englishText } from './desktop-text';
 import { record } from './engine-values';
 
 export const tierPriceFields = [
@@ -54,15 +55,14 @@ export function modelPriceTiersDraft(cost: Record<string, unknown>): ModelPriceT
 }
 export function applyModelPriceTiers(md: Record<string, unknown>, draft: ModelPriceTiersDraft) {
   if (!draft.changed) return;
-  if (draft.unsupported)
-    throw Error('Remove the unsupported saved tier format before adding price tiers.');
+  if (draft.unsupported) throw Error(englishText('settingsMessage', 'tierFormat'));
   const seen = new Set<number>();
   const tiers = draft.rows.map((row, index) => {
     if (!row.editable) return row.source;
     const size = Number(row.size);
     if (!row.size.trim() || !Number.isSafeInteger(size) || size <= 0)
-      throw Error(`Price tier ${index + 1} needs a positive whole context threshold.`);
-    if (seen.has(size)) throw Error('Context price tier thresholds must be unique.');
+      throw Error(englishText('settingsMessage', 'tierThreshold', { n: index + 1 }));
+    if (seen.has(size)) throw Error(englishText('settingsMessage', 'tierUnique'));
     seen.add(size);
     const next: Record<string, unknown> = {
       ...record(row.source),
@@ -75,13 +75,16 @@ export function applyModelPriceTiers(md: Record<string, unknown>, draft: ModelPr
         const value = Number(raw);
         if (!Number.isFinite(value) || value < 0)
           throw Error(
-            `Price tier ${index + 1} ${label.toLowerCase()} price must be a non-negative number.`,
+            englishText('settingsMessage', 'tierPrice', {
+              n: index + 1,
+              field: label.toLowerCase(),
+            }),
           );
         next[key] = value;
       }
     }
     if (!tierPriceFields.some(([key]) => typeof next[key] === 'number'))
-      throw Error(`Price tier ${index + 1} needs at least one price. Blank prices are not zero.`);
+      throw Error(englishText('settingsMessage', 'tierEmpty', { n: index + 1 }));
     return next;
   });
   const cost = { ...record(md['cost']) };

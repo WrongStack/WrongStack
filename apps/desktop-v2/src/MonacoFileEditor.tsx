@@ -7,6 +7,7 @@ import {
 } from '@wrongstack/project-surfaces/lib/completion';
 import * as monaco from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
+import './monaco-workers';
 import {
   type CompletionSuggestion,
   completionRequest,

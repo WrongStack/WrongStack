@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { emptyEngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -224,7 +224,7 @@ export function RosterRuntimeEditor({
           )}
           {error && (
             <p role="alert" className="session-error">
-              {error}
+              {localizedText(error, 'settingsMessage', t)}
             </p>
           )}
           <fieldset disabled={busy || !fresh}>
@@ -599,7 +599,7 @@ export function RosterRuntimeEditor({
                     setLeaving(false);
                     setError('');
                   } catch (error) {
-                    setError(String(error));
+                    setError(error instanceof Error ? error.message : String(error));
                   } finally {
                     setBusy(false);
                   }
@@ -634,7 +634,7 @@ export function RosterRuntimeEditor({
                   rosterConfig(draft);
                   void save();
                 } catch (error) {
-                  setError(String(error));
+                  setError(error instanceof Error ? error.message : String(error));
                 }
               }}
             >

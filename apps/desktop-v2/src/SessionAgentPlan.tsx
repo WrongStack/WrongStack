@@ -1,7 +1,7 @@
 import { Check, LoaderCircle, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { effortNames } from './composer-model';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -188,7 +188,7 @@ export function SessionAgentPlan({
           <p>{t('agentPlan.intro')}</p>
           {error && (
             <p className="session-error" role="alert">
-              {error}
+              {localizedText(error, 'settingsMessage', t)}
             </p>
           )}
           <AgentPlanDraftStatus draft={saved} />

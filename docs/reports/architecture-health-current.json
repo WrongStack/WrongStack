@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T20:27:31.895Z",
+  "generatedAt": "2026-11-04T21:23:05.709Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6004,
-    "testFiles": 5010,
-    "sourceLines": 1247716,
+    "sourceFiles": 6007,
+    "testFiles": 5015,
+    "sourceLines": 1247909,
     "workspaceEdges": 240,
-    "moduleEdges": 17655,
+    "moduleEdges": 17664,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 271,
+    "testsWithoutTypecheck": 276,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1038
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 438,
-      "testFiles": 271,
+      "sourceFiles": 441,
+      "testFiles": 276,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1564,6 +1564,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/composer-messages-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/composer-model.test.ts",
         "projects": [
           "root-node"
@@ -1625,6 +1631,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/conversation-cards-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-notices-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2266,6 +2278,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/monaco-workers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/next-steps.test.ts",
         "projects": [
           "root-node"
@@ -2596,6 +2614,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/sage-ack-request-id.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
         "projects": [
           "root-node"
@@ -2765,6 +2789,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-fields.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-messages-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31668,6 +31698,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/composer-messages-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/composer-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31739,6 +31776,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/conversation-cards-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-notices-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32487,6 +32531,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/monaco-workers.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/next-steps.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32872,6 +32923,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/sage-ack-request-id.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33069,6 +33127,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-fields.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-messages-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33527,6 +33592,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/conversation-notices.ts",
+      "specifier": "./locales/en/desktop.json",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ConversationReconnect.tsx",
       "specifier": "./reconnect.css",
       "syntax": "import"
@@ -33539,6 +33609,11 @@
     {
       "from": "apps/desktop-v2/src/desktop-atlas-host.tsx",
       "specifier": "./atlas-views.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/desktop-text.ts",
+      "specifier": "./locales/en/desktop.json",
       "syntax": "import"
     },
     {

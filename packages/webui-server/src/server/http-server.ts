@@ -181,10 +181,8 @@ export interface CreateHttpServerOptions {
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
   /**
-   * The host's SAGE memory store, for the Memory Manager's ranked search and
-   * search-link routes (`/api/memory/search-page`, `/api/memory/resolve/:id`,
-   * `/api/memory/search`). When omitted they answer 503, which is what every
-   * host did while this option was missing from the resolved key set.
+   * The project's SAGE memory store for the ranked `/api/memory/search-page`, `/api/memory/resolve`
+   * and `/api/memory/search` routes. When omitted, those routes answer 503.
    */
   getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
 }

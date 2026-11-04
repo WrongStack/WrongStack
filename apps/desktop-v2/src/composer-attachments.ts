@@ -1,4 +1,5 @@
 import type { WSUserMessageImage } from '@wrongstack/webui-protocol';
+import { englishText } from './desktop-text';
 import { entries, record } from './engine-values.js';
 
 export interface ComposerAttachment extends WSUserMessageImage {
@@ -37,59 +38,64 @@ export function validateAttachments(items: readonly WSUserMessageImage[], queued
   let pdfs = 0;
   for (const item of items) {
     const pdf = isPdf(item);
-    if (!pdf && !imageTypes.has(item.mediaType)) throw Error('Attach a supported image or PDF.');
+    if (!pdf && !imageTypes.has(item.mediaType))
+      throw Error(englishText('composerMessage', 'unsupported'));
     if (!item.data || item.data.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(item.data))
-      throw Error(`“${item.name ?? 'Attachment'}” contains invalid file data.`);
-    if (pdf && !item.data.startsWith('JVBERi0')) throw Error('The selected file is not a PDF.');
+      throw Error(
+        englishText('composerMessage', 'invalidData', { name: item.name ?? 'Attachment' }),
+      );
+    if (pdf && !item.data.startsWith('JVBERi0'))
+      throw Error(englishText('composerMessage', 'notPdf'));
     const max = pdf ? attachmentLimits.pdfBytes : attachmentLimits.imageBytes;
     if (attachmentBytes(item.data) > max)
-      throw Error(`“${item.name ?? 'Attachment'}” exceeds the ${max / 1024 / 1024} MB file limit.`);
+      throw Error(
+        englishText('composerMessage', 'fileLimit', {
+          name: item.name ?? 'Attachment',
+          size: max / 1024 / 1024,
+        }),
+      );
     if (pdf) pdfs++;
     else images++;
   }
   if (images > attachmentLimits.images || pdfs > attachmentLimits.pdfs)
-    throw Error('A message can contain up to 8 images and 4 PDFs.');
+    throw Error(englishText('composerMessage', 'tooMany'));
   if (
     new TextEncoder().encode(JSON.stringify(items)).length >
     (queued ? attachmentLimits.queueBytes : attachmentLimits.wireBytes)
   )
-    throw Error(
-      queued
-        ? 'These attachments are too large to queue. Remove a file or send directly after this turn.'
-        : 'These attachments exceed the message size limit. Remove a file and retry.',
-    );
+    throw Error(englishText('composerMessage', queued ? 'queueTooLarge' : 'tooLarge'));
 }
 export function validateAttachmentPayload(payload: unknown, queued: boolean): void {
   const max = queued ? attachmentLimits.queueBytes : attachmentLimits.wireBytes;
   if (new TextEncoder().encode(JSON.stringify(payload)).length > max)
-    throw Error('This message and its attachments are too large. Your draft is kept.');
+    throw Error(englishText('composerMessage', 'messageTooLarge'));
 }
 function readData(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-    reader.onerror = () => reject(Error('The selected file could not be read.'));
+    reader.onerror = () => reject(Error(englishText('composerMessage', 'unreadable')));
     reader.readAsDataURL(file);
   });
 }
 /** Desktop-owned processing: no WebUI frontend import or remote upload. */
 export async function processAttachmentFile(file: File): Promise<ComposerAttachment> {
   const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-  if (!file.size) throw Error(`“${file.name}” is empty.`);
+  if (!file.size) throw Error(englishText('composerMessage', 'emptyFile', { name: file.name }));
   if (file.size > (pdf ? attachmentLimits.pdfBytes : 32 * 1024 * 1024))
-    throw Error(pdf ? 'PDFs must be 8 MB or smaller.' : 'Source images must be 32 MB or smaller.');
+    throw Error(englishText('composerMessage', pdf ? 'pdfSize' : 'imageSize'));
   let data: string;
   let mediaType: string;
   if (pdf) {
     mediaType = 'application/pdf';
     data = await readData(file);
   } else {
-    if (!file.type.startsWith('image/')) throw Error('Choose an image or PDF file.');
+    if (!file.type.startsWith('image/')) throw Error(englishText('composerMessage', 'chooseFile'));
     let bitmap: ImageBitmap;
     try {
       bitmap = await createImageBitmap(file);
     } catch {
-      throw Error(`“${file.name}” could not be decoded as an image.`);
+      throw Error(englishText('composerMessage', 'undecodable', { name: file.name }));
     }
     try {
       // The byte signature, rather than an extension-derived MIME label, wins.
@@ -118,7 +124,7 @@ export async function processAttachmentFile(file: File): Promise<ComposerAttachm
         canvas.width = Math.max(1, Math.round(bitmap.width * scale));
         canvas.height = Math.max(1, Math.round(bitmap.height * scale));
         const ctx = canvas.getContext('2d');
-        if (!ctx) throw Error('Image processing is unavailable.');
+        if (!ctx) throw Error(englishText('composerMessage', 'imageProcessing'));
         ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         const url = canvas.toDataURL('image/webp', 0.85);
         mediaType = url.slice(5, url.indexOf(';'));

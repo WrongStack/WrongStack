@@ -1,4 +1,5 @@
 import type { DestructiveKind } from '@wrongstack/contracts/types/permission';
+import { englishText } from './desktop-text';
 import { record } from './engine-values';
 import { sameSetting } from './settings-save-model';
 
@@ -59,7 +60,7 @@ export function executionMode(values: Record<string, unknown>): ExecutionMode {
 }
 export function executionModeValues(mode: ExecutionMode) {
   if (!['standard', 'yolo', 'yolo-plus'].includes(mode))
-    throw Error('Choose a valid tool confirmation mode.');
+    throw Error(englishText('settingsMessage', 'execMode'));
   return { yolo: mode !== 'standard', yoloPlus: mode === 'yolo-plus' };
 }
 export function confirmationMap(value: unknown): Record<string, boolean> {
@@ -87,12 +88,9 @@ export function prepareExecutionPolicyPatch(
     next = pair(draft),
     live = pair(current);
   if (!sameSetting(before, next)) {
-    if (next[1] && !next[0])
-      throw Error('YOLO+ requires YOLO. Choose a confirmation mode before saving.');
+    if (next[1] && !next[0]) throw Error(englishText('settingsMessage', 'execYoloPlus'));
     if (!sameSetting(before, live) && !sameSetting(next, live))
-      throw Error(
-        'Tool confirmation mode changed elsewhere. Reload saved values before applying this change.',
-      );
+      throw Error(englishText('settingsMessage', 'execChanged'));
     result['yolo'] = next[0];
     result['yoloPlus'] = next[1];
   }
