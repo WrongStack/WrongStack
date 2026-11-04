@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T08:16:32.037Z",
+  "generatedAt": "2026-11-04T08:39:44.258Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5985,
-    "testFiles": 4960,
-    "sourceLines": 1245295,
+    "sourceFiles": 5986,
+    "testFiles": 4961,
+    "sourceLines": 1245374,
     "workspaceEdges": 240,
-    "moduleEdges": 17366,
+    "moduleEdges": 17375,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 224,
+    "testsWithoutTypecheck": 225,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 424,
-      "testFiles": 224,
+      "sourceFiles": 425,
+      "testFiles": 225,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1623,6 +1623,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-office-feed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-shell-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31442,6 +31448,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-shell-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-shortcuts.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33329,6 +33342,11 @@
     {
       "from": "apps/desktop-v2/src/surface-i18n.ts",
       "specifier": "../../../packages/webui/src/i18n/locales/en/setup.json",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/surface-i18n.ts",
+      "specifier": "./locales/en/desktop.json",
       "syntax": "import"
     },
     {

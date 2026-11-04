@@ -22,6 +22,7 @@ import {
   withReference,
 } from './composer-resources-model';
 import type { AppNavigation, DesktopNavigation } from './desktop-commands';
+import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
@@ -142,6 +143,7 @@ export function EngineWorkspace({
   projectRoot: string;
 }) {
   const { state, send, command } = useEngine(id, onError);
+  const { t } = useDesktopText();
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
   const backToChat = useCallback(() => setTab('chat'), []);
@@ -278,12 +280,12 @@ export function EngineWorkspace({
   return (
     <div className="engine-workspace" data-engine-session={state.sessionId}>
       {shortcuts}
-      <nav className="workspace-tabs" aria-label="Agent workspace views">
+      <nav className="workspace-tabs" aria-label={t('workspace.views')}>
         {(
           [
-            { name: 'chat', label: 'Chat', Icon: MessageSquare },
-            { name: 'files', label: 'Files', Icon: FolderCode },
-            { name: 'changes', label: 'Changes', Icon: GitCompareArrows },
+            { name: 'chat', label: t('workspace.chat'), Icon: MessageSquare },
+            { name: 'files', label: t('workspace.files'), Icon: FolderCode },
+            { name: 'changes', label: t('workspace.changes'), Icon: GitCompareArrows },
           ] as const
         ).map(({ name, label, Icon }) => (
           <button
@@ -321,14 +323,14 @@ export function EngineWorkspace({
           onClick={() => setToolsOpen(true)}
         >
           <PanelsTopLeft size={14} />
-          Tools
+          {t('workspace.tools')}
           <ChevronDown size={11} />
         </button>
         <button
           type="button"
           className="icon-button project-tools-button"
-          aria-label="Settings"
-          title="Model & provider settings"
+          aria-label={t('workspace.settings')}
+          title={t('workspace.settingsTitle')}
           onClick={onSettings}
         >
           <Settings2 size={15} />

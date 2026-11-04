@@ -25,6 +25,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { isLive } from './model';
 import { addProject, native } from './platform';
 import type { DesktopController, ProjectPage } from './useDesktop';
@@ -34,27 +35,27 @@ import type { DesktopController, ProjectPage } from './useDesktop';
  * rest, beside one list of projects and their sessions. Every view stays one click away; none of
  * them competes for space with the conversation.
  */
-const PINNED: Array<{ id: ProjectPage; label: string; Icon: typeof Brain }> = [
-  { id: 'files', label: 'Files', Icon: FileCode2 },
-  { id: 'changes', label: 'Changes', Icon: GitCompareArrows },
-  { id: 'memory', label: 'Memory', Icon: Brain },
-  { id: 'kanban', label: 'Kanban', Icon: Columns3 },
+const PINNED: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
+  { id: 'files', Icon: FileCode2 },
+  { id: 'changes', Icon: GitCompareArrows },
+  { id: 'memory', Icon: Brain },
+  { id: 'kanban', Icon: Columns3 },
 ];
-const TOOLS: Array<{ id: ProjectPage; label: string; Icon: typeof Brain }> = [
-  { id: 'atlas', label: 'Code Atlas', Icon: Network },
-  { id: 'goals', label: 'Goals', Icon: Target },
-  { id: 'sdd', label: 'SDD', Icon: Workflow },
-  { id: 'mailbox', label: 'Mailbox', Icon: Mail },
-  { id: 'chronicle', label: 'Chronicle', Icon: Activity },
-  { id: 'roster', label: 'Agent Roster', Icon: Users },
-  { id: 'live-fleet', label: 'Live fleet', Icon: Network },
-  { id: 'history', label: 'Session history', Icon: History },
-  { id: 'kit', label: 'Project Kit', Icon: Box },
-  { id: 'techstack', label: 'TechStack', Icon: Boxes },
-  { id: 'deadcode', label: 'Dead Code', Icon: ScanSearch },
-  { id: 'design', label: 'Design Studio', Icon: Palette },
-  { id: 'reviews', label: 'Chimera Reviews', Icon: ShieldCheck },
-  { id: 'diagnostics', label: 'Engine diagnostics', Icon: Gauge },
+const TOOLS: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
+  { id: 'atlas', Icon: Network },
+  { id: 'goals', Icon: Target },
+  { id: 'sdd', Icon: Workflow },
+  { id: 'mailbox', Icon: Mail },
+  { id: 'chronicle', Icon: Activity },
+  { id: 'roster', Icon: Users },
+  { id: 'live-fleet', Icon: Network },
+  { id: 'history', Icon: History },
+  { id: 'kit', Icon: Box },
+  { id: 'techstack', Icon: Boxes },
+  { id: 'deadcode', Icon: ScanSearch },
+  { id: 'design', Icon: Palette },
+  { id: 'reviews', Icon: ShieldCheck },
+  { id: 'diagnostics', Icon: Gauge },
 ];
 
 function ToolsLauncher({
@@ -64,6 +65,7 @@ function ToolsLauncher({
   page: ProjectPage | undefined;
   onOpen: (page: ProjectPage) => void;
 }) {
+  const { t } = useDesktopText();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -86,8 +88,8 @@ function ToolsLauncher({
       <button
         type="button"
         className={`rail-button ${active ? 'active' : ''}`}
-        aria-label="Project tools"
-        title="Project tools"
+        aria-label={t('rail.projectTools')}
+        title={t('rail.projectTools')}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
@@ -95,7 +97,7 @@ function ToolsLauncher({
       </button>
       {open && (
         <div className="rail-popover">
-          {TOOLS.map(({ id, label, Icon }) => (
+          {TOOLS.map(({ id, Icon }) => (
             <button
               type="button"
               key={id}
@@ -106,7 +108,7 @@ function ToolsLauncher({
               }}
             >
               <Icon size={14} />
-              <span>{label}</span>
+              <span>{t(`pages.${id}`)}</span>
             </button>
           ))}
         </div>
@@ -116,6 +118,7 @@ function ToolsLauncher({
 }
 
 export function Sidebar({ vm }: { vm: DesktopController }) {
+  const { t } = useDesktopText();
   const {
     snapshot,
     project,
@@ -157,11 +160,11 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
   );
   return (
     <aside className="sidebar">
-      <nav className="rail" aria-label="Main navigation">
+      <nav className="rail" aria-label={t('rail.navigation')}>
         <button
           type="button"
           className="rail-brand"
-          aria-label="WrongStack home"
+          aria-label={t('rail.home')}
           title="WrongStack"
           onClick={() => goTo('fleet')}
         >
@@ -169,15 +172,15 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
             <img src="/wrongstack-mark.svg" alt="" width="28" height="14" />
           </span>
         </button>
-        {main('fleet', 'Mission control', LayoutGrid, vm.active.length)}
-        {main('projects', 'Projects', Folder)}
-        {main('activity', 'Activity', Activity)}
+        {main('fleet', t('rail.missionControl'), LayoutGrid, vm.active.length)}
+        {main('projects', t('rail.projects'), Folder)}
+        {main('activity', t('rail.activity'), Activity)}
         <div className="rail-spacer" />
         <button
           type="button"
           className={`rail-button ${section === 'engine' ? 'active' : ''}`}
-          aria-label="Appearance"
-          title="Appearance"
+          aria-label={t('rail.appearance')}
+          title={t('rail.appearance')}
           onClick={() => goTo('engine')}
         >
           <Palette size={17} />
@@ -185,8 +188,8 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         <button
           type="button"
           className={`rail-button ${section === 'wrongstack' ? 'active' : ''}`}
-          aria-label="WrongStack settings"
-          title="WrongStack settings"
+          aria-label={t('rail.settings')}
+          title={t('rail.settings')}
           onClick={() => goTo('wrongstack')}
         >
           <Settings size={17} />
@@ -202,12 +205,15 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
           }}
         >
           <Search size={14} />
-          <span>Find anything</span>
+          <span>{t('explorer.findAnything')}</span>
           <kbd>Ctrl K</kbd>
         </button>
         {currentProject && (
-          <nav className="project-views" aria-label={`${currentProject.name} workspace`}>
-            {PINNED.map(({ id, label, Icon }) => (
+          <nav
+            className="project-views"
+            aria-label={t('explorer.workspace', { name: currentProject.name })}
+          >
+            {PINNED.map(({ id, Icon }) => (
               <button
                 type="button"
                 key={id}
@@ -215,18 +221,18 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
                 onClick={() => vm.openProjectPage(currentProject.id, id)}
               >
                 <Icon size={15} />
-                <span>{label}</span>
+                <span>{t(`pages.${id}`)}</span>
               </button>
             ))}
             <ToolsLauncher page={page} onOpen={(id) => vm.openProjectPage(currentProject.id, id)} />
           </nav>
         )}
         <div className="explorer-caption">
-          <span>Projects</span>
+          <span>{t('explorer.projects')}</span>
           <button
             type="button"
-            aria-label="Add project"
-            title="Add project"
+            aria-label={t('explorer.addProject')}
+            title={t('explorer.addProject')}
             disabled={!native || pending}
             onClick={() => void run(addProject)}
           >
@@ -254,8 +260,8 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
                   <button
                     type="button"
                     className="project-new-session"
-                    aria-label={`New session in ${p.name}`}
-                    title="New session"
+                    aria-label={t('explorer.newSessionIn', { name: p.name })}
+                    title={t('explorer.newSession')}
                     disabled={!native || pending}
                     onClick={() => vm.newSession(p.id)}
                   >
@@ -271,22 +277,20 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
                   >
                     <span className={`status-dot ${s.status}`} />
                     <span>{s.title}</span>
-                    {s.kind === 'terminal' && <small>terminal</small>}
+                    {s.kind === 'terminal' && <small>{t('explorer.terminal')}</small>}
                   </button>
                 ))}
               </div>
             );
           })}
-          {!snapshot.projects.length && (
-            <p className="sidebar-empty">Add a project folder to start a session.</p>
-          )}
+          {!snapshot.projects.length && <p className="sidebar-empty">{t('explorer.empty')}</p>}
           <button
             type="button"
             className="add-project"
             disabled={!native || pending}
             onClick={() => void run(addProject)}
           >
-            <FolderPlus size={14} /> Add project
+            <FolderPlus size={14} /> {t('explorer.addProject')}
           </button>
         </div>
       </div>

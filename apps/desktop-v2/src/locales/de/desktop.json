@@ -1,0 +1,158 @@
+{
+  "pages": {
+    "files": "Dateien",
+    "changes": "Änderungen",
+    "memory": "Speicher",
+    "kanban": "Kanban",
+    "atlas": "Code Atlas",
+    "goals": "Ziele",
+    "sdd": "SDD",
+    "mailbox": "Postfach",
+    "chronicle": "Chronicle",
+    "roster": "Agenten-Roster",
+    "live-fleet": "Live-Fleet",
+    "history": "Sitzungsverlauf",
+    "kit": "Project Kit",
+    "techstack": "TechStack",
+    "deadcode": "Toter Code",
+    "design": "Design Studio",
+    "reviews": "Chimera-Reviews",
+    "diagnostics": "Engine-Diagnose"
+  },
+  "rail": {
+    "navigation": "Hauptnavigation",
+    "home": "WrongStack-Startseite",
+    "missionControl": "Missionskontrolle",
+    "projects": "Projekte",
+    "activity": "Aktivität",
+    "appearance": "Darstellung",
+    "settings": "WrongStack-Einstellungen",
+    "projectTools": "Projektwerkzeuge"
+  },
+  "explorer": {
+    "findAnything": "Alles finden",
+    "workspace": "Arbeitsbereich {{name}}",
+    "projects": "Projekte",
+    "addProject": "Projekt hinzufügen",
+    "newSessionIn": "Neue Sitzung in {{name}}",
+    "newSession": "Neue Sitzung",
+    "terminal": "Terminal",
+    "empty": "Füge einen Projektordner hinzu, um eine Sitzung zu starten."
+  },
+  "topbar": {
+    "project": "Projekt",
+    "projectWindow": "Projektfenster",
+    "openInWindow": "In eigenem Fenster öffnen",
+    "newSession": "Neue Sitzung",
+    "toLight": "Zum hellen Modus wechseln",
+    "toDark": "Zum dunklen Modus wechseln",
+    "attention": "Sitzungen, die Aufmerksamkeit brauchen",
+    "connected": "Lokale Engine verbunden",
+    "disconnected": "Lokale Engine getrennt",
+    "dismissError": "Fehler schließen",
+    "preview": "Shell-Vorschau · Starte mit <code>bun run desktop:v2</code>, um deine lokalen Projekte und Sitzungen zu verbinden.",
+    "opening": "Dein Arbeitsbereich wird geöffnet…"
+  },
+  "workspace": {
+    "views": "Ansichten des Agenten-Arbeitsbereichs",
+    "chat": "Chat",
+    "files": "Dateien",
+    "changes": "Änderungen",
+    "tools": "Werkzeuge",
+    "settings": "Einstellungen",
+    "settingsTitle": "Modell- und Anbietereinstellungen"
+  },
+  "sessionTools": {
+    "label": "Sitzungswerkzeuge",
+    "eyebrow": "DIESE UNTERHALTUNG",
+    "title": "Verfolge die Arbeit.",
+    "close": "Sitzungswerkzeuge schließen",
+    "story": {
+      "title": "Sitzungsgeschichte",
+      "body": "Spiele die Unterhaltung erneut ab: Agenten-Spuren, Kontext im Zeitverlauf, Modelle, Werkzeuge und Dateien."
+    },
+    "context": {
+      "title": "Kontext-Dashboard",
+      "body": "Kontextdruck, was das Fenster füllt, Cache-Verweildauer, Schwellenwerte und Speicher."
+    },
+    "usage": {
+      "title": "Nutzung & Kosten",
+      "body": "Sitzungs-Tokens, Cache-Verhalten der letzten Anfrage, geroutete Anbieter und bepreiste Schätzungen."
+    },
+    "sideEffects": {
+      "title": "Nebenwirkungen",
+      "body": "Prüfe aufgezeichnete Befehle, Pakete, Netzwerk- und Konfigurationsvorgänge."
+    },
+    "processes": {
+      "title": "Prozesse",
+      "body": "Sieh dir die Befehle, die Hintergrundausgabe und das geprüfte Beenden dieser Unterhaltung an."
+    },
+    "mcpTasks": {
+      "title": "MCP-Aufgaben",
+      "body": "Beobachte entfernte Arbeit, stelle Ergebnisse wieder her und fordere den Abbruch für diese Sitzung an."
+    },
+    "history": {
+      "title": "Verlauf & Wiederherstellung",
+      "body": "Aufgezeichnete Ereignisse, Dateiaktivität und geprüftes Zurücksetzen auf Checkpoints."
+    },
+    "activity": {
+      "title": "Ausführungsaktivität",
+      "body": "Werkzeugaufrufe, Ausführungsausgabe und Verifikation in dieser Unterhaltung."
+    },
+    "plan": {
+      "title": "Planvorlagen",
+      "body": "Beginne den Plan dieser Unterhaltung mit einer fertigen Schrittliste."
+    },
+    "skills": {
+      "title": "Verfügbare Skills",
+      "body": "Lies die Skills, die diesem Agenten zur Verfügung stehen."
+    },
+    "shared": "Projektwissen und Einstellungen haben einen eigenen Arbeitsbereich.",
+    "projectWorkspace": "Projekt-Arbeitsbereich",
+    "projectHint": "Speicher · Kanban · Code Atlas",
+    "settings": "WrongStack-Einstellungen"
+  },
+  "settings": {
+    "back": "Zurück zur Unterhaltung",
+    "sections": "Bereiche der WrongStack-Einstellungen",
+    "search": "WrongStack-Einstellungen durchsuchen",
+    "find": "Einstellung finden…",
+    "loading": "Dein WrongStack-Profil wird geladen…",
+    "sectionPicker": "Einstellungsbereich",
+    "choose": "Bereich wählen",
+    "groups": {
+      "models": "Modelle",
+      "conversations": "Unterhaltungen",
+      "agents": "Agenten & Werkzeuge",
+      "diagnostics": "Diagnose"
+    },
+    "section": {
+      "setup": "Schnelleinrichtung",
+      "providers": "Anbieter & Modelle",
+      "models": "Modellkatalog",
+      "model-visibility": "Modellsichtbarkeit",
+      "availability": "Modellverfügbarkeit",
+      "routing": "Fallbacks & Agenten-Standards",
+      "model-routing": "Modell-Routing",
+      "cost-tiers": "Kostenstufen",
+      "execution": "Ausführung & Berechtigungen",
+      "refinement": "Prompt-Verfeinerung",
+      "context": "Kontext & Reasoning",
+      "instructions": "Globale Anweisungen",
+      "resource-limits": "Ressourcenlimits",
+      "reviews": "Review-Richtlinie",
+      "capabilities": "Fähigkeiten",
+      "tool-access": "Werkzeugverfügbarkeit",
+      "fleet": "Fleet & Begleiter",
+      "brain": "Brain-Richtlinie",
+      "skills": "Profil-Skills",
+      "integrations": "Verbundene Werkzeuge",
+      "notifications": "HQ, Proxy & Telegram",
+      "health": "Anbieterdiagnose",
+      "quota": "Plan-Kontingent",
+      "model-tests": "Modelltests",
+      "terminal-display": "Terminalanzeige",
+      "logging": "Protokolle & Diagnose"
+    }
+  }
+}

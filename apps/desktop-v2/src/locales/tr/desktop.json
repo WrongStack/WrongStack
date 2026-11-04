@@ -1,0 +1,158 @@
+{
+  "pages": {
+    "files": "Dosyalar",
+    "changes": "Değişiklikler",
+    "memory": "Bellek",
+    "kanban": "Kanban",
+    "atlas": "Code Atlas",
+    "goals": "Hedefler",
+    "sdd": "SDD",
+    "mailbox": "Posta Kutusu",
+    "chronicle": "Chronicle",
+    "roster": "Ajan Kadrosu",
+    "live-fleet": "Canlı filo",
+    "history": "Oturum geçmişi",
+    "kit": "Project Kit",
+    "techstack": "TechStack",
+    "deadcode": "Ölü Kod",
+    "design": "Tasarım Stüdyosu",
+    "reviews": "Chimera İncelemeleri",
+    "diagnostics": "Motor tanılama"
+  },
+  "rail": {
+    "navigation": "Ana gezinme",
+    "home": "WrongStack ana sayfa",
+    "missionControl": "Görev kontrolü",
+    "projects": "Projeler",
+    "activity": "Etkinlik",
+    "appearance": "Görünüm",
+    "settings": "WrongStack ayarları",
+    "projectTools": "Proje araçları"
+  },
+  "explorer": {
+    "findAnything": "Her şeyi bul",
+    "workspace": "{{name}} çalışma alanı",
+    "projects": "Projeler",
+    "addProject": "Proje ekle",
+    "newSessionIn": "{{name}} içinde yeni oturum",
+    "newSession": "Yeni oturum",
+    "terminal": "terminal",
+    "empty": "Oturum başlatmak için bir proje klasörü ekle."
+  },
+  "topbar": {
+    "project": "Proje",
+    "projectWindow": "Proje penceresi",
+    "openInWindow": "Kendi penceresinde aç",
+    "newSession": "Yeni oturum",
+    "toLight": "Açık moda geç",
+    "toDark": "Koyu moda geç",
+    "attention": "İlgi bekleyen oturumlar",
+    "connected": "Yerel motor bağlı",
+    "disconnected": "Yerel motor bağlı değil",
+    "dismissError": "Hatayı kapat",
+    "preview": "Kabuk önizlemesi · Yerel projelerini ve oturumlarını bağlamak için <code>bun run desktop:v2</code> ile başlat.",
+    "opening": "Çalışma alanın açılıyor…"
+  },
+  "workspace": {
+    "views": "Ajan çalışma alanı görünümleri",
+    "chat": "Sohbet",
+    "files": "Dosyalar",
+    "changes": "Değişiklikler",
+    "tools": "Araçlar",
+    "settings": "Ayarlar",
+    "settingsTitle": "Model ve sağlayıcı ayarları"
+  },
+  "sessionTools": {
+    "label": "Oturum araçları",
+    "eyebrow": "BU KONUŞMA",
+    "title": "İşi takip et.",
+    "close": "Oturum araçlarını kapat",
+    "story": {
+      "title": "Oturum hikâyesi",
+      "body": "Konuşmayı yeniden oynat: ajan şeritleri, zaman içinde bağlam, modeller, araçlar ve dosyalar."
+    },
+    "context": {
+      "title": "Bağlam paneli",
+      "body": "Bağlam baskısı, pencereyi neyin doldurduğu, önbellekte kalma, eşikler ve bellek."
+    },
+    "usage": {
+      "title": "Kullanım ve maliyet",
+      "body": "Oturum token'ları, son isteğin önbellek davranışı, yönlendirilen sağlayıcılar ve fiyatlı tahminler."
+    },
+    "sideEffects": {
+      "title": "Yan etkiler",
+      "body": "Kaydedilen komut, paket, ağ ve yapılandırma işlemlerini denetle."
+    },
+    "processes": {
+      "title": "Süreçler",
+      "body": "Bu konuşmanın komutlarını, arka plan çıktısını ve onaylı sonlandırmayı incele."
+    },
+    "mcpTasks": {
+      "title": "MCP görevleri",
+      "body": "Uzak işleri izle, sonuçları kurtar ve bu oturum için iptal iste."
+    },
+    "history": {
+      "title": "Geçmiş ve kurtarma",
+      "body": "Kaydedilen olaylar, dosya etkinliği ve onaylı kontrol noktasına geri sarma."
+    },
+    "activity": {
+      "title": "Çalışma etkinliği",
+      "body": "Bu konuşmadaki araç çağrıları, yürütme çıktısı ve doğrulama."
+    },
+    "plan": {
+      "title": "Plan şablonları",
+      "body": "Bu konuşmanın planını hazır bir adım listesinden başlat."
+    },
+    "skills": {
+      "title": "Kullanılabilir beceriler",
+      "body": "Bu ajanın kullanabileceği becerileri oku."
+    },
+    "shared": "Proje bilgisi ve ayarların kendi çalışma alanı var.",
+    "projectWorkspace": "Proje çalışma alanı",
+    "projectHint": "Bellek · Kanban · Code Atlas",
+    "settings": "WrongStack ayarları"
+  },
+  "settings": {
+    "back": "Konuşmaya dön",
+    "sections": "WrongStack ayar bölümleri",
+    "search": "WrongStack ayarlarında ara",
+    "find": "Bir ayar bul…",
+    "loading": "WrongStack profilin yükleniyor…",
+    "sectionPicker": "Ayar bölümü",
+    "choose": "Bir bölüm seç",
+    "groups": {
+      "models": "Modeller",
+      "conversations": "Konuşmalar",
+      "agents": "Ajanlar ve araçlar",
+      "diagnostics": "Tanılama"
+    },
+    "section": {
+      "setup": "Hızlı kurulum",
+      "providers": "Sağlayıcılar ve modeller",
+      "models": "Model kataloğu",
+      "model-visibility": "Model görünürlüğü",
+      "availability": "Model erişilebilirliği",
+      "routing": "Yedekler ve ajan varsayılanları",
+      "model-routing": "Model yönlendirme",
+      "cost-tiers": "Maliyet katmanları",
+      "execution": "Yürütme ve izinler",
+      "refinement": "Prompt iyileştirme",
+      "context": "Bağlam ve akıl yürütme",
+      "instructions": "Genel talimatlar",
+      "resource-limits": "Kaynak sınırları",
+      "reviews": "İnceleme politikası",
+      "capabilities": "Yetenekler",
+      "tool-access": "Araç erişimi",
+      "fleet": "Filo ve yardımcılar",
+      "brain": "Brain politikası",
+      "skills": "Profil becerileri",
+      "integrations": "Bağlı araçlar",
+      "notifications": "HQ, proxy ve Telegram",
+      "health": "Sağlayıcı tanılama",
+      "quota": "Plan kotası",
+      "model-tests": "Model testleri",
+      "terminal-display": "Terminal görünümü",
+      "logging": "Günlükler ve tanılama"
+    }
+  }
+}

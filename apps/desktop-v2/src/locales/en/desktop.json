@@ -1,0 +1,158 @@
+{
+  "pages": {
+    "files": "Files",
+    "changes": "Changes",
+    "memory": "Memory",
+    "kanban": "Kanban",
+    "atlas": "Code Atlas",
+    "goals": "Goals",
+    "sdd": "SDD",
+    "mailbox": "Mailbox",
+    "chronicle": "Chronicle",
+    "roster": "Agent Roster",
+    "live-fleet": "Live fleet",
+    "history": "Session history",
+    "kit": "Project Kit",
+    "techstack": "TechStack",
+    "deadcode": "Dead Code",
+    "design": "Design Studio",
+    "reviews": "Chimera Reviews",
+    "diagnostics": "Engine diagnostics"
+  },
+  "rail": {
+    "navigation": "Main navigation",
+    "home": "WrongStack home",
+    "missionControl": "Mission control",
+    "projects": "Projects",
+    "activity": "Activity",
+    "appearance": "Appearance",
+    "settings": "WrongStack settings",
+    "projectTools": "Project tools"
+  },
+  "explorer": {
+    "findAnything": "Find anything",
+    "workspace": "{{name}} workspace",
+    "projects": "Projects",
+    "addProject": "Add project",
+    "newSessionIn": "New session in {{name}}",
+    "newSession": "New session",
+    "terminal": "terminal",
+    "empty": "Add a project folder to start a session."
+  },
+  "topbar": {
+    "project": "Project",
+    "projectWindow": "Project window",
+    "openInWindow": "Open in its own window",
+    "newSession": "New session",
+    "toLight": "Switch to light mode",
+    "toDark": "Switch to dark mode",
+    "attention": "Sessions needing attention",
+    "connected": "Local engine connected",
+    "disconnected": "Local engine disconnected",
+    "dismissError": "Dismiss error",
+    "preview": "Shell preview · Launch with <code>bun run desktop:v2</code> to connect your local projects and sessions.",
+    "opening": "Opening your workspace…"
+  },
+  "workspace": {
+    "views": "Agent workspace views",
+    "chat": "Chat",
+    "files": "Files",
+    "changes": "Changes",
+    "tools": "Tools",
+    "settings": "Settings",
+    "settingsTitle": "Model & provider settings"
+  },
+  "sessionTools": {
+    "label": "Session tools",
+    "eyebrow": "THIS CONVERSATION",
+    "title": "Follow the work.",
+    "close": "Close session tools",
+    "story": {
+      "title": "Session story",
+      "body": "Replay the conversation: agent lanes, context over time, models, tools and files."
+    },
+    "context": {
+      "title": "Context dashboard",
+      "body": "Context pressure, what fills the window, cache residency, thresholds and memory."
+    },
+    "usage": {
+      "title": "Usage & cost",
+      "body": "Session tokens, last-request cache behavior, routed providers and priced estimates."
+    },
+    "sideEffects": {
+      "title": "Side effects",
+      "body": "Audit recorded commands, packages, network and configuration operations."
+    },
+    "processes": {
+      "title": "Processes",
+      "body": "Inspect this conversation's commands, background output and reviewed termination."
+    },
+    "mcpTasks": {
+      "title": "MCP tasks",
+      "body": "Observe remote work, recover results and request cancellation for this session."
+    },
+    "history": {
+      "title": "History & recovery",
+      "body": "Recorded events, file activity and reviewed checkpoint rewind."
+    },
+    "activity": {
+      "title": "Run activity",
+      "body": "Tool calls, execution output, and verification in this conversation."
+    },
+    "plan": {
+      "title": "Plan templates",
+      "body": "Start this conversation's plan from a ready-made list of steps."
+    },
+    "skills": {
+      "title": "Available skills",
+      "body": "Read the skills available to this agent."
+    },
+    "shared": "Project knowledge and settings have their own workspace.",
+    "projectWorkspace": "Project workspace",
+    "projectHint": "Memory · Kanban · Code Atlas",
+    "settings": "WrongStack settings"
+  },
+  "settings": {
+    "back": "Back to conversation",
+    "sections": "WrongStack settings sections",
+    "search": "Search WrongStack settings",
+    "find": "Find a setting…",
+    "loading": "Loading your WrongStack profile…",
+    "sectionPicker": "Settings section",
+    "choose": "Choose a section",
+    "groups": {
+      "models": "Models",
+      "conversations": "Conversations",
+      "agents": "Agents & tools",
+      "diagnostics": "Diagnostics"
+    },
+    "section": {
+      "setup": "Quick setup",
+      "providers": "Providers & models",
+      "models": "Model catalog",
+      "model-visibility": "Model visibility",
+      "availability": "Model availability",
+      "routing": "Fallbacks & agent defaults",
+      "model-routing": "Model routing",
+      "cost-tiers": "Cost tiers",
+      "execution": "Execution & permissions",
+      "refinement": "Prompt refinement",
+      "context": "Context & reasoning",
+      "instructions": "Global instructions",
+      "resource-limits": "Resource limits",
+      "reviews": "Review policy",
+      "capabilities": "Capabilities",
+      "tool-access": "Tool availability",
+      "fleet": "Fleet & companions",
+      "brain": "Brain policy",
+      "skills": "Profile skills",
+      "integrations": "Connected tools",
+      "notifications": "HQ, proxy & Telegram",
+      "health": "Provider diagnostics",
+      "quota": "Plan quota",
+      "model-tests": "Model tests",
+      "terminal-display": "Terminal display",
+      "logging": "Logs & diagnostics"
+    }
+  }
+}

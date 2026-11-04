@@ -59,6 +59,7 @@ import { RuntimeGate } from './RuntimeGate';
 import { reviewPolicyIssue } from './review-policy-model';
 import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
+import { useDesktopText } from './desktop-i18n';
 import { SettingRow } from './SettingRow';
 import { SkillLibrary } from './SkillLibrary';
 import {
@@ -73,6 +74,14 @@ import { useRequestedSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
 
+/** The catalog key of each settings navigation group. */
+const SETTINGS_GROUP_KEY = {
+  Models: 'models',
+  Conversations: 'conversations',
+  'Agents & tools': 'agents',
+  Diagnostics: 'diagnostics',
+} as const;
+
 export function WrongStackSettings({ vm }: { vm: DesktopController }) {
   return (
     <RuntimeGate scope="profile">
@@ -84,6 +93,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
   const { state, send, command } = useProfileEngine(vm.reportError);
   const [search, setSearch] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const { t } = useDesktopText();
   const [modelsOpened, setModelsOpened] = useState(false);
   const [brainOpened, setBrainOpened] = useState(false);
   const [instructionDraft, setInstructionDraft] = useState<InstructionDraft>({
@@ -256,7 +266,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
   if (!state.connected)
     return (
       <div className="runtime-state">
-        <h2>Loading your WrongStack profile…</h2>
+        <h2>{t('settings.loading')}</h2>
       </div>
     );
   const openSection = (id: string) => {
@@ -281,17 +291,17 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             }}
           >
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('settings.back')}
           </button>
         </header>
       )}
       <div className="settings-workspace">
-        <nav className="settings-navigation" aria-label="WrongStack settings sections">
+        <nav className="settings-navigation" aria-label={t('settings.sections')}>
           <label className="settings-search">
             <Search size={14} />
             <input
-              aria-label="Search WrongStack settings"
-              placeholder="Find a setting…"
+              aria-label={t('settings.search')}
+              placeholder={t('settings.find')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -371,11 +381,19 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               },
             ] as const
           )
+            .map((item) => ({
+              ...item,
+              english: item.title,
+              title: t(`settings.section.${item.id}`),
+              group: t(`settings.groups.${SETTINGS_GROUP_KEY[item.group]}`),
+            }))
             .filter(
               (item) =>
                 !search.trim() ||
                 (
                   item.title +
+                  ' ' +
+                  item.english +
                   ' ' +
                   (settingsSections
                     .find((s) => s.id === item.id)

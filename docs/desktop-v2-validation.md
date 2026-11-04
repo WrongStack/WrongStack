@@ -7010,3 +7010,31 @@ copies, starting with SAGE memory.
 - Checks:
   - Labels, the running choice, the request, the switch and the hidden case are tested (jsdom).
   - Desktop tests pass (865); typecheck clean.
+
+### The desktop shell in the display language, first batch (2026-11-04)
+
+- Phase 1 translated only the surfaces shared with the WebUI; the desktop's own shell stayed in
+  English whatever display language the profile chose. This batch translates the chrome seen on
+  every screen into the seven languages the WebUI ships (English, Turkish, German, French,
+  Italian, Spanish, Brazilian Portuguese):
+  - the icon rail, project list and project page names;
+  - the top bar, its buttons and the preview banner;
+  - the conversation's tabs and its Tools dialog;
+  - the WrongStack settings navigation (section and group names, search, section picker).
+- The shell's strings live in a `desktop` namespace under `apps/desktop-v2/src/locales`, on the
+  same i18next instance as the surfaces, so the shell and the surfaces always switch together.
+  English is bundled; each other language loads as its own small chunk when chosen. Terms
+  follow the WebUI's catalogs where the WebUI already names a thing.
+- The language comes from the profile as before (`Config.uiLocale`, shared with the WebUI and
+  CLI), and is now remembered locally:
+  - The app opens in the remembered language before any engine answers.
+  - On the very first start, with nothing remembered, the profile is read once and the reader
+    stops.
+  - While the profile has not answered yet, the language no longer drops back to English.
+- Settings field labels and descriptions, page bodies and the composer are still English; they
+  are the next batches.
+- Checks:
+  - Every language's catalog has the same keys and placeholders as English.
+  - Switching language updates the shell, the profile's language is applied and remembered,
+    and a remembered language is used at start and kept until the profile answers (jsdom).
+  - Desktop tests pass; typecheck clean; the frontend build emits one chunk per language.

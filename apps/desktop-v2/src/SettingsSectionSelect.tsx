@@ -1,3 +1,5 @@
+import { useDesktopText } from './desktop-i18n';
+
 /** One settings section as the navigation lists it. */
 export interface SettingsSectionChoice {
   id: string;
@@ -18,15 +20,16 @@ export function SettingsSectionSelect({
   section: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useDesktopText();
   const listed = sections.some((item) => item.id === section);
   return (
     <select
       className="settings-section-select"
-      aria-label="Settings section"
+      aria-label={t('settings.sectionPicker')}
       value={listed ? section : ''}
       onChange={(e) => onSelect(e.target.value)}
     >
-      {!listed && <option value="">Choose a section</option>}
+      {!listed && <option value="">{t('settings.choose')}</option>}
       {[...new Set(sections.map((item) => item.group))].map((group) => (
         <optgroup key={group} label={group}>
           {sections
