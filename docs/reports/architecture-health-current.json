@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T14:52:25.690Z",
+  "generatedAt": "2026-11-04T15:05:48.641Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4973,
-    "sourceLines": 1246133,
+    "testFiles": 4974,
+    "sourceLines": 1246173,
     "workspaceEdges": 240,
-    "moduleEdges": 17484,
+    "moduleEdges": 17486,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 236,
+    "testsWithoutTypecheck": 237,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 425,
-      "testFiles": 236,
+      "testFiles": 237,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2247,6 +2247,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-goals.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-history-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32248,6 +32254,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/project-history-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/project-history.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33769,8 +33782,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 732,
-      "relativeImports": 15
+      "lines": 740,
+      "relativeImports": 16
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
@@ -33910,6 +33923,11 @@
       "relativeImports": 14
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
+      "lines": 740,
+      "relativeImports": 16
+    },
+    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
@@ -33923,11 +33941,6 @@
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 732,
-      "relativeImports": 15
     },
     {
       "file": "packages/tools/src/process-registry.ts",

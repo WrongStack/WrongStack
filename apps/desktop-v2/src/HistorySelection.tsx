@@ -1,6 +1,7 @@
 import { ArrowRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { Session } from './model';
 import { historyTitle } from './project-history-model';
 import { recoveryDate } from './session-recovery-model';
@@ -33,17 +34,21 @@ export function HistorySelection({
   onRestore: (restore: { id: string; title: string; mode: 'resume' | 'fork' }) => void;
   onDelete: (ids: string[]) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
+  const untitled = t('historyView.untitled');
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <header className="history-selection">
-      <span className="eyebrow">RECORDED CONVERSATION</span>
-      <h2>{historyTitle(row, owner)}</h2>
+      <span className="eyebrow">{t('historyView.selection.eyebrow')}</span>
+      <h2>{historyTitle(row, owner, untitled)}</h2>
       <p>
-        {String(row['provider'])} / {String(row['model'])} · Started{' '}
-        {recoveryDate(row['startedAt'])}
+        {String(row['provider'])} / {String(row['model'])} ·{' '}
+        {t('historyView.selection.started', {
+          time: recoveryDate(row['startedAt'], t('recovery.timeMissing')),
+        })}
       </p>
       <div>
-        <CopyButton text={selected} label="Copy recorded session ID" />
+        <CopyButton text={selected} label={t('historyView.selection.copyId')} />
         <button
           type="button"
           className="button secondary small"
@@ -51,11 +56,11 @@ export function HistorySelection({
           onClick={() => onRename(row)}
         >
           <Pencil size={13} />
-          Rename recorded session
+          {t('historyView.selection.rename')}
         </button>
         {owner && (
           <button type="button" className="button primary small" onClick={() => onOpen(owner)}>
-            Open desktop conversation
+            {t('historyView.selection.openDesktop')}
             <ArrowRight size={13} />
           </button>
         )}
@@ -63,17 +68,25 @@ export function HistorySelection({
           <button
             type="button"
             className="button primary small"
-            onClick={() => onRestore({ id: selected, title: historyTitle(row), mode: 'resume' })}
+            onClick={() =>
+              onRestore({
+                id: selected,
+                title: historyTitle(row, undefined, untitled),
+                mode: 'resume',
+              })
+            }
           >
-            Resume recorded conversation
+            {t('historyView.selection.resume')}
           </button>
         )}
         <button
           type="button"
           className="button secondary small"
-          onClick={() => onRestore({ id: selected, title: historyTitle(row, owner), mode: 'fork' })}
+          onClick={() =>
+            onRestore({ id: selected, title: historyTitle(row, owner, untitled), mode: 'fork' })
+          }
         >
-          Continue a copy
+          {t('historyView.selection.fork')}
         </button>
         {!owner && !confirmDelete && (
           <button
@@ -83,15 +96,16 @@ export function HistorySelection({
             onClick={() => setConfirmDelete(true)}
           >
             <Trash2 size={13} />
-            Delete…
+            {t('historyView.selection.delete')}
           </button>
         )}
       </div>
       {confirmDelete && !owner && (
         <div className="history-delete-confirm" role="alert">
           <p>
-            Delete “{historyTitle(row)}” and its recorded journal? This cannot be undone. The engine
-            refuses while a run is active in it.
+            {t('historyView.selection.deleteAsk', {
+              title: historyTitle(row, undefined, untitled),
+            })}
           </p>
           <button
             type="button"
@@ -99,22 +113,20 @@ export function HistorySelection({
             disabled={saving}
             onClick={() => void onDelete([selected]).finally(() => setConfirmDelete(false))}
           >
-            Delete recorded session
+            {t('historyView.selection.deleteConfirm')}
           </button>
           <button
             type="button"
             className="button secondary small"
             onClick={() => setConfirmDelete(false)}
           >
-            Keep
+            {t('historyView.selection.keep')}
           </button>
         </div>
       )}
       <p className="field-help">
-        {owner
-          ? 'Return to the open desktop conversation without starting another session.'
-          : 'Read-only history. Reading does not resume or run the agent.'}{' '}
-        File links open the current project file.
+        {owner ? t('historyView.selection.ownerHelp') : t('historyView.selection.readOnlyHelp')}{' '}
+        {t('historyView.selection.fileLinks')}
       </p>
     </header>
   );
@@ -130,21 +142,24 @@ export function HistoryEmptyCleanup({
   saving: boolean;
   onDelete: (ids: string[]) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const [confirm, setConfirm] = useState(false);
   if (!ids.length) return null;
   return confirm ? (
     <span className="history-delete-confirm" role="alert">
-      Delete {ids.length} empty recorded {ids.length === 1 ? 'session' : 'sessions'} on this page?
+      {t(ids.length === 1 ? 'historyView.empty.askOne' : 'historyView.empty.askMany', {
+        n: ids.length,
+      })}
       <button
         type="button"
         className="button danger small"
         disabled={saving}
         onClick={() => void onDelete(ids).finally(() => setConfirm(false))}
       >
-        Delete empty
+        {t('historyView.empty.confirm')}
       </button>
       <button type="button" className="button secondary small" onClick={() => setConfirm(false)}>
-        Keep
+        {t('historyView.selection.keep')}
       </button>
     </span>
   ) : (
@@ -155,7 +170,7 @@ export function HistoryEmptyCleanup({
       onClick={() => setConfirm(true)}
     >
       <Trash2 size={13} />
-      Delete {ids.length} empty
+      {t('historyView.empty.offer', { n: ids.length })}
     </button>
   );
 }

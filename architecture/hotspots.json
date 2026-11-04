@@ -179,8 +179,8 @@
       "relativeImports": 14
     },
     "apps/desktop-v2/src/ProjectSessionHistory.tsx": {
-      "lines": 732,
-      "relativeImports": 15
+      "lines": 740,
+      "relativeImports": 16
     },
     "apps/desktop-v2/src/RosterRuntimeEditor.tsx": {
       "lines": 779,

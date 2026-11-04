@@ -1,5 +1,6 @@
 import { Copy, History, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { HistoryEmptyCleanup, HistorySelection } from './HistorySelection';
@@ -44,6 +45,11 @@ export function ProjectSessionHistory({
   /** A core session to select when the page opens, e.g. from a Chronicle event. */
   focusSessionId?: string | undefined;
 }) {
+  const { t } = useDesktopText();
+  // Read through a ref so a language change does not reload the catalog.
+  const words = useRef(t);
+  words.current = t;
+  const untitled = t('historyView.untitled');
   const [rows, setRows] = useState<Row[]>([]);
   const { state: viewState, controller: viewStore } = useHistoryView(projectId);
   const {
@@ -113,9 +119,9 @@ export function ProjectSessionHistory({
       );
       const history = entries(reply['sessions']);
       if (history.some((row) => typeof row['id'] !== 'string' || row['id'] === carrierId))
-        throw Error('The runtime returned an invalid history identity.');
+        throw Error(words.current('historyView.invalidIdentity'));
       if (anchorId && !history.some((row) => row['id'] === anchorId))
-        throw Error('The runtime did not return the selected recorded conversation.');
+        throw Error(words.current('historyView.missingSelected'));
       return {
         history,
         page: readHistoryPage(
@@ -123,6 +129,10 @@ export function ProjectSessionHistory({
           anchorId ? null : offset,
           limit,
           history.length,
+          {
+            different: words.current('historyView.pageDifferent'),
+            invalid: words.current('historyView.pageInvalid'),
+          },
         ),
       };
     },
@@ -146,9 +156,7 @@ export function ProjectSessionHistory({
             throw error;
           result = await requestPage();
           if (mounted.current && generation.current === version)
-            setNotice(
-              'The remembered conversation is no longer in this catalog. Showing the first page.',
-            );
+            setNotice(words.current('historyView.rememberedGone'));
         }
         if (!mounted.current || generation.current !== version) return;
         const history = result.history;
@@ -201,7 +209,7 @@ export function ProjectSessionHistory({
         provider,
         outcome,
         !!links[String(row['id'])],
-        historyTitle(row, links[String(row['id'])]),
+        historyTitle(row, links[String(row['id'])], untitled),
       ),
   );
   const row =
@@ -217,7 +225,11 @@ export function ProjectSessionHistory({
       const opened = await request<Session>('session.restore', {
         projectId,
         history: { id: restore.id, mode: restore.mode },
-        title: Array.from(`${restore.mode === 'fork' ? 'Fork: ' : ''}${restore.title}`)
+        title: Array.from(
+          restore.mode === 'fork'
+            ? t('historyView.forkTitle', { title: restore.title })
+            : restore.title,
+        )
           .slice(0, 48)
           .join(''),
       });
@@ -241,7 +253,7 @@ export function ProjectSessionHistory({
       const before = await requestPage(page.offset, page.revision);
       const current = before.history.find((item) => item['id'] === reviewed['id']);
       if (!current || String(current['name'] ?? '') !== String(reviewed['name'] ?? ''))
-        throw Error('This session name changed elsewhere. Cancel and refresh before renaming.');
+        throw Error(t('historyView.nameChanged'));
       await command('session.rename', { id: reviewed['id'], name: name.trim() }, [
         'key.operation_result',
       ]);
@@ -249,10 +261,10 @@ export function ProjectSessionHistory({
       if (page.offset > 0) after = await requestPage(page.offset, after.page.revision);
       const saved = after.history.find((item) => item['id'] === reviewed['id']);
       if (!saved || String(saved['name'] ?? '') !== name.trim())
-        throw Error('The saved session name could not be verified. Refresh before retrying.');
+        throw Error(t('historyView.nameUnverified'));
       if (!mounted.current) return;
       setRename(null);
-      setNotice('Recorded session name saved and verified.');
+      setNotice(t('historyView.nameSaved'));
       await load(after.page.offset, after.page.revision);
     } catch (error) {
       if (mounted.current) setError(error instanceof Error ? error.message : String(error));
@@ -281,7 +293,9 @@ export function ProjectSessionHistory({
       if (mounted.current) setSaving(false);
     }
     if (!mounted.current || !deleted) return;
-    setNotice(`${deleted} recorded ${deleted === 1 ? 'session' : 'sessions'} deleted.`);
+    setNotice(
+      t(deleted === 1 ? 'historyView.deletedOne' : 'historyView.deletedMany', { n: deleted }),
+    );
     await load(page.offset);
   };
   const prepare = async () => {
@@ -306,13 +320,11 @@ export function ProjectSessionHistory({
       void openExternal(target.value).catch((error) => setError(String(error)));
   };
   return (
-    <section className="project-history" aria-label="Project session history">
+    <section className="project-history" aria-label={t('historyView.label')}>
       <header className="history-heading">
         <div>
-          <h1>Session history</h1>
-          <p>
-            Find earlier work, read the recorded conversation and return to an open desktop session.
-          </p>
+          <h1>{t('historyView.title')}</h1>
+          <p>{t('historyView.intro')}</p>
         </div>
         <button
           type="button"
@@ -321,7 +333,7 @@ export function ProjectSessionHistory({
           onClick={() => void load()}
         >
           <RefreshCw size={14} />
-          Refresh session history
+          {t('historyView.refresh')}
         </button>
       </header>
       <ProjectUsageSummary
@@ -338,10 +350,12 @@ export function ProjectSessionHistory({
           {notice}
         </p>
       )}
-      {!viewState.ready && <p role="status">Restoring project history view…</p>}
+      {!viewState.ready && <p role="status">{t('historyView.restoringView')}</p>}
       {viewState.error && (
         <div className="session-error" role="alert">
-          {viewState.error}{' '}
+          {t(`historyView.viewError.${viewState.errorKind || 'restore'}`, {
+            defaultValue: viewState.error,
+          })}{' '}
           <button
             type="button"
             className="button secondary"
@@ -350,71 +364,76 @@ export function ProjectSessionHistory({
               void viewStore.retry();
             }}
           >
-            Retry history view storage
+            {t('historyView.retryView')}
           </button>
         </div>
       )}
-      <p className="field-help">
-        Summary filters, page size and the last viewed page are remembered for this project.
-      </p>
+      <p className="field-help">{t('historyView.remembered')}</p>
       <div className="history-filters">
         <label>
           <Search size={14} />
           <input
-            aria-label="Search project session summaries"
+            aria-label={t('historyView.search')}
             value={query}
             maxLength={500}
             disabled={!viewState.ready}
             onChange={(event) => viewStore.change({ query: event.target.value })}
-            placeholder="Find a title, model or last prompt…"
+            placeholder={t('historyView.searchPlaceholder')}
           />
         </label>
         <select
-          aria-label="History provider"
+          aria-label={t('historyView.provider')}
           value={provider}
           disabled={!viewState.ready}
           onChange={(event) => viewStore.change({ provider: event.target.value })}
         >
-          <option value="">All providers</option>
+          <option value="">{t('historyView.allProviders')}</option>
           {[...new Set([provider, ...rows.map((item) => String(item['provider'] ?? ''))])]
             .filter(Boolean)
             .sort()
             .map((provider) => (
               <option key={provider} value={provider}>
                 {provider}
-                {rows.some((row) => row['provider'] === provider) ? '' : ' (not on this page)'}
+                {rows.some((row) => row['provider'] === provider)
+                  ? ''
+                  : ` (${t('historyView.notOnPage')})`}
               </option>
             ))}
         </select>
         <select
-          aria-label="History outcome"
+          aria-label={t('historyView.outcome')}
           value={outcome}
           disabled={!viewState.ready}
           onChange={(event) => viewStore.change({ outcome: event.target.value })}
         >
-          <option value="">All outcomes</option>
-          <option value="open">Open in desktop</option>
-          <option value="completed">Completed</option>
-          <option value="error">Error recorded</option>
-          <option value="aborted">Interrupted</option>
+          <option value="">{t('historyView.allOutcomes')}</option>
+          {['open', 'completed', 'error', 'aborted'].map((value) => (
+            <option key={value} value={value}>
+              {t(`historyView.outcomeOption.${value}`)}
+            </option>
+          ))}
         </select>
         <select
-          aria-label="History page size"
+          aria-label={t('historyView.pageSize')}
           value={limit}
           disabled={!viewState.ready || busy || saving}
           onChange={(event) => viewStore.change({ pageSize: Number(event.target.value) })}
         >
           {[50, 100, 200].map((value) => (
             <option key={value} value={value}>
-              {value} per page
+              {t('historyView.perPage', { n: value })}
             </option>
           ))}
         </select>
       </div>
       <div className="history-catalog-status">
         <span>
-          {visible.length} matching summaries on this page · {rows.length ? page.offset + 1 : 0}–
-          {page.offset + rows.length} of {page.total} records. Summary filters apply to this page.
+          {t('historyView.catalogStatus', {
+            matching: visible.length,
+            from: rows.length ? page.offset + 1 : 0,
+            to: page.offset + rows.length,
+            total: page.total,
+          })}
         </span>
         <label>
           <input
@@ -423,7 +442,7 @@ export function ProjectSessionHistory({
             disabled={!viewState.ready}
             onChange={(event) => viewStore.change({ includeEmpty: event.target.checked })}
           />
-          Include empty journals
+          {t('historyView.includeEmpty')}
         </label>
         <HistoryEmptyCleanup
           ids={rows
@@ -433,15 +452,15 @@ export function ProjectSessionHistory({
           onDelete={deleteRecorded}
         />
       </div>
-      {busy && <p role="status">Reading project session history…</p>}
-      <nav className="history-page-controls" aria-label="History catalog pages">
+      {busy && <p role="status">{t('historyView.reading')}</p>}
+      <nav className="history-page-controls" aria-label={t('historyView.pages')}>
         <button
           type="button"
           className="button secondary"
           disabled={!viewState.ready || busy || saving || !page.offset}
           onClick={() => void load(Math.max(0, page.offset - limit), page.revision)}
         >
-          Previous history page
+          {t('historyView.previous')}
         </button>
         <button
           type="button"
@@ -451,19 +470,14 @@ export function ProjectSessionHistory({
             if (page.nextOffset !== null) void load(page.nextOffset, page.revision);
           }}
         >
-          Next history page
+          {t('historyView.next')}
         </button>
-        {page.truncated && (
-          <p>
-            Legacy scan limit reached. More records may exist; use the current project catalog
-            service for deeper history.
-          </p>
-        )}
+        {page.truncated && <p>{t('historyView.truncated')}</p>}
       </nav>
       <details className="history-search-disclosure">
         <summary>
           <Search size={14} />
-          Search across conversations
+          {t('historyView.searchAcross')}
         </summary>
         {viewState.ready && (
           <ProjectHistorySearch
@@ -481,7 +495,7 @@ export function ProjectSessionHistory({
         )}
       </details>
       <div className="history-workspace">
-        <nav className="history-catalog" aria-label="Recorded project sessions">
+        <nav className="history-catalog" aria-label={t('historyView.catalog')}>
           {visible.map((item) => {
             const id = String(item['id']),
               live = links[id];
@@ -489,7 +503,7 @@ export function ProjectSessionHistory({
               <button
                 type="button"
                 key={id}
-                aria-label={`Open history ${id}`}
+                aria-label={t('historyView.openHistory', { id })}
                 aria-current={id === selected ? 'page' : undefined}
                 onClick={() => {
                   viewStore.change({ selectedId: id });
@@ -500,25 +514,32 @@ export function ProjectSessionHistory({
               >
                 <span className="history-row-title">
                   <History size={14} />
-                  <strong>{historyTitle(item, live)}</strong>
+                  <strong>{historyTitle(item, live, untitled)}</strong>
                 </span>
-                <small>{recoveryDate(item['lastActivityAt'] || item['startedAt'])}</small>
+                <small>
+                  {recoveryDate(
+                    item['lastActivityAt'] || item['startedAt'],
+                    t('recovery.timeMissing'),
+                  )}
+                </small>
                 <span>
                   {String(item['provider'])} / {String(item['model'])}
                 </span>
-                <p>{String(item['lastUserMessage'] || 'No prompt preview recorded.')}</p>
+                <p>{String(item['lastUserMessage'] || t('historyView.noPrompt'))}</p>
                 <span className="history-row-status">
                   {live
-                    ? 'Open in desktop'
+                    ? t('historyView.openInDesktop')
                     : item['outcome']
-                      ? String(item['outcome'])
-                      : 'Recorded'}
+                      ? t(`historyView.rowOutcome.${String(item['outcome'])}`, {
+                          defaultValue: String(item['outcome']),
+                        })
+                      : t('historyView.recorded')}
                 </span>
               </button>
             );
           })}
           {viewState.ready && !busy && !visible.length && (
-            <p className="quiet-state">No recorded sessions match this view.</p>
+            <p className="quiet-state">{t('historyView.noMatches')}</p>
           )}
         </nav>
         <div className="history-reader">
@@ -558,13 +579,10 @@ export function ProjectSessionHistory({
           ) : (
             <div className="history-empty-reader">
               <History size={30} />
-              <h2>Return to the work.</h2>
-              <p>
-                Select a recorded conversation to read it. Project history is available before
-                opening a new session.
-              </p>
+              <h2>{t('historyView.emptyTitle')}</h2>
+              <p>{t('historyView.emptyBody')}</p>
               <button type="button" className="button secondary" onClick={onNewSession}>
-                New conversation
+                {t('historyView.newConversation')}
               </button>
             </div>
           )}
@@ -582,21 +600,19 @@ export function ProjectSessionHistory({
               void renameSession();
             }}
           >
-            <h2 id="dialog-title">Name this recorded conversation</h2>
-            <p>
-              This changes the engine’s recorded name. The desktop session tab keeps its own title.
-            </p>
+            <h2 id="dialog-title">{t('historyView.renameTitle')}</h2>
+            <p>{t('historyView.renameBody')}</p>
             <label className="modal-field">
-              Recorded session name
+              {t('historyView.renameField')}
               <input
-                aria-label="Recorded session name"
+                aria-label={t('historyView.renameField')}
                 maxLength={200}
                 value={name}
                 disabled={saving}
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
-            <p className="field-help">Leave empty to use the automatically recorded title.</p>
+            <p className="field-help">{t('historyView.renameHelp')}</p>
             {error && (
               <p role="alert" className="session-error">
                 {error}
@@ -609,10 +625,10 @@ export function ProjectSessionHistory({
                 disabled={saving}
                 onClick={() => setRename(null)}
               >
-                Keep recorded name
+                {t('historyView.keepName')}
               </button>
               <button type="submit" className="button primary" disabled={saving}>
-                {saving ? 'Saving…' : 'Save recorded name'}
+                {saving ? t('historyView.saving') : t('historyView.saveName')}
               </button>
             </div>
           </form>
@@ -624,21 +640,18 @@ export function ProjectSessionHistory({
             if (!saving) setReuse('');
           }}
         >
-          <h2 id="dialog-title">Reuse this recorded text</h2>
-          <p>
-            The visible text will be appended to the chosen conversation’s existing draft. Review it
-            before sending.
-          </p>
+          <h2 id="dialog-title">{t('historyView.reuseTitle')}</h2>
+          <p>{t('historyView.reuseBody')}</p>
           <pre className="history-reuse-preview">{reuse}</pre>
           <label className="modal-field">
-            Destination conversation
+            {t('historyView.destination')}
             <select
-              aria-label="History draft destination"
+              aria-label={t('historyView.destinationLabel')}
               value={target}
               disabled={saving}
               onChange={(event) => setTarget(event.target.value)}
             >
-              <option value="">Choose an open conversation</option>
+              <option value="">{t('historyView.chooseOpen')}</option>
               {sessions
                 .filter(
                   (item) => item.projectId === projectId && item.kind === 'agent' && isLive(item),
@@ -662,7 +675,7 @@ export function ProjectSessionHistory({
               disabled={saving}
               onClick={() => setReuse('')}
             >
-              Keep reading
+              {t('historyView.keepReading')}
             </button>
             <button
               type="button"
@@ -671,7 +684,7 @@ export function ProjectSessionHistory({
               onClick={() => void prepare()}
             >
               <Copy size={13} />
-              {saving ? 'Preparing…' : 'Append recorded text to draft'}
+              {saving ? t('historyView.preparing') : t('historyView.append')}
             </button>
           </div>
         </Modal>
@@ -683,20 +696,15 @@ export function ProjectSessionHistory({
           }}
         >
           <h2 id="dialog-title">
-            {restore.mode === 'fork' ? 'Continue a separate copy' : 'Resume this conversation'}
+            {restore.mode === 'fork'
+              ? t('historyView.forkHeading')
+              : t('historyView.resumeHeading')}
           </h2>
           <p>
             <strong>{restore.title}</strong>
           </p>
-          <p>
-            {restore.mode === 'fork'
-              ? 'Create a new conversation with the recorded history. The original journal stays unchanged.'
-              : 'Reopen the original journal in a new desktop tab. Another process holding this conversation must release it first.'}
-          </p>
-          <p className="field-help">
-            Both use the project’s current files. Historical files are not restored. No prompt is
-            sent automatically.
-          </p>
+          <p>{restore.mode === 'fork' ? t('historyView.forkBody') : t('historyView.resumeBody')}</p>
+          <p className="field-help">{t('historyView.restoreHelp')}</p>
           {error && (
             <p role="alert" className="session-error">
               {error}
@@ -709,7 +717,7 @@ export function ProjectSessionHistory({
               disabled={saving}
               onClick={() => setRestore(null)}
             >
-              Keep reading
+              {t('historyView.keepReading')}
             </button>
             <button
               type="button"
@@ -718,10 +726,10 @@ export function ProjectSessionHistory({
               onClick={() => void restoreSession()}
             >
               {saving
-                ? 'Opening conversation…'
+                ? t('historyView.opening')
                 : restore.mode === 'fork'
-                  ? 'Open separate copy'
-                  : 'Open original conversation'}
+                  ? t('historyView.openCopy')
+                  : t('historyView.openOriginal')}
             </button>
           </div>
         </Modal>

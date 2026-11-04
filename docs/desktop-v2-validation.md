@@ -7678,3 +7678,26 @@ copies, starting with SAGE memory.
   - A new jsdom test renders a running board's in-progress task with its controls in English and
     then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (904); typecheck clean.
+
+### Session history catalog in the display language (2026-11-04)
+
+- Project session history now follows the display language in all seven languages: the heading,
+  summary search and filters, page size and page controls, the catalog status line, catalog rows
+  with their outcome, the empty reader, the selected conversation's heading and actions, the
+  empty-journal cleanup, and the rename, reuse and resume dialogs.
+- The key group is `historyView`, because the page quotes `session.*` and `sessions.*` engine
+  messages.
+- Untitled conversations, including the title a resumed or copied conversation opens with, are
+  named in the display language; `historyTitle` keeps English as its default.
+- The history view store now records which failure its message describes (`errorKind`), and
+  `readHistoryPage` takes its two error texts from the caller, so both appear in the display
+  language while their English text stays the default.
+- Not yet translated: the conversation reader, the cross-conversation search and the usage and
+  side-effect summaries. They follow in the next change.
+- Still English by design: recorded titles, prompts and engine replies.
+- ProjectSessionHistory grew by 8 lines and imports one more module; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - A new jsdom test renders the catalog and a selected conversation in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (905); typecheck clean.

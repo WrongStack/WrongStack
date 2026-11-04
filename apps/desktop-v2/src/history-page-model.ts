@@ -7,11 +7,16 @@ export interface HistoryCatalogPage {
   revision: string;
   truncated: boolean;
 }
+const englishPageErrors = {
+  different: 'This runtime returned a different history page.',
+  invalid: 'This runtime returned an invalid history page. Update or refresh the project runtime.',
+};
 export function readHistoryPage(
   value: unknown,
   requestedOffset: number | null,
   limit: number,
   count: number,
+  words = englishPageErrors,
 ): HistoryCatalogPage {
   const page = record(value);
   const offset = page['offset'];
@@ -30,7 +35,7 @@ export function readHistoryPage(
     (requestedOffset !== null && offset !== requestedOffset) ||
     (requestedOffset === null && offset % limit !== 0)
   )
-    throw Error('This runtime returned a different history page.');
+    throw Error(words.different);
   const end = offset + count;
   if (
     page['limit'] !== limit ||
@@ -44,9 +49,7 @@ export function readHistoryPage(
     next !== (end < total ? end : null) ||
     (next !== null && (typeof next !== 'number' || !Number.isSafeInteger(next) || next <= offset))
   )
-    throw Error(
-      'This runtime returned an invalid history page. Update or refresh the project runtime.',
-    );
+    throw Error(words.invalid);
   return {
     offset,
     limit,
