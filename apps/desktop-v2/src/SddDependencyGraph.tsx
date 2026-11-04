@@ -1,4 +1,5 @@
 import { Background, Controls, type Edge, type Node, Position, ReactFlow } from '@xyflow/react';
+import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-state';
 import '@xyflow/react/dist/style.css';
 
@@ -40,9 +41,10 @@ export function sddGraphElements(columns: Record<string, unknown>[]): {
 }
 
 export function SddDependencyGraph({ columns }: { columns: Record<string, unknown>[] }) {
+  const { t } = useDesktopText();
   const { nodes, edges } = sddGraphElements(columns);
   return (
-    <section className="sdd-flow" aria-label="Specification dependency graph">
+    <section className="sdd-flow" aria-label={t('sddView.graphLabel')}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

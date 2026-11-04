@@ -7640,3 +7640,26 @@ copies, starting with SAGE memory.
     then in Turkish.
   - The reported-end test covers the end words.
   - Catalog parity and the key guard pass; desktop tests pass (902); typecheck clean.
+
+### Project SDD in the display language (2026-11-04)
+
+- Project SDD, its run options, board activity feed, dependency graph and project maintenance now
+  follow the display language in all seven languages: navigation, the interview and its actions,
+  the specification list and task graph, project runs and the current board, worker options,
+  activity entries with their ages, and the maintenance confirmations and results.
+- The key group is `sddView`, because the page quotes `sdd.*` and `specs.*` engine messages.
+- Phases, statuses and priorities are named per language with the engine value (underscores read
+  as spaces) as the fallback; `FEED_WORDS` and the maintenance titles stay the English source.
+- The "requested" line of a board action used to be cleared by matching its English text. It is
+  now cleared by remembering that the last request was a board action, so it works in every
+  language.
+- Not yet translated: the selected task's details beside the board. They follow in the next
+  change.
+- Still English by design: interview questions and answers, specification and task text, engine
+  replies, and task titles inside the dependency graph.
+- ProjectSdd grew by 22 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - A new jsdom test renders the interview start and a running board with its activity feed and
+    maintenance section in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (903); typecheck clean.
