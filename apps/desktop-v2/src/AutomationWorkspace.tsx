@@ -11,17 +11,20 @@ import {
 } from '@wrongstack/webui-protocol';
 import { Download, Eye, Pause, Play, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { AutomationConfiguration, AutomationTemplates } from './AutomationConfiguration';
 import { AutomationEnvironmentEditor } from './AutomationEnvironmentEditor';
 import { AutomationRunComparison } from './AutomationRunComparison';
 import { AutomationRunInspector } from './AutomationRunInspector';
 import { activeDrafts, automationDraftKey, jobDrafts } from './automation-draft';
 import { automationMilliseconds } from './automation-units';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { emptyEngineState } from './engine-state';
 import { Modal } from './Modal';
 import { ProfileModelPicker } from './ProfileModelPicker';
 import { sameSetting } from './settings-save-model';
+import { surfaceI18n } from './surface-i18n';
 import {
   AutomationDraftPersistenceStatus,
   useAutomationDraftPersistence,
@@ -30,6 +33,7 @@ import './automation-workspace.css';
 
 const fresh = () => ({ ...createAutomationJobInput(), enabled: false });
 export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; projectId: string }) {
+  const { t } = useDesktopText();
   const cached = useRef(activeDrafts.get(projectId)).current;
   const [data, setData] = useState<AutomationStateView>({
     jobs: [],
@@ -78,7 +82,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       setCommands(saved.commands);
       setPreview(null);
       setNotice(
-        `Recovered an unsaved automation draft${updatedAt ? ` saved ${new Date(updatedAt).toLocaleString()}` : ''}.`,
+        updatedAt
+          ? t('automation.recoveredAt', { time: new Date(updatedAt).toLocaleString() })
+          : t('automation.recovered'),
       );
     },
   });
@@ -129,7 +135,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
     setDraft(restored?.draft ?? (job ? editableAutomationJob(job) : fresh()));
     setCommands(restored?.commands ?? formatAutomationCommands(job?.verification?.commands ?? []));
     setPreview(null);
-    setNotice(restored ? 'Recovered this job’s unsaved draft from this window.' : '');
+    setNotice(restored ? t('automation.recoveredJob') : '');
   };
   const spec = (): AutomationJobInput => ({
     ...draft,
@@ -157,7 +163,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       if (!alive.current) return;
       jobDrafts.delete(draftKey(selected?.id));
       edit(saved, true);
-      setNotice('The engine saved this automation.');
+      setNotice(t('automation.savedNotice'));
     });
   const exportJob = () =>
     run(async () => {
@@ -180,13 +186,13 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       })) as AutomationJobRecord;
       if (!alive.current) return;
       edit(saved, true);
-      setNotice('Imported as a disabled automation for local review.');
+      setNotice(t('automation.imported'));
     });
   return (
     <div className="feature-management automation-workspace">
       <div className="feature-toolbar">
         <span className={`automation-worker ${data.workerOnline ? 'online' : ''}`}>
-          {data.workerOnline ? 'Worker online' : 'Worker offline · jobs remain editable'}
+          {data.workerOnline ? t('automation.workerOnline') : t('automation.workerOffline')}
         </span>
         <button
           type="button"
@@ -195,14 +201,14 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
           disabled={busy}
         >
           <RefreshCw size={13} />
-          Refresh
+          {t('automation.refresh')}
         </button>
         <label className="button secondary feature-import">
-          Import
+          {t('automation.import')}
           <input
             type="file"
             accept="application/json,.json"
-            aria-label="Import automation"
+            aria-label={t('automation.importLabel')}
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void importJob(file);
@@ -212,7 +218,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
         </label>
         <button type="button" className="button primary" disabled={busy} onClick={() => edit(null)}>
           <Plus size={13} />
-          New automation
+          {t('automation.new')}
         </button>
       </div>
       {error && (
@@ -227,20 +233,21 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       )}
       <p className="automation-draft-status" role="status">
         {dirty
-          ? 'Unsaved job draft'
+          ? t('automation.unsavedDraft')
           : selected
-            ? `Saved revision ${selected.revision ?? 1}`
-            : 'New automation'}{' '}
-        · Unsaved drafts are kept per job and restored after a restart.{' '}
+            ? t('automation.savedRevision', { revision: selected.revision ?? 1 })
+            : t('automation.new')}{' '}
+        · {t('automation.keptNote')}{' '}
         <button type="button" className="text-link" disabled={busy} onClick={() => setReload(true)}>
-          Discard draft / reload saved
+          {t('automation.discardReload')}
         </button>
       </p>
       {staleBase && (
         <p className="session-error" role="alert">
-          This job was saved again (revision {current.revision ?? 1}) after this draft started from
-          revision {selected.revision ?? 1}. Saving is refused; copy what you need, then discard the
-          draft and reload the saved job.
+          {t('automation.stale', {
+            current: current.revision ?? 1,
+            base: selected.revision ?? 1,
+          })}
         </p>
       )}
       <AutomationDraftPersistenceStatus {...persisted} />
@@ -257,7 +264,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       />
       <div className="feature-split">
         <div>
-          <section className="feature-record-list" aria-label="Automation jobs">
+          <section className="feature-record-list" aria-label={t('automation.jobsLabel')}>
             {data.jobs.map((job) => (
               <button
                 type="button"
@@ -269,19 +276,19 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 <strong>{job.name}</strong>
                 <p>{job.prompt}</p>
                 <span className="feature-meta">
-                  {job.enabled ? 'Enabled' : 'Disabled'} ·{' '}
+                  {job.enabled ? t('automation.enabled') : t('automation.disabled')} ·{' '}
                   {job.schedule
                     ? `${job.schedule.expression} · ${job.schedule.timezone}`
                     : job.intervalMs
-                      ? `Every ${job.intervalMs / 60000} minutes`
-                      : 'Manual only'}
+                      ? t('automation.everyMinutes', { minutes: job.intervalMs / 60000 })
+                      : t('automation.manualOnly')}
                 </span>
               </button>
             ))}
-            {!data.jobs.length && <p className="quiet-state">No automations in this project.</p>}
+            {!data.jobs.length && <p className="quiet-state">{t('automation.noJobs')}</p>}
           </section>
           <section className="automation-runs">
-            <h3>Recent runs</h3>
+            <h3>{t('automation.recentRuns')}</h3>
             {data.runs.length > 1 && (
               <button
                 type="button"
@@ -289,7 +296,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 disabled={comparedRuns.length !== 2}
                 onClick={() => setComparing(true)}
               >
-                Compare {comparedRuns.length === 2 ? '2 runs' : 'two picked runs'}
+                {comparedRuns.length === 2
+                  ? t('automation.compareTwo')
+                  : t('automation.comparePick')}
               </button>
             )}
             {data.runs.map((item) => (
@@ -298,7 +307,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   {data.runs.length > 1 && (
                     <input
                       type="checkbox"
-                      aria-label={`Pick run ${item.id.slice(0, 8)} for comparison`}
+                      aria-label={t('automation.pickRun', { id: item.id.slice(0, 8) })}
                       checked={compared.includes(item.id)}
                       onChange={(event) =>
                         setCompared((current) =>
@@ -311,7 +320,8 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   )}
                   <strong>{item.id.slice(0, 8)}</strong>
                   <span className="feature-meta">
-                    {item.status} · {item.trigger}
+                    {t(`automation.runStatus.${item.status}`, { defaultValue: item.status })} ·{' '}
+                    {t(`automation.trigger.${item.trigger}`, { defaultValue: item.trigger })}
                   </span>
                 </div>
                 {item.error && <p>{item.error}</p>}
@@ -327,7 +337,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                         })
                       }
                     >
-                      Cancel run
+                      {t('automation.cancelRun')}
                     </button>
                   )}
                   <button
@@ -335,14 +345,12 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                     className="button secondary"
                     onClick={() => setInspectedRun(item.id)}
                   >
-                    Inspect run
+                    {t('automation.inspectRun')}
                   </button>
                 </div>
               </article>
             ))}
-            {!data.runs.length && (
-              <p className="quiet-state">Queued and completed runs appear here.</p>
-            )}
+            {!data.runs.length && <p className="quiet-state">{t('automation.noRuns')}</p>}
           </section>
         </div>
         <form
@@ -352,7 +360,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
             void save();
           }}
         >
-          <h3>{selected ? 'Edit automation' : 'Create automation'}</h3>
+          <h3>{selected ? t('automation.editTitle') : t('automation.createTitle')}</h3>
           {draft.template && (
             <p className="automation-template-label">
               {VERSIONED_AUTOMATION_TEMPLATES.find((item) => item.id === draft.template?.id)
@@ -362,18 +370,18 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
           )}
           <fieldset className="automation-editor-fields" disabled={busy}>
             <label>
-              Name
+              {t('automation.name')}
               <input
-                aria-label="Automation name"
+                aria-label={t('automation.nameLabel')}
                 required
                 value={draft.name}
                 onChange={(event) => update('name', event.target.value)}
               />
             </label>
             <label>
-              Runtime image
+              {t('automation.image')}
               <input
-                aria-label="Automation image"
+                aria-label={t('automation.imageLabel')}
                 required
                 readOnly={!!draft.environment}
                 value={draft.image}
@@ -382,9 +390,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               />
             </label>
             <label>
-              Instructions
+              {t('automation.instructions')}
               <textarea
-                aria-label="Automation instructions"
+                aria-label={t('automation.instructionsLabel')}
                 required
                 rows={5}
                 value={draft.prompt}
@@ -393,25 +401,25 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
             </label>
             <div className="feature-field-grid">
               <label>
-                Provider
+                {t('automation.provider')}
                 <input
-                  aria-label="Automation provider"
+                  aria-label={t('automation.providerLabel')}
                   value={draft.provider ?? ''}
                   onChange={(event) => update('provider', event.target.value || undefined)}
                 />
               </label>
               <label>
-                Model
+                {t('automation.model')}
                 <input
-                  aria-label="Automation model"
+                  aria-label={t('automation.modelLabel')}
                   value={draft.model ?? ''}
                   onChange={(event) => update('model', event.target.value || undefined)}
                 />
               </label>
               <label>
-                Timeout (minutes)
+                {t('automation.timeout')}
                 <input
-                  aria-label="Automation timeout"
+                  aria-label={t('automation.timeoutLabel')}
                   type="number"
                   min={1}
                   max={1440}
@@ -422,9 +430,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 />
               </label>
               <label>
-                Maximum iterations
+                {t('automation.iterations')}
                 <input
-                  aria-label="Automation iterations"
+                  aria-label={t('automation.iterationsLabel')}
                   type="number"
                   min={1}
                   max={1000}
@@ -439,7 +447,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 className="button secondary"
                 onClick={() => setModelPicker(true)}
               >
-                Choose automation model
+                {t('automation.chooseModel')}
               </button>
               <button
                 type="button"
@@ -449,7 +457,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   update('model', undefined);
                 }}
               >
-                Inherit model routing
+                {t('automation.inheritModel')}
               </button>
             </div>
             <AutomationConfiguration
@@ -459,11 +467,11 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               onEditEnvironment={() => setEnvironmentOpen(true)}
             />
             <label>
-              Environment variable names
+              {t('automation.envNames')}
               <input
-                aria-label="Automation environment names"
+                aria-label={t('automation.envNamesLabel')}
                 value={draft.envNames.join(', ')}
-                placeholder="Names only, separated by commas"
+                placeholder={t('automation.envNamesPlaceholder')}
                 onChange={(event) =>
                   update(
                     'envNames',
@@ -476,9 +484,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               />
             </label>
             <label>
-              Schedule
+              {t('automation.schedule')}
               <select
-                aria-label="Automation schedule"
+                aria-label={t('automation.scheduleLabel')}
                 value={draft.schedule ? 'cron' : draft.intervalMs ? 'interval' : 'manual'}
                 onChange={(event) => {
                   previewSequence.current++;
@@ -498,16 +506,16 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   }));
                 }}
               >
-                <option value="manual">Manual only</option>
-                <option value="interval">Interval</option>
-                <option value="cron">Cron schedule</option>
+                <option value="manual">{t('automation.manualOnly')}</option>
+                <option value="interval">{t('automation.scheduleInterval')}</option>
+                <option value="cron">{t('automation.scheduleCron')}</option>
               </select>
             </label>
             {draft.intervalMs && (
               <label>
-                Interval (minutes)
+                {t('automation.interval')}
                 <input
-                  aria-label="Automation interval"
+                  aria-label={t('automation.intervalLabel')}
                   type="number"
                   min={1}
                   value={draft.intervalMs / 60000}
@@ -520,9 +528,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
             {draft.schedule && (
               <div className="feature-field-grid">
                 <label>
-                  Cron expression
+                  {t('automation.cron')}
                   <input
-                    aria-label="Automation cron"
+                    aria-label={t('automation.cronLabel')}
                     value={draft.schedule.expression}
                     onChange={(event) =>
                       update('schedule', { ...draft.schedule!, expression: event.target.value })
@@ -530,9 +538,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   />
                 </label>
                 <label>
-                  Timezone
+                  {t('automation.timezone')}
                   <input
-                    aria-label="Automation timezone"
+                    aria-label={t('automation.timezoneLabel')}
                     value={draft.schedule.timezone}
                     onChange={(event) =>
                       update('schedule', { ...draft.schedule!, timezone: event.target.value })
@@ -542,9 +550,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               </div>
             )}
             <label>
-              Verification commands
+              {t('automation.verifyCommands')}
               <textarea
-                aria-label="Automation verification commands"
+                aria-label={t('automation.verifyCommandsLabel')}
                 rows={3}
                 value={commands}
                 onChange={(event) => {
@@ -556,9 +564,9 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               />
             </label>
             <label>
-              Verification timeout (seconds)
+              {t('automation.verifyTimeout')}
               <input
-                aria-label="Automation verification timeout"
+                aria-label={t('automation.verifyTimeoutLabel')}
                 type="number"
                 min={1}
                 max={3600}
@@ -577,7 +585,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 checked={draft.enabled}
                 onChange={(event) => update('enabled', event.target.checked)}
               />
-              Enable this automation
+              {t('automation.enable')}
             </label>
             <label className="feature-checkbox">
               <input
@@ -585,23 +593,25 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 checked={draft.yolo}
                 onChange={(event) => update('yolo', event.target.checked)}
               />
-              Use the engine's YOLO permission mode
+              {t('automation.yolo')}
             </label>
             {preview && (
               <div className="automation-preview">
-                <h4>Launch preview</h4>
+                <h4>{t('automation.launchPreview')}</h4>
                 <p>
                   {preview.nextRunTimes.length
                     ? preview.nextRunTimes
                         .map((time) => new Date(time).toLocaleString())
                         .join(' · ')
-                    : 'Manual execution'}
+                    : t('automation.manualExecution')}
                 </p>
                 {preview.missingReferences.length > 0 && (
-                  <p>Missing references: {preview.missingReferences.join(', ')}</p>
+                  <p>
+                    {t('automation.missingRefs', { refs: preview.missingReferences.join(', ') })}
+                  </p>
                 )}
                 <details>
-                  <summary>Runtime command</summary>
+                  <summary>{t('automation.runtimeCommand')}</summary>
                   <pre>{preview.args.join(' ')}</pre>
                 </details>
               </div>
@@ -622,11 +632,11 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 }
               >
                 <Eye size={13} />
-                Preview
+                {t('automation.preview')}
               </button>
               <button type="submit" className="button primary" disabled={busy}>
                 <Save size={13} />
-                {busy ? 'Working…' : 'Save automation'}
+                {busy ? t('automation.working') : t('automation.save')}
               </button>
             </div>
             {selected && (
@@ -640,12 +650,12 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                       await http(`/api/automation/jobs/${selected.id}/run`, 'POST', {
                         expectedRevision: selected.revision ?? 1,
                       });
-                      setNotice('The engine queued this run.');
+                      setNotice(t('automation.queuedNotice'));
                     })
                   }
                 >
                   <Play size={13} />
-                  Queue run
+                  {t('automation.queueRun')}
                 </button>
                 <button
                   type="button"
@@ -665,7 +675,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   }
                 >
                   <Pause size={13} />
-                  {selected.enabled ? 'Disable' : 'Enable'}
+                  {selected.enabled ? t('automation.disable') : t('automation.enableButton')}
                 </button>
                 <button
                   type="button"
@@ -674,7 +684,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   onClick={() => void exportJob()}
                 >
                   <Download size={13} />
-                  Export
+                  {t('automation.export')}
                 </button>
                 <button
                   type="button"
@@ -683,7 +693,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   onClick={() => setDeleting(selected)}
                 >
                   <Trash2 size={13} />
-                  Delete
+                  {t('automation.delete')}
                 </button>
               </div>
             )}
@@ -691,12 +701,16 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
         </form>
       </div>
       {deleting && (
-        <Modal title="Delete automation" onClose={() => setDeleting(null)}>
-          <section className="automation-delete" aria-label="Delete automation">
+        <Modal title={t('automation.deleteTitle')} onClose={() => setDeleting(null)}>
+          <section className="automation-delete" aria-label={t('automation.deleteTitle')}>
             <p>
-              Delete <strong>{deleting.name}</strong>? Its definition and its run records in this
-              list are removed. Artifact files already written stay on disk. A queued or running run
-              must be cancelled or finish first.
+              <Trans
+                i18n={surfaceI18n}
+                ns="desktop"
+                i18nKey="automation.deleteBody"
+                values={{ name: deleting.name }}
+                components={{ strong: <strong /> }}
+              />
             </p>
             <div className="feature-actions">
               <button
@@ -705,7 +719,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 disabled={busy}
                 onClick={() => setDeleting(null)}
               >
-                Keep it
+                {t('automation.keepIt')}
               </button>
               <button
                 type="button"
@@ -723,12 +737,17 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                     jobDrafts.delete(draftKey(target.id));
                     edit(null, true);
                     setNotice(
-                      `Deleted ${target.name}${typeof result?.removedRuns === 'number' ? ` and ${result.removedRuns} run records` : ''}.`,
+                      typeof result?.removedRuns === 'number'
+                        ? t('automation.deletedRuns', {
+                            name: target.name,
+                            runs: result.removedRuns,
+                          })
+                        : t('automation.deleted', { name: target.name }),
                     );
                   })
                 }
               >
-                Delete automation
+                {t('automation.deleteTitle')}
               </button>
             </div>
           </section>
@@ -751,7 +770,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       )}
       {modelPicker && (
         <Modal
-          title="Choose automation model"
+          title={t('automation.chooseModel')}
           onClose={() => {
             if (!modelBusy) setModelPicker(false);
           }}
@@ -762,8 +781,8 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
               provider: draft.provider ?? '',
               model: draft.model ?? '',
             }}
-            title="Choose automation model"
-            description="This selection updates the job draft. It does not switch any conversation."
+            title={t('automation.chooseModel')}
+            description={t('automation.modelHelp')}
             onPick={(provider, model) => {
               update('provider', provider);
               update('model', model);
@@ -790,23 +809,21 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       )}
       {reload && (
         <Modal
-          title="Reload automation draft"
+          title={t('automation.reloadTitle')}
           onClose={() => {
             if (!busy) setReload(false);
           }}
         >
           <div className="automation-template-review">
-            <h2>Reload saved job?</h2>
-            <p>
-              This discards the current job's unsaved form. Other job drafts remain in this window.
-            </p>
+            <h2>{t('automation.reloadAsk')}</h2>
+            <p>{t('automation.reloadHelp')}</p>
             <button
               type="button"
               className="button secondary"
               disabled={busy}
               onClick={() => setReload(false)}
             >
-              Keep editing automation
+              {t('automation.keepEditing')}
             </button>
             <button
               type="button"
@@ -822,7 +839,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 })
               }
             >
-              Discard and reload automation
+              {t('automation.discardReloadConfirm')}
             </button>
           </div>
         </Modal>

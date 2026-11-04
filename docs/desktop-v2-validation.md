@@ -7299,3 +7299,23 @@ copies, starting with SAGE memory.
 - Checks:
   - The evidence view renders in English and then in Turkish beside the page (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.
+
+### Automation workspace in the display language (2026-11-04)
+
+- The automation page now follows the display language in all seven languages:
+  - the toolbar, worker state and draft status line;
+  - the job list with schedules, and recent runs with their status, trigger, compare, cancel and
+    inspect;
+  - the job editor with its fields, schedule, verification, preview and actions;
+  - the delete, model and reload dialogs, and the notice when another window saved different
+    drafts.
+- Run statuses and triggers are named per language; a value the catalog does not know still shows
+  the engine's own word.
+- English text is unchanged, so the native automation scenarios keep matching.
+- The templates, configuration, environment editor, run inspector and run comparison follow in the
+  next changes.
+- AutomationWorkspace grew by 17 lines and imports two more modules; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The workspace renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.

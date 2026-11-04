@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T10:58:26.531Z",
+  "generatedAt": "2026-11-04T11:05:08.928Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4968,
-    "sourceLines": 1245654,
+    "sourceLines": 1245682,
     "workspaceEdges": 240,
-    "moduleEdges": 17428,
+    "moduleEdges": 17431,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33649,8 +33649,8 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 833,
-      "relativeImports": 13
+      "lines": 850,
+      "relativeImports": 15
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
@@ -33781,8 +33781,8 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 833,
-      "relativeImports": 13
+      "lines": 850,
+      "relativeImports": 15
     },
     {
       "file": "packages/vibeui/src/lib/session.ts",

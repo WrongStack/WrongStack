@@ -2,6 +2,7 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectRequirements } from '../src/ProjectRequirements';
 import { RequirementEvidence } from '../src/RequirementResources';
@@ -65,6 +66,9 @@ const evidence = () =>
     },
     onDecision: vi.fn(),
   });
+
+const automation = (projectId: string) =>
+  createElement(AutomationWorkspace, { http: vi.fn(pending), projectId });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -146,5 +150,38 @@ describe('the project pages in the display language', () => {
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toContain('Gereksinim kanıtları ve kaynakları');
+  });
+
+  it('show the automation workspace in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(automation('automation-en'));
+    for (const text of [
+      'Worker offline · jobs remain editable',
+      'New automation',
+      'Unsaved drafts are kept per job and restored after a restart.',
+      'No automations in this project.',
+      'Recent runs',
+      'Create automation',
+      'Save automation',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Automation jobs', 'Automation name', 'Automation schedule']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(automation('automation-tr'));
+    for (const text of [
+      'Çalıştırıcı çevrimdışı · işler düzenlenebilir',
+      'Yeni otomasyon',
+      'Bu projede otomasyon yok.',
+      'Son çalıştırmalar',
+      'Otomasyon oluştur',
+      'Otomasyonu kaydet',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Otomasyon işleri', 'Otomasyon adı', 'Otomasyon zamanlaması']),
+    );
   });
 });
