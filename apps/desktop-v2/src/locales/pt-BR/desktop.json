@@ -1193,7 +1193,8 @@
     "working": "Processando…",
     "plainEditor": "Editor de texto simples",
     "loadingEditor": "Carregando o editor de código…",
-    "editorUnavailable": "Não foi possível carregar o editor de código, então este arquivo abre no editor de texto simples."
+    "editorUnavailable": "Não foi possível carregar o editor de código, então este arquivo abre no editor de texto simples.",
+    "plainText": "Texto simples"
   },
   "find": {
     "placeholder": "Localizar",
@@ -8739,5 +8740,88 @@
     "execMode": "Escolha um modo de confirmação de ferramentas válido.",
     "execYoloPlus": "YOLO+ exige YOLO. Escolha um modo de confirmação antes de salvar.",
     "execChanged": "O modo de confirmação de ferramentas mudou em outro lugar. Recarregue os valores salvos antes de aplicar esta alteração."
+  },
+  "chatView": {
+    "providerNeeded": "Conecte um provedor para começar a trabalhar com o WrongStack.",
+    "configureProvider": "Configurar provedor",
+    "pendingOne": "{{count}} solicitação pendente",
+    "pendingMany": "{{count}} solicitações pendentes",
+    "focusQuestions": "Focar nas perguntas",
+    "reviewConversation": "Revisar a conversa",
+    "loading": "Carregando esta conversa…",
+    "welcome": "No que vamos trabalhar?",
+    "showEarlier": "Mostrar {{count}} mensagens anteriores ({{hidden}} ocultas)",
+    "jumpToLatest": "Ir para o mais recente",
+    "newMessages": "{{count}} novas",
+    "answerForm": "Responda ao formulário para continuar.",
+    "stopRun": "Parar a execução",
+    "opening": {
+      "sideEffects": "Abrindo o histórico de efeitos colaterais…",
+      "planTemplates": "Abrindo os modelos de plano…",
+      "usage": "Abrindo o uso da conversa…",
+      "story": "Abrindo a história da sessão…",
+      "context": "Abrindo o painel de contexto…",
+      "processes": "Abrindo os processos da sessão…",
+      "mcpTasks": "Abrindo as tarefas MCP da sessão…",
+      "mcpContent": "Abrindo o conteúdo MCP…"
+    },
+    "reason": {
+      "editDraft": "Envie ou limpe o rascunho primeiro; editar o substituiria",
+      "running": "Aguarde o turno em andamento terminar",
+      "offline": "O motor não está conectado"
+    }
+  },
+  "worklist": {
+    "plan": "Plano",
+    "planTitled": "Plano: {{title}}",
+    "tasks": "Tarefas",
+    "status": {
+      "open": "aberto",
+      "in_progress": "em andamento",
+      "done": "concluído",
+      "pending": "pendente",
+      "blocked": "bloqueado",
+      "review": "em revisão",
+      "failed": "falhou",
+      "completed": "concluído"
+    }
+  },
+  "shellText": {
+    "continuingIn": "Continuando em {{seconds}} s com:",
+    "cancel": "Cancelar",
+    "draftTokens": "≈{{count}} tokens",
+    "git": {
+      "branch": "Branch {{name}}",
+      "ahead": "{{count}} commits à frente",
+      "behind": "{{count}} commits atrás",
+      "added": "{{count}} linhas adicionadas",
+      "deleted": "{{count}} linhas excluídas",
+      "untracked": "{{count}} arquivos não rastreados"
+    },
+    "readingHunks": "Lendo os trechos do Git…",
+    "readingChanges": "Lendo as alterações do repositório…",
+    "visibleFiles": "{{count}} arquivos visíveis",
+    "unread": "{{count}} não lidas",
+    "newestFrom": "mais recente de {{from}}: {{subject}}",
+    "image": "Imagem",
+    "openImage": "Abrir imagem",
+    "mcp": {
+      "imagePreview": "Pré-visualização do conteúdo MCP, {{mime}}",
+      "audioPreview": "Pré-visualização de áudio MCP, {{mime}}",
+      "pdfPreview": "Pré-visualização de PDF MCP, {{name}}",
+      "noPreview": "Sem pré-visualização para {{mime}}.",
+      "details": "{{mime}} · {{bytes}} bytes · a cópia de texto omite este bloco",
+      "save": "Salvar {{name}}",
+      "saveRequested": "Salvamento de {{name}} solicitado."
+    },
+    "rosterImprove": "Prepare uma instrução para que o líder de uma conversa existente melhore os arquivos de funções deste projeto.",
+    "rosterOverlap": "{{count}} candidatos envolvendo {{role}}; {{total}} no projeto.",
+    "reqDraftCounts": "{{attachments}} referências de anexos · {{resources}} recursos relacionados",
+    "draft": {
+      "estimate": "≈ {{tokens}} tokens (4 caracteres por token)",
+      "over": "Previsto {{percent}}% do contexto de {{max}} tokens: a solicitação provavelmente falhará ou será compactada.",
+      "tight": "Previsto {{percent}}% do contexto de {{max}} tokens: o espaço está acabando.",
+      "fits": "≈ {{tokens}} tokens · previsto {{percent}}% do contexto de {{max}} tokens."
+    }
   }
 }

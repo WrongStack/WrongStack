@@ -54,7 +54,7 @@ import { type FileDraftSnapshot, FileDraftStore } from './file-draft';
 import {
   byteSize,
   type FileNode,
-  fileLanguage,
+  fileKind,
   fileName,
   fileRowName,
   fileTree,
@@ -1218,7 +1218,7 @@ export function FileWorkspace({
             </div>
           )}
           <footer>
-            {all.filter((n) => n.type === 'file').length} visible files
+            {t('shellText.visibleFiles', { count: all.filter((n) => n.type === 'file').length })}
             <span>
               {includeIgnored ? t('fileView.ignoredIncluded') : t('fileView.ignoredExcluded')}
             </span>
@@ -1282,7 +1282,7 @@ export function FileWorkspace({
                 <span className="file-document-path" title={active}>
                   {active}
                 </span>
-                <span className="file-document-language">{fileLanguage(active)}</span>
+                <span className="file-document-language">{fileKind(t, active)}</span>
                 {document && !document.binary && !document.tooLarge && mode === 'files' && (
                   <button
                     type="button"
@@ -1405,7 +1405,7 @@ export function FileWorkspace({
                       />
                     </>
                   ) : (
-                    <p className="file-quiet-state">Reading repository changes…</p>
+                    <p className="file-quiet-state">{t('shellText.readingChanges')}</p>
                   )
                 ) : document?.image ? (
                   <div className="file-image-preview">
@@ -1693,9 +1693,7 @@ export function FileWorkspace({
                         {node.name} {search && <small>{parentPath(node.path)}</small>}
                       </span>
                     </span>{' '}
-                    <span>
-                      {node.type === 'directory' ? t('fileView.folder') : fileLanguage(node.path)}
-                    </span>{' '}
+                    <span>{fileKind(t, node.path, node.type === 'directory')}</span>{' '}
                     <span>{node.size === undefined ? '—' : byteSize(node.size)}</span>
                   </button>
                 ))}

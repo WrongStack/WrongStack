@@ -1193,7 +1193,8 @@
     "working": "Çalışıyor…",
     "plainEditor": "Düz metin düzenleyici",
     "loadingEditor": "Kod düzenleyici yükleniyor…",
-    "editorUnavailable": "Kod düzenleyici yüklenemedi; bu dosya düz metin düzenleyicide açılıyor."
+    "editorUnavailable": "Kod düzenleyici yüklenemedi; bu dosya düz metin düzenleyicide açılıyor.",
+    "plainText": "Düz metin"
   },
   "find": {
     "placeholder": "Bul",
@@ -8739,5 +8740,88 @@
     "execMode": "Geçerli bir araç onay modu seçin.",
     "execYoloPlus": "YOLO+ için YOLO gerekir. Kaydetmeden önce bir onay modu seçin.",
     "execChanged": "Araç onay modu başka bir yerde değişti. Bu değişikliği uygulamadan önce kayıtlı değerleri yeniden yükleyin."
+  },
+  "chatView": {
+    "providerNeeded": "WrongStack ile çalışmaya başlamak için bir sağlayıcı bağlayın.",
+    "configureProvider": "Sağlayıcıyı yapılandır",
+    "pendingOne": "{{count}} bekleyen istek",
+    "pendingMany": "{{count}} bekleyen istek",
+    "focusQuestions": "Sorulara odaklan",
+    "reviewConversation": "Konuşmayı incele",
+    "loading": "Bu konuşma yükleniyor…",
+    "welcome": "Ne üzerinde çalışalım?",
+    "showEarlier": "Önceki {{count}} mesajı göster ({{hidden}} gösterilmiyor)",
+    "jumpToLatest": "En sona git",
+    "newMessages": "{{count}} yeni",
+    "answerForm": "Devam etmek için formu yanıtlayın.",
+    "stopRun": "Çalışmayı durdur",
+    "opening": {
+      "sideEffects": "Yan etki geçmişi açılıyor…",
+      "planTemplates": "Plan şablonları açılıyor…",
+      "usage": "Konuşma kullanımı açılıyor…",
+      "story": "Oturum hikâyesi açılıyor…",
+      "context": "Bağlam panosu açılıyor…",
+      "processes": "Oturum süreçleri açılıyor…",
+      "mcpTasks": "Oturumun MCP görevleri açılıyor…",
+      "mcpContent": "MCP içeriği açılıyor…"
+    },
+    "reason": {
+      "editDraft": "Önce yazım alanındaki taslağı gönderin ya da temizleyin; düzenleme onu değiştirir",
+      "running": "Çalışan turun bitmesini bekleyin",
+      "offline": "Motor bağlı değil"
+    }
+  },
+  "worklist": {
+    "plan": "Plan",
+    "planTitled": "Plan: {{title}}",
+    "tasks": "Görevler",
+    "status": {
+      "open": "açık",
+      "in_progress": "sürüyor",
+      "done": "tamamlandı",
+      "pending": "bekliyor",
+      "blocked": "engelli",
+      "review": "incelemede",
+      "failed": "başarısız",
+      "completed": "tamamlandı"
+    }
+  },
+  "shellText": {
+    "continuingIn": "{{seconds}} sn içinde şununla devam ediliyor:",
+    "cancel": "İptal",
+    "draftTokens": "≈{{count}} token",
+    "git": {
+      "branch": "Dal {{name}}",
+      "ahead": "{{count}} commit ileride",
+      "behind": "{{count}} commit geride",
+      "added": "{{count}} satır eklendi",
+      "deleted": "{{count}} satır silindi",
+      "untracked": "{{count}} izlenmeyen dosya"
+    },
+    "readingHunks": "Git parçaları okunuyor…",
+    "readingChanges": "Depo değişiklikleri okunuyor…",
+    "visibleFiles": "{{count}} görünür dosya",
+    "unread": "{{count}} okunmamış",
+    "newestFrom": "en yenisi {{from}} kişisinden: {{subject}}",
+    "image": "Görsel",
+    "openImage": "Görseli aç",
+    "mcp": {
+      "imagePreview": "MCP içerik önizlemesi, {{mime}}",
+      "audioPreview": "MCP ses önizlemesi, {{mime}}",
+      "pdfPreview": "MCP PDF önizlemesi, {{name}}",
+      "noPreview": "{{mime}} için önizleme yok.",
+      "details": "{{mime}} · {{bytes}} bayt · metin kopyası bu bloğu içermez",
+      "save": "{{name}} dosyasını kaydet",
+      "saveRequested": "{{name}} için kaydetme istendi."
+    },
+    "rosterImprove": "Mevcut bir konuşmanın liderinin bu projenin rol dosyalarını iyileştirmesi için bir talimat hazırlayın.",
+    "rosterOverlap": "{{role}} rolünü içeren {{count}} aday; projede toplam {{total}}.",
+    "reqDraftCounts": "{{attachments}} ek referansı · {{resources}} ilgili kaynak",
+    "draft": {
+      "estimate": "≈ {{tokens}} token (token başına 4 karakter)",
+      "over": "{{max}} tokenlık bağlamın tahmini %{{percent}} kadarı: istek büyük olasılıkla başarısız olur ya da sıkıştırılır.",
+      "tight": "{{max}} tokenlık bağlamın tahmini %{{percent}} kadarı: yer daralıyor.",
+      "fits": "≈ {{tokens}} token · {{max}} tokenlık bağlamın tahmini %{{percent}} kadarı."
+    }
   }
 }

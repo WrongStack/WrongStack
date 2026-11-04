@@ -238,8 +238,7 @@ export function EngineWorkspace({
   };
   const editAction = (message: { role: string; text: string }): MessageAction | undefined => {
     if (message.role !== 'user' || parseBugHuntMessage(message.text)) return undefined;
-    if (draft.trim() || references.length)
-      return { reason: 'Send or clear the composer draft first; editing would replace it' };
+    if (draft.trim() || references.length) return { reason: t('chatView.reason.editDraft') };
     const view = splitReferenceMessage(message.text);
     return {
       run: () => void onDraftChange(view.text).then(() => onReferencesChange(view.references)),
@@ -248,8 +247,8 @@ export function EngineWorkspace({
   const askAgainAction = (): MessageAction | undefined => {
     const prompt = state.messages.findLast((message) => message.role === 'user');
     if (!prompt) return undefined;
-    if (state.running) return { reason: 'Wait for the running turn to finish' };
-    if (!state.connected) return { reason: 'The engine is not connected' };
+    if (state.running) return { reason: t('chatView.reason.running') };
+    if (!state.connected) return { reason: t('chatView.reason.offline') };
     return { run: () => void resendPrompt(prompt.text).catch(onError) };
   };
   const openLink = useCallback(
@@ -369,16 +368,18 @@ export function EngineWorkspace({
         <>
           {state.connected && state.needsSetup && (
             <div className="provider-setup-banner">
-              <span>Connect a provider to start working with WrongStack.</span>
+              <span>{t('chatView.providerNeeded')}</span>
               <button type="button" className="button primary" onClick={onSettings}>
-                Configure provider
+                {t('chatView.configureProvider')}
               </button>
             </div>
           )}
           {state.inputs.length > 0 && (
             <div className="input-context-toggle">
               <span>
-                {state.inputs.length} pending {state.inputs.length === 1 ? 'request' : 'requests'}
+                {t(state.inputs.length === 1 ? 'chatView.pendingOne' : 'chatView.pendingMany', {
+                  count: state.inputs.length,
+                })}
               </span>
               <button
                 type="button"
@@ -387,7 +388,7 @@ export function EngineWorkspace({
                   chatPane.current?.scrollTo({ top: 0 });
                 }}
               >
-                {showConversation ? 'Focus questions' : 'Review conversation'}
+                {showConversation ? t('chatView.focusQuestions') : t('chatView.reviewConversation')}
               </button>
             </div>
           )}
@@ -414,13 +415,13 @@ export function EngineWorkspace({
             {!state.synced && (
               <div className="native-chat-welcome" role="status">
                 <LoaderCircle size={18} className="spin" />
-                <p>Loading this conversation…</p>
+                <p>{t('chatView.loading')}</p>
                 {state.replay && <small>{replayProgress(state.replay)}</small>}
               </div>
             )}
             {state.synced && !state.messages.length && !state.inputs.length && (
               <div className="native-chat-welcome">
-                <h2>What should we work on?</h2>
+                <h2>{t('chatView.welcome')}</h2>
                 {!state.connected && <LoaderCircle size={18} className="spin" />}
               </div>
             )}
@@ -434,8 +435,10 @@ export function EngineWorkspace({
                   setShownMessages((count) => count + TRANSCRIPT_WINDOW);
                 }}
               >
-                Show {Math.min(TRANSCRIPT_WINDOW, hiddenMessages)} earlier messages (
-                {hiddenMessages} not shown)
+                {t('chatView.showEarlier', {
+                  count: Math.min(TRANSCRIPT_WINDOW, hiddenMessages),
+                  hidden: hiddenMessages,
+                })}
               </button>
             )}
             {state.synced &&
@@ -496,9 +499,9 @@ export function EngineWorkspace({
                   end.current?.scrollIntoView({ block: 'nearest' });
                 }}
               >
-                Jump to latest
+                {t('chatView.jumpToLatest')}
                 {state.messages.length > leftAt.current &&
-                  ` · ${state.messages.length - leftAt.current} new`}
+                  ` · ${t('chatView.newMessages', { count: state.messages.length - leftAt.current })}`}
               </button>
             </div>
           )}
@@ -528,10 +531,10 @@ export function EngineWorkspace({
           />
           {state.inputs.length > 0 && (
             <div className="input-waiting-controls">
-              <span>Answer the form to continue.</span>
+              <span>{t('chatView.answerForm')}</span>
               <button type="button" className="button secondary" onClick={() => perform('abort')}>
                 <Square size={13} />
-                Stop run
+                {t('chatView.stopRun')}
               </button>
             </div>
           )}
@@ -563,7 +566,7 @@ export function EngineWorkspace({
           </div>
         </>
       ) : tab === 'side-effects' ? (
-        <Suspense fallback={<p role="status">Opening side-effect history…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.sideEffects')}</p>}>
           <SessionSideEffects
             key={state.sessionId}
             sessionId={state.sessionId}
@@ -573,7 +576,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'plan' ? (
-        <Suspense fallback={<p role="status">Opening plan templates…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.planTemplates')}</p>}>
           <SessionPlanTemplates
             key={state.sessionId}
             command={command}
@@ -582,7 +585,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'usage' ? (
-        <Suspense fallback={<p role="status">Opening conversation usage…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.usage')}</p>}>
           <SessionUsage
             key={state.sessionId}
             sessionId={state.sessionId}
@@ -594,7 +597,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'story' ? (
-        <Suspense fallback={<p role="status">Opening the session story…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.story')}</p>}>
           <SessionStory
             key={state.sessionId}
             projectId={projectId}
@@ -606,7 +609,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'context' ? (
-        <Suspense fallback={<p role="status">Opening the context dashboard…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.context')}</p>}>
           <SessionContextDashboard
             key={state.sessionId}
             projectId={projectId}
@@ -617,7 +620,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'processes' ? (
-        <Suspense fallback={<p role="status">Opening session processes…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.processes')}</p>}>
           <SessionProcesses
             key={state.sessionId}
             sessionId={state.sessionId}
@@ -627,7 +630,7 @@ export function EngineWorkspace({
           />
         </Suspense>
       ) : tab === 'mcp-tasks' ? (
-        <Suspense fallback={<p role="status">Opening session MCP tasks…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.mcpTasks')}</p>}>
           <SessionMcpTasks
             key={state.sessionId}
             sessionId={state.sessionId}

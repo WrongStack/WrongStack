@@ -1,5 +1,6 @@
 import { GitBranch } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 
 interface GitInfo {
@@ -29,24 +30,31 @@ function gitInfo(reply: Record<string, unknown>): GitInfo | null {
 
 /** The repository line of the WebUI's dock: branch, commits ahead/behind, changed lines, new files. */
 function GitSummary({ info }: { info: GitInfo }) {
+  const { t } = useDesktopText();
   return (
-    <span className="git-chip" title={`Branch ${info.branch}`}>
+    <span className="git-chip" title={t('shellText.git.branch', { name: info.branch })}>
       <GitBranch size={11} />
       <strong>{info.branch}</strong>
-      {info.ahead > 0 && <span title={`${info.ahead} commits ahead`}>↑{info.ahead}</span>}
-      {info.behind > 0 && <span title={`${info.behind} commits behind`}>↓{info.behind}</span>}
+      {info.ahead > 0 && (
+        <span title={t('shellText.git.ahead', { count: info.ahead })}>↑{info.ahead}</span>
+      )}
+      {info.behind > 0 && (
+        <span title={t('shellText.git.behind', { count: info.behind })}>↓{info.behind}</span>
+      )}
       {info.added > 0 && (
-        <span className="git-added" title={`${info.added} lines added`}>
+        <span className="git-added" title={t('shellText.git.added', { count: info.added })}>
           +{info.added}
         </span>
       )}
       {info.deleted > 0 && (
-        <span className="git-deleted" title={`${info.deleted} lines deleted`}>
+        <span className="git-deleted" title={t('shellText.git.deleted', { count: info.deleted })}>
           −{info.deleted}
         </span>
       )}
       {info.untracked > 0 && (
-        <span title={`${info.untracked} untracked files`}>{info.untracked}?</span>
+        <span title={t('shellText.git.untracked', { count: info.untracked })}>
+          {info.untracked}?
+        </span>
       )}
     </span>
   );

@@ -76,6 +76,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   text: string;
   onLink?: (url: string) => void;
 }) {
+  const { t } = useDesktopText();
   return (
     <div className="markdown-content">
       <Markdown
@@ -104,10 +105,10 @@ export const MarkdownContent = memo(function MarkdownContent({
           img: ({ src, alt }) => (
             <span className="markdown-image">
               <ImageIcon size={14} />
-              {alt || 'Image'}
+              {alt || t('shellText.image')}
               {typeof src === 'string' && markdownTarget(src) && (
                 <button type="button" className="text-link" onClick={() => onLink?.(src)}>
-                  Open image
+                  {t('shellText.openImage')}
                 </button>
               )}
             </span>

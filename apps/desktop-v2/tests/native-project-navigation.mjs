@@ -1,4 +1,4 @@
-/** Views pinned in the project navigation; every other project view lives in "More tools". */
+/** Views pinned in the project navigation; every other project view lives in "Project tools". */
 const PINNED = new Set(['Files', 'Changes', 'Memory', 'Kanban']);
 
 export async function revealProjectTools(page, project) {

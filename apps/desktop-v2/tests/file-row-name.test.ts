@@ -4,7 +4,9 @@ import { type FileNode, fileRowName } from '../src/file-model';
 const t = (key: string, values: Record<string, string>) =>
   key === 'fileView.folder'
     ? 'Folder'
-    : `${key === 'fileView.selectPath' ? 'Select' : 'Open'} ${values['path']}`;
+    : key === 'fileView.plainText'
+      ? 'Plain text'
+      : `${key === 'fileView.selectPath' ? 'Select' : 'Open'} ${values['path']}`;
 const node = (path: string, type: 'file' | 'directory', size?: number) =>
   ({
     path,

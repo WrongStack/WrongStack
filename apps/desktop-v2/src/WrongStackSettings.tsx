@@ -285,7 +285,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     setSection(id);
   };
   return (
-    <section className="wrongstack-settings" aria-label="WrongStack settings">
+    <section className="wrongstack-settings" aria-label={t('rail.settings')}>
       {/* The header row already names this page; only the way back gets a row of its own. */}
       {vm.settingsReturnSession && (
         <header className="wrongstack-settings-heading">

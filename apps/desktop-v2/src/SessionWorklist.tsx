@@ -1,5 +1,6 @@
 import { ClipboardList, ListChecks } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -67,11 +68,12 @@ function WorkList({
   busy: boolean;
   onStatus: (item: WorkItem, status: string) => void;
 }) {
+  const { t } = useDesktopText();
   const done = items.filter((item) => item.status === 'done' || item.status === 'completed');
   return (
     <details className="session-todos">
       <summary>
-        {icon} {label} · {done.length} of {items.length} done
+        {icon} {label} · {t('todoList.progress', { done: done.length, total: items.length })}
       </summary>
       <ol>
         {items.map((item) => (
@@ -81,7 +83,7 @@ function WorkList({
               {item.detail && <small> · {item.detail}</small>}
             </span>
             <select
-              aria-label={`Status of ${item.title}`}
+              aria-label={t('todoList.statusOf', { item: item.title })}
               value={item.status}
               disabled={busy}
               onChange={(event) => onStatus(item, event.target.value)}
@@ -89,7 +91,7 @@ function WorkList({
               {(statuses.includes(item.status) ? statuses : [item.status, ...statuses]).map(
                 (status) => (
                   <option key={status} value={status}>
-                    {status.replace('_', ' ')}
+                    {t(`worklist.status.${status}`, { defaultValue: status.replace('_', ' ') })}
                   </option>
                 ),
               )}
@@ -112,6 +114,7 @@ export function SessionWorklist({
   state: EngineState;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
   const plan = planItems(state.results['plan.updated']);
   const tasks = taskItems(state.results['tasks.updated']);
   const [busy, setBusy] = useState(false),
@@ -140,7 +143,7 @@ export function SessionWorklist({
     <>
       {plan.items.length > 0 && (
         <WorkList
-          label={plan.title ? `Plan: ${plan.title}` : 'Plan'}
+          label={plan.title ? t('worklist.planTitled', { title: plan.title }) : t('worklist.plan')}
           icon={<ClipboardList size={14} />}
           items={plan.items}
           statuses={PLAN_STATUSES}
@@ -150,7 +153,7 @@ export function SessionWorklist({
       )}
       {tasks.length > 0 && (
         <WorkList
-          label="Tasks"
+          label={t('worklist.tasks')}
           icon={<ListChecks size={14} />}
           items={tasks}
           statuses={TASK_STATUSES}

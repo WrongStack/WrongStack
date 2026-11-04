@@ -88,12 +88,12 @@ function ToolsLauncher({
       <button
         type="button"
         className={`rail-button ${active ? 'active' : ''}`}
-        aria-label={t('rail.projectTools')}
         title={t('rail.projectTools')}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <Shapes size={17} />
+        <span>{t('rail.projectTools')}</span>
       </button>
       {open && (
         <div className="rail-popover">

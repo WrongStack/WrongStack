@@ -140,7 +140,7 @@ export function GitHunkReview({
         {!loading && modeNote && <p className="field-help">{modeNote}</p>}
         {loading ? (
           <p role="status">
-            <LoaderCircle size={15} className="spin" /> Reading Git hunks…
+            <LoaderCircle size={15} className="spin" /> {t('shellText.readingHunks')}
           </p>
         ) : hunks.length ? (
           hunks.map((hunk) => (

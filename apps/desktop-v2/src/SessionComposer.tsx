@@ -1012,7 +1012,7 @@ export function SessionComposer({
         />
       )}
       {mcpContent && (
-        <Suspense fallback={<p role="status">Opening MCP content…</p>}>
+        <Suspense fallback={<p role="status">{t('chatView.opening.mcpContent')}</p>}>
           <McpComposerPicker
             command={command}
             sessionId={state.sessionId}

@@ -1193,7 +1193,8 @@
     "working": "Working…",
     "plainEditor": "Plain text editor",
     "loadingEditor": "Loading the code editor…",
-    "editorUnavailable": "The code editor could not load, so this file opens in the plain text editor."
+    "editorUnavailable": "The code editor could not load, so this file opens in the plain text editor.",
+    "plainText": "Plain text"
   },
   "find": {
     "placeholder": "Find",
@@ -8739,5 +8740,88 @@
     "execMode": "Choose a valid tool confirmation mode.",
     "execYoloPlus": "YOLO+ requires YOLO. Choose a confirmation mode before saving.",
     "execChanged": "Tool confirmation mode changed elsewhere. Reload saved values before applying this change."
+  },
+  "chatView": {
+    "providerNeeded": "Connect a provider to start working with WrongStack.",
+    "configureProvider": "Configure provider",
+    "pendingOne": "{{count}} pending request",
+    "pendingMany": "{{count}} pending requests",
+    "focusQuestions": "Focus questions",
+    "reviewConversation": "Review conversation",
+    "loading": "Loading this conversation…",
+    "welcome": "What should we work on?",
+    "showEarlier": "Show {{count}} earlier messages ({{hidden}} not shown)",
+    "jumpToLatest": "Jump to latest",
+    "newMessages": "{{count}} new",
+    "answerForm": "Answer the form to continue.",
+    "stopRun": "Stop run",
+    "opening": {
+      "sideEffects": "Opening side-effect history…",
+      "planTemplates": "Opening plan templates…",
+      "usage": "Opening conversation usage…",
+      "story": "Opening the session story…",
+      "context": "Opening the context dashboard…",
+      "processes": "Opening session processes…",
+      "mcpTasks": "Opening session MCP tasks…",
+      "mcpContent": "Opening MCP content…"
+    },
+    "reason": {
+      "editDraft": "Send or clear the composer draft first; editing would replace it",
+      "running": "Wait for the running turn to finish",
+      "offline": "The engine is not connected"
+    }
+  },
+  "worklist": {
+    "plan": "Plan",
+    "planTitled": "Plan: {{title}}",
+    "tasks": "Tasks",
+    "status": {
+      "open": "open",
+      "in_progress": "in progress",
+      "done": "done",
+      "pending": "pending",
+      "blocked": "blocked",
+      "review": "review",
+      "failed": "failed",
+      "completed": "completed"
+    }
+  },
+  "shellText": {
+    "continuingIn": "Continuing in {{seconds}} s with:",
+    "cancel": "Cancel",
+    "draftTokens": "≈{{count}} tokens",
+    "git": {
+      "branch": "Branch {{name}}",
+      "ahead": "{{count}} commits ahead",
+      "behind": "{{count}} commits behind",
+      "added": "{{count}} lines added",
+      "deleted": "{{count}} lines deleted",
+      "untracked": "{{count}} untracked files"
+    },
+    "readingHunks": "Reading Git hunks…",
+    "readingChanges": "Reading repository changes…",
+    "visibleFiles": "{{count}} visible files",
+    "unread": "{{count}} unread",
+    "newestFrom": "newest from {{from}}: {{subject}}",
+    "image": "Image",
+    "openImage": "Open image",
+    "mcp": {
+      "imagePreview": "MCP content preview, {{mime}}",
+      "audioPreview": "MCP audio preview, {{mime}}",
+      "pdfPreview": "MCP PDF preview, {{name}}",
+      "noPreview": "No preview for {{mime}}.",
+      "details": "{{mime}} · {{bytes}} bytes · text copy omits this block",
+      "save": "Save {{name}}",
+      "saveRequested": "Save requested for {{name}}."
+    },
+    "rosterImprove": "Prepare an instruction for an existing conversation’s leader to improve this project’s role files.",
+    "rosterOverlap": "{{count}} candidates involving {{role}}; {{total}} in the project.",
+    "reqDraftCounts": "{{attachments}} attachment references · {{resources}} related resources",
+    "draft": {
+      "estimate": "≈ {{tokens}} tokens (4 characters a token)",
+      "over": "Projected {{percent}}% of the {{max}}-token context: the request will likely fail or compact.",
+      "tight": "Projected {{percent}}% of the {{max}}-token context: getting tight.",
+      "fits": "≈ {{tokens}} tokens · projected {{percent}}% of the {{max}}-token context."
+    }
   }
 }

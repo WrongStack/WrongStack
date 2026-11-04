@@ -93,6 +93,15 @@ export function byteSize(bytes: number) {
  * A file manager row's accessible name: its action and path, then every column the row shows
  * (folder in search results, kind, size), so speech input can say any visible part of it.
  */
+/** A file list's type column: "Folder" or the file's language, in the display language. */
+export function fileKind(
+  t: (key: string, values: Record<string, string>) => string,
+  path: string,
+  directory = false,
+) {
+  return directory ? t('fileView.folder', {}) : fileLanguage(path, t('fileView.plainText', {}));
+}
+
 export function fileRowName(
   t: (key: string, values: Record<string, string>) => string,
   node: FileNode,
@@ -102,13 +111,14 @@ export function fileRowName(
   return [
     t(selecting ? 'fileView.selectPath' : 'fileView.openPath', { path: node.path }),
     search ? parentPath(node.path) : '',
-    node.type === 'directory' ? t('fileView.folder', {}) : fileLanguage(node.path),
+    fileKind(t, node.path, node.type === 'directory'),
     node.size === undefined ? '—' : byteSize(node.size),
   ]
     .filter(Boolean)
     .join(' ');
 }
-export function fileLanguage(path: string) {
+/** The file's language by extension; `plain` names any other file, in the display language. */
+export function fileLanguage(path: string, plain = 'Plain text') {
   const extension = path.split('.').at(-1)?.toLowerCase() ?? '';
   return (
     (
@@ -129,7 +139,7 @@ export function fileLanguage(path: string) {
         sh: 'Shell',
         ps1: 'PowerShell',
       } as Record<string, string>
-    )[extension] ?? 'Plain text'
+    )[extension] ?? plain
   );
 }
 export interface DiffLine {

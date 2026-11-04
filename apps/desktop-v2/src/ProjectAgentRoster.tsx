@@ -677,10 +677,7 @@ export function ProjectAgentRoster({
                   <ResolvedRosterRuntime value={effective} />
                   <section className="roster-improve">
                     <h3>{t('roster.improveTitle')}</h3>
-                    <p>
-                      Prepare an instruction for an existing conversation's leader to improve this
-                      project's role files.
-                    </p>
+                    <p>{t('shellText.rosterImprove')}</p>
                     <textarea
                       aria-label={t('roster.improveLabel')}
                       value={improve}
@@ -969,12 +966,13 @@ export function ProjectAgentRoster({
                     {overlap && (
                       <>
                         <p>
-                          {
-                            overlap.filter(
+                          {t('shellText.rosterOverlap', {
+                            count: overlap.filter(
                               (item) => item['roleA'] === selected || item['roleB'] === selected,
-                            ).length
-                          }{' '}
-                          candidates involving {selected}; {overlap.length} in the project.
+                            ).length,
+                            role: selected,
+                            total: overlap.length,
+                          })}
                         </p>
                         {overlap
                           .filter(
