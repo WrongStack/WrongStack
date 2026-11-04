@@ -211,5 +211,348 @@
       "replace": "Sostituisci la bozza",
       "keep": "Mantieni la bozza attuale"
     }
+  },
+  "sectionInfo": {
+    "execution": {
+      "title": "Esecuzione e permessi",
+      "description": "Valori predefiniti per nuove conversazioni ed esecuzioni degli agenti."
+    },
+    "context": {
+      "title": "Contesto e ragionamento",
+      "description": "Controlla come le nuove conversazioni usano il contesto e il ragionamento del modello."
+    },
+    "capabilities": {
+      "title": "Capacità",
+      "description": "Scegli quali sistemi WrongStack sono disponibili nelle nuove esecuzioni."
+    },
+    "routing": {
+      "title": "Agenti e fallback",
+      "description": "Valori predefiniti condivisi di concorrenza e fallback per il nuovo lavoro."
+    },
+    "notifications": {
+      "title": "HQ, proxy e Telegram",
+      "description": "Pubblicazione su WrongStack HQ, instradamento locale WrongProxy per le richieste ai provider e notifiche Telegram. Le impostazioni di Telegram compaiono quando è configurato un token del bot."
+    },
+    "terminal-display": {
+      "title": "Visualizzazione del terminale",
+      "description": "Come l'interfaccia terminale di WrongStack mostra il lavoro in corso. Queste impostazioni del profilo non cambiano la vista dell'app desktop."
+    },
+    "logging": {
+      "title": "Log e diagnostica",
+      "description": "Controlla il dettaglio registrato da WrongStack."
+    }
+  },
+  "fields": {
+    "autonomy": {
+      "label": "Modalità di prosecuzione",
+      "description": "Scegli come WrongStack prosegue dopo aver completato un passaggio."
+    },
+    "maxIterations": {
+      "label": "Budget di iterazioni",
+      "description": "Numero massimo di iterazioni per una nuova esecuzione dell'agente. Zero significa illimitato. Le conversazioni in corso mantengono il budget attuale."
+    },
+    "autoProceedMaxIterations": {
+      "label": "Budget di prosecuzione automatica",
+      "description": "Numero massimo di passaggi di prosecuzione prima che serva un'altra decisione dell'utente. Zero usa l'impostazione illimitata del motore."
+    },
+    "autonomyDelayMs": {
+      "label": "Ritardo di prosecuzione",
+      "description": "Attesa tra i passaggi di prosecuzione autonoma."
+    },
+    "breakerEnabled": {
+      "label": "Interruttore di sicurezza",
+      "description": "Ferma i fallimenti ripetuti e i cicli di strumenti fuori controllo."
+    },
+    "breakerAutoKillResetMs": {
+      "label": "Ritardo di ripristino dell'interruttore",
+      "description": "Quanto attende l'interruttore prima di ripristinarsi."
+    },
+    "nextStepsMode": {
+      "label": "Richiedi i passaggi successivi",
+      "description": "Ogni turno concluso termina con i passaggi successivi o un indicatore di completamento, così la prosecuzione automatica continua finché l'agente dichiara concluso il lavoro. Il budget di prosecuzione la mette comunque in pausa.",
+      "options": {
+        "optional": "Facoltativo",
+        "required": "Obbligatorio"
+      }
+    },
+    "fsAccess": {
+      "label": "Accesso al file system",
+      "description": "Ambito degli strumenti per i file. Si applica dalla prossima sessione.",
+      "options": {
+        "unrestricted": "Senza restrizioni — qualsiasi percorso",
+        "project": "Progetto — limitato alla radice del progetto"
+      }
+    },
+    "contextMode": {
+      "label": "Profilo di contesto",
+      "description": "Bilanciato per il lavoro quotidiano, parsimonioso per un contesto ridotto o approfondito per analisi dettagliate."
+    },
+    "contextStrategy": {
+      "label": "Strategia di contesto",
+      "description": "Come il motore seleziona e comprime il contesto della conversazione."
+    },
+    "contextAutoCompact": {
+      "label": "Compattazione automatica",
+      "description": "Compatta il contesto più vecchio quando la conversazione si avvicina al limite della finestra."
+    },
+    "tokenSavingTier": {
+      "label": "Risparmio di token",
+      "description": "Bilancia il dettaglio del prompt e l'uso di token."
+    },
+    "reasoningMode": {
+      "label": "Ragionamento del modello",
+      "description": "Segui le impostazioni del provider, richiedi il ragionamento o disattivalo quando è supportato."
+    },
+    "reasoningEffort": {
+      "label": "Sforzo di ragionamento",
+      "description": "Sforzo richiesto ai provider che supportano questo controllo."
+    },
+    "reasoningPreserve": {
+      "label": "Conserva il ragionamento",
+      "description": "Mantiene il contesto di ragionamento del provider quando il modello lo supporta."
+    },
+    "systemPromptVariant": {
+      "label": "Identità dell'agente",
+      "description": "Scegli l'identità per le nuove esecuzioni: guida al codice Lite, Standard o Pro, Scout generico o Quick minimale."
+    },
+    "includeGlobalAgents": {
+      "label": "AGENTS.md globale",
+      "description": "Carica ~/.wrongstack/AGENTS.md nel prompt di sistema delle nuove esecuzioni."
+    },
+    "includeProjectAgents": {
+      "label": "AGENTS.md del progetto",
+      "description": "Carica l'AGENTS.md nella radice del progetto nel prompt di sistema delle nuove esecuzioni."
+    },
+    "featureMemory": {
+      "label": "Memoria del progetto",
+      "description": "Usa SAGE per conservare e recuperare le conoscenze durature del progetto."
+    },
+    "featureSkills": {
+      "label": "Skill",
+      "description": "Scopre e usa le istruzioni di workflow installate."
+    },
+    "featureMcp": {
+      "label": "Connessioni MCP",
+      "description": "Espone al motore i server di strumenti esterni abilitati."
+    },
+    "featurePlugins": {
+      "label": "Plugin",
+      "description": "Carica le estensioni WrongStack configurate."
+    },
+    "featureToolCoach": {
+      "label": "Coach degli strumenti",
+      "description": "Aiuta l'agente a scegliere e usare in modo efficace gli strumenti disponibili."
+    },
+    "featureModelsRegistry": {
+      "label": "Registro dei modelli",
+      "description": "Usa i cataloghi di capacità e disponibilità dei modelli."
+    },
+    "indexOnStart": {
+      "label": "Indicizza il codice all'avvio",
+      "description": "Prepara l'indice del codice quando si avvia il runtime di un progetto."
+    },
+    "readSymbols": {
+      "label": "Leggi i simboli",
+      "description": "Lo strumento di lettura include i simboli dell'indice del codice insieme al contenuto del file."
+    },
+    "showSageMemoryInject": {
+      "label": "Mostra l'iniezione di memoria SAGE",
+      "description": "Mostra i blocchi di memoria SAGE aggiunti ai risultati degli strumenti."
+    },
+    "sageMemoryInjectThreshold": {
+      "label": "Soglia di iniezione della memoria SAGE",
+      "description": "Forza di relazione minima richiesta per una memoria SAGE iniettata.",
+      "options": {
+        "0": {
+          "72": "0.72 (permissiva)",
+          "85": "0.85 (predefinita)",
+          "95": "0.95 (rigorosa)"
+        }
+      }
+    },
+    "maxConcurrent": {
+      "label": "Agenti simultanei",
+      "description": "Numero massimo di agenti simultanei consentiti dal motore."
+    },
+    "fallbackAuto": {
+      "label": "Fallback automatico del modello",
+      "description": "Prova la catena di fallback configurata quando un provider o un modello non è disponibile."
+    },
+    "favoriteModelsOnly": {
+      "label": "Solo preferiti",
+      "description": "Quando il fallback automatico ricava una catena, limitala ai tuoi modelli preferiti."
+    },
+    "streamTimeouts": {
+      "hangTimeoutMs": {
+        "label": "Silenzio tra i blocchi",
+        "description": "Pausa più lunga consentita durante lo streaming di una risposta prima che il tentativo fallisca e venga ripetuto. Aumentala per i modelli con lunghe fasi di ragionamento silenzioso. 0 la disattiva.",
+        "unset": "Predefinito: 60 s (240 s per MiniMax e Z.AI)"
+      },
+      "headersTimeoutMs": {
+        "label": "Attesa delle intestazioni di risposta",
+        "description": "Quanto attendere che il provider inizi a rispondere. 0 la disattiva.",
+        "unset": "Predefinito: 60 s (180 s per MiniMax e Z.AI)"
+      }
+    },
+    "cacheTtl": {
+      "label": "Durata della cache dei prompt",
+      "description": "Durata della cache richiesta ai provider che supportano la cache dei prompt."
+    },
+    "wrongProxyEnabled": {
+      "label": "Instrada le richieste ai provider tramite WrongProxy",
+      "description": "Riscrive l'URL di base di ogni provider tramite il proxy locale (predefinito http://localhost:3444/proxy/<host><path>). openai-codex è escluso; comunica direttamente con il backend di ChatGPT. Si applica alla richiesta successiva."
+    },
+    "wrongProxyUrl": {
+      "label": "URL del proxy",
+      "description": "Dove ascolta il demone proxy. Il suo /api/health viene verificato; un demone irraggiungibile disattiva la riscrittura finché non risponde di nuovo.",
+      "placeholder": "http://localhost:3444"
+    },
+    "hqEnabled": {
+      "label": "Pubblicazione su HQ",
+      "description": "Pubblica le sessioni di questo client su WrongStack HQ."
+    },
+    "hqUrl": {
+      "label": "URL di HQ",
+      "description": "Lascia vuoto per il rilevamento automatico sulla stessa macchina.",
+      "placeholder": "http://host:3499"
+    },
+    "hqToken": {
+      "label": "Token client HQ",
+      "description": "Il token client rilasciato da WrongStack HQ.",
+      "unset": "Un token salvato non viene mai mostrato qui.",
+      "placeholder": "Digita un nuovo token per sostituire quello salvato"
+    },
+    "hqRawContent": {
+      "label": "Contenuto HQ grezzo",
+      "description": "Invia a HQ anteprime del contenuto grezzo invece di anteprime oscurate."
+    },
+    "tgSessionEnd": {
+      "label": "Telegram: fine sessione",
+      "description": "Invia un riepilogo al termine di una sessione."
+    },
+    "tgDelegate": {
+      "label": "Telegram: delega completata",
+      "description": "Invia una nota quando un subagente termina."
+    },
+    "tgLongToolMs": {
+      "label": "Telegram: strumenti di lunga durata",
+      "description": "Avvisa quando uno strumento dura più di così. 0 lo disattiva."
+    },
+    "tgPollIntervalSec": {
+      "label": "Intervallo di polling di Telegram",
+      "description": "Secondi tra un polling di Telegram e l'altro. Un valore più basso risponde prima ma fa più chiamate API."
+    },
+    "tgChatId": {
+      "label": "Chat Telegram per le notifiche",
+      "description": "ID chat predefinito per le notifiche. Un ID positivo associa la tua chat privata al bot; gli ID di gruppo (negativi) vengono rifiutati a meno che allowGroupChats sia attivo nella configurazione. Lascia vuoto per cancellare.",
+      "placeholder": "ID chat"
+    },
+    "statuslineMode": {
+      "label": "Modalità della riga di stato",
+      "description": "Densità della riga di stato del terminale.",
+      "options": {
+        "minimum": "Minima",
+        "detailed": "Dettagliata",
+        "no-color": "Senza colore"
+      }
+    },
+    "thinkingWord": {
+      "label": "Parola di ragionamento",
+      "description": "Una parola breve mostrata nel chip di stato del terminale mentre l'agente lavora: fino a 16 lettere, numeri, trattini bassi o trattini."
+    },
+    "animationStyle": {
+      "label": "Stile di animazione",
+      "description": "Animazione del chip di stato di lavoro del terminale."
+    },
+    "showModelReasoning": {
+      "label": "Mostra il ragionamento del modello",
+      "description": "Mostra i blocchi di ragionamento del modello nel terminale e nella cronologia chat della WebUI."
+    },
+    "preRefineSeconds": {
+      "label": "Conto alla rovescia prima della rifinitura",
+      "description": "Periodo di tolleranza prima che parta la rifinitura del prompt. 0 salta il conto alla rovescia e rifinisce subito."
+    },
+    "multiDiffSummaryThreshold": {
+      "label": "Riepilogo multi-diff",
+      "description": "Numero minimo di file modificati prima che la riga complessiva «N file · +X −Y» compaia sopra i diff dei singoli file. 0 la disattiva."
+    },
+    "logLevel": {
+      "label": "Dettaglio dei log",
+      "description": "Scegli la gravità minima registrata nei log del motore."
+    },
+    "auditLevel": {
+      "label": "Dettaglio di audit",
+      "description": "Quante prove vengono conservate per l'esecuzione degli strumenti e le decisioni."
+    },
+    "debugStream": {
+      "label": "Diagnostica dello stream",
+      "description": "Registra ulteriori diagnostiche di streaming del provider mentre indaghi un problema."
+    }
+  },
+  "options": {
+    "off": "Disattivato",
+    "suggest": "Suggerisci i passaggi successivi",
+    "auto": "Automatica",
+    "eternal": "Continua",
+    "eternal-parallel": "Continua, in parallelo",
+    "hybrid": "Ibrida",
+    "intelligent": "Intelligente",
+    "selective": "Selettiva",
+    "balanced": "Bilanciato",
+    "frugal": "Parsimonioso",
+    "deep": "Approfondito",
+    "lite": "Compatto",
+    "default": "Predefinito",
+    "pro": "Istruzioni operative complete",
+    "5m": "5 minuti",
+    "1h": "1 ora",
+    "none": "Nessuno",
+    "minimal": "Minimo",
+    "low": "Basso",
+    "medium": "Medio",
+    "high": "Alto",
+    "xhigh": "Molto alto",
+    "max": "Massimo",
+    "on": "Attivo",
+    "light": "Leggero",
+    "aggressive": "Aggressivo",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Avviso",
+    "error": "Errore",
+    "scout": "Scout",
+    "quick": "Quick",
+    "standard": "Standard",
+    "full": "Completo",
+    "rainbow": "Arcobaleno",
+    "wave": "Onda",
+    "pulse": "Pulsazione",
+    "dots": "Punti",
+    "breathe": "Respiro",
+    "static": "Statico",
+    "cycle": "Ciclo"
+  },
+  "row": {
+    "unreported": "Non segnalato da questo motore",
+    "choose": "Scegli un valore",
+    "lines": "Un identificatore di modello per riga"
+  },
+  "units": {
+    "seconds": "secondi",
+    "files": "file"
+  },
+  "advanced": {
+    "refinement": "Provider/modello di rifinitura, profilo con nome, lingua, revisione all'invio e anteprima di esempio del percorso salvato.",
+    "execution": "Approvazioni standard, YOLO, YOLO+, conferme delle operazioni distruttive, cancellazione del disco, pubblicazione, stato attendibile e associazione delle credenziali.",
+    "brain": "Tetto di rischio, escalation, cache delle decisioni, euristiche, qualità del modello, monitor, stallo, tempesta di errori, churn dei file, cooldown, consiglio, registro e percorso/capacità della traccia di replay.",
+    "fleet": "Agenti simultanei, Memory Companion, Explore Companion, Skill Companion e guida ai passaggi successivi.",
+    "model-visibility": "Modelli abilitati, preferiti e pulizia verificata dei riferimenti di fallback.",
+    "reviews": "Modelli di revisione Chimera e continua, lotti, follow-up e criteri a cascata.",
+    "model-routing": "Sostituzioni di modello e ragionamento per ogni ruolo o fase.",
+    "cost-tiers": "Modelli dei worker, budget espliciti e regole di cambio livello.",
+    "resource-limits": "Sostituzioni facoltative dei budget di contesto, output e worker.",
+    "availability": "Finestre orarie di provider e modelli, giorni feriali, orari notturni e fusi orari.",
+    "instructions": "Regole dell'utente e AGENTS.md in progetti e profili.",
+    "tool-access": "Catalogo degli strumenti registrati, metadati dei permessi, abilita e disabilita strumenti."
   }
 }

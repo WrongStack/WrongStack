@@ -7057,3 +7057,23 @@ copies, starting with SAGE memory.
 - Checks:
   - Catalog parity and the key guard pass.
   - Desktop tests pass (870); typecheck clean.
+
+### WrongStack settings in the display language (2026-11-04)
+
+- Every setting the field registry draws now follows the display language in all seven
+  languages: its label, description, unset note, placeholder, option words and unit. The heading
+  and description of every settings section follow it too, including the hand-built sections
+  (providers, Brain, fleet and the rest).
+- The registry stays the English source. A setting the catalog does not name yet shows the
+  registry's English instead of a key.
+- Option words that had only an automatic capitalised fallback now have real English labels:
+  "Xhigh" became "Extra high" and "Max" became "Maximum", matching the composer's effort names.
+- The settings search also matches the translated labels and descriptions, so a setting can be
+  found in the language shown.
+- Product and protocol names stay as they are in every language: SAGE, MCP, HQ, WrongProxy,
+  AGENTS.md, Scout, Quick, BTW, YOLO.
+- Checks:
+  - Every registry string is in the English catalog unchanged.
+  - A settings row renders its label, option and unset note in Turkish after a language switch
+    (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (872); typecheck clean.

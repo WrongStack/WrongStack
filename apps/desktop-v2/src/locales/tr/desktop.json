@@ -211,5 +211,348 @@
       "replace": "Taslağı değiştir",
       "keep": "Mevcut taslağı koru"
     }
+  },
+  "sectionInfo": {
+    "execution": {
+      "title": "Yürütme ve izinler",
+      "description": "Yeni konuşmalar ve ajan çalışmaları için varsayılanlar."
+    },
+    "context": {
+      "title": "Bağlam ve akıl yürütme",
+      "description": "Yeni konuşmaların bağlamı ve model akıl yürütmesini nasıl kullanacağını belirle."
+    },
+    "capabilities": {
+      "title": "Yetenekler",
+      "description": "Yeni çalışmalarda hangi WrongStack sistemlerinin kullanılabileceğini seç."
+    },
+    "routing": {
+      "title": "Ajanlar ve yedekler",
+      "description": "Yeni işler için ortak eşzamanlılık ve yedek varsayılanları."
+    },
+    "notifications": {
+      "title": "HQ, proxy ve Telegram",
+      "description": "WrongStack HQ'ya yayın, sağlayıcı istekleri için yerel WrongProxy yolu ve Telegram bildirimleri. Telegram ayarları bir bot token'ı yapılandırıldığında görünür."
+    },
+    "terminal-display": {
+      "title": "Terminal görünümü",
+      "description": "WrongStack terminal arayüzünün süren işi nasıl gösterdiği. Bu profil ayarları masaüstü uygulamasının kendi görünümünü değiştirmez."
+    },
+    "logging": {
+      "title": "Günlükler ve tanılama",
+      "description": "WrongStack'in kaydettiği ayrıntıyı belirle."
+    }
+  },
+  "fields": {
+    "autonomy": {
+      "label": "Devam kipi",
+      "description": "WrongStack'in bir adımı tamamladıktan sonra nasıl devam edeceğini seç."
+    },
+    "maxIterations": {
+      "label": "Yineleme bütçesi",
+      "description": "Yeni bir ajan çalışması için en fazla yineleme. Sıfır sınırsız demektir. Süren konuşmalar mevcut bütçelerini korur."
+    },
+    "autoProceedMaxIterations": {
+      "label": "Otomatik devam bütçesi",
+      "description": "Yeni bir kullanıcı kararı gerekmeden önceki en fazla devam adımı. Sıfır, motorun sınırsız ayarını kullanır."
+    },
+    "autonomyDelayMs": {
+      "label": "Devam gecikmesi",
+      "description": "Otonom devam adımları arasındaki bekleme."
+    },
+    "breakerEnabled": {
+      "label": "Devre kesici",
+      "description": "Tekrarlayan hataları ve kontrolden çıkan araç döngülerini durdur."
+    },
+    "breakerAutoKillResetMs": {
+      "label": "Kesici sıfırlama gecikmesi",
+      "description": "Devre kesicinin sıfırlanmadan önce ne kadar bekleyeceği."
+    },
+    "nextStepsMode": {
+      "label": "Sonraki adımları zorunlu kıl",
+      "description": "Her biten tur sonraki adımlarla ya da bir tamamlanma işaretiyle biter; böylece otomatik devam, ajan işin bittiğini bildirene kadar sürer. Devam bütçesi yine de onu duraklatır.",
+      "options": {
+        "optional": "İsteğe bağlı",
+        "required": "Zorunlu"
+      }
+    },
+    "fsAccess": {
+      "label": "Dosya sistemi erişimi",
+      "description": "Dosya araçlarının kapsamı. Bir sonraki oturumda uygulanır.",
+      "options": {
+        "unrestricted": "Sınırsız — her yol",
+        "project": "Proje — proje kökü ile sınırlı"
+      }
+    },
+    "contextMode": {
+      "label": "Bağlam profili",
+      "description": "Günlük işler için dengeli, daha küçük bağlam için tutumlu ya da ayrıntılı analiz için derin."
+    },
+    "contextStrategy": {
+      "label": "Bağlam stratejisi",
+      "description": "Motorun konuşma bağlamını nasıl seçip sıkıştırdığı."
+    },
+    "contextAutoCompact": {
+      "label": "Otomatik sıkıştırma",
+      "description": "Konuşma pencere sınırına yaklaştığında eski bağlamı sıkıştır."
+    },
+    "tokenSavingTier": {
+      "label": "Token tasarrufu",
+      "description": "Prompt ayrıntısı ile token kullanımını dengele."
+    },
+    "reasoningMode": {
+      "label": "Model akıl yürütmesi",
+      "description": "Sağlayıcı varsayılanlarını izle, akıl yürütme iste ya da destekleniyorsa kapat."
+    },
+    "reasoningEffort": {
+      "label": "Akıl yürütme çabası",
+      "description": "Bu denetimi destekleyen sağlayıcılar için istenen çaba."
+    },
+    "reasoningPreserve": {
+      "label": "Akıl yürütmeyi koru",
+      "description": "Model destekliyorsa sağlayıcının akıl yürütme bağlamını tut."
+    },
+    "systemPromptVariant": {
+      "label": "Ajan kimliği",
+      "description": "Yeni çalışmalar için kimliği seç: Lite, Standard ya da Pro kodlama rehberliği, genel amaçlı Scout veya en sade Quick."
+    },
+    "includeGlobalAgents": {
+      "label": "Genel AGENTS.md",
+      "description": "~/.wrongstack/AGENTS.md dosyasını yeni çalışmaların sistem promptuna yükle."
+    },
+    "includeProjectAgents": {
+      "label": "Proje AGENTS.md",
+      "description": "Projenin kökündeki AGENTS.md dosyasını yeni çalışmaların sistem promptuna yükle."
+    },
+    "featureMemory": {
+      "label": "Proje belleği",
+      "description": "Kalıcı proje bilgisini saklamak ve geri getirmek için SAGE kullan."
+    },
+    "featureSkills": {
+      "label": "Beceriler",
+      "description": "Kurulu iş akışı talimatlarını keşfet ve kullan."
+    },
+    "featureMcp": {
+      "label": "MCP bağlantıları",
+      "description": "Etkin dış araç sunucularını motora aç."
+    },
+    "featurePlugins": {
+      "label": "Eklentiler",
+      "description": "Yapılandırılmış WrongStack uzantılarını yükle."
+    },
+    "featureToolCoach": {
+      "label": "Araç koçu",
+      "description": "Ajanın mevcut araçları etkili şekilde seçip kullanmasına yardım et."
+    },
+    "featureModelsRegistry": {
+      "label": "Model kaydı",
+      "description": "Model yetenek ve erişilebilirlik kataloglarını kullan."
+    },
+    "indexOnStart": {
+      "label": "Başlangıçta kodu indeksle",
+      "description": "Bir proje çalışma ortamı başladığında kod tabanı indeksini hazırla."
+    },
+    "readSymbols": {
+      "label": "Sembolleri oku",
+      "description": "Okuma aracı, dosya içeriğinin yanında kod tabanı indeksinden semboller de verir."
+    },
+    "showSageMemoryInject": {
+      "label": "SAGE bellek eklemesini göster",
+      "description": "Araç sonuçlarına eklenen SAGE bellek bloklarını göster."
+    },
+    "sageMemoryInjectThreshold": {
+      "label": "SAGE bellek ekleme eşiği",
+      "description": "Eklenen bir SAGE belleği için gereken en düşük ilişki gücü.",
+      "options": {
+        "0": {
+          "72": "0.72 (gevşek)",
+          "85": "0.85 (varsayılan)",
+          "95": "0.95 (katı)"
+        }
+      }
+    },
+    "maxConcurrent": {
+      "label": "Eşzamanlı ajanlar",
+      "description": "Motorun izin verdiği en fazla eşzamanlı ajan sayısı."
+    },
+    "fallbackAuto": {
+      "label": "Otomatik model yedeği",
+      "description": "Bir sağlayıcı ya da model kullanılamadığında yapılandırılmış yedek zincirini dene."
+    },
+    "favoriteModelsOnly": {
+      "label": "Yalnızca favoriler",
+      "description": "Otomatik yedek bir zincir türettiğinde onu favori modellerinle sınırla."
+    },
+    "streamTimeouts": {
+      "hangTimeoutMs": {
+        "label": "Parçalar arası sessizlik",
+        "description": "Bir yanıt akmaya başladıktan sonra deneme başarısız sayılıp yeniden denenmeden önce izin verilen en uzun duraklama. Uzun sessiz düşünme evreleri olan modeller için artır. 0 kapatır.",
+        "unset": "Varsayılan: 60 sn (MiniMax ve Z.AI için 240 sn)"
+      },
+      "headersTimeoutMs": {
+        "label": "Yanıt başlıklarını bekle",
+        "description": "Sağlayıcının yanıt vermeye başlaması için ne kadar bekleneceği. 0 kapatır.",
+        "unset": "Varsayılan: 60 sn (MiniMax ve Z.AI için 180 sn)"
+      }
+    },
+    "cacheTtl": {
+      "label": "Prompt önbellek ömrü",
+      "description": "Prompt önbelleğini destekleyen sağlayıcılar için istenen önbellek ömrü."
+    },
+    "wrongProxyEnabled": {
+      "label": "Sağlayıcı isteklerini WrongProxy üzerinden yönlendir",
+      "description": "Her sağlayıcının temel URL'sini yerel proxy üzerinden yeniden yazar (varsayılan http://localhost:3444/proxy/<host><path>). openai-codex hariçtir; doğrudan ChatGPT arka ucuyla konuşur. Bir sonraki istekte uygulanır."
+    },
+    "wrongProxyUrl": {
+      "label": "Proxy URL'si",
+      "description": "Proxy arka plan sürecinin dinlediği adres. /api/health uç noktası yoklanır; ulaşılamayan bir süreç, yeniden yanıt verene kadar yeniden yazmayı kapatır.",
+      "placeholder": "http://localhost:3444"
+    },
+    "hqEnabled": {
+      "label": "HQ yayını",
+      "description": "Bu istemcinin oturumlarını WrongStack HQ'ya yayınla."
+    },
+    "hqUrl": {
+      "label": "HQ URL'si",
+      "description": "Aynı makinede otomatik keşif için boş bırak.",
+      "placeholder": "http://host:3499"
+    },
+    "hqToken": {
+      "label": "HQ istemci token'ı",
+      "description": "WrongStack HQ'nun verdiği istemci token'ı.",
+      "unset": "Kayıtlı bir token burada asla gösterilmez.",
+      "placeholder": "Kayıtlı olanın yerine yeni bir token yaz"
+    },
+    "hqRawContent": {
+      "label": "Ham HQ içeriği",
+      "description": "Sansürlenmiş önizlemeler yerine ham içerik önizlemelerini HQ'ya gönder."
+    },
+    "tgSessionEnd": {
+      "label": "Telegram: oturum sonu",
+      "description": "Bir oturum bittiğinde özet gönder."
+    },
+    "tgDelegate": {
+      "label": "Telegram: delege tamamlandı",
+      "description": "Bir alt ajan tamamlandığında not gönder."
+    },
+    "tgLongToolMs": {
+      "label": "Telegram: uzun süren araçlar",
+      "description": "Bir araç bundan uzun sürdüğünde bildir. 0 kapatır."
+    },
+    "tgPollIntervalSec": {
+      "label": "Telegram yoklama aralığı",
+      "description": "Telegram yoklamaları arasındaki saniye. Daha düşük değer daha hızlı tepki verir ama daha çok API çağrısı yapar."
+    },
+    "tgChatId": {
+      "label": "Telegram bildirim sohbeti",
+      "description": "Bildirimler için varsayılan sohbet kimliği. Pozitif bir kimlik özel sohbetini botla eşler; grup kimlikleri (negatif), yapılandırmada allowGroupChats açık değilse reddedilir. Temizlemek için boş bırak.",
+      "placeholder": "Sohbet kimliği"
+    },
+    "statuslineMode": {
+      "label": "Durum satırı kipi",
+      "description": "Terminal durum satırının yoğunluğu.",
+      "options": {
+        "minimum": "En az",
+        "detailed": "Ayrıntılı",
+        "no-color": "Renksiz"
+      }
+    },
+    "thinkingWord": {
+      "label": "Düşünme sözcüğü",
+      "description": "Ajan çalışırken terminal durum çipinde gösterilen kısa bir sözcük: en fazla 16 harf, rakam, alt çizgi ya da kısa çizgi."
+    },
+    "animationStyle": {
+      "label": "Animasyon stili",
+      "description": "Terminalin çalışma durumu çipinin animasyonu."
+    },
+    "showModelReasoning": {
+      "label": "Model akıl yürütmesini göster",
+      "description": "Modelin akıl yürütme bloklarını terminal ve WebUI sohbet geçmişinde göster."
+    },
+    "preRefineSeconds": {
+      "label": "İyileştirme öncesi geri sayım",
+      "description": "Prompt iyileştirici başlamadan önceki bekleme süresi. 0 geri sayımı atlar ve hemen iyileştirir."
+    },
+    "multiDiffSummaryThreshold": {
+      "label": "Çoklu diff özeti",
+      "description": "Dosya bazlı difflerin üstünde toplu “N dosya · +X −Y” satırı gösterilmeden önceki en az değişen dosya sayısı. 0 kapatır."
+    },
+    "logLevel": {
+      "label": "Günlük ayrıntısı",
+      "description": "Motor günlüklerine kaydedilen en düşük önem düzeyini seç."
+    },
+    "auditLevel": {
+      "label": "Denetim ayrıntısı",
+      "description": "Araç yürütmesi ve kararlar için ne kadar kanıt tutulacağı."
+    },
+    "debugStream": {
+      "label": "Akış tanılama",
+      "description": "Bir sorunu incelerken sağlayıcı akışı için ek tanılama kaydet."
+    }
+  },
+  "options": {
+    "off": "Kapalı",
+    "suggest": "Sonraki adımları öner",
+    "auto": "Otomatik",
+    "eternal": "Sürekli",
+    "eternal-parallel": "Sürekli, paralel",
+    "hybrid": "Karma",
+    "intelligent": "Akıllı",
+    "selective": "Seçici",
+    "balanced": "Dengeli",
+    "frugal": "Tutumlu",
+    "deep": "Derin",
+    "lite": "Kompakt",
+    "default": "Varsayılan",
+    "pro": "Tam çalışma talimatları",
+    "5m": "5 dakika",
+    "1h": "1 saat",
+    "none": "Yok",
+    "minimal": "Asgari",
+    "low": "Düşük",
+    "medium": "Orta",
+    "high": "Yüksek",
+    "xhigh": "Çok yüksek",
+    "max": "En yüksek",
+    "on": "Açık",
+    "light": "Hafif",
+    "aggressive": "Agresif",
+    "debug": "Hata ayıklama",
+    "info": "Info",
+    "warn": "Uyarı",
+    "error": "Hata",
+    "scout": "Scout",
+    "quick": "Quick",
+    "standard": "Standart",
+    "full": "Tam",
+    "rainbow": "Gökkuşağı",
+    "wave": "Dalga",
+    "pulse": "Nabız",
+    "dots": "Noktalar",
+    "breathe": "Nefes",
+    "static": "Sabit",
+    "cycle": "Döngü"
+  },
+  "row": {
+    "unreported": "Bu motor tarafından bildirilmedi",
+    "choose": "Bir değer seç",
+    "lines": "Her satıra bir model kimliği"
+  },
+  "units": {
+    "seconds": "saniye",
+    "files": "dosya"
+  },
+  "advanced": {
+    "refinement": "İyileştirici sağlayıcı/modeli, adlandırılmış profil, dil, gönderirken inceleme ve kayıtlı yol için örnek önizleme.",
+    "execution": "Standart onaylar, YOLO, YOLO+, yıkıcı işlem onayları, disk silme, yayımlama, güvenilir durum ve kimlik bilgisi bağlama.",
+    "brain": "Risk tavanı, yükseltme, karar önbelleği, sezgiseller, model kalitesi, izleyici, takılma, hata fırtınası, dosya çalkantısı, soğuma, konsey, defter ve yeniden oynatma izi yolu/kapasitesi.",
+    "fleet": "Eşzamanlı ajanlar, Memory Companion, Explore Companion, Skill Companion ve sonraki adım rehberliği.",
+    "model-visibility": "Etkin modeller, favoriler ve yedek referanslarının onaylı temizliği.",
+    "reviews": "Chimera ve sürekli inceleme modelleri, gruplar, takip ve kademe politikası.",
+    "model-routing": "Her rol ya da evre için model ve akıl yürütme geçersiz kılmaları.",
+    "cost-tiers": "İşçi modelleri, açık bütçeler ve katman geçiş kuralları.",
+    "resource-limits": "İsteğe bağlı bağlam, çıktı ve işçi bütçesi geçersiz kılmaları.",
+    "availability": "Sağlayıcı ve model zaman pencereleri, hafta içi günler, gece takvimleri ve saat dilimleri.",
+    "instructions": "Projeler ve profiller genelinde kullanıcı kuralları ve AGENTS.md.",
+    "tool-access": "Kayıtlı araç kataloğu, izin meta verileri, araçları açma ve kapatma."
   }
 }

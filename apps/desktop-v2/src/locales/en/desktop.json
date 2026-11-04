@@ -211,5 +211,348 @@
       "replace": "Replace draft",
       "keep": "Keep current draft"
     }
+  },
+  "sectionInfo": {
+    "execution": {
+      "title": "Execution & permissions",
+      "description": "Defaults for new conversations and agent runs."
+    },
+    "context": {
+      "title": "Context & reasoning",
+      "description": "Control how new conversations use context and model reasoning."
+    },
+    "capabilities": {
+      "title": "Capabilities",
+      "description": "Choose which WrongStack systems are available in new runs."
+    },
+    "routing": {
+      "title": "Agents & fallbacks",
+      "description": "Shared concurrency and fallback defaults for new work."
+    },
+    "notifications": {
+      "title": "HQ, proxy & Telegram",
+      "description": "Publishing to WrongStack HQ, the local WrongProxy route for provider requests, and Telegram notifications. Telegram settings appear once a bot token is configured."
+    },
+    "terminal-display": {
+      "title": "Terminal display",
+      "description": "How the WrongStack terminal UI shows work in progress. These profile settings do not change the desktop app’s own view."
+    },
+    "logging": {
+      "title": "Logs & diagnostics",
+      "description": "Control the detail recorded by WrongStack."
+    }
+  },
+  "fields": {
+    "autonomy": {
+      "label": "Continuation mode",
+      "description": "Choose how WrongStack continues after completing a step."
+    },
+    "maxIterations": {
+      "label": "Iteration budget",
+      "description": "Maximum iterations for a new agent run. Zero means unlimited. Running conversations keep their current budget."
+    },
+    "autoProceedMaxIterations": {
+      "label": "Automatic continuation budget",
+      "description": "Maximum continuation steps before another user decision is needed. Zero uses the engine’s unlimited setting."
+    },
+    "autonomyDelayMs": {
+      "label": "Continuation delay",
+      "description": "Wait between autonomous continuation steps."
+    },
+    "breakerEnabled": {
+      "label": "Circuit breaker",
+      "description": "Stop repeated failures and runaway tool loops."
+    },
+    "breakerAutoKillResetMs": {
+      "label": "Breaker reset delay",
+      "description": "How long the circuit breaker waits before resetting."
+    },
+    "nextStepsMode": {
+      "label": "Require next steps",
+      "description": "Every finished turn ends with next steps or a completion marker, so automatic continuation keeps going until the agent declares the work complete. The continuation budget still pauses it.",
+      "options": {
+        "optional": "Optional",
+        "required": "Required"
+      }
+    },
+    "fsAccess": {
+      "label": "Filesystem access",
+      "description": "Scope of the file tools. Applies on the next session.",
+      "options": {
+        "unrestricted": "Unrestricted — any path",
+        "project": "Project — confined to the project root"
+      }
+    },
+    "contextMode": {
+      "label": "Context profile",
+      "description": "Balanced for everyday work, frugal for smaller context, or deep for detailed analysis."
+    },
+    "contextStrategy": {
+      "label": "Context strategy",
+      "description": "How the engine selects and compresses conversation context."
+    },
+    "contextAutoCompact": {
+      "label": "Automatic compaction",
+      "description": "Compact older context when the conversation approaches its window limit."
+    },
+    "tokenSavingTier": {
+      "label": "Token saving",
+      "description": "Balance prompt detail against token usage."
+    },
+    "reasoningMode": {
+      "label": "Model reasoning",
+      "description": "Follow provider defaults, request reasoning, or disable it when supported."
+    },
+    "reasoningEffort": {
+      "label": "Reasoning effort",
+      "description": "Requested effort for providers that support this control."
+    },
+    "reasoningPreserve": {
+      "label": "Preserve reasoning",
+      "description": "Retain provider reasoning context when the model supports it."
+    },
+    "systemPromptVariant": {
+      "label": "Agent identity",
+      "description": "Choose the identity for new runs: Lite, Standard or Pro coding guidance, general-purpose Scout, or minimal Quick."
+    },
+    "includeGlobalAgents": {
+      "label": "Global AGENTS.md",
+      "description": "Load ~/.wrongstack/AGENTS.md into the system prompt of new runs."
+    },
+    "includeProjectAgents": {
+      "label": "Project AGENTS.md",
+      "description": "Load the project's root AGENTS.md into the system prompt of new runs."
+    },
+    "featureMemory": {
+      "label": "Project memory",
+      "description": "Use SAGE to preserve and retrieve durable project knowledge."
+    },
+    "featureSkills": {
+      "label": "Skills",
+      "description": "Discover and use installed workflow instructions."
+    },
+    "featureMcp": {
+      "label": "MCP connections",
+      "description": "Expose enabled external tool servers to the engine."
+    },
+    "featurePlugins": {
+      "label": "Plugins",
+      "description": "Load configured WrongStack extensions."
+    },
+    "featureToolCoach": {
+      "label": "Tool coach",
+      "description": "Help the agent choose and use available tools effectively."
+    },
+    "featureModelsRegistry": {
+      "label": "Model registry",
+      "description": "Use model capability and availability catalogs."
+    },
+    "indexOnStart": {
+      "label": "Index code at startup",
+      "description": "Prepare the codebase index when a project runtime starts."
+    },
+    "readSymbols": {
+      "label": "Read symbols",
+      "description": "The read tool includes codebase-index symbols alongside file content."
+    },
+    "showSageMemoryInject": {
+      "label": "Show SAGE memory injection",
+      "description": "Show the SAGE memory-injection blocks added to tool results."
+    },
+    "sageMemoryInjectThreshold": {
+      "label": "SAGE memory injection threshold",
+      "description": "Minimum relation strength required for an injected SAGE memory.",
+      "options": {
+        "0": {
+          "72": "0.72 (relaxed)",
+          "85": "0.85 (default)",
+          "95": "0.95 (strict)"
+        }
+      }
+    },
+    "maxConcurrent": {
+      "label": "Concurrent agents",
+      "description": "Maximum simultaneous agents allowed by the engine."
+    },
+    "fallbackAuto": {
+      "label": "Automatic model fallback",
+      "description": "Try the configured fallback chain when a provider or model is unavailable."
+    },
+    "favoriteModelsOnly": {
+      "label": "Favorites only",
+      "description": "When automatic fallback derives a chain, restrict it to your favorite models."
+    },
+    "streamTimeouts": {
+      "hangTimeoutMs": {
+        "label": "Silence between chunks",
+        "description": "Longest pause allowed once a reply is streaming before the attempt is failed and retried. Raise it for models with long silent thinking phases. 0 turns it off.",
+        "unset": "Default: 60 s (240 s for MiniMax and Z.AI)"
+      },
+      "headersTimeoutMs": {
+        "label": "Wait for response headers",
+        "description": "How long to wait for the provider to start answering at all. 0 turns it off.",
+        "unset": "Default: 60 s (180 s for MiniMax and Z.AI)"
+      }
+    },
+    "cacheTtl": {
+      "label": "Prompt cache lifetime",
+      "description": "Requested cache lifetime for providers that support prompt caching."
+    },
+    "wrongProxyEnabled": {
+      "label": "Route provider requests through WrongProxy",
+      "description": "Rewrites every provider’s base URL through the local proxy (default http://localhost:3444/proxy/<host><path>). openai-codex is excluded; it talks to the ChatGPT backend directly. Applies to the next request."
+    },
+    "wrongProxyUrl": {
+      "label": "Proxy URL",
+      "description": "Where the proxy daemon listens. Its /api/health is probed; an unreachable daemon turns rewriting off until it answers again.",
+      "placeholder": "http://localhost:3444"
+    },
+    "hqEnabled": {
+      "label": "HQ publishing",
+      "description": "Publish this client’s sessions to WrongStack HQ."
+    },
+    "hqUrl": {
+      "label": "HQ URL",
+      "description": "Leave empty for same-machine auto-discovery.",
+      "placeholder": "http://host:3499"
+    },
+    "hqToken": {
+      "label": "HQ client token",
+      "description": "The client token issued by WrongStack HQ.",
+      "unset": "A saved token is never shown here.",
+      "placeholder": "Type a new token to replace the saved one"
+    },
+    "hqRawContent": {
+      "label": "Raw HQ content",
+      "description": "Send raw content previews to HQ instead of redacted previews."
+    },
+    "tgSessionEnd": {
+      "label": "Telegram: session end",
+      "description": "Send a summary when a session ends."
+    },
+    "tgDelegate": {
+      "label": "Telegram: delegate finished",
+      "description": "Send a note when a subagent completes."
+    },
+    "tgLongToolMs": {
+      "label": "Telegram: long-running tools",
+      "description": "Notify when a tool runs longer than this. 0 turns it off."
+    },
+    "tgPollIntervalSec": {
+      "label": "Telegram polling interval",
+      "description": "Seconds between Telegram polls. Lower is more responsive but makes more API calls."
+    },
+    "tgChatId": {
+      "label": "Telegram notification chat",
+      "description": "Default chat ID for notifications. A positive ID pairs your private chat with the bot; group IDs (negative) are refused unless allowGroupChats is enabled in the config. Leave empty to clear.",
+      "placeholder": "Chat ID"
+    },
+    "statuslineMode": {
+      "label": "Statusline mode",
+      "description": "Density of the terminal statusline rail.",
+      "options": {
+        "minimum": "Minimum",
+        "detailed": "Detailed",
+        "no-color": "No color"
+      }
+    },
+    "thinkingWord": {
+      "label": "Thinking word",
+      "description": "One short word shown in the terminal status chip while the agent works: up to 16 letters, numbers, underscores or hyphens."
+    },
+    "animationStyle": {
+      "label": "Animation style",
+      "description": "Animation of the terminal’s working-state chip."
+    },
+    "showModelReasoning": {
+      "label": "Show model reasoning",
+      "description": "Show the model’s reasoning blocks in the terminal and WebUI chat history."
+    },
+    "preRefineSeconds": {
+      "label": "Pre-refine countdown",
+      "description": "Grace period before the prompt refiner starts. 0 skips the countdown and refines at once."
+    },
+    "multiDiffSummaryThreshold": {
+      "label": "Multi-diff summary",
+      "description": "Minimum number of changed files before the aggregate “N files · +X −Y” line is shown above the per-file diffs. 0 turns it off."
+    },
+    "logLevel": {
+      "label": "Log detail",
+      "description": "Choose the minimum severity recorded in engine logs."
+    },
+    "auditLevel": {
+      "label": "Audit detail",
+      "description": "How much evidence is retained for tool execution and decisions."
+    },
+    "debugStream": {
+      "label": "Stream diagnostics",
+      "description": "Record additional provider streaming diagnostics while investigating a problem."
+    }
+  },
+  "options": {
+    "off": "Off",
+    "suggest": "Suggest next steps",
+    "auto": "Automatic",
+    "eternal": "Continuous",
+    "eternal-parallel": "Continuous, parallel",
+    "hybrid": "Hybrid",
+    "intelligent": "Intelligent",
+    "selective": "Selective",
+    "balanced": "Balanced",
+    "frugal": "Frugal",
+    "deep": "Deep",
+    "lite": "Compact",
+    "default": "Default",
+    "pro": "Full operating instructions",
+    "5m": "5 minutes",
+    "1h": "1 hour",
+    "none": "None",
+    "minimal": "Minimal",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "xhigh": "Extra high",
+    "max": "Maximum",
+    "on": "On",
+    "light": "Light",
+    "aggressive": "Aggressive",
+    "debug": "Debug",
+    "info": "Info",
+    "warn": "Warn",
+    "error": "Error",
+    "scout": "Scout",
+    "quick": "Quick",
+    "standard": "Standard",
+    "full": "Full",
+    "rainbow": "Rainbow",
+    "wave": "Wave",
+    "pulse": "Pulse",
+    "dots": "Dots",
+    "breathe": "Breathe",
+    "static": "Static",
+    "cycle": "Cycle"
+  },
+  "row": {
+    "unreported": "Not reported by this engine",
+    "choose": "Choose a value",
+    "lines": "One model identifier per line"
+  },
+  "units": {
+    "seconds": "seconds",
+    "files": "files"
+  },
+  "advanced": {
+    "refinement": "Refiner provider/model, named profile, language, review on submit and a saved-route sample preview.",
+    "execution": "Standard approvals, YOLO, YOLO+, destructive operation confirmations, disk wipe, publish, trusted state and credential binding.",
+    "brain": "Risk ceiling, escalation, decision cache, heuristics, model quality, monitor, stall, error storm, file churn, cooldown, council, ledger and replay trace path/capacity.",
+    "fleet": "Concurrent agents, Memory Companion, Explore Companion, Skill Companion and next-step guidance.",
+    "model-visibility": "Enabled models, favorites and reviewed cleanup of fallback references.",
+    "reviews": "Chimera and continuous review models, batches, follow-up and cascade policy.",
+    "model-routing": "Model and reasoning overrides for each role or phase.",
+    "cost-tiers": "Worker models, explicit budgets and tier switching rules.",
+    "resource-limits": "Optional context, output and worker budget overrides.",
+    "availability": "Provider and model time windows, weekdays, overnight schedules and timezones.",
+    "instructions": "User rules and AGENTS.md across projects and profiles.",
+    "tool-access": "Registered tool catalog, permission metadata, enable and disable tools."
   }
 }

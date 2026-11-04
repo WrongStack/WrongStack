@@ -103,6 +103,51 @@ describe('the shell in the display language', () => {
     expect(host.textContent).toContain('Bir bölüm seç');
   });
 
+  it('shows a setting’s label, description, options and unit in the display language', async () => {
+    const { surfaceI18n } = await import('../src/surface-i18n');
+    const { SettingRow } = await import('../src/SettingRow');
+    const { settingsSections } = await import('../src/settings-fields');
+    const field = (key: string) => {
+      const found = settingsSections
+        .flatMap((section) => section.fields)
+        .find((f) => f.key === key);
+      if (!found) throw new Error(`no field ${key}`);
+      return found;
+    };
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const render = () =>
+      act(async () =>
+        root.render(
+          createElement('div', null, [
+            createElement(SettingRow, {
+              key: 'a',
+              field: field('autonomy'),
+              value: 'auto',
+              onChange: vi.fn(),
+            }),
+            createElement(SettingRow, {
+              key: 'b',
+              field: field('autonomyDelayMs'),
+              value: undefined,
+              onChange: vi.fn(),
+            }),
+          ]),
+        ),
+      );
+    await render();
+    expect(host.textContent).toContain('Continuation mode');
+    expect(host.textContent).toContain('Not reported by this engine');
+    await act(async () => {
+      await surfaceI18n.changeLanguage('tr');
+    });
+    await render();
+    expect(host.textContent).toContain('Devam kipi');
+    expect(host.textContent).toContain('Otomatik');
+    expect(host.textContent).toContain('Bu motor tarafından bildirilmedi');
+    expect(host.textContent).not.toContain('Continuation mode');
+  });
+
   it('reads the profile language once, applies it and remembers it', async () => {
     profile.prefs = { uiLocale: 'de' };
     const { surfaceI18n, cachedLanguage } = await import('../src/surface-i18n');

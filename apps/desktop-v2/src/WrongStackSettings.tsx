@@ -186,6 +186,15 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     },
   };
   const heading = fields ?? advanced[section];
+  // Registry sections and the hand-built ones name their words under different catalog keys.
+  const headingText = heading && {
+    title: t(fields ? `sectionInfo.${section}.title` : `settings.section.${section}`, {
+      defaultValue: heading.title,
+    }),
+    description: t(fields ? `sectionInfo.${section}.description` : `advanced.${section}`, {
+      defaultValue: heading.description,
+    }),
+  };
   const change = (key: string, value: unknown) => {
     setDraft((draft) => ({ ...draft, [key]: value }));
     setNotice('');
@@ -397,7 +406,10 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   ' ' +
                   (settingsSections
                     .find((s) => s.id === item.id)
-                    ?.fields.map((f) => f.label + ' ' + f.description)
+                    ?.fields.map(
+                      (f) =>
+                        `${f.label} ${f.description} ${t(`fields.${f.key}.label`, { defaultValue: '' })} ${t(`fields.${f.key}.description`, { defaultValue: '' })}`,
+                    )
                     .join(' ') ?? '') +
                   ' ' +
                   (advanced[item.id]?.description ?? '')
@@ -536,8 +548,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <>
               <header className="settings-section-heading">
                 <div>
-                  <h2>{heading.title}</h2>
-                  <p>{heading.description}</p>
+                  <h2>{headingText?.title}</h2>
+                  <p>{headingText?.description}</p>
                 </div>
               </header>
               <div className="settings-defaults-note">

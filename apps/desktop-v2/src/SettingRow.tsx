@@ -1,9 +1,11 @@
+import { useDesktopText } from './desktop-i18n';
 import type { SettingField } from './settings-fields';
 
 /**
  * One profile setting from the field registry: a switch, a select (of words or of numbers), a
  * number in its displayed unit, or a list of lines. A field that may stay unset says what an
- * unset value means instead of reporting it missing.
+ * unset value means instead of reporting it missing. Its words come from the display language's
+ * catalog, the registry's English when the catalog has none.
  */
 export function SettingRow({
   field,
@@ -14,6 +16,16 @@ export function SettingRow({
   value: unknown;
   onChange: (value: unknown) => void;
 }) {
+  const { t } = useDesktopText();
+  const text = (part: string, english: string) =>
+    t(`fields.${field.key}.${part}`, { defaultValue: english });
+  const label = text('label', field.label);
+  const optionLabel = (option: string) => {
+    const own = field.optionLabels?.[option];
+    return own
+      ? text(`options.${option}`, own)
+      : t(`options.${option}`, { defaultValue: option[0]!.toUpperCase() + option.slice(1) });
+  };
   const options = field.options ?? [];
   // A numeric select stores a number; show the option that equals it.
   const selected = field.numeric
@@ -23,30 +35,14 @@ export function SettingRow({
     : typeof value === 'string'
       ? value
       : '';
-  const labels: Record<string, string> = {
-    off: 'Off',
-    suggest: 'Suggest next steps',
-    auto: 'Automatic',
-    eternal: 'Continuous',
-    'eternal-parallel': 'Continuous, parallel',
-    hybrid: 'Hybrid',
-    intelligent: 'Intelligent',
-    selective: 'Selective',
-    balanced: 'Balanced',
-    frugal: 'Frugal',
-    deep: 'Deep',
-    lite: 'Compact',
-    default: 'Default',
-    pro: 'Full operating instructions',
-    '5m': '5 minutes',
-    '1h': '1 hour',
-  };
   return (
     <div className={`setting-row setting-${field.kind}`}>
       <div>
-        <label htmlFor={`setting-${field.key}`}>{field.label}</label>
-        <p>{field.description}</p>
-        {value === undefined && <small>{field.unsetNote ?? 'Not reported by this engine'}</small>}
+        <label htmlFor={`setting-${field.key}`}>{label}</label>
+        <p>{text('description', field.description)}</p>
+        {value === undefined && (
+          <small>{field.unsetNote ? text('unset', field.unsetNote) : t('row.unreported')}</small>
+        )}
       </div>
       <div className="setting-control">
         {field.kind === 'toggle' ? (
@@ -55,7 +51,7 @@ export function SettingRow({
             id={`setting-${field.key}`}
             role="switch"
             aria-checked={value === true}
-            aria-label={field.label}
+            aria-label={label}
             className="settings-switch"
             onClick={() => onChange(value !== true)}
           >
@@ -70,13 +66,11 @@ export function SettingRow({
             }
           >
             <option value="" disabled>
-              Choose a value
+              {t('row.choose')}
             </option>
             {[...new Set([...options, ...(selected ? [selected] : [])])].map((option) => (
               <option key={option} value={option}>
-                {field.optionLabels?.[option] ??
-                  labels[option] ??
-                  option[0]!.toUpperCase() + option.slice(1)}
+                {optionLabel(option)}
               </option>
             ))}
           </select>
@@ -100,7 +94,7 @@ export function SettingRow({
                 )
               }
             />
-            {field.unit && <span>{field.unit}</span>}
+            {field.unit && <span>{t(`units.${field.unit}`, { defaultValue: field.unit })}</span>}
           </span>
         ) : field.kind === 'text' || field.kind === 'secret' ? (
           <input
@@ -108,7 +102,7 @@ export function SettingRow({
             type={field.kind === 'secret' ? 'password' : 'text'}
             autoComplete="off"
             spellCheck={false}
-            placeholder={field.placeholder}
+            placeholder={field.placeholder && text('placeholder', field.placeholder)}
             pattern={field.pattern}
             required={field.required}
             value={typeof value === 'string' ? value : ''}
@@ -132,7 +126,7 @@ export function SettingRow({
                   .filter(Boolean),
               )
             }
-            placeholder="One model identifier per line"
+            placeholder={t('row.lines')}
           />
         )}
       </div>
