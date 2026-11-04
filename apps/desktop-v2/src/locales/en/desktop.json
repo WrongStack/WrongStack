@@ -5337,6 +5337,23 @@
       "title": "Council judge",
       "help": "Choose a tie-breaking model, or clear it to let the engine derive the judge from the pool.",
       "derive": "Use derived judge"
+    },
+    "error": {
+      "needsModel": "{{target}} needs a model ID. Remove an empty row to inherit instead.",
+      "strategy": "Choose a valid Brain model-pool strategy.",
+      "seatLens": "Brain seat default {{n}} needs a decision lens.",
+      "seatVeto": "Choose a valid seat-default veto policy.",
+      "weight": "Brain voter {{n}} needs a positive vote weight or an empty default.",
+      "voterVeto": "Choose a valid council veto policy.",
+      "changed": "Brain {{part}} changed elsewhere. Reload saved Brain values before applying this edit.",
+      "mismatch": "Brain {{part}} did not match the saved configuration. Reload before retrying."
+    },
+    "part": {
+      "models": "models",
+      "strategy": "strategy",
+      "voters": "voters",
+      "seats": "seats",
+      "judge": "judge"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "off",
       "droppedOne": "{{n}} rule dropped",
       "droppedMany": "{{n}} rules dropped"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Effective decision models",
+      "title": "Models & council seats",
+      "help": "Saved references and resolved runtime targets are shown separately. Unsaved edits remain in the model and council editor until you save the Brain policy."
+    },
+    "inheritModel": "Inherit runtime model",
+    "configuredPool": "Configured model pool",
+    "inheritPool": "Inherit the runtime’s model selection.",
+    "resolvedPool": "Resolved model pool",
+    "noResolvedPool": "No resolved pool targets reported.",
+    "configuredVoters": "Configured voters",
+    "defaultLens": "Default decision lens",
+    "weight": "vote weight {{n}}",
+    "veto": {
+      "on": "veto enabled",
+      "off": "veto disabled",
+      "inherit": "inherit seat / lens veto",
+      "lens": "use lens veto default"
+    },
+    "derivedSeats": "Seats may be derived from the model pool.",
+    "configuredSeats": "Configured seat defaults",
+    "effectiveSeats": "Effective seats & judge",
+    "noSeats": "No active council seats reported.",
+    "configuredJudge": "Configured judge: {{judge}}",
+    "derivedJudge": "Derived from the pool",
+    "effectiveJudge": "Effective judge: {{judge}}",
+    "noJudge": "No active judge",
+    "alsoVoter": "also a voting member",
+    "rules": {
+      "label": "Configured Brain rules",
+      "help": "Read-only rules in evaluation order; the first match wins.",
+      "rule": "Rule {{n}}"
+    },
+    "condition": {
+      "source": "Request source",
+      "risk": "Risk",
+      "minRisk": "Minimum risk",
+      "maxRisk": "Maximum risk",
+      "fallback": "Caller fallback",
+      "hasOptions": "Requires choices",
+      "offersOption": "Required choice",
+      "question": "Question pattern",
+      "context": "Context pattern",
+      "notQuestion": "Excluded question pattern",
+      "notContext": "Excluded context pattern"
+    },
+    "decision": "Decision: <strong>{{action}}</strong>",
+    "notReported": "Not reported",
+    "action": {
+      "optionId": "Choice",
+      "rationale": "Rationale",
+      "reason": "Reason",
+      "prompt": "Operator prompt",
+      "text": "Answer"
+    },
+    "maxHits": "Maximum {{n}} matches per {{ms}} ms.",
+    "noRules": "No explicit rules were returned by this runtime.",
+    "locations": {
+      "label": "Brain evidence locations",
+      "title": "Evidence locations",
+      "ledger": "Decision ledger",
+      "trace": "Replay trace",
+      "none": "No location reported",
+      "help": "These locations belong to this profile runtime; project runtimes record their own evidence."
     }
   }
 }

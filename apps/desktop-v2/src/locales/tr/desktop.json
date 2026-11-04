@@ -5337,6 +5337,23 @@
       "title": "Konsey hakemi",
       "help": "Eşitliği bozacak bir model seç ya da motorun hakemi havuzdan türetmesi için temizle.",
       "derive": "Türetilen hakemi kullan"
+    },
+    "error": {
+      "needsModel": "{{target}} için model kimliği gerekli. Bunun yerine devralmak için boş satırı kaldır.",
+      "strategy": "Geçerli bir Brain model havuzu stratejisi seç.",
+      "seatLens": "Brain koltuk varsayılanı {{n}} için karar merceği gerekli.",
+      "seatVeto": "Geçerli bir koltuk varsayılanı veto politikası seç.",
+      "weight": "Brain oy vericisi {{n}} için pozitif bir oy ağırlığı ya da boş varsayılan gerekli.",
+      "voterVeto": "Geçerli bir konsey veto politikası seç.",
+      "changed": "Brain {{part}} başka bir yerde değişti. Bu düzenlemeyi uygulamadan önce kayıtlı Brain değerlerini yeniden yükle.",
+      "mismatch": "Brain {{part}} kayıtlı yapılandırmayla eşleşmedi. Yeniden denemeden önce yeniden yükle."
+    },
+    "part": {
+      "models": "modelleri",
+      "strategy": "stratejisi",
+      "voters": "oy vericileri",
+      "seats": "koltukları",
+      "judge": "hakemi"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "kapalı",
       "droppedOne": "{{n}} kural atlandı",
       "droppedMany": "{{n}} kural atlandı"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Geçerli karar modelleri",
+      "title": "Modeller ve konsey koltukları",
+      "help": "Kayıtlı başvurular ve çözümlenen çalışma zamanı hedefleri ayrı gösterilir. Kaydedilmemiş düzenlemeler Brain politikasını kaydedene kadar model ve konsey düzenleyicisinde kalır."
+    },
+    "inheritModel": "Çalışma zamanı modelini devral",
+    "configuredPool": "Yapılandırılmış model havuzu",
+    "inheritPool": "Çalışma zamanının model seçimini devral.",
+    "resolvedPool": "Çözümlenen model havuzu",
+    "noResolvedPool": "Çözümlenen havuz hedefi bildirilmedi.",
+    "configuredVoters": "Yapılandırılmış oy vericiler",
+    "defaultLens": "Varsayılan karar merceği",
+    "weight": "oy ağırlığı {{n}}",
+    "veto": {
+      "on": "veto etkin",
+      "off": "veto devre dışı",
+      "inherit": "koltuk / mercek vetosunu devral",
+      "lens": "mercek veto varsayılanını kullan"
+    },
+    "derivedSeats": "Koltuklar model havuzundan türetilebilir.",
+    "configuredSeats": "Yapılandırılmış koltuk varsayılanları",
+    "effectiveSeats": "Geçerli koltuklar ve hakem",
+    "noSeats": "Etkin konsey koltuğu bildirilmedi.",
+    "configuredJudge": "Yapılandırılmış hakem: {{judge}}",
+    "derivedJudge": "Havuzdan türetilir",
+    "effectiveJudge": "Geçerli hakem: {{judge}}",
+    "noJudge": "Etkin hakem yok",
+    "alsoVoter": "aynı zamanda oy veren üye",
+    "rules": {
+      "label": "Yapılandırılmış Brain kuralları",
+      "help": "Değerlendirme sırasıyla salt okunur kurallar; ilk eşleşme kazanır.",
+      "rule": "Kural {{n}}"
+    },
+    "condition": {
+      "source": "İstek kaynağı",
+      "risk": "Risk",
+      "minRisk": "En düşük risk",
+      "maxRisk": "En yüksek risk",
+      "fallback": "Çağıran yedeği",
+      "hasOptions": "Seçenek gerektirir",
+      "offersOption": "Gerekli seçenek",
+      "question": "Soru kalıbı",
+      "context": "Bağlam kalıbı",
+      "notQuestion": "Hariç tutulan soru kalıbı",
+      "notContext": "Hariç tutulan bağlam kalıbı"
+    },
+    "decision": "Karar: <strong>{{action}}</strong>",
+    "notReported": "Bildirilmedi",
+    "action": {
+      "optionId": "Seçim",
+      "rationale": "Gerekçe",
+      "reason": "Neden",
+      "prompt": "Operatör istemi",
+      "text": "Yanıt"
+    },
+    "maxHits": "{{ms}} ms başına en fazla {{n}} eşleşme.",
+    "noRules": "Bu çalışma zamanı açık kural döndürmedi.",
+    "locations": {
+      "label": "Brain kanıt konumları",
+      "title": "Kanıt konumları",
+      "ledger": "Karar defteri",
+      "trace": "Yeniden oynatma izi",
+      "none": "Konum bildirilmedi",
+      "help": "Bu konumlar bu profil çalışma zamanına aittir; proje çalışma zamanları kendi kanıtlarını kaydeder."
     }
   }
 }

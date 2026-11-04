@@ -5337,6 +5337,23 @@
       "title": "Juiz do conselho",
       "help": "Escolha um modelo de desempate ou deixe vazio para o mecanismo derivar o juiz do pool.",
       "derive": "Usar o juiz derivado"
+    },
+    "error": {
+      "needsModel": "{{target}} precisa de um ID de modelo. Remova uma linha vazia para herdar em vez disso.",
+      "strategy": "Escolha uma estratégia válida para o pool de modelos do Brain.",
+      "seatLens": "O padrão de assento do Brain {{n}} precisa de uma perspectiva de decisão.",
+      "seatVeto": "Escolha uma política de veto válida para o padrão de assento.",
+      "weight": "O votante do Brain {{n}} precisa de um peso de voto positivo ou do padrão vazio.",
+      "voterVeto": "Escolha uma política de veto do conselho válida.",
+      "changed": "Brain {{part}} foi alterado em outro lugar. Recarregue os valores salvos do Brain antes de aplicar esta alteração.",
+      "mismatch": "Brain {{part}} não corresponde à configuração salva. Recarregue antes de tentar novamente."
+    },
+    "part": {
+      "models": "modelos",
+      "strategy": "estratégia",
+      "voters": "votantes",
+      "seats": "assentos",
+      "judge": "juiz"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "desativada",
       "droppedOne": "{{n}} regra descartada",
       "droppedMany": "{{n}} regras descartadas"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Modelos de decisão efetivos",
+      "title": "Modelos e assentos do conselho",
+      "help": "As referências salvas e os alvos resolvidos do runtime são mostrados separadamente. As alterações não salvas permanecem no editor de modelos e do conselho até você salvar a política do Brain."
+    },
+    "inheritModel": "Herdar o modelo do runtime",
+    "configuredPool": "Pool de modelos configurado",
+    "inheritPool": "Herdar a seleção de modelos do runtime.",
+    "resolvedPool": "Pool de modelos resolvido",
+    "noResolvedPool": "Nenhum alvo de pool resolvido informado.",
+    "configuredVoters": "Votantes configurados",
+    "defaultLens": "Perspectiva de decisão padrão",
+    "weight": "peso do voto {{n}}",
+    "veto": {
+      "on": "veto ativado",
+      "off": "veto desativado",
+      "inherit": "herdar o veto do assento / perspectiva",
+      "lens": "usar o veto padrão da perspectiva"
+    },
+    "derivedSeats": "Os assentos podem ser derivados do pool de modelos.",
+    "configuredSeats": "Padrões de assento configurados",
+    "effectiveSeats": "Assentos e juiz efetivos",
+    "noSeats": "Nenhum assento ativo do conselho informado.",
+    "configuredJudge": "Juiz configurado: {{judge}}",
+    "derivedJudge": "Derivado do pool",
+    "effectiveJudge": "Juiz efetivo: {{judge}}",
+    "noJudge": "Nenhum juiz ativo",
+    "alsoVoter": "também membro votante",
+    "rules": {
+      "label": "Regras do Brain configuradas",
+      "help": "Regras somente leitura em ordem de avaliação; a primeira correspondência vence.",
+      "rule": "Regra {{n}}"
+    },
+    "condition": {
+      "source": "Origem da solicitação",
+      "risk": "Risco",
+      "minRisk": "Risco mínimo",
+      "maxRisk": "Risco máximo",
+      "fallback": "Fallback do chamador",
+      "hasOptions": "Exige opções",
+      "offersOption": "Opção obrigatória",
+      "question": "Padrão da pergunta",
+      "context": "Padrão do contexto",
+      "notQuestion": "Padrão de pergunta excluído",
+      "notContext": "Padrão de contexto excluído"
+    },
+    "decision": "Decisão: <strong>{{action}}</strong>",
+    "notReported": "Não informado",
+    "action": {
+      "optionId": "Escolha",
+      "rationale": "Justificativa",
+      "reason": "Motivo",
+      "prompt": "Prompt do operador",
+      "text": "Resposta"
+    },
+    "maxHits": "No máximo {{n}} correspondências a cada {{ms}} ms.",
+    "noRules": "Este runtime não retornou regras explícitas.",
+    "locations": {
+      "label": "Locais das evidências do Brain",
+      "title": "Locais das evidências",
+      "ledger": "Livro de decisões",
+      "trace": "Rastro de reprodução",
+      "none": "Nenhum local informado",
+      "help": "Esses locais pertencem a este runtime do perfil; os runtimes de projeto registram as próprias evidências."
     }
   }
 }

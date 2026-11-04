@@ -16,6 +16,7 @@ import {
 } from './brain-policy-model';
 import {
   type BrainTargetsDraft,
+  type BrainTargetWords,
   brainTargetsDraft,
   brainTargetsPatch,
   mergeBrainPatches,
@@ -35,6 +36,19 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
   words.current = t;
   const label = (field: BrainField) =>
     t(`brainPolicy.field.${field.key}.label`, { defaultValue: field.label });
+  const targetWords: BrainTargetWords = {
+    pool: (n) => t('brainTargets.pool.target', { n }),
+    voter: (n) => t('brainTargets.voters.target', { n }),
+    judge: t('brainTargets.judge.title'),
+    needsModel: (target) => t('brainTargets.error.needsModel', { target }),
+    strategy: t('brainTargets.error.strategy'),
+    seatLens: (n) => t('brainTargets.error.seatLens', { n }),
+    seatVeto: t('brainTargets.error.seatVeto'),
+    weight: (n) => t('brainTargets.error.weight', { n }),
+    voterVeto: t('brainTargets.error.voterVeto'),
+    changed: (part) => t('brainTargets.error.changed', { part: t(`brainTargets.part.${part}`) }),
+    mismatch: (part) => t('brainTargets.error.mismatch', { part: t(`brainTargets.part.${part}`) }),
+  };
   const policy = useRef<HTMLElement>(null);
   const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null);
   const [base, setBase] = useState<BrainDraft>({}),
@@ -131,7 +145,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
             ? brainMonitorResetPatch(snapshot ?? {}, live, t('brainPolicy.error.monitorChanged'))
             : {}),
         },
-        brainTargetsPatch(targetBase, targets, brainTargetsDraft(live)),
+        brainTargetsPatch(targetBase, targets, brainTargetsDraft(live), targetWords),
       );
       if (!Object.keys(patch).length) {
         if (current === generation.current) {
@@ -148,7 +162,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
       const saved = await read();
       if (resetMonitor && Object.keys(record(saved['monitor'])).length)
         throw Error(t('brainPolicy.error.monitorNotCleared'));
-      verifyBrainTargets(patch, saved);
+      verifyBrainTargets(patch, saved, targetWords);
       for (const field of brainGroups.flatMap((group) => group.fields)) {
         const desired = brainValue(patch, field.key);
         if (

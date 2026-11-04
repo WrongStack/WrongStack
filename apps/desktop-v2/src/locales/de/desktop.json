@@ -5337,6 +5337,23 @@
       "title": "Ratsrichter",
       "help": "Wähle ein Modell für den Stichentscheid oder leere das Feld, damit die Engine den Richter aus dem Pool ableitet.",
       "derive": "Abgeleiteten Richter verwenden"
+    },
+    "error": {
+      "needsModel": "{{target}} braucht eine Modell-ID. Entferne eine leere Zeile, um stattdessen zu übernehmen.",
+      "strategy": "Wähle eine gültige Strategie für den Brain-Modellpool.",
+      "seatLens": "Brain-Sitzstandard {{n}} braucht eine Entscheidungslinse.",
+      "seatVeto": "Wähle eine gültige Veto-Richtlinie für den Sitzstandard.",
+      "weight": "Brain-Wähler {{n}} braucht ein positives Stimmgewicht oder den leeren Standard.",
+      "voterVeto": "Wähle eine gültige Veto-Richtlinie für den Rat.",
+      "changed": "Brain {{part}} wurde an anderer Stelle geändert. Lade die gespeicherten Brain-Werte neu, bevor du diese Änderung anwendest.",
+      "mismatch": "Brain {{part}} stimmt nicht mit der gespeicherten Konfiguration überein. Lade vor einem neuen Versuch neu."
+    },
+    "part": {
+      "models": "Modelle",
+      "strategy": "Strategie",
+      "voters": "Wähler",
+      "seats": "Sitze",
+      "judge": "Richter"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "aus",
       "droppedOne": "{{n}} Regel verworfen",
       "droppedMany": "{{n}} Regeln verworfen"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Wirksame Entscheidungsmodelle",
+      "title": "Modelle & Ratssitze",
+      "help": "Gespeicherte Verweise und aufgelöste Laufzeitziele werden getrennt angezeigt. Nicht gespeicherte Änderungen bleiben im Modell- und Rats-Editor, bis du die Brain-Richtlinie speicherst."
+    },
+    "inheritModel": "Laufzeitmodell übernehmen",
+    "configuredPool": "Konfigurierter Modellpool",
+    "inheritPool": "Die Modellauswahl der Laufzeit übernehmen.",
+    "resolvedPool": "Aufgelöster Modellpool",
+    "noResolvedPool": "Keine aufgelösten Pool-Ziele gemeldet.",
+    "configuredVoters": "Konfigurierte Wähler",
+    "defaultLens": "Standard-Entscheidungslinse",
+    "weight": "Stimmgewicht {{n}}",
+    "veto": {
+      "on": "Veto aktiviert",
+      "off": "Veto deaktiviert",
+      "inherit": "Veto von Sitz / Linse übernehmen",
+      "lens": "Veto-Standard der Linse verwenden"
+    },
+    "derivedSeats": "Sitze können aus dem Modellpool abgeleitet werden.",
+    "configuredSeats": "Konfigurierte Sitzstandards",
+    "effectiveSeats": "Wirksame Sitze & Richter",
+    "noSeats": "Keine aktiven Ratssitze gemeldet.",
+    "configuredJudge": "Konfigurierter Richter: {{judge}}",
+    "derivedJudge": "Aus dem Pool abgeleitet",
+    "effectiveJudge": "Wirksamer Richter: {{judge}}",
+    "noJudge": "Kein aktiver Richter",
+    "alsoVoter": "auch stimmberechtigtes Mitglied",
+    "rules": {
+      "label": "Konfigurierte Brain-Regeln",
+      "help": "Schreibgeschützte Regeln in Auswertungsreihenfolge; der erste Treffer gewinnt.",
+      "rule": "Regel {{n}}"
+    },
+    "condition": {
+      "source": "Anfragequelle",
+      "risk": "Risiko",
+      "minRisk": "Mindestrisiko",
+      "maxRisk": "Höchstrisiko",
+      "fallback": "Fallback des Aufrufers",
+      "hasOptions": "Erfordert Auswahlmöglichkeiten",
+      "offersOption": "Erforderliche Auswahl",
+      "question": "Fragemuster",
+      "context": "Kontextmuster",
+      "notQuestion": "Ausgeschlossenes Fragemuster",
+      "notContext": "Ausgeschlossenes Kontextmuster"
+    },
+    "decision": "Entscheidung: <strong>{{action}}</strong>",
+    "notReported": "Nicht gemeldet",
+    "action": {
+      "optionId": "Auswahl",
+      "rationale": "Begründung",
+      "reason": "Grund",
+      "prompt": "Operator-Prompt",
+      "text": "Antwort"
+    },
+    "maxHits": "Höchstens {{n}} Treffer pro {{ms}} ms.",
+    "noRules": "Diese Laufzeit hat keine expliziten Regeln zurückgegeben.",
+    "locations": {
+      "label": "Speicherorte der Brain-Belege",
+      "title": "Speicherorte der Belege",
+      "ledger": "Entscheidungs-Ledger",
+      "trace": "Replay-Trace",
+      "none": "Kein Speicherort gemeldet",
+      "help": "Diese Speicherorte gehören zu dieser Profil-Laufzeit; Projektlaufzeiten zeichnen ihre eigenen Belege auf."
     }
   }
 }

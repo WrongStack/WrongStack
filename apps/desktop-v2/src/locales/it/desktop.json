@@ -5337,6 +5337,23 @@
       "title": "Giudice del consiglio",
       "help": "Scegli un modello per gli spareggi, oppure svuotalo perché il motore ricavi il giudice dal pool.",
       "derive": "Usa il giudice ricavato"
+    },
+    "error": {
+      "needsModel": "{{target}} richiede un ID modello. Rimuovi una riga vuota per ereditare invece.",
+      "strategy": "Scegli una strategia valida per il pool dei modelli Brain.",
+      "seatLens": "Il predefinito del seggio Brain {{n}} richiede una prospettiva decisionale.",
+      "seatVeto": "Scegli una policy di veto valida per il predefinito del seggio.",
+      "weight": "Il votante Brain {{n}} richiede un peso di voto positivo o il predefinito vuoto.",
+      "voterVeto": "Scegli una policy di veto del consiglio valida.",
+      "changed": "Brain {{part}} è stato modificato altrove. Ricarica i valori Brain salvati prima di applicare questa modifica.",
+      "mismatch": "Brain {{part}} non corrisponde alla configurazione salvata. Ricarica prima di riprovare."
+    },
+    "part": {
+      "models": "modelli",
+      "strategy": "strategia",
+      "voters": "votanti",
+      "seats": "seggi",
+      "judge": "giudice"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "disattivata",
       "droppedOne": "{{n}} regola scartata",
       "droppedMany": "{{n}} regole scartate"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Modelli decisionali effettivi",
+      "title": "Modelli e seggi del consiglio",
+      "help": "I riferimenti salvati e i target risolti del runtime sono mostrati separatamente. Le modifiche non salvate restano nell’editor dei modelli e del consiglio finché non salvi la policy Brain."
+    },
+    "inheritModel": "Eredita il modello del runtime",
+    "configuredPool": "Pool dei modelli configurato",
+    "inheritPool": "Eredita la selezione dei modelli del runtime.",
+    "resolvedPool": "Pool dei modelli risolto",
+    "noResolvedPool": "Nessun target del pool risolto segnalato.",
+    "configuredVoters": "Votanti configurati",
+    "defaultLens": "Prospettiva decisionale predefinita",
+    "weight": "peso del voto {{n}}",
+    "veto": {
+      "on": "veto attivato",
+      "off": "veto disattivato",
+      "inherit": "eredita il veto di seggio / prospettiva",
+      "lens": "usa il veto predefinito della prospettiva"
+    },
+    "derivedSeats": "I seggi possono essere ricavati dal pool dei modelli.",
+    "configuredSeats": "Predefiniti dei seggi configurati",
+    "effectiveSeats": "Seggi e giudice effettivi",
+    "noSeats": "Nessun seggio del consiglio attivo segnalato.",
+    "configuredJudge": "Giudice configurato: {{judge}}",
+    "derivedJudge": "Ricavato dal pool",
+    "effectiveJudge": "Giudice effettivo: {{judge}}",
+    "noJudge": "Nessun giudice attivo",
+    "alsoVoter": "anche membro votante",
+    "rules": {
+      "label": "Regole Brain configurate",
+      "help": "Regole di sola lettura in ordine di valutazione; vince la prima corrispondenza.",
+      "rule": "Regola {{n}}"
+    },
+    "condition": {
+      "source": "Origine della richiesta",
+      "risk": "Rischio",
+      "minRisk": "Rischio minimo",
+      "maxRisk": "Rischio massimo",
+      "fallback": "Fallback del chiamante",
+      "hasOptions": "Richiede opzioni",
+      "offersOption": "Opzione richiesta",
+      "question": "Schema della domanda",
+      "context": "Schema del contesto",
+      "notQuestion": "Schema della domanda escluso",
+      "notContext": "Schema del contesto escluso"
+    },
+    "decision": "Decisione: <strong>{{action}}</strong>",
+    "notReported": "Non segnalato",
+    "action": {
+      "optionId": "Scelta",
+      "rationale": "Motivazione",
+      "reason": "Motivo",
+      "prompt": "Prompt dell’operatore",
+      "text": "Risposta"
+    },
+    "maxHits": "Al massimo {{n}} corrispondenze ogni {{ms}} ms.",
+    "noRules": "Questo runtime non ha restituito regole esplicite.",
+    "locations": {
+      "label": "Posizioni delle prove Brain",
+      "title": "Posizioni delle prove",
+      "ledger": "Registro delle decisioni",
+      "trace": "Traccia di replay",
+      "none": "Nessuna posizione segnalata",
+      "help": "Queste posizioni appartengono a questo runtime del profilo; i runtime di progetto registrano le proprie prove."
     }
   }
 }

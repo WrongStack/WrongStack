@@ -7854,3 +7854,24 @@ copies, starting with SAGE memory.
   - A check run against the catalog confirmed every one of the 51 fields, all option values and
     all seven groups have English text identical to the model source.
   - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.
+
+### Brain decision evidence in the display language (2026-11-04)
+
+- The decision evidence panel under the Brain policy form now follows the display language in all
+  seven languages: the configured and resolved model pool, configured voters with lens, weight
+  and veto, seat defaults, the configured and effective judge, the rule list with its conditions,
+  decision, action details and hit limits, and the evidence locations.
+- The key group is `brainEvidence`; rule condition names stay an English source table in the
+  file and are worded through `brainEvidence.condition.*` with it as the fallback.
+- `brainTargetsWire`, `brainTargetsPatch` and `verifyBrainTargets` take a `BrainTargetWords`
+  object and keep English as the default. The policy page passes its own, so a missing model ID,
+  an invalid vote weight or a pool changed elsewhere is reported in the display language and
+  names the row the way the editor shows it.
+- The Brain settings, including the models and council editor, are now fully translated.
+- Still English by design: rule ids, decisions, condition values and reasons, lens names,
+  resolved model labels and evidence paths reported by the engine.
+- Checks:
+  - The Brain settings jsdom test's policy case now also covers a voter, a seat default, a judge
+    that is also a voter, a rule with a condition, reason and hit limit, and the evidence
+    locations, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.

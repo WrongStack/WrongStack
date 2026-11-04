@@ -5337,6 +5337,23 @@
       "title": "Juez del consejo",
       "help": "Elige un modelo de desempate o déjalo vacío para que el motor derive el juez del grupo.",
       "derive": "Usar el juez derivado"
+    },
+    "error": {
+      "needsModel": "{{target}} necesita un ID de modelo. Quita una fila vacía para heredar en su lugar.",
+      "strategy": "Elige una estrategia válida para el grupo de modelos de Brain.",
+      "seatLens": "El predeterminado del puesto de Brain {{n}} necesita una perspectiva de decisión.",
+      "seatVeto": "Elige una política de veto válida para el predeterminado del puesto.",
+      "weight": "El votante de Brain {{n}} necesita un peso de voto positivo o el valor predeterminado vacío.",
+      "voterVeto": "Elige una política de veto del consejo válida.",
+      "changed": "Brain {{part}} cambió en otro lugar. Recarga los valores de Brain guardados antes de aplicar este cambio.",
+      "mismatch": "Brain {{part}} no coincide con la configuración guardada. Recarga antes de reintentar."
+    },
+    "part": {
+      "models": "modelos",
+      "strategy": "estrategia",
+      "voters": "votantes",
+      "seats": "puestos",
+      "judge": "juez"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "desactivada",
       "droppedOne": "{{n}} regla descartada",
       "droppedMany": "{{n}} reglas descartadas"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Modelos de decisión efectivos",
+      "title": "Modelos y puestos del consejo",
+      "help": "Las referencias guardadas y los destinos resueltos del entorno se muestran por separado. Los cambios sin guardar permanecen en el editor de modelos y del consejo hasta que guardes la política de Brain."
+    },
+    "inheritModel": "Heredar el modelo del entorno",
+    "configuredPool": "Grupo de modelos configurado",
+    "inheritPool": "Heredar la selección de modelos del entorno.",
+    "resolvedPool": "Grupo de modelos resuelto",
+    "noResolvedPool": "No se informó ningún destino resuelto del grupo.",
+    "configuredVoters": "Votantes configurados",
+    "defaultLens": "Perspectiva de decisión predeterminada",
+    "weight": "peso del voto {{n}}",
+    "veto": {
+      "on": "veto activado",
+      "off": "veto desactivado",
+      "inherit": "heredar el veto del puesto / perspectiva",
+      "lens": "usar el veto predeterminado de la perspectiva"
+    },
+    "derivedSeats": "Los puestos pueden derivarse del grupo de modelos.",
+    "configuredSeats": "Predeterminados de puestos configurados",
+    "effectiveSeats": "Puestos y juez efectivos",
+    "noSeats": "No se informó ningún puesto activo del consejo.",
+    "configuredJudge": "Juez configurado: {{judge}}",
+    "derivedJudge": "Derivado del grupo",
+    "effectiveJudge": "Juez efectivo: {{judge}}",
+    "noJudge": "Ningún juez activo",
+    "alsoVoter": "también miembro con voto",
+    "rules": {
+      "label": "Reglas de Brain configuradas",
+      "help": "Reglas de solo lectura en orden de evaluación; gana la primera coincidencia.",
+      "rule": "Regla {{n}}"
+    },
+    "condition": {
+      "source": "Origen de la solicitud",
+      "risk": "Riesgo",
+      "minRisk": "Riesgo mínimo",
+      "maxRisk": "Riesgo máximo",
+      "fallback": "Respaldo del llamador",
+      "hasOptions": "Requiere opciones",
+      "offersOption": "Opción requerida",
+      "question": "Patrón de pregunta",
+      "context": "Patrón de contexto",
+      "notQuestion": "Patrón de pregunta excluido",
+      "notContext": "Patrón de contexto excluido"
+    },
+    "decision": "Decisión: <strong>{{action}}</strong>",
+    "notReported": "No informado",
+    "action": {
+      "optionId": "Elección",
+      "rationale": "Justificación",
+      "reason": "Motivo",
+      "prompt": "Instrucción al operador",
+      "text": "Respuesta"
+    },
+    "maxHits": "Máximo {{n}} coincidencias cada {{ms}} ms.",
+    "noRules": "Este entorno no devolvió reglas explícitas.",
+    "locations": {
+      "label": "Ubicaciones de las pruebas de Brain",
+      "title": "Ubicaciones de las pruebas",
+      "ledger": "Registro de decisiones",
+      "trace": "Traza de reproducción",
+      "none": "No se informó ninguna ubicación",
+      "help": "Estas ubicaciones pertenecen a este entorno del perfil; los entornos de proyecto registran sus propias pruebas."
     }
   }
 }

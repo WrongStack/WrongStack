@@ -5337,6 +5337,23 @@
       "title": "Arbitre du conseil",
       "help": "Choisissez un modèle pour départager, ou videz le champ pour que le moteur déduise l’arbitre du pool.",
       "derive": "Utiliser l’arbitre déduit"
+    },
+    "error": {
+      "needsModel": "{{target}} a besoin d’un ID de modèle. Retirez une ligne vide pour hériter à la place.",
+      "strategy": "Choisissez une stratégie de pool de modèles Brain valide.",
+      "seatLens": "Le défaut de siège Brain {{n}} a besoin d’une perspective de décision.",
+      "seatVeto": "Choisissez une politique de veto valide pour le défaut de siège.",
+      "weight": "Le votant Brain {{n}} a besoin d’un poids de vote positif ou de la valeur par défaut vide.",
+      "voterVeto": "Choisissez une politique de veto du conseil valide.",
+      "changed": "Brain {{part}} a été modifié ailleurs. Rechargez les valeurs Brain enregistrées avant d’appliquer cette modification.",
+      "mismatch": "Brain {{part}} ne correspond pas à la configuration enregistrée. Rechargez avant de réessayer."
+    },
+    "part": {
+      "models": "modèles",
+      "strategy": "stratégie",
+      "voters": "votants",
+      "seats": "sièges",
+      "judge": "arbitre"
     }
   },
   "brainPolicy": {
@@ -5676,6 +5693,73 @@
       "off": "désactivée",
       "droppedOne": "{{n}} règle écartée",
       "droppedMany": "{{n}} règles écartées"
+    }
+  },
+  "brainEvidence": {
+    "models": {
+      "label": "Modèles de décision effectifs",
+      "title": "Modèles et sièges du conseil",
+      "help": "Les références enregistrées et les cibles résolues du runtime sont affichées séparément. Les modifications non enregistrées restent dans l’éditeur des modèles et du conseil jusqu’à l’enregistrement de la politique Brain."
+    },
+    "inheritModel": "Hériter du modèle du runtime",
+    "configuredPool": "Pool de modèles configuré",
+    "inheritPool": "Hériter de la sélection de modèles du runtime.",
+    "resolvedPool": "Pool de modèles résolu",
+    "noResolvedPool": "Aucune cible de pool résolue signalée.",
+    "configuredVoters": "Votants configurés",
+    "defaultLens": "Perspective de décision par défaut",
+    "weight": "poids du vote {{n}}",
+    "veto": {
+      "on": "veto activé",
+      "off": "veto désactivé",
+      "inherit": "hériter du veto du siège / de la perspective",
+      "lens": "utiliser le veto par défaut de la perspective"
+    },
+    "derivedSeats": "Les sièges peuvent être déduits du pool de modèles.",
+    "configuredSeats": "Valeurs par défaut des sièges configurées",
+    "effectiveSeats": "Sièges et arbitre effectifs",
+    "noSeats": "Aucun siège de conseil actif signalé.",
+    "configuredJudge": "Arbitre configuré : {{judge}}",
+    "derivedJudge": "Déduit du pool",
+    "effectiveJudge": "Arbitre effectif : {{judge}}",
+    "noJudge": "Aucun arbitre actif",
+    "alsoVoter": "également membre votant",
+    "rules": {
+      "label": "Règles Brain configurées",
+      "help": "Règles en lecture seule dans l’ordre d’évaluation ; la première correspondance l’emporte.",
+      "rule": "Règle {{n}}"
+    },
+    "condition": {
+      "source": "Source de la demande",
+      "risk": "Risque",
+      "minRisk": "Risque minimal",
+      "maxRisk": "Risque maximal",
+      "fallback": "Repli de l’appelant",
+      "hasOptions": "Exige des choix",
+      "offersOption": "Choix requis",
+      "question": "Motif de question",
+      "context": "Motif de contexte",
+      "notQuestion": "Motif de question exclu",
+      "notContext": "Motif de contexte exclu"
+    },
+    "decision": "Décision : <strong>{{action}}</strong>",
+    "notReported": "Non signalé",
+    "action": {
+      "optionId": "Choix",
+      "rationale": "Justification",
+      "reason": "Motif",
+      "prompt": "Invite de l’opérateur",
+      "text": "Réponse"
+    },
+    "maxHits": "Au plus {{n}} correspondances par {{ms}} ms.",
+    "noRules": "Ce runtime n’a renvoyé aucune règle explicite.",
+    "locations": {
+      "label": "Emplacements des preuves Brain",
+      "title": "Emplacements des preuves",
+      "ledger": "Registre des décisions",
+      "trace": "Trace de rejeu",
+      "none": "Aucun emplacement signalé",
+      "help": "Ces emplacements appartiennent à ce runtime de profil ; les runtimes de projet enregistrent leurs propres preuves."
     }
   }
 }

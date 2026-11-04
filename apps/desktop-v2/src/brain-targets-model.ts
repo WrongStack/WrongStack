@@ -51,39 +51,53 @@ export function brainTargetsDraft(config: Record<string, unknown>): BrainTargets
     judge: target(council['judge']),
   };
 }
-function wireTarget(value: BrainTarget, label: string) {
+type BrainPart = 'models' | 'strategy' | 'voters' | 'seats' | 'judge';
+const englishTargetWords = {
+  pool: (n: number) => `Brain pool model ${n}`,
+  voter: (n: number) => `Brain voter ${n}`,
+  judge: 'Council judge',
+  needsModel: (label: string) =>
+    `${label} needs a model ID. Remove an empty row to inherit instead.`,
+  strategy: 'Choose a valid Brain model-pool strategy.',
+  seatLens: (n: number) => `Brain seat default ${n} needs a decision lens.`,
+  seatVeto: 'Choose a valid seat-default veto policy.',
+  weight: (n: number) => `Brain voter ${n} needs a positive vote weight or an empty default.`,
+  voterVeto: 'Choose a valid council veto policy.',
+  changed: (part: BrainPart) =>
+    `Brain ${part} changed elsewhere. Reload saved Brain values before applying this edit.`,
+  mismatch: (part: BrainPart) =>
+    `Brain ${part} did not match the saved configuration. Reload before retrying.`,
+};
+/** How model-pool and council validation is worded; English unless a page passes its own. */
+export type BrainTargetWords = typeof englishTargetWords;
+function wireTarget(value: BrainTarget, label: string, words: BrainTargetWords) {
   const model = value.model.trim(),
     provider = value.provider.trim();
-  if (!model) throw Error(`${label} needs a model ID. Remove an empty row to inherit instead.`);
+  if (!model) throw Error(words.needsModel(label));
   return { ...(provider ? { provider } : {}), model };
 }
-export function brainTargetsWire(draft: BrainTargetsDraft) {
-  if (!['fallback', 'round-robin'].includes(draft.strategy))
-    throw Error('Choose a valid Brain model-pool strategy.');
+export function brainTargetsWire(draft: BrainTargetsDraft, words = englishTargetWords) {
+  if (!['fallback', 'round-robin'].includes(draft.strategy)) throw Error(words.strategy);
   return {
     models: draft.pool.length
-      ? draft.pool.map((row, index) => wireTarget(row, `Brain pool model ${index + 1}`))
+      ? draft.pool.map((row, index) => wireTarget(row, words.pool(index + 1), words))
       : null,
     strategy: draft.strategy,
     seats: draft.seats.length
       ? draft.seats.map((row, index) => {
           const persona = row.persona.trim();
-          if (!persona) throw Error(`Brain seat default ${index + 1} needs a decision lens.`);
-          if (!['default', 'yes', 'no'].includes(row.veto))
-            throw Error('Choose a valid seat-default veto policy.');
+          if (!persona) throw Error(words.seatLens(index + 1));
+          if (!['default', 'yes', 'no'].includes(row.veto)) throw Error(words.seatVeto);
           return { persona, ...(row.veto === 'default' ? {} : { veto: row.veto === 'yes' }) };
         })
       : null,
     voters: draft.voters.length
       ? draft.voters.map((row, index) => {
-          const model = wireTarget(row, `Brain voter ${index + 1}`),
+          const model = wireTarget(row, words.voter(index + 1), words),
             weight = row.weight === '' ? undefined : Number(row.weight);
           if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0))
-            throw Error(
-              `Brain voter ${index + 1} needs a positive vote weight or an empty default.`,
-            );
-          if (!['default', 'yes', 'no'].includes(row.veto))
-            throw Error('Choose a valid council veto policy.');
+            throw Error(words.weight(index + 1));
+          if (!['default', 'yes', 'no'].includes(row.veto)) throw Error(words.voterVeto);
           return {
             ...model,
             ...(row.persona.trim() ? { persona: row.persona.trim() } : {}),
@@ -94,7 +108,7 @@ export function brainTargetsWire(draft: BrainTargetsDraft) {
       : null,
     judge:
       draft.judge.model.trim() || draft.judge.provider.trim()
-        ? wireTarget(draft.judge, 'Council judge')
+        ? wireTarget(draft.judge, words.judge, words)
         : null,
   };
 }
@@ -102,18 +116,17 @@ export function brainTargetsPatch(
   base: BrainTargetsDraft,
   draft: BrainTargetsDraft,
   live: BrainTargetsDraft,
+  words = englishTargetWords,
 ): Record<string, unknown> {
-  const before = brainTargetsWire(base),
-    next = brainTargetsWire(draft),
-    current = brainTargetsWire(live);
+  const before = brainTargetsWire(base, words),
+    next = brainTargetsWire(draft, words),
+    current = brainTargetsWire(live, words);
   const patch: Record<string, unknown> = {},
     council: Record<string, unknown> = {};
   for (const key of ['models', 'strategy', 'voters', 'seats', 'judge'] as const) {
     if (sameSetting(before[key], next[key])) continue;
     if (!sameSetting(before[key], current[key]) && !sameSetting(next[key], current[key]))
-      throw Error(
-        `Brain ${key} changed elsewhere. Reload saved Brain values before applying this edit.`,
-      );
+      throw Error(words.changed(key));
     if (key === 'models' || key === 'strategy') patch[key] = next[key];
     else council[key] = next[key];
   }
@@ -132,11 +145,15 @@ export function mergeBrainPatches(
       : {}),
   };
 }
-export function verifyBrainTargets(patch: Record<string, unknown>, saved: Record<string, unknown>) {
-  const wire = brainTargetsWire(brainTargetsDraft(saved));
+export function verifyBrainTargets(
+  patch: Record<string, unknown>,
+  saved: Record<string, unknown>,
+  words = englishTargetWords,
+) {
+  const wire = brainTargetsWire(brainTargetsDraft(saved), words);
   for (const key of ['models', 'strategy', 'voters', 'seats', 'judge'] as const) {
     const owner = key === 'models' || key === 'strategy' ? patch : record(patch['council']);
     if (Object.hasOwn(owner, key) && !sameSetting(owner[key], wire[key]))
-      throw Error(`Brain ${key} did not match the saved configuration. Reload before retrying.`);
+      throw Error(words.mismatch(key));
   }
 }
