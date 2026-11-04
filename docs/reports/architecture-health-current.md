@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-03T23:58:39.411Z
+**Generated:** 2026-11-04T06:58:38.574Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 47 |
 | Production source files | 5687 |
-| Production source lines | 1241597 |
-| Test files | 4920 |
+| Production source lines | 1241657 |
+| Test files | 4922 |
 | Workspace dependency edges | 232 |
 | Relative module edges | 16655 |
 | Non-command slash imports | 0 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/requirement-intake | 18 | 20 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 36 | 39 | @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/sage, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol |
-| @wrongstack/sage | 170 | 173 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/wrongmemory-client |
+| @wrongstack/sage | 170 | 175 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 45 | 42 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
 | @wrongstack/security-scanner | 21 | 34 | @wrongstack/contracts, @wrongstack/core |
@@ -90,7 +90,7 @@ None.
 | Lines | File |
 |---:|---|
 | 2016 | `apps/desktop-v2/src/FileWorkspace.tsx` |
-| 1696 | `packages/sage/src/wrongmemory-port.ts` |
+| 1728 | `packages/sage/src/wrongmemory-port.ts` |
 | 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1150 | `apps/desktop-v2/src/SessionComposer.tsx` |
@@ -142,7 +142,7 @@ None.
 
 ## Exports only tests reference
 
-- 1040 runtime exports are referenced by tests and by no other production file.
+- 1041 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

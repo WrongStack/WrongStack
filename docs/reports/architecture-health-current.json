@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:58:39.411Z",
+  "generatedAt": "2026-11-04T06:58:38.574Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 47,
     "sourceFiles": 5687,
-    "testFiles": 4920,
-    "sourceLines": 1241597,
+    "testFiles": 4922,
+    "sourceLines": 1241657,
     "workspaceEdges": 232,
     "moduleEdges": 16655,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 187,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1041
   },
   "errors": [],
   "packageCycles": [],
@@ -830,7 +830,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 170,
-      "testFiles": 173,
+      "testFiles": 175,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -849,7 +849,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 173
+          "testFiles": 175
         }
       ]
     },
@@ -18353,6 +18353,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/middleware/path-remap-linked-worktree.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/middleware/path-remap-repeat-rename.test.ts",
         "projects": [
           "root-node"
@@ -19080,6 +19086,12 @@
       },
       {
         "file": "packages/sage/tests/wrongmemory-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-worktree.integration.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32791,7 +32803,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1696,
+      "lines": 1728,
       "relativeImports": 14
     },
     {
@@ -32998,7 +33010,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1696,
+      "lines": 1728,
       "relativeImports": 14
     },
     {
@@ -35630,6 +35642,10 @@
     {
       "file": "packages/sage/src/middleware/memory-injector-agent.ts",
       "name": "memoryInjectorAgentCoverage"
+    },
+    {
+      "file": "packages/sage/src/middleware/path-remap.ts",
+      "name": "isLinkedWorktreeRoot"
     },
     {
       "file": "packages/sage/src/middleware/path-remap.ts",
