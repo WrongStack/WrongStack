@@ -6616,5 +6616,160 @@
     "soundsOff": "Turn run sounds off",
     "chime": "Chime when a run finishes",
     "action": "ACTION"
+  },
+  "execPolicy": {
+    "label": "Tool confirmation policy",
+    "eyebrow": "TOOL PERMISSIONS",
+    "title": "Tool confirmation mode",
+    "intro": "Choose the profile default for new runtimes. Existing conversations retain their own permission options.",
+    "modeLabel": "Confirmation mode",
+    "mode": {
+      "standard": "Standard approvals",
+      "yolo": "YOLO · selected destructive prompts",
+      "yolo-plus": "YOLO+ · bypass per-kind prompts"
+    },
+    "note": {
+      "standard": "Standard mode follows configured permission rules and approval prompts.",
+      "yolo": "YOLO skips routine prompts and asks about the selected categories below.",
+      "yolo-plus": "YOLO+ bypasses these per-kind prompts, including the protected categories. Explicit deny rules still refuse."
+    },
+    "confirmTitle": "Destructive-operation confirmations",
+    "checkedYolo": "Checked categories require confirmation under YOLO.",
+    "savedShown": "Saved YOLO preferences are shown below. Choose YOLO mode to edit them.",
+    "required": "Required in YOLO",
+    "confirmKind": "Confirm: {{label}}",
+    "protection": "The trusted-state and credential categories are fixed in normal YOLO. Tool availability and explicit deny rules are configured separately.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Wipe a disk",
+        "description": "Formatting filesystems or writing directly to a raw device."
+      },
+      "system-halt": {
+        "label": "Shut down or restart",
+        "description": "Stopping or restarting the machine."
+      },
+      "delete-outside": {
+        "label": "Delete outside the project",
+        "description": "Recursive force-deletion outside the project or at system/home roots."
+      },
+      "git-history": {
+        "label": "Rewrite Git history",
+        "description": "Discarding repository history, force-pushing or destructive cleanup."
+      },
+      "publish": {
+        "label": "Publish or deploy",
+        "description": "Publishing artifacts, pushing images or changing deployed infrastructure."
+      },
+      "download-and-run": {
+        "label": "Run downloaded code",
+        "description": "Fetching remote content and immediately executing it."
+      },
+      "bulk-delete": {
+        "label": "Delete in bulk",
+        "description": "Deleting collections of files or persistent data."
+      },
+      "agent-state": {
+        "label": "Write WrongStack trusted state",
+        "description": "Changing trusted configuration, hooks, credentials or approval state."
+      },
+      "credential-bind": {
+        "label": "Bind credentials to an endpoint",
+        "description": "Attaching a well-known API credential to a provider URL."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Enabled in profile",
+    "disabled": "Disabled in profile",
+    "unreported": "Not reported by this engine",
+    "eyebrow": "SHARED EXECUTION",
+    "title": "Fleet capacity",
+    "intro": "Set the profile’s agent concurrency limit. Individual agent budgets and role models remain separate controls.",
+    "concurrent": "Concurrent agents",
+    "concurrentHelp": "A positive whole number; no desktop-imposed upper cap.",
+    "chatDetail": "Fleet chat detail",
+    "notReported": "Not reported",
+    "quiet": "Quiet",
+    "detailed": "Detailed",
+    "chatHelp": "Shared chat-detail preference for clients that support it. Desktop run activity remains available independently.",
+    "companionsLabel": "Companion policy",
+    "companionsEyebrow": "ALONGSIDE THE LEADER",
+    "companionsTitle": "Companion agents",
+    "companionsIntro": "These switches configure eligibility, not a live running state. Runtime activity is shown in the project’s Live fleet workspace.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Preserve durable project knowledge through the background memory companion.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Run read-only code exploration alongside the leader and return findings as same-session notes.",
+    "skill": "Skill Companion",
+    "skillHelp": "Recommend relevant skills as work changes, without replacing the leader’s skill choices.",
+    "nextLabel": "Next-step policy",
+    "nextEyebrow": "AFTER A RESPONSE",
+    "nextTitle": "Next-step guidance",
+    "nextIntro": "Guidance and tool availability do not select automatic continuation. Configure continuation mode under Execution & permissions.",
+    "prediction": "Next-step prediction",
+    "predictionHelp": "Enable the engine’s prediction of useful follow-up work.",
+    "tool": "Next-steps tool",
+    "toolHelp": "Make the engine’s nextsteps tool available for structured follow-up choices."
+  },
+  "providerVisibility": {
+    "label": "Provider visibility",
+    "disabledNote": "Disabled across model catalogs and fallback selection.",
+    "availableNote": "Available for model catalogs and fallback selection.",
+    "retained": "Saved credentials, model definitions, favorites and fallback references are retained. Existing runs keep their current connection.",
+    "enable": "Enable provider",
+    "disable": "Disable provider",
+    "enableTitle": "Enable this provider",
+    "disableTitle": "Disable this provider",
+    "enableBody": "Restore this connection to model catalogs and fallback selection. Individually disabled models remain excluded.",
+    "disableBody": "Exclude every model from this connection, including models discovered later. Saved favorites and fallback chains remain stored; the engine skips the disabled provider.",
+    "draftNote": "This changes your settings draft. Save settings to apply it to the profile.",
+    "keep": "Keep provider unchanged",
+    "apply": "Apply provider change to draft"
+  },
+  "reviewPolicy": {
+    "unreported": "Not reported by this engine",
+    "chimeraEyebrow": "AFTER THE RUN",
+    "chimeraTitle": "Chimera review",
+    "chimeraIntro": "Review the completed work with a separate reviewer. Findings and operator decisions appear in the project’s Chimera Reviews workspace.",
+    "chimeraEnable": "Enable Chimera reviews",
+    "chimeraModel": "Chimera reviewer model",
+    "chimeraMaxFiles": "Chimera file limit",
+    "chimeraMaxFilesHelp": "Maximum changed files included in a review.",
+    "chimeraFollowUp": "Chimera follow-up policy",
+    "followUp": {
+      "off": "Report only",
+      "ask": "Ask before fixes",
+      "auto": "Automatic fixes"
+    },
+    "chimeraNote": "Leave the model empty to use the run’s model. A provider/model reference overrides both; a model alone inherits the provider. Automatic fixes can change project files under the engine’s permission policy.",
+    "contEyebrow": "DURING THE RUN",
+    "contTitle": "Continuous review",
+    "contIntro": "Review batches of changed files while the agent works. Batch size, delay and concurrency determine how much review work can run alongside it.",
+    "contEnable": "Enable continuous reviews",
+    "contProfile": "Continuous review fallback profile",
+    "contModel": "Continuous reviewer model",
+    "rotation": "Review model rotation",
+    "rotationOption": {
+      "round-robin": "Round robin",
+      "random": "Random"
+    },
+    "cascade": "Cascade review threshold",
+    "cascadeOption": {
+      "off": "No cascade",
+      "high": "High and critical findings",
+      "critical": "Critical findings only"
+    },
+    "delay": "Review batch delay",
+    "delayHelp": "Milliseconds to collect changes before a review.",
+    "batchFiles": "Review batch file limit",
+    "batchFilesHelp": "Maximum files per review batch.",
+    "concurrent": "Concurrent review limit",
+    "concurrentHelp": "Maximum simultaneous automatic reviews.",
+    "contNote": "Choosing a named profile clears the explicit model; editing the model clears the profile. Empty overrides inherit the engine’s effective fallback configuration.",
+    "missing": "This saved fallback profile is missing. Choose an existing profile or inherit.",
+    "chainTitle": "Last saved effective fallback chain",
+    "stale": "Routing edits are not reflected here until settings are saved and read back.",
+    "noChain": "No fallback chain reported by the engine.",
+    "savedNote": "Saved review settings apply when a new engine session loads its plugins. Existing runs keep their loaded review configuration."
   }
 }

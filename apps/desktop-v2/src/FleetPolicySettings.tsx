@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { BookOpen, Brain, Compass, Layers3, ListChecks, Sparkles } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import './fleet-policy.css';
 
 export function FleetPolicySettings({
@@ -9,6 +10,7 @@ export function FleetPolicySettings({
   draft: Record<string, unknown>;
   change: (key: string, value: unknown) => void;
 }) {
+  const { t } = useDesktopText();
   const toggle = (key: string, label: string, description: string, Icon: LucideIcon) => {
     const known = typeof draft[key] === 'boolean';
     return (
@@ -20,9 +22,9 @@ export function FleetPolicySettings({
           <em>
             {known
               ? draft[key]
-                ? 'Enabled in profile'
-                : 'Disabled in profile'
-              : 'Not reported by this engine'}
+                ? t('fleetPolicy.enabled')
+                : t('fleetPolicy.disabled')
+              : t('fleetPolicy.unreported')}
           </em>
         </span>
         <input
@@ -41,19 +43,16 @@ export function FleetPolicySettings({
         <header>
           <Layers3 size={23} />
           <div>
-            <span className="eyebrow">SHARED EXECUTION</span>
-            <h3>Fleet capacity</h3>
+            <span className="eyebrow">{t('fleetPolicy.eyebrow')}</span>
+            <h3>{t('fleetPolicy.title')}</h3>
           </div>
         </header>
-        <p>
-          Set the profile’s agent concurrency limit. Individual agent budgets and role models remain
-          separate controls.
-        </p>
+        <p>{t('fleetPolicy.intro')}</p>
         <div className="fleet-capacity-fields">
           <label>
-            <strong>Concurrent agents</strong>
+            <strong>{t('fleetPolicy.concurrent')}</strong>
             <input
-              aria-label="Concurrent agents"
+              aria-label={t('fleetPolicy.concurrent')}
               type="number"
               required
               min={1}
@@ -66,79 +65,65 @@ export function FleetPolicySettings({
                 )
               }
             />
-            <small>A positive whole number; no desktop-imposed upper cap.</small>
+            <small>{t('fleetPolicy.concurrentHelp')}</small>
           </label>
           <label>
-            <strong>Fleet chat detail</strong>
+            <strong>{t('fleetPolicy.chatDetail')}</strong>
             <select
-              aria-label="Fleet chat detail"
+              aria-label={t('fleetPolicy.chatDetail')}
               value={String(draft['fleetChatVerbosity'] ?? '')}
               onChange={(event) => change('fleetChatVerbosity', event.target.value)}
             >
               <option value="" disabled>
-                Not reported
+                {t('fleetPolicy.notReported')}
               </option>
-              <option value="off">Quiet</option>
-              <option value="full">Detailed</option>
+              <option value="off">{t('fleetPolicy.quiet')}</option>
+              <option value="full">{t('fleetPolicy.detailed')}</option>
             </select>
-            <small>
-              Shared chat-detail preference for clients that support it. Desktop run activity
-              remains available independently.
-            </small>
+            <small>{t('fleetPolicy.chatHelp')}</small>
           </label>
         </div>
       </article>
-      <section className="fleet-companions" aria-label="Companion policy">
+      <section className="fleet-companions" aria-label={t('fleetPolicy.companionsLabel')}>
         <header>
           <div>
-            <span className="eyebrow">ALONGSIDE THE LEADER</span>
-            <h3>Companion agents</h3>
+            <span className="eyebrow">{t('fleetPolicy.companionsEyebrow')}</span>
+            <h3>{t('fleetPolicy.companionsTitle')}</h3>
           </div>
-          <p>
-            These switches configure eligibility, not a live running state. Runtime activity is
-            shown in the project’s Live fleet workspace.
-          </p>
+          <p>{t('fleetPolicy.companionsIntro')}</p>
         </header>
         {toggle(
           'memoryCompanionEnabled',
-          'Memory Companion',
-          'Preserve durable project knowledge through the background memory companion.',
+          t('fleetPolicy.memory'),
+          t('fleetPolicy.memoryHelp'),
           Brain,
         )}
         {toggle(
           'exploreCompanionEnabled',
-          'Explore Companion',
-          'Run read-only code exploration alongside the leader and return findings as same-session notes.',
+          t('fleetPolicy.explore'),
+          t('fleetPolicy.exploreHelp'),
           Compass,
         )}
         {toggle(
           'skillCompanionEnabled',
-          'Skill Companion',
-          'Recommend relevant skills as work changes, without replacing the leader’s skill choices.',
+          t('fleetPolicy.skill'),
+          t('fleetPolicy.skillHelp'),
           BookOpen,
         )}
       </section>
-      <section className="fleet-next-step-policy" aria-label="Next-step policy">
+      <section className="fleet-next-step-policy" aria-label={t('fleetPolicy.nextLabel')}>
         <header>
-          <span className="eyebrow">AFTER A RESPONSE</span>
-          <h3>Next-step guidance</h3>
-          <p>
-            Guidance and tool availability do not select automatic continuation. Configure
-            continuation mode under Execution & permissions.
-          </p>
+          <span className="eyebrow">{t('fleetPolicy.nextEyebrow')}</span>
+          <h3>{t('fleetPolicy.nextTitle')}</h3>
+          <p>{t('fleetPolicy.nextIntro')}</p>
         </header>
         {toggle(
           'nextPrediction',
-          'Next-step prediction',
-          'Enable the engine’s prediction of useful follow-up work.',
+          t('fleetPolicy.prediction'),
+          t('fleetPolicy.predictionHelp'),
           Sparkles,
         )}
-        {toggle(
-          'nextStepsTool',
-          'Next-steps tool',
-          'Make the engine’s nextsteps tool available for structured follow-up choices.',
-          ListChecks,
-        )}
+        {toggle('nextStepsTool', t('fleetPolicy.tool'), t('fleetPolicy.toolHelp'), ListChecks)}
       </section>
     </div>
   );

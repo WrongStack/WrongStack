@@ -6616,5 +6616,160 @@
     "soundsOff": "Çalışma seslerini kapat",
     "chime": "Çalışma bitince zil çal",
     "action": "EYLEM"
+  },
+  "execPolicy": {
+    "label": "Araç onay politikası",
+    "eyebrow": "ARAÇ İZİNLERİ",
+    "title": "Araç onay kipi",
+    "intro": "Yeni çalışma ortamları için profil varsayılanını seç. Mevcut konuşmalar kendi izin seçeneklerini korur.",
+    "modeLabel": "Onay kipi",
+    "mode": {
+      "standard": "Standart onaylar",
+      "yolo": "YOLO · seçili yıkıcı sorular",
+      "yolo-plus": "YOLO+ · türe göre soruları atla"
+    },
+    "note": {
+      "standard": "Standart kip, ayarlanmış izin kurallarını ve onay sorularını izler.",
+      "yolo": "YOLO rutin soruları atlar ve aşağıda seçili kategoriler için sorar.",
+      "yolo-plus": "YOLO+ türe göre bu soruları, korumalı kategoriler dahil atlar. Açık reddetme kuralları yine reddeder."
+    },
+    "confirmTitle": "Yıkıcı işlem onayları",
+    "checkedYolo": "İşaretli kategoriler YOLO’da onay ister.",
+    "savedShown": "Kayıtlı YOLO tercihleri aşağıda gösterilir. Düzenlemek için YOLO kipini seç.",
+    "required": "YOLO’da zorunlu",
+    "confirmKind": "Onayla: {{label}}",
+    "protection": "Güvenilir durum ve kimlik bilgisi kategorileri normal YOLO’da sabittir. Araç kullanılabilirliği ve açık reddetme kuralları ayrıca yapılandırılır.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Diski sil",
+        "description": "Dosya sistemlerini biçimlendirme ya da doğrudan ham aygıta yazma."
+      },
+      "system-halt": {
+        "label": "Kapat veya yeniden başlat",
+        "description": "Makineyi durdurma ya da yeniden başlatma."
+      },
+      "delete-outside": {
+        "label": "Proje dışında sil",
+        "description": "Proje dışında ya da sistem/ev kök dizinlerinde özyinelemeli zorla silme."
+      },
+      "git-history": {
+        "label": "Git geçmişini yeniden yaz",
+        "description": "Depo geçmişini atma, zorla gönderme ya da yıkıcı temizlik."
+      },
+      "publish": {
+        "label": "Yayımla veya dağıt",
+        "description": "Yapıtları yayımlama, imaj gönderme ya da dağıtılmış altyapıyı değiştirme."
+      },
+      "download-and-run": {
+        "label": "İndirilen kodu çalıştır",
+        "description": "Uzak içeriği getirip hemen çalıştırma."
+      },
+      "bulk-delete": {
+        "label": "Toplu sil",
+        "description": "Dosya koleksiyonlarını ya da kalıcı verileri silme."
+      },
+      "agent-state": {
+        "label": "WrongStack güvenilir durumunu yaz",
+        "description": "Güvenilir yapılandırmayı, kancaları, kimlik bilgilerini ya da onay durumunu değiştirme."
+      },
+      "credential-bind": {
+        "label": "Kimlik bilgilerini bir uç noktaya bağla",
+        "description": "Bilinen bir API kimlik bilgisini bir sağlayıcı URL’sine bağlama."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Profilde etkin",
+    "disabled": "Profilde devre dışı",
+    "unreported": "Bu motor tarafından bildirilmedi",
+    "eyebrow": "ORTAK YÜRÜTME",
+    "title": "Filo kapasitesi",
+    "intro": "Profilin ajan eşzamanlılık sınırını ayarla. Ajan bütçeleri ve rol modelleri ayrı denetimler olarak kalır.",
+    "concurrent": "Eşzamanlı ajanlar",
+    "concurrentHelp": "Pozitif bir tam sayı; masaüstünün koyduğu bir üst sınır yok.",
+    "chatDetail": "Filo sohbet ayrıntısı",
+    "notReported": "Bildirilmedi",
+    "quiet": "Sessiz",
+    "detailed": "Ayrıntılı",
+    "chatHelp": "Destekleyen istemciler için ortak sohbet ayrıntısı tercihi. Masaüstü çalışma etkinliği bundan bağımsız olarak görünür kalır.",
+    "companionsLabel": "Yardımcı politikası",
+    "companionsEyebrow": "LİDERİN YANINDA",
+    "companionsTitle": "Yardımcı ajanlar",
+    "companionsIntro": "Bu anahtarlar uygunluğu yapılandırır, canlı çalışma durumunu değil. Çalışma etkinliği projenin Canlı filo alanında gösterilir.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Kalıcı proje bilgisini arka plandaki bellek yardımcısıyla koru.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Liderin yanında salt okunur kod keşfi yap ve bulguları aynı oturumda not olarak döndür.",
+    "skill": "Skill Companion",
+    "skillHelp": "İş değiştikçe ilgili becerileri öner; liderin beceri seçimlerinin yerini almadan.",
+    "nextLabel": "Sonraki adım politikası",
+    "nextEyebrow": "BİR YANITTAN SONRA",
+    "nextTitle": "Sonraki adım rehberliği",
+    "nextIntro": "Rehberlik ve araç kullanılabilirliği otomatik devamı seçmez. Devam kipini Yürütme ve izinler altında ayarla.",
+    "prediction": "Sonraki adım tahmini",
+    "predictionHelp": "Motorun yararlı takip işlerini tahmin etmesini etkinleştir.",
+    "tool": "Sonraki adımlar aracı",
+    "toolHelp": "Yapılandırılmış takip seçenekleri için motorun nextsteps aracını kullanılabilir yap."
+  },
+  "providerVisibility": {
+    "label": "Sağlayıcı görünürlüğü",
+    "disabledNote": "Model kataloglarında ve yedek seçiminde devre dışı.",
+    "availableNote": "Model katalogları ve yedek seçimi için kullanılabilir.",
+    "retained": "Kayıtlı kimlik bilgileri, model tanımları, sık kullanılanlar ve yedek referansları korunur. Mevcut çalışmalar şu anki bağlantılarını sürdürür.",
+    "enable": "Sağlayıcıyı etkinleştir",
+    "disable": "Sağlayıcıyı devre dışı bırak",
+    "enableTitle": "Bu sağlayıcıyı etkinleştir",
+    "disableTitle": "Bu sağlayıcıyı devre dışı bırak",
+    "enableBody": "Bu bağlantıyı model kataloglarına ve yedek seçimine geri getir. Tek tek devre dışı bırakılan modeller hariç kalır.",
+    "disableBody": "Daha sonra bulunanlar dahil bu bağlantının tüm modellerini hariç tut. Kayıtlı sık kullanılanlar ve yedek zincirleri saklanır; motor devre dışı sağlayıcıyı atlar.",
+    "draftNote": "Bu, ayar taslağını değiştirir. Profile uygulamak için ayarları kaydet.",
+    "keep": "Sağlayıcıyı değiştirme",
+    "apply": "Sağlayıcı değişikliğini taslağa uygula"
+  },
+  "reviewPolicy": {
+    "unreported": "Bu motor tarafından bildirilmedi",
+    "chimeraEyebrow": "ÇALIŞMADAN SONRA",
+    "chimeraTitle": "Chimera incelemesi",
+    "chimeraIntro": "Tamamlanan işi ayrı bir inceleyiciyle incele. Bulgular ve operatör kararları projenin Chimera İncelemeleri alanında görünür.",
+    "chimeraEnable": "Chimera incelemelerini etkinleştir",
+    "chimeraModel": "Chimera inceleyici modeli",
+    "chimeraMaxFiles": "Chimera dosya sınırı",
+    "chimeraMaxFilesHelp": "Bir incelemeye dahil edilen en fazla değişmiş dosya.",
+    "chimeraFollowUp": "Chimera takip politikası",
+    "followUp": {
+      "off": "Yalnızca raporla",
+      "ask": "Düzeltmeden önce sor",
+      "auto": "Otomatik düzeltmeler"
+    },
+    "chimeraNote": "Çalışmanın modelini kullanmak için modeli boş bırak. Sağlayıcı/model referansı ikisini de geçersiz kılar; yalnız model sağlayıcıyı devralır. Otomatik düzeltmeler, motorun izin politikası altında proje dosyalarını değiştirebilir.",
+    "contEyebrow": "ÇALIŞMA SIRASINDA",
+    "contTitle": "Sürekli inceleme",
+    "contIntro": "Ajan çalışırken değişen dosyaları gruplar halinde incele. Grup boyutu, gecikme ve eşzamanlılık, yanında ne kadar inceleme yapılabileceğini belirler.",
+    "contEnable": "Sürekli incelemeleri etkinleştir",
+    "contProfile": "Sürekli inceleme yedek profili",
+    "contModel": "Sürekli inceleyici modeli",
+    "rotation": "İnceleme modeli dönüşümü",
+    "rotationOption": {
+      "round-robin": "Sırayla dağıt",
+      "random": "Rastgele"
+    },
+    "cascade": "Kademeli inceleme eşiği",
+    "cascadeOption": {
+      "off": "Kademe yok",
+      "high": "Yüksek ve kritik bulgular",
+      "critical": "Yalnızca kritik bulgular"
+    },
+    "delay": "İnceleme grubu gecikmesi",
+    "delayHelp": "Bir incelemeden önce değişiklikleri toplamak için milisaniye.",
+    "batchFiles": "İnceleme grubu dosya sınırı",
+    "batchFilesHelp": "İnceleme grubu başına en fazla dosya.",
+    "concurrent": "Eşzamanlı inceleme sınırı",
+    "concurrentHelp": "Aynı anda en fazla otomatik inceleme.",
+    "contNote": "Adlandırılmış bir profil seçmek açık modeli temizler; modeli düzenlemek profili temizler. Boş geçersiz kılmalar motorun etkin yedek yapılandırmasını devralır.",
+    "missing": "Bu kayıtlı yedek profil bulunamadı. Mevcut bir profil seç ya da devral.",
+    "chainTitle": "Son kaydedilen etkin yedek zinciri",
+    "stale": "Yönlendirme düzenlemeleri, ayarlar kaydedilip yeniden okunana kadar burada görünmez.",
+    "noChain": "Motor bir yedek zinciri bildirmedi.",
+    "savedNote": "Kayıtlı inceleme ayarları, yeni bir motor oturumu eklentilerini yüklediğinde uygulanır. Mevcut çalışmalar yüklenmiş inceleme yapılandırmasını korur."
   }
 }

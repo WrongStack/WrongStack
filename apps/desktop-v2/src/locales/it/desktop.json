@@ -6616,5 +6616,160 @@
     "soundsOff": "Disattiva i suoni di esecuzione",
     "chime": "Rintocco al termine di un’esecuzione",
     "action": "AZIONE"
+  },
+  "execPolicy": {
+    "label": "Criterio di conferma degli strumenti",
+    "eyebrow": "PERMESSI DEGLI STRUMENTI",
+    "title": "Modalità di conferma degli strumenti",
+    "intro": "Scegli il predefinito del profilo per i nuovi runtime. Le conversazioni esistenti mantengono le proprie opzioni di permesso.",
+    "modeLabel": "Modalità di conferma",
+    "mode": {
+      "standard": "Approvazioni standard",
+      "yolo": "YOLO · richieste distruttive selezionate",
+      "yolo-plus": "YOLO+ · salta le richieste per tipo"
+    },
+    "note": {
+      "standard": "La modalità standard segue le regole di permesso configurate e le richieste di approvazione.",
+      "yolo": "YOLO salta le richieste di routine e chiede per le categorie selezionate qui sotto.",
+      "yolo-plus": "YOLO+ salta queste richieste per tipo, comprese le categorie protette. Le regole di divieto esplicite rifiutano comunque."
+    },
+    "confirmTitle": "Conferme delle operazioni distruttive",
+    "checkedYolo": "Le categorie spuntate richiedono conferma con YOLO.",
+    "savedShown": "Le preferenze YOLO salvate sono mostrate qui sotto. Scegli la modalità YOLO per modificarle.",
+    "required": "Obbligatoria in YOLO",
+    "confirmKind": "Conferma: {{label}}",
+    "protection": "Le categorie di stato attendibile e credenziali sono fisse in YOLO normale. Disponibilità degli strumenti e regole di divieto esplicite si configurano a parte.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Cancellare un disco",
+        "description": "Formattare file system o scrivere direttamente su un dispositivo raw."
+      },
+      "system-halt": {
+        "label": "Spegnere o riavviare",
+        "description": "Arrestare o riavviare la macchina."
+      },
+      "delete-outside": {
+        "label": "Eliminare fuori dal progetto",
+        "description": "Eliminazione forzata ricorsiva fuori dal progetto o nelle radici di sistema/home."
+      },
+      "git-history": {
+        "label": "Riscrivere la cronologia Git",
+        "description": "Scartare la cronologia del repository, force-push o pulizia distruttiva."
+      },
+      "publish": {
+        "label": "Pubblicare o distribuire",
+        "description": "Pubblicare artefatti, inviare immagini o modificare l’infrastruttura distribuita."
+      },
+      "download-and-run": {
+        "label": "Eseguire codice scaricato",
+        "description": "Recuperare contenuti remoti ed eseguirli subito."
+      },
+      "bulk-delete": {
+        "label": "Eliminare in blocco",
+        "description": "Eliminare raccolte di file o dati persistenti."
+      },
+      "agent-state": {
+        "label": "Scrivere lo stato attendibile di WrongStack",
+        "description": "Modificare configurazione attendibile, hook, credenziali o stato delle approvazioni."
+      },
+      "credential-bind": {
+        "label": "Associare credenziali a un endpoint",
+        "description": "Associare una credenziale API nota all’URL di un provider."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Attivato nel profilo",
+    "disabled": "Disattivato nel profilo",
+    "unreported": "Non segnalato da questo motore",
+    "eyebrow": "ESECUZIONE CONDIVISA",
+    "title": "Capacità della flotta",
+    "intro": "Imposta il limite di concorrenza degli agenti del profilo. Budget individuali e modelli di ruolo restano controlli separati.",
+    "concurrent": "Agenti simultanei",
+    "concurrentHelp": "Un numero intero positivo; il desktop non impone un limite massimo.",
+    "chatDetail": "Dettaglio della chat della flotta",
+    "notReported": "Non segnalato",
+    "quiet": "Silenzioso",
+    "detailed": "Dettagliato",
+    "chatHelp": "Preferenza condivisa sul dettaglio della chat per i client che la supportano. L’attività delle esecuzioni nel desktop resta disponibile a parte.",
+    "companionsLabel": "Criterio dei compagni",
+    "companionsEyebrow": "ACCANTO AL LEADER",
+    "companionsTitle": "Agenti compagni",
+    "companionsIntro": "Questi interruttori configurano l’idoneità, non uno stato di esecuzione dal vivo. L’attività è mostrata nell’area Flotta live del progetto.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Conserva la conoscenza duratura del progetto tramite il compagno di memoria in background.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Esplora il codice in sola lettura accanto al leader e restituisci i risultati come note nella stessa sessione.",
+    "skill": "Skill Companion",
+    "skillHelp": "Suggerisci skill pertinenti al cambiare del lavoro, senza sostituire le scelte del leader.",
+    "nextLabel": "Criterio dei passaggi successivi",
+    "nextEyebrow": "DOPO UNA RISPOSTA",
+    "nextTitle": "Indicazioni sui passaggi successivi",
+    "nextIntro": "Indicazioni e disponibilità degli strumenti non scelgono la prosecuzione automatica. Configura la modalità di prosecuzione in Esecuzione e permessi.",
+    "prediction": "Previsione dei passaggi successivi",
+    "predictionHelp": "Attiva la previsione del motore sul lavoro di follow-up utile.",
+    "tool": "Strumento dei passaggi successivi",
+    "toolHelp": "Rendi disponibile lo strumento nextsteps del motore per scelte di follow-up strutturate."
+  },
+  "providerVisibility": {
+    "label": "Visibilità del provider",
+    "disabledNote": "Disattivato nei cataloghi dei modelli e nella selezione di riserva.",
+    "availableNote": "Disponibile per i cataloghi dei modelli e la selezione di riserva.",
+    "retained": "Credenziali, definizioni dei modelli, preferiti e riferimenti di riserva salvati vengono mantenuti. Le esecuzioni in corso mantengono la connessione attuale.",
+    "enable": "Attiva il provider",
+    "disable": "Disattiva il provider",
+    "enableTitle": "Attiva questo provider",
+    "disableTitle": "Disattiva questo provider",
+    "enableBody": "Ripristina questa connessione nei cataloghi dei modelli e nella selezione di riserva. I modelli disattivati singolarmente restano esclusi.",
+    "disableBody": "Escludi tutti i modelli di questa connessione, compresi quelli scoperti in seguito. Preferiti e catene di riserva salvati restano memorizzati; il motore salta il provider disattivato.",
+    "draftNote": "Questo modifica la bozza delle impostazioni. Salva le impostazioni per applicarla al profilo.",
+    "keep": "Lascia invariato il provider",
+    "apply": "Applica la modifica del provider alla bozza"
+  },
+  "reviewPolicy": {
+    "unreported": "Non segnalato da questo motore",
+    "chimeraEyebrow": "DOPO L’ESECUZIONE",
+    "chimeraTitle": "Revisione Chimera",
+    "chimeraIntro": "Rivedi il lavoro completato con un revisore separato. Risultati e decisioni dell’operatore compaiono nell’area Revisioni Chimera del progetto.",
+    "chimeraEnable": "Attiva le revisioni Chimera",
+    "chimeraModel": "Modello revisore Chimera",
+    "chimeraMaxFiles": "Limite di file Chimera",
+    "chimeraMaxFilesHelp": "Numero massimo di file modificati inclusi in una revisione.",
+    "chimeraFollowUp": "Criterio di follow-up di Chimera",
+    "followUp": {
+      "off": "Solo segnalazione",
+      "ask": "Chiedi prima delle correzioni",
+      "auto": "Correzioni automatiche"
+    },
+    "chimeraNote": "Lascia vuoto il modello per usare quello dell’esecuzione. Un riferimento provider/modello sostituisce entrambi; un modello da solo eredita il provider. Le correzioni automatiche possono modificare i file del progetto secondo i permessi del motore.",
+    "contEyebrow": "DURANTE L’ESECUZIONE",
+    "contTitle": "Revisione continua",
+    "contIntro": "Rivedi lotti di file modificati mentre l’agente lavora. Dimensione dei lotti, ritardo e concorrenza determinano quanta revisione può avvenire in parallelo.",
+    "contEnable": "Attiva le revisioni continue",
+    "contProfile": "Profilo di riserva della revisione continua",
+    "contModel": "Modello revisore continuo",
+    "rotation": "Rotazione dei modelli di revisione",
+    "rotationOption": {
+      "round-robin": "A rotazione",
+      "random": "Casuale"
+    },
+    "cascade": "Soglia di revisione a cascata",
+    "cascadeOption": {
+      "off": "Nessuna cascata",
+      "high": "Risultati alti e critici",
+      "critical": "Solo risultati critici"
+    },
+    "delay": "Ritardo del lotto di revisione",
+    "delayHelp": "Millisecondi per raccogliere le modifiche prima di una revisione.",
+    "batchFiles": "Limite di file per lotto di revisione",
+    "batchFilesHelp": "Numero massimo di file per lotto di revisione.",
+    "concurrent": "Limite di revisioni simultanee",
+    "concurrentHelp": "Numero massimo di revisioni automatiche simultanee.",
+    "contNote": "Scegliere un profilo con nome cancella il modello esplicito; modificare il modello cancella il profilo. Le sostituzioni vuote ereditano la configurazione di riserva effettiva del motore.",
+    "missing": "Questo profilo di riserva salvato manca. Scegli un profilo esistente o eredita.",
+    "chainTitle": "Ultima catena di riserva effettiva salvata",
+    "stale": "Le modifiche di instradamento compaiono qui solo dopo aver salvato e riletto le impostazioni.",
+    "noChain": "Nessuna catena di riserva segnalata dal motore.",
+    "savedNote": "Le impostazioni di revisione salvate si applicano quando una nuova sessione del motore carica i plugin. Le esecuzioni in corso mantengono la configurazione caricata."
   }
 }

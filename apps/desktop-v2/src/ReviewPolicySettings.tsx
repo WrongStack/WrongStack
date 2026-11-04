@@ -1,4 +1,5 @@
 import { Bug, ScanEye } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import {
   ModelCatalog,
@@ -14,6 +15,7 @@ export function ReviewPolicySettings({
   change,
   command,
 }: PolicyProps & { saved: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   const preview = reviewChainPreview(saved, draft);
   const model = (prefix: 'chimera' | 'autoReview', value: string) => {
     for (const [key, next] of Object.entries(reviewModelChange(prefix, value))) change(key, next);
@@ -45,7 +47,7 @@ export function ReviewPolicySettings({
         onChange={(event) => change(key, event.target.value)}
       >
         <option value="" disabled>
-          Not reported by this engine
+          {t('reviewPolicy.unreported')}
         </option>
         {options.map(([value, title]) => (
           <option key={value} value={value}>
@@ -72,55 +74,45 @@ export function ReviewPolicySettings({
         <header>
           <Bug size={19} />
           <div>
-            <span className="eyebrow">AFTER THE RUN</span>
-            <h3>Chimera review</h3>
+            <span className="eyebrow">{t('reviewPolicy.chimeraEyebrow')}</span>
+            <h3>{t('reviewPolicy.chimeraTitle')}</h3>
           </div>
         </header>
-        <p className="field-help">
-          Review the completed work with a separate reviewer. Findings and operator decisions appear
-          in the project’s Chimera Reviews workspace.
-        </p>
-        {enabled('chimeraEnabled', 'Enable Chimera reviews')}
+        <p className="field-help">{t('reviewPolicy.chimeraIntro')}</p>
+        {enabled('chimeraEnabled', t('reviewPolicy.chimeraEnable'))}
         <div className="policy-field-grid">
           <ModelReference
-            label="Chimera reviewer model"
+            label={t('reviewPolicy.chimeraModel')}
             value={reviewModelReference(draft, 'chimera')}
             onChange={(value) => model('chimera', value)}
           />
           {number(
             'chimeraMaxFiles',
-            'Chimera file limit',
+            t('reviewPolicy.chimeraMaxFiles'),
             1,
-            'Maximum changed files included in a review.',
+            t('reviewPolicy.chimeraMaxFilesHelp'),
           )}
-          {select('chimeraAutoFix', 'Chimera follow-up policy', [
-            ['off', 'Report only'],
-            ['ask', 'Ask before fixes'],
-            ['auto', 'Automatic fixes'],
+          {select('chimeraAutoFix', t('reviewPolicy.chimeraFollowUp'), [
+            ['off', t('reviewPolicy.followUp.off')],
+            ['ask', t('reviewPolicy.followUp.ask')],
+            ['auto', t('reviewPolicy.followUp.auto')],
           ])}
         </div>
-        <p className="field-help">
-          Leave the model empty to use the run’s model. A provider/model reference overrides both; a
-          model alone inherits the provider. Automatic fixes can change project files under the
-          engine’s permission policy.
-        </p>
+        <p className="field-help">{t('reviewPolicy.chimeraNote')}</p>
       </article>
       <article className="policy-profile">
         <header>
           <ScanEye size={19} />
           <div>
-            <span className="eyebrow">DURING THE RUN</span>
-            <h3>Continuous review</h3>
+            <span className="eyebrow">{t('reviewPolicy.contEyebrow')}</span>
+            <h3>{t('reviewPolicy.contTitle')}</h3>
           </div>
         </header>
-        <p className="field-help">
-          Review batches of changed files while the agent works. Batch size, delay and concurrency
-          determine how much review work can run alongside it.
-        </p>
-        {enabled('autoReviewEnabled', 'Enable continuous reviews')}
+        <p className="field-help">{t('reviewPolicy.contIntro')}</p>
+        {enabled('autoReviewEnabled', t('reviewPolicy.contEnable'))}
         <div className="policy-field-grid">
           <ProfileSelect
-            label="Continuous review fallback profile"
+            label={t('reviewPolicy.contProfile')}
             profiles={record(draft['fallbackProfiles'])}
             value={draft['autoReviewFallbackProfile']}
             onChange={(value) => {
@@ -132,55 +124,48 @@ export function ReviewPolicySettings({
             }}
           />
           <ModelReference
-            label="Continuous reviewer model"
+            label={t('reviewPolicy.contModel')}
             value={reviewModelReference(draft, 'autoReview')}
             onChange={(value) => model('autoReview', value)}
           />
-          {select('autoReviewModelSelection', 'Review model rotation', [
-            ['round-robin', 'Round robin'],
-            ['random', 'Random'],
+          {select('autoReviewModelSelection', t('reviewPolicy.rotation'), [
+            ['round-robin', t('reviewPolicy.rotationOption.round-robin')],
+            ['random', t('reviewPolicy.rotationOption.random')],
           ])}
-          {select('autoReviewCascadeOn', 'Cascade review threshold', [
-            ['off', 'No cascade'],
-            ['high', 'High and critical findings'],
-            ['critical', 'Critical findings only'],
+          {select('autoReviewCascadeOn', t('reviewPolicy.cascade'), [
+            ['off', t('reviewPolicy.cascadeOption.off')],
+            ['high', t('reviewPolicy.cascadeOption.high')],
+            ['critical', t('reviewPolicy.cascadeOption.critical')],
           ])}
           {number(
             'autoReviewDebounceMs',
-            'Review batch delay',
+            t('reviewPolicy.delay'),
             0,
-            'Milliseconds to collect changes before a review.',
+            t('reviewPolicy.delayHelp'),
             2_147_483_647,
           )}
           {number(
             'autoReviewMaxFilesPerBatch',
-            'Review batch file limit',
+            t('reviewPolicy.batchFiles'),
             1,
-            'Maximum files per review batch.',
+            t('reviewPolicy.batchFilesHelp'),
           )}
           {number(
             'autoReviewMaxConcurrentReviews',
-            'Concurrent review limit',
+            t('reviewPolicy.concurrent'),
             1,
-            'Maximum simultaneous automatic reviews.',
+            t('reviewPolicy.concurrentHelp'),
           )}
         </div>
-        <p className="field-help">
-          Choosing a named profile clears the explicit model; editing the model clears the profile.
-          Empty overrides inherit the engine’s effective fallback configuration.
-        </p>
+        <p className="field-help">{t('reviewPolicy.contNote')}</p>
         {preview.missing && (
           <p className="session-error" role="status">
-            This saved fallback profile is missing. Choose an existing profile or inherit.
+            {t('reviewPolicy.missing')}
           </p>
         )}
         <div className="review-chain-evidence">
-          <h4>Last saved effective fallback chain</h4>
-          {preview.stale && (
-            <p role="status">
-              Routing edits are not reflected here until settings are saved and read back.
-            </p>
-          )}
+          <h4>{t('reviewPolicy.chainTitle')}</h4>
+          {preview.stale && <p role="status">{t('reviewPolicy.stale')}</p>}
           {preview.chain.length ? (
             <ol>
               {preview.chain.map((item, index) => (
@@ -190,14 +175,11 @@ export function ReviewPolicySettings({
               ))}
             </ol>
           ) : (
-            <p>No fallback chain reported by the engine.</p>
+            <p>{t('reviewPolicy.noChain')}</p>
           )}
         </div>
       </article>
-      <p className="settings-defaults-note">
-        Saved review settings apply when a new engine session loads its plugins. Existing runs keep
-        their loaded review configuration.
-      </p>
+      <p className="settings-defaults-note">{t('reviewPolicy.savedNote')}</p>
     </div>
   );
 }

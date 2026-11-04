@@ -6616,5 +6616,160 @@
     "soundsOff": "Couper les sons d’exécution",
     "chime": "Carillon à la fin d’une exécution",
     "action": "ACTION"
+  },
+  "execPolicy": {
+    "label": "Politique de confirmation des outils",
+    "eyebrow": "AUTORISATIONS DES OUTILS",
+    "title": "Mode de confirmation des outils",
+    "intro": "Choisis la valeur par défaut du profil pour les nouveaux environnements d’exécution. Les conversations existantes gardent leurs propres options d’autorisation.",
+    "modeLabel": "Mode de confirmation",
+    "mode": {
+      "standard": "Approbations standard",
+      "yolo": "YOLO · demandes destructives choisies",
+      "yolo-plus": "YOLO+ · ignorer les demandes par type"
+    },
+    "note": {
+      "standard": "Le mode standard suit les règles d’autorisation configurées et les demandes d’approbation.",
+      "yolo": "YOLO ignore les demandes de routine et demande pour les catégories choisies ci-dessous.",
+      "yolo-plus": "YOLO+ ignore ces demandes par type, y compris les catégories protégées. Les règles de refus explicites refusent toujours."
+    },
+    "confirmTitle": "Confirmations des opérations destructives",
+    "checkedYolo": "Les catégories cochées demandent une confirmation sous YOLO.",
+    "savedShown": "Les préférences YOLO enregistrées sont affichées ci-dessous. Choisis le mode YOLO pour les modifier.",
+    "required": "Obligatoire en YOLO",
+    "confirmKind": "Confirmer : {{label}}",
+    "protection": "Les catégories d’état de confiance et d’identifiants sont fixes en YOLO normal. La disponibilité des outils et les règles de refus explicites se configurent à part.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Effacer un disque",
+        "description": "Formater des systèmes de fichiers ou écrire directement sur un périphérique brut."
+      },
+      "system-halt": {
+        "label": "Éteindre ou redémarrer",
+        "description": "Arrêter ou redémarrer la machine."
+      },
+      "delete-outside": {
+        "label": "Supprimer hors du projet",
+        "description": "Suppression forcée récursive hors du projet ou à la racine du système ou du dossier personnel."
+      },
+      "git-history": {
+        "label": "Réécrire l’historique Git",
+        "description": "Abandonner l’historique du dépôt, forcer un push ou nettoyer de façon destructive."
+      },
+      "publish": {
+        "label": "Publier ou déployer",
+        "description": "Publier des artefacts, pousser des images ou modifier l’infrastructure déployée."
+      },
+      "download-and-run": {
+        "label": "Exécuter du code téléchargé",
+        "description": "Récupérer du contenu distant et l’exécuter aussitôt."
+      },
+      "bulk-delete": {
+        "label": "Supprimer en masse",
+        "description": "Supprimer des ensembles de fichiers ou des données persistantes."
+      },
+      "agent-state": {
+        "label": "Écrire l’état de confiance de WrongStack",
+        "description": "Modifier la configuration de confiance, les hooks, les identifiants ou l’état des approbations."
+      },
+      "credential-bind": {
+        "label": "Lier des identifiants à un point de terminaison",
+        "description": "Associer un identifiant d’API connu à l’URL d’un fournisseur."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Activé dans le profil",
+    "disabled": "Désactivé dans le profil",
+    "unreported": "Non signalé par ce moteur",
+    "eyebrow": "EXÉCUTION PARTAGÉE",
+    "title": "Capacité de la flotte",
+    "intro": "Définis la limite de concurrence des agents du profil. Les budgets individuels et les modèles de rôle restent des réglages distincts.",
+    "concurrent": "Agents simultanés",
+    "concurrentHelp": "Un entier positif ; le bureau n’impose aucun plafond.",
+    "chatDetail": "Détail du chat de la flotte",
+    "notReported": "Non signalé",
+    "quiet": "Discret",
+    "detailed": "Détaillé",
+    "chatHelp": "Préférence partagée de détail du chat pour les clients qui la prennent en charge. L’activité des exécutions du bureau reste disponible indépendamment.",
+    "companionsLabel": "Politique des compagnons",
+    "companionsEyebrow": "AUX CÔTÉS DU MENEUR",
+    "companionsTitle": "Agents compagnons",
+    "companionsIntro": "Ces interrupteurs règlent l’éligibilité, pas un état d’exécution en direct. L’activité est affichée dans l’espace Flotte en direct du projet.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Conserver la connaissance durable du projet grâce au compagnon de mémoire en arrière-plan.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Explorer le code en lecture seule aux côtés du meneur et renvoyer les résultats comme notes dans la même session.",
+    "skill": "Skill Companion",
+    "skillHelp": "Recommander des compétences pertinentes à mesure que le travail évolue, sans remplacer les choix du meneur.",
+    "nextLabel": "Politique des prochaines étapes",
+    "nextEyebrow": "APRÈS UNE RÉPONSE",
+    "nextTitle": "Conseils pour les prochaines étapes",
+    "nextIntro": "Les conseils et la disponibilité des outils ne choisissent pas la poursuite automatique. Configure le mode de poursuite dans Exécution et autorisations.",
+    "prediction": "Prédiction des prochaines étapes",
+    "predictionHelp": "Activer la prédiction par le moteur du travail de suivi utile.",
+    "tool": "Outil des prochaines étapes",
+    "toolHelp": "Rendre disponible l’outil nextsteps du moteur pour des choix de suivi structurés."
+  },
+  "providerVisibility": {
+    "label": "Visibilité du fournisseur",
+    "disabledNote": "Désactivé dans les catalogues de modèles et la sélection de repli.",
+    "availableNote": "Disponible pour les catalogues de modèles et la sélection de repli.",
+    "retained": "Les identifiants, définitions de modèles, favoris et références de repli enregistrés sont conservés. Les exécutions en cours gardent leur connexion actuelle.",
+    "enable": "Activer le fournisseur",
+    "disable": "Désactiver le fournisseur",
+    "enableTitle": "Activer ce fournisseur",
+    "disableTitle": "Désactiver ce fournisseur",
+    "enableBody": "Remettre cette connexion dans les catalogues de modèles et la sélection de repli. Les modèles désactivés individuellement restent exclus.",
+    "disableBody": "Exclure tous les modèles de cette connexion, y compris ceux découverts plus tard. Les favoris et chaînes de repli enregistrés restent stockés ; le moteur ignore le fournisseur désactivé.",
+    "draftNote": "Cela modifie ton brouillon de réglages. Enregistre les réglages pour l’appliquer au profil.",
+    "keep": "Laisser le fournisseur inchangé",
+    "apply": "Appliquer le changement de fournisseur au brouillon"
+  },
+  "reviewPolicy": {
+    "unreported": "Non signalé par ce moteur",
+    "chimeraEyebrow": "APRÈS L’EXÉCUTION",
+    "chimeraTitle": "Revue Chimera",
+    "chimeraIntro": "Relire le travail terminé avec un relecteur distinct. Les constats et décisions de l’opérateur apparaissent dans l’espace Revues Chimera du projet.",
+    "chimeraEnable": "Activer les revues Chimera",
+    "chimeraModel": "Modèle relecteur Chimera",
+    "chimeraMaxFiles": "Limite de fichiers Chimera",
+    "chimeraMaxFilesHelp": "Nombre maximal de fichiers modifiés inclus dans une revue.",
+    "chimeraFollowUp": "Politique de suivi Chimera",
+    "followUp": {
+      "off": "Rapport seulement",
+      "ask": "Demander avant de corriger",
+      "auto": "Corrections automatiques"
+    },
+    "chimeraNote": "Laisse le modèle vide pour utiliser celui de l’exécution. Une référence fournisseur/modèle remplace les deux ; un modèle seul hérite du fournisseur. Les corrections automatiques peuvent modifier les fichiers du projet selon la politique d’autorisation du moteur.",
+    "contEyebrow": "PENDANT L’EXÉCUTION",
+    "contTitle": "Revue continue",
+    "contIntro": "Relire des lots de fichiers modifiés pendant que l’agent travaille. La taille des lots, le délai et la concurrence déterminent la quantité de revue possible en parallèle.",
+    "contEnable": "Activer les revues continues",
+    "contProfile": "Profil de repli de la revue continue",
+    "contModel": "Modèle relecteur continu",
+    "rotation": "Rotation des modèles de revue",
+    "rotationOption": {
+      "round-robin": "Rotation",
+      "random": "Aléatoire"
+    },
+    "cascade": "Seuil de revue en cascade",
+    "cascadeOption": {
+      "off": "Pas de cascade",
+      "high": "Constats élevés et critiques",
+      "critical": "Constats critiques seulement"
+    },
+    "delay": "Délai du lot de revue",
+    "delayHelp": "Millisecondes pour rassembler les modifications avant une revue.",
+    "batchFiles": "Limite de fichiers par lot de revue",
+    "batchFilesHelp": "Nombre maximal de fichiers par lot de revue.",
+    "concurrent": "Limite de revues simultanées",
+    "concurrentHelp": "Nombre maximal de revues automatiques simultanées.",
+    "contNote": "Choisir un profil nommé efface le modèle explicite ; modifier le modèle efface le profil. Les surcharges vides héritent de la configuration de repli effective du moteur.",
+    "missing": "Ce profil de repli enregistré est introuvable. Choisis un profil existant ou hérite.",
+    "chainTitle": "Dernière chaîne de repli effective enregistrée",
+    "stale": "Les modifications de routage n’apparaissent ici qu’une fois les réglages enregistrés et relus.",
+    "noChain": "Aucune chaîne de repli signalée par le moteur.",
+    "savedNote": "Les réglages de revue enregistrés s’appliquent quand une nouvelle session du moteur charge ses plugins. Les exécutions en cours gardent leur configuration chargée."
   }
 }

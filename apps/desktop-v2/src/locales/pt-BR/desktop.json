@@ -6616,5 +6616,160 @@
     "soundsOff": "Desligar os sons de execução",
     "chime": "Tocar quando uma execução terminar",
     "action": "AÇÃO"
+  },
+  "execPolicy": {
+    "label": "Política de confirmação de ferramentas",
+    "eyebrow": "PERMISSÕES DE FERRAMENTAS",
+    "title": "Modo de confirmação de ferramentas",
+    "intro": "Escolha o padrão do perfil para novos ambientes de execução. As conversas existentes mantêm suas próprias opções de permissão.",
+    "modeLabel": "Modo de confirmação",
+    "mode": {
+      "standard": "Aprovações padrão",
+      "yolo": "YOLO · confirmações destrutivas selecionadas",
+      "yolo-plus": "YOLO+ · ignorar confirmações por tipo"
+    },
+    "note": {
+      "standard": "O modo padrão segue as regras de permissão configuradas e as confirmações de aprovação.",
+      "yolo": "O YOLO ignora confirmações de rotina e pergunta pelas categorias selecionadas abaixo.",
+      "yolo-plus": "O YOLO+ ignora essas confirmações por tipo, inclusive as categorias protegidas. Regras de negação explícitas ainda recusam."
+    },
+    "confirmTitle": "Confirmações de operações destrutivas",
+    "checkedYolo": "As categorias marcadas exigem confirmação no YOLO.",
+    "savedShown": "As preferências YOLO salvas aparecem abaixo. Escolha o modo YOLO para editá-las.",
+    "required": "Obrigatória no YOLO",
+    "confirmKind": "Confirmar: {{label}}",
+    "protection": "As categorias de estado confiável e credenciais são fixas no YOLO normal. A disponibilidade de ferramentas e as regras de negação explícitas são configuradas à parte.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Apagar um disco",
+        "description": "Formatar sistemas de arquivos ou gravar diretamente em um dispositivo bruto."
+      },
+      "system-halt": {
+        "label": "Desligar ou reiniciar",
+        "description": "Parar ou reiniciar a máquina."
+      },
+      "delete-outside": {
+        "label": "Excluir fora do projeto",
+        "description": "Exclusão forçada recursiva fora do projeto ou nas raízes do sistema/home."
+      },
+      "git-history": {
+        "label": "Reescrever o histórico do Git",
+        "description": "Descartar o histórico do repositório, force-push ou limpeza destrutiva."
+      },
+      "publish": {
+        "label": "Publicar ou implantar",
+        "description": "Publicar artefatos, enviar imagens ou alterar a infraestrutura implantada."
+      },
+      "download-and-run": {
+        "label": "Executar código baixado",
+        "description": "Buscar conteúdo remoto e executá-lo imediatamente."
+      },
+      "bulk-delete": {
+        "label": "Excluir em massa",
+        "description": "Excluir coleções de arquivos ou dados persistentes."
+      },
+      "agent-state": {
+        "label": "Gravar o estado confiável do WrongStack",
+        "description": "Alterar a configuração confiável, hooks, credenciais ou o estado de aprovação."
+      },
+      "credential-bind": {
+        "label": "Vincular credenciais a um endpoint",
+        "description": "Associar uma credencial de API conhecida a uma URL de provedor."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Ativado no perfil",
+    "disabled": "Desativado no perfil",
+    "unreported": "Não informado por este motor",
+    "eyebrow": "EXECUÇÃO COMPARTILHADA",
+    "title": "Capacidade da frota",
+    "intro": "Defina o limite de concorrência de agentes do perfil. Orçamentos individuais e modelos de função continuam sendo controles separados.",
+    "concurrent": "Agentes simultâneos",
+    "concurrentHelp": "Um número inteiro positivo; o desktop não impõe limite máximo.",
+    "chatDetail": "Detalhe do chat da frota",
+    "notReported": "Não informado",
+    "quiet": "Silencioso",
+    "detailed": "Detalhado",
+    "chatHelp": "Preferência compartilhada de detalhe do chat para clientes que a suportam. A atividade de execução do desktop continua disponível de forma independente.",
+    "companionsLabel": "Política de companheiros",
+    "companionsEyebrow": "AO LADO DO LÍDER",
+    "companionsTitle": "Agentes companheiros",
+    "companionsIntro": "Estes controles configuram a elegibilidade, não um estado de execução ao vivo. A atividade aparece no espaço Frota ao vivo do projeto.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Preservar o conhecimento duradouro do projeto pelo companheiro de memória em segundo plano.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Explorar o código em somente leitura ao lado do líder e devolver as descobertas como notas na mesma sessão.",
+    "skill": "Skill Companion",
+    "skillHelp": "Recomendar skills relevantes conforme o trabalho muda, sem substituir as escolhas do líder.",
+    "nextLabel": "Política de próximos passos",
+    "nextEyebrow": "APÓS UMA RESPOSTA",
+    "nextTitle": "Orientação de próximos passos",
+    "nextIntro": "A orientação e a disponibilidade de ferramentas não escolhem a continuação automática. Configure o modo de continuação em Execução e permissões.",
+    "prediction": "Previsão de próximos passos",
+    "predictionHelp": "Ativar a previsão do motor sobre trabalho de acompanhamento útil.",
+    "tool": "Ferramenta de próximos passos",
+    "toolHelp": "Disponibilizar a ferramenta nextsteps do motor para escolhas de acompanhamento estruturadas."
+  },
+  "providerVisibility": {
+    "label": "Visibilidade do provedor",
+    "disabledNote": "Desativado nos catálogos de modelos e na seleção de fallback.",
+    "availableNote": "Disponível para os catálogos de modelos e a seleção de fallback.",
+    "retained": "Credenciais, definições de modelos, favoritos e referências de fallback salvos são mantidos. As execuções em andamento mantêm a conexão atual.",
+    "enable": "Ativar o provedor",
+    "disable": "Desativar o provedor",
+    "enableTitle": "Ativar este provedor",
+    "disableTitle": "Desativar este provedor",
+    "enableBody": "Devolver esta conexão aos catálogos de modelos e à seleção de fallback. Modelos desativados individualmente continuam excluídos.",
+    "disableBody": "Excluir todos os modelos desta conexão, inclusive os descobertos depois. Favoritos e cadeias de fallback salvos continuam armazenados; o motor ignora o provedor desativado.",
+    "draftNote": "Isto altera seu rascunho de configurações. Salve as configurações para aplicá-lo ao perfil.",
+    "keep": "Manter o provedor sem alterações",
+    "apply": "Aplicar a mudança de provedor ao rascunho"
+  },
+  "reviewPolicy": {
+    "unreported": "Não informado por este motor",
+    "chimeraEyebrow": "APÓS A EXECUÇÃO",
+    "chimeraTitle": "Revisão Chimera",
+    "chimeraIntro": "Revisar o trabalho concluído com um revisor separado. Achados e decisões do operador aparecem no espaço Revisões Chimera do projeto.",
+    "chimeraEnable": "Ativar as revisões Chimera",
+    "chimeraModel": "Modelo revisor do Chimera",
+    "chimeraMaxFiles": "Limite de arquivos do Chimera",
+    "chimeraMaxFilesHelp": "Máximo de arquivos alterados incluídos em uma revisão.",
+    "chimeraFollowUp": "Política de acompanhamento do Chimera",
+    "followUp": {
+      "off": "Apenas relatar",
+      "ask": "Perguntar antes de corrigir",
+      "auto": "Correções automáticas"
+    },
+    "chimeraNote": "Deixe o modelo vazio para usar o da execução. Uma referência provedor/modelo substitui ambos; um modelo sozinho herda o provedor. Correções automáticas podem alterar arquivos do projeto conforme a política de permissões do motor.",
+    "contEyebrow": "DURANTE A EXECUÇÃO",
+    "contTitle": "Revisão contínua",
+    "contIntro": "Revisar lotes de arquivos alterados enquanto o agente trabalha. Tamanho do lote, atraso e concorrência determinam quanta revisão pode rodar em paralelo.",
+    "contEnable": "Ativar as revisões contínuas",
+    "contProfile": "Perfil de fallback da revisão contínua",
+    "contModel": "Modelo revisor contínuo",
+    "rotation": "Rotação dos modelos de revisão",
+    "rotationOption": {
+      "round-robin": "Rodízio",
+      "random": "Aleatório"
+    },
+    "cascade": "Limite de revisão em cascata",
+    "cascadeOption": {
+      "off": "Sem cascata",
+      "high": "Achados altos e críticos",
+      "critical": "Apenas achados críticos"
+    },
+    "delay": "Atraso do lote de revisão",
+    "delayHelp": "Milissegundos para reunir alterações antes de uma revisão.",
+    "batchFiles": "Limite de arquivos por lote de revisão",
+    "batchFilesHelp": "Máximo de arquivos por lote de revisão.",
+    "concurrent": "Limite de revisões simultâneas",
+    "concurrentHelp": "Máximo de revisões automáticas simultâneas.",
+    "contNote": "Escolher um perfil nomeado limpa o modelo explícito; editar o modelo limpa o perfil. Substituições vazias herdam a configuração de fallback efetiva do motor.",
+    "missing": "Este perfil de fallback salvo não existe. Escolha um perfil existente ou herde.",
+    "chainTitle": "Última cadeia de fallback efetiva salva",
+    "stale": "As alterações de roteamento só aparecem aqui depois que as configurações forem salvas e relidas.",
+    "noChain": "Nenhuma cadeia de fallback informada pelo motor.",
+    "savedNote": "As configurações de revisão salvas valem quando uma nova sessão do motor carrega seus plugins. As execuções em andamento mantêm a configuração carregada."
   }
 }

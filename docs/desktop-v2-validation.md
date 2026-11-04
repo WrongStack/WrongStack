@@ -8118,3 +8118,17 @@ copies, starting with SAGE memory.
 - Checks: new `command-help-i18n.test.ts` checks that every command outside the hunts has a
   catalog entry equal to its table description, and renders the help and shortcuts dialogs
   in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Confirmation, fleet, provider visibility and review policies in the display language (2026-11-04)
+
+- Four settings panels follow the display language in all seven languages: the tool
+  confirmation mode with every destructive-operation category (`execPolicy`), fleet capacity,
+  companions and next-step guidance (`fleetPolicy`), the provider visibility control and its
+  dialog (`providerVisibility`), and the Chimera and continuous review policy
+  (`reviewPolicy`).
+- Destructive-operation categories are worded by kind with the model's English as the
+  fallback; the companion feature names stay as product names in every language.
+- Still English by design: provider ids, model references and fallback chain entries.
+- Checks: new `settings-policies-i18n.test.ts` renders the four panels with YOLO on, a disabled
+  provider and a missing review profile in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.

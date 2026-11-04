@@ -6616,5 +6616,160 @@
     "soundsOff": "Lauftöne ausschalten",
     "chime": "Ton, wenn ein Lauf endet",
     "action": "AKTION"
+  },
+  "execPolicy": {
+    "label": "Richtlinie für Werkzeugbestätigungen",
+    "eyebrow": "WERKZEUGBERECHTIGUNGEN",
+    "title": "Modus für Werkzeugbestätigungen",
+    "intro": "Wähle den Profilstandard für neue Laufzeiten. Bestehende Unterhaltungen behalten ihre eigenen Berechtigungsoptionen.",
+    "modeLabel": "Bestätigungsmodus",
+    "mode": {
+      "standard": "Standardfreigaben",
+      "yolo": "YOLO · ausgewählte destruktive Abfragen",
+      "yolo-plus": "YOLO+ · Abfragen je Art überspringen"
+    },
+    "note": {
+      "standard": "Der Standardmodus folgt den eingestellten Berechtigungsregeln und Freigabeabfragen.",
+      "yolo": "YOLO überspringt Routineabfragen und fragt bei den unten ausgewählten Kategorien nach.",
+      "yolo-plus": "YOLO+ überspringt diese Abfragen je Art, auch die geschützten Kategorien. Explizite Verbotsregeln lehnen weiterhin ab."
+    },
+    "confirmTitle": "Bestätigungen für destruktive Vorgänge",
+    "checkedYolo": "Markierte Kategorien erfordern unter YOLO eine Bestätigung.",
+    "savedShown": "Gespeicherte YOLO-Einstellungen stehen unten. Wähle den YOLO-Modus, um sie zu bearbeiten.",
+    "required": "In YOLO erforderlich",
+    "confirmKind": "Bestätigen: {{label}}",
+    "protection": "Die Kategorien für vertrauenswürdigen Zustand und Zugangsdaten sind im normalen YOLO fest. Werkzeugverfügbarkeit und explizite Verbotsregeln werden separat eingestellt.",
+    "kind": {
+      "disk-wipe": {
+        "label": "Datenträger löschen",
+        "description": "Dateisysteme formatieren oder direkt auf ein Rohgerät schreiben."
+      },
+      "system-halt": {
+        "label": "Herunterfahren oder neu starten",
+        "description": "Den Rechner anhalten oder neu starten."
+      },
+      "delete-outside": {
+        "label": "Außerhalb des Projekts löschen",
+        "description": "Rekursives erzwungenes Löschen außerhalb des Projekts oder in System-/Home-Wurzeln."
+      },
+      "git-history": {
+        "label": "Git-Verlauf umschreiben",
+        "description": "Repository-Verlauf verwerfen, Force-Push oder destruktive Bereinigung."
+      },
+      "publish": {
+        "label": "Veröffentlichen oder bereitstellen",
+        "description": "Artefakte veröffentlichen, Images pushen oder bereitgestellte Infrastruktur ändern."
+      },
+      "download-and-run": {
+        "label": "Heruntergeladenen Code ausführen",
+        "description": "Entfernte Inhalte abrufen und sofort ausführen."
+      },
+      "bulk-delete": {
+        "label": "Massenhaft löschen",
+        "description": "Sammlungen von Dateien oder dauerhafte Daten löschen."
+      },
+      "agent-state": {
+        "label": "Vertrauenswürdigen WrongStack-Zustand schreiben",
+        "description": "Vertrauenswürdige Konfiguration, Hooks, Zugangsdaten oder Freigabestatus ändern."
+      },
+      "credential-bind": {
+        "label": "Zugangsdaten an einen Endpunkt binden",
+        "description": "Bekannte API-Zugangsdaten an eine Anbieter-URL anhängen."
+      }
+    }
+  },
+  "fleetPolicy": {
+    "enabled": "Im Profil aktiviert",
+    "disabled": "Im Profil deaktiviert",
+    "unreported": "Von dieser Engine nicht gemeldet",
+    "eyebrow": "GEMEINSAME AUSFÜHRUNG",
+    "title": "Flottenkapazität",
+    "intro": "Lege das Parallelitätslimit für Agenten im Profil fest. Einzelbudgets und Rollenmodelle bleiben eigene Einstellungen.",
+    "concurrent": "Parallele Agenten",
+    "concurrentHelp": "Eine positive ganze Zahl; der Desktop setzt keine Obergrenze.",
+    "chatDetail": "Detailgrad des Flotten-Chats",
+    "notReported": "Nicht gemeldet",
+    "quiet": "Ruhig",
+    "detailed": "Ausführlich",
+    "chatHelp": "Gemeinsame Einstellung für den Chat-Detailgrad in Clients, die sie unterstützen. Die Laufaktivität im Desktop bleibt unabhängig davon sichtbar.",
+    "companionsLabel": "Begleiter-Richtlinie",
+    "companionsEyebrow": "NEBEN DEM LEITER",
+    "companionsTitle": "Begleitagenten",
+    "companionsIntro": "Diese Schalter legen die Berechtigung fest, keinen laufenden Zustand. Die Laufzeitaktivität zeigt der Live-Fleet-Bereich des Projekts.",
+    "memory": "Memory Companion",
+    "memoryHelp": "Dauerhaftes Projektwissen über den Gedächtnisbegleiter im Hintergrund bewahren.",
+    "explore": "Explore Companion",
+    "exploreHelp": "Neben dem Leiter Code nur lesend erkunden und Ergebnisse als Notizen in derselben Sitzung liefern.",
+    "skill": "Skill Companion",
+    "skillHelp": "Passende Skills vorschlagen, wenn sich die Arbeit ändert, ohne die Skill-Wahl des Leiters zu ersetzen.",
+    "nextLabel": "Richtlinie für nächste Schritte",
+    "nextEyebrow": "NACH EINER ANTWORT",
+    "nextTitle": "Hinweise für nächste Schritte",
+    "nextIntro": "Hinweise und Werkzeugverfügbarkeit wählen kein automatisches Fortfahren. Den Fortsetzungsmodus stellst du unter Ausführung & Berechtigungen ein.",
+    "prediction": "Vorhersage nächster Schritte",
+    "predictionHelp": "Die Vorhersage nützlicher Folgearbeit durch die Engine aktivieren.",
+    "tool": "Werkzeug für nächste Schritte",
+    "toolHelp": "Das nextsteps-Werkzeug der Engine für strukturierte Folgeoptionen bereitstellen."
+  },
+  "providerVisibility": {
+    "label": "Sichtbarkeit des Anbieters",
+    "disabledNote": "In Modellkatalogen und bei der Fallback-Auswahl deaktiviert.",
+    "availableNote": "Für Modellkataloge und die Fallback-Auswahl verfügbar.",
+    "retained": "Gespeicherte Zugangsdaten, Modelldefinitionen, Favoriten und Fallback-Verweise bleiben erhalten. Laufende Läufe behalten ihre aktuelle Verbindung.",
+    "enable": "Anbieter aktivieren",
+    "disable": "Anbieter deaktivieren",
+    "enableTitle": "Diesen Anbieter aktivieren",
+    "disableTitle": "Diesen Anbieter deaktivieren",
+    "enableBody": "Diese Verbindung wieder in Modellkataloge und Fallback-Auswahl aufnehmen. Einzeln deaktivierte Modelle bleiben ausgeschlossen.",
+    "disableBody": "Alle Modelle dieser Verbindung ausschließen, auch später gefundene. Gespeicherte Favoriten und Fallback-Ketten bleiben erhalten; die Engine überspringt den deaktivierten Anbieter.",
+    "draftNote": "Das ändert deinen Einstellungsentwurf. Speichere die Einstellungen, um ihn auf das Profil anzuwenden.",
+    "keep": "Anbieter unverändert lassen",
+    "apply": "Anbieteränderung in den Entwurf übernehmen"
+  },
+  "reviewPolicy": {
+    "unreported": "Von dieser Engine nicht gemeldet",
+    "chimeraEyebrow": "NACH DEM LAUF",
+    "chimeraTitle": "Chimera-Review",
+    "chimeraIntro": "Die abgeschlossene Arbeit mit einem separaten Reviewer prüfen. Befunde und Entscheidungen erscheinen im Chimera-Reviews-Bereich des Projekts.",
+    "chimeraEnable": "Chimera-Reviews aktivieren",
+    "chimeraModel": "Chimera-Reviewer-Modell",
+    "chimeraMaxFiles": "Chimera-Dateilimit",
+    "chimeraMaxFilesHelp": "Höchstzahl geänderter Dateien in einem Review.",
+    "chimeraFollowUp": "Chimera-Folgerichtlinie",
+    "followUp": {
+      "off": "Nur berichten",
+      "ask": "Vor Korrekturen fragen",
+      "auto": "Automatische Korrekturen"
+    },
+    "chimeraNote": "Lass das Modell leer, um das Modell des Laufs zu nutzen. Eine Anbieter/Modell-Angabe überschreibt beides; ein Modell allein erbt den Anbieter. Automatische Korrekturen können Projektdateien gemäß der Berechtigungsrichtlinie der Engine ändern.",
+    "contEyebrow": "WÄHREND DES LAUFS",
+    "contTitle": "Laufendes Review",
+    "contIntro": "Geänderte Dateien in Stapeln prüfen, während der Agent arbeitet. Stapelgröße, Verzögerung und Parallelität bestimmen, wie viel Review nebenher laufen kann.",
+    "contEnable": "Laufende Reviews aktivieren",
+    "contProfile": "Fallback-Profil für laufende Reviews",
+    "contModel": "Modell für laufende Reviews",
+    "rotation": "Rotation der Review-Modelle",
+    "rotationOption": {
+      "round-robin": "Reihum",
+      "random": "Zufällig"
+    },
+    "cascade": "Schwelle für Kaskaden-Reviews",
+    "cascadeOption": {
+      "off": "Keine Kaskade",
+      "high": "Hohe und kritische Befunde",
+      "critical": "Nur kritische Befunde"
+    },
+    "delay": "Verzögerung des Review-Stapels",
+    "delayHelp": "Millisekunden zum Sammeln von Änderungen vor einem Review.",
+    "batchFiles": "Dateilimit pro Review-Stapel",
+    "batchFilesHelp": "Höchstzahl an Dateien pro Review-Stapel.",
+    "concurrent": "Limit paralleler Reviews",
+    "concurrentHelp": "Höchstzahl gleichzeitiger automatischer Reviews.",
+    "contNote": "Ein benanntes Profil löscht das explizite Modell; das Bearbeiten des Modells löscht das Profil. Leere Überschreibungen erben die wirksame Fallback-Konfiguration der Engine.",
+    "missing": "Dieses gespeicherte Fallback-Profil fehlt. Wähle ein vorhandenes Profil oder erbe.",
+    "chainTitle": "Zuletzt gespeicherte wirksame Fallback-Kette",
+    "stale": "Routing-Änderungen erscheinen hier erst, wenn die Einstellungen gespeichert und neu gelesen sind.",
+    "noChain": "Die Engine meldet keine Fallback-Kette.",
+    "savedNote": "Gespeicherte Review-Einstellungen gelten, wenn eine neue Engine-Sitzung ihre Plugins lädt. Laufende Läufe behalten ihre geladene Konfiguration."
   }
 }
