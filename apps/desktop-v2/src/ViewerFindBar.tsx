@@ -56,6 +56,8 @@ export function ViewerFindBar({
   return (
     <section className="editor-find-bar" aria-label={t(`find.${scope}.region`)}>
       <input
+        // Ctrl+F finds its field by this, not by its translated name.
+        data-find-input={scope}
         aria-label={t(`find.${scope}.input`)}
         placeholder={t('find.placeholder')}
         value={query}

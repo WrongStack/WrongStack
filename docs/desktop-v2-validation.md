@@ -8371,3 +8371,14 @@ copies, starting with SAGE memory.
 - Checks: new `assist-misc-i18n.test.ts` renders Code Assist, the edit review, an engine data
   panel and the Brain panel and words a Brain answer and a model detail line in English and
   Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Focus shortcuts work in every display language (2026-11-04)
+
+- Defect: Ctrl+/ (focus the composer) and a repeated Ctrl+F (back to the find field) looked
+  their target up by its English accessible name (`Message WrongStack`, `Find in
+  conversation`). Since those names follow the display language, both shortcuts did nothing in
+  any language but English.
+- Fix: the composer is found by its `.composer-input` container and the find field by a
+  `data-find-input` marker that names its scope. Accessible names are unchanged.
+- Checks: new `translated-focus-shortcuts.test.ts` presses both shortcuts in a Turkish window
+  and checks where focus lands; desktop tests pass (PASSED); typecheck clean.

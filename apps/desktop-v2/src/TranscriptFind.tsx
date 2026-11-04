@@ -32,7 +32,7 @@ export function useTranscriptFind({
       event.preventDefault();
       setOpen(true);
       // Pressing it again with the bar open moves back to its field.
-      document.querySelector<HTMLInputElement>('input[aria-label="Find in conversation"]')?.focus();
+      document.querySelector<HTMLInputElement>('input[data-find-input="conversation"]')?.focus();
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);

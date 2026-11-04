@@ -30,9 +30,8 @@ export function useConversationShortcuts(navigate: (target: DesktopNavigation) =
         setOpen(true);
       } else if ((event.ctrlKey || event.metaKey) && event.key === '/') {
         event.preventDefault();
-        document
-          .querySelector<HTMLTextAreaElement>('textarea[aria-label="Message WrongStack"]')
-          ?.focus();
+        // By its container, not its accessible name: that name follows the display language.
+        document.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus();
       }
     };
     window.addEventListener('keydown', key);
