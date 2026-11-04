@@ -8177,3 +8177,17 @@ copies, starting with SAGE memory.
 - Checks: new `refine-limits-i18n.test.ts` renders the three panels with a missing refiner
   profile and a tier in English and Turkish and checks the saved option value; desktop tests
   pass (PASSED); typecheck clean.
+
+### Jev judgments and model visibility in the display language (2026-11-04)
+
+- The Jev settings (`jevSettings`) follow the display language in all seven languages: the
+  account line, route, model, endpoint, timeout and key fields, the actions, each judgment's
+  name, the judgment check report and the activity list. Judgment names are worded by id with
+  the English table as the fallback.
+- Model visibility (`modelVisibility`) is translated: the provider, search and filter controls,
+  each model card, the saved model and provider rules, and the review dialog with the
+  references it removes.
+- Still English by design: account status and readiness values, judgment outcomes and reasons
+  from the engine, and provider, model and rule ids.
+- Checks: new `jev-visibility-i18n.test.ts` renders both panels with engine replies in English
+  and Turkish; desktop tests pass (PASSED); typecheck clean.

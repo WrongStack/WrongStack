@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './brain-policy.css';
@@ -111,6 +112,9 @@ export function jevState(value: unknown): JevState {
  * written to the profile's encrypted configuration and never sent back to this window.
  */
 export function JevSettings({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
+  const feature = (id: string) =>
+    t(`jevSettings.feature.${id}`, { defaultValue: JEV_FEATURE_NAMES[id] ?? id });
   const [state, setState] = useState<JevState | null>(null),
     [busy, setBusy] = useState(''),
     [error, setError] = useState(''),
@@ -143,9 +147,13 @@ export function JevSettings({ command }: { command: EngineCommand }) {
   }, [call]);
   if (!state)
     return (
-      <section className="brain-decisions" aria-label="Jev settings">
-        <h3>Jev judgments</h3>
-        {error ? <p className="session-error">{error}</p> : <p role="status">Reading…</p>}
+      <section className="brain-decisions" aria-label={t('jevSettings.label')}>
+        <h3>{t('jevSettings.title')}</h3>
+        {error ? (
+          <p className="session-error">{error}</p>
+        ) : (
+          <p role="status">{t('jevSettings.reading')}</p>
+        )}
       </section>
     );
   const save = (patch: Record<string, unknown>) =>
@@ -153,12 +161,9 @@ export function JevSettings({ command }: { command: EngineCommand }) {
       if (next && 'apiKey' in patch) setApiKey('');
     });
   return (
-    <section className="brain-decisions jev-settings" aria-label="Jev settings">
-      <h3>Jev judgments</h3>
-      <p className="field-help">
-        Fast typed judgments from TypeSafe System One for risk, memory, compaction and routing
-        decisions. Requests go to the chosen account route; turn off any judgment below.
-      </p>
+    <section className="brain-decisions jev-settings" aria-label={t('jevSettings.label')}>
+      <h3>{t('jevSettings.title')}</h3>
+      <p className="field-help">{t('jevSettings.intro')}</p>
       <label className="jev-toggle">
         <input
           type="checkbox"
@@ -166,20 +171,15 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           disabled={Boolean(busy)}
           onChange={(event) => save({ enabled: event.target.checked })}
         />
-        Use Jev
+        {t('jevSettings.use')}
       </label>
       <p>
-        Account: {state.status}
-        {state.reason ? ` · ${state.reason}` : ''} · key{' '}
-        {state.keySource === 'none'
-          ? 'not set'
-          : state.keySource === 'env'
-            ? 'from the environment'
-            : 'stored'}
+        {t('jevSettings.account', { status: state.status })}
+        {state.reason ? ` · ${state.reason}` : ''} · {t(`jevSettings.key.${state.keySource}`)}
       </p>
       <div className="jev-grid">
         <label>
-          Route
+          {t('jevSettings.route')}
           <select
             value={state.route}
             disabled={Boolean(busy)}
@@ -187,21 +187,21 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           >
             <option value="typesafe">TypeSafe</option>
             <option value="openrouter">OpenRouter</option>
-            <option value="custom">Custom endpoint</option>
+            <option value="custom">{t('jevSettings.customEndpoint')}</option>
           </select>
         </label>
         <label>
-          Model
+          {t('jevSettings.model')}
           <input value={model} onChange={(event) => setModel(event.target.value)} />
         </label>
         {state.route === 'custom' && (
           <label>
-            Endpoint
+            {t('jevSettings.endpoint')}
             <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} />
           </label>
         )}
         <label>
-          Timeout (ms)
+          {t('jevSettings.timeout')}
           <input
             type="number"
             min={100}
@@ -211,7 +211,7 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           />
         </label>
         <label>
-          API key {state.keySource === 'config' ? '(replace)' : ''}
+          {t('jevSettings.apiKey')} {state.keySource === 'config' ? t('jevSettings.replace') : ''}
           <input
             type="password"
             autoComplete="off"
@@ -228,7 +228,7 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           onClick={() => {
             const ms = Number(timeout);
             if (!Number.isInteger(ms) || ms < 100 || ms > 120000) {
-              setError('The timeout must be a whole number from 100 to 120000 ms.');
+              setError(t('jevSettings.timeoutError'));
               return;
             }
             save({
@@ -241,7 +241,7 @@ export function JevSettings({ command }: { command: EngineCommand }) {
             });
           }}
         >
-          {busy === 'save' ? 'Saving…' : 'Save account settings'}
+          {busy === 'save' ? t('jevSettings.saving') : t('jevSettings.save')}
         </button>
         {state.keySource === 'config' && (
           <button
@@ -250,7 +250,7 @@ export function JevSettings({ command }: { command: EngineCommand }) {
             disabled={Boolean(busy)}
             onClick={() => save({ apiKey: null })}
           >
-            Remove stored key
+            {t('jevSettings.removeKey')}
           </button>
         )}
         <button
@@ -259,7 +259,7 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           disabled={Boolean(busy) || !state.enabled}
           onClick={() => void call('jev.test', {}, 'test')}
         >
-          {busy === 'test' ? 'Testing…' : 'Test connection'}
+          {busy === 'test' ? t('jevSettings.testing') : t('jevSettings.test')}
         </button>
         <button
           type="button"
@@ -267,22 +267,24 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           disabled={Boolean(busy) || !state.enabled || state.checks.running}
           onClick={() => void call('jev.check', {}, 'check')}
         >
-          {busy === 'check' || state.checks.running ? 'Checking judgments…' : 'Check judgments'}
+          {busy === 'check' || state.checks.running
+            ? t('jevSettings.checking')
+            : t('jevSettings.check')}
         </button>
       </div>
       <fieldset className="jev-features">
-        <legend>Judgments</legend>
-        {Object.keys(state.features).map((feature) => (
-          <label key={feature}>
+        <legend>{t('jevSettings.judgments')}</legend>
+        {Object.keys(state.features).map((id) => (
+          <label key={id}>
             <input
               type="checkbox"
-              checked={state.features[feature] === true}
+              checked={state.features[id] === true}
               disabled={Boolean(busy)}
-              onChange={(event) => save({ features: { [feature]: event.target.checked } })}
+              onChange={(event) => save({ features: { [id]: event.target.checked } })}
             />
-            {JEV_FEATURE_NAMES[feature] ?? feature}
-            {state.readiness[feature]?.state && (
-              <small> · {state.readiness[feature]!.state.replace(/-/g, ' ')}</small>
+            {feature(id)}
+            {state.readiness[id]?.state && (
+              <small> · {state.readiness[id]!.state.replace(/-/g, ' ')}</small>
             )}
           </label>
         ))}
@@ -294,20 +296,24 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           disabled={Boolean(busy)}
           onChange={(event) => save({ logContent: event.target.checked })}
         />
-        Keep request and response content in the local activity log
+        {t('jevSettings.logContent')}
       </label>
       {state.checks.report && (
         <details>
           <summary>
-            Judgment check: {state.checks.report.passed}/{state.checks.report.total} passed ·{' '}
-            {state.checks.report.model}
+            {t('jevSettings.checkReport', {
+              passed: state.checks.report.passed,
+              total: state.checks.report.total,
+            })}{' '}
+            · {state.checks.report.model}
           </summary>
           <ul>
             {state.checks.report.cases.map((item) => (
               <li key={`${item.feature}:${item.name}`}>
-                {item.ok ? 'Passed' : 'Failed'} · {JEV_FEATURE_NAMES[item.feature] ?? item.feature}{' '}
-                · {item.name}
-                {!item.ok && ` (expected ${item.expected}, got ${item.actual})`}
+                {item.ok ? t('jevSettings.passed') : t('jevSettings.failed')} ·{' '}
+                {feature(item.feature)} · {item.name}
+                {!item.ok &&
+                  ` (${t('jevSettings.expected', { expected: item.expected, actual: item.actual })})`}
               </li>
             ))}
           </ul>
@@ -315,13 +321,12 @@ export function JevSettings({ command }: { command: EngineCommand }) {
       )}
       {state.activity.length > 0 && (
         <details>
-          <summary>Recent activity in this engine</summary>
+          <summary>{t('jevSettings.activity')}</summary>
           <ul>
             {state.activity.map((item, index) => (
               <li key={`${item.at}:${index}`}>
-                {item.at ? new Date(item.at).toLocaleTimeString() : ''} ·{' '}
-                {JEV_FEATURE_NAMES[item.feature] ?? item.feature} · {item.outcome} ·{' '}
-                {item.durationMs} ms{item.reason ? ` · ${item.reason}` : ''}
+                {item.at ? new Date(item.at).toLocaleTimeString() : ''} · {feature(item.feature)} ·{' '}
+                {item.outcome} · {item.durationMs} ms{item.reason ? ` · ${item.reason}` : ''}
               </li>
             ))}
           </ul>
