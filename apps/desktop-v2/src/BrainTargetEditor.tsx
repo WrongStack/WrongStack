@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   type BrainSeatDefault,
   type BrainTarget,
@@ -9,6 +9,7 @@ import {
   emptyBrainTarget,
   emptyBrainVoter,
 } from './brain-targets-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import './brain-targets.css';
@@ -24,6 +25,10 @@ export function BrainTargetEditor({
   snapshot: Record<string, unknown>;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
+  // Read through a ref so a language change does not reread the saved model catalogs.
+  const words = useRef(t);
+  words.current = t;
   const [catalog, setCatalog] = useState<{ provider: string; model: string }[]>([]),
     [catalogError, setCatalogError] = useState('');
   const lensId = useId();
@@ -49,9 +54,7 @@ export function BrainTargetEditor({
             results.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
           );
           if (results.some((result) => result.status === 'rejected'))
-            setCatalogError(
-              'Some saved model catalogs are unavailable. Existing and custom references remain editable.',
-            );
+            setCatalogError(words.current('brainTargets.catalogPartial'));
         }
       })
       .catch((error) => {
@@ -64,16 +67,16 @@ export function BrainTargetEditor({
   const fields = (row: BrainTarget, label: string, update: (target: BrainTarget) => void) => (
     <div className="brain-target-fields">
       <label>
-        Saved model
+        {t('brainTargets.field.saved')}
         <select
-          aria-label={`${label} saved model`}
+          aria-label={t('brainTargets.field.savedLabel', { target: label })}
           value=""
           onChange={(event) => {
             const choice = catalog[Number(event.target.value)];
             if (choice) update(choice);
           }}
         >
-          <option value="">Choose from saved catalogs…</option>
+          <option value="">{t('brainTargets.field.choose')}</option>
           {catalog.map((entry, index) => (
             <option value={index} key={index}>
               {entry.provider}/{entry.model}
@@ -82,20 +85,20 @@ export function BrainTargetEditor({
         </select>
       </label>
       <label>
-        Provider
+        {t('brainTargets.field.provider')}
         <input
-          aria-label={`${label} provider`}
+          aria-label={t('brainTargets.field.providerLabel', { target: label })}
           value={row.provider}
-          placeholder="Inherit runtime provider"
+          placeholder={t('brainTargets.field.providerPlaceholder')}
           onChange={(event) => update({ ...row, provider: event.target.value })}
         />
       </label>
       <label>
-        Model ID
+        {t('brainTargets.field.model')}
         <input
-          aria-label={`${label} model ID`}
+          aria-label={t('brainTargets.field.modelLabel', { target: label })}
           value={row.model}
-          placeholder="Model ID, including any namespace"
+          placeholder={t('brainTargets.field.modelPlaceholder')}
           onChange={(event) => update({ ...row, model: event.target.value })}
         />
       </label>
@@ -118,7 +121,7 @@ export function BrainTargetEditor({
         type="button"
         className="icon-button"
         disabled={index === 0}
-        aria-label={`Move ${label} up`}
+        aria-label={t('brainTargets.moveUp', { target: label })}
         onClick={() => reorder(-1)}
       >
         <ArrowUp size={15} />
@@ -127,7 +130,7 @@ export function BrainTargetEditor({
         type="button"
         className="icon-button"
         disabled={index === length - 1}
-        aria-label={`Move ${label} down`}
+        aria-label={t('brainTargets.moveDown', { target: label })}
         onClick={() => reorder(1)}
       >
         <ArrowDown size={15} />
@@ -135,7 +138,7 @@ export function BrainTargetEditor({
       <button
         type="button"
         className="icon-button danger"
-        aria-label={`Remove ${label}`}
+        aria-label={t('brainTargets.remove', { target: label })}
         onClick={remove}
       >
         <Trash2 size={15} />
@@ -148,40 +151,37 @@ export function BrainTargetEditor({
       voters: value.voters.map((row, i) => (i === index ? { ...row, ...patch } : row)),
     });
   return (
-    <section className="brain-target-editor" aria-label="Brain models and council editor">
+    <section className="brain-target-editor" aria-label={t('brainTargets.label')}>
       {catalogError && <p role="status">{catalogError}</p>}
       <article className="brain-policy-card">
         <header>
-          <h3>Decision model pool</h3>
-          <p>
-            Keep an ordered pool for fallback, or rotate calls across it. An empty pool inherits the
-            runtime’s model selection.
-          </p>
+          <h3>{t('brainTargets.pool.title')}</h3>
+          <p>{t('brainTargets.pool.help')}</p>
         </header>
         <label className="brain-pool-strategy">
-          Pool strategy
+          {t('brainTargets.pool.strategy')}
           <select
-            aria-label="Brain pool strategy"
+            aria-label={t('brainTargets.pool.strategyLabel')}
             value={value.strategy}
             onChange={(event) => onChange({ ...value, strategy: event.target.value })}
           >
-            <option value="fallback">Fallback in order</option>
-            <option value="round-robin">Round robin</option>
+            <option value="fallback">{t('brainTargets.pool.strategyOption.fallback')}</option>
+            <option value="round-robin">{t('brainTargets.pool.strategyOption.round-robin')}</option>
           </select>
         </label>
         {value.pool.map((row, index) => (
           <div className="brain-target-row" key={index}>
             <header>
-              <strong>Pool model {index + 1}</strong>
+              <strong>{t('brainTargets.pool.row', { n: index + 1 })}</strong>
               {actions(
-                `Brain pool model ${index + 1}`,
+                t('brainTargets.pool.target', { n: index + 1 }),
                 index,
                 value.pool.length,
                 (delta) => onChange({ ...value, pool: move(value.pool, index, delta) }),
                 () => onChange({ ...value, pool: value.pool.filter((_, i) => i !== index) }),
               )}
             </header>
-            {fields(row, `Brain pool model ${index + 1}`, (target) =>
+            {fields(row, t('brainTargets.pool.target', { n: index + 1 }), (target) =>
               onChange({
                 ...value,
                 pool: value.pool.map((old, i) => (i === index ? target : old)),
@@ -189,14 +189,14 @@ export function BrainTargetEditor({
             )}
           </div>
         ))}
-        {!value.pool.length && <p>Using inherited model selection.</p>}
+        {!value.pool.length && <p>{t('brainTargets.pool.inherited')}</p>}
         <button
           type="button"
           className="button secondary small"
           onClick={() => onChange({ ...value, pool: [...value.pool, emptyBrainTarget()] })}
         >
           <Plus size={14} />
-          Add Brain pool model
+          {t('brainTargets.pool.add')}
         </button>
         {value.pool.length > 0 && (
           <button
@@ -204,17 +204,14 @@ export function BrainTargetEditor({
             className="button secondary small"
             onClick={() => onChange({ ...value, pool: [] })}
           >
-            Use inherited model selection
+            {t('brainTargets.pool.inherit')}
           </button>
         )}
       </article>
       <article className="brain-policy-card">
         <header>
-          <h3>Council voting seats</h3>
-          <p>
-            Each seat has a model, a decision lens, a vote weight and optional veto. Empty seats
-            inherit from the model pool. Seat order controls default lenses.
-          </p>
+          <h3>{t('brainTargets.voters.title')}</h3>
+          <p>{t('brainTargets.voters.help')}</p>
         </header>
         <datalist id={lensId}>
           {personas.map((persona) => (
@@ -226,51 +223,55 @@ export function BrainTargetEditor({
         {value.voters.map((row, index) => (
           <div className="brain-target-row" key={index}>
             <header>
-              <strong>Voting seat {index + 1}</strong>
+              <strong>{t('brainTargets.voters.row', { n: index + 1 })}</strong>
               {actions(
-                `Brain voter ${index + 1}`,
+                t('brainTargets.voters.target', { n: index + 1 }),
                 index,
                 value.voters.length,
                 (delta) => onChange({ ...value, voters: move(value.voters, index, delta) }),
                 () => onChange({ ...value, voters: value.voters.filter((_, i) => i !== index) }),
               )}
             </header>
-            {fields(row, `Brain voter ${index + 1}`, (target) => changeVoter(index, target))}
+            {fields(row, t('brainTargets.voters.target', { n: index + 1 }), (target) =>
+              changeVoter(index, target),
+            )}
             <div className="brain-voter-policy">
               <label>
-                Decision lens
+                {t('brainTargets.voters.lens')}
                 <input
-                  aria-label={`Brain voter ${index + 1} lens`}
+                  aria-label={t('brainTargets.voters.lensLabel', { n: index + 1 })}
                   list={lensId}
                   value={row.persona}
-                  placeholder="Default lens from seat order"
+                  placeholder={t('brainTargets.voters.lensPlaceholder')}
                   onChange={(event) => changeVoter(index, { persona: event.target.value })}
                 />
               </label>
               <label>
-                Vote weight
+                {t('brainTargets.voters.weight')}
                 <input
                   type="number"
                   min={Number.MIN_VALUE}
                   step="any"
-                  aria-label={`Brain voter ${index + 1} weight`}
+                  aria-label={t('brainTargets.voters.weightLabel', { n: index + 1 })}
                   value={row.weight}
-                  placeholder="Default: 1"
+                  placeholder={t('brainTargets.voters.weightPlaceholder')}
                   onChange={(event) => changeVoter(index, { weight: event.target.value })}
                 />
               </label>
               <label>
-                Veto
+                {t('brainTargets.voters.veto')}
                 <select
-                  aria-label={`Brain voter ${index + 1} veto`}
+                  aria-label={t('brainTargets.voters.vetoLabel', { n: index + 1 })}
                   value={row.veto}
                   onChange={(event) =>
                     changeVoter(index, { veto: event.target.value as BrainVoter['veto'] })
                   }
                 >
-                  <option value="default">Inherit seat / lens default</option>
-                  <option value="yes">Explicitly enabled</option>
-                  <option value="no">Explicitly disabled</option>
+                  {['default', 'yes', 'no'].map((veto) => (
+                    <option key={veto} value={veto}>
+                      {t(`brainTargets.voters.vetoOption.${veto}`)}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -278,22 +279,20 @@ export function BrainTargetEditor({
               {String(
                 personas.find((persona) => persona['id'] === row.persona)?.['description'] ??
                   (row.persona
-                    ? 'Custom decision lens; its text is preserved.'
-                    : 'The engine chooses the default decision lens by seat order.'),
+                    ? t('brainTargets.voters.customLens')
+                    : t('brainTargets.voters.defaultLens')),
               )}
             </p>
           </div>
         ))}
-        {!value.voters.length && (
-          <p>No explicit seats. The engine may derive them from the model pool.</p>
-        )}
+        {!value.voters.length && <p>{t('brainTargets.voters.none')}</p>}
         <button
           type="button"
           className="button secondary small"
           onClick={() => onChange({ ...value, voters: [...value.voters, emptyBrainVoter()] })}
         >
           <Plus size={14} />
-          Add council voter
+          {t('brainTargets.voters.add')}
         </button>
         {value.voters.length > 0 && (
           <button
@@ -301,22 +300,16 @@ export function BrainTargetEditor({
             className="button secondary small"
             onClick={() => onChange({ ...value, voters: [] })}
           >
-            Use pool-derived council seats
+            {t('brainTargets.voters.derive')}
           </button>
         )}
       </article>
-      <article className="brain-policy-card" aria-label="Council seat defaults">
+      <article className="brain-policy-card" aria-label={t('brainTargets.seats.label')}>
         <header>
-          <h3>Seat defaults</h3>
-          <p>
-            An ordered rotation of decision lenses and veto preferences. Explicit voters inherit
-            each missing preference from this rotation; their own overrides take priority. Without
-            explicit voters, the engine seats at most one pool model per rotation entry.
-          </p>
+          <h3>{t('brainTargets.seats.title')}</h3>
+          <p>{t('brainTargets.seats.help')}</p>
         </header>
-        {!value.seats.length && (
-          <p>Built-in rotation: executor, skeptic (veto enabled), auditor.</p>
-        )}
+        {!value.seats.length && <p>{t('brainTargets.seats.builtIn')}</p>}
         {value.seats.map((row, index) => {
           const change = (patch: Partial<BrainSeatDefault>) =>
             onChange({
@@ -327,9 +320,9 @@ export function BrainTargetEditor({
           return (
             <div className="brain-target-row" key={index}>
               <header>
-                <strong>Default {index + 1}</strong>
+                <strong>{t('brainTargets.seats.row', { n: index + 1 })}</strong>
                 {actions(
-                  `Brain seat default ${index + 1}`,
+                  t('brainTargets.seats.target', { n: index + 1 }),
                   index,
                   value.seats.length,
                   (delta) => onChange({ ...value, seats: move(value.seats, index, delta) }),
@@ -338,27 +331,27 @@ export function BrainTargetEditor({
               </header>
               <div className="brain-voter-policy">
                 <label>
-                  Decision lens
+                  {t('brainTargets.voters.lens')}
                   <input
-                    aria-label={`Brain seat default ${index + 1} lens`}
+                    aria-label={t('brainTargets.seats.lensLabel', { n: index + 1 })}
                     list={lensId}
                     value={row.persona}
-                    placeholder="Choose a lens or enter custom text"
+                    placeholder={t('brainTargets.seats.lensPlaceholder')}
                     onChange={(event) => change({ persona: event.target.value })}
                   />
                 </label>
                 <label>
-                  Veto
+                  {t('brainTargets.voters.veto')}
                   <select
-                    aria-label={`Brain seat default ${index + 1} veto`}
+                    aria-label={t('brainTargets.seats.vetoLabel', { n: index + 1 })}
                     value={row.veto}
                     onChange={(event) =>
                       change({ veto: event.target.value as BrainSeatDefault['veto'] })
                     }
                   >
-                    <option value="default">Use lens default</option>
-                    <option value="yes">Explicitly enabled</option>
-                    <option value="no">Explicitly disabled</option>
+                    <option value="default">{t('brainTargets.seats.lensDefault')}</option>
+                    <option value="yes">{t('brainTargets.voters.vetoOption.yes')}</option>
+                    <option value="no">{t('brainTargets.voters.vetoOption.no')}</option>
                   </select>
                 </label>
               </div>
@@ -366,15 +359,15 @@ export function BrainTargetEditor({
                 {String(
                   persona?.['description'] ??
                     (row.persona
-                      ? 'Custom decision lens; its text is preserved.'
-                      : 'A decision lens is required.'),
+                      ? t('brainTargets.voters.customLens')
+                      : t('brainTargets.seats.lensRequired')),
                 )}
               </p>
               {row.veto === 'default' && (
                 <p>
                   {persona?.['defaultVeto'] === true
-                    ? 'This catalog lens enables veto by default.'
-                    : 'No veto default is reported for this lens; the engine resolves it.'}
+                    ? t('brainTargets.seats.vetoOn')
+                    : t('brainTargets.seats.vetoUnknown')}
                 </p>
               )}
             </div>
@@ -385,7 +378,7 @@ export function BrainTargetEditor({
           className="button secondary small"
           onClick={() => onChange({ ...value, seats: [...value.seats, emptyBrainSeat()] })}
         >
-          <Plus size={14} /> Add seat default
+          <Plus size={14} /> {t('brainTargets.seats.add')}
         </button>
         {value.seats.length > 0 && (
           <button
@@ -393,23 +386,23 @@ export function BrainTargetEditor({
             className="button secondary small"
             onClick={() => onChange({ ...value, seats: [] })}
           >
-            Use built-in seat defaults
+            {t('brainTargets.seats.builtInUse')}
           </button>
         )}
       </article>
       <article className="brain-policy-card">
-        <h3>Council judge</h3>
-        <p>
-          Choose a tie-breaking model, or clear it to let the engine derive the judge from the pool.
-        </p>
-        {fields(value.judge, 'Council judge', (judge) => onChange({ ...value, judge }))}
+        <h3>{t('brainTargets.judge.title')}</h3>
+        <p>{t('brainTargets.judge.help')}</p>
+        {fields(value.judge, t('brainTargets.judge.title'), (judge) =>
+          onChange({ ...value, judge }),
+        )}
         <button
           type="button"
           className="button secondary small"
           disabled={!value.judge.model && !value.judge.provider}
           onClick={() => onChange({ ...value, judge: emptyBrainTarget() })}
         >
-          Use derived judge
+          {t('brainTargets.judge.derive')}
         </button>
       </article>
     </section>

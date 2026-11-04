@@ -5259,5 +5259,84 @@
       "added": "aggiunto",
       "needsEnv": "Richiede {{vars}} nell’ambiente, oppure impostalo nell’editor della connessione dopo il salvataggio."
     }
+  },
+  "brainTargets": {
+    "label": "Editor dei modelli Brain e del consiglio",
+    "catalogPartial": "Alcuni cataloghi di modelli salvati non sono disponibili. I riferimenti esistenti e personalizzati restano modificabili.",
+    "field": {
+      "saved": "Modello salvato",
+      "savedLabel": "{{target}} – modello salvato",
+      "choose": "Scegli dai cataloghi salvati…",
+      "provider": "Provider",
+      "providerLabel": "{{target}} – provider",
+      "providerPlaceholder": "Eredita il provider del runtime",
+      "model": "ID del modello",
+      "modelLabel": "{{target}} – ID del modello",
+      "modelPlaceholder": "ID del modello, incluso l’eventuale namespace"
+    },
+    "moveUp": "Sposta su {{target}}",
+    "moveDown": "Sposta giù {{target}}",
+    "remove": "Rimuovi {{target}}",
+    "pool": {
+      "title": "Pool dei modelli decisionali",
+      "help": "Mantieni un pool ordinato per il fallback o ruota le chiamate tra i modelli. Un pool vuoto eredita la selezione dei modelli del runtime.",
+      "strategy": "Strategia del pool",
+      "strategyLabel": "Strategia del pool Brain",
+      "strategyOption": {
+        "fallback": "Fallback in ordine",
+        "round-robin": "A rotazione"
+      },
+      "row": "Modello del pool {{n}}",
+      "target": "Modello del pool Brain {{n}}",
+      "inherited": "Viene usata la selezione dei modelli ereditata.",
+      "add": "Aggiungi un modello al pool Brain",
+      "inherit": "Usa la selezione dei modelli ereditata"
+    },
+    "voters": {
+      "title": "Seggi di voto del consiglio",
+      "help": "Ogni seggio ha un modello, una prospettiva decisionale, un peso di voto e un veto facoltativo. I seggi vuoti ereditano dal pool dei modelli. L’ordine dei seggi determina le prospettive predefinite.",
+      "row": "Seggio di voto {{n}}",
+      "target": "Votante Brain {{n}}",
+      "lens": "Prospettiva decisionale",
+      "lensLabel": "Prospettiva del votante Brain {{n}}",
+      "lensPlaceholder": "Prospettiva predefinita dall’ordine dei seggi",
+      "weight": "Peso del voto",
+      "weightLabel": "Peso del votante Brain {{n}}",
+      "weightPlaceholder": "Predefinito: 1",
+      "veto": "Veto",
+      "vetoLabel": "Veto del votante Brain {{n}}",
+      "vetoOption": {
+        "default": "Eredita il predefinito di seggio / prospettiva",
+        "yes": "Attivato esplicitamente",
+        "no": "Disattivato esplicitamente"
+      },
+      "customLens": "Prospettiva decisionale personalizzata; il testo viene mantenuto.",
+      "defaultLens": "Il motore sceglie la prospettiva predefinita in base all’ordine dei seggi.",
+      "none": "Nessun seggio esplicito. Il motore può ricavarli dal pool dei modelli.",
+      "add": "Aggiungi un votante al consiglio",
+      "derive": "Usa i seggi del consiglio ricavati dal pool"
+    },
+    "seats": {
+      "label": "Valori predefiniti dei seggi del consiglio",
+      "title": "Valori predefiniti dei seggi",
+      "help": "Una rotazione ordinata di prospettive decisionali e preferenze di veto. I votanti espliciti ereditano da questa rotazione ogni preferenza mancante; le loro sostituzioni hanno la precedenza. Senza votanti espliciti, il motore assegna al massimo un modello del pool per voce della rotazione.",
+      "builtIn": "Rotazione integrata: executor, skeptic (veto attivato), auditor.",
+      "row": "Predefinito {{n}}",
+      "target": "Predefinito del seggio Brain {{n}}",
+      "lensLabel": "Prospettiva del predefinito del seggio Brain {{n}}",
+      "lensPlaceholder": "Scegli una prospettiva o inserisci un testo personalizzato",
+      "vetoLabel": "Veto del predefinito del seggio Brain {{n}}",
+      "lensDefault": "Usa il predefinito della prospettiva",
+      "lensRequired": "È richiesta una prospettiva decisionale.",
+      "vetoOn": "Questa prospettiva del catalogo attiva il veto per impostazione predefinita.",
+      "vetoUnknown": "Nessun veto predefinito è segnalato per questa prospettiva; lo determina il motore.",
+      "add": "Aggiungi un predefinito di seggio",
+      "builtInUse": "Usa i predefiniti di seggio integrati"
+    },
+    "judge": {
+      "title": "Giudice del consiglio",
+      "help": "Scegli un modello per gli spareggi, oppure svuotalo perché il motore ricavi il giudice dal pool.",
+      "derive": "Usa il giudice ricavato"
+    }
   }
 }

@@ -5259,5 +5259,84 @@
       "added": "añadido",
       "needsEnv": "Necesita {{vars}} en el entorno, o configúralo en el editor de conexión después de guardar."
     }
+  },
+  "brainTargets": {
+    "label": "Editor de modelos de Brain y del consejo",
+    "catalogPartial": "Algunos catálogos de modelos guardados no están disponibles. Las referencias existentes y personalizadas siguen siendo editables.",
+    "field": {
+      "saved": "Modelo guardado",
+      "savedLabel": "{{target}} – modelo guardado",
+      "choose": "Elegir de los catálogos guardados…",
+      "provider": "Proveedor",
+      "providerLabel": "{{target}} – proveedor",
+      "providerPlaceholder": "Heredar el proveedor del entorno de ejecución",
+      "model": "ID del modelo",
+      "modelLabel": "{{target}} – ID del modelo",
+      "modelPlaceholder": "ID del modelo, con su espacio de nombres si lo hay"
+    },
+    "moveUp": "Subir {{target}}",
+    "moveDown": "Bajar {{target}}",
+    "remove": "Quitar {{target}}",
+    "pool": {
+      "title": "Grupo de modelos de decisión",
+      "help": "Mantén un grupo ordenado como respaldo o reparte las llamadas por turnos. Un grupo vacío hereda la selección de modelos del entorno de ejecución.",
+      "strategy": "Estrategia del grupo",
+      "strategyLabel": "Estrategia del grupo de Brain",
+      "strategyOption": {
+        "fallback": "Respaldo en orden",
+        "round-robin": "Por turnos"
+      },
+      "row": "Modelo del grupo {{n}}",
+      "target": "Modelo del grupo de Brain {{n}}",
+      "inherited": "Se usa la selección de modelos heredada.",
+      "add": "Añadir un modelo al grupo de Brain",
+      "inherit": "Usar la selección de modelos heredada"
+    },
+    "voters": {
+      "title": "Puestos de voto del consejo",
+      "help": "Cada puesto tiene un modelo, una perspectiva de decisión, un peso de voto y un veto opcional. Los puestos vacíos heredan del grupo de modelos. El orden de los puestos determina las perspectivas predeterminadas.",
+      "row": "Puesto de voto {{n}}",
+      "target": "Votante de Brain {{n}}",
+      "lens": "Perspectiva de decisión",
+      "lensLabel": "Perspectiva del votante de Brain {{n}}",
+      "lensPlaceholder": "Perspectiva predeterminada según el orden de los puestos",
+      "weight": "Peso del voto",
+      "weightLabel": "Peso del votante de Brain {{n}}",
+      "weightPlaceholder": "Predeterminado: 1",
+      "veto": "Veto",
+      "vetoLabel": "Veto del votante de Brain {{n}}",
+      "vetoOption": {
+        "default": "Heredar el valor del puesto / perspectiva",
+        "yes": "Activado explícitamente",
+        "no": "Desactivado explícitamente"
+      },
+      "customLens": "Perspectiva de decisión personalizada; se conserva su texto.",
+      "defaultLens": "El motor elige la perspectiva predeterminada según el orden de los puestos.",
+      "none": "No hay puestos explícitos. El motor puede derivarlos del grupo de modelos.",
+      "add": "Añadir un votante al consejo",
+      "derive": "Usar puestos del consejo derivados del grupo"
+    },
+    "seats": {
+      "label": "Valores predeterminados de los puestos del consejo",
+      "title": "Valores predeterminados de los puestos",
+      "help": "Una rotación ordenada de perspectivas de decisión y preferencias de veto. Los votantes explícitos heredan de esta rotación cada preferencia que les falte; sus propias sustituciones tienen prioridad. Sin votantes explícitos, el motor asigna como máximo un modelo del grupo por entrada de la rotación.",
+      "builtIn": "Rotación integrada: executor, skeptic (veto activado), auditor.",
+      "row": "Predeterminado {{n}}",
+      "target": "Valor predeterminado del puesto de Brain {{n}}",
+      "lensLabel": "Perspectiva del predeterminado del puesto de Brain {{n}}",
+      "lensPlaceholder": "Elige una perspectiva o escribe un texto personalizado",
+      "vetoLabel": "Veto del predeterminado del puesto de Brain {{n}}",
+      "lensDefault": "Usar el valor de la perspectiva",
+      "lensRequired": "Se requiere una perspectiva de decisión.",
+      "vetoOn": "Esta perspectiva del catálogo activa el veto de forma predeterminada.",
+      "vetoUnknown": "No se informa ningún veto predeterminado para esta perspectiva; lo resuelve el motor.",
+      "add": "Añadir un predeterminado de puesto",
+      "builtInUse": "Usar los predeterminados de puesto integrados"
+    },
+    "judge": {
+      "title": "Juez del consejo",
+      "help": "Elige un modelo de desempate o déjalo vacío para que el motor derive el juez del grupo.",
+      "derive": "Usar el juez derivado"
+    }
   }
 }

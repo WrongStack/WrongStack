@@ -5259,5 +5259,84 @@
       "added": "adicionado",
       "needsEnv": "Precisa de {{vars}} no ambiente, ou defina no editor de conexão depois de salvar."
     }
+  },
+  "brainTargets": {
+    "label": "Editor de modelos do Brain e do conselho",
+    "catalogPartial": "Alguns catálogos de modelos salvos estão indisponíveis. As referências existentes e personalizadas continuam editáveis.",
+    "field": {
+      "saved": "Modelo salvo",
+      "savedLabel": "{{target}} – modelo salvo",
+      "choose": "Escolher nos catálogos salvos…",
+      "provider": "Provedor",
+      "providerLabel": "{{target}} – provedor",
+      "providerPlaceholder": "Herdar o provedor do runtime",
+      "model": "ID do modelo",
+      "modelLabel": "{{target}} – ID do modelo",
+      "modelPlaceholder": "ID do modelo, incluindo o namespace, se houver"
+    },
+    "moveUp": "Mover {{target}} para cima",
+    "moveDown": "Mover {{target}} para baixo",
+    "remove": "Remover {{target}}",
+    "pool": {
+      "title": "Pool de modelos de decisão",
+      "help": "Mantenha um pool ordenado para fallback ou alterne as chamadas entre os modelos. Um pool vazio herda a seleção de modelos do runtime.",
+      "strategy": "Estratégia do pool",
+      "strategyLabel": "Estratégia do pool do Brain",
+      "strategyOption": {
+        "fallback": "Fallback em ordem",
+        "round-robin": "Rodízio"
+      },
+      "row": "Modelo do pool {{n}}",
+      "target": "Modelo do pool do Brain {{n}}",
+      "inherited": "Usando a seleção de modelos herdada.",
+      "add": "Adicionar modelo ao pool do Brain",
+      "inherit": "Usar a seleção de modelos herdada"
+    },
+    "voters": {
+      "title": "Assentos de voto do conselho",
+      "help": "Cada assento tem um modelo, uma perspectiva de decisão, um peso de voto e um veto opcional. Assentos vazios herdam do pool de modelos. A ordem dos assentos define as perspectivas padrão.",
+      "row": "Assento de voto {{n}}",
+      "target": "Votante do Brain {{n}}",
+      "lens": "Perspectiva de decisão",
+      "lensLabel": "Perspectiva do votante do Brain {{n}}",
+      "lensPlaceholder": "Perspectiva padrão pela ordem dos assentos",
+      "weight": "Peso do voto",
+      "weightLabel": "Peso do votante do Brain {{n}}",
+      "weightPlaceholder": "Padrão: 1",
+      "veto": "Veto",
+      "vetoLabel": "Veto do votante do Brain {{n}}",
+      "vetoOption": {
+        "default": "Herdar o padrão do assento / perspectiva",
+        "yes": "Ativado explicitamente",
+        "no": "Desativado explicitamente"
+      },
+      "customLens": "Perspectiva de decisão personalizada; o texto é mantido.",
+      "defaultLens": "O mecanismo escolhe a perspectiva padrão pela ordem dos assentos.",
+      "none": "Nenhum assento explícito. O mecanismo pode derivá-los do pool de modelos.",
+      "add": "Adicionar votante ao conselho",
+      "derive": "Usar assentos do conselho derivados do pool"
+    },
+    "seats": {
+      "label": "Padrões dos assentos do conselho",
+      "title": "Padrões dos assentos",
+      "help": "Uma rotação ordenada de perspectivas de decisão e preferências de veto. Votantes explícitos herdam desta rotação cada preferência que faltar; as próprias substituições têm prioridade. Sem votantes explícitos, o mecanismo coloca no máximo um modelo do pool por entrada da rotação.",
+      "builtIn": "Rotação integrada: executor, skeptic (veto ativado), auditor.",
+      "row": "Padrão {{n}}",
+      "target": "Padrão de assento do Brain {{n}}",
+      "lensLabel": "Perspectiva do padrão de assento do Brain {{n}}",
+      "lensPlaceholder": "Escolha uma perspectiva ou digite um texto personalizado",
+      "vetoLabel": "Veto do padrão de assento do Brain {{n}}",
+      "lensDefault": "Usar o padrão da perspectiva",
+      "lensRequired": "Uma perspectiva de decisão é obrigatória.",
+      "vetoOn": "Esta perspectiva do catálogo ativa o veto por padrão.",
+      "vetoUnknown": "Nenhum veto padrão é informado para esta perspectiva; o mecanismo o resolve.",
+      "add": "Adicionar padrão de assento",
+      "builtInUse": "Usar os padrões de assento integrados"
+    },
+    "judge": {
+      "title": "Juiz do conselho",
+      "help": "Escolha um modelo de desempate ou deixe vazio para o mecanismo derivar o juiz do pool.",
+      "derive": "Usar o juiz derivado"
+    }
   }
 }

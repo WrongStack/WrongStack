@@ -5259,5 +5259,84 @@
       "added": "hinzugefügt",
       "needsEnv": "Benötigt {{vars}} in der Umgebung, oder lege es nach dem Speichern im Verbindungseditor fest."
     }
+  },
+  "brainTargets": {
+    "label": "Editor für Brain-Modelle und Rat",
+    "catalogPartial": "Einige gespeicherte Modellkataloge sind nicht verfügbar. Vorhandene und eigene Verweise bleiben bearbeitbar.",
+    "field": {
+      "saved": "Gespeichertes Modell",
+      "savedLabel": "{{target}} – gespeichertes Modell",
+      "choose": "Aus gespeicherten Katalogen wählen…",
+      "provider": "Anbieter",
+      "providerLabel": "{{target}} – Anbieter",
+      "providerPlaceholder": "Anbieter der Laufzeit übernehmen",
+      "model": "Modell-ID",
+      "modelLabel": "{{target}} – Modell-ID",
+      "modelPlaceholder": "Modell-ID, einschließlich eines Namensraums"
+    },
+    "moveUp": "{{target}} nach oben verschieben",
+    "moveDown": "{{target}} nach unten verschieben",
+    "remove": "{{target}} entfernen",
+    "pool": {
+      "title": "Pool der Entscheidungsmodelle",
+      "help": "Halte einen geordneten Pool als Fallback oder verteile Aufrufe reihum. Ein leerer Pool übernimmt die Modellauswahl der Laufzeit.",
+      "strategy": "Pool-Strategie",
+      "strategyLabel": "Strategie des Brain-Pools",
+      "strategyOption": {
+        "fallback": "Fallback in Reihenfolge",
+        "round-robin": "Reihum"
+      },
+      "row": "Pool-Modell {{n}}",
+      "target": "Brain-Pool-Modell {{n}}",
+      "inherited": "Übernommene Modellauswahl wird verwendet.",
+      "add": "Modell zum Brain-Pool hinzufügen",
+      "inherit": "Übernommene Modellauswahl verwenden"
+    },
+    "voters": {
+      "title": "Stimmsitze des Rats",
+      "help": "Jeder Sitz hat ein Modell, eine Entscheidungslinse, ein Stimmgewicht und optional ein Veto. Leere Sitze übernehmen aus dem Modellpool. Die Sitzreihenfolge bestimmt die Standardlinsen.",
+      "row": "Stimmsitz {{n}}",
+      "target": "Brain-Wähler {{n}}",
+      "lens": "Entscheidungslinse",
+      "lensLabel": "Linse von Brain-Wähler {{n}}",
+      "lensPlaceholder": "Standardlinse aus der Sitzreihenfolge",
+      "weight": "Stimmgewicht",
+      "weightLabel": "Gewicht von Brain-Wähler {{n}}",
+      "weightPlaceholder": "Standard: 1",
+      "veto": "Veto",
+      "vetoLabel": "Veto von Brain-Wähler {{n}}",
+      "vetoOption": {
+        "default": "Standard von Sitz / Linse übernehmen",
+        "yes": "Ausdrücklich aktiviert",
+        "no": "Ausdrücklich deaktiviert"
+      },
+      "customLens": "Eigene Entscheidungslinse; ihr Text bleibt erhalten.",
+      "defaultLens": "Die Engine wählt die Standardlinse nach der Sitzreihenfolge.",
+      "none": "Keine expliziten Sitze. Die Engine kann sie aus dem Modellpool ableiten.",
+      "add": "Ratswähler hinzufügen",
+      "derive": "Aus dem Pool abgeleitete Ratssitze verwenden"
+    },
+    "seats": {
+      "label": "Standards für Ratssitze",
+      "title": "Sitzstandards",
+      "help": "Eine geordnete Rotation von Entscheidungslinsen und Veto-Einstellungen. Explizite Wähler übernehmen jede fehlende Einstellung aus dieser Rotation; ihre eigenen Überschreibungen haben Vorrang. Ohne explizite Wähler setzt die Engine höchstens ein Pool-Modell pro Rotationseintrag.",
+      "builtIn": "Integrierte Rotation: executor, skeptic (Veto aktiviert), auditor.",
+      "row": "Standard {{n}}",
+      "target": "Brain-Sitzstandard {{n}}",
+      "lensLabel": "Linse von Brain-Sitzstandard {{n}}",
+      "lensPlaceholder": "Linse wählen oder eigenen Text eingeben",
+      "vetoLabel": "Veto von Brain-Sitzstandard {{n}}",
+      "lensDefault": "Standard der Linse verwenden",
+      "lensRequired": "Eine Entscheidungslinse ist erforderlich.",
+      "vetoOn": "Diese Kataloglinse aktiviert das Veto standardmäßig.",
+      "vetoUnknown": "Für diese Linse ist kein Veto-Standard gemeldet; die Engine entscheidet.",
+      "add": "Sitzstandard hinzufügen",
+      "builtInUse": "Integrierte Sitzstandards verwenden"
+    },
+    "judge": {
+      "title": "Ratsrichter",
+      "help": "Wähle ein Modell für den Stichentscheid oder leere das Feld, damit die Engine den Richter aus dem Pool ableitet.",
+      "derive": "Abgeleiteten Richter verwenden"
+    }
   }
 }

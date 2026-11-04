@@ -5259,5 +5259,84 @@
       "added": "eklendi",
       "needsEnv": "Ortamda {{vars}} gerekir; ya da kaydettikten sonra bağlantı düzenleyicisinde ayarla."
     }
+  },
+  "brainTargets": {
+    "label": "Brain modelleri ve konsey düzenleyicisi",
+    "catalogPartial": "Bazı kayıtlı model katalogları kullanılamıyor. Mevcut ve özel başvurular düzenlenebilir kalır.",
+    "field": {
+      "saved": "Kayıtlı model",
+      "savedLabel": "{{target}} kayıtlı modeli",
+      "choose": "Kayıtlı kataloglardan seç…",
+      "provider": "Sağlayıcı",
+      "providerLabel": "{{target}} sağlayıcısı",
+      "providerPlaceholder": "Çalışma zamanı sağlayıcısını devral",
+      "model": "Model kimliği",
+      "modelLabel": "{{target}} model kimliği",
+      "modelPlaceholder": "Varsa ad alanıyla birlikte model kimliği"
+    },
+    "moveUp": "Yukarı taşı: {{target}}",
+    "moveDown": "Aşağı taşı: {{target}}",
+    "remove": "Kaldır: {{target}}",
+    "pool": {
+      "title": "Karar modeli havuzu",
+      "help": "Yedekleme için sıralı bir havuz tut ya da çağrıları havuzda döndür. Boş havuz çalışma zamanının model seçimini devralır.",
+      "strategy": "Havuz stratejisi",
+      "strategyLabel": "Brain havuz stratejisi",
+      "strategyOption": {
+        "fallback": "Sırayla yedekle",
+        "round-robin": "Sırayla dağıt"
+      },
+      "row": "Havuz modeli {{n}}",
+      "target": "Brain havuz modeli {{n}}",
+      "inherited": "Devralınan model seçimi kullanılıyor.",
+      "add": "Brain havuzuna model ekle",
+      "inherit": "Devralınan model seçimini kullan"
+    },
+    "voters": {
+      "title": "Konsey oy koltukları",
+      "help": "Her koltuğun bir modeli, karar merceği, oy ağırlığı ve isteğe bağlı vetosu vardır. Boş koltuklar model havuzundan devralır. Koltuk sırası varsayılan mercekleri belirler.",
+      "row": "Oy koltuğu {{n}}",
+      "target": "Brain oy vericisi {{n}}",
+      "lens": "Karar merceği",
+      "lensLabel": "Brain oy vericisi {{n}} merceği",
+      "lensPlaceholder": "Koltuk sırasından varsayılan mercek",
+      "weight": "Oy ağırlığı",
+      "weightLabel": "Brain oy vericisi {{n}} ağırlığı",
+      "weightPlaceholder": "Varsayılan: 1",
+      "veto": "Veto",
+      "vetoLabel": "Brain oy vericisi {{n}} vetosu",
+      "vetoOption": {
+        "default": "Koltuk / mercek varsayılanını devral",
+        "yes": "Açıkça etkin",
+        "no": "Açıkça devre dışı"
+      },
+      "customLens": "Özel karar merceği; metni korunur.",
+      "defaultLens": "Motor varsayılan karar merceğini koltuk sırasına göre seçer.",
+      "none": "Açık koltuk yok. Motor bunları model havuzundan türetebilir.",
+      "add": "Konsey oy vericisi ekle",
+      "derive": "Havuzdan türetilen konsey koltuklarını kullan"
+    },
+    "seats": {
+      "label": "Konsey koltuğu varsayılanları",
+      "title": "Koltuk varsayılanları",
+      "help": "Karar mercekleri ve veto tercihlerinden oluşan sıralı bir döngü. Açık oy vericiler eksik her tercihi bu döngüden devralır; kendi geçersiz kılmaları önceliklidir. Açık oy verici yoksa motor her döngü girdisine en fazla bir havuz modeli oturtur.",
+      "builtIn": "Yerleşik döngü: executor, skeptic (veto etkin), auditor.",
+      "row": "Varsayılan {{n}}",
+      "target": "Brain koltuk varsayılanı {{n}}",
+      "lensLabel": "Brain koltuk varsayılanı {{n}} merceği",
+      "lensPlaceholder": "Bir mercek seç veya özel metin gir",
+      "vetoLabel": "Brain koltuk varsayılanı {{n}} vetosu",
+      "lensDefault": "Mercek varsayılanını kullan",
+      "lensRequired": "Bir karar merceği gerekli.",
+      "vetoOn": "Bu katalog merceği vetoyu varsayılan olarak etkinleştirir.",
+      "vetoUnknown": "Bu mercek için varsayılan veto bildirilmedi; motor bunu çözer.",
+      "add": "Koltuk varsayılanı ekle",
+      "builtInUse": "Yerleşik koltuk varsayılanlarını kullan"
+    },
+    "judge": {
+      "title": "Konsey hakemi",
+      "help": "Eşitliği bozacak bir model seç ya da motorun hakemi havuzdan türetmesi için temizle.",
+      "derive": "Türetilen hakemi kullan"
+    }
   }
 }

@@ -5259,5 +5259,84 @@
       "added": "ajouté",
       "needsEnv": "Nécessite {{vars}} dans l’environnement, ou définissez-le dans l’éditeur de connexion après l’enregistrement."
     }
+  },
+  "brainTargets": {
+    "label": "Éditeur des modèles Brain et du conseil",
+    "catalogPartial": "Certains catalogues de modèles enregistrés sont indisponibles. Les références existantes et personnalisées restent modifiables.",
+    "field": {
+      "saved": "Modèle enregistré",
+      "savedLabel": "{{target}} – modèle enregistré",
+      "choose": "Choisir dans les catalogues enregistrés…",
+      "provider": "Fournisseur",
+      "providerLabel": "{{target}} – fournisseur",
+      "providerPlaceholder": "Hériter du fournisseur du runtime",
+      "model": "ID du modèle",
+      "modelLabel": "{{target}} – ID du modèle",
+      "modelPlaceholder": "ID du modèle, espace de noms compris"
+    },
+    "moveUp": "Monter {{target}}",
+    "moveDown": "Descendre {{target}}",
+    "remove": "Retirer {{target}}",
+    "pool": {
+      "title": "Pool de modèles de décision",
+      "help": "Gardez un pool ordonné pour le repli, ou répartissez les appels en rotation. Un pool vide hérite de la sélection de modèles du runtime.",
+      "strategy": "Stratégie du pool",
+      "strategyLabel": "Stratégie du pool Brain",
+      "strategyOption": {
+        "fallback": "Repli dans l’ordre",
+        "round-robin": "Rotation"
+      },
+      "row": "Modèle du pool {{n}}",
+      "target": "Modèle du pool Brain {{n}}",
+      "inherited": "Sélection de modèles héritée utilisée.",
+      "add": "Ajouter un modèle au pool Brain",
+      "inherit": "Utiliser la sélection de modèles héritée"
+    },
+    "voters": {
+      "title": "Sièges votants du conseil",
+      "help": "Chaque siège a un modèle, une perspective de décision, un poids de vote et un veto facultatif. Les sièges vides héritent du pool de modèles. L’ordre des sièges détermine les perspectives par défaut.",
+      "row": "Siège votant {{n}}",
+      "target": "Votant Brain {{n}}",
+      "lens": "Perspective de décision",
+      "lensLabel": "Perspective du votant Brain {{n}}",
+      "lensPlaceholder": "Perspective par défaut selon l’ordre des sièges",
+      "weight": "Poids du vote",
+      "weightLabel": "Poids du votant Brain {{n}}",
+      "weightPlaceholder": "Par défaut : 1",
+      "veto": "Veto",
+      "vetoLabel": "Veto du votant Brain {{n}}",
+      "vetoOption": {
+        "default": "Hériter du défaut du siège / de la perspective",
+        "yes": "Activé explicitement",
+        "no": "Désactivé explicitement"
+      },
+      "customLens": "Perspective de décision personnalisée ; son texte est conservé.",
+      "defaultLens": "Le moteur choisit la perspective par défaut selon l’ordre des sièges.",
+      "none": "Aucun siège explicite. Le moteur peut les déduire du pool de modèles.",
+      "add": "Ajouter un votant au conseil",
+      "derive": "Utiliser les sièges déduits du pool"
+    },
+    "seats": {
+      "label": "Valeurs par défaut des sièges du conseil",
+      "title": "Valeurs par défaut des sièges",
+      "help": "Une rotation ordonnée de perspectives de décision et de préférences de veto. Les votants explicites héritent de chaque préférence manquante de cette rotation ; leurs propres remplacements priment. Sans votants explicites, le moteur place au plus un modèle du pool par entrée de rotation.",
+      "builtIn": "Rotation intégrée : executor, skeptic (veto activé), auditor.",
+      "row": "Défaut {{n}}",
+      "target": "Défaut de siège Brain {{n}}",
+      "lensLabel": "Perspective du défaut de siège Brain {{n}}",
+      "lensPlaceholder": "Choisir une perspective ou saisir un texte personnalisé",
+      "vetoLabel": "Veto du défaut de siège Brain {{n}}",
+      "lensDefault": "Utiliser le défaut de la perspective",
+      "lensRequired": "Une perspective de décision est requise.",
+      "vetoOn": "Cette perspective du catalogue active le veto par défaut.",
+      "vetoUnknown": "Aucun veto par défaut n’est signalé pour cette perspective ; le moteur le détermine.",
+      "add": "Ajouter un défaut de siège",
+      "builtInUse": "Utiliser les défauts de siège intégrés"
+    },
+    "judge": {
+      "title": "Arbitre du conseil",
+      "help": "Choisissez un modèle pour départager, ou videz le champ pour que le moteur déduise l’arbitre du pool.",
+      "derive": "Utiliser l’arbitre déduit"
+    }
   }
 }

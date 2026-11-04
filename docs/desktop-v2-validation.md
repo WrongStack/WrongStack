@@ -7803,3 +7803,24 @@ copies, starting with SAGE memory.
   - A new jsdom test renders a connected server card and opens the add dialog, in English and
     then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (910); typecheck clean.
+
+### Brain models and council editor in the display language (2026-11-04)
+
+- The Brain models and council editor now follows the display language in all seven languages:
+  the decision model pool and its strategy, council voting seats with their decision lens, vote
+  weight and veto, seat defaults with their lens and veto notes, the council judge, each model
+  reference's saved-model, provider and model fields, and the move and remove actions.
+- The key group is `brainTargets`. Row names ("Brain pool model 1", "Brain voter 1") are
+  translated and the accessible names built from them follow, so English keeps
+  "Brain pool model 1 saved model", "Move Brain pool model 1 up" and so on. Turkish puts the
+  action first ("Yukarı taşı: …") so no case suffix has to be attached to a name.
+- The saved-catalog notice is read through a ref to `t`, so a language change does not reread
+  the saved model catalogs.
+- Not yet translated: the Brain policy settings page that hosts this editor. It follows in the
+  next change.
+- Still English by design: lens ids and the built-in rotation's lens names (executor, skeptic,
+  auditor), lens names and descriptions from the engine's catalog, provider and model ids.
+- Checks:
+  - A new jsdom test renders a pool model, a voter using a catalog lens, an empty seat default
+    and an empty judge, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (911); typecheck clean.

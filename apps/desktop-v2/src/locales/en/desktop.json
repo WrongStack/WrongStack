@@ -5259,5 +5259,84 @@
       "added": "added",
       "needsEnv": "Needs {{vars}} in the environment, or set it in the connection editor after saving."
     }
+  },
+  "brainTargets": {
+    "label": "Brain models and council editor",
+    "catalogPartial": "Some saved model catalogs are unavailable. Existing and custom references remain editable.",
+    "field": {
+      "saved": "Saved model",
+      "savedLabel": "{{target}} saved model",
+      "choose": "Choose from saved catalogs…",
+      "provider": "Provider",
+      "providerLabel": "{{target}} provider",
+      "providerPlaceholder": "Inherit runtime provider",
+      "model": "Model ID",
+      "modelLabel": "{{target}} model ID",
+      "modelPlaceholder": "Model ID, including any namespace"
+    },
+    "moveUp": "Move {{target}} up",
+    "moveDown": "Move {{target}} down",
+    "remove": "Remove {{target}}",
+    "pool": {
+      "title": "Decision model pool",
+      "help": "Keep an ordered pool for fallback, or rotate calls across it. An empty pool inherits the runtime’s model selection.",
+      "strategy": "Pool strategy",
+      "strategyLabel": "Brain pool strategy",
+      "strategyOption": {
+        "fallback": "Fallback in order",
+        "round-robin": "Round robin"
+      },
+      "row": "Pool model {{n}}",
+      "target": "Brain pool model {{n}}",
+      "inherited": "Using inherited model selection.",
+      "add": "Add Brain pool model",
+      "inherit": "Use inherited model selection"
+    },
+    "voters": {
+      "title": "Council voting seats",
+      "help": "Each seat has a model, a decision lens, a vote weight and optional veto. Empty seats inherit from the model pool. Seat order controls default lenses.",
+      "row": "Voting seat {{n}}",
+      "target": "Brain voter {{n}}",
+      "lens": "Decision lens",
+      "lensLabel": "Brain voter {{n}} lens",
+      "lensPlaceholder": "Default lens from seat order",
+      "weight": "Vote weight",
+      "weightLabel": "Brain voter {{n}} weight",
+      "weightPlaceholder": "Default: 1",
+      "veto": "Veto",
+      "vetoLabel": "Brain voter {{n}} veto",
+      "vetoOption": {
+        "default": "Inherit seat / lens default",
+        "yes": "Explicitly enabled",
+        "no": "Explicitly disabled"
+      },
+      "customLens": "Custom decision lens; its text is preserved.",
+      "defaultLens": "The engine chooses the default decision lens by seat order.",
+      "none": "No explicit seats. The engine may derive them from the model pool.",
+      "add": "Add council voter",
+      "derive": "Use pool-derived council seats"
+    },
+    "seats": {
+      "label": "Council seat defaults",
+      "title": "Seat defaults",
+      "help": "An ordered rotation of decision lenses and veto preferences. Explicit voters inherit each missing preference from this rotation; their own overrides take priority. Without explicit voters, the engine seats at most one pool model per rotation entry.",
+      "builtIn": "Built-in rotation: executor, skeptic (veto enabled), auditor.",
+      "row": "Default {{n}}",
+      "target": "Brain seat default {{n}}",
+      "lensLabel": "Brain seat default {{n}} lens",
+      "lensPlaceholder": "Choose a lens or enter custom text",
+      "vetoLabel": "Brain seat default {{n}} veto",
+      "lensDefault": "Use lens default",
+      "lensRequired": "A decision lens is required.",
+      "vetoOn": "This catalog lens enables veto by default.",
+      "vetoUnknown": "No veto default is reported for this lens; the engine resolves it.",
+      "add": "Add seat default",
+      "builtInUse": "Use built-in seat defaults"
+    },
+    "judge": {
+      "title": "Council judge",
+      "help": "Choose a tie-breaking model, or clear it to let the engine derive the judge from the pool.",
+      "derive": "Use derived judge"
+    }
   }
 }
