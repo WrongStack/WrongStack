@@ -8218,3 +8218,18 @@ copies, starting with SAGE memory.
   the engine, and balance values.
 - Checks: new `provider-pages-i18n.test.ts` renders a quota card, the health page and the
   model tests in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### The TechStack page in the display language (2026-11-04)
+
+- The project TechStack page (`techStack`) follows the display language in all seven
+  languages: analysis depth and model, the job card, the summary counters, the snapshot note,
+  the views, dependency filters and table, workspaces, findings and the report export.
+- `techstack-text.ts` words the engine's TechStack values (dependency status, scope, coverage,
+  job phase, depth and severity) through `techStack.value.*`, with the engine's own words as
+  the fallback for values added later. Severity and research model options now carry their
+  values explicitly.
+- Still English by design: package, ecosystem, workspace and model names, versions, file
+  paths, and errors returned by the engine. The dependency detail, trends and remediation
+  panels are translated separately.
+- Checks: new `techstack-i18n.test.ts` renders a saved snapshot in English and Turkish; desktop
+  tests pass (PASSED); typecheck clean.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T18:38:59.228Z",
+  "generatedAt": "2026-11-04T18:43:35.232Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6003,
-    "testFiles": 4996,
-    "sourceLines": 1247977,
+    "sourceFiles": 6004,
+    "testFiles": 4997,
+    "sourceLines": 1247982,
     "workspaceEdges": 240,
-    "moduleEdges": 17606,
+    "moduleEdges": 17610,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 259,
+    "testsWithoutTypecheck": 260,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -391,8 +391,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 437,
-      "testFiles": 259,
+      "sourceFiles": 438,
+      "testFiles": 260,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2788,6 +2788,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/system-prompt-presets.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/techstack-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33011,6 +33017,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/system-prompt-presets.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/techstack-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
