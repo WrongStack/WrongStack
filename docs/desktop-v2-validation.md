@@ -8233,3 +8233,17 @@ copies, starting with SAGE memory.
   panels are translated separately.
 - Checks: new `techstack-i18n.test.ts` renders a saved snapshot in English and Turkish; desktop
   tests pass (PASSED); typecheck clean.
+
+### TechStack dependency detail, trends and remediation in the display language (2026-11-04)
+
+- The rest of the TechStack page follows the display language in all seven languages: the
+  dependency detail with its version facts, registry flags, findings and evidence
+  (`techDetail`), the health trends with the chart and version movement table (`techTrends`),
+  and the remediation plan with selection, confirmation and results (`techRemedy`).
+- Evidence kinds, finding types and finding actions join the shared `techStack.value.*` words;
+  every TechStack view now words engine values through `techWord`.
+- Still English by design: package names, versions, licenses, package URLs, rationales,
+  breaking-risk notes, suggested commands and engine details.
+- Checks: new `techstack-panels-i18n.test.ts` renders a dependency with a model finding, the
+  trends and a remediation plan in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.

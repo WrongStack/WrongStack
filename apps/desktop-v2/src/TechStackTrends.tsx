@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 
 export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapshotId: string }) {
+  const { t } = useDesktopText();
   const [trend, setTrend] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -21,7 +23,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
     };
   }, [http, snapshotId]);
   if (error) return <p role="alert">{error}</p>;
-  if (!trend) return <p role="status">Reading dependency history…</p>;
+  if (!trend) return <p role="status">{t('techTrends.reading')}</p>;
   const points = entries(trend['points']);
   const max = Math.max(
     1,
@@ -30,29 +32,30 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
     ),
   );
   return (
-    <section className="tech-trends" aria-label="Dependency trends">
-      <h2>Health over time</h2>
+    <section className="tech-trends" aria-label={t('techTrends.label')}>
+      <h2>{t('techTrends.title')}</h2>
       <p>
-        {String(trend['snapshots'] ?? 0)} recorded snapshots
+        {t('techTrends.snapshots', { number: String(trend['snapshots'] ?? 0) })}
         {trend['from'] ? ` · ${trend['from']} → ${trend['to']}` : ''}
       </p>
       {typeof trend['vulnerabilityHalfLifeMs'] === 'number' && (
         <p>
-          Median vulnerability resolution:{' '}
-          {(trend['vulnerabilityHalfLifeMs'] / 86400000).toFixed(1)} days.
+          {t('techTrends.halfLife', {
+            days: (trend['vulnerabilityHalfLifeMs'] / 86400000).toFixed(1),
+          })}
         </p>
       )}
       {points.length ? (
         <>
-          <div
-            className="tech-trend-chart"
-            role="img"
-            aria-label="Outdated and vulnerable dependency counts by snapshot"
-          >
+          <div className="tech-trend-chart" role="img" aria-label={t('techTrends.chart')}>
             {points.map((point, i) => (
               <div
                 key={String(point['snapshotId'])}
-                title={`${point['createdAt']}: ${point['outdated']} outdated, ${point['vulnerable']} vulnerable`}
+                title={t('techTrends.bar', {
+                  at: String(point['createdAt']),
+                  outdated: String(point['outdated']),
+                  vulnerable: String(point['vulnerable']),
+                })}
               >
                 <div>
                   <i
@@ -68,17 +71,15 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
               </div>
             ))}
           </div>
-          <p className="field-help">
-            Accent: outdated · red: vulnerable. Snapshot numbers follow oldest to newest.
-          </p>
+          <p className="field-help">{t('techTrends.legend')}</p>
           <div className="tech-table-scroll">
             <table>
               <thead>
                 <tr>
-                  <th>Observed</th>
-                  <th>Dependencies</th>
-                  <th>Outdated</th>
-                  <th>Vulnerable</th>
+                  <th>{t('techTrends.col.observed')}</th>
+                  <th>{t('techTrends.col.dependencies')}</th>
+                  <th>{t('techTrends.col.outdated')}</th>
+                  <th>{t('techTrends.col.vulnerable')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,18 +96,18 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
           </div>
         </>
       ) : (
-        <p>No snapshots recorded yet.</p>
+        <p>{t('techTrends.none')}</p>
       )}
-      <h3>Version movement</h3>
+      <h3>{t('techTrends.movement')}</h3>
       <div className="tech-table-scroll">
         <table>
           <thead>
             <tr>
-              <th>Dependency</th>
-              <th>Version</th>
-              <th>Observed age</th>
-              <th>Changes</th>
-              <th>Changes/day</th>
+              <th>{t('techTrends.col.dependency')}</th>
+              <th>{t('techTrends.col.version')}</th>
+              <th>{t('techTrends.col.age')}</th>
+              <th>{t('techTrends.col.changes')}</th>
+              <th>{t('techTrends.col.perDay')}</th>
             </tr>
           </thead>
           <tbody>
@@ -116,8 +117,12 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
                   {String(item['name'])}
                   <small>{String(item['ecosystem'])}</small>
                 </td>
-                <td>{String(item['currentVersion'] ?? 'Not reported')}</td>
-                <td>{(Number(item['lockedVersionAgeMs']) / 86400000).toFixed(1)} days</td>
+                <td>{String(item['currentVersion'] ?? t('techTrends.notReported'))}</td>
+                <td>
+                  {t('techTrends.days', {
+                    days: (Number(item['lockedVersionAgeMs']) / 86400000).toFixed(1),
+                  })}
+                </td>
                 <td>{String(item['versionChanges'])}</td>
                 <td>{Number(item['upgradeVelocityPerDay']).toFixed(3)}</td>
               </tr>
