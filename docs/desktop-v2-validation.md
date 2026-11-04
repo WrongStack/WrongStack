@@ -7192,3 +7192,22 @@ copies, starting with SAGE memory.
 - Checks:
   - The workspace header, search and changes view render in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Find bars, draft merge, bulk file actions and content search in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - find and replace in the editor, and find in read-only source and in the conversation, with
+    their match counts;
+  - merging a stored draft change by change;
+  - the bulk move, copy, rename and delete dialog;
+  - project content search with its limits, omissions and results;
+  - the file tree and file menu labels.
+- The find bar's scope is now `'source' | 'conversation'` instead of an object of English words,
+  so each language words the count in its own order ("2 satırda 2 eşleşme").
+- English is unchanged ("2 matches on 2 lines", "1 matches" as before), so the native file
+  scenarios keep matching.
+- The bulk summary after a run and rename problems still come from the file model in English.
+- Checks:
+  - The find counts for source and conversation, the find-and-replace bar and the draft merge
+    render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.

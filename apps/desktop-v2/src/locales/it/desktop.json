@@ -1138,5 +1138,132 @@
     "reload": "Ricarica dal disco",
     "overwrite": "Sovrascrivi con la mia bozza",
     "working": "In corso…"
+  },
+  "find": {
+    "placeholder": "Trova",
+    "matchCase": "Maiuscole/minuscole",
+    "close": "Chiudi la ricerca",
+    "replaceLabel": "Trova e sostituisci",
+    "inFile": "Trova nel file",
+    "position": "{{current}} di {{count}}",
+    "matches": "{{count}} corrispondenze",
+    "previous": "Corrispondenza precedente",
+    "next": "Corrispondenza successiva",
+    "replaceWith": "Sostituisci con",
+    "replacePlaceholder": "Sostituisci",
+    "replace": "Sostituisci",
+    "replaceAll": "Sostituisci tutto",
+    "undo": "Annulla «Sostituisci tutto»",
+    "replacedOne": "1 corrispondenza sostituita.",
+    "replacedMany": "{{count}} corrispondenze sostituite.",
+    "tooMany": "Più di {{max}} corrispondenze; restringi la ricerca prima di sostituire tutto.",
+    "none": "Nessuna corrispondenza da sostituire.",
+    "restored": "Ripristinato il testo precedente alla sostituzione di {{count}} corrispondenze.",
+    "source": {
+      "region": "Trova nel sorgente di sola lettura",
+      "input": "Trova nel sorgente",
+      "countOne": "{{count}} corrispondenze su {{lines}} riga",
+      "countMany": "{{count}} corrispondenze su {{lines}} righe",
+      "at": "riga {{line}}",
+      "previous": "Riga corrispondente precedente",
+      "next": "Riga corrispondente successiva"
+    },
+    "conversation": {
+      "region": "Trova nella conversazione",
+      "input": "Trova nella conversazione",
+      "countOne": "{{count}} corrispondenze in {{lines}} messaggio",
+      "countMany": "{{count}} corrispondenze in {{lines}} messaggi",
+      "at": "messaggio {{line}}",
+      "previous": "Messaggio corrispondente precedente",
+      "next": "Messaggio corrispondente successivo"
+    }
+  },
+  "merge": {
+    "summary": "Unisci modifica per modifica ({{count}})",
+    "changes": "Modifiche della bozza",
+    "yours": "Le tue righe per la modifica {{n}}",
+    "stored": "Righe salvate per la modifica {{n}}",
+    "noLines": "(nessuna riga)",
+    "keepFor": "Mantieni per la modifica {{n}}",
+    "choice": {
+      "mine": "La mia",
+      "stored": "Salvata",
+      "both": "Entrambe, prima la mia"
+    },
+    "merged": "Bozza unita",
+    "keep": "Mantieni la bozza unita"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "Sposta {{count}} elemento selezionato",
+      "copy": "Copia {{count}} elemento selezionato",
+      "rename": "Rinomina {{count}} elemento selezionato",
+      "delete": "Elimina {{count}} elemento selezionato"
+    },
+    "titleMany": {
+      "move": "Sposta {{count}} elementi selezionati",
+      "copy": "Copia {{count}} elementi selezionati",
+      "rename": "Rinomina {{count}} elementi selezionati",
+      "delete": "Elimina {{count}} elementi selezionati"
+    },
+    "preview": "Anteprima della rinomina",
+    "nested": "Gli elementi in una cartella selezionata sono inclusi con quella cartella.",
+    "destination": "Cartella di destinazione (relativa al progetto; vuota = radice del progetto)",
+    "copyDestination": "Destinazione della copia multipla",
+    "moveDestination": "Destinazione dello spostamento multiplo",
+    "findNames": "Trova nei nomi",
+    "replaceNames": "Sostituisci nei nomi",
+    "renameHelp": "Il testo letterale di ogni nome viene sostituito; le cartelle restano dove sono. Un elemento esistente con il nuovo nome non viene mai sovrascritto: quella rinomina fallisce e viene segnalata.",
+    "unchanged": "{{count}} invariati.",
+    "deleteHelp": "Le cartelle selezionate vengono eliminate con il loro contenuto. Ogni elemento viene eliminato separatamente; il risultato elenca quelli non riusciti.",
+    "unsaved": "Salva o chiudi prima i file modificati: {{paths}}.",
+    "copyAtomic": "Ogni elemento viene copiato dalla sua versione salvata, oppure nessuno: il motore li copia prima accanto alle destinazioni e li sposta al loro posto solo quando tutti sono completi. Un file o una cartella esistente con lo stesso nome non viene mai sovrascritto. Le cartelle che contengono collegamenti simbolici vengono rifiutate e una copia è limitata a 5.000 voci e 256 MiB.",
+    "copyText": "I file di testo vengono copiati dalla loro versione salvata; un file o una cartella esistente con lo stesso nome non viene mai sovrascritto. Una cartella viene copiata solo se tutti i file elencati sono di testo (al massimo 200 file, 8 MiB); altrimenti non se ne copia nulla. Le voci nascoste, le cartelle saltate come .git e node_modules e i collegamenti simbolici a file non vengono elencati dal motore né copiati.",
+    "intoItselfCopy": "Una cartella non può essere copiata in sé stessa: {{paths}}.",
+    "intoItselfMove": "Una cartella non può essere spostata in sé stessa: {{paths}}.",
+    "problems": "Problemi di rinomina",
+    "stop": "Fermati dopo l'elemento corrente",
+    "moveTo": "Sposta {{count}} in {{target}}",
+    "copyTo": "Copia {{count}} in {{target}}",
+    "projectRoot": "radice del progetto",
+    "renameCount": "Rinomina {{count}}",
+    "deleteCount": "Elimina {{count}}"
+  },
+  "contentSearch": {
+    "eyebrow": "FILE DEL PROGETTO",
+    "title": "Cerca nei contenuti del progetto",
+    "close": "Chiudi la ricerca nei contenuti",
+    "help": "Cerca nel testo UTF-8 salvato su disco. Le bozze non salvate dell’editor sono separate. I risultati mostrano la prima corrispondenza di ogni riga.",
+    "findText": "Testo da cercare",
+    "findLabel": "Cerca testo nel progetto",
+    "placeholder": "Un simbolo, una frase o un frammento letterale…",
+    "folder": "Ambito della cartella",
+    "folderLabel": "Cartella della ricerca nei contenuti",
+    "folderPlaceholder": "Intero progetto",
+    "ignored": "Includi i file sorgente ignorati",
+    "searching": "Ricerca nel motore del progetto… Chiudere questa finestra scarta i risultati; la scansione limitata può terminare in background.",
+    "lines": "{{count}} righe corrispondenti",
+    "filesRead": "{{count}} file letti",
+    "partial": "Risultati parziali — restringi la cartella o il testo cercato.",
+    "finished": "Ricerca completata.",
+    "for": "Per «{{query}}» in {{scope}}.",
+    "wholeProject": "tutto il progetto",
+    "reached": "Raggiunto: {{reasons}}.",
+    "reason": {
+      "time": "budget di tempo",
+      "files": "budget di file",
+      "entries": "budget di voci di directory",
+      "bytes": "budget di lettura",
+      "matches": "limite di risultati"
+    },
+    "omitted": "Omessi: {{binary}} binari/non UTF-8, {{oversized}} oltre 1 MiB, {{unreadable}} file illeggibili/in modifica, {{links}} collegamenti simbolici, {{depth}} directory profonde.",
+    "results": "Risultati della ricerca nei contenuti",
+    "openHit": "Apri {{path}} riga {{line}}",
+    "none": "Nessuna riga corrispondente nell'ambito cercato.",
+    "limits": "Ricerca letterale · fino a 200 righe corrispondenti · 5.000 file / 20.000 voci · 32 MiB letti / 5 secondi. I file nascosti e le directory di build/dipendenze seguono la regola dell’esplora risorse."
+  },
+  "tree": {
+    "label": "Albero delle directory del progetto",
+    "closeMenu": "Chiudi il menu del file"
   }
 }

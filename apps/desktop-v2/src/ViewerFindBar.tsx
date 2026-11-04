@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { findMatches, MAX_MATCHES, matchLines } from './editor-find';
 
 export interface ViewerFind {
@@ -9,23 +10,8 @@ export interface ViewerFind {
   current: number;
 }
 
-/** The names a find bar uses for what it searches. */
-export interface FindScope {
-  region: string;
-  input: string;
-  /** One content line, and several. */
-  one: string;
-  many: string;
-  /** "3 matches on 2 lines". */
-  preposition: string;
-}
-const SOURCE_SCOPE: FindScope = {
-  region: 'Find in read-only source',
-  input: 'Find in source',
-  one: 'line',
-  many: 'lines',
-  preposition: 'on',
-};
+/** What a find bar searches: a file's read-only source lines, or the conversation's messages. */
+export type FindScope = 'source' | 'conversation';
 
 /**
  * Find for the read-only source view: matching lines are marked and stepped through. Nothing is
@@ -35,7 +21,7 @@ export function ViewerFindBar({
   content,
   onChange,
   onClose,
-  scope = SOURCE_SCOPE,
+  scope = 'source',
 }: {
   content: string;
   onChange: (find: ViewerFind) => void;
@@ -43,7 +29,7 @@ export function ViewerFindBar({
   /** What is searched and what one content line stands for. */
   scope?: FindScope;
 }) {
-  const unit = [scope.one, scope.many] as const;
+  const { t } = useDesktopText();
   const [query, setQuery] = useState(''),
     [caseSensitive, setCaseSensitive] = useState(false),
     [index, setIndex] = useState(-1);
@@ -68,10 +54,10 @@ export function ViewerFindBar({
   const count =
     matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : String(matches.length);
   return (
-    <section className="editor-find-bar" aria-label={scope.region}>
+    <section className="editor-find-bar" aria-label={t(`find.${scope}.region`)}>
       <input
-        aria-label={scope.input}
-        placeholder="Find"
+        aria-label={t(`find.${scope}.input`)}
+        placeholder={t('find.placeholder')}
         value={query}
         // biome-ignore lint/a11y/noAutofocus: the bar opens on an explicit Find request.
         autoFocus
@@ -88,13 +74,16 @@ export function ViewerFindBar({
       />
       <span role="status" className="editor-find-count">
         {query
-          ? `${count} matches ${scope.preposition} ${lines.length} ${lines.length === 1 ? unit[0] : unit[1]}${index >= 0 ? ` · ${unit[0]} ${lines[index]}` : ''}`
+          ? `${t(lines.length === 1 ? `find.${scope}.countOne` : `find.${scope}.countMany`, {
+              count,
+              lines: lines.length,
+            })}${index >= 0 ? ` · ${t(`find.${scope}.at`, { line: lines[index] })}` : ''}`
           : ''}
       </span>
       <button
         type="button"
         className="icon-button"
-        aria-label={`Previous matching ${unit[0]}`}
+        aria-label={t(`find.${scope}.previous`)}
         onClick={() => go(-1)}
       >
         <ChevronUp size={13} />
@@ -102,7 +91,7 @@ export function ViewerFindBar({
       <button
         type="button"
         className="icon-button"
-        aria-label={`Next matching ${unit[0]}`}
+        aria-label={t(`find.${scope}.next`)}
         onClick={() => go(1)}
       >
         <ChevronDown size={13} />
@@ -116,9 +105,9 @@ export function ViewerFindBar({
             setIndex(-1);
           }}
         />{' '}
-        Match case
+        {t('find.matchCase')}
       </label>
-      <button type="button" className="icon-button" aria-label="Close find" onClick={onClose}>
+      <button type="button" className="icon-button" aria-label={t('find.close')} onClick={onClose}>
         <X size={13} />
       </button>
     </section>

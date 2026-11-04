@@ -1138,5 +1138,132 @@
     "reload": "Recargar desde el disco",
     "overwrite": "Sobrescribir con mi borrador",
     "working": "Trabajando…"
+  },
+  "find": {
+    "placeholder": "Buscar",
+    "matchCase": "Coincidir mayúsculas",
+    "close": "Cerrar búsqueda",
+    "replaceLabel": "Buscar y reemplazar",
+    "inFile": "Buscar en el archivo",
+    "position": "{{current}} de {{count}}",
+    "matches": "{{count}} coincidencias",
+    "previous": "Coincidencia anterior",
+    "next": "Coincidencia siguiente",
+    "replaceWith": "Reemplazar con",
+    "replacePlaceholder": "Reemplazar",
+    "replace": "Reemplazar",
+    "replaceAll": "Reemplazar todo",
+    "undo": "Deshacer reemplazar todo",
+    "replacedOne": "1 coincidencia reemplazada.",
+    "replacedMany": "{{count}} coincidencias reemplazadas.",
+    "tooMany": "Más de {{max}} coincidencias; acota la búsqueda antes de reemplazar todo.",
+    "none": "No hay coincidencias que reemplazar.",
+    "restored": "Se restauró el texto anterior al reemplazo de {{count}} coincidencias.",
+    "source": {
+      "region": "Buscar en el código de solo lectura",
+      "input": "Buscar en el código",
+      "countOne": "{{count}} coincidencias en {{lines}} línea",
+      "countMany": "{{count}} coincidencias en {{lines}} líneas",
+      "at": "línea {{line}}",
+      "previous": "Línea coincidente anterior",
+      "next": "Línea coincidente siguiente"
+    },
+    "conversation": {
+      "region": "Buscar en la conversación",
+      "input": "Buscar en la conversación",
+      "countOne": "{{count}} coincidencias en {{lines}} mensaje",
+      "countMany": "{{count}} coincidencias en {{lines}} mensajes",
+      "at": "mensaje {{line}}",
+      "previous": "Mensaje coincidente anterior",
+      "next": "Mensaje coincidente siguiente"
+    }
+  },
+  "merge": {
+    "summary": "Combinar cambio a cambio ({{count}})",
+    "changes": "Cambios del borrador",
+    "yours": "Tus líneas para el cambio {{n}}",
+    "stored": "Líneas guardadas para el cambio {{n}}",
+    "noLines": "(sin líneas)",
+    "keepFor": "Conservar para el cambio {{n}}",
+    "choice": {
+      "mine": "La mía",
+      "stored": "Guardada",
+      "both": "Ambas, primero la mía"
+    },
+    "merged": "Borrador combinado",
+    "keep": "Conservar el borrador combinado"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "Mover {{count}} elemento seleccionado",
+      "copy": "Copiar {{count}} elemento seleccionado",
+      "rename": "Renombrar {{count}} elemento seleccionado",
+      "delete": "Eliminar {{count}} elemento seleccionado"
+    },
+    "titleMany": {
+      "move": "Mover {{count}} elementos seleccionados",
+      "copy": "Copiar {{count}} elementos seleccionados",
+      "rename": "Renombrar {{count}} elementos seleccionados",
+      "delete": "Eliminar {{count}} elementos seleccionados"
+    },
+    "preview": "Vista previa del cambio de nombre",
+    "nested": "Los elementos de una carpeta seleccionada se incluyen con esa carpeta.",
+    "destination": "Carpeta de destino (relativa al proyecto; vacía es la raíz del proyecto)",
+    "copyDestination": "Destino de la copia en lote",
+    "moveDestination": "Destino del movimiento en lote",
+    "findNames": "Buscar en los nombres",
+    "replaceNames": "Reemplazar en los nombres",
+    "renameHelp": "Se reemplaza el texto literal de cada nombre; las carpetas se quedan donde están. Nunca se sobrescribe un elemento existente con el nuevo nombre: ese cambio de nombre falla y se informa.",
+    "unchanged": "{{count}} sin cambios.",
+    "deleteHelp": "Las carpetas seleccionadas se eliminan con su contenido. Cada elemento se elimina por separado; el resultado enumera los que fallen.",
+    "unsaved": "Guarda o cierra primero los archivos editados: {{paths}}.",
+    "copyAtomic": "Cada elemento se copia desde su versión guardada, o ninguno: el motor los copia primero junto a sus destinos y solo los mueve a su sitio cuando todos están completos. Nunca se sobrescribe un archivo o carpeta existente con el mismo nombre. Se rechazan las carpetas con enlaces simbólicos, y una copia se limita a 5.000 entradas y 256 MiB.",
+    "copyText": "Los archivos de texto se copian desde su versión guardada; nunca se sobrescribe un archivo o carpeta existente con el mismo nombre. Una carpeta solo se copia si todos sus archivos listados son de texto (como máximo 200 archivos, 8 MiB); si no, no se copia nada de ella. Las entradas ocultas, las carpetas omitidas como .git y node_modules y los enlaces simbólicos a archivos no los lista el motor y no se copian.",
+    "intoItselfCopy": "Una carpeta no se puede copiar dentro de sí misma: {{paths}}.",
+    "intoItselfMove": "Una carpeta no se puede mover dentro de sí misma: {{paths}}.",
+    "problems": "Problemas al renombrar",
+    "stop": "Detener tras el elemento actual",
+    "moveTo": "Mover {{count}} a {{target}}",
+    "copyTo": "Copiar {{count}} a {{target}}",
+    "projectRoot": "raíz del proyecto",
+    "renameCount": "Renombrar {{count}}",
+    "deleteCount": "Eliminar {{count}}"
+  },
+  "contentSearch": {
+    "eyebrow": "ARCHIVOS DEL PROYECTO",
+    "title": "Buscar en el contenido del proyecto",
+    "close": "Cerrar la búsqueda de contenido",
+    "help": "Busca en el texto UTF-8 guardado en el disco. Los borradores sin guardar del editor van aparte. Los resultados muestran la primera coincidencia de cada línea.",
+    "findText": "Texto a buscar",
+    "findLabel": "Buscar texto en el proyecto",
+    "placeholder": "Un símbolo, una frase o un fragmento literal…",
+    "folder": "Ámbito de carpeta",
+    "folderLabel": "Carpeta de la búsqueda de contenido",
+    "folderPlaceholder": "Todo el proyecto",
+    "ignored": "Incluir archivos de código ignorados",
+    "searching": "Buscando en el motor del proyecto… Cerrar esta ventana descarta los resultados; el análisis acotado puede terminar en segundo plano.",
+    "lines": "{{count}} líneas coincidentes",
+    "filesRead": "{{count}} archivos leídos",
+    "partial": "Resultados parciales — acota la carpeta o el texto buscado.",
+    "finished": "Búsqueda terminada.",
+    "for": "Para «{{query}}» en {{scope}}.",
+    "wholeProject": "todo el proyecto",
+    "reached": "Alcanzado: {{reasons}}.",
+    "reason": {
+      "time": "presupuesto de tiempo",
+      "files": "presupuesto de archivos",
+      "entries": "presupuesto de entradas de directorio",
+      "bytes": "presupuesto de lectura",
+      "matches": "límite de resultados"
+    },
+    "omitted": "Omitidos: {{binary}} binarios/no UTF-8, {{oversized}} de más de 1 MiB, {{unreadable}} archivos ilegibles/cambiantes, {{links}} enlaces simbólicos, {{depth}} directorios profundos.",
+    "results": "Resultados de la búsqueda de contenido",
+    "openHit": "Abrir {{path}} línea {{line}}",
+    "none": "No hay líneas coincidentes en el ámbito buscado.",
+    "limits": "Búsqueda literal · hasta 200 líneas coincidentes · 5.000 archivos / 20.000 entradas · 32 MiB leídos / 5 segundos. Los archivos ocultos y los directorios de compilación/dependencias siguen la política del explorador."
+  },
+  "tree": {
+    "label": "Árbol de directorios del proyecto",
+    "closeMenu": "Cerrar el menú del archivo"
   }
 }

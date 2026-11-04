@@ -1138,5 +1138,132 @@
     "reload": "Recharger depuis le disque",
     "overwrite": "Écraser avec mon brouillon",
     "working": "Traitement…"
+  },
+  "find": {
+    "placeholder": "Rechercher",
+    "matchCase": "Respecter la casse",
+    "close": "Fermer la recherche",
+    "replaceLabel": "Rechercher et remplacer",
+    "inFile": "Rechercher dans le fichier",
+    "position": "{{current}} sur {{count}}",
+    "matches": "{{count}} résultats",
+    "previous": "Résultat précédent",
+    "next": "Résultat suivant",
+    "replaceWith": "Remplacer par",
+    "replacePlaceholder": "Remplacer",
+    "replace": "Remplacer",
+    "replaceAll": "Tout remplacer",
+    "undo": "Annuler « Tout remplacer »",
+    "replacedOne": "1 résultat remplacé.",
+    "replacedMany": "{{count}} résultats remplacés.",
+    "tooMany": "Plus de {{max}} résultats ; affinez la recherche avant de tout remplacer.",
+    "none": "Aucun résultat à remplacer.",
+    "restored": "Texte rétabli tel qu’avant le remplacement de {{count}} résultats.",
+    "source": {
+      "region": "Rechercher dans la source en lecture seule",
+      "input": "Rechercher dans la source",
+      "countOne": "{{count}} résultats sur {{lines}} ligne",
+      "countMany": "{{count}} résultats sur {{lines}} lignes",
+      "at": "ligne {{line}}",
+      "previous": "Ligne correspondante précédente",
+      "next": "Ligne correspondante suivante"
+    },
+    "conversation": {
+      "region": "Rechercher dans la conversation",
+      "input": "Rechercher dans la conversation",
+      "countOne": "{{count}} résultats dans {{lines}} message",
+      "countMany": "{{count}} résultats dans {{lines}} messages",
+      "at": "message {{line}}",
+      "previous": "Message correspondant précédent",
+      "next": "Message correspondant suivant"
+    }
+  },
+  "merge": {
+    "summary": "Fusionner modification par modification ({{count}})",
+    "changes": "Modifications du brouillon",
+    "yours": "Vos lignes pour la modification {{n}}",
+    "stored": "Lignes enregistrées pour la modification {{n}}",
+    "noLines": "(aucune ligne)",
+    "keepFor": "Garder pour la modification {{n}}",
+    "choice": {
+      "mine": "La mienne",
+      "stored": "Enregistrée",
+      "both": "Les deux, la mienne d’abord"
+    },
+    "merged": "Brouillon fusionné",
+    "keep": "Garder le brouillon fusionné"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "Déplacer {{count}} élément sélectionné",
+      "copy": "Copier {{count}} élément sélectionné",
+      "rename": "Renommer {{count}} élément sélectionné",
+      "delete": "Supprimer {{count}} élément sélectionné"
+    },
+    "titleMany": {
+      "move": "Déplacer {{count}} éléments sélectionnés",
+      "copy": "Copier {{count}} éléments sélectionnés",
+      "rename": "Renommer {{count}} éléments sélectionnés",
+      "delete": "Supprimer {{count}} éléments sélectionnés"
+    },
+    "preview": "Aperçu du renommage",
+    "nested": "Les éléments d’un dossier sélectionné sont inclus avec ce dossier.",
+    "destination": "Dossier de destination (relatif au projet ; vide = racine du projet)",
+    "copyDestination": "Destination de la copie groupée",
+    "moveDestination": "Destination du déplacement groupé",
+    "findNames": "Rechercher dans les noms",
+    "replaceNames": "Remplacer dans les noms",
+    "renameHelp": "Le texte littéral de chaque nom est remplacé ; les dossiers restent en place. Un élément existant portant le nouveau nom n’est jamais écrasé : ce renommage échoue et est signalé.",
+    "unchanged": "{{count}} inchangés.",
+    "deleteHelp": "Les dossiers sélectionnés sont supprimés avec leur contenu. Chaque élément est supprimé séparément ; le résultat liste les échecs.",
+    "unsaved": "Enregistrez ou fermez d’abord les fichiers modifiés : {{paths}}.",
+    "copyAtomic": "Chaque élément est copié depuis sa version enregistrée, ou aucun : le moteur les copie d’abord à côté de leurs cibles et ne les met en place qu’une fois tous terminés. Un fichier ou dossier existant portant le même nom n’est jamais écrasé. Les dossiers contenant des liens symboliques sont refusés, et une copie est limitée à 5 000 entrées et 256 Mio.",
+    "copyText": "Les fichiers texte sont copiés depuis leur version enregistrée ; un fichier ou dossier existant portant le même nom n’est jamais écrasé. Un dossier n’est copié que si tous ses fichiers listés sont du texte (200 fichiers et 8 Mio au plus) ; sinon rien n’en est copié. Les entrées masquées, les dossiers ignorés comme .git et node_modules et les liens symboliques vers des fichiers ne sont ni listés par le moteur ni copiés.",
+    "intoItselfCopy": "Un dossier ne peut pas être copié dans lui-même : {{paths}}.",
+    "intoItselfMove": "Un dossier ne peut pas être déplacé dans lui-même : {{paths}}.",
+    "problems": "Problèmes de renommage",
+    "stop": "Arrêter après l’élément en cours",
+    "moveTo": "Déplacer {{count}} vers {{target}}",
+    "copyTo": "Copier {{count}} vers {{target}}",
+    "projectRoot": "racine du projet",
+    "renameCount": "Renommer {{count}}",
+    "deleteCount": "Supprimer {{count}}"
+  },
+  "contentSearch": {
+    "eyebrow": "FICHIERS DU PROJET",
+    "title": "Rechercher dans le contenu du projet",
+    "close": "Fermer la recherche de contenu",
+    "help": "Recherche dans le texte UTF-8 enregistré sur le disque. Les brouillons non enregistrés de l’éditeur sont à part. Les résultats montrent la première correspondance de chaque ligne.",
+    "findText": "Texte à rechercher",
+    "findLabel": "Rechercher du texte dans le projet",
+    "placeholder": "Un symbole, une expression ou un extrait littéral…",
+    "folder": "Portée du dossier",
+    "folderLabel": "Dossier de la recherche de contenu",
+    "folderPlaceholder": "Projet entier",
+    "ignored": "Inclure les fichiers source ignorés",
+    "searching": "Recherche dans le moteur du projet… Fermer cette fenêtre abandonne les résultats ; l’analyse bornée peut se terminer en arrière-plan.",
+    "lines": "{{count}} lignes correspondantes",
+    "filesRead": "{{count}} fichiers lus",
+    "partial": "Résultats partiels — restreignez le dossier ou le texte recherché.",
+    "finished": "Recherche terminée.",
+    "for": "Pour « {{query}} » dans {{scope}}.",
+    "wholeProject": "tout le projet",
+    "reached": "Atteint : {{reasons}}.",
+    "reason": {
+      "time": "budget de temps",
+      "files": "budget de fichiers",
+      "entries": "budget d'entrées de répertoire",
+      "bytes": "budget de lecture",
+      "matches": "limite de résultats"
+    },
+    "omitted": "Omis : {{binary}} binaires/non UTF-8, {{oversized}} de plus de 1 Mio, {{unreadable}} fichiers illisibles/en cours de modification, {{links}} liens symboliques, {{depth}} répertoires profonds.",
+    "results": "Résultats de la recherche de contenu",
+    "openHit": "Ouvrir {{path}} ligne {{line}}",
+    "none": "Aucune ligne correspondante dans la portée recherchée.",
+    "limits": "Recherche littérale · jusqu’à 200 lignes correspondantes · 5 000 fichiers / 20 000 entrées · 32 Mio lus / 5 secondes. Les fichiers masqués et les répertoires de build/dépendances suivent la règle de l’explorateur."
+  },
+  "tree": {
+    "label": "Arborescence du projet",
+    "closeMenu": "Fermer le menu du fichier"
   }
 }

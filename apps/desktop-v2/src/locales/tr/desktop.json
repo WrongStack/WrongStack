@@ -1138,5 +1138,132 @@
     "reload": "Diskten yeniden yükle",
     "overwrite": "Taslağımla üzerine yaz",
     "working": "Çalışıyor…"
+  },
+  "find": {
+    "placeholder": "Bul",
+    "matchCase": "Büyük/küçük harf eşleşsin",
+    "close": "Bulmayı kapat",
+    "replaceLabel": "Bul ve değiştir",
+    "inFile": "Dosyada bul",
+    "position": "{{current}} / {{count}}",
+    "matches": "{{count}} eşleşme",
+    "previous": "Önceki eşleşme",
+    "next": "Sonraki eşleşme",
+    "replaceWith": "Şununla değiştir",
+    "replacePlaceholder": "Değiştir",
+    "replace": "Değiştir",
+    "replaceAll": "Tümünü değiştir",
+    "undo": "Tümünü değiştirmeyi geri al",
+    "replacedOne": "1 eşleşme değiştirildi.",
+    "replacedMany": "{{count}} eşleşme değiştirildi.",
+    "tooMany": "{{max}} eşleşmeden fazla; tümünü değiştirmeden önce aramayı daralt.",
+    "none": "Değiştirilecek eşleşme yok.",
+    "restored": "{{count}} eşleşme değiştirilmeden önceki metin geri yüklendi.",
+    "source": {
+      "region": "Salt okunur kaynakta bul",
+      "input": "Kaynakta bul",
+      "countOne": "{{lines}} satırda {{count}} eşleşme",
+      "countMany": "{{lines}} satırda {{count}} eşleşme",
+      "at": "satır {{line}}",
+      "previous": "Önceki eşleşen satır",
+      "next": "Sonraki eşleşen satır"
+    },
+    "conversation": {
+      "region": "Konuşmada bul",
+      "input": "Konuşmada bul",
+      "countOne": "{{lines}} mesajda {{count}} eşleşme",
+      "countMany": "{{lines}} mesajda {{count}} eşleşme",
+      "at": "mesaj {{line}}",
+      "previous": "Önceki eşleşen mesaj",
+      "next": "Sonraki eşleşen mesaj"
+    }
+  },
+  "merge": {
+    "summary": "Değişiklik değişiklik birleştir ({{count}})",
+    "changes": "Taslak değişiklikleri",
+    "yours": "{{n}}. değişiklik için senin satırların",
+    "stored": "{{n}}. değişiklik için saklanan satırlar",
+    "noLines": "(satır yok)",
+    "keepFor": "{{n}}. değişiklikte tut",
+    "choice": {
+      "mine": "Benimki",
+      "stored": "Saklanan",
+      "both": "İkisi de, önce benimki"
+    },
+    "merged": "Birleştirilmiş taslak",
+    "keep": "Birleştirilmiş taslağı tut"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "{{count}} seçili öğeyi taşı",
+      "copy": "{{count}} seçili öğeyi kopyala",
+      "rename": "{{count}} seçili öğeyi yeniden adlandır",
+      "delete": "{{count}} seçili öğeyi sil"
+    },
+    "titleMany": {
+      "move": "{{count}} seçili öğeyi taşı",
+      "copy": "{{count}} seçili öğeyi kopyala",
+      "rename": "{{count}} seçili öğeyi yeniden adlandır",
+      "delete": "{{count}} seçili öğeyi sil"
+    },
+    "preview": "Yeniden adlandırma önizlemesi",
+    "nested": "Seçili bir klasörün içindeki öğeler o klasörle birlikte dahil edilir.",
+    "destination": "Hedef klasör (projeye göre; boş bırakılırsa proje kökü)",
+    "copyDestination": "Toplu kopyalama hedefi",
+    "moveDestination": "Toplu taşıma hedefi",
+    "findNames": "Adlarda bul",
+    "replaceNames": "Adlarda değiştir",
+    "renameHelp": "Her addaki düz metin değiştirilir; klasörler yerinde kalır. Yeni adı taşıyan mevcut bir öğenin üzerine asla yazılmaz: o yeniden adlandırma başarısız olur ve bildirilir.",
+    "unchanged": "{{count}} değişmedi.",
+    "deleteHelp": "Seçili klasörler içerikleriyle birlikte silinir. Her öğe ayrı silinir; sonuç başarısız olanları listeler.",
+    "unsaved": "Önce düzenlenen dosyaları kaydet ya da kapat: {{paths}}.",
+    "copyAtomic": "Her öğe kayıtlı sürümünden kopyalanır ya da hiçbiri kopyalanmaz: motor önce onları hedeflerinin yanına kopyalar ve ancak hepsi tamamlanınca yerlerine taşır. Aynı adı taşıyan mevcut bir dosya ya da klasörün üzerine asla yazılmaz. Sembolik bağlantı içeren klasörler reddedilir ve bir kopyalama 5.000 girdi ve 256 MiB ile sınırlıdır.",
+    "copyText": "Metin dosyaları kayıtlı sürümlerinden kopyalanır; aynı adı taşıyan mevcut bir dosya ya da klasörün üzerine asla yazılmaz. Bir klasör, yalnızca listelenen tüm dosyaları metinse kopyalanır (en çok 200 dosya, 8 MiB); aksi halde hiçbir parçası kopyalanmaz. Gizli girdiler, .git ve node_modules gibi atlanan klasörler ve dosyalara giden sembolik bağlantılar motor tarafından listelenmez ve kopyalanmaz.",
+    "intoItselfCopy": "Bir klasör kendi içine kopyalanamaz: {{paths}}.",
+    "intoItselfMove": "Bir klasör kendi içine taşınamaz: {{paths}}.",
+    "problems": "Yeniden adlandırma sorunları",
+    "stop": "Geçerli öğeden sonra dur",
+    "moveTo": "{{count}} öğeyi {{target}} konumuna taşı",
+    "copyTo": "{{count}} öğeyi {{target}} konumuna kopyala",
+    "projectRoot": "proje kökü",
+    "renameCount": "{{count}} öğeyi yeniden adlandır",
+    "deleteCount": "{{count}} öğeyi sil"
+  },
+  "contentSearch": {
+    "eyebrow": "PROJE DOSYALARI",
+    "title": "Proje içeriğinde ara",
+    "close": "İçerik aramasını kapat",
+    "help": "Diskteki kayıtlı UTF-8 metinde ara. Kaydedilmemiş düzenleyici taslakları ayrıdır. Sonuçlar her satırdaki ilk eşleşmeyi gösterir.",
+    "findText": "Metin bul",
+    "findLabel": "Projede metin bul",
+    "placeholder": "Bir sembol, ifade ya da düz parça…",
+    "folder": "Klasör kapsamı",
+    "folderLabel": "İçerik araması klasörü",
+    "folderPlaceholder": "Tüm proje",
+    "ignored": "Yok sayılan kaynak dosyalarını dahil et",
+    "searching": "Proje motorunda aranıyor… Bu pencereyi kapatmak sonuçları bırakır; sınırlı tarama arka planda bitebilir.",
+    "lines": "{{count}} eşleşen satır",
+    "filesRead": "{{count}} dosya okundu",
+    "partial": "Kısmi sonuçlar — klasörü ya da arama metnini daralt.",
+    "finished": "Arama bitti.",
+    "for": "“{{query}}” için, {{scope}} içinde.",
+    "wholeProject": "tüm proje",
+    "reached": "Ulaşılan: {{reasons}}.",
+    "reason": {
+      "time": "süre bütçesi",
+      "files": "dosya bütçesi",
+      "entries": "dizin girdisi bütçesi",
+      "bytes": "okuma bütçesi",
+      "matches": "sonuç sınırı"
+    },
+    "omitted": "Atlanan: {{binary}} ikili/UTF-8 olmayan, {{oversized}} 1 MiB üstü, {{unreadable}} okunamayan/değişen dosya, {{links}} sembolik bağlantı, {{depth}} derin dizin.",
+    "results": "Proje içerik araması sonuçları",
+    "openHit": "{{path}} satır {{line}} aç",
+    "none": "Aranan kapsamda eşleşen satır yok.",
+    "limits": "Düz arama · en çok 200 eşleşen satır · 5.000 dosya / 20.000 girdi · 32 MiB okuma / 5 saniye. Gizli dosyalar ve derleme/bağımlılık dizinleri dosya gezgini kuralına uyar."
+  },
+  "tree": {
+    "label": "Proje dizin ağacı",
+    "closeMenu": "Dosya menüsünü kapat"
   }
 }

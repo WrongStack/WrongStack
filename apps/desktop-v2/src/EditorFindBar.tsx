@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { findMatches, MAX_MATCHES, nextMatchIndex, replaceAllMatches } from './editor-find';
 
 /**
@@ -17,6 +18,7 @@ export function EditorFindBar({
   onChange: (content: string, select?: { start: number; end: number }) => void;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState(''),
     [replacement, setReplacement] = useState(''),
     [caseSensitive, setCaseSensitive] = useState(false),
@@ -53,29 +55,31 @@ export function EditorFindBar({
     const caret = match.start + replacement.length;
     onChange(next, { start: caret, end: caret });
     setUndo(null);
-    setMessage('Replaced 1 match.');
+    setMessage(t('find.replacedOne'));
   };
   const replaceAll = () => {
     const result = replaceAllMatches(content, query, replacement, caseSensitive);
     if (!result.count) {
       setMessage(
         matches.length >= MAX_MATCHES
-          ? `More than ${MAX_MATCHES.toLocaleString()} matches; narrow the search before replacing all.`
-          : 'No matches to replace.',
+          ? t('find.tooMany', { max: MAX_MATCHES.toLocaleString() })
+          : t('find.none'),
       );
       return;
     }
     onChange(result.text);
     setUndo({ before: content, after: result.text, count: result.count });
-    setMessage(`Replaced ${result.count} ${result.count === 1 ? 'match' : 'matches'}.`);
+    setMessage(
+      result.count === 1 ? t('find.replacedOne') : t('find.replacedMany', { count: result.count }),
+    );
   };
   const count =
     matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : String(matches.length);
   return (
-    <section className="editor-find-bar" aria-label="Find and replace">
+    <section className="editor-find-bar" aria-label={t('find.replaceLabel')}>
       <input
-        aria-label="Find in file"
-        placeholder="Find"
+        aria-label={t('find.inFile')}
+        placeholder={t('find.placeholder')}
         value={query}
         // biome-ignore lint/a11y/noAutofocus: the bar opens on an explicit Find request.
         autoFocus
@@ -92,17 +96,26 @@ export function EditorFindBar({
         }}
       />
       <span role="status" className="editor-find-count">
-        {query ? (current >= 0 ? `${current + 1} of ${count}` : `${count} matches`) : ''}
+        {query
+          ? current >= 0
+            ? t('find.position', { current: current + 1, count })
+            : t('find.matches', { count })
+          : ''}
       </span>
       <button
         type="button"
         className="icon-button"
-        aria-label="Previous match"
+        aria-label={t('find.previous')}
         onClick={() => go(-1)}
       >
         <ChevronUp size={13} />
       </button>
-      <button type="button" className="icon-button" aria-label="Next match" onClick={() => go(1)}>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label={t('find.next')}
+        onClick={() => go(1)}
+      >
         <ChevronDown size={13} />
       </button>
       <label>
@@ -111,11 +124,11 @@ export function EditorFindBar({
           checked={caseSensitive}
           onChange={(event) => setCaseSensitive(event.target.checked)}
         />{' '}
-        Match case
+        {t('find.matchCase')}
       </label>
       <input
-        aria-label="Replace with"
-        placeholder="Replace"
+        aria-label={t('find.replaceWith')}
+        placeholder={t('find.replacePlaceholder')}
         value={replacement}
         onChange={(event) => setReplacement(event.target.value)}
       />
@@ -125,7 +138,7 @@ export function EditorFindBar({
         disabled={!matches.length}
         onClick={replaceCurrent}
       >
-        Replace
+        {t('find.replace')}
       </button>
       <button
         type="button"
@@ -133,7 +146,7 @@ export function EditorFindBar({
         disabled={!matches.length}
         onClick={replaceAll}
       >
-        Replace all
+        {t('find.replaceAll')}
       </button>
       {undo && content === undo.after && (
         <button
@@ -142,14 +155,14 @@ export function EditorFindBar({
           onClick={() => {
             onChange(undo.before);
             setUndo(null);
-            setMessage(`Restored the text before replacing ${undo.count} matches.`);
+            setMessage(t('find.restored', { count: undo.count }));
           }}
         >
-          Undo replace all
+          {t('find.undo')}
         </button>
       )}
       {message && <small className="field-help">{message}</small>}
-      <button type="button" className="icon-button" aria-label="Close find" onClick={onClose}>
+      <button type="button" className="icon-button" aria-label={t('find.close')} onClick={onClose}>
         <X size={13} />
       </button>
     </section>

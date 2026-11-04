@@ -1138,5 +1138,132 @@
     "reload": "Reload from disk",
     "overwrite": "Overwrite with my draft",
     "working": "Working…"
+  },
+  "find": {
+    "placeholder": "Find",
+    "matchCase": "Match case",
+    "close": "Close find",
+    "replaceLabel": "Find and replace",
+    "inFile": "Find in file",
+    "position": "{{current}} of {{count}}",
+    "matches": "{{count}} matches",
+    "previous": "Previous match",
+    "next": "Next match",
+    "replaceWith": "Replace with",
+    "replacePlaceholder": "Replace",
+    "replace": "Replace",
+    "replaceAll": "Replace all",
+    "undo": "Undo replace all",
+    "replacedOne": "Replaced 1 match.",
+    "replacedMany": "Replaced {{count}} matches.",
+    "tooMany": "More than {{max}} matches; narrow the search before replacing all.",
+    "none": "No matches to replace.",
+    "restored": "Restored the text before replacing {{count}} matches.",
+    "source": {
+      "region": "Find in read-only source",
+      "input": "Find in source",
+      "countOne": "{{count}} matches on {{lines}} line",
+      "countMany": "{{count}} matches on {{lines}} lines",
+      "at": "line {{line}}",
+      "previous": "Previous matching line",
+      "next": "Next matching line"
+    },
+    "conversation": {
+      "region": "Find in conversation",
+      "input": "Find in conversation",
+      "countOne": "{{count}} matches in {{lines}} message",
+      "countMany": "{{count}} matches in {{lines}} messages",
+      "at": "message {{line}}",
+      "previous": "Previous matching message",
+      "next": "Next matching message"
+    }
+  },
+  "merge": {
+    "summary": "Merge change by change ({{count}})",
+    "changes": "Draft changes",
+    "yours": "Your lines for change {{n}}",
+    "stored": "Stored lines for change {{n}}",
+    "noLines": "(no lines)",
+    "keepFor": "Keep for change {{n}}",
+    "choice": {
+      "mine": "Mine",
+      "stored": "Stored",
+      "both": "Both, mine first"
+    },
+    "merged": "Merged draft",
+    "keep": "Keep merged draft"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "Move {{count}} selected item",
+      "copy": "Copy {{count}} selected item",
+      "rename": "Rename {{count}} selected item",
+      "delete": "Delete {{count}} selected item"
+    },
+    "titleMany": {
+      "move": "Move {{count}} selected items",
+      "copy": "Copy {{count}} selected items",
+      "rename": "Rename {{count}} selected items",
+      "delete": "Delete {{count}} selected items"
+    },
+    "preview": "Rename preview",
+    "nested": "Items inside a selected folder are included with that folder.",
+    "destination": "Destination folder (project-relative; empty is the project root)",
+    "copyDestination": "Bulk copy destination",
+    "moveDestination": "Bulk move destination",
+    "findNames": "Find in names",
+    "replaceNames": "Replace in names",
+    "renameHelp": "Literal text in each name is replaced; folders stay where they are. An existing item with the new name is never overwritten: that rename fails and is reported.",
+    "unchanged": "{{count}} unchanged.",
+    "deleteHelp": "Selected folders are deleted with their contents. Each item is deleted separately; the result lists any that fail.",
+    "unsaved": "Save or close edited files first: {{paths}}.",
+    "copyAtomic": "Every item is copied from its saved version, or none is: the engine copies them beside their targets first and moves them into place only when all are complete. An existing file or folder with the same name is never overwritten. Folders that contain symbolic links are refused, and one copy is limited to 5,000 entries and 256 MiB.",
+    "copyText": "Text files are copied from their saved version; an existing file or folder with the same name is never overwritten. A folder is copied only when all of its listed files are text (at most 200 files, 8 MiB); otherwise nothing of it is copied. Hidden entries, skipped folders such as .git and node_modules, and symbolic links to files are not listed by the engine and are not copied.",
+    "intoItselfCopy": "A folder cannot be copied into itself: {{paths}}.",
+    "intoItselfMove": "A folder cannot move into itself: {{paths}}.",
+    "problems": "Rename problems",
+    "stop": "Stop after current item",
+    "moveTo": "Move {{count}} to {{target}}",
+    "copyTo": "Copy {{count}} to {{target}}",
+    "projectRoot": "project root",
+    "renameCount": "Rename {{count}}",
+    "deleteCount": "Delete {{count}}"
+  },
+  "contentSearch": {
+    "eyebrow": "PROJECT FILES",
+    "title": "Search project contents",
+    "close": "Close content search",
+    "help": "Search saved UTF-8 text on disk. Unsaved editor drafts are separate. Results show the first match on each line.",
+    "findText": "Find text",
+    "findLabel": "Find text in project",
+    "placeholder": "A symbol, phrase, or literal snippet…",
+    "folder": "Folder scope",
+    "folderLabel": "Content search folder",
+    "folderPlaceholder": "Entire project",
+    "ignored": "Include ignored source files",
+    "searching": "Searching the project engine… Closing this window dismisses results; the bounded scan may finish in the background.",
+    "lines": "{{count}} matching lines",
+    "filesRead": "{{count}} files read",
+    "partial": "Partial results — narrow the folder or search text.",
+    "finished": "Search finished.",
+    "for": "For “{{query}}” in {{scope}}.",
+    "wholeProject": "the entire project",
+    "reached": "Reached: {{reasons}}.",
+    "reason": {
+      "time": "time budget",
+      "files": "file budget",
+      "entries": "directory-entry budget",
+      "bytes": "read budget",
+      "matches": "result limit"
+    },
+    "omitted": "Omitted: {{binary}} binary/non-UTF-8, {{oversized}} over 1 MiB, {{unreadable}} unreadable/changing files, {{links}} symbolic links, {{depth}} deep directories.",
+    "results": "Project content search results",
+    "openHit": "Open {{path}} line {{line}}",
+    "none": "No matching lines in the searched scope.",
+    "limits": "Literal search · up to 200 matching lines · 5,000 files / 20,000 entries · 32 MiB read / 5 seconds. Hidden files and build/dependency directories follow the file explorer policy."
+  },
+  "tree": {
+    "label": "Project directory tree",
+    "closeMenu": "Close file menu"
   }
 }

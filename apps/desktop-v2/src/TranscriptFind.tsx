@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineState } from './engine-state';
 import { transcriptSearchText } from './transcript-window';
-import { type FindScope, type ViewerFind, ViewerFindBar } from './ViewerFindBar';
-
-const MESSAGE_SCOPE: FindScope = {
-  region: 'Find in conversation',
-  input: 'Find in conversation',
-  one: 'message',
-  many: 'messages',
-  preposition: 'in',
-};
+import { type ViewerFind, ViewerFindBar } from './ViewerFindBar';
 
 /**
  * Ctrl+F in the conversation, as the WebUI's search overlay: matching messages are marked and
@@ -55,7 +47,7 @@ export function useTranscriptFind({
       open && enabled ? (
         <ViewerFindBar
           content={content}
-          scope={MESSAGE_SCOPE}
+          scope="conversation"
           onChange={setFind}
           onClose={() => {
             setOpen(false);

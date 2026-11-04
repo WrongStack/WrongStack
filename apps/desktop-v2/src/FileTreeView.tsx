@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { FileNode } from './file-model';
 import { treeWindow, visibleTreeRows } from './file-tree-rows';
 
@@ -30,6 +31,7 @@ export function FileTreeView({
   onSelect: (node: FileNode) => void;
   onContext: (event: React.MouseEvent, path: string) => void;
 }) {
+  const { t } = useDesktopText();
   const rows = useMemo(
     () => visibleTreeRows(tree, new Set(expanded), query),
     [tree, expanded, query],
@@ -73,7 +75,7 @@ export function FileTreeView({
     <div
       ref={container}
       role="tree"
-      aria-label="Project directory tree"
+      aria-label={t('tree.label')}
       className="file-directory-tree"
       onScroll={(event) =>
         setView({ top: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight })

@@ -1138,5 +1138,132 @@
     "reload": "Recarregar do disco",
     "overwrite": "Sobrescrever com meu rascunho",
     "working": "Processando…"
+  },
+  "find": {
+    "placeholder": "Localizar",
+    "matchCase": "Diferenciar maiúsculas",
+    "close": "Fechar a busca",
+    "replaceLabel": "Localizar e substituir",
+    "inFile": "Localizar no arquivo",
+    "position": "{{current}} de {{count}}",
+    "matches": "{{count}} ocorrências",
+    "previous": "Ocorrência anterior",
+    "next": "Próxima ocorrência",
+    "replaceWith": "Substituir por",
+    "replacePlaceholder": "Substituir",
+    "replace": "Substituir",
+    "replaceAll": "Substituir tudo",
+    "undo": "Desfazer substituir tudo",
+    "replacedOne": "1 ocorrência substituída.",
+    "replacedMany": "{{count}} ocorrências substituídas.",
+    "tooMany": "Mais de {{max}} ocorrências; refine a busca antes de substituir tudo.",
+    "none": "Nenhuma ocorrência para substituir.",
+    "restored": "O texto anterior à substituição de {{count}} ocorrências foi restaurado.",
+    "source": {
+      "region": "Localizar no código somente leitura",
+      "input": "Localizar no código",
+      "countOne": "{{count}} ocorrências em {{lines}} linha",
+      "countMany": "{{count}} ocorrências em {{lines}} linhas",
+      "at": "linha {{line}}",
+      "previous": "Linha correspondente anterior",
+      "next": "Próxima linha correspondente"
+    },
+    "conversation": {
+      "region": "Localizar na conversa",
+      "input": "Localizar na conversa",
+      "countOne": "{{count}} ocorrências em {{lines}} mensagem",
+      "countMany": "{{count}} ocorrências em {{lines}} mensagens",
+      "at": "mensagem {{line}}",
+      "previous": "Mensagem correspondente anterior",
+      "next": "Próxima mensagem correspondente"
+    }
+  },
+  "merge": {
+    "summary": "Mesclar alteração por alteração ({{count}})",
+    "changes": "Alterações do rascunho",
+    "yours": "Suas linhas para a alteração {{n}}",
+    "stored": "Linhas salvas para a alteração {{n}}",
+    "noLines": "(sem linhas)",
+    "keepFor": "Manter para a alteração {{n}}",
+    "choice": {
+      "mine": "A minha",
+      "stored": "Salva",
+      "both": "Ambas, a minha primeiro"
+    },
+    "merged": "Rascunho mesclado",
+    "keep": "Manter o rascunho mesclado"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "Mover {{count}} item selecionado",
+      "copy": "Copiar {{count}} item selecionado",
+      "rename": "Renomear {{count}} item selecionado",
+      "delete": "Excluir {{count}} item selecionado"
+    },
+    "titleMany": {
+      "move": "Mover {{count}} itens selecionados",
+      "copy": "Copiar {{count}} itens selecionados",
+      "rename": "Renomear {{count}} itens selecionados",
+      "delete": "Excluir {{count}} itens selecionados"
+    },
+    "preview": "Prévia da renomeação",
+    "nested": "Os itens dentro de uma pasta selecionada são incluídos com essa pasta.",
+    "destination": "Pasta de destino (relativa ao projeto; vazio é a raiz do projeto)",
+    "copyDestination": "Destino da cópia em lote",
+    "moveDestination": "Destino da movimentação em lote",
+    "findNames": "Localizar nos nomes",
+    "replaceNames": "Substituir nos nomes",
+    "renameHelp": "O texto literal de cada nome é substituído; as pastas ficam onde estão. Um item existente com o novo nome nunca é sobrescrito: essa renomeação falha e é relatada.",
+    "unchanged": "{{count}} inalterados.",
+    "deleteHelp": "As pastas selecionadas são excluídas com o conteúdo. Cada item é excluído separadamente; o resultado lista os que falharem.",
+    "unsaved": "Salve ou feche primeiro os arquivos editados: {{paths}}.",
+    "copyAtomic": "Cada item é copiado de sua versão salva, ou nenhum é: o motor os copia primeiro ao lado dos destinos e só os move para o lugar quando todos estão completos. Um arquivo ou pasta existente com o mesmo nome nunca é sobrescrito. Pastas com links simbólicos são recusadas, e uma cópia é limitada a 5.000 entradas e 256 MiB.",
+    "copyText": "Arquivos de texto são copiados de sua versão salva; um arquivo ou pasta existente com o mesmo nome nunca é sobrescrito. Uma pasta só é copiada quando todos os arquivos listados são texto (no máximo 200 arquivos, 8 MiB); caso contrário, nada dela é copiado. Entradas ocultas, pastas ignoradas como .git e node_modules e links simbólicos para arquivos não são listados pelo motor e não são copiados.",
+    "intoItselfCopy": "Uma pasta não pode ser copiada para dentro de si mesma: {{paths}}.",
+    "intoItselfMove": "Uma pasta não pode ser movida para dentro de si mesma: {{paths}}.",
+    "problems": "Problemas de renomeação",
+    "stop": "Parar após o item atual",
+    "moveTo": "Mover {{count}} para {{target}}",
+    "copyTo": "Copiar {{count}} para {{target}}",
+    "projectRoot": "raiz do projeto",
+    "renameCount": "Renomear {{count}}",
+    "deleteCount": "Excluir {{count}}"
+  },
+  "contentSearch": {
+    "eyebrow": "ARQUIVOS DO PROJETO",
+    "title": "Pesquisar no conteúdo do projeto",
+    "close": "Fechar a pesquisa de conteúdo",
+    "help": "Pesquisa no texto UTF-8 salvo no disco. Rascunhos não salvos do editor ficam à parte. Os resultados mostram a primeira ocorrência de cada linha.",
+    "findText": "Texto a localizar",
+    "findLabel": "Localizar texto no projeto",
+    "placeholder": "Um símbolo, uma frase ou um trecho literal…",
+    "folder": "Escopo da pasta",
+    "folderLabel": "Pasta da pesquisa de conteúdo",
+    "folderPlaceholder": "Projeto inteiro",
+    "ignored": "Incluir arquivos de código ignorados",
+    "searching": "Pesquisando no motor do projeto… Fechar esta janela descarta os resultados; a varredura limitada pode terminar em segundo plano.",
+    "lines": "{{count}} linhas correspondentes",
+    "filesRead": "{{count}} arquivos lidos",
+    "partial": "Resultados parciais — restrinja a pasta ou o texto pesquisado.",
+    "finished": "Pesquisa concluída.",
+    "for": "Para “{{query}}” em {{scope}}.",
+    "wholeProject": "todo o projeto",
+    "reached": "Atingido: {{reasons}}.",
+    "reason": {
+      "time": "orçamento de tempo",
+      "files": "orçamento de arquivos",
+      "entries": "orçamento de entradas de diretório",
+      "bytes": "orçamento de leitura",
+      "matches": "limite de resultados"
+    },
+    "omitted": "Omitidos: {{binary}} binários/não UTF-8, {{oversized}} acima de 1 MiB, {{unreadable}} arquivos ilegíveis/em alteração, {{links}} links simbólicos, {{depth}} diretórios profundos.",
+    "results": "Resultados da pesquisa de conteúdo",
+    "openHit": "Abrir {{path}} linha {{line}}",
+    "none": "Nenhuma linha correspondente no escopo pesquisado.",
+    "limits": "Pesquisa literal · até 200 linhas correspondentes · 5.000 arquivos / 20.000 entradas · 32 MiB lidos / 5 segundos. Arquivos ocultos e diretórios de build/dependências seguem a política do explorador."
+  },
+  "tree": {
+    "label": "Árvore de diretórios do projeto",
+    "closeMenu": "Fechar o menu do arquivo"
   }
 }

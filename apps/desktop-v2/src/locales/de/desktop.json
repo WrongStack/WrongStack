@@ -1138,5 +1138,132 @@
     "reload": "Von der Festplatte neu laden",
     "overwrite": "Mit meinem Entwurf überschreiben",
     "working": "Arbeite…"
+  },
+  "find": {
+    "placeholder": "Suchen",
+    "matchCase": "Groß-/Kleinschreibung beachten",
+    "close": "Suche schließen",
+    "replaceLabel": "Suchen und ersetzen",
+    "inFile": "In Datei suchen",
+    "position": "{{current}} von {{count}}",
+    "matches": "{{count}} Treffer",
+    "previous": "Vorheriger Treffer",
+    "next": "Nächster Treffer",
+    "replaceWith": "Ersetzen durch",
+    "replacePlaceholder": "Ersetzen",
+    "replace": "Ersetzen",
+    "replaceAll": "Alle ersetzen",
+    "undo": "Alle ersetzen rückgängig",
+    "replacedOne": "1 Treffer ersetzt.",
+    "replacedMany": "{{count}} Treffer ersetzt.",
+    "tooMany": "Mehr als {{max}} Treffer; grenze die Suche ein, bevor du alle ersetzt.",
+    "none": "Keine Treffer zum Ersetzen.",
+    "restored": "Text vor dem Ersetzen von {{count}} Treffern wiederhergestellt.",
+    "source": {
+      "region": "Im schreibgeschützten Quelltext suchen",
+      "input": "Im Quelltext suchen",
+      "countOne": "{{count}} Treffer in {{lines}} Zeile",
+      "countMany": "{{count}} Treffer in {{lines}} Zeilen",
+      "at": "Zeile {{line}}",
+      "previous": "Vorherige passende Zeile",
+      "next": "Nächste passende Zeile"
+    },
+    "conversation": {
+      "region": "In der Unterhaltung suchen",
+      "input": "In der Unterhaltung suchen",
+      "countOne": "{{count}} Treffer in {{lines}} Nachricht",
+      "countMany": "{{count}} Treffer in {{lines}} Nachrichten",
+      "at": "Nachricht {{line}}",
+      "previous": "Vorherige passende Nachricht",
+      "next": "Nächste passende Nachricht"
+    }
+  },
+  "merge": {
+    "summary": "Änderung für Änderung zusammenführen ({{count}})",
+    "changes": "Entwurfsänderungen",
+    "yours": "Deine Zeilen für Änderung {{n}}",
+    "stored": "Gespeicherte Zeilen für Änderung {{n}}",
+    "noLines": "(keine Zeilen)",
+    "keepFor": "Für Änderung {{n}} behalten",
+    "choice": {
+      "mine": "Meine",
+      "stored": "Gespeichert",
+      "both": "Beide, meine zuerst"
+    },
+    "merged": "Zusammengeführter Entwurf",
+    "keep": "Zusammengeführten Entwurf behalten"
+  },
+  "bulk": {
+    "titleOne": {
+      "move": "{{count}} ausgewähltes Element verschieben",
+      "copy": "{{count}} ausgewähltes Element kopieren",
+      "rename": "{{count}} ausgewähltes Element umbenennen",
+      "delete": "{{count}} ausgewähltes Element löschen"
+    },
+    "titleMany": {
+      "move": "{{count}} ausgewählte Elemente verschieben",
+      "copy": "{{count}} ausgewählte Elemente kopieren",
+      "rename": "{{count}} ausgewählte Elemente umbenennen",
+      "delete": "{{count}} ausgewählte Elemente löschen"
+    },
+    "preview": "Vorschau der Umbenennung",
+    "nested": "Elemente in einem ausgewählten Ordner sind mit diesem Ordner eingeschlossen.",
+    "destination": "Zielordner (projektrelativ; leer ist der Projektstamm)",
+    "copyDestination": "Ziel für Sammelkopie",
+    "moveDestination": "Ziel für Sammelverschiebung",
+    "findNames": "In Namen suchen",
+    "replaceNames": "In Namen ersetzen",
+    "renameHelp": "Wörtlicher Text in jedem Namen wird ersetzt; Ordner bleiben, wo sie sind. Ein vorhandenes Element mit dem neuen Namen wird nie überschrieben: Diese Umbenennung schlägt fehl und wird gemeldet.",
+    "unchanged": "{{count}} unverändert.",
+    "deleteHelp": "Ausgewählte Ordner werden samt Inhalt gelöscht. Jedes Element wird einzeln gelöscht; das Ergebnis listet fehlgeschlagene auf.",
+    "unsaved": "Speichere oder schließe zuerst bearbeitete Dateien: {{paths}}.",
+    "copyAtomic": "Jedes Element wird aus seiner gespeicherten Version kopiert, oder keines: Die Engine kopiert sie zuerst neben ihre Ziele und verschiebt sie erst an ihren Platz, wenn alle fertig sind. Eine vorhandene Datei oder ein Ordner mit demselben Namen wird nie überschrieben. Ordner mit symbolischen Links werden abgelehnt, und eine Kopie ist auf 5.000 Einträge und 256 MiB begrenzt.",
+    "copyText": "Textdateien werden aus ihrer gespeicherten Version kopiert; eine vorhandene Datei oder ein Ordner mit demselben Namen wird nie überschrieben. Ein Ordner wird nur kopiert, wenn alle aufgeführten Dateien Text sind (höchstens 200 Dateien, 8 MiB); sonst wird nichts davon kopiert. Versteckte Einträge, übersprungene Ordner wie .git und node_modules sowie symbolische Links auf Dateien listet die Engine nicht auf und kopiert sie nicht.",
+    "intoItselfCopy": "Ein Ordner kann nicht in sich selbst kopiert werden: {{paths}}.",
+    "intoItselfMove": "Ein Ordner kann nicht in sich selbst verschoben werden: {{paths}}.",
+    "problems": "Probleme beim Umbenennen",
+    "stop": "Nach dem aktuellen Element anhalten",
+    "moveTo": "{{count}} nach {{target}} verschieben",
+    "copyTo": "{{count}} nach {{target}} kopieren",
+    "projectRoot": "Projektstamm",
+    "renameCount": "{{count}} umbenennen",
+    "deleteCount": "{{count}} löschen"
+  },
+  "contentSearch": {
+    "eyebrow": "PROJEKTDATEIEN",
+    "title": "Projektinhalte durchsuchen",
+    "close": "Inhaltssuche schließen",
+    "help": "Durchsucht gespeicherten UTF-8-Text auf der Festplatte. Ungespeicherte Editorentwürfe sind getrennt. Ergebnisse zeigen den ersten Treffer jeder Zeile.",
+    "findText": "Text suchen",
+    "findLabel": "Text im Projekt suchen",
+    "placeholder": "Ein Symbol, ein Ausdruck oder ein wörtlicher Ausschnitt…",
+    "folder": "Ordnerbereich",
+    "folderLabel": "Ordner für die Inhaltssuche",
+    "folderPlaceholder": "Ganzes Projekt",
+    "ignored": "Ignorierte Quelldateien einbeziehen",
+    "searching": "Die Projekt-Engine wird durchsucht… Wenn du dieses Fenster schließt, verwirfst du die Ergebnisse; der begrenzte Suchlauf kann im Hintergrund zu Ende laufen.",
+    "lines": "{{count}} passende Zeilen",
+    "filesRead": "{{count}} Dateien gelesen",
+    "partial": "Teilergebnisse — grenze Ordner oder Suchtext ein.",
+    "finished": "Suche abgeschlossen.",
+    "for": "Für „{{query}}“ in {{scope}}.",
+    "wholeProject": "dem ganzen Projekt",
+    "reached": "Erreicht: {{reasons}}.",
+    "reason": {
+      "time": "Zeitbudget",
+      "files": "Dateibudget",
+      "entries": "Budget für Verzeichniseinträge",
+      "bytes": "Lesebudget",
+      "matches": "Ergebnisgrenze"
+    },
+    "omitted": "Ausgelassen: {{binary}} binär/nicht UTF-8, {{oversized}} über 1 MiB, {{unreadable}} unlesbare/sich ändernde Dateien, {{links}} symbolische Links, {{depth}} tiefe Verzeichnisse.",
+    "results": "Ergebnisse der Inhaltssuche im Projekt",
+    "openHit": "{{path}} Zeile {{line}} öffnen",
+    "none": "Keine passenden Zeilen im durchsuchten Bereich.",
+    "limits": "Wörtliche Suche · bis zu 200 passende Zeilen · 5.000 Dateien / 20.000 Einträge · 32 MiB Lesen / 5 Sekunden. Versteckte Dateien und Build-/Abhängigkeitsverzeichnisse folgen der Regel des Dateiexplorers."
+  },
+  "tree": {
+    "label": "Verzeichnisbaum des Projekts",
+    "closeMenu": "Dateimenü schließen"
   }
 }
