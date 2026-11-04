@@ -7609,3 +7609,19 @@ copies, starting with SAGE memory.
   - A new jsdom test renders provider settings in English and then in Turkish.
   - A new unit test covers the validation words.
   - Catalog parity and the key guard pass; desktop tests pass (900); typecheck clean.
+
+### Provider sign-in and connection sections in the display language (2026-11-04)
+
+- The sections inside provider settings now follow the display language in all seven languages:
+  subscription sign-in with its progress, device code, callback and review dialog; the endpoint
+  check; a connection's models and endpoint; and its cloud routing.
+- Sign-in phases and endpoint check results are named per language; `STATUS_TEXT` and
+  `FIELD_LABELS` stay the English source and fallback.
+- `oauthAliasIssue` and `probeOutcome` take optional words, with English as the default.
+- Still English by design: service names and guidance supplied by the engine, engine replies, and
+  the cloud settings validation messages from the shared contracts package.
+- Checks:
+  - The settings jsdom test now also covers the sign-in section and renders a saved Vertex
+    connection's check, models and cloud routing in English and then in Turkish.
+  - The OAuth model test covers the alias words.
+  - Catalog parity and the key guard pass; desktop tests pass (901); typecheck clean.

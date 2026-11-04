@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Stockée dans le coffre chiffré du moteur",
     "keyLabel": "Libellé de la clé",
     "saveAndUse": "Enregistrer et utiliser le fournisseur",
-    "saveKey": "Enregistrer la clé d’API"
+    "saveKey": "Enregistrer la clé d’API",
+    "oauth": {
+      "unverified": "La connexion est terminée, mais l’identifiant d’abonnement enregistré n’a pas pu être vérifié. Actualisez les connexions avant de réessayer.",
+      "signedIn": "Connecté et vérifié : {{account}}. Choisissez son modèle quand vous êtes prêt.",
+      "cancelledNotice": "Connexion annulée. Les connexions enregistrées sont conservées.",
+      "aliasInvalid": "Utilisez 1 à 80 lettres, chiffres, tirets ou traits de soulignement, en commençant par une lettre ou un chiffre.",
+      "aliasExists": "Cette connexion existe déjà. Choisissez un nouveau nom de compte ou reconnectez le compte enregistré.",
+      "label": "Connexion par abonnement",
+      "eyebrow": "COMPTES D’ABONNEMENT",
+      "title": "Se connecter avec votre compte",
+      "intro": "Utilisez les méthodes d’authentification fournies par le moteur. Les identifiants enregistrés restent dans son coffre chiffré.",
+      "service": "Service",
+      "serviceLabel": "Service d’abonnement",
+      "connection": "Connexion",
+      "connectionLabel": "Mode de connexion de l’abonnement",
+      "mode": {
+        "default": "Compte par défaut",
+        "new": "Nouveau compte nommé",
+        "existing": "Reconnecter un compte enregistré"
+      },
+      "accountName": "Nom du compte",
+      "accountNameLabel": "Nom du compte d’abonnement",
+      "savedAccount": "Compte enregistré",
+      "savedAccountLabel": "Compte d’abonnement enregistré",
+      "chooseAccount": "Choisir un compte",
+      "start": "Démarrer la connexion",
+      "guidance": "Conseils du service",
+      "progress": "Progression de la connexion par abonnement",
+      "phase": {
+        "starting": "Démarrage de la connexion…",
+        "awaiting_browser": "Continuez dans votre navigateur.",
+        "awaiting_code": "Saisissez le code de l’appareil sur le site du service.",
+        "exchanging": "Finalisation de la connexion…",
+        "fetching_models": "Enregistrement du compte et chargement des modèles…",
+        "success": "Connexion terminée ; relecture du compte enregistré demandée.",
+        "error": "Connexion terminée.",
+        "cancelled": "Connexion annulée."
+      },
+      "retry": "Relancez la connexion pour réessayer.",
+      "openWebsite": "Ouvrir le site de connexion",
+      "copyCode": "Copier le code d’appareil de connexion",
+      "paste": "Coller une URL de retour ou un code",
+      "callback": "URL de retour ou code",
+      "callbackLabel": "URL de retour ou code de connexion",
+      "callbackHint": "Utilisé pour cet échange uniquement. Effacé à l’envoi et jamais enregistré comme brouillon.",
+      "complete": "Terminer la connexion",
+      "cancel": "Annuler la connexion",
+      "removeHint": "Retirez une connexion enregistrée via son entrée d’identifiant ci-dessous. La retirer ici ne révoque ni la session du navigateur du service ni les jetons chez le fournisseur.",
+      "reviewTitle": "Examiner la connexion par abonnement",
+      "saveTo": "Enregistrer cette connexion dans <strong>{{account}}</strong>.",
+      "updates": "Cela met à jour l’identifiant d’abonnement et la découverte des modèles de la connexion enregistrée. Les exécutions en cours gardent leur connexion.",
+      "creates": "Une connexion nommée au fournisseur sera créée après une authentification réussie. Les exécutions en cours gardent leur connexion.",
+      "keep": "Laisser les connexions inchangées",
+      "begin": "Lancer la connexion examinée"
+    },
+    "probe": {
+      "status": {
+        "ok": "Accessible",
+        "unreachable": "Inaccessible",
+        "timeout": "Délai dépassé",
+        "http_error": "Erreur HTTP",
+        "invalid_response": "Réponse inattendue",
+        "skipped": "Non vérifié",
+        "no_provider": "Pas une connexion enregistrée",
+        "no_base_url": "Aucune URL de point de terminaison à vérifier (fournisseur intégré)"
+      },
+      "modelOne": "{{n}} modèle listé",
+      "modelMany": "{{n}} modèles listés",
+      "label": "Vérifier le point de terminaison de {{provider}}",
+      "checking": "Vérification…",
+      "check": "Vérifier le point de terminaison"
+    },
+    "wiring": {
+      "saved": "Enregistré.",
+      "allModels": "Modèles et point de terminaison · tous les modèles du catalogue",
+      "allowedOne": "Modèles et point de terminaison · {{n}} modèle autorisé",
+      "allowedMany": "Modèles et point de terminaison · {{n}} modèles autorisés",
+      "models": "Modèles autorisés (un par ligne ou séparés par des virgules)",
+      "endpoint": "URL du point de terminaison (vide : celle du fournisseur)",
+      "saving": "Enregistrement…",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "edit": "Modifier",
+      "allowAll": "Autoriser tous les modèles du catalogue",
+      "undoOne": "Annuler : restaurer {{n}} modèle",
+      "undoMany": "Annuler : restaurer {{n}} modèles"
+    },
+    "cloud": {
+      "field": {
+        "region": "Région AWS",
+        "project": "Projet Google Cloud",
+        "location": "Emplacement Vertex",
+        "resourceName": "Nom de ressource Azure"
+      },
+      "saved": "Enregistré. Resélectionnez le fournisseur ou redémarrez pour utiliser les nouveaux réglages.",
+      "title": "Routage cloud · {{saved}}",
+      "fromEnvironment": "depuis l’environnement",
+      "hint": "Les valeurs du profil remplacent celles de l’environnement. Les valeurs vides utilisent l’environnement. Les identifiants sont gérés à part.",
+      "save": "Enregistrer les réglages cloud"
+    }
   }
 }

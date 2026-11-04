@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Motorun şifreli kasasında saklanır",
     "keyLabel": "Anahtar etiketi",
     "saveAndUse": "Sağlayıcıyı kaydet ve kullan",
-    "saveKey": "API anahtarını kaydet"
+    "saveKey": "API anahtarını kaydet",
+    "oauth": {
+      "unverified": "Giriş tamamlandı ama kayıtlı abonelik kimlik bilgisi doğrulanamadı. Yeniden denemeden önce bağlantıları yenile.",
+      "signedIn": "Giriş yapıldı ve doğrulandı: {{account}}. Hazır olduğunda modelini seç.",
+      "cancelledNotice": "Giriş iptal edildi. Kayıtlı bağlantılar korundu.",
+      "aliasInvalid": "Harf ya da rakamla başlayan, 1–80 harf, rakam, kısa çizgi veya alt çizgi kullan.",
+      "aliasExists": "Bu bağlantı zaten var. Yeni bir hesap adı seç ya da kayıtlı hesabı yeniden bağla.",
+      "label": "Abonelik girişi",
+      "eyebrow": "ABONELİK HESAPLARI",
+      "title": "Hesabınla giriş yap",
+      "intro": "Motorun sunduğu kimlik doğrulama yöntemlerini kullan. Kayıtlı kimlik bilgileri şifreli kasasında kalır.",
+      "service": "Hizmet",
+      "serviceLabel": "Abonelik hizmeti",
+      "connection": "Bağlantı",
+      "connectionLabel": "Abonelik bağlantı türü",
+      "mode": {
+        "default": "Varsayılan hesap",
+        "new": "Yeni adlı hesap",
+        "existing": "Kayıtlı hesabı yeniden bağla"
+      },
+      "accountName": "Hesap adı",
+      "accountNameLabel": "Abonelik hesap adı",
+      "savedAccount": "Kayıtlı hesap",
+      "savedAccountLabel": "Kayıtlı abonelik hesabı",
+      "chooseAccount": "Bir hesap seç",
+      "start": "Girişi başlat",
+      "guidance": "Hizmet rehberi",
+      "progress": "Abonelik girişi ilerlemesi",
+      "phase": {
+        "starting": "Giriş başlatılıyor…",
+        "awaiting_browser": "Tarayıcında devam et.",
+        "awaiting_code": "Cihaz kodunu hizmetin web sitesine gir.",
+        "exchanging": "Giriş tamamlanıyor…",
+        "fetching_models": "Hesap kaydediliyor ve modeller yükleniyor…",
+        "success": "Giriş tamamlandı; kayıtlı hesabın geri okuması istendi.",
+        "error": "Giriş sona erdi.",
+        "cancelled": "Giriş iptal edildi."
+      },
+      "retry": "Yeniden denemek için girişi yeniden başlat.",
+      "openWebsite": "Giriş web sitesini aç",
+      "copyCode": "Giriş cihaz kodunu kopyala",
+      "paste": "Bir geri dönüş URL’si ya da kod yapıştır",
+      "callback": "Geri dönüş URL’si ya da kod",
+      "callbackLabel": "Giriş geri dönüş URL’si ya da kodu",
+      "callbackHint": "Yalnızca bu değişim için kullanılır. Gönderildiğinde temizlenir ve taslak olarak saklanmaz.",
+      "complete": "Girişi tamamla",
+      "cancel": "Girişi iptal et",
+      "removeHint": "Kayıtlı bir girişi aşağıdaki kimlik bilgisi kaydıyla kaldır. Burada kaldırmak, hizmetin tarayıcı oturumunu ya da sağlayıcıdaki token’ları iptal etmez.",
+      "reviewTitle": "Abonelik girişini incele",
+      "saveTo": "Bu girişi <strong>{{account}}</strong> bağlantısına kaydet.",
+      "updates": "Bu, kayıtlı bağlantının abonelik kimlik bilgisini ve model keşfini günceller. Mevcut çalıştırmalar şu anki bağlantılarını korur.",
+      "creates": "Başarılı kimlik doğrulamadan sonra adlı bir sağlayıcı bağlantısı oluşturulur. Mevcut çalıştırmalar şu anki bağlantılarını korur.",
+      "keep": "Bağlantıları değiştirme",
+      "begin": "İncelenen girişi başlat"
+    },
+    "probe": {
+      "status": {
+        "ok": "Erişilebilir",
+        "unreachable": "Erişilemiyor",
+        "timeout": "Zaman aşımı",
+        "http_error": "HTTP hatası",
+        "invalid_response": "Beklenmeyen yanıt",
+        "skipped": "Denetlenmedi",
+        "no_provider": "Kayıtlı bir bağlantı değil",
+        "no_base_url": "Denetlenecek uç nokta URL’si yok (yerleşik sağlayıcı)"
+      },
+      "modelOne": "{{n}} model listelendi",
+      "modelMany": "{{n}} model listelendi",
+      "label": "{{provider}} uç noktasını denetle",
+      "checking": "Denetleniyor…",
+      "check": "Uç noktayı denetle"
+    },
+    "wiring": {
+      "saved": "Kaydedildi.",
+      "allModels": "Modeller ve uç nokta · tüm katalog modelleri",
+      "allowedOne": "Modeller ve uç nokta · {{n}} izinli model",
+      "allowedMany": "Modeller ve uç nokta · {{n}} izinli model",
+      "models": "İzinli modeller (her satıra bir tane ya da virgülle ayrılmış)",
+      "endpoint": "Uç nokta URL’si (boşsa sağlayıcınınki kullanılır)",
+      "saving": "Kaydediliyor…",
+      "save": "Kaydet",
+      "cancel": "İptal",
+      "edit": "Düzenle",
+      "allowAll": "Tüm katalog modellerine izin ver",
+      "undoOne": "Geri al: {{n}} modeli geri yükle",
+      "undoMany": "Geri al: {{n}} modeli geri yükle"
+    },
+    "cloud": {
+      "field": {
+        "region": "AWS bölgesi",
+        "project": "Google Cloud projesi",
+        "location": "Vertex konumu",
+        "resourceName": "Azure kaynak adı"
+      },
+      "saved": "Kaydedildi. Yeni ayarları kullanmak için sağlayıcıyı yeniden seç ya da yeniden başlat.",
+      "title": "Bulut yönlendirmesi · {{saved}}",
+      "fromEnvironment": "ortamdan",
+      "hint": "Profil değerleri ortam varsayılanlarını geçersiz kılar. Boş değerler ortamı kullanır. Kimlik bilgileri ayrı yönetilir.",
+      "save": "Bulut ayarlarını kaydet"
+    }
   }
 }

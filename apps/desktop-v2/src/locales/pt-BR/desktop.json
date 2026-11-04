@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Guardada no cofre criptografado do motor",
     "keyLabel": "Rótulo da chave",
     "saveAndUse": "Salvar e usar o provedor",
-    "saveKey": "Salvar a chave de API"
+    "saveKey": "Salvar a chave de API",
+    "oauth": {
+      "unverified": "O login foi concluído, mas a credencial da assinatura salva não pôde ser verificada. Atualize as conexões antes de tentar de novo.",
+      "signedIn": "Login feito e verificado: {{account}}. Escolha o modelo quando quiser.",
+      "cancelledNotice": "Login cancelado. As conexões salvas foram mantidas.",
+      "aliasInvalid": "Use de 1 a 80 letras, dígitos, hifens ou sublinhados, começando por uma letra ou um dígito.",
+      "aliasExists": "Esta conexão já existe. Escolha um novo nome de conta ou reconecte a conta salva.",
+      "label": "Login da assinatura",
+      "eyebrow": "CONTAS DE ASSINATURA",
+      "title": "Entre com sua conta",
+      "intro": "Use os métodos de autenticação fornecidos pelo motor. As credenciais salvas ficam no cofre criptografado dele.",
+      "service": "Serviço",
+      "serviceLabel": "Serviço de assinatura",
+      "connection": "Conexão",
+      "connectionLabel": "Modo de conexão da assinatura",
+      "mode": {
+        "default": "Conta padrão",
+        "new": "Nova conta nomeada",
+        "existing": "Reconectar uma conta salva"
+      },
+      "accountName": "Nome da conta",
+      "accountNameLabel": "Nome da conta de assinatura",
+      "savedAccount": "Conta salva",
+      "savedAccountLabel": "Conta de assinatura salva",
+      "chooseAccount": "Escolha uma conta",
+      "start": "Iniciar login",
+      "guidance": "Orientações do serviço",
+      "progress": "Progresso do login da assinatura",
+      "phase": {
+        "starting": "Iniciando o login…",
+        "awaiting_browser": "Continue no navegador.",
+        "awaiting_code": "Informe o código do dispositivo no site do serviço.",
+        "exchanging": "Concluindo o login…",
+        "fetching_models": "Salvando a conta e carregando os modelos…",
+        "success": "Login concluído; releitura da conta salva solicitada.",
+        "error": "O login terminou.",
+        "cancelled": "Login cancelado."
+      },
+      "retry": "Inicie o login de novo para tentar outra vez.",
+      "openWebsite": "Abrir o site de login",
+      "copyCode": "Copiar o código do dispositivo",
+      "paste": "Colar uma URL de retorno ou um código",
+      "callback": "URL de retorno ou código",
+      "callbackLabel": "URL de retorno ou código do login",
+      "callbackHint": "Usado só nesta troca. É apagado ao enviar e não é salvo como rascunho.",
+      "complete": "Concluir o login",
+      "cancel": "Cancelar o login",
+      "removeHint": "Remova um login salvo pela entrada da credencial abaixo. Removê-lo aqui não revoga a sessão do navegador do serviço nem os tokens no provedor.",
+      "reviewTitle": "Revisar o login da assinatura",
+      "saveTo": "Salvar este login em <strong>{{account}}</strong>.",
+      "updates": "Isso atualiza a credencial da assinatura e a descoberta de modelos da conexão salva. Execuções em andamento mantêm a conexão.",
+      "creates": "Uma conexão nomeada com o provedor será criada após a autenticação. Execuções em andamento mantêm a conexão.",
+      "keep": "Manter as conexões inalteradas",
+      "begin": "Iniciar o login revisado"
+    },
+    "probe": {
+      "status": {
+        "ok": "Acessível",
+        "unreachable": "Inacessível",
+        "timeout": "Tempo esgotado",
+        "http_error": "Erro HTTP",
+        "invalid_response": "Resposta inesperada",
+        "skipped": "Não verificado",
+        "no_provider": "Não é uma conexão salva",
+        "no_base_url": "Nenhuma URL de endpoint para verificar (provedor integrado)"
+      },
+      "modelOne": "{{n}} modelo listado",
+      "modelMany": "{{n}} modelos listados",
+      "label": "Verificar o endpoint de {{provider}}",
+      "checking": "Verificando…",
+      "check": "Verificar o endpoint"
+    },
+    "wiring": {
+      "saved": "Salvo.",
+      "allModels": "Modelos e endpoint · todos os modelos do catálogo",
+      "allowedOne": "Modelos e endpoint · {{n}} modelo permitido",
+      "allowedMany": "Modelos e endpoint · {{n}} modelos permitidos",
+      "models": "Modelos permitidos (um por linha ou separados por vírgulas)",
+      "endpoint": "URL do endpoint (vazio usa a do provedor)",
+      "saving": "Salvando…",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "allowAll": "Permitir todos os modelos do catálogo",
+      "undoOne": "Desfazer: restaurar {{n}} modelo",
+      "undoMany": "Desfazer: restaurar {{n}} modelos"
+    },
+    "cloud": {
+      "field": {
+        "region": "Região da AWS",
+        "project": "Projeto do Google Cloud",
+        "location": "Local do Vertex",
+        "resourceName": "Nome do recurso do Azure"
+      },
+      "saved": "Salvo. Selecione o provedor de novo ou reinicie para usar as novas configurações.",
+      "title": "Roteamento na nuvem · {{saved}}",
+      "fromEnvironment": "do ambiente",
+      "hint": "Os valores do perfil substituem os do ambiente. Valores vazios usam o ambiente. As credenciais são gerenciadas à parte.",
+      "save": "Salvar as configurações de nuvem"
+    }
   }
 }

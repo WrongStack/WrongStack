@@ -4,6 +4,7 @@ import {
   parseNativeCloudSettings,
 } from '@wrongstack/contracts/types/native-cloud';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { ProviderChoice } from './provider-settings-model';
 
@@ -26,6 +27,7 @@ export function ProviderCloudSettings({
   provider: ProviderChoice;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
   const fields = cloudFieldsForProvider(provider.type ?? provider.id);
   const [draft, setDraft] = useState<NativeCloudSettings>(provider.cloud ?? {});
   const [busy, setBusy] = useState(false);
@@ -51,7 +53,7 @@ export function ProviderCloudSettings({
     setBusy(true);
     try {
       await command('provider.update', { id: provider.id, cloud }, ['key.operation_result']);
-      setNotice('Saved. Re-select the provider or restart to use the new settings.');
+      setNotice(t('providerSettings.cloud.saved'));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -60,7 +62,11 @@ export function ProviderCloudSettings({
   };
   return (
     <details className="provider-wiring">
-      <summary>Cloud routing · {saved || 'from the environment'}</summary>
+      <summary>
+        {t('providerSettings.cloud.title', {
+          saved: saved || t('providerSettings.cloud.fromEnvironment'),
+        })}
+      </summary>
       <form
         className="provider-wiring-form"
         onSubmit={(event) => {
@@ -68,13 +74,10 @@ export function ProviderCloudSettings({
           void save();
         }}
       >
-        <p className="provider-hint">
-          Profile values override environment defaults. Empty values use the environment.
-          Credentials are managed separately.
-        </p>
+        <p className="provider-hint">{t('providerSettings.cloud.hint')}</p>
         {fields.map((field) => (
           <label key={field}>
-            {FIELD_LABELS[field]}
+            {t(`providerSettings.cloud.field.${field}`, { defaultValue: FIELD_LABELS[field] })}
             <input
               maxLength={128}
               value={draft[field] ?? ''}
@@ -85,7 +88,7 @@ export function ProviderCloudSettings({
         ))}
         <div className="saved-key-actions">
           <button type="submit" className="button primary small" disabled={busy}>
-            {busy ? 'Saving…' : 'Save cloud settings'}
+            {busy ? t('providerSettings.wiring.saving') : t('providerSettings.cloud.save')}
           </button>
         </div>
       </form>

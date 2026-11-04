@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { ProviderChoice } from './provider-settings-model';
 
@@ -28,6 +29,7 @@ export function ProviderConnectionWiring({
   command: EngineCommand;
 }) {
   const models = provider.models ?? null;
+  const { t } = useDesktopText();
   const [editing, setEditing] = useState(false),
     [modelText, setModelText] = useState(''),
     [baseUrl, setBaseUrl] = useState(''),
@@ -42,7 +44,7 @@ export function ProviderConnectionWiring({
     try {
       const reply = await command(type, { ...payload }, ['key.operation_result']);
       const message = (reply as { message?: unknown } | undefined)?.message;
-      setNotice(typeof message === 'string' ? message : 'Saved.');
+      setNotice(typeof message === 'string' ? message : t('providerSettings.wiring.saved'));
       return true;
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -59,10 +61,14 @@ export function ProviderConnectionWiring({
       }}
     >
       <summary>
-        Models and endpoint ·{' '}
         {models === null
-          ? 'all catalog models'
-          : `${models.length} allowed ${models.length === 1 ? 'model' : 'models'}`}
+          ? t('providerSettings.wiring.allModels')
+          : t(
+              models.length === 1
+                ? 'providerSettings.wiring.allowedOne'
+                : 'providerSettings.wiring.allowedMany',
+              { n: models.length },
+            )}
         {provider.baseUrl ? ` · ${provider.baseUrl}` : ''}
       </summary>
       {editing ? (
@@ -91,7 +97,7 @@ export function ProviderConnectionWiring({
           }}
         >
           <label>
-            Allowed models (one per line or comma-separated)
+            {t('providerSettings.wiring.models')}
             <textarea
               rows={4}
               value={modelText}
@@ -100,7 +106,7 @@ export function ProviderConnectionWiring({
             />
           </label>
           <label>
-            Endpoint URL (empty uses the provider's own)
+            {t('providerSettings.wiring.endpoint')}
             <input
               value={baseUrl}
               disabled={busy}
@@ -110,7 +116,7 @@ export function ProviderConnectionWiring({
           </label>
           <div className="saved-key-actions">
             <button type="submit" className="button primary small" disabled={busy}>
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? t('providerSettings.wiring.saving') : t('providerSettings.wiring.save')}
             </button>
             <button
               type="button"
@@ -118,7 +124,7 @@ export function ProviderConnectionWiring({
               disabled={busy}
               onClick={() => setEditing(false)}
             >
-              Cancel
+              {t('providerSettings.wiring.cancel')}
             </button>
           </div>
         </form>
@@ -138,7 +144,7 @@ export function ProviderConnectionWiring({
                 setEditing(true);
               }}
             >
-              Edit
+              {t('providerSettings.wiring.edit')}
             </button>
             {models !== null && (
               <button
@@ -151,7 +157,7 @@ export function ProviderConnectionWiring({
                   })
                 }
               >
-                Allow every catalog model
+                {t('providerSettings.wiring.allowAll')}
               </button>
             )}
             {cleared && models === null && (
@@ -168,7 +174,12 @@ export function ProviderConnectionWiring({
                   })
                 }
               >
-                Undo: restore {cleared.length} {cleared.length === 1 ? 'model' : 'models'}
+                {t(
+                  cleared.length === 1
+                    ? 'providerSettings.wiring.undoOne'
+                    : 'providerSettings.wiring.undoMany',
+                  { n: cleared.length },
+                )}
               </button>
             )}
           </div>

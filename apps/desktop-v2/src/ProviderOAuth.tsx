@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import { entries } from './engine-values';
 import { Modal } from './Modal';
@@ -11,6 +13,7 @@ import {
   oauthUrl,
 } from './oauth-model';
 import { openExternal } from './platform';
+import { surfaceI18n } from './surface-i18n';
 import './provider-oauth.css';
 
 export function ProviderOAuth({
@@ -22,6 +25,11 @@ export function ProviderOAuth({
   send: EngineSend;
   status: Record<string, unknown> | undefined;
 }) {
+  const { t } = useDesktopText();
+  const aliasWords = {
+    invalid: t('providerSettings.oauth.aliasInvalid'),
+    exists: t('providerSettings.oauth.aliasExists'),
+  };
   const [strategies, setStrategies] = useState<Record<string, unknown>[]>([]),
     [saved, setSaved] = useState<Record<string, unknown>[]>([]);
   const [kind, setKind] = useState(''),
@@ -78,16 +86,14 @@ export function ProviderOAuth({
         setSaved(accounts);
         const account = accounts.find((item) => item['id'] === attempt['providerId']);
         if (!account || !entries(account['apiKeys']).some((key) => key['authMethod'] === 'oauth'))
-          throw Error(
-            'Sign-in completed, but its saved subscription credential could not be verified. Refresh connections before retrying.',
-          );
-        setNotice(`Signed in and verified: ${account['id']}. Choose its model when you are ready.`);
+          throw Error(t('providerSettings.oauth.unverified'));
+        setNotice(t('providerSettings.oauth.signedIn', { account: account['id'] }));
         void send('providers.saved').catch(() => {});
       })
       .catch((error) => {
         if (mounted.current && live.current?.attemptId === id) setError(String(error));
       });
-  }, [attempt, command, send]);
+  }, [attempt, command, send, t]);
   const strategy = strategies.find((item) => item['id'] === kind),
     active = oauthActive(attempt);
   const target = mode === 'default' ? String(strategy?.['providerId'] ?? '') : alias.trim();
@@ -112,6 +118,7 @@ export function ProviderOAuth({
         account,
         accounts.map((item) => String(item['id'])),
         mode === 'new',
+        aliasWords,
       );
       if (issue) throw Error(issue);
       if (!mounted.current || operation.current !== action) return;
@@ -144,7 +151,7 @@ export function ProviderOAuth({
       ]);
       if (mounted.current && operation.current === action) {
         setAttempt({ ...attempt, phase: 'cancelled' });
-        setNotice('Sign-in cancelled. Saved connections were kept.');
+        setNotice(t('providerSettings.oauth.cancelledNotice'));
       }
     } catch (error) {
       if (mounted.current && operation.current === action) setError(String(error));
@@ -176,20 +183,17 @@ export function ProviderOAuth({
   };
   const link = oauthUrl(attempt?.['authorizeUrl'] ?? attempt?.['verificationUri']);
   return (
-    <section className="provider-oauth" aria-label="Subscription sign-in">
+    <section className="provider-oauth" aria-label={t('providerSettings.oauth.label')}>
       <header>
-        <span className="eyebrow">SUBSCRIPTION ACCOUNTS</span>
-        <h3>Sign in with your account</h3>
-        <p>
-          Use the authentication methods supplied by the engine. Saved credentials stay in its
-          encrypted vault.
-        </p>
+        <span className="eyebrow">{t('providerSettings.oauth.eyebrow')}</span>
+        <h3>{t('providerSettings.oauth.title')}</h3>
+        <p>{t('providerSettings.oauth.intro')}</p>
       </header>
       <div className="oauth-controls">
         <label>
-          Service
+          {t('providerSettings.oauth.service')}
           <select
-            aria-label="Subscription service"
+            aria-label={t('providerSettings.oauth.serviceLabel')}
             value={kind}
             disabled={active || busy}
             onChange={(event) => {
@@ -206,9 +210,9 @@ export function ProviderOAuth({
           </select>
         </label>
         <label>
-          Connection
+          {t('providerSettings.oauth.connection')}
           <select
-            aria-label="Subscription connection mode"
+            aria-label={t('providerSettings.oauth.connectionLabel')}
             value={mode}
             disabled={active || busy}
             onChange={(event) => {
@@ -216,16 +220,16 @@ export function ProviderOAuth({
               setAlias('');
             }}
           >
-            <option value="default">Default account</option>
-            <option value="new">New named account</option>
-            <option value="existing">Reconnect saved account</option>
+            <option value="default">{t('providerSettings.oauth.mode.default')}</option>
+            <option value="new">{t('providerSettings.oauth.mode.new')}</option>
+            <option value="existing">{t('providerSettings.oauth.mode.existing')}</option>
           </select>
         </label>
         {mode === 'new' && (
           <label>
-            Account name
+            {t('providerSettings.oauth.accountName')}
             <input
-              aria-label="Subscription account name"
+              aria-label={t('providerSettings.oauth.accountNameLabel')}
               value={alias}
               maxLength={80}
               disabled={active || busy}
@@ -236,14 +240,14 @@ export function ProviderOAuth({
         )}
         {mode === 'existing' && (
           <label>
-            Saved account
+            {t('providerSettings.oauth.savedAccount')}
             <select
-              aria-label="Saved subscription account"
+              aria-label={t('providerSettings.oauth.savedAccountLabel')}
               value={alias}
               disabled={active || busy}
               onChange={(event) => setAlias(event.target.value)}
             >
-              <option value="">Choose an account</option>
+              <option value="">{t('providerSettings.oauth.chooseAccount')}</option>
               {saved
                 .filter((item) =>
                   entries(item['apiKeys']).some((key) => key['authMethod'] === 'oauth'),
@@ -263,12 +267,13 @@ export function ProviderOAuth({
               target,
               saved.map((item) => String(item['id'])),
               mode === 'new',
+              aliasWords,
             );
             setError(issue ?? '');
             if (!issue) setReview(target);
           }}
         >
-          Start sign-in
+          {t('providerSettings.oauth.start')}
         </button>
       </div>
       {typeof strategy?.['description'] === 'string' && (
@@ -276,7 +281,7 @@ export function ProviderOAuth({
       )}
       {Array.isArray(strategy?.['notes']) && (
         <details>
-          <summary>Service guidance</summary>
+          <summary>{t('providerSettings.oauth.guidance')}</summary>
           {strategy['notes'].map((note, index) => (
             <p key={index}>{String(note)}</p>
           ))}
@@ -293,23 +298,10 @@ export function ProviderOAuth({
         </p>
       )}
       {attempt && (
-        <section className="oauth-progress" aria-label="Subscription sign-in progress">
-          <p role="status">
-            {
-              {
-                starting: 'Starting sign-in…',
-                awaiting_browser: 'Continue in your browser.',
-                awaiting_code: 'Enter the device code on the service website.',
-                exchanging: 'Completing sign-in…',
-                fetching_models: 'Saving the account and loading models…',
-                success: 'Sign-in completed; saved account readback requested.',
-                error: 'Sign-in ended.',
-                cancelled: 'Sign-in cancelled.',
-              }[attempt.phase]
-            }
-          </p>
+        <section className="oauth-progress" aria-label={t('providerSettings.oauth.progress')}>
+          <p role="status">{t(`providerSettings.oauth.phase.${attempt.phase}`)}</p>
           {attempt.phase === 'error' && (
-            <p role="alert">{String(attempt['message'] ?? 'Start sign-in again to retry.')}</p>
+            <p role="alert">{String(attempt['message'] ?? t('providerSettings.oauth.retry'))}</p>
           )}
           {active && link && (
             <button
@@ -317,13 +309,13 @@ export function ProviderOAuth({
               className="button secondary"
               onClick={() => void openExternal(link).catch((error) => setError(String(error)))}
             >
-              Open sign-in website
+              {t('providerSettings.oauth.openWebsite')}
             </button>
           )}
           {active && typeof attempt['userCode'] === 'string' && (
             <div className="oauth-device-code">
               <strong>{attempt['userCode']}</strong>
-              <CopyButton text={attempt['userCode']} label="Copy sign-in device code" />
+              <CopyButton text={attempt['userCode']} label={t('providerSettings.oauth.copyCode')} />
             </div>
           )}
           {attempt.phase === 'awaiting_browser' && (
@@ -333,7 +325,7 @@ export function ProviderOAuth({
                 className="button secondary"
                 onClick={() => setPaste((value) => !value)}
               >
-                Paste a callback URL or code
+                {t('providerSettings.oauth.paste')}
               </button>
               {paste && (
                 <form
@@ -343,21 +335,18 @@ export function ProviderOAuth({
                   }}
                 >
                   <label>
-                    Callback URL or code
+                    {t('providerSettings.oauth.callback')}
                     <input
                       type="password"
                       autoComplete="off"
-                      aria-label="Sign-in callback URL or code"
+                      aria-label={t('providerSettings.oauth.callbackLabel')}
                       value={input}
                       onChange={(event) => setInput(event.target.value)}
                     />
                   </label>
-                  <p className="field-help">
-                    Used for this exchange only. It is cleared when submitted and is not saved as a
-                    draft.
-                  </p>
+                  <p className="field-help">{t('providerSettings.oauth.callbackHint')}</p>
                   <button type="submit" className="button primary" disabled={busy || !input.trim()}>
-                    Complete sign-in
+                    {t('providerSettings.oauth.complete')}
                   </button>
                 </form>
               )}
@@ -370,33 +359,35 @@ export function ProviderOAuth({
               disabled={attempt.phase === 'fetching_models'}
               onClick={() => void cancel()}
             >
-              Cancel sign-in
+              {t('providerSettings.oauth.cancel')}
             </button>
           )}
         </section>
       )}
-      <p className="field-help">
-        Remove a saved sign-in using its credential entry below. Removing it here does not revoke
-        the service’s browser session or tokens at the provider.
-      </p>
+      <p className="field-help">{t('providerSettings.oauth.removeHint')}</p>
       {review && (
         <Modal onClose={() => setReview(null)}>
-          <h2 id="dialog-title">Review subscription sign-in</h2>
+          <h2 id="dialog-title">{t('providerSettings.oauth.reviewTitle')}</h2>
           <p>
-            Save this sign-in to <strong>{review}</strong>.
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="providerSettings.oauth.saveTo"
+              values={{ account: review }}
+              components={{ strong: <strong /> }}
+            />
           </p>
           <p>
             {saved.some((item) => item['id'] === review)
-              ? 'This updates the saved connection’s subscription credential and model discovery.'
-              : 'A named provider connection will be created after successful authentication.'}{' '}
-            Existing runs keep their current connection.
+              ? t('providerSettings.oauth.updates')
+              : t('providerSettings.oauth.creates')}
           </p>
           <div className="modal-actions">
             <button type="button" className="button secondary" onClick={() => setReview(null)}>
-              Keep connections unchanged
+              {t('providerSettings.oauth.keep')}
             </button>
             <button type="button" className="button primary" onClick={() => void start()}>
-              Begin reviewed sign-in
+              {t('providerSettings.oauth.begin')}
             </button>
           </div>
         </Modal>

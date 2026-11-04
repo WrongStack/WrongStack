@@ -31,6 +31,9 @@ describe('subscription sign-in ownership', () => {
     expect(oauthAliasIssue('work-account', [], true)).toBeNull();
     expect(oauthAliasIssue('work', ['work'], true)).toContain('already exists');
     expect(oauthAliasIssue('work', ['work'], false)).toBeNull();
+    expect(oauthAliasIssue('work', ['work'], true, { invalid: 'bad name', exists: 'taken' })).toBe(
+      'taken',
+    );
     for (const value of ['', '../outside', '__proto__', 'constructor'])
       expect(oauthAliasIssue(value, [], true)).not.toBeNull();
     expect(oauthUrl('https://example.test/login?state=fixture')).toBe(

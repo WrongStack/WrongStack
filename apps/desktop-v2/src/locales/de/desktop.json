@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Im verschlüsselten Tresor der Engine gespeichert",
     "keyLabel": "Schlüsselbezeichnung",
     "saveAndUse": "Anbieter speichern und verwenden",
-    "saveKey": "API-Schlüssel speichern"
+    "saveKey": "API-Schlüssel speichern",
+    "oauth": {
+      "unverified": "Die Anmeldung ist abgeschlossen, aber die gespeicherten Abo-Zugangsdaten konnten nicht geprüft werden. Aktualisiere die Verbindungen, bevor du es erneut versuchst.",
+      "signedIn": "Angemeldet und geprüft: {{account}}. Wähle sein Modell, wenn du bereit bist.",
+      "cancelledNotice": "Anmeldung abgebrochen. Gespeicherte Verbindungen bleiben erhalten.",
+      "aliasInvalid": "Verwende 1–80 Buchstaben, Ziffern, Bindestriche oder Unterstriche, beginnend mit einem Buchstaben oder einer Ziffer.",
+      "aliasExists": "Diese Verbindung existiert bereits. Wähle einen neuen Kontonamen oder verbinde das gespeicherte Konto erneut.",
+      "label": "Abo-Anmeldung",
+      "eyebrow": "ABO-KONTEN",
+      "title": "Mit deinem Konto anmelden",
+      "intro": "Nutze die Anmeldeverfahren der Engine. Gespeicherte Zugangsdaten bleiben in ihrem verschlüsselten Tresor.",
+      "service": "Dienst",
+      "serviceLabel": "Abo-Dienst",
+      "connection": "Verbindung",
+      "connectionLabel": "Art der Abo-Verbindung",
+      "mode": {
+        "default": "Standardkonto",
+        "new": "Neues benanntes Konto",
+        "existing": "Gespeichertes Konto neu verbinden"
+      },
+      "accountName": "Kontoname",
+      "accountNameLabel": "Name des Abo-Kontos",
+      "savedAccount": "Gespeichertes Konto",
+      "savedAccountLabel": "Gespeichertes Abo-Konto",
+      "chooseAccount": "Konto wählen",
+      "start": "Anmeldung starten",
+      "guidance": "Hinweise zum Dienst",
+      "progress": "Fortschritt der Abo-Anmeldung",
+      "phase": {
+        "starting": "Anmeldung wird gestartet…",
+        "awaiting_browser": "Fahre in deinem Browser fort.",
+        "awaiting_code": "Gib den Gerätecode auf der Website des Dienstes ein.",
+        "exchanging": "Anmeldung wird abgeschlossen…",
+        "fetching_models": "Konto wird gespeichert, Modelle werden geladen…",
+        "success": "Anmeldung abgeschlossen; Rücklesen des gespeicherten Kontos angefordert.",
+        "error": "Anmeldung beendet.",
+        "cancelled": "Anmeldung abgebrochen."
+      },
+      "retry": "Starte die Anmeldung erneut, um es noch einmal zu versuchen.",
+      "openWebsite": "Anmeldeseite öffnen",
+      "copyCode": "Gerätecode der Anmeldung kopieren",
+      "paste": "Callback-URL oder Code einfügen",
+      "callback": "Callback-URL oder Code",
+      "callbackLabel": "Callback-URL oder Code der Anmeldung",
+      "callbackHint": "Nur für diesen Austausch verwendet. Wird beim Absenden geleert und nicht als Entwurf gespeichert.",
+      "complete": "Anmeldung abschließen",
+      "cancel": "Anmeldung abbrechen",
+      "removeHint": "Entferne eine gespeicherte Anmeldung über ihren Eintrag unten. Das Entfernen hier widerruft weder die Browsersitzung des Dienstes noch die Tokens beim Anbieter.",
+      "reviewTitle": "Abo-Anmeldung prüfen",
+      "saveTo": "Diese Anmeldung unter <strong>{{account}}</strong> speichern.",
+      "updates": "Damit werden die Abo-Zugangsdaten und die Modellerkennung der gespeicherten Verbindung aktualisiert. Laufende Läufe behalten ihre Verbindung.",
+      "creates": "Nach erfolgreicher Anmeldung wird eine benannte Anbieterverbindung erstellt. Laufende Läufe behalten ihre Verbindung.",
+      "keep": "Verbindungen unverändert lassen",
+      "begin": "Geprüfte Anmeldung beginnen"
+    },
+    "probe": {
+      "status": {
+        "ok": "Erreichbar",
+        "unreachable": "Nicht erreichbar",
+        "timeout": "Zeitüberschreitung",
+        "http_error": "HTTP-Fehler",
+        "invalid_response": "Unerwartete Antwort",
+        "skipped": "Nicht geprüft",
+        "no_provider": "Keine gespeicherte Verbindung",
+        "no_base_url": "Keine Endpunkt-URL zu prüfen (eingebauter Anbieter)"
+      },
+      "modelOne": "{{n}} Modell aufgeführt",
+      "modelMany": "{{n}} Modelle aufgeführt",
+      "label": "Endpunkt von {{provider}} prüfen",
+      "checking": "Wird geprüft…",
+      "check": "Endpunkt prüfen"
+    },
+    "wiring": {
+      "saved": "Gespeichert.",
+      "allModels": "Modelle und Endpunkt · alle Katalogmodelle",
+      "allowedOne": "Modelle und Endpunkt · {{n}} erlaubtes Modell",
+      "allowedMany": "Modelle und Endpunkt · {{n}} erlaubte Modelle",
+      "models": "Erlaubte Modelle (eines pro Zeile oder durch Kommas getrennt)",
+      "endpoint": "Endpunkt-URL (leer nutzt die des Anbieters)",
+      "saving": "Wird gespeichert…",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "allowAll": "Alle Katalogmodelle erlauben",
+      "undoOne": "Rückgängig: {{n}} Modell wiederherstellen",
+      "undoMany": "Rückgängig: {{n}} Modelle wiederherstellen"
+    },
+    "cloud": {
+      "field": {
+        "region": "AWS-Region",
+        "project": "Google-Cloud-Projekt",
+        "location": "Vertex-Standort",
+        "resourceName": "Azure-Ressourcenname"
+      },
+      "saved": "Gespeichert. Wähle den Anbieter erneut oder starte neu, um die neuen Einstellungen zu nutzen.",
+      "title": "Cloud-Routing · {{saved}}",
+      "fromEnvironment": "aus der Umgebung",
+      "hint": "Profilwerte überschreiben die Vorgaben der Umgebung. Leere Werte nutzen die Umgebung. Zugangsdaten werden getrennt verwaltet.",
+      "save": "Cloud-Einstellungen speichern"
+    }
   }
 }

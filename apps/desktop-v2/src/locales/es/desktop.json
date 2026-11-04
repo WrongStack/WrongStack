@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Se guarda en la bóveda cifrada del motor",
     "keyLabel": "Etiqueta de la clave",
     "saveAndUse": "Guardar y usar el proveedor",
-    "saveKey": "Guardar la clave de API"
+    "saveKey": "Guardar la clave de API",
+    "oauth": {
+      "unverified": "El inicio de sesión terminó, pero no se pudo verificar la credencial de suscripción guardada. Actualiza las conexiones antes de reintentar.",
+      "signedIn": "Sesión iniciada y verificada: {{account}}. Elige su modelo cuando quieras.",
+      "cancelledNotice": "Inicio de sesión cancelado. Se conservaron las conexiones guardadas.",
+      "aliasInvalid": "Usa de 1 a 80 letras, dígitos, guiones o guiones bajos, empezando por una letra o un dígito.",
+      "aliasExists": "Esta conexión ya existe. Elige un nuevo nombre de cuenta o vuelve a conectar la cuenta guardada.",
+      "label": "Inicio de sesión de suscripción",
+      "eyebrow": "CUENTAS DE SUSCRIPCIÓN",
+      "title": "Inicia sesión con tu cuenta",
+      "intro": "Usa los métodos de autenticación que ofrece el motor. Las credenciales guardadas quedan en su bóveda cifrada.",
+      "service": "Servicio",
+      "serviceLabel": "Servicio de suscripción",
+      "connection": "Conexión",
+      "connectionLabel": "Modo de conexión de la suscripción",
+      "mode": {
+        "default": "Cuenta predeterminada",
+        "new": "Nueva cuenta con nombre",
+        "existing": "Volver a conectar una cuenta guardada"
+      },
+      "accountName": "Nombre de la cuenta",
+      "accountNameLabel": "Nombre de la cuenta de suscripción",
+      "savedAccount": "Cuenta guardada",
+      "savedAccountLabel": "Cuenta de suscripción guardada",
+      "chooseAccount": "Elige una cuenta",
+      "start": "Iniciar sesión",
+      "guidance": "Indicaciones del servicio",
+      "progress": "Progreso del inicio de sesión de suscripción",
+      "phase": {
+        "starting": "Iniciando sesión…",
+        "awaiting_browser": "Continúa en tu navegador.",
+        "awaiting_code": "Introduce el código del dispositivo en el sitio del servicio.",
+        "exchanging": "Completando el inicio de sesión…",
+        "fetching_models": "Guardando la cuenta y cargando los modelos…",
+        "success": "Inicio de sesión completado; se pidió releer la cuenta guardada.",
+        "error": "El inicio de sesión terminó.",
+        "cancelled": "Inicio de sesión cancelado."
+      },
+      "retry": "Vuelve a iniciar sesión para reintentar.",
+      "openWebsite": "Abrir el sitio de inicio de sesión",
+      "copyCode": "Copiar el código del dispositivo",
+      "paste": "Pegar una URL de retorno o un código",
+      "callback": "URL de retorno o código",
+      "callbackLabel": "URL de retorno o código del inicio de sesión",
+      "callbackHint": "Se usa solo en este intercambio. Se borra al enviarlo y no se guarda como borrador.",
+      "complete": "Completar el inicio de sesión",
+      "cancel": "Cancelar el inicio de sesión",
+      "removeHint": "Quita un inicio de sesión guardado desde su entrada de credencial de abajo. Quitarlo aquí no revoca la sesión del navegador del servicio ni los tokens en el proveedor.",
+      "reviewTitle": "Revisar el inicio de sesión de suscripción",
+      "saveTo": "Guardar este inicio de sesión en <strong>{{account}}</strong>.",
+      "updates": "Esto actualiza la credencial de suscripción y el descubrimiento de modelos de la conexión guardada. Las ejecuciones en curso conservan su conexión.",
+      "creates": "Tras una autenticación correcta se creará una conexión de proveedor con nombre. Las ejecuciones en curso conservan su conexión.",
+      "keep": "Dejar las conexiones sin cambios",
+      "begin": "Iniciar el inicio de sesión revisado"
+    },
+    "probe": {
+      "status": {
+        "ok": "Accesible",
+        "unreachable": "Inaccesible",
+        "timeout": "Tiempo agotado",
+        "http_error": "Error HTTP",
+        "invalid_response": "Respuesta inesperada",
+        "skipped": "No comprobado",
+        "no_provider": "No es una conexión guardada",
+        "no_base_url": "No hay URL de endpoint que comprobar (proveedor integrado)"
+      },
+      "modelOne": "{{n}} modelo listado",
+      "modelMany": "{{n}} modelos listados",
+      "label": "Comprobar el endpoint de {{provider}}",
+      "checking": "Comprobando…",
+      "check": "Comprobar el endpoint"
+    },
+    "wiring": {
+      "saved": "Guardado.",
+      "allModels": "Modelos y endpoint · todos los modelos del catálogo",
+      "allowedOne": "Modelos y endpoint · {{n}} modelo permitido",
+      "allowedMany": "Modelos y endpoint · {{n}} modelos permitidos",
+      "models": "Modelos permitidos (uno por línea o separados por comas)",
+      "endpoint": "URL del endpoint (vacío usa la del proveedor)",
+      "saving": "Guardando…",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "allowAll": "Permitir todos los modelos del catálogo",
+      "undoOne": "Deshacer: restaurar {{n}} modelo",
+      "undoMany": "Deshacer: restaurar {{n}} modelos"
+    },
+    "cloud": {
+      "field": {
+        "region": "Región de AWS",
+        "project": "Proyecto de Google Cloud",
+        "location": "Ubicación de Vertex",
+        "resourceName": "Nombre del recurso de Azure"
+      },
+      "saved": "Guardado. Vuelve a elegir el proveedor o reinicia para usar los nuevos ajustes.",
+      "title": "Enrutamiento en la nube · {{saved}}",
+      "fromEnvironment": "del entorno",
+      "hint": "Los valores del perfil reemplazan los del entorno. Los valores vacíos usan el entorno. Las credenciales se gestionan aparte.",
+      "save": "Guardar los ajustes de la nube"
+    }
   }
 }

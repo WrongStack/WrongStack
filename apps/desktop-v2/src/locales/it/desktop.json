@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Conservata nel vault cifrato del motore",
     "keyLabel": "Etichetta della chiave",
     "saveAndUse": "Salva e usa il provider",
-    "saveKey": "Salva la chiave API"
+    "saveKey": "Salva la chiave API",
+    "oauth": {
+      "unverified": "L’accesso è completato, ma la credenziale dell’abbonamento salvata non è stata verificata. Aggiorna le connessioni prima di riprovare.",
+      "signedIn": "Accesso eseguito e verificato: {{account}}. Scegli il modello quando sei pronto.",
+      "cancelledNotice": "Accesso annullato. Le connessioni salvate sono state mantenute.",
+      "aliasInvalid": "Usa da 1 a 80 lettere, cifre, trattini o trattini bassi, iniziando con una lettera o una cifra.",
+      "aliasExists": "Questa connessione esiste già. Scegli un nuovo nome account o ricollega l’account salvato.",
+      "label": "Accesso con abbonamento",
+      "eyebrow": "ACCOUNT IN ABBONAMENTO",
+      "title": "Accedi con il tuo account",
+      "intro": "Usa i metodi di autenticazione forniti dal motore. Le credenziali salvate restano nel suo vault cifrato.",
+      "service": "Servizio",
+      "serviceLabel": "Servizio in abbonamento",
+      "connection": "Connessione",
+      "connectionLabel": "Modalità di connessione dell’abbonamento",
+      "mode": {
+        "default": "Account predefinito",
+        "new": "Nuovo account con nome",
+        "existing": "Ricollega un account salvato"
+      },
+      "accountName": "Nome dell’account",
+      "accountNameLabel": "Nome dell’account in abbonamento",
+      "savedAccount": "Account salvato",
+      "savedAccountLabel": "Account in abbonamento salvato",
+      "chooseAccount": "Scegli un account",
+      "start": "Avvia l’accesso",
+      "guidance": "Indicazioni del servizio",
+      "progress": "Avanzamento dell’accesso con abbonamento",
+      "phase": {
+        "starting": "Avvio dell’accesso…",
+        "awaiting_browser": "Continua nel browser.",
+        "awaiting_code": "Inserisci il codice del dispositivo sul sito del servizio.",
+        "exchanging": "Completamento dell’accesso…",
+        "fetching_models": "Salvataggio dell’account e caricamento dei modelli…",
+        "success": "Accesso completato; richiesta la rilettura dell’account salvato.",
+        "error": "Accesso terminato.",
+        "cancelled": "Accesso annullato."
+      },
+      "retry": "Avvia di nuovo l’accesso per riprovare.",
+      "openWebsite": "Apri il sito di accesso",
+      "copyCode": "Copia il codice del dispositivo per l’accesso",
+      "paste": "Incolla un URL di callback o un codice",
+      "callback": "URL di callback o codice",
+      "callbackLabel": "URL di callback o codice di accesso",
+      "callbackHint": "Usato solo per questo scambio. Viene cancellato all’invio e non è salvato come bozza.",
+      "complete": "Completa l’accesso",
+      "cancel": "Annulla l’accesso",
+      "removeHint": "Rimuovi un accesso salvato dalla sua voce delle credenziali qui sotto. Rimuoverlo qui non revoca la sessione del browser del servizio né i token presso il provider.",
+      "reviewTitle": "Rivedi l’accesso con abbonamento",
+      "saveTo": "Salva questo accesso in <strong>{{account}}</strong>.",
+      "updates": "Questo aggiorna la credenziale dell’abbonamento e il rilevamento dei modelli della connessione salvata. Le esecuzioni in corso mantengono la connessione.",
+      "creates": "Dopo un’autenticazione riuscita verrà creata una connessione al provider con nome. Le esecuzioni in corso mantengono la connessione.",
+      "keep": "Lascia invariate le connessioni",
+      "begin": "Avvia l’accesso rivisto"
+    },
+    "probe": {
+      "status": {
+        "ok": "Raggiungibile",
+        "unreachable": "Non raggiungibile",
+        "timeout": "Tempo scaduto",
+        "http_error": "Errore HTTP",
+        "invalid_response": "Risposta inattesa",
+        "skipped": "Non verificato",
+        "no_provider": "Non è una connessione salvata",
+        "no_base_url": "Nessun URL di endpoint da verificare (provider integrato)"
+      },
+      "modelOne": "{{n}} modello elencato",
+      "modelMany": "{{n}} modelli elencati",
+      "label": "Verifica l’endpoint di {{provider}}",
+      "checking": "Verifica…",
+      "check": "Verifica l’endpoint"
+    },
+    "wiring": {
+      "saved": "Salvato.",
+      "allModels": "Modelli ed endpoint · tutti i modelli del catalogo",
+      "allowedOne": "Modelli ed endpoint · {{n}} modello consentito",
+      "allowedMany": "Modelli ed endpoint · {{n}} modelli consentiti",
+      "models": "Modelli consentiti (uno per riga o separati da virgole)",
+      "endpoint": "URL dell’endpoint (vuoto usa quello del provider)",
+      "saving": "Salvataggio…",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "edit": "Modifica",
+      "allowAll": "Consenti tutti i modelli del catalogo",
+      "undoOne": "Annulla: ripristina {{n}} modello",
+      "undoMany": "Annulla: ripristina {{n}} modelli"
+    },
+    "cloud": {
+      "field": {
+        "region": "Regione AWS",
+        "project": "Progetto Google Cloud",
+        "location": "Località Vertex",
+        "resourceName": "Nome della risorsa Azure"
+      },
+      "saved": "Salvato. Riseleziona il provider o riavvia per usare le nuove impostazioni.",
+      "title": "Instradamento cloud · {{saved}}",
+      "fromEnvironment": "dall’ambiente",
+      "hint": "I valori del profilo sostituiscono quelli dell’ambiente. I valori vuoti usano l’ambiente. Le credenziali sono gestite a parte.",
+      "save": "Salva le impostazioni cloud"
+    }
   }
 }

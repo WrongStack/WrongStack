@@ -4249,6 +4249,105 @@
     "apiKeyPlaceholder": "Stored by the engine’s encrypted vault",
     "keyLabel": "Key label",
     "saveAndUse": "Save and use provider",
-    "saveKey": "Save API key"
+    "saveKey": "Save API key",
+    "oauth": {
+      "unverified": "Sign-in completed, but its saved subscription credential could not be verified. Refresh connections before retrying.",
+      "signedIn": "Signed in and verified: {{account}}. Choose its model when you are ready.",
+      "cancelledNotice": "Sign-in cancelled. Saved connections were kept.",
+      "aliasInvalid": "Use 1–80 letters, digits, hyphens or underscores, starting with a letter or digit.",
+      "aliasExists": "This connection already exists. Choose a new account name or reconnect the saved account.",
+      "label": "Subscription sign-in",
+      "eyebrow": "SUBSCRIPTION ACCOUNTS",
+      "title": "Sign in with your account",
+      "intro": "Use the authentication methods supplied by the engine. Saved credentials stay in its encrypted vault.",
+      "service": "Service",
+      "serviceLabel": "Subscription service",
+      "connection": "Connection",
+      "connectionLabel": "Subscription connection mode",
+      "mode": {
+        "default": "Default account",
+        "new": "New named account",
+        "existing": "Reconnect saved account"
+      },
+      "accountName": "Account name",
+      "accountNameLabel": "Subscription account name",
+      "savedAccount": "Saved account",
+      "savedAccountLabel": "Saved subscription account",
+      "chooseAccount": "Choose an account",
+      "start": "Start sign-in",
+      "guidance": "Service guidance",
+      "progress": "Subscription sign-in progress",
+      "phase": {
+        "starting": "Starting sign-in…",
+        "awaiting_browser": "Continue in your browser.",
+        "awaiting_code": "Enter the device code on the service website.",
+        "exchanging": "Completing sign-in…",
+        "fetching_models": "Saving the account and loading models…",
+        "success": "Sign-in completed; saved account readback requested.",
+        "error": "Sign-in ended.",
+        "cancelled": "Sign-in cancelled."
+      },
+      "retry": "Start sign-in again to retry.",
+      "openWebsite": "Open sign-in website",
+      "copyCode": "Copy sign-in device code",
+      "paste": "Paste a callback URL or code",
+      "callback": "Callback URL or code",
+      "callbackLabel": "Sign-in callback URL or code",
+      "callbackHint": "Used for this exchange only. It is cleared when submitted and is not saved as a draft.",
+      "complete": "Complete sign-in",
+      "cancel": "Cancel sign-in",
+      "removeHint": "Remove a saved sign-in using its credential entry below. Removing it here does not revoke the service’s browser session or tokens at the provider.",
+      "reviewTitle": "Review subscription sign-in",
+      "saveTo": "Save this sign-in to <strong>{{account}}</strong>.",
+      "updates": "This updates the saved connection’s subscription credential and model discovery. Existing runs keep their current connection.",
+      "creates": "A named provider connection will be created after successful authentication. Existing runs keep their current connection.",
+      "keep": "Keep connections unchanged",
+      "begin": "Begin reviewed sign-in"
+    },
+    "probe": {
+      "status": {
+        "ok": "Reachable",
+        "unreachable": "Unreachable",
+        "timeout": "Timed out",
+        "http_error": "HTTP error",
+        "invalid_response": "Unexpected response",
+        "skipped": "Not checked",
+        "no_provider": "Not a saved connection",
+        "no_base_url": "No endpoint URL to check (a built-in provider)"
+      },
+      "modelOne": "{{n}} model listed",
+      "modelMany": "{{n}} models listed",
+      "label": "Check the endpoint of {{provider}}",
+      "checking": "Checking…",
+      "check": "Check endpoint"
+    },
+    "wiring": {
+      "saved": "Saved.",
+      "allModels": "Models and endpoint · all catalog models",
+      "allowedOne": "Models and endpoint · {{n}} allowed model",
+      "allowedMany": "Models and endpoint · {{n}} allowed models",
+      "models": "Allowed models (one per line or comma-separated)",
+      "endpoint": "Endpoint URL (empty uses the provider’s own)",
+      "saving": "Saving…",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "allowAll": "Allow every catalog model",
+      "undoOne": "Undo: restore {{n}} model",
+      "undoMany": "Undo: restore {{n}} models"
+    },
+    "cloud": {
+      "field": {
+        "region": "AWS region",
+        "project": "Google Cloud project",
+        "location": "Vertex location",
+        "resourceName": "Azure resource name"
+      },
+      "saved": "Saved. Re-select the provider or restart to use the new settings.",
+      "title": "Cloud routing · {{saved}}",
+      "fromEnvironment": "from the environment",
+      "hint": "Profile values override environment defaults. Empty values use the environment. Credentials are managed separately.",
+      "save": "Save cloud settings"
+    }
   }
 }
