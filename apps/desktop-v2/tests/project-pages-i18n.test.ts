@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
+
+import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { AutomationRunComparison } from '../src/AutomationRunComparison';
+import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectRequirements } from '../src/ProjectRequirements';
@@ -11,6 +15,13 @@ import { RosterKnowledgeChecklist } from '../src/RosterKnowledgeChecklist';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+// jsdom has no modal dialogs; opening one only has to mark it open here.
+HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
+  this.open = true;
+};
+HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) {
+  this.open = false;
+};
 
 // The engine never answers here: each page stays on its first, loading view.
 const pending = () => new Promise<never>(() => {});
@@ -69,6 +80,29 @@ const evidence = () =>
 
 const automation = (projectId: string) =>
   createElement(AutomationWorkspace, { http: vi.fn(pending), projectId });
+
+const automationRun = (id: string, status: AutomationRunRecord['status']): AutomationRunRecord => ({
+  id,
+  jobId: 'job',
+  subjectKey: 'subject',
+  trigger: 'manual',
+  status,
+  createdAt: 0,
+});
+
+const comparison = () =>
+  createElement(AutomationRunComparison, {
+    left: automationRun('aaaaaaaa1', 'completed'),
+    right: automationRun('bbbbbbbb2', 'failed'),
+    onClose: vi.fn(),
+  });
+
+const inspector = () =>
+  createElement(AutomationRunInspector, {
+    run: automationRun('cccccccc3', 'queued'),
+    http: vi.fn(pending),
+    onClose: vi.fn(),
+  });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -201,5 +235,29 @@ describe('the project pages in the display language', () => {
         'GitHub otomasyon tetikleyicisini kullan',
       ]),
     );
+  });
+
+  it('show automation run evidence and comparison in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(comparison());
+    for (const text of ['Compare runs', 'Run aaaaaaaa', 'Status', 'completed', 'Not recorded'])
+      expect(page.text).toContain(text);
+    page = await mount(inspector());
+    for (const text of ['Execution & evidence', 'queued', 'Execution log', 'Recorded evidence'])
+      expect(page.text).toContain(text);
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(comparison());
+    for (const text of [
+      'Çalıştırmaları karşılaştır',
+      'Çalıştırma aaaaaaaa',
+      'Durum',
+      'tamamlandı',
+      'Kaydedilmedi',
+    ])
+      expect(page.text).toContain(text);
+    page = await mount(inspector());
+    for (const text of ['Yürütme ve kanıt', 'sırada', 'Yürütme günlüğü', 'Kaydedilen kanıt'])
+      expect(page.text).toContain(text);
   });
 });

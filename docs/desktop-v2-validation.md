@@ -7333,3 +7333,20 @@ copies, starting with SAGE memory.
   - The workspace test now also checks the templates, environment, credentials and GitHub sections
     in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.
+
+### Automation run evidence and run comparison in the display language (2026-11-04)
+
+- The run inspector now follows the display language in all seven languages: its metrics, agent
+  result, changed files, recorded evidence buttons and loading, the independent-check report and the
+  environment receipt.
+- The run comparison names its facts, columns and changed-file lists per language. Run statuses,
+  triggers and verification statuses inside the table are named per language too.
+- `runFacts` gives each fact a stable id and takes optional words for "Not recorded" and
+  "+ (list truncated)"; English stays the default, so its existing test is unchanged.
+- The table of evidence file names moved to `automation-evidence.ts`, so file names such as
+  `output.log` are not mistaken for catalog keys.
+- The publication panel inside the inspector follows in the next change.
+- Checks:
+  - The comparison and the inspector render in English and then in Turkish (jsdom).
+  - A new unit test covers fact ids and translated missing values.
+  - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.

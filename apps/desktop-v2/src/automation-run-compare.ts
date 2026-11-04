@@ -1,6 +1,26 @@
 import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
 
+/** The recorded facts, in display order, with their English labels. */
+const FACTS = {
+  status: 'Status',
+  trigger: 'Trigger',
+  created: 'Created',
+  duration: 'Duration',
+  agentStatus: 'Agent status',
+  verification: 'Verification',
+  inputTokens: 'Input tokens',
+  outputTokens: 'Output tokens',
+  iterations: 'Iterations',
+  cost: 'Cost (catalog estimate)',
+  exitCode: 'Exit code',
+  changedFiles: 'Changed files',
+  error: 'Error',
+} as const;
+export type RunFactId = keyof typeof FACTS;
+
 export interface RunFact {
+  /** Stable id for the fact, independent of the display language. */
+  id: RunFactId;
   label: string;
   left: string;
   right: string;
@@ -8,42 +28,56 @@ export interface RunFact {
   differs: boolean;
 }
 
-const unknown = 'Not recorded';
-const tokens = (value: number | null | undefined) =>
-  value === null || value === undefined ? unknown : value.toLocaleString();
+/** Words written into fact values; English by default. */
+export interface RunFactWords {
+  notRecorded: string;
+  truncated: string;
+}
+const englishWords: RunFactWords = {
+  notRecorded: 'Not recorded',
+  truncated: '+ (list truncated)',
+};
 
 /** Recorded facts of two runs side by side; missing values stay "Not recorded". */
-export function runFacts(left: AutomationRunRecord, right: AutomationRunRecord): RunFact[] {
-  const read = (run: AutomationRunRecord): Record<string, string> => {
+export function runFacts(
+  left: AutomationRunRecord,
+  right: AutomationRunRecord,
+  words: RunFactWords = englishWords,
+): RunFact[] {
+  const unknown = words.notRecorded;
+  const tokens = (value: number | null | undefined) =>
+    value === null || value === undefined ? unknown : value.toLocaleString();
+  const read = (run: AutomationRunRecord): Record<RunFactId, string> => {
     const result = run.result;
     return {
-      Status: run.status,
-      Trigger: run.trigger,
-      Created: new Date(run.createdAt).toISOString(),
-      Duration: result ? `${(result.durationMs / 1000).toFixed(1)} s` : unknown,
-      'Agent status': result?.agentStatus ?? unknown,
-      Verification: result?.validation.status ?? unknown,
-      'Input tokens': tokens(result?.usage.inputTokens),
-      'Output tokens': tokens(result?.usage.outputTokens),
-      Iterations: tokens(result?.usage.iterations),
-      'Cost (catalog estimate)':
+      status: run.status,
+      trigger: run.trigger,
+      created: new Date(run.createdAt).toISOString(),
+      duration: result ? `${(result.durationMs / 1000).toFixed(1)} s` : unknown,
+      agentStatus: result?.agentStatus ?? unknown,
+      verification: result?.validation.status ?? unknown,
+      inputTokens: tokens(result?.usage.inputTokens),
+      outputTokens: tokens(result?.usage.outputTokens),
+      iterations: tokens(result?.usage.iterations),
+      cost:
         result?.usage.costUsd === null || result?.usage.costUsd === undefined
           ? unknown
           : `$${result.usage.costUsd.toFixed(4)}`,
-      'Exit code': run.exitCode === undefined ? unknown : String(run.exitCode),
-      'Changed files': result
-        ? `${result.changedFiles.length}${result.changedFilesTruncated ? '+ (list truncated)' : ''}`
+      exitCode: run.exitCode === undefined ? unknown : String(run.exitCode),
+      changedFiles: result
+        ? `${result.changedFiles.length}${result.changedFilesTruncated ? words.truncated : ''}`
         : unknown,
-      Error: run.error ?? '—',
+      error: run.error ?? '—',
     };
   };
   const a = read(left),
     b = read(right);
-  return Object.keys(a).map((label) => ({
-    label,
-    left: a[label]!,
-    right: b[label]!,
-    differs: a[label] !== b[label],
+  return (Object.keys(FACTS) as RunFactId[]).map((id) => ({
+    id,
+    label: FACTS[id],
+    left: a[id],
+    right: b[id],
+    differs: a[id] !== b[id],
   }));
 }
 

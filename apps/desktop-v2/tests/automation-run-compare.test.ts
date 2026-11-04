@@ -54,3 +54,16 @@ it('splits changed files and flags truncated lists', () => {
     partial: true,
   });
 });
+it('names facts by a stable id and writes missing values in the given words', () => {
+  const facts = runFacts(run('a'), run('b', { result: result(['x'], true) }), {
+    notRecorded: 'Kaydedilmedi',
+    truncated: '+ (liste kesildi)',
+  });
+  expect(facts.map((fact) => fact.id)).toContain('changedFiles');
+  const changed = facts.find((fact) => fact.id === 'changedFiles');
+  expect(changed).toMatchObject({
+    label: 'Changed files',
+    left: 'Kaydedilmedi',
+    right: '1+ (liste kesildi)',
+  });
+});
