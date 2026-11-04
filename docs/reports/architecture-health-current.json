@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T22:24:36.043Z",
+  "generatedAt": "2026-11-04T22:25:32.842Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6007,
-    "testFiles": 5015,
+    "testFiles": 5016,
     "sourceLines": 1248589,
     "workspaceEdges": 240,
     "moduleEdges": 17674,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 278,
+    "testsWithoutTypecheck": 279,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1039
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 441,
-      "testFiles": 278,
+      "testFiles": 279,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2837,6 +2837,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-tools-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/shell-gaps-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33183,6 +33189,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-tools-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/shell-gaps-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
