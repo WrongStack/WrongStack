@@ -183,8 +183,8 @@
       "relativeImports": 15
     },
     "apps/desktop-v2/src/RosterRuntimeEditor.tsx": {
-      "lines": 777,
-      "relativeImports": 8
+      "lines": 779,
+      "relativeImports": 9
     },
     "apps/desktop-v2/src/SessionComposer.tsx": {
       "lines": 1055,

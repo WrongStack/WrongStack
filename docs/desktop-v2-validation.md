@@ -7249,3 +7249,20 @@ copies, starting with SAGE memory.
 - Checks:
   - The roster's loading view renders in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Roster runtime editor, role documents, knowledge checklist and inheritance map in the display language (2026-11-04)
+
+- Everything the agent roster opens now follows the display language in all seven languages:
+  - the runtime policy editor: model and checkout, budgets, model policy, availability with
+    weekdays, the tool, skill and capability lists, draft recovery and the leave dialog;
+  - role documents (identity, learned directives, consolidated knowledge, skill addenda) with
+    their drafts, conflicts and saving;
+  - the knowledge checklist;
+  - the inheritance map.
+- The list overrides take a kind (tools, skills, capabilities) instead of an English label, so
+  "Override inherited tool grants" is worded per language instead of lowercasing a label.
+- RosterRuntimeEditor grew by two lines and imports one more module; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - The knowledge checklist renders in English and then in Turkish beside the roster (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (878); typecheck clean.

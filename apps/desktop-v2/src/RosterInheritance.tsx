@@ -1,5 +1,6 @@
 import { Background, Controls, type Edge, MiniMap, type Node, ReactFlow } from '@xyflow/react';
 import { useMemo } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { RosterRecord } from './roster-model';
 import '@xyflow/react/dist/style.css';
 
@@ -12,6 +13,7 @@ export function RosterInheritance({
   selected: string;
   onSelect: (role: string) => void;
 }) {
+  const { t } = useDesktopText();
   const graph = useMemo(() => {
     const byRole = new Map(catalog.map((entry) => [String(entry['role']), entry]));
     const shown = new Set<string>([selected]);
@@ -82,10 +84,10 @@ export function RosterInheritance({
     return { nodes, edges, omitted: Math.max(0, children.length - 60) };
   }, [catalog, selected]);
   return (
-    <section className="roster-inheritance" aria-label="Project role inheritance graph">
+    <section className="roster-inheritance" aria-label={t('inheritance.label')}>
       <p>
-        Stored base-role inheritance for the selected role, its ancestors and direct children.
-        {graph.omitted > 0 ? ` ${graph.omitted} additional children remain in the catalog.` : ''}
+        {t('inheritance.help')}
+        {graph.omitted > 0 ? ` ${t('inheritance.omitted', { count: graph.omitted })}` : ''}
       </p>
       <div>
         <ReactFlow

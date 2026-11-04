@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { emptyEngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -38,6 +39,7 @@ export function RosterRuntimeEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useDesktopText();
   const key = rosterDocumentKey(projectId, role, 'runtime');
   const cached = useRef(drafts.get(key)).current;
   const [base, setBase] = useState(cached?.base ?? record(snapshot['config']));
@@ -131,12 +133,8 @@ export function RosterRuntimeEditor({
         { role, includeDocuments: false },
         ['agent-roster.read-customization'],
       );
-      if (current['configState'] === 'unreadable')
-        throw Error(
-          'The stored runtime is unreadable. Repair its file before replacing project settings.',
-        );
-      if (snapshot['profile'] && !current['profile'])
-        throw Error('This project role was removed. Your local runtime draft is preserved.');
+      if (current['configState'] === 'unreadable') throw Error(t('rosterEdit.unreadable'));
+      if (snapshot['profile'] && !current['profile']) throw Error(t('rosterEdit.removed'));
       const next = mergeRosterConfig(base, draft, record(current['config']));
       await command('agent-roster.update-config', { role, config: next }, [
         'agent-roster.update-config',
@@ -147,7 +145,7 @@ export function RosterRuntimeEditor({
         ['agent-roster.read-customization'],
       );
       if (actual['configState'] === 'unreadable' || !sameSetting(actual['config'], next))
-        throw Error('The saved runtime did not match readback. Your local draft is kept.');
+        throw Error(t('rosterEdit.mismatch'));
       forget();
       setBase(next);
       setDraft(next);
@@ -166,37 +164,30 @@ export function RosterRuntimeEditor({
     : [];
   return (
     <>
-      <Modal title={`Runtime policy for ${role}`} onClose={close}>
+      <Modal title={t('rosterEdit.modalTitle', { role })} onClose={close}>
         <div className="roster-runtime-editor">
           <header>
             <div>
-              <span className="eyebrow">PROJECT OVERRIDE · {role}</span>
-              <h2>Runtime policy</h2>
+              <span className="eyebrow">{t('rosterEdit.eyebrow', { role })}</span>
+              <h2>{t('rosterEdit.title')}</h2>
             </div>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close role runtime"
+              aria-label={t('rosterEdit.close')}
               disabled={busy}
               onClick={close}
             >
               <X size={18} />
             </button>
           </header>
-          <p>
-            Project choices are resolved against the role's catalog defaults on its next spawn.
-            Empty budget fields inherit. Saved overrides and resolved values are shown separately.
-          </p>
+          <p>{t('rosterEdit.intro')}</p>
           {snapshot['systemProtected'] === true && (
-            <p className="roster-policy-note">
-              Built-in role rules retain base tools, use advisory availability and model policy, and
-              apply budget minima. The resolved overview shows the result.
-            </p>
+            <p className="roster-policy-note">{t('rosterEdit.builtinNote')}</p>
           )}
           {(cached || recovered) && dirty && (
             <p role="status" className="roster-policy-note">
-              Your unsaved runtime draft has been recovered. Saving merges it with the current
-              stored runtime.
+              {t('rosterEdit.recovered')}
             </p>
           )}
           {durableState.error && (
@@ -206,13 +197,13 @@ export function RosterRuntimeEditor({
           )}
           {durableState.review && (
             <div className="roster-confirm" role="alert">
-              <p>Another window saved a different unsaved runtime draft for this role.</p>
+              <p>{t('rosterEdit.conflict')}</p>
               <button
                 type="button"
                 className="button secondary"
                 onClick={() => void durable.resolve('local')}
               >
-                Keep this window’s draft
+                {t('rosterEdit.keepWindow')}
               </button>
               <button
                 type="button"
@@ -227,7 +218,7 @@ export function RosterRuntimeEditor({
                   });
                 }}
               >
-                Use saved draft
+                {t('rosterEdit.useSaved')}
               </button>
             </div>
           )}
@@ -238,19 +229,19 @@ export function RosterRuntimeEditor({
           )}
           <fieldset disabled={busy || !fresh}>
             <section>
-              <h3>Model and checkout</h3>
+              <h3>{t('rosterEdit.modelSection')}</h3>
               <div className="roster-form-grid">
                 <div>
-                  <span className="field-label">Project role model</span>
+                  <span className="field-label">{t('rosterEdit.roleModel')}</span>
                   <button
                     type="button"
                     className="button secondary"
-                    aria-label="Choose role model"
+                    aria-label={t('rosterEdit.chooseModel')}
                     onClick={() => setPicker('model')}
                   >
                     {draft['provider'] || draft['model']
                       ? `${draft['provider'] ?? '*'}/${draft['model'] ?? '*'}`
-                      : 'Inherit model routing'}
+                      : t('rosterEdit.inheritRouting')}
                   </button>
                   <button
                     type="button"
@@ -262,36 +253,33 @@ export function RosterRuntimeEditor({
                       change(next);
                     }}
                   >
-                    Inherit model
+                    {t('rosterEdit.inheritModel')}
                   </button>
                 </div>
                 <label>
-                  Fallback profile
+                  {t('rosterEdit.fallbackProfile')}
                   <input
-                    aria-label="Role fallback profile"
+                    aria-label={t('rosterEdit.fallbackLabel')}
                     value={text(draft['fallbackProfile'])}
                     disabled={!!draft['modelPolicy']}
                     onChange={(event) => field('fallbackProfile', event.target.value || undefined)}
-                    placeholder="Inherit"
+                    placeholder={t('rosterEdit.inherit')}
                   />
-                  <small>
-                    Explicit model policy supplies fallbacks while enabled; this profile is
-                    retained.
-                  </small>
+                  <small>{t('rosterEdit.fallbackHelp')}</small>
                 </label>
                 <label>
-                  Working directory
+                  {t('rosterEdit.cwd')}
                   <input
-                    aria-label="Role working directory"
+                    aria-label={t('rosterEdit.cwdLabel')}
                     value={text(draft['cwd'])}
                     onChange={(event) => field('cwd', event.target.value || undefined)}
-                    placeholder="Assigned checkout root"
+                    placeholder={t('rosterEdit.cwdPlaceholder')}
                   />
                 </label>
                 <label>
-                  Checkout strategy
+                  {t('rosterEdit.checkoutTitle')}
                   <select
-                    aria-label="Role checkout strategy"
+                    aria-label={t('rosterEdit.checkoutLabel')}
                     value={draft['worktree'] === undefined ? '' : String(draft['worktree'])}
                     onChange={(event) =>
                       field(
@@ -306,47 +294,49 @@ export function RosterRuntimeEditor({
                       )
                     }
                   >
-                    <option value="">Inherit</option>
-                    <option value="auto">Automatic</option>
-                    <option value="required">Require worktree</option>
-                    <option value="off">No worktree</option>
-                    <option value="true">Enabled (legacy)</option>
-                    <option value="false">Disabled (legacy)</option>
+                    <option value="">{t('rosterEdit.inherit')}</option>
+                    <option value="auto">{t('rosterEdit.checkout.auto')}</option>
+                    <option value="required">{t('rosterEdit.checkout.required')}</option>
+                    <option value="off">{t('rosterEdit.checkout.off')}</option>
+                    <option value="true">{t('rosterEdit.checkout.true')}</option>
+                    <option value="false">{t('rosterEdit.checkout.false')}</option>
                   </select>
                 </label>
               </div>
             </section>
             <section>
-              <h3>Execution budgets</h3>
-              <p className="field-help">
-                Amounts are stored as entered; zero is an explicit amount. Empty fields use the
-                catalog. No desktop cap is added.
-              </p>
+              <h3>{t('rosterEdit.budgets')}</h3>
+              <p className="field-help">{t('rosterEdit.budgetsHelp')}</p>
               <div className="roster-form-grid">
-                {rosterBudgetFields.map(({ key: fieldKey, label }) => (
-                  <label key={fieldKey}>
-                    {label}
-                    <input
-                      aria-label={`Role ${label}`}
-                      inputMode={fieldKey === 'maxCostUsd' ? 'decimal' : 'numeric'}
-                      value={budget[fieldKey] === undefined ? '' : String(budget[fieldKey])}
-                      onChange={(event) =>
-                        field('budget', { ...budget, [fieldKey]: event.target.value })
-                      }
-                      placeholder="Inherit"
-                    />
-                    <small>
-                      Resolved:{' '}
-                      {record(effective['budget'])[fieldKey] === undefined
-                        ? 'Not reported'
-                        : String(record(effective['budget'])[fieldKey])}
-                    </small>
-                  </label>
-                ))}
+                {rosterBudgetFields.map(({ key: fieldKey, label: english }) => {
+                  const label = t(`roster.budget.${fieldKey}`, { defaultValue: english });
+                  return (
+                    <label key={fieldKey}>
+                      {label}
+                      <input
+                        aria-label={t('rosterEdit.budgetLabel', { field: label })}
+                        inputMode={fieldKey === 'maxCostUsd' ? 'decimal' : 'numeric'}
+                        value={budget[fieldKey] === undefined ? '' : String(budget[fieldKey])}
+                        onChange={(event) =>
+                          field('budget', { ...budget, [fieldKey]: event.target.value })
+                        }
+                        placeholder={t('rosterEdit.inherit')}
+                      />
+                      <small>
+                        {t('rosterEdit.resolved', {
+                          value:
+                            record(effective['budget'])[fieldKey] === undefined
+                              ? t('roster.notReported')
+                              : String(record(effective['budget'])[fieldKey]),
+                        })}
+                      </small>
+                    </label>
+                  );
+                })}
               </div>
             </section>
             <section>
-              <h3>Model policy</h3>
+              <h3>{t('rosterEdit.policy')}</h3>
               <label className="roster-checkbox">
                 <input
                   type="checkbox"
@@ -357,7 +347,7 @@ export function RosterRuntimeEditor({
                       : field('modelPolicy', undefined)
                   }
                 />
-                Use an explicit allowed-model policy
+                {t('rosterEdit.usePolicy')}
               </label>
               {draft['modelPolicy'] !== undefined && (
                 <>
@@ -367,12 +357,9 @@ export function RosterRuntimeEditor({
                       checked={policy['strict'] === true}
                       onChange={(event) => modelPolicy({ ...policy, strict: event.target.checked })}
                     />
-                    Enforce the allowed list for this custom role
+                    {t('rosterEdit.enforce')}
                   </label>
-                  <p className="field-help">
-                    Fallbacks run in order and must also be allowed. Built-in roles apply their
-                    protected policy rules.
-                  </p>
+                  <p className="field-help">{t('rosterEdit.policyHelp')}</p>
                   <div className="roster-model-targets">
                     {allowed.map((target, index) => (
                       <div key={`${target['provider']}/${target['model']}`}>
@@ -392,12 +379,12 @@ export function RosterRuntimeEditor({
                               })
                             }
                           />
-                          Fallback
+                          {t('rosterEdit.fallback')}
                         </label>
                         <button
                           type="button"
                           className="icon-button danger"
-                          aria-label={`Remove allowed model ${index + 1}`}
+                          aria-label={t('rosterEdit.removeAllowed', { n: index + 1 })}
                           onClick={() =>
                             modelPolicy({
                               ...policy,
@@ -417,7 +404,7 @@ export function RosterRuntimeEditor({
                     onClick={() => setPicker('allowed')}
                   >
                     <Plus size={14} />
-                    Add allowed model
+                    {t('rosterEdit.addAllowed')}
                   </button>
                   {fallbacks.length > 0 && (
                     <ol className="roster-model-targets">
@@ -431,7 +418,12 @@ export function RosterRuntimeEditor({
                               key={direction}
                               type="button"
                               className="icon-button"
-                              aria-label={`Move fallback ${index + 1} ${direction < 0 ? 'up' : 'down'}`}
+                              aria-label={t(
+                                direction < 0 ? 'rosterEdit.moveUp' : 'rosterEdit.moveDown',
+                                {
+                                  n: index + 1,
+                                },
+                              )}
                               disabled={
                                 index + direction < 0 || index + direction >= fallbacks.length
                               }
@@ -455,7 +447,7 @@ export function RosterRuntimeEditor({
               )}
             </section>
             <section>
-              <h3>Availability</h3>
+              <h3>{t('rosterEdit.availability')}</h3>
               <label className="roster-checkbox">
                 <input
                   type="checkbox"
@@ -475,15 +467,15 @@ export function RosterRuntimeEditor({
                     )
                   }
                 />
-                Set a role availability window
+                {t('rosterEdit.setWindow')}
               </label>
               {draft['availability'] !== undefined && (
                 <>
                   <div className="roster-form-grid">
                     <label>
-                      Timezone
+                      {t('rosterEdit.timezone')}
                       <input
-                        aria-label="Role availability timezone"
+                        aria-label={t('rosterEdit.timezoneLabel')}
                         value={text(available['timezone'])}
                         onChange={(event) =>
                           field('availability', { ...available, timezone: event.target.value })
@@ -492,23 +484,23 @@ export function RosterRuntimeEditor({
                       />
                     </label>
                     <label>
-                      Policy
+                      {t('rosterEdit.policyLabel')}
                       <select
-                        aria-label="Role availability policy"
+                        aria-label={t('rosterEdit.policySelect')}
                         value={text(available['mode']) || 'advisory'}
                         onChange={(event) =>
                           field('availability', { ...available, mode: event.target.value })
                         }
                       >
-                        <option value="advisory">Advisory</option>
-                        <option value="enforce">Enforce for custom role</option>
+                        <option value="advisory">{t('rosterEdit.advisory')}</option>
+                        <option value="enforce">{t('rosterEdit.enforceCustom')}</option>
                       </select>
                     </label>
-                    {['start', 'end'].map((name) => (
+                    {(['start', 'end'] as const).map((name) => (
                       <label key={name}>
-                        {name === 'start' ? 'From' : 'Until'}
+                        {name === 'start' ? t('rosterEdit.from') : t('rosterEdit.until')}
                         <input
-                          aria-label={`Role availability ${name}`}
+                          aria-label={t(`rosterEdit.timeLabel.${name}`)}
                           type="time"
                           value={text(available[name])}
                           onChange={(event) =>
@@ -519,45 +511,50 @@ export function RosterRuntimeEditor({
                     ))}
                   </div>
                   <div className="roster-weekdays">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                      <label key={day}>
-                        <input
-                          type="checkbox"
-                          aria-label={`Role available ${day}`}
-                          checked={
-                            Array.isArray(available['days']) && available['days'].includes(index)
-                          }
-                          onChange={(event) => {
-                            const days = Array.isArray(available['days']) ? available['days'] : [];
-                            field('availability', {
-                              ...available,
-                              days: event.target.checked
-                                ? [...days, index].sort()
-                                : days.filter((day) => day !== index),
-                            });
-                          }}
-                        />
-                        {day}
-                      </label>
-                    ))}
+                    {[0, 1, 2, 3, 4, 5, 6].map((index) => {
+                      const day = t(`roster.day.${index}`);
+                      return (
+                        <label key={day}>
+                          <input
+                            type="checkbox"
+                            aria-label={t('rosterEdit.dayLabel', { day })}
+                            checked={
+                              Array.isArray(available['days']) && available['days'].includes(index)
+                            }
+                            onChange={(event) => {
+                              const days = Array.isArray(available['days'])
+                                ? available['days']
+                                : [];
+                              field('availability', {
+                                ...available,
+                                days: event.target.checked
+                                  ? [...days, index].sort()
+                                  : days.filter((day) => day !== index),
+                              });
+                            }}
+                          />
+                          {day}
+                        </label>
+                      );
+                    })}
                   </div>
                 </>
               )}
             </section>
             <RosterListOverride
-              label="Tool grants"
+              kind="tools"
               value={draft['tools']}
               choices={toolNames}
               onChange={(value) => field('tools', value)}
             />
             <RosterListOverride
-              label="Role skills"
+              kind="skills"
               value={draft['skillNames']}
               choices={skillNames}
               onChange={(value) => field('skillNames', value)}
             />
             <RosterListOverride
-              label="Allowed capabilities"
+              kind="capabilities"
               value={draft['allowedCapabilities']}
               choices={capabilityChoices}
               onChange={(value) => field('allowedCapabilities', value)}
@@ -565,12 +562,12 @@ export function RosterRuntimeEditor({
           </fieldset>
           {leaving && (
             <div className="roster-confirm" role="alert">
-              <p>This role has an unsaved runtime draft.</p>
+              <p>{t('rosterEdit.unsaved')}</p>
               <button type="button" className="button secondary" onClick={() => setLeaving(false)}>
-                Keep editing runtime
+                {t('rosterEdit.keepEditing')}
               </button>
               <button type="button" className="button secondary" onClick={onClose}>
-                Keep draft and close
+                {t('rosterEdit.keepClose')}
               </button>
               <button
                 type="button"
@@ -580,7 +577,7 @@ export function RosterRuntimeEditor({
                   onClose();
                 }}
               >
-                Discard runtime draft
+                {t('rosterEdit.discard')}
               </button>
               <button
                 type="button"
@@ -594,7 +591,7 @@ export function RosterRuntimeEditor({
                       ['agent-roster.read-customization'],
                     );
                     if (current['configState'] === 'unreadable')
-                      throw Error('The stored role config is unreadable.');
+                      throw Error(t('rosterEdit.configUnreadable'));
                     const config = record(current['config']);
                     setBase(config);
                     setDraft(structuredClone(config));
@@ -608,17 +605,17 @@ export function RosterRuntimeEditor({
                   }
                 }}
               >
-                Reload stored runtime
+                {t('rosterEdit.reload')}
               </button>
             </div>
           )}
           <footer>
             <span role="status">
               {!fresh
-                ? 'Reading stored runtime…'
+                ? t('rosterEdit.reading')
                 : dirty
-                  ? 'Unsaved project override'
-                  : 'Project runtime loaded'}
+                  ? t('rosterEdit.dirty')
+                  : t('rosterEdit.loaded')}
             </span>
             <button
               type="button"
@@ -626,7 +623,7 @@ export function RosterRuntimeEditor({
               disabled={busy}
               onClick={() => (dirty ? setLeaving(true) : onClose())}
             >
-              Close
+              {t('rosterEdit.close2')}
             </button>
             <button
               type="button"
@@ -642,14 +639,16 @@ export function RosterRuntimeEditor({
               }}
             >
               <Save size={14} />
-              Save role runtime
+              {t('rosterEdit.save')}
             </button>
           </footer>
         </div>
       </Modal>
       {picker && (
         <Modal
-          title={`Choose ${role} ${picker === 'model' ? 'model' : 'allowed model'}`}
+          title={t(picker === 'model' ? 'rosterEdit.pickModel' : 'rosterEdit.pickAllowed', {
+            role,
+          })}
           onClose={() => {
             if (!pickerBusy) setPicker(null);
           }}
@@ -660,8 +659,10 @@ export function RosterRuntimeEditor({
               provider: text(draft['provider']),
               model: text(draft['model']),
             }}
-            title={`Choose ${role} ${picker === 'model' ? 'model' : 'allowed model'}`}
-            description="This selection changes the project role draft. Save the runtime policy to apply it to future workers."
+            title={t(picker === 'model' ? 'rosterEdit.pickModel' : 'rosterEdit.pickAllowed', {
+              role,
+            })}
+            description={t('rosterEdit.pickHelp')}
             onPick={(provider, model) => {
               if (picker === 'model') change({ ...draft, provider, model });
               else {
@@ -684,16 +685,17 @@ export function RosterRuntimeEditor({
 }
 
 function RosterListOverride({
-  label,
+  kind,
   value,
   choices,
   onChange,
 }: {
-  label: string;
+  kind: 'tools' | 'skills' | 'capabilities';
   value: unknown;
   choices: string[];
   onChange: (value: string[] | undefined) => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState(''),
     [limit, setLimit] = useState(100);
   const selected = Array.isArray(value) ? value.map(String) : [];
@@ -702,26 +704,26 @@ function RosterListOverride({
     .sort();
   return (
     <section className="roster-list-override">
-      <h3>{label}</h3>
+      <h3>{t(`rosterEdit.list.${kind}`)}</h3>
       <label className="roster-checkbox">
         <input
           type="checkbox"
           checked={Array.isArray(value)}
           onChange={(event) => onChange(event.target.checked ? [] : undefined)}
         />
-        Override inherited {label.toLowerCase()}
+        {t(`rosterEdit.override.${kind}`)}
       </label>
       <p className="field-help">
         {Array.isArray(value)
-          ? `${selected.length} explicit names. The empty list is an explicit override; built-in roles retain their protected base grants.`
-          : 'Using the role catalog defaults.'}
+          ? t('rosterEdit.explicitNames', { count: selected.length })
+          : t('rosterEdit.catalogDefaults')}
       </p>
       {Array.isArray(value) && (
         <>
           <label>
-            Find or add a name
+            {t('rosterEdit.findName')}
             <input
-              aria-label={`Search ${label}`}
+              aria-label={t(`rosterEdit.search.${kind}`)}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -738,7 +740,7 @@ function RosterListOverride({
                 setQuery('');
               }}
             >
-              Add “{query.trim()}”
+              {t('rosterEdit.addName', { name: query.trim() })}
             </button>
           )}
           <div className="roster-grant-options">
@@ -756,7 +758,7 @@ function RosterListOverride({
                   }
                 />
                 <span>{name}</span>
-                {!choices.includes(name) && <small>Stored / custom</small>}
+                {!choices.includes(name) && <small>{t('rosterEdit.storedCustom')}</small>}
               </label>
             ))}
           </div>
@@ -766,7 +768,7 @@ function RosterListOverride({
               className="button secondary small"
               onClick={() => setLimit(limit + 100)}
             >
-              Show more names ({items.length - limit})
+              {t('rosterEdit.showMore', { count: items.length - limit })}
             </button>
           )}
         </>

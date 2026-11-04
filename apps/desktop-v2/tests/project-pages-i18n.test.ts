@@ -3,6 +3,7 @@ import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
+import { RosterKnowledgeChecklist } from '../src/RosterKnowledgeChecklist';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -37,6 +38,13 @@ const roster = (projectId: string) =>
     onOpenFile: vi.fn(),
   });
 
+const checklist = () =>
+  createElement(RosterKnowledgeChecklist, {
+    role: 'reviewer',
+    command: vi.fn(pending),
+    disabled: false,
+  });
+
 describe('the project pages in the display language', () => {
   afterAll(async () => {
     await surfaceI18n.changeLanguage('en');
@@ -53,6 +61,9 @@ describe('the project pages in the display language', () => {
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toContain('Search project agent roles');
+    page = await mount(checklist());
+    expect(page.text).toContain('Loading checklist…');
+    expect(page.labels).toContain('Knowledge checklist for reviewer');
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(roster('roster-tr'));
@@ -64,5 +75,8 @@ describe('the project pages in the display language', () => {
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toContain('Proje ajan rollerinde ara');
+    page = await mount(checklist());
+    expect(page.text).toContain('Kontrol listesi yükleniyor…');
+    expect(page.labels).toContain('reviewer için bilgi kontrol listesi');
   });
 });
