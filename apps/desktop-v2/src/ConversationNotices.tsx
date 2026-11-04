@@ -1,6 +1,6 @@
 import { AlertTriangle, Info, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { ConversationNotice } from './conversation-notices';
+import { type ConversationNotice, type NoticeText, noticeText } from './conversation-notices';
 import { useDesktopText } from './desktop-i18n';
 
 /** How long a passing notice stays before it closes by itself. */
@@ -32,6 +32,9 @@ export function ConversationNotices({
       for (const timer of timers) window.clearTimeout(timer);
     };
   }, [notices, dismissed]);
+  // Engine reports carry their wording; older ones only their English text.
+  const say = (text: NoticeText | undefined, english: string) =>
+    text === undefined ? english : noticeText(text, (key, values) => t(`notices.${key}`, values));
   const shown = notices.filter((notice) => !dismissed.includes(notice.id));
   if (!shown.length) return null;
   return (
@@ -44,8 +47,8 @@ export function ConversationNotices({
         >
           {notice.severity === 'info' ? <Info size={14} /> : <AlertTriangle size={14} />}
           <p>
-            {notice.text}
-            {notice.hint && <small> {notice.hint}</small>}
+            {say(notice.message, notice.text)}
+            {notice.hint && <small> {say(notice.detail, notice.hint)}</small>}
           </p>
           {notice.action && onAction && (
             <button
@@ -61,7 +64,7 @@ export function ConversationNotices({
                   .finally(() => setBusy(''));
               }}
             >
-              {notice.action.label}
+              {say(notice.action.labelText, notice.action.label)}
             </button>
           )}
           <button

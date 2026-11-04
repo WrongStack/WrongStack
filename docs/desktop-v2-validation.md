@@ -8382,3 +8382,22 @@ copies, starting with SAGE memory.
   `data-find-input` marker that names its scope. Accessible names are unchanged.
 - Checks: new `translated-focus-shortcuts.test.ts` presses both shortcuts in a Turkish window
   and checks where focus lands; desktop tests pass (PASSED); typecheck clean.
+
+### Conversation notices in the display language (2026-11-04)
+
+- Gap: the notices above the composer (stream warnings, model switches and reroutes,
+  checkpoints, missing cost estimates, persisted approvals, background delegation results,
+  MCP servers dropping or returning, iteration limits, loop stops, damaged journals, failed
+  compaction, blocked providers and tier proposals) were built as English sentences in the
+  engine-state reducer and shown as they were in every language.
+- Change: each notice now keeps its wording as catalog lines under `notices` with their
+  values, nesting lines for the words that vary (an unknown event, the provider, id lists).
+  `ConversationNotices` renders that wording in the display language, including the hint and
+  the tier proposal's action label. The English `text`, still what repeats are recognised
+  by, is rendered from the English catalog, so it stays byte-identical; engine content (error
+  details, reasons, prompt previews) is shown as it came. Delegation notices use their own
+  lines instead of the WebUI protocol's English formatters. 52 keys in all seven languages.
+- Checks: new `conversation-notices-i18n.test.ts` pins the English of all 34 notice branches
+  to the earlier sentences, checks every key each branch uses exists in all seven languages,
+  and renders notices, hints and an action in Turkish; the existing notice tests and the
+  catalog guard pass; typecheck clean.
