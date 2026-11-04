@@ -1,4 +1,5 @@
 import type { UserInputRequest } from '@wrongstack/contracts/types';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import {
   type CouncilLog,
   councilDecisionText,
@@ -38,6 +39,7 @@ import {
 } from './memory-injections.js';
 import { reduceWaitingRoom, type WaitingRoom } from './provider-waiting.js';
 import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
+import { reduceWorktreeEvents } from './worktree-history.js';
 
 export { contentText, entries, record } from './engine-values.js';
 export interface EngineEvent {
@@ -124,6 +126,8 @@ export interface EngineState {
   /** This conversation's Brain council panels, folded from `brain.event` frames. */
   council: CouncilLog;
   nextSteps: ParsedNextStep[];
+  /** The engine's worktree lifecycle log, oldest first, for the worktree timeline. */
+  worktreeEvents: WorktreeTimelineEvent[];
   results: Record<string, Record<string, unknown>>;
   error: string;
   /** The latest frame time seen, for messages a token delta starts. */
@@ -177,6 +181,7 @@ export const emptyEngineState: EngineState = {
   delegations: [],
   council: EMPTY_COUNCIL_LOG,
   nextSteps: [],
+  worktreeEvents: [],
   results: {},
   error: '',
 };
@@ -250,6 +255,13 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     next.results['prefs.updated'] = { ...state.results['prefs.updated'], ...p };
   if (event.type === 'goal.state' && typeof p['goalId'] === 'string')
     next.goalStates = { ...state.goalStates, [p['goalId']]: p };
+  const worktreeEvents = reduceWorktreeEvents(
+    state.worktreeEvents,
+    event.type,
+    p,
+    event.at ?? (state.lastAt || Date.now()),
+  );
+  if (worktreeEvents) next.worktreeEvents = worktreeEvents;
   if (event.type === 'goal.error' && typeof p['goalId'] === 'string')
     next.goalErrors = { ...state.goalErrors, [p['goalId']]: p };
   if (event.type === 'specs.detail' && typeof p['specId'] === 'string')

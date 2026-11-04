@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T08:03:34.768Z",
+  "generatedAt": "2026-11-04T08:09:29.947Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5982,
-    "testFiles": 4958,
-    "sourceLines": 1244909,
+    "sourceFiles": 5984,
+    "testFiles": 4959,
+    "sourceLines": 1245218,
     "workspaceEdges": 240,
-    "moduleEdges": 17361,
+    "moduleEdges": 17364,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 222,
+    "testsWithoutTypecheck": 223,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 421,
-      "testFiles": 222,
+      "sourceFiles": 423,
+      "testFiles": 223,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2637,6 +2637,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/worktree-history.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32613,6 +32619,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/worktree-history.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/worktree-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33328,6 +33341,11 @@
     {
       "from": "apps/desktop-v2/src/TurnTools.tsx",
       "specifier": "./session-status.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/WorktreeHistory.tsx",
+      "specifier": "./worktree-history.css",
       "syntax": "import"
     },
     {

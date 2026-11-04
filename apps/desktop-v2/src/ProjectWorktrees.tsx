@@ -2,6 +2,7 @@ import { GitBranch, GitMerge, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { WorktreeHistory } from './WorktreeHistory';
 import {
   WorktreeGraph,
   WorktreeLanes,
@@ -174,6 +175,8 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
           ))}
         </ul>
       )}
+      <h3>History</h3>
+      <WorktreeHistory events={state.worktreeEvents} />
       <h3>Left over</h3>
       {!scanned ? (
         <p role="status">Scanning managed worktrees…</p>

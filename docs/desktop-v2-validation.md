@@ -6966,3 +6966,27 @@ copies, starting with SAGE memory.
 - Checks:
   - Wording, the live panel, the moving clock and forgetting on disconnect are tested (jsdom).
   - Typecheck clean.
+
+### Worktree history on the worktrees page (2026-11-04)
+
+- The WebUI draws every worktree the engine allocated on one time axis, from `worktree.timeline`
+  and `worktree.timeline_event`. The desktop's lanes and graph showed only the worktrees a run
+  holds now, so finished ones (merged, conflicted, failed, discarded) left no trace.
+- The engine state now keeps the lifecycle log:
+  - The full log, sent when a client connects, replaces what is kept.
+  - Each step after it is added (at most 1,000).
+  - A restarted engine's empty log clears it.
+- The worktrees page has a History section built on the same shared projector as the WebUI and
+  the TUI monitor:
+  - Outcome counts and the average merge wait.
+  - A base-branch row with one dot per squash commit.
+  - One lane per worktree: working, waiting to merge, merging and kept segments, plus a mark for
+    how it ended.
+  - A time axis that moves on only while a worktree is live.
+  - Choosing a lane shows its diff stats, time per phase, whether the checkout is still on disk,
+    the failed stage and error, conflicted files and every lifecycle step with the WebUI's
+    wording.
+- Checks:
+  - Folding the log is tested (replace, add, drop unknown kinds, a restart clears it).
+  - The lanes, counts, base commits and the lifecycle wording are tested (jsdom).
+  - Desktop tests pass (863); typecheck clean.
