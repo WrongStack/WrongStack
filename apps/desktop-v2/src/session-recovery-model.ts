@@ -22,8 +22,8 @@ export function recoveryCheckpoints(value: unknown): RecoveryCheckpoint[] {
       : [],
   );
 }
-export function recoveryDate(value: unknown) {
-  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) return 'Time not recorded';
+export function recoveryDate(value: unknown, missing = 'Time not recorded') {
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) return missing;
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 /** Rewind cuts at the first recorded checkpoint with an index, even after index reuse. */
@@ -66,18 +66,16 @@ export function retryCheckpoint(checkpoints: RecoveryCheckpoint[]): RecoveryChec
 /** Whether a retry may send the rewound prompt again unchanged, or why not. */
 export function retryPlan(
   result: NonNullable<ReturnType<typeof recoveryResult>>,
+  words = {
+    noText: 'The journal has no recorded text for this prompt, so nothing was sent.',
+    fileErrors: 'Some files were not restored, so nothing was sent. Inspect them before sending.',
+    attachments:
+      'This prompt had attached files or images, so nothing was sent. Use Edit and resend to attach them again.',
+  },
 ): { text: string } | { reason: string } {
-  if (!result.promptText.trim())
-    return { reason: 'The journal has no recorded text for this prompt, so nothing was sent.' };
-  if (result.errors.length)
-    return {
-      reason: 'Some files were not restored, so nothing was sent. Inspect them before sending.',
-    };
-  if (result.promptHasAttachments)
-    return {
-      reason:
-        'This prompt had attached files or images, so nothing was sent. Use Edit and resend to attach them again.',
-    };
+  if (!result.promptText.trim()) return { reason: words.noText };
+  if (result.errors.length) return { reason: words.fileErrors };
+  if (result.promptHasAttachments) return { reason: words.attachments };
   return { text: result.promptText };
 }
 export function checkpointMatches(reviewed: RecoveryCheckpoint[], current: RecoveryCheckpoint[]) {

@@ -7573,3 +7573,22 @@ copies, starting with SAGE memory.
   - The jsdom test opens a Chronicle event in English and then in Turkish.
   - A new unit test covers the date error words.
   - Catalog parity and the key guard pass; desktop tests pass (897); typecheck clean.
+
+### Session history and recovery in the display language (2026-11-04)
+
+- Session history and recovery, the rewound prompt and the recovery records now follow the
+  display language in all seven languages: the heading, rewind and redo results, the session
+  identity and metrics, prompt checkpoints with redo and retry, the journal, tool footprint and
+  file activity, the rewind confirmation, and the recovery operations list.
+- Operation and outcome names in the recovery records use `RECOVERY_OPERATION_LABELS` and
+  `RECOVERY_OUTCOME_LABELS` as the English source and fallback.
+- `recoveryDate` takes an optional missing-time word and `retryPlan` optional words for its three
+  reasons, both with English as the default. The other pages that call `recoveryDate` keep the
+  English word until they are translated.
+- Retry notes are written to the recovery records in the language shown when the retry ran.
+- Still English by design: engine messages, recorded event labels and event type names.
+- Checks:
+  - A new jsdom test renders history and recovery with a checkpoint in English and then in
+    Turkish.
+  - The recovery model test covers the new words.
+  - Catalog parity and the key guard pass; desktop tests pass (898); typecheck clean.

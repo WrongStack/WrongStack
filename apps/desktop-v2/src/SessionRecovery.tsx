@@ -1,6 +1,7 @@
 import { ArrowLeft, Clock3, FileCode, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -43,6 +44,8 @@ export function SessionRecovery({
   /** Sends the rewound prompt again, unchanged; rejects when the engine did not accept it. */
   onRetryPrompt?: ((text: string) => Promise<void>) | undefined;
 }) {
+  const { t } = useDesktopText();
+  const when = (value: unknown) => recoveryDate(value, t('recovery.timeMissing'));
   const [inspect, setInspect] = useState<Record<string, unknown> | null>(null);
   const [checkpoints, setCheckpoints] = useState<RecoveryCheckpoint[]>([]);
   const [revision, setRevision] = useState('');
@@ -123,8 +126,7 @@ export function SessionRecovery({
         fresh['journalRevision'] !== revision ||
         !checkpointMatches(checkpoints, recoveryCheckpoints(fresh['checkpoints']))
       ) {
-        const message =
-          'The session changed after this review. Close this dialog and refresh checkpoints.';
+        const message = t('recovery.changed');
         void recoveryLog.record(
           sessionId,
           unfinishedRecord(operation, 'refused', target.promptIndex, message),
@@ -139,23 +141,25 @@ export function SessionRecovery({
         { timeoutMs: 120000 },
       );
       observed = recoveryResult(reply);
-      if (!observed)
-        throw Error(
-          'The engine acknowledged rewind without a detailed result. Refresh and inspect the journal before another action.',
-        );
+      if (!observed) throw Error(t('recovery.noRewindResult'));
       const rewound = observed;
       let note = '';
-      if (retry && onRetryPrompt && !mounted.current)
-        note = 'Not sent: the history view closed before the prompt could be sent again.';
+      if (retry && onRetryPrompt && !mounted.current) note = t('recovery.notSentClosed');
       else if (retry && onRetryPrompt) {
-        const plan = retryPlan(rewound);
+        const plan = retryPlan(rewound, {
+          noText: t('recovery.reason.noText'),
+          fileErrors: t('recovery.reason.fileErrors'),
+          attachments: t('recovery.reason.attachments'),
+        });
         if ('reason' in plan) note = plan.reason;
         else
           try {
             await onRetryPrompt(plan.text);
-            note = 'The prompt was sent again.';
+            note = t('recovery.sentAgain');
           } catch (failure) {
-            note = `The rewind completed, but sending again failed: ${failure instanceof Error ? failure.message : String(failure)}. Use Edit and resend.`;
+            note = t('recovery.sendFailed', {
+              error: failure instanceof Error ? failure.message : String(failure),
+            });
           }
       }
       void recoveryLog.record(sessionId, rewindRecord(rewound, operation, note));
@@ -200,10 +204,7 @@ export function SessionRecovery({
         timeoutMs: 120000,
       });
       observed = redoResult(reply);
-      if (!observed)
-        throw Error(
-          'The engine acknowledged the redo without a detailed result. Refresh and inspect the journal.',
-        );
+      if (!observed) throw Error(t('recovery.noRedoResult'));
       void recoveryLog.record(sessionId, redoRecord(observed));
       if (!mounted.current) return;
       setRedone(observed);
@@ -237,19 +238,17 @@ export function SessionRecovery({
         .reduce((sum, item) => sum + item.fileCount, 0)
     : 0;
   return (
-    <section className="session-recovery" aria-label="Session history and recovery">
+    <section className="session-recovery" aria-label={t('recovery.label')}>
       <header className="recovery-heading">
         <div>
-          <span className="eyebrow">THIS CONVERSATION · RECORDED HISTORY</span>
-          <h2>History & recovery</h2>
-          <p>
-            Inspect the journal, follow file activity, or return to a recorded prompt checkpoint.
-          </p>
+          <span className="eyebrow">{t('recovery.eyebrow')}</span>
+          <h2>{t('recovery.title')}</h2>
+          <p>{t('recovery.intro')}</p>
         </div>
         <div>
           <button type="button" className="button secondary" disabled={busy} onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to chat
+            {t('recovery.back')}
           </button>
           <button
             type="button"
@@ -258,7 +257,7 @@ export function SessionRecovery({
             onClick={() => void load()}
           >
             <RefreshCw size={14} />
-            Refresh session history
+            {t('recovery.refresh')}
           </button>
         </div>
       </header>
@@ -267,21 +266,20 @@ export function SessionRecovery({
           {error}
         </p>
       )}
-      {loading && <p role="status">Reading this session’s journal…</p>}
+      {loading && <p role="status">{t('recovery.reading')}</p>}
       {result && (
         <section
           className={`recovery-outcome ${result.errors.length ? 'recovery-partial' : ''}`}
-          aria-label="Observed rewind result"
+          aria-label={t('recovery.rewindLabel')}
         >
-          <h3>
-            {result.errors.length
-              ? 'Conversation rewound · file errors need attention'
-              : 'Rewind completed'}
-          </h3>
+          <h3>{result.errors.length ? t('recovery.rewindPartial') : t('recovery.rewindDone')}</h3>
           <p>
-            Checkpoint {result.checkpoint} · Restored files: {result.files.length} · Removed journal
-            events: {result.removedEvents ?? 'Unreported'} · Retained messages:{' '}
-            {result.messageCount ?? 'Unreported'}
+            {t('recovery.rewindFacts', {
+              checkpoint: result.checkpoint,
+              files: result.files.length,
+              removed: result.removedEvents ?? t('recovery.unreported'),
+              messages: result.messageCount ?? t('recovery.unreported'),
+            })}
           </p>
           {result.files.map((path) => (
             <button
@@ -305,10 +303,7 @@ export function SessionRecovery({
           )}
           {result.errors.length > 0 && (
             <>
-              <p>
-                The conversation journal has already been cut back. These file operations did not
-                complete; inspect the files before continuing.
-              </p>
+              <p>{t('recovery.fileErrors')}</p>
               <ul>
                 {result.errors.map((item, index) => (
                   <li key={`${index}-${item}`}>{item}</li>
@@ -319,11 +314,14 @@ export function SessionRecovery({
         </section>
       )}
       {redone && (
-        <section className="recovery-outcome" aria-label="Observed redo result">
-          <h3>Rewind redone</h3>
+        <section className="recovery-outcome" aria-label={t('recovery.redoLabel')}>
+          <h3>{t('recovery.redone')}</h3>
           <p>
-            Checkpoint {redone.checkpoint} · Re-applied files: {redone.files.length} · Messages:{' '}
-            {redone.messageCount ?? 'Unreported'}
+            {t('recovery.redoFacts', {
+              checkpoint: redone.checkpoint,
+              files: redone.files.length,
+              messages: redone.messageCount ?? t('recovery.unreported'),
+            })}
           </p>
           {redone.files.map((path) => (
             <button
@@ -345,66 +343,67 @@ export function SessionRecovery({
             <div>
               <h3>
                 {sessionTitle ||
-                  String(inspect['name'] || inspect['title'] || 'Recorded conversation')}
+                  String(inspect['name'] || inspect['title'] || t('recovery.recorded'))}
               </h3>
               <p>
-                {String(inspect['provider'] ?? 'Unknown provider')} /{' '}
-                {String(inspect['model'] ?? 'Unknown model')}
+                {String(inspect['provider'] ?? t('recovery.unknownProvider'))} /{' '}
+                {String(inspect['model'] ?? t('recovery.unknownModel'))}
               </p>
             </div>
-            <CopyButton text={sessionId} label="Copy core session ID" />
+            <CopyButton text={sessionId} label={t('recovery.copyId')} />
             <small>
-              Started {recoveryDate(inspect['startedAt'])}
-              {inspect['endedAt'] ? ` · Ended ${recoveryDate(inspect['endedAt'])}` : ''}
+              {inspect['endedAt']
+                ? t('recovery.startedEnded', {
+                    time: when(inspect['startedAt']),
+                    ended: when(inspect['endedAt']),
+                  })
+                : t('recovery.started', { time: when(inspect['startedAt']) })}
             </small>
           </div>
           <div className="recovery-metrics">
             {[
-              ['Retained messages', 'retainedMessageCount'],
-              ['Iterations', 'iterationCount'],
-              ['Tool calls', 'toolCallCount'],
-              ['Tool errors', 'toolErrorCount'],
-              ['Recorded file changes', 'fileChangeCount'],
-              ['Journal usage tokens', 'journalTokenTotal'],
-            ].map(([label, key]) => (
+              'retainedMessageCount',
+              'iterationCount',
+              'toolCallCount',
+              'toolErrorCount',
+              'fileChangeCount',
+              'journalTokenTotal',
+            ].map((key) => (
               <article key={key}>
-                <span>{label}</span>
+                <span>{t(`recovery.metric.${key}`)}</span>
                 <strong>
-                  {typeof inspect[key!] === 'number'
-                    ? Number(inspect[key!]).toLocaleString()
-                    : 'Not reported'}
+                  {typeof inspect[key] === 'number'
+                    ? Number(inspect[key]).toLocaleString()
+                    : t('recovery.notReported')}
                 </strong>
               </article>
             ))}
           </div>
         </>
       )}
-      <section className="recovery-checkpoints" aria-label="Prompt checkpoints">
+      <section className="recovery-checkpoints" aria-label={t('recovery.checkpointsLabel')}>
         <header>
           <Clock3 size={18} />
           <div>
-            <h3>Return to a prompt</h3>
-            <p>
-              Rewind undoes the selected prompt and subsequent work, cuts the journal back and
-              restores recorded file snapshots. Later manual edits can be overwritten.
-            </p>
+            <h3>{t('recovery.returnTitle')}</h3>
+            <p>{t('recovery.returnHint')}</p>
           </div>
           <button
             type="button"
             className="button secondary small"
             disabled={busy || running}
-            title="Re-apply the newest rewind, unless a prompt was sent or its files changed since"
+            title={t('recovery.redoTitle')}
             onClick={() => void redo()}
           >
             <RotateCcw size={14} />
-            Redo last rewind
+            {t('recovery.redo')}
           </button>
           {onRetryPrompt && (
             <button
               type="button"
               className="button secondary small"
               disabled={busy || running || !revision || !retryCheckpoint(checkpoints)}
-              title="Rewind the newest prompt and send the same text again"
+              title={t('recovery.retryTitle')}
               onClick={() => {
                 const newest = retryCheckpoint(checkpoints);
                 if (!newest) return;
@@ -413,22 +412,22 @@ export function SessionRecovery({
               }}
             >
               <RefreshCw size={14} />
-              Retry last prompt
+              {t('recovery.retry')}
             </button>
           )}
         </header>
         {running && (
           <p role="status" className="settings-defaults-note">
-            Stop the active run and refresh before reviewing a rewind.
+            {t('recovery.stopFirst')}
           </p>
         )}
         {checkpointError && (
           <p role="alert" className="session-error">
-            Checkpoints could not be read: {checkpointError}
+            {t('recovery.checkpointError', { error: checkpointError })}
           </p>
         )}
         {!loading && !checkpointError && !checkpoints.length && (
-          <p className="quiet-state">No prompt checkpoints recorded in this session.</p>
+          <p className="quiet-state">{t('recovery.noCheckpoints')}</p>
         )}
         {boundaries
           .slice()
@@ -437,9 +436,9 @@ export function SessionRecovery({
             <article key={`${point.promptIndex}-${point.ts}-${index}`}>
               <span className="recovery-checkpoint-index">{point.promptIndex}</span>
               <div>
-                <strong>{point.promptPreview || 'Prompt text not recorded'}</strong>
+                <strong>{point.promptPreview || t('recovery.noPromptText')}</strong>
                 <small>
-                  {recoveryDate(point.ts)} · {point.fileCount} file snapshots at this prompt index
+                  {t('recovery.snapshots', { time: when(point.ts), n: point.fileCount })}
                 </small>
               </div>
               <button
@@ -450,28 +449,25 @@ export function SessionRecovery({
                   setError('');
                   setConfirm(point);
                 }}
-                aria-label={`Review rewind to prompt ${point.promptIndex}`}
+                aria-label={t('recovery.reviewLabel', { n: point.promptIndex })}
               >
                 <RotateCcw size={13} />
-                Review rewind
+                {t('recovery.review')}
               </button>
             </article>
           ))}
-        <p className="field-help">
-          Snapshot counts are recorded entries, not a unique-file preview. Unsaved composer drafts
-          are kept separately. Rewind is not a Git checkout or a complete project backup.
-        </p>
+        <p className="field-help">{t('recovery.snapshotHint')}</p>
       </section>
       {inspect && (
         <div className="recovery-detail-grid">
-          <section className="recovery-events" aria-label="Recorded session events">
-            <h3>Follow the journal</h3>
+          <section className="recovery-events" aria-label={t('recovery.eventsLabel')}>
+            <h3>{t('recovery.follow')}</h3>
             <div className="recovery-event-filters">
               <label>
                 <Search size={14} />
                 <input
-                  aria-label="Search recorded session events"
-                  placeholder="Find a recorded event…"
+                  aria-label={t('recovery.search')}
+                  placeholder={t('recovery.searchPlaceholder')}
                   value={search}
                   onChange={(event) => {
                     setSearch(event.target.value);
@@ -480,14 +476,14 @@ export function SessionRecovery({
                 />
               </label>
               <select
-                aria-label="Session event type"
+                aria-label={t('recovery.typeLabel')}
                 value={kind}
                 onChange={(event) => {
                   setKind(event.target.value);
                   setLimit(100);
                 }}
               >
-                <option value="">All event types</option>
+                <option value="">{t('recovery.allTypes')}</option>
                 {[...new Set(events.map((event) => String(event['type'])))].sort().map((type) => (
                   <option key={type} value={type}>
                     {type.replaceAll('_', ' ')}
@@ -495,10 +491,7 @@ export function SessionRecovery({
                 ))}
               </select>
             </div>
-            <p className="field-help">
-              {matching.length} matching recorded events. Search covers journal labels and recorded
-              previews, not the complete message transcript.
-            </p>
+            <p className="field-help">{t('recovery.matching', { n: matching.length })}</p>
             <ol>
               {matching
                 .slice(-limit)
@@ -507,42 +500,42 @@ export function SessionRecovery({
                   <li key={`${event['ts']}-${index}`}>
                     <span className="recovery-timeline-dot" />
                     <div>
-                      <small>{recoveryDate(event['ts'])}</small>
+                      <small>{when(event['ts'])}</small>
                       <strong>{String(event['label'] ?? '')}</strong>
                       {event['detail'] ? <p>{String(event['detail'])}</p> : null}
                     </div>
                   </li>
                 ))}
             </ol>
-            {!matching.length && <p className="quiet-state">No recorded events match.</p>}
+            {!matching.length && <p className="quiet-state">{t('recovery.noMatch')}</p>}
             {matching.length > limit && (
               <button
                 type="button"
                 className="button secondary"
                 onClick={() => setLimit((value) => value + 100)}
               >
-                Show 100 older events
+                {t('recovery.older')}
               </button>
             )}
           </section>
           <aside>
             <section className="recovery-tools">
-              <h3>Tool footprint</h3>
+              <h3>{t('recovery.tools')}</h3>
               {tools.map(([name, count]) => (
                 <div key={name}>
                   <span>{name}</span>
                   <strong>{count}</strong>
                   <progress
-                    aria-label={`${name} recorded calls`}
+                    aria-label={t('recovery.toolCalls', { name })}
                     value={count}
                     max={maxToolCount}
                   />
                 </div>
               ))}
-              {!tools.length && <p className="quiet-state">No tool calls recorded.</p>}
+              {!tools.length && <p className="quiet-state">{t('recovery.noTools')}</p>}
             </section>
             <section className="recovery-files">
-              <h3>File activity</h3>
+              <h3>{t('recovery.files')}</h3>
               {entries(inspect['fileEvents'])
                 .slice(-100)
                 .reverse()
@@ -557,17 +550,14 @@ export function SessionRecovery({
                       {String(file['filePath'])}
                     </button>
                     <small>
-                      {String(file['operation'])} · {String(file['toolName'])} ·{' '}
-                      {recoveryDate(file['ts'])}
+                      {String(file['operation'])} · {String(file['toolName'])} · {when(file['ts'])}
                     </small>
                   </article>
                 ))}
               {!entries(inspect['fileEvents']).length && (
-                <p className="quiet-state">No file activity recorded.</p>
+                <p className="quiet-state">{t('recovery.noFiles')}</p>
               )}
-              <p className="field-help">
-                Latest 100 file events. Opens the current file, not its historical contents.
-              </p>
+              <p className="field-help">{t('recovery.filesHint')}</p>
             </section>
           </aside>
         </div>
@@ -588,22 +578,14 @@ export function SessionRecovery({
             }}
           >
             <span className="eyebrow">
-              {retrying ? 'RETRY THE LAST PROMPT' : 'REWIND THIS CONVERSATION'}
+              {retrying ? t('recovery.retryEyebrow') : t('recovery.rewindEyebrow')}
             </span>
             <h2 id="dialog-title">
-              {retrying
-                ? `Undo prompt ${confirm.promptIndex} and send it again?`
-                : `Undo prompt ${confirm.promptIndex} and later work?`}
+              {t(retrying ? 'recovery.retryAsk' : 'recovery.rewindAsk', { n: confirm.promptIndex })}
             </h2>
             <p>{confirm.promptPreview}</p>
-            <p>
-              {snapshotCount} recorded file snapshots belong to this prompt and later prompts. The
-              engine will restore their recorded content, remove later conversation events and
-              replace the live context. This can overwrite edits made since those snapshots.
-            </p>
-            <p>
-              Your unsent composer draft will remain. This does not provide a complete file backup.
-            </p>
+            <p>{t('recovery.confirmBody', { n: snapshotCount })}</p>
+            <p>{t('recovery.draftKept')}</p>
             {error && (
               <p role="alert" className="session-error">
                 {error}
@@ -619,7 +601,7 @@ export function SessionRecovery({
                   setRetrying(false);
                 }}
               >
-                Keep current history
+                {t('recovery.keep')}
               </button>
               <button
                 type="submit"
@@ -627,10 +609,10 @@ export function SessionRecovery({
                 disabled={busy || running || !revision}
               >
                 {busy
-                  ? 'Rewinding…'
+                  ? t('recovery.rewinding')
                   : retrying
-                    ? 'Rewind and send again'
-                    : 'Confirm checkpoint rewind'}
+                    ? t('recovery.rewindSend')
+                    : t('recovery.confirm')}
               </button>
             </div>
           </form>
@@ -654,25 +636,24 @@ export function RewoundPrompt({
   onEdit: (text: string) => void;
 }) {
   const [replacing, setReplacing] = useState(false);
+  const { t } = useDesktopText();
   return (
     <div className="recovery-rewound-prompt">
-      <h4>Rewound prompt</h4>
+      <h4>{t('recovery.prompt.title')}</h4>
       <pre>{text}</pre>
-      <p className="field-help">
-        Edit it in the composer and send it again. Attached files and images are not restored.
-      </p>
+      <p className="field-help">{t('recovery.prompt.hint')}</p>
       {replacing ? (
         <div className="recovery-prompt-actions">
-          <span>The composer has unsent text.</span>
+          <span>{t('recovery.prompt.unsent')}</span>
           <button type="button" className="button primary small" onClick={() => onEdit(text)}>
-            Replace it with this prompt
+            {t('recovery.prompt.replace')}
           </button>
           <button
             type="button"
             className="button secondary small"
             onClick={() => setReplacing(false)}
           >
-            Keep current draft
+            {t('recovery.prompt.keep')}
           </button>
         </div>
       ) : (
@@ -682,9 +663,9 @@ export function RewoundPrompt({
             className="button primary small"
             onClick={() => (draftEmpty ? onEdit(text) : setReplacing(true))}
           >
-            Edit and resend
+            {t('recovery.prompt.edit')}
           </button>
-          <CopyButton text={text} label="Copy prompt" />
+          <CopyButton text={text} label={t('recovery.prompt.copy')} />
         </div>
       )}
     </div>

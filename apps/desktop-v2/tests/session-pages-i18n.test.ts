@@ -1,0 +1,111 @@
+// @vitest-environment jsdom
+
+import { act, createElement, type ReactElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { SessionRecovery } from '../src/SessionRecovery';
+import { surfaceI18n } from '../src/surface-i18n';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Renders a page after its first replies arrive, then reads its text and accessible names. */
+async function mount(page: ReactElement) {
+  const host = document.createElement('div');
+  document.body.append(host);
+  let root: Root | undefined;
+  await act(async () => {
+    root = createRoot(host);
+    root.render(page);
+  });
+  await act(async () => {});
+  const text = host.textContent ?? '';
+  const labels = [...host.querySelectorAll('[aria-label]')].map((node) =>
+    node.getAttribute('aria-label'),
+  );
+  act(() => root?.unmount());
+  host.remove();
+  return { text, labels };
+}
+
+const recoveryReplies: Record<string, Record<string, unknown>> = {
+  'session.inspect': {
+    name: 'Fix login',
+    provider: 'zai',
+    model: 'glm',
+    startedAt: '2026-11-04T10:00:00Z',
+    retainedMessageCount: 4,
+    events: [{ type: 'tool_call', label: 'Read file', ts: '2026-11-04T10:01:00Z' }],
+    toolBreakdown: { read: 2 },
+    fileEvents: [],
+  },
+  'session.checkpoints': {
+    checkpoints: [
+      { promptIndex: 1, promptPreview: 'Fix login', ts: '2026-11-04T10:00:00Z', fileCount: 2 },
+    ],
+    journalRevision: 'r1',
+  },
+};
+const recovery = () =>
+  createElement(SessionRecovery, {
+    sessionId: 'core-1',
+    sessionTitle: 'Fix login',
+    running: false,
+    command: vi.fn(async (type: string) => recoveryReplies[type] ?? {}),
+    onBack: vi.fn(),
+    onOpenFile: vi.fn(),
+    onRetryPrompt: vi.fn(),
+  });
+
+describe('the session pages in the display language', () => {
+  afterAll(() => surfaceI18n.changeLanguage('en'));
+
+  it('show history and recovery in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(recovery());
+    for (const text of [
+      'THIS CONVERSATION · RECORDED HISTORY',
+      'History & recovery',
+      'Retained messages',
+      'Return to a prompt',
+      'Redo last rewind',
+      'Retry last prompt',
+      '2 file snapshots at this prompt index',
+      'Follow the journal',
+      '1 matching recorded events.',
+      'Tool footprint',
+      'No file activity recorded.',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Session history and recovery',
+        'Review rewind to prompt 1',
+        'read recorded calls',
+      ]),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(recovery());
+    for (const text of [
+      'BU KONUŞMA · KAYITLI GEÇMİŞ',
+      'Geçmiş ve kurtarma',
+      'Korunan mesajlar',
+      'Bir isteme dön',
+      'Son geri sarmayı yinele',
+      'Son istemi yeniden dene',
+      'bu istem sırasında 2 dosya anlık görüntüsü',
+      'Günlüğü takip et',
+      '1 eşleşen kayıtlı olay.',
+      'Araç ayak izi',
+      'Kayıtlı dosya etkinliği yok.',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Oturum geçmişi ve kurtarma',
+        '1. isteme geri sarmayı incele',
+        'read kayıtlı çağrıları',
+      ]),
+    );
+  });
+});
