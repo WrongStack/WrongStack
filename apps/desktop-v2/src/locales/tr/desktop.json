@@ -924,5 +924,73 @@
     "matchesHead": "Bu dosya HEAD ile aynı.",
     "unchanged": "Değişmeyen satırları göster",
     "review": "{{line}}. satırı incele"
+  },
+  "btw": {
+    "title": "BTW notları · {{count}}",
+    "label": "BTW alındıları",
+    "help": "Bu oturumun liderine o çalışırken gönderilen notlar; yeniden başlatmalar arasında bu masaüstünde saklanır. Kaydedildi, notun posta kutusunda olduğu anlamına gelir; okunduğu anlamına gelmez.",
+    "status": {
+      "saved": "Kaydedildi · henüz okunmadı",
+      "read": "Lider okudu",
+      "completed": "İşlendi",
+      "not-found": "Artık son posta kutusunda değil"
+    },
+    "checking": "Alındılar denetleniyor…",
+    "refresh": "Alındıları yenile"
+  },
+  "hunt": {
+    "paused": "{{hunt}} {{round}}/{{total}}. turdan sonra duraklatıldı.",
+    "continue": "{{round}}. turla devam et",
+    "end": "Avı bitir",
+    "round": "Tur {{round}} / {{total}}",
+    "wholeProject": "Tüm proje",
+    "scope": "{{scope}} ve altı",
+    "sendFailed": "{{hunt}} duraklatıldı: {{round}}. tur gönderilemedi. {{reason}}",
+    "starting": "{{hunt}} başlatılıyor…"
+  },
+  "modelControls": {
+    "choose": "Oturum modelini seç",
+    "title": "{{provider}} / {{model}} · değişiklikler bir sonraki isteğe uygulanır",
+    "connect": "Sağlayıcı bağla",
+    "connecting": "Bağlanıyor…",
+    "effortTitle": "Bu oturumun akıl yürütme eforu. Otomatik, proje ayarını izler.",
+    "effortLabel": "Oturumun akıl yürütme eforu",
+    "autoEffort": "Otomatik efor",
+    "autoEffortProject": "Otomatik efor · {{effort}}",
+    "reasoningTitle": "Bu oturumun akıl yürütmesi. Otomatik, sağlayıcı ve proje ayarını izler.",
+    "reasoningLabel": "Oturumun akıl yürütmesi",
+    "reasoningAuto": "Otomatik akıl yürütme",
+    "reasoningOn": "Akıl yürütme açık",
+    "reasoningOff": "Akıl yürütme kapalı",
+    "preserveTitle": "Bu modelin izin verdiği gibi önceki akıl yürütmeyi sonraki turlarda modele geri gönder.",
+    "preserveLabel": "Akıl yürütmeyi turlar arasında koru",
+    "preserve": "Akıl yürütmeyi koru",
+    "identityTitle": "Ajan kimliği. Daha büyük bir sistem promptu her istekte token harcar. Değişiklik bu konuşmanın bir sonraki isteğine uygulanır ve yeni konuşmalar için varsayılan olur.",
+    "identityTitleHint": "Ajan kimliği: {{hint}}. Daha büyük bir sistem promptu her istekte token harcar. Değişiklik bu konuşmanın bir sonraki isteğine uygulanır ve yeni konuşmalar için varsayılan olur.",
+    "identityLabel": "Ajan kimliği",
+    "identityTokens": "~{{tokens}} token",
+    "leader": "Lider: {{effort}}",
+    "unsupported": "Kayıtlı efor bu model tarafından desteklenmiyor.",
+    "effortNotConfirmed": "Oturum bu eforu onaylamadı. Yeniden denemeden önce yenile.",
+    "notConfirmed": "Oturum bu ayarı onaylamadı. Yeniden denemeden önce yenile."
+  },
+  "attach": {
+    "messageLabel": "Mesaj ekleri",
+    "image": "Görsel",
+    "preview": "Önizle",
+    "previewOf": "{{name}} önizle",
+    "save": "Kaydet",
+    "saveOf": "{{name}} kaydet",
+    "closePreview": "Ek önizlemesini kapat",
+    "pdfTitle": "PDF önizlemesi, {{name}}",
+    "limit": "En çok 8 görsel ve 4 PDF ekle.",
+    "files": "Ek dosyaları",
+    "preparing": "Ekler hazırlanıyor…",
+    "drop": "Görselleri ya da PDF’leri buraya bırak",
+    "draftLabel": "Taslak ekleri",
+    "remove": "{{name}} ekini kaldır",
+    "clear": "Ekleri temizle",
+    "attachLabel": "Görsel ya da PDF ekle",
+    "attachTitle": "Görsel ya da PDF ekle · yapıştırmak ya da bırakmak da olur"
   }
 }

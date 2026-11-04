@@ -924,5 +924,73 @@
     "matchesHead": "Este archivo coincide con HEAD.",
     "unchanged": "Mostrar las líneas sin cambios",
     "review": "Revisar la línea {{line}}"
+  },
+  "btw": {
+    "title": "Notas BTW · {{count}}",
+    "label": "Acuses de BTW",
+    "help": "Notas enviadas al líder de esta sesión mientras trabajaba, guardadas en este escritorio entre reinicios. Guardada significa que está en el buzón; no que se haya leído.",
+    "status": {
+      "saved": "Guardada · aún sin leer",
+      "read": "Leída por el líder",
+      "completed": "Atendida",
+      "not-found": "Ya no está en el buzón reciente"
+    },
+    "checking": "Comprobando acuses…",
+    "refresh": "Actualizar acuses"
+  },
+  "hunt": {
+    "paused": "{{hunt}} en pausa tras la ronda {{round}}/{{total}}.",
+    "continue": "Continuar con la ronda {{round}}",
+    "end": "Terminar la búsqueda",
+    "round": "Ronda {{round}} de {{total}}",
+    "wholeProject": "Todo el proyecto",
+    "scope": "{{scope}} y por debajo",
+    "sendFailed": "{{hunt}} en pausa: no se pudo enviar la ronda {{round}}. {{reason}}",
+    "starting": "Iniciando {{hunt}}…"
+  },
+  "modelControls": {
+    "choose": "Elegir el modelo de la sesión",
+    "title": "{{provider}} / {{model}} · los cambios se aplican a la siguiente solicitud",
+    "connect": "Conectar proveedor",
+    "connecting": "Conectando…",
+    "effortTitle": "Esfuerzo de razonamiento de esta sesión. Automático sigue el ajuste del proyecto.",
+    "effortLabel": "Esfuerzo de razonamiento de la sesión",
+    "autoEffort": "Esfuerzo automático",
+    "autoEffortProject": "Esfuerzo automático · {{effort}}",
+    "reasoningTitle": "Razonamiento de esta sesión. Automático sigue el ajuste del proveedor y del proyecto.",
+    "reasoningLabel": "Razonamiento de la sesión",
+    "reasoningAuto": "Razonamiento automático",
+    "reasoningOn": "Razonamiento activado",
+    "reasoningOff": "Razonamiento desactivado",
+    "preserveTitle": "Devolver el razonamiento anterior al modelo en turnos posteriores, como permite este modelo.",
+    "preserveLabel": "Conservar el razonamiento entre turnos",
+    "preserve": "Conservar razonamiento",
+    "identityTitle": "Identidad del agente. Un prompt de sistema más grande cuesta tokens en cada solicitud. Un cambio se aplica a la siguiente solicitud de esta conversación y pasa a ser el predeterminado para las nuevas.",
+    "identityTitleHint": "Identidad del agente: {{hint}}. Un prompt de sistema más grande cuesta tokens en cada solicitud. Un cambio se aplica a la siguiente solicitud de esta conversación y pasa a ser el predeterminado para las nuevas.",
+    "identityLabel": "Identidad del agente",
+    "identityTokens": "~{{tokens}} tokens",
+    "leader": "Líder: {{effort}}",
+    "unsupported": "Este modelo no anuncia el esfuerzo guardado.",
+    "effortNotConfirmed": "La sesión no confirmó este esfuerzo. Actualiza antes de reintentar.",
+    "notConfirmed": "La sesión no confirmó este ajuste. Actualiza antes de reintentar."
+  },
+  "attach": {
+    "messageLabel": "Adjuntos del mensaje",
+    "image": "Imagen",
+    "preview": "Vista previa",
+    "previewOf": "Vista previa de {{name}}",
+    "save": "Guardar",
+    "saveOf": "Guardar {{name}}",
+    "closePreview": "Cerrar la vista previa del adjunto",
+    "pdfTitle": "Vista previa del PDF, {{name}}",
+    "limit": "Adjunta hasta 8 imágenes y 4 PDF.",
+    "files": "Archivos adjuntos",
+    "preparing": "Preparando adjuntos…",
+    "drop": "Suelta aquí imágenes o PDF",
+    "draftLabel": "Adjuntos del borrador",
+    "remove": "Quitar el adjunto {{name}}",
+    "clear": "Quitar los adjuntos",
+    "attachLabel": "Adjuntar imágenes o PDF",
+    "attachTitle": "Adjuntar imágenes o PDF · también puedes pegar o soltar"
   }
 }

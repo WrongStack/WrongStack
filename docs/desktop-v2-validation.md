@@ -7150,3 +7150,22 @@ copies, starting with SAGE memory.
   - The fallback countdown, scheduled jobs, a grep input and a diff preview render in English and
     then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### Composer controls, attachments, hunts and BTW receipts in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - the session model controls: model chip, reasoning effort with the project's level, reasoning
+    mode, keeping reasoning, agent identity with its prompt size, the leader's effort and the
+    confirmation errors;
+  - attachments: the draft tray, drop hint, limits, message attachments and the preview dialog;
+  - hunts: the starting notice, the paused bar, Continue and End hunt, and the round card;
+  - BTW receipts with their read states.
+- Effort levels reuse the settings' option names, so "Extra high" reads the same in the
+  composer and in Settings.
+- The effort model now reports the project's and the leader's effort as values; the component
+  words them. The identity label takes the language's token wording and keeps English as its
+  default. Hunt mode names stay as their product names.
+- Checks:
+  - The model controls, the attachment tray and the hunt round card render in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.

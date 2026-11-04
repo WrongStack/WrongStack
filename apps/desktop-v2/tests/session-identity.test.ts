@@ -22,7 +22,7 @@ const info = {
 describe('the conversation’s agent identity', () => {
   it('lists the engine’s identities with their prompt size and picks the running one', () => {
     const { options, current } = sessionIdentity(info, {});
-    expect(options.map(identityLabel)).toEqual([
+    expect(options.map((option) => identityLabel(option))).toEqual([
       'Lite · ~2,400 tokens',
       'Standard · ~7,800 tokens',
       'Pro · ~12,400 tokens',

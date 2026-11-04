@@ -1,11 +1,16 @@
+// @vitest-environment jsdom
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { ComposerAttachments } from '../src/ComposerAttachments';
+import type { ComposerAttachment } from '../src/composer-attachments';
 import { DiffPreview } from '../src/DiffPreview';
 import type { EngineState } from '../src/engine-state';
 import { FallbackPicker } from '../src/FallbackPicker';
+import { HuntRoundCard } from '../src/HuntRounds';
 import { NextStepsPanel } from '../src/NextStepsPanel';
 import { ScheduledJobs } from '../src/ScheduledJobs';
+import { SessionModelControls } from '../src/SessionModelControls';
 import { SessionTodos } from '../src/SessionTodos';
 import { surfaceI18n } from '../src/surface-i18n';
 import { ToolApprovalCard } from '../src/ToolApprovalCard';
@@ -60,6 +65,33 @@ const liveState = () =>
     },
   }) as unknown as EngineState;
 
+const modelState = {
+  connected: true,
+  needsSetup: false,
+  provider: 'openai',
+  model: 'gpt',
+  results: {
+    'session.start': {
+      provider: 'openai',
+      model: 'gpt',
+      effortSupported: true,
+      projectReasoningEffort: 'high',
+    },
+  },
+} as unknown as EngineState;
+const draft = [
+  { id: 'd1', name: 'a.png', bytes: 2048, mediaType: 'image/png', data: 'AA==' },
+] as unknown as ComposerAttachment[];
+const tray = {
+  processing: false,
+  error: '',
+  dragging: false,
+  add: vi.fn(),
+  picker: { current: null },
+  setDragging: vi.fn(),
+};
+const round = { mode: 'bughunt', currentRound: 1, maxBugs: 2, scope: 'src/auth' } as never;
+
 function cards(): string {
   const live = liveState();
   return [
@@ -79,6 +111,19 @@ function cards(): string {
     createElement(ScheduledJobs, { state: live }),
     createElement(ToolInputView, { name: 'grep', input: { pattern: 'TODO', path: 'src' } }),
     createElement(DiffPreview, { before: 'a', after: 'b', path: 'src/x.ts' }),
+    createElement(SessionModelControls, {
+      state: modelState,
+      command: vi.fn(),
+      send: vi.fn(),
+      onSettings: vi.fn(),
+    }),
+    createElement(ComposerAttachments, {
+      items: draft,
+      disabled: false,
+      onChange: vi.fn(),
+      control: tray as never,
+    }),
+    createElement(HuntRoundCard, { round }),
   ]
     .map((card) => renderToStaticMarkup(card))
     .join('\n');
@@ -108,6 +153,10 @@ describe('the conversation cards in the display language', () => {
       'Up to 2 run at once. Ask the agent to schedule a job with <code>cron_schedule</code>',
       'Search for <code>TODO</code> in <code>src</code>',
       'aria-label="Changes in src/x.ts"',
+      'Auto effort · High',
+      'aria-label="Remove attachment a.png"',
+      'Round 1 of 2',
+      'src/auth and below',
     ])
       expect(html).toContain(text);
     await surfaceI18n.changeLanguage('tr');
@@ -128,6 +177,10 @@ describe('the conversation cards in the display language', () => {
       'Aynı anda en çok 2 çalışma. Ajandan <code>cron_schedule</code> ile',
       '<code>src</code> içinde <code>TODO</code> ara',
       'aria-label="src/x.ts içindeki değişiklikler"',
+      'Otomatik efor · Yüksek',
+      'aria-label="a.png ekini kaldır"',
+      'Tur 1 / 2',
+      'src/auth ve altı',
     ])
       expect(html).toContain(text);
   });

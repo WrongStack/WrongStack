@@ -924,5 +924,73 @@
     "matchesHead": "Diese Datei entspricht HEAD.",
     "unchanged": "Unveränderte Zeilen zeigen",
     "review": "Zeile {{line}} kommentieren"
+  },
+  "btw": {
+    "title": "BTW-Notizen · {{count}}",
+    "label": "BTW-Empfangsbestätigungen",
+    "help": "Notizen an den Leiter dieser Sitzung, während er arbeitete; sie bleiben auf diesem Desktop auch nach Neustarts erhalten. Gespeichert heißt, dass sie im Postfach liegt, nicht dass sie gelesen wurde.",
+    "status": {
+      "saved": "Gespeichert · noch nicht gelesen",
+      "read": "Vom Leiter gelesen",
+      "completed": "Erledigt",
+      "not-found": "Nicht mehr im aktuellen Postfach"
+    },
+    "checking": "Empfangsbestätigungen werden geprüft…",
+    "refresh": "Empfangsbestätigungen aktualisieren"
+  },
+  "hunt": {
+    "paused": "{{hunt}} nach Runde {{round}}/{{total}} pausiert.",
+    "continue": "Mit Runde {{round}} fortfahren",
+    "end": "Jagd beenden",
+    "round": "Runde {{round}} von {{total}}",
+    "wholeProject": "Ganzes Projekt",
+    "scope": "{{scope}} und darunter",
+    "sendFailed": "{{hunt}} pausiert: Runde {{round}} konnte nicht gesendet werden. {{reason}}",
+    "starting": "{{hunt}} wird gestartet…"
+  },
+  "modelControls": {
+    "choose": "Sitzungsmodell wählen",
+    "title": "{{provider}} / {{model}} · Änderungen gelten ab der nächsten Anfrage",
+    "connect": "Anbieter verbinden",
+    "connecting": "Verbinde…",
+    "effortTitle": "Denkaufwand für diese Sitzung. Automatisch folgt der Projekteinstellung.",
+    "effortLabel": "Denkaufwand der Sitzung",
+    "autoEffort": "Automatischer Aufwand",
+    "autoEffortProject": "Automatischer Aufwand · {{effort}}",
+    "reasoningTitle": "Denken für diese Sitzung. Automatisch folgt der Anbieter- und Projekteinstellung.",
+    "reasoningLabel": "Denken der Sitzung",
+    "reasoningAuto": "Automatisches Denken",
+    "reasoningOn": "Denken an",
+    "reasoningOff": "Denken aus",
+    "preserveTitle": "Frühere Überlegungen in späteren Runden an das Modell zurücksenden, soweit dieses Modell es erlaubt.",
+    "preserveLabel": "Überlegungen zwischen Runden behalten",
+    "preserve": "Überlegungen behalten",
+    "identityTitle": "Agentenidentität. Ein größerer System-Prompt kostet bei jeder Anfrage Tokens. Eine Änderung gilt ab der nächsten Anfrage dieser Unterhaltung und wird zum Standard für neue Unterhaltungen.",
+    "identityTitleHint": "Agentenidentität: {{hint}}. Ein größerer System-Prompt kostet bei jeder Anfrage Tokens. Eine Änderung gilt ab der nächsten Anfrage dieser Unterhaltung und wird zum Standard für neue Unterhaltungen.",
+    "identityLabel": "Agentenidentität",
+    "identityTokens": "~{{tokens}} Tokens",
+    "leader": "Leiter: {{effort}}",
+    "unsupported": "Der gespeicherte Aufwand wird von diesem Modell nicht angeboten.",
+    "effortNotConfirmed": "Die Sitzung hat diesen Aufwand nicht bestätigt. Aktualisiere, bevor du es erneut versuchst.",
+    "notConfirmed": "Die Sitzung hat diese Einstellung nicht bestätigt. Aktualisiere, bevor du es erneut versuchst."
+  },
+  "attach": {
+    "messageLabel": "Anhänge der Nachricht",
+    "image": "Bild",
+    "preview": "Vorschau",
+    "previewOf": "{{name}} anzeigen",
+    "save": "Speichern",
+    "saveOf": "{{name}} speichern",
+    "closePreview": "Anhangvorschau schließen",
+    "pdfTitle": "PDF-Vorschau, {{name}}",
+    "limit": "Hänge bis zu 8 Bilder und 4 PDFs an.",
+    "files": "Anhangdateien",
+    "preparing": "Anhänge werden vorbereitet…",
+    "drop": "Bilder oder PDFs hier ablegen",
+    "draftLabel": "Anhänge des Entwurfs",
+    "remove": "Anhang {{name}} entfernen",
+    "clear": "Anhänge entfernen",
+    "attachLabel": "Bilder oder PDFs anhängen",
+    "attachTitle": "Bilder oder PDFs anhängen · Einfügen oder Ablegen geht auch"
   }
 }

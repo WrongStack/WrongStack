@@ -9,6 +9,7 @@ import {
   validateAttachments,
 } from './composer-attachments';
 import { DictationButton } from './DictationButton';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { PdfFrame } from './PdfFrame';
 import './composer-attachments.css';
@@ -32,6 +33,7 @@ export function AttachmentPreview({
   items: readonly ComposerAttachment[];
   interactive?: boolean;
 }) {
+  const { t } = useDesktopText();
   const [selected, setSelected] = useState<ComposerAttachment | null>(null);
   const selectedPdf = useMemo(
     () => (selected && isPdf(selected) ? decodeAttachment(selected) : null),
@@ -39,7 +41,7 @@ export function AttachmentPreview({
   );
   return (
     <>
-      <section className="message-attachments" aria-label="Message attachments">
+      <section className="message-attachments" aria-label={t('attach.messageLabel')}>
         {items.map((item, i) =>
           isPdf(item) ? (
             <span className="attachment-document" key={i}>
@@ -53,18 +55,18 @@ export function AttachmentPreview({
                   <button
                     type="button"
                     className="button secondary small"
-                    aria-label={`Preview ${item.name}`}
+                    aria-label={t('attach.previewOf', { name: item.name })}
                     onClick={() => setSelected(item)}
                   >
-                    Preview
+                    {t('attach.preview')}
                   </button>
                   <button
                     type="button"
                     className="button secondary small"
-                    aria-label={`Save ${item.name}`}
+                    aria-label={t('attach.saveOf', { name: item.name })}
                     onClick={() => saveAttachment(item)}
                   >
-                    Save
+                    {t('attach.save')}
                   </button>
                 </>
               )}
@@ -79,7 +81,7 @@ export function AttachmentPreview({
               key={i}
               type="button"
               className="attachment-image"
-              aria-label={`Preview ${item.name}`}
+              aria-label={t('attach.previewOf', { name: item.name })}
               onClick={() => setSelected(item)}
             >
               <img src={attachmentDataUrl(item)} alt={item.name} loading="lazy" />
@@ -96,14 +98,14 @@ export function AttachmentPreview({
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Close attachment preview"
+                aria-label={t('attach.closePreview')}
                 onClick={() => setSelected(null)}
               >
                 <X size={18} />
               </button>
             </header>
             {selectedPdf ? (
-              <PdfFrame bytes={selectedPdf} title={`PDF preview, ${selected.name}`} />
+              <PdfFrame bytes={selectedPdf} title={t('attach.pdfTitle', { name: selected.name })} />
             ) : (
               <img src={attachmentDataUrl(selected)} alt={selected.name} />
             )}
@@ -117,6 +119,7 @@ export function useComposerAttachments(
   items: ComposerAttachment[],
   onChange: (items: ComposerAttachment[]) => void,
 ) {
+  const { t } = useDesktopText();
   const [processing, setProcessing] = useState(false),
     [error, setError] = useState(''),
     [dragging, setDragging] = useState(false);
@@ -137,8 +140,7 @@ export function useComposerAttachments(
     setProcessing(true);
     setError('');
     try {
-      if (files.length + current.current.length > 12)
-        throw Error('Attach up to 8 images and 4 PDFs.');
+      if (files.length + current.current.length > 12) throw Error(t('attach.limit'));
       const next: ComposerAttachment[] = [];
       for (const file of files) next.push(await processAttachmentFile(file));
       if (!alive.current) return;
@@ -166,6 +168,7 @@ export function ComposerAttachments({
   onChange: (items: ComposerAttachment[]) => void;
   control: ReturnType<typeof useComposerAttachments>;
 }) {
+  const { t } = useDesktopText();
   return (
     <>
       <input
@@ -174,7 +177,7 @@ export function ComposerAttachments({
         hidden
         multiple
         accept="image/*,application/pdf,.pdf"
-        aria-label="Attachment files"
+        aria-label={t('attach.files')}
         disabled={disabled || control.processing}
         onChange={(e) => {
           void control.add(Array.from(e.currentTarget.files ?? []));
@@ -183,7 +186,7 @@ export function ComposerAttachments({
       />
       {control.processing && (
         <p className="composer-notice" role="status">
-          <LoaderCircle className="spin" size={13} /> Preparing attachments…
+          <LoaderCircle className="spin" size={13} /> {t('attach.preparing')}
         </p>
       )}
       {control.error && (
@@ -193,24 +196,24 @@ export function ComposerAttachments({
       )}
       {control.dragging && (
         <p className="attachment-drop-hint">
-          <Paperclip size={14} /> Drop images or PDFs here
+          <Paperclip size={14} /> {t('attach.drop')}
         </p>
       )}
       {items.length > 0 && (
-        <section className="composer-attachment-tray" aria-label="Draft attachments">
+        <section className="composer-attachment-tray" aria-label={t('attach.draftLabel')}>
           {items.map((item) => (
             <div key={item.id} className="draft-attachment">
               {isPdf(item) ? <FileText size={25} /> : <img src={attachmentDataUrl(item)} alt="" />}
               <span title={item.name}>
                 {item.name}
                 <small>
-                  {isPdf(item) ? 'PDF' : 'Image'} · {(item.bytes / 1024).toFixed(0)} KB
+                  {isPdf(item) ? 'PDF' : t('attach.image')} · {(item.bytes / 1024).toFixed(0)} KB
                 </small>
               </span>
               <button
                 type="button"
                 className="icon-button"
-                aria-label={`Remove attachment ${item.name}`}
+                aria-label={t('attach.remove', { name: item.name })}
                 disabled={disabled || control.processing}
                 onClick={() => onChange(items.filter((a) => a.id !== item.id))}
               >
@@ -223,7 +226,7 @@ export function ComposerAttachments({
             disabled={disabled || control.processing}
             onClick={() => onChange([])}
           >
-            Clear attachments
+            {t('attach.clear')}
           </button>
         </section>
       )}
@@ -243,13 +246,14 @@ export function ComposerInputChips({
   onAttach: () => void;
   onDictation: (text: string) => void;
 }) {
+  const { t } = useDesktopText();
   return (
     <>
       <button
         type="button"
         className="composer-chip"
-        aria-label="Attach images or PDFs"
-        title="Attach images or PDFs · paste or drop also works"
+        aria-label={t('attach.attachLabel')}
+        title={t('attach.attachTitle')}
         disabled={attachDisabled}
         onClick={onAttach}
       >

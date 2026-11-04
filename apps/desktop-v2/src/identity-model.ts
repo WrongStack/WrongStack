@@ -38,7 +38,10 @@ export function sessionIdentity(
 }
 
 /** `Pro · ~12,400 tokens`, as the WebUI's picker sizes each identity. */
-export const identityLabel = (option: IdentityOption) =>
+export const identityLabel = (
+  option: IdentityOption,
+  tokens = (count: string) => `~${count} tokens`,
+) =>
   option.tokens > 0
-    ? `${option.label} · ~${option.tokens.toLocaleString('en-US')} tokens`
+    ? `${option.label} · ${tokens(option.tokens.toLocaleString('en-US'))}`
     : option.label;

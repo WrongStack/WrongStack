@@ -924,5 +924,73 @@
     "matchesHead": "This file matches HEAD.",
     "unchanged": "Show unchanged lines",
     "review": "Review line {{line}}"
+  },
+  "btw": {
+    "title": "BTW notes · {{count}}",
+    "label": "BTW receipts",
+    "help": "Notes sent to this session's leader while it was working, kept on this desktop across restarts. Saved means it is in the mailbox; it does not mean it has been read.",
+    "status": {
+      "saved": "Saved · not read yet",
+      "read": "Read by the leader",
+      "completed": "Handled",
+      "not-found": "No longer in the recent mailbox"
+    },
+    "checking": "Checking receipts…",
+    "refresh": "Refresh receipts"
+  },
+  "hunt": {
+    "paused": "{{hunt}} paused after round {{round}}/{{total}}.",
+    "continue": "Continue with round {{round}}",
+    "end": "End hunt",
+    "round": "Round {{round}} of {{total}}",
+    "wholeProject": "Whole project",
+    "scope": "{{scope}} and below",
+    "sendFailed": "{{hunt}} paused: round {{round}} could not be sent. {{reason}}",
+    "starting": "Starting {{hunt}}…"
+  },
+  "modelControls": {
+    "choose": "Choose session model",
+    "title": "{{provider}} / {{model}} · changes apply to the next request",
+    "connect": "Connect provider",
+    "connecting": "Connecting…",
+    "effortTitle": "Reasoning effort for this session. Auto follows the project setting.",
+    "effortLabel": "Session reasoning effort",
+    "autoEffort": "Auto effort",
+    "autoEffortProject": "Auto effort · {{effort}}",
+    "reasoningTitle": "Reasoning for this session. Auto follows the provider and project setting.",
+    "reasoningLabel": "Session reasoning",
+    "reasoningAuto": "Auto reasoning",
+    "reasoningOn": "Reasoning on",
+    "reasoningOff": "Reasoning off",
+    "preserveTitle": "Send earlier reasoning back to the model on later turns, as this model allows.",
+    "preserveLabel": "Keep reasoning between turns",
+    "preserve": "Keep reasoning",
+    "identityTitle": "Agent identity. A larger system prompt costs tokens on every request. A change applies to this conversation's next request and becomes the default for new conversations.",
+    "identityTitleHint": "Agent identity: {{hint}}. A larger system prompt costs tokens on every request. A change applies to this conversation's next request and becomes the default for new conversations.",
+    "identityLabel": "Agent identity",
+    "identityTokens": "~{{tokens}} tokens",
+    "leader": "Leader: {{effort}}",
+    "unsupported": "Saved effort is not advertised by this model.",
+    "effortNotConfirmed": "The session did not confirm this effort. Refresh before retrying.",
+    "notConfirmed": "The session did not confirm this setting. Refresh before retrying."
+  },
+  "attach": {
+    "messageLabel": "Message attachments",
+    "image": "Image",
+    "preview": "Preview",
+    "previewOf": "Preview {{name}}",
+    "save": "Save",
+    "saveOf": "Save {{name}}",
+    "closePreview": "Close attachment preview",
+    "pdfTitle": "PDF preview, {{name}}",
+    "limit": "Attach up to 8 images and 4 PDFs.",
+    "files": "Attachment files",
+    "preparing": "Preparing attachments…",
+    "drop": "Drop images or PDFs here",
+    "draftLabel": "Draft attachments",
+    "remove": "Remove attachment {{name}}",
+    "clear": "Clear attachments",
+    "attachLabel": "Attach images or PDFs",
+    "attachTitle": "Attach images or PDFs · paste or drop also works"
   }
 }

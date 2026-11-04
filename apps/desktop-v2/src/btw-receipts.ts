@@ -87,10 +87,3 @@ export function btwStatus(mail: Record<string, unknown> | undefined): BtwStatus 
   const count = typeof mail['readByCount'] === 'number' ? mail['readByCount'] : 0;
   return readers > 0 || count > 0 ? 'read' : 'saved';
 }
-
-export const BTW_STATUS_LABELS: Record<BtwStatus, string> = {
-  saved: 'Saved · not read yet',
-  read: 'Read by the leader',
-  completed: 'Handled',
-  'not-found': 'No longer in the recent mailbox',
-};

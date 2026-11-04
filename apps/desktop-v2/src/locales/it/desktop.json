@@ -924,5 +924,73 @@
     "matchesHead": "Questo file corrisponde a HEAD.",
     "unchanged": "Mostra le righe invariate",
     "review": "Commenta la riga {{line}}"
+  },
+  "btw": {
+    "title": "Note BTW · {{count}}",
+    "label": "Ricevute BTW",
+    "help": "Note inviate al leader di questa sessione mentre lavorava, conservate su questo desktop anche dopo i riavvii. Salvata significa che è nella casella, non che è stata letta.",
+    "status": {
+      "saved": "Salvata · non ancora letta",
+      "read": "Letta dal leader",
+      "completed": "Gestita",
+      "not-found": "Non più nella casella recente"
+    },
+    "checking": "Verifica delle ricevute…",
+    "refresh": "Aggiorna le ricevute"
+  },
+  "hunt": {
+    "paused": "{{hunt}} in pausa dopo il turno {{round}}/{{total}}.",
+    "continue": "Continua con il turno {{round}}",
+    "end": "Termina la caccia",
+    "round": "Turno {{round}} di {{total}}",
+    "wholeProject": "Intero progetto",
+    "scope": "{{scope}} e sottocartelle",
+    "sendFailed": "{{hunt}} in pausa: impossibile inviare il turno {{round}}. {{reason}}",
+    "starting": "Avvio di {{hunt}}…"
+  },
+  "modelControls": {
+    "choose": "Scegli il modello della sessione",
+    "title": "{{provider}} / {{model}} · le modifiche valgono dalla prossima richiesta",
+    "connect": "Collega un provider",
+    "connecting": "Connessione…",
+    "effortTitle": "Sforzo di ragionamento per questa sessione. Auto segue l’impostazione del progetto.",
+    "effortLabel": "Sforzo di ragionamento della sessione",
+    "autoEffort": "Sforzo automatico",
+    "autoEffortProject": "Sforzo automatico · {{effort}}",
+    "reasoningTitle": "Ragionamento per questa sessione. Auto segue le impostazioni del provider e del progetto.",
+    "reasoningLabel": "Ragionamento della sessione",
+    "reasoningAuto": "Ragionamento automatico",
+    "reasoningOn": "Ragionamento attivo",
+    "reasoningOff": "Ragionamento disattivato",
+    "preserveTitle": "Rimanda il ragionamento precedente al modello nei turni successivi, come consente questo modello.",
+    "preserveLabel": "Mantieni il ragionamento tra i turni",
+    "preserve": "Mantieni il ragionamento",
+    "identityTitle": "Identità dell'agente. Un prompt di sistema più grande costa token a ogni richiesta. Una modifica vale dalla prossima richiesta di questa conversazione e diventa il valore predefinito per le nuove conversazioni.",
+    "identityTitleHint": "Identità dell'agente: {{hint}}. Un prompt di sistema più grande costa token a ogni richiesta. Una modifica vale dalla prossima richiesta di questa conversazione e diventa il valore predefinito per le nuove conversazioni.",
+    "identityLabel": "Identità dell'agente",
+    "identityTokens": "~{{tokens}} token",
+    "leader": "Leader: {{effort}}",
+    "unsupported": "Lo sforzo salvato non è dichiarato da questo modello.",
+    "effortNotConfirmed": "La sessione non ha confermato questo sforzo. Aggiorna prima di riprovare.",
+    "notConfirmed": "La sessione non ha confermato questa impostazione. Aggiorna prima di riprovare."
+  },
+  "attach": {
+    "messageLabel": "Allegati del messaggio",
+    "image": "Immagine",
+    "preview": "Anteprima",
+    "previewOf": "Anteprima di {{name}}",
+    "save": "Salva",
+    "saveOf": "Salva {{name}}",
+    "closePreview": "Chiudi l'anteprima dell'allegato",
+    "pdfTitle": "Anteprima PDF, {{name}}",
+    "limit": "Allega fino a 8 immagini e 4 PDF.",
+    "files": "File allegati",
+    "preparing": "Preparazione degli allegati…",
+    "drop": "Trascina qui immagini o PDF",
+    "draftLabel": "Allegati della bozza",
+    "remove": "Rimuovi l'allegato {{name}}",
+    "clear": "Rimuovi gli allegati",
+    "attachLabel": "Allega immagini o PDF",
+    "attachTitle": "Allega immagini o PDF · funziona anche incollare o trascinare"
   }
 }

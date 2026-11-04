@@ -14,6 +14,7 @@ import {
   requestHuntStop,
   stopHunt,
 } from './desktop-hunt';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import './hunt.css';
@@ -45,8 +46,9 @@ export function useHunts({
   continues: boolean;
   view: ReactNode;
 } {
+  const { t } = useDesktopText();
   const start = async (request: HuntRequest) => {
-    report(`Starting ${huntLabel(request.mode)}…`, '');
+    report(t('hunt.starting', { hunt: huntLabel(request.mode) }), '');
     try {
       const text = await prepareHunt(request, command, state.results['prefs.updated'] ?? {});
       clearHuntStop(state.sessionId);
@@ -68,7 +70,11 @@ export function useHunts({
           (error: unknown) => {
             report(
               '',
-              `${huntLabel(round.mode)} paused: round ${round.currentRound + 1} could not be sent. ${reason(error)}`,
+              t('hunt.sendFailed', {
+                hunt: huntLabel(round.mode),
+                round: round.currentRound + 1,
+                reason: reason(error),
+              }),
             );
             throw error;
           },
@@ -92,6 +98,7 @@ function HuntRounds({
   /** Sends a round; rejects when it could not be sent. */
   onContinue: (text: string, round: BugHuntSummary) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const result = state.results['run.result'];
   const live = state.connected && !state.hydrating;
   const seen = useRef<{ session: string; result: unknown } | null>(null);
@@ -137,10 +144,14 @@ function HuntRounds({
     <div className="hunt-paused" role="status">
       <Crosshair size={14} />
       <span>
-        {huntLabel(round.mode)} paused after round {round.currentRound}/{round.maxBugs}.
+        {t('hunt.paused', {
+          hunt: huntLabel(round.mode),
+          round: round.currentRound,
+          total: round.maxBugs,
+        })}
       </span>
       <button type="button" className="button small" onClick={() => send(round, next)}>
-        Continue with round {round.currentRound + 1}
+        {t('hunt.continue', { round: round.currentRound + 1 })}
       </button>
       <button
         type="button"
@@ -150,7 +161,7 @@ function HuntRounds({
           setDismissed((count) => count + 1);
         }}
       >
-        End hunt
+        {t('hunt.end')}
       </button>
     </div>
   );
@@ -158,6 +169,7 @@ function HuntRounds({
 
 /** The card a hunt round shows in place of its long protocol text. */
 export function HuntRoundCard({ round }: { round: BugHuntSummary }) {
+  const { t } = useDesktopText();
   return (
     <div className="hunt-round-card">
       <strong>
@@ -165,10 +177,10 @@ export function HuntRoundCard({ round }: { round: BugHuntSummary }) {
       </strong>
       <div>
         <span className="hunt-round">
-          Round {round.currentRound} of {round.maxBugs}
+          {t('hunt.round', { round: round.currentRound, total: round.maxBugs })}
         </span>
-        <span title={round.scope || 'Whole project'}>
-          {round.scope ? `${round.scope} and below` : 'Whole project'}
+        <span title={round.scope || t('hunt.wholeProject')}>
+          {round.scope ? t('hunt.scope', { scope: round.scope }) : t('hunt.wholeProject')}
         </span>
       </div>
     </div>

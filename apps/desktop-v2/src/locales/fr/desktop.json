@@ -924,5 +924,73 @@
     "matchesHead": "Ce fichier correspond à HEAD.",
     "unchanged": "Afficher les lignes inchangées",
     "review": "Commenter la ligne {{line}}"
+  },
+  "btw": {
+    "title": "Notes BTW · {{count}}",
+    "label": "Accusés BTW",
+    "help": "Notes envoyées au leader de cette session pendant qu'il travaillait, conservées sur ce bureau après les redémarrages. Enregistrée signifie qu'elle est dans la boîte aux lettres, pas qu'elle a été lue.",
+    "status": {
+      "saved": "Enregistrée · pas encore lue",
+      "read": "Lue par le leader",
+      "completed": "Traitée",
+      "not-found": "Plus dans la boîte aux lettres récente"
+    },
+    "checking": "Vérification des accusés…",
+    "refresh": "Actualiser les accusés"
+  },
+  "hunt": {
+    "paused": "{{hunt}} en pause après le tour {{round}}/{{total}}.",
+    "continue": "Continuer avec le tour {{round}}",
+    "end": "Terminer la chasse",
+    "round": "Tour {{round}} sur {{total}}",
+    "wholeProject": "Projet entier",
+    "scope": "{{scope}} et en dessous",
+    "sendFailed": "{{hunt}} en pause : le tour {{round}} n'a pas pu être envoyé. {{reason}}",
+    "starting": "Démarrage de {{hunt}}…"
+  },
+  "modelControls": {
+    "choose": "Choisir le modèle de la session",
+    "title": "{{provider}} / {{model}} · les modifications s’appliquent à la prochaine requête",
+    "connect": "Connecter un fournisseur",
+    "connecting": "Connexion…",
+    "effortTitle": "Effort de raisonnement pour cette session. Auto suit le réglage du projet.",
+    "effortLabel": "Effort de raisonnement de la session",
+    "autoEffort": "Effort auto",
+    "autoEffortProject": "Effort auto · {{effort}}",
+    "reasoningTitle": "Raisonnement pour cette session. Auto suit le réglage du fournisseur et du projet.",
+    "reasoningLabel": "Raisonnement de la session",
+    "reasoningAuto": "Raisonnement auto",
+    "reasoningOn": "Raisonnement activé",
+    "reasoningOff": "Raisonnement désactivé",
+    "preserveTitle": "Renvoyer le raisonnement précédent au modèle lors des tours suivants, comme ce modèle le permet.",
+    "preserveLabel": "Conserver le raisonnement entre les tours",
+    "preserve": "Conserver le raisonnement",
+    "identityTitle": "Identité de l'agent. Un prompt système plus long coûte des jetons à chaque requête. Un changement s'applique à la prochaine requête de cette conversation et devient la valeur par défaut des nouvelles conversations.",
+    "identityTitleHint": "Identité de l'agent : {{hint}}. Un prompt système plus long coûte des jetons à chaque requête. Un changement s'applique à la prochaine requête de cette conversation et devient la valeur par défaut des nouvelles conversations.",
+    "identityLabel": "Identité de l'agent",
+    "identityTokens": "~{{tokens}} jetons",
+    "leader": "Leader : {{effort}}",
+    "unsupported": "L'effort enregistré n'est pas proposé par ce modèle.",
+    "effortNotConfirmed": "La session n'a pas confirmé cet effort. Actualisez avant de réessayer.",
+    "notConfirmed": "La session n'a pas confirmé ce réglage. Actualisez avant de réessayer."
+  },
+  "attach": {
+    "messageLabel": "Pièces jointes du message",
+    "image": "Image",
+    "preview": "Aperçu",
+    "previewOf": "Aperçu de {{name}}",
+    "save": "Enregistrer",
+    "saveOf": "Enregistrer {{name}}",
+    "closePreview": "Fermer l'aperçu de la pièce jointe",
+    "pdfTitle": "Aperçu PDF, {{name}}",
+    "limit": "Joignez jusqu'à 8 images et 4 PDF.",
+    "files": "Fichiers joints",
+    "preparing": "Préparation des pièces jointes…",
+    "drop": "Déposez des images ou des PDF ici",
+    "draftLabel": "Pièces jointes du brouillon",
+    "remove": "Retirer la pièce jointe {{name}}",
+    "clear": "Retirer les pièces jointes",
+    "attachLabel": "Joindre des images ou des PDF",
+    "attachTitle": "Joindre des images ou des PDF · coller ou déposer fonctionne aussi"
   }
 }
