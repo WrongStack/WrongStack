@@ -10,10 +10,12 @@
  * `auto` uses WrongMemory only while its daemon runs and the project is
  * registered there.
  *
- * `install` downloads the WrongMemory release for this platform, checks both
- * executables against the release's SHA256SUMS (and GitHub's recorded asset
- * digest), then runs WrongMemory's own `install`, which places them in
- * `%LOCALAPPDATA%\WrongMemory\bin`. `--from <dir>` installs from a local build.
+ * `install` downloads the WrongMemory release for this platform (Windows x64,
+ * Linux x64, macOS arm64), checks both executables against the release's
+ * SHA256SUMS (and GitHub's recorded asset digest), then runs WrongMemory's own
+ * `install`, which places them in `%LOCALAPPDATA%\WrongMemory\bin` on Windows
+ * and `~/.local/share/wrongmemory/bin` on Linux and macOS. `--from <dir>`
+ * installs from a local build.
  *
  * `use` prints its plan unless `--yes` is given. Switching to `wrongmemory`
  * backs the project store up, hands it to the service (the local SAGE server
@@ -37,6 +39,13 @@ export const WRONGMEMORY_RELEASE_REPO = 'WrongStack/wrongmemory';
 const MODES = ['local', 'wrongmemory', 'auto'] as const;
 type Mode = (typeof MODES)[number];
 const MAX_EXE_BYTES = 256 * 1024 * 1024;
+
+/** Release asset platform names (`wrongmemory-<platform>[.exe]`), as WrongStack's own. */
+const RELEASE_PLATFORMS: Readonly<Record<string, string>> = {
+  'win32-x64': 'windows-x64',
+  'linux-x64': 'linux-x64',
+  'darwin-arm64': 'darwin-arm64',
+};
 const MAX_SUMS_BYTES = 64 * 1024;
 
 interface ReleaseAsset {
@@ -161,17 +170,26 @@ export async function installWrongMemory(options: {
   const io = options.io ?? defaultIo;
   const platform = options.platform ?? process.platform;
   const arch = options.arch ?? process.arch;
-  if (platform !== 'win32' || arch !== 'x64') {
-    throw new Error(`WrongMemory ships for Windows x64 only; this is ${platform}-${arch}`);
+  const target = RELEASE_PLATFORMS[`${platform}-${arch}`];
+  if (!target) {
+    throw new Error(
+      `WrongMemory ships for Windows x64, Linux x64 and macOS arm64; this is ${platform}-${arch}`,
+    );
   }
+  const suffix = platform === 'win32' ? '.exe' : '';
   if (options.from) {
     const dir = path.resolve(options.from);
-    for (const exe of ['wrongmemory.exe', 'wrongmemoryd.exe']) {
+    for (const exe of [`wrongmemory${suffix}`, `wrongmemoryd${suffix}`]) {
       if (!existsSync(path.join(dir, exe))) throw new Error(`${exe} not found in ${dir}`);
     }
     return {
       source: dir,
-      ...runInstaller(io, path.join(dir, 'wrongmemory.exe'), options.stopDaemon, options.dataRoot),
+      ...runInstaller(
+        io,
+        path.join(dir, `wrongmemory${suffix}`),
+        options.stopDaemon,
+        options.dataRoot,
+      ),
     };
   }
   const release = await io.fetchRelease(options.version);
@@ -181,22 +199,25 @@ export async function installWrongMemory(options: {
   const stage = await fs.mkdtemp(path.join(tmpdir(), 'wrongmemory-install-'));
   try {
     for (const exe of ['wrongmemory', 'wrongmemoryd']) {
-      const name = `${exe}-windows-x64.exe`;
+      const name = `${exe}-${target}${suffix}`;
       const asset = release.assets.find((a) => a.name === name);
       if (!asset) throw new Error(`release ${release.tag_name} has no ${name}`);
-      const sha = await io.download(asset.browser_download_url, path.join(stage, `${exe}.exe`));
+      const file = path.join(stage, `${exe}${suffix}`);
+      const sha = await io.download(asset.browser_download_url, file);
       if (sums.get(name) !== sha) {
         throw new Error(`${name}: checksum does not match the release SHA256SUMS`);
       }
       if (typeof asset.digest === 'string' && asset.digest !== `sha256:${sha}`) {
         throw new Error(`${name}: checksum does not match the digest GitHub recorded`);
       }
+      // Only verified bytes become executable.
+      if (platform !== 'win32') await fs.chmod(file, 0o755);
     }
     return {
       source: `${WRONGMEMORY_RELEASE_REPO}@${release.tag_name}`,
       ...runInstaller(
         io,
-        path.join(stage, 'wrongmemory.exe'),
+        path.join(stage, `wrongmemory${suffix}`),
         options.stopDaemon,
         options.dataRoot,
       ),

@@ -43,6 +43,29 @@ describe('findWrongMemoryBinary', () => {
     expect(findWrongMemoryBinary('daemon', win(files, env))?.source).toBe('env');
   });
 
+  it('finds the Unix per-user install under XDG_DATA_HOME, else ~/.local/share', () => {
+    const unix = (files: string[], env: NodeJS.ProcessEnv) => ({
+      env,
+      platform: 'linux' as const,
+      execPath: '/home/u/.bun/bin/bun',
+      exists: (f: string) => files.includes(f),
+    });
+    const home = '/home/u/.local/share/wrongmemory/bin';
+    expect(wrongMemoryInstallDir({ HOME: '/home/u' }, 'linux')).toBe(home);
+    expect(wrongMemoryInstallDir({ HOME: '/Users/u' }, 'darwin')).toBe(
+      '/Users/u/.local/share/wrongmemory/bin',
+    );
+    expect(wrongMemoryInstallDir({ HOME: '/home/u', XDG_DATA_HOME: '/data' }, 'linux')).toBe(
+      '/data/wrongmemory/bin',
+    );
+    // A relative XDG_DATA_HOME is invalid by the spec and ignored.
+    expect(wrongMemoryInstallDir({ HOME: '/home/u', XDG_DATA_HOME: 'rel' }, 'linux')).toBe(home);
+    expect(wrongMemoryInstallDir({}, 'linux')).toBeUndefined();
+    expect(
+      findWrongMemoryBinary('cli', unix([`${home}/wrongmemory`], { HOME: '/home/u' })),
+    ).toEqual({ path: `${home}/wrongmemory`, source: 'installed' });
+  });
+
   it('never looks next to the Bun runtime unless the file is there, then falls back to PATH', () => {
     const files = ['C:\\tools\\wrongmemoryd.exe'];
     const env = { LOCALAPPDATA: local, PATH: 'C:\\Windows;C:\\tools' };

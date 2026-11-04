@@ -5,8 +5,10 @@
  * Search order, first hit wins:
  *  1. `Sage.service.daemonPath` (the CLI is looked up next to it);
  *  2. `WRONGMEMORYD_PATH` (likewise);
- *  3. the standard per-user install, `%LOCALAPPDATA%\WrongMemory\bin`, which
- *     `wrongmemory install` and `wstack sage service install` write;
+ *  3. the standard per-user install, which `wrongmemory install` and
+ *     `wstack sage service install` write: `%LOCALAPPDATA%\WrongMemory\bin`
+ *     on Windows, `$XDG_DATA_HOME/wrongmemory/bin` (else
+ *     `~/.local/share/wrongmemory/bin`) on Linux and macOS;
  *  4. next to the running executable (a bundled layout);
  *  5. `PATH`.
  */
@@ -43,11 +45,21 @@ export function wrongMemoryInstallDir(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
-  if (platform !== 'win32') return undefined;
-  const local = env.LOCALAPPDATA;
-  // Windows path rules on every host, so a computed path does not depend on
-  // where the code runs (tests on Linux CI).
-  return local ? path.win32.join(local, 'WrongMemory', 'bin') : undefined;
+  // The target platform's path rules on every host, so a computed path does
+  // not depend on where the code runs (tests on Linux CI).
+  if (platform === 'win32') {
+    const local = env.LOCALAPPDATA;
+    return local ? path.win32.join(local, 'WrongMemory', 'bin') : undefined;
+  }
+  // WrongMemory's Unix default prefix (WM-802): XDG data home, else ~/.local/share.
+  const xdg = env.XDG_DATA_HOME;
+  const data =
+    xdg && path.posix.isAbsolute(xdg)
+      ? xdg
+      : env.HOME
+        ? path.posix.join(env.HOME, '.local', 'share')
+        : undefined;
+  return data ? path.posix.join(data, 'wrongmemory', 'bin') : undefined;
 }
 
 /** Locate a WrongMemory executable, or `undefined` when none is found. */
