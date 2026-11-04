@@ -2,6 +2,8 @@ import type { ApiSession } from '@wrongstack/webui-protocol';
 import { Background, Controls, type Edge, type Node, ReactFlow } from '@xyflow/react';
 import { Network, RefreshCw, Search, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 import { FleetActivity } from './FleetActivity';
@@ -10,6 +12,7 @@ import { fleetMailboxAddress, fleetNodeId, projectFleet } from './live-fleet-mod
 import { Modal } from './Modal';
 import type { Session } from './model';
 import { request } from './platform';
+import { surfaceI18n } from './surface-i18n';
 import '@xyflow/react/dist/style.css';
 import './project-live-fleet.css';
 
@@ -24,6 +27,11 @@ export function ProjectLiveFleet({
   carrierId: string;
   nativeSessions: Session[];
 }) {
+  const { t } = useDesktopText();
+  // Read through a ref so a language change does not restart the registry polling.
+  const words = useRef(t);
+  words.current = t;
+  const status = (value: string) => t(`liveFleet.status.${value}`, { defaultValue: value });
   const [sessions, setSessions] = useState<ApiSession[]>([]),
     [loaded, setLoaded] = useState(false),
     [loading, setLoading] = useState(false),
@@ -79,7 +87,13 @@ export function ProjectLiveFleet({
     };
   }, [nativeKey]);
   const read = useCallback(
-    async () => projectFleet(await http('/api/sessions'), projectRoot, carrierId),
+    async () =>
+      projectFleet(await http('/api/sessions'), projectRoot, carrierId, {
+        catalog: words.current('liveFleet.invalid.catalog'),
+        records: words.current('liveFleet.invalid.records'),
+        session: words.current('liveFleet.invalid.session'),
+        agent: words.current('liveFleet.invalid.agent'),
+      }),
     [http, projectRoot, carrierId],
   );
   const load = useCallback(async () => {
@@ -154,11 +168,17 @@ export function ProjectLiveFleet({
             <div>
               <strong>
                 {sessionNames[session.sessionId] ??
-                  `Session · ${session.sessionId.split('/').at(-1)?.slice(-12)}`}
+                  t('liveFleet.sessionNode', {
+                    id: session.sessionId.split('/').at(-1)?.slice(-12),
+                  })}
               </strong>
               <small>
-                {session.status} · {session.agents.length}{' '}
-                {session.agents.length === 1 ? 'agent' : 'agents'}
+                {t(
+                  session.agents.length === 1
+                    ? 'liveFleet.agentCountOne'
+                    : 'liveFleet.agentCountMany',
+                  { status: status(session.status), n: session.agents.length },
+                )}
               </small>
             </div>
           ),
@@ -182,7 +202,7 @@ export function ProjectLiveFleet({
               <div>
                 <strong>{agent.name}</strong>
                 <small>
-                  {agent.status}
+                  {status(agent.status)}
                   {agent.currentTool ? ` · ${agent.currentTool}` : ''}
                 </small>
               </div>
@@ -206,7 +226,7 @@ export function ProjectLiveFleet({
       }
     }
     return { nodes, edges };
-  }, [visible, sessionNames, selection]);
+  }, [visible, sessionNames, selection, t]);
   const act = async () => {
     const target = reviewTarget.current;
     if (!target || !review || acting.current) return;
@@ -217,7 +237,7 @@ export function ProjectLiveFleet({
     try {
       const current = (await read()).find((row) => row.sessionId === target.sessionId);
       if (!current || current.pid !== target.pid || current.startedAt !== target.startedAt)
-        throw Error('The selected runtime changed or exited. No request was sent.');
+        throw Error(t('liveFleet.changed'));
       const result = record(
         await http(
           `/api/sessions/${encodeURIComponent(current.sessionId)}/${review}`,
@@ -241,13 +261,9 @@ export function ProjectLiveFleet({
         result['to'] !== (await fleetMailboxAddress(current.sessionId)) ||
         typeof result['id'] !== 'string'
       )
-        throw Error(
-          'The engine returned an unrecognized delivery receipt. Refresh before retrying.',
-        );
+        throw Error(t('liveFleet.badReceipt'));
       if (alive.current) {
-        setNotice(
-          `Request delivered to session mailbox · receipt ${result['id']}. Execution or interruption is not confirmed by delivery alone.`,
-        );
+        setNotice(t('liveFleet.delivered', { id: result['id'] }));
         setText('');
         setReview(null);
         await load();
@@ -260,15 +276,12 @@ export function ProjectLiveFleet({
     }
   };
   return (
-    <section className="project-live-fleet" aria-label="Project live fleet">
+    <section className="project-live-fleet" aria-label={t('liveFleet.label')}>
       <header>
         <div>
-          <span className="eyebrow">PROJECT EXECUTION</span>
-          <h2>Live fleet</h2>
-          <p>
-            Actual registered runtimes and agents in this project. The role catalog remains in Agent
-            Roster.
-          </p>
+          <span className="eyebrow">{t('liveFleet.eyebrow')}</span>
+          <h2>{t('liveFleet.title')}</h2>
+          <p>{t('liveFleet.intro')}</p>
         </div>
         <button
           type="button"
@@ -277,23 +290,30 @@ export function ProjectLiveFleet({
           onClick={() => void load()}
         >
           <RefreshCw size={14} />
-          Refresh live fleet
+          {t('liveFleet.refresh')}
         </button>
       </header>
       {sessions.length > 0 && <FleetBroadcast http={http} read={read} onSent={() => void load()} />}
       <div className="live-fleet-metrics">
         <span>
-          <strong>{sessions.length}</strong> runtimes
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="liveFleet.runtimes"
+            values={{ n: sessions.length }}
+            components={{ strong: <strong /> }}
+          />
         </span>
         <span>
-          <strong>{sessions.reduce((sum, session) => sum + session.agents.length, 0)}</strong>{' '}
-          registered agents
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="liveFleet.agents"
+            values={{ n: sessions.reduce((sum, session) => sum + session.agents.length, 0) }}
+            components={{ strong: <strong /> }}
+          />
         </span>
-        <small>
-          {loadError
-            ? 'Refresh failed; last loaded snapshot retained'
-            : 'Registry refreshes every 3 seconds'}
-        </small>
+        <small>{loadError ? t('liveFleet.refreshFailed') : t('liveFleet.polling')}</small>
       </div>
       {loadError && (
         <p className="session-error" role="alert">
@@ -314,8 +334,8 @@ export function ProjectLiveFleet({
         <label>
           <Search size={14} />
           <input
-            aria-label="Search live fleet"
-            placeholder="Session, agent or current tool…"
+            aria-label={t('liveFleet.search')}
+            placeholder={t('liveFleet.searchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -328,7 +348,7 @@ export function ProjectLiveFleet({
             onClick={() => setMap(true)}
           >
             <Network size={14} />
-            Execution map
+            {t('liveFleet.map')}
           </button>
           <button
             type="button"
@@ -337,31 +357,23 @@ export function ProjectLiveFleet({
             onClick={() => setMap(false)}
           >
             <Users size={14} />
-            Runtime list
+            {t('liveFleet.list')}
           </button>
         </div>
       </div>
       {!loaded ? (
-        <p role="status">
-          {loadError ? 'Live registry unavailable. Refresh to retry.' : 'Reading project runtimes…'}
-        </p>
+        <p role="status">{loadError ? t('liveFleet.unavailable') : t('liveFleet.reading')}</p>
       ) : !visible.length ? (
         <div className="live-fleet-empty">
           <Network size={32} />
-          <h3>
-            {sessions.length ? 'No matching runtimes.' : 'No registered conversation runtimes.'}
-          </h3>
-          <p>Opening this workspace does not create a conversation or start a worker.</p>
+          <h3>{sessions.length ? t('liveFleet.noMatches') : t('liveFleet.empty')}</h3>
+          <p>{t('liveFleet.emptyHelp')}</p>
         </div>
       ) : (
         <>
           {map && (
             <>
-              <p className="live-fleet-caption">
-                Connections show recorded session membership. They do not assert delegation or
-                parent-agent relationships. The map shows up to 40 runtimes and 20 agents per
-                runtime; the list retains all records.
-              </p>
+              <p className="live-fleet-caption">{t('liveFleet.mapCaption')}</p>
               <div className="live-fleet-map">
                 <ReactFlow
                   nodes={graph.nodes}
@@ -403,7 +415,10 @@ export function ProjectLiveFleet({
                       )}
                     </button>
                     <span>
-                      {session.status} · PID {session.pid}
+                      {t('liveFleet.statusPid', {
+                        status: status(session.status),
+                        pid: session.pid,
+                      })}
                     </span>
                   </header>
                   {session.agents.map((agent) => (
@@ -416,16 +431,19 @@ export function ProjectLiveFleet({
                     >
                       <strong>{agent.name}</strong>
                       <span>
-                        {agent.status}
+                        {status(agent.status)}
                         {agent.currentTool ? ` · ${agent.currentTool}` : ''}
                       </span>
                       <small>
-                        {agent.iterations} iterations · {agent.toolCalls} tool calls
+                        {t('liveFleet.agentCounters', {
+                          iterations: agent.iterations,
+                          tools: agent.toolCalls,
+                        })}
                       </small>
                     </button>
                   ))}
                   {!session.agents.length && (
-                    <p className="quiet-state">No agents have been recorded for this runtime.</p>
+                    <p className="quiet-state">{t('liveFleet.noAgents')}</p>
                   )}
                 </article>
               ))}
@@ -434,9 +452,9 @@ export function ProjectLiveFleet({
         </>
       )}
       {selection && (
-        <aside className="live-fleet-inspector" aria-label="Live fleet detail">
+        <aside className="live-fleet-inspector" aria-label={t('liveFleet.detail')}>
           <header>
-            <h3>{selectedAgent?.name ?? 'Runtime detail'}</h3>
+            <h3>{selectedAgent?.name ?? t('liveFleet.runtimeDetail')}</h3>
             <button
               type="button"
               className="button secondary small"
@@ -445,39 +463,36 @@ export function ProjectLiveFleet({
                 if (!pending) setSelection(null);
               }}
             >
-              Close detail
+              {t('liveFleet.closeDetail')}
             </button>
           </header>
           {selectedSession ? (
             <>
               <dl>
-                <dt>Core session</dt>
+                <dt>{t('liveFleet.field.session')}</dt>
                 <dd>{selectedSession.sessionId}</dd>
-                <dt>Status</dt>
-                <dd>{selectedAgent?.status ?? selectedSession.status}</dd>
-                <dt>Process</dt>
-                <dd>PID {selectedSession.pid}</dd>
-                <dt>Started</dt>
+                <dt>{t('liveFleet.field.status')}</dt>
+                <dd>{status(selectedAgent?.status ?? selectedSession.status)}</dd>
+                <dt>{t('liveFleet.field.process')}</dt>
+                <dd>{t('liveFleet.pid', { pid: selectedSession.pid })}</dd>
+                <dt>{t('liveFleet.field.started')}</dt>
                 <dd>{new Date(selectedSession.startedAt).toLocaleString()}</dd>
-                <dt>Last heartbeat</dt>
+                <dt>{t('liveFleet.field.heartbeat')}</dt>
                 <dd>{new Date(selectedSession.lastHeartbeatAt).toLocaleString()}</dd>
                 {selectedAgent && (
                   <>
-                    <dt>Agent ID</dt>
+                    <dt>{t('liveFleet.field.agent')}</dt>
                     <dd>{selectedAgent.id}</dd>
-                    <dt>Activity</dt>
-                    <dd>{selectedAgent.currentTool ?? 'No current tool reported'}</dd>
-                    <dt>Iterations / tools</dt>
+                    <dt>{t('liveFleet.field.activity')}</dt>
+                    <dd>{selectedAgent.currentTool ?? t('liveFleet.noTool')}</dd>
+                    <dt>{t('liveFleet.field.counters')}</dt>
                     <dd>
                       {selectedAgent.iterations} / {selectedAgent.toolCalls}
                     </dd>
                   </>
                 )}
               </dl>
-              <p>
-                Controls address this runtime's session mailbox, including when an agent is
-                selected.
-              </p>
+              <p>{t('liveFleet.controlsHelp')}</p>
               <div className="feature-actions">
                 <button
                   type="button"
@@ -488,7 +503,7 @@ export function ProjectLiveFleet({
                     setReview('message');
                   }}
                 >
-                  Send session instruction
+                  {t('liveFleet.sendInstruction')}
                 </button>
                 <button
                   type="button"
@@ -499,7 +514,7 @@ export function ProjectLiveFleet({
                     setReview('interrupt');
                   }}
                 >
-                  Request session interruption
+                  {t('liveFleet.requestInterrupt')}
                 </button>
               </div>
               <FleetActivity
@@ -509,16 +524,14 @@ export function ProjectLiveFleet({
               />
             </>
           ) : (
-            <p className="quiet-state">
-              This runtime is no longer in the current project snapshot.
-            </p>
+            <p className="quiet-state">{t('liveFleet.gone')}</p>
           )}
         </aside>
       )}
       {review && (
         <Modal
           title={
-            review === 'message' ? 'Review session instruction' : 'Review session interruption'
+            review === 'message' ? t('liveFleet.reviewInstruction') : t('liveFleet.reviewInterrupt')
           }
           onClose={() => {
             if (!pending) setReview(null);
@@ -526,25 +539,22 @@ export function ProjectLiveFleet({
         >
           <div className="live-fleet-review">
             <h2>
-              {review === 'message' ? 'Send instruction to this session?' : 'Request interruption?'}
+              {review === 'message' ? t('liveFleet.askInstruction') : t('liveFleet.askInterrupt')}
             </h2>
             <code>{selectedSession?.sessionId ?? selection?.sessionId}</code>
-            <p>
-              The engine delivers a request to this session's mailbox. Delivery does not confirm
-              that the agent has acted on it.
-            </p>
+            <p>{t('liveFleet.reviewHelp')}</p>
             {review === 'message' && (
               <label>
-                Delivery kind
+                {t('liveFleet.kind')}
                 <select
-                  aria-label="Fleet instruction kind"
+                  aria-label={t('liveFleet.kindLabel')}
                   disabled={pending}
                   value={type}
                   onChange={(event) => setField('type', event.target.value)}
                 >
                   {['note', 'steer', 'btw', 'ask', 'assign'].map((kind) => (
                     <option key={kind} value={kind}>
-                      {kind}
+                      {t(`liveFleet.kindOption.${kind}`)}
                     </option>
                   ))}
                 </select>
@@ -553,24 +563,24 @@ export function ProjectLiveFleet({
             {review === 'message' && (
               <>
                 <label>
-                  Priority
+                  {t('liveFleet.priority')}
                   <select
-                    aria-label="Fleet instruction priority"
+                    aria-label={t('liveFleet.priorityLabel')}
                     value={priority}
                     onChange={(event) => setField('priority', event.target.value)}
                     disabled={pending}
                   >
                     {['low', 'normal', 'high'].map((value) => (
                       <option key={value} value={value}>
-                        {value}
+                        {t(`liveFleet.priorityOption.${value}`)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Subject (optional)
+                  {t('liveFleet.subject')}
                   <input
-                    aria-label="Fleet instruction subject"
+                    aria-label={t('liveFleet.subjectLabel')}
                     value={subject}
                     maxLength={256}
                     onChange={(event) => setField('subject', event.target.value)}
@@ -580,9 +590,9 @@ export function ProjectLiveFleet({
               </>
             )}
             <label>
-              {review === 'message' ? 'Instruction' : 'Reason'}
+              {review === 'message' ? t('liveFleet.instruction') : t('liveFleet.reason')}
               <textarea
-                aria-label="Fleet request text"
+                aria-label={t('liveFleet.textLabel')}
                 rows={5}
                 value={text}
                 onChange={(event) => setText(event.target.value)}
@@ -602,7 +612,7 @@ export function ProjectLiveFleet({
                 disabled={pending}
                 onClick={() => setReview(null)}
               >
-                Keep reviewing fleet
+                {t('liveFleet.keepReviewing')}
               </button>
               <button
                 type="button"
@@ -610,7 +620,7 @@ export function ProjectLiveFleet({
                 disabled={pending || !selectedSession || (review === 'message' && !text.trim())}
                 onClick={() => void act()}
               >
-                Confirm session request
+                {t('liveFleet.confirm')}
               </button>
             </div>
           </div>

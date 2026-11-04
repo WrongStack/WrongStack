@@ -7764,3 +7764,23 @@ copies, starting with SAGE memory.
   - A new jsdom test renders a plan with a tier lane and a pinned role in English and then in
     Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (908); typecheck clean.
+
+### Live fleet in the display language (2026-11-04)
+
+- The project live fleet now follows the display language in all seven languages: the heading,
+  runtime and agent metrics, polling note, search, map and list toggles, empty and loading
+  states, the map caption and node labels, runtime list rows, the detail panel, the instruction
+  and interruption review with its delivery kinds and priorities, the broadcast form and its
+  summary, recent session activity, and the registry validation errors.
+- The key group is `liveFleet`. Runtime and agent statuses are named per language with the
+  engine value as the fallback; English keeps the engine words (active, running, waiting_user).
+- `broadcastSummary` and `projectFleet` take their wording from the caller and keep English as
+  the default. The page reads the registry through a ref to `t`, so a language change does not
+  restart polling.
+- Still English by design: what is sent to the engine (the default interruption reason, the
+  broadcast subject, sender and message types), session and agent ids and names, tool names and
+  journal text.
+- Checks:
+  - A new jsdom test opens the runtime list, selects an agent, reads its session activity, opens
+    the broadcast form and the instruction review, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (909); typecheck clean.

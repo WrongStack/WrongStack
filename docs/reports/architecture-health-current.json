@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T15:21:48.109Z",
+  "generatedAt": "2026-11-04T15:27:41.272Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4974,
-    "sourceLines": 1246223,
+    "testFiles": 4975,
+    "sourceLines": 1246271,
     "workspaceEdges": 240,
-    "moduleEdges": 17494,
+    "moduleEdges": 17498,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 237,
+    "testsWithoutTypecheck": 238,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 425,
-      "testFiles": 237,
+      "testFiles": 238,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2265,6 +2265,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-kit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-live-fleet-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32269,6 +32275,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-kit.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-live-fleet-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
