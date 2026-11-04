@@ -8327,3 +8327,16 @@ copies, starting with SAGE memory.
 - Checks: new `kanban-task-i18n.test.ts` and `kanban-board-i18n.test.ts` render the task tools,
   the board dialog and the contract map in English and Turkish; desktop tests pass (PASSED);
   typecheck clean.
+
+### Worktrees in the display language (2026-11-04)
+
+- The project worktrees page with live checkouts, change summaries, leftovers and their
+  confirmations (`worktrees`), the list/lanes/graph layouts with worktree statuses
+  (`worktreeView`) and the worktree history timeline with outcomes, phases, failure stages and
+  lifecycle steps (`worktreeHistory`) follow the display language in all seven languages.
+- Cleanup and merge results are worded through the catalog: `cleanupOutcome` and
+  `mergeOutcome` take a `say` function (English by default).
+- Still English by design: branch names, directories, owner labels, file paths, commit hashes,
+  engine reasons and errors, and durations.
+- Checks: new `worktree-i18n.test.ts` renders the lanes and the history and words cleanup and
+  merge results in English and Turkish; desktop tests pass (PASSED); typecheck clean.

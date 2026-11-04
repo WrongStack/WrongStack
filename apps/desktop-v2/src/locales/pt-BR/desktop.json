@@ -8256,5 +8256,117 @@
       "derived_from": "derivado de",
       "relates_to": "relaciona-se com"
     }
+  },
+  "worktrees": {
+    "viewChanges": "Ver as alterações",
+    "changesIn": "Alterações em {{dir}}",
+    "diff": "{{commits}} commits à frente · +{{insertions}} −{{deletions}} sem commit em {{files}} arquivos",
+    "noSummary": "Não há resumo de alterações disponível para este checkout.",
+    "confirmCleanup": "Remover todos os {{number}} worktrees e branches restantes? O trabalho sem commit neles será perdido.",
+    "confirmRemove": "Remover {{name}}? O trabalho sem commit nele será perdido.",
+    "confirmMerge": "Mesclar {{branch}} no branch base no checkout do projeto? Conflitos interrompem a mesclagem e são listados.",
+    "label": "Worktrees do projeto",
+    "eyebrow": "TRABALHO ISOLADO",
+    "title": "Worktrees",
+    "intro": "Checkouts que o motor cria para execuções de Goal, SDD e frota. Aqui só são mostrados ou alterados os branches gerenciados <code>wstack/ap/*</code>.",
+    "scan": "Verificar de novo",
+    "waiting": "Aguardando o motor…",
+    "inUse": "Em uso por execuções",
+    "noLive": "Nenhuma execução neste motor usa um worktree.",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} em {{files}} arquivos",
+    "unknownBase": "desconhecida",
+    "conflicts": "Conflitos: {{files}}",
+    "history": "Histórico",
+    "leftOver": "Restantes",
+    "scanning": "Verificando os worktrees gerenciados…",
+    "noLeftovers": "Nenhum worktree ou branch restante.",
+    "branchOnly": "Branch sem checkout",
+    "merge": "Mesclar",
+    "remove": "Remover",
+    "cleanup": "Limpar todos os restantes",
+    "cleanupUnavailable": "A limpeza não está disponível: {{reason}}.",
+    "keep": "Manter",
+    "outcome": {
+      "removedOne": "1 item removido.",
+      "removedMany": "{{number}} itens removidos.",
+      "notRemoved": "Nada foi removido: {{reason}}.",
+      "refused": "o motor recusou a solicitação",
+      "merged": "{{branch}} mesclado.",
+      "conflicts": "{{branch}} não foi mesclado: conflitos em {{files}}.",
+      "theCheckout": "o checkout",
+      "notMerged": "{{branch}} não foi mesclado: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Layout dos worktrees",
+    "list": "Lista",
+    "lanes": "Raias",
+    "graph": "Grafo",
+    "lanesLabel": "Raias dos worktrees",
+    "base": "Base <code>{{branch}}</code> · {{number}} isolados",
+    "conflict": "conflito",
+    "graphLabel": "Worktrees ramificados de {{branch}}",
+    "mergedInto": "mesclado em {{branch}}",
+    "status": {
+      "allocating": "Alocando",
+      "active": "Ativo",
+      "committing": "Fazendo commit",
+      "merging": "Mesclando",
+      "merged": "Mesclado",
+      "needs-review": "Conflito",
+      "failed": "Falhou"
+    },
+    "state": {
+      "allocating": "alocando",
+      "active": "ativo",
+      "committing": "fazendo commit",
+      "merging": "mesclando",
+      "merged": "mesclado",
+      "needs-review": "requer revisão",
+      "failed": "falhou"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "Ainda não há atividade de worktrees. Fases de Goal, tarefas SDD e subagentes da frota que rodam em worktrees git isolados aparecem aqui.",
+    "label": "Linha do tempo dos worktrees",
+    "avgWait": "espera média de mesclagem {{duration}}",
+    "chart": "Linha do tempo dos worktrees em {{base}}",
+    "lifecycle": "Ciclo de vida do worktree",
+    "close": "Fechar os detalhes",
+    "files": "{{number}} arquivos",
+    "onDisk": "checkout ainda no disco",
+    "removed": "checkout removido",
+    "failed": "Falhou",
+    "conflicted": "Arquivos em conflito: {{files}}",
+    "stage": {
+      "allocate": "Falha ao criar o checkout",
+      "commit": "Commit recusado (hook pre-commit ou índice bloqueado)",
+      "merge": "Falha ao mesclar na base"
+    },
+    "event": {
+      "allocated": "worktree criado",
+      "merging": "mesclagem iniciada",
+      "merged": "mesclado em {{base}}",
+      "conflict": "conflito de mesclagem",
+      "kept": "mantido no disco",
+      "removed": "removido",
+      "committed": "commit feito",
+      "failed": "falhou",
+      "nothing": "nada para commit"
+    },
+    "outcome": {
+      "live": "em execução",
+      "merged": "mesclados",
+      "conflict": "conflito",
+      "failed": "falharam",
+      "kept": "mantidos",
+      "discarded": "descartados"
+    },
+    "phase": {
+      "working": "trabalhando",
+      "queued": "aguardando mesclagem",
+      "merging": "mesclando",
+      "kept": "mantido para revisão"
+    }
   }
 }

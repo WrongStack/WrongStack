@@ -8256,5 +8256,117 @@
       "derived_from": "şundan türetilir",
       "relates_to": "şununla ilgilidir"
     }
+  },
+  "worktrees": {
+    "viewChanges": "Değişiklikleri gör",
+    "changesIn": "{{dir}} içindeki değişiklikler",
+    "diff": "{{commits}} commit önde · {{files}} dosyada commit edilmemiş +{{insertions}} −{{deletions}}",
+    "noSummary": "Bu checkout için değişiklik özeti yok.",
+    "confirmCleanup": "Artakalan {{number}} worktree ve dalın tümü kaldırılsın mı? İçlerindeki commit edilmemiş iş kaybolur.",
+    "confirmRemove": "{{name}} kaldırılsın mı? İçindeki commit edilmemiş iş kaybolur.",
+    "confirmMerge": "{{branch}} proje checkout’ında temel dalına birleştirilsin mi? Çakışmalar birleştirmeyi durdurur ve listelenir.",
+    "label": "Proje worktree’leri",
+    "eyebrow": "YALITILMIŞ İŞ",
+    "title": "Worktree’ler",
+    "intro": "Motorun Goal, SDD ve filo çalıştırmaları için oluşturduğu checkout’lar. Burada yalnızca yönetilen <code>wstack/ap/*</code> dalları gösterilir ya da değiştirilir.",
+    "scan": "Yeniden tara",
+    "waiting": "Motor bekleniyor…",
+    "inUse": "Çalıştırmalarca kullanılanlar",
+    "noLive": "Bu motordaki hiçbir çalıştırma worktree kullanmıyor.",
+    "liveLine": "{{owner}} · {{status}} · temel {{base}} · {{files}} dosyada +{{insertions}} −{{deletions}}",
+    "unknownBase": "bilinmiyor",
+    "conflicts": "Çakışmalar: {{files}}",
+    "history": "Geçmiş",
+    "leftOver": "Artakalanlar",
+    "scanning": "Yönetilen worktree’ler taranıyor…",
+    "noLeftovers": "Artakalan worktree ya da dal yok.",
+    "branchOnly": "Checkout’ı olmayan dal",
+    "merge": "Birleştir",
+    "remove": "Kaldır",
+    "cleanup": "Tüm artakalanları temizle",
+    "cleanupUnavailable": "Temizlik kullanılamıyor: {{reason}}.",
+    "keep": "Koru",
+    "outcome": {
+      "removedOne": "1 öğe kaldırıldı.",
+      "removedMany": "{{number}} öğe kaldırıldı.",
+      "notRemoved": "Hiçbir şey kaldırılmadı: {{reason}}.",
+      "refused": "motor isteği reddetti",
+      "merged": "{{branch}} birleştirildi.",
+      "conflicts": "{{branch}} birleştirilmedi: {{files}} içinde çakışmalar var.",
+      "theCheckout": "checkout",
+      "notMerged": "{{branch}} birleştirilmedi: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Worktree düzeni",
+    "list": "Liste",
+    "lanes": "Şeritler",
+    "graph": "Grafik",
+    "lanesLabel": "Worktree şeritleri",
+    "base": "Temel <code>{{branch}}</code> · {{number}} yalıtılmış",
+    "conflict": "çakışma",
+    "graphLabel": "{{branch}} dalından ayrılan worktree’ler",
+    "mergedInto": "{{branch}} dalına birleştirildi",
+    "status": {
+      "allocating": "Ayrılıyor",
+      "active": "Etkin",
+      "committing": "Commit ediliyor",
+      "merging": "Birleştiriliyor",
+      "merged": "Birleştirildi",
+      "needs-review": "Çakışma",
+      "failed": "Başarısız"
+    },
+    "state": {
+      "allocating": "ayrılıyor",
+      "active": "etkin",
+      "committing": "commit ediliyor",
+      "merging": "birleştiriliyor",
+      "merged": "birleştirildi",
+      "needs-review": "inceleme gerekli",
+      "failed": "başarısız"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "Henüz worktree etkinliği yok. Yalıtılmış git worktree’lerinde çalışan Goal aşamaları, SDD görevleri ve filo alt ajanları burada görünür.",
+    "label": "Worktree zaman çizelgesi",
+    "avgWait": "ort. birleştirme beklemesi {{duration}}",
+    "chart": "{{base}} üzerinde worktree zaman çizelgesi",
+    "lifecycle": "Worktree yaşam döngüsü",
+    "close": "Ayrıntıları kapat",
+    "files": "{{number}} dosya",
+    "onDisk": "checkout hâlâ diskte",
+    "removed": "checkout kaldırıldı",
+    "failed": "Başarısız",
+    "conflicted": "Çakışan dosyalar: {{files}}",
+    "stage": {
+      "allocate": "Checkout oluşturulamadı",
+      "commit": "Commit reddedildi (pre-commit kancası ya da kilitli index)",
+      "merge": "Temele birleştirme başarısız"
+    },
+    "event": {
+      "allocated": "worktree oluşturuldu",
+      "merging": "birleştirme başladı",
+      "merged": "{{base}} dalına birleştirildi",
+      "conflict": "birleştirme çakışması",
+      "kept": "diskte tutuldu",
+      "removed": "kaldırıldı",
+      "committed": "commit edildi",
+      "failed": "başarısız",
+      "nothing": "commit edilecek bir şey yok"
+    },
+    "outcome": {
+      "live": "çalışıyor",
+      "merged": "birleştirildi",
+      "conflict": "çakışma",
+      "failed": "başarısız",
+      "kept": "tutuldu",
+      "discarded": "atıldı"
+    },
+    "phase": {
+      "working": "çalışıyor",
+      "queued": "birleştirme bekliyor",
+      "merging": "birleştiriliyor",
+      "kept": "inceleme için tutuldu"
+    }
   }
 }

@@ -8256,5 +8256,117 @@
       "derived_from": "derivato da",
       "relates_to": "si riferisce a"
     }
+  },
+  "worktrees": {
+    "viewChanges": "Vedi le modifiche",
+    "changesIn": "Modifiche in {{dir}}",
+    "diff": "{{commits}} commit avanti · +{{insertions}} −{{deletions}} non committati in {{files}} file",
+    "noSummary": "Nessun riepilogo delle modifiche disponibile per questo checkout.",
+    "confirmCleanup": "Rimuovere tutti i {{number}} worktree e branch rimasti? Il lavoro non committato al loro interno andrà perso.",
+    "confirmRemove": "Rimuovere {{name}}? Il lavoro non committato al suo interno andrà perso.",
+    "confirmMerge": "Unire {{branch}} nel suo branch di base nel checkout del progetto? I conflitti fermano l’unione e vengono elencati.",
+    "label": "Worktree del progetto",
+    "eyebrow": "LAVORO ISOLATO",
+    "title": "Worktree",
+    "intro": "Checkout che il motore crea per le esecuzioni Goal, SDD e della flotta. Qui vengono mostrati o modificati solo i branch gestiti <code>wstack/ap/*</code>.",
+    "scan": "Scansiona di nuovo",
+    "waiting": "In attesa del motore…",
+    "inUse": "In uso dalle esecuzioni",
+    "noLive": "Nessuna esecuzione in questo motore usa un worktree.",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}} file",
+    "unknownBase": "sconosciuta",
+    "conflicts": "Conflitti: {{files}}",
+    "history": "Cronologia",
+    "leftOver": "Rimasti",
+    "scanning": "Scansione dei worktree gestiti…",
+    "noLeftovers": "Nessun worktree o branch rimasto.",
+    "branchOnly": "Branch senza checkout",
+    "merge": "Unisci",
+    "remove": "Rimuovi",
+    "cleanup": "Pulisci tutti i rimasti",
+    "cleanupUnavailable": "La pulizia non è disponibile: {{reason}}.",
+    "keep": "Mantieni",
+    "outcome": {
+      "removedOne": "1 elemento rimosso.",
+      "removedMany": "{{number}} elementi rimossi.",
+      "notRemoved": "Non è stato rimosso nulla: {{reason}}.",
+      "refused": "il motore ha rifiutato la richiesta",
+      "merged": "{{branch}} unito.",
+      "conflicts": "{{branch}} non è stato unito: conflitti in {{files}}.",
+      "theCheckout": "il checkout",
+      "notMerged": "{{branch}} non è stato unito: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Layout dei worktree",
+    "list": "Elenco",
+    "lanes": "Corsie",
+    "graph": "Grafo",
+    "lanesLabel": "Corsie dei worktree",
+    "base": "Base <code>{{branch}}</code> · {{number}} isolati",
+    "conflict": "conflitto",
+    "graphLabel": "Worktree che si diramano da {{branch}}",
+    "mergedInto": "unito in {{branch}}",
+    "status": {
+      "allocating": "Allocazione",
+      "active": "Attivo",
+      "committing": "Commit in corso",
+      "merging": "Unione in corso",
+      "merged": "Unito",
+      "needs-review": "Conflitto",
+      "failed": "Non riuscito"
+    },
+    "state": {
+      "allocating": "allocazione",
+      "active": "attivo",
+      "committing": "commit in corso",
+      "merging": "unione in corso",
+      "merged": "unito",
+      "needs-review": "da rivedere",
+      "failed": "non riuscito"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "Ancora nessuna attività dei worktree. Qui compaiono le fasi Goal, le attività SDD e i subagenti della flotta eseguiti in worktree git isolati.",
+    "label": "Cronologia dei worktree",
+    "avgWait": "attesa media di unione {{duration}}",
+    "chart": "Cronologia dei worktree su {{base}}",
+    "lifecycle": "Ciclo di vita del worktree",
+    "close": "Chiudi i dettagli",
+    "files": "{{number}} file",
+    "onDisk": "checkout ancora su disco",
+    "removed": "checkout rimosso",
+    "failed": "Non riuscito",
+    "conflicted": "File in conflitto: {{files}}",
+    "stage": {
+      "allocate": "Creazione del checkout non riuscita",
+      "commit": "Commit rifiutato (hook pre-commit o indice bloccato)",
+      "merge": "Unione nella base non riuscita"
+    },
+    "event": {
+      "allocated": "worktree creato",
+      "merging": "unione avviata",
+      "merged": "unito in {{base}}",
+      "conflict": "conflitto di unione",
+      "kept": "mantenuto su disco",
+      "removed": "rimosso",
+      "committed": "committato",
+      "failed": "non riuscito",
+      "nothing": "niente da committare"
+    },
+    "outcome": {
+      "live": "in esecuzione",
+      "merged": "uniti",
+      "conflict": "conflitto",
+      "failed": "non riusciti",
+      "kept": "mantenuti",
+      "discarded": "scartati"
+    },
+    "phase": {
+      "working": "al lavoro",
+      "queued": "in attesa di unione",
+      "merging": "unione in corso",
+      "kept": "mantenuto per revisione"
+    }
   }
 }

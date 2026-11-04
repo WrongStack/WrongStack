@@ -8256,5 +8256,117 @@
       "derived_from": "derived from",
       "relates_to": "relates to"
     }
+  },
+  "worktrees": {
+    "viewChanges": "View changes",
+    "changesIn": "Changes in {{dir}}",
+    "diff": "{{commits}} commits ahead · +{{insertions}} −{{deletions}} uncommitted in {{files}} files",
+    "noSummary": "No change summary is available for this checkout.",
+    "confirmCleanup": "Remove all {{number}} leftover worktrees and branches? Uncommitted work in them is lost.",
+    "confirmRemove": "Remove {{name}}? Uncommitted work in it is lost.",
+    "confirmMerge": "Merge {{branch}} into its base branch in the project checkout? Conflicts stop the merge and are listed.",
+    "label": "Project worktrees",
+    "eyebrow": "ISOLATED WORK",
+    "title": "Worktrees",
+    "intro": "Checkouts the engine creates for Goal, SDD and fleet runs. Only managed <code>wstack/ap/*</code> branches are shown or changed here.",
+    "scan": "Scan again",
+    "waiting": "Waiting for the engine…",
+    "inUse": "In use by runs",
+    "noLive": "No run in this engine is using a worktree.",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}} files",
+    "unknownBase": "unknown",
+    "conflicts": "Conflicts: {{files}}",
+    "history": "History",
+    "leftOver": "Left over",
+    "scanning": "Scanning managed worktrees…",
+    "noLeftovers": "No leftover worktrees or branches.",
+    "branchOnly": "Branch without a checkout",
+    "merge": "Merge",
+    "remove": "Remove",
+    "cleanup": "Clean up all leftovers",
+    "cleanupUnavailable": "Cleanup is unavailable: {{reason}}.",
+    "keep": "Keep",
+    "outcome": {
+      "removedOne": "Removed 1 item.",
+      "removedMany": "Removed {{number}} items.",
+      "notRemoved": "Nothing was removed: {{reason}}.",
+      "refused": "the engine refused the request",
+      "merged": "Merged {{branch}}.",
+      "conflicts": "{{branch}} was not merged: conflicts in {{files}}.",
+      "theCheckout": "the checkout",
+      "notMerged": "{{branch}} was not merged: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Worktree layout",
+    "list": "List",
+    "lanes": "Lanes",
+    "graph": "Graph",
+    "lanesLabel": "Worktree lanes",
+    "base": "Base <code>{{branch}}</code> · {{number}} isolated",
+    "conflict": "conflict",
+    "graphLabel": "Worktrees branching from {{branch}}",
+    "mergedInto": "merged into {{branch}}",
+    "status": {
+      "allocating": "Allocating",
+      "active": "Active",
+      "committing": "Committing",
+      "merging": "Merging",
+      "merged": "Merged",
+      "needs-review": "Conflict",
+      "failed": "Failed"
+    },
+    "state": {
+      "allocating": "allocating",
+      "active": "active",
+      "committing": "committing",
+      "merging": "merging",
+      "merged": "merged",
+      "needs-review": "needs-review",
+      "failed": "failed"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "No worktree activity yet. Goal phases, SDD tasks and fleet subagents that run in isolated git worktrees appear here.",
+    "label": "Worktree timeline",
+    "avgWait": "avg merge wait {{duration}}",
+    "chart": "Worktree timeline on {{base}}",
+    "lifecycle": "Worktree lifecycle",
+    "close": "Close details",
+    "files": "{{number}} files",
+    "onDisk": "checkout still on disk",
+    "removed": "checkout removed",
+    "failed": "Failed",
+    "conflicted": "Conflicted files: {{files}}",
+    "stage": {
+      "allocate": "Creating the checkout failed",
+      "commit": "Commit refused (pre-commit hook or locked index)",
+      "merge": "Merge into base failed"
+    },
+    "event": {
+      "allocated": "worktree created",
+      "merging": "merge started",
+      "merged": "merged into {{base}}",
+      "conflict": "merge conflict",
+      "kept": "kept on disk",
+      "removed": "removed",
+      "committed": "committed",
+      "failed": "failed",
+      "nothing": "nothing to commit"
+    },
+    "outcome": {
+      "live": "running",
+      "merged": "merged",
+      "conflict": "conflict",
+      "failed": "failed",
+      "kept": "kept",
+      "discarded": "discarded"
+    },
+    "phase": {
+      "working": "working",
+      "queued": "waiting to merge",
+      "merging": "merging",
+      "kept": "kept for review"
+    }
   }
 }

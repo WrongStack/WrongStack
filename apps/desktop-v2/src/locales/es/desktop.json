@@ -8256,5 +8256,117 @@
       "derived_from": "derivado de",
       "relates_to": "se relaciona con"
     }
+  },
+  "worktrees": {
+    "viewChanges": "Ver los cambios",
+    "changesIn": "Cambios en {{dir}}",
+    "diff": "{{commits}} commits por delante · +{{insertions}} −{{deletions}} sin confirmar en {{files}} archivos",
+    "noSummary": "No hay resumen de cambios disponible para este checkout.",
+    "confirmCleanup": "¿Eliminar los {{number}} worktrees y ramas sobrantes? Se pierde el trabajo sin confirmar que contengan.",
+    "confirmRemove": "¿Eliminar {{name}}? Se pierde el trabajo sin confirmar que contenga.",
+    "confirmMerge": "¿Fusionar {{branch}} en su rama base en el checkout del proyecto? Los conflictos detienen la fusión y se listan.",
+    "label": "Worktrees del proyecto",
+    "eyebrow": "TRABAJO AISLADO",
+    "title": "Worktrees",
+    "intro": "Checkouts que el motor crea para ejecuciones de Goal, SDD y flota. Aquí solo se muestran o cambian las ramas gestionadas <code>wstack/ap/*</code>.",
+    "scan": "Volver a escanear",
+    "waiting": "Esperando al motor…",
+    "inUse": "En uso por ejecuciones",
+    "noLive": "Ninguna ejecución de este motor usa un worktree.",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} en {{files}} archivos",
+    "unknownBase": "desconocida",
+    "conflicts": "Conflictos: {{files}}",
+    "history": "Historial",
+    "leftOver": "Sobrantes",
+    "scanning": "Escaneando los worktrees gestionados…",
+    "noLeftovers": "No hay worktrees ni ramas sobrantes.",
+    "branchOnly": "Rama sin checkout",
+    "merge": "Fusionar",
+    "remove": "Eliminar",
+    "cleanup": "Limpiar todos los sobrantes",
+    "cleanupUnavailable": "La limpieza no está disponible: {{reason}}.",
+    "keep": "Conservar",
+    "outcome": {
+      "removedOne": "Se eliminó 1 elemento.",
+      "removedMany": "Se eliminaron {{number}} elementos.",
+      "notRemoved": "No se eliminó nada: {{reason}}.",
+      "refused": "el motor rechazó la solicitud",
+      "merged": "{{branch}} fusionada.",
+      "conflicts": "{{branch}} no se fusionó: conflictos en {{files}}.",
+      "theCheckout": "el checkout",
+      "notMerged": "{{branch}} no se fusionó: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Diseño de los worktrees",
+    "list": "Lista",
+    "lanes": "Carriles",
+    "graph": "Grafo",
+    "lanesLabel": "Carriles de worktrees",
+    "base": "Base <code>{{branch}}</code> · {{number}} aislados",
+    "conflict": "conflicto",
+    "graphLabel": "Worktrees que se ramifican de {{branch}}",
+    "mergedInto": "fusionado en {{branch}}",
+    "status": {
+      "allocating": "Asignando",
+      "active": "Activo",
+      "committing": "Confirmando",
+      "merging": "Fusionando",
+      "merged": "Fusionado",
+      "needs-review": "Conflicto",
+      "failed": "Fallido"
+    },
+    "state": {
+      "allocating": "asignando",
+      "active": "activo",
+      "committing": "confirmando",
+      "merging": "fusionando",
+      "merged": "fusionado",
+      "needs-review": "requiere revisión",
+      "failed": "fallido"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "Aún no hay actividad de worktrees. Aquí aparecen las fases de Goal, las tareas SDD y los subagentes de la flota que se ejecutan en worktrees git aislados.",
+    "label": "Cronología de worktrees",
+    "avgWait": "espera media de fusión {{duration}}",
+    "chart": "Cronología de worktrees en {{base}}",
+    "lifecycle": "Ciclo de vida del worktree",
+    "close": "Cerrar los detalles",
+    "files": "{{number}} archivos",
+    "onDisk": "checkout aún en disco",
+    "removed": "checkout eliminado",
+    "failed": "Fallido",
+    "conflicted": "Archivos en conflicto: {{files}}",
+    "stage": {
+      "allocate": "No se pudo crear el checkout",
+      "commit": "Commit rechazado (hook pre-commit o índice bloqueado)",
+      "merge": "Falló la fusión en la base"
+    },
+    "event": {
+      "allocated": "worktree creado",
+      "merging": "fusión iniciada",
+      "merged": "fusionado en {{base}}",
+      "conflict": "conflicto de fusión",
+      "kept": "conservado en disco",
+      "removed": "eliminado",
+      "committed": "confirmado",
+      "failed": "fallido",
+      "nothing": "nada que confirmar"
+    },
+    "outcome": {
+      "live": "en ejecución",
+      "merged": "fusionados",
+      "conflict": "conflicto",
+      "failed": "fallidos",
+      "kept": "conservados",
+      "discarded": "descartados"
+    },
+    "phase": {
+      "working": "trabajando",
+      "queued": "esperando fusión",
+      "merging": "fusionando",
+      "kept": "conservado para revisión"
+    }
   }
 }

@@ -1,3 +1,6 @@
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
+import { surfaceI18n } from './surface-i18n';
 import type { WorktreeView } from './worktree-model';
 
 /** How the live worktrees are drawn: the list with actions, swim lanes, or a branch graph. */
@@ -11,15 +14,6 @@ const LANE_COLORS = [
   'var(--danger)',
   'var(--muted)',
 ];
-const STATUS_WORDS: Record<string, string> = {
-  allocating: 'Allocating',
-  active: 'Active',
-  committing: 'Committing',
-  merging: 'Merging',
-  merged: 'Merged',
-  'needs-review': 'Conflict',
-  failed: 'Failed',
-};
 const EDGE: Record<string, { dash: string; opacity: number }> = {
   allocating: { dash: '4 4', opacity: 0.4 },
   active: { dash: '4 4', opacity: 0.6 },
@@ -41,13 +35,14 @@ export function WorktreeLayoutSwitch({
   value: WorktreeLayout;
   onChange: (layout: WorktreeLayout) => void;
 }) {
+  const { t } = useDesktopText();
   return (
-    <fieldset className="worktree-layouts" aria-label="Worktree layout">
+    <fieldset className="worktree-layouts" aria-label={t('worktreeView.layout')}>
       {(
         [
-          ['list', 'List'],
-          ['lanes', 'Lanes'],
-          ['graph', 'Graph'],
+          ['list', t('worktreeView.list')],
+          ['lanes', t('worktreeView.lanes')],
+          ['graph', t('worktreeView.graph')],
         ] as const
       ).map(([layout, label]) => (
         <button
@@ -74,10 +69,17 @@ export function WorktreeLanes({
   worktrees: readonly WorktreeView[];
   baseBranch: string;
 }) {
+  const { t } = useDesktopText();
   return (
-    <section className="worktree-lanes" aria-label="Worktree lanes">
+    <section className="worktree-lanes" aria-label={t('worktreeView.lanesLabel')}>
       <p className="field-help">
-        Base <code>{baseBranch || 'HEAD'}</code> · {worktrees.length} isolated
+        <Trans
+          i18n={surfaceI18n}
+          ns="desktop"
+          i18nKey="worktreeView.base"
+          values={{ branch: baseBranch || 'HEAD', number: worktrees.length }}
+          components={{ code: <code /> }}
+        />
       </p>
       {inOrder(worktrees).map((worktree) => (
         <article
@@ -88,7 +90,7 @@ export function WorktreeLanes({
           <code>{short(worktree.branch)}</code>
           <span className="worktree-lane-owner">⟵ {worktree.ownerLabel}</span>
           {worktree.status === 'needs-review' ? (
-            <strong className="worktree-lane-conflict">conflict</strong>
+            <strong className="worktree-lane-conflict">{t('worktreeView.conflict')}</strong>
           ) : (
             <span className="worktree-lane-stat">
               <span>+{worktree.insertions}</span> <span>−{worktree.deletions}</span>{' '}
@@ -101,7 +103,7 @@ export function WorktreeLanes({
             />
           </span>
           <span className="worktree-lane-status">
-            {STATUS_WORDS[worktree.status] ?? worktree.status}
+            {t(`worktreeView.status.${worktree.status}`, { defaultValue: worktree.status })}
           </span>
           {worktree.latest && <small>{worktree.latest}</small>}
         </article>
@@ -121,6 +123,7 @@ export function WorktreeGraph({
   worktrees: readonly WorktreeView[];
   baseBranch: string;
 }) {
+  const { t } = useDesktopText();
   const nodes = inOrder(worktrees).map((worktree, index) => ({
     worktree,
     color: LANE_COLORS[index % LANE_COLORS.length] as string,
@@ -129,7 +132,7 @@ export function WorktreeGraph({
   const height = Math.max(120, 60 + nodes.length * 48 + 20);
   const trunk = 40;
   const branch = 220;
-  const label = `Worktrees branching from ${baseBranch || 'HEAD'}`;
+  const label = t('worktreeView.graphLabel', { branch: baseBranch || 'HEAD' });
   return (
     <div className="worktree-graph">
       <svg width="100%" height={height} viewBox={`0 0 600 ${height}`} role="img" aria-label={label}>
@@ -179,9 +182,9 @@ export function WorktreeGraph({
               </text>
               <text x={branch + 12} y={y + 10} className="worktree-graph-muted">
                 {troubled(worktree.status)
-                  ? `⚠ ${STATUS_WORDS[worktree.status]}`
+                  ? `⚠ ${t(`worktreeView.status.${worktree.status}`, { defaultValue: worktree.status })}`
                   : merged
-                    ? `merged into ${baseBranch || 'HEAD'}`
+                    ? t('worktreeView.mergedInto', { branch: baseBranch || 'HEAD' })
                     : `+${worktree.insertions}/−${worktree.deletions} · ${worktree.ownerLabel}`}
               </text>
             </g>

@@ -8256,5 +8256,117 @@
       "derived_from": "abgeleitet von",
       "relates_to": "bezieht sich auf"
     }
+  },
+  "worktrees": {
+    "viewChanges": "Änderungen ansehen",
+    "changesIn": "Änderungen in {{dir}}",
+    "diff": "{{commits}} Commits voraus · +{{insertions}} −{{deletions}} nicht committet in {{files}} Dateien",
+    "noSummary": "Für diesen Checkout ist keine Änderungsübersicht verfügbar.",
+    "confirmCleanup": "Alle {{number}} übrig gebliebenen Worktrees und Branches entfernen? Nicht committete Arbeit darin geht verloren.",
+    "confirmRemove": "{{name}} entfernen? Nicht committete Arbeit darin geht verloren.",
+    "confirmMerge": "{{branch}} im Projekt-Checkout in seinen Basis-Branch mergen? Konflikte stoppen den Merge und werden aufgelistet.",
+    "label": "Projekt-Worktrees",
+    "eyebrow": "ISOLIERTE ARBEIT",
+    "title": "Worktrees",
+    "intro": "Checkouts, die die Engine für Goal-, SDD- und Fleet-Läufe anlegt. Nur verwaltete <code>wstack/ap/*</code>-Branches werden hier angezeigt oder geändert.",
+    "scan": "Erneut scannen",
+    "waiting": "Warten auf die Engine…",
+    "inUse": "Von Läufen genutzt",
+    "noLive": "Kein Lauf in dieser Engine nutzt einen Worktree.",
+    "liveLine": "{{owner}} · {{status}} · Basis {{base}} · +{{insertions}} −{{deletions}} in {{files}} Dateien",
+    "unknownBase": "unbekannt",
+    "conflicts": "Konflikte: {{files}}",
+    "history": "Verlauf",
+    "leftOver": "Übrig geblieben",
+    "scanning": "Verwaltete Worktrees werden gescannt…",
+    "noLeftovers": "Keine übrig gebliebenen Worktrees oder Branches.",
+    "branchOnly": "Branch ohne Checkout",
+    "merge": "Mergen",
+    "remove": "Entfernen",
+    "cleanup": "Alle Überreste aufräumen",
+    "cleanupUnavailable": "Aufräumen ist nicht verfügbar: {{reason}}.",
+    "keep": "Behalten",
+    "outcome": {
+      "removedOne": "1 Eintrag entfernt.",
+      "removedMany": "{{number}} Einträge entfernt.",
+      "notRemoved": "Nichts wurde entfernt: {{reason}}.",
+      "refused": "die Engine hat die Anfrage abgelehnt",
+      "merged": "{{branch}} gemergt.",
+      "conflicts": "{{branch}} wurde nicht gemergt: Konflikte in {{files}}.",
+      "theCheckout": "dem Checkout",
+      "notMerged": "{{branch}} wurde nicht gemergt: {{reason}}."
+    }
+  },
+  "worktreeView": {
+    "layout": "Worktree-Layout",
+    "list": "Liste",
+    "lanes": "Bahnen",
+    "graph": "Graph",
+    "lanesLabel": "Worktree-Bahnen",
+    "base": "Basis <code>{{branch}}</code> · {{number}} isoliert",
+    "conflict": "Konflikt",
+    "graphLabel": "Worktrees, die von {{branch}} abzweigen",
+    "mergedInto": "in {{branch}} gemergt",
+    "status": {
+      "allocating": "Wird zugewiesen",
+      "active": "Aktiv",
+      "committing": "Wird committet",
+      "merging": "Wird gemergt",
+      "merged": "Gemergt",
+      "needs-review": "Konflikt",
+      "failed": "Fehlgeschlagen"
+    },
+    "state": {
+      "allocating": "wird zugewiesen",
+      "active": "aktiv",
+      "committing": "wird committet",
+      "merging": "wird gemergt",
+      "merged": "gemergt",
+      "needs-review": "Prüfung nötig",
+      "failed": "fehlgeschlagen"
+    }
+  },
+  "worktreeHistory": {
+    "empty": "Noch keine Worktree-Aktivität. Goal-Phasen, SDD-Aufgaben und Fleet-Subagenten, die in isolierten Git-Worktrees laufen, erscheinen hier.",
+    "label": "Worktree-Zeitachse",
+    "avgWait": "Ø Merge-Wartezeit {{duration}}",
+    "chart": "Worktree-Zeitachse auf {{base}}",
+    "lifecycle": "Worktree-Lebenszyklus",
+    "close": "Details schließen",
+    "files": "{{number}} Dateien",
+    "onDisk": "Checkout noch auf der Festplatte",
+    "removed": "Checkout entfernt",
+    "failed": "Fehlgeschlagen",
+    "conflicted": "Dateien mit Konflikten: {{files}}",
+    "stage": {
+      "allocate": "Das Anlegen des Checkouts ist fehlgeschlagen",
+      "commit": "Commit abgelehnt (Pre-Commit-Hook oder gesperrter Index)",
+      "merge": "Merge in die Basis fehlgeschlagen"
+    },
+    "event": {
+      "allocated": "Worktree angelegt",
+      "merging": "Merge gestartet",
+      "merged": "in {{base}} gemergt",
+      "conflict": "Merge-Konflikt",
+      "kept": "auf der Festplatte behalten",
+      "removed": "entfernt",
+      "committed": "committet",
+      "failed": "fehlgeschlagen",
+      "nothing": "nichts zu committen"
+    },
+    "outcome": {
+      "live": "läuft",
+      "merged": "gemergt",
+      "conflict": "Konflikt",
+      "failed": "fehlgeschlagen",
+      "kept": "behalten",
+      "discarded": "verworfen"
+    },
+    "phase": {
+      "working": "arbeitet",
+      "queued": "wartet auf Merge",
+      "merging": "wird gemergt",
+      "kept": "zur Prüfung behalten"
+    }
   }
 }

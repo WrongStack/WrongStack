@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T19:27:54.086Z",
+  "generatedAt": "2026-11-04T19:33:15.898Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 5005,
-    "sourceLines": 1248144,
+    "testFiles": 5006,
+    "sourceLines": 1248188,
     "workspaceEdges": 240,
-    "moduleEdges": 17641,
+    "moduleEdges": 17646,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 268,
+    "testsWithoutTypecheck": 269,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -393,7 +393,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 268,
+      "testFiles": 269,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2915,6 +2915,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/worktree-history.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/worktree-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33213,6 +33219,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/worktree-history.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/worktree-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

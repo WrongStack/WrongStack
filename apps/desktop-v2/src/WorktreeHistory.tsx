@@ -10,28 +10,11 @@ import {
 } from '@wrongstack/contracts/types/worktree-timeline';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import './worktree-history.css';
 
-const OUTCOME_WORD: Record<WorktreeLaneOutcome, string> = {
-  live: 'running',
-  merged: 'merged',
-  conflict: 'conflict',
-  failed: 'failed',
-  kept: 'kept',
-  discarded: 'discarded',
-};
 const OUTCOME_ORDER: WorktreeLaneOutcome[] = ['live', 'merged', 'conflict', 'failed', 'kept'];
-const PHASE_WORD: Record<WorktreeLanePhase, string> = {
-  working: 'working',
-  queued: 'waiting to merge',
-  merging: 'merging',
-  kept: 'kept for review',
-};
-const STAGE_WORD = {
-  allocate: 'Creating the checkout failed',
-  commit: 'Commit refused (pre-commit hook or locked index)',
-  merge: 'Merge into base failed',
-} as const;
+type Translate = ReturnType<typeof useDesktopText>['t'];
 
 const clock = (at: number, seconds: boolean) =>
   new Date(at).toLocaleTimeString([], {
@@ -41,28 +24,29 @@ const clock = (at: number, seconds: boolean) =>
   });
 
 /** What one lifecycle step says in the lane's detail. */
-function worktreeEventText(event: WorktreeTimelineEvent, base: string): string {
+function worktreeEventText(event: WorktreeTimelineEvent, base: string, t: Translate): string {
+  const kind: string = event.kind;
   const word =
     event.kind === 'allocated'
-      ? 'worktree created'
+      ? t('worktreeHistory.event.allocated')
       : event.kind === 'merging'
-        ? 'merge started'
+        ? t('worktreeHistory.event.merging')
         : event.kind === 'merged'
-          ? `merged into ${base}`
+          ? t('worktreeHistory.event.merged', { base })
           : event.kind === 'conflict'
-            ? 'merge conflict'
+            ? t('worktreeHistory.event.conflict')
             : event.kind === 'released'
               ? event.kept
-                ? 'kept on disk'
-                : 'removed'
-              : event.kind;
+                ? t('worktreeHistory.event.kept')
+                : t('worktreeHistory.event.removed')
+              : t(`worktreeHistory.event.${kind}`, { defaultValue: kind });
   const detail =
     event.kind === 'committed' && event.committed !== false
-      ? `+${event.insertions ?? 0} −${event.deletions ?? 0} · ${event.files ?? 0} files${
-          event.sha ? ` · ${event.sha.slice(0, 7)}` : ''
-        }`
+      ? `+${event.insertions ?? 0} −${event.deletions ?? 0} · ${t('worktreeHistory.files', {
+          number: event.files ?? 0,
+        })}${event.sha ? ` · ${event.sha.slice(0, 7)}` : ''}`
       : event.kind === 'committed'
-        ? 'nothing to commit'
+        ? t('worktreeHistory.event.nothing')
         : event.kind === 'conflict'
           ? event.conflictFiles?.join(', ')
           : event.kind === 'failed'
@@ -106,32 +90,31 @@ function useWorktreeTimeline(events: readonly WorktreeTimelineEvent[]) {
  */
 export function WorktreeHistory({ events }: { events: readonly WorktreeTimelineEvent[] }) {
   const timeline = useWorktreeTimeline(events);
+  const { t } = useDesktopText();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const base = timeline.baseBranch ?? 'HEAD';
   const span = Math.max(1, timeline.end - timeline.start);
   const at = (time: number) => Math.min(100, Math.max(0, ((time - timeline.start) / span) * 100));
   const seconds = span < 10 * 60_000;
   const selected = timeline.lanes.find((lane) => lane.handleId === selectedId);
-  if (!timeline.lanes.length)
-    return (
-      <p className="field-help">
-        No worktree activity yet. Goal phases, SDD tasks and fleet subagents that run in isolated
-        git worktrees appear here.
-      </p>
-    );
+  if (!timeline.lanes.length) return <p className="field-help">{t('worktreeHistory.empty')}</p>;
   return (
-    <section className="worktree-history" aria-label="Worktree timeline">
+    <section className="worktree-history" aria-label={t('worktreeHistory.label')}>
       <p className="worktree-history-counts">
         {OUTCOME_ORDER.filter((outcome) => timeline.counts[outcome] > 0).map((outcome) => (
           <span key={outcome} className={`outcome-${outcome}`}>
-            <strong>{timeline.counts[outcome]}</strong> {OUTCOME_WORD[outcome]}
+            <strong>{timeline.counts[outcome]}</strong> {t(`worktreeHistory.outcome.${outcome}`)}
           </span>
         ))}
         {timeline.avgQueueMs !== undefined && (
-          <span>avg merge wait {formatWorktreeDuration(timeline.avgQueueMs)}</span>
+          <span>
+            {t('worktreeHistory.avgWait', {
+              duration: formatWorktreeDuration(timeline.avgQueueMs),
+            })}
+          </span>
         )}
       </p>
-      <figure className="worktree-history-chart" aria-label={`Worktree timeline on ${base}`}>
+      <figure className="worktree-history-chart" aria-label={t('worktreeHistory.chart', { base })}>
         <div className="worktree-history-label">
           <code>{base}</code>
         </div>
@@ -153,7 +136,7 @@ export function WorktreeHistory({ events }: { events: readonly WorktreeTimelineE
               key={lane.handleId}
               className="worktree-history-lane"
               aria-pressed={chosen}
-              aria-label={`${shortWorktreeBranch(lane.branch)} — ${OUTCOME_WORD[lane.outcome]}`}
+              aria-label={`${shortWorktreeBranch(lane.branch)} — ${t(`worktreeHistory.outcome.${lane.outcome}`)}`}
               onClick={() => setSelectedId(chosen ? null : lane.handleId)}
             >
               <span className="worktree-history-label">
@@ -170,7 +153,7 @@ export function WorktreeHistory({ events }: { events: readonly WorktreeTimelineE
                     <span
                       key={`${segment.phase}-${segment.start}-${index}`}
                       className={`worktree-history-segment phase-${segment.phase}`}
-                      title={`${PHASE_WORD[segment.phase]} · ${formatWorktreeDuration(until - segment.start)}`}
+                      title={`${t(`worktreeHistory.phase.${segment.phase}`)} · ${formatWorktreeDuration(until - segment.start)}`}
                       style={{ left: `${left}%`, width: `${Math.max(0.6, at(until) - left)}%` }}
                     />
                   );
@@ -217,42 +200,55 @@ function WorktreeLaneDetail({
   until: number;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const totals = phaseTotals(lane, until);
   return (
-    <article className="worktree-history-detail" aria-label="Worktree lifecycle">
+    <article className="worktree-history-detail" aria-label={t('worktreeHistory.lifecycle')}>
       <header>
         <code>{shortWorktreeBranch(lane.branch)}</code>
         <span className={`worktree-history-badge outcome-${lane.outcome}`}>
-          {OUTCOME_WORD[lane.outcome]}
+          {t(`worktreeHistory.outcome.${lane.outcome}`)}
         </span>
         <small>{lane.ownerLabel}</small>
-        <button type="button" className="icon-button" aria-label="Close details" onClick={onClose}>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={t('worktreeHistory.close')}
+          onClick={onClose}
+        >
           <X size={13} />
         </button>
       </header>
       <p className="worktree-history-stats">
         {lane.commits.length > 0 &&
-          `+${lane.insertions} −${lane.deletions} · ${lane.files} files${
+          `+${lane.insertions} −${lane.deletions} · ${t('worktreeHistory.files', { number: lane.files })}${
             lane.sha ? ` · ${lane.sha.slice(0, 7)}` : ''
           } · `}
         {[...totals]
-          .map(([phase, ms]) => `${PHASE_WORD[phase]} ${formatWorktreeDuration(ms)}`)
+          .map(
+            ([phase, ms]) => `${t(`worktreeHistory.phase.${phase}`)} ${formatWorktreeDuration(ms)}`,
+          )
           .join(' · ')}
-        {` · ${lane.onDisk ? 'checkout still on disk' : 'checkout removed'}`}
+        {` · ${lane.onDisk ? t('worktreeHistory.onDisk') : t('worktreeHistory.removed')}`}
       </p>
       {lane.error && (
         <p className="session-error">
-          {lane.failedStage ? STAGE_WORD[lane.failedStage] : 'Failed'}: {lane.error}
+          {lane.failedStage
+            ? t(`worktreeHistory.stage.${lane.failedStage}`)
+            : t('worktreeHistory.failed')}
+          : {lane.error}
         </p>
       )}
       {lane.conflictFiles.length > 0 && (
-        <p className="session-error">Conflicted files: {lane.conflictFiles.join(', ')}</p>
+        <p className="session-error">
+          {t('worktreeHistory.conflicted', { files: lane.conflictFiles.join(', ') })}
+        </p>
       )}
       <ol>
         {lane.events.map((event, index) => (
           <li key={`${event.kind}-${event.at}-${index}`}>
             <time dateTime={new Date(event.at).toISOString()}>{clock(event.at, true)}</time>
-            <span>{worktreeEventText(event, base)}</span>
+            <span>{worktreeEventText(event, base, t)}</span>
           </li>
         ))}
       </ol>
