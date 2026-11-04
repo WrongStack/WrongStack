@@ -9,6 +9,7 @@ import { AutomationRunComparison } from '../src/AutomationRunComparison';
 import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { CatalogModelSearch } from '../src/CatalogModelSearch';
+import { ChimeraFinding } from '../src/ChimeraFinding';
 import { emptyEngineState } from '../src/engine-state';
 import { GoalPhaseVerification } from '../src/GoalPhaseVerification';
 import { GoalRevert } from '../src/GoalRevert';
@@ -21,6 +22,7 @@ import { modelAdvancedDraft } from '../src/model-advanced-editor';
 import { modelEditorDraft } from '../src/model-catalog-editor';
 import { priceTierDraft } from '../src/model-price-tiers';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
+import { ProjectChimera } from '../src/ProjectChimera';
 import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
 import { RequirementEvidence } from '../src/RequirementResources';
@@ -186,6 +188,36 @@ const modelEditorParts = () =>
         const draft = modelEditorDraft('m1', { name: 'Model one' });
         return { originalId: 'm1', initial: undefined, draft, baseline: draft };
       })(),
+    }),
+  );
+
+const chimera = () =>
+  createElement(
+    'div',
+    null,
+    createElement(ProjectChimera, {
+      command: vi.fn(pending),
+      projectId: 'chimera',
+      events: {},
+      sessions: [],
+      onPrepare: vi.fn(),
+      onNewSession: vi.fn(),
+      onOpenFile: vi.fn(),
+    }),
+    createElement(ChimeraFinding, {
+      row: {
+        finding: {
+          id: 'f1',
+          title: 'Unchecked input',
+          severity: 'high',
+          status: 'in_progress',
+          verification: { status: 'verified' },
+        },
+        events: [],
+      },
+      busy: false,
+      onTransition: vi.fn(),
+      onOpenFile: vi.fn(),
     }),
   );
 
@@ -498,6 +530,40 @@ describe('the project pages in the display language', () => {
         'Model akıl yürütme politikası kaynağı',
         'Fiyat kademesi 1 girdi fiyatı',
       ]),
+    );
+  });
+
+  it('show Chimera reviews in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(chimera());
+    for (const text of [
+      'Chimera Reviews',
+      'Reading review reports…',
+      'Inspect the evidence behind a review.',
+      'high',
+      'in progress',
+      'Disk citation: verified',
+      'Record resolution',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Project Chimera reviews', 'Search Chimera reports']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(chimera());
+    for (const text of [
+      'Chimera İncelemeleri',
+      'İnceleme raporları okunuyor…',
+      'Bir incelemenin arkasındaki kanıtı incele.',
+      'yüksek',
+      'sürüyor',
+      'Disk alıntısı: doğrulandı',
+      'Çözümü kaydet',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Proje Chimera incelemeleri', 'Chimera raporlarında ara']),
     );
   });
 });

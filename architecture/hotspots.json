@@ -151,8 +151,8 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 775,
-      "relativeImports": 10
+      "lines": 779,
+      "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
       "lines": 715,

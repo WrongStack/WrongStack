@@ -7456,3 +7456,22 @@ copies, starting with SAGE memory.
   - The registry search, saved drafts button and draft summary render in English and then in
     Turkish beside the editor sections (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Chimera reviews in the display language (2026-11-04)
+
+- The Chimera reviews page and its findings now follow the display language in all seven
+  languages: filters, the report catalog, report facts and transitions, evidence checks, findings
+  with their filters and actions, the activity journal, review notes with their draft conflict, the
+  follow-up and the decision dialog.
+- Report lifecycles, finding statuses, severities, sources, verification states, actor kinds and
+  outcomes are named per language; a value the catalog does not know still reads as `reviewLabel`
+  shows it. The key group is `reviews`, because the page quotes `chimera.*` engine messages.
+- The follow-up text placed into a conversation draft stays English: it is an instruction for the
+  agent.
+- Filter options now carry their engine value explicitly, so the shown label can change language
+  without changing what is filtered.
+- ProjectChimera grew by three lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The page and a finding render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (888); typecheck clean.
