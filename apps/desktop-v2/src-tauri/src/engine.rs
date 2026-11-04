@@ -154,8 +154,14 @@ mod tests {
         assert_eq!(Engine::journal_end(&path).unwrap()["offset"], 0);
         let line = format!("{}\n", json!({"type":"old","payload":{}}));
         fs::write(&path, format!("{line}{line}{{\"type\":\"par")).unwrap();
-        let end = Engine::journal_end(&path).unwrap()["offset"].as_u64().unwrap();
-        assert_eq!(end, (line.len() * 2) as u64, "A half-written line is not skipped");
+        let end = Engine::journal_end(&path).unwrap()["offset"]
+            .as_u64()
+            .unwrap();
+        assert_eq!(
+            end,
+            (line.len() * 2) as u64,
+            "A half-written line is not skipped"
+        );
         fs::write(
             &path,
             format!("{line}{line}{}\n", json!({"type":"new","payload":{}})),
