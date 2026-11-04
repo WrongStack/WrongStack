@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import { entries, record } from './engine-state';
 import { usePersistedFields } from './usePersistedFields';
@@ -56,6 +57,7 @@ export function RequirementResourceEditor({
   /** Keeps typed-but-not-added inputs across reloads. */
   storage?: FormDraftStorage;
 }) {
+  const { t } = useDesktopText();
   const input = usePersistedFields(storage, 'requirement-resource-input:new', editorDefaults);
   const { name, kind, location, resourceTitle, resourceKind, reference } = input.fields;
   const locationType = input.fields.locationType === 'url' ? 'url' : 'path';
@@ -68,13 +70,13 @@ export function RequirementResourceEditor({
   const setReference = (value: string) => input.set({ reference: value });
   const [error, setError] = useState('');
   return (
-    <section className="requirement-resource-editor" aria-label="Requirement supporting resources">
-      <h4>Supporting resources</h4>
-      <p>Record file paths and links with the request so reviewers can find its evidence.</p>
+    <section className="requirement-resource-editor" aria-label={t('reqRes.label')}>
+      <h4>{t('reqRes.heading')}</h4>
+      <p>{t('reqRes.intro')}</p>
       {input.notice}
       {input.restored && (name || location || reference || resourceTitle) && (
         <p className="field-help" role="status">
-          Restored resource input you had not added yet.
+          {t('reqRes.restoredAdd')}
         </p>
       )}
       {error && (
@@ -88,7 +90,8 @@ export function RequirementResourceEditor({
             <div>
               <strong>{item.name}</strong>
               <small>
-                {item.kind} · {item.path ?? item.url}
+                {t(`reqRes.kind.${item.kind}`, { defaultValue: item.kind })} ·{' '}
+                {item.path ?? item.url}
               </small>
             </div>
             <button
@@ -97,7 +100,7 @@ export function RequirementResourceEditor({
               disabled={disabled}
               onClick={() => onAttachments(attachments.filter((_, i) => i !== index))}
             >
-              Remove reference
+              {t('reqRes.removeReference')}
             </button>
           </article>
         ))}
@@ -107,7 +110,7 @@ export function RequirementResourceEditor({
           event.preventDefault();
           if (disabled || !name.trim() || !location.trim() || attachments.length >= 20) return;
           if (locationType === 'url' && !isRequirementUrl(location.trim())) {
-            setError('Use a valid HTTP or HTTPS attachment link.');
+            setError(t('reqRes.badAttachmentLink'));
             return;
           }
           onAttachments([
@@ -125,9 +128,9 @@ export function RequirementResourceEditor({
       >
         <div className="requirement-pair">
           <label>
-            Attachment name
+            {t('reqRes.attachmentName')}
             <input
-              aria-label="Attachment name"
+              aria-label={t('reqRes.attachmentName')}
               value={name}
               maxLength={200}
               disabled={disabled}
@@ -135,16 +138,16 @@ export function RequirementResourceEditor({
             />
           </label>
           <label>
-            Attachment kind
+            {t('reqRes.attachmentKind')}
             <select
-              aria-label="Attachment kind"
+              aria-label={t('reqRes.attachmentKind')}
               value={kind}
               disabled={disabled}
               onChange={(e) => setKind(e.target.value)}
             >
               {['file', 'image', 'document', 'link', 'other'].map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {t(`reqRes.kind.${value}`, { defaultValue: value })}
                 </option>
               ))}
             </select>
@@ -152,21 +155,21 @@ export function RequirementResourceEditor({
         </div>
         <div className="requirement-pair">
           <label>
-            Reference type
+            {t('reqRes.referenceType')}
             <select
-              aria-label="Attachment reference type"
+              aria-label={t('reqRes.referenceTypeLabel')}
               value={locationType}
               disabled={disabled}
               onChange={(e) => setLocationType(e.target.value === 'url' ? 'url' : 'path')}
             >
-              <option value="path">File path</option>
-              <option value="url">Web link</option>
+              <option value="path">{t('reqRes.filePath')}</option>
+              <option value="url">{t('reqRes.webLink')}</option>
             </select>
           </label>
           <label>
-            Attachment reference
+            {t('reqRes.attachmentReference')}
             <input
-              aria-label="Attachment reference"
+              aria-label={t('reqRes.attachmentReference')}
               value={location}
               maxLength={500}
               disabled={disabled}
@@ -182,11 +185,9 @@ export function RequirementResourceEditor({
           className="button secondary"
           disabled={disabled || !name.trim() || !location.trim() || attachments.length >= 20}
         >
-          Add attachment reference
+          {t('reqRes.addAttachment')}
         </button>
-        <small>
-          Paths and links are recorded as references. This form does not upload file contents.
-        </small>
+        <small>{t('reqRes.noUpload')}</small>
       </form>
       <div className="requirement-resource-list">
         {resources.map((item, index) => (
@@ -194,7 +195,7 @@ export function RequirementResourceEditor({
             <div>
               <strong>{item.title || item.reference}</strong>
               <small>
-                {item.kind} · {item.reference}
+                {t(`reqRes.kind.${item.kind}`, { defaultValue: item.kind })} · {item.reference}
               </small>
             </div>
             <button
@@ -203,7 +204,7 @@ export function RequirementResourceEditor({
               disabled={disabled}
               onClick={() => onResources(resources.filter((_, i) => i !== index))}
             >
-              Remove related resource
+              {t('reqRes.removeResource')}
             </button>
           </article>
         ))}
@@ -213,7 +214,7 @@ export function RequirementResourceEditor({
           event.preventDefault();
           if (disabled || !reference.trim() || resources.length >= 50) return;
           if (resourceKind === 'url' && !isRequirementUrl(reference.trim())) {
-            setError('Use a valid HTTP or HTTPS resource link.');
+            setError(t('reqRes.badResourceLink'));
             return;
           }
           onResources([
@@ -231,9 +232,9 @@ export function RequirementResourceEditor({
       >
         <div className="requirement-pair">
           <label>
-            Related resource title
+            {t('reqRes.resourceTitle')}
             <input
-              aria-label="Related resource title"
+              aria-label={t('reqRes.resourceTitle')}
               value={resourceTitle}
               maxLength={200}
               disabled={disabled}
@@ -241,30 +242,30 @@ export function RequirementResourceEditor({
             />
           </label>
           <label>
-            Related resource kind
+            {t('reqRes.resourceKind')}
             <select
-              aria-label="Related resource kind"
+              aria-label={t('reqRes.resourceKind')}
               value={resourceKind}
               disabled={disabled}
               onChange={(e) => setResourceKind(e.target.value)}
             >
               {['spec', 'issue', 'pr', 'doc', 'url', 'other'].map((value) => (
                 <option key={value} value={value}>
-                  {value === 'pr' ? 'Pull request' : value}
+                  {t(`reqRes.kind.${value}`, { defaultValue: value })}
                 </option>
               ))}
             </select>
           </label>
         </div>
         <label>
-          Related resource reference
+          {t('reqRes.resourceReference')}
           <input
-            aria-label="Related resource reference"
+            aria-label={t('reqRes.resourceReference')}
             value={reference}
             maxLength={500}
             disabled={disabled}
             onChange={(e) => setReference(e.target.value)}
-            placeholder="An issue, specification, document or URL"
+            placeholder={t('reqRes.resourcePlaceholder')}
           />
         </label>
         <button
@@ -272,33 +273,28 @@ export function RequirementResourceEditor({
           className="button secondary"
           disabled={disabled || !reference.trim() || resources.length >= 50}
         >
-          Add related resource
+          {t('reqRes.addResource')}
         </button>
       </form>
     </section>
   );
 }
 
-const sourceNames: Record<string, string> = {
-  user: 'User input',
-  llm: 'Model proposal',
-  deterministic: 'Engine rules',
-  system: 'System',
-};
-const fieldNames: Record<string, string> = {
-  title: 'Title',
-  normalized_summary: 'Summary',
-  request_type: 'Request type',
-  priority: 'Priority',
-  business_goal: 'Business goal',
-  target_users: 'Target users',
-  expected_outcome: 'Expected outcome',
-  scope_notes: 'Scope notes',
-  constraints: 'Constraints',
-  provided_context: 'Provided context',
-  attachments: 'Attachments',
-  related_resources: 'Related resources',
-};
+const SOURCES = new Set(['user', 'llm', 'deterministic', 'system']);
+const FIELDS = new Set([
+  'title',
+  'normalized_summary',
+  'request_type',
+  'priority',
+  'business_goal',
+  'target_users',
+  'expected_outcome',
+  'scope_notes',
+  'constraints',
+  'provided_context',
+  'attachments',
+  'related_resources',
+]);
 export function RequirementEvidence({
   detail,
   busy = false,
@@ -308,6 +304,7 @@ export function RequirementEvidence({
   busy?: boolean;
   onDecision?: (id: string, decision: 'accept' | 'reject') => void;
 }) {
+  const { t } = useDesktopText();
   const attachments = entries(detail['attachments']);
   const resources = entries(detail['relatedResources']);
   const proposals = entries(detail['llmSuggestions']);
@@ -315,34 +312,44 @@ export function RequirementEvidence({
     ([, value]) => typeof value === 'string',
   );
   return (
-    <section className="requirement-evidence" aria-label="Requirement evidence and sources">
+    <section className="requirement-evidence" aria-label={t('reqRes.evidenceLabel')}>
       {(attachments.length > 0 || resources.length > 0) && (
         <>
-          <h4>Supporting resources</h4>
+          <h4>{t('reqRes.heading')}</h4>
           <div className="requirement-resource-list">
             {attachments.map((item, i) => (
               <article key={`a-${i}`}>
-                <strong>{typeof item['name'] === 'string' ? item['name'] : 'Attachment'}</strong>
-                <small>{typeof item['kind'] === 'string' ? item['kind'] : 'File reference'}</small>
+                <strong>
+                  {typeof item['name'] === 'string' ? item['name'] : t('reqRes.attachment')}
+                </strong>
+                <small>
+                  {typeof item['kind'] === 'string'
+                    ? t(`reqRes.kind.${item['kind']}`, { defaultValue: item['kind'] })
+                    : t('reqRes.fileReference')}
+                </small>
                 <p>
                   {typeof item['path'] === 'string'
                     ? item['path']
                     : typeof item['url'] === 'string'
                       ? item['url']
-                      : 'Reference not reported'}
+                      : t('reqRes.referenceMissing')}
                 </p>
               </article>
             ))}
             {resources.map((item, i) => (
               <article key={`r-${i}`}>
                 <strong>
-                  {typeof item['title'] === 'string' ? item['title'] : 'Related resource'}
+                  {typeof item['title'] === 'string' ? item['title'] : t('reqRes.relatedResource')}
                 </strong>
-                <small>{typeof item['kind'] === 'string' ? item['kind'] : 'Resource'}</small>
+                <small>
+                  {typeof item['kind'] === 'string'
+                    ? t(`reqRes.kind.${item['kind']}`, { defaultValue: item['kind'] })
+                    : t('reqRes.resource')}
+                </small>
                 <p>
                   {typeof item['reference'] === 'string'
                     ? item['reference']
-                    : 'Reference not reported'}
+                    : t('reqRes.referenceMissing')}
                 </p>
               </article>
             ))}
@@ -351,10 +358,8 @@ export function RequirementEvidence({
       )}
       {proposals.length > 0 && (
         <>
-          <h4>Recorded suggestions</h4>
-          <p>
-            These are proposals. Their recorded status shows whether they were accepted or rejected.
-          </p>
+          <h4>{t('reqRes.suggestions')}</h4>
+          <p>{t('reqRes.suggestionsHelp')}</p>
           <div className="requirement-suggestions">
             {proposals.map((item, i) => {
               const value = item['value'];
@@ -363,11 +368,18 @@ export function RequirementEvidence({
                 <article key={typeof item['id'] === 'string' ? item['id'] : i}>
                   <header>
                     <strong>
-                      {fieldNames[String(item['field'])] ??
-                        String(item['kind'] ?? 'Suggestion').replaceAll('_', ' ')}
+                      {FIELDS.has(String(item['field']))
+                        ? t(`reqRes.field.${String(item['field'])}`)
+                        : item['kind'] === undefined || item['kind'] === null
+                          ? t('reqRes.suggestion')
+                          : t(`reqRes.suggestionKind.${String(item['kind'])}`, {
+                              defaultValue: String(item['kind']).replaceAll('_', ' '),
+                            })}
                     </strong>
                     <span>
-                      {typeof item['status'] === 'string' ? item['status'] : 'Status not reported'}
+                      {typeof item['status'] === 'string'
+                        ? t(`reqRes.status.${item['status']}`, { defaultValue: item['status'] })
+                        : t('reqRes.statusMissing')}
                     </span>
                   </header>
                   {typeof value === 'string' ? (
@@ -381,7 +393,7 @@ export function RequirementEvidence({
                       ))}
                     </ul>
                   ) : (
-                    <p>No readable preview was provided.</p>
+                    <p>{t('reqRes.noPreview')}</p>
                   )}
                   {typeof item['rationale'] === 'string' && <p>{item['rationale']}</p>}
                   {onDecision && item['status'] === 'pending' && typeof item['id'] === 'string' && (
@@ -392,7 +404,7 @@ export function RequirementEvidence({
                         disabled={busy}
                         onClick={() => onDecision(item['id'] as string, 'accept')}
                       >
-                        Accept suggestion
+                        {t('reqRes.accept')}
                       </button>
                       <button
                         type="button"
@@ -400,7 +412,7 @@ export function RequirementEvidence({
                         disabled={busy}
                         onClick={() => onDecision(item['id'] as string, 'reject')}
                       >
-                        Reject suggestion
+                        {t('reqRes.reject')}
                       </button>
                     </div>
                   )}
@@ -412,12 +424,18 @@ export function RequirementEvidence({
       )}
       {sources.length > 0 && (
         <details className="requirement-provenance">
-          <summary>Where this information came from</summary>
+          <summary>{t('reqRes.provenance')}</summary>
           <dl>
             {sources.map(([field, value]) => (
               <div key={field}>
-                <dt>{fieldNames[field] ?? field.replaceAll('_', ' ')}</dt>
-                <dd>{sourceNames[String(value)] ?? 'Source not reported'}</dd>
+                <dt>
+                  {FIELDS.has(field) ? t(`reqRes.field.${field}`) : field.replaceAll('_', ' ')}
+                </dt>
+                <dd>
+                  {SOURCES.has(String(value))
+                    ? t(`reqRes.source.${String(value)}`)
+                    : t('reqRes.sourceMissing')}
+                </dd>
               </div>
             ))}
           </dl>
@@ -442,6 +460,7 @@ export function RequirementResourceAppend({
     relatedResource?: RequirementResource;
   }) => Promise<boolean>;
 }) {
+  const { t } = useDesktopText();
   const input = usePersistedFields(storage, `requirement-resource-input:${owner}`, appendDefaults);
   const { kind, name, reference } = input.fields;
   const category = input.fields.category === 'relatedResource' ? 'relatedResource' : 'attachment';
@@ -454,11 +473,11 @@ export function RequirementResourceAppend({
   const [error, setError] = useState('');
   return (
     <details className="requirement-append">
-      <summary>Add supporting resource</summary>
+      <summary>{t('reqRes.appendTitle')}</summary>
       {input.notice}
       {input.restored && (name || reference) && (
         <p className="field-help" role="status">
-          Restored resource input you had not saved yet.
+          {t('reqRes.restoredSave')}
         </p>
       )}
       <form
@@ -470,7 +489,7 @@ export function RequirementResourceAppend({
               (category === 'relatedResource' && kind === 'url')) &&
             !isRequirementUrl(reference.trim())
           ) {
-            setError('Use a valid HTTP or HTTPS link.');
+            setError(t('reqRes.badLink'));
             return;
           }
           setError('');
@@ -507,9 +526,9 @@ export function RequirementResourceAppend({
         )}
         <div className="requirement-pair">
           <label>
-            Resource category
+            {t('reqRes.category')}
             <select
-              aria-label="Resource category"
+              aria-label={t('reqRes.category')}
               disabled={disabled}
               value={category}
               onChange={(e) => {
@@ -518,14 +537,14 @@ export function RequirementResourceAppend({
                 setKind(value === 'attachment' ? 'file' : 'doc');
               }}
             >
-              <option value="attachment">Attachment reference</option>
-              <option value="relatedResource">Related resource</option>
+              <option value="attachment">{t('reqRes.attachmentReference')}</option>
+              <option value="relatedResource">{t('reqRes.relatedResource')}</option>
             </select>
           </label>
           <label>
-            Resource kind
+            {t('reqRes.kindLabel')}
             <select
-              aria-label="Resource kind"
+              aria-label={t('reqRes.kindLabel')}
               disabled={disabled}
               value={kind}
               onChange={(e) => setKind(e.target.value)}
@@ -535,16 +554,16 @@ export function RequirementResourceAppend({
                 : ['spec', 'issue', 'pr', 'doc', 'url', 'other']
               ).map((value) => (
                 <option value={value} key={value}>
-                  {value}
+                  {t(`reqRes.kind.${value}`, { defaultValue: value })}
                 </option>
               ))}
             </select>
           </label>
         </div>
         <label>
-          Resource name
+          {t('reqRes.name')}
           <input
-            aria-label="Resource name"
+            aria-label={t('reqRes.name')}
             disabled={disabled}
             maxLength={200}
             value={name}
@@ -559,26 +578,26 @@ export function RequirementResourceAppend({
               checked={isUrl}
               onChange={(e) => setIsUrl(e.target.checked)}
             />{' '}
-            This reference is a web link
+            {t('reqRes.isWebLink')}
           </label>
         )}
         <label>
-          Resource reference
+          {t('reqRes.reference')}
           <input
-            aria-label="Resource reference"
+            aria-label={t('reqRes.reference')}
             disabled={disabled}
             maxLength={500}
             value={reference}
             onChange={(e) => setReference(e.target.value)}
           />
         </label>
-        <p>Only the path or link is recorded; no file contents are uploaded.</p>
+        <p>{t('reqRes.onlyReference')}</p>
         <button
           type="submit"
           className="button primary"
           disabled={disabled || !reference.trim() || (category === 'attachment' && !name.trim())}
         >
-          Save resource
+          {t('reqRes.save')}
         </button>
       </form>
     </details>

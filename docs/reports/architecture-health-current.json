@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T10:52:40.200Z",
+  "generatedAt": "2026-11-04T10:58:26.531Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4967,
-    "sourceLines": 1245633,
+    "testFiles": 4968,
+    "sourceLines": 1245654,
     "workspaceEdges": 240,
-    "moduleEdges": 17427,
+    "moduleEdges": 17428,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -366,7 +366,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 639,
-      "testFiles": 697,
+      "testFiles": 698,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -383,7 +383,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 697
+          "testFiles": 698
         }
       ]
     },
@@ -11265,6 +11265,12 @@
       },
       {
         "file": "packages/core/tests/prompts/prompt-installer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/prompts/prompt-manifest-store.test.ts",
         "projects": [
           "root-node"
         ]

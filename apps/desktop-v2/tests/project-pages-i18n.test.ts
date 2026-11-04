@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectRequirements } from '../src/ProjectRequirements';
+import { RequirementEvidence } from '../src/RequirementResources';
 import { RequirementSummary } from '../src/RequirementSummary';
 import { RosterKnowledgeChecklist } from '../src/RosterKnowledgeChecklist';
 import { surfaceI18n } from '../src/surface-i18n';
@@ -55,6 +56,16 @@ const summary = () =>
     detail: { originalRequest: 'Add a login page', priority: 'high' },
   });
 
+const evidence = () =>
+  createElement(RequirementEvidence, {
+    detail: {
+      relatedResources: [{ kind: 'pr', reference: '#12' }],
+      llmSuggestions: [{ id: 's1', field: 'priority', status: 'pending', value: 'high' }],
+      fieldSources: { business_goal: 'llm' },
+    },
+    onDecision: vi.fn(),
+  });
+
 describe('the project pages in the display language', () => {
   afterAll(async () => {
     await surfaceI18n.changeLanguage('en');
@@ -90,7 +101,7 @@ describe('the project pages in the display language', () => {
     expect(page.labels).toContain('reviewer için bilgi kontrol listesi');
   });
 
-  it('show the requirements page in English, then in Turkish', async () => {
+  it('show the requirements page and its evidence in English, then in Turkish', async () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(requirements());
     for (const text of ['Requirements', 'New requirement', 'Loading requirements…'])
@@ -101,6 +112,18 @@ describe('the project pages in the display language', () => {
     page = await mount(summary());
     for (const text of ['Original request', 'Business goal', 'Not recorded', 'high', 'Standard'])
       expect(page.text).toContain(text);
+    page = await mount(evidence());
+    for (const text of [
+      'Supporting resources',
+      'Pull request',
+      'Recorded suggestions',
+      'Priority',
+      'pending',
+      'Accept suggestion',
+      'Model proposal',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toContain('Requirement evidence and sources');
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(requirements());
@@ -112,5 +135,16 @@ describe('the project pages in the display language', () => {
     page = await mount(summary());
     for (const text of ['Özgün istek', 'İş hedefi', 'Kaydedilmedi', 'yüksek', 'Standart'])
       expect(page.text).toContain(text);
+    page = await mount(evidence());
+    for (const text of [
+      'Destekleyici kaynaklar',
+      'Kaydedilen öneriler',
+      'Öncelik',
+      'bekliyor',
+      'Öneriyi kabul et',
+      'Model önerisi',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toContain('Gereksinim kanıtları ve kaynakları');
   });
 });

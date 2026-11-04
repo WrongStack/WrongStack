@@ -7283,3 +7283,19 @@ copies, starting with SAGE memory.
 - Checks:
   - The page and its summary render in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.
+
+### Requirement resources, evidence and suggestions in the display language (2026-11-04)
+
+- The supporting-resource parts of the requirements page now follow the display language in all
+  seven languages:
+  - the resource editor on the new-requirement form;
+  - the "Add supporting resource" form on a recorded requirement;
+  - the evidence view with its resources, recorded suggestions with accept and reject, and where
+    each field came from.
+- Attachment and resource kinds, suggestion kinds and statuses, field names and field sources are
+  named per language. A value the catalog does not know still shows the engine's own word.
+- The "Add supporting resource" kind list now spells out "Pull request" like the new-requirement
+  form already did; the option value is still `pr`.
+- Checks:
+  - The evidence view renders in English and then in Turkish beside the page (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.
