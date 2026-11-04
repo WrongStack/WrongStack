@@ -7509,3 +7509,26 @@ copies, starting with SAGE memory.
 - Checks:
   - The design studio renders a kit in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (891); typecheck clean.
+
+### Project mailbox in the display language (2026-11-04)
+
+- The project mailbox, its composer and its draft status now follow the display language in all
+  seven languages: the heading, the actor, status and window controls, the scope note, the thread
+  list, the conversation with its tags, audience, receipts and references, the message actions and
+  removal confirmation, registered agents, retention and maintenance with its thresholds and
+  confirmations, the composer fields and confirmations, and the other-window, retry, loading and
+  restored draft notices.
+- The key group is `mailboxPage`, because the page quotes `mailbox.*` engine messages.
+- Message types and priorities are named per language with the engine value as the fallback;
+  English shows them as sent. The composer options now carry an explicit value, so a translated
+  label never changes what is sent.
+- `mailboxDuration` takes optional words for its invalid-hours error, with English as the default.
+- Still English by design: the `Re:` subject prefix of a reply, engine errors, and the two errors
+  the draft store throws itself.
+- ProjectMailbox grew by 11 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - A new jsdom test renders the mailbox with an opened conversation, and the composer, in English
+    and then in Turkish.
+  - A new unit test covers the duration words.
+  - Catalog parity and the key guard pass; desktop tests pass (894); typecheck clean.

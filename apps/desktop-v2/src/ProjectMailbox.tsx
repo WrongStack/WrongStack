@@ -1,5 +1,6 @@
 import { Mail, Plus, RefreshCw, Reply } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -21,10 +22,6 @@ import { openExternal, projectFormDraftStorage } from './platform';
 import './project-mailbox.css';
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
-const when = (value: unknown) => {
-  const date = new Date(typeof value === 'number' ? value : String(value));
-  return Number.isNaN(date.getTime()) ? 'Time not reported' : date.toLocaleString();
-};
 type Maintenance = 'clear' | 'purge' | 'compact';
 export function ProjectMailbox({
   command,
@@ -35,6 +32,14 @@ export function ProjectMailbox({
   projectId: string;
   state: EngineState;
 }) {
+  const { t } = useDesktopText();
+  const when = (value: unknown) => {
+    const date = new Date(typeof value === 'number' ? value : String(value));
+    return Number.isNaN(date.getTime()) ? t('mailboxPage.timeMissing') : date.toLocaleString();
+  };
+  // Engine values: named per language, shown as sent when the catalog has no name for them.
+  const named = (group: 'type' | 'priority', value: unknown) =>
+    t(`mailboxPage.${group}.${String(value)}`, { defaultValue: String(value) });
   const [messages, setMessages] = useState<Record<string, unknown>[]>([]);
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState('');
@@ -140,10 +145,10 @@ export function ProjectMailbox({
         busy: false,
         done: next.complete || next.stuck,
         note: next.stuck
-          ? 'More messages share the oldest timestamp than one page holds, so older ones cannot be read here.'
+          ? t('mailboxPage.older.stuck')
           : next.complete
-            ? 'No older messages in this view.'
-            : `${next.added} older messages loaded.`,
+            ? t('mailboxPage.older.done')
+            : t('mailboxPage.older.loaded', { n: next.added }),
       });
     } catch (failure) {
       setOlder({ busy: false, done: false, note: String(failure) });
@@ -211,7 +216,7 @@ export function ProjectMailbox({
         !draft.body.trim() ||
         (!draft.to.trim() && draft.type !== 'broadcast')
       )
-        throw Error('Enter a recipient, subject and message.');
+        throw Error(t('mailboxPage.missingFields'));
       const submitted = draftStore.begin();
       try {
         const reply = await command(
@@ -224,48 +229,52 @@ export function ProjectMailbox({
           },
           ['mailbox.sent'],
         );
-        if (typeof reply['messageId'] !== 'string')
-          throw Error(
-            'The engine did not confirm a saved message. Check the mailbox before retrying; your draft is retained.',
-          );
+        if (typeof reply['messageId'] !== 'string') throw Error(t('mailboxPage.unconfirmed'));
         draftStore.acknowledge(submitted);
       } catch (error) {
         draftStore.fail(error);
         throw error;
       }
       setComposing(false);
-      setNotice(
-        'Message recorded in the project mailbox. Delivery and completion are shown separately.',
-      );
+      setNotice(t('mailboxPage.recorded'));
       await load();
     });
   const action = (id: string, kind: 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete') =>
     void run(async () => {
-      if (!actor.trim()) throw Error('Choose the actor whose receipt or action you are recording.');
+      if (!actor.trim()) throw Error(t('mailboxPage.chooseActor'));
       await command('mailbox.action', { mailId: id, action: kind, readerId: actor.trim() }, [
         'mailbox.action_result',
       ]);
       setDeleting(null);
       setNotice(
         kind === 'soft-delete'
-          ? 'Message removed from the active mailbox.'
-          : `Mailbox action recorded for ${actor.trim()}.`,
+          ? t('mailboxPage.removed')
+          : t('mailboxPage.actionRecorded', { actor: actor.trim() }),
       );
       await load();
     });
   const maintain = () =>
     void run(async () => {
       if (!maintenance) return;
+      const hours = (label: string) => t('mailboxPage.invalidHours', { label });
       const options =
         maintenance === 'clear'
           ? {}
           : {
-              completedMaxAgeMs: mailboxDuration(completedAge, 'Completed message age'),
-              incompleteMaxAgeMs: mailboxDuration(incompleteAge, 'Incomplete message age'),
+              completedMaxAgeMs: mailboxDuration(
+                completedAge,
+                t('mailboxPage.ageCompleted'),
+                hours,
+              ),
+              incompleteMaxAgeMs: mailboxDuration(
+                incompleteAge,
+                t('mailboxPage.ageIncomplete'),
+                hours,
+              ),
               ...(maintenance === 'compact'
                 ? {
-                    readMaxAgeMs: mailboxDuration(readAge, 'Read message age'),
-                    defaultTtlMs: mailboxDuration(ttlAge, 'Default lifetime'),
+                    readMaxAgeMs: mailboxDuration(readAge, t('mailboxPage.ageRead'), hours),
+                    defaultTtlMs: mailboxDuration(ttlAge, t('mailboxPage.ageDefault'), hours),
                   }
                 : {}),
             };
@@ -284,20 +293,24 @@ export function ProjectMailbox({
       setMaintenance(null);
       setMaintenanceConfirm(false);
       setSelected('');
+      const missing = t('mailboxPage.notReported');
       setNotice(
         maintenance === 'clear'
-          ? 'All project mailbox messages cleared.'
-          : `${maintenance === 'purge' ? 'Purge' : 'Compaction'} completed: ${String(result['totalPurged'] ?? result['totalRemoved'] ?? 'not reported')} removed · ${String(result['remaining'] ?? 'not reported')} remaining.`,
+          ? t('mailboxPage.cleared')
+          : t(maintenance === 'purge' ? 'mailboxPage.purged' : 'mailboxPage.compacted', {
+              removed: String(result['totalPurged'] ?? result['totalRemoved'] ?? missing),
+              remaining: String(result['remaining'] ?? missing),
+            }),
       );
       await load();
     });
   return (
-    <section className="project-mailbox" aria-label="Project mailbox">
+    <section className="project-mailbox" aria-label={t('mailboxPage.label')}>
       <header className="mailbox-heading">
         <div>
-          <span className="eyebrow">KEEP THE TEAM IN CONTEXT</span>
-          <h2>Mailbox</h2>
-          <p>Project correspondence, agent receipts and follow-up in one place.</p>
+          <span className="eyebrow">{t('mailboxPage.eyebrow')}</span>
+          <h2>{t('mailboxPage.title')}</h2>
+          <p>{t('mailboxPage.intro')}</p>
         </div>
         <div className="sdd-actions">
           <button
@@ -307,7 +320,7 @@ export function ProjectMailbox({
             onClick={() => void load().catch((error) => setError(String(error)))}
           >
             <RefreshCw size={14} />
-            Refresh mailbox
+            {t('mailboxPage.refresh')}
           </button>
           <button
             type="button"
@@ -319,7 +332,7 @@ export function ProjectMailbox({
             }}
           >
             <Plus size={14} />
-            {hasMailDraft(draft) ? 'Resume message draft' : 'Compose message'}
+            {hasMailDraft(draft) ? t('mailboxPage.resumeDraft') : t('mailboxPage.composeMessage')}
           </button>
         </div>
       </header>
@@ -343,11 +356,11 @@ export function ProjectMailbox({
       )}
       <div className="mailbox-controls">
         <label>
-          View as actor
+          {t('mailboxPage.actor')}
           <input
-            aria-label="Mailbox actor"
+            aria-label={t('mailboxPage.actorLabel')}
             list="mailbox-actors"
-            placeholder="All agents · aggregate view"
+            placeholder={t('mailboxPage.actorPlaceholder')}
             value={actor}
             disabled={busy}
             onChange={(event) => setActor(event.target.value)}
@@ -362,30 +375,30 @@ export function ProjectMailbox({
           ))}
         </datalist>
         <label>
-          Messages
+          {t('mailboxPage.messages')}
           <select
-            aria-label="Mailbox status filter"
+            aria-label={t('mailboxPage.filterLabel')}
             value={filter}
             disabled={busy}
             onChange={(event) => setFilter(event.target.value)}
           >
-            <option value="all">All recent messages</option>
-            <option value="unread">Unread</option>
-            <option value="open">Incomplete</option>
-            <option value="completed">Completed</option>
+            <option value="all">{t('mailboxPage.filterAll')}</option>
+            <option value="unread">{t('mailboxPage.filterUnread')}</option>
+            <option value="open">{t('mailboxPage.filterOpen')}</option>
+            <option value="completed">{t('mailboxPage.completed')}</option>
           </select>
         </label>
         <label>
-          Recent window
+          {t('mailboxPage.window')}
           <select
-            aria-label="Mailbox recent limit"
+            aria-label={t('mailboxPage.windowLabel')}
             value={limit}
             disabled={busy}
             onChange={(event) => setLimit(Number(event.target.value))}
           >
             {[30, 100, 200].map((value) => (
               <option key={value} value={value}>
-                {value} messages
+                {t('mailboxPage.windowOption', { n: value })}
               </option>
             ))}
           </select>
@@ -393,22 +406,22 @@ export function ProjectMailbox({
       </div>
       <p className="mailbox-scope">
         {actor.trim()
-          ? `Receipts and visibility are scoped to ${actor.trim()}.`
-          : 'Aggregate view: unread means nobody has read the message. Choose an actor to inspect or change that actor’s receipts.'}{' '}
-        Search and thread grouping cover the loaded recent window.
+          ? t('mailboxPage.scoped', { actor: actor.trim() })
+          : t('mailboxPage.aggregate')}{' '}
+        {t('mailboxPage.scopeSearch')}
       </p>
       <div className="mailbox-layout">
         <aside className="mailbox-thread-list">
           <label>
-            Search loaded messages
+            {t('mailboxPage.search')}
             <input
-              aria-label="Search mailbox messages"
+              aria-label={t('mailboxPage.searchLabel')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
           <small>
-            {messages.length} messages · {threads.length} conversations
+            {t('mailboxPage.loadedCount', { messages: messages.length, threads: threads.length })}
           </small>
           {loaded && messages.length >= limit && !older.done && (
             <button
@@ -417,16 +430,16 @@ export function ProjectMailbox({
               disabled={busy || older.busy}
               onClick={() => void loadOlder()}
             >
-              {older.busy ? 'Loading…' : 'Load older messages'}
+              {older.busy ? t('mailboxPage.loadingOlder') : t('mailboxPage.loadOlder')}
             </button>
           )}
           {older.note && <small role="status">{older.note}</small>}
           {!loaded ? (
-            <p>Loading correspondence…</p>
+            <p>{t('mailboxPage.loading')}</p>
           ) : !shown.length ? (
             <div className="mailbox-empty">
               <Mail size={24} />
-              <p>No messages in this view.</p>
+              <p>{t('mailboxPage.empty')}</p>
             </div>
           ) : (
             shown.map((thread) => (
@@ -442,13 +455,13 @@ export function ProjectMailbox({
                 }}
               >
                 <div>
-                  <strong>{text(thread.first['subject']) || 'Untitled conversation'}</strong>
+                  <strong>{text(thread.first['subject']) || t('mailboxPage.untitled')}</strong>
                   {thread.items.some(unreadMail) && (
                     <span
                       className="mail-unread-dot"
                       role="img"
                       aria-label={
-                        actor.trim() ? 'Unread for selected actor' : 'Unread to all readers'
+                        actor.trim() ? t('mailboxPage.unreadActor') : t('mailboxPage.unreadAll')
                       }
                     />
                   )}
@@ -458,8 +471,13 @@ export function ProjectMailbox({
                   {String(thread.latest['from'])} → {String(thread.latest['to'])}
                 </small>
                 <small>
-                  {thread.items.length} {thread.items.length === 1 ? 'message' : 'messages'} ·{' '}
-                  {when(thread.latest['timestamp'])}
+                  {t(
+                    thread.items.length === 1 ? 'mailboxPage.threadOne' : 'mailboxPage.threadMany',
+                    {
+                      n: thread.items.length,
+                      time: when(thread.latest['timestamp']),
+                    },
+                  )}
                 </small>
               </button>
             ))
@@ -470,11 +488,9 @@ export function ProjectMailbox({
             <>
               <header>
                 <h3>{text(current.first['subject'])}</h3>
-                <small>{current.items.length} loaded messages in this conversation</small>
+                <small>{t('mailboxPage.conversationCount', { n: current.items.length })}</small>
               </header>
-              {current.missingParent && (
-                <p>The earlier parent message is outside the loaded window.</p>
-              )}
+              {current.missingParent && <p>{t('mailboxPage.missingParent')}</p>}
               {current.items.map((mail) => (
                 <article className="mailbox-message" key={String(mail['id'])}>
                   <header>
@@ -484,9 +500,13 @@ export function ProjectMailbox({
                       <small>{when(mail['timestamp'])}</small>
                     </div>
                     <div className="mailbox-message-tags">
-                      <span>{String(mail['type'])}</span>
-                      <span>{String(mail['priority'])}</span>
-                      <span>{mail['completed'] === true ? 'Completed' : 'Open'}</span>
+                      <span>{named('type', mail['type'])}</span>
+                      <span>{named('priority', mail['priority'])}</span>
+                      <span>
+                        {mail['completed'] === true
+                          ? t('mailboxPage.completed')
+                          : t('mailboxPage.open')}
+                      </span>
                     </div>
                   </header>
                   <h4>{text(mail['subject'])}</h4>
@@ -498,18 +518,27 @@ export function ProjectMailbox({
                   />
                   <div className="mailbox-message-meta">
                     <span>
-                      Audience:{' '}
-                      {mail['audience'] === 'leaders' ? 'Leaders only' : 'All eligible recipients'}
+                      {t('mailboxPage.audience', {
+                        audience:
+                          mail['audience'] === 'leaders'
+                            ? t('mailboxPage.audienceLeaders')
+                            : t('mailboxPage.audienceAll'),
+                      })}
                     </span>
-                    <span>{String(mail['readByCount'] ?? 0)} read receipts in this view</span>
+                    <span>
+                      {t('mailboxPage.receipts', { n: String(mail['readByCount'] ?? 0) })}
+                    </span>
                     {typeof mail['completedBy'] === 'string' && (
                       <span>
-                        Completed by {String(mail['completedBy'])} · {when(mail['completedAt'])}
+                        {t('mailboxPage.completedBy', {
+                          actor: mail['completedBy'],
+                          time: when(mail['completedAt']),
+                        })}
                       </span>
                     )}
                   </div>
                   <details>
-                    <summary>Receipts and references</summary>
+                    <summary>{t('mailboxPage.references')}</summary>
                     <dl>
                       {Object.entries(record(mail['readBy'])).map(([reader, time]) => (
                         <div key={reader}>
@@ -520,29 +549,26 @@ export function ProjectMailbox({
                     </dl>
                     {typeof mail['replyTo'] === 'string' && (
                       <p>
-                        Reply to: <code>{mail['replyTo']}</code>
+                        {t('mailboxPage.replyTo')} <code>{mail['replyTo']}</code>
                       </p>
                     )}
                     {typeof mail['senderSessionId'] === 'string' && (
                       <p>
-                        Sender session: <code>{mail['senderSessionId']}</code>
+                        {t('mailboxPage.senderSession')} <code>{mail['senderSessionId']}</code>
                       </p>
                     )}
-                    {typeof mail['outcome'] === 'string' && <p>Outcome: {mail['outcome']}</p>}
+                    {typeof mail['outcome'] === 'string' && (
+                      <p>{t('mailboxPage.outcome', { outcome: mail['outcome'] })}</p>
+                    )}
                     {Object.keys(record(mail['taskContext'])).length > 0 && (
                       <dl>
-                        {[
-                          ['taskId', 'Task'],
-                          ['agentName', 'Agent'],
-                          ['agentRole', 'Role'],
-                          ['status', 'Task status'],
-                        ].map(
-                          ([key, label]) =>
-                            typeof record(mail['taskContext'])[key!] === 'string' && (
+                        {['taskId', 'agentName', 'agentRole', 'status'].map(
+                          (key) =>
+                            typeof record(mail['taskContext'])[key] === 'string' && (
                               <div key={key}>
-                                <dt>{label}</dt>
+                                <dt>{t(`mailboxPage.task.${key}`)}</dt>
                                 <dd>
-                                  {String(record(mail['taskContext'])[key!]).replaceAll('_', ' ')}
+                                  {String(record(mail['taskContext'])[key]).replaceAll('_', ' ')}
                                 </dd>
                               </div>
                             ),
@@ -567,7 +593,7 @@ export function ProjectMailbox({
                       }
                     >
                       <Reply size={13} />
-                      Reply
+                      {t('mailboxPage.reply')}
                     </button>
                     <button
                       type="button"
@@ -575,7 +601,7 @@ export function ProjectMailbox({
                       disabled={busy || !actor.trim()}
                       onClick={() => action(String(mail['id']), 'mark-read')}
                     >
-                      Mark read
+                      {t('mailboxPage.markRead')}
                     </button>
                     <button
                       type="button"
@@ -588,7 +614,9 @@ export function ProjectMailbox({
                         )
                       }
                     >
-                      {mail['completed'] === true ? 'Reopen message' : 'Complete message'}
+                      {mail['completed'] === true
+                        ? t('mailboxPage.reopen')
+                        : t('mailboxPage.complete')}
                     </button>
                     <button
                       type="button"
@@ -596,22 +624,19 @@ export function ProjectMailbox({
                       disabled={busy || !actor.trim()}
                       onClick={() => setDeleting(String(mail['id']))}
                     >
-                      Remove message
+                      {t('mailboxPage.remove')}
                     </button>
                   </div>
                   {deleting === mail['id'] && (
                     <div className="mailbox-confirm">
-                      <p>
-                        Remove this message from the active mailbox? Its soft-deleted record is
-                        retained by the engine.
-                      </p>
+                      <p>{t('mailboxPage.removeConfirm')}</p>
                       <button
                         type="button"
                         className="button secondary"
                         disabled={busy}
                         onClick={() => setDeleting(null)}
                       >
-                        Keep message
+                        {t('mailboxPage.keep')}
                       </button>
                       <button
                         type="button"
@@ -619,7 +644,7 @@ export function ProjectMailbox({
                         disabled={busy}
                         onClick={() => action(String(mail['id']), 'soft-delete')}
                       >
-                        Confirm remove message
+                        {t('mailboxPage.confirmRemove')}
                       </button>
                     </div>
                   )}
@@ -629,39 +654,36 @@ export function ProjectMailbox({
           ) : (
             <div className="mailbox-empty">
               <Mail size={32} />
-              <h3>Follow the conversation</h3>
-              <p>Select a thread to read its messages, receipts and replies.</p>
+              <h3>{t('mailboxPage.followTitle')}</h3>
+              <p>{t('mailboxPage.followHint')}</p>
             </div>
           )}
         </main>
       </div>
       <details className="mailbox-agents">
-        <summary>Registered agents ({agents.length})</summary>
+        <summary>{t('mailboxPage.agents', { n: agents.length })}</summary>
         <div>
           {agents.map((agent) => (
             <article key={String(agent['agentId'])}>
               <strong>{String(agent['name'] ?? agent['agentId'])}</strong>
               <code>{String(agent['agentId'])}</code>
               <span>
-                {agent['online'] === true ? 'Online' : 'Offline'} ·{' '}
-                {String(agent['role'] ?? 'Role not reported')} ·{' '}
-                {String(agent['status'] ?? 'Status not reported')}
+                {agent['online'] === true ? t('mailboxPage.online') : t('mailboxPage.offline')} ·{' '}
+                {String(agent['role'] ?? t('mailboxPage.roleMissing'))} ·{' '}
+                {String(agent['status'] ?? t('mailboxPage.statusMissing'))}
               </span>
               {typeof agent['currentTask'] === 'string' && <p>{agent['currentTask']}</p>}
               {typeof agent['currentTool'] === 'string' && (
-                <p>Current tool: {agent['currentTool']}</p>
+                <p>{t('mailboxPage.currentTool', { tool: agent['currentTool'] })}</p>
               )}
-              <small>Last seen: {when(agent['lastSeenAt'])}</small>
+              <small>{t('mailboxPage.lastSeen', { time: when(agent['lastSeenAt']) })}</small>
             </article>
           ))}
         </div>
       </details>
       <details className="mailbox-maintenance">
-        <summary>Retention and maintenance</summary>
-        <p>
-          These operations affect the whole project mailbox, including messages outside this loaded
-          window.
-        </p>
+        <summary>{t('mailboxPage.maintenance')}</summary>
+        <p>{t('mailboxPage.maintenanceScope')}</p>
         <div className="sdd-actions">
           {(['purge', 'compact', 'clear'] as const).map((kind) => (
             <button
@@ -675,11 +697,7 @@ export function ProjectMailbox({
                 setError('');
               }}
             >
-              {kind === 'purge'
-                ? 'Purge stale messages'
-                : kind === 'compact'
-                  ? 'Compact mailbox'
-                  : 'Clear all messages'}
+              {t(`mailboxPage.kind.${kind}`)}
             </button>
           ))}
         </div>
@@ -688,14 +706,15 @@ export function ProjectMailbox({
             {maintenance !== 'clear' ? (
               <>
                 <p>
-                  Configure {maintenance === 'purge' ? 'stale-message purge' : 'mailbox compaction'}{' '}
-                  thresholds in hours. Zero makes matching messages immediately eligible.
+                  {maintenance === 'purge'
+                    ? t('mailboxPage.configurePurge')
+                    : t('mailboxPage.configureCompact')}
                 </p>
                 <div className="mailbox-controls">
                   <label>
-                    Completed age (hours)
+                    {t('mailboxPage.completedHours')}
                     <input
-                      aria-label="Completed mailbox age hours"
+                      aria-label={t('mailboxPage.completedHoursLabel')}
                       type="number"
                       min={0}
                       value={completedAge}
@@ -704,9 +723,9 @@ export function ProjectMailbox({
                     />
                   </label>
                   <label>
-                    Incomplete age (hours)
+                    {t('mailboxPage.incompleteHours')}
                     <input
-                      aria-label="Incomplete mailbox age hours"
+                      aria-label={t('mailboxPage.incompleteHoursLabel')}
                       type="number"
                       min={0}
                       value={incompleteAge}
@@ -717,9 +736,9 @@ export function ProjectMailbox({
                   {maintenance === 'compact' && (
                     <>
                       <label>
-                        Read-by-all age (hours)
+                        {t('mailboxPage.readHours')}
                         <input
-                          aria-label="Read mailbox age hours"
+                          aria-label={t('mailboxPage.readHoursLabel')}
                           type="number"
                           min={0}
                           value={readAge}
@@ -728,9 +747,9 @@ export function ProjectMailbox({
                         />
                       </label>
                       <label>
-                        Default lifetime (hours)
+                        {t('mailboxPage.ttlHours')}
                         <input
-                          aria-label="Mailbox default lifetime hours"
+                          aria-label={t('mailboxPage.ttlHoursLabel')}
                           type="number"
                           min={0}
                           value={ttlAge}
@@ -743,10 +762,7 @@ export function ProjectMailbox({
                 </div>
               </>
             ) : (
-              <p>
-                Permanently clear all project mailbox messages? This cannot be undone in this
-                screen.
-              </p>
+              <p>{t('mailboxPage.clearConfirm')}</p>
             )}
             <div className="sdd-actions">
               <button
@@ -758,7 +774,7 @@ export function ProjectMailbox({
                   setMaintenanceConfirm(false);
                 }}
               >
-                Cancel mailbox maintenance
+                {t('mailboxPage.cancelMaintenance')}
               </button>
               <button
                 type="button"
@@ -770,15 +786,11 @@ export function ProjectMailbox({
                 }}
               >
                 {maintenanceConfirm
-                  ? `Confirm ${maintenance} mailbox`
-                  : 'Review mailbox maintenance'}
+                  ? t(`mailboxPage.confirmKind.${maintenance}`)
+                  : t('mailboxPage.reviewMaintenance')}
               </button>
             </div>
-            {maintenanceConfirm && (
-              <p>
-                This will apply to the complete project mailbox, not only the selected conversation.
-              </p>
-            )}
+            {maintenanceConfirm && <p>{t('mailboxPage.maintenanceWarning')}</p>}
           </div>
         )}
       </details>
