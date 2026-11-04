@@ -1,18 +1,12 @@
 import type { MCPTaskView } from '@wrongstack/webui-protocol';
 import { ArrowLeft, Plug, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
 import { mcpTaskSnapshot, mcpTaskStatuses, mcpTaskTerminal } from './mcp-tasks-model';
 import './session-mcp-tasks.css';
 
-const labels: Record<MCPTaskView['status'], string> = {
-  working: 'Working',
-  input_required: 'Needs input',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  failed: 'Failed',
-};
 export function SessionMcpTasks({
   sessionId,
   connected,
@@ -26,6 +20,8 @@ export function SessionMcpTasks({
   onBack: () => void;
   pendingReviews: number;
 }) {
+  const { t } = useDesktopText();
+  const statusLabel = (status: MCPTaskView['status']) => t(`mcpTasks.status.${status}`);
   const [tasks, setTasks] = useState<MCPTaskView[]>([]),
     [loaded, setLoaded] = useState(false),
     [loading, setLoading] = useState(false),
@@ -100,10 +96,9 @@ export function SessionMcpTasks({
         { timeoutMs: 120000 },
       );
       if (!alive.current) return;
-      if (reply['sessionId'] !== sessionId)
-        throw Error('Task action acknowledgement belongs to another session.');
+      if (reply['sessionId'] !== sessionId) throw Error(t('mcpTasks.otherSession'));
       resultVersion.current++;
-      setNotice(String(reply['message'] ?? 'The engine acknowledged the task request.'));
+      setNotice(String(reply['message'] ?? t('mcpTasks.acknowledged')));
       if (kind === 'cancel') setCancelled((current) => new Set([...current, task.id]));
       setCancel(null);
       await load();
@@ -123,20 +118,17 @@ export function SessionMcpTasks({
     .sort((a, b) => Date.parse(b.lastUpdatedAt) - Date.parse(a.lastUpdatedAt));
   const cancelCurrent = tasks.find((task) => task.id === cancel?.id);
   return (
-    <section className="session-mcp-tasks" aria-label="Session MCP tasks">
+    <section className="session-mcp-tasks" aria-label={t('mcpTasks.label')}>
       <header>
         <div>
-          <span className="eyebrow">THIS CONVERSATION</span>
-          <h2>MCP tasks</h2>
-          <p>
-            Remote work recorded for this session. Recovering observation collects the existing
-            task; it does not run the tool again.
-          </p>
+          <span className="eyebrow">{t('mcpTasks.eyebrow')}</span>
+          <h2>{t('mcpTasks.title')}</h2>
+          <p>{t('mcpTasks.intro')}</p>
         </div>
         <div className="feature-actions">
           <button type="button" className="button secondary" onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('mcpTasks.back')}
           </button>
           <button
             type="button"
@@ -145,42 +137,50 @@ export function SessionMcpTasks({
             onClick={() => void load()}
           >
             <RefreshCw size={14} />
-            Refresh MCP tasks
+            {t('mcpTasks.refresh')}
           </button>
         </div>
       </header>
       <div className="mcp-task-summary">
-        <span>{tasks.length} recorded</span>
-        <span>{tasks.filter((task) => !mcpTaskTerminal(task)).length} active</span>
-        <span>{tasks.filter((task) => task.status === 'input_required').length} need input</span>
+        <span>{t('mcpTasks.recorded', { number: tasks.length })}</span>
+        <span>
+          {t('mcpTasks.active', {
+            number: tasks.filter((task) => !mcpTaskTerminal(task)).length,
+          })}
+        </span>
+        <span>
+          {t('mcpTasks.needInput', {
+            number: tasks.filter((task) => task.status === 'input_required').length,
+          })}
+        </span>
         <span role="status">
-          {!connected ? 'Disconnected' : 'Metadata refreshes every 2 seconds'}
+          {!connected ? t('mcpTasks.disconnected') : t('mcpTasks.refreshes')}
         </span>
       </div>
       {pendingReviews > 0 && (
         <button type="button" className="button secondary" onClick={onBack}>
-          Review pending session requests ({pendingReviews})
+          {t('mcpTasks.reviewPending', { number: pendingReviews })}
         </button>
       )}
       <div className="mcp-task-filters">
         <label>
           <Search size={14} />
           <input
-            aria-label="Search session MCP tasks"
+            aria-label={t('mcpTasks.search')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Server, tool or task ID…"
+            placeholder={t('mcpTasks.searchPlaceholder')}
           />
         </label>
         <select
-          aria-label="MCP task status"
+          aria-label={t('mcpTasks.statusFilter')}
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
         >
-          <option value="all">All statuses</option>
+          <option value="all">{t('mcpTasks.allStatuses')}</option>
           {mcpTaskStatuses.map((status) => (
             <option key={status} value={status}>
-              {labels[status]}
+              {statusLabel(status)}
             </option>
           ))}
         </select>
@@ -201,18 +201,14 @@ export function SessionMcpTasks({
         </p>
       )}
       {!sessionId || !connected ? (
-        <p className="quiet-state">Reconnect this conversation to read its task receipts.</p>
+        <p className="quiet-state">{t('mcpTasks.reconnect')}</p>
       ) : !loaded ? (
-        <p role="status">
-          {error && !loading
-            ? 'Task metadata is unavailable. Refresh to try again.'
-            : 'Reading recorded MCP tasks…'}
-        </p>
+        <p role="status">{error && !loading ? t('mcpTasks.unavailable') : t('mcpTasks.reading')}</p>
       ) : !visible.length ? (
         <div className="mcp-task-empty">
           <Plug size={30} />
-          <h3>{tasks.length ? 'No matching tasks.' : 'No recorded MCP tasks.'}</h3>
-          <p>Opening this view does not invoke a tool or create remote work.</p>
+          <h3>{tasks.length ? t('mcpTasks.noMatch') : t('mcpTasks.none')}</h3>
+          <p>{t('mcpTasks.noInvoke')}</p>
         </div>
       ) : (
         <div className="mcp-task-list">
@@ -226,27 +222,27 @@ export function SessionMcpTasks({
                   <code>{task.id}</code>
                 </div>
                 <span className={`mcp-task-status status-${task.status}`}>
-                  {labels[task.status]}
+                  {statusLabel(task.status)}
                 </span>
               </header>
               <p>
                 {task.delivered
                   ? task.status === 'completed'
-                    ? 'Result collected by this conversation.'
-                    : 'Terminal status collected by this conversation.'
+                    ? t('mcpTasks.resultCollected')
+                    : t('mcpTasks.terminalCollected')
                   : task.observing
-                    ? 'The engine is observing the existing remote task.'
-                    : 'No current observer. Resume observation to recover its status or result.'}
+                    ? t('mcpTasks.observing')
+                    : t('mcpTasks.noObserver')}
               </p>
               {task.status === 'input_required' && (
                 <button type="button" className="text-link" onClick={onBack}>
-                  Return to the conversation to answer its pending question
+                  {t('mcpTasks.answer')}
                 </button>
               )}
               <dl>
-                <dt>Created</dt>
+                <dt>{t('mcpTasks.created')}</dt>
                 <dd>{new Date(task.createdAt).toLocaleString()}</dd>
-                <dt>Last updated</dt>
+                <dt>{t('mcpTasks.updated')}</dt>
                 <dd>{new Date(task.lastUpdatedAt).toLocaleString()}</dd>
               </dl>
               {!task.delivered && (
@@ -257,7 +253,7 @@ export function SessionMcpTasks({
                     disabled={!connected || !!pending || task.observing}
                     onClick={() => void act(task, 'retry')}
                   >
-                    Resume observation
+                    {t('mcpTasks.resume')}
                   </button>
                   {!mcpTaskTerminal(task) && (
                     <button
@@ -267,8 +263,8 @@ export function SessionMcpTasks({
                       onClick={() => setCancel(task)}
                     >
                       {cancelled.has(task.id)
-                        ? 'Cancellation requested'
-                        : 'Request task cancellation'}
+                        ? t('mcpTasks.cancelRequested')
+                        : t('mcpTasks.requestCancel')}
                     </button>
                   )}
                 </footer>
@@ -279,23 +275,20 @@ export function SessionMcpTasks({
       )}
       {cancel && (
         <Modal
-          title="Cancel MCP task"
+          title={t('mcpTasks.cancelTitle')}
           onClose={() => {
             if (!pending) setCancel(null);
           }}
         >
           <div className="mcp-task-cancel">
-            <h2>Request task cancellation?</h2>
+            <h2>{t('mcpTasks.cancelQuestion')}</h2>
             <p>
               {cancel.server} / {cancel.tool} · <code>{cancel.id}</code>
             </p>
-            <p>
-              The server confirms the final status. A cancellation request alone is not a completed
-              cancellation.
-            </p>
+            <p>{t('mcpTasks.cancelNote')}</p>
             {pendingReviews > 0 && (
               <button type="button" className="button secondary" onClick={onBack}>
-                Review pending session requests ({pendingReviews})
+                {t('mcpTasks.reviewPending', { number: pendingReviews })}
               </button>
             )}
             {actionError && (
@@ -309,7 +302,7 @@ export function SessionMcpTasks({
               disabled={!!pending}
               onClick={() => setCancel(null)}
             >
-              Keep MCP task running
+              {t('mcpTasks.keep')}
             </button>
             <button
               type="button"
@@ -322,7 +315,7 @@ export function SessionMcpTasks({
               }
               onClick={() => cancelCurrent && void act(cancelCurrent, 'cancel')}
             >
-              Confirm MCP cancellation request
+              {t('mcpTasks.confirm')}
             </button>
           </div>
         </Modal>

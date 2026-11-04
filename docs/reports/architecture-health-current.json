@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T17:46:08.948Z",
+  "generatedAt": "2026-11-04T17:51:42.871Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6001,
-    "testFiles": 4986,
-    "sourceLines": 1247740,
+    "testFiles": 4987,
+    "sourceLines": 1247749,
     "workspaceEdges": 240,
-    "moduleEdges": 17557,
+    "moduleEdges": 17561,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 249,
+    "testsWithoutTypecheck": 250,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 435,
-      "testFiles": 249,
+      "testFiles": 250,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2595,6 +2595,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-pages-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-panels-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32726,6 +32732,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-pages-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-panels-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

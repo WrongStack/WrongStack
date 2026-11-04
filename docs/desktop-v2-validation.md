@@ -8070,3 +8070,19 @@ copies, starting with SAGE memory.
 - Checks: new `composer-parts-i18n.test.ts` renders the chips with the range editor open, the
   continuation and YOLO controls, and an unreadable generated picture in English and Turkish;
   desktop tests pass (PASSED); typecheck clean.
+
+### Plan templates, chain suggestions, agent browser and MCP tasks in the display language (2026-11-04)
+
+- Four conversation panels follow the display language in all seven languages: plan templates
+  (`planTemplates`), the suggested fallback chains on the model policy page
+  (`fallbackSuggest`), the live agent browser with its picker and console and network log
+  (`agentBrowser`), and the session MCP tasks page with its filters, task states, observation
+  notes and the cancellation dialog (`mcpTasks`).
+- The MCP task status table moved to the catalog (`mcpTasks.status.*`); the YOLO and
+  continuation wording in German now uses the catalog's established word for a conversation.
+- Still English by design: template names, steps and categories, model and provider ids, the
+  model's rationale, page titles, URLs and console text, MCP server, tool and task ids, and the
+  element note added to a message (it is model-facing context).
+- Checks: new `session-panels-i18n.test.ts` renders plan templates while a turn runs, a model
+  ranked chain suggestion, and an MCP task waiting for input in English and Turkish; desktop
+  tests pass (PASSED); typecheck clean.
