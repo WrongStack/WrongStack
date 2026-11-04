@@ -8574,3 +8574,26 @@ copies, starting with SAGE memory.
   impact on all 14 audited screens (39 s); files PASSED (89 s). Desktop 975 unit tests,
   WebUI codemap, Kanban and memory component tests (184), and the desktop, WebUI and
   project-surfaces typechecks pass. `FileWorkspace.tsx` hotspot ratchet lowered to 2032.
+
+### Performance on the release build (2026-11-05)
+
+- `--perf` on the release portable `4f983934f096-f356dfb1eb14` (`--release --bundled`), one
+  machine, other sessions' work running; report
+  `.temp_files/desktop-v2-native/performance/native-performance.json`. PASSED (70 s).
+- Startup: first window to engine connected 1.6 s; profile runtime ready 7.8 s; reopening the
+  window against the running host 1.1 s.
+- Turns: a new conversation reaches the provider in 0.24 s and finishes in 0.47 s; a later
+  turn 0.14 s and 0.36 s; the first turn in a project with 20,000 untracked files 0.20 s.
+- A 3,000-line (188k character) answer is on screen 0.67 s after send; one frame of 200 ms
+  while it streams, scrolling never drops a frame (longest 17 ms).
+- File tree with 20,000 files: refresh 10.9 s, expanding a 1,000-file folder 65 ms, 38 rows
+  mounted, scrolling without a dropped frame.
+- Three terminals each printing 30,000 lines: 5.8 s, 15.5k lines/s combined; the visible
+  terminal's longest frame 33 ms.
+- Model picker opens in 58 ms; OpenRouter's 377 models list in 0.65 s and filter in 15 ms.
+- Memory: 2.1 GB working set and 3.1 GB private at idle with two projects (UI 30 MB, WebView2
+  385 MB, host and 12 engine processes 1.7 GB); 3.5 GB working set after the workloads.
+- Package: native executable 17.8 MB, bundled engine 140.7 MB, frontend assets 22.4 MB. The
+  frontend grew from 2.7 MB with the Monaco editor (about 4 MB) and its language workers
+  (TypeScript 6.6 MB, CSS 1.0 MB, HTML 0.7 MB, d72d698a2); each worker loads only when a file
+  of its language is opened.
