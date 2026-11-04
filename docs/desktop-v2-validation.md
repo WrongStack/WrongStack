@@ -8498,3 +8498,51 @@ copies, starting with SAGE memory.
   memory search, router, static-serve and start wiring tests pass (74); webui-server and cli
   typecheck clean; on the rebuilt native release portable the SAGE scenario's ranked retrieval
   and the Memory recover step PASSED.
+
+### Native scenarios on the shared surfaces, accessibility pass and matrix (2026-11-04)
+
+- Why: the release matrix (33 scopes on a fresh portable) failed in every scope at its shared
+  settings step, because a profile without a provider now opens on Quick setup, and the
+  Memory, Kanban and Code Atlas scenarios still drove the desktop pages the shared WebUI
+  surfaces replaced (SAGE in d560fd3bf, Kanban and Atlas after it).
+- Scenario changes:
+  - `native-smoke.mjs`: the two settings steps go through "Providers & models"; the files
+    scope accepts a proposal from the shared review queue; renderer page errors and console
+    errors are logged with their source; new `--a11y` scope.
+  - `native-sage.mjs`, `native-sage-validity.mjs`, the Memory part of `native-projects.mjs`:
+    the shared SAGE library, editor, review queue, health, audience and vector lenses. Current
+    source evidence is checked through `memory.sage.get` with `reviewValidity`, because the
+    desktop host offers no validity review hook to the shared surface.
+  - `native-kanban-run.mjs`, `native-kanban-execution.mjs`, the Kanban part of
+    `native-projects.mjs`, `native-new-surfaces.mjs`: the shared board, inspector, model
+    picker, boundary sections and Kanban Agent bar. Cards are selected from the keyboard,
+    because in an 800x640 window the board toolbar covers them.
+  - `native-atlas.mjs`, the Atlas part of `native-projects.mjs`: the shared code tree, canvas,
+    tabs, toolbar and inspector. The canvas draws only what is in view and cannot zoom out
+    far enough for a large scope, so the selection is proven by the inspector; that Smart
+    scope keeps a selected node is the map model's rule (WebUI `codemap-model` test).
+  - `native-file-tree-scale.mjs`: waits for the full `aria-setsize`, which can arrive after
+    the first row.
+  - Steps the shared surfaces no longer offer were dropped (desktop-only SAGE retention field
+    and injection history, Kanban board description, list view and typed-title deletion,
+    Atlas sort and source pane); each is named in the scenario rewrite.
+- New `native-accessibility.mjs`: axe (WCAG 2.2 A/AA) audits Mission control, Files,
+  Changes, Memory, Kanban, Code Atlas and provider settings in light and dark appearance and
+  fails on critical violations. Baseline on the release build: 0 critical, 25 serious
+  findings (target size on small icon buttons on every screen, visible text missing from the
+  accessible name on Changes and Code Atlas, one contrast finding on Code Atlas and on four
+  dark screens, the Kanban board's scrollable region without keyboard access). Report:
+  `.temp_files/desktop-v2-native/accessibility/native-accessibility.json`.
+- Product defects the rewritten scenarios found and fixed: SAGE recover and mark-permanent
+  (b32ae9cd3), Monaco workers under the content policy (d72d698a2), ranked SAGE search
+  (9e26fc8ef).
+- Results (release portable, `--release --bundled`):
+  - Full matrix earlier today: 27/33 scopes passed. Since then on rebuilt portables: files,
+    sage, atlas, goals, surfaces and a11y PASSED; history and mcp, which timed out under
+    matrix load, PASSED alone (186 s, 34 s).
+  - companion and default run through the Memory, Kanban, Atlas, settings, SAGE, model
+    catalog, files, evidence and skills steps (23 PASS lines), then stop at the new-session
+    dialog: an uncommitted change in the working tree, not part of this work, removed its
+    "Session name" field, and the portable is built from the working tree. The composer
+    scope stops at the same step. These three scopes, and the Kanban task-execution step
+    after it, need a rerun once that change lands with its scenario update.

@@ -5,7 +5,8 @@ import { openProjectView, revealProjectTools } from './native-project-navigation
 /**
  * The engine actions brought into the desktop on 2026-11-01, each through its real control and
  * the project engine: plan templates, card metrics/chain/contract map/merge, the project
- * side-effect summary, SAGE injection history and fallback chain suggestions.
+ * side-effect summary and fallback chain suggestions. (SAGE injection history left with the
+ * desktop's own SAGE pages; the shared SAGE surface has no such view.)
  */
 export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDir, sessionIds }) {
   const shot = (name) => page.screenshot({ path: join(artifactDir, name), fullPage: true });
@@ -63,47 +64,53 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   await revealProjectTools(page, project);
   await openProjectView(page, project, 'Kanban');
-  await page
-    .locator('.studio-heading')
-    .getByRole('button', { name: 'New board', exact: true })
-    .click();
-  await page.getByLabel('Board name', { exact: true }).fill('Native surfaces board');
-  await page.getByRole('button', { name: 'Create board', exact: true }).click();
-  await page
-    .getByRole('navigation', { name: 'Project boards', exact: true })
-    .getByRole('button', { name: 'Native surfaces board', exact: true })
-    .waitFor();
+  // The board is the WebUI's shared Kanban; the desktop's card tools (metrics, chain, merge,
+  // transfer) sit in the task inspector's Breakdown tab, its board tools above the columns.
+  const kanban = page.locator('.kanban-surface');
+  const boardTitle = 'Native surfaces board';
+  await kanban.getByLabel('New board title', { exact: true }).fill(boardTitle);
+  await kanban.getByLabel('New board title', { exact: true }).press('Enter');
+  await kanban.getByRole('heading', { level: 1, name: boardTitle, exact: true }).waitFor();
+  const cardButton = (title) =>
+    kanban.getByRole('button', { name: `Select task: ${title}`, exact: true });
   for (const title of ['Native card one', 'Native card two']) {
-    // The board reloads after a save; a click during that reload can be lost, so retry it.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await page.getByRole('button', { name: 'Add task to To Do', exact: true }).click();
-      if (await page.getByLabel('Task title', { exact: true }).isVisible()) break;
-      await page.waitForTimeout(1000);
-    }
-    await page.getByLabel('Task title', { exact: true }).fill(title);
-    await page.getByLabel('Task description', { exact: true }).fill(`${title} description.`);
-    await page.getByRole('button', { name: 'Save task', exact: true }).click();
-    await page.getByRole('button', { name: title, exact: true }).waitFor();
-    // The editor closes after a save; opening the next one before that is lost.
-    await page.getByLabel('Task title', { exact: true }).waitFor({ state: 'hidden' });
+    await kanban.getByLabel('New task title', { exact: true }).fill(title);
+    await kanban.getByLabel('New task title', { exact: true }).press('Enter');
+    await cardButton(title).waitFor();
   }
-  await page.getByRole('button', { name: 'Native card one', exact: true }).click();
-  const metrics = page.locator('details.kanban-task-merge').filter({ hasText: 'Goal metrics' });
+  const inspector = kanban.getByRole('complementary', { name: 'Task inspector', exact: true });
+  const openCardTools = async (title) => {
+    await cardButton(title).press('Enter');
+    await inspector.getByRole('tab', { name: /^Breakdown\b/ }).click();
+  };
+  const closeInspector = async () => {
+    await inspector.getByRole('button', { name: 'Close', exact: true }).first().click();
+    await inspector.waitFor({ state: 'detached' });
+  };
+  await openCardTools('Native card one');
+  const metrics = inspector
+    .locator('details.kanban-task-merge')
+    .filter({ hasText: 'Goal metrics' });
   await metrics.locator('summary').click();
   await metrics.getByLabel('New metric name', { exact: true }).fill('p95 latency');
   await metrics.getByLabel('New metric target', { exact: true }).fill('200');
   await metrics.getByRole('button', { name: 'Add metric', exact: true }).click();
   await metrics.getByRole('status').filter({ hasText: 'Added p95 latency.' }).waitFor();
-  const chain = page.locator('details.kanban-task-merge').filter({ hasText: /Chain (with|·)/ });
+  const chain = inspector
+    .locator('details.kanban-task-merge')
+    .filter({ hasText: /Chain (with|·)/ });
   await chain.locator('summary').click();
   await chain.getByRole('checkbox', { name: /Native card two/ }).check();
   await chain.getByRole('button', { name: 'Save chain', exact: true }).click();
   await chain.getByRole('status').filter({ hasText: 'Chained 2 cards.' }).waitFor();
   await shot('native-card-metrics-chain.png');
+  await closeInspector();
   console.log('PASS: a card records a goal metric and chains another card behind it');
 
-  await page.getByLabel('Board actions', { exact: true }).click();
-  await page.getByRole('button', { name: 'Contract map…', exact: true }).click();
+  await kanban
+    .getByRole('toolbar', { name: 'Board tools', exact: true })
+    .getByRole('button', { name: 'Contract map…', exact: true })
+    .click();
   const map = page.getByRole('dialog', { name: 'Contract map', exact: true });
   await map.getByRole('combobox', { name: /^Board enforcement/ }).waitFor();
   await map.getByLabel('Contract', { exact: true }).fill('Keep the test suite green');
@@ -117,13 +124,28 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   await map.waitFor({ state: 'detached' });
   console.log('PASS: the contract map adds a card contract and checks the card against it');
 
-  await page.getByRole('button', { name: 'Native card one', exact: true }).click();
-  const merge = page.locator('details.kanban-task-merge').filter({ hasText: 'Merge with other' });
+  await openCardTools('Native card one');
+  const merge = inspector
+    .locator('details.kanban-task-merge')
+    .filter({ hasText: 'Merge with other' });
   await merge.locator('summary').click();
   await merge.getByRole('checkbox', { name: 'Native card two', exact: true }).check();
   await merge.getByLabel('Title of the merged card', { exact: true }).fill('Native merged card');
   await merge.getByRole('button', { name: 'Merge 2 cards', exact: true }).click();
-  await page.getByRole('button', { name: 'Native merged card', exact: true }).waitFor();
+  // The merge runs through the desktop's own engine command and reports its result, unless the
+  // merged source card already left the board and took the inspector with it. Reading the board
+  // again from the sidebar then shows the engine's result whether or not a broadcast arrived.
+  await page.waitForFunction(() => {
+    const open = document.querySelector('aside[aria-label="Task inspector"]');
+    return (
+      !open ||
+      [...open.querySelectorAll('[role="status"]')].some((node) =>
+        node.textContent?.includes('Merged 2 cards'),
+      )
+    );
+  });
+  await kanban.getByRole('button').filter({ hasText: boardTitle }).click();
+  await cardButton('Native merged card').waitFor();
   console.log('PASS: two cards merge into one new card on the board');
 
   // Project-wide side effects from the session journals.
@@ -138,18 +160,6 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
     timeout: 120000,
   });
   console.log('PASS: the project side-effect summary reads the recorded conversations');
-
-  // SAGE injection history from the store's audit window.
-  await openProjectView(page, project, 'Memory');
-  const injections = page.locator('details.sage-injection-history');
-  await injections.locator('summary').click();
-  await injections.getByRole('button', { name: 'Read injection history', exact: true }).click();
-  await injections
-    .getByRole('status')
-    .filter({ hasText: /injections into requests|No injections/ })
-    .waitFor({ timeout: 60000 });
-  await shot('native-sage-injections.png');
-  console.log('PASS: SAGE injection history reads the audit window');
 
   // Fallback chain suggestions from the profile's reachable models.
   await page

@@ -22,8 +22,11 @@ export async function exerciseNativeFileTreeScale({ page, project, tool, waitFor
     await tree.getByRole('treeitem', { name: 'bulk-tree', exact: true }).click();
     const first = tree.getByRole('treeitem', { name: 'bulk-tree/item-0000.txt', exact: true });
     await first.waitFor();
-    const total = Number(await first.getAttribute('aria-setsize'));
-    assert.ok(total > count, 'The full row count is announced to assistive technology');
+    // The first row can appear before the whole listing has arrived.
+    const total = await waitFor(async () => {
+      const size = Number(await first.getAttribute('aria-setsize'));
+      return size > count ? size : null;
+    }, 'The full row count is announced to assistive technology');
     const mounted = await tree.getByRole('treeitem').count();
     assert.ok(mounted < 150, `Only a window of rows is mounted (${mounted} of ${total})`);
 
