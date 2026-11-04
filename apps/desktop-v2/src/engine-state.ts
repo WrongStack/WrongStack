@@ -1,11 +1,18 @@
 import type { UserInputRequest } from '@wrongstack/contracts/types';
 import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
+import { stripNextStepsBlock } from '@wrongstack/core/utils/next-steps';
 import {
   type CouncilLog,
   councilDecisionText,
   EMPTY_COUNCIL_LOG,
 } from '@wrongstack/project-surfaces/council/panels';
 import type { CouncilDecisionData } from '@wrongstack/project-surfaces/council/types';
+import {
+  applyFleetEvent,
+  EMPTY_FLEET_FOLD,
+  type FleetFold,
+} from '@wrongstack/project-surfaces/office/fleet-fold';
+import type { SubagentEvent } from '@wrongstack/project-surfaces/office/fleet-transcript';
 import {
   type ParsedNextStep,
   parseNextSteps,
@@ -125,6 +132,8 @@ export interface EngineState {
   delegations: DelegationRecord[];
   /** This conversation's Brain council panels, folded from `brain.event` frames. */
   council: CouncilLog;
+  /** This conversation's subagent fleet, folded from `subagent.event` frames as the WebUI does. */
+  fleet: FleetFold;
   nextSteps: ParsedNextStep[];
   /** The engine's worktree lifecycle log, oldest first, for the worktree timeline. */
   worktreeEvents: WorktreeTimelineEvent[];
@@ -180,6 +189,7 @@ export const emptyEngineState: EngineState = {
   noticeCount: 0,
   delegations: [],
   council: EMPTY_COUNCIL_LOG,
+  fleet: EMPTY_FLEET_FOLD,
   nextSteps: [],
   worktreeEvents: [],
   results: {},
@@ -609,6 +619,16 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   }
   if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
   next.agents = reduceAgentTranscripts(next.agents, event.type, p);
+  if (event.type === 'subagent.event') {
+    const options = {
+      now: event.at ?? (state.lastAt || Date.now()),
+      cleanFinalText: stripNextStepsBlock,
+    };
+    next.fleet = {
+      ...state.fleet,
+      ...applyFleetEvent(state.fleet, p as unknown as SubagentEvent, options),
+    };
+  }
   next.waiting = reduceWaitingRoom(state.waiting, event.type, p);
   if (event.type === 'iteration.started' && !state.runStartTotals) {
     next.runStartTotals = state.context.totals;

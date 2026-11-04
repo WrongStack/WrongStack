@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T15:55:35.094Z",
+  "generatedAt": "2026-11-04T16:12:55.045Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5986,
-    "testFiles": 4977,
-    "sourceLines": 1246381,
+    "sourceFiles": 5989,
+    "testFiles": 4978,
+    "sourceLines": 1246604,
     "workspaceEdges": 240,
-    "moduleEdges": 17506,
+    "moduleEdges": 17512,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 240,
+    "testsWithoutTypecheck": 241,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 425,
-      "testFiles": 240,
+      "sourceFiles": 426,
+      "testFiles": 241,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -737,7 +737,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 240,
+      "sourceFiles": 242,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -2187,6 +2187,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/office-fleet.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32196,6 +32202,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/office-fleet.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

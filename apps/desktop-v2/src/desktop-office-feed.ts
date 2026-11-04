@@ -11,15 +11,14 @@ import {
   retainMailboxMessages,
 } from '@wrongstack/project-surfaces/office/feed-model';
 import type {
-  AgentTranscriptEntry,
   LiveSession,
   MailboxAgent,
   MailboxMessage,
-  SubagentView,
   VizEvent,
 } from '@wrongstack/project-surfaces/office/types';
 import type { SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
 import { createStore, useStore } from 'zustand';
+import { EMPTY_OFFICE_FLEET, type OfficeFleet } from './office-fleet';
 
 interface OfficeState {
   liveSessions: LiveSession[];
@@ -27,6 +26,7 @@ interface OfficeState {
   mailboxMessages: MailboxMessage[];
   mailboxAgents: MailboxAgent[];
   vizEvents: VizEvent[];
+  fleet: OfficeFleet;
 }
 
 /** Activity feed entries kept, newest first. */
@@ -37,10 +37,6 @@ const MAILBOX_REFRESH_DEBOUNCE_MS = 300;
 const MAILBOX_REFRESH_MIN_GAP_MS = 5000;
 
 export const DESKTOP_SELF: OfficeSelf = { label: 'This desktop', sublabel: 'Desktop' };
-
-const NO_AGENTS: ReadonlyMap<string, SubagentView> = new Map();
-const NO_TRANSCRIPTS: ReadonlyMap<string, AgentTranscriptEntry[]> = new Map();
-const NO_EVENTS: VizEvent[] = [];
 
 function payloadOf(message: SurfaceMessage): Record<string, unknown> {
   const payload = message.payload as unknown;
@@ -64,8 +60,8 @@ function currentSessionFrom(payload: Record<string, unknown>): OfficeCurrentSess
  * The office feed for one desktop project, read from the project's frames: the session
  * registry snapshot (`sessions.status_update`, every few seconds), the mailbox (asked for on
  * start and after mailbox traffic) and the mailbox traffic itself as the activity feed.
- * Fleet agents and their transcripts are conversation frames and stay empty here; the
- * registry snapshot already carries each agent's tools, mail, todos and activity.
+ * Fleet agents, their transcripts, the leader and the tool calls are conversation frames:
+ * `setFleet` hands them over from the project's live conversations.
  */
 export function desktopOfficeFeed({
   client,
@@ -78,13 +74,14 @@ export function desktopOfficeFeed({
   projectName: string;
   /** Asks the engine for a registry snapshot now instead of at its next poll. */
   pingFleet?: (() => Promise<unknown>) | undefined;
-}): { feed: OfficeFeed; start: () => () => void } {
+}): { feed: OfficeFeed; start: () => () => void; setFleet: (fleet: OfficeFleet) => void } {
   const store = createStore<OfficeState>(() => ({
     liveSessions: [],
     currentSession: {},
     mailboxMessages: [],
     mailboxAgents: [],
     vizEvents: [],
+    fleet: EMPTY_OFFICE_FLEET,
   }));
   let lastRefresh = 0;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -155,15 +152,15 @@ export function desktopOfficeFeed({
   const feed: OfficeFeed = {
     useLiveSessions: () => useStore(store, (state) => state.liveSessions),
     useCurrentSession: () => useStore(store, (state) => state.currentSession),
-    useFleetAgents: () => NO_AGENTS,
-    useAgentTranscripts: () => NO_TRANSCRIPTS,
-    useLeaderId: () => undefined,
+    useFleetAgents: () => useStore(store, (state) => state.fleet.agents),
+    useAgentTranscripts: () => useStore(store, (state) => state.fleet.transcripts),
+    useLeaderId: () => useStore(store, (state) => state.fleet.leaderId),
     useMailboxMessages: () => useStore(store, (state) => state.mailboxMessages),
     useMailboxAgents: () => useStore(store, (state) => state.mailboxAgents),
     useVizEvents: () => useStore(store, (state) => state.vizEvents),
-    useToolEvents: () => NO_EVENTS,
+    useToolEvents: () => useStore(store, (state) => state.fleet.toolEvents),
     useProjectName: () => projectName,
     self: DESKTOP_SELF,
   };
-  return { feed, start };
+  return { feed, start, setFleet: (fleet) => store.setState({ fleet }) };
 }

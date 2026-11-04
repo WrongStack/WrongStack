@@ -7875,3 +7875,35 @@ copies, starting with SAGE memory.
     that is also a voter, a rule with a condition, reason and hit limit, and the evidence
     locations, in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.
+
+### Live fleet in the project office and the session story (2026-11-04)
+
+- The project office now shows the subagent fleet of the project's live conversations, as the
+  WebUI office does: each subagent with its status, tool log, context load and final text, its
+  transcript, the leader, and the tool calls the desks animate.
+- The WebUI fleet store's `subagent.event` fold moved to `@wrongstack/project-surfaces/office/fleet-fold`
+  (`applyFleetEvent`), with its transcript helpers and the `SubagentEvent` and
+  `FleetTimelineEvent` types in `office/fleet-transcript`. The WebUI store calls it unchanged;
+  the event's time and the final-text cleaner are options, so a replayed desktop journal keeps
+  each agent's own start and finish times.
+- Each desktop conversation folds its `subagent.event` frames into `EngineState.fleet`.
+  `ProjectOffice` keeps the readers of the project's running agent conversations open while
+  the office is shown and merges their fleets (`office-fleet.ts`): agents, transcripts (the
+  conversation's own `agent.timeline.message` lines when it has them), the leader, and tool
+  calls from the `tool.started` and `tool.executed` activity frames, newest first. The merge
+  only runs when a fleet, a transcript or the tool calls change, not with every streamed token.
+- The session story's roster now lists the conversation's subagents from the same fleet.
+- Not ported on purpose:
+  - The story's context request has no trigger here: the conversation's context button opens
+    the desktop's own context dashboard instead of the story's context tab.
+  - The WebUI analytics dashboard reads an event buffer nothing in the WebUI posts to, so it
+    stays out; usage and side effects are shown on the history page.
+- Checks:
+  - New `office-fleet.test.ts`: the engine fold (leader, spawn, tool, completion with its
+    next-steps block removed, frame times, another conversation's events ignored), the
+    project merge, and the story roster rendered from the fleet.
+  - `desktop-office-feed.test.ts` covers the handed-over fleet in the feed hooks.
+  - WebUI fleet store, transcript, multi-session, handler and panel tests pass unchanged (201).
+  - Desktop tests pass (916). WebUI tests pass (6239) apart from two context-timeline
+    number-format checks that fail under a non-English default locale, unrelated to this change.
+  - Typecheck is clean for desktop, WebUI and project-surfaces.

@@ -232,86 +232,11 @@ export interface SessionHistoryEntry {
 }
 
 export type {
+  FleetTimelineEvent,
+  SubagentEvent,
+} from '@wrongstack/project-surfaces/office/fleet-transcript';
+export type {
   AgentTranscriptEntry,
   AgentTranscriptKind,
   SubagentView,
 } from '@wrongstack/project-surfaces/office/types';
-
-/** Discriminated payload mirroring the subagent.* events the backend forwards. */
-export interface SubagentEvent {
-  kind:
-    | 'spawned'
-    | 'task_started'
-    | 'tool_executed'
-    | 'iteration_summary'
-    | 'budget_warning'
-    | 'budget_extended'
-    | 'ctx_pct'
-    | 'task_completed'
-    | 'removed'
-    | 'session_stopped'
-    | 'leader_updated';
-  subagentId?: string | undefined;
-  /** Session this agent belongs to — forwarded from the server on every subagent event. */
-  sessionId?: string | undefined;
-  name?: string | undefined;
-  provider?: string | undefined;
-  model?: string | undefined;
-  description?: string | undefined;
-  taskId?: string | undefined;
-  toolName?: string | undefined;
-  iteration?: number | undefined;
-  toolCalls?: number | undefined;
-  costUsd?: number | undefined;
-  currentTool?: string | undefined;
-  load?: number | undefined;
-  rawLoad?: number | undefined;
-  tokens?: number | undefined;
-  maxContext?: number | undefined;
-  totalExtensions?: number | undefined;
-  /** Budget warning details from subagent.budget_warning. */
-  budgetKind?: string | undefined;
-  used?: number | undefined;
-  limit?: number | undefined;
-  status?: 'success' | 'failed' | 'timeout' | 'stopped' | undefined;
-  iterations?: number | undefined;
-  error?: { kind: string | undefined; message: string };
-  /** Tool execution result (tool_executed event). */
-  ok?: boolean | undefined;
-  /** Tool execution duration in ms (tool_executed event). */
-  durationMs?: number | undefined;
-  /** Accumulated partial text (iteration_summary event). */
-  partialText?: string | undefined;
-  /** Final output text (task_completed event). */
-  finalText?: string | undefined;
-  /** Failure reason for task_completed with failed/timeout status. */
-  failureReason?: string | undefined;
-  /** Lifecycle removal reason, when kind is removed. */
-  reason?: string | undefined;
-  /** True when this event marks the agent as the leader. */
-  isLeader?: boolean | undefined;
-  /** Tokens in/out for fleet-wide aggregation (from ctx_pct event). */
-  tokensIn?: number | undefined;
-  tokensOut?: number | undefined;
-}
-
-/** A single entry in the Fleet Monitor event timeline. */
-export interface FleetTimelineEvent {
-  id: string;
-  kind:
-    | 'spawned'
-    | 'task_started'
-    | 'tool_executed'
-    | 'iteration_summary'
-    | 'budget_warning'
-    | 'budget_extended'
-    | 'task_completed'
-    | 'ctx_pct'
-    | 'leader_updated';
-  agentId: string;
-  agentName: string;
-  timestamp: number;
-  message: string;
-  /** Numeric value for sorting/display (e.g. duration, cost delta). */
-  value?: number | undefined;
-}

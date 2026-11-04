@@ -114,6 +114,7 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
 function ProjectContent({ project, vm }: { project: Project; vm: DesktopController }) {
   const { state, send, command } = useProjectEngine(project.id, vm.reportError);
   const { t } = useDesktopText();
+  const projectSessions = vm.snapshot.sessions.filter((item) => item.projectId === project.id);
   const http = useMemo(() => projectHttp(project.id), [project.id]);
   const requirementDrafts = useMemo(() => requirementDraftStorage(project.id), [project.id]);
   const resourceInputStorage = useCallback(
@@ -178,7 +179,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'worktrees' ? (
         <ProjectWorktrees key={project.id} state={state} send={send} />
       ) : vm.projectPage === 'office' ? (
-        <ProjectOffice projectId={project.id} projectName={project.name} http={http} />
+        <ProjectOffice project={project} sessions={projectSessions} http={http} />
       ) : vm.projectPage === 'diagnostics' ? (
         <ProjectDiagnostics projectId={project.id} http={http} />
       ) : vm.projectPage === 'live-fleet' ? (
@@ -192,9 +193,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             http={http}
             projectRoot={project.root}
             carrierId={state.sessionId}
-            nativeSessions={vm.snapshot.sessions.filter(
-              (session) => session.projectId === project.id,
-            )}
+            nativeSessions={projectSessions}
           />
         </Suspense>
       ) : vm.projectPage === 'roster' ? (
@@ -207,7 +206,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             projectId={project.id}
             projectName={project.name}
             events={state.results}
-            sessions={vm.snapshot.sessions.filter((session) => session.projectId === project.id)}
+            sessions={projectSessions}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
             onOpenFile={(path) => {
@@ -239,7 +238,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             key={project.id}
             http={http}
             projectId={project.id}
-            sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
+            sessions={projectSessions}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
             onOpenFile={(path, line, endLine) => {
@@ -272,7 +271,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             projectId={project.id}
             carrierId={state.sessionId}
             command={command}
-            sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
+            sessions={projectSessions}
             onOpen={vm.jumpToSession}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
@@ -291,7 +290,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             command={command}
             projectId={project.id}
             events={state.results}
-            sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
+            sessions={projectSessions}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
             onOpenFile={(path, line) => {
@@ -308,7 +307,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
             key={project.id}
             projectId={project.id}
             http={http}
-            sessions={vm.snapshot.sessions.filter((item) => item.projectId === project.id)}
+            sessions={projectSessions}
             onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
             onNewSession={() => vm.newSession(project.id)}
             onOpenFile={(path) => {

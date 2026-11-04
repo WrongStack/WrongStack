@@ -23,7 +23,6 @@ function useDesktopStory(): DesktopStoryValue {
 }
 
 const NO_CONTEXT_REQUEST = { requested: false, clear: () => undefined };
-const NO_AGENTS: never[] = [];
 
 /** The conversation's start, from its `session.start` reply; 0 when it has not arrived. */
 export function sessionStartedAt(state: EngineState): number {
@@ -70,8 +69,10 @@ export function desktopStoryFeed(value: () => DesktopStoryValue): StoryFeed {
         [messages],
       );
     },
-    // The roster only names lanes; the conversation's Chronicle records carry its sub-agents.
-    useAgents: () => NO_AGENTS,
+    useAgents: () => {
+      const { agents } = useDesktopStory().state.fleet;
+      return useMemo(() => [...agents.values()], [agents]);
+    },
     useMail: () => {
       const reply = useDesktopStory().state.results['mailbox.messages'];
       return useMemo(() => mailboxMessages(reply), [reply]);
@@ -83,6 +84,7 @@ export function desktopStoryFeed(value: () => DesktopStoryValue): StoryFeed {
         [memoryRuns, sessionId],
       );
     },
+    // The conversation's context button opens the context dashboard itself, not the story.
     useContextRequest: () => NO_CONTEXT_REQUEST,
     supportsChronicle: () => engineSupportsChronicle(value().state),
     queryChronicle: async (query, signal) => {

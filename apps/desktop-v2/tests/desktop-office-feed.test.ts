@@ -103,6 +103,21 @@ describe('desktop office feed', () => {
     stop();
   });
 
+  it('shows the fleet its live conversations hand over', () => {
+    const { client } = fakeClient();
+    const { feed, setFleet } = desktopOfficeFeed({ client, send: vi.fn(), projectName: 'Demo' });
+    expect(feed.useFleetAgents().size).toBe(0);
+    expect(feed.useLeaderId()).toBeUndefined();
+    const agents = new Map([['sub', { id: 'sub', name: 'Bob' } as never]]);
+    const transcripts = new Map([['sub', []]]);
+    const toolEvents = [{ id: 'e', kind: 'tool:started' as const, timestamp: 1, source: 'sub' }];
+    setFleet({ agents, transcripts, leaderId: 'lead', toolEvents: toolEvents as never });
+    expect(feed.useFleetAgents()).toBe(agents);
+    expect(feed.useAgentTranscripts()).toBe(transcripts);
+    expect(feed.useLeaderId()).toBe('lead');
+    expect(feed.useToolEvents()).toBe(toolEvents);
+  });
+
   it('stops listening when stopped', () => {
     const { client, handlers } = fakeClient();
     const { start } = desktopOfficeFeed({ client, send: vi.fn(), projectName: 'Demo' });
