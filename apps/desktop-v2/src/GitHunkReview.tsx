@@ -1,15 +1,20 @@
 import { LoaderCircle, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
 import './git-hunk-review.css';
 
 /** The note for a file whose mode changed as well as its content (`git.hunks` `modeChange`). */
-export function modeChangeNote(value: unknown): string {
+export function modeChangeNote(
+  value: unknown,
+  words = (from: string, to: string) =>
+    `The file mode also changes (${from} → ${to}). These hunks change content only; stage the mode with the whole-file controls.`,
+): string {
   const change = record(value);
   return typeof change['from'] === 'string' && typeof change['to'] === 'string'
-    ? `The file mode also changes (${change['from']} → ${change['to']}). These hunks change content only; stage the mode with the whole-file controls.`
+    ? words(change['from'], change['to'])
     : '';
 }
 
@@ -24,6 +29,7 @@ export function GitHunkReview({
   onClose: () => void;
   onApplied: () => void;
 }) {
+  const { t } = useDesktopText();
   const [layer, setLayer] = useState('unstaged'),
     [result, setResult] = useState<Record<string, unknown>>({}),
     [loading, setLoading] = useState(true),
@@ -41,8 +47,7 @@ export function GitHunkReview({
     try {
       const reply = await command('git.hunks', { path, layer }, ['git.hunks']);
       if (own !== generation.current) return;
-      if (reply['path'] !== path || reply['layer'] !== layer)
-        throw Error('The engine returned a different review target.');
+      if (reply['path'] !== path || reply['layer'] !== layer) throw Error(t('hunks.otherTarget'));
       setResult(reply);
     } catch (error) {
       if (own === generation.current)
@@ -76,45 +81,45 @@ export function GitHunkReview({
     }
   };
   const hunks = entries(result['hunks']);
+  const modeNote = modeChangeNote(result['modeChange'], (from, to) =>
+    t('hunks.modeChange', { from, to }),
+  );
   return (
     <Modal
-      title="Stage individual hunks"
+      title={t('hunks.title')}
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <section className="git-hunk-review" aria-label="Git hunk review">
+      <section className="git-hunk-review" aria-label={t('hunks.label')}>
         <header>
           <div>
-            <span className="eyebrow">REVIEW THE INDEX</span>
-            <h2>Stage individual hunks</h2>
+            <span className="eyebrow">{t('hunks.eyebrow')}</span>
+            <h2>{t('hunks.title')}</h2>
             <p>{path}</p>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close hunk review"
+            aria-label={t('hunks.close')}
             disabled={busy}
             onClick={onClose}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Move only the selected change between your working tree and the index: a whole hunk, or
-          the lines you tick in it. Files on disk stay as they are.
-        </p>
+        <p>{t('hunks.help')}</p>
         <div className="git-hunk-controls">
           <label>
-            Review layer
+            {t('hunks.layer')}
             <select
-              aria-label="Hunk review layer"
+              aria-label={t('hunks.layerLabel')}
               value={layer}
               disabled={busy}
               onChange={(event) => setLayer(event.target.value)}
             >
-              <option value="unstaged">Unstaged · index → working tree</option>
-              <option value="staged">Staged · HEAD → index</option>
+              <option value="unstaged">{t('hunks.unstagedLayer')}</option>
+              <option value="staged">{t('hunks.stagedLayer')}</option>
             </select>
           </label>
           <button
@@ -124,7 +129,7 @@ export function GitHunkReview({
             onClick={() => void refresh()}
           >
             <RefreshCw size={14} />
-            Refresh hunks
+            {t('hunks.refresh')}
           </button>
         </div>
         {error && (
@@ -132,9 +137,7 @@ export function GitHunkReview({
             {error}
           </p>
         )}
-        {!loading && modeChangeNote(result['modeChange']) && (
-          <p className="field-help">{modeChangeNote(result['modeChange'])}</p>
-        )}
+        {!loading && modeNote && <p className="field-help">{modeNote}</p>}
         {loading ? (
           <p role="status">
             <LoaderCircle size={15} className="spin" /> Reading Git hunks…
@@ -151,13 +154,14 @@ export function GitHunkReview({
                     disabled={busy || !!error}
                     onClick={() => void apply(Number(hunk['id']), picked[Number(hunk['id'])])}
                   >
-                    {layer === 'staged' ? 'Unstage' : 'Stage'} {picked[Number(hunk['id'])]!.length}{' '}
-                    selected lines
+                    {t(layer === 'staged' ? 'hunks.unstageLines' : 'hunks.stageLines', {
+                      count: picked[Number(hunk['id'])]!.length,
+                    })}
                   </button>
                 )}
                 {hunk['linesOnly'] === true ? (
                   // An added or deleted file: lines here, the whole file with the file controls.
-                  <small>Select lines · whole file via the file’s stage controls</small>
+                  <small>{t('hunks.linesOnly')}</small>
                 ) : (
                   <button
                     type="button"
@@ -165,7 +169,9 @@ export function GitHunkReview({
                     disabled={busy || !!error}
                     onClick={() => void apply(Number(hunk['id']))}
                   >
-                    {layer === 'staged' ? 'Unstage' : 'Stage'} hunk {Number(hunk['id']) + 1}
+                    {t(layer === 'staged' ? 'hunks.unstageHunk' : 'hunks.stageHunk', {
+                      n: Number(hunk['id']) + 1,
+                    })}
                   </button>
                 )}
               </header>
@@ -186,7 +192,10 @@ export function GitHunkReview({
                       {index > 0 && (line.startsWith('+') || line.startsWith('-')) && (
                         <input
                           type="checkbox"
-                          aria-label={`Select line ${index} of hunk ${Number(hunk['id']) + 1}`}
+                          aria-label={t('hunks.selectLine', {
+                            line: index,
+                            n: Number(hunk['id']) + 1,
+                          })}
                           disabled={busy}
                           checked={picked[Number(hunk['id'])]?.includes(index - 1) ?? false}
                           onChange={(event) => {
@@ -209,12 +218,9 @@ export function GitHunkReview({
             </article>
           ))
         ) : (
-          <p>{String(result['reason'] ?? 'No hunks available.')}</p>
+          <p>{String(result['reason'] ?? t('hunks.none'))}</p>
         )}
-        <small>
-          Refresh after an external edit or index change. Whole-file controls remain available for
-          unsupported file types.
-        </small>
+        <small>{t('hunks.footer')}</small>
       </section>
     </Modal>
   );

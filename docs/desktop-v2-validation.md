@@ -7211,3 +7211,22 @@ copies, starting with SAGE memory.
   - The find counts for source and conversation, the find-and-replace bar and the draft merge
     render in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Git review, history and file details in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - image changes and binary files in the Changes view;
+  - staging individual hunks and lines, including the file mode note;
+  - resolving a merge conflict: sides, deletion, merged result, related paths and the discard
+    question;
+  - review notes with their replies;
+  - repository history: refs, commit list, commit details, changed files and committed diffs;
+  - the file details drawer: overview, changes, structure, memory and activity.
+- `modeChangeNote` takes the language's wording and keeps English as its default.
+- English is unchanged, so the native file scenarios ("Common base content", "Keep editing
+  merge", "Discard the unsaved merge draft?") keep matching. The file workspace and everything it
+  opens now follows the display language.
+- Checks:
+  - The binary change card renders in English and then in Turkish, beside the find bars and draft
+    merge.
+  - Catalog parity and the key guard pass; desktop tests pass (877); typecheck clean.

@@ -1,5 +1,6 @@
 import { Check, Copy, MessageSquare, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { type ReviewNote, withReply, withReplyChange, withResolved } from './review-notes-store';
 
 /**
@@ -25,6 +26,7 @@ export function ReviewNotesTray({
   onSave: (notes: ReviewNote[]) => Promise<void>;
   onReview: () => void;
 }) {
+  const { t } = useDesktopText();
   const [showResolved, setShowResolved] = useState(false),
     [replyTo, setReplyTo] = useState<number | null>(null),
     [reply, setReply] = useState(''),
@@ -51,8 +53,8 @@ export function ReviewNotesTray({
     <section className="file-review-tray">
       <header>
         <strong>
-          {notes.length - resolved} open review notes
-          {resolved ? ` · ${resolved} resolved` : ''}
+          {t('notes.open', { count: notes.length - resolved })}
+          {resolved ? ` · ${t('notes.resolvedCount', { count: resolved })}` : ''}
         </strong>
         {resolved > 0 && (
           <label className="file-review-show-resolved">
@@ -61,11 +63,11 @@ export function ReviewNotesTray({
               checked={showResolved}
               onChange={(event) => setShowResolved(event.target.checked)}
             />{' '}
-            Show resolved
+            {t('notes.showResolved')}
           </label>
         )}
         <button type="button" disabled={busy} onClick={onReload}>
-          Reload saved review notes
+          {t('notes.reload')}
         </button>
         <button type="button" disabled={notes.length === resolved} onClick={onReview}>
           <Copy size={13} />
@@ -74,26 +76,20 @@ export function ReviewNotesTray({
       </header>
       {error && <p role="alert">{error}</p>}
       {message && <p role="alert">{message}</p>}
-      <small>
-        {busy
-          ? 'Saving or loading review notes…'
-          : ready
-            ? 'Saved per project on this desktop. Line anchors refer to the reviewed file version. Resolved notes are not sent with the review.'
-            : 'Review notes are unavailable.'}
-      </small>
+      <small>{busy ? t('notes.busy') : ready ? t('notes.ready') : t('notes.unavailable')}</small>
       <div>
         {notes.map((note, index) =>
           note.resolved && !showResolved ? null : (
             <article key={index}>
               <span>
                 {note.path}:{note.line}
-                {note.resolved ? ' · Resolved' : ''}
+                {note.resolved ? ` · ${t('notes.resolvedTag')}` : ''}
               </span>
               <p className={note.resolved ? 'file-review-resolved-text' : undefined}>{note.text}</p>
               {!!note.replies?.length && (
                 <ol
                   className="file-review-replies"
-                  aria-label={`Replies to review note ${index + 1}`}
+                  aria-label={t('notes.replies', { n: index + 1 })}
                 >
                   {note.replies.map((item, replyIndex) => (
                     <li key={replyIndex}>
@@ -110,7 +106,10 @@ export function ReviewNotesTray({
                           }}
                         >
                           <textarea
-                            aria-label={`Edit reply ${replyIndex + 1} to review note ${index + 1}`}
+                            aria-label={t('notes.editReply', {
+                              reply: replyIndex + 1,
+                              n: index + 1,
+                            })}
                             value={editing.text}
                             rows={2}
                             onChange={(event) =>
@@ -118,14 +117,14 @@ export function ReviewNotesTray({
                             }
                           />
                           <button type="submit" className="button small" disabled={locked}>
-                            Save reply
+                            {t('notes.saveReply')}
                           </button>
                           <button
                             type="button"
                             className="button secondary small"
                             onClick={() => setEditing(null)}
                           >
-                            Cancel
+                            {t('fileView.cancel')}
                           </button>
                         </form>
                       ) : (
@@ -136,22 +135,28 @@ export function ReviewNotesTray({
                             <button
                               type="button"
                               disabled={locked}
-                              aria-label={`Edit reply ${replyIndex + 1} to review note ${index + 1}`}
+                              aria-label={t('notes.editReply', {
+                                reply: replyIndex + 1,
+                                n: index + 1,
+                              })}
                               onClick={() =>
                                 setEditing({ note: index, reply: replyIndex, text: item.text })
                               }
                             >
-                              Edit
+                              {t('notes.edit')}
                             </button>
                             <button
                               type="button"
                               disabled={locked}
-                              aria-label={`Delete reply ${replyIndex + 1} to review note ${index + 1}`}
+                              aria-label={t('notes.deleteReply', {
+                                reply: replyIndex + 1,
+                                n: index + 1,
+                              })}
                               onClick={() =>
                                 void save(() => withReplyChange(notes, index, replyIndex, null))
                               }
                             >
-                              Delete
+                              {t('fileView.delete')}
                             </button>
                           </span>
                         </>
@@ -175,7 +180,7 @@ export function ReviewNotesTray({
                   }}
                 >
                   <textarea
-                    aria-label={`Reply to review note ${index + 1}`}
+                    aria-label={t('notes.replyTo', { n: index + 1 })}
                     value={reply}
                     rows={2}
                     // biome-ignore lint/a11y/noAutofocus: the field opens on an explicit Reply request.
@@ -186,14 +191,14 @@ export function ReviewNotesTray({
                     }}
                   />
                   <button type="submit" className="button small" disabled={locked || !reply.trim()}>
-                    Add reply
+                    {t('notes.addReply')}
                   </button>
                   <button
                     type="button"
                     className="button secondary small"
                     onClick={() => setReplyTo(null)}
                   >
-                    Cancel
+                    {t('fileView.cancel')}
                   </button>
                 </form>
               ) : (
@@ -206,23 +211,25 @@ export function ReviewNotesTray({
                       setReply('');
                     }}
                   >
-                    <MessageSquare size={12} /> Reply
+                    <MessageSquare size={12} /> {t('notes.reply')}
                   </button>
                   <button
                     type="button"
-                    aria-label={`${note.resolved ? 'Reopen' : 'Resolve'} review note ${index + 1}`}
+                    aria-label={t(note.resolved ? 'notes.reopenNote' : 'notes.resolveNote', {
+                      n: index + 1,
+                    })}
                     disabled={locked}
                     onClick={() => void save(() => withResolved(notes, index, !note.resolved))}
                   >
                     {note.resolved ? <RotateCcw size={12} /> : <Check size={12} />}{' '}
-                    {note.resolved ? 'Reopen' : 'Resolve'}
+                    {note.resolved ? t('notes.reopen') : t('notes.resolve')}
                   </button>
                 </div>
               )}
               <button
                 type="button"
                 className="file-review-remove"
-                aria-label={`Remove review note ${index + 1}`}
+                aria-label={t('notes.remove', { n: index + 1 })}
                 disabled={locked}
                 onClick={() => void save(() => notes.filter((_, i) => i !== index))}
               >

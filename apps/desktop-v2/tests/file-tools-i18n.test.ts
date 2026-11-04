@@ -3,6 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { BinaryChange } from '../src/BinaryChange';
 import { DraftMergeChoices } from '../src/DraftMergeChoices';
 import { EditorFindBar } from '../src/EditorFindBar';
 import { surfaceI18n } from '../src/surface-i18n';
@@ -45,6 +46,7 @@ const bars = () =>
       busy: false,
       onKeep: vi.fn(),
     }),
+    createElement(BinaryChange, { diff: { binary: true }, path: 'logo.bin' }),
   ]
     .map((bar) => renderToStaticMarkup(bar))
     .join('\n');
@@ -67,6 +69,7 @@ describe('the file tools in the display language', () => {
       'Replace all',
       'Merge change by change (1)',
       'Both, mine first',
+      'Binary file — text review is unavailable.',
     ])
       expect(html).toContain(text);
 
@@ -82,6 +85,7 @@ describe('the file tools in the display language', () => {
       'Tümünü değiştir',
       'Değişiklik değişiklik birleştir (1)',
       'İkisi de, önce benimki',
+      'İkili dosya — metin incelemesi kullanılamaz.',
     ])
       expect(html).toContain(text);
   });

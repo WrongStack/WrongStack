@@ -1,5 +1,6 @@
 import { Columns2, Layers } from 'lucide-react';
 import { type SyntheticEvent, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import './image-diff.css';
 
@@ -38,6 +39,7 @@ function Caption({ label, size, length }: { label: string; size: string; length:
  * its pixel and file size; an added or deleted image shows its one side.
  */
 function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string }) {
+  const { t } = useDesktopText();
   const versions = record(diff['image']);
   const before = image(versions['old']);
   const after = image(versions['new']);
@@ -47,24 +49,26 @@ function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string
   const [beforeSize, onBefore] = useNaturalSize();
   const [afterSize, onAfter] = useNaturalSize();
   return (
-    <section className="image-diff" aria-label="Image changes">
+    <section className="image-diff" aria-label={t('imageDiff.label')}>
       <header>
-        <span>{!before ? 'New image' : !after ? 'Deleted image' : 'Changed image'}</span>
+        <span>
+          {!before ? t('imageDiff.new') : !after ? t('imageDiff.deleted') : t('imageDiff.changed')}
+        </span>
         {both && (
           <span className="image-diff-modes">
             {(
               [
-                ['side', Columns2, 'Side by side'],
-                ['onion', Layers, 'Onion skin'],
+                ['side', Columns2],
+                ['onion', Layers],
               ] as const
-            ).map(([value, Icon, label]) => (
+            ).map(([value, Icon]) => (
               <button
                 type="button"
                 key={value}
                 aria-pressed={mode === value}
                 onClick={() => setMode(value)}
               >
-                <Icon size={13} /> {label}
+                <Icon size={13} /> {t(`imageDiff.${value}`)}
               </button>
             ))}
           </span>
@@ -76,7 +80,7 @@ function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string
             <img src={before} alt={`${path} (HEAD)`} onLoad={onBefore} />
             <img
               src={after}
-              alt={`${path} (Working tree)`}
+              alt={`${path} (${t('fileView.workingTree')})`}
               onLoad={onAfter}
               style={{ opacity: opacity / 100 }}
             />
@@ -88,14 +92,18 @@ function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string
               min={0}
               max={100}
               value={opacity}
-              aria-label="Working tree opacity"
+              aria-label={t('imageDiff.opacity')}
               onChange={(event) => setOpacity(Number(event.target.value))}
             />
-            <span>Working tree</span>
+            <span>{t('fileView.workingTree')}</span>
           </label>
           <div className="image-diff-captions">
             <Caption label="HEAD" size={beforeSize} length={versions['oldBytes']} />
-            <Caption label="Working tree" size={afterSize} length={versions['newBytes']} />
+            <Caption
+              label={t('fileView.workingTree')}
+              size={afterSize}
+              length={versions['newBytes']}
+            />
           </div>
         </div>
       ) : (
@@ -110,9 +118,13 @@ function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string
           )}
           {after && (
             <figure>
-              <Caption label="Working tree" size={afterSize} length={versions['newBytes']} />
+              <Caption
+                label={t('fileView.workingTree')}
+                size={afterSize}
+                length={versions['newBytes']}
+              />
               <div>
-                <img src={after} alt={`${path} (Working tree)`} onLoad={onAfter} />
+                <img src={after} alt={`${path} (${t('fileView.workingTree')})`} onLoad={onAfter} />
               </div>
             </figure>
           )}
@@ -124,14 +136,13 @@ function ImageDiff({ diff, path }: { diff: Record<string, unknown>; path: string
 
 /** A change the text diff cannot show: an image's two versions, or why there is no review. */
 export function BinaryChange({ diff, path }: { diff: Record<string, unknown>; path: string }) {
+  const { t } = useDesktopText();
   const versions = record(diff['image']);
   if (image(versions['old']) || image(versions['new']))
     return <ImageDiff diff={diff} path={path} />;
   return (
     <p className="file-quiet-state">
-      {diff['tooLarge']
-        ? 'File exceeds the text review limit.'
-        : 'Binary file — text review is unavailable.'}
+      {diff['tooLarge'] ? t('imageDiff.tooLarge') : t('imageDiff.binary')}
     </p>
   );
 }
