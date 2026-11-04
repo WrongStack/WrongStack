@@ -17,6 +17,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { projectHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
@@ -72,6 +73,7 @@ const ProjectTechStack = lazy(() =>
 );
 
 export function ProjectWorkspace({ project, vm }: { project: Project; vm: DesktopController }) {
+  const { t } = useDesktopText();
   const [promptsOpen, setPromptsOpen] = useState(false);
   return (
     <div className="project-workspace">
@@ -91,7 +93,7 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
           className="button secondary small"
           onClick={() => setPromptsOpen(true)}
         >
-          <BookOpen size={13} /> Prompt library
+          <BookOpen size={13} /> {t('composer.library')}
         </button>
       </div>
       <RuntimeGate scope="project" projectId={project.id}>
@@ -111,6 +113,7 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
 }
 function ProjectContent({ project, vm }: { project: Project; vm: DesktopController }) {
   const { state, send, command } = useProjectEngine(project.id, vm.reportError);
+  const { t } = useDesktopText();
   const http = useMemo(() => projectHttp(project.id), [project.id]);
   const requirementDrafts = useMemo(() => requirementDraftStorage(project.id), [project.id]);
   const resourceInputStorage = useCallback(
@@ -140,8 +143,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
   if (!state.connected)
     return (
       <div className="runtime-state">
-        <h2>Opening {project.name}…</h2>
-        <p>Your project knowledge and tools are getting ready.</p>
+        <h2>{t('project.opening', { name: project.name })}</h2>
+        <p>{t('project.gettingReady')}</p>
       </div>
     );
   return (
@@ -179,7 +182,11 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'diagnostics' ? (
         <ProjectDiagnostics projectId={project.id} http={http} />
       ) : vm.projectPage === 'live-fleet' ? (
-        <Suspense fallback={<p role="status">Opening live project fleet…</p>}>
+        <Suspense
+          fallback={
+            <p role="status">{t('project.openingPage', { page: t('pages.live-fleet') })}</p>
+          }
+        >
           <ProjectLiveFleet
             key={project.id}
             http={http}
@@ -191,7 +198,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'roster' ? (
-        <Suspense fallback={<p role="status">Opening project agent roster…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.roster') })}</p>}
+        >
           <ProjectAgentRoster
             key={project.id}
             command={command}
@@ -208,7 +217,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'techstack' ? (
-        <Suspense fallback={<p role="status">Opening project TechStack…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.techstack') })}</p>}
+        >
           <ProjectTechStack
             key={project.id}
             http={http}
@@ -221,7 +232,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'deadcode' ? (
-        <Suspense fallback={<p role="status">Opening dead-code analysis…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.deadcode') })}</p>}
+        >
           <ProjectDeadCode
             key={project.id}
             http={http}
@@ -236,7 +249,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'design' ? (
-        <Suspense fallback={<p role="status">Opening project Design Studio…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.design') })}</p>}
+        >
           <ProjectDesignStudio
             key={project.id}
             projectId={project.id}
@@ -248,7 +263,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'history' ? (
-        <Suspense fallback={<p role="status">Opening project session history…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.history') })}</p>}
+        >
           <ProjectSessionHistory
             key={`${project.id}:${historyTarget}`}
             focusSessionId={historyTarget}
@@ -266,7 +283,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'reviews' ? (
-        <Suspense fallback={<p role="status">Opening project Chimera reviews…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.reviews') })}</p>}
+        >
           <ProjectChimera
             key={project.id}
             command={command}
@@ -282,7 +301,9 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
           />
         </Suspense>
       ) : vm.projectPage === 'kit' ? (
-        <Suspense fallback={<p role="status">Opening project kits…</p>}>
+        <Suspense
+          fallback={<p role="status">{t('project.openingPage', { page: t('pages.kit') })}</p>}
+        >
           <ProjectKit
             key={project.id}
             projectId={project.id}
@@ -364,11 +385,15 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <section className="project-automations">
           <header className="studio-heading">
             <div>
-              <h1>Automations</h1>
-              <p>Scheduled jobs and repeatable workflows for {project.name}.</p>
+              <h1>{t('pages.automations')}</h1>
+              <p>{t('project.automations', { name: project.name })}</p>
             </div>
           </header>
-          <Suspense fallback={<p role="status">Opening project automations…</p>}>
+          <Suspense
+            fallback={
+              <p role="status">{t('project.openingPage', { page: t('pages.automations') })}</p>
+            }
+          >
             <AutomationWorkspace key={project.id} projectId={project.id} http={http} />
           </Suspense>
         </section>
@@ -398,6 +423,7 @@ function ProjectOverview({
   /** The latest mailbox event; a change re-reads the unread count. */
   mailboxActivity: unknown;
 }) {
+  const { t } = useDesktopText();
   const [memories, setMemories] = useState<number | null>(null),
     [boards, setBoards] = useState<Record<string, unknown>[]>([]),
     [packages, setPackages] = useState<number | null>(null);
@@ -437,7 +463,7 @@ function ProjectOverview({
         >
           <div className="destination-art memory-art" aria-hidden="true">
             <svg viewBox="0 0 360 150">
-              <title>Project memory</title>
+              <title>{t('overview.memory.art')}</title>
               <path d="M54 86L126 40L196 82L285 38M126 40L155 125L196 82L301 119M54 86L155 125" />
               <circle cx="54" cy="86" r="15" />
               <circle cx="126" cy="40" r="21" />
@@ -450,12 +476,14 @@ function ProjectOverview({
           </div>
           <div className="destination-copy">
             <h2>
-              Memory
+              {t('pages.memory')}
               <ArrowRight size={18} />
             </h2>
-            <p>Keep decisions connected to the code and to each other.</p>
+            <p>{t('overview.memory.body')}</p>
             <strong>
-              {memories === null ? 'Opening project memory…' : `${memories} active memories`}
+              {memories === null
+                ? t('overview.memory.loading')
+                : t('overview.memory.count', { count: memories })}
             </strong>
           </div>
         </button>
@@ -479,13 +507,11 @@ function ProjectOverview({
           </div>
           <div className="destination-copy">
             <h2>
-              Kanban
+              {t('pages.kanban')}
               <ArrowRight size={18} />
             </h2>
-            <p>Turn the next idea into a clear, visible path to done.</p>
-            <strong>
-              {tasks} tasks across {boards.length} boards
-            </strong>
+            <p>{t('overview.kanban.body')}</p>
+            <strong>{t('overview.kanban.count', { tasks, boards: boards.length })}</strong>
           </div>
         </button>
         <button
@@ -495,7 +521,7 @@ function ProjectOverview({
         >
           <div className="destination-art atlas-art" aria-hidden="true">
             <svg viewBox="0 0 360 150">
-              <title>Code atlas</title>
+              <title>{t('overview.atlas.art')}</title>
               <path d="M68 55L180 34L292 60M68 55L84 116L180 98L292 60L270 129M180 34L180 98L270 129" />
               {[
                 [68, 55],
@@ -512,12 +538,14 @@ function ProjectOverview({
           </div>
           <div className="destination-copy">
             <h2>
-              Code Atlas
+              {t('pages.atlas')}
               <ArrowRight size={18} />
             </h2>
-            <p>See the architecture. Follow dependencies into the source.</p>
+            <p>{t('overview.atlas.body')}</p>
             <strong>
-              {packages === null ? 'Ready to map your code' : `${packages} indexed packages`}
+              {packages === null
+                ? t('overview.atlas.ready')
+                : t('overview.atlas.count', { count: packages })}
             </strong>
           </div>
         </button>
@@ -526,24 +554,24 @@ function ProjectOverview({
         <button type="button" onClick={() => vm.setProjectPage('techstack')}>
           <Workflow size={21} />
           <div>
-            <strong>TechStack</strong>
-            <span>Dependency inventory, registry evidence, research and remediation.</span>
+            <strong>{t('pages.techstack')}</strong>
+            <span>{t('overview.links.techstack')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('kit')}>
           <Box size={21} />
           <div>
-            <strong>Project Kit</strong>
-            <span>Reusable capabilities, typed contracts, tests and run evidence.</span>
+            <strong>{t('pages.kit')}</strong>
+            <span>{t('overview.links.kit')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('mailbox')}>
           <Mail size={21} />
           <div>
-            <strong>Mailbox</strong>
-            <span>Read project correspondence, receipts and agent replies.</span>
+            <strong>{t('pages.mailbox')}</strong>
+            <span>{t('overview.links.mailbox')}</span>
             <MailboxUnread command={command} trigger={mailboxActivity} />
           </div>
           <ArrowRight size={16} />
@@ -551,76 +579,76 @@ function ProjectOverview({
         <button type="button" onClick={() => vm.setProjectPage('worktrees')}>
           <GitBranch size={21} />
           <div>
-            <strong>Worktrees</strong>
-            <span>Inspect, merge or remove the isolated checkouts runs leave behind.</span>
+            <strong>{t('pages.worktrees')}</strong>
+            <span>{t('overview.links.worktrees')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('goals')}>
           <Target size={21} />
           <div>
-            <strong>Goals</strong>
-            <span>Plan, follow and control project missions.</span>
+            <strong>{t('pages.goals')}</strong>
+            <span>{t('overview.links.goals')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('skills')}>
           <BookOpen size={21} />
           <div>
-            <strong>Skills</strong>
-            <span>Discover, author, and maintain your project capabilities.</span>
+            <strong>{t('pages.skills')}</strong>
+            <span>{t('overview.links.skills')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button
           type="button"
-          aria-label="Open project live fleet"
+          aria-label={t('overview.links.liveFleetLabel')}
           onClick={() => vm.setProjectPage('live-fleet')}
         >
           <Network size={21} />
           <div>
-            <strong>Live fleet</strong>
-            <span>Registered sessions, agents, recent activity and reviewed controls.</span>
+            <strong>{t('pages.live-fleet')}</strong>
+            <span>{t('overview.links.live-fleet')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('office')}>
           <Building2 size={21} />
           <div>
-            <strong>Agent office</strong>
-            <span>Every session's agents at their desks: tools, mail, todos and the topology.</span>
+            <strong>{t('pages.office')}</strong>
+            <span>{t('overview.links.office')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('diagnostics')}>
           <Gauge size={21} />
           <div>
-            <strong>Engine diagnostics</strong>
-            <span>The engine's memory, CPU, code index server, processes and file watcher.</span>
+            <strong>{t('pages.diagnostics')}</strong>
+            <span>{t('overview.links.diagnostics')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('chronicle')}>
           <Activity size={21} />
           <div>
-            <strong>Chronicle</strong>
-            <span>Project timeline, event evidence, and relationships.</span>
+            <strong>{t('pages.chronicle')}</strong>
+            <span>{t('overview.links.chronicle')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.setProjectPage('automations')}>
           <CalendarClock size={21} />
           <div>
-            <strong>Automations</strong>
-            <span>Repeatable workflows, schedules, and run evidence.</span>
+            <strong>{t('pages.automations')}</strong>
+            <span>{t('overview.links.automations')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
         <button type="button" onClick={() => vm.openWrongStackSettings()}>
           <Workflow size={21} />
           <div>
-            <strong>WrongStack settings</strong>
-            <span>Models, capabilities, and execution defaults.</span>
+            <strong>{t('rail.settings')}</strong>
+            <span>{t('overview.links.settings')}</span>
           </div>
           <ArrowRight size={16} />
         </button>
@@ -628,11 +656,8 @@ function ProjectOverview({
       <section className="project-session-summary">
         <header>
           <div>
-            <h2>Sessions</h2>
-            <p>
-              {sessions.filter(isLive).length} active · projects keep their knowledge when
-              conversations end.
-            </p>
+            <h2>{t('overview.sessions.title')}</h2>
+            <p>{t('overview.sessions.active', { count: sessions.filter(isLive).length })}</p>
           </div>
           <button
             type="button"
@@ -640,7 +665,7 @@ function ProjectOverview({
             onClick={() => vm.newSession(project.id, 'terminal')}
           >
             <Terminal size={13} />
-            Open terminal
+            {t('overview.sessions.terminal')}
           </button>
         </header>
         {sessions.length ? (
@@ -650,7 +675,7 @@ function ProjectOverview({
                 <span className={`status-dot ${session.status}`} />
                 {session.kind === 'terminal' ? <Terminal size={15} /> : <Workflow size={15} />}
                 <strong>{session.title}</strong>
-                <span>{session.status}</span>
+                <span>{t(`status.${session.status}`, { defaultValue: session.status })}</span>
                 <ArrowRight size={14} />
               </button>
             ))}
@@ -658,9 +683,9 @@ function ProjectOverview({
         ) : (
           <div className="project-no-sessions">
             <Workflow size={20} />
-            <span>No conversations yet. Your project workspace is ready whenever you are.</span>
+            <span>{t('overview.sessions.empty')}</span>
             <button type="button" onClick={() => vm.newSession(project.id)}>
-              Start a session
+              {t('overview.sessions.start')}
               <ArrowRight size={13} />
             </button>
           </div>

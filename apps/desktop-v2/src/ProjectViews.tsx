@@ -1,11 +1,12 @@
 import { ArrowRight, Folder, FolderPlus, Plus } from 'lucide-react';
 import { AppearanceSettings } from './AppearanceSettings';
+import { useDesktopText } from './desktop-i18n';
 import { isLive } from './model';
 import { addProject, native } from './platform';
-
 import type { DesktopController } from './useDesktop';
 
 export function ProjectViews({ vm }: { vm: DesktopController }) {
+  const { t } = useDesktopText();
   const { snapshot, section, run, newSession, jumpToSession } = vm;
   return (
     <>
@@ -21,13 +22,15 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
               <p className="mono">{p.root.replace(/^\\\\\?\\/, '')}</p>
               <div className="project-card-stats">
                 <span>
-                  {snapshot.sessions.filter((s) => s.projectId === p.id && isLive(s)).length} active
+                  {t('projects.active', {
+                    count: snapshot.sessions.filter((s) => s.projectId === p.id && isLive(s))
+                      .length,
+                  })}
                 </span>
                 <span>
-                  {snapshot.sessions.filter((s) => s.projectId === p.id).length}{' '}
-                  {snapshot.sessions.filter((s) => s.projectId === p.id).length === 1
-                    ? 'session'
-                    : 'sessions'}
+                  {t('projects.sessions', {
+                    count: snapshot.sessions.filter((s) => s.projectId === p.id).length,
+                  })}
                 </span>
               </div>
               <footer>
@@ -38,13 +41,13 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
                     vm.openProjectPage(p.id);
                   }}
                 >
-                  Open project
+                  {t('projects.open')}
                   <ArrowRight size={14} />
                 </button>
                 <button
                   type="button"
                   className="icon-button"
-                  title="New session"
+                  title={t('explorer.newSession')}
                   onClick={() => newSession(p.id)}
                 >
                   <Plus size={17} />
@@ -59,8 +62,8 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
             onClick={() => void run(addProject)}
           >
             <FolderPlus size={30} />
-            <strong>Connect a project</strong>
-            <span>Select a local directory</span>
+            <strong>{t('projects.connect')}</strong>
+            <span>{t('projects.select')}</span>
           </button>
         </div>
       )}
@@ -72,20 +75,17 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
               <div>
                 <strong>{s.title}</strong>
                 <p>
-                  {snapshot.projects.find((p) => p.id === s.projectId)?.name} · {s.kind} ·{' '}
-                  {s.status}
-                  {s.exitCode !== null ? ` · exit ${s.exitCode}` : ''}
+                  {snapshot.projects.find((p) => p.id === s.projectId)?.name} ·{' '}
+                  {t(`kind.${s.kind}`, { defaultValue: s.kind })} ·{' '}
+                  {t(`status.${s.status}`, { defaultValue: s.status })}
+                  {s.exitCode !== null ? ` · ${t('activity.exit', { code: s.exitCode })}` : ''}
                 </p>
               </div>
               <time>{new Date(s.updatedAt).toLocaleString()}</time>
               <ArrowRight size={16} />
             </button>
           ))}
-          {!snapshot.sessions.length && (
-            <p className="quiet-state">
-              No session activity yet. Create a session to start your timeline.
-            </p>
-          )}
+          {!snapshot.sessions.length && <p className="quiet-state">{t('activity.empty')}</p>}
         </section>
       )}
       {section === 'engine' && <AppearanceSettings vm={vm} />}

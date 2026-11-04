@@ -17,7 +17,11 @@
     "deadcode": "Código muerto",
     "design": "Estudio de diseño",
     "reviews": "Revisiones Chimera",
-    "diagnostics": "Diagnóstico del motor"
+    "diagnostics": "Diagnóstico del motor",
+    "worktrees": "Worktrees",
+    "skills": "Habilidades",
+    "office": "Oficina de agentes",
+    "automations": "Automatizaciones"
   },
   "rail": {
     "navigation": "Navegación principal",
@@ -554,5 +558,124 @@
     "availability": "Franjas horarias de proveedores y modelos, días laborables, horarios nocturnos y zonas horarias.",
     "instructions": "Reglas del usuario y AGENTS.md en proyectos y perfiles.",
     "tool-access": "Catálogo de herramientas registradas, metadatos de permisos, activar y desactivar herramientas."
+  },
+  "project": {
+    "opening": "Abriendo {{name}}…",
+    "gettingReady": "El conocimiento y las herramientas de tu proyecto se están preparando.",
+    "openingPage": "Abriendo {{page}}…",
+    "automations": "Tareas programadas y flujos de trabajo repetibles para {{name}}."
+  },
+  "overview": {
+    "memory": {
+      "art": "Memoria del proyecto",
+      "body": "Mantén las decisiones conectadas al código y entre sí.",
+      "loading": "Abriendo la memoria del proyecto…",
+      "count": "Memorias activas: {{count}}"
+    },
+    "kanban": {
+      "body": "Convierte la siguiente idea en un camino claro y visible hasta terminarla.",
+      "count": "Tareas: {{tasks}} · tableros: {{boards}}"
+    },
+    "atlas": {
+      "art": "Atlas del código",
+      "body": "Ve la arquitectura. Sigue las dependencias hasta el código fuente.",
+      "ready": "Listo para mapear tu código",
+      "count": "Paquetes indexados: {{count}}"
+    },
+    "links": {
+      "techstack": "Inventario de dependencias, evidencias del registro, investigación y corrección.",
+      "kit": "Capacidades reutilizables, contratos tipados, pruebas y evidencias de ejecución.",
+      "mailbox": "Lee la correspondencia del proyecto, los acuses de recibo y las respuestas de los agentes.",
+      "worktrees": "Inspecciona, fusiona o elimina las copias aisladas que dejan las ejecuciones.",
+      "goals": "Planifica, sigue y controla las misiones del proyecto.",
+      "skills": "Descubre, escribe y mantén las capacidades de tu proyecto.",
+      "liveFleetLabel": "Abrir la flota en vivo del proyecto",
+      "live-fleet": "Sesiones registradas, agentes, actividad reciente y controles revisados.",
+      "office": "Los agentes de cada sesión en sus mesas: herramientas, correo, tareas y la topología.",
+      "diagnostics": "Memoria, CPU, servidor del índice de código, procesos y vigilante de archivos del motor.",
+      "chronicle": "Cronología del proyecto, evidencias de eventos y relaciones.",
+      "automations": "Flujos de trabajo repetibles, programaciones y evidencias de ejecución.",
+      "settings": "Modelos, capacidades y valores de ejecución predeterminados."
+    },
+    "sessions": {
+      "title": "Sesiones",
+      "active": "Activas: {{count}} · los proyectos conservan su conocimiento cuando terminan las conversaciones.",
+      "terminal": "Abrir terminal",
+      "empty": "Aún no hay conversaciones. El espacio de trabajo de tu proyecto está listo cuando tú lo estés.",
+      "start": "Iniciar una sesión"
+    }
+  },
+  "status": {
+    "starting": "iniciando",
+    "running": "en ejecución",
+    "stopped": "detenida",
+    "error": "error",
+    "interrupted": "interrumpida"
+  },
+  "kind": {
+    "agent": "agente",
+    "terminal": "terminal"
+  },
+  "projects": {
+    "active": "Activas: {{count}}",
+    "sessions": "Sesiones: {{count}}",
+    "open": "Abrir proyecto",
+    "connect": "Conectar un proyecto",
+    "select": "Selecciona una carpeta local"
+  },
+  "activity": {
+    "exit": "salida {{code}}",
+    "empty": "Aún no hay actividad de sesiones. Crea una sesión para empezar tu cronología."
+  },
+  "gate": {
+    "failed": "No se pudo abrir este espacio de trabajo.",
+    "stopped": "La conexión con el espacio de trabajo se detuvo.",
+    "retry": "Reintentar",
+    "project": "Abriendo tu proyecto…",
+    "settings": "Abriendo los ajustes de WrongStack…",
+    "moment": "Tu espacio de trabajo estará listo en un momento."
+  },
+  "appearance": {
+    "label": "Ajustes de apariencia",
+    "body": "Sigue a tu dispositivo o elige un modo.",
+    "colorMode": "Modo de color",
+    "mode": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
+    "contrast": {
+      "title": "Contraste",
+      "body": "Texto, bordes y contornos de foco más marcados; Sistema sigue el ajuste de tu dispositivo.",
+      "system": "Sistema",
+      "standard": "Estándar",
+      "more": "Alto"
+    },
+    "density": {
+      "title": "Densidad de las conversaciones",
+      "body": "Compacta muestra más de la conversación en pantalla, como la vista compacta de la WebUI.",
+      "comfortable": "Cómoda",
+      "compact": "Compacta"
+    },
+    "sounds": {
+      "title": "Sonidos",
+      "body": "Un suave aviso sonoro cuando termina una ejecución en la conversación abierta. Una solicitud de aprobación siempre suena, como en la WebUI.",
+      "label": "Sonido al terminar una ejecución",
+      "off": "Desactivado",
+      "on": "Aviso al terminar"
+    },
+    "palette": {
+      "title": "Paleta de colores",
+      "body": "Los pares de colores característicos de WrongStack, ajustados para claro y oscuro."
+    },
+    "language": {
+      "title": "Idioma de la interfaz",
+      "body": "Compartido con la WebUI y la CLI. El escritorio lo sigue; algunas páginas de proyecto aún están en inglés."
+    },
+    "host": {
+      "connected": "Espacio de trabajo local conectado",
+      "connecting": "Conectando con tu espacio de trabajo",
+      "note": "Las sesiones siguen en marcha cuando cierras una ventana."
+    }
   }
 }

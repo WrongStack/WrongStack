@@ -17,7 +17,11 @@
     "deadcode": "Dead Code",
     "design": "Design Studio",
     "reviews": "Chimera Reviews",
-    "diagnostics": "Engine diagnostics"
+    "diagnostics": "Engine diagnostics",
+    "worktrees": "Worktrees",
+    "skills": "Skills",
+    "office": "Agent office",
+    "automations": "Automations"
   },
   "rail": {
     "navigation": "Main navigation",
@@ -554,5 +558,124 @@
     "availability": "Provider and model time windows, weekdays, overnight schedules and timezones.",
     "instructions": "User rules and AGENTS.md across projects and profiles.",
     "tool-access": "Registered tool catalog, permission metadata, enable and disable tools."
+  },
+  "project": {
+    "opening": "Opening {{name}}…",
+    "gettingReady": "Your project knowledge and tools are getting ready.",
+    "openingPage": "Opening {{page}}…",
+    "automations": "Scheduled jobs and repeatable workflows for {{name}}."
+  },
+  "overview": {
+    "memory": {
+      "art": "Project memory",
+      "body": "Keep decisions connected to the code and to each other.",
+      "loading": "Opening project memory…",
+      "count": "Active memories: {{count}}"
+    },
+    "kanban": {
+      "body": "Turn the next idea into a clear, visible path to done.",
+      "count": "Tasks: {{tasks}} · boards: {{boards}}"
+    },
+    "atlas": {
+      "art": "Code atlas",
+      "body": "See the architecture. Follow dependencies into the source.",
+      "ready": "Ready to map your code",
+      "count": "Indexed packages: {{count}}"
+    },
+    "links": {
+      "techstack": "Dependency inventory, registry evidence, research and remediation.",
+      "kit": "Reusable capabilities, typed contracts, tests and run evidence.",
+      "mailbox": "Read project correspondence, receipts and agent replies.",
+      "worktrees": "Inspect, merge or remove the isolated checkouts runs leave behind.",
+      "goals": "Plan, follow and control project missions.",
+      "skills": "Discover, author, and maintain your project capabilities.",
+      "liveFleetLabel": "Open project live fleet",
+      "live-fleet": "Registered sessions, agents, recent activity and reviewed controls.",
+      "office": "Every session's agents at their desks: tools, mail, todos and the topology.",
+      "diagnostics": "The engine's memory, CPU, code index server, processes and file watcher.",
+      "chronicle": "Project timeline, event evidence, and relationships.",
+      "automations": "Repeatable workflows, schedules, and run evidence.",
+      "settings": "Models, capabilities, and execution defaults."
+    },
+    "sessions": {
+      "title": "Sessions",
+      "active": "Active: {{count}} · projects keep their knowledge when conversations end.",
+      "terminal": "Open terminal",
+      "empty": "No conversations yet. Your project workspace is ready whenever you are.",
+      "start": "Start a session"
+    }
+  },
+  "status": {
+    "starting": "starting",
+    "running": "running",
+    "stopped": "stopped",
+    "error": "error",
+    "interrupted": "interrupted"
+  },
+  "kind": {
+    "agent": "agent",
+    "terminal": "terminal"
+  },
+  "projects": {
+    "active": "Active: {{count}}",
+    "sessions": "Sessions: {{count}}",
+    "open": "Open project",
+    "connect": "Connect a project",
+    "select": "Select a local directory"
+  },
+  "activity": {
+    "exit": "exit {{code}}",
+    "empty": "No session activity yet. Create a session to start your timeline."
+  },
+  "gate": {
+    "failed": "We couldn’t open this workspace.",
+    "stopped": "The workspace connection stopped.",
+    "retry": "Try again",
+    "project": "Opening your project…",
+    "settings": "Opening WrongStack settings…",
+    "moment": "Your workspace will be ready in a moment."
+  },
+  "appearance": {
+    "label": "Appearance settings",
+    "body": "Follow your device, or choose a mode.",
+    "colorMode": "Color mode",
+    "mode": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "contrast": {
+      "title": "Contrast",
+      "body": "Stronger text, borders and focus outlines; System follows your device setting.",
+      "system": "System",
+      "standard": "Standard",
+      "more": "High"
+    },
+    "density": {
+      "title": "Conversation density",
+      "body": "Compact puts more of a conversation on screen, as the WebUI's compact view does.",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "sounds": {
+      "title": "Sounds",
+      "body": "A soft chime when a run in the open conversation finishes. A request for your approval always chimes, as in the WebUI.",
+      "label": "Sound when a run finishes",
+      "off": "Off",
+      "on": "Chime when done"
+    },
+    "palette": {
+      "title": "Color palette",
+      "body": "WrongStack’s signature color pairs, tuned for light and dark."
+    },
+    "language": {
+      "title": "Display language",
+      "body": "Shared with the WebUI and CLI. The desktop follows it; some project pages are still in English."
+    },
+    "host": {
+      "connected": "Local workspace connected",
+      "connecting": "Connecting to your workspace",
+      "note": "Sessions keep running when you close a window."
+    }
   }
 }

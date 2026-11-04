@@ -3,6 +3,7 @@ import { LANGUAGES } from '@wrongstack/project-surfaces/lib/languages';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { accentThemes } from './appearance';
+import { useDesktopText } from './desktop-i18n';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { displayLanguage } from './surface-i18n';
 import type { DesktopController } from './useDesktop';
@@ -13,6 +14,7 @@ import { useProfileEngine } from './useEngine';
  * each language's own, so anyone can find theirs whatever is shown now.
  */
 function DisplayLanguage({ reportError }: { reportError: (error: unknown) => void }) {
+  const { t } = useDesktopText();
   const { state, command } = useProfileEngine(reportError);
   const [busy, setBusy] = useState(false);
   const current = displayLanguage(state.results['prefs.updated']);
@@ -20,16 +22,12 @@ function DisplayLanguage({ reportError }: { reportError: (error: unknown) => voi
     <div className="appearance-section">
       <SurfaceLanguageSync />
       <div>
-        <h3>Display language</h3>
-        <p>
-          Shared with the WebUI and CLI. The pages shared with the WebUI (memory, Kanban, Code
-          Atlas, the office, session story, dashboards and setup) follow it; the rest of the desktop
-          is in English for now.
-        </p>
+        <h3>{t('appearance.language.title')}</h3>
+        <p>{t('appearance.language.body')}</p>
       </div>
       <select
         className="display-language"
-        aria-label="Display language"
+        aria-label={t('appearance.language.title')}
         value={current}
         disabled={!state.connected || busy}
         onChange={(event) => {
@@ -50,20 +48,21 @@ function DisplayLanguage({ reportError }: { reportError: (error: unknown) => voi
 }
 
 export function AppearanceSettings({ vm }: { vm: DesktopController }) {
+  const { t } = useDesktopText();
   const { appearance, changeAppearance } = vm;
   return (
-    <section className="appearance-settings" aria-label="Appearance settings">
+    <section className="appearance-settings" aria-label={t('appearance.label')}>
       <div className="appearance-section">
         <div>
-          <h3>Appearance</h3>
-          <p>Follow your device, or choose a mode.</p>
+          <h3>{t('rail.appearance')}</h3>
+          <p>{t('appearance.body')}</p>
         </div>
-        <fieldset className="appearance-modes" aria-label="Color mode">
+        <fieldset className="appearance-modes" aria-label={t('appearance.colorMode')}>
           {(
             [
-              { id: 'system', label: 'System', Icon: Monitor },
-              { id: 'light', label: 'Light', Icon: Sun },
-              { id: 'dark', label: 'Dark', Icon: Moon },
+              { id: 'system', label: t('appearance.mode.system'), Icon: Monitor },
+              { id: 'light', label: t('appearance.mode.light'), Icon: Sun },
+              { id: 'dark', label: t('appearance.mode.dark'), Icon: Moon },
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -81,15 +80,15 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
-          <h3>Contrast</h3>
-          <p>Stronger text, borders and focus outlines; System follows your device setting.</p>
+          <h3>{t('appearance.contrast.title')}</h3>
+          <p>{t('appearance.contrast.body')}</p>
         </div>
         <fieldset className="appearance-modes" aria-label="Contrast">
           {(
             [
-              { id: 'system', label: 'System' },
-              { id: 'standard', label: 'Standard' },
-              { id: 'more', label: 'High' },
+              { id: 'system', label: t('appearance.contrast.system') },
+              { id: 'standard', label: t('appearance.contrast.standard') },
+              { id: 'more', label: t('appearance.contrast.more') },
             ] as const
           ).map(({ id, label }) => (
             <button
@@ -106,14 +105,14 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
-          <h3>Conversation density</h3>
-          <p>Compact puts more of a conversation on screen, as the WebUI's compact view does.</p>
+          <h3>{t('appearance.density.title')}</h3>
+          <p>{t('appearance.density.body')}</p>
         </div>
-        <fieldset className="appearance-modes" aria-label="Conversation density">
+        <fieldset className="appearance-modes" aria-label={t('appearance.density.title')}>
           {(
             [
-              { id: undefined, label: 'Comfortable' },
-              { id: 'compact', label: 'Compact' },
+              { id: undefined, label: t('appearance.density.comfortable') },
+              { id: 'compact', label: t('appearance.density.compact') },
             ] as const
           ).map(({ id, label }) => (
             <button
@@ -130,17 +129,14 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
-          <h3>Sounds</h3>
-          <p>
-            A soft chime when a run in the open conversation finishes. A request for your approval
-            always chimes, as in the WebUI.
-          </p>
+          <h3>{t('appearance.sounds.title')}</h3>
+          <p>{t('appearance.sounds.body')}</p>
         </div>
-        <fieldset className="appearance-modes" aria-label="Sound when a run finishes">
+        <fieldset className="appearance-modes" aria-label={t('appearance.sounds.label')}>
           {(
             [
-              { id: undefined, label: 'Off' },
-              { id: 'on', label: 'Chime when done' },
+              { id: undefined, label: t('appearance.sounds.off') },
+              { id: 'on', label: t('appearance.sounds.on') },
             ] as const
           ).map(({ id, label }) => (
             <button
@@ -160,8 +156,8 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       </div>
       <div className="appearance-section">
         <div>
-          <h3>Color palette</h3>
-          <p>WrongStack’s signature color pairs, tuned for light and dark.</p>
+          <h3>{t('appearance.palette.title')}</h3>
+          <p>{t('appearance.palette.body')}</p>
         </div>
         <div className="theme-choices">
           {accentThemes.map((theme) => (
@@ -195,8 +191,8 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
       <DisplayLanguage reportError={vm.reportError} />
       <div className="settings-host">
         <span className={`status-dot ${vm.connected ? 'running' : 'stopped'}`} />
-        <span>{vm.connected ? 'Local workspace connected' : 'Connecting to your workspace'}</span>
-        <small>Sessions keep running when you close a window.</small>
+        <span>{t(vm.connected ? 'appearance.host.connected' : 'appearance.host.connecting')}</span>
+        <small>{t('appearance.host.note')}</small>
       </div>
     </section>
   );

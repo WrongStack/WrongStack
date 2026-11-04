@@ -7086,3 +7086,25 @@ copies, starting with SAGE memory.
   Each button again shows its palette's name, and only the chosen one is checked.
 - Checks: a jsdom test renders Appearance and requires every palette name, no literal
   expression text, and a single check mark on the chosen palette.
+
+### Project workspace, project list and Appearance in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - the project workspace: its header, opening states and loading notices;
+  - the project overview: Memory, Kanban and Code Atlas destinations with their counts, the
+    tool links, and the sessions summary with each session's state;
+  - the Projects and Activity views, where session states and kinds are named in the language;
+  - the workspace opening and failure screens;
+  - Appearance: mode, contrast, density, sounds, palette, display language and the connection
+    line.
+- Counts are written as labels ("Active memories: 12", "Tasks: 8 · boards: 2") so every
+  language reads correctly without plural rules. English changed accordingly ("12 active
+  memories" became "Active memories: 12").
+- The loading notices of the lazily opened pages share one "Opening {page}…" string with the
+  page's own name.
+- The display language note no longer says the rest of the desktop is in English; it says that
+  some project pages still are.
+- Checks:
+  - The project list and activity render their counts, states, kinds and exit codes in English
+    and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.

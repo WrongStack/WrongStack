@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T08:58:14.676Z",
+  "generatedAt": "2026-11-04T09:07:36.453Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4961,
-    "sourceLines": 1245420,
+    "testFiles": 4963,
+    "sourceLines": 1245441,
     "workspaceEdges": 240,
-    "moduleEdges": 17377,
+    "moduleEdges": 17381,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 225,
+    "testsWithoutTypecheck": 227,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 425,
-      "testFiles": 225,
+      "testFiles": 227,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1334,6 +1334,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/appearance-palette.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
         "projects": [
           "root-node"
@@ -2247,6 +2253,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-views-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31105,6 +31117,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/appearance-palette.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32170,6 +32189,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-views-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

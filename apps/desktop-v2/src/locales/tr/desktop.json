@@ -17,7 +17,11 @@
     "deadcode": "Ölü Kod",
     "design": "Tasarım Stüdyosu",
     "reviews": "Chimera İncelemeleri",
-    "diagnostics": "Motor tanılama"
+    "diagnostics": "Motor tanılama",
+    "worktrees": "Çalışma Ağaçları",
+    "skills": "Beceriler",
+    "office": "Ajan ofisi",
+    "automations": "Otomasyonlar"
   },
   "rail": {
     "navigation": "Ana gezinme",
@@ -554,5 +558,124 @@
     "availability": "Sağlayıcı ve model zaman pencereleri, hafta içi günler, gece takvimleri ve saat dilimleri.",
     "instructions": "Projeler ve profiller genelinde kullanıcı kuralları ve AGENTS.md.",
     "tool-access": "Kayıtlı araç kataloğu, izin meta verileri, araçları açma ve kapatma."
+  },
+  "project": {
+    "opening": "{{name}} açılıyor…",
+    "gettingReady": "Proje bilgin ve araçların hazırlanıyor.",
+    "openingPage": "{{page}} açılıyor…",
+    "automations": "{{name}} için zamanlanmış işler ve tekrarlanabilir iş akışları."
+  },
+  "overview": {
+    "memory": {
+      "art": "Proje belleği",
+      "body": "Kararları koda ve birbirine bağlı tut.",
+      "loading": "Proje belleği açılıyor…",
+      "count": "Etkin bellek kaydı: {{count}}"
+    },
+    "kanban": {
+      "body": "Sıradaki fikri net ve görünür bir tamamlanma yoluna dönüştür.",
+      "count": "Görev: {{tasks}} · pano: {{boards}}"
+    },
+    "atlas": {
+      "art": "Kod atlası",
+      "body": "Mimariyi gör. Bağımlılıkları kaynağa kadar izle.",
+      "ready": "Kodunu haritalamaya hazır",
+      "count": "İndekslenen paket: {{count}}"
+    },
+    "links": {
+      "techstack": "Bağımlılık envanteri, kayıt defteri kanıtları, araştırma ve düzeltme.",
+      "kit": "Yeniden kullanılabilir yetenekler, tipli sözleşmeler, testler ve çalışma kanıtları.",
+      "mailbox": "Proje yazışmalarını, alındıları ve ajan yanıtlarını oku.",
+      "worktrees": "Çalışmaların geride bıraktığı yalıtılmış kopyaları incele, birleştir ya da kaldır.",
+      "goals": "Proje görevlerini planla, izle ve yönet.",
+      "skills": "Proje yeteneklerini keşfet, yaz ve sürdür.",
+      "liveFleetLabel": "Projenin canlı filosunu aç",
+      "live-fleet": "Kayıtlı oturumlar, ajanlar, son etkinlik ve onaylı denetimler.",
+      "office": "Her oturumun ajanları masalarında: araçlar, posta, yapılacaklar ve topoloji.",
+      "diagnostics": "Motorun belleği, CPU kullanımı, kod indeksi sunucusu, süreçleri ve dosya izleyicisi.",
+      "chronicle": "Proje zaman çizelgesi, olay kanıtları ve ilişkiler.",
+      "automations": "Tekrarlanabilir iş akışları, zamanlamalar ve çalışma kanıtları.",
+      "settings": "Modeller, yetenekler ve yürütme varsayılanları."
+    },
+    "sessions": {
+      "title": "Oturumlar",
+      "active": "Etkin: {{count}} · projeler, konuşmalar bitince de bilgilerini korur.",
+      "terminal": "Terminal aç",
+      "empty": "Henüz konuşma yok. Proje çalışma alanın, sen hazır olduğunda hazır.",
+      "start": "Oturum başlat"
+    }
+  },
+  "status": {
+    "starting": "başlıyor",
+    "running": "çalışıyor",
+    "stopped": "durdu",
+    "error": "hata",
+    "interrupted": "kesildi"
+  },
+  "kind": {
+    "agent": "ajan",
+    "terminal": "terminal"
+  },
+  "projects": {
+    "active": "Etkin: {{count}}",
+    "sessions": "Oturum: {{count}}",
+    "open": "Projeyi aç",
+    "connect": "Bir proje bağla",
+    "select": "Yerel bir klasör seç"
+  },
+  "activity": {
+    "exit": "çıkış {{code}}",
+    "empty": "Henüz oturum etkinliği yok. Zaman çizelgeni başlatmak için bir oturum oluştur."
+  },
+  "gate": {
+    "failed": "Bu çalışma alanı açılamadı.",
+    "stopped": "Çalışma alanı bağlantısı kesildi.",
+    "retry": "Yeniden dene",
+    "project": "Projen açılıyor…",
+    "settings": "WrongStack ayarları açılıyor…",
+    "moment": "Çalışma alanın birazdan hazır olacak."
+  },
+  "appearance": {
+    "label": "Görünüm ayarları",
+    "body": "Cihazını izle ya da bir kip seç.",
+    "colorMode": "Renk kipi",
+    "mode": {
+      "system": "Sistem",
+      "light": "Açık",
+      "dark": "Koyu"
+    },
+    "contrast": {
+      "title": "Kontrast",
+      "body": "Daha belirgin metin, kenarlıklar ve odak çizgileri; Sistem, cihazının ayarını izler.",
+      "system": "Sistem",
+      "standard": "Standart",
+      "more": "Yüksek"
+    },
+    "density": {
+      "title": "Konuşma yoğunluğu",
+      "body": "Sıkı, WebUI'ın sıkı görünümü gibi konuşmanın daha fazlasını ekrana sığdırır.",
+      "comfortable": "Rahat",
+      "compact": "Sıkı"
+    },
+    "sounds": {
+      "title": "Sesler",
+      "body": "Açık konuşmadaki bir çalışma bittiğinde yumuşak bir zil sesi. Onayını bekleyen bir istek, WebUI'da olduğu gibi her zaman ses çıkarır.",
+      "label": "Çalışma bittiğinde ses",
+      "off": "Kapalı",
+      "on": "Bitince zil çal"
+    },
+    "palette": {
+      "title": "Renk paleti",
+      "body": "WrongStack'in imza renk çiftleri, açık ve koyu için ayarlandı."
+    },
+    "language": {
+      "title": "Görüntüleme dili",
+      "body": "WebUI ve CLI ile ortak. Masaüstü bunu izler; bazı proje sayfaları henüz İngilizce."
+    },
+    "host": {
+      "connected": "Yerel çalışma alanı bağlı",
+      "connecting": "Çalışma alanına bağlanılıyor",
+      "note": "Bir pencereyi kapattığında oturumlar çalışmaya devam eder."
+    }
   }
 }
