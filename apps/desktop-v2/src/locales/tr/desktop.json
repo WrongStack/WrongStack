@@ -6219,5 +6219,80 @@
     "context": "Bağlam",
     "contextPercent": "Bağlam %{{percent}} · {{tokens}} / {{max}}",
     "contextTokens": "Bağlam {{tokens}} token · pencere bildirilmedi"
+  },
+  "referenceChips": {
+    "label": "Ekli proje dosyaları",
+    "showQuote": "{{ref}} içinden alıntılanan metni göster",
+    "setRange": "{{ref}} için satır aralığı belirle",
+    "remove": "{{ref}} dosya referansını kaldır",
+    "quoteFrom": "{{path}} alıntısı",
+    "quotedText": "Alıntılanan metin",
+    "quotedFrom": "{{ref}} içinden {{chars}} karakter alıntılandı. Alıntı seçildiği gibi gönderilir; diskteki dosya farklı olabilir.",
+    "quotedUnsaved": "{{chars}} karakter alıntılandı (satır numaraları eklenmedi: metin kaydedilmemişti). Alıntı seçildiği gibi gönderilir; diskteki dosya farklı olabilir.",
+    "close": "Kapat",
+    "wholeFileInstead": "Bunun yerine tüm dosyayı referansla",
+    "rangeFor": "{{path}} için satır aralığı",
+    "firstLine": "İlk satır",
+    "firstLineLabel": "Referans verilen ilk satır",
+    "lastLine": "Son satır",
+    "lastLineLabel": "Referans verilen son satır",
+    "reading": "Okunuyor…",
+    "preview": "Satırları önizle",
+    "invalid": "1’den başlayan tam satır numaraları kullan; son satır ilk satırdan önce olamaz.",
+    "noPreview": "Bu dosya için metin önizlemesi yok. Aralık yine de eklenebilir.",
+    "pastEnd": "Bu dosyada {{total}} satır var; aralık dosyanın sonundan sonra başlıyor.",
+    "previewLabel": "Referans verilen satırların önizlemesi",
+    "showing": "{{range}} referans satırın ilk {{shown}} tanesi gösteriliyor · dosyada {{total}} satır var.",
+    "cancel": "İptal",
+    "wholeFile": "Tüm dosyayı referansla",
+    "useLines": "Satırları kullan {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "Proje dosyası · tam okuma gerekli",
+    "fileSuggestions": "Proje dosyası önerileri",
+    "skillSuggestions": "Beceri önerileri",
+    "files": "Proje dosyaları",
+    "skills": "Yüklü beceriler",
+    "skillsList": "Beceriler",
+    "keys": "↑↓ seç · Enter/Tab ekle · Esc kapat",
+    "loading": "Yükleniyor…",
+    "noFiles": "Eşleşen proje dosyası yok.",
+    "noSkills": "Eşleşen beceri yok."
+  },
+  "dictation": {
+    "stopped": "Dikte durdu: {{reason}}.",
+    "unavailable": "Dikte kullanılamıyor.",
+    "stop": "Dikteyi durdur",
+    "dictate": "Dikte et",
+    "dictateTitle": "Taslağa dikte et"
+  },
+  "autonomyControl": {
+    "title": "Bu konuşmanın bir turdan sonra nasıl devam ettiği. Yeni konuşmalar için varsayılan olarak da kaydedilir.",
+    "label": "Devam kipi",
+    "placeholder": "Devam",
+    "mode": {
+      "off": "Manuel",
+      "suggest": "Sonraki adımları öner",
+      "auto": "Otomatik devam et",
+      "eternal": "Sürekli",
+      "eternal-parallel": "Sürekli, paralel"
+    },
+    "yoloLabel": "YOLO düzeyi",
+    "yolo": {
+      "off": "Onaylar açık",
+      "offTitle": "İzin soruları etkin.",
+      "on": "YOLO",
+      "onTitle": "Çağrılar sormadan çalışır; zarar verebilecek türler yine sorar.",
+      "plus": "YOLO+",
+      "plusTitle": "Her çağrı çalışır ve hiçbir şey sormaz; reddetme kuralları yine reddeder."
+    }
+  },
+  "generatedImages": {
+    "label": "Üretilen görseller",
+    "tooLarge": "Önizleme için çok büyük",
+    "notImage": "Görsel değil",
+    "unreadable": "Okunamadı",
+    "smaller": "Küçük göster",
+    "fullWidth": "Tam genişlikte göster"
   }
 }

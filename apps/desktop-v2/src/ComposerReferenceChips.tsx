@@ -7,6 +7,7 @@ import {
   referenceLabel,
   validReferenceLines,
 } from './composer-resources-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 
 const PREVIEW_LINES = 40;
@@ -23,6 +24,7 @@ export function ComposerReferenceChips({
   command: EngineCommand;
   onChange: (refs: ComposerFileReference[]) => Promise<boolean> | void;
 }) {
+  const { t } = useDesktopText();
   const [editing, setEditing] = useState<string | null>(null);
   if (!references.length) return null;
   const target = references.find((ref) => referenceKey(ref) === editing);
@@ -37,7 +39,7 @@ export function ComposerReferenceChips({
     );
   return (
     <>
-      <section className="composer-reference-chips" aria-label="Attached project files">
+      <section className="composer-reference-chips" aria-label={t('referenceChips.label')}>
         {references.map((ref) => {
           const key = referenceKey(ref);
           return (
@@ -48,8 +50,8 @@ export function ComposerReferenceChips({
                 type="button"
                 aria-label={
                   ref.snippet
-                    ? `Show quoted text from ${referenceLabel(ref)}`
-                    : `Set line range for ${referenceLabel(ref)}`
+                    ? t('referenceChips.showQuote', { ref: referenceLabel(ref) })
+                    : t('referenceChips.setRange', { ref: referenceLabel(ref) })
                 }
                 aria-pressed={editing === key}
                 disabled={disabled}
@@ -59,7 +61,7 @@ export function ComposerReferenceChips({
               </button>
               <button
                 type="button"
-                aria-label={`Remove file reference ${referenceLabel(ref)}`}
+                aria-label={t('referenceChips.remove', { ref: referenceLabel(ref) })}
                 disabled={disabled}
                 onClick={() => {
                   if (editing === key) setEditing(null);
@@ -73,15 +75,24 @@ export function ComposerReferenceChips({
         })}
       </section>
       {target?.snippet && (
-        <section className="composer-reference-range" aria-label={`Quote from ${target.path}`}>
-          <figure className="composer-reference-preview" aria-label="Quoted text">
+        <section
+          className="composer-reference-range"
+          aria-label={t('referenceChips.quoteFrom', { path: target.path })}
+        >
+          <figure
+            className="composer-reference-preview"
+            aria-label={t('referenceChips.quotedText')}
+          >
             <pre>{target.snippet}</pre>
             <figcaption>
-              {target.snippet.length.toLocaleString()} characters quoted
               {target.lines
-                ? ` from ${referenceLabel({ path: target.path, lines: target.lines })}`
-                : ' (line numbers not attached: the text was unsaved)'}
-              . The quote is sent as selected; the file on disk may differ.
+                ? t('referenceChips.quotedFrom', {
+                    chars: target.snippet.length.toLocaleString(),
+                    ref: referenceLabel({ path: target.path, lines: target.lines }),
+                  })
+                : t('referenceChips.quotedUnsaved', {
+                    chars: target.snippet.length.toLocaleString(),
+                  })}
             </figcaption>
           </figure>
           <footer>
@@ -90,7 +101,7 @@ export function ComposerReferenceChips({
               className="button secondary small"
               onClick={() => setEditing(null)}
             >
-              Close
+              {t('referenceChips.close')}
             </button>
             <button
               type="button"
@@ -101,7 +112,7 @@ export function ComposerReferenceChips({
                 void onChange(replace({ path: target.path }));
               }}
             >
-              Reference whole file instead
+              {t('referenceChips.wholeFileInstead')}
             </button>
           </footer>
         </section>
@@ -136,6 +147,7 @@ function ReferenceRangeEditor({
   onCancel: () => void;
   onApply: (lines: [number, number] | null) => void;
 }) {
+  const { t } = useDesktopText();
   const [start, setStart] = useState(String(reference.lines?.[0] ?? ''));
   const [end, setEnd] = useState(String(reference.lines?.[1] ?? ''));
   const [preview, setPreview] = useState<{ lines: string[]; total: number } | null>(null);
@@ -153,13 +165,13 @@ function ReferenceRangeEditor({
       const file = await command('files.read', { filePath: reference.path }, ['files.read']);
       if (file['binary'] || file['tooLarge']) {
         setPreview(null);
-        setMessage('No text preview is available for this file. The range can still be attached.');
+        setMessage(t('referenceChips.noPreview'));
         return;
       }
       const all = String(file['content'] ?? '').split('\n');
       if (first > all.length) {
         setPreview(null);
-        setMessage(`This file has ${all.length} lines; the range starts after its end.`);
+        setMessage(t('referenceChips.pastEnd', { total: all.length }));
         return;
       }
       setPreview({
@@ -173,12 +185,15 @@ function ReferenceRangeEditor({
     }
   };
   return (
-    <section className="composer-reference-range" aria-label={`Line range for ${reference.path}`}>
+    <section
+      className="composer-reference-range"
+      aria-label={t('referenceChips.rangeFor', { path: reference.path })}
+    >
       <div className="composer-reference-range-fields">
         <label>
-          First line
+          {t('referenceChips.firstLine')}
           <input
-            aria-label="First referenced line"
+            aria-label={t('referenceChips.firstLineLabel')}
             type="number"
             min={1}
             max={MAX_REFERENCE_LINE}
@@ -191,9 +206,9 @@ function ReferenceRangeEditor({
           />
         </label>
         <label>
-          Last line
+          {t('referenceChips.lastLine')}
           <input
-            aria-label="Last referenced line"
+            aria-label={t('referenceChips.lastLineLabel')}
             type="number"
             min={1}
             max={MAX_REFERENCE_LINE}
@@ -212,12 +227,12 @@ function ReferenceRangeEditor({
           disabled={disabled || !valid || loading}
           onClick={() => void load()}
         >
-          {loading ? 'Reading…' : 'Preview lines'}
+          {loading ? t('referenceChips.reading') : t('referenceChips.preview')}
         </button>
       </div>
       {!valid && start.trim() !== '' && (
         <p className="field-help" role="alert">
-          Use whole line numbers from 1, with the last line not before the first.
+          {t('referenceChips.invalid')}
         </p>
       )}
       {message && (
@@ -226,7 +241,10 @@ function ReferenceRangeEditor({
         </p>
       )}
       {preview && (
-        <figure className="composer-reference-preview" aria-label="Referenced lines preview">
+        <figure
+          className="composer-reference-preview"
+          aria-label={t('referenceChips.previewLabel')}
+        >
           <pre>
             {preview.lines.map((text, index) => (
               <span key={first + index}>
@@ -237,15 +255,18 @@ function ReferenceRangeEditor({
           </pre>
           {last - first + 1 > PREVIEW_LINES && (
             <figcaption>
-              Showing the first {PREVIEW_LINES} of {last - first + 1} referenced lines · file has{' '}
-              {preview.total} lines.
+              {t('referenceChips.showing', {
+                shown: PREVIEW_LINES,
+                range: last - first + 1,
+                total: preview.total,
+              })}
             </figcaption>
           )}
         </figure>
       )}
       <footer>
         <button type="button" className="button secondary small" onClick={onCancel}>
-          Cancel
+          {t('referenceChips.cancel')}
         </button>
         {reference.lines && (
           <button
@@ -254,7 +275,7 @@ function ReferenceRangeEditor({
             disabled={disabled}
             onClick={() => onApply(null)}
           >
-            Reference whole file
+            {t('referenceChips.wholeFile')}
           </button>
         )}
         <button
@@ -263,7 +284,9 @@ function ReferenceRangeEditor({
           disabled={disabled || !valid}
           onClick={() => onApply(lines)}
         >
-          Use lines {valid ? (first === last ? first : `${first}-${last}`) : ''}
+          {t('referenceChips.useLines', {
+            lines: valid ? (first === last ? String(first) : `${first}-${last}`) : '',
+          })}
         </button>
       </footer>
     </section>

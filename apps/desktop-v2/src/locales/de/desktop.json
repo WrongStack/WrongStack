@@ -6219,5 +6219,80 @@
     "context": "Kontext",
     "contextPercent": "Kontext {{percent}} % · {{tokens}} / {{max}}",
     "contextTokens": "Kontext {{tokens}} Tokens · Fenster nicht gemeldet"
+  },
+  "referenceChips": {
+    "label": "Angehängte Projektdateien",
+    "showQuote": "Zitierten Text aus {{ref}} anzeigen",
+    "setRange": "Zeilenbereich für {{ref}} festlegen",
+    "remove": "Dateiverweis {{ref}} entfernen",
+    "quoteFrom": "Zitat aus {{path}}",
+    "quotedText": "Zitierter Text",
+    "quotedFrom": "{{chars}} Zeichen aus {{ref}} zitiert. Das Zitat wird wie ausgewählt gesendet; die Datei auf dem Datenträger kann abweichen.",
+    "quotedUnsaved": "{{chars}} Zeichen zitiert (keine Zeilennummern angehängt: der Text war nicht gespeichert). Das Zitat wird wie ausgewählt gesendet; die Datei auf dem Datenträger kann abweichen.",
+    "close": "Schließen",
+    "wholeFileInstead": "Stattdessen die ganze Datei referenzieren",
+    "rangeFor": "Zeilenbereich für {{path}}",
+    "firstLine": "Erste Zeile",
+    "firstLineLabel": "Erste referenzierte Zeile",
+    "lastLine": "Letzte Zeile",
+    "lastLineLabel": "Letzte referenzierte Zeile",
+    "reading": "Wird gelesen…",
+    "preview": "Zeilen in der Vorschau zeigen",
+    "invalid": "Verwende ganze Zeilennummern ab 1; die letzte Zeile darf nicht vor der ersten liegen.",
+    "noPreview": "Für diese Datei ist keine Textvorschau verfügbar. Der Bereich kann trotzdem angehängt werden.",
+    "pastEnd": "Diese Datei hat {{total}} Zeilen; der Bereich beginnt nach ihrem Ende.",
+    "previewLabel": "Vorschau der referenzierten Zeilen",
+    "showing": "Die ersten {{shown}} von {{range}} referenzierten Zeilen werden angezeigt · die Datei hat {{total}} Zeilen.",
+    "cancel": "Abbrechen",
+    "wholeFile": "Ganze Datei referenzieren",
+    "useLines": "Zeilen {{lines}} verwenden"
+  },
+  "mentionPicker": {
+    "fileDescription": "Projektdatei · vollständiges Lesen erforderlich",
+    "fileSuggestions": "Vorschläge für Projektdateien",
+    "skillSuggestions": "Skill-Vorschläge",
+    "files": "Projektdateien",
+    "skills": "Installierte Skills",
+    "skillsList": "Skills",
+    "keys": "↑↓ auswählen · Enter/Tab einfügen · Esc schließen",
+    "loading": "Wird geladen…",
+    "noFiles": "Keine passenden Projektdateien.",
+    "noSkills": "Keine passenden Skills."
+  },
+  "dictation": {
+    "stopped": "Diktat beendet: {{reason}}.",
+    "unavailable": "Diktieren ist nicht verfügbar.",
+    "stop": "Diktat beenden",
+    "dictate": "Diktieren",
+    "dictateTitle": "In den Entwurf diktieren"
+  },
+  "autonomyControl": {
+    "title": "Wie dieses Gespräch nach einem Zug weitergeht. Wird auch als Standard für neue Gespräche gespeichert.",
+    "label": "Fortsetzungsmodus",
+    "placeholder": "Fortsetzung",
+    "mode": {
+      "off": "Manuell",
+      "suggest": "Nächste Schritte vorschlagen",
+      "auto": "Automatisch fortfahren",
+      "eternal": "Fortlaufend",
+      "eternal-parallel": "Fortlaufend, parallel"
+    },
+    "yoloLabel": "YOLO-Stufe",
+    "yolo": {
+      "off": "Freigaben an",
+      "offTitle": "Berechtigungsabfragen sind aktiv.",
+      "on": "YOLO",
+      "onTitle": "Aufrufe laufen ohne Nachfrage; schädliche Arten fragen weiterhin.",
+      "plus": "YOLO+",
+      "plusTitle": "Jeder Aufruf läuft und nichts fragt; Verbotsregeln lehnen weiterhin ab."
+    }
+  },
+  "generatedImages": {
+    "label": "Erzeugte Bilder",
+    "tooLarge": "Zu groß für eine Vorschau",
+    "notImage": "Kein Bild",
+    "unreadable": "Konnte nicht gelesen werden",
+    "smaller": "Kleiner anzeigen",
+    "fullWidth": "In voller Breite anzeigen"
   }
 }

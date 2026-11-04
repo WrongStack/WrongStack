@@ -6219,5 +6219,80 @@
     "context": "Contexte",
     "contextPercent": "Contexte {{percent}} % · {{tokens}} / {{max}}",
     "contextTokens": "Contexte {{tokens}} tokens · fenêtre non signalée"
+  },
+  "referenceChips": {
+    "label": "Fichiers du projet joints",
+    "showQuote": "Afficher le texte cité de {{ref}}",
+    "setRange": "Définir la plage de lignes de {{ref}}",
+    "remove": "Retirer la référence au fichier {{ref}}",
+    "quoteFrom": "Citation de {{path}}",
+    "quotedText": "Texte cité",
+    "quotedFrom": "{{chars}} caractères cités de {{ref}}. La citation est envoyée telle que sélectionnée ; le fichier sur le disque peut différer.",
+    "quotedUnsaved": "{{chars}} caractères cités (numéros de ligne non joints : le texte n’était pas enregistré). La citation est envoyée telle que sélectionnée ; le fichier sur le disque peut différer.",
+    "close": "Fermer",
+    "wholeFileInstead": "Référencer plutôt le fichier entier",
+    "rangeFor": "Plage de lignes de {{path}}",
+    "firstLine": "Première ligne",
+    "firstLineLabel": "Première ligne référencée",
+    "lastLine": "Dernière ligne",
+    "lastLineLabel": "Dernière ligne référencée",
+    "reading": "Lecture…",
+    "preview": "Aperçu des lignes",
+    "invalid": "Utilise des numéros de ligne entiers à partir de 1, la dernière ligne ne précédant pas la première.",
+    "noPreview": "Aucun aperçu texte n’est disponible pour ce fichier. La plage peut quand même être jointe.",
+    "pastEnd": "Ce fichier compte {{total}} lignes ; la plage commence après sa fin.",
+    "previewLabel": "Aperçu des lignes référencées",
+    "showing": "Affichage des {{shown}} premières lignes sur {{range}} référencées · le fichier compte {{total}} lignes.",
+    "cancel": "Annuler",
+    "wholeFile": "Référencer le fichier entier",
+    "useLines": "Utiliser les lignes {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "Fichier du projet · lecture complète requise",
+    "fileSuggestions": "Suggestions de fichiers du projet",
+    "skillSuggestions": "Suggestions de compétences",
+    "files": "Fichiers du projet",
+    "skills": "Compétences installées",
+    "skillsList": "Compétences",
+    "keys": "↑↓ choisir · Entrée/Tab insérer · Échap fermer",
+    "loading": "Chargement…",
+    "noFiles": "Aucun fichier du projet correspondant.",
+    "noSkills": "Aucune compétence correspondante."
+  },
+  "dictation": {
+    "stopped": "Dictée arrêtée : {{reason}}.",
+    "unavailable": "La dictée n’est pas disponible.",
+    "stop": "Arrêter la dictée",
+    "dictate": "Dicter",
+    "dictateTitle": "Dicter dans le brouillon"
+  },
+  "autonomyControl": {
+    "title": "Comment cette conversation se poursuit après un tour. Également enregistré par défaut pour les nouvelles conversations.",
+    "label": "Mode de poursuite",
+    "placeholder": "Poursuite",
+    "mode": {
+      "off": "Manuel",
+      "suggest": "Suggérer les prochaines étapes",
+      "auto": "Continuer automatiquement",
+      "eternal": "Continu",
+      "eternal-parallel": "Continu, en parallèle"
+    },
+    "yoloLabel": "Niveau YOLO",
+    "yolo": {
+      "off": "Approbations activées",
+      "offTitle": "Les demandes d’autorisation sont actives.",
+      "on": "YOLO",
+      "onTitle": "Les appels s’exécutent sans demander ; les types dangereux demandent toujours.",
+      "plus": "YOLO+",
+      "plusTitle": "Chaque appel s’exécute et rien ne demande ; les règles de refus refusent toujours."
+    }
+  },
+  "generatedImages": {
+    "label": "Images générées",
+    "tooLarge": "Trop volumineuse pour l’aperçu",
+    "notImage": "Pas une image",
+    "unreadable": "Lecture impossible",
+    "smaller": "Afficher en plus petit",
+    "fullWidth": "Afficher en pleine largeur"
   }
 }

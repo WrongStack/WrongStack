@@ -6219,5 +6219,80 @@
     "context": "Contesto",
     "contextPercent": "Contesto {{percent}}% · {{tokens}} / {{max}}",
     "contextTokens": "Contesto {{tokens}} token · finestra non segnalata"
+  },
+  "referenceChips": {
+    "label": "File di progetto allegati",
+    "showQuote": "Mostra il testo citato da {{ref}}",
+    "setRange": "Imposta l’intervallo di righe per {{ref}}",
+    "remove": "Rimuovi il riferimento al file {{ref}}",
+    "quoteFrom": "Citazione da {{path}}",
+    "quotedText": "Testo citato",
+    "quotedFrom": "{{chars}} caratteri citati da {{ref}}. La citazione viene inviata come selezionata; il file su disco potrebbe essere diverso.",
+    "quotedUnsaved": "{{chars}} caratteri citati (numeri di riga non allegati: il testo non era salvato). La citazione viene inviata come selezionata; il file su disco potrebbe essere diverso.",
+    "close": "Chiudi",
+    "wholeFileInstead": "Fai invece riferimento all’intero file",
+    "rangeFor": "Intervallo di righe per {{path}}",
+    "firstLine": "Prima riga",
+    "firstLineLabel": "Prima riga di riferimento",
+    "lastLine": "Ultima riga",
+    "lastLineLabel": "Ultima riga di riferimento",
+    "reading": "Lettura…",
+    "preview": "Anteprima righe",
+    "invalid": "Usa numeri di riga interi da 1, con l’ultima riga non prima della prima.",
+    "noPreview": "Nessuna anteprima di testo disponibile per questo file. L’intervallo può comunque essere allegato.",
+    "pastEnd": "Questo file ha {{total}} righe; l’intervallo inizia dopo la fine.",
+    "previewLabel": "Anteprima delle righe di riferimento",
+    "showing": "Mostrate le prime {{shown}} di {{range}} righe di riferimento · il file ha {{total}} righe.",
+    "cancel": "Annulla",
+    "wholeFile": "Fai riferimento all’intero file",
+    "useLines": "Usa le righe {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "File di progetto · lettura completa richiesta",
+    "fileSuggestions": "Suggerimenti di file di progetto",
+    "skillSuggestions": "Suggerimenti di skill",
+    "files": "File di progetto",
+    "skills": "Skill installate",
+    "skillsList": "Skill",
+    "keys": "↑↓ seleziona · Invio/Tab inserisci · Esc chiudi",
+    "loading": "Caricamento…",
+    "noFiles": "Nessun file di progetto corrispondente.",
+    "noSkills": "Nessuna skill corrispondente."
+  },
+  "dictation": {
+    "stopped": "Dettatura interrotta: {{reason}}.",
+    "unavailable": "La dettatura non è disponibile.",
+    "stop": "Interrompi la dettatura",
+    "dictate": "Detta",
+    "dictateTitle": "Detta nella bozza"
+  },
+  "autonomyControl": {
+    "title": "Come prosegue questa conversazione dopo un turno. Salvato anche come predefinito per le nuove conversazioni.",
+    "label": "Modalità di prosecuzione",
+    "placeholder": "Prosecuzione",
+    "mode": {
+      "off": "Manuale",
+      "suggest": "Suggerisci i passaggi successivi",
+      "auto": "Continua automaticamente",
+      "eternal": "Continua",
+      "eternal-parallel": "Continua, in parallelo"
+    },
+    "yoloLabel": "Livello YOLO",
+    "yolo": {
+      "off": "Approvazioni attive",
+      "offTitle": "Le richieste di autorizzazione sono attive.",
+      "on": "YOLO",
+      "onTitle": "Le chiamate vengono eseguite senza chiedere; i tipi dannosi chiedono comunque.",
+      "plus": "YOLO+",
+      "plusTitle": "Ogni chiamata viene eseguita e nulla chiede; le regole di divieto rifiutano comunque."
+    }
+  },
+  "generatedImages": {
+    "label": "Immagini generate",
+    "tooLarge": "Troppo grande per l’anteprima",
+    "notImage": "Non è un’immagine",
+    "unreadable": "Impossibile leggerla",
+    "smaller": "Mostra più piccola",
+    "fullWidth": "Mostra a larghezza piena"
   }
 }

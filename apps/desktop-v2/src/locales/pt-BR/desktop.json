@@ -6219,5 +6219,80 @@
     "context": "Contexto",
     "contextPercent": "Contexto {{percent}}% · {{tokens}} / {{max}}",
     "contextTokens": "Contexto {{tokens}} tokens · janela não informada"
+  },
+  "referenceChips": {
+    "label": "Arquivos do projeto anexados",
+    "showQuote": "Mostrar o texto citado de {{ref}}",
+    "setRange": "Definir o intervalo de linhas de {{ref}}",
+    "remove": "Remover a referência ao arquivo {{ref}}",
+    "quoteFrom": "Citação de {{path}}",
+    "quotedText": "Texto citado",
+    "quotedFrom": "{{chars}} caracteres citados de {{ref}}. A citação é enviada como selecionada; o arquivo no disco pode ser diferente.",
+    "quotedUnsaved": "{{chars}} caracteres citados (sem números de linha: o texto não estava salvo). A citação é enviada como selecionada; o arquivo no disco pode ser diferente.",
+    "close": "Fechar",
+    "wholeFileInstead": "Referenciar o arquivo inteiro em vez disso",
+    "rangeFor": "Intervalo de linhas de {{path}}",
+    "firstLine": "Primeira linha",
+    "firstLineLabel": "Primeira linha referenciada",
+    "lastLine": "Última linha",
+    "lastLineLabel": "Última linha referenciada",
+    "reading": "Lendo…",
+    "preview": "Pré-visualizar linhas",
+    "invalid": "Use números de linha inteiros a partir de 1, com a última linha não antes da primeira.",
+    "noPreview": "Nenhuma pré-visualização de texto disponível para este arquivo. O intervalo ainda pode ser anexado.",
+    "pastEnd": "Este arquivo tem {{total}} linhas; o intervalo começa depois do fim.",
+    "previewLabel": "Pré-visualização das linhas referenciadas",
+    "showing": "Mostrando as primeiras {{shown}} de {{range}} linhas referenciadas · o arquivo tem {{total}} linhas.",
+    "cancel": "Cancelar",
+    "wholeFile": "Referenciar o arquivo inteiro",
+    "useLines": "Usar as linhas {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "Arquivo do projeto · leitura completa necessária",
+    "fileSuggestions": "Sugestões de arquivos do projeto",
+    "skillSuggestions": "Sugestões de skills",
+    "files": "Arquivos do projeto",
+    "skills": "Skills instaladas",
+    "skillsList": "Skills",
+    "keys": "↑↓ selecionar · Enter/Tab inserir · Esc fechar",
+    "loading": "Carregando…",
+    "noFiles": "Nenhum arquivo do projeto correspondente.",
+    "noSkills": "Nenhuma skill correspondente."
+  },
+  "dictation": {
+    "stopped": "Ditado interrompido: {{reason}}.",
+    "unavailable": "O ditado não está disponível.",
+    "stop": "Parar o ditado",
+    "dictate": "Ditar",
+    "dictateTitle": "Ditar no rascunho"
+  },
+  "autonomyControl": {
+    "title": "Como esta conversa continua após um turno. Também é salvo como padrão para novas conversas.",
+    "label": "Modo de continuação",
+    "placeholder": "Continuação",
+    "mode": {
+      "off": "Manual",
+      "suggest": "Sugerir próximos passos",
+      "auto": "Continuar automaticamente",
+      "eternal": "Contínuo",
+      "eternal-parallel": "Contínuo, em paralelo"
+    },
+    "yoloLabel": "Nível YOLO",
+    "yolo": {
+      "off": "Aprovações ativadas",
+      "offTitle": "Os pedidos de permissão estão ativos.",
+      "on": "YOLO",
+      "onTitle": "As chamadas rodam sem perguntar; os tipos danosos ainda perguntam.",
+      "plus": "YOLO+",
+      "plusTitle": "Toda chamada roda e nada pergunta; as regras de negação ainda recusam."
+    }
+  },
+  "generatedImages": {
+    "label": "Imagens geradas",
+    "tooLarge": "Grande demais para pré-visualizar",
+    "notImage": "Não é uma imagem",
+    "unreadable": "Não foi possível ler",
+    "smaller": "Mostrar menor",
+    "fullWidth": "Mostrar na largura total"
   }
 }

@@ -8054,3 +8054,19 @@ copies, starting with SAGE memory.
 - Still English by design: session titles, file and attachment names, and delivery mode ids.
 - Checks: new `workbench-i18n.test.ts` renders the workbench and the status bar in English and
   Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Composer attachments and controls in the display language (2026-11-04)
+
+- The controls around the composer follow the display language in all seven languages: the
+  attached file chips, their quote view and line range editor with its preview and validation
+  (`referenceChips`), the `@` file and `$` skill suggestions (`mentionPicker`), dictation
+  (`dictation`), the continuation mode and YOLO level selects with their explanations
+  (`autonomyControl`), and the pictures an `image_generate` call saved (`generatedImages`).
+- The generated image placeholder now keeps a reason code and words it at render time; the YOLO
+  level table keeps only ids and preferences, with labels and explanations from the catalog.
+  Continuation mode labels fall back to the model's English label.
+- Still English by design: file paths, skill names and descriptions, and recognizer messages
+  reported by the platform.
+- Checks: new `composer-parts-i18n.test.ts` renders the chips with the range editor open, the
+  continuation and YOLO controls, and an unreadable generated picture in English and Turkish;
+  desktop tests pass (PASSED); typecheck clean.

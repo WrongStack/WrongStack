@@ -1,12 +1,13 @@
 import { ImageOff, LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import './generated-images.css';
 
 type Picture =
   | { path: string; status: 'loading' }
   | { path: string; status: 'ready'; dataUrl: string; bytes?: number | undefined }
-  | { path: string; status: 'unavailable'; reason: string };
+  | { path: string; status: 'unavailable'; reason: 'tooLarge' | 'notImage' | 'unreadable' };
 
 /** The saved files an `image_generate` result lists; none when it is not one. */
 function generatedImagePaths(output: string): string[] {
@@ -35,6 +36,7 @@ const size = (bytes: number | undefined) =>
  * toggles between a thumbnail and full width.
  */
 export function GeneratedImages({ output, command }: { output: string; command: EngineCommand }) {
+  const { t } = useDesktopText();
   const [paths] = useState(() => generatedImagePaths(output));
   const [pictures, setPictures] = useState<Picture[]>(() =>
     paths.map((path) => ({ path, status: 'loading' })),
@@ -63,13 +65,13 @@ export function GeneratedImages({ output, command }: { output: string; command: 
                   status: 'unavailable',
                   reason:
                     reply['tooLarge'] === true
-                      ? 'Too large to preview'
+                      ? 'tooLarge'
                       : reply['notImage'] === true
-                        ? 'Not an image'
-                        : 'Could not be read',
+                        ? 'notImage'
+                        : 'unreadable',
                 };
         } catch {
-          next = { path, status: 'unavailable', reason: 'Could not be read' };
+          next = { path, status: 'unavailable', reason: 'unreadable' };
         }
         if (!live) return;
         setPictures((old) => old.map((picture) => (picture.path === path ? next : picture)));
@@ -81,13 +83,17 @@ export function GeneratedImages({ output, command }: { output: string; command: 
   }, [command, paths]);
   if (!pictures.length) return null;
   return (
-    <section className="generated-images" aria-label="Generated images">
+    <section className="generated-images" aria-label={t('generatedImages.label')}>
       {pictures.map((picture) =>
         picture.status === 'ready' ? (
           <figure key={picture.path}>
             <button
               type="button"
-              title={large === picture.path ? 'Show smaller' : 'Show at full width'}
+              title={
+                large === picture.path
+                  ? t('generatedImages.smaller')
+                  : t('generatedImages.fullWidth')
+              }
               onClick={() => setLarge(large === picture.path ? '' : picture.path)}
             >
               <img
@@ -108,7 +114,7 @@ export function GeneratedImages({ output, command }: { output: string; command: 
             ) : (
               <>
                 <ImageOff size={14} />
-                <small>{picture.reason}</small>
+                <small>{t(`generatedImages.${picture.reason}`)}</small>
               </>
             )}
           </div>

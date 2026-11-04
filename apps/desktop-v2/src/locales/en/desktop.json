@@ -6219,5 +6219,80 @@
     "context": "Context",
     "contextPercent": "Context {{percent}}% · {{tokens}} / {{max}}",
     "contextTokens": "Context {{tokens}} tokens · window not reported"
+  },
+  "referenceChips": {
+    "label": "Attached project files",
+    "showQuote": "Show quoted text from {{ref}}",
+    "setRange": "Set line range for {{ref}}",
+    "remove": "Remove file reference {{ref}}",
+    "quoteFrom": "Quote from {{path}}",
+    "quotedText": "Quoted text",
+    "quotedFrom": "{{chars}} characters quoted from {{ref}}. The quote is sent as selected; the file on disk may differ.",
+    "quotedUnsaved": "{{chars}} characters quoted (line numbers not attached: the text was unsaved). The quote is sent as selected; the file on disk may differ.",
+    "close": "Close",
+    "wholeFileInstead": "Reference whole file instead",
+    "rangeFor": "Line range for {{path}}",
+    "firstLine": "First line",
+    "firstLineLabel": "First referenced line",
+    "lastLine": "Last line",
+    "lastLineLabel": "Last referenced line",
+    "reading": "Reading…",
+    "preview": "Preview lines",
+    "invalid": "Use whole line numbers from 1, with the last line not before the first.",
+    "noPreview": "No text preview is available for this file. The range can still be attached.",
+    "pastEnd": "This file has {{total}} lines; the range starts after its end.",
+    "previewLabel": "Referenced lines preview",
+    "showing": "Showing the first {{shown}} of {{range}} referenced lines · file has {{total}} lines.",
+    "cancel": "Cancel",
+    "wholeFile": "Reference whole file",
+    "useLines": "Use lines {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "Project file · full read required",
+    "fileSuggestions": "Project file suggestions",
+    "skillSuggestions": "Skill suggestions",
+    "files": "Project files",
+    "skills": "Installed skills",
+    "skillsList": "Skills",
+    "keys": "↑↓ select · Enter/Tab insert · Esc dismiss",
+    "loading": "Loading…",
+    "noFiles": "No matching project files.",
+    "noSkills": "No matching skills."
+  },
+  "dictation": {
+    "stopped": "Dictation stopped: {{reason}}.",
+    "unavailable": "Dictation is not available.",
+    "stop": "Stop dictation",
+    "dictate": "Dictate",
+    "dictateTitle": "Dictate into the draft"
+  },
+  "autonomyControl": {
+    "title": "How this conversation continues after a turn. Also saved as the default for new conversations.",
+    "label": "Continuation mode",
+    "placeholder": "Continuation",
+    "mode": {
+      "off": "Manual",
+      "suggest": "Suggest next steps",
+      "auto": "Continue automatically",
+      "eternal": "Eternal",
+      "eternal-parallel": "Eternal, parallel"
+    },
+    "yoloLabel": "YOLO level",
+    "yolo": {
+      "off": "Approvals on",
+      "offTitle": "Permission prompts are active.",
+      "on": "YOLO",
+      "onTitle": "Calls run without asking; damaging kinds still ask.",
+      "plus": "YOLO+",
+      "plusTitle": "Every call runs and nothing asks; deny rules still refuse."
+    }
+  },
+  "generatedImages": {
+    "label": "Generated images",
+    "tooLarge": "Too large to preview",
+    "notImage": "Not an image",
+    "unreadable": "Could not be read",
+    "smaller": "Show smaller",
+    "fullWidth": "Show at full width"
   }
 }

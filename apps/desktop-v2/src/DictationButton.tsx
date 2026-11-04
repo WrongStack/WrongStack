@@ -1,5 +1,6 @@
 import { Mic, MicOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { speechStatus, startSpeech, stopSpeech } from './platform';
 
 let cachedStatus: ReturnType<typeof speechStatus> | null = null;
@@ -16,6 +17,7 @@ export function DictationButton({
   disabled: boolean;
   onText: (text: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [status, setStatus] = useState<{ available: boolean; reason?: string } | null>(null),
     [listening, setListening] = useState(false),
     [heard, setHeard] = useState(''),
@@ -62,7 +64,7 @@ export function DictationButton({
           setHeard('');
           if (event['kind'] === 'error') setProblem(String(event['message'] ?? ''));
           else if (event['reason'] !== 'listening was stopped')
-            setProblem(`Dictation stopped: ${String(event['reason'] ?? '')}.`);
+            setProblem(t('dictation.stopped', { reason: String(event['reason'] ?? '') }));
         }
       });
     } catch (failure) {
@@ -70,15 +72,15 @@ export function DictationButton({
       setProblem(failure instanceof Error ? failure.message : String(failure));
     }
   };
-  const reason = status.available ? '' : (status.reason ?? 'Dictation is not available.');
+  const reason = status.available ? '' : (status.reason ?? t('dictation.unavailable'));
   return (
     <>
       <button
         type="button"
         className={`composer-chip${listening ? ' dictation-listening' : ''}`}
-        aria-label={listening ? 'Stop dictation' : 'Dictate'}
+        aria-label={listening ? t('dictation.stop') : t('dictation.dictate')}
         aria-pressed={listening}
-        title={reason || problem || (listening ? 'Stop dictation' : 'Dictate into the draft')}
+        title={reason || problem || (listening ? t('dictation.stop') : t('dictation.dictateTitle'))}
         disabled={disabled || !status.available}
         onClick={() => void toggle()}
       >

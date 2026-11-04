@@ -6219,5 +6219,80 @@
     "context": "Contexto",
     "contextPercent": "Contexto {{percent}} % · {{tokens}} / {{max}}",
     "contextTokens": "Contexto {{tokens}} tokens · ventana no informada"
+  },
+  "referenceChips": {
+    "label": "Archivos del proyecto adjuntos",
+    "showQuote": "Mostrar el texto citado de {{ref}}",
+    "setRange": "Definir el rango de líneas de {{ref}}",
+    "remove": "Quitar la referencia al archivo {{ref}}",
+    "quoteFrom": "Cita de {{path}}",
+    "quotedText": "Texto citado",
+    "quotedFrom": "{{chars}} caracteres citados de {{ref}}. La cita se envía tal como se seleccionó; el archivo en disco puede ser distinto.",
+    "quotedUnsaved": "{{chars}} caracteres citados (sin números de línea: el texto no estaba guardado). La cita se envía tal como se seleccionó; el archivo en disco puede ser distinto.",
+    "close": "Cerrar",
+    "wholeFileInstead": "Referenciar el archivo completo en su lugar",
+    "rangeFor": "Rango de líneas de {{path}}",
+    "firstLine": "Primera línea",
+    "firstLineLabel": "Primera línea referenciada",
+    "lastLine": "Última línea",
+    "lastLineLabel": "Última línea referenciada",
+    "reading": "Leyendo…",
+    "preview": "Previsualizar líneas",
+    "invalid": "Usa números de línea enteros desde 1, sin que la última línea vaya antes de la primera.",
+    "noPreview": "No hay vista previa de texto para este archivo. El rango se puede adjuntar igualmente.",
+    "pastEnd": "Este archivo tiene {{total}} líneas; el rango empieza después de su final.",
+    "previewLabel": "Vista previa de las líneas referenciadas",
+    "showing": "Se muestran las primeras {{shown}} de {{range}} líneas referenciadas · el archivo tiene {{total}} líneas.",
+    "cancel": "Cancelar",
+    "wholeFile": "Referenciar el archivo completo",
+    "useLines": "Usar las líneas {{lines}}"
+  },
+  "mentionPicker": {
+    "fileDescription": "Archivo del proyecto · requiere lectura completa",
+    "fileSuggestions": "Sugerencias de archivos del proyecto",
+    "skillSuggestions": "Sugerencias de habilidades",
+    "files": "Archivos del proyecto",
+    "skills": "Habilidades instaladas",
+    "skillsList": "Habilidades",
+    "keys": "↑↓ elegir · Intro/Tab insertar · Esc cerrar",
+    "loading": "Cargando…",
+    "noFiles": "No hay archivos del proyecto que coincidan.",
+    "noSkills": "No hay habilidades que coincidan."
+  },
+  "dictation": {
+    "stopped": "Dictado detenido: {{reason}}.",
+    "unavailable": "El dictado no está disponible.",
+    "stop": "Detener el dictado",
+    "dictate": "Dictar",
+    "dictateTitle": "Dictar en el borrador"
+  },
+  "autonomyControl": {
+    "title": "Cómo continúa esta conversación después de un turno. También se guarda como predeterminado para las nuevas conversaciones.",
+    "label": "Modo de continuación",
+    "placeholder": "Continuación",
+    "mode": {
+      "off": "Manual",
+      "suggest": "Sugerir siguientes pasos",
+      "auto": "Continuar automáticamente",
+      "eternal": "Continuo",
+      "eternal-parallel": "Continuo, en paralelo"
+    },
+    "yoloLabel": "Nivel YOLO",
+    "yolo": {
+      "off": "Aprobaciones activadas",
+      "offTitle": "Las solicitudes de permiso están activas.",
+      "on": "YOLO",
+      "onTitle": "Las llamadas se ejecutan sin preguntar; los tipos dañinos siguen preguntando.",
+      "plus": "YOLO+",
+      "plusTitle": "Cada llamada se ejecuta y nada pregunta; las reglas de denegación siguen rechazando."
+    }
+  },
+  "generatedImages": {
+    "label": "Imágenes generadas",
+    "tooLarge": "Demasiado grande para previsualizar",
+    "notImage": "No es una imagen",
+    "unreadable": "No se pudo leer",
+    "smaller": "Mostrar más pequeña",
+    "fullWidth": "Mostrar a ancho completo"
   }
 }
