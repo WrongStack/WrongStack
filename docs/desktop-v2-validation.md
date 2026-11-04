@@ -7784,3 +7784,22 @@ copies, starting with SAGE memory.
   - A new jsdom test opens the runtime list, selects an agent, reads its session activity, opens
     the broadcast form and the instruction review, in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (909); typecheck clean.
+
+### Integration settings in the display language (2026-11-04)
+
+- The connected-tools settings now follow the display language in all seven languages: the
+  heading and intro, each MCP connection card with its status, endpoint fallback, tool count,
+  server-reported tool hints and card actions, the remove confirmation, the empty state, the
+  loading notes for the editor and content browser, and the add-connection dialog with the
+  recommended-server picker.
+- The key group is `integrations`, because the page quotes `mcp.*` engine messages. Connection
+  statuses (stopped, connecting, connected, sleeping, discovering, error) are named per language
+  with the engine value as the fallback; the pause/wake choice still reads the engine value.
+- Not yet translated: the MCP authorization panel, the connection editor and the content browser
+  opened from a card. They follow in their own changes.
+- Still English by design: server names, descriptions and tool descriptions reported by servers
+  or the recommended list, engine replies, and example placeholders (project-docs, bun, URLs).
+- Checks:
+  - A new jsdom test renders a connected server card and opens the add dialog, in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (910); typecheck clean.

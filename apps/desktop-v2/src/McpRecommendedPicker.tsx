@@ -2,6 +2,7 @@ import {
   OFFICIAL_SERVERS,
   type OfficialServer,
 } from '@wrongstack/project-surfaces/lib/official-mcp-servers';
+import { useDesktopText } from './desktop-i18n';
 
 /**
  * The fields a recommended server carries beyond what the add dialog edits (its description,
@@ -33,23 +34,24 @@ export function McpRecommendedPicker({
   picked: OfficialServer | null;
   onPick: (server: OfficialServer | null) => void;
 }) {
+  const { t } = useDesktopText();
   return (
     <>
       <label>
-        Start from
+        {t('integrations.recommended.from')}
         <select
-          aria-label="Recommended MCP server"
+          aria-label={t('integrations.recommended.label')}
           value={picked?.name ?? ''}
           onChange={(event) =>
             onPick(OFFICIAL_SERVERS.find((server) => server.name === event.target.value) ?? null)
           }
         >
-          <option value="">A custom connection</option>
+          <option value="">{t('integrations.recommended.custom')}</option>
           {OFFICIAL_SERVERS.map((server) => (
             <option key={server.name} value={server.name} disabled={added.has(server.name)}>
               {server.name}
               {server.badge ? ` · ${server.badge}` : ''}
-              {added.has(server.name) ? ' (added)' : ''}
+              {added.has(server.name) ? ` (${t('integrations.recommended.added')})` : ''}
             </option>
           ))}
         </select>
@@ -58,7 +60,7 @@ export function McpRecommendedPicker({
         <p className="form-note">
           {picked.description}
           {picked.requiresEnvVars?.length
-            ? ` Needs ${picked.requiresEnvVars.join(', ')} in the environment, or set it in the connection editor after saving.`
+            ? ` ${t('integrations.recommended.needsEnv', { vars: picked.requiresEnvVars.join(', ') })}`
             : ''}
         </p>
       )}

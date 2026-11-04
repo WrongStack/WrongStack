@@ -1,6 +1,7 @@
 import type { OfficialServer } from '@wrongstack/project-surfaces/lib/official-mcp-servers';
 import { Check, Link2, Plug, Plus, Power, RefreshCw, Server, Trash2, X } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { McpAuthorization } from './McpAuthorization';
@@ -21,6 +22,7 @@ export function IntegrationSettings({
   /** Protocol capabilities of the connected engine. */
   capabilities?: readonly unknown[] | undefined;
 }) {
+  const { t } = useDesktopText();
   const [servers, setServers] = useState<Record<string, unknown>[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(''),
@@ -45,7 +47,7 @@ export function IntegrationSettings({
     try {
       const reply = await command(type, { name, ...payload }, ['mcp.operation_result']);
       await load();
-      setNotice(String(reply['message'] ?? 'Integration updated.'));
+      setNotice(String(reply['message'] ?? t('integrations.updated')));
       setCreating(false);
       setRemoving('');
     } catch (error) {
@@ -58,15 +60,12 @@ export function IntegrationSettings({
     <section className="integration-settings">
       <header className="settings-section-heading">
         <div>
-          <h2>Connected tools</h2>
-          <p>
-            Connect MCP servers to extend what WrongStack can read and do. These connections belong
-            to your profile.
-          </p>
+          <h2>{t('integrations.title')}</h2>
+          <p>{t('integrations.intro')}</p>
         </div>
         <button type="button" className="button primary" onClick={() => setCreating(true)}>
           <Plus size={14} />
-          Add connection
+          {t('integrations.add')}
         </button>
       </header>
       {error && (
@@ -86,6 +85,14 @@ export function IntegrationSettings({
           const status = String(
             server['status'] ?? (server['enabled'] ? 'Configured' : 'Disabled'),
           );
+          const statusLabel =
+            server['status'] == null
+              ? t(
+                  server['enabled']
+                    ? 'integrations.status.configured'
+                    : 'integrations.status.disabled',
+                )
+              : t(`integrations.status.${status}`, { defaultValue: status });
           const tools = Array.isArray(server['tools'])
             ? server['tools']
                 .map((tool: unknown) => (typeof tool === 'string' ? { name: tool } : record(tool)))
@@ -102,14 +109,14 @@ export function IntegrationSettings({
                   <span
                     className={`integration-status ${server['enabled'] === false ? 'disabled' : ''}`}
                   >
-                    {status}
+                    {statusLabel}
                   </span>
                 </div>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label={`Restart ${name}`}
-                  title="Restart server connection"
+                  aria-label={t('integrations.restartLabel', { name })}
+                  title={t('integrations.restartTitle')}
                   disabled={Boolean(busy)}
                   onClick={() => void action(name, 'mcp.restart')}
                 >
@@ -118,7 +125,10 @@ export function IntegrationSettings({
               </header>
               <p className="integration-endpoint">
                 {String(
-                  server['url'] ?? server['command'] ?? server['transport'] ?? 'MCP connection',
+                  server['url'] ??
+                    server['command'] ??
+                    server['transport'] ??
+                    t('integrations.endpoint'),
                 )}
               </p>
               {typeof server['description'] === 'string' && server['description'] && (
@@ -131,11 +141,11 @@ export function IntegrationSettings({
               )}
               <div className="integration-tools-summary">
                 <Plug size={14} />
-                {Number(server['toolCount'] ?? tools.length)} tools available
+                {t('integrations.toolCount', { n: Number(server['toolCount'] ?? tools.length) })}
               </div>
               {tools.length > 0 && (
                 <details>
-                  <summary>Available tools</summary>
+                  <summary>{t('integrations.tools')}</summary>
                   <div className="integration-tool-list">
                     {tools.map((tool) => (
                       <div key={String(tool['name'])}>
@@ -145,18 +155,11 @@ export function IntegrationSettings({
                           const hint = record(
                             record(server['toolAnnotations'])[String(tool['name'])],
                           );
-                          const labels = [
-                            ['readOnlyHint', 'read-only'],
-                            ['destructiveHint', 'destructive'],
-                            ['openWorldHint', 'open-world'],
-                          ]
-                            .filter(([key]) => hint[key!] === true)
-                            .map(([, label]) => label);
+                          const labels = ['readOnlyHint', 'destructiveHint', 'openWorldHint']
+                            .filter((key) => hint[key] === true)
+                            .map((key) => t(`integrations.hint.${key}`));
                           return labels.length ? (
-                            <small>
-                              Server-reported hints: {labels.join(', ')}. Execution permissions are
-                              evaluated separately.
-                            </small>
+                            <small>{t('integrations.hints', { labels: labels.join(', ') })}</small>
                           ) : null;
                         })()}
                       </div>
@@ -174,7 +177,7 @@ export function IntegrationSettings({
                   disabled={Boolean(busy)}
                   onClick={() => setEditing(server)}
                 >
-                  Edit connection
+                  {t('integrations.edit')}
                 </button>
                 <button
                   type="button"
@@ -182,7 +185,7 @@ export function IntegrationSettings({
                   disabled={Boolean(busy) || server['enabled'] === false}
                   onClick={() => setBrowsing(name)}
                 >
-                  Browse resources & prompts
+                  {t('integrations.browse')}
                 </button>
                 <button
                   type="button"
@@ -193,7 +196,9 @@ export function IntegrationSettings({
                   }
                 >
                   <Power size={12} />
-                  {server['enabled'] === false ? 'Enable' : 'Disable'}
+                  {server['enabled'] === false
+                    ? t('integrations.enable')
+                    : t('integrations.disable')}
                 </button>
                 {status.toLowerCase().includes('sleep') ? (
                   <button
@@ -202,7 +207,7 @@ export function IntegrationSettings({
                     disabled={Boolean(busy)}
                     onClick={() => void action(name, 'mcp.wake')}
                   >
-                    Wake
+                    {t('integrations.wake')}
                   </button>
                 ) : (
                   <button
@@ -211,22 +216,22 @@ export function IntegrationSettings({
                     disabled={Boolean(busy)}
                     onClick={() => void action(name, 'mcp.sleep')}
                   >
-                    Pause
+                    {t('integrations.pause')}
                   </button>
                 )}
                 <button
                   type="button"
                   className="button secondary small"
                   disabled={Boolean(busy) || server['enabled'] === false}
-                  title="Restart the connection and read its tool list from the live server"
+                  title={t('integrations.discoverTitle')}
                   onClick={() => void action(name, 'mcp.discover')}
                 >
-                  Refresh tools
+                  {t('integrations.discover')}
                 </button>
                 <button
                   type="button"
                   className="icon-button danger"
-                  aria-label={`Remove ${name}`}
+                  aria-label={t('integrations.removeLabel', { name })}
                   disabled={Boolean(busy)}
                   onClick={() => setRemoving(name)}
                 >
@@ -235,20 +240,20 @@ export function IntegrationSettings({
               </footer>
               {removing === name && (
                 <div className="integration-remove">
-                  <p>Remove this connection from your profile?</p>
+                  <p>{t('integrations.removeAsk')}</p>
                   <button
                     type="button"
                     className="button secondary danger small"
                     onClick={() => void action(name, 'mcp.remove')}
                   >
-                    Remove connection
+                    {t('integrations.remove')}
                   </button>
                   <button
                     type="button"
                     className="button secondary small"
                     onClick={() => setRemoving('')}
                   >
-                    Keep connection
+                    {t('integrations.keep')}
                   </button>
                 </div>
               )}
@@ -259,13 +264,10 @@ export function IntegrationSettings({
       {!servers.length && (
         <div className="integration-empty">
           <Plug size={35} />
-          <h3>Bring your tools into the workspace.</h3>
-          <p>
-            Add a remote endpoint or a local MCP server. Configure it first, then enable it when you
-            are ready.
-          </p>
+          <h3>{t('integrations.emptyTitle')}</h3>
+          <p>{t('integrations.emptyBody')}</p>
           <button type="button" className="button secondary" onClick={() => setCreating(true)}>
-            Add your first connection
+            {t('integrations.addFirst')}
           </button>
         </div>
       )}
@@ -278,7 +280,7 @@ export function IntegrationSettings({
         />
       )}
       {browsing && (
-        <Suspense fallback={<p role="status">Opening MCP content browser…</p>}>
+        <Suspense fallback={<p role="status">{t('integrations.openingBrowser')}</p>}>
           <McpContentBrowser
             key={browsing}
             name={browsing}
@@ -288,7 +290,7 @@ export function IntegrationSettings({
         </Suspense>
       )}
       {editing && (
-        <Suspense fallback={<p role="status">Opening connection editor…</p>}>
+        <Suspense fallback={<p role="status">{t('integrations.openingEditor')}</p>}>
           <McpConnectionEditor
             key={String(editing['name'])}
             server={editing}
@@ -298,7 +300,7 @@ export function IntegrationSettings({
             onClose={() => setEditing(null)}
             onSaved={() => {
               void load().catch((error) => setError(String(error)));
-              setNotice('Changed connection fields saved and read back.');
+              setNotice(t('integrations.savedEdits'));
             }}
           />
         </Suspense>
@@ -317,6 +319,7 @@ function IntegrationDialog({
   onClose: () => void;
   onSave: (payload: Record<string, unknown>) => void;
 }) {
+  const { t } = useDesktopText();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
@@ -338,16 +341,21 @@ function IntegrationDialog({
     setArgs((server.args ?? []).join('\n'));
   };
   return (
-    <dialog ref={dialog} className="modal" aria-label="Add MCP connection" onCancel={onClose}>
+    <dialog
+      ref={dialog}
+      className="modal"
+      aria-label={t('integrations.dialog.label')}
+      onCancel={onClose}
+    >
       <header>
         <div>
-          <span className="eyebrow">MCP CONNECTION</span>
-          <h2>Make your tools available.</h2>
+          <span className="eyebrow">{t('integrations.dialog.eyebrow')}</span>
+          <h2>{t('integrations.dialog.title')}</h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Cancel connection"
+          aria-label={t('integrations.dialog.cancelLabel')}
           onClick={onClose}
         >
           <X size={16} />
@@ -375,9 +383,9 @@ function IntegrationDialog({
       >
         <McpRecommendedPicker added={added} picked={preset} onPick={pick} />
         <label>
-          Name
+          {t('integrations.dialog.name')}
           <input
-            aria-label="Connection name"
+            aria-label={t('integrations.dialog.nameLabel')}
             autoFocus
             required
             value={name}
@@ -386,21 +394,21 @@ function IntegrationDialog({
           />
         </label>
         <label>
-          Connection type
+          {t('integrations.dialog.type')}
           <select
-            aria-label="Connection type"
+            aria-label={t('integrations.dialog.type')}
             value={mode}
             onChange={(event) => setMode(event.target.value)}
           >
-            <option value="remote">Remote endpoint</option>
-            <option value="local">Local process</option>
+            <option value="remote">{t('integrations.dialog.remote')}</option>
+            <option value="local">{t('integrations.dialog.local')}</option>
           </select>
         </label>
         {mode === 'remote' ? (
           <label>
-            Server URL
+            {t('integrations.dialog.url')}
             <input
-              aria-label="MCP server URL"
+              aria-label={t('integrations.dialog.urlLabel')}
               type="url"
               required
               value={url}
@@ -411,9 +419,9 @@ function IntegrationDialog({
         ) : (
           <>
             <label>
-              Executable
+              {t('integrations.dialog.executable')}
               <input
-                aria-label="MCP executable"
+                aria-label={t('integrations.dialog.executableLabel')}
                 required
                 value={command}
                 onChange={(event) => setCommand(event.target.value)}
@@ -421,17 +429,15 @@ function IntegrationDialog({
               />
             </label>
             <label>
-              Arguments
+              {t('integrations.dialog.arguments')}
               <textarea
-                aria-label="MCP arguments"
+                aria-label={t('integrations.dialog.argumentsLabel')}
                 value={args}
                 onChange={(event) => setArgs(event.target.value)}
                 rows={4}
                 placeholder={'run\n/path/to/server.ts'}
               />
-              <small className="field-help">
-                One argument per line. The executable is launched directly.
-              </small>
+              <small className="field-help">{t('integrations.dialog.argumentsHelp')}</small>
             </label>
           </>
         )}
@@ -439,24 +445,22 @@ function IntegrationDialog({
           <label className="authorization-checkbox">
             <input
               type="checkbox"
-              aria-label="Allow private MCP network addresses"
+              aria-label={t('integrations.dialog.privateLabel')}
               checked={allowPrivateNetworks}
               onChange={(event) => setAllowPrivateNetworks(event.target.checked)}
             />
-            Allow private network addresses for this connection
-            <small>Use for a trusted loopback or private-network MCP endpoint.</small>
+            {t('integrations.dialog.private')}
+            <small>{t('integrations.dialog.privateHelp')}</small>
           </label>
         )}
-        <p className="form-note">
-          The connection will be saved disabled. Enable it from its card to connect.
-        </p>
+        <p className="form-note">{t('integrations.dialog.note')}</p>
         <footer>
           <button type="button" className="button secondary" onClick={onClose}>
-            Cancel
+            {t('integrations.dialog.cancel')}
           </button>
           <button type="submit" className="button primary" disabled={busy || !name.trim()}>
             <Plus size={14} />
-            Save connection
+            {t('integrations.dialog.save')}
           </button>
         </footer>
       </form>
