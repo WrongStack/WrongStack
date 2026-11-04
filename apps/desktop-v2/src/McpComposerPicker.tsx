@@ -1,5 +1,6 @@
 import { Plug, RefreshCw, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { McpContentBrowser } from './McpContentBrowser';
@@ -20,6 +21,7 @@ export function McpComposerPicker({
   sessionId?: string | undefined;
   onNotice?: ((text: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [servers, setServers] = useState<Record<string, unknown>[]>([]),
     [selected, setSelected] = useState(''),
     [loading, setLoading] = useState(true),
@@ -54,14 +56,16 @@ export function McpComposerPicker({
           // The call can wait on an approval in the conversation, which this
           // dialog would cover: close first, report the outcome in the composer.
           onClose();
-          onNotice(`Running ${tool} from ${toolsOf} in this conversation…`);
+          onNotice(t('mcpPicker.running', { tool, server: toolsOf }));
           void command(
             'mcp.tool.call',
             { sessionId, name: toolsOf, tool, input },
             ['mcp.tool.result'],
             { timeoutMs: 600_000 },
           )
-            .then((reply) => onNotice(String(reply['message'] ?? `${tool} finished.`)))
+            .then((reply) =>
+              onNotice(String(reply['message'] ?? t('mcpPicker.finished', { tool }))),
+            )
             .catch((error: unknown) =>
               onNotice(error instanceof Error ? error.message : String(error)),
             );
@@ -78,18 +82,17 @@ export function McpComposerPicker({
       />
     );
   return (
-    <Modal title="Add MCP content to draft" onClose={onClose}>
+    <Modal title={t('mcpPicker.modalTitle')} onClose={onClose}>
       <div className="composer-dialog resource-dialog">
         <header>
           <div>
-            <span className="eyebrow">EXTERNAL CONTEXT</span>
-            <h2>MCP resources & prompts</h2>
+            <span className="eyebrow">{t('mcpPicker.eyebrow')}</span>
+            <h2>{t('mcpPicker.title')}</h2>
           </div>
         </header>
         <p>
-          Choose a connection, resolve its content, then review the text before appending it to this
-          conversation's draft. Nothing is sent automatically.
-          {sessionId && onNotice ? ' Tools run as a step of this conversation instead.' : ''}
+          {t('mcpPicker.intro')}
+          {sessionId && onNotice ? t('mcpPicker.introTools') : ''}
         </p>
         <button
           type="button"
@@ -98,7 +101,7 @@ export function McpComposerPicker({
           onClick={() => setRevision((value) => value + 1)}
         >
           <RefreshCw size={14} />
-          Refresh connections
+          {t('mcpPicker.refresh')}
         </button>
         {error && (
           <p role="alert" className="session-error">
@@ -106,7 +109,7 @@ export function McpComposerPicker({
           </p>
         )}
         {loading ? (
-          <p role="status">Reading MCP connections…</p>
+          <p role="status">{t('mcpPicker.reading')}</p>
         ) : servers.length ? (
           <div className="mcp-composer-connections">
             {servers.map((server) => (
@@ -120,31 +123,31 @@ export function McpComposerPicker({
                   <Plug size={14} />
                   <span>{String(server['name'])}</span>
                   <small>
-                    {server['enabled'] ? String(server['status'] ?? 'Enabled') : 'Disabled'}
+                    {server['enabled']
+                      ? String(server['status'] ?? t('mcpPicker.enabled'))
+                      : t('mcpPicker.disabled')}
                   </small>
                 </button>
                 {sessionId && onNotice && (
                   <button
                     type="button"
                     className="button secondary"
-                    aria-label={`Run tools from ${String(server['name'])}`}
+                    aria-label={t('mcpPicker.runTools', { name: String(server['name']) })}
                     disabled={!server['enabled']}
                     onClick={() => setToolsOf(String(server['name']))}
                   >
                     <Wrench size={14} />
-                    Tools
+                    {t('mcpPicker.tools')}
                   </button>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="quiet-state">
-            No MCP connections. Add one in WrongStack settings → Connected tools.
-          </p>
+          <p className="quiet-state">{t('mcpPicker.none')}</p>
         )}
         <button type="button" className="button secondary" onClick={onClose}>
-          Return to draft
+          {t('mcpPicker.back')}
         </button>
       </div>
     </Modal>

@@ -24,7 +24,11 @@ describe('MCP tool input', () => {
   it('accepts a JSON object or nothing, and says why anything else is refused', () => {
     expect(parseToolInput('{"query":"a"}')).toEqual({ ok: true, value: { query: 'a' } });
     expect(parseToolInput('  ')).toEqual({ ok: true, value: {} });
-    expect(parseToolInput('[1]')).toEqual({ ok: false, error: 'The input must be a JSON object.' });
+    expect(parseToolInput('[1]')).toEqual({
+      ok: false,
+      reason: 'object',
+      error: 'The input must be a JSON object.',
+    });
     const broken = parseToolInput('{query');
     expect(broken.ok).toBe(false);
     expect(!broken.ok && broken.error).toMatch(/not valid JSON/);

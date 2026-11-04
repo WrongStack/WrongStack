@@ -8299,3 +8299,15 @@ copies, starting with SAGE memory.
 - Checks: new `mcp-connection-i18n.test.ts` renders the editor and the authorization panel in
   English and Turkish and words an authorization summary in Turkish; desktop tests pass
   (PASSED); typecheck clean.
+
+### MCP content, tools and composer picker in the display language (2026-11-04)
+
+- The MCP resources and prompts browser (`mcpContent`), the tool runner (`mcpTools`) and the
+  composer's MCP picker (`mcpPicker`) follow the display language in all seven languages.
+- `parseToolInput` reports why input was refused (`reason: 'json' | 'object'`, with the parser
+  `detail`), so the runner words it from the catalog; the English `error` stays.
+- Still English by design: server, resource, prompt and tool names, URIs, descriptions,
+  prompt roles, server status values, the JSON parser detail, engine messages, and the text
+  copied or appended to the draft with its source attribution.
+- Checks: new `mcp-content-i18n.test.ts` renders the picker, the content browser and the tool
+  runner in English and Turkish; desktop tests pass (PASSED); typecheck clean.

@@ -1,5 +1,6 @@
 import { Copy, FileText, RefreshCw, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -24,6 +25,7 @@ export function McpContentBrowser({
   onClose: () => void;
   onInsert?: (text: string) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const [catalog, setCatalog] = useState<Item[]>([]),
     [query, setQuery] = useState(''),
     [selected, setSelected] = useState<Item | null>(null),
@@ -126,7 +128,7 @@ export function McpContentBrowser({
         record(result['provenance'])['serverName'] !== name ||
         !['resource', 'prompt'].includes(String(result['kind']))
       )
-        throw Error('The server returned an unrecognized content envelope.');
+        throw Error(t('mcpContent.unrecognized'));
       setContent(result);
     } catch (error) {
       if (alive.current && version === selectionSequence.current)
@@ -144,12 +146,12 @@ export function McpContentBrowser({
     else onClose();
   };
   return (
-    <Modal title={`MCP content from ${name}`} onClose={close}>
+    <Modal title={t('mcpContent.modalTitle', { name })} onClose={close}>
       <div className="mcp-content-browser">
         <header>
           <div>
-            <span className="eyebrow">PROFILE CONNECTION · {name}</span>
-            <h2>Resources & prompts</h2>
+            <span className="eyebrow">{t('mcpEditor.eyebrow', { name })}</span>
+            <h2>{t('mcpContent.title')}</h2>
           </div>
           <div className="feature-actions">
             <button
@@ -159,22 +161,19 @@ export function McpContentBrowser({
               onClick={() => void load(true)}
             >
               <RefreshCw size={14} />
-              Refresh server catalog
+              {t('mcpContent.refresh')}
             </button>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close MCP content"
+              aria-label={t('mcpContent.close')}
               onClick={close}
             >
               <X size={18} />
             </button>
           </div>
         </header>
-        <p>
-          Browse this connection's cached catalog. Reading a resource or resolving a prompt is
-          explicit. Server content is external data; prompt roles are shown for review.
-        </p>
+        <p>{t('mcpContent.intro')}</p>
         {catalogError && (
           <p className="session-error" role="alert">
             {catalogError}
@@ -185,13 +184,13 @@ export function McpContentBrowser({
             <label className="mcp-content-search">
               <Search size={14} />
               <input
-                aria-label="Search MCP resources and prompts"
+                aria-label={t('mcpContent.search')}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Find by name, URI or description…"
+                placeholder={t('mcpContent.placeholder')}
               />
             </label>
-            {loading && <p role="status">Reading MCP catalog…</p>}
+            {loading && <p role="status">{t('mcpContent.reading')}</p>}
             {(['resource', 'template', 'prompt'] as const).map((kind) => {
               const rows = catalog.filter(
                 (item) =>
@@ -203,12 +202,7 @@ export function McpContentBrowser({
               return (
                 <section key={kind}>
                   <h3>
-                    {kind === 'resource'
-                      ? 'Resources'
-                      : kind === 'template'
-                        ? 'Resource templates'
-                        : 'Prompts'}{' '}
-                    <small>{rows.length}</small>
+                    {t(`mcpContent.kind.${kind}`)} <small>{rows.length}</small>
                   </h3>
                   {rows.map((item) => (
                     <button
@@ -225,15 +219,7 @@ export function McpContentBrowser({
                     </button>
                   ))}
                   {!loading && !rows.length && (
-                    <p className="quiet-state">
-                      No matching{' '}
-                      {kind === 'resource'
-                        ? 'resources'
-                        : kind === 'template'
-                          ? 'templates'
-                          : 'prompts'}
-                      .
-                    </p>
+                    <p className="quiet-state">{t(`mcpContent.none.${kind}`)}</p>
                   )}
                 </section>
               );
@@ -243,7 +229,7 @@ export function McpContentBrowser({
             {selected ? (
               <>
                 <header>
-                  <span className="eyebrow">{selected.kind.toUpperCase()}</span>
+                  <span className="eyebrow">{t(`mcpContent.eyebrow.${selected.kind}`)}</span>
                   <h3>{String(selected.value['title'] ?? selected.value['name'])}</h3>
                   <p>{String(selected.value['description'] ?? '')}</p>
                 </header>
@@ -261,9 +247,11 @@ export function McpContentBrowser({
                           return (
                             <label key={key}>
                               {key}
-                              {argument['required'] === true ? ' · required' : ' · optional'}
+                              {argument['required'] === true
+                                ? t('mcpContent.required')
+                                : t('mcpContent.optional')}
                               <input
-                                aria-label={`MCP prompt argument ${key}`}
+                                aria-label={t('mcpContent.argument', { name: key })}
                                 required={argument['required'] === true}
                                 value={args[key] ?? ''}
                                 onChange={(event) => {
@@ -283,14 +271,16 @@ export function McpContentBrowser({
                           );
                         })}
                         {!entries(selected.value['arguments']).length && (
-                          <p>This prompt has no arguments.</p>
+                          <p>{t('mcpContent.noArguments')}</p>
                         )}
                       </>
                     ) : (
                       <label>
-                        {selected.kind === 'template' ? 'Concrete resource URI' : 'Resource URI'}
+                        {selected.kind === 'template'
+                          ? t('mcpContent.concreteUri')
+                          : t('mcpContent.uri')}
                         <input
-                          aria-label="MCP resource URI"
+                          aria-label={t('mcpContent.uriLabel')}
                           required
                           readOnly={selected.kind === 'resource'}
                           value={uri}
@@ -302,19 +292,16 @@ export function McpContentBrowser({
                           }}
                         />
                         {selected.kind === 'template' && (
-                          <small>
-                            Enter the complete URI matching the template. The engine validates the
-                            URI and read policy.
-                          </small>
+                          <small>{t('mcpContent.templateHelp')}</small>
                         )}
                       </label>
                     )}
                     <button type="submit" className="button primary">
                       {busy
-                        ? 'Reading…'
+                        ? t('mcpContent.readingContent')
                         : selected.kind === 'prompt'
-                          ? 'Resolve prompt for review'
-                          : 'Read resource'}
+                          ? t('mcpContent.resolve')
+                          : t('mcpContent.read')}
                     </button>
                   </fieldset>
                 </form>
@@ -324,13 +311,19 @@ export function McpContentBrowser({
                   </p>
                 )}
                 {content && (
-                  <section className="mcp-selected-content" aria-label="Selected MCP content">
+                  <section
+                    className="mcp-selected-content"
+                    aria-label={t('mcpContent.selectedLabel')}
+                  >
                     <header>
                       <div>
-                        <h3>Selected content</h3>
+                        <h3>{t('mcpContent.selected')}</h3>
                         <p>
-                          {Number(content['byteSize'] ?? 0).toLocaleString()} bytes · {name} ·{' '}
-                          {String(content['kind'])}
+                          {t('mcpContent.size', {
+                            bytes: Number(content['byteSize'] ?? 0).toLocaleString(),
+                            name,
+                            kind: String(content['kind']),
+                          })}
                         </p>
                       </div>
                       <button
@@ -353,21 +346,22 @@ export function McpContentBrowser({
                             .writeText(
                               `MCP ${content['kind']} from ${name}\n\n${blocks.join('\n\n')}`,
                             )
-                            .then(() => setNotice('MCP text copied with source attribution.'))
+                            .then(() => setNotice(t('mcpContent.copied')))
                             .catch((error) => setError(String(error)));
                         }}
                       >
                         <Copy size={13} />
-                        Copy text with source
+                        {t('mcpContent.copy')}
                       </button>
                     </header>
                     <p className="mcp-content-provenance">
-                      External MCP content · explicit selection ·{' '}
-                      {String(
-                        record(content['provenance'])['resourceUri'] ??
-                          record(content['provenance'])['promptName'] ??
-                          '',
-                      )}
+                      {t('mcpContent.provenance', {
+                        source: String(
+                          record(content['provenance'])['resourceUri'] ??
+                            record(content['provenance'])['promptName'] ??
+                            '',
+                        ),
+                      })}
                     </p>
                     {onInsert && (
                       <div className="feature-actions">
@@ -377,11 +371,9 @@ export function McpContentBrowser({
                           disabled={busy}
                           onClick={() => void insert()}
                         >
-                          Append text to draft
+                          {t('mcpContent.append')}
                         </button>
-                        <small>
-                          Text only · source and remote roles retained · review before sending
-                        </small>
+                        <small>{t('mcpContent.appendHelp')}</small>
                       </div>
                     )}
                     {content['kind'] === 'resource'
@@ -396,7 +388,7 @@ export function McpContentBrowser({
                       : entries(content['messages']).map((message, index) => (
                           <article key={index}>
                             <span className="eyebrow">
-                              PROMPT MESSAGE · {String(message['role'])}
+                              {t('mcpContent.message', { role: String(message['role']) })}
                             </span>
                             <McpContentBlock value={record(message['content'])} />
                           </article>
@@ -408,20 +400,20 @@ export function McpContentBrowser({
             ) : (
               <div className="mcp-content-empty">
                 <FileText size={32} />
-                <h3>Select a resource or prompt.</h3>
-                <p>Only catalog metadata is loaded until you explicitly request its content.</p>
+                <h3>{t('mcpContent.emptyTitle')}</h3>
+                <p>{t('mcpContent.emptyBody')}</p>
               </div>
             )}
           </div>
         </div>
         {leaving && (
           <div className="mcp-content-leave" role="alert">
-            <p>Close and discard the entered prompt arguments or template URI?</p>
+            <p>{t('mcpContent.leaveQuestion')}</p>
             <button type="button" className="button secondary" onClick={() => setLeaving(false)}>
-              Keep browsing MCP content
+              {t('mcpContent.keepBrowsing')}
             </button>
             <button type="button" className="button secondary" onClick={onClose}>
-              Discard MCP inputs and close
+              {t('mcpContent.discardClose')}
             </button>
           </div>
         )}
@@ -431,6 +423,7 @@ export function McpContentBrowser({
 }
 
 function McpContentBlock({ value }: { value: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   if (typeof value['text'] === 'string') return <MarkdownContent text={value['text']} />;
   if (value['type'] === 'resource') return <McpContentBlock value={record(value['resource'])} />;
   if (typeof value['blob'] === 'string' || typeof value['data'] === 'string')
@@ -438,8 +431,8 @@ function McpContentBlock({ value }: { value: Record<string, unknown> }) {
   if (typeof value['uri'] === 'string')
     return (
       <p>
-        Resource link: <code>{value['uri']}</code>
+        {t('mcpContent.link')} <code>{value['uri']}</code>
       </p>
     );
-  return <p className="quiet-state">This content block has no text preview.</p>;
+  return <p className="quiet-state">{t('mcpContent.noPreview')}</p>;
 }
