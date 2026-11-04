@@ -4,6 +4,7 @@ import { CopyButton } from './CopyButton';
 import { EngineWorkspace } from './EngineWorkspace';
 import { isLive } from './model';
 import { request } from './platform';
+import { requestSettingsSection } from './settings-section-request';
 import './draft-conflict.css';
 
 const TerminalPane = lazy(() =>
@@ -143,7 +144,14 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             inputDrafts={vm.inputDrafts}
             onInputDraftChange={vm.setInputDraft}
             onSettings={() => vm.openWrongStackSettings(session.id)}
-            onProject={(page) => vm.openProjectPage(session.projectId, page)}
+            onOpen={(target) => {
+              if ('page' in target) vm.openProjectPage(session.projectId, target.page);
+              else if ('start' in target) vm.newSession(session.projectId, target.start);
+              else {
+                requestSettingsSection(target.settings);
+                vm.openWrongStackSettings(session.id);
+              }
+            }}
           />
         ) : (
           <Suspense fallback={<div className="runtime-state">Opening terminal…</div>}>

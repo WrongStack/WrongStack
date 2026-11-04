@@ -69,6 +69,7 @@ import {
   settingValue,
   writeOnlySettings,
 } from './settings-fields';
+import { useRequestedSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
 
@@ -95,6 +96,10 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  useRequestedSettingsSection((wanted) => {
+    if (wanted === 'brain') setBrainOpened(true);
+    setSection(wanted);
+  });
   useEffect(() => {
     if (!state.connected) return;
     let active = true;

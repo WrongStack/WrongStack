@@ -1,5 +1,6 @@
 import type { BugHuntMode } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import { HUNT_COMMANDS } from './desktop-hunt';
+import type { SettingsTarget } from './settings-section-request';
 import type { ProjectPage } from './useDesktop';
 
 /** A conversation tab a command can open. */
@@ -16,8 +17,18 @@ export type ConversationTab =
   | 'mcp-tasks'
   | 'plan';
 
-/** Where a navigation command goes: one of the conversation's tabs or a project page. */
-export type DesktopNavigation = { tab: ConversationTab } | { page: ProjectPage };
+/**
+ * Where a navigation command goes: one of the conversation's tabs, a project page, a WrongStack
+ * settings section, or a new conversation in this project.
+ */
+export type DesktopNavigation =
+  | { tab: ConversationTab }
+  | { page: ProjectPage }
+  | { settings: SettingsTarget }
+  | { start: 'agent' | 'terminal' };
+
+/** A navigation target outside the conversation, which the app opens. */
+export type AppNavigation = Exclude<DesktopNavigation, { tab: ConversationTab }>;
 
 export type DesktopCommandCategory =
   | 'Run'
@@ -51,7 +62,17 @@ type CommandAction =
   | 'mode'
   | 'yolo'
   | 'nextsteps'
-  | 'hunt';
+  | 'hunt'
+  | 'goal'
+  | 'brain'
+  | 'mcp'
+  | 'doctor'
+  | 'browser'
+  | 'working-dir'
+  | 'save'
+  | 'todos'
+  | 'next'
+  | 'export';
 
 export interface DesktopCommand {
   name: string;
@@ -69,6 +90,7 @@ export interface DesktopCommand {
 
 const tab = (name: ConversationTab): DesktopNavigation => ({ tab: name });
 const page = (name: ProjectPage): DesktopNavigation => ({ page: name });
+const settings = (name: SettingsTarget): DesktopNavigation => ({ settings: name });
 
 export const DESKTOP_CATEGORY_ORDER: readonly DesktopCommandCategory[] = [
   'Run',
@@ -141,6 +163,33 @@ export const desktopCommands: readonly DesktopCommand[] = [
     category: 'Conversation',
     description: 'Clear provider context; retain the on-disk conversation',
     action: 'clear',
+  },
+  {
+    name: '/new',
+    category: 'Conversation',
+    description: 'Start a new conversation in this project',
+    action: 'open',
+    opens: { start: 'agent' },
+  },
+  {
+    name: '/terminal',
+    aliases: ['/term'],
+    category: 'Conversation',
+    description: 'Open a terminal session in this project',
+    action: 'open',
+    opens: { start: 'terminal' },
+  },
+  {
+    name: '/save',
+    category: 'Conversation',
+    description: 'Confirm this conversation is saved (it saves as it goes)',
+    action: 'save',
+  },
+  {
+    name: '/export',
+    category: 'Conversation',
+    description: 'Download this conversation as Markdown',
+    action: 'export',
   },
   {
     name: '/sessions',
@@ -246,6 +295,28 @@ export const desktopCommands: readonly DesktopCommand[] = [
     action: 'open',
     opens: tab('skills'),
   },
+  {
+    name: '/tools',
+    category: 'Tools',
+    description: 'Every tool the model can call, and which ones it may use',
+    action: 'open',
+    opens: settings('tool-access'),
+  },
+  {
+    name: '/todos',
+    category: 'Tools',
+    usage: '[clear]',
+    description: 'Show this conversation’s todo list, or clear it',
+    action: 'todos',
+  },
+  {
+    name: '/next',
+    aliases: ['/enxt'],
+    category: 'Tools',
+    usage: '[n …]',
+    description: 'List the suggested next steps, or send the numbered ones',
+    action: 'next',
+  },
   // Agent
   {
     name: '/review',
@@ -297,6 +368,20 @@ export const desktopCommands: readonly DesktopCommand[] = [
     description: 'Make next steps optional or required; cap automatic continuation',
     action: 'nextsteps',
   },
+  {
+    name: '/goal',
+    category: 'Agent',
+    usage: '[start <title>|set <mission>|pause|resume|stop|clear|refine|save|load <name>]',
+    description: 'Run a goal or steer the project mission; alone, opens the goals page',
+    action: 'goal',
+  },
+  {
+    name: '/brain',
+    category: 'Agent',
+    usage: '[risk <level>|ask <question>]',
+    description: 'Brain settings, its auto-decision risk ceiling, or a question to it',
+    action: 'brain',
+  },
   // Hunts: one proven defect per round, as many rounds as asked
   ...HUNT_COMMANDS.map(
     (hunt): DesktopCommand => ({
@@ -326,6 +411,7 @@ export const desktopCommands: readonly DesktopCommand[] = [
   },
   {
     name: '/goals',
+    aliases: ['/goal-state'],
     category: 'Project',
     description: 'Project goals, their runs and phase status',
     action: 'open',
@@ -397,6 +483,14 @@ export const desktopCommands: readonly DesktopCommand[] = [
     action: 'open',
     opens: page('diagnostics'),
   },
+  {
+    name: '/working-dir',
+    aliases: ['/cwd'],
+    category: 'Project',
+    usage: '[path]',
+    description: 'Show where this conversation’s tools run, or move them inside the project',
+    action: 'working-dir',
+  },
   // App
   {
     name: '/settings',
@@ -410,6 +504,28 @@ export const desktopCommands: readonly DesktopCommand[] = [
     category: 'App',
     description: 'Toggle prompt refinement before sending',
     action: 'enhance',
+  },
+  {
+    name: '/mcp',
+    category: 'App',
+    usage: '[tools <server>]',
+    description: 'Manage MCP servers, or list one server’s tools',
+    action: 'mcp',
+  },
+  {
+    name: '/doctor',
+    category: 'App',
+    usage: '[fix]',
+    description: 'Check the profile configuration against the defaults; fix repairs it',
+    action: 'doctor',
+  },
+  {
+    name: '/browser',
+    aliases: ['/network'],
+    category: 'App',
+    usage: '[allow <origin>|allow loopback|…]',
+    description: 'Private and localhost origins the browser and fetch tools may reach',
+    action: 'browser',
   },
   { name: '/help', category: 'App', description: 'Show every desktop command', action: 'help' },
 ];

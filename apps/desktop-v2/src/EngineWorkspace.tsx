@@ -21,7 +21,7 @@ import {
   splitReferenceMessage,
   withReference,
 } from './composer-resources-model';
-import type { DesktopNavigation } from './desktop-commands';
+import type { AppNavigation, DesktopNavigation } from './desktop-commands';
 import { EngineDataView } from './EngineDataView';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
@@ -46,7 +46,6 @@ import { ToolApprovalCard } from './ToolApprovalCard';
 import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
 import { AgentWorking, LiveRunActivity } from './TurnTools';
-import type { ProjectPage } from './useDesktop';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
@@ -115,7 +114,7 @@ export function EngineWorkspace({
   inputDrafts,
   onInputDraftChange,
   onSettings,
-  onProject,
+  onOpen,
   scopeKey,
   projectId,
   projectRoot,
@@ -136,7 +135,7 @@ export function EngineWorkspace({
   inputDrafts: Record<string, InputDraft>;
   onInputDraftChange: (key: string, draft: InputDraft | null) => void;
   onSettings: () => void;
-  onProject: (page?: ProjectPage) => void;
+  onOpen: (target: AppNavigation) => void;
   scopeKey: string;
   projectId: string;
   projectRoot: string;
@@ -261,7 +260,7 @@ export function EngineWorkspace({
     [send, onError],
   );
   const navigate = (target: DesktopNavigation) =>
-    'tab' in target ? setTab(target.tab) : onProject(target.page);
+    'tab' in target ? setTab(target.tab) : onOpen(target);
   const shortcuts = useConversationShortcuts(navigate);
   useRunSounds(state);
   const agentTabs = useAgentTabs(state.agents, openLink);
@@ -348,7 +347,7 @@ export function EngineWorkspace({
           onPlan={openTool('plan')}
           onProject={() => {
             setToolsOpen(false);
-            onProject();
+            onOpen({ page: 'overview' });
           }}
           onSettings={() => {
             setToolsOpen(false);

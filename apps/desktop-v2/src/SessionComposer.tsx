@@ -416,8 +416,8 @@ export function SessionComposer({
   const runCommand = (text: string) =>
     runDesktopCommand(text, {
       command,
-      prefs: state.results['prefs.updated'] ?? {},
-      running: state.running,
+      send,
+      state,
       stopHunt: hunts.stop,
       openHelp: () => setCommandHelp(true),
       openPrompts: setPromptWorkspace,

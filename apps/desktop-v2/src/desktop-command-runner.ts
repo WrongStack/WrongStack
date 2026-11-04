@@ -5,47 +5,32 @@ import {
 } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import { agentModes } from './AgentModeControl';
 import { AUTONOMY_MODES, sessionAutonomy } from './autonomy-model';
-import type { SubmitMode } from './composer-model';
-import { type DesktopNavigation, parseDesktopCommand } from './desktop-commands';
-import { type HuntRequest, huntLabel } from './desktop-hunt';
-import type { EngineCommand } from './engine-operations';
+import {
+  type DesktopCommandContext,
+  type DesktopCommandOutcome,
+  HANDLED,
+  reason,
+  refused,
+} from './desktop-command-context';
+import {
+  runBrain,
+  runBrowser,
+  runDoctor,
+  runExport,
+  runMcp,
+  runNext,
+  runSave,
+  runTodos,
+  runWorkingDir,
+} from './desktop-command-engine';
+import { parseDesktopCommand } from './desktop-commands';
+import { runGoal } from './desktop-goal-command';
+import { huntLabel } from './desktop-hunt';
 
-/** What a command needs from the composer and the conversation it is typed in. */
-export interface DesktopCommandContext {
-  command: EngineCommand;
-  /** This conversation's preferences as the engine last reported them (`prefs.updated`). */
-  prefs: Record<string, unknown>;
-  /** Whether a turn is running in this conversation. */
-  running: boolean;
-  /** Stops the running hunt after its current round; the notice to show, or null without one. */
-  stopHunt(): string | null;
-  openHelp(): void;
-  openPrompts(view: 'library' | 'journal'): void;
-  openContext(action: 'inspect' | 'compact' | 'compact-aggressive' | 'repair' | 'clear'): void;
-  stop(): void;
-  toggleEnhance(): void;
-  openSettings(): void;
-  /** Opens the queued-prompt panel; false when nothing is queued. */
-  openQueue(): boolean;
-  setMode(mode: SubmitMode): void;
-  navigate(target: DesktopNavigation): void;
-  notify(message: string): void;
-  fail(message: string): void;
-}
+export type { DesktopCommandContext, DesktopCommandOutcome } from './desktop-command-context';
 
-/**
- * What the composer does next: the command ran (the draft is cleared), it was refused (the
- * draft stays, with the reason), or the text is sent as a prompt.
- */
-export type DesktopCommandOutcome =
-  | { kind: 'handled' }
-  | { kind: 'refused'; message: string }
-  | { kind: 'submit'; text: string; mode?: SubmitMode | undefined }
-  | { kind: 'hunt'; request: HuntRequest };
-
-const HANDLED: DesktopCommandOutcome = { kind: 'handled' };
-const refused = (message: string): DesktopCommandOutcome => ({ kind: 'refused', message });
-const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/** This conversation's preferences as the engine last reported them (`prefs.updated`). */
+const prefsOf = (context: DesktopCommandContext) => context.state.results['prefs.updated'] ?? {};
 
 const NEXT_STEPS_UNLIMITED = new Set(['unlimited', 'inf', 'infinite', '∞', 'sonsuz', '0']);
 const limitText = (limit: number) => (limit <= 0 ? 'unlimited' : `${limit} turns`);
@@ -62,7 +47,7 @@ function runAutonomy(argument: string, context: DesktopCommandContext): DesktopC
   const modes = AUTONOMY_MODES.map(([id]) => id);
   const wanted = argument.toLowerCase();
   if (!wanted) {
-    const current = sessionAutonomy(context.prefs).mode || 'not set';
+    const current = sessionAutonomy(prefsOf(context)).mode || 'not set';
     context.notify(`Continuation mode: ${current}. Use /autonomy <${modes.join('|')}>.`);
     return HANDLED;
   }
@@ -99,7 +84,7 @@ function runMode(argument: string, context: DesktopCommandContext): DesktopComma
 function runYolo(argument: string, context: DesktopCommandContext): DesktopCommandOutcome {
   const wanted = argument.toLowerCase();
   if (!wanted) {
-    const { prefs } = context;
+    const prefs = prefsOf(context);
     const current = prefs['yoloPlus'] === true ? 'YOLO+' : prefs['yolo'] === true ? 'on' : 'off';
     context.notify(`YOLO: ${current}. Use /yolo on, /yolo plus or /yolo off.`);
     return HANDLED;
@@ -125,8 +110,9 @@ function runYolo(argument: string, context: DesktopCommandContext): DesktopComma
 function runNextSteps(argument: string, context: DesktopCommandContext): DesktopCommandOutcome {
   const [first, second, ...rest] = argument.toLowerCase().split(/\s+/).filter(Boolean);
   if (!first || first === 'status') {
-    const mode = context.prefs['nextStepsMode'] === 'optional' ? 'optional' : 'required';
-    const limit = sessionAutonomy(context.prefs).limit;
+    const prefs = prefsOf(context);
+    const mode = prefs['nextStepsMode'] === 'optional' ? 'optional' : 'required';
+    const limit = sessionAutonomy(prefs).limit;
     context.notify(`Next steps: ${mode} · automatic continuation limit: ${limitText(limit)}.`);
     return HANDLED;
   }
@@ -196,7 +182,7 @@ function runHunt(
       context.notify(context.stopHunt() ?? 'No Proof-Driven Hunt is running in this conversation.');
       return HANDLED;
     case 'start':
-      if (context.running)
+      if (context.state.running)
         return refused(
           `Wait for the current turn to finish (or /stop it) before starting ${label}.`,
         );
@@ -254,6 +240,26 @@ export function runDesktopCommand(
       return runNextSteps(argument, context);
     case 'hunt':
       return command.hunt ? runHunt(command.hunt, command.name, argument, context) : HANDLED;
+    case 'goal':
+      return runGoal(argument, context);
+    case 'brain':
+      return runBrain(argument, context);
+    case 'mcp':
+      return runMcp(argument, context);
+    case 'doctor':
+      return runDoctor(argument, context);
+    case 'browser':
+      return runBrowser(argument, context);
+    case 'working-dir':
+      return runWorkingDir(argument, context);
+    case 'save':
+      return runSave(context);
+    case 'todos':
+      return runTodos(argument, context);
+    case 'next':
+      return runNext(argument, context);
+    case 'export':
+      return runExport(context);
     case 'help':
       context.openHelp();
       return HANDLED;

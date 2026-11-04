@@ -6913,3 +6913,41 @@ copies, starting with SAGE memory.
   (hotspot ratchet 2013).
 - Checks: tested in jsdom with fake timers (skips the opening frame, coalesces two frames,
   reports a failed reload); desktop tests pass; typecheck clean.
+
+### WebUI slash commands in the composer (2026-11-04)
+
+- A comparison of the two command lists found WebUI commands the desktop composer refused as
+  unknown. They now work in the desktop, mostly by opening the surface that already does the job:
+  - `/new` and `/terminal` (`/term`) open the new-session dialog for this project.
+  - `/tools`, `/mcp`, `/doctor`, `/brain` and `/browser` (`/network`) open their settings section
+    (tool access, connected tools, diagnostics, Brain policy).
+  - `/goal-state` opens the goals page.
+- Commands with arguments act directly and report the outcome above the composer:
+  - `/doctor fix` repairs the profile configuration and says what changed and where the backup is.
+  - `/brain risk <level>` sets the auto-decision ceiling; `/brain ask <question>` shows the answer.
+  - `/mcp tools <server>` lists the server's tools.
+  - `/browser <args>` runs the private-origin policy.
+  - `/working-dir` (`/cwd`) shows the working directory, or moves it inside the project.
+  - `/save` confirms the conversation is saved.
+  - `/todos [clear]` shows or empties the todo list.
+  - `/next` (`/enxt`) lists the suggested steps, and `/next 1,3` sends the chosen ones as one
+    prompt.
+  - `/export` downloads the conversation as Markdown in the WebUI export's layout.
+- `/goal` follows the WebUI's routing:
+  - It starts, pauses, resumes, stops, saves and loads goal runs, and sets, pauses, resumes,
+    clears and refines the project mission.
+  - Pause and stop act on the running goal when there is one.
+  - The goals page opens to show the result, because those requests have no single reply.
+  - One unknown word (for example `/goal pasue`) is refused rather than saved as the mission.
+- A command can now ask for a settings section. The settings page takes the request once when it
+  opens, so opening settings later from the sidebar starts where it normally does.
+- The command context carries the conversation's engine state and a plain send in place of the
+  separate preference and running fields; the workspace's project callback became a general
+  open callback for pages, settings sections and new sessions.
+- `brainAnswerText` and `configDoctorReport` are now used by the commands, so they leave the
+  test-only export list.
+- Checks:
+  - Every new command and alias is tested, including navigation targets, engine requests and
+    replies, refusals, next-step selection, the Markdown download, `/goal` routing and the
+    one-time settings request (jsdom).
+  - Desktop tests pass (856); typecheck clean.

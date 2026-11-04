@@ -6,12 +6,13 @@ import {
   matchDesktopCommands,
   parseDesktopCommand,
 } from '../src/desktop-commands';
+import { type EngineState, emptyEngineState } from '../src/engine-state';
 
 function contextWith(prefs: Record<string, unknown> = {}, reply: Record<string, unknown> = {}) {
   const context = {
     command: vi.fn(async () => reply),
-    prefs,
-    running: false,
+    send: vi.fn(async () => undefined),
+    state: { ...emptyEngineState, results: { 'prefs.updated': prefs } } as EngineState,
     stopHunt: vi.fn((): string | null => null),
     openHelp: vi.fn(),
     openPrompts: vi.fn(),

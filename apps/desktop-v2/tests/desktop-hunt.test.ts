@@ -15,6 +15,7 @@ import {
   prepareHunt,
   requestHuntStop,
 } from '../src/desktop-hunt';
+import { emptyEngineState } from '../src/engine-state';
 import { HuntRoundCard } from '../src/HuntRounds';
 
 const user = (text: string) => ({ role: 'user' as const, text });
@@ -28,8 +29,8 @@ const answer = (text: string) => ({ role: 'assistant' as const, text });
 function contextWith(running = false) {
   return {
     command: vi.fn(async () => ({})),
-    prefs: {},
-    running,
+    send: vi.fn(async () => undefined),
+    state: { ...emptyEngineState, running },
     stopHunt: vi.fn((): string | null => 'stopping'),
     openHelp: vi.fn(),
     openPrompts: vi.fn(),

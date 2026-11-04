@@ -24,9 +24,6 @@
     "apps/desktop-v2/src/brain-targets-model.ts": [
       "brainTargetsWire"
     ],
-    "apps/desktop-v2/src/BrainDecisions.tsx": [
-      "brainAnswerText"
-    ],
     "apps/desktop-v2/src/BrowserNetworkPolicy.tsx": [
       "browserPolicyState"
     ],
@@ -39,9 +36,6 @@
     ],
     "apps/desktop-v2/src/composer-attachments.ts": [
       "attachmentBytes"
-    ],
-    "apps/desktop-v2/src/ConfigDoctor.tsx": [
-      "configDoctorReport"
     ],
     "apps/desktop-v2/src/context-editor-model.ts": [
       "removalProposal"
