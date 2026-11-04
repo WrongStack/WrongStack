@@ -893,7 +893,7 @@ TUI `/connections` and WebUI Settings → Connections surface daemon health metr
 | `webui` / `webui-server` | MemoryManager + ReviewQueue + WS handlers |
 | `vibeui` | Memory browser and relationship graph |
 
-Ops helpers: `scripts/sage-maintenance.mjs`, `scripts/memory-profile.mjs`, `scripts/analyze-memory-log.mjs`.
+Ops helpers: `scripts/memory-profile.mjs`, `scripts/analyze-memory-log.mjs`.
 
 ---
 

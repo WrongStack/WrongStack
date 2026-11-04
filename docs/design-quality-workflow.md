@@ -153,22 +153,6 @@ tokens/components and font-family changes; color edits report their OKLab ΔE
 and say so when imperceptible (≤ 0.02). `PRODUCT.md` at the project root is
 injected (3000-character excerpt) ahead of `.design/brief.md` on UI turns.
 
-Evaluation harness (`scripts/design-eval/`): six fixed briefs (incident
-console, checkout step, long-form article, pricing page, mobile booking flow,
-portfolio), each asking for one self-contained `index.html`.
-`run.ts generate --runs runs.json` runs every provider/model command in two
-arms: `layer` and `bare` (`WRONGSTACK_DESIGN_STUDIO=off` plus
-`--disallowed-tools design,design_reference`). `score` measures every page with
-the agent's own scripts and reports per arm: pages produced, pages with 0 FAIL,
-mean FAIL/WARN, and diversity, the mean pairwise DNA distance between an arm's
-pages for different briefs (0 = one look for every brief). No judge model.
-`ratchet` exits 1 when a `layer` arm has fewer clean pages, more FAILs, or
-diversity down by more than 0.05 against `baseline.json`; `--write` records it.
-The scorer and ratchet were verified on fixture pages in Chromium (identical
-pages score diversity 0; each regression kind trips the ratchet) and the
-generator with a stub runner. No model run has been scored yet, so there is
-no baseline and no claim yet about how much the layer helps.
-
 ## Limits and follow-up evaluation
 
 Validation for this change: 164 tests passed across 16 design, CLI, tool,

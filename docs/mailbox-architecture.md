@@ -292,8 +292,4 @@ bun --bun run vitest run mailbox
 bun --bun run vitest run packages/core/tests/architecture/mailbox-ipc-boundary.test.ts
 bun --bun run vitest run packages/coordination/tests/mailbox-project-server.test.ts
 bun --bun run vitest run packages/tui/tests/run-tui-mailbox-integration.test.ts
-node scripts/purge-stale-mailbox-entries.mjs
 ```
-
-The purge script is also an IPC client. It does not delete mailbox files
-directly.
