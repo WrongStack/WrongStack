@@ -7592,3 +7592,20 @@ copies, starting with SAGE memory.
     Turkish.
   - The recovery model test covers the new words.
   - Catalog parity and the key guard pass; desktop tests pass (898); typecheck clean.
+
+### Provider settings in the display language (2026-11-04)
+
+- The provider settings page now follows the display language in all seven languages: the
+  heading, the default model form, saved connections with their keys, the delete and remove
+  confirmations, and the add-a-connection form for provider keys and custom endpoints.
+- The key group is `providerSettings`, because the page quotes `providers.*`, `provider.*`,
+  `model.*` and `key.*` engine messages.
+- `buildProviderSave` takes optional words for its five validation errors, with English as the
+  default.
+- Not yet translated: the sign-in, connection test, wiring and cloud routing sections inside each
+  saved connection. They follow in the next change.
+- Still English by design: engine replies, provider and model names, and provider families.
+- Checks:
+  - A new jsdom test renders provider settings in English and then in Turkish.
+  - A new unit test covers the validation words.
+  - Catalog parity and the key guard pass; desktop tests pass (900); typecheck clean.
