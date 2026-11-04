@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T08:39:44.258Z",
+  "generatedAt": "2026-11-04T08:46:29.567Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4961,
-    "sourceLines": 1245374,
+    "sourceLines": 1245362,
     "workspaceEdges": 240,
-    "moduleEdges": 17375,
+    "moduleEdges": 17376,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33630,8 +33630,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1067,
-      "relativeImports": 36
+      "lines": 1055,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -33667,8 +33667,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1067,
-      "relativeImports": 36
+      "lines": 1055,
+      "relativeImports": 37
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",

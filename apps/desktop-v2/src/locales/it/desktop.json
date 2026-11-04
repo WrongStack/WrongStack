@@ -154,5 +154,62 @@
       "terminal-display": "Visualizzazione del terminale",
       "logging": "Log e diagnostica"
     }
+  },
+  "composer": {
+    "message": "Messaggio a WrongStack",
+    "placeholderRunning": "Aggiungi una nota, metti in coda il prossimo compito o reindirizza…",
+    "placeholderIdle": "Descrivi cosa vuoi costruire…",
+    "journal": "Diario dei prompt",
+    "journalTitle": "Diario dei prompt · questo progetto",
+    "options": "Opzioni di scrittura",
+    "agentPlan": "Piano dei modelli degli agenti",
+    "refineDraft": "Rifinisci questa bozza",
+    "library": "Libreria dei prompt",
+    "mcpContent": "Risorse e prompt MCP",
+    "addFile": "Aggiungi file del progetto",
+    "skillMention": "Inserisci una menzione di skill",
+    "contextPanel": "Contesto e istruzioni",
+    "commands": "Comandi desktop",
+    "refineBeforeSend": "Rifinisci prima di inviare",
+    "savingPreference": "Salvataggio della preferenza…",
+    "refreshQueue": "Aggiorna la coda del motore",
+    "keys": "Invio invia · Maiusc+Invio aggiunge una riga · ↑ richiama l'input · @ file · $ skill · / comandi.",
+    "stopEdit": "Ferma e modifica l'ultimo prompt",
+    "stopRun": "Ferma l'esecuzione",
+    "stopRunTitle": "Ferma l'esecuzione; la coda in attesa resta",
+    "modeTitle": {
+      "btw": "Inattivo: avvia un turno. In esecuzione: invia una nota BTW al leader di questa sessione.",
+      "queue": "Aggiunge un prompt persistente. Se inattivo, parte subito.",
+      "steer": "Interrompe il turno corrente, poi avvia la tua istruzione. Svuota prima la coda in attesa."
+    },
+    "deliveryMode": "Modalità di invio del messaggio",
+    "mode": {
+      "btw": "BTW",
+      "message": "Messaggio",
+      "queue": "Coda",
+      "steer": "Ferma e reindirizza",
+      "queueAttachments": "Metti in coda gli allegati"
+    },
+    "send": "Invia: {{mode}}",
+    "sendMessage": "Invia messaggio",
+    "sendTitle": "{{mode}} · Invio",
+    "attachmentsQueued": "Gli allegati avviano un turno in coda dopo l'esecuzione corrente. Scegli «Ferma e reindirizza» per interrompere.",
+    "topicChecking": "Verifica se questa richiesta apre un argomento diverso… La tua bozza è conservata.",
+    "topic": {
+      "eyebrow": "SCELTA DEL CONTESTO",
+      "title": "Avviare un nuovo contesto per l'argomento?",
+      "cancel": "Annulla la scelta dell'argomento",
+      "suggested": "Argomento suggerito:",
+      "body": "Un contesto nuovo tiene fuori dalla prossima richiesta i dettagli precedenti della conversazione. I file del progetto e la sessione registrata restano disponibili. Questa scelta si applica solo quando approvi l'invio.",
+      "keep": "Mantieni la bozza",
+      "same": "Continua nello stesso contesto",
+      "fresh": "Usa un contesto nuovo"
+    },
+    "loading": "Caricamento della conversazione…",
+    "restore": {
+      "text": "Il campo di scrittura contiene già una bozza.",
+      "replace": "Sostituisci la bozza",
+      "keep": "Mantieni la bozza attuale"
+    }
   }
 }

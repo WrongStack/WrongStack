@@ -154,5 +154,62 @@
       "terminal-display": "Affichage du terminal",
       "logging": "Journaux et diagnostic"
     }
+  },
+  "composer": {
+    "message": "Message à WrongStack",
+    "placeholderRunning": "Ajoutez une note, mettez la prochaine tâche en file ou réorientez…",
+    "placeholderIdle": "Décrivez ce que vous voulez construire…",
+    "journal": "Journal des prompts",
+    "journalTitle": "Journal des prompts · ce projet",
+    "options": "Options de saisie",
+    "agentPlan": "Plan des modèles d'agents",
+    "refineDraft": "Affiner ce brouillon",
+    "library": "Bibliothèque de prompts",
+    "mcpContent": "Ressources et prompts MCP",
+    "addFile": "Ajouter un fichier du projet",
+    "skillMention": "Insérer une mention de compétence",
+    "contextPanel": "Contexte et instructions",
+    "commands": "Commandes du bureau",
+    "refineBeforeSend": "Affiner avant l'envoi",
+    "savingPreference": "Enregistrement de la préférence…",
+    "refreshQueue": "Actualiser la file du moteur",
+    "keys": "Entrée envoie · Maj+Entrée ajoute une ligne · ↑ rappelle la saisie · @ fichiers · $ compétences · / commandes.",
+    "stopEdit": "Arrêter et modifier le dernier prompt",
+    "stopRun": "Arrêter l'exécution",
+    "stopRunTitle": "Arrêter l'exécution ; la file en attente est conservée",
+    "modeTitle": {
+      "btw": "Au repos : démarre un tour. En cours : envoie une note BTW au leader de cette session.",
+      "queue": "Ajoute un prompt persistant. Au repos, il démarre immédiatement.",
+      "steer": "Interrompt le tour en cours, puis lance votre instruction. Videz d'abord la file en attente."
+    },
+    "deliveryMode": "Mode d'envoi du message",
+    "mode": {
+      "btw": "BTW",
+      "message": "Message",
+      "queue": "File",
+      "steer": "Arrêter et réorienter",
+      "queueAttachments": "Mettre les pièces jointes en file"
+    },
+    "send": "Envoyer : {{mode}}",
+    "sendMessage": "Envoyer le message",
+    "sendTitle": "{{mode}} · Entrée",
+    "attachmentsQueued": "Les pièces jointes lancent un tour en file après l'exécution en cours. Choisissez « Arrêter et réorienter » pour interrompre.",
+    "topicChecking": "Vérification : cette demande ouvre-t-elle un autre sujet… Votre brouillon est conservé.",
+    "topic": {
+      "eyebrow": "CHOIX DU CONTEXTE",
+      "title": "Démarrer un nouveau contexte de sujet ?",
+      "cancel": "Annuler le choix du sujet",
+      "suggested": "Sujet suggéré :",
+      "body": "Un contexte neuf tient les détails antérieurs de la conversation hors de la prochaine requête. Les fichiers du projet et la session enregistrée restent disponibles. Ce choix ne s'applique que lorsque vous approuvez l'envoi.",
+      "keep": "Garder le brouillon",
+      "same": "Continuer dans le même contexte",
+      "fresh": "Utiliser un contexte neuf"
+    },
+    "loading": "Chargement de la conversation…",
+    "restore": {
+      "text": "Votre zone de saisie contient déjà un brouillon.",
+      "replace": "Remplacer le brouillon",
+      "keep": "Garder le brouillon actuel"
+    }
   }
 }

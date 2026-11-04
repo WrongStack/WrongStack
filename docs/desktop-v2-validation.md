@@ -7038,3 +7038,22 @@ copies, starting with SAGE memory.
   - Switching language updates the shell, the profile's language is applied and remembered,
     and a remembered language is used at start and kept until the profile answers (jsdom).
   - Desktop tests pass; typecheck clean; the frontend build emits one chunk per language.
+
+### The composer in the display language (2026-11-04)
+
+- The message composer now follows the display language in all seven languages:
+  - the placeholder and the message box's label;
+  - the options menu, its keyboard hint and the refine-before-sending switch;
+  - the stop buttons and the delivery modes (Message, BTW, Queue, Stop & steer) with their
+    explanations;
+  - the send button, the topic-context dialog, the draft-restore prompt and the loading notice.
+- BTW stays as it is in every language, as in the WebUI. The keyboard hint names each
+  language's own key labels (Entrée, Invio, Intro).
+- A new check reads every shell file that uses the catalog and fails on a key the English
+  catalog lacks, so a mistyped key cannot render as its name. Engine message types such as
+  `composer.warm` share the dotted shape and are not counted as keys.
+- SessionComposer shrank to 1,055 lines (ratchet lowered); its relative imports grew by the
+  translation hook (ratchet 37).
+- Checks:
+  - Catalog parity and the key guard pass.
+  - Desktop tests pass (870); typecheck clean.

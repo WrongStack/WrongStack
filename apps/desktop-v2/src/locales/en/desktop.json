@@ -154,5 +154,62 @@
       "terminal-display": "Terminal display",
       "logging": "Logs & diagnostics"
     }
+  },
+  "composer": {
+    "message": "Message WrongStack",
+    "placeholderRunning": "Add a note, queue the next task, or steer…",
+    "placeholderIdle": "Describe what you want to build…",
+    "journal": "Prompt journal",
+    "journalTitle": "Prompt journal · this project",
+    "options": "Composer options",
+    "agentPlan": "Agent model plan",
+    "refineDraft": "Refine this draft",
+    "library": "Prompt library",
+    "mcpContent": "MCP resources & prompts",
+    "addFile": "Add project file",
+    "skillMention": "Insert skill mention",
+    "contextPanel": "Context & instructions",
+    "commands": "Desktop commands",
+    "refineBeforeSend": "Refine before sending",
+    "savingPreference": "Saving preference…",
+    "refreshQueue": "Refresh engine queue",
+    "keys": "Enter sends · Shift Enter adds a line · ↑ recalls input · @ files · $ skills · / commands.",
+    "stopEdit": "Stop and edit last prompt",
+    "stopRun": "Stop run",
+    "stopRunTitle": "Stop run; pending queue remains",
+    "modeTitle": {
+      "btw": "Idle: start a turn. Running: send a BTW note to this session’s leader.",
+      "queue": "Add a persistent prompt. If idle it starts immediately.",
+      "steer": "Interrupt the current turn, then start your instruction. Clear pending queue first."
+    },
+    "deliveryMode": "Message delivery mode",
+    "mode": {
+      "btw": "BTW",
+      "message": "Message",
+      "queue": "Queue",
+      "steer": "Stop & steer",
+      "queueAttachments": "Queue attachments"
+    },
+    "send": "Send {{mode}}",
+    "sendMessage": "Send message",
+    "sendTitle": "{{mode}} · Enter",
+    "attachmentsQueued": "Attachments start a queued turn after the current run. Choose Stop & steer to interrupt.",
+    "topicChecking": "Checking whether this request starts a different topic… Your draft is kept.",
+    "topic": {
+      "eyebrow": "CONTEXT CHOICE",
+      "title": "Start a new topic context?",
+      "cancel": "Cancel topic choice",
+      "suggested": "Suggested topic:",
+      "body": "A fresh context keeps earlier conversation details out of the next request. Project files and the recorded session stay available. This choice applies only when you approve sending.",
+      "keep": "Keep draft",
+      "same": "Continue in same context",
+      "fresh": "Use fresh context"
+    },
+    "loading": "Loading conversation…",
+    "restore": {
+      "text": "Your composer already contains a draft.",
+      "replace": "Replace draft",
+      "keep": "Keep current draft"
+    }
   }
 }

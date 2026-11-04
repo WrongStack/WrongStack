@@ -154,5 +154,62 @@
       "terminal-display": "Exibição do terminal",
       "logging": "Logs e diagnóstico"
     }
+  },
+  "composer": {
+    "message": "Mensagem para o WrongStack",
+    "placeholderRunning": "Adicione uma nota, enfileire a próxima tarefa ou redirecione…",
+    "placeholderIdle": "Descreva o que você quer construir…",
+    "journal": "Diário de prompts",
+    "journalTitle": "Diário de prompts · este projeto",
+    "options": "Opções de escrita",
+    "agentPlan": "Plano de modelos dos agentes",
+    "refineDraft": "Refinar este rascunho",
+    "library": "Biblioteca de prompts",
+    "mcpContent": "Recursos e prompts MCP",
+    "addFile": "Adicionar arquivo do projeto",
+    "skillMention": "Inserir menção de skill",
+    "contextPanel": "Contexto e instruções",
+    "commands": "Comandos do desktop",
+    "refineBeforeSend": "Refinar antes de enviar",
+    "savingPreference": "Salvando preferência…",
+    "refreshQueue": "Atualizar a fila do motor",
+    "keys": "Enter envia · Shift+Enter adiciona uma linha · ↑ recupera a entrada · @ arquivos · $ skills · / comandos.",
+    "stopEdit": "Parar e editar o último prompt",
+    "stopRun": "Parar execução",
+    "stopRunTitle": "Parar execução; a fila pendente permanece",
+    "modeTitle": {
+      "btw": "Ocioso: inicia um turno. Em execução: envia uma nota BTW ao líder desta sessão.",
+      "queue": "Adiciona um prompt persistente. Se ocioso, começa imediatamente.",
+      "steer": "Interrompe o turno atual e depois inicia sua instrução. Limpe a fila pendente antes."
+    },
+    "deliveryMode": "Modo de entrega da mensagem",
+    "mode": {
+      "btw": "BTW",
+      "message": "Mensagem",
+      "queue": "Fila",
+      "steer": "Parar e redirecionar",
+      "queueAttachments": "Enfileirar anexos"
+    },
+    "send": "Enviar: {{mode}}",
+    "sendMessage": "Enviar mensagem",
+    "sendTitle": "{{mode}} · Enter",
+    "attachmentsQueued": "Os anexos iniciam um turno na fila após a execução atual. Escolha \"Parar e redirecionar\" para interromper.",
+    "topicChecking": "Verificando se este pedido inicia um assunto diferente… Seu rascunho é mantido.",
+    "topic": {
+      "eyebrow": "ESCOLHA DE CONTEXTO",
+      "title": "Iniciar um novo contexto de assunto?",
+      "cancel": "Cancelar a escolha de assunto",
+      "suggested": "Assunto sugerido:",
+      "body": "Um contexto novo mantém os detalhes anteriores da conversa fora do próximo pedido. Os arquivos do projeto e a sessão registrada continuam disponíveis. Esta escolha só se aplica quando você aprova o envio.",
+      "keep": "Manter rascunho",
+      "same": "Continuar no mesmo contexto",
+      "fresh": "Usar contexto novo"
+    },
+    "loading": "Carregando conversa…",
+    "restore": {
+      "text": "Sua área de escrita já contém um rascunho.",
+      "replace": "Substituir rascunho",
+      "keep": "Manter o rascunho atual"
+    }
   }
 }

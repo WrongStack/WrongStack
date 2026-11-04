@@ -154,5 +154,62 @@
       "terminal-display": "Terminalanzeige",
       "logging": "Protokolle & Diagnose"
     }
+  },
+  "composer": {
+    "message": "Nachricht an WrongStack",
+    "placeholderRunning": "Notiz hinzufügen, nächste Aufgabe einreihen oder lenken…",
+    "placeholderIdle": "Beschreibe, was du bauen möchtest…",
+    "journal": "Prompt-Journal",
+    "journalTitle": "Prompt-Journal · dieses Projekt",
+    "options": "Eingabeoptionen",
+    "agentPlan": "Agenten-Modellplan",
+    "refineDraft": "Diesen Entwurf verfeinern",
+    "library": "Prompt-Bibliothek",
+    "mcpContent": "MCP-Ressourcen & Prompts",
+    "addFile": "Projektdatei hinzufügen",
+    "skillMention": "Skill-Erwähnung einfügen",
+    "contextPanel": "Kontext & Anweisungen",
+    "commands": "Desktop-Befehle",
+    "refineBeforeSend": "Vor dem Senden verfeinern",
+    "savingPreference": "Einstellung wird gespeichert…",
+    "refreshQueue": "Engine-Warteschlange aktualisieren",
+    "keys": "Enter sendet · Umschalt+Enter fügt eine Zeile ein · ↑ ruft Eingaben ab · @ Dateien · $ Skills · / Befehle.",
+    "stopEdit": "Stoppen und letzten Prompt bearbeiten",
+    "stopRun": "Lauf stoppen",
+    "stopRunTitle": "Lauf stoppen; die Warteschlange bleibt erhalten",
+    "modeTitle": {
+      "btw": "Im Leerlauf: startet einen Turn. Während eines Laufs: sendet eine BTW-Notiz an den Leader dieser Sitzung.",
+      "queue": "Fügt einen dauerhaften Prompt hinzu. Im Leerlauf startet er sofort.",
+      "steer": "Unterbricht den aktuellen Turn und startet dann deine Anweisung. Leere zuerst die Warteschlange."
+    },
+    "deliveryMode": "Zustellmodus der Nachricht",
+    "mode": {
+      "btw": "BTW",
+      "message": "Nachricht",
+      "queue": "Warteschlange",
+      "steer": "Stoppen & lenken",
+      "queueAttachments": "Anhänge einreihen"
+    },
+    "send": "{{mode}} senden",
+    "sendMessage": "Nachricht senden",
+    "sendTitle": "{{mode}} · Enter",
+    "attachmentsQueued": "Anhänge starten nach dem aktuellen Lauf einen eingereihten Turn. Wähle „Stoppen & lenken“, um zu unterbrechen.",
+    "topicChecking": "Es wird geprüft, ob diese Anfrage ein anderes Thema beginnt… Dein Entwurf bleibt erhalten.",
+    "topic": {
+      "eyebrow": "KONTEXTWAHL",
+      "title": "Einen neuen Themenkontext beginnen?",
+      "cancel": "Themenwahl abbrechen",
+      "suggested": "Vorgeschlagenes Thema:",
+      "body": "Ein frischer Kontext hält frühere Details der Unterhaltung aus der nächsten Anfrage heraus. Projektdateien und die aufgezeichnete Sitzung bleiben verfügbar. Diese Wahl gilt nur, wenn du das Senden bestätigst.",
+      "keep": "Entwurf behalten",
+      "same": "Im selben Kontext fortfahren",
+      "fresh": "Frischen Kontext verwenden"
+    },
+    "loading": "Unterhaltung wird geladen…",
+    "restore": {
+      "text": "Dein Eingabefeld enthält bereits einen Entwurf.",
+      "replace": "Entwurf ersetzen",
+      "keep": "Aktuellen Entwurf behalten"
+    }
   }
 }

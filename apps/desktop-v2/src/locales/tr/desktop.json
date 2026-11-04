@@ -154,5 +154,62 @@
       "terminal-display": "Terminal görünümü",
       "logging": "Günlükler ve tanılama"
     }
+  },
+  "composer": {
+    "message": "WrongStack'e mesaj yaz",
+    "placeholderRunning": "Bir not ekle, sıradaki görevi kuyruğa al ya da yönlendir…",
+    "placeholderIdle": "Ne inşa etmek istediğini anlat…",
+    "journal": "Prompt günlüğü",
+    "journalTitle": "Prompt günlüğü · bu proje",
+    "options": "Yazma seçenekleri",
+    "agentPlan": "Ajan model planı",
+    "refineDraft": "Bu taslağı iyileştir",
+    "library": "Prompt kitaplığı",
+    "mcpContent": "MCP kaynakları ve promptları",
+    "addFile": "Proje dosyası ekle",
+    "skillMention": "Beceri anması ekle",
+    "contextPanel": "Bağlam ve talimatlar",
+    "commands": "Masaüstü komutları",
+    "refineBeforeSend": "Göndermeden önce iyileştir",
+    "savingPreference": "Tercih kaydediliyor…",
+    "refreshQueue": "Motor kuyruğunu yenile",
+    "keys": "Enter gönderir · Shift Enter satır ekler · ↑ önceki girdiyi getirir · @ dosyalar · $ beceriler · / komutlar.",
+    "stopEdit": "Durdur ve son promptu düzenle",
+    "stopRun": "Çalışmayı durdur",
+    "stopRunTitle": "Çalışmayı durdur; bekleyen kuyruk kalır",
+    "modeTitle": {
+      "btw": "Boştayken: bir tur başlatır. Çalışırken: bu oturumun liderine BTW notu gönderir.",
+      "queue": "Kalıcı bir prompt ekler. Boştaysa hemen başlar.",
+      "steer": "Mevcut turu keser, sonra talimatını başlatır. Önce bekleyen kuyruğu temizle."
+    },
+    "deliveryMode": "Mesaj iletim kipi",
+    "mode": {
+      "btw": "BTW",
+      "message": "Mesaj",
+      "queue": "Kuyruk",
+      "steer": "Durdur ve yönlendir",
+      "queueAttachments": "Ekleri kuyruğa al"
+    },
+    "send": "Gönder: {{mode}}",
+    "sendMessage": "Mesajı gönder",
+    "sendTitle": "{{mode}} · Enter",
+    "attachmentsQueued": "Ekler, mevcut çalışmadan sonra kuyruktaki bir tur başlatır. Kesmek için Durdur ve yönlendir'i seç.",
+    "topicChecking": "Bu isteğin farklı bir konu başlatıp başlatmadığı kontrol ediliyor… Taslağın korunuyor.",
+    "topic": {
+      "eyebrow": "BAĞLAM SEÇİMİ",
+      "title": "Yeni bir konu bağlamı başlatılsın mı?",
+      "cancel": "Konu seçimini iptal et",
+      "suggested": "Önerilen konu:",
+      "body": "Yeni bir bağlam, önceki konuşma ayrıntılarını bir sonraki isteğin dışında tutar. Proje dosyaları ve kayıtlı oturum erişilebilir kalır. Bu seçim yalnızca göndermeyi onayladığında uygulanır.",
+      "keep": "Taslağı koru",
+      "same": "Aynı bağlamda devam et",
+      "fresh": "Yeni bağlam kullan"
+    },
+    "loading": "Konuşma yükleniyor…",
+    "restore": {
+      "text": "Yazma alanında zaten bir taslak var.",
+      "replace": "Taslağı değiştir",
+      "keep": "Mevcut taslağı koru"
+    }
   }
 }

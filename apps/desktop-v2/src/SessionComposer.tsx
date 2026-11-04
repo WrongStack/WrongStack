@@ -40,6 +40,7 @@ import {
 import { DesktopCommandHelp } from './DesktopCommandHelp';
 import { DraftCounter } from './DraftCounter';
 import { type DesktopCommandContext, runDesktopCommand } from './desktop-command-runner';
+import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -109,6 +110,7 @@ export function SessionComposer({
   /** Native storage for a completed refinement review awaiting a decision. */
   refineDraftStorage?: FormDraftStorage;
 }) {
+  const { t } = useDesktopText();
   const [sending, setSending] = useState(false),
     [notice, setNotice] = useState(''),
     [error, setError] = useState(''),
@@ -505,14 +507,14 @@ export function SessionComposer({
     !prefBusy;
   const modeLabel =
     mode === 'queue'
-      ? 'Queue'
+      ? t('composer.mode.queue')
       : mode === 'steer'
-        ? 'Stop & steer'
+        ? t('composer.mode.steer')
         : state.running
           ? attachments.length
-            ? 'Queue attachments'
-            : 'BTW'
-          : 'Message';
+            ? t('composer.mode.queueAttachments')
+            : t('composer.mode.btw')
+          : t('composer.mode.message');
   return (
     <div className="native-composer-stack">
       {agentPlan && (
@@ -526,7 +528,7 @@ export function SessionComposer({
       {topicBusy && !topic && (
         <p className="composer-notice" role="status">
           <LoaderCircle className="spin" size={13} />
-          Checking whether this request starts a different topic… Your draft is kept.
+          {t('composer.topicChecking')}
         </p>
       )}
       {topic && (
@@ -534,13 +536,13 @@ export function SessionComposer({
           <div className="composer-dialog">
             <header>
               <div>
-                <span className="eyebrow">CONTEXT CHOICE</span>
-                <h2 id="dialog-title">Start a new topic context?</h2>
+                <span className="eyebrow">{t('composer.topic.eyebrow')}</span>
+                <h2 id="dialog-title">{t('composer.topic.title')}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Cancel topic choice"
+                aria-label={t('composer.topic.cancel')}
                 onClick={() => resolveTopic(null)}
               >
                 <X size={18} />
@@ -549,27 +551,23 @@ export function SessionComposer({
             <p>{topic.reason}</p>
             {topic.nextTopic && (
               <p>
-                <strong>Suggested topic:</strong> {topic.nextTopic}
+                <strong>{t('composer.topic.suggested')}</strong> {topic.nextTopic}
               </p>
             )}
-            <p>
-              A fresh context keeps earlier conversation details out of the next request. Project
-              files and the recorded session stay available. This choice applies only when you
-              approve sending.
-            </p>
+            <p>{t('composer.topic.body')}</p>
             <footer>
               <button type="button" className="button secondary" onClick={() => resolveTopic(null)}>
-                Keep draft
+                {t('composer.topic.keep')}
               </button>
               <button
                 type="button"
                 className="button secondary"
                 onClick={() => resolveTopic(false)}
               >
-                Continue in same context
+                {t('composer.topic.same')}
               </button>
               <button type="button" className="button primary" onClick={() => resolveTopic(true)}>
-                Use fresh context
+                {t('composer.topic.fresh')}
               </button>
             </footer>
           </div>
@@ -577,7 +575,7 @@ export function SessionComposer({
       )}
       {state.hydrating && (
         <p className="composer-notice" role="status">
-          Loading conversation…
+          {t('composer.loading')}
         </p>
       )}
       {input.popup}
@@ -628,7 +626,7 @@ export function SessionComposer({
       )}
       {restore !== null && (
         <div className="composer-restore">
-          <span>Your composer already contains a draft.</span>
+          <span>{t('composer.restore.text')}</span>
           <button
             type="button"
             onClick={() => {
@@ -638,10 +636,10 @@ export function SessionComposer({
               setRestore(null);
             }}
           >
-            Replace draft
+            {t('composer.restore.replace')}
           </button>
           <button type="button" onClick={() => setRestore(null)}>
-            Keep current draft
+            {t('composer.restore.keep')}
           </button>
         </div>
       )}
@@ -683,12 +681,10 @@ export function SessionComposer({
         <div className="composer-input">
           <textarea
             ref={textarea}
-            aria-label="Message WrongStack"
-            placeholder={
-              state.running
-                ? 'Add a note, queue the next task, or steer…'
-                : 'Describe what you want to build…'
-            }
+            aria-label={t('composer.message')}
+            placeholder={t(
+              state.running ? 'composer.placeholderRunning' : 'composer.placeholderIdle',
+            )}
             value={draft}
             readOnly={sending}
             onPaste={(event) => {
@@ -763,14 +759,14 @@ export function SessionComposer({
             <button
               type="button"
               className="composer-chip"
-              aria-label="Prompt journal"
-              title="Prompt journal · this project"
+              aria-label={t('composer.journal')}
+              title={t('composer.journalTitle')}
               onClick={() => setPromptWorkspace('journal')}
             >
               <Clock3 size={14} />
             </button>
             <details className="composer-options" ref={optionsMenu}>
-              <summary title="Composer options" aria-label="Composer options">
+              <summary title={t('composer.options')} aria-label={t('composer.options')}>
                 <Sparkles size={15} />
               </summary>
               <div>
@@ -783,7 +779,7 @@ export function SessionComposer({
                   }}
                 >
                   <Split size={14} />
-                  Agent model plan
+                  {t('composer.agentPlan')}
                 </button>
                 <button
                   type="button"
@@ -793,7 +789,7 @@ export function SessionComposer({
                     void beginSubmission(draft, mode, true).catch(() => {});
                   }}
                 >
-                  <Sparkles size={14} /> Refine this draft
+                  <Sparkles size={14} /> {t('composer.refineDraft')}
                 </button>
                 <button
                   type="button"
@@ -802,7 +798,7 @@ export function SessionComposer({
                     setPromptWorkspace('library');
                   }}
                 >
-                  <BookOpen size={14} /> Prompt library
+                  <BookOpen size={14} /> {t('composer.library')}
                 </button>
                 <button
                   type="button"
@@ -812,7 +808,7 @@ export function SessionComposer({
                     setMcpContent(true);
                   }}
                 >
-                  <FilePlus2 size={14} /> MCP resources & prompts
+                  <FilePlus2 size={14} /> {t('composer.mcpContent')}
                 </button>
                 <button
                   type="button"
@@ -822,7 +818,7 @@ export function SessionComposer({
                     input.replace(appendToDraft(draft, '@'));
                   }}
                 >
-                  <FilePlus2 size={14} /> Add project file
+                  <FilePlus2 size={14} /> {t('composer.addFile')}
                 </button>
                 <button
                   type="button"
@@ -832,7 +828,7 @@ export function SessionComposer({
                     input.replace(appendToDraft(draft, '$'));
                   }}
                 >
-                  <Sparkles size={14} /> Insert skill mention
+                  <Sparkles size={14} /> {t('composer.skillMention')}
                 </button>
                 <button
                   type="button"
@@ -842,7 +838,7 @@ export function SessionComposer({
                     setContextPanel('inspect');
                   }}
                 >
-                  <Gauge size={14} /> Context & instructions
+                  <Gauge size={14} /> {t('composer.contextPanel')}
                 </button>
                 <button
                   type="button"
@@ -851,7 +847,7 @@ export function SessionComposer({
                     setCommandHelp(true);
                   }}
                 >
-                  <Terminal size={14} /> Desktop commands
+                  <Terminal size={14} /> {t('composer.commands')}
                 </button>
                 <label>
                   <input
@@ -860,20 +856,17 @@ export function SessionComposer({
                     disabled={prefBusy || !state.connected}
                     onChange={(e) => void setEnhance(e.target.checked)}
                   />{' '}
-                  Refine before sending
+                  {t('composer.refineBeforeSend')}
                 </label>
-                {prefBusy && <small role="status">Saving preference…</small>}
+                {prefBusy && <small role="status">{t('composer.savingPreference')}</small>}
                 <button
                   type="button"
                   disabled={!state.connected || queueBusy}
                   onClick={() => void queueAction('queue.get')}
                 >
-                  <RefreshCw size={14} /> Refresh engine queue
+                  <RefreshCw size={14} /> {t('composer.refreshQueue')}
                 </button>
-                <small>
-                  Enter sends · Shift Enter adds a line · ↑ recalls input · @ files · $ skills · /
-                  commands.
-                </small>
+                <small>{t('composer.keys')}</small>
               </div>
             </details>
             {state.running && (
@@ -881,8 +874,8 @@ export function SessionComposer({
                 <button
                   type="button"
                   className="composer-chip"
-                  aria-label="Stop and edit last prompt"
-                  title="Stop and edit last prompt"
+                  aria-label={t('composer.stopEdit')}
+                  title={t('composer.stopEdit')}
                   disabled={sending || !state.connected}
                   onClick={() => stop(true)}
                 >
@@ -891,8 +884,8 @@ export function SessionComposer({
                 <button
                   type="button"
                   className="composer-chip"
-                  aria-label="Stop run"
-                  title="Stop run; pending queue remains"
+                  aria-label={t('composer.stopRun')}
+                  title={t('composer.stopRunTitle')}
                   disabled={sending || !state.connected}
                   onClick={() => stop()}
                 >
@@ -900,35 +893,32 @@ export function SessionComposer({
                 </button>
               </>
             )}
-            <label
-              className="composer-chip submit-mode"
-              title={
-                mode === 'btw'
-                  ? 'Idle: start a turn. Running: send a BTW note to this session’s leader.'
-                  : mode === 'queue'
-                    ? 'Add a persistent prompt. If idle it starts immediately.'
-                    : 'Interrupt the current turn, then start your instruction. Clear pending queue first.'
-              }
-            >
+            <label className="composer-chip submit-mode" title={t(`composer.modeTitle.${mode}`)}>
               <select
-                aria-label="Message delivery mode"
+                aria-label={t('composer.deliveryMode')}
                 value={mode}
                 disabled={sending}
                 onChange={(e) => onModeChange(e.target.value as SubmitMode)}
               >
-                <option value="btw">{state.running ? 'BTW' : 'Message'}</option>
-                <option value="queue" disabled={!queueSupported}>
-                  Queue
+                <option value="btw">
+                  {t(state.running ? 'composer.mode.btw' : 'composer.mode.message')}
                 </option>
-                <option value="steer">Stop & steer</option>
+                <option value="queue" disabled={!queueSupported}>
+                  {t('composer.mode.queue')}
+                </option>
+                <option value="steer">{t('composer.mode.steer')}</option>
               </select>
             </label>
             <button
               type="submit"
               className="button primary composer-send"
-              aria-label={state.running || mode !== 'btw' ? `Send ${modeLabel}` : 'Send message'}
+              aria-label={
+                state.running || mode !== 'btw'
+                  ? t('composer.send', { mode: modeLabel })
+                  : t('composer.sendMessage')
+              }
               disabled={!canSend}
-              title={`${modeLabel} · Enter`}
+              title={t('composer.sendTitle', { mode: modeLabel })}
             >
               {sending ? (
                 <LoaderCircle className="spin" size={16} />
@@ -944,9 +934,7 @@ export function SessionComposer({
         </footer>
       </form>
       {state.running && attachments.length > 0 && mode === 'btw' && (
-        <p className="composer-notice">
-          Attachments start a queued turn after the current run. Choose Stop & steer to interrupt.
-        </p>
+        <p className="composer-notice">{t('composer.attachmentsQueued')}</p>
       )}
       {refine && (
         <PromptRefinement

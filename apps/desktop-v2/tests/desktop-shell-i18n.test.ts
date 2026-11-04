@@ -46,6 +46,38 @@ describe('the desktop shell catalogs', () => {
   });
 });
 
+describe('the shell’s use of the catalog', () => {
+  it('names only keys the English catalog has', () => {
+    const english = flat(catalog('en'));
+    const groups = [...new Set(Object.keys(english).map((key) => key.split('.')[0]!))];
+    // Engine message types (`send('composer.warm')`) share the dotted shape; they are not keys.
+    const keyLike = new RegExp(
+      `(?<!(?:send|command|request)\\(\\s*)['"](${groups.join('|')})\\.([\\w.-]+)['"]`,
+      'g',
+    );
+    const prefixLike = new RegExp(`\`((?:${groups.join('|')})\\.(?:[\\w-]+\\.)*)\\$\\{`, 'g');
+    const source = resolve(import.meta.dirname, '../src');
+    let checked = 0;
+    for (const name of readdirSync(source).filter((file) => /\.tsx?$/.test(file))) {
+      const text = readFileSync(join(source, name), 'utf8');
+      if (!text.includes('useDesktopText') && !text.includes('ns="desktop"')) continue;
+      for (const match of text.matchAll(keyLike)) {
+        const key = `${match[1]}.${match[2]}`;
+        expect(Object.hasOwn(english, key), `${name}: ${key}`).toBe(true);
+        checked += 1;
+      }
+      for (const match of text.matchAll(prefixLike)) {
+        const prefix = match[1]!;
+        expect(
+          Object.keys(english).some((key) => key.startsWith(prefix)),
+          `${name}: ${prefix}…`,
+        ).toBe(true);
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+  });
+});
+
 describe('the shell in the display language', () => {
   afterEach(async () => {
     localStorage.clear();

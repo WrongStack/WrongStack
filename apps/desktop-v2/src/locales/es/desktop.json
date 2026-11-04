@@ -154,5 +154,62 @@
       "terminal-display": "Pantalla del terminal",
       "logging": "Registros y diagnóstico"
     }
+  },
+  "composer": {
+    "message": "Mensaje para WrongStack",
+    "placeholderRunning": "Añade una nota, pon en cola la siguiente tarea o redirige…",
+    "placeholderIdle": "Describe lo que quieres construir…",
+    "journal": "Diario de prompts",
+    "journalTitle": "Diario de prompts · este proyecto",
+    "options": "Opciones de redacción",
+    "agentPlan": "Plan de modelos de agentes",
+    "refineDraft": "Refinar este borrador",
+    "library": "Biblioteca de prompts",
+    "mcpContent": "Recursos y prompts MCP",
+    "addFile": "Añadir archivo del proyecto",
+    "skillMention": "Insertar mención de habilidad",
+    "contextPanel": "Contexto e instrucciones",
+    "commands": "Comandos de escritorio",
+    "refineBeforeSend": "Refinar antes de enviar",
+    "savingPreference": "Guardando preferencia…",
+    "refreshQueue": "Actualizar la cola del motor",
+    "keys": "Intro envía · Mayús+Intro añade una línea · ↑ recupera la entrada · @ archivos · $ habilidades · / comandos.",
+    "stopEdit": "Detener y editar el último prompt",
+    "stopRun": "Detener ejecución",
+    "stopRunTitle": "Detener ejecución; la cola pendiente se conserva",
+    "modeTitle": {
+      "btw": "En reposo: inicia un turno. En ejecución: envía una nota BTW al líder de esta sesión.",
+      "queue": "Añade un prompt persistente. En reposo, empieza de inmediato.",
+      "steer": "Interrumpe el turno actual y luego inicia tu instrucción. Vacía antes la cola pendiente."
+    },
+    "deliveryMode": "Modo de entrega del mensaje",
+    "mode": {
+      "btw": "BTW",
+      "message": "Mensaje",
+      "queue": "Cola",
+      "steer": "Detener y redirigir",
+      "queueAttachments": "Poner adjuntos en cola"
+    },
+    "send": "Enviar: {{mode}}",
+    "sendMessage": "Enviar mensaje",
+    "sendTitle": "{{mode}} · Intro",
+    "attachmentsQueued": "Los adjuntos inician un turno en cola tras la ejecución actual. Elige «Detener y redirigir» para interrumpir.",
+    "topicChecking": "Comprobando si esta solicitud inicia un tema distinto… Tu borrador se conserva.",
+    "topic": {
+      "eyebrow": "ELECCIÓN DE CONTEXTO",
+      "title": "¿Iniciar un nuevo contexto de tema?",
+      "cancel": "Cancelar la elección de tema",
+      "suggested": "Tema sugerido:",
+      "body": "Un contexto nuevo deja fuera de la siguiente solicitud los detalles anteriores de la conversación. Los archivos del proyecto y la sesión registrada siguen disponibles. Esta elección solo se aplica cuando apruebas el envío.",
+      "keep": "Conservar borrador",
+      "same": "Continuar en el mismo contexto",
+      "fresh": "Usar un contexto nuevo"
+    },
+    "loading": "Cargando conversación…",
+    "restore": {
+      "text": "Tu campo de redacción ya contiene un borrador.",
+      "replace": "Reemplazar borrador",
+      "keep": "Conservar el borrador actual"
+    }
   }
 }
