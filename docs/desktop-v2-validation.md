@@ -8460,3 +8460,20 @@ copies, starting with SAGE memory.
   WebUI memory-manager tests pass with the recover request now carrying it; desktop tests
   pass (276 files, 971 tests); typecheck clean. Native confirmation follows with the Memory
   scenario rerun.
+
+### Monaco language workers start in the native app (2026-11-04)
+
+- Defect (found by the native files scope once it reached the editor): Monaco wrapped each of
+  its language workers in a `blob:` script, which the desktop's content policy refuses
+  (`script-src 'self'`, no `worker-src`). In the release build the editor ran without its
+  language services and the page reported four uncaught `Event` errors.
+- Fix: `monaco-workers.ts` sets `MonacoEnvironment.getWorker` before the editor loads and
+  starts each worker from its bundled file of the app's own origin (Vite `?worker` imports of
+  Monaco's exported worker entries), chosen by language label in `monaco-worker-kind.ts`.
+  The content policy is unchanged.
+- The native scenario now logs each renderer page error with its stack and each console error
+  with its source, so an uncaught non-Error (such as an `Event`) can be traced.
+- Checks: new `monaco-workers.test.ts` covers the label-to-worker choice, that the setup loads
+  before the editor's loader, uses five file workers and that the policy allows no `blob:`
+  scripts or workers; native release `--files` scope PASSED on the rebuilt portable with no
+  renderer errors (10 steps).
