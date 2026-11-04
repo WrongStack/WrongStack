@@ -1,4 +1,11 @@
 import { ArrowRight, FolderPlus, Layers3, Plus, Search, Terminal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  PINNED_SESSIONS_KEY,
+  readPinnedSessions,
+  sortSessions,
+  writePinnedSessions,
+} from './model';
 import { addProject, native } from './platform';
 import { SessionCard } from './SessionCard';
 import type { DesktopController } from './useDesktop';
@@ -20,6 +27,23 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
     sessions,
     jumpToSession,
   } = vm;
+  const [pinned, setPinned] = useState<string[]>([]);
+  useEffect(() => {
+    setPinned(readPinnedSessions());
+    const sync = (event: StorageEvent) => {
+      if (event.key === PINNED_SESSIONS_KEY || event.key === null) setPinned(readPinnedSessions());
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  const togglePin = (id: string) => {
+    // Windows share this storage: start from what is persisted now, not from
+    // the copy this window read at mount, or one window erases another's pins.
+    const current = readPinnedSessions();
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    writePinnedSessions(next);
+    setPinned(next);
+  };
   const projects = snapshot.projects.filter(
     (item) =>
       (!project || item.id === project) &&
@@ -111,18 +135,21 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
             </button>
           </header>
           <div className="session-grid">
-            {sessions
-              .filter((session) => session.projectId === item.id)
-              .map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  name={item.name}
-                  selected={selected === session.id}
-                  onOpen={() => jumpToSession(session)}
-                  onLaunch={() => jumpToSession(session)}
-                />
-              ))}
+            {sortSessions(
+              sessions.filter((session) => session.projectId === item.id),
+              pinned,
+            ).map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                name={item.name}
+                selected={selected === session.id}
+                pinned={pinned.includes(session.id)}
+                onOpen={() => jumpToSession(session)}
+                onLaunch={() => jumpToSession(session)}
+                onTogglePin={() => togglePin(session.id)}
+              />
+            ))}
           </div>
         </section>
       ))}

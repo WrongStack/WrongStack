@@ -25,6 +25,46 @@ export interface Snapshot {
 }
 export const initialSnapshot: Snapshot = { projects: [], sessions: [], hostPid: 0, layout: null };
 export const isLive = (s: Session): boolean => s.status === 'running' || s.status === 'starting';
+/** Operator-facing status wording: live sessions are active, everything else is paused/stopped. */
+export function statusLabel(s: Session): string {
+  switch (s.status) {
+    case 'running':
+    case 'starting':
+      return 'Active';
+    case 'interrupted':
+      return 'Paused';
+    case 'error':
+      return 'Error';
+    default:
+      return 'Stopped';
+  }
+}
+export const PINNED_SESSIONS_KEY = 'wrongstack.desktop.pinned-sessions';
+export function readPinnedSessions(): string[] {
+  try {
+    const raw = localStorage.getItem(PINNED_SESSIONS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+export function writePinnedSessions(ids: string[]): void {
+  try {
+    localStorage.setItem(PINNED_SESSIONS_KEY, JSON.stringify(ids));
+  } catch {
+    /* pinning is a convenience; losing it is acceptable */
+  }
+}
+/** Pinned sessions first, then most recently updated. */
+export function sortSessions(sessions: Session[], pinned: string[]): Session[] {
+  const rank = new Map(pinned.map((id, index) => [id, index]));
+  return [...sessions].sort(
+    (a, b) =>
+      (rank.has(a.id) ? rank.get(a.id)! : pinned.length + 1) -
+        (rank.has(b.id) ? rank.get(b.id)! : pinned.length + 1) || b.updatedAt - a.updatedAt,
+  );
+}
 export function visibleSessions(
   snapshot: Snapshot,
   project: string | null,
