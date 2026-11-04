@@ -6990,3 +6990,23 @@ copies, starting with SAGE memory.
   - Folding the log is tested (replace, add, drop unknown kinds, a restart clears it).
   - The lanes, counts, base commits and the lifecycle wording are tested (jsdom).
   - Desktop tests pass (863); typecheck clean.
+
+### Agent identity beside the model (2026-11-04)
+
+- The WebUI lets a conversation pick its identity (system prompt size) with each choice's token
+  cost, from `system_prompt.info`. The desktop offered only the profile default in settings,
+  without sizes.
+- The conversation's model controls now include an identity chip:
+  - It lists the engine's identities as `Label · ~N tokens`, with each hint on hover, and selects
+    the one the conversation runs.
+  - A change is sent the way the WebUI sends it (`prefs.update` with `systemPromptVariant`) and
+    confirmed by reading the session back.
+  - The server applies it to the next request and keeps it as the default for new conversations;
+    the tooltip says so.
+- The engine does not echo a request id on `system_prompt.info`, so the identities are asked for
+  with a plain send when the conversation connects and read from the engine state.
+- The chip stays hidden when the engine offers no identities. A running identity that is not in
+  the list, such as a custom preset, is still shown.
+- Checks:
+  - Labels, the running choice, the request, the switch and the hidden case are tested (jsdom).
+  - Desktop tests pass (865); typecheck clean.
