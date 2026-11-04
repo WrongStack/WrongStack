@@ -7442,3 +7442,17 @@ copies, starting with SAGE memory.
 - Checks:
   - Both sections render in English and then in Turkish beside the catalog (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Model registry search and model drafts in the display language (2026-11-04)
+
+- The model registry search, the model draft recovery notice and its draft summary, the earlier
+  unassigned draft notice and the saved model drafts dialog now follow the display language in all
+  seven languages, which completes the model catalog settings.
+- Draft standings and their explanations are named per language; `standingLabel` and
+  `standingDetail` stay the English source and fallback, so the native model-profile scenario still
+  finds "Connection removed", "Another profile" and "This profile".
+- The draft summary reuses the catalog, advanced-field and price-tier names of the editor.
+- Checks:
+  - The registry search, saved drafts button and draft summary render in English and then in
+    Turkish beside the editor sections (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.

@@ -8,13 +8,17 @@ import { AutomationEnvironmentEditor } from '../src/AutomationEnvironmentEditor'
 import { AutomationRunComparison } from '../src/AutomationRunComparison';
 import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
+import { CatalogModelSearch } from '../src/CatalogModelSearch';
 import { emptyEngineState } from '../src/engine-state';
 import { GoalPhaseVerification } from '../src/GoalPhaseVerification';
 import { GoalRevert } from '../src/GoalRevert';
 import { ModelAdvancedFields } from '../src/ModelAdvancedFields';
 import { ModelCatalogSettings } from '../src/ModelCatalogSettings';
+import { ModelDraftAdministration } from '../src/ModelDraftAdministration';
+import { ModelDraftSummary } from '../src/ModelDraftNotice';
 import { ModelPriceTiers } from '../src/ModelPriceTiers';
 import { modelAdvancedDraft } from '../src/model-advanced-editor';
+import { modelEditorDraft } from '../src/model-catalog-editor';
 import { priceTierDraft } from '../src/model-price-tiers';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectGoals } from '../src/ProjectGoals';
@@ -162,6 +166,26 @@ const modelEditorParts = () =>
     createElement(ModelPriceTiers, {
       value: { changed: false, unsupported: false, rows: [priceTierDraft()] },
       onChange: vi.fn(),
+    }),
+    createElement(CatalogModelSearch, {
+      command: vi.fn(pending),
+      providerId: 'openai',
+      existing: [],
+      onSelect: vi.fn(),
+      onClose: vi.fn(),
+    }),
+    createElement(ModelDraftAdministration, {
+      profile: { id: 'a'.repeat(64), name: 'Default' },
+      savedProviders: [],
+      disabled: false,
+      onOpenProvider: vi.fn(),
+      storage: { list: vi.fn(pending), save: vi.fn(pending) },
+    }),
+    createElement(ModelDraftSummary, {
+      value: (() => {
+        const draft = modelEditorDraft('m1', { name: 'Model one' });
+        return { originalId: 'm1', initial: undefined, draft, baseline: draft };
+      })(),
     }),
   );
 
@@ -434,6 +458,10 @@ describe('the project pages in the display language', () => {
       'Context price tiers',
       'Price tier 1',
       'Input USD / million tokens',
+      'Add from the model registry',
+      'Search registry',
+      'Saved drafts',
+      'Model one · review form values',
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
@@ -459,6 +487,10 @@ describe('the project pages in the display language', () => {
       'Bağlam fiyat kademeleri',
       'Fiyat kademesi 1',
       'Girdi USD / milyon token',
+      'Model kayıt defterinden ekle',
+      'Kayıt defterinde ara',
+      'Kayıtlı taslaklar',
+      'Model one · form değerlerini incele',
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(

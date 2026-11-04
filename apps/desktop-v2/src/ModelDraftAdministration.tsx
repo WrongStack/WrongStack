@@ -1,5 +1,6 @@
 import { Archive, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import type { ModelProfileIdentity } from './ModelCatalogProfile';
 import {
@@ -37,6 +38,7 @@ export function ModelDraftAdministration({
   onOpenProvider: (providerId: string) => void;
   storage?: ModelDraftAdminStorage;
 }) {
+  const { t } = useDesktopText();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -47,7 +49,7 @@ export function ModelDraftAdministration({
         onClick={() => setOpen(true)}
       >
         <Archive size={14} />
-        Saved drafts
+        {t('draftAdmin.savedDrafts')}
       </button>
       {open && (
         <ModelDraftAdministrationDialog
@@ -78,6 +80,7 @@ function ModelDraftAdministrationDialog({
   onClose: () => void;
   onOpenProvider: (providerId: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [drafts, setDrafts] = useState<ClassifiedModelDraft[] | null>(null);
   const [truncated, setTruncated] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -105,7 +108,10 @@ function ModelDraftAdministrationDialog({
     try {
       await discardListedDraft(storage, draft);
       setNotice(
-        `Discarded the ${draft.modelId || 'unnamed'} draft for ${draft.providerId ?? 'an unknown connection'}.`,
+        t('draftAdmin.discarded', {
+          model: draft.modelId || t('draftAdmin.unnamed'),
+          provider: draft.providerId ?? t('draftAdmin.unknownConnectionLower'),
+        }),
       );
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
@@ -125,23 +131,20 @@ function ModelDraftAdministrationDialog({
     <Modal onClose={onClose}>
       <header>
         <div>
-          <span className="eyebrow">{profile.name} · native drafts</span>
-          <h2 id="dialog-title">Saved model drafts</h2>
+          <span className="eyebrow">{t('draftAdmin.eyebrow', { profile: profile.name })}</span>
+          <h2 id="dialog-title">{t('draftAdmin.title')}</h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close saved model drafts"
+          aria-label={t('draftAdmin.close')}
           onClick={onClose}
         >
           <X size={16} />
         </button>
       </header>
       <div className="model-draft-admin">
-        <p>
-          Unfinished model definitions saved on this computer for any profile or connection.
-          Discarding removes only the parked draft; provider settings are never changed here.
-        </p>
+        <p>{t('draftAdmin.intro')}</p>
         <div className="model-tier-actions">
           <button
             type="button"
@@ -154,7 +157,7 @@ function ModelDraftAdministrationDialog({
             }}
           >
             <RefreshCw size={14} />
-            Refresh drafts
+            {t('draftAdmin.refresh')}
           </button>
         </div>
         {error && (
@@ -163,39 +166,43 @@ function ModelDraftAdministrationDialog({
           </p>
         )}
         {notice && <p role="status">{notice}</p>}
-        {truncated !== null && (
-          <p role="status">
-            Showing the {truncated} most recently changed drafts. Older drafts remain stored.
-          </p>
-        )}
-        {drafts === null && !error && <p role="status">Reading saved drafts…</p>}
-        {drafts?.length === 0 && <p>No unfinished model drafts are saved.</p>}
+        {truncated !== null && <p role="status">{t('draftAdmin.truncated', { n: truncated })}</p>}
+        {drafts === null && !error && <p role="status">{t('draftAdmin.reading')}</p>}
+        {drafts?.length === 0 && <p>{t('draftAdmin.none')}</p>}
         {groups.map(({ standing, items }) => (
-          <section key={standing} aria-label={standingLabel[standing]}>
+          <section
+            key={standing}
+            aria-label={t(`draftAdmin.standing.${standing}`, {
+              defaultValue: standingLabel[standing],
+            })}
+          >
             <h3>
-              {standingLabel[standing]} <span className="model-draft-count">{items.length}</span>
+              {t(`draftAdmin.standing.${standing}`, { defaultValue: standingLabel[standing] })}{' '}
+              <span className="model-draft-count">{items.length}</span>
             </h3>
             <ul className="model-draft-admin-list">
               {items.map((draft) => (
                 <li key={draft.formKey}>
                   <div className="model-draft-admin-row">
                     <div>
-                      <strong>{draft.modelId || draft.originalId || 'Unnamed new model'}</strong>
+                      <strong>
+                        {draft.modelId || draft.originalId || t('draftAdmin.unnamedModel')}
+                      </strong>
                       <span>
-                        {draft.providerId ?? 'Unknown connection'} ·{' '}
+                        {draft.providerId ?? t('draftAdmin.unknownConnection')} ·{' '}
                         {draft.standing === 'other-profile'
                           ? draft.profileName
-                            ? `${draft.profileName} (name when saved)`
-                            : 'Unnamed profile'
+                            ? t('draftAdmin.nameWhenSaved', { name: draft.profileName })
+                            : t('draftAdmin.unnamedProfile')
                           : draft.standing === 'editable' || draft.standing === 'orphaned'
                             ? profile.name
                             : draft.standing === 'unverified'
-                              ? 'Owner not verified'
-                              : 'No profile owner'}{' '}
+                              ? t('draftAdmin.ownerNotVerified')
+                              : t('draftAdmin.noOwner')}{' '}
                         ·{' '}
                         {draft.updatedAt
                           ? new Date(draft.updatedAt).toLocaleString()
-                          : 'Time unknown'}{' '}
+                          : t('draftAdmin.timeUnknown')}{' '}
                         · {kib(draft.bytes)}
                       </span>
                     </div>
@@ -207,7 +214,7 @@ function ModelDraftAdministrationDialog({
                           disabled={busy}
                           onClick={() => onOpenProvider(draft.providerId!)}
                         >
-                          Open {draft.providerId}
+                          {t('draftAdmin.open', { provider: draft.providerId })}
                         </button>
                       )}
                       {canDiscardHere(draft) &&
@@ -221,7 +228,7 @@ function ModelDraftAdministrationDialog({
                                 void discard(draft);
                               }}
                             >
-                              Confirm discard
+                              {t('draftAdmin.confirmDiscard')}
                             </button>
                             <button
                               type="button"
@@ -229,7 +236,7 @@ function ModelDraftAdministrationDialog({
                               disabled={busy}
                               onClick={() => setConfirm('')}
                             >
-                              Keep draft
+                              {t('draftAdmin.keep')}
                             </button>
                           </>
                         ) : (
@@ -239,12 +246,23 @@ function ModelDraftAdministrationDialog({
                             disabled={busy}
                             onClick={() => setConfirm(draft.formKey)}
                           >
-                            Discard draft
+                            {t('draftAdmin.discard')}
                           </button>
                         ))}
                     </div>
                   </div>
-                  <p>{standingDetail(draft)}</p>
+                  <p>
+                    {t(
+                      `draftAdmin.detail.${
+                        draft.standing === 'unassigned'
+                          ? draft.providerSaved
+                            ? 'unassignedSaved'
+                            : 'unassignedMissing'
+                          : draft.standing
+                      }`,
+                      { defaultValue: standingDetail(draft) },
+                    )}
+                  </p>
                 </li>
               ))}
             </ul>

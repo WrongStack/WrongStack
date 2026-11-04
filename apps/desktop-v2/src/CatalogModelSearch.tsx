@@ -1,7 +1,10 @@
 import { Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 export function catalogMatchDefinition(match: Record<string, unknown>) {
   const md: Record<string, unknown> = { name: String(match['name'] ?? match['modelId']) };
@@ -41,6 +44,7 @@ export function CatalogModelSearch({
   onSelect: (id: string, definition: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Record<string, unknown>[]>([]);
   const [busy, setBusy] = useState(false);
@@ -64,8 +68,7 @@ export function CatalogModelSearch({
         'provider.models.search_result',
       ]);
       if (seq !== sequence.current) return;
-      if (result['query'] !== query.trim())
-        throw Error('The engine returned results for a different search.');
+      if (result['query'] !== query.trim()) throw Error(t('registrySearch.otherSearch'));
       setMatches(entries(result['matches']));
       setSearched(true);
     } catch (error) {
@@ -75,19 +78,24 @@ export function CatalogModelSearch({
     }
   };
   return (
-    <section className="catalog-model-search" aria-label="Search model registry">
+    <section className="catalog-model-search" aria-label={t('registrySearch.label')}>
       <header>
         <div>
-          <h3>Add from the model registry</h3>
+          <h3>{t('registrySearch.title')}</h3>
           <p>
-            Search catalog metadata, then review a definition for <strong>{providerId}</strong>.
-            Catalog availability does not establish access through this connection.
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="registrySearch.intro"
+              values={{ provider: providerId }}
+              components={{ strong: <strong /> }}
+            />
           </p>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close registry search"
+          aria-label={t('registrySearch.close')}
           onClick={onClose}
         >
           <X size={16} />
@@ -100,9 +108,9 @@ export function CatalogModelSearch({
         }}
       >
         <label>
-          Model name or ID
+          {t('registrySearch.query')}
           <input
-            aria-label="Search model registry"
+            aria-label={t('registrySearch.label')}
             value={query}
             onChange={(event) => {
               sequence.current++;
@@ -115,16 +123,16 @@ export function CatalogModelSearch({
         </label>
         <button type="submit" className="button secondary" disabled={!query.trim() || busy}>
           <Search size={14} />
-          Search registry
+          {t('registrySearch.search')}
         </button>
       </form>
-      {busy && <p role="status">Searching model metadata…</p>}
+      {busy && <p role="status">{t('registrySearch.searching')}</p>}
       {error && (
         <p role="alert" className="session-error">
           {error}
         </p>
       )}
-      {searched && !matches.length && <p>No matching catalog models.</p>}
+      {searched && !matches.length && <p>{t('registrySearch.none')}</p>}
       <div className="registry-model-results">
         {matches.map((match) => (
           <article key={`${match['providerId']}:${match['modelId']}`}>
@@ -132,10 +140,13 @@ export function CatalogModelSearch({
               <strong>{String(match['name'])}</strong>
               <code>{String(match['modelId'])}</code>
               <small>
-                {String(match['providerName'])} · Context:{' '}
-                {typeof match['contextWindow'] === 'number'
-                  ? match['contextWindow'].toLocaleString()
-                  : 'not reported'}
+                {t('registrySearch.line', {
+                  provider: String(match['providerName']),
+                  context:
+                    typeof match['contextWindow'] === 'number'
+                      ? match['contextWindow'].toLocaleString()
+                      : t('registrySearch.notReported'),
+                })}
               </small>
             </div>
             <button
@@ -145,8 +156,8 @@ export function CatalogModelSearch({
               onClick={() => onSelect(String(match['modelId']), catalogMatchDefinition(match))}
             >
               {existing.includes(String(match['modelId']))
-                ? 'Already defined'
-                : 'Review definition'}
+                ? t('registrySearch.defined')
+                : t('registrySearch.review')}
             </button>
           </article>
         ))}
