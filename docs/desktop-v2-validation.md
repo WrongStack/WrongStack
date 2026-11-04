@@ -8273,3 +8273,16 @@ copies, starting with SAGE memory.
   names, prompt text, engine errors, and the exported Markdown/JSONL file contents.
 - Checks: new `prompt-library-i18n.test.ts` renders the template form and a journal page in
   English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Prompt refinement and instruction presets in the display language (2026-11-04)
+
+- The prompt refinement dialog with its versions, recovery guidance, refiner options and
+  send actions (`refineDialog`), the saved refinement notice in the composer (`savedRefine`)
+  and the instruction presets editor with variant names, scope choices, source review and
+  checks (`systemPrompts`) follow the display language in all seven languages.
+- Refinement recovery reports its guidance as a code (`kind`), so the dialog words it from the
+  catalog; the English `guidance` stays for other callers.
+- Still English by design: prompt and refined text, preset names and instruction text,
+  validation messages from the engine, provider and model ids, and engine errors.
+- Checks: new `prompt-refine-i18n.test.ts` renders the refinement dialog, the saved notice and
+  the presets editor in English and Turkish; desktop tests pass (PASSED); typecheck clean.

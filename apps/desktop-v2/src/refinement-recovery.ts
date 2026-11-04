@@ -15,6 +15,9 @@ export function refinementRecovery(error: unknown) {
         : kind === 'provider_error'
           ? 'The refiner could not complete the request. Check the connection or choose another model.'
           : 'Check the connection, retry, or return to your original draft.';
+  /** The guidance as a catalog code, for wording it in the display language. */
+  const code: 'timeout' | 'empty' | 'provider_error' | 'other' =
+    kind === 'timeout' || kind === 'empty' || kind === 'provider_error' ? kind : 'other';
   const timeout = details['retryTimeoutMs'];
   // Leave room for the transport grace period below the native timer limit.
   const retryTimeoutMs =
@@ -34,6 +37,7 @@ export function refinementRecovery(error: unknown) {
   return {
     message: error instanceof Error ? error.message : String(error),
     guidance,
+    kind: code,
     retryTimeoutMs,
     fallback,
   };

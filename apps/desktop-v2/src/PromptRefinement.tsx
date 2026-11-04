@@ -1,8 +1,10 @@
 import { Check, LoaderCircle, RefreshCw, Sparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { AttachmentPreview } from './ComposerAttachments';
 import type { ComposerAttachment } from './composer-attachments';
 import { refinementText, type SubmitMode } from './composer-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
@@ -12,6 +14,7 @@ import { RefinementComparison } from './RefinementComparison';
 import { type RefinementDraft, refinementDraftResult } from './refinement-draft';
 import { preferredRefinementVariant } from './refinement-policy-model';
 import { type RefinerTarget, refinementRecovery } from './refinement-recovery';
+import { surfaceI18n } from './surface-i18n';
 
 export function PromptRefinement({
   original,
@@ -48,6 +51,7 @@ export function PromptRefinement({
     | ((review: Pick<RefinementDraft, 'result' | 'variant' | 'edited' | 'pending'>) => void)
     | undefined;
 }) {
+  const { t } = useDesktopText();
   const [result, setResult] = useState<Record<string, unknown>>(restored?.result ?? {}),
     [busy, setBusy] = useState(!restored?.result),
     [sending, setSending] = useState(false),
@@ -82,10 +86,7 @@ export function PromptRefinement({
     try {
       const chosenProvider = target?.provider ?? provider.trim(),
         chosenModel = target?.model ?? model.trim();
-      if (!!chosenProvider !== !!chosenModel)
-        throw Error(
-          'Enter both a provider and model, or leave both empty to use your configured refiner.',
-        );
+      if (!!chosenProvider !== !!chosenModel) throw Error(t('refineDialog.bothFields'));
       const timeoutMs = timeoutOverride ?? (previous ? 180000 : 90000);
       const reply = await command(
         'model.refine',
@@ -157,17 +158,17 @@ export function PromptRefinement({
   if (picker)
     return (
       <Modal
-        title="Choose a refiner"
+        title={t('refineDialog.chooseRefiner')}
         onClose={() => {
           if (!pickerBusy) setPicker(false);
         }}
       >
         <ProfileModelPicker
           session={{ ...state, provider: provider || state.provider, model }}
-          title="Choose a refiner"
-          providerLabel="Refiner model provider"
-          searchLabel="Search refiner models"
-          description="Choose a model for the next refinement retry. Your chat model and profile defaults stay unchanged. Selecting does not run a request."
+          title={t('refineDialog.chooseRefiner')}
+          providerLabel={t('refineDialog.providerLabel')}
+          searchLabel={t('refineDialog.searchLabel')}
+          description={t('refineDialog.pickerDescription')}
           onPick={(provider, model) => {
             setProvider(provider);
             setModel(model);
@@ -186,15 +187,15 @@ export function PromptRefinement({
       <div className="composer-dialog refine-dialog">
         <header>
           <div>
-            <span className="eyebrow">REVIEW BEFORE SENDING</span>
+            <span className="eyebrow">{t('refineDialog.eyebrow')}</span>
             <h2 id="dialog-title">
-              <Sparkles size={20} /> Refine your prompt
+              <Sparkles size={20} /> {t('refineDialog.title')}
             </h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Back to draft"
+            aria-label={t('refineDialog.back')}
             disabled={sending}
             onClick={onClose}
           >
@@ -202,32 +203,32 @@ export function PromptRefinement({
           </button>
         </header>
         <p>
-          Your original draft stays intact. Approve a version, edit it, or return to the composer.
-          Delivery mode:{' '}
-          <strong>
-            {mode === 'btw' ? 'Message / BTW' : mode === 'queue' ? 'Queue' : 'Stop & steer'}
-          </strong>
-          .
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="refineDialog.intro"
+            values={{
+              mode: t(
+                `refineDialog.mode.${mode === 'btw' ? 'btw' : mode === 'queue' ? 'queue' : 'steer'}`,
+              ),
+            }}
+            components={{ strong: <strong /> }}
+          />
         </p>
         {fileReferences.length > 0 && (
-          <section
-            className="composer-reference-chips"
-            aria-label="Files retained through refinement"
-          >
+          <section className="composer-reference-chips" aria-label={t('refineDialog.files')}>
             {fileReferences.map((path) => (
               <span key={path}>{path}</span>
             ))}
           </section>
         )}
         {attachments.length > 0 && (
-          <section aria-label="Attachments retained through refinement">
-            <p>
-              Refinement changes the text only. These files stay attached to the approved message.
-            </p>
+          <section aria-label={t('refineDialog.attachments')}>
+            <p>{t('refineDialog.attachmentsBody')}</p>
             <AttachmentPreview items={attachments} interactive={false} />
           </section>
         )}
-        <fieldset className="refine-versions" aria-label="Prompt versions">
+        <fieldset className="refine-versions" aria-label={t('refineDialog.versions')}>
           {(['original', 'refined', 'english'] as const).map((key) => (
             <button
               type="button"
@@ -239,13 +240,13 @@ export function PromptRefinement({
                 setEdited(null);
               }}
             >
-              {key === 'original' ? 'Original' : key === 'refined' ? 'Refined' : 'English'}
+              {t(`refineDialog.version.${key}`)}
             </button>
           ))}
         </fieldset>
         {busy && (
           <p className="refine-progress" role="status">
-            <LoaderCircle size={15} className="spin" /> Refining with your configured model…
+            <LoaderCircle size={15} className="spin" /> {t('refineDialog.refining')}
             <button
               type="button"
               className="button secondary small"
@@ -255,12 +256,10 @@ export function PromptRefinement({
                 setBusy(false);
                 setFailure(null);
                 setStopped(true);
-                setError(
-                  'Stopped waiting for this refinement. The engine may still finish it, but its result will not replace this review.',
-                );
+                setError(t('refineDialog.stopped'));
               }}
             >
-              Stop waiting
+              {t('refineDialog.stopWaiting')}
             </button>
           </p>
         )}
@@ -268,10 +267,9 @@ export function PromptRefinement({
           <section role="alert" className="composer-error refine-recovery">
             <p>
               {(() => {
-                const message = failure?.guidance ?? error;
-                return message.endsWith('Your draft is kept.')
-                  ? message
-                  : `${message} Your draft is kept.`;
+                const message = failure ? t(`refineDialog.recovery.${failure.kind}`) : error;
+                const kept = t('refineDialog.kept');
+                return message.endsWith(kept) ? message : `${message} ${kept}`;
               })()}
             </p>
             {stopped && !busy && (
@@ -281,12 +279,12 @@ export function PromptRefinement({
                 disabled={sending}
                 onClick={() => void refine(Object.keys(result).length ? result : undefined)}
               >
-                Try again
+                {t('refineDialog.tryAgain')}
               </button>
             )}
             {failure && (
               <details>
-                <summary>Error details</summary>
+                <summary>{t('refineDialog.errorDetails')}</summary>
                 <p>{error}</p>
               </details>
             )}
@@ -303,7 +301,9 @@ export function PromptRefinement({
                   )
                 }
               >
-                Retry with {Math.ceil(failure.retryTimeoutMs / 1000)}s window
+                {t('refineDialog.retryWindow', {
+                  seconds: Math.ceil(failure.retryTimeoutMs / 1000),
+                })}
               </button>
             )}
             {failure?.fallback && (
@@ -322,14 +322,16 @@ export function PromptRefinement({
                   );
                 }}
               >
-                Retry with {failure.fallback.provider}/{failure.fallback.model}
+                {t('refineDialog.retryWith', {
+                  target: `${failure.fallback.provider}/${failure.fallback.model}`,
+                })}
               </button>
             )}
           </section>
         )}
         <label className="refine-edit-toggle">
-          <input type="checkbox" checked={edit} onChange={(e) => setEdit(e.target.checked)} /> Edit
-          this version
+          <input type="checkbox" checked={edit} onChange={(e) => setEdit(e.target.checked)} />{' '}
+          {t('refineDialog.edit')}
         </label>
         <label className="refine-edit-toggle">
           <input
@@ -338,37 +340,32 @@ export function PromptRefinement({
             disabled={variant === 'original' && edited === null}
             onChange={(e) => setCompare(e.target.checked)}
           />{' '}
-          Compare with original
+          {t('refineDialog.compare')}
         </label>
-        {edited !== null && (
-          <p className="field-help">This version includes your edits to the refiner's text.</p>
-        )}
+        {edited !== null && <p className="field-help">{t('refineDialog.edited')}</p>}
         {compare && <RefinementComparison original={original} text={text} />}
         {edit ? (
           <textarea
-            aria-label="Edit refined prompt"
+            aria-label={t('refineDialog.editLabel')}
             className="refine-editor"
             value={text}
             onChange={(e) => setEdited(e.target.value)}
           />
         ) : (
-          <section className="refine-preview" aria-label="Prompt preview">
+          <section className="refine-preview" aria-label={t('refineDialog.preview')}>
             <MarkdownContent text={text} />
           </section>
         )}
         <details className="refine-options">
-          <summary>Refiner model & retry</summary>
-          <p>
-            Empty fields use the configured refiner and fallback policy. This selection does not
-            change the chat model.
-          </p>
+          <summary>{t('refineDialog.options')}</summary>
+          <p>{t('refineDialog.optionsBody')}</p>
           <button
             type="button"
             className="button secondary"
             disabled={busy || sending}
             onClick={() => setPicker(true)}
           >
-            Choose refiner model
+            {t('refineDialog.chooseModel')}
           </button>
           {(provider || model) && (
             <button
@@ -380,14 +377,14 @@ export function PromptRefinement({
                 setModel('');
               }}
             >
-              Use configured refiner
+              {t('refineDialog.useConfigured')}
             </button>
           )}
           <div>
             <label>
-              Provider ID
+              {t('refineDialog.providerId')}
               <input
-                aria-label="Refiner provider"
+                aria-label={t('refineDialog.providerField')}
                 value={provider}
                 disabled={busy || sending}
                 onChange={(e) => setProvider(e.target.value)}
@@ -395,9 +392,9 @@ export function PromptRefinement({
               />
             </label>
             <label>
-              Model ID
+              {t('refineDialog.modelId')}
               <input
-                aria-label="Refiner model"
+                aria-label={t('refineDialog.modelField')}
                 value={model}
                 disabled={busy || sending}
                 onChange={(e) => setModel(e.target.value)}
@@ -406,12 +403,12 @@ export function PromptRefinement({
             </label>
           </div>
           <label>
-            What should improve?
+            {t('refineDialog.improve')}
             <input
-              aria-label="Refinement feedback"
+              aria-label={t('refineDialog.feedback')}
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
-              placeholder="Keep it shorter, preserve constraints…"
+              placeholder={t('refineDialog.feedbackPlaceholder')}
             />
           </label>
           <button
@@ -420,18 +417,20 @@ export function PromptRefinement({
             disabled={busy || sending}
             onClick={() => void refine(Object.keys(result).length ? result : undefined)}
           >
-            <RefreshCw size={13} /> Retry refinement
+            <RefreshCw size={13} /> {t('refineDialog.retry')}
           </button>
         </details>
         {typeof result['refinedWith'] === 'object' && (
           <small className="composer-effort-hint">
-            Refined with {String((result['refinedWith'] as Record<string, unknown>)['provider'])} /{' '}
-            {String((result['refinedWith'] as Record<string, unknown>)['model'])}
+            {t('refineDialog.refinedWith', {
+              provider: String((result['refinedWith'] as Record<string, unknown>)['provider']),
+              model: String((result['refinedWith'] as Record<string, unknown>)['model']),
+            })}
           </small>
         )}
         <footer>
           <button type="button" className="button secondary" disabled={sending} onClick={onClose}>
-            Keep original draft
+            {t('refineDialog.keepOriginal')}
           </button>
           <button
             type="button"
@@ -439,17 +438,21 @@ export function PromptRefinement({
             disabled={sending || !ready || !text.trim()}
             onClick={() => onApply(text)}
           >
-            Use in composer
+            {t('refineDialog.useInComposer')}
           </button>
           <button
             type="button"
             className="button primary"
             disabled={sending || !ready || !text.trim() || state.hydrating}
-            title={state.hydrating ? 'Waiting for the session history to sync' : undefined}
+            title={state.hydrating ? t('refineDialog.syncWait') : undefined}
             onClick={() => void send()}
           >
             <Check size={14} />{' '}
-            {sending ? 'Sending…' : state.hydrating ? 'Syncing history…' : 'Approve & send'}
+            {sending
+              ? t('refineDialog.sending')
+              : state.hydrating
+                ? t('refineDialog.syncing')
+                : t('refineDialog.approve')}
           </button>
         </footer>
       </div>

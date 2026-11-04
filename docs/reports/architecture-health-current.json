@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T19:02:47.082Z",
+  "generatedAt": "2026-11-04T19:09:37.889Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 5000,
-    "sourceLines": 1248059,
+    "testFiles": 5001,
+    "sourceLines": 1248077,
     "workspaceEdges": 240,
-    "moduleEdges": 17623,
+    "moduleEdges": 17627,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 263,
+    "testsWithoutTypecheck": 264,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -392,7 +392,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 263,
+      "testFiles": 264,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2398,6 +2398,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/prompt-recall.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/prompt-refine-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32580,6 +32586,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/prompt-recall.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/prompt-refine-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

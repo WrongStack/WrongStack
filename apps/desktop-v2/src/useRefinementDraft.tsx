@@ -1,5 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { DurableFormDraft, type FormDraftStorage } from './durable-form-draft';
 import { type RefinementDraft, refinementDraftCodec } from './refinement-draft';
 
@@ -54,15 +55,16 @@ export function SavedRefinementNotice({
   draft: ReturnType<typeof useRefinementDraft>;
   onOpen: (saved: RefinementDraft) => void;
 }) {
+  const { t } = useDesktopText();
   if (draft.state?.review)
     return (
       <div className="composer-notice" role="alert">
-        Another window changed the saved refinement review.
+        {t('savedRefine.conflict')}
         <button type="button" className="text-link" onClick={() => draft.resolve('saved')}>
-          Use saved review
+          {t('savedRefine.useSaved')}
         </button>
         <button type="button" className="text-link" onClick={() => draft.resolve('local')}>
-          Keep this window’s
+          {t('savedRefine.keepLocal')}
         </button>
       </div>
     );
@@ -71,25 +73,25 @@ export function SavedRefinementNotice({
   if (saved.pending)
     return (
       <div className="composer-notice" role="status">
-        <Sparkles size={13} />A prompt refinement started {new Date(saved.savedAt).toLocaleString()}{' '}
-        was interrupted before the refiner answered.
+        <Sparkles size={13} />
+        {t('savedRefine.pending', { at: new Date(saved.savedAt).toLocaleString() })}
         <button type="button" className="text-link" onClick={() => onOpen(saved)}>
-          Refine again
+          {t('savedRefine.refineAgain')}
         </button>
         <button type="button" className="text-link" onClick={draft.clear}>
-          Discard
+          {t('savedRefine.discard')}
         </button>
       </div>
     );
   return (
     <div className="composer-notice" role="status">
-      <Sparkles size={13} />A refined prompt from {new Date(saved.savedAt).toLocaleString()} is
-      waiting for review.
+      <Sparkles size={13} />
+      {t('savedRefine.waiting', { at: new Date(saved.savedAt).toLocaleString() })}
       <button type="button" className="text-link" onClick={() => onOpen(saved)}>
-        Review refined prompt
+        {t('savedRefine.review')}
       </button>
       <button type="button" className="text-link" onClick={draft.clear}>
-        Discard refined prompt
+        {t('savedRefine.discardRefined')}
       </button>
     </div>
   );
