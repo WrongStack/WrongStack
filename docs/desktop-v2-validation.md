@@ -8103,3 +8103,18 @@ copies, starting with SAGE memory.
 - Checks: new `conversation-parts-i18n.test.ts` renders the queue, context figures, memory
   panel, shortcuts dialog and draft diff in English and Turkish; desktop tests pass (PASSED);
   typecheck clean.
+
+### Desktop commands and palette actions in the display language (2026-11-04)
+
+- The desktop commands follow the display language in all seven languages wherever they are
+  shown: the `/help` dialog with its categories and aliases, the slash suggestions under the
+  composer, the Ctrl+K palette's page actions, and the function key rows of the keyboard
+  shortcuts dialog (`commandHelp`). The palette's own actions are translated too
+  (`paletteActions`).
+- `desktop-command-text.ts` words a command by its name (`commandHelp.cmd.<name>`, `!` read as
+  `-force`) with the command table's English as the fallback; the table itself is unchanged.
+- Still English by design: command names, usage and aliases, and the hunt commands, whose
+  labels and descriptions come from the shared hunt table.
+- Checks: new `command-help-i18n.test.ts` checks that every command outside the hunts has a
+  catalog entry equal to its table description, and renders the help and shortcuts dialogs
+  in English and Turkish; desktop tests pass (PASSED); typecheck clean.

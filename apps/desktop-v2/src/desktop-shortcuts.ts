@@ -26,8 +26,13 @@ export interface ShortcutGroup {
   /** Stable id for the group's translated title. */
   id: 'desktop' | 'conversation' | 'views';
   title: string;
-  /** `id` names the translated description; the views are worded by their command. */
-  shortcuts: ReadonlyArray<{ keys: readonly string[]; description: string; id?: string }>;
+  /** `id` names the translated description; a view is worded by its `command`. */
+  shortcuts: ReadonlyArray<{
+    keys: readonly string[];
+    description: string;
+    id?: string;
+    command?: string;
+  }>;
 }
 
 export function shortcutGroups(): ShortcutGroup[] {
@@ -65,6 +70,7 @@ export function shortcutGroups(): ShortcutGroup[] {
       title: 'Views',
       shortcuts: Object.entries(FUNCTION_KEY_COMMANDS).map(([key, name]) => ({
         keys: [key],
+        command: name,
         description: parseDesktopCommand(name)?.command?.description ?? name,
       })),
     },

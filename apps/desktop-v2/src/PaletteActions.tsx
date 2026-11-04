@@ -1,5 +1,7 @@
 import { ArrowRight, Zap } from 'lucide-react';
+import { commandDescription } from './desktop-command-text';
 import { desktopCommands } from './desktop-commands';
+import { useDesktopText } from './desktop-i18n';
 import type { DesktopController } from './useDesktop';
 
 interface PaletteAction {
@@ -17,7 +19,10 @@ const IDLE_ACTIONS = 6;
  * start a session or terminal, open any of the current project's pages (what the slash commands
  * open), WrongStack settings, and flip the light or dark mode, density and run sounds.
  */
-function paletteActions(vm: DesktopController): PaletteAction[] {
+function paletteActions(
+  vm: DesktopController,
+  t: ReturnType<typeof useDesktopText>['t'],
+): PaletteAction[] {
   const project = vm.project ?? vm.snapshot.projects[0]?.id;
   const pages = project
     ? desktopCommands.flatMap((command) => {
@@ -26,7 +31,7 @@ function paletteActions(vm: DesktopController): PaletteAction[] {
           ? [
               {
                 id: `page:${target.page}`,
-                label: command.description,
+                label: commandDescription(command, t),
                 hint: command.name,
                 run: () => vm.openProjectPage(project, target.page),
               },
@@ -40,34 +45,34 @@ function paletteActions(vm: DesktopController): PaletteAction[] {
       ? [
           {
             id: 'new-agent',
-            label: 'Start a new agent session',
+            label: t('paletteActions.newAgent'),
             hint: 'Ctrl N',
             run: () => vm.newSession(project),
           },
           {
             id: 'new-terminal',
-            label: 'Open a new terminal',
+            label: t('paletteActions.newTerminal'),
             run: () => vm.newSession(project, 'terminal'),
           },
         ]
       : []),
     {
       id: 'settings',
-      label: 'Open WrongStack settings',
+      label: t('paletteActions.settings'),
       hint: '/settings',
       run: () => vm.openWrongStackSettings(),
     },
     {
       id: 'mode',
-      label: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      label: dark ? t('paletteActions.light') : t('paletteActions.dark'),
       run: () => vm.changeAppearance({ mode: dark ? 'light' : 'dark' }),
     },
     {
       id: 'density',
       label:
         vm.appearance.density === 'compact'
-          ? 'Use comfortable conversation density'
-          : 'Use compact conversation density',
+          ? t('paletteActions.comfortable')
+          : t('paletteActions.compact'),
       run: () =>
         vm.changeAppearance({
           density: vm.appearance.density === 'compact' ? undefined : 'compact',
@@ -75,7 +80,8 @@ function paletteActions(vm: DesktopController): PaletteAction[] {
     },
     {
       id: 'sound',
-      label: vm.appearance.sound === 'on' ? 'Turn run sounds off' : 'Chime when a run finishes',
+      label:
+        vm.appearance.sound === 'on' ? t('paletteActions.soundsOff') : t('paletteActions.chime'),
       run: () => vm.changeAppearance({ sound: vm.appearance.sound === 'on' ? undefined : 'on' }),
     },
     ...pages,
@@ -83,8 +89,9 @@ function paletteActions(vm: DesktopController): PaletteAction[] {
 }
 
 export function PaletteActions({ vm, search }: { vm: DesktopController; search: string }) {
+  const { t } = useDesktopText();
   const wanted = search.trim().toLowerCase();
-  const actions = paletteActions(vm).filter(
+  const actions = paletteActions(vm, t).filter(
     (action) =>
       !wanted ||
       action.label.toLowerCase().includes(wanted) ||
@@ -106,7 +113,7 @@ export function PaletteActions({ vm, search }: { vm: DesktopController; search: 
         >
           <Zap size={17} />
           <span>{action.label}</span>
-          <small>{action.hint ?? 'ACTION'}</small>
+          <small>{action.hint ?? t('paletteActions.action')}</small>
           <ArrowRight size={15} />
         </button>
       ))}

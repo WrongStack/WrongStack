@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { commandDescription } from './desktop-command-text';
 import { useDesktopText } from './desktop-i18n';
 import { shortcutGroups } from './desktop-shortcuts';
 import { Modal } from './Modal';
@@ -40,7 +41,12 @@ export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
                       ? t(`shortcutsView.item.${shortcut.id}`, {
                           defaultValue: shortcut.description,
                         })
-                      : shortcut.description}
+                      : shortcut.command
+                        ? commandDescription(
+                            { name: shortcut.command, description: shortcut.description },
+                            t,
+                          )
+                        : shortcut.description}
                   </dd>
                 </div>
               ))}

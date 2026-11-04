@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-04T17:58:56.971Z
+**Generated:** 2026-11-04T18:05:46.523Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,20 +8,21 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6001 |
-| Production source lines | 1247886 |
-| Test files | 4988 |
+| Production source files | 6002 |
+| Production source lines | 1247945 |
+| Test files | 4989 |
 | Workspace dependency edges | 240 |
-| Relative module edges | 17573 |
+| Relative module edges | 17583 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 251 |
+| Tests without TypeScript test-project coverage | 252 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
 - packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change
+- apps/desktop-v2/src/desktop-command-text.ts: "commandTextKey" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - packages/core/src/session-catalog/store-agents.ts: "readSessionAgentRows" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 - packages/core/src/session-catalog/store-rebuild.ts: "summarizeTranscriptFile" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
@@ -40,7 +41,7 @@
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 698 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 435 | 251 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 436 | 252 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -145,13 +146,13 @@ None.
 
 ## Exports only tests reference
 
-- 1040 runtime exports are referenced by tests and by no other production file.
+- 1041 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 251 test files are not included in a package TypeScript test project.
+- 252 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

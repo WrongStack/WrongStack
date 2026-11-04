@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T17:58:56.971Z",
+  "generatedAt": "2026-11-04T18:05:46.523Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,20 +12,21 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6001,
-    "testFiles": 4988,
-    "sourceLines": 1247886,
+    "sourceFiles": 6002,
+    "testFiles": 4989,
+    "sourceLines": 1247945,
     "workspaceEdges": 240,
-    "moduleEdges": 17573,
+    "moduleEdges": 17583,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 251,
+    "testsWithoutTypecheck": 252,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1041
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
+    "apps/desktop-v2/src/desktop-command-text.ts: \"commandTextKey\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
   ],
@@ -390,8 +391,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 435,
-      "testFiles": 251,
+      "sourceFiles": 436,
+      "testFiles": 252,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1527,6 +1528,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/code-editor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/command-help-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31498,6 +31505,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/command-help-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/compaction-outcome.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34314,6 +34328,10 @@
     {
       "file": "apps/desktop-v2/src/delegations.ts",
       "name": "DELEGATION_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/desktop-command-text.ts",
+      "name": "commandTextKey"
     },
     {
       "file": "apps/desktop-v2/src/editor-language.ts",

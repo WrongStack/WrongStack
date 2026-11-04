@@ -3,7 +3,9 @@ import { Terminal } from 'lucide-react';
 import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { ComposerMentionPicker } from './ComposerMentionPicker';
 import { type ComposerFileReference, fileMention, withReference } from './composer-resources-model';
+import { commandDescription } from './desktop-command-text';
 import { matchDesktopCommands } from './desktop-commands';
+import { useDesktopText } from './desktop-i18n';
 import type { ChatMessage } from './engine-state';
 import { recallHistory } from './journal-recall';
 
@@ -27,6 +29,7 @@ export function useComposerInput({
   projectId: string;
   textarea: RefObject<HTMLTextAreaElement | null>;
 }) {
+  const { t } = useDesktopText();
   const [cursor, setCursor] = useState(draft.length),
     [dismissed, setDismissed] = useState(''),
     [commandIndex, setCommandIndex] = useState(0);
@@ -132,13 +135,13 @@ export function useComposerInput({
     ) : commandQuery !== null && commands.length ? (
       <section
         className="composer-mention-popup command-suggestions"
-        aria-label="Desktop command suggestions"
+        aria-label={t('commandHelp.suggestions')}
       >
         <header>
-          <Terminal size={14} /> Desktop commands
-          <small>↑↓ select · Enter/Tab complete · Enter again runs</small>
+          <Terminal size={14} /> {t('commandHelp.title')}
+          <small>{t('commandHelp.suggestKeys')}</small>
         </header>
-        <div role="listbox" aria-label="Desktop commands">
+        <div role="listbox" aria-label={t('commandHelp.title')}>
           {commands.map((command, i) => (
             <button
               type="button"
@@ -152,7 +155,7 @@ export function useComposerInput({
                 {command.name}
                 {command.usage && <small> {command.usage}</small>}
               </strong>
-              <span>{command.description}</span>
+              <span>{commandDescription(command, t)}</span>
             </button>
           ))}
         </div>
