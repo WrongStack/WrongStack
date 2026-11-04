@@ -35,6 +35,10 @@ export class BackendStream {
   ) {
     this.operations = new EngineOperations(this.send);
   }
+  /** Whether a view keeps this reader running now. */
+  get open(): boolean {
+    return !this.stopped;
+  }
   private target() {
     return this.scope === 'project' ? { projectId: this.id } : { id: this.id };
   }
@@ -132,6 +136,16 @@ export class BackendStream {
 }
 
 const streams = new Map<string, BackendStream>();
+/**
+ * How far this window has read a backend's journal, for the reconnect diagnostics; null when
+ * nothing has read it, or its reader was dropped with the oldest closed ones.
+ */
+export function journalReader(scope: BackendScope, id: string) {
+  const stream = streams.get(`${scope}:${id}`);
+  if (!stream) return null;
+  const { hydrating, replay, lastAt, sessionId } = stream.state;
+  return { open: stream.open, hydrating, replay, lastAt, sessionId };
+}
 export function backendStream(scope: BackendScope, id: string): BackendStream {
   const key = `${scope}:${id}`;
   let stream = streams.get(key);

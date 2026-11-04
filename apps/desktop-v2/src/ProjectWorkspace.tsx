@@ -181,7 +181,7 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'office' ? (
         <ProjectOffice project={project} sessions={projectSessions} http={http} />
       ) : vm.projectPage === 'diagnostics' ? (
-        <ProjectDiagnostics projectId={project.id} http={http} />
+        <ProjectDiagnostics projectId={project.id} http={http} sessions={projectSessions} />
       ) : vm.projectPage === 'live-fleet' ? (
         <Suspense
           fallback={

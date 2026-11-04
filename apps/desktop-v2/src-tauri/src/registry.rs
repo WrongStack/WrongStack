@@ -190,7 +190,7 @@ impl Registry {
         Ok(())
     }
     pub fn recover(&self) -> Result<()> {
-        self.db.execute("UPDATE sessions SET status='interrupted',error='Session host stopped. Transcript is available; start a new session to continue.' WHERE status IN ('running','starting')", []).map_err(err)?;
+        self.db.execute("UPDATE sessions SET status='interrupted',error='Session host stopped. The transcript is kept; reconnect an agent conversation to continue it.' WHERE status IN ('running','starting')", []).map_err(err)?;
         Ok(())
     }
     pub fn setting(&self, key: &str) -> Result<Option<String>> {

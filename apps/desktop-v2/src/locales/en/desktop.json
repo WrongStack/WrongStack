@@ -5764,5 +5764,33 @@
       "none": "No location reported",
       "help": "These locations belong to this profile runtime; project runtimes record their own evidence."
     }
+  },
+  "connectionView": {
+    "banner": "This conversation’s engine is not running. Reconnect starts it again here and resumes the session it recorded; the conversation and its history stay.",
+    "reconnect": "Reconnect",
+    "reconnectNamed": "Reconnect {{title}}",
+    "reconnecting": "Reconnecting…",
+    "noRecord": "This conversation never recorded a session, so there is nothing to resume. Start a new conversation instead.",
+    "title": "Reconnect diagnostics",
+    "eyebrow": "AFTER A RESTART",
+    "body": "What carries over when the window reloads or the app restarts: each conversation’s engine, how far this window has read its journal and which session it recorded, with a way back for conversations whose engine stopped.",
+    "summary": "{{live}} running · {{attention}} stopped",
+    "storage": "Desktop settings kept in this window: {{size}} characters",
+    "none": "No agent conversations in this project yet.",
+    "column": {
+      "conversation": "Conversation",
+      "engine": "Engine",
+      "journal": "Journal",
+      "updated": "Last change",
+      "action": "Action"
+    },
+    "journal": {
+      "closed": "Not read in this window",
+      "reading": "Reading · {{percent}}%",
+      "current": "Read to the end",
+      "kept": "Kept from an earlier view"
+    },
+    "recorded": "Recorded session {{id}}",
+    "lastFrame": "Last entry at {{time}}"
   }
 }

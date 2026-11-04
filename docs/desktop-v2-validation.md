@@ -7958,3 +7958,33 @@ copies, starting with SAGE memory.
     targets, and the shared panel joining as an observer and showing the participant in jsdom.
   - WebUI dock inspector, collab handler and slash routing tests pass (264).
   - Desktop tests pass (923); typecheck clean for desktop, WebUI and project-surfaces.
+
+### Reconnecting a stopped conversation and reconnect diagnostics (2026-11-04)
+
+- The native host has `session.reconnect`: it starts a stopped agent conversation's engine
+  again on the same record and journal, resuming the WrongStack session the journal recorded
+  (`--resume`, never a fork). The conversation keeps its id, tab and history, and its journal
+  reader continues where the stopped engine left it. It refuses unknown conversations,
+  terminals, engines still running or starting, a fork, and an invalid recorded identity, and
+  each refusal leaves the record as it was. A reused runtime drops an earlier restore answer
+  before starting, so that answer cannot read as this start being ready.
+- A conversation whose engine stopped (error, interrupted, or stopped by the user) shows a
+  reconnect notice under its error: the desktop reads the recorded session from the journal's
+  `session.start` frame and asks the host to resume it. A conversation that never recorded a
+  session is told to start a new one instead.
+- The interrupted message the host stores now points at reconnecting instead of starting a new
+  session.
+- Reconnect diagnostics, the desktop's counterpart of the WebUI's refresh diagnostics, sit under
+  the project's engine diagnostics: running and stopped counts, the desktop settings this window
+  keeps, and for each agent conversation its engine state and error, how far this window has
+  read its journal (not read, reading with a percentage, read to the end, or kept from an
+  earlier view), the recorded session, the last journal entry, the last change, and a
+  reconnect where the engine stopped. The shared `DebugDashboard` takes an `after` slot for it.
+- Checks:
+  - Rust `reconnect_refuses_unknown_terminal_running_and_forked_conversations`; all 32 native
+    host unit tests pass; rustfmt clean. The reconnect itself was not run against a real engine
+    in this pass (native checks are batched at the end).
+  - New `reconnect.test.ts`: which conversations can reconnect, the recorded session, journal
+    states and stored settings size, the reconnect call paging the journal, the notice in
+    Turkish with a conversation that recorded nothing, and the diagnostics table.
+  - Desktop tests pass (927); typecheck clean for desktop and project-surfaces.

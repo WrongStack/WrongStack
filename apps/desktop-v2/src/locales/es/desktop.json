@@ -5764,5 +5764,33 @@
       "none": "No se informó ninguna ubicación",
       "help": "Estas ubicaciones pertenecen a este entorno del perfil; los entornos de proyecto registran sus propias pruebas."
     }
+  },
+  "connectionView": {
+    "banner": "El motor de esta conversación no está en ejecución. Reconectar lo vuelve a iniciar aquí y reanuda la sesión registrada; la conversación y su historial se mantienen.",
+    "reconnect": "Reconectar",
+    "reconnectNamed": "Reconectar {{title}}",
+    "reconnecting": "Reconectando…",
+    "noRecord": "Esta conversación nunca registró una sesión, así que no hay nada que reanudar. Inicia una conversación nueva en su lugar.",
+    "title": "Diagnóstico de reconexión",
+    "eyebrow": "TRAS UN REINICIO",
+    "body": "Lo que se conserva cuando la ventana se recarga o la aplicación se reinicia: el motor de cada conversación, cuánto de su diario ha leído esta ventana y qué sesión registró, con una vía de regreso para las conversaciones cuyo motor se detuvo.",
+    "summary": "{{live}} en ejecución · {{attention}} detenidas",
+    "storage": "Ajustes del escritorio guardados en esta ventana: {{size}} caracteres",
+    "none": "Todavía no hay conversaciones de agente en este proyecto.",
+    "column": {
+      "conversation": "Conversación",
+      "engine": "Motor",
+      "journal": "Diario",
+      "updated": "Último cambio",
+      "action": "Acción"
+    },
+    "journal": {
+      "closed": "No leído en esta ventana",
+      "reading": "Leyendo · {{percent}} %",
+      "current": "Leído hasta el final",
+      "kept": "Conservado de una vista anterior"
+    },
+    "recorded": "Sesión registrada {{id}}",
+    "lastFrame": "Última entrada a las {{time}}"
   }
 }

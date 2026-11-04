@@ -155,6 +155,7 @@ async fn host_request(
         "profile.http",
         "session.open",
         "session.restore",
+        "session.reconnect",
         "session.read",
         "session.write",
         "session.resize",

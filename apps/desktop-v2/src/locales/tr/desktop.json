@@ -5764,5 +5764,33 @@
       "none": "Konum bildirilmedi",
       "help": "Bu konumlar bu profil çalışma zamanına aittir; proje çalışma zamanları kendi kanıtlarını kaydeder."
     }
+  },
+  "connectionView": {
+    "banner": "Bu konuşmanın motoru çalışmıyor. Yeniden bağlan, motoru burada yeniden başlatır ve kaydettiği oturumu sürdürür; konuşma ve geçmişi yerinde kalır.",
+    "reconnect": "Yeniden bağlan",
+    "reconnectNamed": "{{title}} konuşmasını yeniden bağla",
+    "reconnecting": "Yeniden bağlanıyor…",
+    "noRecord": "Bu konuşma hiç oturum kaydetmedi, sürdürülecek bir şey yok. Bunun yerine yeni bir konuşma başlat.",
+    "title": "Yeniden bağlanma tanılaması",
+    "eyebrow": "YENİDEN BAŞLATMA SONRASI",
+    "body": "Pencere yeniden yüklendiğinde ya da uygulama yeniden başladığında neyin korunduğu: her konuşmanın motoru, bu pencerenin günlüğünü ne kadar okuduğu ve hangi oturumu kaydettiği; motoru duran konuşmalar için de geri dönüş yolu.",
+    "summary": "{{live}} çalışıyor · {{attention}} durdu",
+    "storage": "Bu pencerede tutulan masaüstü ayarları: {{size}} karakter",
+    "none": "Bu projede henüz ajan konuşması yok.",
+    "column": {
+      "conversation": "Konuşma",
+      "engine": "Motor",
+      "journal": "Günlük",
+      "updated": "Son değişiklik",
+      "action": "Eylem"
+    },
+    "journal": {
+      "closed": "Bu pencerede okunmadı",
+      "reading": "Okunuyor · %{{percent}}",
+      "current": "Sonuna kadar okundu",
+      "kept": "Önceki bir görünümden tutuldu"
+    },
+    "recorded": "Kayıtlı oturum {{id}}",
+    "lastFrame": "Son kayıt: {{time}}"
   }
 }

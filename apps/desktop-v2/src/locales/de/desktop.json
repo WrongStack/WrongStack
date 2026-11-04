@@ -5764,5 +5764,33 @@
       "none": "Kein Speicherort gemeldet",
       "help": "Diese Speicherorte gehören zu dieser Profil-Laufzeit; Projektlaufzeiten zeichnen ihre eigenen Belege auf."
     }
+  },
+  "connectionView": {
+    "banner": "Die Engine dieser Unterhaltung läuft nicht. „Neu verbinden“ startet sie hier erneut und setzt die aufgezeichnete Sitzung fort; Unterhaltung und Verlauf bleiben erhalten.",
+    "reconnect": "Neu verbinden",
+    "reconnectNamed": "{{title}} neu verbinden",
+    "reconnecting": "Wird neu verbunden…",
+    "noRecord": "Diese Unterhaltung hat nie eine Sitzung aufgezeichnet, es gibt also nichts fortzusetzen. Starte stattdessen eine neue Unterhaltung.",
+    "title": "Diagnose der Wiederverbindung",
+    "eyebrow": "NACH EINEM NEUSTART",
+    "body": "Was erhalten bleibt, wenn das Fenster neu lädt oder die App neu startet: die Engine jeder Unterhaltung, wie weit dieses Fenster ihr Journal gelesen hat und welche Sitzung sie aufgezeichnet hat – mit einem Weg zurück für Unterhaltungen, deren Engine gestoppt ist.",
+    "summary": "{{live}} laufen · {{attention}} gestoppt",
+    "storage": "In diesem Fenster gespeicherte Desktop-Einstellungen: {{size}} Zeichen",
+    "none": "In diesem Projekt gibt es noch keine Agent-Unterhaltungen.",
+    "column": {
+      "conversation": "Unterhaltung",
+      "engine": "Engine",
+      "journal": "Journal",
+      "updated": "Letzte Änderung",
+      "action": "Aktion"
+    },
+    "journal": {
+      "closed": "In diesem Fenster nicht gelesen",
+      "reading": "Wird gelesen · {{percent}} %",
+      "current": "Bis zum Ende gelesen",
+      "kept": "Aus einer früheren Ansicht behalten"
+    },
+    "recorded": "Aufgezeichnete Sitzung {{id}}",
+    "lastFrame": "Letzter Eintrag um {{time}}"
   }
 }

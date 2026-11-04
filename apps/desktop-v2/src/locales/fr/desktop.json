@@ -5764,5 +5764,33 @@
       "none": "Aucun emplacement signalé",
       "help": "Ces emplacements appartiennent à ce runtime de profil ; les runtimes de projet enregistrent leurs propres preuves."
     }
+  },
+  "connectionView": {
+    "banner": "Le moteur de cette conversation ne tourne pas. Reconnecter le relance ici et reprend la session enregistrée ; la conversation et son historique restent.",
+    "reconnect": "Reconnecter",
+    "reconnectNamed": "Reconnecter {{title}}",
+    "reconnecting": "Reconnexion…",
+    "noRecord": "Cette conversation n’a jamais enregistré de session : il n’y a rien à reprendre. Démarre plutôt une nouvelle conversation.",
+    "title": "Diagnostic de reconnexion",
+    "eyebrow": "APRÈS UN REDÉMARRAGE",
+    "body": "Ce qui est conservé quand la fenêtre se recharge ou que l’application redémarre : le moteur de chaque conversation, la part de son journal lue par cette fenêtre et la session qu’elle a enregistrée, avec un moyen de revenir pour les conversations dont le moteur s’est arrêté.",
+    "summary": "{{live}} en cours · {{attention}} arrêtées",
+    "storage": "Réglages du bureau conservés dans cette fenêtre : {{size}} caractères",
+    "none": "Aucune conversation d’agent dans ce projet pour l’instant.",
+    "column": {
+      "conversation": "Conversation",
+      "engine": "Moteur",
+      "journal": "Journal",
+      "updated": "Dernière modification",
+      "action": "Action"
+    },
+    "journal": {
+      "closed": "Non lu dans cette fenêtre",
+      "reading": "Lecture · {{percent}} %",
+      "current": "Lu jusqu’au bout",
+      "kept": "Conservé d’un affichage précédent"
+    },
+    "recorded": "Session enregistrée {{id}}",
+    "lastFrame": "Dernière entrée à {{time}}"
   }
 }

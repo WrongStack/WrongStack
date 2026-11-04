@@ -1,0 +1,65 @@
+/* A stopped conversation's way back, under its error notice. */
+.conversation-reconnect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text);
+}
+.conversation-reconnect p {
+  flex: 1 1 280px;
+  margin: 0;
+}
+.conversation-reconnect-error,
+.conversation-reconnect-action small {
+  flex-basis: 100%;
+  color: var(--danger);
+}
+.conversation-reconnect-action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Reconnect diagnostics, under the engine diagnostics. */
+.connection-diagnostics {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--text);
+}
+.connection-diagnostics header {
+  margin-bottom: 12px;
+}
+.connection-diagnostics h2 {
+  margin: 2px 0 4px;
+  font-size: 15px;
+}
+.connection-diagnostics p {
+  margin: 0 0 4px;
+}
+.connection-diagnostics table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.connection-diagnostics th,
+.connection-diagnostics td {
+  padding: 8px 10px 8px 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.connection-diagnostics td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

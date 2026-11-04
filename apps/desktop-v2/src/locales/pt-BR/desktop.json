@@ -5764,5 +5764,33 @@
       "none": "Nenhum local informado",
       "help": "Esses locais pertencem a este runtime do perfil; os runtimes de projeto registram as próprias evidências."
     }
+  },
+  "connectionView": {
+    "banner": "O motor desta conversa não está em execução. Reconectar o inicia de novo aqui e retoma a sessão registrada; a conversa e o histórico permanecem.",
+    "reconnect": "Reconectar",
+    "reconnectNamed": "Reconectar {{title}}",
+    "reconnecting": "Reconectando…",
+    "noRecord": "Esta conversa nunca registrou uma sessão, então não há nada para retomar. Inicie uma nova conversa.",
+    "title": "Diagnóstico de reconexão",
+    "eyebrow": "APÓS UMA REINICIALIZAÇÃO",
+    "body": "O que se mantém quando a janela recarrega ou o app reinicia: o motor de cada conversa, quanto do diário esta janela já leu e qual sessão ela registrou, com um caminho de volta para conversas cujo motor parou.",
+    "summary": "{{live}} em execução · {{attention}} paradas",
+    "storage": "Configurações do desktop guardadas nesta janela: {{size}} caracteres",
+    "none": "Ainda não há conversas de agente neste projeto.",
+    "column": {
+      "conversation": "Conversa",
+      "engine": "Motor",
+      "journal": "Diário",
+      "updated": "Última alteração",
+      "action": "Ação"
+    },
+    "journal": {
+      "closed": "Não lido nesta janela",
+      "reading": "Lendo · {{percent}}%",
+      "current": "Lido até o fim",
+      "kept": "Mantido de uma visualização anterior"
+    },
+    "recorded": "Sessão registrada {{id}}",
+    "lastFrame": "Última entrada às {{time}}"
   }
 }

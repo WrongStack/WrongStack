@@ -96,6 +96,7 @@ impl HostState {
                 params["kind"] = json!("agent");
                 self.open(&params)
             }
+            "session.reconnect" => self.reconnect(p),
             "session.read" => self.read(field(p, "id")?, p["offset"].as_u64()),
             "session.write" => {
                 let mut live = self.live.lock().map_err(err)?;
@@ -249,6 +250,47 @@ impl HostState {
             return Err(e);
         }
         Ok(json!(s))
+    }
+    /// Starts a stopped agent conversation's engine again on its own record and journal,
+    /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
+    /// its history, and its journal continues where the stopped engine left it.
+    fn reconnect(self: &Arc<Self>, p: &Value) -> Result<Value> {
+        let id = field(p, "id")?;
+        let (history, fork) = history_source(p)?.ok_or("Missing history source")?;
+        if fork {
+            return Err("Reconnecting resumes the conversation's own session".into());
+        }
+        let session = self
+            .registry
+            .lock()
+            .map_err(err)?
+            .sessions()?
+            .into_iter()
+            .find(|s| s.id == id)
+            .ok_or("Unknown session")?;
+        if session.kind != "agent" {
+            return Err("Only agent conversations have an engine to reconnect".into());
+        }
+        if session.status == "running"
+            || session.status == "starting"
+            || self.live.lock().map_err(err)?.contains_key(id)
+        {
+            return Err("This conversation's engine is still running".into());
+        }
+        self.registry
+            .lock()
+            .map_err(err)?
+            .state(id, "starting", None, None)?;
+        if let Err(e) =
+            self.start_engine_with_history(id, &session.workdir, true, Some((history, false)))
+        {
+            self.registry
+                .lock()
+                .map_err(err)?
+                .state(id, "error", None, Some(&e))?;
+            return Err(e);
+        }
+        Ok(json!({ "id": id }))
     }
     fn log_reader(
         self: &Arc<Self>,
@@ -408,6 +450,9 @@ impl HostState {
             .join("transcripts")
             .join(format!("{runtime_id}.restore.json"));
         if let Some((id, fork)) = history {
+            // A reconnected conversation reuses its runtime id: an earlier restore's answer
+            // must not read as this start being ready.
+            let _ = std::fs::remove_file(&ready_path);
             command.args(["--resume", id]);
             command.env("WRONGSTACK_DESKTOP_RESTORE_READY", &ready_path);
             if fork {
@@ -719,6 +764,78 @@ mod history_tests {
             .unwrap_err()
             .contains("project root"));
         assert!(host.registry.lock().unwrap().sessions().unwrap().is_empty());
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn reconnect_refuses_unknown_terminal_running_and_forked_conversations() {
+        let dir = std::env::temp_dir().join(format!("desktop-reconnect-{}", Uuid::new_v4()));
+        let project_dir = dir.join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(project_dir.to_str().unwrap())
+            .unwrap();
+        let record = |kind: &str, status: &str| {
+            let s = Session {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                title: "test".into(),
+                kind: kind.into(),
+                workdir: project_dir.to_string_lossy().into(),
+                status: status.into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+            };
+            host.registry.lock().unwrap().insert(&s).unwrap();
+            s.id
+        };
+        let resume = |id: &str| json!({"id": id, "history": {"id": "sess_ok", "mode": "resume"}});
+        assert!(host
+            .request("session.reconnect", &json!({"id": "missing"}))
+            .unwrap_err()
+            .contains("Missing history source"));
+        assert!(host
+            .request("session.reconnect", &resume("missing"))
+            .unwrap_err()
+            .contains("Unknown session"));
+        let terminal = record("terminal", "stopped");
+        assert!(host
+            .request("session.reconnect", &resume(&terminal))
+            .unwrap_err()
+            .contains("Only agent conversations"));
+        let running = record("agent", "running");
+        assert!(host
+            .request("session.reconnect", &resume(&running))
+            .unwrap_err()
+            .contains("still running"));
+        let stopped = record("agent", "interrupted");
+        assert!(host
+            .request(
+                "session.reconnect",
+                &json!({"id": stopped, "history": {"id": "sess_ok", "mode": "fork"}})
+            )
+            .unwrap_err()
+            .contains("own session"));
+        assert!(host
+            .request(
+                "session.reconnect",
+                &json!({"id": stopped, "history": {"id": "../outside", "mode": "resume"}})
+            )
+            .unwrap_err()
+            .contains("Invalid recorded session identity"));
+        // Every refusal leaves the conversation as it was.
+        let sessions = host.registry.lock().unwrap().sessions().unwrap();
+        assert_eq!(
+            sessions.iter().find(|s| s.id == stopped).unwrap().status,
+            "interrupted"
+        );
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
     }

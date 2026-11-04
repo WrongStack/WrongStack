@@ -5764,5 +5764,33 @@
       "none": "Nessuna posizione segnalata",
       "help": "Queste posizioni appartengono a questo runtime del profilo; i runtime di progetto registrano le proprie prove."
     }
+  },
+  "connectionView": {
+    "banner": "Il motore di questa conversazione non è in esecuzione. Riconnetti lo riavvia qui e riprende la sessione registrata; la conversazione e la sua cronologia restano.",
+    "reconnect": "Riconnetti",
+    "reconnectNamed": "Riconnetti {{title}}",
+    "reconnecting": "Riconnessione…",
+    "noRecord": "Questa conversazione non ha mai registrato una sessione, quindi non c’è nulla da riprendere. Avvia invece una nuova conversazione.",
+    "title": "Diagnostica della riconnessione",
+    "eyebrow": "DOPO UN RIAVVIO",
+    "body": "Cosa si conserva quando la finestra si ricarica o l’app si riavvia: il motore di ogni conversazione, quanto del suo diario questa finestra ha letto e quale sessione ha registrato, con una via di ritorno per le conversazioni il cui motore si è fermato.",
+    "summary": "{{live}} in esecuzione · {{attention}} ferme",
+    "storage": "Impostazioni desktop conservate in questa finestra: {{size}} caratteri",
+    "none": "Ancora nessuna conversazione con agenti in questo progetto.",
+    "column": {
+      "conversation": "Conversazione",
+      "engine": "Motore",
+      "journal": "Diario",
+      "updated": "Ultima modifica",
+      "action": "Azione"
+    },
+    "journal": {
+      "closed": "Non letto in questa finestra",
+      "reading": "Lettura · {{percent}}%",
+      "current": "Letto fino alla fine",
+      "kept": "Conservato da una vista precedente"
+    },
+    "recorded": "Sessione registrata {{id}}",
+    "lastFrame": "Ultima voce alle {{time}}"
   }
 }

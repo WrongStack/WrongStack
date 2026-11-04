@@ -1,5 +1,6 @@
 import { Plus, Square, Terminal, Workflow, X } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
+import { ConversationReconnect } from './ConversationReconnect';
 import { CopyButton } from './CopyButton';
 import { EngineWorkspace } from './EngineWorkspace';
 import { isLive } from './model';
@@ -85,6 +86,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
       </nav>
       <section className="session-workspace focused-session">
         {session.error && <div className="session-error">{session.error}</div>}
+        <ConversationReconnect session={session} />
         {session.kind === 'agent' &&
           vm.draftConflicts[session.id] &&
           !vm.draftRecovering[session.id] && (

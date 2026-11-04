@@ -10,14 +10,15 @@ import {
   Server,
   TrendingUp,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { surfaceFetch, useSurfaceHost } from '../host';
 import { useAppTranslation } from '../lib/i18n';
 import { PageMotif } from '../ui/PageMotif';
 import type { DebugData, FileWatcherMetrics, SystemMetrics } from './DebugDashboardParts.js';
 import { formatByteRate, formatBytes, formatUptime, MetricCard } from './DebugDashboardParts.js';
 
-export function DebugDashboard() {
+/** `after` is a host's own section, shown under the engine's diagnostics. */
+export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
   const { t } = useAppTranslation();
   const scrollRef = useSurfaceHost().useScrollRestore<HTMLDivElement>('debug');
   const [data, setData] = useState<DebugData>({
@@ -546,6 +547,7 @@ export function DebugDashboard() {
             </pre>
           </div>
         </section>
+        {after}
       </div>
     </div>
   );
