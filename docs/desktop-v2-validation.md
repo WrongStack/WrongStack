@@ -8442,3 +8442,21 @@ copies, starting with SAGE memory.
   turns every line of the group back into its line in six languages with its values, and
   checks each line is recognised as itself only; desktop tests pass (275 files, 969 tests);
   typecheck clean.
+
+### SAGE recover and mark-permanent answer on the desktop (2026-11-04)
+
+- Defect (found by the rewritten native Memory scenario): in the desktop's shared SAGE
+  surface, Recover on a deleted memory and Mark as Permanent always ended with "The memory
+  store did not respond" after 20 seconds, although the engine had recovered the record and
+  replied at once (the reply is in the project journal). The shared ack helper waits for a
+  reply carrying its own `ack_` request id and hands that id to the send callback; these two
+  calls ignored it. The WebUI sends them untagged and the server echoes no id, so the reply
+  matched there; the desktop host tags every request, so the reply came back under an id
+  the ack treated as another operation's.
+- Fix: both calls send under the ack's id, as the candidate accept and reject calls already
+  did; the server strips `requestId` from an update patch and echoes it on every reply.
+- Checks: new `sage-ack-request-id.test.ts` requires every ack-awaited SAGE request in the
+  shared manager to send under the ack id and checks the desktop host keeps that id; the
+  WebUI memory-manager tests pass with the recover request now carrying it; desktop tests
+  pass (276 files, 971 tests); typecheck clean. Native confirmation follows with the Memory
+  scenario rerun.

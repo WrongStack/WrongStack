@@ -49,7 +49,9 @@ export function MemoryManager({
   const recoverMemory = (memoryId: string, reason: string) => {
     return state.sendWithAck(
       'memory.sage.recover',
-      () => state.recoverSage({ id: memoryId, reason }),
+      // The ack matches its reply by this id; a host that tags every request would otherwise
+      // answer under an id the ack does not know.
+      (requestId) => state.recoverSage({ id: memoryId, reason, requestId }),
       (payload) => {
         if (payload.error) {
           state.setMutationError(payload.error);
@@ -424,7 +426,8 @@ export function MemoryManager({
                 onMarkPermanent={(memoryId) => {
                   state.sendWithAck(
                     'memory.sage.update',
-                    () => state.updateSage(memoryId, { persistence: 'permanent' }),
+                    (requestId) =>
+                      state.updateSage(memoryId, { persistence: 'permanent', requestId }),
                     (payload) => {
                       if (payload.error || !payload.memory) {
                         state.setMutationError(

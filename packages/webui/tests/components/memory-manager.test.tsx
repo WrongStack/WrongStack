@@ -310,7 +310,12 @@ describe('MemoryManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Recover' }));
     expect(sends).toContainEqual({
       type: 'memory.sage.recover',
-      payload: { id: deleted.id, reason: 'recovered via Memory Manager detail' },
+      payload: {
+        id: deleted.id,
+        reason: 'recovered via Memory Manager detail',
+        // The ack's id travels with the request, so its reply is matched in every host.
+        requestId: expect.stringMatching(/^ack_/),
+      },
     });
     sends.length = 0;
     emit('memory.sage.recover', { recovered: true, memory: { ...deleted, status: 'active' } });
