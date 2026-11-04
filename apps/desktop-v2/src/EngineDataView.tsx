@@ -1,5 +1,6 @@
 import { ArrowRight, File, Folder, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import { contentText, type EngineState, entries, record } from './engine-state';
 
@@ -21,6 +22,8 @@ export function EngineDataView({
   send: EngineSend;
   onError: (error: unknown) => void;
 }) {
+  const { t } = useDesktopText();
+  const tabWord = t(`engineData.tab.${tab}`);
   const [search, setSearch] = useState('');
   const request = (type: string, payload?: Record<string, unknown>) => {
     void send(type, payload).catch(onError);
@@ -44,18 +47,18 @@ export function EngineDataView({
             : 'kanban.get'
     ];
   return (
-    <section className="engine-data-view" aria-label={`${tab} panel`}>
+    <section className="engine-data-view" aria-label={t('engineData.panel', { tab: tabWord })}>
       <header className="data-toolbar">
         <input
-          aria-label={`Search ${tab}`}
+          aria-label={t('engineData.search', { tab: tabWord })}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder={`Search ${tab}…`}
+          placeholder={t('engineData.searchPlaceholder', { tab: tabWord })}
         />
         <button
           type="button"
           className="icon-button"
-          title="Refresh panel"
+          title={t('engineData.refresh')}
           disabled={!state.connected}
           onClick={() => request(queries[tab], tab === 'files' ? { limit: 500, path: '.' } : {})}
         >
@@ -67,7 +70,7 @@ export function EngineDataView({
       )}
       {!data && (
         <p className="quiet-state">
-          {state.connected ? 'Loading from your project…' : 'Waiting for the local engine…'}
+          {state.connected ? t('engineData.loading') : t('engineData.waiting')}
         </p>
       )}
       {tab === 'files' && (
@@ -86,13 +89,14 @@ export function EngineDataView({
                   <ArrowRight size={13} />
                 </button>
               ))}
-            {data && !files.length && <p className="quiet-state">No project files found.</p>}
+            {data && !files.length && <p className="quiet-state">{t('engineData.noFiles')}</p>}
           </div>
           {detail && (
             <div className="native-file-content">
               <strong>{String(detail['filePath'] ?? '')}</strong>
               <pre>
-                {contentText(detail['content']) || String(detail['error'] ?? 'No text content')}
+                {contentText(detail['content']) ||
+                  String(detail['error'] ?? t('engineData.noText'))}
               </pre>
             </div>
           )}
@@ -114,16 +118,16 @@ export function EngineDataView({
                   <ArrowRight size={13} />
                 </button>
               ))}
-            {data && !files.length && <p className="quiet-state">Your working tree is clear.</p>}
+            {data && !files.length && <p className="quiet-state">{t('engineData.clean')}</p>}
           </div>
           {detail && (
             <div className="native-diff">
               <div>
-                <span>BEFORE</span>
+                <span>{t('engineData.before')}</span>
                 <pre>{contentText(detail['oldText'])}</pre>
               </div>
               <div>
-                <span>AFTER</span>
+                <span>{t('engineData.after')}</span>
                 <pre>{contentText(detail['newText'])}</pre>
               </div>
               {typeof detail['error'] === 'string' && <p>{String(detail['error'])}</p>}
@@ -167,14 +171,15 @@ export function EngineDataView({
             .map((mail, index) => (
               <article key={String(mail['id'] ?? index)}>
                 <span className="eyebrow">
-                  {String(mail['from'] ?? 'Agent')} → {String(mail['to'] ?? 'Workspace')}
+                  {String(mail['from'] ?? t('engineData.agent'))} →{' '}
+                  {String(mail['to'] ?? t('engineData.workspace'))}
                 </span>
-                <h3>{String(mail['subject'] ?? 'Message')}</h3>
+                <h3>{String(mail['subject'] ?? t('engineData.message'))}</h3>
                 <p>{contentText(mail['body'])}</p>
               </article>
             ))}
           {data && !entries(data['messages']).length && (
-            <p className="quiet-state">Your project mailbox is clear.</p>
+            <p className="quiet-state">{t('engineData.mailboxClear')}</p>
           )}
         </div>
       )}
@@ -195,7 +200,7 @@ export function EngineDataView({
                 </button>
               ))}
             {data && !entries(data['data']).length && (
-              <p className="quiet-state">No kanban boards in this project yet.</p>
+              <p className="quiet-state">{t('engineData.noBoards')}</p>
             )}
           </div>
           {detail && (
@@ -203,7 +208,7 @@ export function EngineDataView({
               {entries(record(detail['data'])['tasks']).map((task) => (
                 <article key={String(task['id'])}>
                   <span className="eyebrow">
-                    {String(task['status'] ?? task['columnId'] ?? 'Task')}
+                    {String(task['status'] ?? task['columnId'] ?? t('engineData.task'))}
                   </span>
                   <h3>{String(task['title'])}</h3>
                   <p>{String(task['description'] ?? '')}</p>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T19:38:46.457Z",
+  "generatedAt": "2026-11-04T19:48:03.206Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,23 +13,24 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 5007,
-    "sourceLines": 1248238,
+    "testFiles": 5009,
+    "sourceLines": 1248311,
     "workspaceEdges": 240,
-    "moduleEdges": 17652,
+    "moduleEdges": 17659,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 270,
+    "testsWithoutTypecheck": 272,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1039
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/desktop-command-text.ts: \"commandTextKey\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
+    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "apps/desktop-v2/src/model-comparison.ts: \"MAX_COMPARED_MODELS\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -393,7 +394,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 270,
+      "testFiles": 272,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1343,6 +1344,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/appearance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/assist-misc-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2885,6 +2892,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/transcript-window.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/translated-focus-shortcuts.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31397,6 +31410,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/assist-misc-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/atlas-boundary-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33196,6 +33216,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/translated-focus-shortcuts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/tree-changes.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34719,10 +34746,6 @@
     {
       "file": "apps/desktop-v2/src/Modal.tsx",
       "name": "outsideBox"
-    },
-    {
-      "file": "apps/desktop-v2/src/model-comparison.ts",
-      "name": "MAX_COMPARED_MODELS"
     },
     {
       "file": "apps/desktop-v2/src/model-recents.ts",

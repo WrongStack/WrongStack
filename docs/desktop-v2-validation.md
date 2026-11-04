@@ -8354,3 +8354,20 @@ copies, starting with SAGE memory.
   text and kinds, journal summaries and actors, and engine errors.
 - Checks: new `atlas-i18n.test.ts` renders the three analysis views and the node evidence and
   reads the tab labels in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Code Assist, model picker and the last desktop views in the display language (2026-11-04)
+
+- Code Assist with its presets and edit notes (`codeAssist`), the before/after edit review
+  (`codeReview`), the engine data panels (`engineData`), the Brain decisions panel and answers
+  (`brainDecisions`), the profile model picker with its comparison bar and detail line
+  (`modelPicker`) and the saved form input conflict (`persistedFields`) follow the display
+  language in all seven languages.
+- `brainAnswerText` and `modelDetailLine` take their wording as a parameter (English by
+  default); the `/brain` command output stays English.
+- With this batch every desktop-v2 component that renders its own text reads the catalog. The
+  re-scan finds only invariant errors and DOM lookups, no shown text.
+- Still English by design: file paths, symbols, model and provider ids, engine statuses and
+  errors, Brain questions and outcomes, and the saved form input format error.
+- Checks: new `assist-misc-i18n.test.ts` renders Code Assist, the edit review, an engine data
+  panel and the Brain panel and words a Brain answer and a model detail line in English and
+  Turkish; desktop tests pass (PASSED); typecheck clean.

@@ -2,6 +2,7 @@ import type { CodeAssistPreset } from '@wrongstack/webui-protocol';
 import { Bot, Play, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { CodeAssistEditReview } from './CodeAssistEditReview';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
@@ -26,6 +27,7 @@ export function DesktopCodeAssist({
   state: EngineState;
   onEdited?: () => void;
 }) {
+  const { t } = useDesktopText();
   const [preset, setPreset] = useState<CodeAssistPreset>('overview'),
     [question, setQuestion] = useState(''),
     [allowEdits, setAllowEdits] = useState(false),
@@ -55,7 +57,7 @@ export function DesktopCodeAssist({
     if (!busy) return;
     const timer = setTimeout(() => {
       setPending(false);
-      setError('The code analysis exceeded its ten-minute run budget.');
+      setError(t('codeAssist.budget'));
       if (current.current)
         void send('code.assist.abort', { requestId: current.current }).catch(() => {});
       current.current = '';
@@ -79,12 +81,11 @@ export function DesktopCodeAssist({
     if (edits && command) {
       try {
         const read = await command('files.read', { filePath }, ['files.read']);
-        if (read['binary'] || read['tooLarge'])
-          setSnapshotNote('This file is not text, so its changes cannot be compared here.');
+        if (read['binary'] || read['tooLarge']) setSnapshotNote(t('codeAssist.notText'));
         else setSnapshot({ requestId: id, content: String(read['content'] ?? '') });
       } catch (e) {
         setSnapshotNote(
-          `The file could not be read before the run (${e instanceof Error ? e.message : String(e)}); its changes cannot be compared here.`,
+          t('codeAssist.unreadable', { message: e instanceof Error ? e.message : String(e) }),
         );
       }
     }
@@ -124,11 +125,11 @@ export function DesktopCodeAssist({
           <button
             type="button"
             className="button secondary small"
-            aria-label="Stop code analysis"
+            aria-label={t('codeAssist.stopLabel')}
             onClick={() => void send('code.assist.abort', { requestId })}
           >
             <Square size={11} />
-            Stop
+            {t('codeAssist.stop')}
           </button>
         )}
       </header>
@@ -139,9 +140,9 @@ export function DesktopCodeAssist({
         }}
       >
         <label>
-          Analysis
+          {t('codeAssist.analysis')}
           <select
-            aria-label="Code analysis preset"
+            aria-label={t('codeAssist.presetLabel')}
             value={preset}
             disabled={busy}
             onChange={(event) => {
@@ -149,27 +150,29 @@ export function DesktopCodeAssist({
               setAllowEdits(false);
             }}
           >
-            {[
-              ['overview', 'Architecture overview'],
-              ['explain', 'Explain this symbol'],
-              ['quality', 'Quality & maintainability'],
-              ['bugs', 'Find defects'],
-              ['security', 'Security review'],
-              ['tests', 'Test coverage & gaps'],
-              ['impact', 'Change impact'],
-              ['fix', 'Implement a fix'],
-              ['custom', 'Ask a question'],
-            ].map(([id, title]) => (
+            {(
+              [
+                'overview',
+                'explain',
+                'quality',
+                'bugs',
+                'security',
+                'tests',
+                'impact',
+                'fix',
+                'custom',
+              ] as const
+            ).map((id) => (
               <option key={id} value={id}>
-                {title}
+                {t(`codeAssist.preset.${id}`)}
               </option>
             ))}
           </select>
         </label>
         {preset === 'custom' && (
           <textarea
-            aria-label="Question about code"
-            placeholder="What would you like to understand?"
+            aria-label={t('codeAssist.questionLabel')}
+            placeholder={t('codeAssist.questionPlaceholder')}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             required
@@ -185,10 +188,10 @@ export function DesktopCodeAssist({
                 disabled={busy}
                 onChange={(event) => setAllowEdits(event.target.checked)}
               />
-              Allow changes to project files
+              {t('codeAssist.allowEdits')}
             </label>
           ) : (
-            <span>Read-only analysis · no project files are modified</span>
+            <span>{t('codeAssist.readOnly')}</span>
           )}
           <button
             type="submit"
@@ -198,7 +201,7 @@ export function DesktopCodeAssist({
             }
           >
             <Play size={12} />
-            {busy ? 'Analyzing…' : 'Run analysis'}
+            {busy ? t('codeAssist.analyzing') : t('codeAssist.run')}
           </button>
         </div>
       </form>
@@ -209,29 +212,27 @@ export function DesktopCodeAssist({
       )}
       {run?.appliedEdits && (
         <p className="code-assist-applied">
-          This run was allowed to edit project files. Review the working tree changes.
+          {t('codeAssist.applied')}
           {snapshotNote ? ` ${snapshotNote}` : ''}
         </p>
       )}
       {run?.appliedEdits && run.status !== 'running' && command && run.edits && (
         // Engines that capture every written file: review and restore each one.
-        <section className="code-assist-edit-list" aria-label="Files changed by this run">
-          {run.edits.length === 0 && (
-            <p className="file-quiet-state">No file writes were recorded for this run.</p>
-          )}
+        <section className="code-assist-edit-list" aria-label={t('codeAssist.changedFiles')}>
+          {run.edits.length === 0 && <p className="file-quiet-state">{t('codeAssist.noWrites')}</p>}
           {run.edits.map((edit) => (
             <CodeAssistEditReview
               key={edit.path}
               command={command}
               path={edit.path}
               before={edit.before}
-              note="Captured by the engine before this run first wrote the file."
+              note={t('codeAssist.captured')}
               {...(onEdited ? { onRestored: onEdited } : {})}
             />
           ))}
           {run.uncaptured && run.uncaptured.length > 0 && (
             <p className="code-assist-applied">
-              Not captured, review these in the working tree: {run.uncaptured.join(', ')}.
+              {t('codeAssist.uncaptured', { files: run.uncaptured.join(', ') })}
             </p>
           )}
         </section>
@@ -259,7 +260,7 @@ export function DesktopCodeAssist({
           />
         </div>
       )}
-      {run?.status === 'aborted' && <p className="file-quiet-state">Analysis stopped.</p>}
+      {run?.status === 'aborted' && <p className="file-quiet-state">{t('codeAssist.stopped')}</p>}
     </section>
   );
 }
