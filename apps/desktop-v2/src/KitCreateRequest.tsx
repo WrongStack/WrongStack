@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { Session } from './model';
 
 /** The WebUI's "Create kit" instruction, with the capability the user describes appended. */
@@ -24,6 +25,7 @@ export function KitCreateRequest({
   onNewSession: () => void;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const agents = sessions.filter((item) => item.kind === 'agent');
   const [capability, setCapability] = useState('');
   const [session, setSession] = useState('');
@@ -36,11 +38,8 @@ export function KitCreateRequest({
     setError('');
     try {
       const ok = await onPrepare(session, createKitPrompt(projectRoot, capability));
-      if (ok) setNotice('Added to the conversation draft. Review and send it there.');
-      else
-        setError(
-          'The request was kept in the conversation draft. Resolve its save conflict before sending.',
-        );
+      if (ok) setNotice(t('kitCreate.added'));
+      else setError(t('projectKit.conflict'));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -48,43 +47,40 @@ export function KitCreateRequest({
     }
   };
   return (
-    <section className="kit-request" aria-label="Create a Project Kit">
+    <section className="kit-request" aria-label={t('kitCreate.label')}>
       <header>
-        <h3 className="kit-request-title">Create a kit</h3>
+        <h3 className="kit-request-title">{t('kitCreate.title')}</h3>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close kit creation"
+          aria-label={t('kitCreate.close')}
           onClick={onClose}
         >
           <X size={15} />
         </button>
       </header>
-      <p>
-        An agent discovers the existing kits first, extends a suitable one where it can, and adds
-        verification cases for the new capability.
-      </p>
+      <p>{t('kitCreate.intro')}</p>
       <label className="kit-field">
-        The capability I need
+        {t('kitCreate.capability')}
         <textarea
           rows={3}
           value={capability}
           disabled={busy}
-          placeholder="Generate release notes from merged pull requests…"
+          placeholder={t('kitCreate.placeholder')}
           onChange={(event) => setCapability(event.target.value)}
         />
       </label>
       {agents.length ? (
         <div className="kit-actions">
           <label className="kit-field">
-            Target conversation
+            {t('projectKit.target')}
             <select
-              aria-label="Kit creation target conversation"
+              aria-label={t('kitCreate.targetLabel')}
               disabled={busy}
               value={session}
               onChange={(event) => setSession(event.target.value)}
             >
-              <option value="">Choose a project conversation…</option>
+              <option value="">{t('projectKit.chooseConversation')}</option>
               {agents.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.title} · {item.status}
@@ -98,12 +94,12 @@ export function KitCreateRequest({
             disabled={busy || !capability.trim() || !agents.some((item) => item.id === session)}
             onClick={() => void prepare()}
           >
-            Add to conversation draft
+            {t('projectKit.addToDraft')}
           </button>
         </div>
       ) : (
         <button type="button" className="button secondary" onClick={onNewSession}>
-          Create a project conversation
+          {t('projectKit.newConversation')}
         </button>
       )}
       {notice && <p role="status">{notice}</p>}

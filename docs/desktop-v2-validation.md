@@ -8247,3 +8247,18 @@ copies, starting with SAGE memory.
 - Checks: new `techstack-panels-i18n.test.ts` renders a dependency with a model finding, the
   trends and a remediation plan in English and Turkish; desktop tests pass (PASSED);
   typecheck clean.
+
+### Project Kit in the display language (2026-11-04)
+
+- The Project Kit page follows the display language in all seven languages: the catalog,
+  effect labels, detail facts, run preparation, prepared request, tests, history and source
+  files (`projectKit`), the kit creation request (`kitCreate`), the saved-parameter conflict and
+  restore notices (`kitDraft`), and the parameter form, value view and schema details
+  (`kitForm`).
+- Form feedback is worded through the catalog too: `kitInputErrors` takes a `say` function
+  (English by default) and the page passes `kitErrors.*`.
+- Still English by design: kit names, descriptions, guides, parameter names, schema types,
+  run actions and statuses, engine errors, and the model-facing kit and creation requests.
+- Checks: new `kit-i18n.test.ts` renders the form, value view, schema details, creation
+  request and page in English and Turkish and words form feedback in Turkish; desktop tests
+  pass (PASSED); typecheck clean.

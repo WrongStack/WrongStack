@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { KitValue } from './KitParameterForm';
 import { type KitParameterDraft, kitSchemaFingerprint } from './kit-parameter-draft';
 import type { KitSchema } from './project-kit-model';
@@ -80,6 +81,7 @@ export function KitParameterDraftNotice({
   initial: unknown;
   onUseSaved: (input: unknown) => void;
 }) {
+  const { t } = useDesktopText();
   const { draft, restored, stale } = binding;
   const review = draft.state.review;
   if (!draft.active) return null;
@@ -91,19 +93,24 @@ export function KitParameterDraftNotice({
         </p>
       )}
       {review && (
-        <section className="kit-draft-notice" aria-label="Kit parameter conflict">
-          <p>
-            Another window saved different parameters for this kit. Choose which values to keep;
-            nothing is sent until you prepare a request.
-          </p>
+        <section className="kit-draft-notice" aria-label={t('kitDraft.conflictLabel')}>
+          <p>{t('kitDraft.conflictBody')}</p>
           <div className="kit-draft-compare">
             <div>
-              <strong>Saved in another window</strong>
-              {review.value ? <KitValue value={review.value.input} /> : <p>No saved values.</p>}
+              <strong>{t('kitDraft.savedElsewhere')}</strong>
+              {review.value ? (
+                <KitValue value={review.value.input} />
+              ) : (
+                <p>{t('kitDraft.noSaved')}</p>
+              )}
             </div>
             <div>
-              <strong>This window</strong>
-              {draft.state.value ? <KitValue value={draft.state.value.input} /> : <p>Defaults.</p>}
+              <strong>{t('kitDraft.thisWindow')}</strong>
+              {draft.state.value ? (
+                <KitValue value={draft.state.value.input} />
+              ) : (
+                <p>{t('kitDraft.defaults')}</p>
+              )}
             </div>
           </div>
           <div className="kit-actions">
@@ -112,7 +119,7 @@ export function KitParameterDraftNotice({
               className="button secondary small"
               onClick={() => void draft.controller.resolve('local')}
             >
-              Keep this window’s values
+              {t('kitDraft.keepLocal')}
             </button>
             <button
               type="button"
@@ -124,48 +131,47 @@ export function KitParameterDraftNotice({
                 });
               }}
             >
-              Use saved values
+              {t('kitDraft.useSaved')}
             </button>
           </div>
         </section>
       )}
       {stale && (
-        <section className="kit-draft-notice" aria-label="Saved kit parameters">
-          <p>
-            Parameters saved on this device were entered for an earlier input contract of this kit.
-            They are not applied. Review them before using or discarding them.
-          </p>
+        <section className="kit-draft-notice" aria-label={t('kitDraft.staleLabel')}>
+          <p>{t('kitDraft.staleBody')}</p>
           <KitValue value={stale.input} />
           <div className="kit-actions">
             <button type="button" className="button secondary small" onClick={binding.useStale}>
-              Use saved parameters
+              {t('kitDraft.useStale')}
             </button>
             <button
               type="button"
               className="button secondary small"
               onClick={() => binding.discard(initial)}
             >
-              Discard saved parameters
+              {t('kitDraft.discard')}
             </button>
           </div>
         </section>
       )}
       {restored !== null && !stale && !review && draft.state.value && (
         <p className="kit-draft-status" role="status">
-          Restored unsent parameters
-          {restored ? ` saved ${new Date(restored).toLocaleString()}` : ''}.{' '}
+          {restored
+            ? t('kitDraft.restoredAt', { at: new Date(restored).toLocaleString() })
+            : t('kitDraft.restored')}
+          .{' '}
           <button
             type="button"
             className="button secondary small"
             onClick={() => binding.discard(initial)}
           >
-            Reset to defaults
+            {t('kitDraft.reset')}
           </button>
         </p>
       )}
       {draft.state.saving && (
         <small className="field-help" role="status">
-          Saving parameters on this device…
+          {t('kitDraft.saving')}
         </small>
       )}
     </>

@@ -1,6 +1,7 @@
 import { Box, FileCode2, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { KitCreateRequest } from './KitCreateRequest';
@@ -8,7 +9,13 @@ import { KitParameterDraftNotice, useKitParameterBinding } from './KitParameterD
 import { KitParameterForm, KitSchemaDetails, KitValue } from './KitParameterForm';
 import { MarkdownContent } from './MarkdownContent';
 import type { Session } from './model';
-import { type KitSchema, kitInitialValue, kitInputErrors, kitRequest } from './project-kit-model';
+import {
+  type KitSay,
+  type KitSchema,
+  kitInitialValue,
+  kitInputErrors,
+  kitRequest,
+} from './project-kit-model';
 import './project-kit.css';
 
 export function ProjectKit({
@@ -26,6 +33,8 @@ export function ProjectKit({
   onNewSession: () => void;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const say: KitSay = (code, values) => t(`kitErrors.${code}`, values);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [invalid, setInvalid] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState('');
@@ -102,15 +111,14 @@ export function ProjectKit({
         record(await http(`/api/project-kit?name=${encodeURIComponent(selected)}`))['kit'],
       );
       if (own !== sequence.current) return;
-      if (latest['revision'] !== kit['revision'])
-        throw Error(
-          'The kit changed on disk. Select it again to review its new revision and parameters.',
-        );
-      if (action === 'run' && latest['verified'] !== true)
-        throw Error(
-          'This revision needs verification before running. Prepare a verification request first.',
-        );
-      const errors = kitInputErrors(record(kit['inputSchema']) as KitSchema, input);
+      if (latest['revision'] !== kit['revision']) throw Error(t('projectKit.changedOnDisk'));
+      if (action === 'run' && latest['verified'] !== true) throw Error(t('projectKit.needsVerify'));
+      const errors = kitInputErrors(
+        record(kit['inputSchema']) as KitSchema,
+        input,
+        t('projectKit.input'),
+        say,
+      );
       if (action === 'run' && errors.length) throw Error(errors.join(' '));
       setRequest(kitRequest(selected, String(kit['revision']), action, input));
     } catch (e) {
@@ -119,20 +127,19 @@ export function ProjectKit({
       if (own === sequence.current) setBusy(false);
     }
   };
-  const errors = kit ? kitInputErrors(record(kit['inputSchema']) as KitSchema, input) : [];
+  const errors = kit
+    ? kitInputErrors(record(kit['inputSchema']) as KitSchema, input, t('projectKit.input'), say)
+    : [];
   const visible = rows.filter((item) =>
     `${item['name']} ${item['description']}`.toLowerCase().includes(query.toLowerCase()),
   );
   const agents = sessions.filter((item) => item.kind === 'agent');
   return (
-    <section className="project-kit" aria-label="Project Kit workspace">
+    <section className="project-kit" aria-label={t('projectKit.label')}>
       <header className="studio-heading">
         <div>
           <h1>Project Kit</h1>
-          <p>
-            Understand the contract, review the evidence, and prepare an exact revision for your
-            agent.
-          </p>
+          <p>{t('projectKit.intro')}</p>
         </div>
         <button
           type="button"
@@ -141,11 +148,11 @@ export function ProjectKit({
           onClick={() => void load()}
         >
           <RefreshCw size={14} />
-          Refresh kits
+          {t('projectKit.refresh')}
         </button>
         <button type="button" className="button primary" onClick={() => setCreating(true)}>
           <Plus size={14} />
-          Create a kit
+          {t('projectKit.create')}
         </button>
       </header>
       {error && (
@@ -158,17 +165,15 @@ export function ProjectKit({
           <label className="kit-search">
             <Search size={15} />
             <input
-              aria-label="Search project kits"
-              placeholder="Find a capability…"
+              aria-label={t('projectKit.search')}
+              placeholder={t('projectKit.searchPlaceholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
-          <small>
-            {rows.length} kits · {invalid.length} invalid
-          </small>
+          <small>{t('projectKit.counts', { kits: rows.length, invalid: invalid.length })}</small>
           {loading ? (
-            <p role="status">Reading project kits…</p>
+            <p role="status">{t('projectKit.reading')}</p>
           ) : visible.length ? (
             visible.map((row) => (
               <button
@@ -182,23 +187,20 @@ export function ProjectKit({
                 <div>
                   <strong>{String(row['name'])}</strong>
                   <p>{String(row['description'] ?? '')}</p>
-                  <small>{effectLabel(row['effects'])}</small>
+                  <small>{effectLabel(row['effects'], t)}</small>
                 </div>
               </button>
             ))
           ) : (
             <div className="kit-empty">
               <Box size={25} />
-              <h3>{rows.length ? 'No matching kits' : 'A home for reusable project work'}</h3>
-              <p>
-                Kits live in .wrongstack/project-kit. Ask a project agent to inspect project_kit
-                templates and create a capability with a guide, contracts and tests.
-              </p>
+              <h3>{rows.length ? t('projectKit.noMatch') : t('projectKit.home')}</h3>
+              <p>{t('projectKit.homeBody')}</p>
             </div>
           )}
           {invalid.length > 0 && (
             <details className="kit-invalid">
-              <summary>Invalid kit definitions ({invalid.length})</summary>
+              <summary>{t('projectKit.invalid', { number: invalid.length })}</summary>
               {invalid.map((item, i) => (
                 <div key={i}>
                   <strong>{String(item['name'])}</strong>
@@ -208,7 +210,7 @@ export function ProjectKit({
             </details>
           )}
         </aside>
-        <article className="kit-detail" aria-label="Project Kit details">
+        <article className="kit-detail" aria-label={t('projectKit.detailsLabel')}>
           {creating && (
             <KitCreateRequest
               projectRoot={projectRoot}
@@ -219,51 +221,49 @@ export function ProjectKit({
             />
           )}
           {reading ? (
-            <p role="status">Reading guide and contracts…</p>
+            <p role="status">{t('projectKit.readingGuide')}</p>
           ) : kit ? (
             <>
               <header>
                 <div>
-                  <span className="eyebrow">{effectLabel(kit['effects'])}</span>
+                  <span className="eyebrow">{effectLabel(kit['effects'], t)}</span>
                   <h2>{String(kit['name'])}</h2>
                   <p>{String(kit['description'])}</p>
                 </div>
                 <span className={`kit-verification ${kit['verified'] === true ? 'verified' : ''}`}>
                   <ShieldCheck size={16} />
-                  {kit['verified'] === true ? 'Revision verified' : 'Verification required'}
+                  {kit['verified'] === true
+                    ? t('projectKit.verified')
+                    : t('projectKit.needsVerification')}
                 </span>
               </header>
               <div className="kit-facts">
                 <div>
-                  <small>Revision</small>
+                  <small>{t('projectKit.revision')}</small>
                   <code title={String(kit['revision'])}>
                     {String(kit['revision']).slice(0, 12)}
                   </code>
                 </div>
                 <div>
-                  <small>Entry point</small>
+                  <small>{t('projectKit.entry')}</small>
                   <strong>{String(kit['entry'])}</strong>
                 </div>
                 <div>
-                  <small>Execution limit</small>
+                  <small>{t('projectKit.limit')}</small>
                   <strong>{Number(kit['timeoutMs']) / 1000}s</strong>
                 </div>
                 <div>
-                  <small>Test cases</small>
+                  <small>{t('projectKit.tests')}</small>
                   <strong>{entries(kit['tests']).length}</strong>
                 </div>
               </div>
               <section>
-                <h3>Guide</h3>
+                <h3>{t('projectKit.guide')}</h3>
                 <MarkdownContent text={String(kit['guide'] ?? '')} />
               </section>
               <section className="kit-run-form">
-                <h3>Prepare a run</h3>
-                <p>
-                  Review the parameters below. Preparing a request does not execute code.
-                  Verification also executes kit code and follows the agent’s normal permission
-                  flow.
-                </p>
+                <h3>{t('projectKit.prepareTitle')}</h3>
+                <p>{t('projectKit.prepareBody')}</p>
                 <KitParameterDraftNotice
                   binding={parameters}
                   initial={kitInitialValue(record(kit['inputSchema']) as KitSchema)}
@@ -292,7 +292,7 @@ export function ProjectKit({
                     disabled={busy}
                     onClick={() => void prepare('verify')}
                   >
-                    Prepare verification request
+                    {t('projectKit.prepareVerify')}
                   </button>
                   <button
                     type="button"
@@ -300,33 +300,30 @@ export function ProjectKit({
                     disabled={busy || errors.length > 0 || kit['verified'] !== true}
                     onClick={() => void prepare('run')}
                   >
-                    Prepare run request
+                    {t('projectKit.prepareRun')}
                   </button>
                 </div>
               </section>
               {request && (
-                <section className="kit-request" aria-label="Prepared kit request">
-                  <h3>Ready for review in chat</h3>
-                  <p>
-                    The request pins this revision and your parameter values. Sending it remains an
-                    explicit action in the conversation.
-                  </p>
+                <section className="kit-request" aria-label={t('projectKit.requestLabel')}>
+                  <h3>{t('projectKit.ready')}</h3>
+                  <p>{t('projectKit.readyBody')}</p>
                   <details>
-                    <summary>Review prepared instruction</summary>
+                    <summary>{t('projectKit.reviewInstruction')}</summary>
                     <MarkdownContent text={request} />
                   </details>
-                  <CopyButton text={request} label="Copy Project Kit request" />
+                  <CopyButton text={request} label={t('projectKit.copy')} />
                   {agents.length ? (
                     <div className="kit-actions">
                       <label className="kit-field">
-                        Target conversation
+                        {t('projectKit.target')}
                         <select
-                          aria-label="Project Kit target conversation"
+                          aria-label={t('projectKit.targetLabel')}
                           disabled={busy}
                           value={session}
                           onChange={(e) => setSession(e.target.value)}
                         >
-                          <option value="">Choose a project conversation…</option>
+                          <option value="">{t('projectKit.chooseConversation')}</option>
                           {agents.map((item) => (
                             <option key={item.id} value={item.id}>
                               {item.title} · {item.status}
@@ -345,43 +342,44 @@ export function ProjectKit({
                             .then(async (ok) => {
                               // Parked parameters are removed only after the request is in the conversation draft.
                               if (ok) await parameters.settle(submitted);
-                              if (!ok)
-                                setError(
-                                  'The request was kept in the conversation draft. Resolve its save conflict before sending.',
-                                );
+                              if (!ok) setError(t('projectKit.conflict'));
                             })
                             .catch((e) => setError(String(e)))
                             .finally(() => setBusy(false));
                         }}
                       >
-                        Add to conversation draft
+                        {t('projectKit.addToDraft')}
                       </button>
                     </div>
                   ) : (
                     <button type="button" className="button secondary" onClick={onNewSession}>
-                      Create a project conversation
+                      {t('projectKit.newConversation')}
                     </button>
                   )}
                 </section>
               )}
               <details>
-                <summary>Output contract</summary>
+                <summary>{t('projectKit.outputContract')}</summary>
                 <KitSchemaDetails schema={record(kit['outputSchema']) as KitSchema} />
               </details>
               <details>
-                <summary>Test cases ({entries(kit['tests']).length})</summary>
+                <summary>
+                  {t('projectKit.testCases', { number: entries(kit['tests']).length })}
+                </summary>
                 {entries(kit['tests']).map((test, i) => (
                   <section className="kit-test" key={i}>
                     <h4>{String(test['name'])}</h4>
-                    <h5>Input</h5>
+                    <h5>{t('projectKit.input')}</h5>
                     <KitValue value={test['input']} />
-                    <h5>Expected result</h5>
+                    <h5>{t('projectKit.expected')}</h5>
                     <KitValue value={test['expected']} />
                   </section>
                 ))}
               </details>
               <details>
-                <summary>Run and verification history ({entries(kit['history']).length})</summary>
+                <summary>
+                  {t('projectKit.history', { number: entries(kit['history']).length })}
+                </summary>
                 {entries(kit['history']).length ? (
                   entries(kit['history']).map((run, i) => (
                     <div className="kit-history-row" key={String(run['runId'] ?? i)}>
@@ -390,19 +388,23 @@ export function ProjectKit({
                       </strong>
                       <time>{String(run['startedAt'])}</time>
                       <small>
-                        Revision {String(run['revision']).slice(0, 12)}
+                        {t('projectKit.historyRevision', {
+                          revision: String(run['revision']).slice(0, 12),
+                        })}
                         {typeof run['durationMs'] === 'number' ? ` · ${run['durationMs']} ms` : ''}
                       </small>
                       {typeof run['error'] === 'string' && <p>{run['error']}</p>}
                     </div>
                   ))
                 ) : (
-                  <p>No runs recorded yet.</p>
+                  <p>{t('projectKit.noRuns')}</p>
                 )}
               </details>
               <details>
                 <summary>
-                  Kit source files ({Array.isArray(kit['files']) ? kit['files'].length : 0})
+                  {t('projectKit.files', {
+                    number: Array.isArray(kit['files']) ? kit['files'].length : 0,
+                  })}
                 </summary>
                 <div className="kit-source-files">
                   {(Array.isArray(kit['files']) ? kit['files'] : [])
@@ -424,11 +426,8 @@ export function ProjectKit({
           ) : (
             <div className="kit-empty">
               <Box size={34} />
-              <h2>Know exactly what your agent can run.</h2>
-              <p>
-                Select a kit to review its guide, typed inputs, output contract, tests and revision
-                history.
-              </p>
+              <h2>{t('projectKit.emptyTitle')}</h2>
+              <p>{t('projectKit.emptyBody')}</p>
             </div>
           )}
         </article>
@@ -436,12 +435,8 @@ export function ProjectKit({
     </section>
   );
 }
-function effectLabel(value: unknown) {
-  return value === 'read'
-    ? 'Reads project data'
-    : value === 'write'
-      ? 'Changes project files'
-      : value === 'external'
-        ? 'Uses external services'
-        : 'Effects not reported';
+type Translate = ReturnType<typeof useDesktopText>['t'];
+function effectLabel(value: unknown, t: Translate) {
+  const effect = value === 'read' || value === 'write' || value === 'external' ? value : 'unknown';
+  return t(`projectKit.effect.${effect}`);
 }
