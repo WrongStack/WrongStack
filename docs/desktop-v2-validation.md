@@ -7169,3 +7169,26 @@ copies, starting with SAGE memory.
   - The model controls, the attachment tray and the hunt round card render in English and then in
     Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### File workspace in the display language (2026-11-04)
+
+- The file workspace now follows the display language in all seven languages:
+  - the header, file search, content search, history, new file and folder, commit, refresh and
+    the ignored-files toggle;
+  - local drafts and the draft conflict dialog;
+  - the explorer and source control lists, with working tree and staged groups;
+  - open file tabs and the document toolbar: edit, stage, reference, quote, save, file actions,
+    merge conflicts and hunk review;
+  - the folder view: breadcrumbs, selection, sorting, bulk actions, columns, paging and the
+    empty states;
+  - the context menu and the file action dialog;
+  - the notices and errors the workspace raises itself (saving, copying folders, moving, commits,
+    drafts).
+- Keys use `fileView.*`, because the engine's message types already use `files.*`.
+- English is unchanged, so the native file scenario keeps its labels.
+- The file browser dialogs, content search, evidence drawer and tree view follow in the next batch.
+- FileWorkspace shrank from 2013 to 2010 lines and imports one more module; the hotspot ratchet is
+  updated to match.
+- Checks:
+  - The workspace header, search and changes view render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.

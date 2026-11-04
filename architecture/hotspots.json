@@ -139,8 +139,8 @@
       "relativeImports": 13
     },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2013,
-      "relativeImports": 29
+      "lines": 2010,
+      "relativeImports": 30
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
       "lines": 917,
