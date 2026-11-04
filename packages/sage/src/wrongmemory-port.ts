@@ -317,6 +317,11 @@ export class WrongMemoryPort implements MemoryPort {
 
   constructor(private readonly options: WrongMemoryPortOptions) {}
 
+  /** The host bus it emits on, read by the vector-memory mirror as on the local ports. */
+  get events(): WrongMemoryPortOptions['events'] {
+    return this.options.events;
+  }
+
   // ─── Lifecycle ─────────────────────────────────────────────────────
 
   async initialize(): Promise<void> {
