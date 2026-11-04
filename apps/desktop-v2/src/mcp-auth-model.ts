@@ -23,23 +23,52 @@ export function mcpAuthStatus(value: unknown): McpAuthStatus | null {
 }
 
 /** One line describing the stored authorization. */
-export function mcpAuthSummary(status: McpAuthStatus, now = Date.now()): string {
+/** English wording of the summary; the desktop passes the display-language catalog. */
+const AUTH_WORDS = {
+  signedIn: 'Signed in.',
+  signedInWith: 'Signed in with {{scopes}}.',
+  tokenExpired: 'The access token has expired.',
+  tokenExpires: 'The access token expires {{at}}.',
+  refreshable: 'It can be refreshed without signing in again.',
+  expired: 'The sign-in has expired.',
+  signInAgain: 'Sign in again to use this connection.',
+  pending: 'A sign-in is waiting for the browser to finish.',
+  none: 'Not signed in.',
+} as const;
+export type McpAuthWord = keyof typeof AUTH_WORDS;
+export type McpAuthSay = (word: McpAuthWord, values?: Record<string, string>) => string;
+const english: McpAuthSay = (word, values = {}) =>
+  AUTH_WORDS[word].replace(/\{\{(\w+)\}\}/g, (_, name: string) => values[name] ?? '');
+
+export function mcpAuthSummary(
+  status: McpAuthStatus,
+  now = Date.now(),
+  say: McpAuthSay = english,
+): string {
   const expiry =
     status.expiresAt === undefined
-      ? ''
-      : status.expiresAt <= now
-        ? ' The access token has expired.'
-        : ` The access token expires ${new Date(status.expiresAt).toLocaleString()}.`;
-  const refresh = status.canRefresh ? ' It can be refreshed without signing in again.' : '';
+      ? []
+      : [
+          status.expiresAt <= now
+            ? say('tokenExpired')
+            : say('tokenExpires', { at: new Date(status.expiresAt).toLocaleString() }),
+        ];
+  const refresh = status.canRefresh ? [say('refreshable')] : [];
   switch (status.state) {
     case 'authorized':
-      return `Signed in${status.scopes.length ? ` with ${status.scopes.join(', ')}` : ''}.${expiry}${refresh}`;
+      return [
+        status.scopes.length
+          ? say('signedInWith', { scopes: status.scopes.join(', ') })
+          : say('signedIn'),
+        ...expiry,
+        ...refresh,
+      ].join(' ');
     case 'expired':
-      return `The sign-in has expired.${refresh || ' Sign in again to use this connection.'}`;
+      return [say('expired'), ...(refresh.length ? refresh : [say('signInAgain')])].join(' ');
     case 'pending':
-      return 'A sign-in is waiting for the browser to finish.';
+      return say('pending');
     default:
-      return 'Not signed in.';
+      return say('none');
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T19:09:37.889Z",
+  "generatedAt": "2026-11-04T19:15:40.250Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,22 +13,23 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6004,
-    "testFiles": 5001,
-    "sourceLines": 1248077,
+    "testFiles": 5002,
+    "sourceLines": 1248082,
     "workspaceEdges": 240,
-    "moduleEdges": 17627,
+    "moduleEdges": 17630,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 264,
+    "testsWithoutTypecheck": 265,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1041
+    "testOnlyExports": 1040
   },
   "errors": [
     "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
     "apps/desktop-v2/src/desktop-command-text.ts: \"commandTextKey\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
     "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+    "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
   ],
   "packageCycles": [],
   "coreAreas": {
@@ -392,7 +393,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 438,
-      "testFiles": 264,
+      "testFiles": 265,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2110,6 +2111,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/mcp-binary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/mcp-connection-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32256,6 +32263,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/mcp-connection-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/mcp-content-text.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34604,10 +34618,6 @@
     {
       "file": "apps/desktop-v2/src/KanbanBoardDialog.tsx",
       "name": "boardListTasks"
-    },
-    {
-      "file": "apps/desktop-v2/src/KanbanContractMap.tsx",
-      "name": "endpointLabel"
     },
     {
       "file": "apps/desktop-v2/src/KanbanContractMap.tsx",

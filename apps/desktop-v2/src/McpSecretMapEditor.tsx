@@ -1,5 +1,6 @@
 import { Plus, Save, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import {
@@ -39,7 +40,7 @@ export function McpSecretMapEditor({
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const working = useRef(false);
-  const noun = kind === 'env' ? 'environment variable' : 'header';
+  const { t } = useDesktopText();
   const update = (index: number, change: Partial<SecretMapRow>) =>
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...change } : row)));
   const save = async () => {
@@ -53,13 +54,11 @@ export function McpSecretMapEditor({
       const read = async () => {
         const reply = await command('mcp.list', {}, ['mcp.list']);
         const server = entries(reply['servers']).find((row) => row['name'] === name);
-        if (!server) throw Error('This connection was removed. Your edit is preserved.');
+        if (!server) throw Error(t('mcpSecrets.removed'));
         return server;
       };
       if (!sameShown(record((await read())[kind]), map))
-        throw Error(
-          `The stored ${kind === 'env' ? 'environment' : 'headers'} changed since this form opened. Reload the connection; your edit is preserved.`,
-        );
+        throw Error(t(`mcpSecrets.${kind}.changed`));
       await command('mcp.update', { name, [kind]: payload }, ['mcp.operation_result']);
       const after = record((await read())[kind]);
       const mismatch = Object.keys(payload).some(
@@ -70,12 +69,10 @@ export function McpSecretMapEditor({
             after[key] !== payload[key]),
       );
       if (mismatch || Object.keys(after).length !== Object.keys(payload).length)
-        throw Error(
-          `The saved ${noun}s did not match readback. Reload the connection to inspect them.`,
-        );
+        throw Error(t(`mcpSecrets.${kind}.mismatch`));
       setRows(secretMapRows(after));
       setAdditions([]);
-      setNotice('Saved and read back. Hidden values stay with the engine.');
+      setNotice(t('mcpSecrets.saved'));
       onSaved(after);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -86,12 +83,9 @@ export function McpSecretMapEditor({
   };
   return (
     <fieldset className="mcp-secret-map">
-      <legend>{kind === 'env' ? 'Environment' : 'HTTP headers'}</legend>
-      <p className="field-help">
-        Hidden values are never shown or sent to this window. Keep, replace or remove each one;
-        saving may restart an enabled connection.
-      </p>
-      {rows.length === 0 && additions.length === 0 && <p>No {noun}s are stored.</p>}
+      <legend>{t(`mcpSecrets.${kind}.legend`)}</legend>
+      <p className="field-help">{t('mcpSecrets.help')}</p>
+      {rows.length === 0 && additions.length === 0 && <p>{t(`mcpSecrets.${kind}.none`)}</p>}
       <ul>
         {rows.map((row, index) => (
           <li key={row.key} className={row.action === 'remove' ? 'mcp-secret-removed' : ''}>
@@ -100,7 +94,7 @@ export function McpSecretMapEditor({
               <input
                 type="password"
                 autoComplete="off"
-                aria-label={`New value for ${row.key}`}
+                aria-label={t('mcpSecrets.newValueFor', { key: row.key })}
                 value={row.value}
                 disabled={busy}
                 onChange={(event) => update(index, { value: event.target.value })}
@@ -108,31 +102,31 @@ export function McpSecretMapEditor({
             ) : (
               <span>
                 {row.action === 'remove'
-                  ? 'Will be removed'
+                  ? t('mcpSecrets.willRemove')
                   : row.shown === MCP_SECRET_MASK
-                    ? 'Hidden value'
+                    ? t('mcpSecrets.hidden')
                     : row.shown}
               </span>
             )}
             <select
-              aria-label={`Action for ${row.key}`}
+              aria-label={t('mcpSecrets.actionFor', { key: row.key })}
               value={row.action}
               disabled={busy}
               onChange={(event) =>
                 update(index, { action: event.target.value as SecretMapRow['action'], value: '' })
               }
             >
-              <option value="keep">Keep</option>
-              <option value="replace">Replace</option>
-              <option value="remove">Remove</option>
+              <option value="keep">{t('mcpSecrets.keep')}</option>
+              <option value="replace">{t('mcpSecrets.replace')}</option>
+              <option value="remove">{t('mcpSecrets.remove')}</option>
             </select>
           </li>
         ))}
         {additions.map((addition, index) => (
           <li key={`new-${index}`}>
             <input
-              aria-label={`New ${noun} name`}
-              placeholder="Name"
+              aria-label={t(`mcpSecrets.${kind}.newName`)}
+              placeholder={t('mcpSecrets.namePlaceholder')}
               value={addition.key}
               disabled={busy}
               onChange={(event) =>
@@ -146,8 +140,8 @@ export function McpSecretMapEditor({
             <input
               type="password"
               autoComplete="off"
-              aria-label={`New ${noun} value`}
-              placeholder="Value"
+              aria-label={t(`mcpSecrets.${kind}.newValue`)}
+              placeholder={t('mcpSecrets.valuePlaceholder')}
               value={addition.value}
               disabled={busy}
               onChange={(event) =>
@@ -161,7 +155,7 @@ export function McpSecretMapEditor({
             <button
               type="button"
               className="icon-button"
-              aria-label={`Discard new ${noun}`}
+              aria-label={t(`mcpSecrets.${kind}.discardNew`)}
               disabled={busy}
               onClick={() => setAdditions((current) => current.filter((_, i) => i !== index))}
             >
@@ -177,7 +171,7 @@ export function McpSecretMapEditor({
           disabled={busy}
           onClick={() => setAdditions((current) => [...current, { key: '', value: '' }])}
         >
-          <Plus size={13} /> Add {noun}
+          <Plus size={13} /> {t(`mcpSecrets.${kind}.add`)}
         </button>
         <button
           type="button"
@@ -185,8 +179,7 @@ export function McpSecretMapEditor({
           disabled={busy || !secretMapChanged(rows, additions)}
           onClick={() => void save()}
         >
-          <Save size={13} />{' '}
-          {busy ? 'Saving…' : `Save ${kind === 'env' ? 'environment' : 'headers'}`}
+          <Save size={13} /> {busy ? t('mcpSecrets.saving') : t(`mcpSecrets.${kind}.save`)}
         </button>
       </div>
       {error && (

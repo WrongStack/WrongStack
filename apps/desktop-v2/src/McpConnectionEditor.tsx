@@ -1,5 +1,6 @@
 import { Save, X } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { McpSecretMapEditor } from './McpSecretMapEditor';
@@ -33,6 +34,7 @@ export function McpConnectionEditor({
   /** The engine keeps masked env and header values on update (`mcp.masked-headers`). */
   secretMaps?: boolean | undefined;
 }) {
+  const { t } = useDesktopText();
   const [snapshot, setSnapshot] = useState(server),
     [base, setBase] = useState(() => editable(server)),
     [draft, setDraft] = useState(() => editable(server));
@@ -50,7 +52,7 @@ export function McpConnectionEditor({
   const read = async () => {
     const reply = await command('mcp.list', {}, ['mcp.list']);
     const current = entries(reply['servers']).find((row) => row['name'] === name);
-    if (!current) throw Error('This connection was removed. Your local edit is preserved.');
+    if (!current) throw Error(t('mcpEditor.removed'));
     return current;
   };
   const reload = async () => {
@@ -102,9 +104,7 @@ export function McpConnectionEditor({
       if (
         !Object.keys(patch).every((key) => sameSetting(record(actual)[key], record(expected)[key]))
       )
-        throw Error(
-          'The changed connection fields did not match readback. Your form is preserved.',
-        );
+        throw Error(t('mcpEditor.mismatch'));
       onSaved();
       onClose();
     } catch (error) {
@@ -115,7 +115,7 @@ export function McpConnectionEditor({
     }
   };
   return (
-    <Modal title={`Edit MCP connection ${name}`} onClose={close}>
+    <Modal title={t('mcpEditor.modalTitle', { name })} onClose={close}>
       <form
         className="mcp-connection-editor"
         onSubmit={(event) => {
@@ -125,23 +125,20 @@ export function McpConnectionEditor({
       >
         <header>
           <div>
-            <span className="eyebrow">PROFILE CONNECTION · {name}</span>
-            <h2>Edit connection</h2>
+            <span className="eyebrow">{t('mcpEditor.eyebrow', { name })}</span>
+            <h2>{t('mcpEditor.title')}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close MCP connection editor"
+            aria-label={t('mcpEditor.close')}
             disabled={busy}
             onClick={close}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Save applies only changed fields and may restart an enabled connection. Stored
-          credentials, headers, private-network policy and other hidden settings are retained.
-        </p>
+        <p>{t('mcpEditor.intro')}</p>
         {error && (
           <p className="session-error" role="alert">
             {error}
@@ -149,54 +146,52 @@ export function McpConnectionEditor({
         )}
         <fieldset disabled={busy}>
           <label>
-            Description
+            {t('mcpEditor.description')}
             <input
-              aria-label="MCP connection description"
+              aria-label={t('mcpEditor.descriptionLabel')}
               value={draft.description}
               onChange={(event) => setDraft({ ...draft, description: event.target.value })}
             />
           </label>
           <label>
-            Transport
+            {t('mcpEditor.transport')}
             <select
-              aria-label="MCP connection transport"
+              aria-label={t('mcpEditor.transportLabel')}
               value={draft.transport}
               onChange={(event) => setDraft({ ...draft, transport: event.target.value })}
             >
-              <option value="stdio">Local process · stdio</option>
-              <option value="streamable-http">Remote · Streamable HTTP</option>
-              <option value="sse">Remote · SSE</option>
+              <option value="stdio">{t('mcpEditor.stdio')}</option>
+              <option value="streamable-http">{t('mcpEditor.http')}</option>
+              <option value="sse">{t('mcpEditor.sse')}</option>
             </select>
           </label>
           {draft.transport === 'stdio' ? (
             <>
               <label>
-                Executable
+                {t('mcpEditor.executable')}
                 <input
-                  aria-label="MCP connection executable"
+                  aria-label={t('mcpEditor.executableLabel')}
                   required
                   value={draft.command}
                   onChange={(event) => setDraft({ ...draft, command: event.target.value })}
                 />
               </label>
               <label>
-                Arguments
+                {t('mcpEditor.arguments')}
                 <textarea
-                  aria-label="MCP connection arguments"
+                  aria-label={t('mcpEditor.argumentsLabel')}
                   rows={4}
                   value={draft.argsText}
                   onChange={(event) => setDraft({ ...draft, argsText: event.target.value })}
                 />
-                <small>
-                  One argument per line. Blank lines are ignored when edited; execution is direct.
-                </small>
+                <small>{t('mcpEditor.argumentsHelp')}</small>
               </label>
             </>
           ) : (
             <label>
-              Endpoint URL
+              {t('mcpEditor.endpoint')}
               <input
-                aria-label="MCP connection endpoint"
+                aria-label={t('mcpEditor.endpointLabel')}
                 required
                 type="url"
                 value={draft.url}
@@ -206,12 +201,12 @@ export function McpConnectionEditor({
           )}
           <label className="authorization-checkbox">
             <input
-              aria-label="MCP connection lazy startup"
+              aria-label={t('mcpEditor.lazyLabel')}
               type="checkbox"
               checked={draft.lazy}
               onChange={(event) => setDraft({ ...draft, lazy: event.target.checked })}
             />
-            Start lazily when a capability is needed
+            {t('mcpEditor.lazy')}
           </label>
         </fieldset>
         {secretMaps &&
@@ -237,10 +232,8 @@ export function McpConnectionEditor({
             ))}
         {!secretMaps && Object.keys(record(snapshot['env'])).length > 0 && (
           <details>
-            <summary>Stored environment names</summary>
-            <p>
-              Values remain managed by the engine. This form leaves the environment map unchanged.
-            </p>
+            <summary>{t('mcpEditor.envNames')}</summary>
+            <p>{t('mcpEditor.envBody')}</p>
             <ul>
               {Object.keys(record(snapshot['env'])).map((key) => (
                 <li key={key}>
@@ -253,9 +246,7 @@ export function McpConnectionEditor({
         {review && (
           <div className="mcp-connection-review" role="alert">
             <p>
-              {review === 'close'
-                ? 'Discard the unsaved connection edit?'
-                : 'Discard local changes and load the current saved connection?'}
+              {review === 'close' ? t('mcpEditor.discardQuestion') : t('mcpEditor.reloadQuestion')}
             </p>
             <button
               type="button"
@@ -263,7 +254,7 @@ export function McpConnectionEditor({
               disabled={busy}
               onClick={() => setReview(null)}
             >
-              Keep editing connection
+              {t('mcpEditor.keepEditing')}
             </button>
             <button
               type="button"
@@ -271,9 +262,7 @@ export function McpConnectionEditor({
               disabled={busy}
               onClick={() => (review === 'close' ? onClose() : void reload())}
             >
-              {review === 'close'
-                ? 'Discard connection edit'
-                : 'Discard edits and reload connection'}
+              {review === 'close' ? t('mcpEditor.discard') : t('mcpEditor.discardReload')}
             </button>
           </div>
         )}
@@ -284,11 +273,11 @@ export function McpConnectionEditor({
             disabled={busy}
             onClick={() => (dirty ? setReview('reload') : void reload())}
           >
-            Reload stored connection
+            {t('mcpEditor.reload')}
           </button>
           <button type="submit" className="button primary" disabled={busy || !dirty}>
             <Save size={14} />
-            {busy ? 'Saving…' : 'Save connection changes'}
+            {busy ? t('mcpEditor.saving') : t('mcpEditor.save')}
           </button>
         </footer>
       </form>

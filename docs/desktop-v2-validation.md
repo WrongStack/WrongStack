@@ -8286,3 +8286,16 @@ copies, starting with SAGE memory.
   validation messages from the engine, provider and model ids, and engine errors.
 - Checks: new `prompt-refine-i18n.test.ts` renders the refinement dialog, the saved notice and
   the presets editor in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### MCP connection editing and authorization in the display language (2026-11-04)
+
+- The MCP connection editor (`mcpEditor`), the environment and header editor with separate
+  wording per kind (`mcpSecrets.env.*`, `mcpSecrets.headers.*`) and the OAuth authorization
+  panel (`mcpAuth`) follow the display language in all seven languages.
+- The authorization summary is worded through the catalog: `mcpAuthSummary` takes a `say`
+  function (English by default) and the panel passes `mcpAuth.summary.*`.
+- Still English by design: connection names, executables, arguments, URLs, environment and
+  header names, scopes, client ids and engine messages.
+- Checks: new `mcp-connection-i18n.test.ts` renders the editor and the authorization panel in
+  English and Turkish and words an authorization summary in Turkish; desktop tests pass
+  (PASSED); typecheck clean.
