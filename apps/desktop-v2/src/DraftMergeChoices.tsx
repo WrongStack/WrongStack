@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { type MergeChoice, mergedText, mergeSegments } from './draft-merge';
 
 /**
@@ -16,6 +17,7 @@ export function DraftMergeChoices({
   busy: boolean;
   onKeep: (merged: string) => void;
 }) {
+  const { t } = useDesktopText();
   const segments = useMemo(() => mergeSegments(mine, stored), [mine, stored]);
   const [choices, setChoices] = useState<Record<number, MergeChoice>>({});
   const changes = segments.filter((segment) => segment.kind === 'change');
@@ -23,27 +25,21 @@ export function DraftMergeChoices({
   if (!changes.length) return null;
   return (
     <details className="draft-merge">
-      <summary>Merge change by change ({changes.length})</summary>
-      <ol aria-label="Draft changes">
+      <summary>{t('merge.summary', { count: changes.length })}</summary>
+      <ol aria-label={t('merge.changes')}>
         {changes.map((change) => (
           <li key={change.id}>
             <div className="draft-merge-sides">
-              <section aria-label={`Your lines for change ${change.id + 1}`}>
-                <pre>{change.mine.join('\n') || '(no lines)'}</pre>
+              <section aria-label={t('merge.yours', { n: change.id + 1 })}>
+                <pre>{change.mine.join('\n') || t('merge.noLines')}</pre>
               </section>
-              <section aria-label={`Stored lines for change ${change.id + 1}`}>
-                <pre>{change.stored.join('\n') || '(no lines)'}</pre>
+              <section aria-label={t('merge.stored', { n: change.id + 1 })}>
+                <pre>{change.stored.join('\n') || t('merge.noLines')}</pre>
               </section>
             </div>
             <fieldset>
-              <legend>Keep for change {change.id + 1}</legend>
-              {(
-                [
-                  ['mine', 'Mine'],
-                  ['stored', 'Stored'],
-                  ['both', 'Both, mine first'],
-                ] as const
-              ).map(([value, label]) => (
+              <legend>{t('merge.keepFor', { n: change.id + 1 })}</legend>
+              {(['mine', 'stored', 'both'] as const).map((value) => (
                 <label key={value}>
                   <input
                     type="radio"
@@ -51,7 +47,7 @@ export function DraftMergeChoices({
                     checked={(choices[change.id] ?? 'mine') === value}
                     onChange={() => setChoices((current) => ({ ...current, [change.id]: value }))}
                   />{' '}
-                  {label}
+                  {t(`merge.choice.${value}`)}
                 </label>
               ))}
             </fieldset>
@@ -59,8 +55,8 @@ export function DraftMergeChoices({
         ))}
       </ol>
       <label>
-        Merged draft
-        <textarea aria-label="Merged draft" readOnly value={merged} />
+        {t('merge.merged')}
+        <textarea aria-label={t('merge.merged')} readOnly value={merged} />
       </label>
       <button
         type="button"
@@ -68,7 +64,7 @@ export function DraftMergeChoices({
         disabled={busy}
         onClick={() => onKeep(merged)}
       >
-        Keep merged draft
+        {t('merge.keep')}
       </button>
     </details>
   );

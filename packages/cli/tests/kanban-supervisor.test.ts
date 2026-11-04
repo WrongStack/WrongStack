@@ -80,4 +80,52 @@ describe('kanban supervisor', () => {
       supervisor.dispose();
     }
   });
+
+  it('broadcasts a board only when its audit finds something new, plus a slow heartbeat', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-supervisor-quiet-'));
+    tempRoots.push(projectRoot);
+    const board = await createBoard(projectRoot, {
+      title: 'Quiet board',
+      supervisor: { enabled: true, mode: 'deterministic' },
+    });
+    const statuses: Array<{ lastAuditAt?: string; summary?: string }> = [];
+    const supervisor = createKanbanSupervisor({
+      projectRoot,
+      broadcast: (message) => {
+        if (message.type !== 'kanban.supervisor.status') return;
+        statuses.push(
+          (message.payload as { data: { lastAuditAt?: string; summary?: string } }).data,
+        );
+      },
+    });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-03T10:00:00.000Z'));
+
+    try {
+      await supervisor.auditNow(board.id);
+      vi.setSystemTime(new Date('2026-11-03T10:00:10.000Z'));
+      await supervisor.auditNow(board.id);
+      vi.setSystemTime(new Date('2026-11-03T10:00:20.000Z'));
+      await supervisor.auditNow(board.id);
+
+      expect(statuses).toHaveLength(1);
+      expect(supervisor.getSnapshot(board.id)?.lastAuditAt).toBe('2026-11-03T10:00:20.000Z');
+
+      await addTask(projectRoot, board.id, { title: 'New work', status: 'in_progress' });
+      vi.setSystemTime(new Date('2026-11-03T10:00:30.000Z'));
+      await supervisor.auditNow(board.id);
+
+      expect(statuses).toHaveLength(2);
+      expect(statuses[1]?.summary).not.toBe(statuses[0]?.summary);
+
+      vi.setSystemTime(new Date('2026-11-03T10:05:31.000Z'));
+      await supervisor.auditNow(board.id);
+
+      expect(statuses).toHaveLength(3);
+      expect(statuses[2]?.lastAuditAt).toBe('2026-11-03T10:05:31.000Z');
+    } finally {
+      vi.useRealTimers();
+      supervisor.dispose();
+    }
+  });
 });

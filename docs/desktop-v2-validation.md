@@ -6067,3 +6067,2318 @@ staged; the other session's edits stay untouched.
   in the harness's final process cleanup. `default`, `companion` and `composer` failed in the
   composer path (engine connection lost, a held run not finishing in time, a 16 s download
   through WebView2). These are recorded as unproven under load, not as passes.
+
+### Chat: every tool call, the context window and switching conversations (2026-11-03)
+
+Owner report: switching to a session looked like the conversation started over from its first
+message, the chat showed few figures compared with the WebUI (no context bar), and only the last
+few tool calls of a turn stayed visible.
+
+- Tool calls: a turn's tools were taken from the Activity view's last 200 frames, and every
+  thinking delta and progress line was one frame, so a long turn kept only its last few tools.
+  The running turn now has its own timeline (`run-timeline.ts`) that merges streamed thinking and
+  tool text into the frame they extend; a finished turn keeps every tool call with its answer, and
+  the live group stays open while the turn runs (`LiveRunActivity`). The Activity view keeps 400
+  merged frames. Test: 150 tool calls with 20 thinking deltas and 30 progress lines each keep all
+  150 (`turn-tools.test.ts`).
+- Switching: the journal reader of a conversation was dropped with its last view, so going back
+  replayed the journal from its start and drew the messages one by one. A closed view's reader now
+  keeps its state and journal position (the eight most recently closed are kept), and a
+  conversation read for the first time shows "Loading this conversation…" until the reader reaches
+  the end of the journal (`engine-stream.ts`, `synced`; `engine-stream.test.ts`). Detaching a tab
+  never stopped the session; Stop session does.
+- Context: a status bar under the chat shows the latest request's window use (warn from 60 %,
+  critical from 85 %), the share served from the provider's cache, a lowered provider limit, the
+  running iteration and session totals. It is folded from `ctx.pct`, `ctx.max_context`,
+  `token.threshold`, `provider.response` and `context.compacted` in event order
+  (`context-usage.ts`); a worker's own requests are not counted. The meter opens the context panel
+  (breakdown, compact, repair, clear) with the reported figures on top. Each answer shows its
+  iterations, prompt and output tokens and cache share (`turnStats`).
+- Checks: desktop 720 tests, typecheck and Biome clean; portable `7a3017e1ce23-fbbeb443a074`
+  built. Not yet exercised in the native harness.
+
+### SAGE memory is the WebUI's own surface (2026-11-03)
+
+Owner decision: the desktop renders the WebUI's project surfaces instead of keeping its own
+copies, starting with SAGE memory.
+
+- `packages/project-surfaces` holds the WebUI SAGE page (library and relationship graph, review
+  queue, health, audience and vector lenses), the UI primitives it uses (button, dialog, tabs,
+  input, pagination, page motif) and a `SurfaceHost` interface: the WebSocket client and SAGE
+  requests, connection state, scroll restore, validity and companion reviews, confirm, HTTP and
+  roster requests. The WebUI keeps its old module paths as re-exports and registers its host
+  (`webui-surface-host.ts`); its 141 SAGE tests now mock the package modules. The vector panel's
+  CSS moved with the panel, and the workbench component layer of `index.css` is its own file
+  (`components-layer.css`) so the desktop can load it.
+- Desktop: `ProjectSage` mounts the shared `SageTabs` inside `SurfaceFrame`, which scopes the
+  WebUI theme tokens to `.ws-surfaces` (generated from the WebUI stylesheets by
+  `scripts/sync-surface-theme.ts`, following the desktop's mode and palette), provides the WebUI
+  catalogs through `react-i18next`, a dialog portal inside the theme scope and a confirm dialog.
+  Tailwind loads only its theme and utilities, scanning only the shared package; the desktop's
+  element resets moved into the `base` layer so they no longer override shared component classes.
+  The old desktop SAGE pages (`ProjectKnowledge`, `ProjectMemory`, `SageAudience`,
+  `SageRecordDetails`, `SageRelationGraph`, `SageValidityReview`, `VectorMemoryEntries`,
+  `SageInjectionHistory`) are removed.
+- Replies: a project journal holds every frame the engine sent (106 and 358 MB on this machine),
+  so a window that replays it from the start answered requests only minutes later. The session
+  host can now report the journal's end (`project.events` with `tail: true`, after the last
+  complete line; Rust test `a_tail_reader_starts_after_the_last_complete_line`), and the surfaces
+  read replies from there (`journal-tail.ts`): a reply reaches a surface when it carries a request
+  id the surface sent or none at all. A host from an older build is paged past without handing
+  anything on. Tests: `journal-tail.test.ts`.
+- Seen in the native window on build `29683fd1670d-fbbeb443a074` after restarting the project
+  services host: the WrongStack project's library (15,681 memories, 5,222 active, 1,362 stale or
+  contradicted, 15,477 graph edges), the review/deleted/health tabs and the vector lens.
+- Open: the native harness `sage` scope still drives the removed desktop pages and must be
+  rewritten for the shared surface. Project journals grow without a bound; every new window still
+  replays them for the project stream. Old project-services hosts from earlier engine builds keep
+  running (one from build `0e0eff651da9` was still up).
+- Checks: desktop 703 tests and WebUI 6,230 tests pass; typecheck clean for the desktop, the
+  WebUI and the package; test typecheck has no new diagnostics; architecture health passes; host
+  Rust tests 30 of 30.
+
+### Brain council decisions in the conversation (2026-11-03)
+
+- A Brain council (one provider call per seat) now leaves the WebUI's decision card in the
+  desktop conversation: verdict, vote distribution, each seat's persona, model, vote and
+  rationale, judge, deliberation rounds, tokens, duration and warnings such as a correlated panel.
+- `packages/project-surfaces/src/council` holds the card, its seat card and the panel fold
+  (`applyCouncilVote`, `applyCouncilResolution`, `noteCouncilQuestion`, `councilDecisionData`,
+  `councilDecisionText`). The WebUI council log store and its brain handler call the same
+  functions; its old module paths re-export them.
+- Desktop: `brain.event` frames reach every conversation of a project, so the reducer folds only
+  this conversation's (`council-decisions.ts`). A resolution that changes its panel adds one
+  message carrying the decision; a replayed or older resolution adds none. `CouncilCard` loads on
+  first use, so the shared stylesheet stays out of the chat's startup bundle. Tests:
+  `council-decisions.test.ts`; the WebUI council tests (208) pass unchanged.
+- Not yet seen in the native window: no council has run in this machine's journals.
+
+### Kanban supervisor status no longer floods the journals (2026-11-03)
+
+- The project journal of 371 MB was 92% `kanban.supervisor.status` frames (139k of 151k lines in
+  ten hours, 164 boards), and a 1.9 GB conversation journal held 767k of them: the supervisor
+  broadcast every audit of every board every ten seconds. It now broadcasts a board when the audit
+  finds something new, and an unchanged snapshot at most every five minutes (commit `2ca6e2695`,
+  test in `packages/cli/tests/kanban-supervisor.test.ts`). The engine binary needs a rebuild
+  before the desktop sees it; journals already on disk keep their size.
+
+### Agent office is the WebUI's own office map (2026-11-03)
+
+- Projects have an Agent office page (Project tools > Agent office): the WebUI's office map with
+  its two views, the desk office (one room per live session: agents at desks, their tools, mail,
+  todos and the break room) and the topology canvas (Fleet HQ, clients, agents, Mailbox Hub,
+  live feed, minimap, broadcast), plus its display settings beside it.
+- `packages/project-surfaces/src/office` holds the office components, the office settings store,
+  the session watch and agent transcript panels, and the data shapes they render (live
+  sessions, fleet agents, mailbox, activity events), which the WebUI stores now re-export. The
+  components read an `OfficeFeed` from the host: the WebUI's feed reads its monitor, fleet,
+  mailbox, activity and session stores; message markdown is the host's (`Markdown`).
+  `OfficeWorkspace` is the office tab of both apps. Mailbox retention, the session snapshot's
+  context clamp and the mailbox activity entry are shared functions (`feed-model.ts`).
+- Desktop: `desktop-office-feed.ts` builds the feed from the project's frames: the session
+  registry snapshot (`sessions.status_update`, asked for at once through `/api/fleet/ping`), the
+  mailbox (asked for on start, after mailbox traffic and at most every five seconds with the
+  snapshot) and mailbox sends as the activity feed. Fleet agents and their transcripts are
+  conversation frames and stay empty here; the snapshot already carries each agent's tools,
+  mail, todos and activity. A canvas surface fills the project page (`SurfaceFrame fill`), and
+  the office stylesheet's dark rules follow the desktop's `data-mode`. Tests:
+  `desktop-office-feed.test.ts`.
+- Fixed for both apps: the activity feed read a send only as `mailbox.sent`, but the mailbox emits
+  `mailbox.message_sent`, so every send showed as a delivery; and agent and client heartbeats
+  (4,556 of 4,576 mailbox frames in this project's journal) each made a `← ?` entry. Sends now
+  read as sends and heartbeats make no entry (`viz-store.test.ts`).
+- Seen in the native window on build `c9e8c6188af8-9c5c09cb1682`, light and dark: the office and
+  topology views with this machine's two live sessions and the mailbox hub (three messages),
+  no page errors.
+- Open: desktop sessions register in the session registry as `webui`, so the office labels them
+  "WebUI"; the minimap and zoom buttons keep React Flow's light colors in dark mode (as in the
+  WebUI).
+- Checks: desktop 707 tests and WebUI 6,232 tests pass; typecheck clean for the package, the
+  WebUI and the desktop; architecture health passes.
+
+### Kanban is the WebUI's own board (2026-11-03)
+
+- The desktop Kanban page renders the WebUI's board: the paged board sidebar with its
+  active/orphaned split, the Focus, Board, Tree, Contract Map and Verification views, the task
+  inspector (definition, execution, evidence, breakdown, history), the Kanban Agent supervisor
+  bar, queue health, run controls, decomposition approval and the board cleaner.
+- `packages/project-surfaces/src/kanban` holds those components, the Kanban store, the task
+  activity, risk, intelligence and verification panels, the SDD flow graph, and the shared
+  pickers and chips (`ui/ModelPicker`, `ChipMultiSelect`, `empty-state`, `hue-chip`,
+  `progress-ring`, `anchored-popover`); the WebUI keeps its old paths as re-exports. The surface
+  reads a `KanbanHost` from the host: requests and frames, the conversation that stamps writes,
+  fleet agents for the live-session split, model candidates, a default model, the live-run link
+  and two slots for an application's own board and task panels. `kanban.css` (the board
+  scrollbar and the SDD graph animations) is imported once by each application.
+- Desktop: `ProjectKanban` binds every Kanban frame (`bindKanbanFrames`, the store's 45 reply
+  types plus `kanban.task.activity.add` and `kanban.contract.configure`) and clears the store per
+  project; a run asking for its board selects it once the list has it. The desktop keeps its own
+  tools in the slots: contract map editing, task-graph export and a board from a list of tasks
+  (`KanbanBoardTools`), and chain, merge, metrics, copy or move to another board and releasing a
+  claim (`KanbanTaskTools`, in the inspector's Breakdown tab). The old desktop board, inspector,
+  execution, breakdown, boundary, queue-health, board-actions and field-conflict modules are
+  removed, and `kanban.css` keeps only the rules other pages still use.
+- Fixed for both apps: board history never loaded (the store marked the request in flight but
+  nothing sent `kanban.board.history`); a board's presence list showed every stale entry (30+
+  supervisor visits from 277 hours ago pushed the columns off screen), and now shows active
+  entries and the three most recent others with "+N earlier" (`kanban-board-presence.test.tsx`).
+- Seen in the native window on build `2c843ed29da3-c5436fe756a5`, light and dark: this
+  project's 151 boards, a 22-task board, a task's inspector and its Breakdown tab with the
+  desktop task tools, the supervisor reporting "checked 10s ago"; no page errors.
+- Open: the native harness `kanban` scenarios (`native-kanban-execution.mjs`,
+  `native-kanban-run.mjs`) drive the removed desktop board and must be rewritten.
+- Checks: desktop 697 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop; architecture health passes except a hotspot in another session's
+  in-progress `packages/core` change.
+
+### Code Atlas is the WebUI's own atlas (2026-11-03)
+
+- The desktop Code Atlas page renders the WebUI's atlas: the code tree with search, the
+  dependency canvas (layers, relations and subsystem layouts, smart scope, blast overlay,
+  relation filters), the relation inspector with its guided tour and path finder, and the live
+  agent overlay, event stream and file activity drawer.
+- `packages/project-surfaces/src/atlas` holds those components, the graph model, the activity
+  and index stores and the activity extractor; the WebUI keeps its old paths as re-exports, and
+  `lib/arrow-pane-registry` moved with the tree. Graph reads go through the host's `fetch`. An
+  `AtlasHost` adds an application's own parts: the code-assist panel, header controls, views
+  beside the map (shown as tabs that replace the canvas) and evidence about the selected node.
+  The WebUI passes its `CodeAssistPanel`.
+- `atlas/frames.ts` feeds engine frames to the stores (`applyAtlasFrame`, `bindAtlasFrames`).
+  The WebUI's socket handlers now call it for the tool, codemap and file-saved frames, so both
+  applications read activity the same way.
+- Desktop: `ProjectAtlas` binds the project journal's frames (watcher file events and index
+  updates) and clears the activity store per project. Only the host's panels read the engine
+  state, so the map does not render again on every engine frame. The desktop keeps its own
+  parts: the Index project control with build status, the Subsystems, Dependency matrix and
+  Change impact views, file evidence (WrongTrace signals, open in the file workspace, SAGE
+  knowledge, file history) and its code assist with the before/after review of editing runs.
+  The old page, its explorer, tour and route finder are removed (the shared inspector has a
+  tour and a path finder), and `atlas.css` keeps only the rules other pages still use.
+- The shared surfaces use the WebUI's 9px scrollbars on the desktop; the canvas toolbar showed
+  the platform's thick ones.
+- Seen in the native window on build `5e49caddf229-c5436fe756a5`, light and dark, on the
+  WrongMemory project: the package map, a file's symbols, a selected symbol with its inspector,
+  evidence and code assist, and the three analysis views; no page errors. On WrongStack the map
+  loaded once (71 packages, 1,894 links) and then timed out: its codebase-index server has kept
+  one core busy since the engine started, and today's log shows the startup index exceeding its
+  240-second watchdog repeatedly. That is separate from this change.
+- Open: the native harness `atlas` scenario (`native-atlas.mjs`) drives the removed page and
+  must be rewritten.
+- Checks: desktop 696 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
+
+### Session Story in the desktop (2026-11-03)
+
+- A conversation's Tools menu opens "Session story", the WebUI's Session Story view: the
+  agent lanes and activity chart, the replayable timeline with filters, the context window over
+  time, model performance and evidence, tool and file tables and the team constellation, read
+  from the conversation's Chronicle history.
+- `packages/project-surfaces/src/story` holds the view, its dashboards, the story model and
+  statistics, the context timeline and the Chronicle view types; `lib/dashboard-primitives`
+  moved with them, and the WebUI keeps its old paths as re-exports. The view reads a
+  `StoryFeed` from the host: the conversation and its start, the project root, whether a turn
+  is running, the latest request, sub-agents, mail, memory-injector runs, a pending request to
+  open the context timeline, an abortable Chronicle query, a mailbox refresh and the way back.
+  The history hook keeps its 15-second reply limit and now abandons a query it stops waiting
+  for, so a reply that never arrives no longer leaves a listener behind.
+- Desktop: `SessionStory` reads the conversation's engine state through a React context
+  (`desktopStoryFeed`): the start time and Chronicle capability from `session.start`, mail from
+  the `mailbox.messages` reply and memory runs from the conversation. Chronicle queries run as
+  engine commands; sub-agent lanes come from the Chronicle records.
+- Seen in the native window on build `b67b706729fb-c5436fe756a5`, light and dark, on a new
+  WrongMemory conversation: the story header and cards, Overview, Timeline, Context, Models and
+  Tools; the Chronicle query answered without error (an empty conversation has no events). No
+  page errors.
+- Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
+
+### Engine diagnostics in the desktop (2026-11-03)
+
+- A project's "Engine diagnostics" page (project tools and the project overview) shows the
+  WebUI's debug dashboard for the project engine: file-watcher counters, process memory, heap,
+  V8 heap limit and uptime, the live WrongStack processes with their memory and workload, and
+  the codebase-index server's connection, health and queue. Both reads go through the host's
+  `fetch` (`/debug/system`, `/debug/watcher-metrics`), which the desktop bridge already allowed.
+- `packages/project-surfaces/src/diagnostics` holds the dashboard and its parts; the WebUI keeps
+  its old paths as re-exports. The Node memory and CPU reading types are declared locally, so the
+  package needs no Node types.
+- Not ported: the WebUI's analytics view reads an event buffer that no client fills (nothing
+  posts to `/api/analytics`), and its sessions and usage are already the desktop's Live fleet
+  and Usage pages; refresh-debug compares the WebUI's own browser stores.
+- Seen in the native window on build `eaf38d2a4d0c-c5436fe756a5` on WrongStack: engine PID 3140,
+  the processes table and a healthy codebase-index server; no page errors.
+- Checks: desktop 702 tests and WebUI 6,235 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
+
+### Plan quota and model tests in the desktop settings (2026-11-03)
+
+- WrongStack settings gain two Diagnostics sections with the WebUI's pages on the profile engine.
+  "Plan quota" shows every metered account (subscription plans, gateway pools, prepaid balances)
+  with the profile's default model marked, refreshed on open, every few minutes and on demand.
+  "Model tests" picks a saved provider, lists its catalog models, runs the selected ones, and
+  marks favorites, re-enables or disables failing models (dropping them from favorites and
+  fallback chains). The desktop's own Provider diagnostics section is unchanged: its health
+  statuses, audit, manual model-ID test runs with timeout and token limits, and run history.
+- `packages/project-surfaces/src/providers` holds both pages, the quota model, cards and feed,
+  the quota store and the provider-test model; `lib/model-filter` (the WebUI's quick-model
+  filter) and `safeId` moved with them, and the WebUI keeps its old paths as re-exports. The
+  pages read a `ProviderHost`: the connection, whether it is up, the active model, the model
+  preferences with a writer, the models in use, and optional ways back and to settings.
+  `providers/frames.ts` applies `provider.quota` frames; the WebUI's socket handler uses it too.
+- Desktop: `BackendStream.listen` hands each read event to listeners, so a surface on the profile
+  engine receives its replies (`profileSurfaceHost`). Preferences come from `prefs.updated` and
+  save through `prefs.update`.
+- Not seen in the native window: on this machine the profile engine's connection dropped at
+  16:28 ("desktop.disconnected"), and since then no new window opens WrongStack settings ("Loading
+  your WrongStack profile…"), the build before this change included. Restarting the services
+  host would restore it. The engine build itself currently fails in another session's
+  in-progress `packages/core` change, so this build reused the last engine binary.
+- Checks: desktop 706 tests and WebUI tests pass; typecheck clean for the package, the WebUI and
+  the desktop.
+
+### Context dashboard in the desktop (2026-11-03)
+
+- A conversation's Tools menu opens "Context dashboard", the WebUI's `context` view: context
+  pressure with the soft/hard/max axis, the session (provider, model, mode, context mode,
+  project, uptime), what the next request is made of (system prompt, tools, messages, top tools),
+  the threshold map, the compaction engine, cache residency and history retention, per-agent
+  footprints, the conversation's memory panels and token metrics. The desktop's own "Context &
+  instructions" dialog (compaction, repair, clear, the context editor, modes) is unchanged; the
+  WebUI's context editor is a dialog too, so there was no standalone editor page to port.
+- `packages/project-surfaces/src/context` holds the dashboard, its sections, primitives,
+  residency section and `ContextBar`; the WebUI keeps its old paths as re-exports. The view reads
+  a `ContextFeed`: the conversation and its token use, model and modes, agents with a context
+  footprint, a key whose change means a new connection, an abortable `context.debug` request,
+  the application's memory panels and the way back. A newer request (refresh, another
+  conversation) cancels the one before it, so a late reply no longer replaces the breakdown on
+  screen.
+- The page header stays on top while scrolling; it was translucent (the zone tint was its only
+  background, and Tailwind utilities override the page CSS layer), so cards showed through it.
+  It is now opaque with the tint as its own layer, in the WebUI as well.
+- Desktop: `SessionContextDashboard` reads the conversation's engine state through a React
+  context: tokens and window from the context usage, mode and start from `session.start`, the
+  context mode from the newest of `context.mode.changed`, `context.modes.list` and
+  `session.start`, the leader's iteration while a turn runs, and the SAGE memory panel the
+  desktop already had. The breakdown is a `context.debug` engine command; a reply that is not a
+  breakdown shows its message.
+- Seen in the native window on build `b7bec339b8ca-c5436fe756a5`, light and dark, on a
+  WrongMemory conversation: every section rendered from live data (glm-5.3-flash on
+  zai-coding-plan, 1.0M window, balanced mode, 6.3k system prompt); no page errors.
+- Checks: desktop 710 tests and WebUI 6,239 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
+
+### Slash commands in the desktop composer (2026-11-03)
+
+- The composer already completed and ran 22 desktop commands; it now has 45, grouped by
+  category in `/help` with their arguments and aliases. New: this conversation's tools
+  (`/dashboard`, `/story`, `/usage` with `/stats` and `/cost`, `/activity`, `/processes` with
+  `/ps` and `/kill`, `/side-effects`, `/mcp-tasks`, `/plan`), project pages (`/goals`,
+  `/fleet` with `/agents`, `/office`, `/roster`, `/worktree`, `/automations`, `/chronicle`,
+  `/diag`), and the WebUI's agent commands: `/review [focus]` (`/cr`), `/fix [error]` and
+  `/suggest` send the WebUI's prompts; `/autonomy`, `/mode`, `/yolo` and `/nextsteps` show the
+  conversation's setting without an argument and change it with one, through the same engine
+  operations as the composer's controls (`autonomy.switch`, `mode.switch`, `prefs.update`).
+  `/load` and `/resume` open recorded conversations.
+- `/review` used to open the Changes view; that is `/diff` and `/changes` now, and `/review`
+  asks the agent for a review as in the WebUI.
+- Not ported: the WebUI's proof-driven hunts (`/bughunt` and the rest launch builtin prompts
+  with their own result cards), `/goal` subcommands, `/brain`, `/mcp`, `/doctor`, `/browser`,
+  `/working-dir`, `/terminal`, `/new`, `/export`, the F-key panels and `/exit`.
+- `desktop-commands.ts` holds the catalog and parsing, `desktop-command-runner.ts` runs a draft
+  against the composer (handled, refused with the draft kept, or sent as a prompt) and
+  `DesktopCommandHelp` lists them; the composer shrank by 42 lines.
+- Seen in the native window on build `95b457567c24-c5436fe756a5`, light and dark, on a
+  WrongMemory conversation: the suggestions with argument hints, the grouped help, `/yolo`
+  reporting that conversation's YOLO+ and `/stats` opening Usage & cost; no page errors.
+- Checks: desktop 720 tests pass; typecheck and Biome clean.
+
+### First-run setup in the desktop settings (2026-11-03)
+
+- WrongStack settings gain "Quick setup", the WebUI's setup screen on the profile engine: the
+  popular providers as key cards (save a key, probe it, get-a-key and referral links), the rest
+  of the catalog, a self-hosted or OpenAI-compatible provider with its models, then the model
+  picker and "Start Session" / "Save Configuration". A profile that still needs a provider
+  opens settings on this section; the conversation's "Configure provider" banner leads there.
+  "Start Session" makes the choice the profile default and returns to the conversation that
+  opened settings, as the desktop's own provider form does; "Save Configuration" reports the new
+  default. The desktop's "Providers & models" form is unchanged.
+- `packages/project-surfaces/src/setup` holds the screen, the key card, the custom provider
+  section, the model editor and their helpers; `ProviderLogo`, `provider-brand`,
+  `useFieldKeyboardNav` and `ScrollArea` moved with them, and the WebUI keeps its old paths as
+  re-exports. The screen reads a `SetupHost`: the profile connection, whether it is up, the
+  current model, notices, the sources of an updated popular-provider list (the WebUI's served
+  and published copies; the desktop uses the list built into the app) and `chooseModel`.
+  The package now depends on `@wrongstack/providers` (the popular-provider catalog), `qrcode`
+  (referral codes) and `@radix-ui/react-scroll-area`, as the WebUI already did.
+- The desktop ships the WebUI's provider logos and their MIT license under
+  `public/provider-logos`; a test keeps the two copies byte-identical.
+- The desktop's surface translations now load the WebUI's `setup` namespace too (they had
+  only `common` and `activity`, so the screen would have shown its keys);
+  `tests/surface-i18n.test.ts` checks that every namespace the shared surfaces use is loaded.
+- Not seen in the native window: the profile engine on this machine is still disconnected
+  ("Loading your WrongStack profile…" since 16:28), so settings do not open in any build.
+  Covered by a WebUI test that drives the screen on a fake host (catalog, key save, probe,
+  model list, start and save, a refused model) and by desktop tests of the model choice.
+- Checks: desktop 723 tests and WebUI 6,241 tests pass; typecheck clean for the package, the
+  WebUI and the desktop.
+
+### Requirement intake against the WebUI's intake view (2026-11-03)
+
+- Compared field by field: the desktop's SDD → Requirements page already covers the WebUI's
+  `intake` view (file a request verbatim with title, type and priority, a retry-safe create
+  with an idempotency key, the record list, the original request, summary, business goal,
+  expected outcome, target users and constraints, and starting SDD from a record) and adds what
+  the WebUI does not have: editing, clarifying questions and answers, resources and
+  suggestions, status changes with reasons, search and status filter, and drafts that survive a
+  restart.
+- The two things only the WebUI showed are now in the desktop too: a copy action on the
+  original request, and the VIBE protocol marker (`isVibeMode`), as "VIBE" in the list and a
+  "Protocol" row in the record.
+- The record's request, summary, fields and lists moved into `RequirementSummary`, with the
+  field readers in `requirement-values.ts`; the page shrank by 40 lines and its hotspot ratchet
+  follows.
+- Not seen with a record in the native window: none of the projects on this machine has a
+  requirement, and none was created for the check. The empty page renders as before on build
+  `344812107029-c5436fe756a5`; `tests/requirement-summary.test.ts` renders the record part.
+- Checks: desktop tests pass; typecheck and Biome clean.
+
+### Display language for the shared pages (2026-11-03)
+
+- Appearance gains "Display language": English, Türkçe, Deutsch, Français, Italiano, Español
+  and Português (Brasil), each under its own name. It is the profile's shared `uiLocale`, the
+  same setting the WebUI and CLI use (saved with `prefs.update`), so choosing it in one place
+  changes it everywhere.
+- The pages shared with the WebUI (SAGE memory, Kanban, Code Atlas, the office, session story,
+  the context dashboard, engine diagnostics, plan quota, model tests and quick setup) follow it:
+  each surface frame reads the profile's `uiLocale` and switches the WebUI catalogs, which load
+  the other languages on demand. Without a chosen language they stay in English, as before.
+  The rest of the desktop is still English only; translating its own screens is the remaining
+  part of this gap.
+- The WebUI's language list and locale matching (`languages.ts`) moved to
+  `@wrongstack/project-surfaces/lib/languages`; the WebUI keeps its path as a re-export.
+- Seen in the native window on build `1091aa3e67f7-c5436fe756a5`: the picker with the seven
+  languages under Appearance. It is disabled there because the profile engine on this machine is
+  still disconnected; the setting was not changed for the check, since it is shared with the
+  WebUI and CLI.
+- Checks: desktop 730 tests pass; WebUI i18n tests pass; typecheck and Biome clean.
+
+### Proof-Driven Hunt commands (2026-11-03)
+
+- The composer runs the WebUI's seven hunts with the same names and aliases: `/bughunt`,
+  `/sechunt` (`/secproof`), `/racehunt` (`/leakhunt`, `/flakehunt`), `/debloat` (`/deadcode`,
+  `/excise`), `/uipolish` (`/a11yhunt`, `/uihunt`), `/typehunt` (`/boundaryhunt`) and `/testgap`
+  (`/covhunt`, `/invarianthunt`). Each takes `[--rounds 1..10] [scope]`, `stop` or `help`; they are
+  listed under "Hunts" in `/help` and in the slash popup.
+- Starting one does what the WebUI does: it turns subagents off for the conversation (the
+  read-only companions stay), reads the builtin protocol, and sends round 1 with the run rules
+  ("desktop run configuration"). The first round's text is built by the same shared function as
+  the WebUI's, so both send the same instruction apart from the client name.
+- Each finished round (status `done`) starts the next one, until the requested count. Every
+  round's prompt carries the WebUI's hunt metadata, so the conversation itself says which round
+  is running: nothing else is stored. Only a result that arrives while the conversation is open
+  starts a round by itself; a hunt whose round finished while it was closed, or whose next round
+  could not be sent, shows "paused after round n/m" with Continue and End hunt.
+- `/<hunt> stop` lets the running round finish and starts no further round; between rounds it
+  ends the hunt. Automatic next-step continuation waits while a hunt has rounds left.
+- A round is shown in the transcript as a card (hunt name, "Round n of m", scope) instead of
+  its protocol text; Copy still copies the full prompt.
+- The hunt argument grammar, aliases and message format moved to
+  `@wrongstack/project-surfaces/lib/bug-hunt-commands` and `lib/bug-hunt-message`; the WebUI keeps
+  its paths as re-exports and its router uses the shared parser.
+- The queued-prompt panel moved out of the composer into `ComposerQueue.tsx` (no change in
+  behaviour), which keeps the composer under its size ratchet.
+- Not seen in the native window yet; running a hunt changes code in the project, so it was not
+  started for the check.
+- Checks: desktop 741 tests pass (the context-editor test now formats its expectation with the
+  runtime locale, since Node on this machine prints `1.200`); WebUI hunt, slash-routing and
+  bug-hunt store tests pass (215); typecheck and Biome clean.
+
+### Failed-run recovery and message actions (2026-11-03)
+
+- A run that ends `failed` now shows its error above the composer with Continue, as the WebUI
+  shows it under the failed answer (the top error banner no longer repeats the same message).
+  Continue sends the WebUI's resume prompt. Extra lines of the error fold under Details.
+- In `auto` mode a run a provider killed on a recoverable error resumes by itself after a
+  countdown with Cancel, using the shared policy in
+  `@wrongstack/contracts/types/failed-run-resume`: numbered resume prompts with the provider's
+  reason, a growing wait, at most three in a row, then "Automatic resume paused" until a run
+  completes. Only a failure that arrives while the conversation is open arms the countdown, so
+  reopening an old failure never sends anything on its own. A stopped run (`aborted`) shows
+  nothing.
+- Every message gets actions next to Copy. A prompt has "Edit in composer", which puts its text
+  and file references in the composer (disabled while the composer holds a draft, since it
+  would replace it; hunt rounds have none). The latest answer has "Ask again", which sends the
+  prompt behind it again through the same path as the History tab's retry (disabled while a turn
+  runs). An answer can switch to its Markdown "Source". Unlike the WebUI's edit and regenerate,
+  these do not hide later messages: the transcript stays the engine's journal, and rewinding the
+  engine's context stays in the History tab.
+- The message rendering moved out of `EngineWorkspace.tsx` into `TranscriptMessage.tsx`.
+- Not verified in the native window: on this machine every conversation's engine is still
+  disconnected, so conversations stay on "Loading this conversation…". The slash popup was seen
+  listing `/bughunt` with its usage on build `80febebbf29a-c5436fe756a5`.
+- Checks: desktop tests pass (745, plus the graph-layout timing test, which passes alone and
+  fails only under full-suite load); typecheck and Biome clean.
+
+### Keyboard shortcuts (2026-11-03)
+
+- Function keys open the views the WebUI's F-key panels show, where the desktop has them: F2
+  live fleet, F3 roster, F4 worktrees, F5 plan, F8 processes, F9 goals, F10 recorded
+  conversations, F11 office. Each opens what its slash command opens (`/fleet`, `/roster`,
+  `/worktree`, `/plan`, `/processes`, `/goals`, `/sessions`, `/office`), so the two cannot drift.
+  F1, F6, F7 and F12 stay unbound: the desktop has no session side panel, todo panel, queue
+  panel or status-line picker of its own.
+- `?` (outside a text field) or F1 lists every shortcut. Ctrl+/ focuses the composer. Esc in
+  the composer stops a running turn (after closing an open popup). Ctrl+N starts a new session
+  and Alt+1…9 switches between open conversation tabs. Keys are ignored while a dialog is open.
+- Not verified in the native window, for the same disconnected-engine reason as above.
+- Checks: desktop tests pass (749, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean.
+
+### Find in conversation (2026-11-03)
+
+- Ctrl+F in the chat view opens "Find in conversation", the WebUI's chat search: it counts the
+  matching messages, Enter / Shift+Enter (or the arrows) step through them, matching messages
+  are outlined and the current one more strongly, and a match among the earlier messages that
+  are not rendered yet loads them before scrolling to it. Esc closes it. Match case is offered.
+- It searches each message's visible text (a prompt without its file-reference block), not tool
+  output.
+- It reuses the file viewer's find bar, which now takes the names it shows; the file viewer's
+  labels ("Find in read-only source", "N matches on M lines") are unchanged, so the native file
+  scenario still matches them.
+- Not verified in the native window, for the same disconnected-engine reason as above.
+- Checks: desktop tests pass (751, plus the graph-layout timing test, which passes alone and
+  now fails under full-suite load on this machine in every run of this session); typecheck and
+  Biome clean.
+
+### Message times and day separators (2026-11-03)
+
+- Each message shows the time it was written beside "You" / "WrongStack" (the full date and
+  time on hover), and a conversation that spans days shows a day line ("Today", "Yesterday", or
+  the date) where the day changes, as the WebUI does.
+- The times come from the engine journal: the native host now stamps every frame it writes with
+  the time it received it (`at`, epoch ms). Token deltas and progress ticks stay unstamped, since
+  they are most of the journal; an answer takes the time of the frame before its first delta.
+  The user's own prompts were already stamped. Frames already in a journal keep no time, so
+  messages from before this build show none.
+- Checks: Rust `engine::tests` pass (5, with a new stamping test); desktop tests pass (755, plus
+  the graph-layout timing test, which passes alone); typecheck and Biome clean.
+- Not verified in the native window, for the same disconnected-engine reason as above.
+
+### Code highlighting in answers (2026-11-03)
+
+- Code blocks with a named language are highlighted, as in the WebUI: the same
+  `rehype-highlight` 7.0.2 (now a desktop dependency, already in the workspace) and the WebUI's
+  palette, mapped onto the desktop's theme tokens for light and dark. Code without a language
+  stays plain.
+- The Markdown allowlist now admits `span`, which only the highlighter produces: raw HTML in a
+  message is still skipped before the allowlist applies, and the existing "does not execute
+  HTML" test still passes.
+- Checks: desktop tests pass (758); typecheck and Biome clean.
+
+### Turn duration and running time (2026-11-03)
+
+- A finished turn's line under its answer now ends with how long it took ("2 iterations · …
+  · 1 min 03 s"), from its first iteration to its result, as the WebUI's run summary shows. The
+  times are the journal's frame times, so turns recorded before this build show no duration.
+- "WrongStack is working…" counts the running turn's time each second.
+- Checks: desktop tests pass (760, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean.
+
+### Next steps in one click and the draft counter (2026-11-03)
+
+- Suggested next steps can now be sent directly, as in the WebUI: choose steps, optionally write
+  "Your message", and "Send N steps" sends them together as one prompt (the composer's draft,
+  references and attachments stay as they are). "Add selected to draft" still adds them to the
+  draft to edit first. Sending resets the automatic-continuation count like any prompt the user
+  sends.
+- The composer shows the WebUI's draft counter in its corner: characters, and for drafts of 400
+  characters or more a rough token count (4 characters a token) and, when the model's window is
+  known, how full the context would be with it, marked from 85% and again from 100%.
+- The next-steps panel and the automatic-continuation countdown moved out of the composer into
+  `TurnFollowUps.tsx`; the composer's line ratchet drops to 1,068.
+- Checks: desktop tests pass (762, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. The native next-steps scenario's button label is unchanged.
+
+### Tool output actions and generated-image previews (2026-11-03)
+
+- A tool call's output (in the Activity view and in each turn's "Worked with N tool calls")
+  has Copy and Save beside its heading, and shows the exit code when the output ends with one
+  ("exit code: 1", "[exit 2]"), marked when it is not 0. This is the WebUI tool card's rule.
+  Both take the output the engine reported, which for a long result is a preview.
+- An `image_generate` call shows the pictures it saved under its output, as the WebUI's tool
+  card does: each file its result lists is read from the project with `files.image`, one after
+  another, and toggles between a thumbnail and full width; a file that is too large, not an
+  image or unreadable says so.
+- Checks: desktop tests pass (766, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
+  reason above.
+
+### New-message count on Jump to latest (2026-11-03)
+
+- When the reader has scrolled up, "Jump to latest" says how many messages arrived since
+  ("Jump to latest · 3 new"), as the WebUI's jump button counts unread messages.
+- Checks: typecheck and Biome clean; the count lives in the conversation view, which the node
+  test runner cannot render (it needs the native engine bridge), so it has no unit test.
+
+### Subagent transcripts (2026-11-03)
+
+- Once a conversation has subagents, a row of tabs over it switches between "Conversation" and
+  each agent, as the WebUI's agent tabs do. A tab shows the agent's name, its status (a pulsing
+  light while it runs, red when it failed or timed out) and its task on hover.
+- An agent's tab shows its own transcript, read only: its replies as Markdown, its thinking
+  folded, each tool call joined with its result (Running…, Completed or Failed, with the call and
+  the result text), errors and status changes. A note says that what you send goes to the
+  conversation's leader. The conversation stays mounted underneath, so going back keeps its
+  scroll place and Find.
+- The transcripts come from the engine's `agent.timeline.message` and `agent.status_changed`
+  frames, folded as the WebUI's fleet store folds them (streamed text of one iteration joins into
+  one entry; each agent keeps its newest 600 entries). They are in the conversation's journal, so
+  reopening a conversation rebuilds them; a context reset clears them.
+- Not ported: the WebUI tab bar's per-agent stop (the WebUI's button stops the whole session's
+  run, which the desktop's Stop already does).
+- Checks: desktop tests pass (768, plus the graph-layout timing test, which passes alone);
+  typecheck and Biome clean. Not verified in the native window, for the disconnected-engine
+  reason above.
+
+### Repository chip in the status bar (2026-11-03)
+
+- The conversation's status bar shows the WebUI dock's git chip: branch, commits ahead (↑) and
+  behind (↓), lines added and deleted, and untracked files (N?), each only when non-zero, read
+  with `git.info`. Outside a repository there is no chip.
+- The WebUI polls every 30 seconds. On the desktop every reply is also written to the
+  conversation's journal, so it reads once on opening and then every minute, and only while the
+  window is visible.
+- Checks: desktop tests pass (770, plus the graph-layout timing test, which passes alone); the
+  chip's test renders it in jsdom with a stand-in engine; typecheck and Biome clean.
+
+### Memory count in the status bar (2026-11-03)
+
+- When the memory injector keeps memories in the conversation's context, the status bar shows
+  "Memory N" (the WebUI header's memory badge); it opens the context details, which list the
+  injector's runs and the memories that entered and left.
+- Checks: a status-bar test covers the count; desktop tests and typecheck pass.
+
+### YOLO level in the composer (2026-11-03)
+
+- Beside the continuation mode, the composer has the conversation's YOLO level, as the WebUI's
+  session panel offers it: "Approvals on", "YOLO" (calls run without asking; damaging kinds still
+  ask) and "YOLO+" (nothing asks; deny rules still refuse). It saves with `prefs.update` exactly as
+  `/yolo off|on|plus` does, and shows the engine's reported level.
+- Checks: the continuation-control test covers both selects; desktop tests pass (771, plus the
+  graph-layout timing test, which passes alone); typecheck and Biome clean.
+
+### Compact conversation density (2026-11-03)
+
+- Appearance gains "Conversation density": Comfortable (as before) or Compact, the WebUI's
+  compact view: messages, their text and headings sit closer and the conversation's padding
+  shrinks. It is saved with the rest of the desktop's appearance (`settings.save appearance`), so
+  it follows every window.
+- Checks: parsing and applying it are tested (jsdom); desktop tests and typecheck pass.
+
+### Conversation loading progress (2026-11-03)
+
+- While a long conversation is read for the first time, "Loading this conversation…" now says
+  how far it got ("25% · 3.0 MB of 12.0 MB"), as the WebUI's transcript restore shows percent
+  and bytes. The native host's journal pages report the journal's length (`size`) for this.
+- Checks: Rust `engine::tests` pass (the page-limit test also checks `size`); the progress text
+  and its reset on catching up are tested; desktop tests pass (one load-sensitive timing test
+  aside, which passes alone); typecheck and Biome clean.
+
+### Run sounds (2026-11-03)
+
+- The WebUI's chimes: a soft two-note chime when a run in the open conversation finishes, if
+  Appearance > Sounds is "Chime when done" (off by default; choosing it plays the chime once),
+  and an insistent three-note chime whenever a tool asks for approval, always, as in the WebUI.
+  History read from the journal never chimes.
+- The synthesized chime (`chime.ts`, Web Audio, no asset) moved to
+  `@wrongstack/project-surfaces/lib/chime`; the WebUI keeps its path as a re-export.
+- Not ported: the WebUI's operating-system notifications when the window is hidden; on the
+  desktop they need a native notification plugin, which is a separate decision.
+- Checks: desktop tests pass (778); the sound hook is tested in jsdom with stand-in chimes; WebUI
+  tests that touch the chime pass (44); typecheck clean for the desktop, WebUI and package.
+
+### Actions in the Ctrl+K palette (2026-11-03)
+
+- The palette lists actions beside projects and conversations, as the WebUI's command palette
+  does: start an agent session or a terminal, open WrongStack settings, switch light or dark mode,
+  conversation density and run sounds, and open any of the current project's pages (each with the
+  slash command that opens it, so typing "/kanban" or "office" finds it). With nothing typed it
+  shows the first six; typing searches them all. Choosing one closes the palette first.
+- Only the palette's two new lines were committed in `WorkspaceDialogs.tsx`; the file also holds
+  another session's unfinished change to the new-session dialog, which stays out of this commit.
+- Checks: the actions are tested in jsdom (listing, search, close-then-run, no project); desktop
+  tests pass (one load-sensitive timing test aside, which passes alone); typecheck clean.
+
+### Waiting room above the composer (2026-11-04)
+
+- The WebUI's provider waiting room now sits above the desktop composer: provider/model pairs the
+  health tracker holds back until their limit resets (blocked or degraded, with the time left,
+  the reason and the sibling whose quota tripped a quarantine) and calendar blackouts in force
+  now. A pair opens to its last error, counters and error history, with "Release for next probe"
+  and "Clear tracking" (which asks first, as Settings > Provider health does). It is hidden while
+  nothing waits.
+- The room is folded from the conversation's `provider.status.snapshot` and
+  `provider.status_changed` frames; once the conversation is live it asks for a fresh snapshot,
+  since a replayed journal can still hold pairs that have recovered.
+- The calendar helper (`model-calendar.ts`) moved to `@wrongstack/project-surfaces/lib`; the
+  WebUI keeps its path as a re-export.
+- Checks: the frame folding, the room and the calendar row are tested (10, jsdom for the room);
+  WebUI calendar tests pass (55); typecheck clean for the desktop, WebUI and package.
+
+### Cloud routing settings for native cloud connections (2026-11-04)
+
+- A saved Amazon Bedrock, Google Vertex or Azure connection now has the WebUI's cloud routing
+  form under Settings > Providers: AWS region, Google Cloud project and Vertex location, or the
+  Azure resource name. Values are saved on the profile with `provider.update` and override the
+  environment; empty fields fall back to it. The form uses the same validator the engine applies
+  (`@wrongstack/contracts/types/native-cloud`), so a value it would refuse is reported before
+  anything is sent. Other providers show no form.
+- Checks: tested in jsdom (saved values, save, refusal, no form for other types); typecheck clean.
+
+### Recommended MCP servers in the add dialog (2026-11-04)
+
+- "Add MCP connection" now starts from the WebUI's recommended servers: picking one (filesystem,
+  GitHub, Context7, Brave Search, …) fills the name, transport, URL or command and arguments,
+  states the environment variables it needs, and saves its description, fixed environment and
+  tool allowlist with it, disabled, as the WebUI's Recommended tab does. Servers already
+  configured are listed as added and cannot be picked again.
+- The catalog moved to `@wrongstack/project-surfaces/lib/official-mcp-servers`; the WebUI path
+  re-exports it and keeps its config converter, so the core-preset sync test still guards what
+  `npx -y` runs on both surfaces.
+- Checks: tested in jsdom through the settings page (local and remote picks, saved payload, added
+  servers); WebUI sync test passes (17); typecheck clean for the desktop, WebUI and package.
+
+### Engine settings the WebUI already offered (2026-11-04)
+
+- WrongStack settings gained the engine preferences that only the WebUI could change:
+  - Execution & permissions: "Require next steps" (`nextStepsMode`) and "Filesystem access"
+    (`fsAccess`, any path or the project root);
+  - Capabilities: "Read symbols", "Show SAGE memory injection" and the SAGE injection threshold
+    (0.72 relaxed to 0.95 strict, stored as a number);
+  - Agents & fallbacks: "Favorites only" for derived fallback chains, and the two stream
+    watchdogs (silence between chunks, wait for response headers) in seconds, where 0 turns one
+    off and an empty field shows and uses the built-in default.
+- The setting row moved out of `WrongStackSettings.tsx` into `SettingRow.tsx` and learned field
+  labels for select options, numeric selects, a maximum, and fields that may stay unset. A dotted
+  field key (`streamTimeouts.hangTimeoutMs`) edits one value inside its setting; clearing it drops
+  the value so the engine default applies.
+- Checks: new fields, nested-key read/write, the cleared-watchdog patch, the row's unset default,
+  numeric select and labels are tested (jsdom for the row); desktop tests pass; typecheck clean.
+
+### Restart all background services (2026-11-04)
+
+- Settings > Health > Background services has the WebUI's "Restart all": it restarts, one after
+  another, every running service the engine controls, and reports how many came back and which
+  failed, continuing past a failure. Sleeping on-demand services are skipped, since a restart would
+  only start them to stop them again; the WebUI transport and governance are never touched.
+- Checks: tested in jsdom with a stand-in engine (targets, order, partial failure); typecheck clean.
+  No service was restarted for verification.
+
+### Create a kit from the Project Kit page (2026-11-04)
+
+- The Project Kit page has the WebUI's "Create kit": describe the capability, choose a project
+  conversation, and the WebUI's instruction (discover existing kits first, extend one where it
+  fits, add verification cases, verify the exact revision; with the project root the kit catalog
+  reports) goes into that conversation's draft. Sending it stays the user's action there. Without
+  an agent conversation it offers to start one.
+- Checks: tested in jsdom (instruction text, target choice, no-conversation case); typecheck clean.
+
+### SDD board activity feed (2026-11-04)
+
+- With no task selected, the SDD board shows the WebUI's live activity feed beside its tasks:
+  each task pickup, completion, failure, retry, wave, deadlock, conflict or split as a line with
+  how long ago it happened, newest first, from the board snapshot's `feed`. Selecting a task shows
+  its details as before.
+- `SddBoardDetail.tsx` chooses between the two, which also takes three lines out of
+  `ProjectSdd.tsx` (hotspot ratchet lowered to 743).
+- Checks: tested in jsdom (order, wording, empty feed, selected task); SDD board tests pass;
+  typecheck clean.
+
+### Brain deterministic rules in Brain policy (2026-11-04)
+
+- Settings > Brain policy lists the configured deterministic rules, as the WebUI does: in
+  evaluation order, each with its action and an "off" mark when disabled, plus any rules the
+  loader dropped with its reason. The list is read-only; rules are edited in the global config
+  file. It reads the `rules` and `ruleErrors` already in `brain.config`.
+- Checks: tested in jsdom (order, action, off, dropped rules); typecheck clean.
+
+### Recorded session summary in history (2026-11-04)
+
+- A recorded conversation in the project's history now opens with a "Session summary", as the
+  WebUI's session inspector shows it: token, message, iteration, tool-call (with failures), file
+  and compaction totals, the outcome, the tool breakdown by use, the file changes with their tool
+  and operation, and an event timeline filterable by label or type.
+- It is read with `session.inspect` only when the summary is first opened, so selecting a row
+  still reads just the transcript page.
+- Checks: tested in jsdom (lazy single read, totals, ordering, filter, failed read); desktop tests
+  pass; typecheck clean.
+
+### HQ, proxy and Telegram settings (2026-11-04)
+
+- WrongStack settings has a new "HQ, proxy & Telegram" section with the WebUI's integration
+  preferences: WrongProxy routing and its URL; HQ publishing, URL, client token and raw content;
+  and, once a Telegram bot token is configured, session-end and delegate notifications, the
+  long-running tool threshold, the polling interval (1-60 s) and the notification chat.
+- The HQ token is write-only, as the engine keeps it: the field starts empty, typing a new token
+  replaces the saved one on save, emptying it keeps the saved one, and the save does not try to
+  read it back. The chat ID must be a non-zero integer before the form saves.
+- The field registry gained `text` and `secret` kinds, placeholders, a pattern, and fields shown
+  only while another setting is on.
+- Checks: the section, the token's write-only behaviour, text editing and the chat-ID pattern are
+  tested (jsdom for the row); desktop tests pass; typecheck clean.
+
+### Image diff in Changes (2026-11-04)
+
+- A changed image in the file workspace's Changes mode now shows what the engine already sends
+  with `git.diff`, as the WebUI's Changes view does: the HEAD version beside the working tree's,
+  or the two stacked with an opacity slider (onion skin), each with its pixel and file size. An
+  added or deleted image shows its one side. Other binary or oversized files keep their notices,
+  and only image data URLs are ever rendered.
+- `BinaryChange.tsx` holds the branch and is imported through `DiffPreview`, so
+  `FileWorkspace.tsx` shrinks (hotspot ratchet lowered to 2012) without a new import.
+- Checks: tested in jsdom (both sides, sizes, onion slider, added image, notices, unsafe URL);
+  desktop tests pass; typecheck clean.
+
+### Worktree lanes and graph (2026-11-04)
+
+- The Worktrees page draws the worktrees runs are using three ways, as the WebUI's Goal view
+  does: the list with its change and merge actions (default), swim lanes in the order the engine
+  handed them out (status, branch, owner, live diff stat with a magnitude bar, newest lifecycle
+  note), and a branch graph with the base branch as trunk, a fork per worktree and a fold-back
+  once merged. Conflicts and failures are marked in both.
+- The worktree model now reads `allocatedAt` and the newest `recentActivity` entry from
+  `worktree.state`. The WebUI's per-session timeline view is not ported.
+- Checks: tested in jsdom through the page (default list, lane order and notes, graph forks and
+  merge); worktree model tests pass; typecheck clean.
+
+### Terminal display settings (2026-11-04)
+
+- WrongStack settings has a "Terminal display" section with the profile preferences the WebUI's
+  display tab syncs for the terminal UI: statusline mode, thinking word (one word of up to 16
+  letters, numbers, underscores or hyphens; never saved empty), animation style, show model
+  reasoning, the pre-refine countdown and the multi-diff summary threshold. The section says
+  these do not change the desktop app's own view. The WebUI-only workbench switches (swarm panel
+  placement, title animation, keyboard shortcuts) are not profile settings and are not ported.
+- Checks: section keys, the engine's allowed values and the thinking-word rule are tested;
+  typecheck clean.
+
+### Per-plugin controls (2026-11-04)
+
+- Settings > Capabilities lists every plugin in the catalog the CLI's plugin manager uses, as the
+  WebUI's per-plugin controls do, with its summary, a search, an "Enabled only" filter and a
+  switch. Plugins the profile decides show the engine's effective state from `pluginsEnabled`;
+  the rest show the catalog default. Plugins that cannot be disabled are locked. Flipping one is
+  saved with the other profile settings and takes effect in the next session.
+- The desktop now depends on the workspace package `@wrongstack/plugins` for its catalog module
+  (`plugin-audit-catalog`, a 25 KB data module with no imports).
+- Checks: tested in jsdom (full list, decided vs default state, the saved map, locked plugins,
+  filters); desktop tests pass; typecheck clean.
+
+### Delete recorded sessions (2026-11-04)
+
+- Session history can delete a recorded conversation, as the WebUI's session list can: "Delete…"
+  on the selected record asks first ("cannot be undone"), then sends `session.delete` and reads
+  the page again. It is not offered while an open desktop conversation owns the record, and the
+  engine still refuses one a client shows or a run is using.
+- "Delete N empty" beside "Include empty journals" removes, after asking, the empty journals on
+  the current page that no open desktop conversation owns. Deletes go one by one; a refusal stops
+  the batch and is shown, and the page is read again with what was removed.
+- The selected-record heading moved to `HistorySelection.tsx`, which takes the page from 746 to
+  732 lines (hotspot ratchet lowered). Sessions are not pinned here; another change adds that.
+- Checks: tested in jsdom with a stand-in delete (confirmation, keep, owner hides delete, resume
+  unchanged, empty cleanup); no recorded session was deleted for verification. Desktop tests
+  pass; typecheck clean.
+
+### Run events announced in the conversation (2026-11-04)
+
+- A message-type comparison found engine events the WebUI announces that the desktop ignored.
+  They now become conversation notices with the WebUI's wording: a provider stream warning,
+  background delegation results ready, an auto-wake turn and an auto-wake held by the chain cap
+  (lasting, as the WebUI's system lines are), and a model switch, a written checkpoint, a cost
+  that cannot be estimated (once per conversation), a persisted approval, and an MCP server that
+  dropped for good or came back (a dropped server stays until dismissed).
+- What the WebUI shows as a toast is a passing notice here: it appears only when it happens live,
+  never when a journal is replayed, and closes by itself after eight seconds.
+- Checks: wording, quiet cases, once-per-conversation, replay vs live and the self-closing notice
+  are tested (jsdom for the notice list); desktop tests pass; typecheck clean.
+
+### File tree follows changes on disk (2026-11-04)
+
+- The file workspace reloads its tree and the git change list when the engine's project watcher
+  reports `files.tree.changed`, as the WebUI's explorer does; before, both stayed as they were
+  when the workspace opened until a manual refresh, so files an agent created did not appear.
+  The engine already coalesces bursts (400 ms); the workspace waits a further 250 ms and skips
+  the change frame that was current when it opened.
+- The hook lives in `FileTreeView.tsx`; `FileWorkspace.tsx` gains the one line that calls it
+  (hotspot ratchet 2013).
+- Checks: tested in jsdom with fake timers (skips the opening frame, coalesces two frames,
+  reports a failed reload); desktop tests pass; typecheck clean.
+
+### WebUI slash commands in the composer (2026-11-04)
+
+- A comparison of the two command lists found WebUI commands the desktop composer refused as
+  unknown. They now work in the desktop, mostly by opening the surface that already does the job:
+  - `/new` and `/terminal` (`/term`) open the new-session dialog for this project.
+  - `/tools`, `/mcp`, `/doctor`, `/brain` and `/browser` (`/network`) open their settings section
+    (tool access, connected tools, diagnostics, Brain policy).
+  - `/goal-state` opens the goals page.
+- Commands with arguments act directly and report the outcome above the composer:
+  - `/doctor fix` repairs the profile configuration and says what changed and where the backup is.
+  - `/brain risk <level>` sets the auto-decision ceiling; `/brain ask <question>` shows the answer.
+  - `/mcp tools <server>` lists the server's tools.
+  - `/browser <args>` runs the private-origin policy.
+  - `/working-dir` (`/cwd`) shows the working directory, or moves it inside the project.
+  - `/save` confirms the conversation is saved.
+  - `/todos [clear]` shows or empties the todo list.
+  - `/next` (`/enxt`) lists the suggested steps, and `/next 1,3` sends the chosen ones as one
+    prompt.
+  - `/export` downloads the conversation as Markdown in the WebUI export's layout.
+- `/goal` follows the WebUI's routing:
+  - It starts, pauses, resumes, stops, saves and loads goal runs, and sets, pauses, resumes,
+    clears and refines the project mission.
+  - Pause and stop act on the running goal when there is one.
+  - The goals page opens to show the result, because those requests have no single reply.
+  - One unknown word (for example `/goal pasue`) is refused rather than saved as the mission.
+- A command can now ask for a settings section. The settings page takes the request once when it
+  opens, so opening settings later from the sidebar starts where it normally does.
+- The command context carries the conversation's engine state and a plain send in place of the
+  separate preference and running fields; the workspace's project callback became a general
+  open callback for pages, settings sections and new sessions.
+- `brainAnswerText` and `configDoctorReport` are now used by the commands, so they leave the
+  test-only export list.
+- Checks:
+  - Every new command and alias is tested, including navigation targets, engine requests and
+    replies, refusals, next-step selection, the Markdown download, `/goal` routing and the
+    one-time settings request (jsdom).
+  - Desktop tests pass (856); typecheck clean.
+
+### Scheduled jobs above the composer (2026-11-04)
+
+- The WebUI shows the jobs an agent scheduled with `cron_schedule` (a top-bar count that opens a
+  table, fed by `cron.snapshot`); the desktop ignored those frames.
+- A conversation now shows a "Scheduled jobs" panel next to its todo list while it has jobs:
+  - The summary counts active, overdue and total runs.
+  - Each job shows its interval, run count, next and last run, and action.
+  - Times move on by themselves every 30 seconds.
+  - The panel is outlined in the danger colour when a job is overdue.
+- The scheduler keeps jobs in engine memory by default. The snapshot is forgotten when the engine
+  connection closes, so a restarted engine never shows jobs from its predecessor's journal.
+- Checks:
+  - Wording, the live panel, the moving clock and forgetting on disconnect are tested (jsdom).
+  - Typecheck clean.
+
+### Worktree history on the worktrees page (2026-11-04)
+
+- The WebUI draws every worktree the engine allocated on one time axis, from `worktree.timeline`
+  and `worktree.timeline_event`. The desktop's lanes and graph showed only the worktrees a run
+  holds now, so finished ones (merged, conflicted, failed, discarded) left no trace.
+- The engine state now keeps the lifecycle log:
+  - The full log, sent when a client connects, replaces what is kept.
+  - Each step after it is added (at most 1,000).
+  - A restarted engine's empty log clears it.
+- The worktrees page has a History section built on the same shared projector as the WebUI and
+  the TUI monitor:
+  - Outcome counts and the average merge wait.
+  - A base-branch row with one dot per squash commit.
+  - One lane per worktree: working, waiting to merge, merging and kept segments, plus a mark for
+    how it ended.
+  - A time axis that moves on only while a worktree is live.
+  - Choosing a lane shows its diff stats, time per phase, whether the checkout is still on disk,
+    the failed stage and error, conflicted files and every lifecycle step with the WebUI's
+    wording.
+- Checks:
+  - Folding the log is tested (replace, add, drop unknown kinds, a restart clears it).
+  - The lanes, counts, base commits and the lifecycle wording are tested (jsdom).
+  - Desktop tests pass (863); typecheck clean.
+
+### Agent identity beside the model (2026-11-04)
+
+- The WebUI lets a conversation pick its identity (system prompt size) with each choice's token
+  cost, from `system_prompt.info`. The desktop offered only the profile default in settings,
+  without sizes.
+- The conversation's model controls now include an identity chip:
+  - It lists the engine's identities as `Label · ~N tokens`, with each hint on hover, and selects
+    the one the conversation runs.
+  - A change is sent the way the WebUI sends it (`prefs.update` with `systemPromptVariant`) and
+    confirmed by reading the session back.
+  - The server applies it to the next request and keeps it as the default for new conversations;
+    the tooltip says so.
+- The engine does not echo a request id on `system_prompt.info`, so the identities are asked for
+  with a plain send when the conversation connects and read from the engine state.
+- The chip stays hidden when the engine offers no identities. A running identity that is not in
+  the list, such as a custom preset, is still shown.
+- Checks:
+  - Labels, the running choice, the request, the switch and the hidden case are tested (jsdom).
+  - Desktop tests pass (865); typecheck clean.
+
+### The desktop shell in the display language, first batch (2026-11-04)
+
+- Phase 1 translated only the surfaces shared with the WebUI; the desktop's own shell stayed in
+  English whatever display language the profile chose. This batch translates the chrome seen on
+  every screen into the seven languages the WebUI ships (English, Turkish, German, French,
+  Italian, Spanish, Brazilian Portuguese):
+  - the icon rail, project list and project page names;
+  - the top bar, its buttons and the preview banner;
+  - the conversation's tabs and its Tools dialog;
+  - the WrongStack settings navigation (section and group names, search, section picker).
+- The shell's strings live in a `desktop` namespace under `apps/desktop-v2/src/locales`, on the
+  same i18next instance as the surfaces, so the shell and the surfaces always switch together.
+  English is bundled; each other language loads as its own small chunk when chosen. Terms
+  follow the WebUI's catalogs where the WebUI already names a thing.
+- The language comes from the profile as before (`Config.uiLocale`, shared with the WebUI and
+  CLI), and is now remembered locally:
+  - The app opens in the remembered language before any engine answers.
+  - On the very first start, with nothing remembered, the profile is read once and the reader
+    stops.
+  - While the profile has not answered yet, the language no longer drops back to English.
+- Settings field labels and descriptions, page bodies and the composer are still English; they
+  are the next batches.
+- Checks:
+  - Every language's catalog has the same keys and placeholders as English.
+  - Switching language updates the shell, the profile's language is applied and remembered,
+    and a remembered language is used at start and kept until the profile answers (jsdom).
+  - Desktop tests pass; typecheck clean; the frontend build emits one chunk per language.
+
+### The composer in the display language (2026-11-04)
+
+- The message composer now follows the display language in all seven languages:
+  - the placeholder and the message box's label;
+  - the options menu, its keyboard hint and the refine-before-sending switch;
+  - the stop buttons and the delivery modes (Message, BTW, Queue, Stop & steer) with their
+    explanations;
+  - the send button, the topic-context dialog, the draft-restore prompt and the loading notice.
+- BTW stays as it is in every language, as in the WebUI. The keyboard hint names each
+  language's own key labels (Entrée, Invio, Intro).
+- A new check reads every shell file that uses the catalog and fails on a key the English
+  catalog lacks, so a mistyped key cannot render as its name. Engine message types such as
+  `composer.warm` share the dotted shape and are not counted as keys.
+- SessionComposer shrank to 1,055 lines (ratchet lowered); its relative imports grew by the
+  translation hook (ratchet 37).
+- Checks:
+  - Catalog parity and the key guard pass.
+  - Desktop tests pass (870); typecheck clean.
+
+### WrongStack settings in the display language (2026-11-04)
+
+- Every setting the field registry draws now follows the display language in all seven
+  languages: its label, description, unset note, placeholder, option words and unit. The heading
+  and description of every settings section follow it too, including the hand-built sections
+  (providers, Brain, fleet and the rest).
+- The registry stays the English source. A setting the catalog does not name yet shows the
+  registry's English instead of a key.
+- Option words that had only an automatic capitalised fallback now have real English labels:
+  "Xhigh" became "Extra high" and "Max" became "Maximum", matching the composer's effort names.
+- The settings search also matches the translated labels and descriptions, so a setting can be
+  found in the language shown.
+- Product and protocol names stay as they are in every language: SAGE, MCP, HQ, WrongProxy,
+  AGENTS.md, Scout, Quick, BTW, YOLO.
+- Checks:
+  - Every registry string is in the English catalog unchanged.
+  - A settings row renders its label, option and unset note in Turkish after a language switch
+    (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (872); typecheck clean.
+
+### Colour palette names restored (2026-11-04)
+
+- Since the compact-density change (133763892) every palette button in Appearance showed the
+  literal text "theme.name" and the code of its check condition instead of the palette's name,
+  and every button carried the check mark. The braces around both expressions had been lost.
+  Each button again shows its palette's name, and only the chosen one is checked.
+- Checks: a jsdom test renders Appearance and requires every palette name, no literal
+  expression text, and a single check mark on the chosen palette.
+
+### Project workspace, project list and Appearance in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - the project workspace: its header, opening states and loading notices;
+  - the project overview: Memory, Kanban and Code Atlas destinations with their counts, the
+    tool links, and the sessions summary with each session's state;
+  - the Projects and Activity views, where session states and kinds are named in the language;
+  - the workspace opening and failure screens;
+  - Appearance: mode, contrast, density, sounds, palette, display language and the connection
+    line.
+- Counts are written as labels ("Active memories: 12", "Tasks: 8 · boards: 2") so every
+  language reads correctly without plural rules. English changed accordingly ("12 active
+  memories" became "Active memories: 12").
+- The loading notices of the lazily opened pages share one "Opening {page}…" string with the
+  page's own name.
+- The display language note no longer says the rest of the desktop is in English; it says that
+  some project pages still are.
+- Checks:
+  - The project list and activity render their counts, states, kinds and exit codes in English
+    and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Conversation cards in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - tool approval requests: risk, decision window, command, proposed edit, arguments,
+    remembered scope, hints and the four decisions;
+  - questions the agent asks: tabs, optional and recommended marks, own answers, delegating,
+    cancel and submit;
+  - the todo list with its states and actions;
+  - the failed-run card with Continue and its countdown;
+  - the running and finished turn lines (tool calls, iterations, tokens, cache share);
+  - message actions (edit, ask again, formatted/source, copy), code block and tool output copy and
+    save, conversation notice controls and suggested next steps.
+- English is unchanged, so the native smoke scripts that look for "Allow once", "Run activity" or
+  "Cancel request" keep matching.
+- The slash command's todo summary stays in English with the other command notices.
+- The catalog check compares placeholders as a set: word order differs between languages
+  (Turkish says "2 işin 1 tanesi bitti" for "1 of 2 done").
+- Checks:
+  - The approval card, finished-turn line, next steps and todo list render in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### Run activity, tool input, fallback, scheduled jobs, waiting room and diffs in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - run activity: filters, entry states, input, progress, output, files, SAGE evidence;
+  - tool input: replaced occurrences, more lines, working directory, search, find and replace;
+  - the model fallback countdown with Switch now and the other candidates;
+  - scheduled jobs: summary, states, interval, runs, next and last run, the concurrency limit and
+    the `cron_schedule` hint;
+  - the provider waiting room: pair states, counts, error history, clear and release, calendar
+    blackouts and the note;
+  - diff previews: toolbar, unified and side-by-side views, unchanged lines and line review.
+- The scheduled jobs helpers take the panel's words and keep English as the default, so the
+  slash command and their unit tests read as before.
+- Fallback keys use `modelFallback.*` and run activity keys `runLog.*`, because the engine's
+  message types already use `fallback.*` and `run.*`.
+- Checks:
+  - The fallback countdown, scheduled jobs, a grep input and a diff preview render in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### Composer controls, attachments, hunts and BTW receipts in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - the session model controls: model chip, reasoning effort with the project's level, reasoning
+    mode, keeping reasoning, agent identity with its prompt size, the leader's effort and the
+    confirmation errors;
+  - attachments: the draft tray, drop hint, limits, message attachments and the preview dialog;
+  - hunts: the starting notice, the paused bar, Continue and End hunt, and the round card;
+  - BTW receipts with their read states.
+- Effort levels reuse the settings' option names, so "Extra high" reads the same in the
+  composer and in Settings.
+- The effort model now reports the project's and the leader's effort as values; the component
+  words them. The identity label takes the language's token wording and keeps English as its
+  default. Hunt mode names stay as their product names.
+- Checks:
+  - The model controls, the attachment tray and the hunt round card render in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### File workspace in the display language (2026-11-04)
+
+- The file workspace now follows the display language in all seven languages:
+  - the header, file search, content search, history, new file and folder, commit, refresh and
+    the ignored-files toggle;
+  - local drafts and the draft conflict dialog;
+  - the explorer and source control lists, with working tree and staged groups;
+  - open file tabs and the document toolbar: edit, stage, reference, quote, save, file actions,
+    merge conflicts and hunk review;
+  - the folder view: breadcrumbs, selection, sorting, bulk actions, columns, paging and the
+    empty states;
+  - the context menu and the file action dialog;
+  - the notices and errors the workspace raises itself (saving, copying folders, moving, commits,
+    drafts).
+- Keys use `fileView.*`, because the engine's message types already use `files.*`.
+- English is unchanged, so the native file scenario keeps its labels.
+- The file browser dialogs, content search, evidence drawer and tree view follow in the next batch.
+- FileWorkspace shrank from 2013 to 2010 lines and imports one more module; the hotspot ratchet is
+  updated to match.
+- Checks:
+  - The workspace header, search and changes view render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Find bars, draft merge, bulk file actions and content search in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - find and replace in the editor, and find in read-only source and in the conversation, with
+    their match counts;
+  - merging a stored draft change by change;
+  - the bulk move, copy, rename and delete dialog;
+  - project content search with its limits, omissions and results;
+  - the file tree and file menu labels.
+- The find bar's scope is now `'source' | 'conversation'` instead of an object of English words,
+  so each language words the count in its own order ("2 satırda 2 eşleşme").
+- English is unchanged ("2 matches on 2 lines", "1 matches" as before), so the native file
+  scenarios keep matching.
+- The bulk summary after a run and rename problems still come from the file model in English.
+- Checks:
+  - The find counts for source and conversation, the find-and-replace bar and the draft merge
+    render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Git review, history and file details in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - image changes and binary files in the Changes view;
+  - staging individual hunks and lines, including the file mode note;
+  - resolving a merge conflict: sides, deletion, merged result, related paths and the discard
+    question;
+  - review notes with their replies;
+  - repository history: refs, commit list, commit details, changed files and committed diffs;
+  - the file details drawer: overview, changes, structure, memory and activity.
+- `modeChangeNote` takes the language's wording and keeps English as its default.
+- English is unchanged, so the native file scenarios ("Common base content", "Keep editing
+  merge", "Discard the unsaved merge draft?") keep matching. The file workspace and everything it
+  opens now follows the display language.
+- Checks:
+  - The binary change card renders in English and then in Turkish, beside the find bars and draft
+    merge.
+  - Catalog parity and the key guard pass; desktop tests pass (877); typecheck clean.
+
+### Agent roster in the display language (2026-11-04)
+
+- The project agent roster now follows the display language in all seven languages:
+  - the catalog, filters and role cards;
+  - identity and runtime, with the resolved runtime, budgets, model policy and availability days;
+  - learning and evidence: metrics, lift, teaching, capture, overlap, directives and retired
+    directives;
+  - the skill layer;
+  - the prepared instruction, the create-role dialog, the confirmation dialogs and every notice
+    the page raises.
+- Budget labels use `roster.budget.<field>` with the model's English label as the default, and
+  automatic optimization reasons map the engine's reason ids to keys; unknown ids are shown as
+  the engine sent them.
+- The page grew from 1559 to 1581 lines because worded counts became interpolated calls; the
+  hotspot ratchet is updated to match.
+- Checks:
+  - The roster's loading view renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Roster runtime editor, role documents, knowledge checklist and inheritance map in the display language (2026-11-04)
+
+- Everything the agent roster opens now follows the display language in all seven languages:
+  - the runtime policy editor: model and checkout, budgets, model policy, availability with
+    weekdays, the tool, skill and capability lists, draft recovery and the leave dialog;
+  - role documents (identity, learned directives, consolidated knowledge, skill addenda) with
+    their drafts, conflicts and saving;
+  - the knowledge checklist;
+  - the inheritance map.
+- The list overrides take a kind (tools, skills, capabilities) instead of an English label, so
+  "Override inherited tool grants" is worded per language instead of lowercasing a label.
+- RosterRuntimeEditor grew by two lines and imports one more module; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - The knowledge checklist renders in English and then in Turkish beside the roster (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (878); typecheck clean.
+
+### Requirements page in the display language (2026-11-04)
+
+- The requirements page now follows the display language in all seven languages:
+  - the list, search and status filter;
+  - the new-requirement form with its draft recovery and version choice;
+  - the record view with its questions, answers, submit, cancel and archive steps and its change
+    history;
+  - the request summary and the record draft notice.
+- Request types, priorities, statuses, question states and history actions are named per language.
+  An unknown value from the engine still shows as before, with underscores turned into spaces.
+- English text is unchanged, so the native requirement scenarios keep matching.
+- ProjectRequirements imports one more module and shrank by five lines; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - The page and its summary render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.
+
+### Requirement resources, evidence and suggestions in the display language (2026-11-04)
+
+- The supporting-resource parts of the requirements page now follow the display language in all
+  seven languages:
+  - the resource editor on the new-requirement form;
+  - the "Add supporting resource" form on a recorded requirement;
+  - the evidence view with its resources, recorded suggestions with accept and reject, and where
+    each field came from.
+- Attachment and resource kinds, suggestion kinds and statuses, field names and field sources are
+  named per language. A value the catalog does not know still shows the engine's own word.
+- The "Add supporting resource" kind list now spells out "Pull request" like the new-requirement
+  form already did; the option value is still `pr`.
+- Checks:
+  - The evidence view renders in English and then in Turkish beside the page (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.
+
+### Automation workspace in the display language (2026-11-04)
+
+- The automation page now follows the display language in all seven languages:
+  - the toolbar, worker state and draft status line;
+  - the job list with schedules, and recent runs with their status, trigger, compare, cancel and
+    inspect;
+  - the job editor with its fields, schedule, verification, preview and actions;
+  - the delete, model and reload dialogs, and the notice when another window saved different
+    drafts.
+- Run statuses and triggers are named per language; a value the catalog does not know still shows
+  the engine's own word.
+- English text is unchanged, so the native automation scenarios keep matching.
+- The templates, configuration, environment editor, run inspector and run comparison follow in the
+  next changes.
+- AutomationWorkspace grew by 17 lines and imports two more modules; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The workspace renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.
+
+### Automation templates and job configuration in the display language (2026-11-04)
+
+- The template picker and its review dialog, the reusable-environment summary, credential
+  references and the GitHub event trigger with its filters now follow the display language in all
+  seven languages.
+- Template names, prompts and setup requirements still come from the shared template catalog in
+  English.
+- Field ids inside labels such as "Credential 1 envName" stay as they are, so the native automation
+  scenario keeps finding them.
+- Checks:
+  - The workspace test now also checks the templates, environment, credentials and GitHub sections
+    in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (880); typecheck clean.
+
+### Automation run evidence and run comparison in the display language (2026-11-04)
+
+- The run inspector now follows the display language in all seven languages: its metrics, agent
+  result, changed files, recorded evidence buttons and loading, the independent-check report and the
+  environment receipt.
+- The run comparison names its facts, columns and changed-file lists per language. Run statuses,
+  triggers and verification statuses inside the table are named per language too.
+- `runFacts` gives each fact a stable id and takes optional words for "Not recorded" and
+  "+ (list truncated)"; English stays the default, so its existing test is unchanged.
+- The table of evidence file names moved to `automation-evidence.ts`, so file names such as
+  `output.log` are not mistaken for catalog keys.
+- The publication panel inside the inspector follows in the next change.
+- Checks:
+  - The comparison and the inspector render in English and then in Turkish (jsdom).
+  - A new unit test covers fact ids and translated missing values.
+  - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.
+
+### Automation pull request panel in the display language (2026-11-04)
+
+- The pull request workflow inside the run inspector now follows the display language in all seven
+  languages: the eligibility note, the plan with its evidence and identity, the publish and update
+  confirmations, observed CI with its follow-up confirmation, and the form that prepares a plan.
+- Observed CI statuses are named per language; check names and GitHub conclusions are shown as
+  GitHub reports them.
+- Checks:
+  - The inspector test now also checks the panel heading, button and label in English and then in
+    Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.
+
+### Automation environment editor in the display language (2026-11-04)
+
+- The reusable environment editor now follows the display language in all seven languages: profile
+  fields, setup commands, service containers, package caches, local preview ports, import and
+  export, the restored and older-draft notices, and the leave confirmation.
+- Field ids inside labels such as "Service 1 name" stay as they are, so the native automation
+  scenario keeps finding them.
+- This completes the automation page: workspace, templates and configuration, run inspector and
+  comparison, pull request panel and environment editor.
+- Checks:
+  - The editor renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (883); typecheck clean.
+
+### Goals page in the display language (2026-11-04)
+
+- The goals page now follows the display language in all seven languages:
+  - the catalog with its search, progress lines and empty states;
+  - the new-goal form with feasibility assessment, options and limits;
+  - the goal detail with its controls, resume limits, stop confirmation, metrics, phases and tasks;
+  - the task inspector with status change, retry, assignment and move.
+- Goal, phase, task and verification statuses and priorities are named per language; a value the
+  catalog does not know still shows the engine's own word.
+- The waiting notice after each request is worded per language. The refresh notice is now cleared
+  by a flag instead of matching its English text.
+- The budget line and limit errors take optional words, with English as the default, so the
+  existing budget test is unchanged.
+- The mission panel, revert and phase verification follow in the next change.
+- ProjectGoals grew by 46 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - The goals catalog renders in English and then in Turkish (jsdom).
+  - A new unit test covers the budget words.
+  - Catalog parity and the key guard pass; desktop tests pass (885); typecheck clean.
+
+### Project mission, goal revert and phase verification in the display language (2026-11-04)
+
+- The persistent mission panel, the goal revert control and the phase verification details now
+  follow the display language in all seven languages, which completes the goals page.
+- Mission states, verification verdicts and integration states are named per language; an unknown
+  mission state still shows the engine's own word.
+- `goalRevertOutcome` takes optional words with English as the default. The revert control keeps
+  the engine's reply and words it at render, so the outcome follows a language change.
+- English text is unchanged, so the native goals scenario keeps matching.
+- Checks:
+  - The mission panel, phase verification and revert control render in English and then in
+    Turkish (jsdom).
+  - A new unit test covers the revert words.
+  - Catalog parity and the key guard pass; desktop tests pass (886); typecheck clean.
+
+### Model catalog settings in the display language (2026-11-04)
+
+- The model catalog page now follows the display language in all seven languages: the profile
+  check, provider choice and toolbar, the model list, the detail view with limits, prices, saved
+  advanced behavior and capabilities, the remove confirmation and the definition editor.
+- Field, limit, price and capability labels still come from the tables in
+  `model-catalog-editor.ts`; the page names them per language and falls back to the table's
+  English label. English labels, including "Model display name" style editor labels, are unchanged.
+- Errors raised by `buildModelDefinition` and the profile check are still English; the price
+  tiers, advanced fields, registry search and draft notices follow in the next changes.
+- ModelCatalogSettings grew by 14 lines and imports two more modules; its hotspot ratchet is
+  updated to match.
+- The page test now settles replies that resolve during the first render before reading the page.
+- Checks:
+  - The catalog renders in English and then in Turkish once the profile engine identifies itself
+    (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Model advanced fields and price tiers in the display language (2026-11-04)
+
+- The model editor's advanced behavior section and its context price tiers now follow the display
+  language in all seven languages: reasoning policy and controls, replay, lifecycle, connection
+  override, the tier editor, saved tiers and the legacy over-200k schedule.
+- Reasoning modes are named per language. Effort levels (`low`, `high`, ...) stay as the provider
+  vocabulary they are.
+- Price labels still come from `tierPriceFields`; the editor names them per language and falls back
+  to the table's English label. English labels such as "Price tier 1 input price" are unchanged.
+- Checks:
+  - Both sections render in English and then in Turkish beside the catalog (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Model registry search and model drafts in the display language (2026-11-04)
+
+- The model registry search, the model draft recovery notice and its draft summary, the earlier
+  unassigned draft notice and the saved model drafts dialog now follow the display language in all
+  seven languages, which completes the model catalog settings.
+- Draft standings and their explanations are named per language; `standingLabel` and
+  `standingDetail` stay the English source and fallback, so the native model-profile scenario still
+  finds "Connection removed", "Another profile" and "This profile".
+- The draft summary reuses the catalog, advanced-field and price-tier names of the editor.
+- Checks:
+  - The registry search, saved drafts button and draft summary render in English and then in
+    Turkish beside the editor sections (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Chimera reviews in the display language (2026-11-04)
+
+- The Chimera reviews page and its findings now follow the display language in all seven
+  languages: filters, the report catalog, report facts and transitions, evidence checks, findings
+  with their filters and actions, the activity journal, review notes with their draft conflict, the
+  follow-up and the decision dialog.
+- Report lifecycles, finding statuses, severities, sources, verification states, actor kinds and
+  outcomes are named per language; a value the catalog does not know still reads as `reviewLabel`
+  shows it. The key group is `reviews`, because the page quotes `chimera.*` engine messages.
+- The follow-up text placed into a conversation draft stays English: it is an instruction for the
+  agent.
+- Filter options now carry their engine value explicitly, so the shown label can change language
+  without changing what is filtered.
+- ProjectChimera grew by three lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The page and a finding render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (888); typecheck clean.
+
+### Skill library in the display language (2026-11-04)
+
+- The skill library (project and profile) and its draft notice now follow the display language in
+  all seven languages: the toolbar, summary, catalog with search and source filter, the reader and
+  editor, source and provenance, related files, references, the create, install, uninstall and
+  leave dialogs, and the draft conflict and earlier-edits notices.
+- Skill sources are named per language; `skillSource` stays the English source and fallback. The
+  key group is `skillLib`, because the library quotes `skills.*` engine messages.
+- `skillUpdateSummary` takes optional words, with English as the default.
+- SkillLibrary grew by 14 lines and imports two more modules; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - The project library renders in English and then in Turkish (jsdom).
+  - A new unit test covers the update summary words.
+  - Catalog parity and the key guard pass; desktop tests pass (890); typecheck clean.
+
+### Design Studio in the display language (2026-11-04)
+
+- The Design Studio, its theme preview and its edit draft notice now follow the display language
+  in all seven languages: the heading, the unsaved-edit notices, the gallery search and count, the
+  kit details, the use and reset confirmations, project colors, shape and rhythm, the theme output
+  and its confirmation, contrast observations, the implementation guide and the design
+  verification summary. The theme preview sample text is translated too.
+- The key group is `designStudio`, because the page quotes `design.*` engine messages.
+- Tuning choices are named per language with the engine value as the fallback; their options now
+  carry an explicit value, so a translated label never changes what is sent.
+- Accessible field names keep the English token words the native scenarios address
+  (`Design light primary`, `Design radius`); other languages name the theme and color in words.
+- ProjectDesignStudio grew by 5 lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The design studio renders a kit in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (891); typecheck clean.
+
+### Project mailbox in the display language (2026-11-04)
+
+- The project mailbox, its composer and its draft status now follow the display language in all
+  seven languages: the heading, the actor, status and window controls, the scope note, the thread
+  list, the conversation with its tags, audience, receipts and references, the message actions and
+  removal confirmation, registered agents, retention and maintenance with its thresholds and
+  confirmations, the composer fields and confirmations, and the other-window, retry, loading and
+  restored draft notices.
+- The key group is `mailboxPage`, because the page quotes `mailbox.*` engine messages.
+- Message types and priorities are named per language with the engine value as the fallback;
+  English shows them as sent. The composer options now carry an explicit value, so a translated
+  label never changes what is sent.
+- `mailboxDuration` takes optional words for its invalid-hours error, with English as the default.
+- Still English by design: the `Re:` subject prefix of a reply, engine errors, and the two errors
+  the draft store throws itself.
+- ProjectMailbox grew by 11 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - A new jsdom test renders the mailbox with an opened conversation, and the composer, in English
+    and then in Turkish.
+  - A new unit test covers the duration words.
+  - Catalog parity and the key guard pass; desktop tests pass (894); typecheck clean.
+
+### Dead code in the display language (2026-11-04)
+
+- The dead-code workspace, its change preview and its execution result now follow the display
+  language in all seven languages: the heading, scan controls, progress and replies, statistics,
+  scope line, filters, selection, findings, the apply confirmation, the agent hand-off, the empty
+  state, recovery backups with the restore confirmation, the exact-change preview and the cleanup
+  result.
+- Finding categories, confidence levels, fix actions and change actions are named per language
+  through `useDeadCodeLabel`, with `deadCodeLabel` as the fallback for values the catalog does not
+  know (symbol kinds such as `function` keep their code names).
+- `deadCodeRestoreOutcome` takes optional words, with English as the default.
+- Still English by design: the request handed to an agent (`deadCodeRequest`) and engine reasons.
+- Checks:
+  - A new jsdom test scans a project and renders the findings and backups in English and then in
+    Turkish.
+  - A new unit test covers the restore outcome words.
+  - Catalog parity and the key guard pass; desktop tests pass (896); typecheck clean.
+
+### Chronicle in the display language (2026-11-04)
+
+- The project Chronicle, its insights and its prompt manifest now follow the display language in
+  all seven languages: the heading, metrics, filters, the timeline and lineage views with their
+  export notices, the event inspector with its facts and identities, journal health, provider,
+  task and file insights, and the manifest tables.
+- The key group is `chronicleView`, because these files quote `chronicle.*` engine messages.
+- Event outcomes are named per language with the engine value as the fallback. The insight view
+  buttons keep their lowercase English names (`providers`, `tasks`, `files`), which the native
+  insights scenario addresses.
+- The filter labels now read "Event type", "Outcome", "Provider", "Model" and "Agent" in English
+  instead of the derived "event Type" and "provider". Their accessible names are unchanged
+  (`Chronicle eventType` and so on).
+- `chronicleQuery` takes optional words for its two date errors, with English as the default.
+- Still English by design: the exported Markdown and JSONL documents, engine messages, event
+  titles taken from recorded evidence, and symbol and provider identifiers.
+- ProjectChronicle grew by 17 lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The jsdom test opens a Chronicle event in English and then in Turkish.
+  - A new unit test covers the date error words.
+  - Catalog parity and the key guard pass; desktop tests pass (897); typecheck clean.
+
+### Session history and recovery in the display language (2026-11-04)
+
+- Session history and recovery, the rewound prompt and the recovery records now follow the
+  display language in all seven languages: the heading, rewind and redo results, the session
+  identity and metrics, prompt checkpoints with redo and retry, the journal, tool footprint and
+  file activity, the rewind confirmation, and the recovery operations list.
+- Operation and outcome names in the recovery records use `RECOVERY_OPERATION_LABELS` and
+  `RECOVERY_OUTCOME_LABELS` as the English source and fallback.
+- `recoveryDate` takes an optional missing-time word and `retryPlan` optional words for its three
+  reasons, both with English as the default. The other pages that call `recoveryDate` keep the
+  English word until they are translated.
+- Retry notes are written to the recovery records in the language shown when the retry ran.
+- Still English by design: engine messages, recorded event labels and event type names.
+- Checks:
+  - A new jsdom test renders history and recovery with a checkpoint in English and then in
+    Turkish.
+  - The recovery model test covers the new words.
+  - Catalog parity and the key guard pass; desktop tests pass (898); typecheck clean.
+
+### Provider settings in the display language (2026-11-04)
+
+- The provider settings page now follows the display language in all seven languages: the
+  heading, the default model form, saved connections with their keys, the delete and remove
+  confirmations, and the add-a-connection form for provider keys and custom endpoints.
+- The key group is `providerSettings`, because the page quotes `providers.*`, `provider.*`,
+  `model.*` and `key.*` engine messages.
+- `buildProviderSave` takes optional words for its five validation errors, with English as the
+  default.
+- Not yet translated: the sign-in, connection test, wiring and cloud routing sections inside each
+  saved connection. They follow in the next change.
+- Still English by design: engine replies, provider and model names, and provider families.
+- Checks:
+  - A new jsdom test renders provider settings in English and then in Turkish.
+  - A new unit test covers the validation words.
+  - Catalog parity and the key guard pass; desktop tests pass (900); typecheck clean.
+
+### Provider sign-in and connection sections in the display language (2026-11-04)
+
+- The sections inside provider settings now follow the display language in all seven languages:
+  subscription sign-in with its progress, device code, callback and review dialog; the endpoint
+  check; a connection's models and endpoint; and its cloud routing.
+- Sign-in phases and endpoint check results are named per language; `STATUS_TEXT` and
+  `FIELD_LABELS` stay the English source and fallback.
+- `oauthAliasIssue` and `probeOutcome` take optional words, with English as the default.
+- Still English by design: service names and guidance supplied by the engine, engine replies, and
+  the cloud settings validation messages from the shared contracts package.
+- Checks:
+  - The settings jsdom test now also covers the sign-in section and renders a saved Vertex
+    connection's check, models and cloud routing in English and then in Turkish.
+  - The OAuth model test covers the alias words.
+  - Catalog parity and the key guard pass; desktop tests pass (901); typecheck clean.
+
+### Session processes in the display language (2026-11-04)
+
+- Session processes and their preview links now follow the display language in all seven
+  languages: the heading, summary counts, search, selection bar, the process list, recently
+  ended processes, the output panel, and the single and batch termination dialogs.
+- Process states are named per language with the engine value as the fallback.
+- `endLabel` and `batchTerminationSummary` take optional words, with English as the default.
+  Durations keep their short unit names (`s`, `min`, `h`).
+- Still English by design: commands, tool names, signals, engine replies and output lines.
+- Checks:
+  - The session pages jsdom test now also renders a running background process in English and
+    then in Turkish.
+  - The reported-end test covers the end words.
+  - Catalog parity and the key guard pass; desktop tests pass (902); typecheck clean.
+
+### Project SDD in the display language (2026-11-04)
+
+- Project SDD, its run options, board activity feed, dependency graph and project maintenance now
+  follow the display language in all seven languages: navigation, the interview and its actions,
+  the specification list and task graph, project runs and the current board, worker options,
+  activity entries with their ages, and the maintenance confirmations and results.
+- The key group is `sddView`, because the page quotes `sdd.*` and `specs.*` engine messages.
+- Phases, statuses and priorities are named per language with the engine value (underscores read
+  as spaces) as the fallback; `FEED_WORDS` and the maintenance titles stay the English source.
+- The "requested" line of a board action used to be cleared by matching its English text. It is
+  now cleared by remembering that the last request was a board action, so it works in every
+  language.
+- Not yet translated: the selected task's details beside the board. They follow in the next
+  change.
+- Still English by design: interview questions and answers, specification and task text, engine
+  replies, and task titles inside the dependency graph.
+- ProjectSdd grew by 22 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - A new jsdom test renders the interview start and a running board with its activity feed and
+    maintenance section in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (903); typecheck clean.
+
+### SDD task details in the display language (2026-11-04)
+
+- The selected task beside the SDD board now follows the display language in all seven
+  languages: its metadata, dependencies and dependents, the run controls with their
+  confirmations, the assignment, model, fallback, verification and split forms with their
+  placeholders, and the task activity.
+- Keys live under `sddView.taskDetail`; statuses, priorities and activity kinds reuse the
+  `sddView` value and feed names, with the engine value as the fallback.
+- The waiting line of a task action now names the action in the display language.
+- Still English by design: task titles, descriptions, activity text and engine replies.
+- Checks:
+  - A new jsdom test renders a running board's in-progress task with its controls in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (904); typecheck clean.
+
+### Session history catalog in the display language (2026-11-04)
+
+- Project session history now follows the display language in all seven languages: the heading,
+  summary search and filters, page size and page controls, the catalog status line, catalog rows
+  with their outcome, the empty reader, the selected conversation's heading and actions, the
+  empty-journal cleanup, and the rename, reuse and resume dialogs.
+- The key group is `historyView`, because the page quotes `session.*` and `sessions.*` engine
+  messages.
+- Untitled conversations, including the title a resumed or copied conversation opens with, are
+  named in the display language; `historyTitle` keeps English as its default.
+- The history view store now records which failure its message describes (`errorKind`), and
+  `readHistoryPage` takes its two error texts from the caller, so both appear in the display
+  language while their English text stays the default.
+- Not yet translated: the conversation reader, the cross-conversation search and the usage and
+  side-effect summaries. They follow in the next change.
+- Still English by design: recorded titles, prompts and engine replies.
+- ProjectSessionHistory grew by 8 lines and imports one more module; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - A new jsdom test renders the catalog and a selected conversation in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (905); typecheck clean.
+
+### History search and usage summaries in the display language (2026-11-04)
+
+- The session history page's cross-conversation search, recorded usage and recorded side effects
+  now follow the display language in all seven languages: controls and help text, the search
+  status and progress line, result headers, role labels and match links, the usage and
+  side-effect status lines, table headings, and the errors shown when an engine cannot answer.
+- Keys live under `historyView.contentSearch`, `historyView.usage` and `historyView.effects`.
+- The search status is now kept as a code (`reading`, `searching`, `complete`, `truncated`,
+  `incomplete`, `stopped`) and worded at render time. The "no matches" state used to compare
+  against the English "Search complete." text; it now checks the code, so it works in every
+  language.
+- The usage summary asks each catalog through a small local `request` helper, so each engine
+  message type is written directly in the call that sends it.
+- Still English by design: conversation titles, excerpts, tool names, risk names, journal errors
+  and numbers, which keep the system number format.
+- Not yet translated: the conversation reader. It follows in the next change.
+- Checks:
+  - The history jsdom test now also runs the usage and side-effect summaries and a content
+    search (with and without a match) in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (906); typecheck clean.
+
+### History conversation reader in the display language (2026-11-04)
+
+- The recorded conversation reader on the session history page now follows the display language
+  in all seven languages: the heading and transcript search, message headers and counts, text
+  blocks with their copy, reuse and paging actions, recorded reasoning, tool requests and results,
+  PDF and image attachments, more-blocks paging, and the session summary with its statistics,
+  outcome, event timeline, tool breakdown and file changes.
+- Keys live under `historyView.transcript`, `historyView.block`, `historyView.image` and
+  `historyView.inspect`; message roles reuse the search role names.
+- Roles, outcomes and file operations are named per language with the engine value as the
+  fallback. The session summary's statistics are now identified by id rather than by their
+  English label, and its fixed English operation table is replaced by catalog keys.
+- Session history is now fully translated.
+- Still English by design: recorded message text, tool names and inputs, event labels, file paths
+  and engine replies.
+- Checks:
+  - The history jsdom test now also renders a recorded exchange covering every block kind, and
+    the opened session summary, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (907); typecheck clean.
+
+### Agent model plan in the display language (2026-11-04)
+
+- The session agent model plan now follows the display language in all seven languages: the
+  dialog heading and intro, the subagent, companion and chat-model policy line, the plan switches
+  and their help, parallel lanes with the lane-removal confirmation, role overrides with their
+  validation, each lane's or role's label, model source, tier or profile and reasoning overrides,
+  the unsaved-edit and saved-draft prompts, the footer, and the model picker's title and help.
+- The key group is `agentPlan`. Lane and role names ("Lane 1", "Role reviewer") are translated,
+  and the accessible names built from them follow, so English stays "Lane 1 label",
+  "Lane 1 reasoning effort" and so on.
+- Reasoning efforts reuse the composer's `options.*` names with the English effort name as the
+  fallback. Reasoning modes are named per language; English keeps the engine words (auto, on,
+  off).
+- Not yet translated: the shared profile model picker opened from the plan. It is used by five
+  surfaces and follows in its own change.
+- Still English by design: role identifiers, tier and profile names, provider and model ids, and
+  engine replies.
+- Checks:
+  - A new jsdom test renders a plan with a tier lane and a pinned role in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (908); typecheck clean.
+
+### Live fleet in the display language (2026-11-04)
+
+- The project live fleet now follows the display language in all seven languages: the heading,
+  runtime and agent metrics, polling note, search, map and list toggles, empty and loading
+  states, the map caption and node labels, runtime list rows, the detail panel, the instruction
+  and interruption review with its delivery kinds and priorities, the broadcast form and its
+  summary, recent session activity, and the registry validation errors.
+- The key group is `liveFleet`. Runtime and agent statuses are named per language with the
+  engine value as the fallback; English keeps the engine words (active, running, waiting_user).
+- `broadcastSummary` and `projectFleet` take their wording from the caller and keep English as
+  the default. The page reads the registry through a ref to `t`, so a language change does not
+  restart polling.
+- Still English by design: what is sent to the engine (the default interruption reason, the
+  broadcast subject, sender and message types), session and agent ids and names, tool names and
+  journal text.
+- Checks:
+  - A new jsdom test opens the runtime list, selects an agent, reads its session activity, opens
+    the broadcast form and the instruction review, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (909); typecheck clean.
+
+### Integration settings in the display language (2026-11-04)
+
+- The connected-tools settings now follow the display language in all seven languages: the
+  heading and intro, each MCP connection card with its status, endpoint fallback, tool count,
+  server-reported tool hints and card actions, the remove confirmation, the empty state, the
+  loading notes for the editor and content browser, and the add-connection dialog with the
+  recommended-server picker.
+- The key group is `integrations`, because the page quotes `mcp.*` engine messages. Connection
+  statuses (stopped, connecting, connected, sleeping, discovering, error) are named per language
+  with the engine value as the fallback; the pause/wake choice still reads the engine value.
+- Not yet translated: the MCP authorization panel, the connection editor and the content browser
+  opened from a card. They follow in their own changes.
+- Still English by design: server names, descriptions and tool descriptions reported by servers
+  or the recommended list, engine replies, and example placeholders (project-docs, bun, URLs).
+- Checks:
+  - A new jsdom test renders a connected server card and opens the add dialog, in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (910); typecheck clean.
+
+### Brain models and council editor in the display language (2026-11-04)
+
+- The Brain models and council editor now follows the display language in all seven languages:
+  the decision model pool and its strategy, council voting seats with their decision lens, vote
+  weight and veto, seat defaults with their lens and veto notes, the council judge, each model
+  reference's saved-model, provider and model fields, and the move and remove actions.
+- The key group is `brainTargets`. Row names ("Brain pool model 1", "Brain voter 1") are
+  translated and the accessible names built from them follow, so English keeps
+  "Brain pool model 1 saved model", "Move Brain pool model 1 up" and so on. Turkish puts the
+  action first ("Yukarı taşı: …") so no case suffix has to be attached to a name.
+- The saved-catalog notice is read through a ref to `t`, so a language change does not reread
+  the saved model catalogs.
+- Not yet translated: the Brain policy settings page that hosts this editor. It follows in the
+  next change.
+- Still English by design: lens ids and the built-in rotation's lens names (executor, skeptic,
+  auditor), lens names and descriptions from the engine's catalog, provider and model ids.
+- Checks:
+  - A new jsdom test renders a pool model, a voter using a catalog lens, an empty seat default
+    and an empty judge, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (911); typecheck clean.
+
+### Brain policy page in the display language (2026-11-04)
+
+- The Brain policy page now follows the display language in all seven languages: the heading,
+  intro and scope note, the cache and council facts, the deterministic rules card, section
+  navigation, all seven setting groups with their 51 fields, help texts and option names, the
+  monitor reset notes and buttons, the save bar, and the save, verification and validation
+  messages.
+- The key group is `brainPolicy`, because the page quotes `brain.*` engine messages. The field
+  tables in `brain-policy-model.ts` and `brain-monitor-fields.ts` stay the English source; the
+  page words each field through `brainPolicy.field.<key>.label|help` with the source text as
+  the fallback, and option values through `brainPolicy.option.*` (English keeps the engine value
+  with hyphens read as spaces).
+- Groups gained an `id` (risk, heuristics, quality, cache, monitor, council, ledger); the monitor
+  reset block used to be found by the English title "Runtime monitor" and now uses the id.
+- `brainPatch`, `brainSnapshot` and `brainMonitorResetPatch` take their wording from the caller
+  and keep English as the default, so their unit tests and messages outside the page are
+  unchanged.
+- One unreachable message differs in English on the page: an invalid select value now reads
+  "Choose a valid option for …" instead of lowercasing the field name, which does not work in
+  every language. The page's selects only offer valid values.
+- Not yet translated: the decision evidence panel below the form and the Brain model-pool
+  validation messages. They follow in the next change.
+- Still English by design: rule ids and actions, dropped-rule reasons and engine replies.
+- Checks:
+  - The Brain settings jsdom test now also renders the policy page with cache counts, an active
+    council, a rule and a dropped rule, in English and then in Turkish.
+  - A check run against the catalog confirmed every one of the 51 fields, all option values and
+    all seven groups have English text identical to the model source.
+  - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.
+
+### Brain decision evidence in the display language (2026-11-04)
+
+- The decision evidence panel under the Brain policy form now follows the display language in all
+  seven languages: the configured and resolved model pool, configured voters with lens, weight
+  and veto, seat defaults, the configured and effective judge, the rule list with its conditions,
+  decision, action details and hit limits, and the evidence locations.
+- The key group is `brainEvidence`; rule condition names stay an English source table in the
+  file and are worded through `brainEvidence.condition.*` with it as the fallback.
+- `brainTargetsWire`, `brainTargetsPatch` and `verifyBrainTargets` take a `BrainTargetWords`
+  object and keep English as the default. The policy page passes its own, so a missing model ID,
+  an invalid vote weight or a pool changed elsewhere is reported in the display language and
+  names the row the way the editor shows it.
+- The Brain settings, including the models and council editor, are now fully translated.
+- Still English by design: rule ids, decisions, condition values and reasons, lens names,
+  resolved model labels and evidence paths reported by the engine.
+- Checks:
+  - The Brain settings jsdom test's policy case now also covers a voter, a seat default, a judge
+    that is also a voter, a rule with a condition, reason and hit limit, and the evidence
+    locations, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (912); typecheck clean.
+
+### Live fleet in the project office and the session story (2026-11-04)
+
+- The project office now shows the subagent fleet of the project's live conversations, as the
+  WebUI office does: each subagent with its status, tool log, context load and final text, its
+  transcript, the leader, and the tool calls the desks animate.
+- The WebUI fleet store's `subagent.event` fold moved to `@wrongstack/project-surfaces/office/fleet-fold`
+  (`applyFleetEvent`), with its transcript helpers and the `SubagentEvent` and
+  `FleetTimelineEvent` types in `office/fleet-transcript`. The WebUI store calls it unchanged;
+  the event's time and the final-text cleaner are options, so a replayed desktop journal keeps
+  each agent's own start and finish times.
+- Each desktop conversation folds its `subagent.event` frames into `EngineState.fleet`.
+  `ProjectOffice` keeps the readers of the project's running agent conversations open while
+  the office is shown and merges their fleets (`office-fleet.ts`): agents, transcripts (the
+  conversation's own `agent.timeline.message` lines when it has them), the leader, and tool
+  calls from the `tool.started` and `tool.executed` activity frames, newest first. The merge
+  only runs when a fleet, a transcript or the tool calls change, not with every streamed token.
+- The session story's roster now lists the conversation's subagents from the same fleet.
+- Not ported on purpose:
+  - The story's context request has no trigger here: the conversation's context button opens
+    the desktop's own context dashboard instead of the story's context tab.
+  - The WebUI analytics dashboard reads an event buffer nothing in the WebUI posts to, so it
+    stays out; usage and side effects are shown on the history page.
+- Checks:
+  - New `office-fleet.test.ts`: the engine fold (leader, spawn, tool, completion with its
+    next-steps block removed, frame times, another conversation's events ignored), the
+    project merge, and the story roster rendered from the fleet.
+  - `desktop-office-feed.test.ts` covers the handed-over fleet in the feed hooks.
+  - WebUI fleet store, transcript, multi-session, handler and panel tests pass unchanged (201).
+  - Desktop tests pass (916). WebUI tests pass (6239) apart from two context-timeline
+    number-format checks that fail under a non-English default locale, unrelated to this change.
+  - Typecheck is clean for desktop, WebUI and project-surfaces.
+
+### Language-aware file editor (2026-11-04)
+
+- Editing a file now opens the code editor the WebUI uses: Monaco 0.57 through
+  `@monaco-editor/react` 4.7, the same versions the WebUI pins, bundled with the desktop (never a
+  CDN copy; the content policy only allows the app's own scripts and workers). It brings syntax
+  highlighting by file extension, Monaco's own find and replace, multi-cursor editing and, for
+  TypeScript, JavaScript, JSON, CSS and HTML, the language workers Monaco ships.
+- Completions use the WebUI's `completion.request` workflow: the text around the caret, the
+  whole file while it is small, and whether the engine may ask a model, with the same rules and
+  cache. The pure rules moved to `@wrongstack/project-surfaces/lib/completion`; the WebUI path
+  is a re-export.
+- The editor loads the first time a file is edited (its chunks stay out of the start-up
+  bundle), follows the light, dark and high-contrast appearance, and keeps its selection on its
+  holder so Reference and Quote work as they do in the plain editor.
+- A "Plain text editor" toggle next to Edit file switches back to the earlier textarea editor
+  and its helpers; the choice is remembered on this desktop. When the code editor cannot load,
+  the file opens in the plain editor with a notice.
+- `native-files.mjs` waits for the code editor and then switches to the plain editor for its
+  existing textarea checks. Not run in this pass (native checks are batched at the end).
+- Checks:
+  - New `code-editor.test.ts`: the completion request and its cache key, reply parsing, the
+    remembered editor choice with and without storage, and quoting the code editor's
+    selection.
+  - WebUI completion tests pass through the re-export (21).
+  - Desktop tests pass (920); typecheck clean for desktop, WebUI and project-surfaces; a
+    production build places Monaco in its own lazy chunks with its workers and icon font.
+
+### Conversation collaboration bar (2026-11-04)
+
+- A conversation's Activity view now carries the WebUI's collaboration bar: who is watching
+  the run, joining as an observer, annotator or controller, the open note count, pause and
+  resume, handing control to another participant, and injecting a result for a running tool
+  call (the calls still running are offered as targets).
+- The panel moved to `@wrongstack/project-surfaces/collab/CollabPanel` with the `collab.*`
+  types (`collab/types`); the WebUI component is a wrapper on its WebSocket and chat store, and
+  its lane disposal clears the parked panel state through `forgetCollabSession`. Wording comes
+  from the shared `activity:collab.*` catalog in all seven languages.
+- Desktop transport (`session-collab-model.ts`): requests go out on the conversation's engine;
+  replies are read from its journal reader, and only frames stamped after the bar opened reach
+  it, so a replayed history never shows an earlier run's participants. A request the engine
+  refuses reaches the bar as a collaboration error.
+- The engine decides the roles: without a role authorizer, which neither the WebUI server nor
+  the desktop engine configures, annotator and controller are refused and the bar shows the
+  engine's reason. While joined, the engine mirrors the run as `collab.event` frames, which the
+  conversation journal records.
+- Checks:
+  - New `session-collab.test.ts`: live-only frames and refusals, running tool calls as
+    targets, and the shared panel joining as an observer and showing the participant in jsdom.
+  - WebUI dock inspector, collab handler and slash routing tests pass (264).
+  - Desktop tests pass (923); typecheck clean for desktop, WebUI and project-surfaces.
+
+### Reconnecting a stopped conversation and reconnect diagnostics (2026-11-04)
+
+- The native host has `session.reconnect`: it starts a stopped agent conversation's engine
+  again on the same record and journal, resuming the WrongStack session the journal recorded
+  (`--resume`, never a fork). The conversation keeps its id, tab and history, and its journal
+  reader continues where the stopped engine left it. It refuses unknown conversations,
+  terminals, engines still running or starting, a fork, and an invalid recorded identity, and
+  each refusal leaves the record as it was. A reused runtime drops an earlier restore answer
+  before starting, so that answer cannot read as this start being ready.
+- A conversation whose engine stopped (error, interrupted, or stopped by the user) shows a
+  reconnect notice under its error: the desktop reads the recorded session from the journal's
+  `session.start` frame and asks the host to resume it. A conversation that never recorded a
+  session is told to start a new one instead.
+- The interrupted message the host stores now points at reconnecting instead of starting a new
+  session.
+- Reconnect diagnostics, the desktop's counterpart of the WebUI's refresh diagnostics, sit under
+  the project's engine diagnostics: running and stopped counts, the desktop settings this window
+  keeps, and for each agent conversation its engine state and error, how far this window has
+  read its journal (not read, reading with a percentage, read to the end, or kept from an
+  earlier view), the recorded session, the last journal entry, the last change, and a
+  reconnect where the engine stopped. The shared `DebugDashboard` takes an `after` slot for it.
+- Checks:
+  - Rust `reconnect_refuses_unknown_terminal_running_and_forked_conversations`; all 32 native
+    host unit tests pass; rustfmt clean. The reconnect itself was not run against a real engine
+    in this pass (native checks are batched at the end).
+  - New `reconnect.test.ts`: which conversations can reconnect, the recorded session, journal
+    states and stored settings size, the reconnect call paging the journal, the notice in
+    Turkish with a conversation that recorded nothing, and the diagnostics table.
+  - Desktop tests pass (927); typecheck clean for desktop and project-surfaces.
+
+### Conversation usage in the display language (2026-11-04)
+
+- The conversation's Usage & cost page and its worker delegations follow the display language
+  in all seven languages: the token traffic and its segments, the last provider request and
+  current context cards, cache behavior with the routed provider table, the estimate with its
+  coverage, rate sources and worker total, the conversation footprint, and each finished
+  delegation with its outcome, turns, tool calls and duration.
+- Key groups `usageView` and `delegationsView`. `usageNumber`, `usageMoney` and `usageRatio`
+  take the word for a missing value and keep English as the default; amounts stay in USD.
+- Still English by design: provider and model names, delegation targets and statuses, and the
+  summaries workers reported.
+- Checks: new `session-usage-i18n.test.ts` renders the page with a priced snapshot and a failed
+  delegation in English and Turkish; catalog parity and the key guard pass; desktop tests pass
+  (928); typecheck clean.
+
+### Side effects and context dialogs in the display language (2026-11-04)
+
+- The conversation's side effects page follows the display language in all seven languages:
+  source and refresh, loaded and retained counts, the paging window, search, kind and sort
+  filters, CSV copy and download notices, the empty states and the record inspector. Group
+  `effectsView`; operation kinds are worded through `effectsView.kind.*` with the old English
+  labels as the fallback for kinds the engine adds later.
+- The context inspector (`contextPanel`) and the context editor (`contextEdit`) follow it too:
+  estimates and sections, compaction results with each reduction phase, the quality flag and
+  digest, the instructions reader, repair, compaction and clearing with its confirmation; and
+  in the editor the summary line, message rows, text trimming and cuts, validation, the repair
+  preview and the apply button. `withTextRange` and `metricsSummary` take their wording and keep
+  English as the default. This closes the English action labels in `ContextEditorDialog` that
+  `desktop-v2-vs-webui.md` cites.
+- Still English by design: engine messages and validation errors, message roles, context mode
+  names, tool names and model-validation errors from the side-effect and context models.
+- Checks: new `session-effects-i18n.test.ts` (a paged runtime window with a shell and a file
+  write, the record inspector) and `context-dialogs-i18n.test.ts` (the inspector, and the
+  editor with a user message chosen together with its reply), each in English and Turkish;
+  catalog parity and the key guard pass; desktop tests pass (930); typecheck clean.
+
+### Context modes and cache layout in the display language (2026-11-04)
+
+- The rest of the context inspector follows the display language in all seven languages: the
+  context modes list with each mode's thresholds, use, edit and delete, the mode form and its
+  validation (`contextModes`), and the last request's cache layout, lanes, segments, cache
+  breakers, the next request and what the next compaction keeps (`residency`).
+- The shared residency vocabulary from `@wrongstack/core/utils/residency-labels` (segments,
+  lanes, hints, verdicts, retention classes) is worded through `residency.*` with the core label
+  as the fallback for values added later. `modePayload` takes a `ModeWords` object and keeps
+  English as the default.
+- Still English by design: mode ids, names and descriptions, provider and model ids, and cache
+  breaker kinds and details reported by the engine.
+- Checks: `context-dialogs-i18n.test.ts` now also renders a custom active mode, a cache layout
+  with a verdict and the retention rows in English and Turkish; desktop tests pass (930);
+  typecheck clean.
+
+### Session workbench, draft conflict and status bar in the display language (2026-11-04)
+
+- The session workbench follows the display language in all seven languages: the open session
+  tabs and their detach buttons, new session, stop session, the draft restore error and retry,
+  and the restoring and opening terminal states (`workbench`).
+- The draft conflict notice is translated, including the version comparison, the delivery,
+  files and attachments line, and the replace confirmations (`draftConflict`).
+- The status line under the composer is translated: run state, the context meter and its
+  accessible name, cache and memory chips, the provider limit warning, the iteration counter,
+  token counts, the cost estimate and refresh (`statusBar`).
+- Still English by design: session titles, file and attachment names, and delivery mode ids.
+- Checks: new `workbench-i18n.test.ts` renders the workbench and the status bar in English and
+  Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Composer attachments and controls in the display language (2026-11-04)
+
+- The controls around the composer follow the display language in all seven languages: the
+  attached file chips, their quote view and line range editor with its preview and validation
+  (`referenceChips`), the `@` file and `$` skill suggestions (`mentionPicker`), dictation
+  (`dictation`), the continuation mode and YOLO level selects with their explanations
+  (`autonomyControl`), and the pictures an `image_generate` call saved (`generatedImages`).
+- The generated image placeholder now keeps a reason code and words it at render time; the YOLO
+  level table keeps only ids and preferences, with labels and explanations from the catalog.
+  Continuation mode labels fall back to the model's English label.
+- Still English by design: file paths, skill names and descriptions, and recognizer messages
+  reported by the platform.
+- Checks: new `composer-parts-i18n.test.ts` renders the chips with the range editor open, the
+  continuation and YOLO controls, and an unreadable generated picture in English and Turkish;
+  desktop tests pass (PASSED); typecheck clean.
+
+### Plan templates, chain suggestions, agent browser and MCP tasks in the display language (2026-11-04)
+
+- Four conversation panels follow the display language in all seven languages: plan templates
+  (`planTemplates`), the suggested fallback chains on the model policy page
+  (`fallbackSuggest`), the live agent browser with its picker and console and network log
+  (`agentBrowser`), and the session MCP tasks page with its filters, task states, observation
+  notes and the cancellation dialog (`mcpTasks`).
+- The MCP task status table moved to the catalog (`mcpTasks.status.*`); the YOLO and
+  continuation wording in German now uses the catalog's established word for a conversation.
+- Still English by design: template names, steps and categories, model and provider ids, the
+  model's rationale, page titles, URLs and console text, MCP server, tool and task ids, and the
+  element note added to a message (it is model-facing context).
+- Checks: new `session-panels-i18n.test.ts` renders plan templates while a turn runs, a model
+  ranked chain suggestion, and an MCP task waiting for input in English and Turkish; desktop
+  tests pass (PASSED); typecheck clean.
+
+### Conversation parts in the display language (2026-11-04)
+
+- The remaining conversation pieces follow the display language in all seven languages: the
+  engine prompt queue (`composerQueue`), the paste-as-code hint (`pasteHint`), the agent mode
+  select (`agentMode`), the reported context figures (`contextLive`), the memory injector runs
+  (`memoryInjections`), the agent transcript tabs and their tool steps (`agentTabs`), the
+  keyboard shortcuts dialog (`shortcutsView`), the model comparison table (`modelCompare`), the
+  refined draft word diff (`refineCompare`), and the terminal, PDF and project tools states.
+- `shortcutGroups` gives each group and fixed shortcut an id for its translated text;
+  `comparisonRows` takes a `ComparisonWords` object with English as the default.
+- Still English by design: queued prompt text, agent and mode names, memory text and gates,
+  model names and catalog values, and the function key rows of the shortcuts dialog, which
+  use the desktop command descriptions (worded with the commands).
+- Checks: new `conversation-parts-i18n.test.ts` renders the queue, context figures, memory
+  panel, shortcuts dialog and draft diff in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.
+
+### Desktop commands and palette actions in the display language (2026-11-04)
+
+- The desktop commands follow the display language in all seven languages wherever they are
+  shown: the `/help` dialog with its categories and aliases, the slash suggestions under the
+  composer, the Ctrl+K palette's page actions, and the function key rows of the keyboard
+  shortcuts dialog (`commandHelp`). The palette's own actions are translated too
+  (`paletteActions`).
+- `desktop-command-text.ts` words a command by its name (`commandHelp.cmd.<name>`, `!` read as
+  `-force`) with the command table's English as the fallback; the table itself is unchanged.
+- Still English by design: command names, usage and aliases, and the hunt commands, whose
+  labels and descriptions come from the shared hunt table.
+- Checks: new `command-help-i18n.test.ts` checks that every command outside the hunts has a
+  catalog entry equal to its table description, and renders the help and shortcuts dialogs
+  in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Confirmation, fleet, provider visibility and review policies in the display language (2026-11-04)
+
+- Four settings panels follow the display language in all seven languages: the tool
+  confirmation mode with every destructive-operation category (`execPolicy`), fleet capacity,
+  companions and next-step guidance (`fleetPolicy`), the provider visibility control and its
+  dialog (`providerVisibility`), and the Chimera and continuous review policy
+  (`reviewPolicy`).
+- Destructive-operation categories are worded by kind with the model's English as the
+  fallback; the companion feature names stay as product names in every language.
+- Still English by design: provider ids, model references and fallback chain entries.
+- Checks: new `settings-policies-i18n.test.ts` renders the four panels with YOLO on, a disabled
+  provider and a missing review profile in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.
+
+### Tool availability, global instructions, network access, plugins and configuration check in the display language (2026-11-04)
+
+- Five more settings panels follow the display language in all seven languages: tool
+  availability with its counts, filters and per-tool cards (`toolAccess`), global instructions
+  with the editor, preview, reload and save states (`userInstructions`), browser and network
+  access (`networkPolicy`), per-plugin controls (`pluginToggles`), and the configuration
+  check with its repair confirmation (`configDoctor`).
+- Still English by design: tool names, owners, descriptions and parameters, plugin summaries
+  from the plugin catalog, the instruction file path, the browser policy messages the engine
+  returns, and changed setting paths.
+- Checks: new `settings-tools-i18n.test.ts` renders the four static panels and a loaded tool
+  catalog in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Availability windows and background services in the display language (2026-11-04)
+
+- The model availability windows follow the display language in all seven languages: each
+  window's state, behavior, provider, model, times, timezone, weekdays and local time preview,
+  including the weekday names and the accessible names of every field (`availability`). The
+  check that blocks saving an invalid window words its message the same way:
+  `availabilityIssue` takes an `AvailabilityWords` object with English as the default, and
+  `availability-words.ts` builds it for the editor and the settings save check.
+- Background services (`bgServices`) are translated, including the service states the engine
+  reports (healthy, degraded, offline, unavailable, error) with the raw value as the fallback.
+- A new window's default label is written in the display language; labels the user typed are
+  kept as typed.
+- Still English by design: provider and model ids, timezones, service names, versions and the
+  messages the engine returns for a service action.
+- Checks: new `availability-services-i18n.test.ts` renders an allow window and a service list
+  and words an invalid window in English and Turkish; desktop tests pass (PASSED); typecheck
+  clean.
+
+### Refinement, limits and cost tier settings in the display language (2026-11-04)
+
+- The prompt refinement policy with its route, saved refiner preview and sample
+  (`refinePolicy`), the context, output and worker budget limits (`limitsPolicy`), and the cost
+  tiers with their budgets, role and phase routes and leader switching (`tierPolicy`) follow
+  the display language in all seven languages.
+- The leader switching options now carry their ids as option values, so a translated label
+  never becomes the saved value.
+- Still English by design: the limit explanations and ranges from the shared limits contract,
+  tier, route and profile names, and provider and model ids.
+- Checks: new `refine-limits-i18n.test.ts` renders the three panels with a missing refiner
+  profile and a tier in English and Turkish and checks the saved option value; desktop tests
+  pass (PASSED); typecheck clean.
+
+### Jev judgments and model visibility in the display language (2026-11-04)
+
+- The Jev settings (`jevSettings`) follow the display language in all seven languages: the
+  account line, route, model, endpoint, timeout and key fields, the actions, each judgment's
+  name, the judgment check report and the activity list. Judgment names are worded by id with
+  the English table as the fallback.
+- Model visibility (`modelVisibility`) is translated: the provider, search and filter controls,
+  each model card, the saved model and provider rules, and the review dialog with the
+  references it removes.
+- Still English by design: account status and readiness values, judgment outcomes and reasons
+  from the engine, and provider, model and rule ids.
+- Checks: new `jev-visibility-i18n.test.ts` renders both panels with engine replies in English
+  and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Fallback chains, profiles and model routes in the display language (2026-11-04)
+
+- The model policy settings (`modelPolicy`) follow the display language in all seven
+  languages: the shared model reference field and catalog notice, ordered fallback chains with
+  their move and remove controls, named fallback profiles, and the role and phase model routes
+  with their reasoning controls. The review, refinement and tier settings that reuse these
+  fields pick up the same wording.
+- Profile options now carry the profile name as their value explicitly.
+- Still English by design: profile and route names, provider and model references, and the
+  reasoning mode and effort values the engine accepts.
+- Checks: new `model-policy-i18n.test.ts` renders the fallback and routing panels with a
+  referenced profile in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Provider health, quota and model access tests in the display language (2026-11-04)
+
+- Provider health and quota (`providerHealth`) follow the display language in all seven
+  languages: quota cards with their windows, resets, balance and observation note, the refresh
+  results, the model waiting room with its counters and clear confirmation, and the recent
+  provider events. `quotaPercent` and the date helper take the missing-value word from the
+  caller with English as the default.
+- Model access tests (`providerTests`) are translated, including the run summary, the result
+  table headings and the reported result states (with the raw value as the fallback).
+- Still English by design: provider, meter, window and model ids, error kinds and messages from
+  the engine, and balance values.
+- Checks: new `provider-pages-i18n.test.ts` renders a quota card, the health page and the
+  model tests in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### The TechStack page in the display language (2026-11-04)
+
+- The project TechStack page (`techStack`) follows the display language in all seven
+  languages: analysis depth and model, the job card, the summary counters, the snapshot note,
+  the views, dependency filters and table, workspaces, findings and the report export.
+- `techstack-text.ts` words the engine's TechStack values (dependency status, scope, coverage,
+  job phase, depth and severity) through `techStack.value.*`, with the engine's own words as
+  the fallback for values added later. Severity and research model options now carry their
+  values explicitly.
+- Still English by design: package, ecosystem, workspace and model names, versions, file
+  paths, and errors returned by the engine. The dependency detail, trends and remediation
+  panels are translated separately.
+- Checks: new `techstack-i18n.test.ts` renders a saved snapshot in English and Turkish; desktop
+  tests pass (PASSED); typecheck clean.
+
+### TechStack dependency detail, trends and remediation in the display language (2026-11-04)
+
+- The rest of the TechStack page follows the display language in all seven languages: the
+  dependency detail with its version facts, registry flags, findings and evidence
+  (`techDetail`), the health trends with the chart and version movement table (`techTrends`),
+  and the remediation plan with selection, confirmation and results (`techRemedy`).
+- Evidence kinds, finding types and finding actions join the shared `techStack.value.*` words;
+  every TechStack view now words engine values through `techWord`.
+- Still English by design: package names, versions, licenses, package URLs, rationales,
+  breaking-risk notes, suggested commands and engine details.
+- Checks: new `techstack-panels-i18n.test.ts` renders a dependency with a model finding, the
+  trends and a remediation plan in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.
+
+### Project Kit in the display language (2026-11-04)
+
+- The Project Kit page follows the display language in all seven languages: the catalog,
+  effect labels, detail facts, run preparation, prepared request, tests, history and source
+  files (`projectKit`), the kit creation request (`kitCreate`), the saved-parameter conflict and
+  restore notices (`kitDraft`), and the parameter form, value view and schema details
+  (`kitForm`).
+- Form feedback is worded through the catalog too: `kitInputErrors` takes a `say` function
+  (English by default) and the page passes `kitErrors.*`.
+- Still English by design: kit names, descriptions, guides, parameter names, schema types,
+  run actions and statuses, engine errors, and the model-facing kit and creation requests.
+- Checks: new `kit-i18n.test.ts` renders the form, value view, schema details, creation
+  request and page in English and Turkish and words form feedback in Turkish; desktop tests
+  pass (PASSED); typecheck clean.
+
+### Prompt library, template form and journal in the display language (2026-11-04)
+
+- The prompt workspace dialog (`promptWorkspace`), the prompt library with its filters,
+  preview, variables and insert actions (`promptLibrary`), the template authoring form
+  (`promptTemplate`) and the prompt journal with its filters, entries, paging and export
+  notices (`promptJournal`) follow the display language in all seven languages.
+- Still English by design: template titles, categories, sources, variant names, variable
+  names, prompt text, engine errors, and the exported Markdown/JSONL file contents.
+- Checks: new `prompt-library-i18n.test.ts` renders the template form and a journal page in
+  English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Prompt refinement and instruction presets in the display language (2026-11-04)
+
+- The prompt refinement dialog with its versions, recovery guidance, refiner options and
+  send actions (`refineDialog`), the saved refinement notice in the composer (`savedRefine`)
+  and the instruction presets editor with variant names, scope choices, source review and
+  checks (`systemPrompts`) follow the display language in all seven languages.
+- Refinement recovery reports its guidance as a code (`kind`), so the dialog words it from the
+  catalog; the English `guidance` stays for other callers.
+- Still English by design: prompt and refined text, preset names and instruction text,
+  validation messages from the engine, provider and model ids, and engine errors.
+- Checks: new `prompt-refine-i18n.test.ts` renders the refinement dialog, the saved notice and
+  the presets editor in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### MCP connection editing and authorization in the display language (2026-11-04)
+
+- The MCP connection editor (`mcpEditor`), the environment and header editor with separate
+  wording per kind (`mcpSecrets.env.*`, `mcpSecrets.headers.*`) and the OAuth authorization
+  panel (`mcpAuth`) follow the display language in all seven languages.
+- The authorization summary is worded through the catalog: `mcpAuthSummary` takes a `say`
+  function (English by default) and the panel passes `mcpAuth.summary.*`.
+- Still English by design: connection names, executables, arguments, URLs, environment and
+  header names, scopes, client ids and engine messages.
+- Checks: new `mcp-connection-i18n.test.ts` renders the editor and the authorization panel in
+  English and Turkish and words an authorization summary in Turkish; desktop tests pass
+  (PASSED); typecheck clean.
+
+### MCP content, tools and composer picker in the display language (2026-11-04)
+
+- The MCP resources and prompts browser (`mcpContent`), the tool runner (`mcpTools`) and the
+  composer's MCP picker (`mcpPicker`) follow the display language in all seven languages.
+- `parseToolInput` reports why input was refused (`reason: 'json' | 'object'`, with the parser
+  `detail`), so the runner words it from the catalog; the English `error` stays.
+- Still English by design: server, resource, prompt and tool names, URIs, descriptions,
+  prompt roles, server status values, the JSON parser detail, engine messages, and the text
+  copied or appended to the draft with its source attribution.
+- Checks: new `mcp-content-i18n.test.ts` renders the picker, the content browser and the tool
+  runner in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Desktop Kanban tools in the display language (2026-11-04)
+
+- The desktop-only Kanban tools follow the display language in all seven languages: task
+  release and board transfer (`kanbanTask`), merge (`kanbanMerge`), chain (`kanbanChain`),
+  goal metrics with their statuses (`kanbanMetrics`), the board toolbar and the board creation
+  dialog (`kanbanBoard`), and the contract map with its kinds, states, enforcement levels and
+  relation types (`contractMap`).
+- Metric status, contract kind and enforcement options now carry an explicit `value`, so the
+  engine still receives the enum value while the label is translated; `endpointLabel` takes the
+  kind and card wording (English by default).
+- Still English by design: card, board, metric and contract titles, waiver actors and reasons,
+  engine messages, the release reason sent to the engine, and the exported task graph.
+- Checks: new `kanban-task-i18n.test.ts` and `kanban-board-i18n.test.ts` render the task tools,
+  the board dialog and the contract map in English and Turkish; desktop tests pass (PASSED);
+  typecheck clean.
+
+### Worktrees in the display language (2026-11-04)
+
+- The project worktrees page with live checkouts, change summaries, leftovers and their
+  confirmations (`worktrees`), the list/lanes/graph layouts with worktree statuses
+  (`worktreeView`) and the worktree history timeline with outcomes, phases, failure stages and
+  lifecycle steps (`worktreeHistory`) follow the display language in all seven languages.
+- Cleanup and merge results are worded through the catalog: `cleanupOutcome` and
+  `mergeOutcome` take a `say` function (English by default).
+- Still English by design: branch names, directories, owner labels, file paths, commit hashes,
+  engine reasons and errors, and durations.
+- Checks: new `worktree-i18n.test.ts` renders the lanes and the history and words cleanup and
+  merge results in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Desktop Code Atlas additions in the display language (2026-11-04)
+
+- The desktop's additions to the shared Code Atlas follow the display language in all seven
+  languages: the index button and analysis tabs (`atlasHost`), the subsystem, dependency
+  matrix and change impact views (`atlasViews`), the boundary map (`atlasBoundary`), the node
+  evidence with facts, centrality, WrongTrace signals, SAGE knowledge and file history
+  (`atlasDetails`), and the graph canvas controls and caption (`graphCanvas`).
+- The analysis tab labels are read when the shared atlas renders, so they follow a language
+  change without rebuilding the host.
+- Still English by design: file, symbol, subsystem and group names, relation labels, memory
+  text and kinds, journal summaries and actors, and engine errors.
+- Checks: new `atlas-i18n.test.ts` renders the three analysis views and the node evidence and
+  reads the tab labels in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Code Assist, model picker and the last desktop views in the display language (2026-11-04)
+
+- Code Assist with its presets and edit notes (`codeAssist`), the before/after edit review
+  (`codeReview`), the engine data panels (`engineData`), the Brain decisions panel and answers
+  (`brainDecisions`), the profile model picker with its comparison bar and detail line
+  (`modelPicker`) and the saved form input conflict (`persistedFields`) follow the display
+  language in all seven languages.
+- `brainAnswerText` and `modelDetailLine` take their wording as a parameter (English by
+  default); the `/brain` command output stays English.
+- With this batch every desktop-v2 component that renders its own text reads the catalog. The
+  re-scan finds only invariant errors and DOM lookups, no shown text.
+- Still English by design: file paths, symbols, model and provider ids, engine statuses and
+  errors, Brain questions and outcomes, and the saved form input format error.
+- Checks: new `assist-misc-i18n.test.ts` renders Code Assist, the edit review, an engine data
+  panel and the Brain panel and words a Brain answer and a model detail line in English and
+  Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Focus shortcuts work in every display language (2026-11-04)
+
+- Defect: Ctrl+/ (focus the composer) and a repeated Ctrl+F (back to the find field) looked
+  their target up by its English accessible name (`Message WrongStack`, `Find in
+  conversation`). Since those names follow the display language, both shortcuts did nothing in
+  any language but English.
+- Fix: the composer is found by its `.composer-input` container and the find field by a
+  `data-find-input` marker that names its scope. Accessible names are unchanged.
+- Checks: new `translated-focus-shortcuts.test.ts` presses both shortcuts in a Turkish window
+  and checks where focus lands; desktop tests pass (PASSED); typecheck clean.

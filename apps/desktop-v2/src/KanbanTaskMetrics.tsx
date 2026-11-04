@@ -1,5 +1,6 @@
 import { Gauge } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 
@@ -29,6 +30,7 @@ export function KanbanTaskMetrics({
   disabled: boolean;
   onDone: () => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const taskId = String(task['id']);
   const metrics = entries(task['goalMetrics']).filter((m) => typeof m['id'] === 'string');
   const [edits, setEdits] = useState<Record<string, { current: string; status: string }>>({}),
@@ -53,7 +55,8 @@ export function KanbanTaskMetrics({
   return (
     <details className="kanban-task-merge">
       <summary>
-        <Gauge size={13} /> Goal metrics{metrics.length ? ` · ${metrics.length}` : ''}
+        <Gauge size={13} /> {t('kanbanMetrics.title')}
+        {metrics.length ? ` · ${metrics.length}` : ''}
       </summary>
       <fieldset disabled={disabled || busy}>
         {metrics.map((metric) => {
@@ -68,25 +71,30 @@ export function KanbanTaskMetrics({
                 {String(metric['name'] ?? id)}
                 <small>
                   {' '}
-                  · target {String(metric['target'] ?? '—')} {String(metric['unit'] ?? '')}
+                  {t('kanbanMetrics.target', {
+                    target: String(metric['target'] ?? '—'),
+                    unit: String(metric['unit'] ?? ''),
+                  })}
                 </small>
               </span>
               <input
-                aria-label={`Current value of ${String(metric['name'] ?? id)}`}
+                aria-label={t('kanbanMetrics.current', { name: String(metric['name'] ?? id) })}
                 value={edit.current}
                 onChange={(event) =>
                   setEdits({ ...edits, [id]: { ...edit, current: event.target.value } })
                 }
               />
               <select
-                aria-label={`Status of ${String(metric['name'] ?? id)}`}
+                aria-label={t('kanbanMetrics.statusOf', { name: String(metric['name'] ?? id) })}
                 value={edit.status}
                 onChange={(event) =>
                   setEdits({ ...edits, [id]: { ...edit, status: event.target.value } })
                 }
               >
                 {METRIC_STATUSES.map((status) => (
-                  <option key={status}>{status}</option>
+                  <option key={status} value={status}>
+                    {t(`kanbanMetrics.status.${status}`)}
+                  </option>
                 ))}
               </select>
               <button
@@ -102,7 +110,7 @@ export function KanbanTaskMetrics({
                       status: edit.status,
                       ...(current !== undefined ? { current } : {}),
                     },
-                    `Updated ${String(metric['name'] ?? id)}.`,
+                    t('kanbanMetrics.updated', { name: String(metric['name'] ?? id) }),
                   ).then((ok) => {
                     if (!ok) return;
                     const { [id]: _saved, ...rest } = edits;
@@ -110,27 +118,27 @@ export function KanbanTaskMetrics({
                   });
                 }}
               >
-                Save
+                {t('kanbanMetrics.save')}
               </button>
             </div>
           );
         })}
         <div className="kanban-metric-row">
           <input
-            aria-label="New metric name"
-            placeholder="New metric, e.g. p95 latency"
+            aria-label={t('kanbanMetrics.newName')}
+            placeholder={t('kanbanMetrics.namePlaceholder')}
             value={draft.name}
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
           />
           <input
-            aria-label="New metric target"
-            placeholder="Target"
+            aria-label={t('kanbanMetrics.newTarget')}
+            placeholder={t('kanbanMetrics.targetPlaceholder')}
             value={draft.target}
             onChange={(event) => setDraft({ ...draft, target: event.target.value })}
           />
           <input
-            aria-label="New metric unit"
-            placeholder="Unit"
+            aria-label={t('kanbanMetrics.newUnit')}
+            placeholder={t('kanbanMetrics.unitPlaceholder')}
             value={draft.unit}
             onChange={(event) => setDraft({ ...draft, unit: event.target.value })}
           />
@@ -147,11 +155,11 @@ export function KanbanTaskMetrics({
                   ...(target !== undefined ? { target } : {}),
                   ...(draft.unit.trim() ? { unit: draft.unit.trim() } : {}),
                 },
-                `Added ${draft.name.trim()}.`,
+                t('kanbanMetrics.added', { name: draft.name.trim() }),
               ).then((ok) => ok && setDraft({ name: '', target: '', unit: '' }));
             }}
           >
-            Add metric
+            {t('kanbanMetrics.add')}
           </button>
         </div>
       </fieldset>

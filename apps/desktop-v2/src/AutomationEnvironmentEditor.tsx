@@ -6,6 +6,7 @@ import {
 import { Download, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { environmentDraft, environmentProfile } from './automation-environment-model';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { useEnvironmentDraft } from './useEnvironmentDraft';
 
@@ -24,6 +25,7 @@ export function AutomationEnvironmentEditor({
   projectId: string;
   jobId: string | undefined;
 }) {
+  const { t } = useDesktopText();
   const base = useMemo(() => environmentDraft(value, image), [value, image]);
   const [draft, setDraft] = useState(base);
   const [error, setError] = useState(''),
@@ -43,13 +45,15 @@ export function AutomationEnvironmentEditor({
     restore: (next, savedAt) => {
       setDraft(next);
       setRestored(
-        `Restored unapplied environment edits${savedAt ? ` from ${new Date(savedAt).toLocaleString()}` : ''}.`,
+        savedAt
+          ? t('autoEnv.restoredAt', { time: new Date(savedAt).toLocaleString() })
+          : t('autoEnv.restored'),
       );
     },
   });
   const close = () => (dirty ? setLeaving(true) : onClose());
   return (
-    <Modal title="Automation environment" onClose={close}>
+    <Modal title={t('autoEnv.title')} onClose={close}>
       <form
         className="automation-environment-editor"
         onSubmit={(event) => {
@@ -65,22 +69,19 @@ export function AutomationEnvironmentEditor({
       >
         <header>
           <div>
-            <span className="eyebrow">REUSABLE ENVIRONMENT</span>
-            <h2>Prepare the workspace.</h2>
+            <span className="eyebrow">{t('autoEnv.eyebrow')}</span>
+            <h2>{t('autoEnv.heading')}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close automation environment"
+            aria-label={t('autoEnv.close')}
             onClick={close}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Define the copied workspace, setup steps and supporting containers. Applying changes
-          updates the job draft; Save automation persists them.
-        </p>
+        <p>{t('autoEnv.intro')}</p>
         {error && (
           <p role="alert" className="session-error">
             {error}
@@ -98,41 +99,38 @@ export function AutomationEnvironmentEditor({
         )}
         {saved.older && (
           <div className="automation-leave" role="alert">
-            <p>
-              Unapplied edits were saved from a different version of this environment; it has
-              changed since.
-            </p>
+            <p>{t('autoEnv.older')}</p>
             <button type="button" className="button secondary" onClick={saved.takeOlder}>
-              Use unapplied edits
+              {t('autoEnv.useOlder')}
             </button>
             <button type="button" className="button secondary" onClick={saved.discardOlder}>
-              Discard them
+              {t('autoEnv.discardOlder')}
             </button>
           </div>
         )}
         <div className="automation-config-grid">
           <label>
-            Profile name
+            {t('autoEnv.profileName')}
             <input
-              aria-label="Environment profile name"
+              aria-label={t('autoEnv.profileNameLabel')}
               required
               value={draft.name}
               onChange={(event) => change({ ...draft, name: event.target.value })}
             />
           </label>
           <label>
-            Workspace image
+            {t('autoEnv.image')}
             <input
-              aria-label="Environment workspace image"
+              aria-label={t('autoEnv.imageLabel')}
               required
               value={draft.image}
               onChange={(event) => change({ ...draft, image: event.target.value })}
             />
           </label>
           <label>
-            Setup timeout (seconds)
+            {t('autoEnv.timeout')}
             <input
-              aria-label="Environment setup timeout"
+              aria-label={t('autoEnv.timeoutLabel')}
               type="number"
               min={1}
               max={3600}
@@ -143,13 +141,10 @@ export function AutomationEnvironmentEditor({
           </label>
         </div>
         <section>
-          <h3>Setup commands</h3>
-          <p>
-            One executable command per line. Quotes group arguments; shell expansion is not
-            performed.
-          </p>
+          <h3>{t('autoEnv.setup')}</h3>
+          <p>{t('autoEnv.setupHelp')}</p>
           <textarea
-            aria-label="Environment setup commands"
+            aria-label={t('autoEnv.setupLabel')}
             rows={4}
             value={draft.setup}
             onChange={(event) => change({ ...draft, setup: event.target.value })}
@@ -158,7 +153,7 @@ export function AutomationEnvironmentEditor({
         </section>
         <section>
           <header>
-            <h3>Service containers</h3>
+            <h3>{t('autoEnv.services')}</h3>
             <button
               type="button"
               className="button secondary"
@@ -174,31 +169,20 @@ export function AutomationEnvironmentEditor({
               }
             >
               <Plus size={14} />
-              Add service
+              {t('autoEnv.addService')}
             </button>
           </header>
-          <p>
-            Services join the isolated environment network. Health checks must succeed before the
-            job starts.
-          </p>
-          {!draft.services.length && <p className="quiet-state">No supporting services.</p>}
+          <p>{t('autoEnv.servicesHelp')}</p>
+          {!draft.services.length && <p className="quiet-state">{t('autoEnv.noServices')}</p>}
           {draft.services.map((service, index) => (
-            <fieldset key={index} aria-label={`Environment service ${index + 1}`}>
-              <legend>Service {index + 1}</legend>
+            <fieldset key={index} aria-label={t('autoEnv.serviceGroup', { n: index + 1 })}>
+              <legend>{t('autoEnv.service', { n: index + 1 })}</legend>
               <div className="automation-config-grid">
-                {(
-                  [
-                    ['name', 'Name'],
-                    ['image', 'Image'],
-                    ['command', 'Startup command (optional)'],
-                    ['health', 'Health command'],
-                    ['envNames', 'Environment names (comma separated)'],
-                  ] as const
-                ).map(([key, label]) => (
+                {(['name', 'image', 'command', 'health', 'envNames'] as const).map((key) => (
                   <label key={key}>
-                    {label}
+                    {t(`autoEnv.field.${key}`)}
                     <input
-                      aria-label={`Service ${index + 1} ${key}`}
+                      aria-label={t('autoEnv.serviceField', { n: index + 1, field: key })}
                       value={service[key]}
                       required={key === 'name' || key === 'image' || key === 'health'}
                       onChange={(event) =>
@@ -216,20 +200,20 @@ export function AutomationEnvironmentEditor({
               <button
                 type="button"
                 className="text-link"
-                aria-label={`Remove environment service ${index + 1}`}
+                aria-label={t('autoEnv.removeServiceLabel', { n: index + 1 })}
                 onClick={() =>
                   change({ ...draft, services: draft.services.filter((_, i) => i !== index) })
                 }
               >
                 <Trash2 size={13} />
-                Remove service
+                {t('autoEnv.removeService')}
               </button>
             </fieldset>
           ))}
         </section>
         <section>
           <header>
-            <h3>Package caches</h3>
+            <h3>{t('autoEnv.caches')}</h3>
             <button
               type="button"
               className="button secondary"
@@ -242,20 +226,20 @@ export function AutomationEnvironmentEditor({
               }
             >
               <Plus size={14} />
-              Add cache
+              {t('autoEnv.addCache')}
             </button>
           </header>
-          <p>Use /home/node/.bun/install/cache or a named directory under /home/node/.cache/.</p>
-          {!draft.caches.length && <p className="quiet-state">No persistent package caches.</p>}
+          <p>{t('autoEnv.cachesHelp')}</p>
+          {!draft.caches.length && <p className="quiet-state">{t('autoEnv.noCaches')}</p>}
           {draft.caches.map((cache, index) => (
-            <fieldset key={index} aria-label={`Environment cache ${index + 1}`}>
-              <legend>Cache {index + 1}</legend>
+            <fieldset key={index} aria-label={t('autoEnv.cacheGroup', { n: index + 1 })}>
+              <legend>{t('autoEnv.cache', { n: index + 1 })}</legend>
               <div className="automation-config-grid">
                 {(['name', 'target'] as const).map((key) => (
                   <label key={key}>
-                    {key === 'name' ? 'Name' : 'Container directory'}
+                    {t(`autoEnv.field.${key}`)}
                     <input
-                      aria-label={`Cache ${index + 1} ${key}`}
+                      aria-label={t('autoEnv.cacheField', { n: index + 1, field: key })}
                       required
                       value={cache[key]}
                       onChange={(event) =>
@@ -273,20 +257,20 @@ export function AutomationEnvironmentEditor({
               <button
                 type="button"
                 className="text-link"
-                aria-label={`Remove environment cache ${index + 1}`}
+                aria-label={t('autoEnv.removeCacheLabel', { n: index + 1 })}
                 onClick={() =>
                   change({ ...draft, caches: draft.caches.filter((_, i) => i !== index) })
                 }
               >
                 <Trash2 size={13} />
-                Remove cache
+                {t('autoEnv.removeCache')}
               </button>
             </fieldset>
           ))}
         </section>
         <section>
           <header>
-            <h3>Local preview ports</h3>
+            <h3>{t('autoEnv.ports')}</h3>
             <button
               type="button"
               className="button secondary"
@@ -299,22 +283,19 @@ export function AutomationEnvironmentEditor({
               }
             >
               <Plus size={14} />
-              Add port
+              {t('autoEnv.addPort')}
             </button>
           </header>
-          <p>
-            Ports are published to loopback by the worker. The run receipt reports the assigned host
-            ports.
-          </p>
-          {!draft.ports.length && <p className="quiet-state">No published local ports.</p>}
+          <p>{t('autoEnv.portsHelp')}</p>
+          {!draft.ports.length && <p className="quiet-state">{t('autoEnv.noPorts')}</p>}
           {draft.ports.map((port, index) => (
-            <fieldset key={index} aria-label={`Environment port ${index + 1}`}>
-              <legend>Port {index + 1}</legend>
+            <fieldset key={index} aria-label={t('autoEnv.portGroup', { n: index + 1 })}>
+              <legend>{t('autoEnv.port', { n: index + 1 })}</legend>
               <div className="automation-config-grid">
                 <label>
-                  Name
+                  {t('autoEnv.name')}
                   <input
-                    aria-label={`Port ${index + 1} name`}
+                    aria-label={t('autoEnv.portField', { n: index + 1, field: 'name' })}
                     required
                     value={port.name}
                     onChange={(event) =>
@@ -328,9 +309,9 @@ export function AutomationEnvironmentEditor({
                   />
                 </label>
                 <label>
-                  Container port
+                  {t('autoEnv.containerPort')}
                   <input
-                    aria-label={`Port ${index + 1} port`}
+                    aria-label={t('autoEnv.portField', { n: index + 1, field: 'port' })}
                     type="number"
                     min={1024}
                     max={65535}
@@ -347,9 +328,9 @@ export function AutomationEnvironmentEditor({
                   />
                 </label>
                 <label>
-                  Protocol
+                  {t('autoEnv.protocol')}
                   <select
-                    aria-label={`Port ${index + 1} protocol`}
+                    aria-label={t('autoEnv.portField', { n: index + 1, field: 'protocol' })}
                     value={port.protocol}
                     onChange={(event) =>
                       change({
@@ -370,30 +351,30 @@ export function AutomationEnvironmentEditor({
               <button
                 type="button"
                 className="text-link"
-                aria-label={`Remove environment port ${index + 1}`}
+                aria-label={t('autoEnv.removePortLabel', { n: index + 1 })}
                 onClick={() =>
                   change({ ...draft, ports: draft.ports.filter((_, i) => i !== index) })
                 }
               >
                 <Trash2 size={13} />
-                Remove port
+                {t('autoEnv.removePort')}
               </button>
             </fieldset>
           ))}
         </section>
         <details>
-          <summary>Portable environment</summary>
-          <p>Import or export the canonical reusable environment document.</p>
+          <summary>{t('autoEnv.portable')}</summary>
+          <p>{t('autoEnv.portableHelp')}</p>
           <label className="button secondary feature-import">
-            Import environment
+            {t('autoEnv.import')}
             <input
               type="file"
               accept="application/json,.json"
-              aria-label="Import environment profile"
+              aria-label={t('autoEnv.importLabel')}
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file && file.size > 64 * 1024) {
-                  setError('Environment profile exceeds 64 KiB.');
+                  setError(t('autoEnv.tooLarge'));
                   event.target.value = '';
                   return;
                 }
@@ -426,14 +407,14 @@ export function AutomationEnvironmentEditor({
             }}
           >
             <Download size={14} />
-            Export environment
+            {t('autoEnv.export')}
           </button>
         </details>
         {leaving && (
           <div className="automation-leave" role="alert">
-            <p>Discard changes to this environment form?</p>
+            <p>{t('autoEnv.leaveAsk')}</p>
             <button type="button" className="button secondary" onClick={() => setLeaving(false)}>
-              Keep editing environment
+              {t('autoEnv.keepEditing')}
             </button>
             <button
               type="button"
@@ -443,14 +424,14 @@ export function AutomationEnvironmentEditor({
                 onClose();
               }}
             >
-              Discard environment changes
+              {t('autoEnv.discard')}
             </button>
           </div>
         )}
         <footer>
-          <span>Changes stay in the automation draft until saved.</span>
+          <span>{t('autoEnv.footer')}</span>
           <button type="submit" className="button primary">
-            Apply environment to draft
+            {t('autoEnv.apply')}
           </button>
         </footer>
       </form>

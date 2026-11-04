@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { DurableFormDraft, type FormDraftStorage } from './durable-form-draft';
 import type { AgentModelPlan } from './session-agent-plan';
 import { type AgentPlanDraft, agentPlanDraftCodec } from './session-agent-plan-draft';
@@ -28,6 +29,7 @@ export function useAgentPlanDraft({
   dirty: boolean;
   apply: (plan: AgentModelPlan, notice: string) => void;
 }) {
+  const { t } = useDesktopText();
   const store = useMemo(
     () => (storage ? new DurableFormDraft(storage, agentPlanDraftCodec) : null),
     [storage],
@@ -64,10 +66,7 @@ export function useAgentPlanDraft({
     continueStale: () => {
       if (!stale) return;
       setStale(null);
-      apply(
-        stale.plan,
-        'Restored your older draft over the current session plan. Review before saving.',
-      );
+      apply(stale.plan, t('agentPlan.draft.restored'));
     },
     discardStale: () => {
       setStale(null);
@@ -80,46 +79,43 @@ export function useAgentPlanDraft({
     resolve: async (choice: 'local' | 'saved') => {
       const saved = state?.review?.value;
       if (!(await store?.resolve(choice))) return;
-      if (choice === 'saved' && saved)
-        apply(saved.plan, 'Using the draft saved by another window.');
+      if (choice === 'saved' && saved) apply(saved.plan, t('agentPlan.draft.fromOther'));
     },
   };
 }
 
 export function AgentPlanDraftStatus({ draft }: { draft: ReturnType<typeof useAgentPlanDraft> }) {
+  const { t } = useDesktopText();
   const { state, stale } = draft;
   if (stale)
     return (
       <div className="agent-plan-confirm" role="alert">
-        <p>
-          A saved draft of this plan was edited from an older version; the session plan has changed
-          since.
-        </p>
+        <p>{t('agentPlan.draft.stale')}</p>
         <button type="button" className="button secondary" onClick={draft.continueStale}>
-          Use my older draft
+          {t('agentPlan.draft.useOlder')}
         </button>
         <button type="button" className="button secondary" onClick={draft.discardStale}>
-          Discard saved draft
+          {t('agentPlan.draft.discard')}
         </button>
       </div>
     );
   if (state?.review)
     return (
       <div className="agent-plan-confirm" role="alert">
-        <p>Another window saved a different unsaved draft of this plan.</p>
+        <p>{t('agentPlan.draft.conflict')}</p>
         <button
           type="button"
           className="button secondary"
           onClick={() => void draft.resolve('local')}
         >
-          Keep this window’s plan
+          {t('agentPlan.draft.keepLocal')}
         </button>
         <button
           type="button"
           className="button secondary"
           onClick={() => void draft.resolve('saved')}
         >
-          Use saved draft
+          {t('agentPlan.draft.useSaved')}
         </button>
       </div>
     );

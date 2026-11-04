@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 export function PromptTemplateForm({
   command,
@@ -15,6 +18,7 @@ export function PromptTemplateForm({
   onCancel: () => void;
   onCreated: (slug: string) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const [title, setTitle] = useState(''),
     [description, setDescription] = useState(''),
     [category, setCategory] = useState(''),
@@ -38,7 +42,7 @@ export function PromptTemplateForm({
   ];
   const save = async () => {
     if (!title.trim() || !content.trim()) {
-      setError('Enter a title and prompt instructions.');
+      setError(t('promptTemplate.enterTitle'));
       return;
     }
     setBusy(true);
@@ -53,9 +57,7 @@ export function PromptTemplateForm({
           .slice(0, 64) || 'prompt';
       const fresh = await command('prompts.list', {}, ['prompts.list']);
       if (entries(fresh['prompts']).some((row) => row['slug'] === slug))
-        throw Error(
-          'A prompt with this identifier already exists. Choose a different title to avoid replacing it.',
-        );
+        throw Error(t('promptTemplate.exists'));
       const result = await command(
         'prompts.create',
         {
@@ -74,10 +76,10 @@ export function PromptTemplateForm({
         ['prompts.created'],
       );
       if (result['success'] === false)
-        throw Error(String(result['error'] ?? 'The prompt was not saved. Your draft is kept.'));
+        throw Error(String(result['error'] ?? t('promptTemplate.notSaved')));
       const doc = await command('prompts.content', { slug: result['slug'] }, ['prompts.content']);
       if (doc['found'] !== true || doc['content'] !== content)
-        throw Error('The saved template did not match readback. Your draft is kept.');
+        throw Error(t('promptTemplate.mismatch'));
       onDirty(false);
       await onCreated(String(result['slug']));
     } catch (e) {
@@ -88,10 +90,15 @@ export function PromptTemplateForm({
   };
   return (
     <div className="prompt-authoring">
-      <h3>Create a reusable prompt</h3>
+      <h3>{t('promptTemplate.title')}</h3>
       <p>
-        Saved in your user prompt library. Use <code>{'{{name}}'}</code> for variables; existing
-        prompts are checked before saving.
+        <Trans
+          i18n={surfaceI18n}
+          ns="desktop"
+          i18nKey="promptTemplate.intro"
+          values={{ token: '{{name}}' }}
+          components={{ code: <code /> }}
+        />
       </p>
       {error && (
         <p role="alert" className="composer-error">
@@ -99,18 +106,18 @@ export function PromptTemplateForm({
         </p>
       )}
       <label>
-        Title
+        {t('promptTemplate.titleField')}
         <input
-          aria-label="Template title"
+          aria-label={t('promptTemplate.titleLabel')}
           value={title}
           disabled={busy}
           onChange={(e) => setTitle(e.target.value)}
         />
       </label>
       <label>
-        Description
+        {t('promptTemplate.description')}
         <input
-          aria-label="Template description"
+          aria-label={t('promptTemplate.descriptionLabel')}
           value={description}
           disabled={busy}
           onChange={(e) => setDescription(e.target.value)}
@@ -118,29 +125,29 @@ export function PromptTemplateForm({
       </label>
       <div className="resource-form-row">
         <label>
-          Category
+          {t('promptTemplate.category')}
           <input
-            aria-label="Template category"
+            aria-label={t('promptTemplate.categoryLabel')}
             value={category}
             disabled={busy}
             onChange={(e) => setCategory(e.target.value)}
           />
         </label>
         <label>
-          Tags
+          {t('promptTemplate.tags')}
           <input
-            aria-label="Template tags"
+            aria-label={t('promptTemplate.tagsLabel')}
             value={tags}
             disabled={busy}
             onChange={(e) => setTags(e.target.value)}
-            placeholder="review, testing"
+            placeholder={t('promptTemplate.tagsPlaceholder')}
           />
         </label>
       </div>
       <label>
-        Instructions
+        {t('promptTemplate.instructions')}
         <textarea
-          aria-label="Template instructions"
+          aria-label={t('promptTemplate.instructionsLabel')}
           value={content}
           disabled={busy}
           onChange={(e) => setContent(e.target.value)}
@@ -148,7 +155,7 @@ export function PromptTemplateForm({
       </label>
       {variables.length > 0 && (
         <fieldset className="template-required">
-          <legend>Required variables</legend>
+          <legend>{t('promptTemplate.requiredVariables')}</legend>
           {variables.map((name) => (
             <label key={name}>
               <input
@@ -170,12 +177,12 @@ export function PromptTemplateForm({
       )}
       {discard && (
         <div className="resource-leave">
-          <p>Discard the unsaved template?</p>
+          <p>{t('promptTemplate.discardQuestion')}</p>
           <button type="button" onClick={onCancel}>
-            Discard new template
+            {t('promptTemplate.discard')}
           </button>
           <button type="button" onClick={() => setDiscard(false)}>
-            Keep editing
+            {t('promptTemplate.keepEditing')}
           </button>
         </div>
       )}
@@ -186,7 +193,7 @@ export function PromptTemplateForm({
           disabled={busy}
           onClick={() => (dirty ? setDiscard(true) : onCancel())}
         >
-          Back to library
+          {t('promptTemplate.back')}
         </button>
         <button
           type="button"
@@ -194,7 +201,7 @@ export function PromptTemplateForm({
           disabled={busy}
           onClick={() => void save()}
         >
-          {busy ? 'Saving…' : 'Save template'}
+          {busy ? t('promptTemplate.saving') : t('promptTemplate.save')}
         </button>
       </footer>
     </div>

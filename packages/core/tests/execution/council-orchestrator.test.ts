@@ -1453,4 +1453,67 @@ describe('CouncilOrchestrator — deliberation rounds', () => {
     expect(result.roundVotes).toHaveLength(1);
     expect(callCount).toBe(1);
   });
+
+  it('preserves deliberationChanges and veto-fold warnings across 3+ rounds and when the final round falls back (F935)', async () => {
+    const { caller } = roundCaller({
+      a: [
+        '{"optionId":"hold","rationale":"round 1 veto stance"}',
+        '{"optionId":"merge","rationale":"round 2 fold"}',
+        '{"optionId":"merge","rationale":"round 3 steady"}',
+      ],
+      b: [
+        '{"optionId":"merge","rationale":"ship"}',
+        '{"optionId":"merge","rationale":"ship"}',
+        '{"optionId":"merge","rationale":"ship"}',
+      ],
+    });
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const threeRoundRes = await orchestrator.ask({
+      ...QUESTION,
+      profile: threeSeats({
+        seats: [
+          { id: 'a', persona: 'skeptic', veto: true },
+          { id: 'b', persona: 'executor' },
+        ],
+        deliberationRounds: 3,
+      }),
+    });
+    expect(threeRoundRes.deliberationChanges).toBe(1);
+    expect(threeRoundRes.warnings?.some((w) => w.includes('veto seat "a" changed its vote'))).toBe(
+      true,
+    );
+
+    const seen = new Map<string, number>();
+    const fallbackCaller: CouncilLLMCaller = {
+      async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
+        const seatId = /Seat id: ([a-z0-9-]+)/.exec(input.userPrompt ?? '')?.[1] ?? 'unknown';
+        const r = (seen.get(seatId) ?? 0) + 1;
+        seen.set(seatId, r);
+        if (r === 3) throw new Error('round 3 outage');
+        const optionId = seatId === 'a' && r === 1 ? 'hold' : 'merge';
+        return {
+          text: JSON.stringify({ optionId, rationale: 'ok' }),
+          model: 'm',
+          provider: 'p',
+          tokens: { input: 1, output: 1, total: 2 },
+          durationMs: 1,
+          fromFallback: false,
+        };
+      },
+    };
+    const fallbackOrch = new CouncilOrchestrator({ caller: fallbackCaller, maxConcurrency: 1 });
+    const fallbackRes = await fallbackOrch.ask({
+      ...QUESTION,
+      profile: threeSeats({
+        seats: [
+          { id: 'a', persona: 'skeptic', veto: true },
+          { id: 'b', persona: 'executor' },
+        ],
+        deliberationRounds: 3,
+      }),
+    });
+    expect(fallbackRes.warnings?.some((w) => w.includes('veto seat "a" changed its vote'))).toBe(
+      true,
+    );
+  });
 });

@@ -1,0 +1,54 @@
+.message-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.message-actions > .copy-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.message-actions > .copy-button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.message-source {
+  max-height: 40rem;
+  margin: 0;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-message.find-match {
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.chat-message.find-current {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.chat-message > header time {
+  margin-left: 8px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--subtle);
+}
+.chat-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 18px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.chat-day::before,
+.chat-day::after {
+  flex: 1;
+  height: 1px;
+  content: "";
+  background: var(--border);
+}

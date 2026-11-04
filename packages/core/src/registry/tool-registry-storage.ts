@@ -66,6 +66,19 @@ export abstract class ToolRegistryStorage {
       for (const layer of layers.reverse()) {
         if (layer.removed) continue;
         if (!layer.wrapper) {
+          let restored: Tool;
+          try {
+            restored = this._prepareForStorage(
+              applyToolDescriptionModeToTool(layer.tool, 'extend'),
+            );
+          } catch (error) {
+            this.deleteRegistration(name);
+            this._version++;
+            throw error;
+          }
+          restored._estDefTokens = undefined;
+          this._stampDefTokens(restored);
+          layer.tool = restored;
           base = layer;
           continue;
         }

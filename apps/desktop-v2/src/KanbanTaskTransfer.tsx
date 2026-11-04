@@ -1,5 +1,6 @@
 import { ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { KanbanTaskChain } from './KanbanTaskChain';
@@ -27,6 +28,7 @@ export function KanbanTaskTransfer({
   disabled: boolean;
   onDone: (targetBoardId: string, moved: boolean) => Promise<void>;
 }) {
+  const { t } = useDesktopText();
   const boardId = String(board['id']),
     taskId = String(task['id']),
     tasks = entries(board['tasks']);
@@ -46,17 +48,14 @@ export function KanbanTaskTransfer({
         { boardId, taskId, targetBoardId: chosen, preserveDependencies: false },
         [type],
       );
-      if (record(reply['data'])['id'] !== chosen)
-        throw Error('The engine did not report the target board.');
+      if (record(reply['data'])['id'] !== chosen) throw Error(t('kanbanTask.noTarget'));
       const title = String(targets.find((item) => item['id'] === chosen)?.['title'] ?? chosen);
-      setResult(`${moved ? 'Moved' : 'Copied'} to ${title}.`);
+      setResult(moved ? t('kanbanTask.movedTo', { title }) : t('kanbanTask.copiedTo', { title }));
       await onDone(chosen, moved);
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : String(failure);
       setResult(
-        moved
-          ? `The move did not complete: ${message}. Check both boards; the card can be on both.`
-          : `The copy did not complete: ${message}.`,
+        moved ? t('kanbanTask.moveFailed', { message }) : t('kanbanTask.copyFailed', { message }),
       );
     } finally {
       setBusy(false);
@@ -95,15 +94,15 @@ export function KanbanTaskTransfer({
   return (
     <>
       {merge}
-      <section className="kanban-task-transfer" aria-label="Copy or move to another board">
+      <section className="kanban-task-transfer" aria-label={t('kanbanTask.transfer')}>
         <label>
-          <ArrowRightLeft size={13} /> Another board
+          <ArrowRightLeft size={13} /> {t('kanbanTask.anotherBoard')}
           <select
             value={chosen}
             disabled={disabled || busy}
             onChange={(event) => setTarget(event.target.value)}
           >
-            <option value="">Choose a board…</option>
+            <option value="">{t('kanbanTask.chooseBoard')}</option>
             {targets.map((item) => (
               <option key={String(item['id'])} value={String(item['id'])}>
                 {String(item['title'] ?? item['id'])}
@@ -118,7 +117,7 @@ export function KanbanTaskTransfer({
             disabled={disabled || busy || !chosen}
             onClick={() => void send(false)}
           >
-            Copy card
+            {t('kanbanTask.copy')}
           </button>
           <button
             type="button"
@@ -126,10 +125,10 @@ export function KanbanTaskTransfer({
             disabled={disabled || busy || !chosen}
             onClick={() => void send(true)}
           >
-            Move card
+            {t('kanbanTask.move')}
           </button>
         </div>
-        <small>Same column on the target board; dependencies on this board are not carried.</small>
+        <small>{t('kanbanTask.transferHelp')}</small>
         {result && <p role="status">{result}</p>}
       </section>
     </>

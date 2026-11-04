@@ -1,6 +1,16 @@
 import { FileCode2 } from 'lucide-react';
 import { deadCodeLabel } from './dead-code-model';
+import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
+
+/** Names an engine value per language; a value the catalog does not know reads as before. */
+export function useDeadCodeLabel() {
+  const { t } = useDesktopText();
+  return (value: unknown) =>
+    typeof value === 'string'
+      ? t(`deadCode.value.${value}`, { defaultValue: deadCodeLabel(value) })
+      : t('deadCode.notReported');
+}
 
 export function DeadCodePlan({
   plan,
@@ -9,13 +19,16 @@ export function DeadCodePlan({
   plan: Record<string, unknown>;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const label = useDeadCodeLabel();
   return (
-    <section className="dead-code-plan" aria-label="Dead-code change preview">
-      <h2>Review the exact changes</h2>
+    <section className="dead-code-plan" aria-label={t('deadCode.plan.label')}>
+      <h2>{t('deadCode.plan.title')}</h2>
       <p>
-        {entries(plan['changes']).filter((item) => item['action'] === 'edit').length} files to edit
-        · {entries(plan['changes']).filter((item) => item['action'] === 'delete').length} files to
-        delete
+        {t('deadCode.plan.counts', {
+          edit: entries(plan['changes']).filter((item) => item['action'] === 'edit').length,
+          remove: entries(plan['changes']).filter((item) => item['action'] === 'delete').length,
+        })}
       </p>
       {(Array.isArray(plan['notes']) ? plan['notes'] : []).map((note, index) => (
         <p className="field-help" key={index}>
@@ -23,7 +36,10 @@ export function DeadCodePlan({
         </p>
       ))}
       {entries(plan['changes']).map((change) => (
-        <article key={String(change['file'])} aria-label={`Preview diff for ${change['file']}`}>
+        <article
+          key={String(change['file'])}
+          aria-label={t('deadCode.plan.diff', { file: change['file'] })}
+        >
           <header>
             <button
               type="button"
@@ -33,7 +49,7 @@ export function DeadCodePlan({
               <FileCode2 size={13} />
               {String(change['file'])}
             </button>
-            <strong>{deadCodeLabel(change['action'])}</strong>
+            <strong>{label(change['action'])}</strong>
           </header>
           <pre className="dead-code-diff">
             {String(change['diff'] ?? '')
@@ -59,7 +75,7 @@ export function DeadCodePlan({
       ))}
       {entries(plan['skipped']).length > 0 && (
         <details>
-          <summary>Skipped findings ({entries(plan['skipped']).length})</summary>
+          <summary>{t('deadCode.plan.skipped', { n: entries(plan['skipped']).length })}</summary>
           {entries(plan['skipped']).map((item, index) => (
             <p key={index}>
               <code>{String(item['id'])}</code> · {String(item['reason'])}
@@ -71,24 +87,27 @@ export function DeadCodePlan({
   );
 }
 export function DeadCodeResult({ result }: { result: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   return (
-    <section className="dead-code-result" aria-label="Dead-code execution result" role="status">
+    <section className="dead-code-result" aria-label={t('deadCode.result.label')} role="status">
       <h2>
         {result['rolledBack'] === true
-          ? 'Changes rolled back'
+          ? t('deadCode.result.rolledBack')
           : result['ok'] === true
-            ? 'Cleanup completed'
-            : 'Cleanup did not complete'}
+            ? t('deadCode.result.completed')
+            : t('deadCode.result.incomplete')}
       </h2>
       <p>
-        {Array.isArray(result['changed']) ? result['changed'].length : 0} files changed ·{' '}
-        {Array.isArray(result['deleted']) ? result['deleted'].length : 0} files deleted ·{' '}
-        {String(result['attempts'] ?? 0)} attempts
+        {t('deadCode.result.counts', {
+          changed: Array.isArray(result['changed']) ? result['changed'].length : 0,
+          deleted: Array.isArray(result['deleted']) ? result['deleted'].length : 0,
+          attempts: String(result['attempts'] ?? 0),
+        })}
       </p>
-      {['changed', 'deleted'].map((key) =>
+      {(['changed', 'deleted'] as const).map((key) =>
         Array.isArray(result[key]) && result[key].length > 0 ? (
           <details key={key}>
-            <summary>{deadCodeLabel(key)} files</summary>
+            <summary>{t(`deadCode.result.files.${key}`)}</summary>
             <ul>
               {result[key].map((file: unknown, index: number) => (
                 <li key={index}>{String(file)}</li>
@@ -101,7 +120,8 @@ export function DeadCodeResult({ result }: { result: Record<string, unknown> }) 
         entries(result['verify']).map((step, index) => (
           <details key={index}>
             <summary>
-              {String(step['package'])} · {step['ok'] === true ? 'Check passed' : 'Check failed'} ·{' '}
+              {String(step['package'])} ·{' '}
+              {step['ok'] === true ? t('deadCode.result.passed') : t('deadCode.result.failed')} ·{' '}
               {Number(step['durationMs']) / 1000}s
             </summary>
             <code>{String(step['command'])}</code>
@@ -109,11 +129,13 @@ export function DeadCodeResult({ result }: { result: Record<string, unknown> }) 
           </details>
         ))
       ) : (
-        <p>No verification steps were reported.</p>
+        <p>{t('deadCode.result.noSteps')}</p>
       )}
       {entries(result['excluded']).length > 0 && (
         <details>
-          <summary>Excluded findings ({entries(result['excluded']).length})</summary>
+          <summary>
+            {t('deadCode.result.excluded', { n: entries(result['excluded']).length })}
+          </summary>
           {entries(result['excluded']).map((item, index) => (
             <p key={index}>
               {String(item['id'])} · {String(item['reason'])}

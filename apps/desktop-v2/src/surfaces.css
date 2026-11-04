@@ -1,0 +1,61 @@
+/* Styles for the project surfaces shared with the WebUI (SAGE memory, Kanban, Codebase Atlas,
+   Office topology). Only Tailwind's theme variables and utilities are loaded, no preflight, so
+   the desktop's own element styles stay as they are; those resets sit in the `base` layer
+   (styles.css), below these components and utilities. Class names are read only from the
+   shared package, never from desktop sources. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "./surface-theme.css";
+/* The WebUI's workbench component classes (ws-page, ws-dialog, ws-metric…). */
+@import "../../../packages/webui/src/workbench.css";
+@import "../../../packages/webui/src/pages.css";
+@import "../../../packages/webui/src/interactions.css";
+@import "../../../packages/webui/src/components-layer.css";
+@import "../../../packages/project-surfaces/src/kanban/kanban.css";
+@source "../../../packages/project-surfaces/src";
+
+.ws-surfaces {
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+.ws-surfaces *,
+.ws-surfaces ::before,
+.ws-surfaces ::after {
+  border-color: hsl(var(--border));
+}
+.ws-surfaces :focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* A canvas surface takes the whole project page, as the file workspace does. */
+.project-page-content:has(> .ws-surface-frame.is-fill) {
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+}
+.ws-surface-frame.is-fill {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The WebUI's thin scrollbars, so the surfaces' narrow toolbars and lists keep their size. */
+.ws-surfaces ::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.ws-surfaces ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ws-surfaces ::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.28);
+  border: 2px solid transparent;
+  border-radius: 0;
+  background-clip: padding-box;
+}
+.ws-surfaces ::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.6);
+}

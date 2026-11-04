@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 
 /** Tasks the engine's `kanban.generate` makes from a list: one per non-empty line. */
 export function boardListTasks(text: string): string[] {
@@ -27,6 +28,7 @@ export function BoardDialog({
   onCreate: (title: string, description: string) => void;
   onGenerate: (title: string, list: string) => void;
 }) {
+  const { t } = useDesktopText();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
@@ -37,16 +39,21 @@ export function BoardDialog({
     [list, setList] = useState('');
   const tasks = boardListTasks(list);
   return (
-    <dialog ref={ref} className="modal" aria-label="Create project board" onCancel={onClose}>
+    <dialog
+      ref={ref}
+      className="modal"
+      aria-label={t('kanbanBoard.createLabel')}
+      onCancel={onClose}
+    >
       <header>
         <div>
-          <span className="eyebrow">PROJECT PLANNING</span>
-          <h2>A place for the work.</h2>
+          <span className="eyebrow">{t('kanbanBoard.eyebrow')}</span>
+          <h2>{t('kanbanBoard.title')}</h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Cancel board creation"
+          aria-label={t('kanbanBoard.cancelLabel')}
           onClick={onClose}
         >
           <X size={16} />
@@ -60,7 +67,7 @@ export function BoardDialog({
         }}
       >
         <fieldset className="board-create-mode">
-          <legend>Start with</legend>
+          <legend>{t('kanbanBoard.startWith')}</legend>
           <label>
             <input
               type="radio"
@@ -68,7 +75,7 @@ export function BoardDialog({
               checked={mode === 'empty'}
               onChange={() => setMode('empty')}
             />
-            An empty board
+            {t('kanbanBoard.empty')}
           </label>
           <label>
             <input
@@ -77,66 +84,66 @@ export function BoardDialog({
               checked={mode === 'list'}
               onChange={() => setMode('list')}
             />
-            Tasks from a list
+            {t('kanbanBoard.list')}
           </label>
         </fieldset>
         <label>
-          Board name
+          {t('kanbanBoard.name')}
           <input
-            aria-label="Board name"
+            aria-label={t('kanbanBoard.name')}
             required
             autoFocus
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Product roadmap"
+            placeholder={t('kanbanBoard.namePlaceholder')}
           />
         </label>
         {mode === 'empty' ? (
           <label>
-            Description
+            {t('kanbanBoard.description')}
             <textarea
-              aria-label="Board description"
+              aria-label={t('kanbanBoard.descriptionLabel')}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
-              placeholder="What does this board help your project accomplish?"
+              placeholder={t('kanbanBoard.descriptionPlaceholder')}
             />
           </label>
         ) : (
           <>
             <label>
-              Tasks, one per line
+              {t('kanbanBoard.tasks')}
               <textarea
-                aria-label="Board task list"
+                aria-label={t('kanbanBoard.tasksLabel')}
                 value={list}
                 onChange={(event) => setList(event.target.value)}
                 rows={8}
-                placeholder={'- Design the schema\n- Write the migration\n- Add the API route'}
+                placeholder={t('kanbanBoard.tasksPlaceholder')}
               />
             </label>
-            <p className="field-help">
-              Each non-empty line becomes one task in the first column with medium priority; a
-              leading "-", "*" or "#" is removed. Nothing else is inferred: add details, checks and
-              dependencies on the board afterwards. The list is also kept as the board description.
-            </p>
+            <p className="field-help">{t('kanbanBoard.tasksHelp')}</p>
             {tasks.length > 0 && (
-              <section aria-label="Tasks to create" className="board-create-preview">
+              <section aria-label={t('kanbanBoard.preview')} className="board-create-preview">
                 <strong>
-                  {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+                  {tasks.length === 1
+                    ? t('kanbanBoard.taskOne')
+                    : t('kanbanBoard.taskMany', { number: tasks.length })}
                 </strong>
                 <ol>
                   {tasks.slice(0, PREVIEW).map((task, index) => (
                     <li key={`${index}:${task}`}>{task}</li>
                   ))}
                 </ol>
-                {tasks.length > PREVIEW && <p>…and {tasks.length - PREVIEW} more.</p>}
+                {tasks.length > PREVIEW && (
+                  <p>{t('kanbanBoard.more', { number: tasks.length - PREVIEW })}</p>
+                )}
               </section>
             )}
           </>
         )}
         <footer>
           <button type="button" className="button secondary" onClick={onClose}>
-            Cancel
+            {t('kanbanBoard.cancel')}
           </button>
           <button
             type="submit"
@@ -144,7 +151,9 @@ export function BoardDialog({
             disabled={busy || !title.trim() || (mode === 'list' && tasks.length === 0)}
           >
             <Plus size={14} />
-            {mode === 'list' ? `Create board with ${tasks.length} tasks` : 'Create board'}
+            {mode === 'list'
+              ? t('kanbanBoard.createWith', { number: tasks.length })
+              : t('kanbanBoard.create')}
           </button>
         </footer>
       </form>

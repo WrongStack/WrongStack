@@ -44,15 +44,14 @@ export function sessionEffort(state: EngineState, suppressLeader = false) {
     options,
     unsupported:
       current !== 'auto' && levels.length > 0 && !levels.includes(current as ReasoningEffort),
-    autoLabel:
+    /** The project's effort that `auto` follows, when the engine reports a known level. */
+    projectEffort:
       typeof start['projectReasoningEffort'] === 'string' &&
       Object.hasOwn(effortNames, start['projectReasoningEffort'])
-        ? `Auto effort · ${effortNames[start['projectReasoningEffort'] as ReasoningEffort]}`
-        : 'Auto effort',
-    hint:
-      !suppressLeader && typeof leader?.['effort'] === 'string'
-        ? `Leader: ${leader['effort']}`
-        : '',
+        ? (start['projectReasoningEffort'] as ReasoningEffort)
+        : null,
+    /** The effort the leader chose for its own turns, shown beside the control. */
+    leaderEffort: !suppressLeader && typeof leader?.['effort'] === 'string' ? leader['effort'] : '',
     reason: String(leader?.['reason'] ?? ''),
   };
 }

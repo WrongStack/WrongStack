@@ -1,5 +1,6 @@
 import { ArrowLeft, ClipboardList, Plus, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-state';
@@ -12,6 +13,7 @@ import {
 } from './RequirementResources';
 import './project-requirements.css';
 import { RequirementRecordDraftNotice } from './RequirementRecordDraftNotice';
+import { RequirementSummary } from './RequirementSummary';
 import {
   blankRequirementFields as blankFields,
   hasRequirementDraft,
@@ -19,6 +21,7 @@ import {
   requirementSubmissionFingerprint,
 } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
+import { isVibeIntake, readable, strings, text } from './requirement-values';
 import { useRequirementDraft } from './useRequirementDraft';
 import { useRequirementRecordDraft } from './useRequirementRecordDraft';
 
@@ -39,10 +42,6 @@ const TYPES = [
   'other',
 ];
 const PRIORITIES = ['unspecified', 'low', 'medium', 'high', 'critical'];
-const text = (value: unknown) => (typeof value === 'string' ? value : '');
-const strings = (value: unknown) =>
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-const readable = (value: unknown) => text(value).replaceAll('_', ' ') || 'Not reported';
 const unwrap = (value: unknown) => {
   const item = record(value);
   return record(item['record'] ?? item);
@@ -90,6 +89,11 @@ export function ProjectRequirements({
   recordDraftStorage?: RequirementRecordDraftStorageFactory;
   resourceInputStorage?: (formKey: string) => FormDraftStorage;
 }) {
+  const { t } = useDesktopText();
+  const named = (group: string, value: unknown) =>
+    text(value)
+      ? t(`req.${group}.${text(value)}`, { defaultValue: readable(value) })
+      : t('req.notReported');
   const draft = useRequirementDraft(draftStorage);
   const newResourceStorage = useMemo(
     () => resourceInputStorage?.('requirement-resource-input:new'),
@@ -146,7 +150,7 @@ export function ProjectRequirements({
     const response = record(await http('/api/requirement-intakes'));
     if (seq !== listSequence.current) return;
     if (typeof response['projectId'] !== 'string' || !Array.isArray(response['intakes']))
-      throw new Error('The engine did not return a project requirement catalog.');
+      throw new Error(t('req.noCatalog'));
     setProjectId(response['projectId']);
     setItems(entries(response['intakes']));
     setLoaded(true);
@@ -169,8 +173,7 @@ export function ProjectRequirements({
     try {
       const current = unwrap(await http(`/api/requirement-intakes/${encodeURIComponent(id)}`));
       if (seq !== detailSequence.current) return;
-      if (current['id'] !== id)
-        throw new Error('The engine returned a different requirement record.');
+      if (current['id'] !== id) throw new Error(t('req.otherRecord'));
       setDetail(current);
     } catch (e) {
       if (seq === detailSequence.current) setError(e instanceof Error ? e.message : String(e));
@@ -199,22 +202,22 @@ export function ProjectRequirements({
   }) =>
     run(async () => {
       if (!detail || typeof detail['version'] !== 'number')
-        throw new Error('Reload the requirement before adding a resource.');
+        throw new Error(t('req.reloadForResource'));
       const current = unwrap(
         await http(`/api/requirement-intakes/${encodeURIComponent(selected)}/resources`, 'POST', {
           ...input,
           expectedVersion: detail['version'],
         }),
       );
-      if (current['id'] !== selected) throw new Error('The engine did not confirm the resource.');
+      if (current['id'] !== selected) throw new Error(t('req.resourceUnconfirmed'));
       setDetail(current);
-      setNotice('Supporting resource saved.');
+      setNotice(t('req.resourceSaved'));
       void load().catch((e) => setError(String(e)));
     });
   const decideSuggestion = (id: string, decision: 'accept' | 'reject') =>
     void run(async () => {
       if (!detail || typeof detail['version'] !== 'number')
-        throw new Error('Reload the requirement before deciding on a suggestion.');
+        throw new Error(t('req.reloadForSuggestion'));
       const current = unwrap(
         await http(
           `/api/requirement-intakes/${encodeURIComponent(selected)}/suggestions/${encodeURIComponent(id)}/${decision}`,
@@ -222,16 +225,14 @@ export function ProjectRequirements({
           { expectedVersion: detail['version'] },
         ),
       );
-      if (current['id'] !== selected)
-        throw new Error('The engine did not confirm the suggestion decision.');
+      if (current['id'] !== selected) throw new Error(t('req.suggestionUnconfirmed'));
       setDetail(current);
-      setNotice(`Suggestion ${decision === 'accept' ? 'accepted' : 'rejected'}.`);
+      setNotice(decision === 'accept' ? t('req.suggestionAccepted') : t('req.suggestionRejected'));
       void load().catch((e) => setError(String(e)));
     });
   const create = () =>
     void run(async () => {
-      if (!original.trim() || !projectId)
-        throw new Error('Enter the request after the project catalog has loaded.');
+      if (!original.trim() || !projectId) throw new Error(t('req.catalogFirst'));
       const input = {
         projectId,
         originalRequest: original,
@@ -249,9 +250,7 @@ export function ProjectRequirements({
         }),
       );
       if (typeof current['id'] !== 'string' || current['originalRequest'] !== original)
-        throw new Error(
-          'The engine did not confirm the original requirement text. Your draft has been retained.',
-        );
+        throw new Error(t('req.originalUnconfirmed'));
       setSelected(current['id']);
       setDetail(current);
       let cleared = false;
@@ -261,7 +260,7 @@ export function ProjectRequirements({
         /* The recorded intake is safe; preserve any conflicting draft. */
       }
       setCreating(!cleared);
-      setNotice('Requirement draft recorded.');
+      setNotice(t('req.draftRecorded'));
       await load();
     });
   const save = () =>
@@ -269,7 +268,7 @@ export function ProjectRequirements({
       const store = recordDraft.store;
       const submitted = store?.snapshot().value;
       if (!detail || !store || !submitted?.fields || submitted.expectedVersion === null)
-        throw new Error('Reload the record before editing.');
+        throw new Error(t('req.reloadForEdit'));
       await store.flush();
       const current = unwrap(
         await http(`/api/requirement-intakes/${encodeURIComponent(selected)}`, 'PATCH', {
@@ -277,9 +276,9 @@ export function ProjectRequirements({
           expectedVersion: submitted.expectedVersion,
         }),
       );
-      if (current['id'] !== selected) throw new Error('The engine did not confirm this record.');
+      if (current['id'] !== selected) throw new Error(t('req.recordUnconfirmed'));
       setDetail(current);
-      setNotice('Requirement information saved.');
+      setNotice(t('req.infoSaved'));
       await store.acknowledgeEdit(submitted);
       await load();
     });
@@ -292,12 +291,15 @@ export function ProjectRequirements({
           action === 'cancel' ? { reason } : {},
         ),
       );
-      if (current['id'] !== selected)
-        throw new Error('The engine did not confirm this requirement transition.');
+      if (current['id'] !== selected) throw new Error(t('req.transitionUnconfirmed'));
       setDetail(current);
       setConfirm(null);
       setNotice(
-        `Requirement ${action === 'submit' ? 'submitted' : action === 'cancel' ? 'cancelled' : 'archived'}.`,
+        action === 'submit'
+          ? t('req.submitted')
+          : action === 'cancel'
+            ? t('req.cancelled')
+            : t('req.archived'),
       );
       await load();
     });
@@ -308,8 +310,7 @@ export function ProjectRequirements({
       if (!value) return;
       const store = recordDraft.store;
       const submitted = store?.snapshot().value.answers[id];
-      if (!store || !submitted)
-        throw new Error('Reload the saved answer draft before recording it.');
+      if (!store || !submitted) throw new Error(t('req.reloadForAnswer'));
       await store.flush();
       const current = unwrap(
         await http(`/api/requirement-intakes/${encodeURIComponent(selected)}/answers`, 'POST', {
@@ -319,9 +320,9 @@ export function ProjectRequirements({
           expectedVersion: submitted.expectedVersion,
         }),
       );
-      if (current['id'] !== selected) throw new Error('The engine did not confirm this answer.');
+      if (current['id'] !== selected) throw new Error(t('req.answerUnconfirmed'));
       setDetail(current);
-      setNotice('Answer recorded.');
+      setNotice(t('req.answerRecorded'));
       await store.acknowledgeAnswer(id, value);
       await load();
     });
@@ -335,12 +336,12 @@ export function ProjectRequirements({
   );
   const questions = entries(detail?.['questions']);
   return (
-    <section className="project-requirements" aria-label="Project requirements">
+    <section className="project-requirements" aria-label={t('req.label')}>
       <header className="requirements-heading">
         <div>
-          <span className="eyebrow">CAPTURE THE REASON FOR CHANGE</span>
-          <h2>Requirements</h2>
-          <p>Record requests, close information gaps and prepare the SDD interview.</p>
+          <span className="eyebrow">{t('req.eyebrow')}</span>
+          <h2>{t('req.title')}</h2>
+          <p>{t('req.intro')}</p>
         </div>
         <div className="sdd-actions">
           <button
@@ -349,7 +350,7 @@ export function ProjectRequirements({
             disabled={busy}
             onClick={() => void load().catch((e) => setError(String(e)))}
           >
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} /> {t('req.refresh')}
           </button>
           <button
             type="button"
@@ -363,7 +364,7 @@ export function ProjectRequirements({
               setNotice('');
             }}
           >
-            <Plus size={14} /> New requirement
+            <Plus size={14} /> {t('req.new')}
           </button>
         </div>
       </header>
@@ -378,17 +379,17 @@ export function ProjectRequirements({
         </p>
       )}
       {(hasRequirementDraft(draft.value) || draft.status === 'loading' || draft.error) && (
-        <section className="requirement-draft-status" aria-label="New requirement draft storage">
+        <section className="requirement-draft-status" aria-label={t('req.draftStorage')}>
           <p>
             {draft.status === 'loading'
-              ? 'Loading the saved new requirement draft…'
+              ? t('req.draft.loading')
               : draft.status === 'saving'
-                ? 'Saving the new requirement draft on this device…'
+                ? t('req.draft.saving')
                 : draft.status === 'conflict'
-                  ? 'This new requirement draft changed in another window. Your local form is preserved.'
+                  ? t('req.draft.conflict')
                   : draft.status === 'error'
-                    ? 'The new requirement draft could not be saved.'
-                    : 'New requirement draft saved on this device.'}
+                    ? t('req.draft.error')
+                    : t('req.draft.saved')}
           </p>
           {draft.error && (
             <p className="session-error" role="alert">
@@ -397,7 +398,7 @@ export function ProjectRequirements({
           )}
           {!draft.ready && draft.status === 'error' && (
             <button type="button" className="button secondary" onClick={draft.retryLoad}>
-              Retry loading draft
+              {t('req.retryDraft')}
             </button>
           )}
           {draft.status === 'conflict' && (
@@ -410,17 +411,17 @@ export function ProjectRequirements({
                 void draft.compare();
               }}
             >
-              Compare draft versions
+              {t('req.compare')}
             </button>
           )}
           {draft.review && (
             <>
               <div className="requirement-draft-comparison">
                 <div>
-                  <h4>Local draft</h4>
-                  <strong>{draft.value.fields.title || 'Untitled requirement'}</strong>
+                  <h4>{t('req.localDraft')}</h4>
+                  <strong>{draft.value.fields.title || t('req.untitled')}</strong>
                   <textarea
-                    aria-label="Local requirement draft"
+                    aria-label={t('req.localDraftLabel')}
                     readOnly
                     value={draft.value.original}
                   />
@@ -430,10 +431,10 @@ export function ProjectRequirements({
                   </small>
                 </div>
                 <div>
-                  <h4>Saved draft</h4>
-                  <strong>{draft.review.draft.fields.title || 'Untitled requirement'}</strong>
+                  <h4>{t('req.savedDraft')}</h4>
+                  <strong>{draft.review.draft.fields.title || t('req.untitled')}</strong>
                   <textarea
-                    aria-label="Saved requirement draft"
+                    aria-label={t('req.savedDraftLabel')}
                     readOnly
                     value={draft.review.draft.original}
                   />
@@ -443,10 +444,7 @@ export function ProjectRequirements({
                   </small>
                 </div>
               </div>
-              <p>
-                Choosing a version replaces the complete new requirement form, including its
-                information and resource references.
-              </p>
+              <p>{t('req.choiceHelp')}</p>
               <div className="sdd-actions">
                 {draftChoice ? (
                   <>
@@ -461,14 +459,16 @@ export function ProjectRequirements({
                         });
                       }}
                     >
-                      Confirm {draftChoice === 'saved' ? 'use saved draft' : 'keep local draft'}
+                      {draftChoice === 'saved'
+                        ? t('req.confirmUseSaved')
+                        : t('req.confirmKeepLocal')}
                     </button>
                     <button
                       type="button"
                       disabled={draft.resolving}
                       onClick={() => setDraftChoice(null)}
                     >
-                      Cancel choice
+                      {t('req.cancelChoice')}
                     </button>
                   </>
                 ) : (
@@ -479,7 +479,7 @@ export function ProjectRequirements({
                       disabled={draft.resolving}
                       onClick={() => setDraftChoice('saved')}
                     >
-                      Use saved draft
+                      {t('req.useSaved')}
                     </button>
                     <button
                       type="button"
@@ -487,7 +487,7 @@ export function ProjectRequirements({
                       disabled={draft.resolving}
                       onClick={() => setDraftChoice('local')}
                     >
-                      Keep local draft
+                      {t('req.keepLocal')}
                     </button>
                   </>
                 )}
@@ -507,31 +507,31 @@ export function ProjectRequirements({
       <div className="requirements-layout">
         <aside className="requirements-list">
           <label>
-            Search requirements
+            {t('req.search')}
             <input
-              aria-label="Search requirements"
+              aria-label={t('req.search')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
           <label>
-            Status
+            {t('req.statusLabel')}
             <select
-              aria-label="Requirement status filter"
+              aria-label={t('req.statusFilter')}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
               {['all', 'draft', 'collecting_information', 'submitted', 'cancelled', 'archived'].map(
                 (value) => (
                   <option key={value} value={value}>
-                    {value.replaceAll('_', ' ')}
+                    {t(`req.status.${value}`)}
                   </option>
                 ),
               )}
             </select>
           </label>
           {!loaded ? (
-            <p>Loading requirements…</p>
+            <p>{t('req.loading')}</p>
           ) : visible.length ? (
             visible.map((item) => (
               <button
@@ -541,18 +541,15 @@ export function ProjectRequirements({
                 aria-pressed={selected === item['id']}
                 onClick={() => void select(String(item['id']))}
               >
-                <strong>{text(item['title']) || 'Untitled request'}</strong>
+                <strong>{text(item['title']) || t('req.untitledRequest')}</strong>
                 <span>
-                  {readable(item['status'])} · {readable(item['priority'])}
+                  {named('status', item['status'])} · {named('priority', item['priority'])}
+                  {isVibeIntake(item) && ' · VIBE'}
                 </span>
               </button>
             ))
           ) : (
-            <p>
-              {query || status !== 'all'
-                ? 'No matching requirements.'
-                : 'No requirements recorded yet.'}
-            </p>
+            <p>{query || status !== 'all' ? t('req.noMatch') : t('req.none')}</p>
           )}
         </aside>
         <main className="requirements-detail">
@@ -567,18 +564,18 @@ export function ProjectRequirements({
                   if (editing) recordDraft.store?.discardEdit();
                 }}
               >
-                <ArrowLeft size={14} /> Cancel editing
+                <ArrowLeft size={14} /> {t('req.cancelEditing')}
               </button>
-              <h3>{creating ? 'New requirement' : 'Edit requirement information'}</h3>
+              <h3>{creating ? t('req.new') : t('req.editInfo')}</h3>
               {creating && (
                 <label>
-                  Original request
+                  {t('req.original')}
                   <textarea
-                    aria-label="Original request"
+                    aria-label={t('req.original')}
                     disabled={busy || !draft.ready || draft.resolving}
                     value={original}
                     onChange={(e) => setOriginal(e.target.value)}
-                    placeholder="Describe the request. This exact text is preserved."
+                    placeholder={t('req.originalPlaceholder')}
                   />
                 </label>
               )}
@@ -617,7 +614,7 @@ export function ProjectRequirements({
                   }
                   onClick={creating ? create : save}
                 >
-                  {busy ? 'Saving…' : creating ? 'Save draft' : 'Save information'}
+                  {busy ? t('req.saving') : creating ? t('req.saveDraft') : t('req.saveInfo')}
                 </button>
               </div>
             </>
@@ -625,9 +622,9 @@ export function ProjectRequirements({
             <>
               <div className="requirements-detail-heading">
                 <div>
-                  <span className="eyebrow">{readable(detail['requestType'])}</span>
-                  <h3>{text(detail['title']) || 'Requirement'}</h3>
-                  <span className="sdd-chip">{readable(detail['status'])}</span>
+                  <span className="eyebrow">{named('type', detail['requestType'])}</span>
+                  <h3>{text(detail['title']) || t('req.requirement')}</h3>
+                  <span className="sdd-chip">{named('status', detail['status'])}</span>
                 </div>
                 <div className="sdd-actions">
                   <button
@@ -636,7 +633,7 @@ export function ProjectRequirements({
                     disabled={busy}
                     onClick={() => void select(selected)}
                   >
-                    Reload record
+                    {t('req.reload')}
                   </button>
                   {mutable && (
                     <button
@@ -653,7 +650,7 @@ export function ProjectRequirements({
                           recordDraft.store?.beginEdit(fieldsFor(detail), detail['version']);
                       }}
                     >
-                      Edit information
+                      {t('req.editInformation')}
                     </button>
                   )}
                   {!['cancelled', 'archived'].includes(String(detail['status'])) && (
@@ -663,51 +660,12 @@ export function ProjectRequirements({
                       disabled={busy}
                       onClick={() => onStartSdd(text(detail['originalRequest']))}
                     >
-                      Prepare SDD interview
+                      {t('req.prepareSdd')}
                     </button>
                   )}
                 </div>
               </div>
-              <h4>Original request</h4>
-              <p className="requirement-original">{text(detail['originalRequest'])}</p>
-              {text(detail['normalizedSummary']) &&
-                detail['normalizedSummary'] !== detail['originalRequest'] && (
-                  <>
-                    <h4>Summary</h4>
-                    <p>{text(detail['normalizedSummary'])}</p>
-                  </>
-                )}
-              <dl className="requirement-metadata">
-                {[
-                  ['Business goal', detail['businessGoal']],
-                  ['Expected outcome', detail['expectedOutcome']],
-                  ['Scope', detail['scopeNotes']],
-                  ['Requested by', detail['requestedBy']],
-                  ['Priority', readable(detail['priority'])],
-                ].map(([name, value]) => (
-                  <div key={String(name)}>
-                    <dt>{String(name)}</dt>
-                    <dd>{text(value) || 'Not recorded'}</dd>
-                  </div>
-                ))}
-              </dl>
-              {[
-                ['Target users', detail['targetUsers']],
-                ['Constraints', detail['constraints']],
-                ['Provided context', detail['providedContext']],
-              ].map(
-                ([name, value]) =>
-                  strings(value).length > 0 && (
-                    <div key={String(name)}>
-                      <h4>{String(name)}</h4>
-                      <ul>
-                        {strings(value).map((item, i) => (
-                          <li key={i}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ),
-              )}
+              <RequirementSummary detail={detail} />
               <RequirementEvidence
                 detail={detail}
                 busy={busy}
@@ -724,13 +682,13 @@ export function ProjectRequirements({
               )}
               {questions.length > 0 && (
                 <section className="requirement-questions">
-                  <h4>Information to collect</h4>
+                  <h4>{t('req.collect')}</h4>
                   {questions.map((question) => (
                     <article key={String(question['id'])}>
                       <strong>{text(question['question'])}</strong>
                       <small>
-                        {question['required'] === true ? 'Required' : 'Optional'} ·{' '}
-                        {readable(question['status'])}
+                        {question['required'] === true ? t('req.required') : t('req.optional')} ·{' '}
+                        {named('question', question['status'])}
                       </small>
                       {text(question['answer']) && <p>{text(question['answer'])}</p>}
                       {mutable && (
@@ -741,9 +699,11 @@ export function ProjectRequirements({
                           }}
                         >
                           <label>
-                            Answer
+                            {t('req.answer')}
                             <textarea
-                              aria-label={`Answer: ${text(question['question'])}`}
+                              aria-label={t('req.answerLabel', {
+                                question: text(question['question']),
+                              })}
                               disabled={
                                 busy ||
                                 !recordDraft.ready ||
@@ -765,10 +725,7 @@ export function ProjectRequirements({
                             recordDraft.value.answers[String(question['id'])]?.expectedVersion !==
                               detail['version'] && (
                               <div className="requirement-answer-version">
-                                <p>
-                                  This record changed after the answer draft was started. Review the
-                                  saved answer above before using the current record version.
-                                </p>
+                                <p>{t('req.answerStale')}</p>
                                 <button
                                   type="button"
                                   className="button secondary"
@@ -785,7 +742,7 @@ export function ProjectRequirements({
                                       );
                                   }}
                                 >
-                                  Use current record version
+                                  {t('req.useCurrent')}
                                 </button>
                               </div>
                             )}
@@ -800,7 +757,7 @@ export function ProjectRequirements({
                               !(answerTexts[String(question['id'])] ?? '').trim()
                             }
                           >
-                            Record answer
+                            {t('req.recordAnswer')}
                           </button>
                         </form>
                       )}
@@ -817,7 +774,7 @@ export function ProjectRequirements({
                       disabled={busy}
                       onClick={() => transition('submit')}
                     >
-                      Submit requirement
+                      {t('req.submit')}
                     </button>
                     <button
                       type="button"
@@ -825,7 +782,7 @@ export function ProjectRequirements({
                       disabled={busy}
                       onClick={() => setConfirm('cancel')}
                     >
-                      Cancel requirement
+                      {t('req.cancel')}
                     </button>
                   </>
                 )}
@@ -836,22 +793,18 @@ export function ProjectRequirements({
                     disabled={busy}
                     onClick={() => setConfirm('archive')}
                   >
-                    Archive requirement
+                    {t('req.archive')}
                   </button>
                 )}
               </div>
               {confirm && (
                 <div className="requirement-confirm">
-                  <p>
-                    {confirm === 'cancel'
-                      ? 'Cancel this request? Its content will be retained.'
-                      : 'Archive this request? It remains available in the archive filter.'}
-                  </p>
+                  <p>{confirm === 'cancel' ? t('req.cancelAsk') : t('req.archiveAsk')}</p>
                   {confirm === 'cancel' && (
                     <label>
-                      Cancellation reason
+                      {t('req.reason')}
                       <input
-                        aria-label="Cancellation reason"
+                        aria-label={t('req.reason')}
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                       />
@@ -864,7 +817,7 @@ export function ProjectRequirements({
                       disabled={busy}
                       onClick={() => setConfirm(null)}
                     >
-                      Keep requirement
+                      {t('req.keep')}
                     </button>
                     <button
                       type="button"
@@ -872,19 +825,19 @@ export function ProjectRequirements({
                       disabled={busy}
                       onClick={() => transition(confirm)}
                     >
-                      Confirm {confirm}
+                      {confirm === 'cancel' ? t('req.confirmCancel') : t('req.confirmArchive')}
                     </button>
                   </div>
                 </div>
               )}
               {entries(detail['history']).length > 0 && (
                 <details className="requirement-history">
-                  <summary>Change history</summary>
+                  <summary>{t('req.history')}</summary>
                   {entries(detail['history']).map((item, index) => (
                     <article key={index}>
-                      <strong>{readable(item['action'])}</strong>
+                      <strong>{named('action', item['action'])}</strong>
                       <span>
-                        {text(item['actor']) || 'Unknown actor'}
+                        {text(item['actor']) || t('req.unknownActor')}
                         {typeof item['at'] === 'number'
                           ? ` · ${new Date(item['at']).toLocaleString()}`
                           : ''}
@@ -903,14 +856,11 @@ export function ProjectRequirements({
               <h3>
                 {selected
                   ? error
-                    ? 'Requirement could not be loaded'
-                    : 'Loading requirement…'
-                  : 'Make the request clear'}
+                    ? t('req.loadFailed')
+                    : t('req.loadingOne')
+                  : t('req.emptyTitle')}
               </h3>
-              <p>
-                Select a request or record a new one to collect its intent, constraints and expected
-                outcome.
-              </p>
+              <p>{t('req.emptyHelp')}</p>
             </div>
           )}
         </main>
@@ -928,12 +878,13 @@ function RequirementFields({
   setFields: (fields: Fields) => void;
   disabled: boolean;
 }) {
+  const { t } = useDesktopText();
   return (
     <div className="requirement-fields">
       <label>
-        Title
+        {t('req.field.title')}
         <input
-          aria-label="Requirement title"
+          aria-label={t('req.field.titleLabel')}
           disabled={disabled}
           value={fields.title}
           onChange={(e) => setFields({ ...fields, title: e.target.value })}
@@ -941,31 +892,31 @@ function RequirementFields({
       </label>
       <div className="requirement-pair">
         <label>
-          Request type
+          {t('req.field.type')}
           <select
-            aria-label="Request type"
+            aria-label={t('req.field.type')}
             disabled={disabled}
             value={fields.requestType}
             onChange={(e) => setFields({ ...fields, requestType: e.target.value })}
           >
             {TYPES.map((value) => (
               <option key={value} value={value}>
-                {value.replaceAll('_', ' ')}
+                {t(`req.type.${value}`)}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Priority
+          {t('req.field.priority')}
           <select
-            aria-label="Requirement priority"
+            aria-label={t('req.field.priorityLabel')}
             disabled={disabled}
             value={fields.priority}
             onChange={(e) => setFields({ ...fields, priority: e.target.value })}
           >
             {PRIORITIES.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {t(`req.priority.${value}`)}
               </option>
             ))}
           </select>
@@ -973,24 +924,27 @@ function RequirementFields({
       </div>
       {(
         [
-          ['businessGoal', 'Business goal'],
-          ['expectedOutcome', 'Expected outcome'],
-          ['scopeNotes', 'Scope notes'],
-          ['targetUsers', 'Target users, one per line'],
-          ['constraints', 'Constraints, one per line'],
-          ['providedContext', 'Provided context, one per line'],
+          'businessGoal',
+          'expectedOutcome',
+          'scopeNotes',
+          'targetUsers',
+          'constraints',
+          'providedContext',
         ] as const
-      ).map(([key, name]) => (
-        <label key={key}>
-          {name}
-          <textarea
-            aria-label={name}
-            disabled={disabled}
-            value={fields[key]}
-            onChange={(e) => setFields({ ...fields, [key]: e.target.value })}
-          />
-        </label>
-      ))}
+      ).map((key) => {
+        const name = t(`req.field.${key}`);
+        return (
+          <label key={key}>
+            {name}
+            <textarea
+              aria-label={name}
+              disabled={disabled}
+              value={fields[key]}
+              onChange={(e) => setFields({ ...fields, [key]: e.target.value })}
+            />
+          </label>
+        );
+      })}
     </div>
   );
 }

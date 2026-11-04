@@ -29,6 +29,7 @@ import {
   evidenceText,
   initialChronicleFilters,
 } from './chronicle-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { GraphCanvas } from './GraphCanvas';
@@ -44,6 +45,11 @@ export function ProjectChronicle({
   /** Opens this project's conversation history at a core session id. */
   onOpenSession?: ((sessionId: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
+  const outcome = (value: unknown) =>
+    t(`chronicleView.outcome.${String(value ?? 'unknown')}`, {
+      defaultValue: String(value ?? 'unknown'),
+    });
   const [draft, setDraft] = useState(initialChronicleFilters),
     [filters, setFilters] = useState(initialChronicleFilters);
   const [data, setData] = useState<Record<string, unknown>>({}),
@@ -177,7 +183,10 @@ export function ProjectChronicle({
       chronicleFileName(exportedAt, format, 'lineage'),
     );
     setNotice(
-      `Export requested for the lineage of ${graph.nodes.length} events and ${graph.edges.length} relationships.`,
+      t('chronicleView.exportLineage', {
+        events: graph.nodes.length,
+        relations: graph.edges.length,
+      }),
     );
   };
   const exportEvents = (format: 'md' | 'jsonl') => {
@@ -206,8 +215,18 @@ export function ProjectChronicle({
     link.download = chronicleFileName(exportedAt, format);
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const one = rows.length === 1;
     setNotice(
-      `Export requested for the ${rows.length} loaded ${rows.length === 1 ? 'event' : 'events'}${more ? '; load older events first to include them' : ''}.`,
+      t(
+        more
+          ? one
+            ? 'chronicleView.exportOneMore'
+            : 'chronicleView.exportManyMore'
+          : one
+            ? 'chronicleView.exportOne'
+            : 'chronicleView.exportMany',
+        { n: rows.length },
+      ),
     );
   };
   const graph = useMemo(() => chronicleGraph(graphData), [graphData]);
@@ -215,14 +234,11 @@ export function ProjectChronicle({
     journal = record(health['journal']),
     watcher = record(health['watcher']);
   return (
-    <section className="project-chronicle" aria-label="Project Chronicle">
+    <section className="project-chronicle" aria-label={t('chronicleView.label')}>
       <header className="studio-heading">
         <div>
-          <h1>Chronicle</h1>
-          <p>
-            Follow work across agents, files, tools, and conversations. Keep every outcome in
-            context.
-          </p>
+          <h1>{t('chronicleView.title')}</h1>
+          <p>{t('chronicleView.intro')}</p>
         </div>
         <button
           type="button"
@@ -234,26 +250,26 @@ export function ProjectChronicle({
           }}
         >
           <RefreshCw size={14} />
-          Refresh journal
+          {t('chronicleView.refresh')}
         </button>
       </header>
       <ChronicleInsights command={command} onOpenFile={onOpenFile} />
       <div className="chronicle-metrics">
         {[
-          ['Matching events', data['total']],
-          ['Model attempts', summary['modelAttempts']],
-          ['Tool calls', summary['toolCalls']],
-          ['Files touched', summary['uniqueFiles']],
-          ['Failed outcomes', summary['failures']],
+          ['total', data['total']],
+          ['modelAttempts', summary['modelAttempts']],
+          ['toolCalls', summary['toolCalls']],
+          ['uniqueFiles', summary['uniqueFiles']],
+          ['failures', summary['failures']],
           [
-            'Estimated cost',
+            'cost',
             typeof summary['estimatedCostUsd'] === 'number'
               ? `$${summary['estimatedCostUsd'].toFixed(4)}`
               : undefined,
           ],
         ].map(([label, value]) => (
           <div key={String(label)}>
-            <span>{String(label)}</span>
+            <span>{t(`chronicleView.metric.${String(label)}`)}</span>
             <strong>{value === undefined ? '—' : String(value)}</strong>
           </div>
         ))}
@@ -263,7 +279,10 @@ export function ProjectChronicle({
         onSubmit={(event) => {
           event.preventDefault();
           try {
-            chronicleQuery(draft);
+            chronicleQuery(draft, {
+              invalidDate: t('chronicleView.invalidDate'),
+              endBeforeStart: t('chronicleView.endBeforeStart'),
+            });
             setFilters({ ...draft });
           } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
@@ -273,16 +292,16 @@ export function ProjectChronicle({
         <label className="chronicle-text-filter">
           <Search size={14} />
           <input
-            aria-label="Search Chronicle"
-            placeholder="Find a decision, tool call, or outcome…"
+            aria-label={t('chronicleView.search')}
+            placeholder={t('chronicleView.searchPlaceholder')}
             value={draft.text}
             onChange={(e) => setDraft({ ...draft, text: e.target.value })}
           />
         </label>
         <label>
-          File path
+          {t('chronicleView.path')}
           <input
-            aria-label="Chronicle file path"
+            aria-label={t('chronicleView.pathLabel')}
             placeholder="src/app.ts"
             value={draft.path}
             onChange={(e) => setDraft({ ...draft, path: e.target.value })}
@@ -290,13 +309,13 @@ export function ProjectChronicle({
         </label>
         {facetFields.map((field) => (
           <label key={field}>
-            {field.replace(/([A-Z])/g, ' $1').replace('Id', '')}
+            {t(`chronicleView.facet.${field}`)}
             <select
-              aria-label={`Chronicle ${field}`}
+              aria-label={t(`chronicleView.facetAria.${field}`)}
               value={draft[field]}
               onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}
             >
-              <option value="">Any</option>
+              <option value="">{t('chronicleView.any')}</option>
               {entries(facets[field]).map((item) => (
                 <option key={String(item['value'])} value={String(item['value'])}>
                   {String(item['value'])} ({String(item['count'])})
@@ -306,30 +325,30 @@ export function ProjectChronicle({
           </label>
         ))}
         <details className="chronicle-extra-filters">
-          <summary>Time range & session</summary>
+          <summary>{t('chronicleView.timeRange')}</summary>
           <div>
             <label>
-              From (UTC)
+              {t('chronicleView.from')}
               <input
                 type="datetime-local"
-                aria-label="Chronicle from UTC"
+                aria-label={t('chronicleView.fromLabel')}
                 value={draft.from}
                 onChange={(e) => setDraft({ ...draft, from: e.target.value })}
               />
             </label>
             <label>
-              To (UTC)
+              {t('chronicleView.to')}
               <input
                 type="datetime-local"
-                aria-label="Chronicle to UTC"
+                aria-label={t('chronicleView.toLabel')}
                 value={draft.to}
                 onChange={(e) => setDraft({ ...draft, to: e.target.value })}
               />
             </label>
             <label>
-              Conversation ID
+              {t('chronicleView.session')}
               <input
-                aria-label="Chronicle session ID"
+                aria-label={t('chronicleView.sessionLabel')}
                 value={draft.sessionId}
                 onChange={(e) => setDraft({ ...draft, sessionId: e.target.value })}
               />
@@ -337,7 +356,7 @@ export function ProjectChronicle({
           </div>
         </details>
         <button className="button primary small" type="submit" disabled={busy}>
-          Apply filters
+          {t('chronicleView.apply')}
         </button>
         <button
           className="button secondary small"
@@ -349,7 +368,7 @@ export function ProjectChronicle({
             setFilters(defaults);
           }}
         >
-          Reset filters
+          {t('chronicleView.reset')}
         </button>
       </form>
       {error && (
@@ -366,21 +385,29 @@ export function ProjectChronicle({
         <div className="chronicle-main">
           <header className="chronicle-list-heading">
             <Activity size={15} />
-            <strong>{view === 'timeline' ? 'Project timeline' : 'Evidence lineage'}</strong>
+            <strong>
+              {view === 'timeline' ? t('chronicleView.timeline') : t('chronicleView.lineage')}
+            </strong>
             <span>
               {view === 'timeline'
-                ? `${rows.length} of ${String(data['total'] ?? '…')} loaded`
-                : `${graph.nodes.length} events · ${graph.edges.length} relationships`}
+                ? t('chronicleView.loaded', {
+                    loaded: rows.length,
+                    total: String(data['total'] ?? '…'),
+                  })
+                : t('chronicleView.graphCount', {
+                    events: graph.nodes.length,
+                    relations: graph.edges.length,
+                  })}
             </span>
             {view === 'timeline' && rows.length > 0 && (
               <>
                 <button type="button" disabled={busy} onClick={() => exportEvents('md')}>
                   <Download size={13} />
-                  Export Markdown
+                  {t('chronicleView.exportMarkdown')}
                 </button>
                 <button type="button" disabled={busy} onClick={() => exportEvents('jsonl')}>
                   <Download size={13} />
-                  Export JSONL
+                  {t('chronicleView.exportJsonl')}
                 </button>
               </>
             )}
@@ -388,11 +415,11 @@ export function ProjectChronicle({
               <>
                 <button type="button" onClick={() => exportLineage('md')}>
                   <Download size={13} />
-                  Export lineage Markdown
+                  {t('chronicleView.exportLineageMarkdown')}
                 </button>
                 <button type="button" onClick={() => exportLineage('json')}>
                   <Download size={13} />
-                  Export lineage JSON
+                  {t('chronicleView.exportLineageJson')}
                 </button>
               </>
             )}
@@ -406,7 +433,7 @@ export function ProjectChronicle({
                 }}
               >
                 <ArrowLeft size={13} />
-                Back to timeline
+                {t('chronicleView.back')}
               </button>
             )}
           </header>
@@ -418,44 +445,31 @@ export function ProjectChronicle({
                 onSelect={(id) =>
                   setSelected(graph.nodes.find((node) => node.id === id)?.data ?? null)
                 }
-                label="Chronicle evidence lineage"
+                label={t('chronicleView.graphLabel')}
                 layout="layers"
                 minimap
                 empty={
-                  <p>
-                    {graphBusy
-                      ? 'Following the event evidence…'
-                      : 'No connected journal events were returned.'}
-                  </p>
+                  <p>{graphBusy ? t('chronicleView.following') : t('chronicleView.noGraph')}</p>
                 }
               />
               {graphData?.['truncated'] === true && (
-                <p className="chronicle-footnote">
-                  The graph reached its 160-event limit. Select a closer event to explore its
-                  neighborhood.
-                </p>
+                <p className="chronicle-footnote">{t('chronicleView.truncated')}</p>
               )}
-              <p className="chronicle-footnote">
-                Relationships retain the engine’s explicit, correlated, or inferred evidence
-                classification.
-              </p>
+              <p className="chronicle-footnote">{t('chronicleView.evidenceClass')}</p>
             </>
           ) : (
             <>
               {busy && !rows.length && (
                 <div className="chronicle-empty">
                   <LoaderCircle className="spin" size={24} />
-                  <p>Reading the project journal…</p>
+                  <p>{t('chronicleView.reading')}</p>
                 </div>
               )}
               {!busy && !rows.length && (
                 <div className="chronicle-empty">
                   <Clock3 size={32} />
-                  <h2>No events in this range.</h2>
-                  <p>
-                    Widen the time range or clear filters. Project work will appear here when the
-                    engine records it.
-                  </p>
+                  <h2>{t('chronicleView.noEvents')}</h2>
+                  <p>{t('chronicleView.noEventsHint')}</p>
                 </div>
               )}
               <div className="chronicle-events">
@@ -467,7 +481,7 @@ export function ProjectChronicle({
                     <button
                       key={String(event['eventId'])}
                       type="button"
-                      aria-label={`Inspect ${eventTitle(event)}`}
+                      aria-label={t('chronicleView.inspect', { title: eventTitle(event) })}
                       className={
                         event['eventId'] === selected?.['eventId'] ? 'chronicle-event-selected' : ''
                       }
@@ -489,13 +503,11 @@ export function ProjectChronicle({
                               resource['id'] ??
                               runtime['modelId'] ??
                               scope['agentId'] ??
-                              'Project event',
+                              t('chronicleView.projectEvent'),
                           )}
                         </small>
                       </div>
-                      <span className="chronicle-event-result">
-                        {String(event['outcome'] ?? 'unknown')}
-                      </span>
+                      <span className="chronicle-event-result">{outcome(event['outcome'])}</span>
                       <ArrowRight size={13} />
                     </button>
                   );
@@ -508,14 +520,15 @@ export function ProjectChronicle({
                   disabled={busy}
                   onClick={() => void load(String(data['nextCursor']))}
                 >
-                  {busy ? 'Loading…' : 'Load older events'}
+                  {busy ? t('chronicleView.loading') : t('chronicleView.loadOlder')}
                 </button>
               )}
               <p className="chronicle-footnote">
-                {String(data['sourceFiles'] ?? 0)} journal partitions ·{' '}
-                {String(data['scannedEvents'] ?? 0)} events scanned ·{' '}
-                {String(data['invalidLines'] ?? 0)} invalid entries. Summary totals cover all
-                matching events.
+                {t('chronicleView.scanFacts', {
+                  partitions: String(data['sourceFiles'] ?? 0),
+                  scanned: String(data['scannedEvents'] ?? 0),
+                  invalid: String(data['invalidLines'] ?? 0),
+                })}
               </p>
             </>
           )}
@@ -531,24 +544,26 @@ export function ProjectChronicle({
         ) : (
           <aside className="chronicle-inspector chronicle-inspector-empty">
             <GitBranch size={30} />
-            <h2>Follow the evidence.</h2>
-            <p>
-              Select an event to see its actors, resource, timing, and original evidence. Trace its
-              relationships across the project.
-            </p>
+            <h2>{t('chronicleView.followTitle')}</h2>
+            <p>{t('chronicleView.followHint')}</p>
           </aside>
         )}
       </div>
       <details className="chronicle-collector">
         <summary>
           <Activity size={14} />
-          Journal health
+          {t('chronicleView.health')}
           <span>
             {healthError
-              ? 'Unavailable'
+              ? t('chronicleView.unavailable')
               : health['mode']
-                ? `${String(health['mode'])} · ${watcher['active'] === true ? 'watching files' : 'watcher inactive'}`
-                : 'Checking…'}
+                ? t(
+                    watcher['active'] === true
+                      ? 'chronicleView.watching'
+                      : 'chronicleView.notWatching',
+                    { mode: String(health['mode']) },
+                  )
+                : t('chronicleView.checking')}
           </span>
         </summary>
         {healthError ? (
@@ -556,22 +571,22 @@ export function ProjectChronicle({
         ) : (
           <dl>
             {[
-              ['Collector', pipeline['collection']],
-              ['Processor', pipeline['processing']],
-              ['Storage', pipeline['storage']],
-              ['Pending events', journal['pendingEvents']],
-              ['Rejected events', journal['rejectedEvents']],
-              ['Watched files', watcher['watchedFiles']],
+              ['collector', pipeline['collection']],
+              ['processor', pipeline['processing']],
+              ['storage', pipeline['storage']],
+              ['pending', journal['pendingEvents']],
+              ['rejected', journal['rejectedEvents']],
+              ['watched', watcher['watchedFiles']],
               [
-                'Uptime',
+                'uptime',
                 typeof health['uptimeMs'] === 'number'
-                  ? `${Math.round(health['uptimeMs'] / 1000)} seconds`
+                  ? t('chronicleView.seconds', { n: Math.round(health['uptimeMs'] / 1000) })
                   : undefined,
               ],
             ].map(([label, value]) => (
               <div key={String(label)}>
-                <dt>{String(label)}</dt>
-                <dd>{value === undefined ? 'Not reported' : String(value)}</dd>
+                <dt>{t(`chronicleView.healthRow.${String(label)}`)}</dt>
+                <dd>{value === undefined ? t('chronicleView.notReported') : String(value)}</dd>
               </div>
             ))}
           </dl>
@@ -598,27 +613,30 @@ function ChronicleDetail({
     runtime = record(event['runtime']),
     correlation = record(event['correlation']);
   const manifest = chronicleManifest(event['attributes']);
+  const { t } = useDesktopText();
   return (
-    <aside className="chronicle-inspector" aria-label="Chronicle event details">
+    <aside className="chronicle-inspector" aria-label={t('chronicleView.detail.label')}>
       <header>
-        <span>EVENT EVIDENCE</span>
+        <span>{t('chronicleView.detail.eyebrow')}</span>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close Chronicle event"
+          aria-label={t('chronicleView.detail.close')}
           onClick={onClose}
         >
           <X size={14} />
         </button>
       </header>
       <span className={`chronicle-result-badge outcome-${String(event['outcome'])}`}>
-        {String(event['outcome'] ?? 'unknown')}
+        {t(`chronicleView.outcome.${String(event['outcome'] ?? 'unknown')}`, {
+          defaultValue: String(event['outcome'] ?? 'unknown'),
+        })}
       </span>
       <h2>{eventTitle(event)}</h2>
       <p className="chronicle-event-type">{String(event['eventType'])}</p>
       <button type="button" className="button primary small" onClick={onTrace}>
         <GitBranch size={14} />
-        Trace related events
+        {t('chronicleView.detail.trace')}
       </button>
       {typeof resource['path'] === 'string' && (
         <button
@@ -627,7 +645,7 @@ function ChronicleDetail({
           onClick={() => onOpenFile(resource['path'] as string)}
         >
           <FileCode2 size={14} />
-          Open project file
+          {t('chronicleView.openFile')}
         </button>
       )}
       {onOpenSession && typeof scope['sessionId'] === 'string' && scope['sessionId'] && (
@@ -637,27 +655,27 @@ function ChronicleDetail({
           onClick={() => onOpenSession(scope['sessionId'] as string)}
         >
           <History size={14} />
-          Open conversation history
+          {t('chronicleView.detail.history')}
         </button>
       )}
       <dl className="chronicle-event-facts">
         {[
-          ['Occurred', event['occurredAt']],
-          ['Persisted', event['persistedAt']],
+          ['occurred', event['occurredAt']],
+          ['persisted', event['persistedAt']],
           [
-            'Duration',
+            'duration',
             typeof event['durationNs'] === 'string'
               ? `${(Number(event['durationNs']) / 1000000).toFixed(2)} ms`
               : undefined,
           ],
-          ['Agent', scope['agentId']],
-          ['Session', scope['sessionId']],
-          ['Task', scope['taskId']],
-          ['Provider', runtime['providerId']],
-          ['Model', runtime['modelId']],
-          ['Resource', resource['path'] ?? resource['id']],
+          ['agent', scope['agentId']],
+          ['session', scope['sessionId']],
+          ['task', scope['taskId']],
+          ['provider', runtime['providerId']],
+          ['model', runtime['modelId']],
+          ['resource', resource['path'] ?? resource['id']],
           [
-            'Lines',
+            'lines',
             resource['lineStart']
               ? `${resource['lineStart']}–${resource['lineEnd'] ?? resource['lineStart']}`
               : undefined,
@@ -666,14 +684,14 @@ function ChronicleDetail({
           .filter(([, value]) => value !== undefined)
           .map(([label, value]) => (
             <div key={String(label)}>
-              <dt>{String(label)}</dt>
+              <dt>{t(`chronicleView.fact.${String(label)}`)}</dt>
               <dd>{String(value)}</dd>
             </div>
           ))}
       </dl>
       {manifest && <ChronicleManifest manifest={manifest} />}
       <section className="chronicle-attributes">
-        <h3>Recorded evidence</h3>
+        <h3>{t('chronicleView.detail.evidence')}</h3>
         {Object.entries(withoutManifest(event['attributes'])).map(([key, value]) => (
           <div key={key}>
             <h4>{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</h4>
@@ -681,29 +699,29 @@ function ChronicleDetail({
           </div>
         ))}
         {!Object.keys(withoutManifest(event['attributes'])).length && (
-          <p>No additional evidence was recorded for this event.</p>
+          <p>{t('chronicleView.detail.noEvidence')}</p>
         )}
       </section>
       <details className="chronicle-identities">
-        <summary>Trace & integrity</summary>
+        <summary>{t('chronicleView.detail.integrity')}</summary>
         <dl>
           {[
-            ['Event ID', event['eventId']],
-            ['Trace', correlation['traceId']],
-            ['Span', correlation['spanId']],
-            ['Parent span', correlation['parentSpanId']],
-            ['Logical request', correlation['logicalRequestId']],
-            ['Attempt', correlation['attemptId']],
-            ['Tool call', correlation['toolCallId']],
-            ['Prompt manifest', correlation['promptManifestId']],
-            ['Sequence', event['sequence']],
-            ['Event hash', event['hash']],
-            ['Previous hash', event['previousHash']],
+            ['eventId', event['eventId']],
+            ['trace', correlation['traceId']],
+            ['span', correlation['spanId']],
+            ['parentSpan', correlation['parentSpanId']],
+            ['logicalRequest', correlation['logicalRequestId']],
+            ['attempt', correlation['attemptId']],
+            ['toolCall', correlation['toolCallId']],
+            ['promptManifest', correlation['promptManifestId']],
+            ['sequence', event['sequence']],
+            ['hash', event['hash']],
+            ['previousHash', event['previousHash']],
           ]
             .filter(([, value]) => value !== undefined)
             .map(([label, value]) => (
               <div key={String(label)}>
-                <dt>{String(label)}</dt>
+                <dt>{t(`chronicleView.id.${String(label)}`)}</dt>
                 <dd>{String(value)}</dd>
               </div>
             ))}

@@ -4,6 +4,7 @@ import {
 } from '@wrongstack/webui-protocol';
 import { Box, Check, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 
 export function AutomationTemplates({
@@ -13,15 +14,14 @@ export function AutomationTemplates({
   onApply: (id: string) => void;
   disabled: boolean;
 }) {
+  const { t } = useDesktopText();
   const [chosen, setChosen] = useState<string | null>(null);
   const template = VERSIONED_AUTOMATION_TEMPLATES.find((item) => item.id === chosen);
   return (
     <section className="automation-templates">
       <header>
-        <h3>Start with a workflow</h3>
-        <p>
-          A starting point for the job's name and instructions. Runtime choices stay in your draft.
-        </p>
+        <h3>{t('autoConfig.templatesTitle')}</h3>
+        <p>{t('autoConfig.templatesHelp')}</p>
       </header>
       <div>
         {VERSIONED_AUTOMATION_TEMPLATES.map((item) => (
@@ -38,22 +38,19 @@ export function AutomationTemplates({
         ))}
       </div>
       {template && (
-        <Modal title="Use automation template" onClose={() => setChosen(null)}>
+        <Modal title={t('autoConfig.useTemplate')} onClose={() => setChosen(null)}>
           <div className="automation-template-review">
             <h2>{template.name}</h2>
-            <p>
-              This replaces the current draft's name and instructions. It does not save or start a
-              job.
-            </p>
+            <p>{t('autoConfig.templateReplaces')}</p>
             <blockquote>{template.prompt}</blockquote>
-            <h3>Required setup</h3>
+            <h3>{t('autoConfig.requiredSetup')}</h3>
             <ul>
               {template.requirements.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
             <button type="button" className="button secondary" onClick={() => setChosen(null)}>
-              Keep current instructions
+              {t('autoConfig.keepInstructions')}
             </button>
             <button
               type="button"
@@ -63,7 +60,7 @@ export function AutomationTemplates({
                 setChosen(null);
               }}
             >
-              Use template in draft
+              {t('autoConfig.applyTemplate')}
             </button>
           </div>
         </Modal>
@@ -81,6 +78,7 @@ export function AutomationConfiguration({
   update: <K extends keyof AutomationJobInput>(key: K, value: AutomationJobInput[K]) => void;
   onEditEnvironment: () => void;
 }) {
+  const { t } = useDesktopText();
   const [lastGithub, setLastGithub] = useState(
     draft.github ?? {
       repository: '',
@@ -99,14 +97,14 @@ export function AutomationConfiguration({
       <section className="automation-config-section">
         <header>
           <div>
-            <span className="eyebrow">WORKSPACE</span>
+            <span className="eyebrow">{t('autoConfig.workspaceEyebrow')}</span>
             <h3>
               <Box size={16} />
-              Reusable environment
+              {t('autoConfig.environment')}
             </h3>
           </div>
           <button type="button" className="button secondary" onClick={onEditEnvironment}>
-            {environment ? 'Edit environment' : 'Configure environment'}
+            {environment ? t('autoConfig.editEnvironment') : t('autoConfig.configureEnvironment')}
           </button>
         </header>
         {environment ? (
@@ -117,21 +115,18 @@ export function AutomationConfiguration({
               </strong>
               <code>{environment.image}</code>
               <div>
-                <span>{environment.setupCommands.length} setup steps</span>
-                <span>{environment.services.length} services</span>
-                <span>{environment.caches.length} caches</span>
-                <span>{environment.ports.length} preview ports</span>
+                <span>{t('autoConfig.setupSteps', { n: environment.setupCommands.length })}</span>
+                <span>{t('autoConfig.services', { n: environment.services.length })}</span>
+                <span>{t('autoConfig.caches', { n: environment.caches.length })}</span>
+                <span>{t('autoConfig.ports', { n: environment.ports.length })}</span>
               </div>
             </div>
-            <p>
-              Setup deadline: {environment.setupTimeoutMs / 1000} seconds. The worker prepares this
-              environment for the copied workspace.
-            </p>
+            <p>{t('autoConfig.deadline', { seconds: environment.setupTimeoutMs / 1000 })}</p>
             {environment.services.length > 0 && (
               <ul>
                 {environment.services.map((service) => (
                   <li key={service.name}>
-                    {service.name} · {service.image} · health:{' '}
+                    {service.name} · {service.image} · {t('autoConfig.health')}{' '}
                     <code>{service.healthCommand.join(' ')}</code>
                   </li>
                 ))}
@@ -142,23 +137,20 @@ export function AutomationConfiguration({
               className="text-link"
               onClick={() => update('environment', undefined)}
             >
-              Remove environment from draft
+              {t('autoConfig.removeEnvironment')}
             </button>
           </>
         ) : (
-          <p>
-            Attach setup steps, service containers, package caches and local preview ports. No
-            environment is attached.
-          </p>
+          <p>{t('autoConfig.noEnvironment')}</p>
         )}
       </section>
       <section className="automation-config-section">
         <header>
           <div>
-            <span className="eyebrow">SAVED REFERENCES</span>
+            <span className="eyebrow">{t('autoConfig.referencesEyebrow')}</span>
             <h3>
               <KeyRound size={16} />
-              Credentials
+              {t('autoConfig.credentials')}
             </h3>
           </div>
           <button
@@ -173,34 +165,24 @@ export function AutomationConfiguration({
             }
           >
             <Plus size={13} />
-            Add credential reference
+            {t('autoConfig.addCredential')}
           </button>
         </header>
-        <p>
-          Reference a saved profile/provider/key label. The engine resolves its vault value when the
-          job runs. Configure keys in WrongStack settings.
-        </p>
-        {!credentials.length && <p className="quiet-state">No saved credentials referenced.</p>}
+        <p>{t('autoConfig.credentialsHelp')}</p>
+        {!credentials.length && <p className="quiet-state">{t('autoConfig.noCredentials')}</p>}
         {credentials.map((ref, index) => (
           <fieldset
             key={index}
             className="automation-credential-row"
-            aria-label={`Automation credential ${index + 1}`}
+            aria-label={t('autoConfig.credentialGroup', { n: index + 1 })}
           >
-            <legend>Credential {index + 1}</legend>
+            <legend>{t('autoConfig.credential', { n: index + 1 })}</legend>
             <div className="automation-config-grid">
-              {(
-                [
-                  ['envName', 'Destination environment name'],
-                  ['profile', 'Profile'],
-                  ['provider', 'Provider ID'],
-                  ['keyLabel', 'Saved key label'],
-                ] as const
-              ).map(([key, label]) => (
+              {(['envName', 'profile', 'provider', 'keyLabel'] as const).map((key) => (
                 <label key={key}>
-                  {label}
+                  {t(`autoConfig.field.${key}`)}
                   <input
-                    aria-label={`Credential ${index + 1} ${key}`}
+                    aria-label={t('autoConfig.credentialField', { n: index + 1, field: key })}
                     required
                     value={ref[key]}
                     onChange={(event) =>
@@ -219,7 +201,7 @@ export function AutomationConfiguration({
             <button
               type="button"
               className="text-link"
-              aria-label={`Remove automation credential ${index + 1}`}
+              aria-label={t('autoConfig.removeCredential', { n: index + 1 })}
               onClick={() =>
                 update(
                   'credentials',
@@ -228,7 +210,7 @@ export function AutomationConfiguration({
               }
             >
               <Trash2 size={13} />
-              Remove reference
+              {t('autoConfig.removeReference')}
             </button>
           </fieldset>
         ))}
@@ -236,12 +218,12 @@ export function AutomationConfiguration({
       <section className="automation-config-section">
         <header>
           <div>
-            <span className="eyebrow">EVENT TRIGGER</span>
-            <h3>GitHub events</h3>
+            <span className="eyebrow">{t('autoConfig.triggerEyebrow')}</span>
+            <h3>{t('autoConfig.githubEvents')}</h3>
           </div>
           <label className="feature-checkbox">
             <input
-              aria-label="Use GitHub automation trigger"
+              aria-label={t('autoConfig.useGithub')}
               type="checkbox"
               checked={!!draft.github}
               onChange={(event) => {
@@ -249,20 +231,17 @@ export function AutomationConfiguration({
                 update('github', event.target.checked ? lastGithub : undefined);
               }}
             />
-            Configure GitHub trigger
+            {t('autoConfig.configureGithub')}
           </label>
         </header>
         {draft.github ? (
           <>
-            <p>
-              Signed events for this repository may queue the job when enabled. The webhook secret
-              is an environment name configured on the worker.
-            </p>
+            <p>{t('autoConfig.githubHelp')}</p>
             <div className="automation-config-grid">
               <label>
-                Repository
+                {t('autoConfig.repository')}
                 <input
-                  aria-label="Automation GitHub repository"
+                  aria-label={t('autoConfig.repositoryLabel')}
                   required
                   placeholder="owner/repository"
                   value={draft.github.repository}
@@ -272,9 +251,9 @@ export function AutomationConfiguration({
                 />
               </label>
               <label>
-                Event names
+                {t('autoConfig.eventNames')}
                 <input
-                  aria-label="Automation GitHub events"
+                  aria-label={t('autoConfig.eventNamesLabel')}
                   required
                   placeholder="issue_comment.created, pull_request.opened"
                   value={draft.github.events.join(', ')}
@@ -287,9 +266,9 @@ export function AutomationConfiguration({
                 />
               </label>
               <label>
-                Secret environment name
+                {t('autoConfig.secretName')}
                 <input
-                  aria-label="Automation GitHub secret name"
+                  aria-label={t('autoConfig.secretNameLabel')}
                   required
                   value={draft.github.secretEnv}
                   onChange={(event) =>
@@ -299,20 +278,13 @@ export function AutomationConfiguration({
               </label>
             </div>
             <details>
-              <summary>Event filters</summary>
+              <summary>{t('autoConfig.filters')}</summary>
               <div className="automation-config-grid">
-                {(
-                  [
-                    ['mention', 'Required mention'],
-                    ['label', 'Required label'],
-                    ['branch', 'Branch'],
-                    ['conclusion', 'Workflow conclusion'],
-                  ] as const
-                ).map(([key, label]) => (
+                {(['mention', 'label', 'branch', 'conclusion'] as const).map((key) => (
                   <label key={key}>
-                    {label}
+                    {t(`autoConfig.filter.${key}`)}
                     <input
-                      aria-label={`Automation GitHub ${key}`}
+                      aria-label={t('autoConfig.filterLabel', { key })}
                       value={draft.github!.filters?.[key] ?? ''}
                       onChange={(event) =>
                         changeGithub({
@@ -329,7 +301,7 @@ export function AutomationConfiguration({
               </div>
               <label className="feature-checkbox">
                 <input
-                  aria-label="Automation GitHub exclude bots"
+                  aria-label={t('autoConfig.excludeBotsLabel')}
                   type="checkbox"
                   checked={draft.github.filters?.excludeBots ?? false}
                   onChange={(event) =>
@@ -339,12 +311,12 @@ export function AutomationConfiguration({
                     })
                   }
                 />
-                Exclude bot events
+                {t('autoConfig.excludeBots')}
               </label>
               <label>
-                Pull request draft status
+                {t('autoConfig.draftStatus')}
                 <select
-                  aria-label="Automation GitHub draft filter"
+                  aria-label={t('autoConfig.draftStatusLabel')}
                   value={
                     draft.github.filters?.draft === undefined
                       ? 'any'
@@ -361,20 +333,19 @@ export function AutomationConfiguration({
                     })
                   }
                 >
-                  <option value="any">Any status</option>
-                  <option value="false">Ready for review</option>
-                  <option value="true">Draft only</option>
+                  <option value="any">{t('autoConfig.anyStatus')}</option>
+                  <option value="false">{t('autoConfig.readyForReview')}</option>
+                  <option value="true">{t('autoConfig.draftOnly')}</option>
                 </select>
               </label>
             </details>
             <p className="automation-reference-note">
               <Check size={13} />
-              Saving trigger settings does not install a webhook. Event delivery and worker
-              execution are separate.
+              {t('autoConfig.noWebhook')}
             </p>
           </>
         ) : (
-          <p>No GitHub trigger configured. Manual and scheduled runs remain available.</p>
+          <p>{t('autoConfig.noGithub')}</p>
         )}
       </section>
     </>

@@ -1,5 +1,6 @@
 import { Stethoscope } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -40,6 +41,7 @@ export function ConfigDoctor({
   /** Called after a repair was written, so open settings can be read again. */
   onApplied?: (() => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [report, setReport] = useState<ConfigDoctorReport | null>(null),
     [busy, setBusy] = useState(false),
     [confirm, setConfirm] = useState(false),
@@ -61,15 +63,11 @@ export function ConfigDoctor({
     }
   };
   return (
-    <section className="config-doctor" aria-label="Configuration check">
+    <section className="config-doctor" aria-label={t('configDoctor.title')}>
       <h3>
-        <Stethoscope size={15} /> Configuration check
+        <Stethoscope size={15} /> {t('configDoctor.title')}
       </h3>
-      <p className="field-help">
-        Compares the active profile configuration with the current defaults. Missing settings are
-        added and settings of the wrong type are replaced; provider and model are never chosen for
-        you.
-      </p>
+      <p className="field-help">{t('configDoctor.intro')}</p>
       <div className="config-doctor-actions">
         <button
           type="button"
@@ -77,7 +75,7 @@ export function ConfigDoctor({
           disabled={busy}
           onClick={() => void run(false)}
         >
-          {busy && !confirm ? 'Checking…' : 'Check configuration'}
+          {busy && !confirm ? t('configDoctor.checking') : t('configDoctor.check')}
         </button>
         {report?.changed && !report.applied && (
           <button
@@ -86,15 +84,18 @@ export function ConfigDoctor({
             disabled={busy}
             onClick={() => setConfirm(true)}
           >
-            Repair {report.changes.length} {report.changes.length === 1 ? 'setting' : 'settings'}…
+            {report.changes.length === 1
+              ? t('configDoctor.repairOne')
+              : t('configDoctor.repairMany', { number: report.changes.length })}
           </button>
         )}
       </div>
       {confirm && (
         <div className="config-doctor-confirm" role="alert">
           <p>
-            Write these changes to {report?.configPath || 'the profile configuration'}? The current
-            file is kept as a backup first. Unsaved edits in open settings forms are not included.
+            {t('configDoctor.confirm', {
+              path: report?.configPath || t('configDoctor.profileConfig'),
+            })}
           </p>
           <button
             type="button"
@@ -102,14 +103,14 @@ export function ConfigDoctor({
             disabled={busy}
             onClick={() => void run(true)}
           >
-            Repair and keep a backup
+            {t('configDoctor.repairBackup')}
           </button>
           <button
             type="button"
             className="button secondary small"
             onClick={() => setConfirm(false)}
           >
-            Keep current
+            {t('configDoctor.keep')}
           </button>
         </div>
       )}
@@ -117,19 +118,20 @@ export function ConfigDoctor({
         <div role="status">
           {report.applied ? (
             <p>
-              Repaired {report.changes.length} settings. Backup:{' '}
-              <code>{report.backupPath || 'not reported'}</code>
+              {t('configDoctor.repaired', { number: report.changes.length })}{' '}
+              <code>{report.backupPath || t('configDoctor.notReported')}</code>
             </p>
           ) : report.changed ? (
-            <p>{report.changes.length} settings differ from the defaults:</p>
+            <p>{t('configDoctor.differ', { number: report.changes.length })}</p>
           ) : (
-            <p>The configuration matches the current defaults.</p>
+            <p>{t('configDoctor.matches')}</p>
           )}
           {report.changes.length > 0 && (
             <ul className="config-doctor-changes">
               {report.changes.slice(0, 200).map((change) => (
                 <li key={change.path}>
-                  <code>{change.path}</code> {change.action === 'added' ? 'added' : 'replaced'}
+                  <code>{change.path}</code>{' '}
+                  {change.action === 'added' ? t('configDoctor.added') : t('configDoctor.replaced')}
                 </li>
               ))}
             </ul>

@@ -11,12 +11,13 @@ import {
   Target,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
 import { GoalPhaseVerification } from './GoalPhaseVerification';
 import { GoalRevert } from './GoalRevert';
 import { matchingGoalAssessment } from './goal-assessment';
-import { goalBudgetPayload, goalBudgetText } from './goal-budget-model';
+import { type GoalBudgetWords, goalBudgetPayload, goalBudgetText } from './goal-budget-model';
 import type { RunFocus } from './kanban-board-source';
 import { ProjectMission } from './ProjectMission';
 import './project-goals.css';
@@ -28,6 +29,17 @@ const reportedCount = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
 const statusText = (value: unknown) => label(value).replaceAll('_', ' ');
 let assessmentSequence = Date.now();
+/** Engine requests the page sends, each with its own waiting notice. */
+type RequestKind =
+  | 'refresh'
+  | 'pause'
+  | 'resume'
+  | 'stop'
+  | 'addTask'
+  | 'statusChange'
+  | 'retry'
+  | 'assignment'
+  | 'moveTask';
 
 /** A project-owned view over the engine's Goal catalog and per-goal state. */
 export function ProjectGoals({
@@ -43,6 +55,25 @@ export function ProjectGoals({
   /** Goal to select when the page opens, e.g. from its mirror board. */
   initialGoalId?: string | undefined;
 }) {
+  const { t } = useDesktopText();
+  // Engine words (statuses) are named per language; unknown ones read as before.
+  const named = (value: unknown) => {
+    const raw = label(value);
+    return raw === '—' ? raw : t(`goals.status.${raw}`, { defaultValue: statusText(raw) });
+  };
+  const budgetWords: GoalBudgetWords = {
+    tasks: (used, max) => t('goals.budget.tasks', { used, max }),
+    minutes: (used, max) => t('goals.budget.minutes', { used, max }),
+    tokens: (used, max) => t('goals.budget.tokens', { used, max }),
+    cost: (used, max, unpriced) =>
+      unpriced > 0
+        ? t('goals.budget.costUnpriced', { used, max, n: unpriced })
+        : t('goals.budget.cost', { used, max }),
+    budget: (parts) => t('goals.budget.line', { parts }),
+    invalid: (limit, max) => t(`goals.limitError.${limit}`, { max }),
+  };
+  // The refresh notice clears when the catalog arrives; other notices wait for their goal.
+  const refreshing = useRef(false);
   const [selected, setSelected] = useState(initialGoalId);
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
@@ -103,13 +134,10 @@ export function ProjectGoals({
   const readOnly = goal?.['readOnly'] === true;
   const status = label(goal?.['status'] ?? summary?.['status'], 'unknown');
   const liveBoard = !readOnly && ['running', 'paused'].includes(status);
-  const sendRequest = async (
-    type: string,
-    payload: Record<string, unknown>,
-    description: string,
-  ) => {
+  const sendRequest = async (type: string, payload: Record<string, unknown>, kind: RequestKind) => {
     setError('');
-    setAction(`${description} requested. Waiting for the engine.`);
+    refreshing.current = kind === 'refresh';
+    setAction(t(`goals.requested.${kind}`));
     try {
       await send(type, payload);
     } catch (e) {
@@ -139,12 +167,14 @@ export function ProjectGoals({
     }
   }, [goal, pendingStart, selected]);
   useEffect(() => {
-    if (state.results['goal.list'])
-      setAction((current) => (current.startsWith('Refresh ') ? '' : current));
+    if (state.results['goal.list'] && refreshing.current) {
+      refreshing.current = false;
+      setAction('');
+    }
   }, [state.results['goal.list']]);
   useEffect(() => {
     if (goalError) {
-      setError(label(goalError['message'], 'The engine refused this request.'));
+      setError(label(goalError['message'], t('goals.refused')));
       setAction('');
     }
   }, [goalError]);
@@ -185,7 +215,7 @@ export function ProjectGoals({
     if (!title.trim()) return;
     let budget: ReturnType<typeof goalBudgetPayload>;
     try {
-      budget = goalBudgetPayload(budgetTasks, budgetMinutes, budgetTokens, budgetCost);
+      budget = goalBudgetPayload(budgetTasks, budgetMinutes, budgetTokens, budgetCost, budgetWords);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       return;
@@ -198,7 +228,8 @@ export function ProjectGoals({
     setPendingStart(id);
     setSelected(id);
     setCreating(false);
-    setAction('Goal submitted. Waiting for the engine to plan.');
+    refreshing.current = false;
+    setAction(t('goals.submitted'));
     try {
       await send('goal.start', {
         goalId: id,
@@ -219,19 +250,19 @@ export function ProjectGoals({
     }
   };
   return (
-    <section className="project-goals" aria-label="Project Goals">
+    <section className="project-goals" aria-label={t('goals.label')}>
       <header className="studio-heading">
         <div>
-          <h1>Goals</h1>
-          <p>Plan missions, follow their phases and inspect work across the project.</p>
+          <h1>{t('goals.title')}</h1>
+          <p>{t('goals.intro')}</p>
         </div>
         <div className="goal-header-actions">
           <button
             type="button"
             className="button secondary"
-            onClick={() => void sendRequest('goal.list', {}, 'Refresh')}
+            onClick={() => void sendRequest('goal.list', {}, 'refresh')}
           >
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} /> {t('goals.refresh')}
           </button>
           <button
             type="button"
@@ -241,7 +272,7 @@ export function ProjectGoals({
               setSelected('');
             }}
           >
-            <Plus size={14} /> New goal
+            <Plus size={14} /> {t('goals.new')}
           </button>
         </div>
       </header>
@@ -258,7 +289,7 @@ export function ProjectGoals({
                 setError('');
               }}
             >
-              Return to goal draft
+              {t('goals.returnDraft')}
             </button>
           )}
         </div>
@@ -271,14 +302,14 @@ export function ProjectGoals({
       {creating ? (
         <section className="goal-create">
           <button type="button" className="goal-back" onClick={() => setCreating(false)}>
-            <ArrowLeft size={14} /> All goals
+            <ArrowLeft size={14} /> {t('goals.allGoals')}
           </button>
-          <h2>What should this project achieve?</h2>
-          <p>WrongStack plans the phases and coordinates work using the project engine.</p>
+          <h2>{t('goals.createTitle')}</h2>
+          <p>{t('goals.createIntro')}</p>
           <label>
-            Goal
+            {t('goals.goal')}
             <textarea
-              aria-label="Goal"
+              aria-label={t('goals.goal')}
               value={title}
               onChange={(event) => {
                 setTitle(event.target.value);
@@ -286,13 +317,13 @@ export function ProjectGoals({
                 setAssessing(false);
                 setAssessment(null);
               }}
-              placeholder="Describe the outcome and constraints…"
+              placeholder={t('goals.goalPlaceholder')}
             />
           </label>
           <div className="goal-assessment">
             <div>
-              <strong>Check feasibility</strong>
-              <p>Ask the configured model to assess the goal before planning.</p>
+              <strong>{t('goals.feasibility')}</strong>
+              <p>{t('goals.feasibilityHelp')}</p>
             </div>
             <button
               type="button"
@@ -300,38 +331,39 @@ export function ProjectGoals({
               disabled={!title.trim() || assessing}
               onClick={() => void assess()}
             >
-              {assessing ? 'Assessing…' : 'Assess goal'}
+              {assessing ? t('goals.assessing') : t('goals.assess')}
             </button>
           </div>
           {assessment && (
             <div className="goal-assessment-result" role="status">
               {assessment['parseFailed'] === true ? (
                 <>
-                  <strong>Assessment unavailable</strong>
-                  <p>
-                    {label(
-                      assessment['parseError'],
-                      'The model did not return a usable assessment.',
-                    )}
-                  </p>
+                  <strong>{t('goals.unavailable')}</strong>
+                  <p>{label(assessment['parseError'], t('goals.noAssessment'))}</p>
                 </>
               ) : (
                 <>
                   <strong>
                     {assessment['realistic'] === true
-                      ? 'Goal looks feasible'
+                      ? t('goals.feasible')
                       : assessment['realistic'] === false
-                        ? 'Review the scope'
-                        : 'Assessment'}
+                        ? t('goals.reviewScope')
+                        : t('goals.assessment')}
                   </strong>
                   {typeof assessment['explanation'] === 'string' && assessment['explanation'] && (
                     <p>{assessment['explanation']}</p>
                   )}
                   {typeof assessment['durationClaimed'] === 'string' && (
-                    <p>Requested duration: {assessment['durationClaimed']}</p>
+                    <p>
+                      {t('goals.requestedDuration', { duration: assessment['durationClaimed'] })}
+                    </p>
                   )}
                   {typeof assessment['recommendedDuration'] === 'string' && (
-                    <p>Suggested duration: {assessment['recommendedDuration']}</p>
+                    <p>
+                      {t('goals.suggestedDuration', {
+                        duration: assessment['recommendedDuration'],
+                      })}
+                    </p>
                   )}
                   {Array.isArray(assessment['concerns']) &&
                     assessment['concerns'].some((item) => typeof item === 'string') && (
@@ -354,7 +386,7 @@ export function ProjectGoals({
                 checked={verify}
                 onChange={(e) => setVerify(e.target.checked)}
               />{' '}
-              Verify tasks
+              {t('goals.verifyTasks')}
             </label>
             <label>
               <input
@@ -362,7 +394,7 @@ export function ProjectGoals({
                 checked={multiBoard}
                 onChange={(e) => setMultiBoard(e.target.checked)}
               />{' '}
-              Separate board for each phase
+              {t('goals.multiBoard')}
             </label>
             <label>
               <input
@@ -370,7 +402,7 @@ export function ProjectGoals({
                 checked={review}
                 onChange={(e) => setReview(e.target.checked)}
               />{' '}
-              Chimera review
+              {t('goals.chimera')}
             </label>
             <label>
               <input
@@ -378,59 +410,59 @@ export function ProjectGoals({
                 checked={isolate}
                 onChange={(e) => setIsolate(e.target.checked)}
               />{' '}
-              Isolate work in Git worktrees
+              {t('goals.isolate')}
             </label>
             <label>
-              Task limit
+              {t('goals.taskLimit')}
               <input
                 type="number"
                 min={1}
                 step={1}
                 inputMode="numeric"
                 value={budgetTasks}
-                placeholder="No limit"
+                placeholder={t('goals.noLimit')}
                 onChange={(e) => setBudgetTasks(e.target.value)}
               />
             </label>
             <label>
-              Run-time limit (minutes)
+              {t('goals.minutesLimit')}
               <input
                 type="number"
                 min={1}
                 inputMode="decimal"
                 value={budgetMinutes}
-                placeholder="No limit"
+                placeholder={t('goals.noLimit')}
                 onChange={(e) => setBudgetMinutes(e.target.value)}
               />
             </label>
-            <label title="Provider tokens reported by the task agents, checked before each task: the task that crosses the limit finishes.">
-              Token limit
+            <label title={t('goals.tokenHelp')}>
+              {t('goals.tokenLimit')}
               <input
                 type="number"
                 min={1}
                 step={1}
                 inputMode="numeric"
                 value={budgetTokens}
-                placeholder="No limit"
+                placeholder={t('goals.noLimit')}
                 onChange={(e) => setBudgetTokens(e.target.value)}
               />
             </label>
-            <label title="Estimated USD from the model catalog's prices for each task agent response, checked before each task. A response whose model has no price stops the run, because the limit can no longer be checked.">
-              Cost limit (USD)
+            <label title={t('goals.costHelp')}>
+              {t('goals.costLimit')}
               <input
                 type="number"
                 min={0.01}
                 step={0.01}
                 inputMode="decimal"
                 value={budgetCost}
-                placeholder="No limit"
+                placeholder={t('goals.noLimit')}
                 onChange={(e) => setBudgetCost(e.target.value)}
               />
             </label>
           </div>
           <div className="goal-create-actions">
             <button type="button" className="button secondary" onClick={() => setCreating(false)}>
-              Cancel
+              {t('goals.cancel')}
             </button>
             <button
               type="button"
@@ -438,7 +470,7 @@ export function ProjectGoals({
               disabled={!title.trim()}
               onClick={() => void start()}
             >
-              <Target size={14} /> Start goal
+              <Target size={14} /> {t('goals.start')}
             </button>
           </div>
         </section>
@@ -452,20 +484,22 @@ export function ProjectGoals({
               setError('');
             }}
           >
-            <ArrowLeft size={14} /> All goals
+            <ArrowLeft size={14} /> {t('goals.allGoals')}
           </button>
           <div className="goal-detail-head">
             <div>
-              <span className="eyebrow">PROJECT MISSION</span>
-              <h2>{label(goal?.['title'] ?? summary?.['title'], 'Goal')}</h2>
+              <span className="eyebrow">{t('goals.eyebrow')}</span>
+              <h2>{label(goal?.['title'] ?? summary?.['title'], t('goals.goal'))}</h2>
               <p>{label(goal?.['goal'], '')}</p>
               <div className="goal-chips">
-                <span>{statusText(status)}</span>
-                <span>{readOnly ? 'Controlled by another owner' : 'Project engine'}</span>
-                {goal?.['verifyTasks'] === true && <span>Task verification</span>}
-                {goal?.['multiBoard'] === true && <span>Multiple boards</span>}
-                {goalBudgetText(goal?.['budget'], goal?.['budgetUsage']) && (
-                  <span>{goalBudgetText(goal?.['budget'], goal?.['budgetUsage'])}</span>
+                <span>{named(status)}</span>
+                <span>{readOnly ? t('goals.otherOwner') : t('goals.projectEngine')}</span>
+                {goal?.['verifyTasks'] === true && <span>{t('goals.taskVerification')}</span>}
+                {goal?.['multiBoard'] === true && <span>{t('goals.multipleBoards')}</span>}
+                {goalBudgetText(goal?.['budget'], goal?.['budgetUsage'], budgetWords) && (
+                  <span>
+                    {goalBudgetText(goal?.['budget'], goal?.['budgetUsage'], budgetWords)}
+                  </span>
                 )}
               </div>
             </div>
@@ -475,29 +509,29 @@ export function ProjectGoals({
                   type="button"
                   className="button secondary"
                   disabled={readOnly}
-                  onClick={() => void sendRequest('goal.pause', { goalId: selected }, 'Pause')}
+                  onClick={() => void sendRequest('goal.pause', { goalId: selected }, 'pause')}
                 >
-                  <Pause size={14} /> Pause
+                  <Pause size={14} /> {t('goals.pause')}
                 </button>
               )}
               {['stopped', 'failed'].includes(status) && !readOnly && (
                 // New limits replace the saved budget when the run resumes; blank keeps it.
                 <details className="goal-resume-budget">
-                  <summary>Limits for the resumed run</summary>
+                  <summary>{t('goals.resumeLimits')}</summary>
                   <input
                     type="number"
                     min={1}
                     step={1}
-                    aria-label="Task limit for the resumed run"
-                    placeholder="Task limit"
+                    aria-label={t('goals.resumeTasksLabel')}
+                    placeholder={t('goals.taskLimit')}
                     value={resumeTasks}
                     onChange={(e) => setResumeTasks(e.target.value)}
                   />
                   <input
                     type="number"
                     min={1}
-                    aria-label="Run-time limit in minutes for the resumed run"
-                    placeholder="Minutes"
+                    aria-label={t('goals.resumeMinutesLabel')}
+                    placeholder={t('goals.minutesPlaceholder')}
                     value={resumeMinutes}
                     onChange={(e) => setResumeMinutes(e.target.value)}
                   />
@@ -505,8 +539,8 @@ export function ProjectGoals({
                     type="number"
                     min={1}
                     step={1}
-                    aria-label="Token limit for the resumed run"
-                    placeholder="Tokens"
+                    aria-label={t('goals.resumeTokensLabel')}
+                    placeholder={t('goals.tokensPlaceholder')}
                     value={resumeTokens}
                     onChange={(e) => setResumeTokens(e.target.value)}
                   />
@@ -514,7 +548,7 @@ export function ProjectGoals({
                     type="number"
                     min={0.01}
                     step={0.01}
-                    aria-label="Cost limit in USD for the resumed run"
+                    aria-label={t('goals.resumeCostLabel')}
                     placeholder="USD"
                     value={resumeCost}
                     onChange={(e) => setResumeCost(e.target.value)}
@@ -532,7 +566,13 @@ export function ProjectGoals({
                       budget =
                         status === 'paused'
                           ? undefined
-                          : goalBudgetPayload(resumeTasks, resumeMinutes, resumeTokens, resumeCost);
+                          : goalBudgetPayload(
+                              resumeTasks,
+                              resumeMinutes,
+                              resumeTokens,
+                              resumeCost,
+                              budgetWords,
+                            );
                     } catch (e) {
                       setError(e instanceof Error ? e.message : String(e));
                       return;
@@ -540,29 +580,29 @@ export function ProjectGoals({
                     void sendRequest(
                       'goal.resume',
                       { goalId: selected, ...(budget ? { budget } : {}) },
-                      'Resume',
+                      'resume',
                     );
                   }}
                 >
-                  <Play size={14} /> Resume
+                  <Play size={14} /> {t('goals.resume')}
                 </button>
               )}
               {['running', 'paused'].includes(status) &&
                 (stopConfirm ? (
                   <>
-                    <span>Stop this run?</span>
+                    <span>{t('goals.stopAsk')}</span>
                     <button
                       type="button"
                       className="button secondary"
                       onClick={() => {
                         setStopConfirm(false);
-                        void sendRequest('goal.stop', { goalId: selected }, 'Stop');
+                        void sendRequest('goal.stop', { goalId: selected }, 'stop');
                       }}
                     >
-                      Confirm stop
+                      {t('goals.confirmStop')}
                     </button>
                     <button type="button" onClick={() => setStopConfirm(false)}>
-                      Cancel
+                      {t('goals.cancel')}
                     </button>
                   </>
                 ) : (
@@ -572,7 +612,7 @@ export function ProjectGoals({
                     disabled={readOnly}
                     onClick={() => setStopConfirm(true)}
                   >
-                    <Square size={14} /> Stop
+                    <Square size={14} /> {t('goals.stop')}
                   </button>
                 ))}
               {selected && (
@@ -588,11 +628,7 @@ export function ProjectGoals({
               <button
                 type="button"
                 className="button secondary"
-                title={
-                  selected
-                    ? 'Open the board that mirrors this goal’s run, once the run has started'
-                    : undefined
-                }
+                title={selected ? t('goals.boardHelp') : undefined}
                 onClick={() =>
                   onKanban(
                     selected
@@ -607,18 +643,14 @@ export function ProjectGoals({
                   )
                 }
               >
-                {selected ? 'Open goal board' : 'Open Kanban'}
+                {selected ? t('goals.openBoard') : t('goals.openKanban')}
               </button>
             </div>
           </div>
           {!goal ? (
             <div className="goal-empty">
               {!goalError && <LoaderCircle size={22} className="spin" />}
-              <p>
-                {goalError
-                  ? 'The engine did not load this goal.'
-                  : 'Waiting for the engine’s goal state…'}
-              </p>
+              <p>{goalError ? t('goals.notLoaded') : t('goals.waiting')}</p>
               {selected === pendingStart && (
                 <button
                   type="button"
@@ -629,7 +661,7 @@ export function ProjectGoals({
                     setCreating(true);
                   }}
                 >
-                  Return to goal draft
+                  {t('goals.returnDraft')}
                 </button>
               )}
             </div>
@@ -641,14 +673,14 @@ export function ProjectGoals({
                     {reportedCount(record(goal['progress'])['completed'])} /{' '}
                     {reportedCount(record(goal['progress'])['totalPhases'])}
                   </strong>
-                  <span>Phases complete</span>
+                  <span>{t('goals.phasesComplete')}</span>
                 </div>
                 <div>
                   <strong>
                     {reportedCount(record(goal['progress'])['completedTasks'])} /{' '}
                     {reportedCount(record(goal['progress'])['totalTasks'])}
                   </strong>
-                  <span>Tasks complete</span>
+                  <span>{t('goals.tasksComplete')}</span>
                 </div>
                 <div>
                   <strong>
@@ -656,15 +688,15 @@ export function ProjectGoals({
                       ? `${goal['overallPercent']}%`
                       : '—'}
                   </strong>
-                  <span>Phase progress</span>
+                  <span>{t('goals.phaseProgress')}</span>
                 </div>
                 <div>
                   <strong>
                     {record(goal['finalVerification'])['skipped'] === true
-                      ? 'Skipped'
-                      : statusText(record(goal['finalVerification'])['status'] ?? 'not run')}
+                      ? t('goals.skipped')
+                      : named(record(goal['finalVerification'])['status'] ?? 'not_run')}
                   </strong>
-                  <span>Final verification</span>
+                  <span>{t('goals.finalVerification')}</span>
                 </div>
               </div>
               {typeof goal['lastError'] === 'string' && goal['lastError'] && (
@@ -674,17 +706,17 @@ export function ProjectGoals({
                 <div className="goal-phase-list">
                   <header>
                     <Flag size={15} />
-                    <strong>Phases and tasks</strong>
-                    <span>{phases.length} phases</span>
+                    <strong>{t('goals.phasesAndTasks')}</strong>
+                    <span>{t('goals.phaseCount', { n: phases.length })}</span>
                   </header>
                   {phases.map((phase) => (
                     <article key={String(phase['id'])} className="goal-phase">
                       <div className="goal-phase-head">
                         <div>
-                          <strong>{label(phase['name'], 'Phase')}</strong>
+                          <strong>{label(phase['name'], t('goals.phase'))}</strong>
                           <p>{label(phase['description'], '')}</p>
                         </div>
-                        <span>{statusText(phase['status'])}</span>
+                        <span>{named(phase['status'])}</span>
                       </div>
                       <div className="goal-phase-progress">
                         <span
@@ -694,11 +726,17 @@ export function ProjectGoals({
                         />
                       </div>
                       <small>
-                        {reportedCount(phase['completedTasks'])} /{' '}
-                        {reportedCount(phase['taskCount'])} tasks
+                        {t('goals.taskCount', {
+                          done: reportedCount(phase['completedTasks']),
+                          total: reportedCount(phase['taskCount']),
+                        })}
                         {typeof phase['priority'] === 'string' &&
                           phase['priority'] &&
-                          ` · ${phase['priority']} priority`}
+                          ` · ${t('goals.priorityLine', {
+                            priority: t(`goals.priority.${phase['priority']}`, {
+                              defaultValue: phase['priority'],
+                            }),
+                          })}`}
                       </small>
                       <GoalPhaseVerification phase={phase} />
                       <div className="goal-tasks">
@@ -710,8 +748,8 @@ export function ProjectGoals({
                             onClick={() => setSelectedTask(String(item['id']))}
                           >
                             <CheckCircle2 size={14} />
-                            <span>{label(item['title'], 'Task')}</span>
-                            <small>{statusText(item['status'])}</small>
+                            <span>{label(item['title'], t('goals.task'))}</span>
+                            <small>{named(item['status'])}</small>
                           </button>
                         ))}
                       </div>
@@ -725,12 +763,14 @@ export function ProjectGoals({
                             void sendRequest(
                               'goal.addTask',
                               { goalId: selected, phaseId: phase['id'], title: newTask.trim() },
-                              'Add task',
+                              'addTask',
                             );
                           }}
                         >
                           <input
-                            aria-label={`New task for ${label(phase['name'], 'phase')}`}
+                            aria-label={t('goals.newTaskFor', {
+                              phase: label(phase['name'], t('goals.phaseLower')),
+                            })}
                             value={newTasks[String(phase['id'])] ?? ''}
                             onChange={(event) =>
                               setNewTasks((current) => ({
@@ -738,7 +778,7 @@ export function ProjectGoals({
                                 [String(phase['id'])]: event.target.value,
                               }))
                             }
-                            placeholder="Add a task to this phase"
+                            placeholder={t('goals.addTaskPlaceholder')}
                           />
                           <button
                             type="submit"
@@ -746,54 +786,64 @@ export function ProjectGoals({
                               !(newTasks[String(phase['id'])] ?? '').trim() || Boolean(action)
                             }
                           >
-                            Add
+                            {t('goals.add')}
                           </button>
                         </form>
                       )}
                     </article>
                   ))}
-                  {!phases.length && (
-                    <p className="goal-empty">No phases have been reported yet.</p>
-                  )}
+                  {!phases.length && <p className="goal-empty">{t('goals.noPhases')}</p>}
                 </div>
                 <aside className="goal-inspector">
                   {task ? (
                     <>
-                      <span className="eyebrow">TASK DETAILS</span>
-                      <h3>{label(task['title'], 'Task')}</h3>
-                      <p>{label(task['description'], 'No description was recorded.')}</p>
+                      <span className="eyebrow">{t('goals.taskDetails')}</span>
+                      <h3>{label(task['title'], t('goals.task'))}</h3>
+                      <p>{label(task['description'], t('goals.noDescription'))}</p>
                       <dl>
-                        {[
-                          ['Phase', task['phaseName']],
-                          ['Status', task['status']],
-                          ['Priority', task['priority']],
-                          ['Type', task['type']],
-                          ['Assigned agent', task['assignee']],
-                          ['Estimated hours', task['estimateHours']],
-                          ['Actual hours', task['actualHours']],
-                        ].map(([name, value]) => (
-                          <div key={String(name)}>
-                            <dt>{String(name)}</dt>
-                            <dd>{typeof value === 'number' ? value : statusText(value)}</dd>
+                        {(
+                          [
+                            ['phase', task['phaseName']],
+                            ['status', task['status']],
+                            ['priority', task['priority']],
+                            ['type', task['type']],
+                            ['assignee', task['assignee']],
+                            ['estimateHours', task['estimateHours']],
+                            ['actualHours', task['actualHours']],
+                          ] as const
+                        ).map(([name, value]) => (
+                          <div key={name}>
+                            <dt>{t(`goals.field.${name}`)}</dt>
+                            <dd>
+                              {typeof value === 'number'
+                                ? value
+                                : name === 'status'
+                                  ? named(value)
+                                  : name === 'priority' && typeof value === 'string' && value
+                                    ? t(`goals.priority.${value}`, { defaultValue: value })
+                                    : statusText(value)}
+                            </dd>
                           </div>
                         ))}
                       </dl>
                       {Array.isArray(task['tags']) && task['tags'].length > 0 && (
                         <p>
-                          Tags: {task['tags'].filter((tag) => typeof tag === 'string').join(', ')}
+                          {t('goals.tags', {
+                            tags: task['tags'].filter((tag) => typeof tag === 'string').join(', '),
+                          })}
                         </p>
                       )}
                       {!readOnly && (
                         <>
                           <label>
-                            Change status
+                            {t('goals.changeStatus')}
                             <select
                               value={label(task['status'], 'pending')}
                               onChange={(e) =>
                                 void sendRequest(
                                   'goal.taskStatus',
                                   { goalId: selected, taskId: task['id'], status: e.target.value },
-                                  'Status change',
+                                  'statusChange',
                                 )
                               }
                             >
@@ -806,7 +856,7 @@ export function ProjectGoals({
                                 'completed',
                               ].map((value) => (
                                 <option key={value} value={value}>
-                                  {value.replaceAll('_', ' ')}
+                                  {t(`goals.status.${value}`)}
                                 </option>
                               ))}
                             </select>
@@ -819,11 +869,11 @@ export function ProjectGoals({
                                 void sendRequest(
                                   'goal.retryTask',
                                   { goalId: selected, taskId: task['id'] },
-                                  'Retry',
+                                  'retry',
                                 )
                               }
                             >
-                              Retry task
+                              {t('goals.retryTask')}
                             </button>
                           )}
                           {liveBoard && (
@@ -838,16 +888,16 @@ export function ProjectGoals({
                                       taskId: task['id'],
                                       ...(agentName.trim() ? { agentName: agentName.trim() } : {}),
                                     },
-                                    'Assignment',
+                                    'assignment',
                                   );
                                 }}
                               >
                                 <label>
-                                  Assign agent
+                                  {t('goals.assignAgent')}
                                   <input
                                     value={agentName}
                                     onChange={(event) => setAgentName(event.target.value)}
-                                    placeholder="Agent name; empty clears assignment"
+                                    placeholder={t('goals.agentPlaceholder')}
                                   />
                                 </label>
                                 <button
@@ -855,7 +905,7 @@ export function ProjectGoals({
                                   className="button secondary"
                                   disabled={Boolean(action)}
                                 >
-                                  Update assignment
+                                  {t('goals.updateAssignment')}
                                 </button>
                               </form>
                               {phases.length > 1 && (
@@ -866,7 +916,7 @@ export function ProjectGoals({
                                   }}
                                 >
                                   <label>
-                                    Move to phase
+                                    {t('goals.moveToPhase')}
                                     <select
                                       value={destination}
                                       onChange={(event) => {
@@ -874,7 +924,7 @@ export function ProjectGoals({
                                         setConfirmMove(false);
                                       }}
                                     >
-                                      <option value="">Select destination</option>
+                                      <option value="">{t('goals.selectDestination')}</option>
                                       {phases
                                         .filter(
                                           (phase) =>
@@ -886,17 +936,14 @@ export function ProjectGoals({
                                             key={String(phase['id'])}
                                             value={String(phase['id'])}
                                           >
-                                            {label(phase['name'], 'Phase')}
+                                            {label(phase['name'], t('goals.phase'))}
                                           </option>
                                         ))}
                                     </select>
                                   </label>
                                   {confirmMove ? (
                                     <>
-                                      <p>
-                                        Moving removes this task’s phase dependencies and
-                                        parent/child links.
-                                      </p>
+                                      <p>{t('goals.moveWarning')}</p>
                                       <button
                                         type="button"
                                         className="button secondary"
@@ -910,14 +957,14 @@ export function ProjectGoals({
                                               taskId: task['id'],
                                               toPhaseId: destination,
                                             },
-                                            'Move task',
+                                            'moveTask',
                                           );
                                         }}
                                       >
-                                        Confirm move
+                                        {t('goals.confirmMove')}
                                       </button>
                                       <button type="button" onClick={() => setConfirmMove(false)}>
-                                        Cancel
+                                        {t('goals.cancel')}
                                       </button>
                                     </>
                                   ) : (
@@ -926,7 +973,7 @@ export function ProjectGoals({
                                       className="button secondary"
                                       disabled={!destination || Boolean(action)}
                                     >
-                                      Move task
+                                      {t('goals.moveTask')}
                                     </button>
                                   )}
                                 </form>
@@ -939,8 +986,8 @@ export function ProjectGoals({
                   ) : (
                     <>
                       <Target size={25} />
-                      <h3>Inspect the work</h3>
-                      <p>Select a task to see its status, assignment, and recorded details.</p>
+                      <h3>{t('goals.inspectTitle')}</h3>
+                      <p>{t('goals.inspectHelp')}</p>
                     </>
                   )}
                 </aside>
@@ -953,23 +1000,23 @@ export function ProjectGoals({
           <ProjectMission state={state} send={send} />
           <div className="goal-catalog-header">
             <div>
-              <h2>Execution goals</h2>
-              <p>{goals.length} recorded goal runs</p>
+              <h2>{t('goals.executionGoals')}</h2>
+              <p>{t('goals.recordedRuns', { n: goals.length })}</p>
             </div>
             <label>
-              <span className="sr-only">Search goals</span>
+              <span className="sr-only">{t('goals.search')}</span>
               <input
-                aria-label="Search goals"
+                aria-label={t('goals.search')}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search goals…"
+                placeholder={t('goals.searchPlaceholder')}
               />
             </label>
           </div>
           {!state.results['goal.list'] ? (
             <div className="goal-empty">
               <LoaderCircle size={22} className="spin" />
-              <p>Reading the project goal catalog…</p>
+              <p>{t('goals.reading')}</p>
             </div>
           ) : visible.length ? (
             <div className="goal-catalog">
@@ -983,12 +1030,15 @@ export function ProjectGoals({
                   }}
                 >
                   <div>
-                    <span className="eyebrow">{statusText(item['status'])}</span>
-                    <h3>{label(item['title'], 'Untitled goal')}</h3>
+                    <span className="eyebrow">{named(item['status'])}</span>
+                    <h3>{label(item['title'], t('goals.untitled'))}</h3>
                     <p>
-                      {reportedCount(item['completedTasks'])} / {reportedCount(item['totalTasks'])}{' '}
-                      tasks · {reportedCount(item['completedPhases'])} /{' '}
-                      {reportedCount(item['totalPhases'])} phases
+                      {t('goals.catalogLine', {
+                        doneTasks: reportedCount(item['completedTasks']),
+                        tasks: reportedCount(item['totalTasks']),
+                        donePhases: reportedCount(item['completedPhases']),
+                        phases: reportedCount(item['totalPhases']),
+                      })}
                     </p>
                   </div>
                   <span className="goal-percent">
@@ -996,19 +1046,15 @@ export function ProjectGoals({
                       ? `${Math.round(item['percentComplete'])}%`
                       : '—'}
                   </span>
-                  <small>Verification: {statusText(item['verification'])}</small>
+                  <small>{t('goals.verification', { status: named(item['verification']) })}</small>
                 </button>
               ))}
             </div>
           ) : (
             <div className="goal-empty">
               <Target size={28} />
-              <h2>{query ? 'No matching goals' : 'No goals yet'}</h2>
-              <p>
-                {query
-                  ? 'Try another search.'
-                  : 'Create a goal when you are ready to coordinate work across this project.'}
-              </p>
+              <h2>{query ? t('goals.noMatch') : t('goals.none')}</h2>
+              <p>{query ? t('goals.tryAnother') : t('goals.createHint')}</p>
             </div>
           )}
         </>

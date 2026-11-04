@@ -1,15 +1,39 @@
 import type { UserInputRequest } from '@wrongstack/contracts/types';
+import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
+import { stripNextStepsBlock } from '@wrongstack/core/utils/next-steps';
+import {
+  type CouncilLog,
+  councilDecisionText,
+  EMPTY_COUNCIL_LOG,
+} from '@wrongstack/project-surfaces/council/panels';
+import type { CouncilDecisionData } from '@wrongstack/project-surfaces/council/types';
+import {
+  applyFleetEvent,
+  EMPTY_FLEET_FOLD,
+  type FleetFold,
+} from '@wrongstack/project-surfaces/office/fleet-fold';
+import type { SubagentEvent } from '@wrongstack/project-surfaces/office/fleet-transcript';
 import {
   type ParsedNextStep,
   parseNextSteps,
   projectNextStepsToolInput,
 } from '@wrongstack/webui-protocol';
+import { type AgentTranscripts, reduceAgentTranscripts } from './agent-transcripts';
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
+import {
+  type ContextUsage,
+  emptyContextUsage,
+  reduceContextUsage,
+  type TokenTotals,
+  type TurnStats,
+  turnStats,
+} from './context-usage.js';
 import {
   appendNotice,
   type ConversationNotice,
   conversationNotice,
 } from './conversation-notices.js';
+import { reduceCouncil } from './council-decisions.js';
 import { appendDelegation, type DelegationRecord, delegationRecord } from './delegations.js';
 import { contentText, entries, record } from './engine-values.js';
 import { parseInputRequest } from './input-form-model.js';
@@ -20,18 +44,27 @@ import {
   memoryContextSnapshot,
   memoryInjectorRun,
 } from './memory-injections.js';
+import { reduceWaitingRoom, type WaitingRoom } from './provider-waiting.js';
+import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
+import { reduceWorktreeEvents } from './worktree-history.js';
 
 export { contentText, entries, record } from './engine-values.js';
 export interface EngineEvent {
   type: string;
   payload: Record<string, unknown>;
+  /** When the desktop received the frame (epoch ms); token deltas and older journals have none. */
+  at?: number;
 }
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** When it was written, from the frame that added it (epoch ms); unknown in older journals. */
+  at?: number;
   attachments?: ComposerAttachment[];
   streamId?: string;
+  /** A Brain council's decision, drawn as the WebUI's council card. */
+  council?: CouncilDecisionData;
 }
 export interface ProviderTestRun {
   id: string;
@@ -42,6 +75,8 @@ export interface ProviderTestRun {
 }
 export interface EngineState {
   hydrating: boolean;
+  /** False until a reader first reaches the end of the journal; views wait for it. */
+  synced: boolean;
   pendingUserMessages: Record<string, ChatMessage>;
   queue: Array<{ id: string; text: string; addedAt: number; imageCount: number }>;
   drainedPromptIds: string[];
@@ -74,8 +109,18 @@ export interface EngineState {
   sddAgentText: string;
   specDetails: Record<string, Record<string, unknown>>;
   activity: EngineEvent[];
+  /** How full the conversation's context window is. */
+  context: ContextUsage;
+  /** The running turn's tool calls, thinking and retries, every one of them, oldest first. */
+  runTimeline: EngineEvent[];
   /** Each finished turn's tool events, by the id of the assistant message that ended it. */
   turnActivity: Record<string, EngineEvent[]>;
+  /** Each finished turn's iterations and token use, by the id of its answer. */
+  turnStats: Record<string, TurnStats>;
+  /** Session token totals when the running turn started. */
+  runStartTotals: TokenTotals | null;
+  /** When the running turn's first iteration started (frame time), for its duration. */
+  runStartAt: number | null;
   /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
   memoryRuns: MemoryInjectorRun[];
   memoryContext: MemoryContext | null;
@@ -85,14 +130,33 @@ export interface EngineState {
   noticeCount: number;
   /** Worker delegations this conversation finished, as the engine reported them. */
   delegations: DelegationRecord[];
+  /** This conversation's Brain council panels, folded from `brain.event` frames. */
+  council: CouncilLog;
+  /** This conversation's subagent fleet, folded from `subagent.event` frames as the WebUI does. */
+  fleet: FleetFold;
   nextSteps: ParsedNextStep[];
+  /** The engine's worktree lifecycle log, oldest first, for the worktree timeline. */
+  worktreeEvents: WorktreeTimelineEvent[];
   results: Record<string, Record<string, unknown>>;
   error: string;
+  /** The latest frame time seen, for messages a token delta starts. */
+  lastAt: number;
+  /** Each subagent's own transcript in this conversation. */
+  agents: AgentTranscripts;
+  /** Provider/model pairs the engine's health tracker holds back until their limit resets. */
+  waiting: WaitingRoom;
+  /** How much of the journal a first read has replayed, while it is still replaying. */
+  replay: { read: number; total: number } | null;
 }
-/** Tool events kept per finished turn for the inline record. */
-export const TURN_ACTIVITY_LIMIT = 120;
+/** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
+export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
+  lastAt: 0,
+  agents: {},
+  waiting: {},
+  replay: null,
   hydrating: false,
+  synced: true,
   pendingUserMessages: {},
   queue: [],
   drainedPromptIds: [],
@@ -113,13 +177,21 @@ export const emptyEngineState: EngineState = {
   sddAgentText: '',
   specDetails: {},
   activity: [],
+  context: emptyContextUsage,
+  runTimeline: [],
   turnActivity: {},
+  turnStats: {},
+  runStartTotals: null,
+  runStartAt: null,
   memoryRuns: [],
   memoryContext: null,
   notices: [],
   noticeCount: 0,
   delegations: [],
+  council: EMPTY_COUNCIL_LOG,
+  fleet: EMPTY_FLEET_FOLD,
   nextSteps: [],
+  worktreeEvents: [],
   results: {},
   error: '',
 };
@@ -127,19 +199,42 @@ export const emptyEngineState: EngineState = {
 export function engineEvent(value: unknown): EngineEvent | null {
   const row = record(value);
   if (typeof row['type'] !== 'string' || !row['type']) return null;
-  return { type: row['type'], payload: record(row['payload']) };
+  const at = row['at'];
+  return {
+    type: row['type'],
+    payload: record(row['payload']),
+    ...(typeof at === 'number' && at > 0 ? { at } : {}),
+  };
 }
 /** A partial native journal page is not yet authoritative for delivery mode. */
 export function replayEngineBatch(
   state: EngineState,
   events: readonly EngineEvent[],
   hasMore: boolean,
+  position?: { read: number; total: number },
 ): EngineState {
-  return { ...events.reduce(reduceEngine, state), hydrating: hasMore };
+  return {
+    ...events.reduce(reduceEngine, state),
+    hydrating: hasMore,
+    synced: state.synced || !hasMore,
+    replay: hasMore && position && position.total > 0 ? position : null,
+  };
 }
+/** Applies one frame; messages it adds take the frame's time, or the latest time seen. */
 export function reduceEngine(state: EngineState, input: unknown): EngineState {
   const event = engineEvent(input);
   if (!event) return state;
+  const next = reduceFrame(state, event);
+  if (next === state) return state;
+  const at = event.at ?? state.lastAt;
+  if (at && next.messages.length > state.messages.length)
+    next.messages = next.messages.map((message, index) =>
+      index < state.messages.length || message.at ? message : { ...message, at },
+    );
+  if (event.at) next.lastAt = event.at;
+  return next;
+}
+function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   const p = event.payload;
   // Each native engine is bound to one registered project. Project workflows may
   // be owned by another core session; conversation/permission frames remain lane-scoped.
@@ -165,10 +260,18 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   )
     return state;
   let next = { ...state, results: { ...state.results, [event.type]: p } };
+  next.context = reduceContextUsage(state.context, event);
   if (event.type === 'prefs.updated')
     next.results['prefs.updated'] = { ...state.results['prefs.updated'], ...p };
   if (event.type === 'goal.state' && typeof p['goalId'] === 'string')
     next.goalStates = { ...state.goalStates, [p['goalId']]: p };
+  const worktreeEvents = reduceWorktreeEvents(
+    state.worktreeEvents,
+    event.type,
+    p,
+    event.at ?? (state.lastAt || Date.now()),
+  );
+  if (worktreeEvents) next.worktreeEvents = worktreeEvents;
   if (event.type === 'goal.error' && typeof p['goalId'] === 'string')
     next.goalErrors = { ...state.goalErrors, [p['goalId']]: p };
   if (event.type === 'specs.detail' && typeof p['specId'] === 'string')
@@ -243,7 +346,12 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     };
     if (p['reset'] === true) {
       next.nextSteps = [];
+      next.runTimeline = [];
       next.turnActivity = {};
+      next.turnStats = {};
+      next.runStartTotals = null;
+      next.runStartAt = null;
+      next.agents = {};
       next.memoryRuns = [];
       next.memoryContext = null;
       next.notices = [];
@@ -278,13 +386,26 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   // The fallback chain moved the conversation to another model, or back to its primary: show
   // the model that actually serves the next request.
   const notice = conversationNotice(event.type, p, `${event.type}:${state.noticeCount}`);
-  if (notice) {
+  // A passing notice belongs to the moment it happened; a replayed journal does not show it.
+  if (notice && !(notice.transient && !state.synced)) {
     next.notices = appendNotice(state.notices, notice);
     next.noticeCount = state.noticeCount + 1;
   }
   if (event.type === 'delegate.completed') {
     const delegation = delegationRecord(p, String(state.delegations.length));
     if (delegation) next.delegations = appendDelegation(state.delegations, delegation);
+  }
+  // Brain frames reach every conversation of the project; keep this one's councils.
+  if (event.type === 'brain.event' && next.sessionId && p['sessionId'] === next.sessionId) {
+    const fold = reduceCouncil(state.council, p);
+    next.council = fold.log;
+    if (fold.decision) {
+      const id = `council:${fold.decision.requestId}:${fold.decision.resolvedAt ?? state.messages.length}`;
+      next.messages = [
+        ...next.messages,
+        { id, role: 'assistant', text: councilDecisionText(fold.decision), council: fold.decision },
+      ];
+    }
   }
   // Memory frames are project-scoped; keep only this conversation's own.
   if (
@@ -423,13 +544,24 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   if (event.type === 'run.result') {
     next.running = false;
     const answer = next.messages.findLast((message) => message.role === 'assistant');
-    const runStart = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
-    const tools = state.activity
-      .slice(runStart)
-      .filter((entry) => entry.type.startsWith('tool.'))
-      .slice(-TURN_ACTIVITY_LIMIT);
+    // Every tool call of the turn stays with its answer, not only those still in the
+    // Activity view's recent window.
+    const tools = state.runTimeline.filter((entry) => entry.type.startsWith('tool.'));
     if (answer && tools.length && !next.turnActivity[answer.id])
       next.turnActivity = { ...next.turnActivity, [answer.id]: tools };
+    if (answer && !next.turnStats[answer.id])
+      next.turnStats = {
+        ...next.turnStats,
+        [answer.id]: turnStats(
+          state.runStartTotals,
+          next.context.totals,
+          p['iterations'],
+          state.runStartAt && event.at ? event.at - state.runStartAt : undefined,
+        ),
+      };
+    next.runTimeline = [];
+    next.runStartTotals = null;
+    next.runStartAt = null;
     if (p['status'] === 'done') {
       const parsed = parseNextSteps(contentText(p['finalText'])).steps;
       const start = state.activity.findLastIndex((entry) => entry.type === 'run.result') + 1;
@@ -466,6 +598,8 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
   if (event.type === 'desktop.disconnected') {
     next.connected = false;
     next.running = false;
+    // Scheduled jobs live in the engine's memory; a new engine starts with none.
+    delete next.results['cron.snapshot'];
     next.error = String(p['message'] ?? 'Engine disconnected');
   }
   if (
@@ -476,7 +610,29 @@ export function reduceEngine(state: EngineState, input: unknown): EngineState {
     event.type === 'provider.retry' ||
     event.type === 'user.input_resolved' ||
     event.type === 'run.result'
-  )
-    next.activity = [...state.activity.slice(-199), event];
+  ) {
+    const activity = appendRunEvent(state.activity, event);
+    next.activity =
+      activity.length > ACTIVITY_LIMIT
+        ? activity.slice(activity.length - ACTIVITY_LIMIT)
+        : activity;
+  }
+  if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
+  next.agents = reduceAgentTranscripts(next.agents, event.type, p);
+  if (event.type === 'subagent.event') {
+    const options = {
+      now: event.at ?? (state.lastAt || Date.now()),
+      cleanFinalText: stripNextStepsBlock,
+    };
+    next.fleet = {
+      ...state.fleet,
+      ...applyFleetEvent(state.fleet, p as unknown as SubagentEvent, options),
+    };
+  }
+  next.waiting = reduceWaitingRoom(state.waiting, event.type, p);
+  if (event.type === 'iteration.started' && !state.runStartTotals) {
+    next.runStartTotals = state.context.totals;
+    next.runStartAt = event.at ?? null;
+  }
   return next;
 }

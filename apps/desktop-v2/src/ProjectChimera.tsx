@@ -10,6 +10,7 @@ import {
   reviewOutcomes,
   reviewReportTransitions,
 } from './chimera-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -72,6 +73,12 @@ function ChimeraContent({
   onNewSession: () => void;
   onOpenFile: (path: string, line?: number) => void;
 }) {
+  const { t } = useDesktopText();
+  // Engine values are named per language; unknown ones read as reviewLabel shows them.
+  const named = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      : t('reviews.notReported');
   const [reports, setReports] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -175,7 +182,7 @@ function ChimeraContent({
         'chimera.report.note_added',
       ]);
       await noteDraft.finish(submitted);
-      setNotice('Review note recorded.');
+      setNotice(t('reviews.noteRecorded'));
       if (owner === selectedRef.current) await read(owner);
     } catch (e) {
       await noteDraft.finish(submitted, e instanceof Error ? e.message : String(e));
@@ -206,9 +213,7 @@ function ChimeraContent({
             )['status'];
       if (actual !== decision.from) {
         setDetail(current);
-        throw Error(
-          'This review status changed. Close this decision and review the current state before continuing.',
-        );
+        throw Error(t('reviews.statusChanged'));
       }
       await command(
         decision.kind === 'report' ? 'chimera.report.transition' : 'chimera.finding.transition',
@@ -221,7 +226,7 @@ function ChimeraContent({
         [decision.kind === 'report' ? 'chimera.report.updated' : 'chimera.finding.updated'],
       );
       setDecision(null);
-      setNotice('Review status recorded.');
+      setNotice(t('reviews.statusRecorded'));
       await Promise.all([refresh(), read(selected)]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -234,14 +239,11 @@ function ChimeraContent({
   const agents = sessions.filter((item) => item.kind === 'agent');
   const openFile = onOpenFile;
   return (
-    <section className="project-chimera" aria-label="Project Chimera reviews">
+    <section className="project-chimera" aria-label={t('reviews.label')}>
       <header className="studio-heading">
         <div>
-          <h1>Chimera Reviews</h1>
-          <p>
-            Review the project’s reports across recorded sessions and track each finding to an
-            explicit outcome.
-          </p>
+          <h1>{t('reviews.title')}</h1>
+          <p>{t('reviews.intro')}</p>
         </div>
         <button
           type="button"
@@ -254,7 +256,7 @@ function ChimeraContent({
           }}
         >
           <RefreshCw size={14} />
-          Refresh Chimera reports
+          {t('reviews.refresh')}
         </button>
       </header>
       {error && !decision && (
@@ -267,29 +269,31 @@ function ChimeraContent({
         <label>
           <Search size={14} />
           <input
-            aria-label="Search Chimera reports"
+            aria-label={t('reviews.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a review, model, agent or recorded session…"
+            placeholder={t('reviews.searchPlaceholder')}
           />
         </label>
         <select
-          aria-label="Review report lifecycle"
+          aria-label={t('reviews.lifecycleLabel')}
           value={lifecycle}
           disabled={busy}
           onChange={(e) => setLifecycle(e.target.value)}
         >
-          <option value="">All report statuses</option>
+          <option value="">{t('reviews.allStatuses')}</option>
           {['open', 'actioned', 'completed', 'skipped'].map((value) => (
-            <option key={value}>{value}</option>
+            <option key={value} value={value}>
+              {named(value)}
+            </option>
           ))}
         </select>
         <select
-          aria-label="Review origin session"
+          aria-label={t('reviews.sessionLabel')}
           value={sessionFilter}
           onChange={(e) => setSessionFilter(e.target.value)}
         >
-          <option value="">All recorded sessions</option>
+          <option value="">{t('reviews.allSessions')}</option>
           {[...new Set(reports.map((item) => String(item['sessionId'])))].map((value) => (
             <option key={value} value={value}>
               {value}
@@ -297,7 +301,7 @@ function ChimeraContent({
           ))}
         </select>
         <select
-          aria-label="Recent Chimera report window"
+          aria-label={t('reviews.windowLabel')}
           value={limit}
           disabled={busy}
           onChange={(e) => setLimit(e.target.value)}
@@ -307,86 +311,85 @@ function ChimeraContent({
           ))}
         </select>
       </div>
-      <p className="field-help">
-        {visible.length} matching reports in the most recent {limit} records. Origin sessions are
-        report metadata; this project workspace needs no open conversation.
-      </p>
+      <p className="field-help">{t('reviews.matching', { n: visible.length, limit })}</p>
       <div className="review-workspace-layout">
-        <aside className="review-report-list" aria-label="Chimera report catalog">
-          {loading && <p role="status">Reading review reports…</p>}
+        <aside className="review-report-list" aria-label={t('reviews.catalogLabel')}>
+          {loading && <p role="status">{t('reviews.reading')}</p>}
           {visible.map((item) => (
             <button
               type="button"
               aria-pressed={selected === item['reportId']}
-              aria-label={`Open review ${item['reportId']}`}
+              aria-label={t('reviews.openReview', { id: String(item['reportId']) })}
               key={String(item['reportId'])}
               disabled={busy}
               onClick={() => select(String(item['reportId']))}
             >
               <header>
                 <strong>{String(item['reportId']).slice(0, 16)}</strong>
-                <span>{reviewLabel(item['lifecycleStatus'])}</span>
+                <span>{named(item['lifecycleStatus'])}</span>
               </header>
-              <p>{String(item['reviewerModel'] ?? 'Reviewer model not reported')}</p>
+              <p>{String(item['reviewerModel'] ?? t('reviews.noModel'))}</p>
               <small>{String(item['reviewedAt'])}</small>
               <div className="review-report-counts">
-                <strong>{String(item['totalFindings'])} findings</strong>
+                <strong>{t('reviews.findingsCount', { n: String(item['totalFindings']) })}</strong>
                 {['critical', 'high', 'medium', 'low']
                   .filter((key) => Number(record(item['counts'])[key]) > 0)
                   .map((key) => (
                     <span key={key}>
-                      {String(record(item['counts'])[key])} {key}
+                      {t('reviews.severityCount', {
+                        n: String(record(item['counts'])[key]),
+                        severity: named(key),
+                      })}
                     </span>
                   ))}
               </div>
               <small>{String(item['sessionId'])}</small>
               {item['reviewStatus'] === 'failed' && (
-                <strong className="review-failed">Review execution failed</strong>
+                <strong className="review-failed">{t('reviews.executionFailed')}</strong>
               )}
             </button>
           ))}
           {!loading && !visible.length && (
             <div className="review-empty">
               <ShieldCheck size={27} />
-              <h3>No reports in this view.</h3>
-              <p>Saved project review reports will appear here.</p>
+              <h3>{t('reviews.noReports')}</h3>
+              <p>{t('reviews.noReportsHelp')}</p>
             </div>
           )}
         </aside>
-        <article className="review-report-detail" aria-label="Chimera report details">
+        <article className="review-report-detail" aria-label={t('reviews.detailLabel')}>
           {reading && !detail ? (
-            <p role="status">Reading findings and journal…</p>
+            <p role="status">{t('reviews.readingDetail')}</p>
           ) : detail && Object.keys(report).length ? (
             <>
               <header>
                 <span className="eyebrow">
-                  {reviewLabel(report['source'])} · {reviewLabel(report['reviewStatus'])}
+                  {named(report['source'])} · {named(report['reviewStatus'])}
                 </span>
-                <h2>Review {String(report['id']).slice(0, 16)}</h2>
+                <h2>{t('reviews.reviewTitle', { id: String(report['id']).slice(0, 16) })}</h2>
                 <p>
-                  {String(report['reviewedAt'])} · {reviewLabel(report['lifecycle'])}
+                  {String(report['reviewedAt'])} · {named(report['lifecycle'])}
                 </p>
-                <CopyButton text={String(report['id'])} label="Copy Chimera report ID" />
+                <CopyButton text={String(report['id'])} label={t('reviews.copyId')} />
               </header>
               <dl className="review-report-facts">
                 {[
-                  ['Reviewer model', 'reviewerModel'],
-                  ['Recorded session', 'sessionId'],
-                  ['Reviewed agent', 'agentId'],
-                  ['Cascade depth', 'cascadeDepth'],
-                  ['Evidence status', 'evidenceStatus'],
-                  ['Review duration (seconds)', 'durationSeconds'],
-                ].map(([label, key]) => (
+                  'reviewerModel',
+                  'sessionId',
+                  'agentId',
+                  'cascadeDepth',
+                  'evidenceStatus',
+                  'durationSeconds',
+                ].map((key) => (
                   <div key={key}>
-                    <dt>{label}</dt>
-                    <dd>{String(report[key!] ?? 'Not reported')}</dd>
+                    <dt>{t(`reviews.fact.${key}`)}</dt>
+                    <dd>{String(report[key] ?? t('reviews.notReported'))}</dd>
                   </div>
                 ))}
               </dl>
               {Number(report['unparseableCount']) > 0 && (
                 <p className="review-incomplete">
-                  {String(report['unparseableCount'])} reported items were not parsed individually.
-                  Review the full report below.
+                  {t('reviews.unparseable', { n: String(report['unparseableCount']) })}
                 </p>
               )}
               <div className="review-lifecycle-actions">
@@ -408,17 +411,19 @@ function ChimeraContent({
                     }
                   >
                     {to === 'open'
-                      ? 'Reopen report'
+                      ? t('reviews.reopenReport')
                       : to === 'actioned'
-                        ? 'Mark report actioned'
+                        ? t('reviews.actionReport')
                         : to === 'completed'
-                          ? 'Complete report'
-                          : 'Skip report'}
+                          ? t('reviews.completeReport')
+                          : t('reviews.skipReport')}
                   </button>
                 ))}
               </div>
               <details>
-                <summary>Reviewed files ({entries(report['files']).length})</summary>
+                <summary>
+                  {t('reviews.reviewedFiles', { n: entries(report['files']).length })}
+                </summary>
                 <div className="review-file-list">
                   {entries(report['files']).map((file) => (
                     <button
@@ -428,7 +433,7 @@ function ChimeraContent({
                       onClick={() => openFile(String(file['path']))}
                     >
                       <FileCode2 size={13} />
-                      {String(file['path'])} · {reviewLabel(file['status'])}
+                      {String(file['path'])} · {named(file['status'])}
                     </button>
                   ))}
                 </div>
@@ -436,19 +441,19 @@ function ChimeraContent({
               {entries(report['evidenceChecks']).length > 0 && (
                 <details>
                   <summary>
-                    Claimed and observed checks ({entries(report['evidenceChecks']).length})
+                    {t('reviews.checks', { n: entries(report['evidenceChecks']).length })}
                   </summary>
                   {entries(report['evidenceChecks']).map((check, i) => (
                     <article className="review-evidence-check" key={i}>
                       <strong>
                         {reviewLabel(check['name'])} ·{' '}
-                        {check['ok'] === true
-                          ? 'Matched passing result'
-                          : 'Passing claim not confirmed'}
+                        {check['ok'] === true ? t('reviews.matched') : t('reviews.notConfirmed')}
                       </strong>
                       <p>
-                        Claimed exit: {String(check['claimedExitCode'] ?? 'Not reported')} ·
-                        Observed exit: {String(check['actualExitCode'] ?? 'Not reported')}
+                        {t('reviews.exits', {
+                          claimed: String(check['claimedExitCode'] ?? t('reviews.notReported')),
+                          observed: String(check['actualExitCode'] ?? t('reviews.notReported')),
+                        })}
                       </p>
                       <code>{String(check['command'] ?? '')}</code>
                     </article>
@@ -458,30 +463,38 @@ function ChimeraContent({
               <section className="review-findings">
                 <header>
                   <div>
-                    <h3>Findings ({findings.length})</h3>
+                    <h3>{t('reviews.findings', { n: findings.length })}</h3>
                     <small>
-                      {counts.open} open · {counts.resolved} resolved · {counts.ignored} ignored
+                      {t('reviews.findingCounts', {
+                        open: counts.open,
+                        resolved: counts.resolved,
+                        ignored: counts.ignored,
+                      })}
                     </small>
                   </div>
                   <div>
                     <select
-                      aria-label="Review finding severity"
+                      aria-label={t('reviews.severityLabel')}
                       value={severity}
                       onChange={(e) => setSeverity(e.target.value)}
                     >
-                      <option value="">All severities</option>
+                      <option value="">{t('reviews.allSeverities')}</option>
                       {['critical', 'high', 'medium', 'low'].map((value) => (
-                        <option key={value}>{value}</option>
+                        <option key={value} value={value}>
+                          {named(value)}
+                        </option>
                       ))}
                     </select>
                     <select
-                      aria-label="Review finding status"
+                      aria-label={t('reviews.findingStatusLabel')}
                       value={findingStatus}
                       onChange={(e) => setFindingStatus(e.target.value)}
                     >
-                      <option value="">All finding statuses</option>
+                      <option value="">{t('reviews.allFindingStatuses')}</option>
                       {['active', 'triaged', 'in_progress', 'resolved', 'ignored'].map((value) => (
-                        <option key={value}>{value}</option>
+                        <option key={value} value={value}>
+                          {named(value)}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -504,20 +517,18 @@ function ChimeraContent({
                     }
                   />
                 ))}
-                {!findings.length && <p>No individually parsed findings in this report.</p>}
-                {findings.length > 0 && !visibleFindings.length && (
-                  <p>No findings match these filters.</p>
-                )}
+                {!findings.length && <p>{t('reviews.noParsed')}</p>}
+                {findings.length > 0 && !visibleFindings.length && <p>{t('reviews.noMatch')}</p>}
               </section>
               {typeof report['rawText'] === 'string' && (
                 <details className="review-full-report">
-                  <summary>Full review report</summary>
-                  <CopyButton text={report['rawText']} label="Copy full Chimera report" />
+                  <summary>{t('reviews.fullReport')}</summary>
+                  <CopyButton text={report['rawText']} label={t('reviews.copyFull')} />
                   <MarkdownContent text={report['rawText']} />
                 </details>
               )}
               <section className="review-journal">
-                <h3>Activity journal</h3>
+                <h3>{t('reviews.journal')}</h3>
                 <ReviewTimeline events={entries(detail['events'])} />
                 <form
                   onSubmit={(event) => {
@@ -526,52 +537,49 @@ function ChimeraContent({
                   }}
                 >
                   <label>
-                    Append a review note
+                    {t('reviews.appendNote')}
                     <textarea
-                      aria-label="Chimera review note"
+                      aria-label={t('reviews.noteLabel')}
                       value={note.text}
                       disabled={note.busy || !note.ready}
                       maxLength={100000}
                       rows={4}
                       onChange={(e) => noteDraft.edit(e.target.value)}
-                      placeholder="Record your investigation, evidence, or follow-up…"
+                      placeholder={t('reviews.notePlaceholder')}
                     />
                   </label>
-                  <p role="status" aria-label="Review note draft status">
+                  <p role="status" aria-label={t('reviews.noteStatusLabel')}>
                     {!note.ready
-                      ? 'Loading saved note draft…'
+                      ? t('reviews.note.loading')
                       : note.saving
-                        ? 'Saving note draft…'
+                        ? t('reviews.note.saving')
                         : note.review
-                          ? 'Review competing note drafts below.'
+                          ? t('reviews.note.review')
                           : note.dirty
-                            ? 'Local note has unsaved changes.'
-                            : 'Note draft saved on this device.'}
+                            ? t('reviews.note.dirty')
+                            : t('reviews.note.saved')}
                   </p>
                   {note.review && (
                     <section
                       className="review-note-conflict"
-                      aria-label="Review note draft conflict"
+                      aria-label={t('reviews.conflictLabel')}
                     >
-                      <h4>This note changed in another window</h4>
-                      <p>
-                        Compare both versions. Choosing a version only updates the local draft; it
-                        does not record a report note.
-                      </p>
+                      <h4>{t('reviews.conflictTitle')}</h4>
+                      <p>{t('reviews.conflictHelp')}</p>
                       <div className="review-note-versions">
                         <label>
-                          Your local note
+                          {t('reviews.yourNote')}
                           <textarea
-                            aria-label="Your local review note"
+                            aria-label={t('reviews.yourNoteLabel')}
                             readOnly
                             value={note.text}
                             rows={4}
                           />
                         </label>
                         <label>
-                          Saved note
+                          {t('reviews.savedNote')}
                           <textarea
-                            aria-label="Saved review note"
+                            aria-label={t('reviews.savedNoteLabel')}
                             readOnly
                             value={note.review.text}
                             rows={4}
@@ -586,7 +594,7 @@ function ChimeraContent({
                           void noteDraft.resolve('local');
                         }}
                       >
-                        Keep my review note
+                        {t('reviews.keepMine')}
                       </button>
                       <button
                         type="button"
@@ -596,7 +604,7 @@ function ChimeraContent({
                           void noteDraft.resolve('saved');
                         }}
                       >
-                        Use saved review note
+                        {t('reviews.useSaved')}
                       </button>
                     </section>
                   )}
@@ -613,7 +621,7 @@ function ChimeraContent({
                       void noteDraft.load();
                     }}
                   >
-                    Reload saved note
+                    {t('reviews.reload')}
                   </button>
                   <button
                     type="submit"
@@ -627,25 +635,22 @@ function ChimeraContent({
                       !note.text.trim()
                     }
                   >
-                    {note.busy ? 'Recording review note…' : 'Record review note'}
+                    {note.busy ? t('reviews.recording') : t('reviews.record')}
                   </button>
                 </form>
               </section>
               <details className="review-followup">
-                <summary>Prepare a review follow-up</summary>
-                <p>
-                  Choose a conversation to review the request in its draft. Report tracking remains
-                  under your explicit controls above.
-                </p>
-                <CopyButton text={reviewFollowup(report)} label="Copy Chimera follow-up" />
+                <summary>{t('reviews.followup')}</summary>
+                <p>{t('reviews.followupHelp')}</p>
+                <CopyButton text={reviewFollowup(report)} label={t('reviews.copyFollowup')} />
                 {agents.length ? (
                   <>
                     <select
-                      aria-label="Chimera follow-up conversation"
+                      aria-label={t('reviews.followupLabel')}
                       value={targetSession}
                       onChange={(e) => setTargetSession(e.target.value)}
                     >
-                      <option value="">Choose a project conversation…</option>
+                      <option value="">{t('reviews.chooseConversation')}</option>
                       {agents.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.title}
@@ -663,12 +668,12 @@ function ChimeraContent({
                           .finally(() => setBusy(false));
                       }}
                     >
-                      Add review follow-up to draft
+                      {t('reviews.addFollowup')}
                     </button>
                   </>
                 ) : (
                   <button type="button" className="button secondary" onClick={onNewSession}>
-                    Create a project conversation
+                    {t('reviews.createConversation')}
                   </button>
                 )}
               </details>
@@ -676,8 +681,8 @@ function ChimeraContent({
           ) : (
             <div className="review-empty">
               <ShieldCheck size={34} />
-              <h2>Inspect the evidence behind a review.</h2>
-              <p>Select a report to read its findings, citations and activity.</p>
+              <h2>{t('reviews.emptyTitle')}</h2>
+              <p>{t('reviews.emptyHelp')}</p>
             </div>
           )}
         </article>
@@ -691,12 +696,14 @@ function ChimeraContent({
           <section className="review-decision-dialog">
             <header>
               <h2 id="dialog-title">
-                Record {decision.kind === 'report' ? 'report' : 'finding'} status
+                {decision.kind === 'report'
+                  ? t('reviews.decisionReport')
+                  : t('reviews.decisionFinding')}
               </h2>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Close review decision"
+                aria-label={t('reviews.closeDecision')}
                 disabled={busy}
                 onClick={() => setDecision(null)}
               >
@@ -704,36 +711,33 @@ function ChimeraContent({
               </button>
             </header>
             <p>
-              {reviewLabel(decision.from)} → {reviewLabel(decision.to)}
+              {named(decision.from)} → {named(decision.to)}
             </p>
             {decision.kind === 'report' && decision.to === 'completed' && counts.open > 0 && (
-              <p>
-                {counts.open} findings are still open. Completing the report leaves their individual
-                tracking states intact.
-              </p>
+              <p>{t('reviews.stillOpen', { n: counts.open })}</p>
             )}
             {decision.to === 'resolved' && (
               <label>
-                Resolution outcome
+                {t('reviews.outcome')}
                 <select
-                  aria-label="Review resolution outcome"
+                  aria-label={t('reviews.outcomeLabel')}
                   value={decision.outcome}
                   disabled={busy}
                   onChange={(e) => setDecision({ ...decision, outcome: e.target.value })}
                 >
-                  <option value="">Choose the observed outcome…</option>
+                  <option value="">{t('reviews.chooseOutcome')}</option>
                   {reviewOutcomes.map((value) => (
                     <option key={value} value={value}>
-                      {value === 'wontfix' ? 'Will not fix' : reviewLabel(value)}
+                      {value === 'wontfix' ? t('reviews.willNotFix') : named(value)}
                     </option>
                   ))}
                 </select>
               </label>
             )}
             <label>
-              Reason{decision.to === 'resolved' ? ' (required)' : ''}
+              {decision.to === 'resolved' ? t('reviews.reasonRequired') : t('reviews.reason')}
               <textarea
-                aria-label="Review decision reason"
+                aria-label={t('reviews.reasonLabel')}
                 rows={4}
                 disabled={busy}
                 value={decision.reason}
@@ -752,7 +756,7 @@ function ChimeraContent({
                 disabled={busy}
                 onClick={() => setDecision(null)}
               >
-                Keep reviewing
+                {t('reviews.keepReviewing')}
               </button>
               <button
                 type="button"
@@ -763,7 +767,7 @@ function ChimeraContent({
                 }
                 onClick={() => void applyDecision()}
               >
-                {busy ? 'Recording decision…' : 'Confirm review status'}
+                {busy ? t('reviews.recordingDecision') : t('reviews.confirm')}
               </button>
             </footer>
           </section>

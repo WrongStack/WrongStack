@@ -52,7 +52,12 @@ export function isRestrictedBy(
   if (entry) {
     const caps = entry.tool.capabilities ?? [];
     if (caps.some((cap) => r.denyCapabilities.includes(cap))) return true;
-    if (r.requireDeclaredCapabilities && caps.length === 0 && entry.owner !== 'core') return true;
+    if (
+      r.requireDeclaredCapabilities &&
+      caps.length === 0 &&
+      entry.owner.split('+').some((seg) => seg !== 'core')
+    )
+      return true;
   }
   if (!r.only) return false;
   return !r.only.some((pattern) => matchToolPattern(pattern, name));

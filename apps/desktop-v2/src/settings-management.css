@@ -301,3 +301,31 @@
   overflow: auto;
   font-size: 11px;
 }
+.plugin-toggles {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.plugin-toggles h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+.plugin-toggle-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.plugin-toggle-filters input {
+  flex: 1;
+  min-width: 10rem;
+}
+.plugin-toggle-count {
+  color: var(--muted);
+  font-size: 12px;
+}

@@ -51,7 +51,14 @@ export function parseHistoryView(value: unknown): HistoryView {
 }
 type ViewKey = keyof HistoryView;
 export class HistoryViewStore {
-  private state = { value: defaultHistoryView(), ready: false, saving: false, error: '' };
+  private state = {
+    value: defaultHistoryView(),
+    ready: false,
+    saving: false,
+    error: '',
+    /** Which failure `error` describes, so a page can word it in the display language. */
+    errorKind: '' as '' | 'restore' | 'retry' | 'save',
+  };
   private listeners = new Set<() => void>();
   private edits = new Map<ViewKey, HistoryView[ViewKey]>();
   private pending: Promise<void> | null = null;
@@ -81,6 +88,7 @@ export class HistoryViewStore {
       } catch {
         this.update({
           ready: true,
+          errorKind: 'restore',
           error:
             'History view could not be restored. You can browse with defaults; view changes may not be saved.',
         });
@@ -111,6 +119,7 @@ export class HistoryViewStore {
       this.update({ error: '' });
     } catch {
       this.update({
+        errorKind: 'retry',
         error:
           'History view storage is still unavailable or has an unsupported format. Your current view is retained.',
       });
@@ -153,6 +162,7 @@ export class HistoryViewStore {
         }
       } catch {
         this.update({
+          errorKind: 'save',
           error:
             'History view changes are not saved. Your current view is retained. Retry saving when the native store is available.',
         });

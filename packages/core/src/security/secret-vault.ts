@@ -188,6 +188,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
    * The caller must re-encrypt existing config values (see rotateConfigKeys()).
    */
   rotateKey(): { oldVersion: number; newVersion: number } {
+    if (!this.key) this.loadOrCreateKey();
     const oldVersion = this._keyVersion;
     const newVersion = oldVersion + 1;
     // The versioned key file stores the version in a single byte. Writing

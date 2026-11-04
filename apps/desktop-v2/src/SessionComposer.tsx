@@ -1,7 +1,6 @@
 import {
   ArrowUp,
   BookOpen,
-  ChevronDown,
   Clock3,
   CornerDownLeft,
   FilePlus2,
@@ -18,9 +17,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AgentModeControl } from './AgentModeControl';
-import { AutoContinue } from './AutoContinue';
 import { AutonomyControl } from './AutonomyControl';
-import { autoContinueStep, sessionAutonomy } from './autonomy-model';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import {
@@ -29,25 +26,28 @@ import {
   useComposerAttachments,
 } from './ComposerAttachments';
 import { usePasteHint } from './ComposerPasteHint';
+import { ComposerQueue } from './ComposerQueue';
 import { ComposerReferenceChips } from './ComposerReferenceChips';
 import { type ComposerAttachment, wireAttachments } from './composer-attachments';
 import { dispatchComposer, type SubmitMode, supportsQueue } from './composer-model';
 import {
   appendToDraft,
   type ComposerFileReference,
-  type DesktopCommandAction,
-  desktopCommands,
-  parseDesktopCommand,
   referenceKey,
   referenceMessage,
   splitReferenceMessage,
 } from './composer-resources-model';
+import { DesktopCommandHelp } from './DesktopCommandHelp';
+import { DraftCounter } from './DraftCounter';
+import { type DesktopCommandContext, runDesktopCommand } from './desktop-command-runner';
+import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { FailedRunContinue } from './FailedRunContinue';
+import { useHunts } from './HuntRounds';
 import { JournalRecallLoader } from './JournalRecallLoader';
 import { Modal } from './Modal';
-import { NextStepsPanel } from './NextStepsPanel';
 import { PromptRefinement } from './PromptRefinement';
 import { PromptWorkspace } from './PromptWorkspace';
 import { projectFormDraftStorage } from './platform';
@@ -56,6 +56,7 @@ import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
+import { TurnFollowUps } from './TurnFollowUps';
 import { useComposerInput } from './useComposerInput';
 import { useDetailsDismiss } from './useDetailsDismiss';
 import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
@@ -103,14 +104,13 @@ export function SessionComposer({
   attachments: ComposerAttachment[];
   onAttachmentsChange: (items: ComposerAttachment[]) => Promise<boolean>;
   onReferencesChange: (refs: ComposerFileReference[]) => Promise<boolean>;
-  onNavigate: (
-    target: 'files' | 'changes' | 'skills' | 'memory' | 'kanban' | 'atlas' | 'mailbox' | 'history',
-  ) => void;
+  onNavigate: DesktopCommandContext['navigate'];
   /** Native storage for this session's unsaved model plan. */
   planDraftStorage?: FormDraftStorage;
   /** Native storage for a completed refinement review awaiting a decision. */
   refineDraftStorage?: FormDraftStorage;
 }) {
+  const { t } = useDesktopText();
   const [sending, setSending] = useState(false),
     [notice, setNotice] = useState(''),
     [error, setError] = useState(''),
@@ -243,6 +243,47 @@ export function SessionComposer({
     }, 500);
     return () => clearTimeout(timer);
   }, [draft, state.connected, state.running, state.results['session.start'], send]);
+  const dispatchPorts: Parameters<typeof dispatchComposer>[2] = {
+    current: () => current.current,
+    send,
+    command,
+    onBtwSaved: (messageId, text) =>
+      void btwReceipts.record(current.current.sessionId, {
+        messageId,
+        text,
+        sentAt: Date.now(),
+      }),
+    waitForIdle: async () => {
+      const started = Date.now();
+      while (current.current.running) {
+        if (!mounted.current || !current.current.connected)
+          throw Error('The session detached while stopping. Your draft is kept.');
+        if (Date.now() - started > 30000)
+          throw Error(
+            'The engine has not finished stopping. Your draft is kept; check the run before retrying.',
+          );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    },
+  };
+  // Hunt rounds and run resumes go out as they are: staged references and attachments stay.
+  const sendAsIs = async (text: string) => {
+    if (busy.current) throw Error('A submit is already in progress.');
+    busy.current = true;
+    setSending(true);
+    try {
+      return await dispatchComposer(text, 'steer', dispatchPorts);
+    } finally {
+      busy.current = false;
+      if (mounted.current) setSending(false);
+    }
+  };
+  const report = (notice: string, problem: string) => {
+    if (!mounted.current) return;
+    setNotice(notice);
+    setError(problem);
+  };
+  const hunts = useHunts({ state, command, onDraftChange, report, sendRound: sendAsIs });
   const deliver = async (
     text: string,
     selected: SubmitMode,
@@ -264,29 +305,7 @@ export function SessionComposer({
       const response = await dispatchComposer(
         referenceMessage(text, attached, projectRoot),
         selected,
-        {
-          current: () => current.current,
-          send,
-          command,
-          onBtwSaved: (messageId, text) =>
-            void btwReceipts.record(current.current.sessionId, {
-              messageId,
-              text,
-              sentAt: Date.now(),
-            }),
-          waitForIdle: async () => {
-            const started = Date.now();
-            while (current.current.running) {
-              if (!mounted.current || !current.current.connected)
-                throw Error('The session detached while stopping. Your draft is kept.');
-              if (Date.now() - started > 30000)
-                throw Error(
-                  'The engine has not finished stopping. Your draft is kept; check the run before retrying.',
-                );
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          },
-        },
+        dispatchPorts,
         refinedFrom !== undefined
           ? referenceMessage(refinedFrom, attached, projectRoot)
           : undefined,
@@ -396,40 +415,30 @@ export function SessionComposer({
       if (mounted.current) setTopicBusy(false);
     }
   };
-  const runCommand = (action: DesktopCommandAction | 'unknown', argument: string): boolean => {
-    if (['queue', 'btw', 'steer'].includes(action) && argument) return false;
-    if (action === 'unknown') {
-      setError(
-        'This desktop command is not available. Your draft was not sent. Prefix it with // to send it as literal text.',
-      );
-      return true;
-    }
-    if (argument) {
-      setError('This command takes no arguments. Your draft was not sent.');
-      return true;
-    }
-    setError('');
-    if (action === 'help') setCommandHelp(true);
-    else if (action === 'library' || action === 'journal') setPromptWorkspace(action);
-    else if (
-      action === 'context' ||
-      action === 'compact' ||
-      action === 'compact-aggressive' ||
-      action === 'repair' ||
-      action === 'clear'
-    )
-      setContextPanel(action === 'context' ? 'inspect' : action);
-    else if (action === 'stop') stop();
-    else if (action === 'enhance') void setEnhance(!enhanceEnabled);
-    else if (action === 'settings') onSettings();
-    else if (action === 'queue') {
-      if (queuePanel.current) queuePanel.current.open = true;
-      else setNotice('There are no pending queued prompts.');
-    } else if (action === 'btw' || action === 'steer') onModeChange(action);
-    else onNavigate(action);
-    onDraftChange('');
-    return true;
-  };
+  const runCommand = (text: string) =>
+    runDesktopCommand(text, {
+      command,
+      send,
+      state,
+      stopHunt: hunts.stop,
+      openHelp: () => setCommandHelp(true),
+      openPrompts: setPromptWorkspace,
+      openContext: setContextPanel,
+      stop,
+      toggleEnhance: () => void setEnhance(!enhanceEnabled),
+      openSettings: onSettings,
+      openQueue: () => {
+        if (queuePanel.current) queuePanel.current.open = true;
+        return Boolean(queuePanel.current);
+      },
+      setMode: onModeChange,
+      navigate: onNavigate,
+      notify: (message) => {
+        setError('');
+        setNotice(message);
+      },
+      fail: setError,
+    });
   const submit = () => {
     if (
       (!draft.trim() && !references.length && !attachments.length) ||
@@ -443,14 +452,15 @@ export function SessionComposer({
     )
       return;
     if (prefBusy || state.hydrating) return;
-    const parsed = parseDesktopCommand(draft);
-    if (parsed && runCommand(parsed.action, parsed.argument)) return;
-    const selected =
-      parsed && (parsed.action === 'queue' || parsed.action === 'btw' || parsed.action === 'steer')
-        ? parsed.action
-        : mode;
-    const text = parsed?.argument || (draft.startsWith('//') ? draft.slice(1) : draft);
-    void beginSubmission(text, selected).catch(() => {});
+    const outcome = runCommand(draft);
+    if (outcome?.kind === 'refused') return setError(outcome.message);
+    if (outcome?.kind === 'handled') {
+      setError('');
+      return void onDraftChange('');
+    }
+    if (outcome?.kind === 'hunt') return void hunts.start(outcome.request);
+    const text = outcome?.text ?? (draft.startsWith('//') ? draft.slice(1) : draft);
+    void beginSubmission(text, outcome?.mode ?? mode).catch(() => {});
   };
   const queueAction = async (type: string, payload: Record<string, unknown> = {}) => {
     setQueueBusy(true);
@@ -497,14 +507,14 @@ export function SessionComposer({
     !prefBusy;
   const modeLabel =
     mode === 'queue'
-      ? 'Queue'
+      ? t('composer.mode.queue')
       : mode === 'steer'
-        ? 'Stop & steer'
+        ? t('composer.mode.steer')
         : state.running
           ? attachments.length
-            ? 'Queue attachments'
-            : 'BTW'
-          : 'Message';
+            ? t('composer.mode.queueAttachments')
+            : t('composer.mode.btw')
+          : t('composer.mode.message');
   return (
     <div className="native-composer-stack">
       {agentPlan && (
@@ -518,7 +528,7 @@ export function SessionComposer({
       {topicBusy && !topic && (
         <p className="composer-notice" role="status">
           <LoaderCircle className="spin" size={13} />
-          Checking whether this request starts a different topic… Your draft is kept.
+          {t('composer.topicChecking')}
         </p>
       )}
       {topic && (
@@ -526,13 +536,13 @@ export function SessionComposer({
           <div className="composer-dialog">
             <header>
               <div>
-                <span className="eyebrow">CONTEXT CHOICE</span>
-                <h2 id="dialog-title">Start a new topic context?</h2>
+                <span className="eyebrow">{t('composer.topic.eyebrow')}</span>
+                <h2 id="dialog-title">{t('composer.topic.title')}</h2>
               </div>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Cancel topic choice"
+                aria-label={t('composer.topic.cancel')}
                 onClick={() => resolveTopic(null)}
               >
                 <X size={18} />
@@ -541,27 +551,23 @@ export function SessionComposer({
             <p>{topic.reason}</p>
             {topic.nextTopic && (
               <p>
-                <strong>Suggested topic:</strong> {topic.nextTopic}
+                <strong>{t('composer.topic.suggested')}</strong> {topic.nextTopic}
               </p>
             )}
-            <p>
-              A fresh context keeps earlier conversation details out of the next request. Project
-              files and the recorded session stay available. This choice applies only when you
-              approve sending.
-            </p>
+            <p>{t('composer.topic.body')}</p>
             <footer>
               <button type="button" className="button secondary" onClick={() => resolveTopic(null)}>
-                Keep draft
+                {t('composer.topic.keep')}
               </button>
               <button
                 type="button"
                 className="button secondary"
                 onClick={() => resolveTopic(false)}
               >
-                Continue in same context
+                {t('composer.topic.same')}
               </button>
               <button type="button" className="button primary" onClick={() => resolveTopic(true)}>
-                Use fresh context
+                {t('composer.topic.fresh')}
               </button>
             </footer>
           </div>
@@ -569,113 +575,45 @@ export function SessionComposer({
       )}
       {state.hydrating && (
         <p className="composer-notice" role="status">
-          Loading conversation…
+          {t('composer.loading')}
         </p>
       )}
       {input.popup}
-      {!state.running &&
-        !state.hydrating &&
-        !state.inputs.length &&
-        !state.approvals.length &&
-        state.nextSteps.length > 0 && (
-          <NextStepsPanel
-            steps={state.nextSteps}
-            onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
-          />
-        )}
-      {!state.running &&
-        !state.hydrating &&
-        !state.inputs.length &&
-        !state.approvals.length &&
-        !draft.trim() &&
-        !references.length &&
-        !attachments.length &&
-        (() => {
-          const continuation = sessionAutonomy(state.results['prefs.updated']);
-          const step = autoContinueStep({
-            ...continuation,
-            count: autoContinued.current,
-            steps: state.nextSteps,
-          });
-          return step ? (
-            <AutoContinue
-              stepKey={state.nextSteps.map((item) => `${item.index}:${item.text}`).join('|')}
-              text={step.text}
-              onSubmit={(text) => {
-                autoContinued.current += 1;
-                void deliver(text, 'steer').catch(() => {
-                  // deliver() reports its own error in the composer.
-                });
-              }}
-            />
-          ) : null;
-        })()}
+      <TurnFollowUps
+        state={state}
+        composerEmpty={!draft.trim() && !references.length && !attachments.length}
+        huntContinues={hunts.continues}
+        continued={autoContinued}
+        sending={sending}
+        onAdd={(text) => input.replace(appendToDraft(currentDraft.current, text))}
+        send={sendAsIs}
+        report={report}
+        // deliver() reports its own error in the composer.
+        onContinue={(text) => void deliver(text, 'steer').catch(() => {})}
+      />
+      {hunts.view}
+      <FailedRunContinue state={state} send={sendAsIs} report={report} />
       <BtwReceipts
         sessionId={state.sessionId}
         command={command}
         mailboxEvent={state.results['mailbox.event'] ?? state.results['mailbox.received']}
       />
-      {state.queue.length > 0 && (
-        <details className="composer-queue" ref={queuePanel}>
-          <summary>
-            <ListPlus size={14} /> {state.queue.length} queued{' '}
-            {state.queue.length === 1 ? 'prompt' : 'prompts'}
-            <small>Engine-owned · runs after this turn</small>
-            <ChevronDown size={13} />
-          </summary>
-          <div className="composer-queue-heading">
-            <span>Pending prompts</span>
-            <button
-              type="button"
-              disabled={queueBusy || !state.connected}
-              onClick={() => void queueAction('queue.clear')}
-            >
-              Clear queue
-            </button>
-          </div>
-          <ol>
-            {state.queue.map((item) => (
-              <li key={item.id}>
-                <p>
-                  {splitReferenceMessage(item.text).text || 'Project file references'}
-                  {splitReferenceMessage(item.text).paths.length > 0 && (
-                    <small>
-                      {' '}
-                      · {splitReferenceMessage(item.text).paths.length} referenced files
-                    </small>
-                  )}
-                  {item.imageCount > 0 && <small> · {item.imageCount} attachments</small>}
-                </p>
-                <div>
-                  <button
-                    type="button"
-                    title="Copy queued text into the composer; the original stays queued"
-                    disabled={sending}
-                    onClick={() => {
-                      const view = splitReferenceMessage(item.text);
-                      if (draft.trim() || references.length || attachments.length) setRestore(view);
-                      else {
-                        onDraftChange(view.text);
-                        onReferencesChange(view.references);
-                      }
-                    }}
-                  >
-                    <Pencil size={13} /> {item.imageCount > 0 ? 'Copy text only' : 'Copy to draft'}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Remove queued prompt ${item.text}`}
-                    disabled={queueBusy || !state.connected}
-                    onClick={() => void queueAction('queue.remove', { id: item.id })}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </details>
-      )}
+      <ComposerQueue
+        queue={state.queue}
+        panel={queuePanel}
+        busy={queueBusy}
+        connected={state.connected}
+        sending={sending}
+        onAction={(type, payload) => void queueAction(type, payload)}
+        onCopy={(text) => {
+          const view = splitReferenceMessage(text);
+          if (draft.trim() || references.length || attachments.length) setRestore(view);
+          else {
+            onDraftChange(view.text);
+            onReferencesChange(view.references);
+          }
+        }}
+      />
       {error && (
         <p className="composer-error" role="alert">
           {error}
@@ -688,7 +626,7 @@ export function SessionComposer({
       )}
       {restore !== null && (
         <div className="composer-restore">
-          <span>Your composer already contains a draft.</span>
+          <span>{t('composer.restore.text')}</span>
           <button
             type="button"
             onClick={() => {
@@ -698,10 +636,10 @@ export function SessionComposer({
               setRestore(null);
             }}
           >
-            Replace draft
+            {t('composer.restore.replace')}
           </button>
           <button type="button" onClick={() => setRestore(null)}>
-            Keep current draft
+            {t('composer.restore.keep')}
           </button>
         </div>
       )}
@@ -740,55 +678,57 @@ export function SessionComposer({
           onChange={onReferencesChange}
         />
         {pasteHint.element}
-        <textarea
-          ref={textarea}
-          aria-label="Message WrongStack"
-          placeholder={
-            state.running
-              ? 'Add a note, queue the next task, or steer…'
-              : 'Describe what you want to build…'
-          }
-          value={draft}
-          readOnly={sending}
-          onPaste={(event) => {
-            if (sending) return;
-            if (!event.clipboardData.files.length) {
-              pasteHint.onPaste(event);
-              return;
-            }
-            event.preventDefault();
-            void media.add(Array.from(event.clipboardData.files));
-            const text = event.clipboardData.getData('text/plain');
-            if (text) {
-              const el = event.currentTarget;
-              input.replace(
-                draft.slice(0, el.selectionStart) + text + draft.slice(el.selectionEnd),
-                el.selectionStart + text.length,
-              );
-            }
-          }}
-          onChange={(e) => {
-            input.onChange(e.target.value, e.target.selectionStart);
-            setNotice('');
-          }}
-          onSelect={(event) => input.onSelect(event.currentTarget.selectionStart)}
-          onKeyDown={(event) => {
-            if (
-              event.defaultPrevented ||
-              event.nativeEvent.isComposing ||
-              event.nativeEvent.keyCode === 229
-            )
-              return;
-            if (input.onKey(event.key, event.shiftKey)) {
+        <div className="composer-input">
+          <textarea
+            ref={textarea}
+            aria-label={t('composer.message')}
+            placeholder={t(
+              state.running ? 'composer.placeholderRunning' : 'composer.placeholderIdle',
+            )}
+            value={draft}
+            readOnly={sending}
+            onPaste={(event) => {
+              if (sending) return;
+              if (!event.clipboardData.files.length) {
+                pasteHint.onPaste(event);
+                return;
+              }
               event.preventDefault();
-              return;
-            }
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
-            }
-          }}
-        />
+              void media.add(Array.from(event.clipboardData.files));
+              const text = event.clipboardData.getData('text/plain');
+              if (text) {
+                const el = event.currentTarget;
+                input.replace(
+                  draft.slice(0, el.selectionStart) + text + draft.slice(el.selectionEnd),
+                  el.selectionStart + text.length,
+                );
+              }
+            }}
+            onChange={(e) => {
+              input.onChange(e.target.value, e.target.selectionStart);
+              setNotice('');
+            }}
+            onSelect={(event) => input.onSelect(event.currentTarget.selectionStart)}
+            onKeyDown={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.nativeEvent.isComposing ||
+                event.nativeEvent.keyCode === 229
+              )
+                return;
+              if (input.onKey(event.key, event.shiftKey)) {
+                event.preventDefault();
+                return;
+              }
+              if (event.key === 'Escape' && state.running) return void stop();
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+          />
+          <DraftCounter draft={draft} context={state.context} />
+        </div>
         <footer className="composer-toolbar">
           <SessionModelControls
             state={state}
@@ -800,7 +740,7 @@ export function SessionComposer({
             <JournalRecallLoader projectId={projectId} onLoad={onRecallLoad} />
           )}
           <AutonomyControl
-            mode={sessionAutonomy(state.results['prefs.updated']).mode}
+            prefs={state.results['prefs.updated']}
             command={command}
             disabled={!state.connected || state.needsSetup}
           />
@@ -819,14 +759,14 @@ export function SessionComposer({
             <button
               type="button"
               className="composer-chip"
-              aria-label="Prompt journal"
-              title="Prompt journal · this project"
+              aria-label={t('composer.journal')}
+              title={t('composer.journalTitle')}
               onClick={() => setPromptWorkspace('journal')}
             >
               <Clock3 size={14} />
             </button>
             <details className="composer-options" ref={optionsMenu}>
-              <summary title="Composer options" aria-label="Composer options">
+              <summary title={t('composer.options')} aria-label={t('composer.options')}>
                 <Sparkles size={15} />
               </summary>
               <div>
@@ -839,7 +779,7 @@ export function SessionComposer({
                   }}
                 >
                   <Split size={14} />
-                  Agent model plan
+                  {t('composer.agentPlan')}
                 </button>
                 <button
                   type="button"
@@ -849,7 +789,7 @@ export function SessionComposer({
                     void beginSubmission(draft, mode, true).catch(() => {});
                   }}
                 >
-                  <Sparkles size={14} /> Refine this draft
+                  <Sparkles size={14} /> {t('composer.refineDraft')}
                 </button>
                 <button
                   type="button"
@@ -858,7 +798,7 @@ export function SessionComposer({
                     setPromptWorkspace('library');
                   }}
                 >
-                  <BookOpen size={14} /> Prompt library
+                  <BookOpen size={14} /> {t('composer.library')}
                 </button>
                 <button
                   type="button"
@@ -868,7 +808,7 @@ export function SessionComposer({
                     setMcpContent(true);
                   }}
                 >
-                  <FilePlus2 size={14} /> MCP resources & prompts
+                  <FilePlus2 size={14} /> {t('composer.mcpContent')}
                 </button>
                 <button
                   type="button"
@@ -878,7 +818,7 @@ export function SessionComposer({
                     input.replace(appendToDraft(draft, '@'));
                   }}
                 >
-                  <FilePlus2 size={14} /> Add project file
+                  <FilePlus2 size={14} /> {t('composer.addFile')}
                 </button>
                 <button
                   type="button"
@@ -888,7 +828,7 @@ export function SessionComposer({
                     input.replace(appendToDraft(draft, '$'));
                   }}
                 >
-                  <Sparkles size={14} /> Insert skill mention
+                  <Sparkles size={14} /> {t('composer.skillMention')}
                 </button>
                 <button
                   type="button"
@@ -898,7 +838,7 @@ export function SessionComposer({
                     setContextPanel('inspect');
                   }}
                 >
-                  <Gauge size={14} /> Context & instructions
+                  <Gauge size={14} /> {t('composer.contextPanel')}
                 </button>
                 <button
                   type="button"
@@ -907,7 +847,7 @@ export function SessionComposer({
                     setCommandHelp(true);
                   }}
                 >
-                  <Terminal size={14} /> Desktop commands
+                  <Terminal size={14} /> {t('composer.commands')}
                 </button>
                 <label>
                   <input
@@ -916,20 +856,17 @@ export function SessionComposer({
                     disabled={prefBusy || !state.connected}
                     onChange={(e) => void setEnhance(e.target.checked)}
                   />{' '}
-                  Refine before sending
+                  {t('composer.refineBeforeSend')}
                 </label>
-                {prefBusy && <small role="status">Saving preference…</small>}
+                {prefBusy && <small role="status">{t('composer.savingPreference')}</small>}
                 <button
                   type="button"
                   disabled={!state.connected || queueBusy}
                   onClick={() => void queueAction('queue.get')}
                 >
-                  <RefreshCw size={14} /> Refresh engine queue
+                  <RefreshCw size={14} /> {t('composer.refreshQueue')}
                 </button>
-                <small>
-                  Enter sends · Shift Enter adds a line · ↑ recalls input · @ files · $ skills · /
-                  commands.
-                </small>
+                <small>{t('composer.keys')}</small>
               </div>
             </details>
             {state.running && (
@@ -937,8 +874,8 @@ export function SessionComposer({
                 <button
                   type="button"
                   className="composer-chip"
-                  aria-label="Stop and edit last prompt"
-                  title="Stop and edit last prompt"
+                  aria-label={t('composer.stopEdit')}
+                  title={t('composer.stopEdit')}
                   disabled={sending || !state.connected}
                   onClick={() => stop(true)}
                 >
@@ -947,8 +884,8 @@ export function SessionComposer({
                 <button
                   type="button"
                   className="composer-chip"
-                  aria-label="Stop run"
-                  title="Stop run; pending queue remains"
+                  aria-label={t('composer.stopRun')}
+                  title={t('composer.stopRunTitle')}
                   disabled={sending || !state.connected}
                   onClick={() => stop()}
                 >
@@ -956,35 +893,32 @@ export function SessionComposer({
                 </button>
               </>
             )}
-            <label
-              className="composer-chip submit-mode"
-              title={
-                mode === 'btw'
-                  ? 'Idle: start a turn. Running: send a BTW note to this session’s leader.'
-                  : mode === 'queue'
-                    ? 'Add a persistent prompt. If idle it starts immediately.'
-                    : 'Interrupt the current turn, then start your instruction. Clear pending queue first.'
-              }
-            >
+            <label className="composer-chip submit-mode" title={t(`composer.modeTitle.${mode}`)}>
               <select
-                aria-label="Message delivery mode"
+                aria-label={t('composer.deliveryMode')}
                 value={mode}
                 disabled={sending}
                 onChange={(e) => onModeChange(e.target.value as SubmitMode)}
               >
-                <option value="btw">{state.running ? 'BTW' : 'Message'}</option>
-                <option value="queue" disabled={!queueSupported}>
-                  Queue
+                <option value="btw">
+                  {t(state.running ? 'composer.mode.btw' : 'composer.mode.message')}
                 </option>
-                <option value="steer">Stop & steer</option>
+                <option value="queue" disabled={!queueSupported}>
+                  {t('composer.mode.queue')}
+                </option>
+                <option value="steer">{t('composer.mode.steer')}</option>
               </select>
             </label>
             <button
               type="submit"
               className="button primary composer-send"
-              aria-label={state.running || mode !== 'btw' ? `Send ${modeLabel}` : 'Send message'}
+              aria-label={
+                state.running || mode !== 'btw'
+                  ? t('composer.send', { mode: modeLabel })
+                  : t('composer.sendMessage')
+              }
               disabled={!canSend}
-              title={`${modeLabel} · Enter`}
+              title={t('composer.sendTitle', { mode: modeLabel })}
             >
               {sending ? (
                 <LoaderCircle className="spin" size={16} />
@@ -1000,9 +934,7 @@ export function SessionComposer({
         </footer>
       </form>
       {state.running && attachments.length > 0 && mode === 'btw' && (
-        <p className="composer-notice">
-          Attachments start a queued turn after the current run. Choose Stop & steer to interrupt.
-        </p>
+        <p className="composer-notice">{t('composer.attachmentsQueued')}</p>
       )}
       {refine && (
         <PromptRefinement
@@ -1101,7 +1033,7 @@ export function SessionComposer({
         <SessionContextPanel
           command={command}
           running={state.running}
-          maxContext={Number(state.results['session.start']?.['maxContext'] ?? 0)}
+          usage={state.context}
           initialAction={contextPanel === 'inspect' ? undefined : contextPanel}
           onClose={() => setContextPanel(null)}
           memoryRuns={state.memoryRuns}
@@ -1109,40 +1041,13 @@ export function SessionComposer({
         />
       )}
       {commandHelp && (
-        <Modal onClose={() => setCommandHelp(false)}>
-          <div className="composer-dialog resource-dialog">
-            <header>
-              <h2 id="dialog-title">Desktop commands</h2>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Close desktop commands"
-                onClick={() => setCommandHelp(false)}
-              >
-                <X size={18} />
-              </button>
-            </header>
-            <p>
-              Choose to insert a command, then press Enter to run it. Unknown commands stay in your
-              draft; use <code>{'//'}</code> for literal slash-prefixed text.
-            </p>
-            <div className="resource-list">
-              {desktopCommands.map((command) => (
-                <button
-                  type="button"
-                  key={command.name}
-                  onClick={() => {
-                    input.replace(`${command.name} `);
-                    setCommandHelp(false);
-                  }}
-                >
-                  <strong>{command.name}</strong>
-                  <span>{command.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </Modal>
+        <DesktopCommandHelp
+          onChoose={(text) => {
+            input.replace(text);
+            setCommandHelp(false);
+          }}
+          onClose={() => setCommandHelp(false)}
+        />
       )}
     </div>
   );

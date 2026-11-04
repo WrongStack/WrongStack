@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-state';
 
@@ -75,11 +76,12 @@ export function RunOptions({
   /** Reads the profile's providers and catalog models; without it the default model is used. */
   command?: EngineCommand | undefined;
 }) {
+  const { t } = useDesktopText();
   const { providers, models } = useModelChoices(command, model.provider);
   return (
     <div className="sdd-options">
       <label>
-        Parallel workers
+        {t('sddView.options.workers')}
         <input
           type="number"
           min={1}
@@ -90,24 +92,24 @@ export function RunOptions({
       </label>
       {command && (
         <label>
-          Worker model
+          {t('sddView.options.model')}
           <select
-            aria-label="Worker provider"
+            aria-label={t('sddView.options.providerLabel')}
             value={model.provider}
             onChange={(e) => setModel({ provider: e.target.value, model: '' })}
           >
-            <option value="">Project engine default</option>
+            <option value="">{t('sddView.options.default')}</option>
             {[...new Set([...providers, ...(model.provider ? [model.provider] : [])])].map((id) => (
               <option key={id}>{id}</option>
             ))}
           </select>
           {model.provider && (
             <select
-              aria-label="Worker model"
+              aria-label={t('sddView.options.model')}
               value={model.model}
               onChange={(e) => setModel({ ...model, model: e.target.value })}
             >
-              <option value="">Choose a model</option>
+              <option value="">{t('sddView.options.chooseModel')}</option>
               {[...new Set([...models, ...(model.model ? [model.model] : [])])].map((id) => (
                 <option key={id}>{id}</option>
               ))}
@@ -117,7 +119,7 @@ export function RunOptions({
       )}
       <label>
         <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} />{' '}
-        Isolate work in Git worktrees
+        {t('sddView.options.isolate')}
       </label>
       <label>
         <input
@@ -125,7 +127,7 @@ export function RunOptions({
           checked={decompose}
           onChange={(e) => setDecompose(e.target.checked)}
         />{' '}
-        Decompose plan before execution
+        {t('sddView.options.decompose')}
       </label>
     </div>
   );

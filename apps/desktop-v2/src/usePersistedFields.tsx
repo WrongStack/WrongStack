@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { DurableFormDraft, type FormDraftCodec, type FormDraftStorage } from './durable-form-draft';
 
 type Fields = Record<string, string>;
@@ -46,6 +47,7 @@ export function usePersistedFields<T extends Fields>(
   restored: boolean;
   notice: React.ReactNode;
 } {
+  const { t } = useDesktopText();
   const names = useMemo(() => Object.keys(defaults), [defaults]);
   const controller = useMemo(() => {
     if (!storage) return null;
@@ -100,14 +102,14 @@ export function usePersistedFields<T extends Fields>(
           </p>
         )}
         {state.review && (
-          <fieldset className="pending-input-review" aria-label="Unsaved input conflict">
-            <span>Another window saved different unsent input here.</span>
+          <fieldset className="pending-input-review" aria-label={t('persistedFields.label')}>
+            <span>{t('persistedFields.conflict')}</span>
             <button
               type="button"
               className="button secondary small"
               onClick={() => void controller.resolve('local')}
             >
-              Keep this window’s input
+              {t('persistedFields.keepLocal')}
             </button>
             <button
               type="button"
@@ -119,7 +121,7 @@ export function usePersistedFields<T extends Fields>(
                 });
               }}
             >
-              Use saved input
+              {t('persistedFields.useSaved')}
             </button>
           </fieldset>
         )}

@@ -1,6 +1,7 @@
 import { Boxes, Download, FileCode2, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -8,13 +9,8 @@ import { downloadSkillFile } from './skill-model';
 import { TechDependencyDetail, TechFinding } from './TechStackEvidence';
 import { TechStackRemediation } from './TechStackRemediation';
 import { TechStackTrends } from './TechStackTrends';
-import {
-  techFilteredDependencies,
-  techLabel,
-  techRunning,
-  techSummary,
-  techVersion,
-} from './techstack-model';
+import { techFilteredDependencies, techRunning, techSummary, techVersion } from './techstack-model';
+import { techWord } from './techstack-text';
 import { useTechStack } from './useTechStack';
 import './project-techstack.css';
 
@@ -30,6 +26,8 @@ export function ProjectTechStack({
   events: Record<string, Record<string, unknown>>;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const word = (value: unknown) => techWord(value, t);
   const vm = useTechStack(http, projectId);
   const [view, setView] = useState<View>('dependencies');
   const [depth, setDepth] = useState('inventory');
@@ -95,9 +93,7 @@ export function ProjectTechStack({
           [id]: {
             findings: entries(data['findings']),
             note:
-              data['cached'] === true
-                ? 'Loaded cached research findings.'
-                : 'Research completed for this dependency.',
+              data['cached'] === true ? t('techStack.cachedResearch') : t('techStack.researchDone'),
           },
         }));
     } catch (e) {
@@ -133,11 +129,11 @@ export function ProjectTechStack({
     }
   };
   return (
-    <section className="project-techstack" aria-label="Project TechStack workspace">
+    <section className="project-techstack" aria-label={t('techStack.label')}>
       <header className="studio-heading">
         <div>
           <h1>TechStack</h1>
-          <p>See what the project uses, where versions come from, and what needs attention.</p>
+          <p>{t('techStack.intro')}</p>
         </div>
         <button
           type="button"
@@ -146,30 +142,30 @@ export function ProjectTechStack({
           onClick={() => void vm.reload()}
         >
           <RefreshCw size={14} />
-          Refresh TechStack
+          {t('techStack.refresh')}
         </button>
       </header>
       <div className="tech-analysis-controls">
         <label>
-          Analysis depth
+          {t('techStack.depth')}
           <select
-            aria-label="TechStack analysis depth"
+            aria-label={t('techStack.depthLabel')}
             value={depth}
             disabled={vm.busy || techRunning(vm.job)}
             onChange={(e) => setDepth(e.target.value)}
           >
-            <option value="inventory">Local inventory · no network or model</option>
-            <option value="enrich">Registry and advisory enrichment</option>
+            <option value="inventory">{t('techStack.depthOption.inventory')}</option>
+            <option value="enrich">{t('techStack.depthOption.enrich')}</option>
             <option value="full" disabled={!canResearch}>
-              Enrichment and model research
+              {t('techStack.depthOption.full')}
             </option>
           </select>
         </label>
         {depth === 'full' && (
           <label>
-            Research model
+            {t('techStack.researchModel')}
             <select
-              aria-label="TechStack research model"
+              aria-label={t('techStack.researchModelLabel')}
               value={model || String(vm.models['model'] ?? '')}
               onChange={(e) => setModel(e.target.value)}
               disabled={vm.busy || techRunning(vm.job)}
@@ -182,7 +178,9 @@ export function ProjectTechStack({
               ]
                 .filter(Boolean)
                 .map((id) => (
-                  <option key={id}>{id}</option>
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
                 ))}
             </select>
           </label>
@@ -195,30 +193,25 @@ export function ProjectTechStack({
           }
           onClick={() => void vm.start(depth, model || String(vm.models['model'] ?? ''))}
         >
-          {depth === 'inventory' ? 'Scan local dependencies' : 'Analyze dependencies'}
+          {depth === 'inventory' ? t('techStack.scan') : t('techStack.analyze')}
         </button>
       </div>
-      {!canResearch && (
-        <p className="field-help">
-          Local inventory and registry enrichment are available. Connect a provider in WrongStack
-          settings to enable model research.
-        </p>
-      )}
+      {!canResearch && <p className="field-help">{t('techStack.noResearch')}</p>}
       {vm.error && (
         <p className="composer-error" role="alert">
           {vm.error}
         </p>
       )}
       {vm.job && (
-        <section className="tech-job" aria-label="TechStack analysis job" role="status">
+        <section className="tech-job" aria-label={t('techStack.jobLabel')} role="status">
           <div>
-            <strong>{techLabel(vm.job['status'])}</strong>
+            <strong>{word(vm.job['status'])}</strong>
             <span>
-              {techLabel(vm.job['depth'])}
+              {word(vm.job['depth'])}
               {vm.job['model'] ? ` · ${vm.job['model']}` : ''}
             </span>
             <small>
-              {techLabel(progress['phase'])}
+              {word(progress['phase'])}
               {typeof progress['completed'] === 'number' && typeof progress['total'] === 'number'
                 ? ` · ${progress['completed']} / ${progress['total']}`
                 : ''}
@@ -230,7 +223,7 @@ export function ProjectTechStack({
           </div>
           {Number(progress['total']) > 0 && (
             <progress
-              aria-label="TechStack job progress"
+              aria-label={t('techStack.progress')}
               max={Number(progress['total'])}
               value={Number(progress['completed']) || 0}
             />
@@ -242,44 +235,44 @@ export function ProjectTechStack({
               disabled={vm.busy}
               onClick={() => void vm.cancel()}
             >
-              Cancel analysis
+              {t('techStack.cancel')}
             </button>
           )}
         </section>
       )}
       {vm.loading && !snapshot ? (
-        <p role="status">Reading the project dependency snapshot…</p>
+        <p role="status">{t('techStack.reading')}</p>
       ) : snapshot ? (
         <>
           <div className="tech-stats">
-            {[
-              ['Dependencies', summary.total],
-              ['Direct', summary.direct],
-              ['Workspaces', summary.workspaces],
-              ['Updates', summary.upgrades],
-              ['Vulnerable', summary.vulnerable],
-              ['Findings', summary.findings],
-            ].map(([label, value]) => (
-              <div key={String(label)}>
-                <small>{label}</small>
+            {(
+              [
+                ['dependencies', summary.total],
+                ['direct', summary.direct],
+                ['workspaces', summary.workspaces],
+                ['updates', summary.upgrades],
+                ['vulnerable', summary.vulnerable],
+                ['findings', summary.findings],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label}>
+                <small>{t(`techStack.stat.${label}`)}</small>
                 <strong>{value}</strong>
               </div>
             ))}
           </div>
           <div className="tech-snapshot-meta">
             <span>
-              Observed {String(snapshot['createdAt'])} · {techLabel(snapshot['coverage'])} coverage
-              · adapter {String(snapshot['adapterVersion'])}
+              {t('techStack.observed', {
+                at: String(snapshot['createdAt']),
+                coverage: word(snapshot['coverage']),
+                adapter: String(snapshot['adapterVersion']),
+              })}
             </span>
-            {vm.stale && (
-              <strong>Snapshot is over 24 hours old. Scan again for current observations.</strong>
-            )}
-            <small>
-              Missing registry versions and advisories are shown as unreported. Local inventory does
-              not perform online checks.
-            </small>
+            {vm.stale && <strong>{t('techStack.stale')}</strong>}
+            <small>{t('techStack.unreportedNote')}</small>
           </div>
-          <nav className="tech-views" aria-label="TechStack views">
+          <nav className="tech-views" aria-label={t('techStack.views')}>
             {(['dependencies', 'workspaces', 'findings', 'trends', 'remediation'] as const).map(
               (name) => (
                 <button
@@ -288,7 +281,7 @@ export function ProjectTechStack({
                   aria-current={view === name ? 'page' : undefined}
                   onClick={() => setView(name)}
                 >
-                  {name[0]!.toUpperCase() + name.slice(1)}
+                  {t(`techStack.view.${name}`)}
                 </button>
               ),
             )}
@@ -299,18 +292,18 @@ export function ProjectTechStack({
                 <label>
                   <Search size={14} />
                   <input
-                    aria-label="Search dependencies"
-                    placeholder="Find a package or version…"
+                    aria-label={t('techStack.search')}
+                    placeholder={t('techStack.searchPlaceholder')}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                   />
                 </label>
                 <select
-                  aria-label="Dependency workspace"
+                  aria-label={t('techStack.workspace')}
                   value={workspace}
                   onChange={(e) => setWorkspace(e.target.value)}
                 >
-                  <option value="">All workspaces</option>
+                  <option value="">{t('techStack.allWorkspaces')}</option>
                   {workspaces.map((item) => (
                     <option key={String(item['id'])} value={String(item['id'])}>
                       {String(item['relativeRoot'] || '.')} · {String(item['ecosystem'])}
@@ -318,41 +311,41 @@ export function ProjectTechStack({
                   ))}
                 </select>
                 <select
-                  aria-label="Dependency status"
+                  aria-label={t('techStack.status')}
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                 >
-                  <option value="">All statuses</option>
+                  <option value="">{t('techStack.allStatuses')}</option>
                   {[...new Set(dependencies.map((item) => String(item['status'])))]
                     .sort()
                     .map((name) => (
                       <option key={name} value={name}>
-                        {techLabel(name)}
+                        {word(name)}
                       </option>
                     ))}
                 </select>
                 <select
-                  aria-label="Dependency relationship"
+                  aria-label={t('techStack.relationship')}
                   value={scope}
                   onChange={(e) => setScope(e.target.value)}
                 >
-                  <option value="">Direct and transitive</option>
-                  <option value="direct">Direct only</option>
-                  <option value="transitive">Transitive only</option>
+                  <option value="">{t('techStack.both')}</option>
+                  <option value="direct">{t('techStack.directOnly')}</option>
+                  <option value="transitive">{t('techStack.transitiveOnly')}</option>
                 </select>
               </div>
               <p className="field-help">
-                {visible.length} of {dependencies.length} observations
+                {t('techStack.count', { visible: visible.length, total: dependencies.length })}
               </p>
               <div className="tech-dependencies-layout">
                 <div className="tech-table-scroll">
                   <table className="tech-dependencies-table">
                     <thead>
                       <tr>
-                        <th>Package</th>
-                        <th>Observed</th>
-                        <th>Latest stable</th>
-                        <th>Status</th>
+                        <th>{t('techStack.col.package')}</th>
+                        <th>{t('techStack.col.observed')}</th>
+                        <th>{t('techStack.col.latest')}</th>
+                        <th>{t('techStack.col.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -363,23 +356,25 @@ export function ProjectTechStack({
                               <strong>{String(item['name'])}</strong>
                               <small>
                                 {String(item['ecosystem'])} ·{' '}
-                                {item['direct'] === true ? 'direct' : 'transitive'} ·{' '}
-                                {techLabel(item['scope'])}
+                                {item['direct'] === true
+                                  ? t('techStack.directWord')
+                                  : word('transitive')}{' '}
+                                · {word(item['scope'])}
                               </small>
                             </button>
                           </td>
                           <td>{techVersion(item)}</td>
-                          <td>{String(item['latestStable'] ?? 'Not reported')}</td>
+                          <td>{String(item['latestStable'] ?? t('techStack.notReported'))}</td>
                           <td>
                             <span className={`tech-status status-${item['status']}`}>
-                              {techLabel(item['status'])}
+                              {word(item['status'])}
                             </span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {!visible.length && <p>No dependencies match this view.</p>}
+                  {!visible.length && <p>{t('techStack.noMatch')}</p>}
                 </div>
                 {detail ? (
                   <TechDependencyDetail
@@ -394,11 +389,8 @@ export function ProjectTechStack({
                 ) : (
                   <div className="tech-empty">
                     <Boxes size={30} />
-                    <h2>Every version has a source.</h2>
-                    <p>
-                      Select a package to inspect constraints, registry facts, findings and
-                      evidence.
-                    </p>
+                    <h2>{t('techStack.emptyTitle')}</h2>
+                    <p>{t('techStack.emptyBody')}</p>
                   </div>
                 )}
               </div>
@@ -408,18 +400,18 @@ export function ProjectTechStack({
               {workspaces.map((item) => (
                 <article key={String(item['id'])}>
                   <header>
-                    <h2>{String(item['relativeRoot'] || 'Project root')}</h2>
+                    <h2>{String(item['relativeRoot'] || t('techStack.projectRoot'))}</h2>
                     <span>
-                      {String(item['ecosystem'])} · {techLabel(item['coverage'])}
+                      {String(item['ecosystem'])} · {word(item['coverage'])}
                     </span>
                   </header>
                   <p>
-                    {String(item['packageManager'] ?? 'Package manager not reported')} ·{' '}
+                    {String(item['packageManager'] ?? t('techStack.noPackageManager'))} ·{' '}
                     {typeof item['confidence'] === 'number'
-                      ? `${Math.round(item['confidence'] * 100)}% detection confidence`
+                      ? t('techStack.confidence', { percent: Math.round(item['confidence'] * 100) })
                       : ''}
                   </p>
-                  <h3>Manifests and lockfiles</h3>
+                  <h3>{t('techStack.manifests')}</h3>
                   {['manifests', 'lockfiles']
                     .flatMap((key) => (Array.isArray(item[key]) ? (item[key] as string[]) : []))
                     .map((file, index) => (
@@ -441,7 +433,7 @@ export function ProjectTechStack({
                       setView('dependencies');
                     }}
                   >
-                    Inspect workspace dependencies
+                    {t('techStack.inspectWorkspace')}
                   </button>
                 </article>
               ))}
@@ -449,15 +441,17 @@ export function ProjectTechStack({
           ) : view === 'findings' ? (
             <section>
               <header className="tech-section-heading">
-                <h2>Findings and their sources</h2>
+                <h2>{t('techStack.findingsTitle')}</h2>
                 <select
-                  aria-label="Finding severity"
+                  aria-label={t('techStack.severity')}
                   value={findingSeverity}
                   onChange={(e) => setFindingSeverity(e.target.value)}
                 >
-                  <option value="">All severities</option>
+                  <option value="">{t('techStack.allSeverities')}</option>
                   {['critical', 'high', 'medium', 'low', 'info'].map((name) => (
-                    <option key={name}>{name}</option>
+                    <option key={name} value={name}>
+                      {word(name)}
+                    </option>
                   ))}
                 </select>
               </header>
@@ -476,13 +470,13 @@ export function ProjectTechStack({
                       {String(
                         dependencies.find((item) => item['id'] === finding['dependencyId'])?.[
                           'name'
-                        ] ?? 'Unknown dependency',
+                        ] ?? t('techStack.unknownDependency'),
                       )}
                     </button>
                     <TechFinding finding={finding} onOpenFile={onOpenFile} />
                   </div>
                 ))}
-              {!findings.length && <p>No findings in this snapshot.</p>}
+              {!findings.length && <p>{t('techStack.noFindings')}</p>}
             </section>
           ) : view === 'trends' ? (
             <TechStackTrends http={http} snapshotId={String(snapshot['id'])} />
@@ -494,18 +488,18 @@ export function ProjectTechStack({
             />
           )}
           <section className="tech-report-export">
-            <h3>Reports and software bill of materials</h3>
-            <p>Reports use the selected saved snapshot and retain its observations and evidence.</p>
+            <h3>{t('techStack.reportsTitle')}</h3>
+            <p>{t('techStack.reportsIntro')}</p>
             <div className="tech-analysis-controls">
               <select
-                aria-label="TechStack report format"
+                aria-label={t('techStack.format')}
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
               >
-                <option value="md">Readable Markdown report</option>
-                <option value="json">Complete JSON report</option>
-                <option value="spdx">SPDX SBOM</option>
-                <option value="cyclonedx">CycloneDX SBOM</option>
+                <option value="md">{t('techStack.formatOption.md')}</option>
+                <option value="json">{t('techStack.formatOption.json')}</option>
+                <option value="spdx">{t('techStack.formatOption.spdx')}</option>
+                <option value="cyclonedx">{t('techStack.formatOption.cyclonedx')}</option>
               </select>
               <button
                 type="button"
@@ -514,19 +508,19 @@ export function ProjectTechStack({
                 onClick={() => void exportReport()}
               >
                 <Download size={14} />
-                {format === 'md' ? 'Read report' : 'Export report'}
+                {format === 'md' ? t('techStack.readReport') : t('techStack.exportReport')}
               </button>
             </div>
             {report && (
               <details open>
-                <summary>Readable report</summary>
-                <CopyButton text={report} label="Copy TechStack Markdown report" />
+                <summary>{t('techStack.readable')}</summary>
+                <CopyButton text={report} label={t('techStack.copyReport')} />
                 <button
                   type="button"
                   className="button secondary small"
                   onClick={() => downloadSkillFile(report, 'techstack-report.md', 'text/markdown')}
                 >
-                  Save Markdown report
+                  {t('techStack.saveReport')}
                 </button>
                 <MarkdownContent text={report} />
               </details>
@@ -536,11 +530,8 @@ export function ProjectTechStack({
       ) : (
         <div className="tech-empty">
           <Boxes size={40} />
-          <h2>Start with what is actually in the project.</h2>
-          <p>
-            Scan manifests and lockfiles locally, then choose registry enrichment or model research
-            when needed.
-          </p>
+          <h2>{t('techStack.startTitle')}</h2>
+          <p>{t('techStack.startBody')}</p>
         </div>
       )}
     </section>

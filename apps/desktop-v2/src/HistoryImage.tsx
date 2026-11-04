@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 
@@ -24,6 +25,7 @@ export function HistoryImage({
   const [image, setImage] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const { t } = useDesktopText();
   const show = async () => {
     setBusy(true);
     setError('');
@@ -44,9 +46,7 @@ export function HistoryImage({
         !/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/]*={0,2}$/.test(url)
       )
         throw Error(
-          typeof result['error'] === 'string'
-            ? result['error']
-            : 'This engine did not return the image. It may predate image reads in history.',
+          typeof result['error'] === 'string' ? result['error'] : t('historyView.image.unreadable'),
         );
       setImage(url);
     } catch (failure) {
@@ -57,10 +57,14 @@ export function HistoryImage({
   };
   return (
     <div className="history-attachment">
-      <strong>Image attachment</strong>
+      <strong>{t('historyView.image.title')}</strong>
       <span>{mediaType}</span>
       {image ? (
-        <img className="history-image" src={image} alt={`Retained attachment, ${mediaType}`} />
+        <img
+          className="history-image"
+          src={image}
+          alt={t('historyView.image.alt', { type: mediaType })}
+        />
       ) : (
         <button
           type="button"
@@ -68,7 +72,7 @@ export function HistoryImage({
           disabled={busy}
           onClick={() => void show()}
         >
-          {busy ? 'Loading image…' : 'Show image'}
+          {busy ? t('historyView.image.loading') : t('historyView.image.show')}
         </button>
       )}
       {error && (

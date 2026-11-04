@@ -1,12 +1,12 @@
 import { BarChart3, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './chronicle-insights.css';
 
 type View = 'providers' | 'tasks' | 'files';
 const views: View[] = ['providers', 'tasks', 'files'];
-const label = (value: unknown) => (typeof value === 'string' && value ? value : 'Not recorded');
 const number = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
 
@@ -18,6 +18,9 @@ export function ChronicleInsights({
   command: EngineCommand;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const label = (value: unknown) =>
+    typeof value === 'string' && value ? value : t('chronicleView.insights.notRecorded');
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('providers');
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -40,7 +43,7 @@ export function ChronicleInsights({
       if (generation.current !== id) return;
       if (typeof result['message'] === 'string') throw new Error(result['message']);
       if (result['view'] !== view || !Array.isArray(result['data']))
-        throw new Error('The engine returned an invalid metrics response.');
+        throw new Error(t('chronicleView.insights.invalid'));
       setRows(entries(result['data']));
       setRefresh(record(result['refreshed']));
     } catch (e) {
@@ -48,7 +51,7 @@ export function ChronicleInsights({
     } finally {
       if (generation.current === id) setBusy(false);
     }
-  }, [command, view]);
+  }, [command, view, t]);
   useEffect(() => {
     if (open) void load();
     return () => {
@@ -62,15 +65,14 @@ export function ChronicleInsights({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <BarChart3 size={16} /> Project insights <span>Providers · tasks · files</span>
+        <BarChart3 size={16} /> {t('chronicleView.insights.title')}{' '}
+        <span>{t('chronicleView.insights.subtitle')}</span>
       </summary>
       {open && (
         <div className="insights-content">
-          <p>
-            Derived from the project journal across sessions. Timeline filters do not apply here.
-          </p>
+          <p>{t('chronicleView.insights.intro')}</p>
           <div className="insights-toolbar">
-            <nav aria-label="Chronicle insights views">
+            <nav aria-label={t('chronicleView.insights.views')}>
               {views.map((item) => (
                 <button
                   key={item}
@@ -84,7 +86,7 @@ export function ChronicleInsights({
                     }
                   }}
                 >
-                  {item}
+                  {t(`chronicleView.insights.view.${item}`)}
                 </button>
               ))}
             </nav>
@@ -94,15 +96,15 @@ export function ChronicleInsights({
               onClick={() => void load()}
               disabled={busy}
             >
-              <RefreshCw size={13} /> Refresh
+              <RefreshCw size={13} /> {t('chronicleView.insights.refresh')}
             </button>
           </div>
           {error ? (
             <p role="alert">{error}</p>
           ) : busy ? (
-            <p role="status">Loading project insights…</p>
+            <p role="status">{t('chronicleView.insights.loading')}</p>
           ) : !rows.length ? (
-            <p>No {view} metrics have been recorded.</p>
+            <p>{t(`chronicleView.insights.empty.${view}`)}</p>
           ) : (
             <div className="insights-list">
               {rows.map((row, index) =>
@@ -115,15 +117,23 @@ export function ChronicleInsights({
                       <time>{label(row['day'])}</time>
                     </header>
                     <p>
-                      {number(row['attempts'])} attempts · {number(row['completed'])} completed ·{' '}
-                      {number(row['failed'])} failed · {number(row['retries'])} retries ·{' '}
-                      {number(row['fallbacks'])} fallbacks
+                      {t('chronicleView.insights.attempts', {
+                        attempts: number(row['attempts']),
+                        completed: number(row['completed']),
+                        failed: number(row['failed']),
+                        retries: number(row['retries']),
+                        fallbacks: number(row['fallbacks']),
+                      })}
                     </p>
                     <small>
-                      {number(row['inputTokens'])} input / {number(row['outputTokens'])} output
-                      tokens · {number(row['cacheReadTokens'])} cache read /{' '}
-                      {number(row['cacheWriteTokens'])} cache write · {number(row['avgDurationMs'])}{' '}
-                      ms average / {number(row['maxDurationMs'])} ms maximum
+                      {t('chronicleView.insights.tokens', {
+                        input: number(row['inputTokens']),
+                        output: number(row['outputTokens']),
+                        cacheRead: number(row['cacheReadTokens']),
+                        cacheWrite: number(row['cacheWriteTokens']),
+                        avg: number(row['avgDurationMs']),
+                        max: number(row['maxDurationMs']),
+                      })}
                     </small>
                   </article>
                 ) : view === 'tasks' ? (
@@ -133,16 +143,26 @@ export function ChronicleInsights({
                       <span>{label(row['status'])}</span>
                     </header>
                     <p>
-                      Board {label(row['boardId'])} · Agent {label(row['agentId'])} · Session{' '}
-                      {label(row['sessionId'])}
+                      {t('chronicleView.insights.taskOwners', {
+                        board: label(row['boardId']),
+                        agent: label(row['agentId']),
+                        session: label(row['sessionId']),
+                      })}
                     </p>
                     <small>
-                      Run {label(row['runId'])} · {number(row['retries'])} retries ·{' '}
-                      {number(row['verificationFailures'])} verification failures ·{' '}
-                      {number(row['filesTouched'])} files · {number(row['durationMs'])} ms
+                      {t('chronicleView.insights.taskRun', {
+                        run: label(row['runId']),
+                        retries: number(row['retries']),
+                        verification: number(row['verificationFailures']),
+                        files: number(row['filesTouched']),
+                        ms: number(row['durationMs']),
+                      })}
                     </small>
                     <small>
-                      Started {label(row['startedAt'])} · Ended {label(row['endedAt'])}
+                      {t('chronicleView.insights.taskTimes', {
+                        started: label(row['startedAt']),
+                        ended: label(row['endedAt']),
+                      })}
                     </small>
                   </article>
                 ) : (
@@ -155,13 +175,19 @@ export function ChronicleInsights({
                       {label(row['occurredAt'])} · {label(row['toolName'])} · {label(row['source'])}
                     </p>
                     <small>
-                      Task {label(row['taskId'])} · Board {label(row['boardId'])} · Run{' '}
-                      {label(row['runId'])} · Session {label(row['sessionId'])} · Agent{' '}
-                      {label(row['agentId'])} · {label(row['providerId'])} / {label(row['modelId'])}
+                      {t('chronicleView.insights.fileOwners', {
+                        task: label(row['taskId']),
+                        board: label(row['boardId']),
+                        run: label(row['runId']),
+                        session: label(row['sessionId']),
+                        agent: label(row['agentId']),
+                        provider: label(row['providerId']),
+                        model: label(row['modelId']),
+                      })}
                     </small>
                     {typeof row['path'] === 'string' && row['path'] && (
                       <button type="button" onClick={() => onOpenFile(row['path'] as string)}>
-                        Open project file
+                        {t('chronicleView.openFile')}
                       </button>
                     )}
                   </article>
@@ -171,9 +197,14 @@ export function ChronicleInsights({
           )}
           {!busy && !error && (
             <small className="insights-footnote">
-              {view === 'providers' ? 'Daily provider rows' : 'Up to 200 recent rows'} ·{' '}
-              {number(refresh['sourceFiles'])} partitions read during refresh ·{' '}
-              {number(refresh['invalidLines'])} invalid entries during refresh
+              {t('chronicleView.insights.footnote', {
+                rows:
+                  view === 'providers'
+                    ? t('chronicleView.insights.dailyRows')
+                    : t('chronicleView.insights.recentRows'),
+                partitions: number(refresh['sourceFiles']),
+                invalid: number(refresh['invalidLines']),
+              })}
             </small>
           )}
         </div>

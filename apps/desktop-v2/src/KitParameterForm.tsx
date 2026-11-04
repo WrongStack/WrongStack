@@ -1,4 +1,5 @@
 import { Plus, X } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import { type KitSchema, kitInitialValue, kitValuesEqual } from './project-kit-model';
 
@@ -6,13 +7,15 @@ export function KitParameterForm({
   schema,
   value,
   onChange,
-  path = 'Input',
+  path: given,
 }: {
   schema: KitSchema;
   value: unknown;
   onChange: (value: unknown) => void;
   path?: string;
 }) {
+  const { t } = useDesktopText();
+  const path = given ?? t('projectKit.input');
   if (schema.enum?.length)
     return (
       <div className="kit-field">
@@ -26,7 +29,7 @@ export function KitParameterForm({
           >
             {schema.enum.map((item, i) => (
               <option key={i} value={i}>
-                {typeof item === 'object' ? `Option ${i + 1}` : String(item)}
+                {typeof item === 'object' ? t('kitForm.option', { number: i + 1 }) : String(item)}
               </option>
             ))}
           </select>
@@ -57,7 +60,7 @@ export function KitParameterForm({
                       onChange(next);
                     }}
                   />
-                  Include {name}
+                  {t('kitForm.include', { name })}
                 </label>
               )}
               {(required || included) && (
@@ -71,7 +74,7 @@ export function KitParameterForm({
             </div>
           );
         })}
-        {!Object.keys(schema.properties ?? {}).length && <p>No parameters required.</p>}
+        {!Object.keys(schema.properties ?? {}).length && <p>{t('kitForm.noParameters')}</p>}
       </fieldset>
     );
   }
@@ -80,7 +83,7 @@ export function KitParameterForm({
     return (
       <fieldset className="kit-parameters">
         <legend>{path}</legend>
-        <p>{schema.description ?? 'Add items in the order they should be supplied.'}</p>
+        <p>{schema.description ?? t('kitForm.itemsHelp')}</p>
         {items.map((item, i) => (
           <div className="kit-array-item" key={i}>
             <KitParameterForm
@@ -92,7 +95,7 @@ export function KitParameterForm({
             <button
               type="button"
               className="icon-button"
-              aria-label={`Remove ${path}[${i + 1}]`}
+              aria-label={t('kitForm.remove', { path: `${path}[${i + 1}]` })}
               onClick={() => onChange(items.filter((_, index) => index !== i))}
             >
               <X size={14} />
@@ -106,7 +109,7 @@ export function KitParameterForm({
           onClick={() => onChange([...items, kitInitialValue(schema.items as KitSchema)])}
         >
           <Plus size={13} />
-          Add {path} item
+          {t('kitForm.addItem', { path })}
         </button>
       </fieldset>
     );
@@ -129,7 +132,7 @@ export function KitParameterForm({
   if (schema.type === 'null')
     return (
       <p>
-        {path}: empty value <small>{schema.description}</small>
+        {t('kitForm.emptyField', { path })} <small>{schema.description}</small>
       </p>
     );
   const numeric = schema.type === 'number' || schema.type === 'integer';
@@ -161,6 +164,7 @@ export function KitParameterForm({
 }
 
 export function KitValue({ value }: { value: unknown }) {
+  const { t } = useDesktopText();
   if (Array.isArray(value))
     return value.length ? (
       <ol className="kit-values">
@@ -171,7 +175,7 @@ export function KitValue({ value }: { value: unknown }) {
         ))}
       </ol>
     ) : (
-      <span className="field-help">Empty list</span>
+      <span className="field-help">{t('kitForm.emptyList')}</span>
     );
   if (value && typeof value === 'object')
     return (
@@ -189,53 +193,66 @@ export function KitValue({ value }: { value: unknown }) {
   return (
     <span className="kit-value">
       {value === null
-        ? 'Empty value'
+        ? t('kitForm.emptyValue')
         : typeof value === 'number' && !Number.isFinite(value)
-          ? 'Not entered'
+          ? t('kitForm.notEntered')
           : value === true
-            ? 'Yes'
+            ? t('kitForm.yes')
             : value === false
-              ? 'No'
-              : String(value ?? 'Not supplied')}
+              ? t('kitForm.no')
+              : value === undefined
+                ? t('kitForm.notSupplied')
+                : String(value)}
     </span>
   );
 }
 
-export function KitSchemaDetails({
-  schema,
-  name = 'Result',
-}: {
-  schema: KitSchema;
-  name?: string;
-}) {
+export function KitSchemaDetails({ schema, name }: { schema: KitSchema; name?: string }) {
+  const { t } = useDesktopText();
   return (
     <div className="kit-schema-row">
-      <strong>{name}</strong>
+      <strong>{name ?? t('kitForm.result')}</strong>
       <span>
         {schema.type}
-        {schema.required?.length ? ` · required: ${schema.required.join(', ')}` : ''}
+        {schema.required?.length
+          ? ` · ${t('kitForm.required', { names: schema.required.join(', ') })}`
+          : ''}
       </span>
       {schema.description && <p>{schema.description}</p>}
-      {schema.minimum !== undefined && <small>Minimum {schema.minimum} </small>}
-      {schema.maximum !== undefined && <small>Maximum {schema.maximum} </small>}
-      {schema.minLength !== undefined && <small>Minimum length {schema.minLength} </small>}
-      {schema.maxLength !== undefined && <small>Maximum length {schema.maxLength} </small>}
-      {schema.minItems !== undefined && <small>Minimum items {schema.minItems} </small>}
-      {schema.maxItems !== undefined && <small>Maximum items {schema.maxItems} </small>}
+      {schema.minimum !== undefined && (
+        <small>{t('kitForm.minimum', { value: schema.minimum })} </small>
+      )}
+      {schema.maximum !== undefined && (
+        <small>{t('kitForm.maximum', { value: schema.maximum })} </small>
+      )}
+      {schema.minLength !== undefined && (
+        <small>{t('kitForm.minLength', { value: schema.minLength })} </small>
+      )}
+      {schema.maxLength !== undefined && (
+        <small>{t('kitForm.maxLength', { value: schema.maxLength })} </small>
+      )}
+      {schema.minItems !== undefined && (
+        <small>{t('kitForm.minItems', { value: schema.minItems })} </small>
+      )}
+      {schema.maxItems !== undefined && (
+        <small>{t('kitForm.maxItems', { value: schema.maxItems })} </small>
+      )}
       {schema.enum && (
         <div>
-          Allowed values <KitValue value={schema.enum} />
+          {t('kitForm.allowed')} <KitValue value={schema.enum} />
         </div>
       )}
       {Object.hasOwn(schema, 'default') && (
         <div>
-          Default <KitValue value={schema.default} />
+          {t('kitForm.default')} <KitValue value={schema.default} />
         </div>
       )}
       {Object.entries(schema.properties ?? {}).map(([key, child]) => (
         <KitSchemaDetails key={key} schema={child} name={key} />
       ))}
-      {schema.items && <KitSchemaDetails schema={schema.items as KitSchema} name="Each item" />}
+      {schema.items && (
+        <KitSchemaDetails schema={schema.items as KitSchema} name={t('kitForm.eachItem')} />
+      )}
     </div>
   );
 }

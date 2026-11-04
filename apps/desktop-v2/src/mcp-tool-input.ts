@@ -16,17 +16,20 @@ export function skeletonInput(schema: unknown): Record<string, unknown> {
 /** The tool input typed in the editor: a JSON object, or the reason it is not one. */
 export function parseToolInput(
   text: string,
-): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+):
+  | { ok: true; value: Record<string, unknown> }
+  | { ok: false; reason: 'json' | 'object'; error: string; detail?: string } {
   if (!text.trim()) return { ok: true, value: {} };
   let value: unknown;
   try {
     value = JSON.parse(text);
   } catch (error) {
-    return { ok: false, error: `The input is not valid JSON: ${(error as Error).message}` };
+    const detail = (error as Error).message;
+    return { ok: false, reason: 'json', error: `The input is not valid JSON: ${detail}`, detail };
   }
   return isRecord(value)
     ? { ok: true, value }
-    : { ok: false, error: 'The input must be a JSON object.' };
+    : { ok: false, reason: 'object', error: 'The input must be a JSON object.' };
 }
 
 /** Property names of a tool schema, required ones first and marked. */

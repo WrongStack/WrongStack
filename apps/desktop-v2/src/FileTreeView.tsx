@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { FileNode } from './file-model';
 import { treeWindow, visibleTreeRows } from './file-tree-rows';
 
@@ -30,6 +31,7 @@ export function FileTreeView({
   onSelect: (node: FileNode) => void;
   onContext: (event: React.MouseEvent, path: string) => void;
 }) {
+  const { t } = useDesktopText();
   const rows = useMemo(
     () => visibleTreeRows(tree, new Set(expanded), query),
     [tree, expanded, query],
@@ -73,7 +75,7 @@ export function FileTreeView({
     <div
       ref={container}
       role="tree"
-      aria-label="Project directory tree"
+      aria-label={t('tree.label')}
       className="file-directory-tree"
       onScroll={(event) =>
         setView({ top: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight })
@@ -158,4 +160,28 @@ export function FileTreeView({
       </div>
     </div>
   );
+}
+
+/**
+ * Reloads the tree when the engine reports that files under the project changed, as the WebUI's
+ * explorer does on `files.tree.changed` (already coalesced by the engine's watcher). The value
+ * seen when the workspace opened is skipped: the first read already reflects it.
+ */
+export function useTreeChanges(
+  changed: unknown,
+  refresh: () => Promise<void>,
+  onError: (message: string) => void,
+) {
+  const opened = useRef(changed);
+  useEffect(() => {
+    if (!changed || changed === opened.current) return;
+    const timer = window.setTimeout(
+      () =>
+        void refresh().catch((error: unknown) =>
+          onError(String(error instanceof Error ? error.message : error)),
+        ),
+      250,
+    );
+    return () => window.clearTimeout(timer);
+  }, [changed, refresh, onError]);
 }

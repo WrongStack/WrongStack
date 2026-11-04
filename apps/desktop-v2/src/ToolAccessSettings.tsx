@@ -1,9 +1,13 @@
 import { Check, Power, RefreshCw, Search, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 export function ToolAccessSettings({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
   const [tools, setTools] = useState<Record<string, unknown>[]>([]),
     [query, setQuery] = useState(''),
     [status, setStatus] = useState('all'),
@@ -42,18 +46,17 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
         disabled ? 'tool.disabled' : 'tool.enabled',
       ]);
       const actual = (await load()).find((row) => row['name'] === name);
-      if (!actual || actual['disabled'] !== disabled)
-        throw Error(
-          'The tool catalog did not confirm the requested state. Refresh before retrying.',
-        );
+      if (!actual || actual['disabled'] !== disabled) throw Error(t('toolAccess.notConfirmed'));
       setNotice(
-        name +
-          ' ' +
-          (disabled ? 'disabled' : 'enabled') +
-          ' and verified in the profile tool catalog.',
+        t(disabled ? 'toolAccess.disabledVerified' : 'toolAccess.enabledVerified', { name }),
       );
     } catch (e) {
-      setError('Could not update ' + name + ': ' + String(e instanceof Error ? e.message : e));
+      setError(
+        t('toolAccess.couldNotUpdate', {
+          name,
+          error: String(e instanceof Error ? e.message : e),
+        }),
+      );
     } finally {
       setBusy('');
     }
@@ -70,15 +73,12 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
   const disabled = tools.filter((tool) => tool['disabled'] === true).length,
     direct = tools.filter((tool) => tool['disabled'] !== true && tool['direct'] === true).length;
   return (
-    <section className="tool-access-settings" aria-label="Tool availability settings">
+    <section className="tool-access-settings" aria-label={t('toolAccess.label')}>
       <header className="settings-section-heading">
         <div>
-          <span className="eyebrow">REGISTERED TOOL CATALOG</span>
-          <h2>Tool availability</h2>
-          <p>
-            Choose which registered tools this profile exposes. Saved choices are loaded by new
-            runtimes; this profile runtime updates immediately.
-          </p>
+          <span className="eyebrow">{t('toolAccess.eyebrow')}</span>
+          <h2>{t('toolAccess.title')}</h2>
+          <p>{t('toolAccess.intro')}</p>
         </div>
         <button
           type="button"
@@ -93,13 +93,10 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
           }}
         >
           <RefreshCw size={14} />
-          Refresh tools
+          {t('toolAccess.refresh')}
         </button>
       </header>
-      <p className="settings-defaults-note">
-        Availability switches do not grant permissions or cancel calls already in progress.
-        Permission policy remains enforced.
-      </p>
+      <p className="settings-defaults-note">{t('toolAccess.note')}</p>
       {error && (
         <p className="session-error" role="alert">
           {error}
@@ -112,34 +109,44 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
         </p>
       )}
       <div className="tool-access-counts">
-        <strong>{tools.length}</strong> registered · {direct} direct ·{' '}
-        {tools.length - disabled - direct} on demand · {disabled} disabled
+        <Trans
+          i18n={surfaceI18n}
+          ns="desktop"
+          i18nKey="toolAccess.counts"
+          values={{
+            total: tools.length,
+            direct,
+            onDemand: tools.length - disabled - direct,
+            disabled,
+          }}
+          components={{ strong: <strong /> }}
+        />
       </div>
       <div className="tool-access-filters">
         <label>
           <Search size={14} />
           <input
-            aria-label="Search registered tools"
+            aria-label={t('toolAccess.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a tool, owner, or capability…"
+            placeholder={t('toolAccess.searchPlaceholder')}
           />
         </label>
         <select
-          aria-label="Tool availability filter"
+          aria-label={t('toolAccess.statusFilter')}
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          <option value="all">All tools</option>
-          <option value="enabled">Enabled</option>
-          <option value="disabled">Disabled</option>
+          <option value="all">{t('toolAccess.allTools')}</option>
+          <option value="enabled">{t('toolAccess.enabled')}</option>
+          <option value="disabled">{t('toolAccess.disabled')}</option>
         </select>
         <select
-          aria-label="Tool owner filter"
+          aria-label={t('toolAccess.ownerFilter')}
           value={owner}
           onChange={(e) => setOwner(e.target.value)}
         >
-          <option value="all">All owners</option>
+          <option value="all">{t('toolAccess.allOwners')}</option>
           {[...new Set(tools.map((tool) => String(tool['owner'] ?? 'core')))]
             .sort()
             .map((value) => (
@@ -148,9 +155,9 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
         </select>
       </div>
       {loading && !tools.length ? (
-        <p className="quiet-state">Loading registered tools…</p>
+        <p className="quiet-state">{t('toolAccess.loading')}</p>
       ) : (
-        <section className="tool-access-list" aria-label="Registered tools">
+        <section className="tool-access-list" aria-label={t('toolAccess.list')}>
           {filtered.map((tool) => (
             <article className="tool-access-card" key={String(tool['name'])}>
               <header>
@@ -160,37 +167,44 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
                   <span>
                     {String(tool['owner'] ?? 'core')} ·{' '}
                     {tool['disabled'] === true
-                      ? 'Disabled'
+                      ? t('toolAccess.kind.disabled')
                       : tool['direct'] === true
-                        ? 'Direct provider tool'
-                        : 'On-demand catalog tool'}
+                        ? t('toolAccess.kind.direct')
+                        : t('toolAccess.kind.onDemand')}
                   </span>
                 </div>
                 <button
                   type="button"
                   className="button secondary small"
-                  aria-label={(tool['disabled'] === true ? 'Enable ' : 'Disable ') + tool['name']}
+                  aria-label={t(
+                    tool['disabled'] === true ? 'toolAccess.enableTool' : 'toolAccess.disableTool',
+                    { name: String(tool['name']) },
+                  )}
                   disabled={!!busy}
                   onClick={() => void toggle(tool)}
                 >
                   <Power size={13} />
                   {busy === tool['name']
-                    ? 'Updating…'
+                    ? t('toolAccess.updating')
                     : tool['disabled'] === true
-                      ? 'Enable'
-                      : 'Disable'}
+                      ? t('toolAccess.enable')
+                      : t('toolAccess.disable')}
                 </button>
               </header>
               <div className="tool-access-badges">
-                <span>{tool['mutating'] === true ? 'Can change data' : 'Read only'}</span>
-                <span>Permission: {String(tool['permission'] ?? 'auto')}</span>
+                <span>
+                  {tool['mutating'] === true ? t('toolAccess.mutating') : t('toolAccess.readOnly')}
+                </span>
+                <span>
+                  {t('toolAccess.permission', { permission: String(tool['permission'] ?? 'auto') })}
+                </span>
               </div>
               <details>
-                <summary>Tool details</summary>
-                <p>{String(tool['description'] ?? 'No description reported.')}</p>
+                <summary>{t('toolAccess.details')}</summary>
+                <p>{String(tool['description'] ?? t('toolAccess.noDescription'))}</p>
                 {Array.isArray(tool['params']) && tool['params'].length > 0 && (
                   <div className="tool-input-names">
-                    <span>Inputs</span>
+                    <span>{t('toolAccess.inputs')}</span>
                     {tool['params'].map((param) => (
                       <code key={String(param)}>{String(param)}</code>
                     ))}
@@ -201,7 +215,7 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
           ))}
         </section>
       )}
-      {!loading && !filtered.length && <p className="quiet-state">No tools match these filters.</p>}
+      {!loading && !filtered.length && <p className="quiet-state">{t('toolAccess.noMatch')}</p>}
     </section>
   );
 }

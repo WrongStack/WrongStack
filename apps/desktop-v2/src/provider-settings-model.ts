@@ -1,3 +1,4 @@
+import type { NativeCloudSettings } from '@wrongstack/contracts/types/native-cloud';
 import { type EngineState, entries } from './engine-state';
 
 export interface ProviderChoice {
@@ -16,6 +17,10 @@ export interface ProviderChoice {
   models?: string[] | null;
   /** Saved endpoint override; empty when the provider's own endpoint is used. */
   baseUrl?: string;
+  /** The saved connection's provider type, which decides its native cloud fields. */
+  type?: string;
+  /** Saved native cloud routing values (region, project, location, resource name). */
+  cloud?: NativeCloudSettings;
 }
 export function providerChoices(state: EngineState): ProviderChoice[] {
   const choices = new Map<string, ProviderChoice>();
@@ -41,6 +46,10 @@ export function providerChoices(state: EngineState): ProviderChoice[] {
         ? row['models'].filter((model): model is string => typeof model === 'string')
         : null,
       baseUrl: typeof row['baseUrl'] === 'string' ? row['baseUrl'] : '',
+      ...(typeof row['type'] === 'string' ? { type: row['type'] } : {}),
+      ...(row['cloud'] && typeof row['cloud'] === 'object'
+        ? { cloud: row['cloud'] as NativeCloudSettings }
+        : {}),
       keys: entries(row['apiKeys']).map((key) => ({
         label: String(key['label']),
         maskedKey: String(key['maskedKey'] ?? '••••'),
@@ -74,7 +83,17 @@ export interface ProviderDraft {
   supportsTools: boolean;
   supportsVision?: boolean;
 }
-export function buildProviderSave(draft: ProviderDraft): {
+export function buildProviderSave(
+  draft: ProviderDraft,
+  words = {
+    id: 'Use a provider ID containing letters, numbers, hyphens, or underscores.',
+    keyAndLabel: 'Enter an API key and a key label.',
+    url: 'Enter a valid HTTP or HTTPS base URL.',
+    credentials:
+      'Use an HTTP(S) base URL without credentials; enter credentials in the API key field.',
+    model: 'Enter the model ID supported by your endpoint.',
+  },
+): {
   type: string;
   payload: Record<string, unknown>;
 } {
@@ -83,18 +102,18 @@ export function buildProviderSave(draft: ProviderDraft): {
     !/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(id) ||
     ['constructor', 'prototype', '__proto__'].includes(id.toLowerCase())
   )
-    throw new Error('Use a provider ID containing letters, numbers, hyphens, or underscores.');
+    throw new Error(words.id);
   const apiKey = draft.apiKey.trim();
   const label = draft.label.trim();
   if (draft.mode === 'preset') {
-    if (!apiKey || !label) throw new Error('Enter an API key and a key label.');
+    if (!apiKey || !label) throw new Error(words.keyAndLabel);
     return { type: 'key.add', payload: { providerId: id, label, apiKey } };
   }
   let url: URL;
   try {
     url = new URL(draft.baseUrl.trim());
   } catch {
-    throw new Error('Enter a valid HTTP or HTTPS base URL.');
+    throw new Error(words.url);
   }
   if (
     !['http:', 'https:'].includes(url.protocol) ||
@@ -104,11 +123,9 @@ export function buildProviderSave(draft: ProviderDraft): {
       /^(api[-_]?key|token|password|authorization)$/i.test(key),
     )
   )
-    throw new Error(
-      'Use an HTTP(S) base URL without credentials; enter credentials in the API key field.',
-    );
+    throw new Error(words.credentials);
   const model = draft.model.trim();
-  if (!model) throw new Error('Enter the model ID supported by your endpoint.');
+  if (!model) throw new Error(words.model);
   return {
     type: 'provider.add',
     payload: {

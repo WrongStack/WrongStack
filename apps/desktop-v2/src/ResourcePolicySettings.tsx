@@ -6,6 +6,7 @@ import {
 } from '@wrongstack/contracts/types/config/limits';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import {
   ModelCatalog,
@@ -18,19 +19,8 @@ import {
 import { removeModelTier, validSettingsName, withoutSetting } from './settings-save-model';
 
 type Row = Record<string, unknown>;
-const labels: Record<string, string> = {
-  responseOutputTokens: 'Response output tokens',
-  historyMessages: 'Conversation history messages',
-  toolOutputPreviewBytes: 'Tool output preview bytes',
-  fetchBytes: 'Fetched page bytes',
-  projectInstructionsChars: 'Project instruction characters',
-  memoryInjectChars: 'SAGE injection characters',
-  subagentResultChars: 'Subagent result characters',
-  maxIterations: 'Worker iterations',
-  maxToolCalls: 'Worker tool calls',
-  timeoutMs: 'Worker timeout (ms)',
-};
 export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft' | 'change'>) {
+  const { t } = useDesktopText();
   const limits = record(draft['limits']),
     budget = record(limits['subagentDefaultBudget']);
   const input = (
@@ -43,7 +33,7 @@ export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft
     return (
       <div className="setting-row setting-number" key={key}>
         <div>
-          <label htmlFor={'limit-' + key}>{labels[key]}</label>
+          <label htmlFor={'limit-' + key}>{t(`limitsPolicy.field.${key}`)}</label>
           <p>{bound.why}</p>
           <small>{formatLimitRange(key)}</small>
         </div>
@@ -55,7 +45,7 @@ export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft
             max={bound.max}
             step="1"
             value={typeof value === 'number' ? value : ''}
-            placeholder="Engine default"
+            placeholder={t('limitsPolicy.engineDefault')}
             onChange={(e) => {
               const next =
                 e.target.value === ''
@@ -70,19 +60,14 @@ export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft
   };
   return (
     <div className="model-policy-settings">
-      <p className="settings-defaults-note">
-        Blank means inherit the engine, roster or model default. A limit is applied only when you
-        enter one. Clear a field to remove that override.
-      </p>
-      <section aria-label="Context and output limits">
-        <h3>Context & output</h3>
+      <p className="settings-defaults-note">{t('limitsPolicy.intro')}</p>
+      <section aria-label={t('limitsPolicy.contextLabel')}>
+        <h3>{t('limitsPolicy.contextTitle')}</h3>
         {LIMITS_SCALAR_KEYS.map((key) => input(key, false))}
       </section>
-      <section aria-label="Default worker budgets">
-        <h3>Default worker budgets</h3>
-        <p className="field-help">
-          Used when a worker has no explicit budget. Tier and task budgets remain separate.
-        </p>
+      <section aria-label={t('limitsPolicy.workerTitle')}>
+        <h3>{t('limitsPolicy.workerTitle')}</h3>
+        <p className="field-help">{t('limitsPolicy.workerHelp')}</p>
         {LIMITS_BUDGET_KEYS.map((key) => input(key, true))}
       </section>
     </div>
@@ -103,6 +88,7 @@ function OptionalNumber({
   step?: string;
   onChange: (v: number | undefined) => void;
 }) {
+  const { t } = useDesktopText();
   return (
     <label>
       {label}
@@ -112,13 +98,14 @@ function OptionalNumber({
         max={max}
         step={step}
         value={typeof value === 'number' ? value : ''}
-        placeholder="Inherit"
+        placeholder={t('tierPolicy.inherit')}
         onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
       />
     </label>
   );
 }
 export function TierPolicySettings({ draft, change, command }: PolicyProps) {
+  const { t } = useDesktopText();
   const tiers = record(draft['modelTiers']),
     levels = record(tiers['levels']),
     routes = record(tiers['routing']),
@@ -140,7 +127,7 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Inherit</option>
+        <option value="">{t('tierPolicy.inherit')}</option>
         {[
           ...new Set([
             ...Object.keys(levels),
@@ -155,7 +142,7 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
   const add = () => {
     const id = name.trim();
     if (!validSettingsName(id) || Object.hasOwn(levels, id)) {
-      setError('Choose a unique tier name.');
+      setError(t('tierPolicy.uniqueName'));
       return;
     }
     level(id, {});
@@ -165,33 +152,30 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
   return (
     <div className="model-policy-settings">
       <ModelCatalog command={command} />
-      <p className="settings-defaults-note">
-        A tier binds a model or fallback profile to explicit worker budgets. Empty budgets inherit
-        engine policy. Existing settings not shown here are preserved.
-      </p>
+      <p className="settings-defaults-note">{t('tierPolicy.intro')}</p>
       <label className="policy-toggle">
         <input
           type="checkbox"
           checked={tiers['enabled'] === true}
           onChange={(e) => patch({ enabled: e.target.checked })}
         />
-        Enable cost tiers
+        {t('tierPolicy.enable')}
       </label>
-      {tierSelect('Default cost tier', tiers['default'], (v) =>
+      {tierSelect(t('tierPolicy.default'), tiers['default'], (v) =>
         change('modelTiers', optional(tiers, 'default', v)),
       )}
       <section className="policy-profile-create">
         <label>
-          New cost tier
+          {t('tierPolicy.newTier')}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. fast or deep"
+            placeholder={t('tierPolicy.newTierPlaceholder')}
           />
         </label>
         <button type="button" className="button secondary" disabled={!name.trim()} onClick={add}>
           <Plus size={14} />
-          Add tier
+          {t('tierPolicy.add')}
         </button>
       </section>
       {error && (
@@ -205,20 +189,20 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
           <article className="policy-profile" key={id}>
             <header>
               <div>
-                <span className="eyebrow">COST TIER</span>
+                <span className="eyebrow">{t('tierPolicy.eyebrow')}</span>
                 <h3>{id}</h3>
               </div>
               <button
                 type="button"
                 className="icon-button danger"
-                aria-label={'Remove tier ' + id}
+                aria-label={t('tierPolicy.remove', { id })}
                 onClick={() => change('modelTiers', removeModelTier(tiers, id))}
               >
                 <Trash2 size={15} />
               </button>
             </header>
             <label>
-              {id} description
+              {t('tierPolicy.description', { id })}
               <input
                 value={String(row['description'] ?? '')}
                 onChange={(e) => level(id, optional(row, 'description', e.target.value))}
@@ -226,12 +210,12 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
             </label>
             <div className="policy-field-grid">
               <ModelReference
-                label={id + ' primary model'}
+                label={t('tierPolicy.primary', { id })}
                 value={modelRef(row)}
                 onChange={(v) => level(id, modelRefPatch(row, v))}
               />
               <ProfileSelect
-                label={id + ' tier fallback profile'}
+                label={t('tierPolicy.fallback', { id })}
                 value={row['fallbackProfile']}
                 profiles={profiles}
                 onChange={(v) => level(id, optional(row, 'fallbackProfile', v))}
@@ -240,16 +224,19 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
             <div className="policy-field-grid">
               {(
                 [
-                  ['maxCostUsd', 'Spend ceiling (USD)', 0, '0.01'],
-                  ['maxIterations', 'Iterations', 1, '1'],
-                  ['maxToolCalls', 'Tool calls', 1, '1'],
-                  ['maxTokens', 'Tokens', 1, '1'],
-                  ['timeoutMs', 'Timeout (ms)', 1, '1'],
+                  ['maxCostUsd', 0, '0.01'],
+                  ['maxIterations', 1, '1'],
+                  ['maxToolCalls', 1, '1'],
+                  ['maxTokens', 1, '1'],
+                  ['timeoutMs', 1, '1'],
                 ] as const
-              ).map(([key, label, min, step]) => (
+              ).map(([key, min, step]) => (
                 <OptionalNumber
                   key={key}
-                  label={id + ' ' + label}
+                  label={t('tierPolicy.budget', {
+                    id,
+                    label: t(`tierPolicy.budgetField.${key}`),
+                  })}
                   value={row[key]}
                   min={min}
                   step={step}
@@ -263,19 +250,19 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
       <section className="policy-profile">
         <header>
           <div>
-            <span className="eyebrow">ROUTING</span>
-            <h3>Role & phase tiers</h3>
+            <span className="eyebrow">{t('tierPolicy.routingEyebrow')}</span>
+            <h3>{t('tierPolicy.routingTitle')}</h3>
           </div>
         </header>
         {Object.entries(routes).map(([id, value]) => (
           <div className="policy-chain-row" key={id}>
-            {tierSelect(id + ' tier', value, (v) =>
+            {tierSelect(t('tierPolicy.routeTier', { id }), value, (v) =>
               patch({ routing: v ? { ...routes, [id]: v } : withoutSetting(routes, id) }),
             )}
             <button
               type="button"
               className="icon-button danger"
-              aria-label={'Remove tier route ' + id}
+              aria-label={t('tierPolicy.removeRoute', { id })}
               onClick={() => patch({ routing: withoutSetting(routes, id) })}
             >
               <Trash2 size={14} />
@@ -284,14 +271,14 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
         ))}
         <div className="policy-field-grid">
           <label>
-            Tier route name
+            {t('tierPolicy.routeName')}
             <input
               value={route}
               onChange={(e) => setRoute(e.target.value)}
-              placeholder="build, architect, or *"
+              placeholder={t('tierPolicy.routeNamePlaceholder')}
             />
           </label>
-          {tierSelect('Route to tier', target, setTarget)}
+          {tierSelect(t('tierPolicy.routeTo'), target, setTarget)}
           <button
             type="button"
             className="button secondary"
@@ -302,52 +289,51 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
               setTarget('');
             }}
           >
-            Add tier route
+            {t('tierPolicy.addRoute')}
           </button>
         </div>
       </section>
       <section className="policy-profile">
         <header>
           <div>
-            <span className="eyebrow">LEADER</span>
-            <h3>Tier switching</h3>
+            <span className="eyebrow">{t('tierPolicy.leaderEyebrow')}</span>
+            <h3>{t('tierPolicy.leaderTitle')}</h3>
           </div>
         </header>
-        <p className="field-help">
-          Controls whether the leader may change its own tier. Propose asks for a decision;
-          automatic switching remains bounded by these guards.
-        </p>
+        <p className="field-help">{t('tierPolicy.leaderIntro')}</p>
         <label>
-          Leader tier switching
+          {t('tierPolicy.leaderMode')}
           <select
-            aria-label="Leader tier switching"
+            aria-label={t('tierPolicy.leaderMode')}
             value={String(leader['mode'] ?? 'off')}
             onChange={(e) => patch({ leader: { ...leader, mode: e.target.value } })}
           >
             {['off', 'propose', 'auto'].map((v) => (
-              <option key={v}>{v}</option>
+              <option key={v} value={v}>
+                {t(`tierPolicy.leaderModeOption.${v}`)}
+              </option>
             ))}
           </select>
         </label>
         <div className="policy-field-grid">
-          {tierSelect('Leader maximum tier', leader['maxTier'], (v) =>
+          {tierSelect(t('tierPolicy.leaderMax'), leader['maxTier'], (v) =>
             patch({ leader: optional(leader, 'maxTier', v) }),
           )}
           <OptionalNumber
-            label="Minimum turns before switching"
+            label={t('tierPolicy.dwell')}
             value={leader['dwellTurns']}
             min={0}
             step="1"
             onChange={(v) => patch({ leader: optional(leader, 'dwellTurns', v) })}
           />
           <OptionalNumber
-            label="Minimum savings (USD)"
+            label={t('tierPolicy.savings')}
             value={leader['minSavingsUsd']}
             min={0}
             onChange={(v) => patch({ leader: optional(leader, 'minSavingsUsd', v) })}
           />
           <OptionalNumber
-            label="Maximum context fill for switching"
+            label={t('tierPolicy.contextFill')}
             value={leader['maxContextFillForSwitch']}
             min={0}
             max={1}

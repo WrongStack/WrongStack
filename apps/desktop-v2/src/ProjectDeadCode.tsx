@@ -1,11 +1,10 @@
 import { FileCode2, RefreshCw, ScanSearch, Search } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { CopyButton } from './CopyButton';
-import { DeadCodePlan, DeadCodeResult } from './DeadCodePlan';
+import { DeadCodePlan, DeadCodeResult, useDeadCodeLabel } from './DeadCodePlan';
 import {
   deadCodeApplyBody,
   deadCodeCategories,
-  deadCodeLabel,
   deadCodeRequest,
   deadCodeRestoreOutcome,
   filterDeadCode,
@@ -17,6 +16,7 @@ import {
   updateDeadCodeWork,
   useDeadCodeWork,
 } from './dead-code-work';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import type { Session } from './model';
@@ -37,6 +37,8 @@ export function ProjectDeadCode({
   onNewSession: () => void;
   onOpenFile: (path: string, line?: number, endLine?: number) => void;
 }) {
+  const { t } = useDesktopText();
+  const label = useDeadCodeLabel();
   const work = useDeadCodeWork(projectId);
   const update = (changes: Parameters<typeof updateDeadCodeWork>[1]) =>
     updateDeadCodeWork(projectId, changes);
@@ -66,7 +68,7 @@ export function ProjectDeadCode({
     void loadBackups();
   }, [loadBackups]);
   const scan = async () => {
-    if (!beginDeadCodeWork(projectId, 'Scanning the project…')) return;
+    if (!beginDeadCodeWork(projectId, t('deadCode.busy.scan'))) return;
     setConfirm(false);
     try {
       const report = record(
@@ -111,7 +113,7 @@ export function ProjectDeadCode({
     setConfirm(false);
   };
   const preview = async () => {
-    if (!ids.length || !beginDeadCodeWork(projectId, 'Preparing the change preview…')) return;
+    if (!ids.length || !beginDeadCodeWork(projectId, t('deadCode.busy.preview'))) return;
     setConfirm(false);
     try {
       update({ plan: record(await http('/api/deadcode/preview', 'POST', { ids })) });
@@ -122,27 +124,21 @@ export function ProjectDeadCode({
     }
   };
   const apply = async () => {
-    if (
-      !work.plan ||
-      !ids.length ||
-      !beginDeadCodeWork(projectId, 'Applying cleanup and waiting for verification…')
-    )
+    if (!work.plan || !ids.length || !beginDeadCodeWork(projectId, t('deadCode.busy.apply')))
       return;
     setConfirm(false);
     try {
       const fresh = record(await http('/api/deadcode/preview', 'POST', { ids }));
       if (!sameDeadCodePlan(work.plan, fresh)) {
         update({ plan: fresh });
-        throw Error('The preview changed. Review the new changes before applying.');
+        throw Error(t('deadCode.previewChanged'));
       }
       const result = record(
         await http('/api/deadcode/apply', 'POST', deadCodeApplyBody(ids, verify, work.plan)),
       );
       if (result['stale'] === true) {
         update({ plan: record(result['plan']) });
-        throw Error(
-          'The changes differ from the reviewed preview. Nothing was written; review the new preview.',
-        );
+        throw Error(t('deadCode.stale'));
       }
       update({
         result,
@@ -150,8 +146,8 @@ export function ProjectDeadCode({
         selected: result['ok'] === true ? [] : work.selected,
         notice:
           result['rolledBack'] === true
-            ? 'Verification failed; the engine rolled back the changes.'
-            : 'The engine returned the cleanup result below.',
+            ? t('deadCode.rolledBackNotice')
+            : t('deadCode.resultNotice'),
       });
       await loadBackups();
       if (result['ok'] === true) {
@@ -173,12 +169,19 @@ export function ProjectDeadCode({
     }
   };
   const restore = async (id: string, force = false) => {
-    if (!beginDeadCodeWork(projectId, 'Restoring the selected backup…')) return;
+    if (!beginDeadCodeWork(projectId, t('deadCode.busy.restore'))) return;
     try {
       const result = record(await http('/api/deadcode/undo', 'POST', { backupId: id, force }));
       const conflicts = Array.isArray(result['conflicts']) ? result['conflicts'].map(String) : [];
       const restored = Array.isArray(result['restored']) ? result['restored'].map(String) : [];
-      const outcome = deadCodeRestoreOutcome(restored, conflicts);
+      const outcome = deadCodeRestoreOutcome(restored, conflicts, (count, remaining) =>
+        remaining
+          ? t(count === 1 ? 'deadCode.restoredOneConflicts' : 'deadCode.restoredManyConflicts', {
+              restored: count,
+              remaining,
+            })
+          : t(count === 1 ? 'deadCode.restoredOne' : 'deadCode.restoredMany', { restored: count }),
+      );
       setUndo(outcome.remaining.length ? { id, conflicts: outcome.remaining } : null);
       update({
         notice: outcome.notice,
@@ -197,24 +200,24 @@ export function ProjectDeadCode({
   const stats = record(work.report?.['stats']);
   const agents = sessions.filter((item) => item.kind === 'agent');
   return (
-    <section className="project-dead-code" aria-label="Project dead-code workspace">
+    <section className="project-dead-code" aria-label={t('deadCode.label')}>
       <header className="studio-heading">
         <div>
-          <h1>Dead Code</h1>
-          <p>Inspect reachability, review exact diffs, verify changes and keep a path back.</p>
+          <h1>{t('deadCode.title')}</h1>
+          <p>{t('deadCode.intro')}</p>
         </div>
         <ScanSearch size={30} />
       </header>
       <fieldset className="dead-code-scan-controls" disabled={!!work.busy}>
         <label>
-          Report scope
+          {t('deadCode.scope')}
           <input
-            aria-label="Dead-code report scope"
-            placeholder="All files, or comma-separated relative paths"
+            aria-label={t('deadCode.scopeLabel')}
+            placeholder={t('deadCode.scopePlaceholder')}
             value={scope}
             onChange={(e) => setScope(e.target.value)}
           />
-          <small>Analysis stays project-wide. Paths filter the reported findings.</small>
+          <small>{t('deadCode.scopeHint')}</small>
         </label>
         <label className="dead-code-check">
           <input
@@ -222,11 +225,11 @@ export function ProjectDeadCode({
             checked={publicApi}
             onChange={(e) => setPublicApi(e.target.checked)}
           />
-          Include unused public API exports
+          {t('deadCode.publicApi')}
         </label>
         <button type="button" className="button primary" onClick={() => void scan()}>
           <RefreshCw size={14} />
-          {work.report ? 'Rescan dead code' : 'Scan dead code'}
+          {work.report ? t('deadCode.rescan') : t('deadCode.scan')}
         </button>
       </fieldset>
       {work.error && (
@@ -241,29 +244,32 @@ export function ProjectDeadCode({
         <>
           <div className="dead-code-stats">
             {[
-              ['Files', stats['files']],
-              ['Entry points', stats['entryFiles']],
-              ['Reachable', stats['reachableFiles']],
-              ['Findings', findings.length],
-              ['Mechanical fixes', findings.filter((item) => item['fix']).length],
-              ['Cache hits', stats['cachedFiles']],
-            ].map(([label, value]) => (
-              <div key={String(label)}>
-                <small>{String(label)}</small>
+              ['files', stats['files']],
+              ['entryFiles', stats['entryFiles']],
+              ['reachableFiles', stats['reachableFiles']],
+              ['findings', findings.length],
+              ['fixes', findings.filter((item) => item['fix']).length],
+              ['cachedFiles', stats['cachedFiles']],
+            ].map(([name, value]) => (
+              <div key={String(name)}>
+                <small>{t(`deadCode.stat.${String(name)}`)}</small>
                 <strong>{String(value ?? 0)}</strong>
               </div>
             ))}
           </div>
           <p className="field-help">
-            Showing {work.scanScope || 'the entire project'}
-            {work.includePublicApi ? ' including unused public API exports' : ''}.{' '}
-            {(Number(stats['durationMs']) / 1000).toFixed(1)} seconds ·{' '}
-            {String(stats['parsedFiles'] ?? 0)} parsed · {String(stats['testFiles'] ?? 0)} test
-            files
+            {t(work.includePublicApi ? 'deadCode.scopeLinePublic' : 'deadCode.scopeLine', {
+              scope: work.scanScope || t('deadCode.entireProject'),
+            })}{' '}
+            {t('deadCode.scanFacts', {
+              seconds: (Number(stats['durationMs']) / 1000).toFixed(1),
+              parsed: String(stats['parsedFiles'] ?? 0),
+              tests: String(stats['testFiles'] ?? 0),
+            })}
           </p>
           {Array.isArray(work.report['warnings']) && work.report['warnings'].length > 0 && (
             <details className="dead-code-warnings" open>
-              <summary>Scan limitations ({work.report['warnings'].length})</summary>
+              <summary>{t('deadCode.warnings', { n: work.report['warnings'].length })}</summary>
               <ul>
                 {work.report['warnings'].map((warning: unknown, i: number) => (
                   <li key={i}>{String(warning)}</li>
@@ -275,8 +281,8 @@ export function ProjectDeadCode({
             <label>
               <Search size={14} />
               <input
-                aria-label="Search dead-code findings"
-                placeholder="Find a file, symbol or package…"
+                aria-label={t('deadCode.search')}
+                placeholder={t('deadCode.searchPlaceholder')}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -285,32 +291,31 @@ export function ProjectDeadCode({
               />
             </label>
             <select
-              aria-label="Dead-code category"
+              aria-label={t('deadCode.categoryLabel')}
               value={category}
               onChange={(e) => {
                 setCategory(e.target.value);
                 setVisible(100);
               }}
             >
-              <option value="">All categories</option>
+              <option value="">{t('deadCode.allCategories')}</option>
               {deadCodeCategories.map((name) => (
                 <option value={name} key={name}>
-                  {deadCodeLabel(name)} (
-                  {findings.filter((item) => item['category'] === name).length})
+                  {`${label(name)} (${findings.filter((item) => item['category'] === name).length})`}
                 </option>
               ))}
             </select>
             <select
-              aria-label="Dead-code confidence"
+              aria-label={t('deadCode.confidenceLabel')}
               value={confidence}
               onChange={(e) => {
                 setConfidence(e.target.value);
                 setVisible(100);
               }}
             >
-              <option value="high">High confidence only</option>
-              <option value="medium">High and medium confidence</option>
-              <option value="low">All confidence levels</option>
+              <option value="high">{t('deadCode.confidenceHigh')}</option>
+              <option value="medium">{t('deadCode.confidenceMedium')}</option>
+              <option value="low">{t('deadCode.confidenceAll')}</option>
             </select>
             <label className="dead-code-check">
               <input
@@ -318,13 +323,16 @@ export function ProjectDeadCode({
                 checked={onlyFixable}
                 onChange={(e) => setOnlyFixable(e.target.checked)}
               />
-              Mechanical fixes only
+              {t('deadCode.onlyFixable')}
             </label>
           </div>
           <div className="dead-code-selection">
             <span>
-              {filtered.length} visible findings · {selected.length} selected · {fixable.length}{' '}
-              mechanically fixable
+              {t('deadCode.selection', {
+                visible: filtered.length,
+                selected: selected.length,
+                fixable: fixable.length,
+              })}
             </span>
             <button
               type="button"
@@ -337,7 +345,7 @@ export function ProjectDeadCode({
                 )
               }
             >
-              Select filtered findings
+              {t('deadCode.selectFiltered')}
             </button>
             <button
               type="button"
@@ -345,7 +353,7 @@ export function ProjectDeadCode({
               disabled={!!work.busy || !selected.length}
               onClick={() => toggle(work.selected, false)}
             >
-              Clear selection
+              {t('deadCode.clearSelection')}
             </button>
           </div>
           <div className="dead-code-findings">
@@ -354,14 +362,14 @@ export function ProjectDeadCode({
                 <label>
                   <input
                     type="checkbox"
-                    aria-label={`Select finding ${item['id']}`}
+                    aria-label={t('deadCode.selectFinding', { id: item['id'] })}
                     disabled={!!work.busy}
                     checked={work.selected.includes(String(item['id']))}
                     onChange={(e) => toggle([String(item['id'])], e.target.checked)}
                   />
                   <strong>{String(item['name'] ?? item['file'])}</strong>
-                  <span>{deadCodeLabel(item['category'])}</span>
-                  <small>{deadCodeLabel(item['confidence'])} confidence</small>
+                  <span>{label(item['category'])}</span>
+                  <small>{t('deadCode.confidence', { level: label(item['confidence']) })}</small>
                 </label>
                 <button
                   type="button"
@@ -382,25 +390,27 @@ export function ProjectDeadCode({
                 </button>
                 <p>{String(item['reason'] ?? '')}</p>
                 <small>
-                  {item['package'] ? `Package ${item['package']} · ` : ''}
-                  {deadCodeLabel(item['kind'])}
-                  {item['typeOnly'] === true ? ' · type only' : ''}
+                  {item['package'] ? `${t('deadCode.package', { name: item['package'] })} · ` : ''}
+                  {label(item['kind'])}
+                  {item['typeOnly'] === true ? ` · ${t('deadCode.typeOnly')}` : ''}
                 </small>
                 <p className="field-help">
                   {item['fix']
-                    ? `Mechanical action: ${deadCodeLabel(item['fix'])}`
-                    : `Manual review: ${item['manualReason'] ?? 'no mechanical fix available'}`}
+                    ? t('deadCode.mechanical', { action: label(item['fix']) })
+                    : t('deadCode.manual', {
+                        reason: item['manualReason'] ?? t('deadCode.noMechanical'),
+                      })}
                 </p>
               </article>
             ))}
-            {!filtered.length && <p>No findings match this view.</p>}
+            {!filtered.length && <p>{t('deadCode.noMatch')}</p>}
             {filtered.length > visible && (
               <button
                 type="button"
                 className="button secondary"
                 onClick={() => setVisible((old) => old + 100)}
               >
-                Show next {Math.min(100, filtered.length - visible)} findings
+                {t('deadCode.showNext', { n: Math.min(100, filtered.length - visible) })}
               </button>
             )}
           </div>
@@ -412,7 +422,7 @@ export function ProjectDeadCode({
                 disabled={!!work.busy || !fixable.length}
                 onClick={() => void preview()}
               >
-                Preview selected fixes
+                {t('deadCode.previewFixes')}
               </button>
               <label className="dead-code-check">
                 <input
@@ -421,7 +431,7 @@ export function ProjectDeadCode({
                   disabled={!!work.busy}
                   onChange={(e) => setVerify(e.target.checked)}
                 />
-                Run typecheck and roll back failed changes
+                {t('deadCode.verify')}
               </label>
               <button
                 type="button"
@@ -429,23 +439,18 @@ export function ProjectDeadCode({
                 disabled={!!work.busy || !work.plan || !entries(work.plan['changes']).length}
                 onClick={() => setConfirm(true)}
               >
-                Review cleanup execution
+                {t('deadCode.reviewExecution')}
               </button>
               {confirm && (
                 <div className="dead-code-confirm">
-                  <h3>Apply the reviewed cleanup?</h3>
-                  <p>
-                    The engine re-scans before changing files, creates a backup and{' '}
-                    {verify
-                      ? 'verifies the result with typecheck.'
-                      : 'will skip typecheck as selected.'}
-                  </p>
+                  <h3>{t('deadCode.confirmTitle')}</h3>
+                  <p>{verify ? t('deadCode.confirmVerify') : t('deadCode.confirmSkip')}</p>
                   <button
                     type="button"
                     className="button secondary"
                     onClick={() => setConfirm(false)}
                   >
-                    Keep reviewing changes
+                    {t('deadCode.keepReviewing')}
                   </button>
                   <button
                     type="button"
@@ -453,7 +458,7 @@ export function ProjectDeadCode({
                     disabled={!!work.busy}
                     onClick={() => void apply()}
                   >
-                    Apply reviewed fixes
+                    {t('deadCode.applyFixes')}
                   </button>
                 </div>
               )}
@@ -462,20 +467,17 @@ export function ProjectDeadCode({
           {work.plan && <DeadCodePlan plan={work.plan} onOpenFile={onOpenFile} />}
           {selected.length > 0 && (
             <details className="dead-code-handoff">
-              <summary>Review selected findings with an agent</summary>
-              <p>The request is added to a draft for review. It is not sent automatically.</p>
-              <CopyButton
-                text={deadCodeRequest(selected)}
-                label="Copy selected dead-code findings"
-              />
+              <summary>{t('deadCode.handoff')}</summary>
+              <p>{t('deadCode.handoffHint')}</p>
+              <CopyButton text={deadCodeRequest(selected)} label={t('deadCode.copy')} />
               {agents.length ? (
                 <>
                   <select
-                    aria-label="Dead-code target conversation"
+                    aria-label={t('deadCode.target')}
                     value={session}
                     onChange={(e) => setSession(e.target.value)}
                   >
-                    <option value="">Choose a project conversation…</option>
+                    <option value="">{t('deadCode.chooseConversation')}</option>
                     {agents.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.title}
@@ -493,12 +495,12 @@ export function ProjectDeadCode({
                         .finally(() => setHandoff(false));
                     }}
                   >
-                    Add findings to conversation draft
+                    {t('deadCode.addToDraft')}
                   </button>
                 </>
               ) : (
                 <button type="button" className="button secondary" onClick={onNewSession}>
-                  Create a project conversation
+                  {t('deadCode.newConversation')}
                 </button>
               )}
             </details>
@@ -508,23 +510,21 @@ export function ProjectDeadCode({
         !work.busy && (
           <div className="dead-code-empty">
             <ScanSearch size={36} />
-            <h2>Find the code your project no longer reaches.</h2>
-            <p>
-              Start a scan to inspect findings and their confidence before selecting any changes.
-            </p>
+            <h2>{t('deadCode.emptyTitle')}</h2>
+            <p>{t('deadCode.emptyHint')}</p>
           </div>
         )
       )}
-      <section className="dead-code-backups" aria-label="Dead-code backups">
+      <section className="dead-code-backups" aria-label={t('deadCode.backupsLabel')}>
         <header>
-          <h2>Recovery backups ({backups.length})</h2>
+          <h2>{t('deadCode.backups', { n: backups.length })}</h2>
           <button
             type="button"
             className="button secondary small"
             disabled={!!work.busy}
             onClick={() => void loadBackups()}
           >
-            Refresh cleanup backups
+            {t('deadCode.refreshBackups')}
           </button>
         </header>
         {backupError && <p role="alert">{backupError}</p>}
@@ -533,8 +533,10 @@ export function ProjectDeadCode({
             <div>
               <strong>{String(backup['createdAt'])}</strong>
               <p>
-                {String(backup['files'])} files ·{' '}
-                {Array.isArray(backup['findingIds']) ? backup['findingIds'].length : 0} findings
+                {t('deadCode.backupFacts', {
+                  files: String(backup['files']),
+                  findings: Array.isArray(backup['findingIds']) ? backup['findingIds'].length : 0,
+                })}
               </p>
               <small>{String(backup['id'])}</small>
             </div>
@@ -544,23 +546,17 @@ export function ProjectDeadCode({
               disabled={!!work.busy}
               onClick={() => setUndo({ id: String(backup['id']), conflicts: [] })}
             >
-              Review restore backup
+              {t('deadCode.reviewRestore')}
             </button>
           </article>
         ))}
-        {!backups.length && !backupError && <p>No cleanup backups recorded.</p>}
+        {!backups.length && !backupError && <p>{t('deadCode.noBackups')}</p>}
         {undo && (
           <div className="dead-code-confirm">
             <h3>
-              {undo.conflicts.length
-                ? 'Files changed after cleanup'
-                : 'Restore this cleanup backup?'}
+              {undo.conflicts.length ? t('deadCode.conflictTitle') : t('deadCode.restoreTitle')}
             </h3>
-            <p>
-              {undo.conflicts.length
-                ? 'Restoring with overwrite replaces the newer content in the following files.'
-                : 'The engine restores backed-up files when their current contents match the cleanup result.'}
-            </p>
+            <p>{undo.conflicts.length ? t('deadCode.conflictBody') : t('deadCode.restoreBody')}</p>
             {undo.conflicts.length > 0 && (
               <ul>
                 {undo.conflicts.map((file) => (
@@ -574,7 +570,7 @@ export function ProjectDeadCode({
               disabled={!!work.busy}
               onClick={() => setUndo(null)}
             >
-              Keep current files
+              {t('deadCode.keepFiles')}
             </button>
             <button
               type="button"
@@ -582,9 +578,7 @@ export function ProjectDeadCode({
               disabled={!!work.busy}
               onClick={() => void restore(undo.id, undo.conflicts.length > 0)}
             >
-              {undo.conflicts.length
-                ? 'Overwrite conflicts from backup'
-                : 'Restore selected cleanup backup'}
+              {undo.conflicts.length ? t('deadCode.overwrite') : t('deadCode.restore')}
             </button>
           </div>
         )}

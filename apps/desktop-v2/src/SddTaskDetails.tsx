@@ -1,13 +1,8 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { entries, record } from './engine-state';
 import { parseSddSubtasks } from './sdd-task-split';
 
-const label = (value: unknown) =>
-  typeof value === 'string' && value
-    ? value
-    : typeof value === 'number'
-      ? String(value)
-      : 'Not reported';
 const strings = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
@@ -26,6 +21,17 @@ export function SddTaskDetails({
   request: (type: string, payload: Record<string, unknown>, description: string) => Promise<void>;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const shown = (value: unknown) =>
+    typeof value === 'string' && value
+      ? value
+      : typeof value === 'number'
+        ? String(value)
+        : t('sddView.notReported');
+  const named = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`sddView.value.${value}`, { defaultValue: value })
+      : shown(value);
   const [agent, setAgent] = useState(
     typeof task['agentName'] === 'string' ? task['agentName'] : '',
   );
@@ -59,29 +65,31 @@ export function SddTaskDetails({
     strings(item['deps']).includes(String(task['shortId'])),
   );
   return (
-    <aside className="sdd-task-detail" aria-label="SDD task details">
-      <span className="eyebrow">TASK {label(task['shortId'])}</span>
-      <h3>{label(task['title'])}</h3>
+    <aside className="sdd-task-detail" aria-label={t('sddView.taskDetail.label')}>
+      <span className="eyebrow">
+        {t('sddView.taskDetail.eyebrow', { id: shown(task['shortId']) })}
+      </span>
+      <h3>{shown(task['title'])}</h3>
       <p>
         {typeof task['description'] === 'string' && task['description']
           ? task['description']
-          : 'No description recorded.'}
+          : t('sddView.taskDetail.noDescription')}
       </p>
       <dl className="sdd-task-meta">
         {[
-          ['Status', task['displayStatus'] ?? task['status']],
-          ['Priority', task['priority']],
-          ['Type', task['type']],
-          ['Agent', task['agentName']],
-          ['Model', task['model'] ?? board['defaultModel']],
-          ['Provider', task['provider'] ?? board['defaultProvider']],
-          ['Retries', task['retries']],
-          ['Branch', task['worktreeBranch']],
-          ['Verification', task['verificationState']],
+          ['status', named(task['displayStatus'] ?? task['status'])],
+          ['priority', named(task['priority'])],
+          ['type', shown(task['type'])],
+          ['agent', shown(task['agentName'])],
+          ['model', shown(task['model'] ?? board['defaultModel'])],
+          ['provider', shown(task['provider'] ?? board['defaultProvider'])],
+          ['retries', shown(task['retries'])],
+          ['branch', shown(task['worktreeBranch'])],
+          ['verification', named(task['verificationState'])],
         ].map(([name, value]) => (
-          <div key={String(name)}>
-            <dt>{String(name)}</dt>
-            <dd>{label(value)}</dd>
+          <div key={name}>
+            <dt>{t(`sddView.taskDetail.meta.${name}`)}</dt>
+            <dd>{value}</dd>
           </div>
         ))}
       </dl>
@@ -90,7 +98,7 @@ export function SddTaskDetails({
       )}
       {dependencies.length > 0 && (
         <div className="sdd-dependencies">
-          <h4>Depends on</h4>
+          <h4>{t('sddView.taskDetail.dependsOn')}</h4>
           {dependencies.map((id) => {
             const dependency = tasks.find((item) => item['shortId'] === id);
             return dependency && typeof dependency['id'] === 'string' ? (
@@ -100,7 +108,7 @@ export function SddTaskDetails({
                 key={id}
                 onClick={() => onSelect(dependency['id'] as string)}
               >
-                {label(dependency['title'])}
+                {shown(dependency['title'])}
               </button>
             ) : (
               <span key={id}>{id}</span>
@@ -110,7 +118,7 @@ export function SddTaskDetails({
       )}
       {dependents.length > 0 && (
         <div className="sdd-dependencies">
-          <h4>Unblocks</h4>
+          <h4>{t('sddView.taskDetail.unblocks')}</h4>
           {dependents.map((item) => (
             <button
               type="button"
@@ -118,25 +126,23 @@ export function SddTaskDetails({
               key={String(item['id'])}
               onClick={() => onSelect(String(item['id']))}
             >
-              {label(item['title'])}
+              {shown(item['title'])}
             </button>
           ))}
         </div>
       )}
       {live && (
         <div className="sdd-task-controls">
-          <p>
-            Controls are applied by the active project run. Updated task details confirm the result.
-          </p>
+          <p>{t('sddView.taskDetail.controlsHint')}</p>
           <div className="sdd-actions">
             {['failed', 'blocked'].includes(status) && (
               <button
                 type="button"
                 className="button secondary"
                 disabled={waiting}
-                onClick={() => void mutate('retry', {}, 'Task retry')}
+                onClick={() => void mutate('retry', {}, t('sddView.taskDetail.action.retry'))}
               >
-                Retry task
+                {t('sddView.taskDetail.retry')}
               </button>
             )}
             {status === 'in_progress' && (
@@ -146,7 +152,7 @@ export function SddTaskDetails({
                 disabled={waiting}
                 onClick={() => setConfirm('cancel')}
               >
-                Cancel task
+                {t('sddView.taskDetail.cancel')}
               </button>
             )}
             {['pending', 'blocked', 'queued'].includes(status) && (
@@ -156,15 +162,15 @@ export function SddTaskDetails({
                 disabled={waiting}
                 onClick={() => setConfirm('delete')}
               >
-                Delete task
+                {t('sddView.taskDetail.delete')}
               </button>
             )}
             {confirm && (
               <>
                 <span>
                   {confirm === 'cancel'
-                    ? 'Cancel this task’s worker?'
-                    : 'Delete this task from the run?'}
+                    ? t('sddView.taskDetail.cancelAsk')
+                    : t('sddView.taskDetail.deleteAsk')}
                 </span>
                 <button
                   type="button"
@@ -176,14 +182,18 @@ export function SddTaskDetails({
                     void mutate(
                       action === 'cancel' ? 'cancel_task' : 'delete_task',
                       {},
-                      action === 'cancel' ? 'Task cancellation' : 'Task deletion',
+                      action === 'cancel'
+                        ? t('sddView.taskDetail.action.cancel')
+                        : t('sddView.taskDetail.action.delete'),
                     );
                   }}
                 >
-                  Confirm {confirm}
+                  {confirm === 'cancel'
+                    ? t('sddView.taskDetail.confirmCancel')
+                    : t('sddView.taskDetail.confirmDelete')}
                 </button>
                 <button type="button" onClick={() => setConfirm(null)}>
-                  Keep task
+                  {t('sddView.taskDetail.keep')}
                 </button>
               </>
             )}
@@ -192,19 +202,23 @@ export function SddTaskDetails({
             onSubmit={(event) => {
               event.preventDefault();
               if (agent.trim())
-                void mutate('reassign', { agentName: agent.trim() }, 'Task assignment');
+                void mutate(
+                  'reassign',
+                  { agentName: agent.trim() },
+                  t('sddView.taskDetail.action.assign'),
+                );
             }}
           >
             <label>
-              Assigned agent
+              {t('sddView.taskDetail.agent')}
               <input
-                aria-label="Assigned agent"
+                aria-label={t('sddView.taskDetail.agent')}
                 value={agent}
                 onChange={(event) => setAgent(event.target.value)}
               />
             </label>
             <button type="submit" className="button secondary" disabled={!agent.trim() || waiting}>
-              Update assignment
+              {t('sddView.taskDetail.updateAgent')}
             </button>
           </form>
           <form
@@ -216,32 +230,32 @@ export function SddTaskDetails({
                   ...(model.trim() ? { model: model.trim() } : {}),
                   ...(provider.trim() ? { provider: provider.trim() } : {}),
                 },
-                'Task model',
+                t('sddView.taskDetail.action.model'),
               );
             }}
           >
             <div className="sdd-model-inputs">
               <label>
-                Provider override
+                {t('sddView.taskDetail.provider')}
                 <input
-                  aria-label="Provider override"
+                  aria-label={t('sddView.taskDetail.provider')}
                   value={provider}
                   onChange={(event) => setProvider(event.target.value)}
-                  placeholder="Keep current provider"
+                  placeholder={t('sddView.taskDetail.providerPlaceholder')}
                 />
               </label>
               <label>
-                Model override
+                {t('sddView.taskDetail.model')}
                 <input
-                  aria-label="Model override"
+                  aria-label={t('sddView.taskDetail.model')}
                   value={model}
                   onChange={(event) => setModel(event.target.value)}
-                  placeholder="Use run default"
+                  placeholder={t('sddView.taskDetail.modelPlaceholder')}
                 />
               </label>
             </div>
             <button type="submit" className="button secondary" disabled={waiting}>
-              Update model
+              {t('sddView.taskDetail.updateModel')}
             </button>
           </form>
           <form
@@ -255,20 +269,20 @@ export function SddTaskDetails({
                     .map((item) => item.trim())
                     .filter(Boolean),
                 },
-                'Task fallbacks',
+                t('sddView.taskDetail.action.fallbacks'),
               );
             }}
           >
             <label>
-              Fallback models, one per line
+              {t('sddView.taskDetail.fallbacks')}
               <textarea
-                aria-label="Fallback models"
+                aria-label={t('sddView.taskDetail.fallbacksLabel')}
                 value={fallbacks}
                 onChange={(event) => setFallbacks(event.target.value)}
               />
             </label>
             <button type="submit" className="button secondary" disabled={waiting}>
-              Update fallbacks
+              {t('sddView.taskDetail.updateFallbacks')}
             </button>
           </form>
           <form
@@ -277,21 +291,21 @@ export function SddTaskDetails({
               void mutate(
                 'set_task_verification',
                 { verificationCommand: verification.trim() },
-                'Task verification',
+                t('sddView.taskDetail.action.verification'),
               );
             }}
           >
             <label>
-              Verification command
+              {t('sddView.taskDetail.verification')}
               <input
-                aria-label="Verification command"
+                aria-label={t('sddView.taskDetail.verification')}
                 value={verification}
                 onChange={(event) => setVerification(event.target.value)}
-                placeholder="Completion gate command"
+                placeholder={t('sddView.taskDetail.verificationPlaceholder')}
               />
             </label>
             <button type="submit" className="button secondary" disabled={waiting}>
-              Update verification
+              {t('sddView.taskDetail.updateVerification')}
             </button>
           </form>
           {['pending', 'blocked', 'queued'].includes(status) && (
@@ -302,23 +316,21 @@ export function SddTaskDetails({
               }}
             >
               <label>
-                Split into subtasks
+                {t('sddView.taskDetail.split')}
                 <textarea
-                  aria-label="Split into subtasks"
+                  aria-label={t('sddView.taskDetail.split')}
                   value={splitText}
                   onChange={(event) => {
                     setSplitText(event.target.value);
                     setConfirmSplit(false);
                   }}
-                  placeholder={'One task per line: Title :: description'}
+                  placeholder={t('sddView.taskDetail.splitPlaceholder')}
                 />
               </label>
               {confirmSplit ? (
                 <>
                   <p>
-                    Create {parseSddSubtasks(splitText).length} subtasks and mark the parent as a
-                    completed container. Subtasks inherit its blockers; dependent work waits for all
-                    subtasks.
+                    {t('sddView.taskDetail.splitBody', { n: parseSddSubtasks(splitText).length })}
                   </p>
                   <button
                     type="button"
@@ -329,14 +341,14 @@ export function SddTaskDetails({
                       void mutate(
                         'split_task',
                         { subtasks: parseSddSubtasks(splitText) },
-                        'Task split',
+                        t('sddView.taskDetail.action.split'),
                       );
                     }}
                   >
-                    Confirm split
+                    {t('sddView.taskDetail.confirmSplit')}
                   </button>
                   <button type="button" onClick={() => setConfirmSplit(false)}>
-                    Keep task
+                    {t('sddView.taskDetail.keep')}
                   </button>
                 </>
               ) : (
@@ -345,7 +357,7 @@ export function SddTaskDetails({
                   className="button secondary"
                   disabled={!parseSddSubtasks(splitText).length || waiting}
                 >
-                  Review split
+                  {t('sddView.taskDetail.reviewSplit')}
                 </button>
               )}
             </form>
@@ -354,11 +366,15 @@ export function SddTaskDetails({
       )}
       {feed.length > 0 && (
         <div className="sdd-task-history">
-          <h4>Task activity</h4>
+          <h4>{t('sddView.taskDetail.activity')}</h4>
           {feed.slice(-30).map((item, index) => (
             <article key={`${String(item['ts'])}-${index}`}>
-              <strong>{label(item['kind'])}</strong>
-              <p>{typeof item['text'] === 'string' ? item['text'] : 'No details recorded'}</p>
+              <strong>
+                {typeof item['kind'] === 'string' && item['kind']
+                  ? t(`sddView.feed.kind.${item['kind']}`, { defaultValue: item['kind'] })
+                  : shown(item['kind'])}
+              </strong>
+              <p>{typeof item['text'] === 'string' ? item['text'] : t('sddView.feed.noDetails')}</p>
               {typeof item['detail'] === 'string' && <p>{item['detail']}</p>}
             </article>
           ))}

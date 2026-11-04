@@ -623,4 +623,29 @@ describe('DefaultTokenCounter', () => {
     tc.account({ input: 500, output: 100 });
     expect(tc.total()).toMatchObject({ input: 1500, output: 300, cacheRead: 300, cacheWrite: 20 });
   });
+
+  it('forwards TTL-derived cacheWrite in token.accounted and ignores in-flight getModel callbacks across reset() (F945)', async () => {
+    const events = new EventBus();
+    const accounted: any[] = [];
+    events.on('token.accounted', (e) => accounted.push(e));
+
+    let resolveModel!: (m: any) => void;
+    const registry = {
+      getModel: () =>
+        new Promise((r) => {
+          resolveModel = r;
+        }),
+    } as never as ModelsRegistry;
+
+    const tc = new DefaultTokenCounter({ events, registry, providerId: 'anthropic' });
+    tc.accountWithModel({ input: 100, output: 20, cacheWrite5m: 300 }, m1);
+    expect(accounted[0]?.deltaUsage?.cacheWrite).toBe(300);
+
+    tc.account({ input: 1_000_000, output: 0 }, 'slow-model', 'anthropic');
+    tc.reset();
+    resolveModel(m1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(tc.estimateCost().total).toBe(0);
+  });
 });

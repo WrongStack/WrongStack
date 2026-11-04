@@ -53,9 +53,7 @@ export const ENV_MAP: Record<string, (cfg: PartialConfig, val: string) => void> 
     c._envSource.add('baseUrl');
   },
   WRONGSTACK_LOG_LEVEL: (c, v) => {
-    /* v8 ignore next -- defensive: config defaults always seed c.log before env handlers run */
-    if (!c.log) c.log = { level: 'info' };
-    c.log.level = envLogLevel(v);
+    c.log = { ...c.log, level: envLogLevel(v) };
   },
   WRONGSTACK_INDEX_ON_START: (c, v) => {
     c.indexing = { ...defaultIndexing, ...c.indexing, onSessionStart: envBool(v) };

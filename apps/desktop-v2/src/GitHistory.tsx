@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DiffPreview } from './DiffPreview';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { GitGraphCell } from './GitGraphCell';
@@ -26,6 +27,7 @@ export function GitHistory({
   onBack: () => void;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [data, setData] = useState<Record<string, unknown>>({}),
     [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [diff, setDiff] = useState<Record<string, unknown> | null>(null),
@@ -138,45 +140,41 @@ export function GitHistory({
   const showGraph = !search.trim();
   const files = entries(detail?.['files']);
   return (
-    <section className="git-history-workspace" aria-label="Repository history">
+    <section className="git-history-workspace" aria-label={t('history.label')}>
       <header className="git-history-toolbar">
         <button
           type="button"
           className="icon-button"
-          aria-label="Back to working changes"
+          aria-label={t('history.back')}
           onClick={onBack}
         >
           <ArrowLeft size={16} />
         </button>
         <GitBranch size={17} />
-        <strong>Repository history</strong>
-        <span>{String(data['currentBranch'] ?? 'Reading repository…')}</span>
+        <strong>{t('history.label')}</strong>
+        <span>{String(data['currentBranch'] ?? t('history.readingRepo'))}</span>
         <label>
           <Search size={14} />
           <input
-            aria-label="Search loaded commits"
-            placeholder="Search loaded commits…"
+            aria-label={t('history.search')}
+            placeholder={t('history.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
-        <select
-          aria-label="History branch or tag"
-          value={ref}
-          onChange={(e) => setRef(e.target.value)}
-        >
-          <option value="">All branches & tags</option>
+        <select aria-label={t('history.ref')} value={ref} onChange={(e) => setRef(e.target.value)}>
+          <option value="">{t('history.allRefs')}</option>
           {entries(data['refs']).map((item) => (
             <option key={String(item['name'])} value={String(item['name'])}>
               {String(item['shortName'])}
-              {item['current'] ? ' · current' : ''}
+              {item['current'] ? ` · ${t('history.current')}` : ''}
             </option>
           ))}
         </select>
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh repository history"
+          aria-label={t('history.refresh')}
           disabled={busy}
           onClick={() => void load()}
         >
@@ -189,28 +187,26 @@ export function GitHistory({
         </p>
       )}
       <div className="git-history-body">
-        <aside className="git-commit-list" aria-label="Commit history">
+        <aside className="git-commit-list" aria-label={t('history.commits')}>
           <header>
-            <span>COMMIT HISTORY</span>
-            <small>{commits.length} loaded</small>
+            <span>{t('history.commitsHeading')}</span>
+            <small>{t('history.loaded', { count: commits.length })}</small>
           </header>
-          {busy && !commits.length && <p className="file-quiet-state">Reading commits…</p>}
+          {busy && !commits.length && (
+            <p className="file-quiet-state">{t('history.readingCommits')}</p>
+          )}
           {!busy && !commits.length && (
             <div className="chronicle-empty">
               <GitCommitHorizontal size={30} />
-              <h2>No commits yet.</h2>
-              <p>
-                {data['repoRoot']
-                  ? 'The selected history has no commits.'
-                  : 'Choose a project inside a Git repository with committed history.'}
-              </p>
+              <h2>{t('history.noCommits')}</h2>
+              <p>{data['repoRoot'] ? t('history.emptySelection') : t('history.noRepo')}</p>
             </div>
           )}
           {visible.map((commit, index) => (
             <button
               type="button"
               key={String(commit['hash'])}
-              aria-label={`Inspect commit ${String(commit['subject'])}`}
+              aria-label={t('history.inspect', { subject: String(commit['subject']) })}
               className={detail?.['fullHash'] === commit['hash'] ? 'selected-commit' : ''}
               onClick={() => void inspect(String(commit['hash']))}
             >
@@ -239,7 +235,7 @@ export function GitHistory({
             </button>
           ))}
           {!busy && commits.length > 0 && !visible.length && (
-            <p className="file-quiet-state">No loaded commits match this search.</p>
+            <p className="file-quiet-state">{t('history.noMatch')}</p>
           )}
           {data['hasMore'] === true && (
             <button
@@ -248,7 +244,7 @@ export function GitHistory({
               disabled={busy}
               onClick={() => void load(commits.length)}
             >
-              {busy ? 'Reading…' : 'Load older commits'}
+              {busy ? t('history.reading') : t('history.older')}
             </button>
           )}
         </aside>
@@ -280,7 +276,7 @@ export function GitHistory({
                   </p>
                 )}
                 <div className="git-parent-commits">
-                  <span>Parents</span>
+                  <span>{t('history.parents')}</span>
                   {Array.isArray(detail['parents']) && detail['parents'].length ? (
                     detail['parents'].map((parent: unknown) => (
                       <button
@@ -293,12 +289,12 @@ export function GitHistory({
                       </button>
                     ))
                   ) : (
-                    <small>Initial commit</small>
+                    <small>{t('history.initial')}</small>
                   )}
                 </div>
               </header>
               <div className="git-commit-stats">
-                <strong>{files.length} files changed</strong>
+                <strong>{t('history.filesChanged', { count: files.length })}</strong>
                 <span className="diff-added">
                   +{files.reduce((sum, file) => sum + Number(file['added'] ?? 0), 0)}
                 </span>
@@ -306,24 +302,20 @@ export function GitHistory({
                   −{files.reduce((sum, file) => sum + Number(file['deleted'] ?? 0), 0)}
                 </span>
                 <small>
-                  Compared with{' '}
                   {Array.isArray(detail['parents']) && detail['parents'].length
-                    ? 'the first parent'
-                    : 'the empty tree'}
+                    ? t('history.comparedParent')
+                    : t('history.comparedEmpty')}
                 </small>
               </div>
               {detail['truncated'] === true && (
-                <p className="chronicle-footnote">
-                  This commit has more than 400 changed files. The engine returned a bounded file
-                  list.
-                </p>
+                <p className="chronicle-footnote">{t('history.truncated')}</p>
               )}
               <div className="git-commit-files">
                 {files.map((file) => (
                   <button
                     type="button"
                     key={String(file['path'])}
-                    aria-label={`View committed diff ${String(file['path'])}`}
+                    aria-label={t('history.viewDiff', { path: String(file['path']) })}
                     className={diff?.['path'] === file['path'] ? 'selected-commit-file' : ''}
                     onClick={() => void readDiff(file)}
                   >
@@ -331,11 +323,13 @@ export function GitHistory({
                     <span>
                       {String(file['path'])}
                       {typeof file['previousPath'] === 'string' && (
-                        <small>Renamed from {String(file['previousPath'])}</small>
+                        <small>
+                          {t('history.renamedFrom', { path: String(file['previousPath']) })}
+                        </small>
                       )}
                     </span>
                     {file['binary'] ? (
-                      <small>Binary</small>
+                      <small>{t('history.binary')}</small>
                     ) : (
                       <>
                         <b className="diff-added">+{String(file['added'])}</b>
@@ -349,7 +343,7 @@ export function GitHistory({
               {reading && (
                 <p className="file-quiet-state">
                   <LoaderCircle className="spin" size={18} />
-                  Reading committed content…
+                  {t('history.readingContent')}
                 </p>
               )}
               {diff && (
@@ -357,15 +351,13 @@ export function GitHistory({
                   <header>
                     <code>{String(diff['path'])}</code>
                     <button type="button" onClick={() => onOpenFile(String(diff['path']))}>
-                      Open working file
+                      {t('history.openFile')}
                       <ArrowRight size={13} />
                     </button>
                   </header>
                   {diff['binary'] || diff['tooLarge'] ? (
                     <p className="file-quiet-state">
-                      {diff['binary']
-                        ? 'Binary changes cannot be displayed as text.'
-                        : 'This change exceeds the engine preview size limit.'}
+                      {diff['binary'] ? t('history.binaryDiff') : t('history.tooLarge')}
                     </p>
                   ) : (
                     <DiffPreview
@@ -380,11 +372,8 @@ export function GitHistory({
           ) : (
             <div className="git-history-placeholder">
               <GitCommitHorizontal size={42} />
-              <h1>{reading ? 'Reading commit…' : 'Every change has a story.'}</h1>
-              <p>
-                Select a commit to inspect its author, parents, changed files, and line-by-line
-                diff.
-              </p>
+              <h1>{reading ? t('history.readingCommit') : t('history.story')}</h1>
+              <p>{t('history.storyHelp')}</p>
             </div>
           )}
         </main>

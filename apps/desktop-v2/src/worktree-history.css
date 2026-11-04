@@ -1,0 +1,198 @@
+.worktree-history {
+  display: grid;
+  gap: 8px;
+}
+.worktree-history-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.worktree-history-counts strong {
+  color: var(--text);
+}
+.worktree-history-chart {
+  display: grid;
+  grid-template-columns: minmax(96px, 9.5rem) 1fr;
+  align-items: center;
+  gap: 4px 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--raised);
+}
+.worktree-history-label {
+  display: grid;
+  min-width: 0;
+  padding-right: 8px;
+  font-size: 11px;
+}
+.worktree-history-label code,
+.worktree-history-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worktree-history-label small {
+  color: var(--muted);
+}
+.worktree-history-track {
+  position: relative;
+  display: block;
+  height: 12px;
+}
+.worktree-history-track.base::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.5;
+}
+.worktree-history-commit {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--raised);
+  border-radius: 50%;
+  background: hsl(var(--ws-success));
+  transform: translate(-50%, -50%);
+}
+.worktree-history-lane {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(96px, 9.5rem) 1fr;
+  align-items: center;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.worktree-history-lane:hover,
+.worktree-history-lane[aria-pressed="true"] {
+  background: var(--base);
+}
+.worktree-history-segment {
+  position: absolute;
+  inset: 0 auto;
+  border-radius: 2px;
+}
+.worktree-history-segment.phase-working {
+  background: hsl(var(--ws-warning));
+}
+.worktree-history-segment.phase-queued {
+  border: 1px solid hsl(var(--ws-info));
+  background: repeating-linear-gradient(
+    135deg,
+    hsl(var(--ws-info) / 0.4) 0 3px,
+    transparent 3px 7px
+  );
+}
+.worktree-history-segment.phase-merging {
+  background: hsl(var(--ws-info));
+}
+.worktree-history-segment.phase-kept {
+  border: 1px dashed var(--muted);
+}
+.worktree-history-end {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--raised);
+  border-radius: 50%;
+  background: var(--muted);
+  transform: translate(-50%, -50%);
+}
+.worktree-history-end.outcome-merged {
+  background: hsl(var(--ws-success));
+}
+.worktree-history-end.outcome-conflict,
+.worktree-history-end.outcome-failed {
+  background: var(--danger);
+}
+.worktree-history-axis {
+  position: relative;
+  height: 14px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.worktree-history-axis span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.worktree-history-label code.outcome-live,
+.worktree-history-counts .outcome-live,
+.worktree-history-badge.outcome-live {
+  color: hsl(var(--ws-warning));
+}
+.worktree-history-label code.outcome-merged,
+.worktree-history-counts .outcome-merged,
+.worktree-history-badge.outcome-merged {
+  color: hsl(var(--ws-success));
+}
+.worktree-history-label code.outcome-conflict,
+.worktree-history-label code.outcome-failed,
+.worktree-history-counts .outcome-conflict,
+.worktree-history-counts .outcome-failed,
+.worktree-history-badge.outcome-conflict,
+.worktree-history-badge.outcome-failed {
+  color: var(--danger);
+}
+.worktree-history-detail {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.worktree-history-detail header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.worktree-history-detail header small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worktree-history-badge {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+}
+.worktree-history-detail > p {
+  margin: 0;
+}
+.worktree-history-stats {
+  color: var(--muted);
+}
+.worktree-history-detail ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.worktree-history-detail li {
+  display: flex;
+  gap: 8px;
+}
+.worktree-history-detail time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

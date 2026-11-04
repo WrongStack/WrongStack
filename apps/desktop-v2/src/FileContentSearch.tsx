@@ -1,17 +1,12 @@
 import { LoaderCircle, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
 import './file-content-search.css';
 
-const reasons: Record<string, string> = {
-  time: 'time budget',
-  files: 'file budget',
-  entries: 'directory-entry budget',
-  bytes: 'read budget',
-  matches: 'result limit',
-};
+const REASONS = new Set(['time', 'files', 'entries', 'bytes', 'matches']);
 export function FileContentSearch({
   command,
   folder,
@@ -25,6 +20,7 @@ export function FileContentSearch({
   onClose: () => void;
   onOpen: (path: string, line: number) => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState(''),
     [scope, setScope] = useState(folder);
   const [matchCase, setMatchCase] = useState(false),
@@ -69,22 +65,19 @@ export function FileContentSearch({
       <div className="file-content-search-dialog">
         <header>
           <div>
-            <span className="eyebrow">PROJECT FILES</span>
-            <h2 id="dialog-title">Search project contents</h2>
+            <span className="eyebrow">{t('contentSearch.eyebrow')}</span>
+            <h2 id="dialog-title">{t('contentSearch.title')}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close content search"
+            aria-label={t('contentSearch.close')}
             onClick={onClose}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Search saved UTF-8 text on disk. Unsaved editor drafts are separate. Results show the
-          first match on each line.
-        </p>
+        <p>{t('contentSearch.help')}</p>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -92,23 +85,23 @@ export function FileContentSearch({
           }}
         >
           <label>
-            Find text
+            {t('contentSearch.findText')}
             <input
-              aria-label="Find text in project"
+              aria-label={t('contentSearch.findLabel')}
               required
               maxLength={200}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="A symbol, phrase, or literal snippet…"
+              placeholder={t('contentSearch.placeholder')}
             />
           </label>
           <label>
-            Folder scope
+            {t('contentSearch.folder')}
             <input
-              aria-label="Content search folder"
+              aria-label={t('contentSearch.folderLabel')}
               value={scope}
               onChange={(event) => setScope(event.target.value)}
-              placeholder="Entire project"
+              placeholder={t('contentSearch.folderPlaceholder')}
             />
           </label>
           <div className="file-content-search-options">
@@ -118,7 +111,7 @@ export function FileContentSearch({
                 checked={matchCase}
                 onChange={(event) => setMatchCase(event.target.checked)}
               />
-              Match case
+              {t('find.matchCase')}
             </label>
             <label>
               <input
@@ -126,11 +119,11 @@ export function FileContentSearch({
                 checked={includeIgnored}
                 onChange={(event) => setIncludeIgnored(event.target.checked)}
               />
-              Include ignored source files
+              {t('contentSearch.ignored')}
             </label>
             <button type="submit" className="button primary" disabled={busy || !query}>
-              {busy ? <LoaderCircle className="spin" size={14} /> : <Search size={14} />}Search
-              contents
+              {busy ? <LoaderCircle className="spin" size={14} /> : <Search size={14} />}
+              {t('fileView.searchContents')}
             </button>
           </div>
         </form>
@@ -139,55 +132,64 @@ export function FileContentSearch({
             {error}
           </p>
         )}
-        {busy && (
-          <p role="status">
-            Searching the project engine… Closing this window dismisses results; the bounded scan
-            may finish in the background.
-          </p>
-        )}
+        {busy && <p role="status">{t('contentSearch.searching')}</p>}
         {result && (
           <>
             <p role="status">
-              <strong>{hits.length} matching lines</strong> ·{' '}
-              {Number(result['scannedFiles'] ?? 0).toLocaleString()} files read
+              <strong>{t('contentSearch.lines', { count: hits.length })}</strong> ·{' '}
+              {t('contentSearch.filesRead', {
+                count: Number(result['scannedFiles'] ?? 0).toLocaleString(),
+              })}
               {result['partial'] === true
-                ? ' · Partial results — narrow the folder or search text.'
-                : ' · Search finished.'}
+                ? ` · ${t('contentSearch.partial')}`
+                : ` · ${t('contentSearch.finished')}`}
             </p>
             <p className="file-search-caveat">
-              For “{String(result['query'])}” in{' '}
-              {result['scope'] === '.' || !result['scope']
-                ? 'the entire project'
-                : String(result['scope'])}
-              .
+              {t('contentSearch.for', {
+                query: String(result['query']),
+                scope:
+                  result['scope'] === '.' || !result['scope']
+                    ? t('contentSearch.wholeProject')
+                    : String(result['scope']),
+              })}
             </p>
             {Array.isArray(result['reasons']) && result['reasons'].length > 0 && (
               <p className="file-search-caveat">
-                Reached:{' '}
-                {result['reasons']
-                  .map((value) => reasons[String(value)] ?? String(value))
-                  .join(', ')}
-                .
+                {t('contentSearch.reached', {
+                  reasons: result['reasons']
+                    .map((value) =>
+                      REASONS.has(String(value))
+                        ? t(`contentSearch.reason.${String(value)}`)
+                        : String(value),
+                    )
+                    .join(', '),
+                })}
               </p>
             )}
             {omitted > 0 && (
               <p className="file-search-caveat">
-                Omitted: {Number(skipped['binary'] ?? 0)} binary/non-UTF-8,{' '}
-                {Number(skipped['oversized'] ?? 0)} over 1 MiB, {Number(skipped['unreadable'] ?? 0)}{' '}
-                unreadable/changing files, {Number(skipped['links'] ?? 0)} symbolic links,{' '}
-                {Number(skipped['depth'] ?? 0)} deep directories.
+                {t('contentSearch.omitted', {
+                  binary: Number(skipped['binary'] ?? 0),
+                  oversized: Number(skipped['oversized'] ?? 0),
+                  unreadable: Number(skipped['unreadable'] ?? 0),
+                  links: Number(skipped['links'] ?? 0),
+                  depth: Number(skipped['depth'] ?? 0),
+                })}
               </p>
             )}
             <section
               className="file-content-search-results"
-              aria-label="Project content search results"
+              aria-label={t('contentSearch.results')}
             >
               {hits.length ? (
                 hits.map((hit) => (
                   <button
                     type="button"
                     key={`${hit['path']}:${hit['line']}`}
-                    aria-label={`Open ${hit['path']} line ${hit['line']}`}
+                    aria-label={t('contentSearch.openHit', {
+                      path: hit['path'],
+                      line: hit['line'],
+                    })}
                     onClick={() => onOpen(String(hit['path']), Number(hit['line']))}
                   >
                     <strong>
@@ -200,15 +202,12 @@ export function FileContentSearch({
                   </button>
                 ))
               ) : (
-                <p>No matching lines in the searched scope.</p>
+                <p>{t('contentSearch.none')}</p>
               )}
             </section>
           </>
         )}
-        <small>
-          Literal search · up to 200 matching lines · 5,000 files / 20,000 entries · 32 MiB read / 5
-          seconds. Hidden files and build/dependency directories follow the file explorer policy.
-        </small>
+        <small>{t('contentSearch.limits')}</small>
       </div>
     </Modal>
   );

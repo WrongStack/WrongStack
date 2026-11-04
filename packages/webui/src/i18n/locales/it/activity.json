@@ -2641,6 +2641,8 @@
     "targetBoard": "Board di destinazione",
     "boardPresence": "Presenza sulla board",
     "liveBoardUsers": "Utenti live sulla board",
+    "presenceEarlier": "+{{count}} precedenti",
+    "presenceFewer": "Mostra meno",
     "kanbanAgent": "Kanban Agent",
     "watchThisBoard": "Osserva questa board",
     "supervisorEngine": "Motore supervisore",
@@ -3330,6 +3332,9 @@
   "codeMap": {
     "snapshotUnavailable": "Grafo CodeMap non disponibile — avvia il server WebUI per caricarlo.",
     "codeAtlas": "Atlante del codice",
+    "mapView": "Mappa",
+    "mapViewHint": "Esplora codice e riferimenti",
+    "atlasViews": "Viste dell'atlante",
     "architectureIntelligence": "Intelligence sull'architettura",
     "codeMapBreadcrumb": "Breadcrumb della mappa del codice",
     "back": "Indietro",

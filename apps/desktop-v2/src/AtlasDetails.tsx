@@ -1,114 +1,12 @@
 import { Activity, ArrowRight, Brain, FileCode2, ShieldCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
-import { fileName, parentPath } from './file-model';
-import type { VisualGraph, VisualNode } from './graph-model';
+import { fileName } from './file-model';
+import type { VisualNode } from './graph-model';
 import { fileMemories } from './sage-model';
 
-export function AtlasExplorer({
-  graph,
-  selected,
-  onSelect,
-  onOpen,
-  displayPath,
-}: {
-  graph: VisualGraph;
-  selected: string;
-  onSelect: (id: string) => void;
-  onOpen: (id: string) => void;
-  displayPath: (path: string) => string;
-}) {
-  const [sort, setSort] = useState('rank'),
-    [limit, setLimit] = useState(120);
-  const nodes = [...graph.nodes].sort((a, b) =>
-    sort === 'rank'
-      ? Number(b.data['rank'] ?? 0) - Number(a.data['rank'] ?? 0) || a.label.localeCompare(b.label)
-      : sort === 'recent'
-        ? Number(b.data['lastModifiedMs'] ?? 0) - Number(a.data['lastModifiedMs'] ?? 0)
-        : a.label.localeCompare(b.label),
-  );
-  const groups = [
-    ...new Set(
-      nodes.map((node) =>
-        node.data['kind'] === 'file'
-          ? parentPath(String(node.data['file'] ?? node.label))
-          : node.group,
-      ),
-    ),
-  ];
-  return (
-    <aside className="atlas-explorer" aria-label="Code atlas explorer">
-      <header>
-        <span>CODE EXPLORER</span>
-        <select
-          aria-label="Sort atlas nodes"
-          value={sort}
-          onChange={(event) => setSort(event.target.value)}
-        >
-          <option value="rank">Centrality</option>
-          <option value="name">Name</option>
-          <option value="recent">Recent activity</option>
-        </select>
-      </header>
-      <div>
-        {groups.map((group) => (
-          <section key={group}>
-            <h3 title={group}>{displayPath(group) || 'Project root'}</h3>
-            {nodes
-              .filter(
-                (node) =>
-                  (node.data['kind'] === 'file'
-                    ? parentPath(String(node.data['file'] ?? node.label))
-                    : node.group) === group,
-              )
-              .slice(0, limit)
-              .map((node) => (
-                <button
-                  type="button"
-                  key={node.id}
-                  aria-label={`Select ${node.label}`}
-                  title={
-                    typeof node.data['file'] === 'string'
-                      ? displayPath(node.data['file'])
-                      : node.label
-                  }
-                  className={selected === node.id ? 'selected-atlas-row' : ''}
-                  onClick={() => onSelect(node.id)}
-                  onDoubleClick={() => onOpen(node.id)}
-                >
-                  <FileCode2 size={13} />
-                  <span>
-                    <strong>{node.label}</strong>
-                    <small>
-                      {typeof node.data['symbolCount'] === 'number'
-                        ? `${node.data['symbolCount']} symbols`
-                        : typeof node.data['symbolKind'] === 'string'
-                          ? node.data['symbolKind']
-                          : (node.data['kind'] as string)}
-                    </small>
-                  </span>
-                  {typeof node.data['rank'] === 'number' && (
-                    <b title="Normalized centrality">{Math.round(node.data['rank'] * 100)}%</b>
-                  )}
-                </button>
-              ))}
-          </section>
-        ))}
-      </div>
-      {nodes.length > limit && (
-        <button
-          type="button"
-          className="atlas-explorer-more"
-          onClick={() => setLimit((limit) => limit + 120)}
-        >
-          Show more nodes
-        </button>
-      )}
-      <footer>{graph.nodes.length} nodes · double-click to explore</footer>
-    </aside>
-  );
-}
 export function AtlasNodeEvidence({
   node,
   command,
@@ -120,6 +18,7 @@ export function AtlasNodeEvidence({
   onOpenMemory?: (id: string) => void;
   onOpenFile?: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [memoryData, setMemoryData] = useState<Record<string, unknown>[]>([]),
     [events, setEvents] = useState<Record<string, unknown>[]>([]),
     [error, setError] = useState(''),
@@ -180,23 +79,31 @@ export function AtlasNodeEvidence({
       )}
       <dl className="atlas-node-facts">
         {[
-          ['Kind', node.data['symbolKind'] ?? node.data['kind']],
-          ['Subsystem', node.data['subsystem']],
-          ['Language', node.data['lang']],
-          ['Scope', node.data['scope']],
-          ['External', node.data['external'] === true ? 'Yes' : undefined],
+          [t('atlasDetails.kind'), node.data['symbolKind'] ?? node.data['kind']],
+          [t('atlasDetails.subsystem'), node.data['subsystem']],
+          [t('atlasDetails.language'), node.data['lang']],
+          [t('atlasDetails.scope'), node.data['scope']],
           [
-            'Declaration',
-            typeof node.data['line'] === 'number' ? `Line ${node.data['line']}` : undefined,
+            t('atlasDetails.external'),
+            node.data['external'] === true ? t('atlasDetails.yes') : undefined,
           ],
           [
-            'Concept source',
-            record(node.data['crux'])['start']
-              ? `Lines ${record(node.data['crux'])['start']}–${record(node.data['crux'])['end']}`
+            t('atlasDetails.declaration'),
+            typeof node.data['line'] === 'number'
+              ? t('atlasDetails.line', { line: node.data['line'] })
               : undefined,
           ],
           [
-            'Last modified',
+            t('atlasDetails.conceptSource'),
+            record(node.data['crux'])['start']
+              ? t('atlasDetails.lines', {
+                  start: String(record(node.data['crux'])['start']),
+                  end: String(record(node.data['crux'])['end']),
+                })
+              : undefined,
+          ],
+          [
+            t('atlasDetails.lastModified'),
             typeof node.data['lastModifiedMs'] === 'number'
               ? new Date(node.data['lastModifiedMs']).toLocaleString()
               : undefined,
@@ -213,38 +120,38 @@ export function AtlasNodeEvidence({
       {typeof node.data['rank'] === 'number' && (
         <section className="atlas-centrality">
           <header>
-            <strong>Dependency centrality</strong>
+            <strong>{t('atlasDetails.centrality')}</strong>
             <span>{Math.round(node.data['rank'] * 100)}%</span>
           </header>
-          <progress aria-label="Dependency centrality" value={node.data['rank']} max={1} />
-          <p>PageRank normalized within the current graph scope.</p>
+          <progress aria-label={t('atlasDetails.centrality')} value={node.data['rank']} max={1} />
+          <p>{t('atlasDetails.pageRank')}</p>
         </section>
       )}
       {Boolean(node.data['lockOwner'] || node.data['thrashingCount']) && (
         <section className="atlas-trace-alert">
           <h3>
             <ShieldCheck size={13} />
-            WrongTrace signals
+            {t('atlasDetails.trace')}
           </h3>
           {typeof node.data['lockOwner'] === 'string' && (
-            <p>File lock held by {node.data['lockOwner']}</p>
+            <p>{t('atlasDetails.lock', { owner: node.data['lockOwner'] })}</p>
           )}
           {typeof node.data['thrashingCount'] === 'number' && (
-            <p>{node.data['thrashingCount']} recent edit/revert cycles</p>
+            <p>{t('atlasDetails.thrashing', { number: node.data['thrashingCount'] })}</p>
           )}
         </section>
       )}
       {file && onOpenFile && (
         <button type="button" className="button secondary full" onClick={() => onOpenFile(file)}>
           <FileCode2 size={13} />
-          Open in file workspace
+          {t('atlasDetails.openFile')}
           <ArrowRight size={12} />
         </button>
       )}
       <section className="atlas-institutional-memory">
         <h3>
           <Brain size={14} />
-          SAGE knowledge {memories.length > 0 && <span>{memories.length}</span>}
+          {t('atlasDetails.sage')} {memories.length > 0 && <span>{memories.length}</span>}
         </h3>
         {memories.map((memory) => (
           <button
@@ -259,7 +166,7 @@ export function AtlasNodeEvidence({
             )}
           </button>
         ))}
-        {!memories.length && <p>No anchored SAGE knowledge reported for this selection.</p>}
+        {!memories.length && <p>{t('atlasDetails.noSage')}</p>}
       </section>
       {file && (
         <section className="atlas-file-history">
@@ -270,18 +177,22 @@ export function AtlasNodeEvidence({
             onClick={() => setActivityOpen(!activityOpen)}
           >
             <Activity size={14} />
-            File history & actors<span>{activityOpen ? '−' : '+'}</span>
+            {t('atlasDetails.history')}
+            <span>{activityOpen ? '−' : '+'}</span>
           </button>
           {activityOpen &&
             (loading ? (
-              <p>Reading the project activity journal…</p>
+              <p>{t('atlasDetails.readingJournal')}</p>
             ) : (
               <div>
                 {events.map((event, index) => (
                   <article key={String(event['id'] ?? index)}>
                     <strong>
                       {String(
-                        event['summary'] ?? event['action'] ?? event['kind'] ?? 'File activity',
+                        event['summary'] ??
+                          event['action'] ??
+                          event['kind'] ??
+                          t('atlasDetails.fileActivity'),
                       )}
                     </strong>
                     <span>
@@ -290,7 +201,7 @@ export function AtlasNodeEvidence({
                         record(event['actor'])['name'] ??
                           record(event['actor'])['id'] ??
                           event['source'] ??
-                          'Project journal',
+                          t('atlasDetails.journal'),
                       )}
                     </span>
                     {typeof event['at'] === 'string' && (
@@ -298,7 +209,7 @@ export function AtlasNodeEvidence({
                     )}
                   </article>
                 ))}
-                {!events.length && <p>No recorded activity for {fileName(file)}.</p>}
+                {!events.length && <p>{t('atlasDetails.noActivity', { file: fileName(file) })}</p>}
               </div>
             ))}
         </section>

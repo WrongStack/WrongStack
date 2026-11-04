@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+// The story lives in the shared package and translates with the app's i18next instance.
+import '../../src/i18n';
 import { ContextTimeline } from '../../src/components/session-story/ContextTimeline';
 import type { ChronicleEventView } from '../../src/types';
 

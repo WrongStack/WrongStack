@@ -1,5 +1,6 @@
 import { BookOpen, Check, Eye, FilePenLine, RefreshCw, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { MarkdownContent } from './MarkdownContent';
 
@@ -17,6 +18,7 @@ export function UserInstructionsSettings({
   value: InstructionDraft;
   onChange: (next: InstructionDraft) => void;
 }) {
+  const { t } = useDesktopText();
   const current = useRef(value);
   current.current = value;
   const [busy, setBusy] = useState(false),
@@ -35,9 +37,7 @@ export function UserInstructionsSettings({
         if (!draft.document || draft.text === String(draft.document['text'] ?? ''))
           onChange({ document: doc, text: String(doc['text'] ?? '') });
         else if (doc['mtimeMs'] !== draft.document['mtimeMs'])
-          setNotice(
-            'The file changed elsewhere. Your draft is kept; saving will check its revision.',
-          );
+          setNotice(t('userInstructions.changedElsewhere'));
       })
       .catch((e) => {
         if (active) setError(e instanceof Error ? e.message : String(e));
@@ -48,7 +48,7 @@ export function UserInstructionsSettings({
     return () => {
       active = false;
     };
-  }, [command, onChange]);
+  }, [command, onChange, t]);
   const reload = async () => {
     setBusy(true);
     setError('');
@@ -75,12 +75,9 @@ export function UserInstructionsSettings({
         ['user_instructions'],
       );
       const doc = await command('user_instructions.get', {}, ['user_instructions']);
-      if (doc['text'] !== value.text)
-        throw Error(
-          'The file changed again before readback. Your draft is kept; reload saved instructions before retrying.',
-        );
+      if (doc['text'] !== value.text) throw Error(t('userInstructions.changedAgain'));
       onChange({ document: doc, text: String(doc['text'] ?? '') });
-      setNotice('Global instructions saved and verified. WrongStack reads them on the next turn.');
+      setNotice(t('userInstructions.saved'));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -88,26 +85,23 @@ export function UserInstructionsSettings({
     }
   };
   return (
-    <section className="instructions-settings" aria-label="Global instructions settings">
+    <section className="instructions-settings" aria-label={t('userInstructions.label')}>
       <header className="settings-section-heading">
         <div>
-          <span className="eyebrow">YOUR RULES · ALL PROJECTS</span>
-          <h2>Global instructions</h2>
-          <p>
-            Your own operating rules, applied before project instructions. This file is shared
-            across your WrongStack profiles.
-          </p>
+          <span className="eyebrow">{t('userInstructions.eyebrow')}</span>
+          <h2>{t('userInstructions.title')}</h2>
+          <p>{t('userInstructions.intro')}</p>
         </div>
         <BookOpen size={25} />
       </header>
       <div className="instruction-file-meta">
-        <code>{String(value.document?.['displayPath'] ?? 'WrongStack user instructions')}</code>
+        <code>{String(value.document?.['displayPath'] ?? t('userInstructions.fileName'))}</code>
         <span>
           {value.document?.['exists'] === false
-            ? 'No file yet · saving creates it'
+            ? t('userInstructions.noFile')
             : value.document
-              ? 'User-owned Markdown document'
-              : 'Loading saved document…'}
+              ? t('userInstructions.userOwned')
+              : t('userInstructions.loadingDoc')}
         </span>
       </div>
       {error && (
@@ -122,29 +116,32 @@ export function UserInstructionsSettings({
         </p>
       )}
       <div className="instruction-editor-toolbar">
-        <fieldset className="view-segment" aria-label="Instructions view">
+        <fieldset className="view-segment" aria-label={t('userInstructions.view')}>
           <button type="button" aria-pressed={!preview} onClick={() => setPreview(false)}>
             <FilePenLine size={14} />
-            Edit
+            {t('userInstructions.edit')}
           </button>
           <button type="button" aria-pressed={preview} onClick={() => setPreview(true)}>
             <Eye size={14} />
-            Preview
+            {t('userInstructions.preview')}
           </button>
         </fieldset>
         <span>
-          {value.text.length.toLocaleString()} characters ·{' '}
-          {value.text ? value.text.split('\n').length : 0} lines{dirty ? ' · unsaved' : ''}
+          {t('userInstructions.counts', {
+            chars: value.text.length.toLocaleString(),
+            lines: value.text ? value.text.split('\n').length : 0,
+          })}
+          {dirty ? ` · ${t('userInstructions.unsaved')}` : ''}
         </span>
       </div>
       {preview ? (
-        <section className="instruction-preview" aria-label="Global instructions preview">
-          <MarkdownContent text={value.text || 'No global instructions yet.'} />
+        <section className="instruction-preview" aria-label={t('userInstructions.previewLabel')}>
+          <MarkdownContent text={value.text || t('userInstructions.empty')} />
         </section>
       ) : (
         <textarea
           className="instruction-editor"
-          aria-label="Global instruction text"
+          aria-label={t('userInstructions.textLabel')}
           spellCheck={false}
           disabled={busy || !value.document}
           value={value.text}
@@ -152,34 +149,34 @@ export function UserInstructionsSettings({
             onChange({ ...value, text: e.target.value });
             setNotice('');
           }}
-          placeholder="Write project-independent rules in Markdown…"
+          placeholder={t('userInstructions.placeholder')}
         />
       )}
-      <p className="field-help">
-        An empty file adds no global rules. Project instructions and permission policy still apply.
-      </p>
+      <p className="field-help">{t('userInstructions.emptyNote')}</p>
       {confirmReload && (
         <div className="instruction-reload-confirm" role="alert">
-          <p>Reload saved instructions and replace your unsaved draft?</p>
+          <p>{t('userInstructions.reloadQuestion')}</p>
           <button
             type="button"
             className="button secondary"
             disabled={busy}
             onClick={() => void reload()}
           >
-            Discard draft and reload
+            {t('userInstructions.discard')}
           </button>
           <button
             type="button"
             className="button secondary"
             onClick={() => setConfirmReload(false)}
           >
-            Keep editing
+            {t('userInstructions.keepEditing')}
           </button>
         </div>
       )}
       <footer className="settings-save-bar">
-        <span>{dirty ? 'Unsaved instruction changes' : 'Saved instructions loaded'}</span>
+        <span>
+          {dirty ? t('userInstructions.unsavedChanges') : t('userInstructions.savedLoaded')}
+        </span>
         <button
           type="button"
           className="button secondary"
@@ -187,7 +184,7 @@ export function UserInstructionsSettings({
           onClick={() => (dirty ? setConfirmReload(true) : void reload())}
         >
           <RefreshCw size={14} />
-          Reload instructions
+          {t('userInstructions.reload')}
         </button>
         <button
           type="button"
@@ -196,7 +193,7 @@ export function UserInstructionsSettings({
           onClick={() => void save()}
         >
           <Save size={14} />
-          {busy ? 'Working…' : 'Save global instructions'}
+          {busy ? t('userInstructions.working') : t('userInstructions.save')}
         </button>
       </footer>
     </section>

@@ -1,8 +1,7 @@
 import { Users } from 'lucide-react';
 import { type DelegationRecord, delegationTotals } from './delegations';
+import { useDesktopText } from './desktop-i18n';
 
-const seconds = (ms: number) =>
-  ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`;
 const usd = (value: number) => `$${value < 0.01 ? value.toFixed(4) : value.toFixed(2)}`;
 
 /**
@@ -10,23 +9,33 @@ const usd = (value: number) => `$${value < 0.01 ? value.toFixed(4) : value.toFix
  * finished, with the engine's own cost estimate where it had one.
  */
 export function SessionDelegations({ delegations }: { delegations: DelegationRecord[] }) {
+  const { t } = useDesktopText();
   if (!delegations.length) return null;
+  const seconds = (ms: number) =>
+    ms >= 60_000
+      ? t('delegationsView.minutes', { count: Math.round(ms / 60_000) })
+      : t('delegationsView.seconds', { count: Math.round(ms / 1000) });
   const totals = delegationTotals(delegations);
+  const summary = [
+    t('delegationsView.finished', { count: totals.count }),
+    t('delegationsView.notSuccessful', { count: totals.failed }),
+    t('delegationsView.toolCalls', { count: totals.toolCalls }),
+    seconds(totals.durationMs),
+    ...(totals.costUsd === null
+      ? []
+      : [t('delegationsView.estimated', { value: usd(totals.costUsd) })]),
+    ...(totals.unpriced ? [t('delegationsView.unpriced', { count: totals.unpriced })] : []),
+  ];
   return (
-    <section className="session-delegations" aria-label="Worker delegations">
+    <section className="session-delegations" aria-label={t('delegationsView.label')}>
       <header>
         <Users size={15} />
-        <h3>Worker delegations</h3>
+        <h3>{t('delegationsView.label')}</h3>
       </header>
       <p className="settings-defaults-note">
-        {totals.count} finished · {totals.failed} not successful · {totals.toolCalls} tool calls ·{' '}
-        {seconds(totals.durationMs)}
-        {totals.costUsd === null ? '' : ` · estimated ${usd(totals.costUsd)}`}
-        {totals.unpriced ? ` · ${totals.unpriced} without a cost estimate` : ''}. As reported when
-        each delegation finished; worker tokens are counted by the workers, not in the conversation
-        counters above.
+        {summary.join(' · ')}. {t('delegationsView.note')}
       </p>
-      <ol aria-label="Finished delegations">
+      <ol aria-label={t('delegationsView.list')}>
         {delegations
           .slice()
           .reverse()
@@ -34,9 +43,17 @@ export function SessionDelegations({ delegations }: { delegations: DelegationRec
             <li key={item.id} className={item.ok ? '' : 'failed'}>
               <strong>{item.target}</strong>
               <span>
-                {item.ok ? 'Succeeded' : `Did not succeed${item.status ? ` (${item.status})` : ''}`}{' '}
-                · {item.iterations} turns · {item.toolCalls} tool calls · {seconds(item.durationMs)}
-                {item.costUsd === null ? '' : ` · ${usd(item.costUsd)}`}
+                {[
+                  item.ok
+                    ? t('delegationsView.succeeded')
+                    : item.status
+                      ? t('delegationsView.failedStatus', { status: item.status })
+                      : t('delegationsView.failed'),
+                  t('delegationsView.turns', { count: item.iterations }),
+                  t('delegationsView.toolCalls', { count: item.toolCalls }),
+                  seconds(item.durationMs),
+                  ...(item.costUsd === null ? [] : [usd(item.costUsd)]),
+                ].join(' · ')}
               </span>
               {item.summary && <small>{item.summary}</small>}
             </li>

@@ -1,6 +1,7 @@
 import type { UserInputQuestion, UserInputRequest } from '@wrongstack/contracts/types';
 import { LoaderCircle, MessageSquare } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import {
   type InputDraft,
@@ -23,6 +24,7 @@ export function InputRequestCard({
   send: EngineSend;
   connected: boolean;
 }) {
+  const { t } = useDesktopText();
   const recommended = useMemo(() => recommendedDraft(request), [request]);
   const answers = draft ?? recommended;
   const [active, setActive] = useState(0);
@@ -32,10 +34,10 @@ export function InputRequestCard({
     if (!pending) return;
     const timer = setTimeout(() => {
       setPending(false);
-      setError('The engine has not confirmed this answer yet. Check the session before retrying.');
+      setError(t('input.notConfirmed'));
     }, 15000);
     return () => clearTimeout(timer);
-  }, [pending]);
+  }, [pending, t]);
   const submit = async (status: 'submitted' | 'cancelled') => {
     if (pending || !connected) return;
     setError('');
@@ -56,12 +58,12 @@ export function InputRequestCard({
     <article className="input-request-card" aria-label={request.title}>
       <div className="input-request-heading">
         <MessageSquare size={17} />
-        <span className="eyebrow">YOUR INPUT IS NEEDED</span>
+        <span className="eyebrow">{t('input.eyebrow')}</span>
       </div>
       <h3>{request.title}</h3>
       {request.description && <p>{request.description}</p>}
       {request.tabs.length > 1 && (
-        <nav className="input-request-tabs" aria-label="Question groups">
+        <nav className="input-request-tabs" aria-label={t('input.groups')}>
           {request.tabs.map((item, index) => (
             <button
               key={item.id}
@@ -109,16 +111,16 @@ export function InputRequestCard({
             disabled={pending || !connected}
             onClick={() => void submit('cancelled')}
           >
-            Cancel request
+            {t('input.cancel')}
           </button>
           <button type="submit" className="button primary" disabled={pending || !connected}>
             {pending && <LoaderCircle size={13} className="spin" />}
-            {pending ? 'Waiting for engine…' : request.submitLabel || 'Submit answers'}
+            {pending ? t('input.waiting') : request.submitLabel || t('input.submit')}
           </button>
         </div>
         {pending && (
           <p className="provider-hint" role="status">
-            Your response was sent. Waiting for the engine to resolve this request.
+            {t('input.sent')}
           </p>
         )}
       </form>
@@ -138,15 +140,18 @@ function QuestionFields({
   onChange: (value: QuestionDraft) => void;
   requestId: string;
 }) {
+  const { t } = useDesktopText();
   return (
     <fieldset className="input-question" disabled={disabled}>
       <legend>
         {q.prompt}
-        {q.required === false && <small>Optional</small>}
+        {q.required === false && <small>{t('input.optional')}</small>}
       </legend>
       {q.description && <p>{q.description}</p>}
       {q.recommendationReason && (
-        <p className="input-recommendation">Recommendation: {q.recommendationReason}</p>
+        <p className="input-recommendation">
+          {t('input.recommendation', { reason: q.recommendationReason })}
+        </p>
       )}
       {q.kind !== 'text' && (
         <div className="input-options">
@@ -173,7 +178,9 @@ function QuestionFields({
               />
               <span>
                 <strong>{option.label}</strong>
-                {q.recommendedOptionIds?.includes(option.id) && <small>Recommended</small>}
+                {q.recommendedOptionIds?.includes(option.id) && (
+                  <small>{t('input.recommended')}</small>
+                )}
                 {option.description && (
                   <span className="input-option-description">{option.description}</span>
                 )}
@@ -184,11 +191,11 @@ function QuestionFields({
       )}
       {(q.kind === 'text' || q.allowCustomResponse !== false) && (
         <label className="input-text-label">
-          {q.kind === 'text' ? 'Your answer' : 'Write your own answer'}
+          {q.kind === 'text' ? t('input.yourAnswer') : t('input.writeOwn')}
           <textarea
-            aria-label={q.kind === 'text' ? q.prompt : `Custom answer: ${q.prompt}`}
+            aria-label={q.kind === 'text' ? q.prompt : t('input.customLabel', { prompt: q.prompt })}
             value={value.text}
-            placeholder={q.placeholder ?? 'Type your answer…'}
+            placeholder={q.placeholder ?? t('input.typeAnswer')}
             disabled={value.delegated}
             onChange={(event) =>
               onChange({
@@ -206,7 +213,7 @@ function QuestionFields({
           checked={value.delegated}
           onChange={(event) => onChange({ ...value, delegated: event.target.checked })}
         />
-        Let WrongStack decide this answer
+        {t('input.delegate')}
       </label>
     </fieldset>
   );

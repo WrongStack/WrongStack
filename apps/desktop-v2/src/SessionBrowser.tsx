@@ -1,5 +1,6 @@
 import { Globe } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -87,6 +88,7 @@ export function SessionBrowser({
   command: EngineCommand;
   onAddToPrompt: (text: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [browsers, setBrowsers] = useState<LiveBrowser[]>([]),
     [open, setOpen] = useState(false),
     [selected, setSelected] = useState(''),
@@ -181,12 +183,17 @@ export function SessionBrowser({
       onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
     >
       <summary>
-        <Globe size={14} /> Agent browser · {current?.title || current?.url || 'open'}
-        {browsers.length > 1 ? ` · ${browsers.length} open` : ''}
+        <Globe size={14} />{' '}
+        {t('agentBrowser.summary', {
+          name: current?.title || current?.url || t('agentBrowser.open'),
+        })}
+        {browsers.length > 1
+          ? ` · ${t('agentBrowser.openCount', { number: browsers.length })}`
+          : ''}
       </summary>
       {browsers.length > 1 && (
         <select
-          aria-label="Browser to watch"
+          aria-label={t('agentBrowser.select')}
           value={current?.id ?? ''}
           onChange={(event) => setSelected(event.target.value)}
         >
@@ -197,27 +204,29 @@ export function SessionBrowser({
           ))}
         </select>
       )}
-      {details?.gone && <p className="field-help">This browser has closed.</p>}
+      {details?.gone && <p className="field-help">{t('agentBrowser.closed')}</p>}
       {details?.url && <p className="field-help">{details.url}</p>}
       {frame ? (
         <button
           type="button"
           className="session-browser-frame"
           disabled={picking}
-          title="Click an element to inspect it"
+          title={t('agentBrowser.inspectTitle')}
           onClick={(event) => void pick(event)}
         >
           <img
-            alt={`Live view of ${details?.title || current?.title || 'the agent browser'}`}
+            alt={t('agentBrowser.liveView', {
+              name: details?.title || current?.title || t('agentBrowser.thisBrowser'),
+            })}
             src={`data:image/jpeg;base64,${frame.data}`}
             width={frame.width || undefined}
             height={frame.height || undefined}
           />
         </button>
       ) : (
-        <p role="status">Waiting for the page to draw…</p>
+        <p role="status">{t('agentBrowser.waiting')}</p>
       )}
-      {picking && <p role="status">Inspecting the element…</p>}
+      {picking && <p role="status">{t('agentBrowser.inspecting')}</p>}
       {selection && typeof selection['selector'] === 'string' && (
         <div className="session-browser-selection">
           <strong>
@@ -233,14 +242,17 @@ export function SessionBrowser({
             className="button secondary small"
             onClick={() => onAddToPrompt(selectionPrompt(selection))}
           >
-            Add to message
+            {t('agentBrowser.addToMessage')}
           </button>
         </div>
       )}
       {details && (details.console.length > 0 || details.network.length > 0) && (
         <details className="session-browser-log">
           <summary>
-            Console {details.console.length} · Network {details.network.length}
+            {t('agentBrowser.log', {
+              console: details.console.length,
+              network: details.network.length,
+            })}
           </summary>
           <ol>
             {details.console.slice(-20).map((entry, index) => (

@@ -1,6 +1,8 @@
 import { FileCode2, Sparkles } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
-import { techInterpretation, techLabel, techVersion } from './techstack-model';
+import { techInterpretation, techVersion } from './techstack-model';
+import { techWord } from './techstack-text';
 
 export function TechEvidence({
   items,
@@ -9,12 +11,13 @@ export function TechEvidence({
   items: Record<string, unknown>[];
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
   return items.length ? (
     <ul className="tech-evidence">
       {items.map((item, index) => (
         <li key={index}>
           <header>
-            <strong>{techLabel(item['kind'])}</strong>
+            <strong>{techWord(item['kind'], t)}</strong>
             <time>{String(item['retrievedAt'] ?? '')}</time>
           </header>
           {['manifest', 'lockfile'].includes(String(item['kind'])) ? (
@@ -38,7 +41,7 @@ export function TechEvidence({
       ))}
     </ul>
   ) : (
-    <p className="field-help">No evidence recorded.</p>
+    <p className="field-help">{t('techDetail.noEvidence')}</p>
   );
 }
 export function TechFinding({
@@ -48,29 +51,34 @@ export function TechFinding({
   finding: Record<string, unknown>;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
   return (
     <article className={`tech-finding severity-${finding['severity']}`}>
       <header>
-        <strong>{techLabel(finding['type'])}</strong>
+        <strong>{techWord(finding['type'], t)}</strong>
         <span>
-          {techLabel(finding['severity'])} · {techLabel(finding['action'])}
+          {techWord(finding['severity'], t)} · {techWord(finding['action'], t)}
         </span>
       </header>
       {techInterpretation(finding) && (
         <small>
           <Sparkles size={12} />
-          Model interpretation ·{' '}
+          {t('techDetail.interpretation')} ·{' '}
           {typeof finding['confidence'] === 'number'
-            ? `${Math.round(finding['confidence'] * 100)}% confidence`
-            : 'confidence not reported'}
+            ? t('techDetail.confidence', { percent: Math.round(finding['confidence'] * 100) })
+            : t('techDetail.noConfidence')}
         </small>
       )}
       <p>{String(finding['rationale'] ?? '')}</p>
       {typeof finding['breakingRisk'] === 'string' && (
-        <p className="tech-breaking-risk">Breaking risk: {finding['breakingRisk']}</p>
+        <p className="tech-breaking-risk">
+          {t('techDetail.breakingRisk', { risk: finding['breakingRisk'] })}
+        </p>
       )}
       <details>
-        <summary>Finding evidence ({entries(finding['evidence']).length})</summary>
+        <summary>
+          {t('techDetail.findingEvidence', { number: entries(finding['evidence']).length })}
+        </summary>
         <TechEvidence items={entries(finding['evidence'])} onOpenFile={onOpenFile} />
       </details>
     </article>
@@ -93,17 +101,19 @@ export function TechDependencyDetail({
   onResearch: () => void;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const missing = t('techDetail.notReported');
   return (
-    <article className="tech-dependency-detail" aria-label="Dependency details">
+    <article className="tech-dependency-detail" aria-label={t('techDetail.label')}>
       <header>
         <span className="eyebrow">
           {String(dependency['ecosystem'])} ·{' '}
-          {dependency['direct'] === true ? 'Direct' : 'Transitive'} ·{' '}
-          {techLabel(dependency['scope'])}
+          {dependency['direct'] === true ? t('techDetail.direct') : t('techDetail.transitive')} ·{' '}
+          {techWord(dependency['scope'], t)}
         </span>
         <h2>{String(dependency['name'])}</h2>
         <span className={`tech-status status-${dependency['status']}`}>
-          {techLabel(dependency['status'])}
+          {techWord(dependency['status'], t)}
         </span>
         <p>
           {techVersion(dependency)}
@@ -113,40 +123,42 @@ export function TechDependencyDetail({
         </p>
       </header>
       <dl className="tech-version-grid">
-        {[
-          ['Requested constraint', 'requested'],
-          ['Locked version', 'locked'],
-          ['Installed version', 'installed'],
-          ['Latest within constraint', 'wanted'],
-          ['Resolvable version', 'resolvable'],
-          ['Latest stable registry version', 'latestStable'],
-          ['License', 'license'],
-          ['Package URL', 'purl'],
-          ['Source type', 'sourceType'],
-        ].map(([label, key]) => (
+        {(
+          [
+            'requested',
+            'locked',
+            'installed',
+            'wanted',
+            'resolvable',
+            'latestStable',
+            'license',
+            'purl',
+            'sourceType',
+          ] as const
+        ).map((key) => (
           <div key={key}>
-            <dt>{label}</dt>
-            <dd>{String(dependency[key!] ?? 'Not reported')}</dd>
+            <dt>{t(`techDetail.field.${key}`)}</dt>
+            <dd>{String(dependency[key] ?? missing)}</dd>
           </div>
         ))}
         <div>
-          <dt>Registry flags</dt>
+          <dt>{t('techDetail.flags')}</dt>
           <dd>
             {[
-              dependency['deprecated'] === true && 'Deprecated',
-              dependency['yanked'] === true && 'Yanked',
+              dependency['deprecated'] === true && t('techDetail.deprecated'),
+              dependency['yanked'] === true && t('techDetail.yanked'),
             ]
               .filter(Boolean)
               .join(', ') ||
               (dependency['deprecated'] === false || dependency['yanked'] === false
-                ? 'No flags reported'
-                : 'Not reported')}
+                ? t('techDetail.noFlags')
+                : missing)}
           </dd>
         </div>
       </dl>
       <section>
         <header className="tech-section-heading">
-          <h3>Findings ({findings.length})</h3>
+          <h3>{t('techDetail.findings', { number: findings.length })}</h3>
           <button
             type="button"
             className="button secondary small"
@@ -154,14 +166,10 @@ export function TechDependencyDetail({
             onClick={onResearch}
           >
             <Sparkles size={13} />
-            {researching ? 'Researching…' : 'Research this dependency'}
+            {researching ? t('techDetail.researching') : t('techDetail.research')}
           </button>
         </header>
-        {!canResearch && (
-          <p className="field-help">
-            Connect a model in WrongStack settings to research a dependency.
-          </p>
-        )}
+        {!canResearch && <p className="field-help">{t('techDetail.connectModel')}</p>}
         {researchNote && <p role="status">{researchNote}</p>}
         {findings.map((finding, index) => (
           <TechFinding
@@ -170,12 +178,10 @@ export function TechDependencyDetail({
             onOpenFile={onOpenFile}
           />
         ))}
-        {!findings.length && (
-          <p>No findings recorded. This does not establish that the package is safe.</p>
-        )}
+        {!findings.length && <p>{t('techDetail.noFindings')}</p>}
       </section>
       <section>
-        <h3>Observed evidence</h3>
+        <h3>{t('techDetail.evidence')}</h3>
         <TechEvidence items={entries(dependency['evidence'])} onOpenFile={onOpenFile} />
       </section>
     </article>

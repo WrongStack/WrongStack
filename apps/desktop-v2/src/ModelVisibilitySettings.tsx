@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -23,6 +24,7 @@ export function ModelVisibilitySettings({
   command: EngineCommand;
   defaultProvider: string;
 }) {
+  const { t } = useDesktopText();
   const [providers, setProviders] = useState<Record<string, unknown>[]>([]),
     [provider, setProvider] = useState('');
   const [models, setModels] = useState<Record<string, unknown>[]>([]),
@@ -65,8 +67,7 @@ export function ModelVisibilitySettings({
     ])
       .then((reply) => {
         if (current !== version.current) return;
-        if (reply['provider'] !== provider)
-          throw Error('The engine returned a different provider catalog.');
+        if (reply['provider'] !== provider) throw Error(t('modelVisibility.otherProvider'));
         setModels(entries(reply['models']));
       })
       .catch((error) => {
@@ -78,7 +79,7 @@ export function ModelVisibilitySettings({
     return () => {
       version.current++;
     };
-  }, [command, provider, reload]);
+  }, [command, provider, reload, t]);
   const hidden = modelReferences(draft['disabledModels']);
   const providerOff = providerDisabled(draft['disabledProviders'], provider);
   const visible = models.filter((model) => {
@@ -112,12 +113,12 @@ export function ModelVisibilitySettings({
       }
     : null;
   return (
-    <section className="model-visibility" aria-label="Model visibility settings">
+    <section className="model-visibility" aria-label={t('modelVisibility.label')}>
       <div className="model-visibility-toolbar">
         <label>
-          Saved provider
+          {t('modelVisibility.savedProvider')}
           <select
-            aria-label="Visibility provider"
+            aria-label={t('modelVisibility.providerSelect')}
             value={provider}
             disabled={busy || !!review}
             onChange={(event) => setProvider(event.target.value)}
@@ -130,25 +131,25 @@ export function ModelVisibilitySettings({
           </select>
         </label>
         <label>
-          Search models
+          {t('modelVisibility.search')}
           <input
-            aria-label="Search model visibility"
+            aria-label={t('modelVisibility.searchLabel')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Model name or ID…"
+            placeholder={t('modelVisibility.searchPlaceholder')}
           />
         </label>
         <label>
-          Show
+          {t('modelVisibility.show')}
           <select
-            aria-label="Visibility filter"
+            aria-label={t('modelVisibility.filter')}
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           >
-            <option value="all">All models</option>
-            <option value="enabled">Enabled</option>
-            <option value="hidden">Disabled</option>
-            <option value="favorites">Favorites</option>
+            <option value="all">{t('modelVisibility.allModels')}</option>
+            <option value="enabled">{t('modelVisibility.enabled')}</option>
+            <option value="hidden">{t('modelVisibility.disabled')}</option>
+            <option value="favorites">{t('modelVisibility.favorites')}</option>
           </select>
         </label>
         <button
@@ -157,24 +158,23 @@ export function ModelVisibilitySettings({
           disabled={busy || !!review}
           onClick={() => setReload((value) => value + 1)}
         >
-          Refresh visibility catalog
+          {t('modelVisibility.refresh')}
         </button>
       </div>
-      <p className="field-help">
-        Changes stay in this settings draft until you save. Disabling hides models from catalogs and
-        fallback suggestions. Running sessions and explicit role overrides keep their model.
-      </p>
+      <p className="field-help">{t('modelVisibility.draftNote')}</p>
       <ProviderVisibilityControl key={provider} provider={provider} draft={draft} change={change} />
       {error && (
         <p role="alert" className="session-error">
           {error}
         </p>
       )}
-      {busy && <p role="status">Reading all provider models, including disabled entries…</p>}
+      {busy && <p role="status">{t('modelVisibility.reading')}</p>}
       <p>
-        {visible.length} matching models ·{' '}
-        {models.filter((model) => modelListed(hidden, provider, String(model['id']))).length}{' '}
-        individually disabled for this provider
+        {t('modelVisibility.counts', {
+          matching: visible.length,
+          disabled: models.filter((model) => modelListed(hidden, provider, String(model['id'])))
+            .length,
+        })}
       </p>
       <div className="model-visibility-list">
         {visible.map((model) => {
@@ -182,11 +182,17 @@ export function ModelVisibilitySettings({
             off = modelListed(hidden, provider, id),
             favorite = modelListed(draft['favoriteModels'], provider, id);
           return (
-            <article key={id} aria-label={`Model visibility ${id}`}>
+            <article key={id} aria-label={t('modelVisibility.item', { id })}>
               <div>
                 <strong>{String(model['name'] ?? id)}</strong>
                 <code>{id}</code>
-                <span>{off ? 'Disabled' : providerOff ? 'Provider disabled' : 'Enabled'}</span>
+                <span>
+                  {off
+                    ? t('modelVisibility.state.disabled')
+                    : providerOff
+                      ? t('modelVisibility.state.providerDisabled')
+                      : t('modelVisibility.state.enabled')}
+                </span>
               </div>
               <button
                 type="button"
@@ -204,7 +210,7 @@ export function ModelVisibilitySettings({
                   )
                 }
               >
-                {favorite ? 'Remove favorite' : 'Add favorite'}
+                {favorite ? t('modelVisibility.removeFavorite') : t('modelVisibility.addFavorite')}
               </button>
               <button
                 type="button"
@@ -212,28 +218,23 @@ export function ModelVisibilitySettings({
                 disabled={providerOff}
                 onClick={() => setReview({ model: id, hide: !off })}
               >
-                {off ? 'Enable model' : 'Disable model'}
+                {off ? t('modelVisibility.enableModel') : t('modelVisibility.disableModel')}
               </button>
             </article>
           );
         })}
       </div>
-      {!busy && !visible.length && (
-        <p className="quiet-state">No catalog models match. Saved rules below remain editable.</p>
-      )}
+      {!busy && !visible.length && <p className="quiet-state">{t('modelVisibility.noMatch')}</p>}
       <details>
-        <summary>{hidden.length} saved disabled-model rules</summary>
-        <p className="field-help">
-          Bare model IDs apply across providers. Qualified references apply to their named provider.
-          Rules can outlive a catalog entry.
-        </p>
+        <summary>{t('modelVisibility.modelRules', { number: hidden.length })}</summary>
+        <p className="field-help">{t('modelVisibility.modelRulesNote')}</p>
         {hidden.map((ref, index) => (
           <div className="model-visibility-rule" key={`${index}:${ref}`}>
             <code>{ref}</code>
             <button
               type="button"
               className="button secondary small"
-              aria-label={`Remove rule ${ref}`}
+              aria-label={t('modelVisibility.removeRuleLabel', { ref })}
               onClick={() =>
                 change(
                   'disabledModels',
@@ -241,26 +242,25 @@ export function ModelVisibilitySettings({
                 )
               }
             >
-              Remove rule
+              {t('modelVisibility.removeRule')}
             </button>
           </div>
         ))}
       </details>
       <details>
         <summary>
-          {modelReferences(draft['disabledProviders']).length} saved disabled-provider rules
+          {t('modelVisibility.providerRules', {
+            number: modelReferences(draft['disabledProviders']).length,
+          })}
         </summary>
-        <p className="field-help">
-          Provider rules also apply to future models. Remove a rule here even when the saved
-          connection is no longer present.
-        </p>
+        <p className="field-help">{t('modelVisibility.providerRulesNote')}</p>
         {modelReferences(draft['disabledProviders']).map((id, index) => (
           <div className="model-visibility-rule" key={`${index}:${id}`}>
             <code>{id}</code>
             <button
               type="button"
               className="button secondary small"
-              aria-label={`Remove provider rule ${id}`}
+              aria-label={t('modelVisibility.removeProviderRuleLabel', { id })}
               onClick={() =>
                 change(
                   'disabledProviders',
@@ -270,14 +270,16 @@ export function ModelVisibilitySettings({
                 )
               }
             >
-              Remove provider rule
+              {t('modelVisibility.removeProviderRule')}
             </button>
           </div>
         ))}
       </details>
       {review && (
         <Modal onClose={() => setReview(null)}>
-          <h2 id="dialog-title">{review.hide ? 'Review model exclusion' : 'Enable this model'}</h2>
+          <h2 id="dialog-title">
+            {review.hide ? t('modelVisibility.reviewExclusion') : t('modelVisibility.enableThis')}
+          </h2>
           <p>
             <strong>
               {provider} / {review.model}
@@ -285,19 +287,29 @@ export function ModelVisibilitySettings({
           </p>
           {removed ? (
             <>
-              <p>Saving this change disables the model and removes these matching references:</p>
+              <p>{t('modelVisibility.removesRefs')}</p>
               <ul>
-                <li>Favorites: {removed.favorites.join(', ') || 'None'}</li>
-                <li>Default fallback chain: {removed.fallback.join(', ') || 'None'}</li>
-                <li>Named fallback profiles: {removed.profiles.join(', ') || 'None'}</li>
+                <li>
+                  {t('modelVisibility.favoritesList', {
+                    list: removed.favorites.join(', ') || t('modelVisibility.none'),
+                  })}
+                </li>
+                <li>
+                  {t('modelVisibility.fallbackList', {
+                    list: removed.fallback.join(', ') || t('modelVisibility.none'),
+                  })}
+                </li>
+                <li>
+                  {t('modelVisibility.profilesList', {
+                    list: removed.profiles.join(', ') || t('modelVisibility.none'),
+                  })}
+                </li>
               </ul>
-              <p className="field-help">
-                Explicit role overrides are retained. Review those separately if they should change.
-              </p>
+              <p className="field-help">{t('modelVisibility.overridesKept')}</p>
             </>
           ) : (
             <>
-              <p>Remove these matching exclusion rules:</p>
+              <p>{t('modelVisibility.removeRules')}</p>
               <ul>
                 {hidden
                   .filter((ref) => modelRefMatches(ref, provider, review.model))
@@ -305,19 +317,13 @@ export function ModelVisibilitySettings({
                     <li key={`${index}:${ref}`}>{ref}</li>
                   ))}
               </ul>
-              <p className="field-help">
-                Removing a bare model rule also enables that model ID on other providers unless
-                another exclusion applies.
-              </p>
-              <p className="field-help">
-                Previously removed favorites and fallback references stay removed until you add them
-                again.
-              </p>
+              <p className="field-help">{t('modelVisibility.bareRuleNote')}</p>
+              <p className="field-help">{t('modelVisibility.staysRemoved')}</p>
             </>
           )}
           <div className="modal-actions">
             <button type="button" className="button secondary" onClick={() => setReview(null)}>
-              Keep current visibility
+              {t('modelVisibility.keep')}
             </button>
             <button
               type="button"
@@ -332,7 +338,7 @@ export function ModelVisibilitySettings({
                 setReview(null);
               }}
             >
-              Apply to settings draft
+              {t('modelVisibility.apply')}
             </button>
           </div>
         </Modal>

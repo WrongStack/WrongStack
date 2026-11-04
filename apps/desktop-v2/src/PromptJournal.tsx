@@ -1,5 +1,6 @@
 import { ChevronDown, Download, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { journalFileName, journalJsonl, journalMarkdown } from './journal-export';
@@ -17,6 +18,7 @@ export function PromptJournal({
   sessionId: string;
   onInsert?: ((text: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]),
     [scope, setScope] = useState(sessionId ? 'session' : 'project'),
     [category, setCategory] = useState(''),
@@ -94,9 +96,11 @@ export function PromptJournal({
       );
       setCursors(next);
       setNotice(
-        added.length
-          ? `Loaded ${added.length} older ${added.length === 1 ? 'entry' : 'entries'}.`
-          : 'No older entries were returned.',
+        added.length === 1
+          ? t('promptJournal.olderOne')
+          : added.length
+            ? t('promptJournal.olderMany', { number: added.length })
+            : t('promptJournal.noOlder'),
       );
     } catch (e) {
       if (own === generation.current) setError(e instanceof Error ? e.message : String(e));
@@ -144,54 +148,57 @@ export function PromptJournal({
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setNotice(
-      `Export requested for the ${filtered.length} visible ${filtered.length === 1 ? 'entry' : 'entries'}.`,
+      filtered.length === 1
+        ? t('promptJournal.exportOne')
+        : t('promptJournal.exportMany', { number: filtered.length }),
     );
   };
   return (
     <>
-      <p>
-        The project’s actual submitted prompts and refined copies. Internal system/delegation
-        entries are excluded. Reuse appends to your draft.
-      </p>
+      <p>{t('promptJournal.intro')}</p>
       <div className="resource-toolbar">
         <label>
           <Search size={14} />
           <input
-            aria-label="Search prompt journal"
+            aria-label={t('promptJournal.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search loaded prompts…"
+            placeholder={t('promptJournal.placeholder')}
           />
         </label>
-        <select aria-label="Journal scope" value={scope} onChange={(e) => setScope(e.target.value)}>
-          {sessionId && <option value="session">This session</option>}
-          <option value="project">All project sessions</option>
+        <select
+          aria-label={t('promptJournal.scope')}
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+        >
+          {sessionId && <option value="session">{t('promptJournal.thisSession')}</option>}
+          <option value="project">{t('promptJournal.allSessions')}</option>
         </select>
         <select
-          aria-label="Journal category"
+          aria-label={t('promptJournal.category')}
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
-          <option value="">Original & refined</option>
-          <option value="raw_user">Original input</option>
-          <option value="refined_user">Refined prompt</option>
+          <option value="">{t('promptJournal.both')}</option>
+          <option value="raw_user">{t('promptJournal.original')}</option>
+          <option value="refined_user">{t('promptJournal.refined')}</option>
         </select>
         <input
           type="month"
-          aria-label="Journal month"
+          aria-label={t('promptJournal.month')}
           value={month}
           onChange={(e) => setMonth(e.target.value)}
         />
         <input
           type="date"
-          aria-label="Journal date"
+          aria-label={t('promptJournal.date')}
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh prompt journal"
+          aria-label={t('promptJournal.refresh')}
           disabled={loading}
           onClick={() => void load()}
         >
@@ -204,17 +211,14 @@ export function PromptJournal({
         </p>
       )}
       {loading ? (
-        <p role="status">Reading prompt journal…</p>
+        <p role="status">{t('promptJournal.reading')}</p>
       ) : !enabled || !filtered.length ? (
         <div className="resource-empty">
-          <h3>No matching prompts yet.</h3>
-          <p>
-            Recorded user prompts appear here after work is submitted. Broaden the session/date
-            filters to explore this project.
-          </p>
+          <h3>{t('promptJournal.emptyTitle')}</h3>
+          <p>{t('promptJournal.emptyBody')}</p>
         </div>
       ) : (
-        <section className="prompt-journal-list" aria-label="Project prompt journal">
+        <section className="prompt-journal-list" aria-label={t('promptJournal.list')}>
           {filtered.map((row) => {
             const meta = record(row['metadata']);
             return (
@@ -225,10 +229,12 @@ export function PromptJournal({
                       {String(row['content'])
                         .split('\n')
                         .find((line) => line.trim())
-                        ?.slice(0, 160) || 'Untitled prompt'}
+                        ?.slice(0, 160) || t('promptJournal.untitled')}
                     </strong>
                     <small>
-                      {String(row['category']) === 'raw_user' ? 'Original input' : 'Refined prompt'}{' '}
+                      {String(row['category']) === 'raw_user'
+                        ? t('promptJournal.original')
+                        : t('promptJournal.refined')}{' '}
                       · {new Date(String(row['timestamp'])).toLocaleString()} ·{' '}
                       {String(meta['provider'] ?? '')} {String(meta['model'] ?? '')}
                     </small>
@@ -236,10 +242,10 @@ export function PromptJournal({
                   <ChevronDown size={15} />
                 </summary>
                 <div className="journal-entry-body">
-                  <small>Session: {String(row['sessionId'])}</small>
+                  <small>{t('promptJournal.session', { id: String(row['sessionId']) })}</small>
                   {typeof row['rawContent'] === 'string' && (
                     <section>
-                      <h4>Original text</h4>
+                      <h4>{t('promptJournal.originalText')}</h4>
                       <MarkdownContent text={row['rawContent']} />
                       <button
                         type="button"
@@ -247,18 +253,24 @@ export function PromptJournal({
                         disabled={!onInsert}
                         onClick={() => onInsert?.(String(row['rawContent']))}
                       >
-                        Reuse original text
+                        {t('promptJournal.reuseOriginal')}
                       </button>
                     </section>
                   )}
                   <section>
-                    <h4>{row['category'] === 'raw_user' ? 'Submitted text' : 'Refined text'}</h4>
+                    <h4>
+                      {row['category'] === 'raw_user'
+                        ? t('promptJournal.submittedText')
+                        : t('promptJournal.refinedText')}
+                    </h4>
                     <MarkdownContent text={String(row['content'])} />
                   </section>
                   <footer>
                     <span>
                       {typeof meta['tokenEstimate'] === 'number'
-                        ? `~${meta['tokenEstimate'].toLocaleString()} estimated tokens`
+                        ? t('promptJournal.tokens', {
+                            tokens: meta['tokenEstimate'].toLocaleString(),
+                          })
                         : ''}
                     </span>
                     <button
@@ -267,7 +279,7 @@ export function PromptJournal({
                       disabled={!onInsert}
                       onClick={() => onInsert?.(String(row['content']))}
                     >
-                      Reuse in draft
+                      {t('promptJournal.reuse')}
                     </button>
                   </footer>
                 </div>
@@ -283,8 +295,8 @@ export function PromptJournal({
       )}
       <footer className="journal-limit">
         <small>
-          {filtered.length} visible · searching within the loaded window
-          {truncated && ' · older entries exist beyond what is loaded'}
+          {t('promptJournal.visible', { number: filtered.length })}
+          {truncated && t('promptJournal.olderExist')}
         </small>
         <button
           type="button"
@@ -292,7 +304,7 @@ export function PromptJournal({
           disabled={loading || !truncated || !rows.length}
           onClick={() => void loadOlder()}
         >
-          Load older entries
+          {t('promptJournal.loadOlder')}
         </button>
         <button
           type="button"
@@ -301,7 +313,7 @@ export function PromptJournal({
           onClick={() => exportRows('md')}
         >
           <Download size={14} />
-          Export Markdown
+          {t('promptJournal.exportMarkdown')}
         </button>
         <button
           type="button"
@@ -310,7 +322,7 @@ export function PromptJournal({
           onClick={() => exportRows('jsonl')}
         >
           <Download size={14} />
-          Export JSONL
+          {t('promptJournal.exportJsonl')}
         </button>
       </footer>
     </>

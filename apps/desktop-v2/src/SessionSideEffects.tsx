@@ -1,6 +1,8 @@
 import type { SideEffect } from '@wrongstack/contracts/types';
 import { ArrowLeft, Copy, Download, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import {
   type EffectsSnapshot,
@@ -12,6 +14,7 @@ import {
   journalEffectsSnapshot,
   withOlderPage,
 } from './side-effects-model';
+import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import './session-side-effects.css';
 
@@ -26,6 +29,10 @@ export function SessionSideEffects({
   command: EngineCommand;
   onBack: () => void;
 }) {
+  const { t } = useDesktopText();
+  const kindLabel = (risk: string) =>
+    t(`effectsView.kind.${risk}`, { defaultValue: effectLabels[risk] ?? risk });
+  const strong = { strong: <strong /> };
   const [snapshot, setSnapshot] = useState<EffectsSnapshot | null>(null),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
@@ -108,7 +115,7 @@ export function SessionSideEffects({
     try {
       // One record of overlap proves the older page joins the loaded window.
       const page = await fetchPage({ before: loadedStart + 1, limit: 101 });
-      if (page.start === null) throw Error('This engine does not page side effects.');
+      if (page.start === null) throw Error(t('effectsView.noPaging'));
       const entries = withOlderPage(loaded, page);
       if (alive.current) setPaged({ entries, start: page.start });
     } catch (failure) {
@@ -144,7 +151,7 @@ export function SessionSideEffects({
     setExportError('');
     try {
       await navigator.clipboard.writeText(effectsCsv(visible));
-      setNotice(`${visible.length} visible records copied as spreadsheet-safe CSV.`);
+      setNotice(t('effectsView.copied', { count: visible.length }));
     } catch (error) {
       setExportError(error instanceof Error ? error.message : String(error));
     }
@@ -160,7 +167,7 @@ export function SessionSideEffects({
       link.download = `wrongstack-side-effects-${new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')}.csv`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setNotice('CSV download requested for the visible records.');
+      setNotice(t('effectsView.downloaded'));
     } catch (error) {
       setExportError(error instanceof Error ? error.message : String(error));
     }
@@ -171,23 +178,20 @@ export function SessionSideEffects({
       (entry) => entry.toolUseId === selected.toolUseId && entry.ts === selected.ts,
     );
   return (
-    <section className="session-side-effects" aria-label="Session side effects">
+    <section className="session-side-effects" aria-label={t('effectsView.label')}>
       <header>
         <div>
-          <span className="eyebrow">THIS CONVERSATION</span>
-          <h2>Side effects</h2>
-          <p>
-            Recorded operations that can affect files, commands, packages, network or configuration.
-            An audit record is separate from permission approval.
-          </p>
+          <span className="eyebrow">{t('effectsView.eyebrow')}</span>
+          <h2>{t('effectsView.title')}</h2>
+          <p>{t('effectsView.body')}</p>
         </div>
         <div className="feature-actions">
           <button type="button" className="button secondary" onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('effectsView.back')}
           </button>
           <select
-            aria-label="Side-effect source"
+            aria-label={t('effectsView.sourceLabel')}
             value={source}
             onChange={(event) => {
               sequence.current++;
@@ -201,8 +205,8 @@ export function SessionSideEffects({
               setSource(event.target.value === 'journal' ? 'journal' : 'runtime');
             }}
           >
-            <option value="runtime">Live runtime window</option>
-            <option value="journal">Session journal</option>
+            <option value="runtime">{t('effectsView.source.runtime')}</option>
+            <option value="journal">{t('effectsView.source.journal')}</option>
           </select>
           <button
             type="button"
@@ -211,34 +215,52 @@ export function SessionSideEffects({
             onClick={() => void load()}
           >
             <RefreshCw size={14} />
-            Refresh side effects
+            {t('effectsView.refresh')}
           </button>
         </div>
       </header>
       <div className="effects-summary">
         <span>
-          <strong>{snapshot ? loaded.length : '—'}</strong> loaded
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="effectsView.loaded"
+            values={{ count: snapshot ? loaded.length : '—' }}
+            components={strong}
+          />
         </span>
         <span>
-          <strong>{snapshot?.total ?? '—'}</strong>{' '}
-          {source === 'journal' ? 'recorded in the journal' : 'retained by runtime'}
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey={source === 'journal' ? 'effectsView.inJournal' : 'effectsView.inRuntime'}
+            values={{ count: snapshot?.total ?? '—' }}
+            components={strong}
+          />
         </span>
         <small>
           {!connected
-            ? 'Disconnected'
+            ? t('effectsView.status.disconnected')
             : error
-              ? 'Refresh failed; prior snapshot retained'
+              ? t('effectsView.status.failed')
               : source === 'journal'
-                ? 'Read from the session journal; refresh to read new records'
-                : 'Audit metadata refreshes every 3 seconds'}
+                ? t('effectsView.status.journal')
+                : t('effectsView.status.runtime')}
         </small>
       </div>
       {(snapshot?.truncated || snapshot?.total === null) && (
         <p className="effects-window-note">
           {loadedStart === null
-            ? 'The engine returns the latest 50 records from its retained runtime history.'
-            : `Showing records ${loadedStart + 1}–${loadedStart + loaded.length} of ${snapshot?.total ?? '—'} ${source === 'journal' ? 'recorded in the session journal' : 'retained by the runtime'}.`}{' '}
-          Search and export apply only to the loaded records.
+            ? t('effectsView.latest50')
+            : t(
+                source === 'journal' ? 'effectsView.window.journal' : 'effectsView.window.runtime',
+                {
+                  from: loadedStart + 1,
+                  to: loadedStart + loaded.length,
+                  total: snapshot?.total ?? '—',
+                },
+              )}{' '}
+          {t('effectsView.loadedOnly')}
           {loadedStart !== null && loadedStart > 0 && (
             <button
               type="button"
@@ -246,16 +268,14 @@ export function SessionSideEffects({
               disabled={paging || !connected}
               onClick={() => void loadOlder()}
             >
-              {paging ? 'Loading…' : 'Load older records'}
+              {paging ? t('effectsView.loading') : t('effectsView.older')}
             </button>
           )}
         </p>
       )}
       {paged && (
         <p className="effects-window-note" role="status">
-          {source === 'runtime'
-            ? 'Live refresh is paused while older records are shown.'
-            : 'Older journal records are shown.'}{' '}
+          {source === 'runtime' ? t('effectsView.paused.runtime') : t('effectsView.paused.journal')}{' '}
           <button
             type="button"
             className="button secondary small"
@@ -265,7 +285,7 @@ export function SessionSideEffects({
               void load();
             }}
           >
-            Return to latest
+            {t('effectsView.latest')}
           </button>
         </p>
       )}
@@ -293,38 +313,38 @@ export function SessionSideEffects({
         <label>
           <Search size={14} />
           <input
-            aria-label="Search side effects"
+            aria-label={t('effectsView.search')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Command, package, URL, tool or outcome…"
+            placeholder={t('effectsView.placeholder')}
           />
         </label>
         <select
-          aria-label="Side-effect kind"
+          aria-label={t('effectsView.kindLabel')}
           value={kind}
           onChange={(event) => setKind(event.target.value)}
         >
-          <option value="all">All operation kinds</option>
+          <option value="all">{t('effectsView.filter.all')}</option>
           {effectKinds.map((value) => (
             <option key={value} value={value}>
-              {effectLabels[value]}
+              {kindLabel(value)}
             </option>
           ))}
-          <option value="other">Other recorded kinds</option>
+          <option value="other">{t('effectsView.filter.other')}</option>
         </select>
         <select
-          aria-label="Side-effect sort"
+          aria-label={t('effectsView.sortLabel')}
           value={order}
           onChange={(event) => setOrder(event.target.value)}
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="tool">Tool name</option>
-          <option value="kind">Operation kind</option>
+          <option value="newest">{t('effectsView.sort.newest')}</option>
+          <option value="oldest">{t('effectsView.sort.oldest')}</option>
+          <option value="tool">{t('effectsView.sort.tool')}</option>
+          <option value="kind">{t('effectsView.sort.kind')}</option>
         </select>
       </div>
       <div className="effects-export feature-actions">
-        <span>{visible.length} visible records</span>
+        <span>{t('effectsView.visible', { count: visible.length })}</span>
         <button
           type="button"
           className="button secondary small"
@@ -332,7 +352,7 @@ export function SessionSideEffects({
           onClick={() => void copy()}
         >
           <Copy size={13} />
-          Copy visible CSV
+          {t('effectsView.copy')}
         </button>
         <button
           type="button"
@@ -341,24 +361,18 @@ export function SessionSideEffects({
           onClick={download}
         >
           <Download size={13} />
-          Download visible CSV
+          {t('effectsView.download')}
         </button>
       </div>
       {!connected ? (
-        <p className="quiet-state">Reconnect this conversation to read its recorded operations.</p>
+        <p className="quiet-state">{t('effectsView.reconnect')}</p>
       ) : !snapshot ? (
-        <p role="status">
-          {error
-            ? 'Audit records are unavailable. Refresh to retry.'
-            : 'Reading side-effect history…'}
-        </p>
+        <p role="status">{error ? t('effectsView.unavailable') : t('effectsView.reading')}</p>
       ) : !visible.length ? (
         <div className="effects-empty">
           <ShieldCheck size={30} />
-          <h3>
-            {snapshot.entries.length ? 'No matching side effects.' : 'No recorded side effects.'}
-          </h3>
-          <p>Opening this view does not execute a tool or grant permission.</p>
+          <h3>{snapshot.entries.length ? t('effectsView.noMatch') : t('effectsView.none')}</h3>
+          <p>{t('effectsView.safe')}</p>
         </div>
       ) : (
         <div className="effects-records">
@@ -369,54 +383,47 @@ export function SessionSideEffects({
               data-effect-id={entry.toolUseId}
               onClick={() => setSelected(entry)}
             >
-              <span className="effect-kind">{effectLabels[entry.risk] ?? entry.risk}</span>
+              <span className="effect-kind">{kindLabel(entry.risk)}</span>
               <strong>{entry.toolName}</strong>
               <time>{new Date(entry.ts).toLocaleString()}</time>
               <p>{effectSummary(entry)}</p>
-              <small>{entry.outcome || 'Outcome not reported'}</small>
+              <small>{entry.outcome || t('effectsView.noOutcome')}</small>
             </button>
           ))}
         </div>
       )}
       {selected && (
-        <aside className="effect-inspector" aria-label="Side-effect detail">
+        <aside className="effect-inspector" aria-label={t('effectsView.detail')}>
           <header>
             <div>
-              <span className="eyebrow">RECORDED OPERATION</span>
+              <span className="eyebrow">{t('effectsView.detailEyebrow')}</span>
               <h3>{selected.toolName}</h3>
             </div>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close side-effect detail"
+              aria-label={t('effectsView.close')}
               onClick={() => setSelected(null)}
             >
               <X size={16} />
             </button>
           </header>
-          {!selectedCurrent && (
-            <p className="effects-window-note">
-              This selected record is no longer in the latest loaded window.
-            </p>
-          )}
+          {!selectedCurrent && <p className="effects-window-note">{t('effectsView.stale')}</p>}
           <dl>
-            <dt>Tool call</dt>
+            <dt>{t('effectsView.field.toolCall')}</dt>
             <dd>{selected.toolUseId}</dd>
-            <dt>Recorded at</dt>
+            <dt>{t('effectsView.field.recordedAt')}</dt>
             <dd>{new Date(selected.ts).toLocaleString()}</dd>
-            <dt>Operation kind</dt>
-            <dd>{effectLabels[selected.risk] ?? selected.risk}</dd>
-            <dt>Outcome</dt>
-            <dd>{selected.outcome || 'Not reported'}</dd>
+            <dt>{t('effectsView.field.kind')}</dt>
+            <dd>{kindLabel(selected.risk)}</dd>
+            <dt>{t('effectsView.field.outcome')}</dt>
+            <dd>{selected.outcome || t('effectsView.notReported')}</dd>
           </dl>
-          <h4>Recorded input</h4>
+          <h4>{t('effectsView.input')}</h4>
           <div className="effect-input">
             <StructuredToolValue value={selected.input} />
           </div>
-          <p>
-            Only the recorded outcome summary is shown here. Full output is available in the
-            conversation's run activity when retained.
-          </p>
+          <p>{t('effectsView.outputNote')}</p>
         </aside>
       )}
     </section>

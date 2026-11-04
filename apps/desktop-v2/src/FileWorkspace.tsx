@@ -25,9 +25,11 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CodeEditorSlot, plainEditorPreferred, rememberPlainEditor } from './CodeEditorSlot';
 import type { ComposerFileReference } from './composer-resources-model';
-import { DiffPreview } from './DiffPreview';
+import { BinaryChange, DiffPreview } from './DiffPreview';
 import { DraftMergeChoices } from './DraftMergeChoices';
+import { useDesktopText } from './desktop-i18n';
 import { EditorFindBar } from './EditorFindBar';
 import { replacementRange } from './editor-indent';
 import { codeEditorEdit } from './editor-language';
@@ -38,7 +40,7 @@ import { FileBulkDialog } from './FileBulkDialog';
 import { FileContentSearch } from './FileContentSearch';
 import { FileContextMenu } from './FileContextMenu';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
-import { FileTreeView } from './FileTreeView';
+import { FileTreeView, useTreeChanges } from './FileTreeView';
 import {
   copyTarget,
   EMPTY_SHA256,
@@ -144,6 +146,7 @@ export function FileWorkspace({
     .replace(/^\/\/\?\//, '')
     .toLowerCase();
   const cached = chrome.get(key);
+  const { t } = useDesktopText();
   const [tree, setTree] = useState<FileNode[]>([]),
     [git, setGit] = useState<Record<string, unknown>>({}),
     [documents, setDocuments] = useState<Record<string, Document>>(cached?.documents ?? {}),
@@ -153,6 +156,7 @@ export function FileWorkspace({
     [search, setSearch] = useState(''),
     [loading, setLoading] = useState(''),
     [busy, setBusy] = useState(false),
+    [plainEditor, setPlainEditor] = useState(plainEditorPreferred),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [diff, setDiff] = useState<Record<string, unknown> | null>(null),
@@ -239,6 +243,7 @@ export function FileWorkspace({
       .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)))
       .finally(() => setLoading(''));
   }, [refresh]);
+  useTreeChanges(state.results['files.tree.changed'], refresh, setError);
   const openFile = useCallback(
     async (rawPath: string) => {
       const path = projectRelativePath(rawPath, scopeKey);
@@ -267,9 +272,7 @@ export function FileWorkspace({
         const result = await command('files.read', { filePath: path }, ['files.read']).catch(
           (error: unknown) => {
             if (!draft) throw error;
-            setNotice(
-              'The source file is unavailable. Your recovered draft is preserved; copy it before recreating the file.',
-            );
+            setNotice(t('fileView.sourceGone'));
             return {} as Record<string, unknown>;
           },
         );
@@ -396,7 +399,7 @@ export function FileWorkspace({
       await draftStore.write(path, document.content, document.saved);
       await refreshDrafts();
     } catch (error) {
-      setError(`Local draft was not saved: ${String(error)}. Your editor text is still available.`);
+      setError(t('fileView.draftNotSaved', { error: String(error) }));
       if (String(error).includes('DRAFT_CONFLICT'))
         setDraftConflict({ path, snapshot: await draftStore.inspect(path) });
     }
@@ -433,7 +436,7 @@ export function FileWorkspace({
       return;
     }
     updateDocument(path, { saved: document.content });
-    setNotice(`Saved ${fileName(path)}.`);
+    setNotice(t('fileView.saved', { name: fileName(path) }));
     await refresh();
     refreshDiff();
   };
@@ -553,8 +556,7 @@ export function FileWorkspace({
     if (all.find((node) => node.path === path)?.type === 'directory')
       return copyFolder(path, destination);
     const source = await command('files.read', { filePath: path }, ['files.read']);
-    if (source['binary'] || source['tooLarge'])
-      throw Error('Only text files within the editor limit can be copied.');
+    if (source['binary'] || source['tooLarge']) throw Error(t('fileView.copyTextOnly'));
     const target = copyTarget(path, destination);
     await command('files.create', { filePath: target, type: 'file' }, ['files.created']);
     await command(
@@ -571,20 +573,18 @@ export function FileWorkspace({
     const listing = await command('files.tree', { path, includeIgnored: true }, ['files.tree']);
     if (listing['error']) throw Error(String(listing['error']));
     const plan = folderCopyPlan(listing['tree'], path, destination);
-    if (plan.tooDeep)
-      throw Error('The folder is nested too deeply to list completely; nothing was copied.');
+    if (plan.tooDeep) throw Error(t('fileView.copyTooDeep'));
     if (plan.files.length > MAX_FOLDER_COPY_FILES)
-      throw Error(`The folder has more than ${MAX_FOLDER_COPY_FILES} files; nothing was copied.`);
+      throw Error(t('fileView.copyTooMany', { count: MAX_FOLDER_COPY_FILES }));
     const contents: string[] = [];
     let bytes = 0;
     for (const file of plan.files) {
       const source = await command('files.read', { filePath: file.from }, ['files.read']);
       if (source['binary'] || source['tooLarge'])
-        throw Error(`${file.from} is not copyable text; nothing was copied.`);
+        throw Error(t('fileView.copyNotText', { path: file.from }));
       const content = String(source['content'] ?? '');
       bytes += new TextEncoder().encode(content).length;
-      if (bytes > MAX_FOLDER_COPY_BYTES)
-        throw Error('The folder is larger than the 8 MiB copy limit; nothing was copied.');
+      if (bytes > MAX_FOLDER_COPY_BYTES) throw Error(t('fileView.copyTooLarge'));
       contents.push(content);
     }
     // The root is created first: an existing target refuses the copy before anything else.
@@ -602,7 +602,10 @@ export function FileWorkspace({
       }
     } catch (failure) {
       throw Error(
-        `Copy stopped partway; ${plan.dirs[0]} holds a partial copy (${failure instanceof Error ? failure.message : String(failure)}).`,
+        t('fileView.copyPartial', {
+          path: plan.dirs[0],
+          reason: failure instanceof Error ? failure.message : String(failure),
+        }),
       );
     }
   };
@@ -625,8 +628,7 @@ export function FileWorkspace({
         }
       }
       if (action.kind === 'rename' || action.kind === 'move') {
-        if (hasUnsaved(path))
-          throw new Error('Save or close edited files before moving this item.');
+        if (hasUnsaved(path)) throw new Error(t('fileView.saveBeforeMove'));
         const result =
           action.kind === 'rename'
             ? await command('files.rename', { oldPath: path, newPath: value.trim() }, [
@@ -651,7 +653,7 @@ export function FileWorkspace({
       }
       if (action.kind === 'commit') {
         await command('git.commit', { message: value.trim() }, ['git.action_result']);
-        setNotice('Commit created from staged changes.');
+        setNotice(t('fileView.committed'));
       }
       if (action.kind === 'comment')
         await reviewNotes.store.save([
@@ -768,7 +770,7 @@ export function FileWorkspace({
   const review = () => {
     const text = reviewText(notes);
     if (onReview) onReview(text);
-    else void navigator.clipboard.writeText(text).then(() => setNotice('Review copied.'));
+    else void navigator.clipboard.writeText(text).then(() => setNotice(t('fileView.reviewCopied')));
   };
   if (history)
     return (
@@ -784,7 +786,7 @@ export function FileWorkspace({
   return (
     <section
       className={`file-workspace ${mode === 'changes' ? 'file-review-workspace' : ''}`}
-      aria-label={mode === 'changes' ? 'Repository changes' : 'Project file manager'}
+      aria-label={mode === 'changes' ? t('fileView.changesLabel') : t('fileView.filesLabel')}
       onKeyDown={(event) => {
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && active) {
           event.preventDefault();
@@ -807,16 +809,20 @@ export function FileWorkspace({
       <header className="file-workspace-toolbar">
         <div className="file-workspace-location">
           {mode === 'changes' ? <GitBranch size={16} /> : <FolderOpen size={16} />}
-          <strong>{mode === 'changes' ? 'Changes & review' : 'Files'}</strong>
+          <strong>
+            {mode === 'changes' ? t('fileView.changesTitle') : t('fileView.filesTitle')}
+          </strong>
           <span>
-            {mode === 'changes' ? `${changes.length} changed files` : 'Project workspace'}
+            {mode === 'changes'
+              ? t('fileView.changedFiles', { count: changes.length })
+              : t('fileView.workspace')}
           </span>
         </div>
         <div className="file-workspace-search">
           <Search size={14} />
           <input
-            aria-label="Search project files"
-            placeholder="Find a file or folder…"
+            aria-label={t('fileView.searchLabel')}
+            placeholder={t('fileView.searchPlaceholder')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -828,20 +834,20 @@ export function FileWorkspace({
             onClick={() => setContentSearch(true)}
           >
             <Search size={13} />
-            Search contents
+            {t('fileView.searchContents')}
           </button>
         )}
         <button type="button" className="button secondary small" onClick={() => setHistory(true)}>
           <GitBranch size={13} />
-          History
+          {t('fileView.history')}
         </button>
         {mode === 'files' ? (
           <>
             <button
               type="button"
               className="icon-button"
-              aria-label="New file"
-              title="New file"
+              aria-label={t('fileView.newFile')}
+              title={t('fileView.newFile')}
               onClick={() => startAction('file')}
             >
               <FilePlus2 size={16} />
@@ -849,8 +855,8 @@ export function FileWorkspace({
             <button
               type="button"
               className="icon-button"
-              aria-label="New folder"
-              title="New folder"
+              aria-label={t('fileView.newFolder')}
+              title={t('fileView.newFolder')}
               onClick={() => startAction('directory')}
             >
               <FolderPlus size={16} />
@@ -864,13 +870,13 @@ export function FileWorkspace({
             onClick={() => startAction('commit')}
           >
             <Check size={13} />
-            Commit staged
+            {t('fileView.commitStaged')}
           </button>
         )}
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh file manager"
+          aria-label={t('fileView.refresh')}
           disabled={busy}
           onClick={() => void run(refresh)}
         >
@@ -879,8 +885,8 @@ export function FileWorkspace({
         <button
           type="button"
           className="icon-button"
-          aria-label="Show ignored source files"
-          title="Show Git-ignored source files"
+          aria-label={t('fileView.showIgnored')}
+          title={t('fileView.showIgnoredTitle')}
           aria-pressed={includeIgnored}
           disabled={busy}
           onClick={() => setIncludeIgnored(!includeIgnored)}
@@ -898,9 +904,7 @@ export function FileWorkspace({
             setContentSearch(false);
             setSearchSelection({ path, line, id: crypto.randomUUID() });
             void openFile(path);
-            setNotice(
-              `Search match: ${path}, line ${line}. Search results reflect saved files; an open draft may differ.`,
-            );
+            setNotice(t('fileView.searchMatch', { path, line }));
           }}
         />
       )}
@@ -917,11 +921,10 @@ export function FileWorkspace({
       )}
       {recoverable.length > 0 && (
         <details className="file-draft-recovery">
-          <summary>{recoverable.length} local file drafts · saved on this device</summary>
+          <summary>{t('fileView.drafts', { count: recoverable.length })}</summary>
           <p>
-            These edits have not been written to project files. Open a draft to review or save it.
-            {recoverable.length === 500 &&
-              ' Showing the most recent 500 drafts; other drafts remain stored and are recovered when their file is opened.'}
+            {t('fileView.draftsHelp')}
+            {recoverable.length === 500 && ` ${t('fileView.draftsCapped')}`}
           </p>
           {recoverable.map((path) => (
             <button
@@ -965,31 +968,26 @@ export function FileWorkspace({
           }}
         >
           <div className="file-draft-comparison">
-            <h2 id="dialog-title">File draft changed in another window</h2>
+            <h2 id="dialog-title">{t('fileView.conflictTitle')}</h2>
             <p>
               <strong>{draftConflict.path}</strong>
             </p>
-            <p>
-              Compare the saved local draft with your editor before choosing which version to keep.
-              Project files are unchanged.
-            </p>
+            <p>{t('fileView.conflictBody')}</p>
             <div className="file-draft-versions">
               <label>
-                Your editor
+                {t('fileView.yourEditor')}
                 <textarea
-                  aria-label="Your editor"
+                  aria-label={t('fileView.yourEditor')}
                   readOnly
                   value={documents[draftConflict.path]?.content ?? ''}
                 />
               </label>
               <label>
-                Stored draft
+                {t('fileView.storedDraft')}
                 <textarea
-                  aria-label="Stored draft"
+                  aria-label={t('fileView.storedDraft')}
                   readOnly
-                  value={
-                    draftConflict.snapshot.value?.content ?? 'No unsaved draft remains in storage.'
-                  }
+                  value={draftConflict.snapshot.value?.content ?? t('fileView.noStoredDraft')}
                 />
               </label>
             </div>
@@ -1014,9 +1012,7 @@ export function FileWorkspace({
                     updateDocument(path, { content: merged });
                     setDraftConflict(null);
                     await refreshDrafts();
-                    setNotice(
-                      'The merged version is in your editor and stored as the draft. Project files are unchanged.',
-                    );
+                    setNotice(t('fileView.mergedStored'));
                   })
                 }
               />
@@ -1032,7 +1028,7 @@ export function FileWorkspace({
                 className="button secondary"
                 onClick={() => setDraftConflict(null)}
               >
-                Keep editing locally
+                {t('fileView.keepEditing')}
               </button>
               <button
                 type="button"
@@ -1057,13 +1053,11 @@ export function FileWorkspace({
                     }
                     setDraftConflict(null);
                     await refreshDrafts();
-                    setNotice(
-                      'Your local version is now stored as a draft. Project files are unchanged.',
-                    );
+                    setNotice(t('fileView.localStored'));
                   })
                 }
               >
-                Keep my draft
+                {t('fileView.keepMine')}
               </button>
               <button
                 type="button"
@@ -1075,7 +1069,7 @@ export function FileWorkspace({
                     const latest = await draftStore.inspect(path);
                     if (latest.revision !== snapshot.revision) {
                       setDraftConflict({ path, snapshot: latest });
-                      throw Error('The stored draft changed again. Review the latest version.');
+                      throw Error(t('fileView.draftChangedAgain'));
                     }
                     draftStore.forget(path);
                     delete docs.current[path];
@@ -1085,7 +1079,7 @@ export function FileWorkspace({
                   })
                 }
               >
-                Use stored draft
+                {t('fileView.useStored')}
               </button>
             </footer>
           </div>
@@ -1094,11 +1088,11 @@ export function FileWorkspace({
       <div className="file-workspace-body">
         <aside className="file-navigation">
           <header>
-            <span>{mode === 'files' ? 'EXPLORER' : 'SOURCE CONTROL'}</span>
+            <span>{mode === 'files' ? t('fileView.explorer') : t('fileView.sourceControl')}</span>
             {mode === 'files' && (
               <button
                 type="button"
-                aria-label="Collapse all folders"
+                aria-label={t('fileView.collapseAll')}
                 onClick={() => setExpanded([])}
               >
                 <LayoutList size={13} />
@@ -1108,7 +1102,7 @@ export function FileWorkspace({
           {loading === 'tree' ? (
             <div className="file-quiet-state">
               <LoaderCircle size={16} className="spin" />
-              Reading project…
+              {t('fileView.reading')}
             </div>
           ) : mode === 'files' ? (
             <FileTreeView
@@ -1155,7 +1149,7 @@ export function FileWorkspace({
                   return (
                     <section key={group}>
                       <h3>
-                        {group}
+                        {group === 'Staged' ? t('fileView.staged') : t('fileView.workingTree')}
                         <span>{rows.length}</span>
                       </h3>
                       {rows.map((file) => (
@@ -1165,7 +1159,7 @@ export function FileWorkspace({
                         >
                           <button
                             type="button"
-                            aria-label={`Review ${String(file['path'])}`}
+                            aria-label={t('fileView.reviewPath', { path: String(file['path']) })}
                             onClick={() => {
                               const path = fromGitPath(String(file['path']));
                               if (file['status'] === 'U' || file['status'] === 'D') {
@@ -1180,8 +1174,13 @@ export function FileWorkspace({
                               <strong>{fileName(String(file['path']))}</strong>
                               <small>
                                 {typeof file['origPath'] === 'string' && file['origPath']
-                                  ? `${file['status'] === 'C' ? 'Copied' : 'Renamed'} from ${file['origPath']}`
-                                  : parentPath(String(file['path'])) || 'Project root'}
+                                  ? t(
+                                      file['status'] === 'C'
+                                        ? 'fileView.copiedFrom'
+                                        : 'fileView.renamedFrom',
+                                      { path: file['origPath'] },
+                                    )
+                                  : parentPath(String(file['path'])) || t('fileView.projectRoot')}
                               </small>
                             </span>
                             <b
@@ -1193,7 +1192,12 @@ export function FileWorkspace({
                           <button
                             type="button"
                             className="file-stage-row"
-                            aria-label={`${file['staged'] ? 'Unstage' : 'Stage'} ${String(file['path'])}`}
+                            aria-label={t(
+                              file['staged'] ? 'fileView.unstagePath' : 'fileView.stagePath',
+                              {
+                                path: String(file['path']),
+                              },
+                            )}
                             disabled={busy}
                             onClick={() =>
                               void stage(fromGitPath(String(file['path'])), Boolean(file['staged']))
@@ -1208,32 +1212,32 @@ export function FileWorkspace({
                 })
               )}
               {!changes.length && !git['error'] && (
-                <p className="file-quiet-state">No uncommitted changes.</p>
+                <p className="file-quiet-state">{t('fileView.noChanges')}</p>
               )}
             </div>
           )}
           <footer>
             {all.filter((n) => n.type === 'file').length} visible files
             <span>
-              {includeIgnored ? 'Ignored source files included' : 'Ignored paths are excluded'}
+              {includeIgnored ? t('fileView.ignoredIncluded') : t('fileView.ignoredExcluded')}
             </span>
           </footer>
         </aside>
         <div className="file-center">
-          <nav className="file-open-tabs" aria-label="Open files">
+          <nav className="file-open-tabs" aria-label={t('fileView.openTabs')}>
             <button
               type="button"
               className={!active ? 'file-tab-current' : ''}
               onClick={() => setActive('')}
             >
               <FolderOpen size={13} />
-              Explorer
+              {t('fileView.explorerTab')}
             </button>
             {Object.entries(documents).map(([path, doc]) => (
               <div className={active === path ? 'file-tab-current' : ''} key={path}>
                 <button
                   type="button"
-                  aria-label={`Open file tab ${path}`}
+                  aria-label={t('fileView.openTab', { path })}
                   title={path}
                   onClick={() => setActive(path)}
                 >
@@ -1241,7 +1245,11 @@ export function FileWorkspace({
                   {fileName(path)}
                   {doc.content !== doc.saved && <span className="file-unsaved-dot" />}
                 </button>
-                <button type="button" aria-label={`Close ${path}`} onClick={() => close(path)}>
+                <button
+                  type="button"
+                  aria-label={t('fileView.closeTab', { path })}
+                  onClick={() => close(path)}
+                >
                   <X size={12} />
                 </button>
               </div>
@@ -1250,14 +1258,18 @@ export function FileWorkspace({
               <div className="file-tab-current">
                 <button
                   type="button"
-                  aria-label={`Open file tab ${active}`}
+                  aria-label={t('fileView.openTab', { path: active })}
                   title={active}
                   onClick={() => setActive(active)}
                 >
                   <FileDiff size={13} />
                   {fileName(active)}
                 </button>
-                <button type="button" aria-label={`Close ${active}`} onClick={() => setActive('')}>
+                <button
+                  type="button"
+                  aria-label={t('fileView.closeTab', { path: active })}
+                  onClick={() => setActive('')}
+                >
                   <X size={12} />
                 </button>
               </div>
@@ -1277,7 +1289,16 @@ export function FileWorkspace({
                     onClick={() => updateDocument(active, { editing: !document.editing })}
                   >
                     <Pencil size={13} />
-                    {document.editing ? 'Read view' : 'Edit file'}
+                    {document.editing ? t('fileView.readView') : t('fileView.editFile')}
+                  </button>
+                )}
+                {document?.editing && mode === 'files' && (
+                  <button
+                    type="button"
+                    aria-pressed={plainEditor}
+                    onClick={() => setPlainEditor(rememberPlainEditor(!plainEditor))}
+                  >
+                    {t('fileView.plainEditor')}
                   </button>
                 )}
                 {change && (
@@ -1286,32 +1307,32 @@ export function FileWorkspace({
                     disabled={busy}
                     onClick={() => void stage(active, Boolean(change['staged']))}
                   >
-                    {change['staged'] ? 'Unstage' : 'Stage'}
+                    {change['staged'] ? t('fileView.unstage') : t('fileView.stage')}
                   </button>
                 )}
                 {mode === 'files' && onReference && document && !document.binary && (
                   <button
                     type="button"
                     className="button secondary small"
-                    title="Attach this file, or the selected lines, to the conversation"
+                    title={t('fileView.referenceTitle')}
                     // Keep the current text selection while the button is pressed.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => referenceSelection(false)}
                   >
                     <FilePlus2 size={13} />
-                    Reference in conversation
+                    {t('fileView.reference')}
                   </button>
                 )}
                 {mode === 'files' && onReference && document && !document.binary && (
                   <button
                     type="button"
                     className="button secondary small"
-                    title="Attach the selected text itself to the conversation"
+                    title={t('fileView.quoteTitle')}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => referenceSelection(true)}
                   >
                     <Quote size={13} />
-                    Quote selection
+                    {t('fileView.quote')}
                   </button>
                 )}
                 {mode === 'files' && (
@@ -1322,13 +1343,13 @@ export function FileWorkspace({
                     onClick={() => void run(() => save(active))}
                   >
                     <Save size={13} />
-                    {busy ? 'Saving…' : 'Save'}
+                    {busy ? t('fileView.saving') : t('fileView.save')}
                   </button>
                 )}
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label="File actions"
+                  aria-label={t('fileView.actions')}
                   onClick={(event) =>
                     setMenu({
                       path: active,
@@ -1347,23 +1368,19 @@ export function FileWorkspace({
                     className="button secondary"
                     onClick={() => setMergeReview(true)}
                   >
-                    Resolve merge conflict
+                    {t('fileView.resolveConflict')}
                   </button>
                 )}
                 {loading === active && !document ? (
                   <div className="file-quiet-state">
                     <LoaderCircle size={20} className="spin" />
-                    Reading {fileName(active)}…
+                    {t('fileView.readingFile', { name: fileName(active) })}
                   </div>
                 ) : mode === 'changes' ? (
                   diff?.['error'] ? (
                     <p className="file-quiet-state">{String(diff['error'])}</p>
                   ) : diff?.['binary'] || diff?.['tooLarge'] ? (
-                    <p className="file-quiet-state">
-                      {diff['binary']
-                        ? 'Binary file — text review is unavailable.'
-                        : 'File exceeds the text review limit.'}
-                    </p>
+                    <BinaryChange diff={diff} path={active} />
                   ) : diff ? (
                     <>
                       {change?.['status'] !== 'U' && (
@@ -1373,7 +1390,7 @@ export function FileWorkspace({
                           disabled={busy}
                           onClick={() => setHunkReview(true)}
                         >
-                          Review & stage hunks
+                          {t('fileView.reviewHunks')}
                         </button>
                       )}
                       <DiffPreview
@@ -1397,9 +1414,22 @@ export function FileWorkspace({
                 ) : document?.binary || document?.tooLarge ? (
                   <div className="file-quiet-state">
                     <File size={32} />
-                    <h3>{document.binary ? 'Binary file' : 'File is too large for the editor'}</h3>
-                    <p>Your file stays on disk. Text editing is unavailable.</p>
+                    <h3>{document.binary ? t('fileView.binary') : t('fileView.tooLarge')}</h3>
+                    <p>{t('fileView.staysOnDisk')}</p>
                   </div>
+                ) : document?.editing && !plainEditor ? (
+                  <CodeEditorSlot
+                    path={active}
+                    value={document.content}
+                    label={t('fileView.editLabel', { path: active })}
+                    command={command}
+                    loading={t('fileView.loadingEditor')}
+                    onChange={(text) => updateDocument(active, { content: text })}
+                    onUnavailable={() => {
+                      setPlainEditor(true);
+                      setNotice(t('fileView.editorUnavailable'));
+                    }}
+                  />
                 ) : document?.editing ? (
                   <>
                     {finding && (
@@ -1424,7 +1454,7 @@ export function FileWorkspace({
                     )}
                     <textarea
                       className="file-code-editor"
-                      aria-label={`Edit ${active}`}
+                      aria-label={t('fileView.editLabel', { path: active })}
                       spellCheck={false}
                       value={document.content}
                       onChange={(event) => updateDocument(active, { content: event.target.value })}
@@ -1465,7 +1495,7 @@ export function FileWorkspace({
                     )}
                     <section
                       className="file-source-code"
-                      aria-label={`Source of ${active}`}
+                      aria-label={t('fileView.sourceLabel', { path: active })}
                       // biome-ignore lint/a11y/noNoninteractiveTabindex: the source view takes Ctrl/Cmd+F.
                       tabIndex={0}
                     >
@@ -1484,7 +1514,7 @@ export function FileWorkspace({
                     </section>
                   </>
                 ) : (
-                  <p className="file-quiet-state">Select another file or refresh to retry.</p>
+                  <p className="file-quiet-state">{t('fileView.retry')}</p>
                 )}
               </div>
               {document && mode === 'files' && (
@@ -1515,7 +1545,7 @@ export function FileWorkspace({
                   }}
                 >
                   <FolderOpen size={14} />
-                  Project
+                  {t('fileView.project')}
                 </button>
                 {folder
                   .split('/')
@@ -1547,28 +1577,32 @@ export function FileWorkspace({
                     if (selecting) setPicked([]);
                   }}
                 >
-                  {selecting ? 'Done selecting' : 'Select items'}
+                  {selecting ? t('fileView.doneSelecting') : t('fileView.selectItems')}
                 </button>
                 <select
-                  aria-label="Sort files"
+                  aria-label={t('fileView.sort')}
                   value={sort}
                   onChange={(event) => setSort(event.target.value)}
                 >
-                  <option value="name">Name</option>
-                  <option value="size">Size</option>
+                  <option value="name">{t('fileView.column.name')}</option>
+                  <option value="size">{t('fileView.column.size')}</option>
                 </select>
               </div>
               <div className="file-folder-list">
                 {picked.length > 0 && (
-                  <div className="file-bulk-bar" role="toolbar" aria-label="Selected items">
-                    <span>{picked.length} selected</span>
+                  <div
+                    className="file-bulk-bar"
+                    role="toolbar"
+                    aria-label={t('fileView.selectedItems')}
+                  >
+                    <span>{t('fileView.selectedCount', { count: picked.length })}</span>
                     <button
                       type="button"
                       className="button secondary small"
                       disabled={busy}
                       onClick={() => setBulk('move')}
                     >
-                      Move selected…
+                      {t('fileView.moveSelected')}
                     </button>
                     <button
                       type="button"
@@ -1576,7 +1610,7 @@ export function FileWorkspace({
                       disabled={busy}
                       onClick={() => setBulk('copy')}
                     >
-                      Copy selected…
+                      {t('fileView.copySelected')}
                     </button>
                     <button
                       type="button"
@@ -1584,7 +1618,7 @@ export function FileWorkspace({
                       disabled={busy}
                       onClick={() => setBulk('rename')}
                     >
-                      Rename selected…
+                      {t('fileView.renameSelected')}
                     </button>
                     <button
                       type="button"
@@ -1592,21 +1626,21 @@ export function FileWorkspace({
                       disabled={busy}
                       onClick={() => setBulk('delete')}
                     >
-                      Delete selected…
+                      {t('fileView.deleteSelected')}
                     </button>
                     <button
                       type="button"
                       className="button secondary small"
                       onClick={() => setPicked([])}
                     >
-                      Clear selection
+                      {t('fileView.clearSelection')}
                     </button>
                   </div>
                 )}
                 <div className="file-folder-list-heading">
-                  <span>Name</span>
-                  <span>Type</span>
-                  <span>Size</span>
+                  <span>{t('fileView.column.name')}</span>
+                  <span>{t('fileView.column.type')}</span>
+                  <span>{t('fileView.column.size')}</span>
                 </div>
                 {folder && !search && (
                   <button
@@ -1615,7 +1649,7 @@ export function FileWorkspace({
                     onClick={() => setFolder(parentPath(folder))}
                   >
                     <ArrowLeft size={14} />
-                    Parent folder
+                    {t('fileView.parent')}
                   </button>
                 )}
                 {visible.slice(0, folderLimit).map((node) => (
@@ -1623,7 +1657,9 @@ export function FileWorkspace({
                     type="button"
                     className={`file-folder-row${picked.includes(node.path) ? ' picked' : ''}`}
                     key={node.path}
-                    aria-label={`${selecting ? 'Select' : 'Open'} ${node.path}`}
+                    aria-label={t(selecting ? 'fileView.selectPath' : 'fileView.openPath', {
+                      path: node.path,
+                    })}
                     {...(selecting ? { 'aria-pressed': picked.includes(node.path) } : {})}
                     onClick={(event) => {
                       // Ctrl/Cmd-click picks items without entering selection mode.
@@ -1659,7 +1695,9 @@ export function FileWorkspace({
                         {search && <small>{parentPath(node.path)}</small>}
                       </span>
                     </span>
-                    <span>{node.type === 'directory' ? 'Folder' : fileLanguage(node.path)}</span>
+                    <span>
+                      {node.type === 'directory' ? t('fileView.folder') : fileLanguage(node.path)}
+                    </span>
                     <span>{node.size === undefined ? '—' : byteSize(node.size)}</span>
                   </button>
                 ))}
@@ -1669,21 +1707,23 @@ export function FileWorkspace({
                     className="file-parent-row"
                     onClick={() => setFolderLimit((limit) => limit + FOLDER_PAGE)}
                   >
-                    Show {Math.min(FOLDER_PAGE, visible.length - folderLimit)} more ·{' '}
-                    {visible.length - folderLimit} not shown
+                    {t('fileView.showMore', {
+                      count: Math.min(FOLDER_PAGE, visible.length - folderLimit),
+                      hidden: visible.length - folderLimit,
+                    })}
                   </button>
                 )}
                 {!visible.length && loading !== 'tree' && (
                   <div className="file-quiet-state">
                     <FolderOpen size={30} />
-                    <h3>{search ? 'No files match this search' : 'This folder is empty'}</h3>
+                    <h3>{search ? t('fileView.noMatch') : t('fileView.empty')}</h3>
                     {!search && (
                       <button
                         type="button"
                         className="button secondary small"
                         onClick={() => startAction('file')}
                       >
-                        Create a file
+                        {t('fileView.createFile')}
                       </button>
                     )}
                   </div>
@@ -1697,7 +1737,7 @@ export function FileWorkspace({
               busy={reviewNotes.busy}
               ready={reviewNotes.ready}
               error={reviewNotes.error}
-              reviewLabel={onReview ? 'Use in conversation' : 'Copy review'}
+              reviewLabel={onReview ? t('fileView.useInConversation') : t('fileView.copyReview')}
               onReload={() => void reviewNotes.store.load()}
               onSave={reviewNotes.store.save}
               onReview={review}
@@ -1729,7 +1769,7 @@ export function FileWorkspace({
       )}
       {menu && (
         <FileContextMenu
-          label={`Actions for ${fileName(menu.path)}`}
+          label={t('fileView.menuLabel', { name: fileName(menu.path) })}
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(null)}
@@ -1744,11 +1784,11 @@ export function FileWorkspace({
             }}
           >
             <Copy size={14} />
-            Copy path
+            {t('fileView.copyPath')}
           </button>
           <button type="button" role="menuitem" onClick={() => startAction('rename', menu.path)}>
             <Pencil size={14} />
-            Rename
+            {t('fileView.rename')}
           </button>
           <button
             type="button"
@@ -1759,16 +1799,16 @@ export function FileWorkspace({
             }}
           >
             <FolderOpen size={14} />
-            Show in file manager
+            {t('fileView.showInManager')}
           </button>
           <button type="button" role="menuitem" onClick={() => startAction('move', menu.path)}>
             <FolderOpen size={14} />
-            Move to folder
+            {t('fileView.moveTo')}
           </button>
           {changes.some((file) => file['path'] === asGitPath(menu.path)) && (
             <button type="button" role="menuitem" onClick={() => startAction('discard', menu.path)}>
               <Undo2 size={14} />
-              Discard working changes
+              {t('fileView.discard')}
             </button>
           )}
           <button
@@ -1778,7 +1818,7 @@ export function FileWorkspace({
             onClick={() => startAction('delete', menu.path)}
           >
             <Trash2 size={14} />
-            Delete
+            {t('fileView.delete')}
           </button>
         </FileContextMenu>
       )}
@@ -1798,10 +1838,7 @@ export function FileWorkspace({
             if (action.kind === 'close') close(action.path, true);
             else if (action.kind === 'conflict')
               void run(async () => {
-                if (!action.sha256)
-                  throw new Error(
-                    'The file was removed from disk. Copy your draft or reload before continuing.',
-                  );
+                if (!action.sha256) throw new Error(t('fileView.removedFromDisk'));
                 const reviewed = action;
                 await save(action.path, action.sha256);
                 // A newer disk version replaces this review instead of closing it.
@@ -1882,36 +1919,21 @@ function FileActionDialog({
   onSave: () => void;
   onReload: () => void;
 }) {
+  const { t } = useDesktopText();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
-  const titles = {
-    file: 'Create file',
-    directory: 'Create folder',
-    rename: 'Rename item',
-    move: 'Move item',
-    delete: 'Delete item',
-    close: 'Unsaved changes',
-    conflict: 'File changed on disk',
-    discard: 'Discard working changes',
-    commit: 'Commit staged changes',
-    comment: 'Add review note',
-  };
+  const title = t(`fileView.title.${action.kind}`);
   const destructive = ['delete', 'discard'].includes(action.kind);
   return (
-    <dialog
-      ref={dialog}
-      className="modal file-action-dialog"
-      aria-label={titles[action.kind]}
-      onCancel={onClose}
-    >
+    <dialog ref={dialog} className="modal file-action-dialog" aria-label={title} onCancel={onClose}>
       <header>
-        <h2>{titles[action.kind]}</h2>
+        <h2>{title}</h2>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close file action"
+          aria-label={t('fileView.closeAction')}
           onClick={onClose}
         >
           <X size={16} />
@@ -1925,7 +1947,7 @@ function FileActionDialog({
       >
         <p className="file-action-path">
           {action.path}
-          {action.line ? ` · line ${action.line}` : ''}
+          {action.line ? ` · ${t('fileView.atLine', { line: action.line })}` : ''}
         </p>
         {error && (
           <p className="session-error" role="alert">
@@ -1933,32 +1955,26 @@ function FileActionDialog({
           </p>
         )}
         {destructive ? (
-          <p>
-            {action.kind === 'delete'
-              ? 'This removes the item from disk, including its contents if it is a folder.'
-              : 'This restores the working file from the Git index. Untracked files are removed.'}
-          </p>
+          <p>{action.kind === 'delete' ? t('fileView.deleteBody') : t('fileView.discardBody')}</p>
         ) : action.kind === 'close' ? (
-          <p>Your edits have not been saved. Save the file or explicitly discard the draft.</p>
+          <p>{t('fileView.closeBody')}</p>
         ) : action.kind === 'conflict' ? (
-          <p>
-            Another process changed this file since you opened it. Your draft is still available.
-            Reload the disk version or explicitly overwrite it. Overwrite replaces only the version
-            on disk now; if it changes again, you will be asked again.
-          </p>
+          <p>{t('fileView.conflictDiskBody')}</p>
         ) : (
           <label htmlFor="file-action-value">
             {action.kind === 'comment'
-              ? 'Review note'
+              ? t('fileView.reviewNote')
               : action.kind === 'commit'
-                ? 'Commit message'
+                ? t('fileView.commitMessage')
                 : action.kind === 'move'
-                  ? 'Destination folder'
-                  : 'Project-relative path'}
+                  ? t('fileView.destination')
+                  : t('fileView.relativePath')}
             {action.kind === 'comment' || action.kind === 'commit' ? (
               <textarea
                 id="file-action-value"
-                aria-label={action.kind === 'comment' ? 'Review note' : 'Commit message'}
+                aria-label={
+                  action.kind === 'comment' ? t('fileView.reviewNote') : t('fileView.commitMessage')
+                }
                 rows={4}
                 required
                 autoFocus
@@ -1968,7 +1984,9 @@ function FileActionDialog({
             ) : (
               <input
                 id="file-action-value"
-                aria-label={action.kind === 'move' ? 'Destination folder' : 'Project-relative path'}
+                aria-label={
+                  action.kind === 'move' ? t('fileView.destination') : t('fileView.relativePath')
+                }
                 required={action.kind !== 'move'}
                 autoFocus
                 value={value}
@@ -1979,24 +1997,24 @@ function FileActionDialog({
         )}
         <footer>
           <button type="button" className="button secondary" onClick={onClose}>
-            Cancel
+            {t('fileView.cancel')}
           </button>
           {action.kind === 'close' ? (
             <>
               <button type="button" className="button secondary danger" onClick={onDiscard}>
-                Discard draft
+                {t('fileView.discardDraft')}
               </button>
               <button type="button" className="button primary" disabled={busy} onClick={onSave}>
-                Save and close
+                {t('fileView.saveClose')}
               </button>
             </>
           ) : action.kind === 'conflict' ? (
             <>
               <button type="button" className="button secondary" onClick={onReload}>
-                Reload from disk
+                {t('fileView.reload')}
               </button>
               <button type="button" className="button primary" disabled={busy} onClick={onDiscard}>
-                Overwrite with my draft
+                {t('fileView.overwrite')}
               </button>
             </>
           ) : (
@@ -2005,7 +2023,7 @@ function FileActionDialog({
               disabled={busy}
               className={`button ${destructive ? 'secondary danger' : 'primary'}`}
             >
-              {busy ? 'Working…' : titles[action.kind]}
+              {busy ? t('fileView.working') : title}
             </button>
           )}
         </footer>

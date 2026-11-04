@@ -432,7 +432,7 @@ export class ToolExecutor extends ToolExecutorCore {
     const mutating: ToolUseBlock[] = [];
     for (const use of toolUses) {
       if (!use) continue;
-      const tool = this.registry.get(use.name);
+      const { tool } = this.resolveEffectiveTool(use);
       if (tool?.mutating) mutating.push(use);
       else nonMutating.push(use);
     }
@@ -447,12 +447,36 @@ export class ToolExecutor extends ToolExecutorCore {
     };
   }
 
+  private resolveEffectiveTool(use: ToolUseBlock): {
+    tool: Tool | undefined;
+    input: unknown;
+  } {
+    const gatewayTargetName =
+      use.name === CATALOG_GATEWAY_TOOL &&
+      use.input &&
+      typeof use.input === 'object' &&
+      typeof (use.input as { tool?: unknown }).tool === 'string'
+        ? (use.input as { tool: string }).tool.trim()
+        : undefined;
+    const tool =
+      use.name === CATALOG_GATEWAY_TOOL
+        ? gatewayTargetName
+          ? this.registry.get(gatewayTargetName)
+          : undefined
+        : this.registry.get(use.name);
+    const input =
+      use.name === CATALOG_GATEWAY_TOOL && use.input && typeof use.input === 'object'
+        ? ((use.input as { input?: unknown }).input ?? {})
+        : use.input;
+    return { tool, input };
+  }
+
   /** The files a mutating call writes, resolved the way the file tools resolve them. */
   private writeTargetKeys(use: ToolUseBlock, ctx: Context): string[] {
-    const tool = this.registry.get(use.name);
+    const { tool, input } = this.resolveEffectiveTool(use);
     if (!tool?.mutating) return [];
     const base = ctx.workingDir ?? ctx.cwd ?? ctx.projectRoot ?? process.cwd();
-    return describeWriteTargets(tool, use.input).map((target) => {
+    return describeWriteTargets(tool, input).map((target) => {
       const resolved = path.resolve(base, target);
       return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
     });

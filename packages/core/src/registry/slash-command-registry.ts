@@ -93,7 +93,7 @@ export class SlashCommandRegistry {
     // name.
     if (official && existing.cmd.name === cmdName) return false;
     if (existing.owner === 'core') {
-      return this.isCoreOwnedAlias(key);
+      return true;
     }
     // A plugin's bare-name key is reserved against a built-in's alias loop.
     // External plugins never receive a bare write, so `official` is implied.

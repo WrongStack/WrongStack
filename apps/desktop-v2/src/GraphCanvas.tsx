@@ -1,5 +1,6 @@
 import { Focus, Minus, Plus } from 'lucide-react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { graphScope, placeGraph, type VisualGraph } from './graph-model';
 
 const emptyPath: string[] = [];
@@ -29,6 +30,7 @@ export function GraphCanvas({
   nodeLimit?: number | null;
   directed?: boolean;
 }) {
+  const { t } = useDesktopText();
   const arrowId = `graph-arrow-${useId().replaceAll(':', '')}`;
   const surface = useRef<HTMLElement>(null);
   const visible = useMemo(
@@ -141,7 +143,7 @@ export function GraphCanvas({
           style={{ transform: `translate(${camera.x}px,${camera.y}px) scale(${camera.zoom})` }}
         >
           <svg className="graph-edges" aria-hidden="true">
-            <title>Relationships</title>
+            <title>{t('graphCanvas.relationships')}</title>
             {directed && (
               <defs>
                 <marker
@@ -202,14 +204,18 @@ export function GraphCanvas({
         </div>
       )}
       <div className="graph-controls">
-        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
+        <button
+          type="button"
+          aria-label={t('graphCanvas.zoomOut')}
+          onClick={() => zoomBy(1 / 1.25)}
+        >
           <Minus size={15} />
         </button>
         <span>{Math.round(camera.zoom * 100)}%</span>
-        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.25)}>
+        <button type="button" aria-label={t('graphCanvas.zoomIn')} onClick={() => zoomBy(1.25)}>
           <Plus size={15} />
         </button>
-        <button type="button" aria-label="Fit map" onClick={fit}>
+        <button type="button" aria-label={t('graphCanvas.fit')} onClick={fit}>
           <Focus size={15} />
         </button>
       </div>
@@ -217,7 +223,7 @@ export function GraphCanvas({
         <svg
           className="graph-minimap"
           role="img"
-          aria-label="Graph overview"
+          aria-label={t('graphCanvas.overview')}
           viewBox={`${world.left} ${world.top} ${world.right - world.left} ${world.bottom - world.top}`}
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -239,7 +245,7 @@ export function GraphCanvas({
               }));
           }}
         >
-          <title>Graph overview · click to navigate</title>
+          <title>{t('graphCanvas.overviewTitle')}</title>
           {nodes.map((node) => (
             <rect
               key={node.id}
@@ -260,8 +266,8 @@ export function GraphCanvas({
         </svg>
       )}
       <div className="graph-caption">
-        Drag to explore · select a node to inspect
-        {` · showing ${nodes.length} of ${graph.nodes.length} nodes`}
+        {t('graphCanvas.caption')}
+        {t('graphCanvas.showing', { shown: nodes.length, total: graph.nodes.length })}
       </div>
     </section>
   );

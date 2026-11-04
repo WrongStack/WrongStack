@@ -1,9 +1,12 @@
 import { ArrowRightLeft } from 'lucide-react';
 import './session-todos.css';
 import { useEffect, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 export interface FallbackPending {
   requestId: string;
@@ -41,6 +44,7 @@ export function fallbackPending(value: unknown): FallbackPending | null {
  * when the countdown ends.
  */
 export function FallbackPicker({ state, send }: { state: EngineState; send: EngineSend }) {
+  const { t } = useDesktopText();
   const pending = fallbackPending(state.results['provider.fallback_pending']);
   const [answered, setAnswered] = useState(''),
     [now, setNow] = useState(() => Date.now()),
@@ -60,14 +64,21 @@ export function FallbackPicker({ state, send }: { state: EngineState; send: Engi
   };
   const remaining = Math.max(0, Math.ceil((pending.deadline - now) / 1000));
   return (
-    <section className="fallback-picker" role="alert" aria-label="Model fallback">
+    <section className="fallback-picker" role="alert" aria-label={t('modelFallback.label')}>
       <p>
-        <ArrowRightLeft size={14} /> {pending.from.providerId} / {pending.from.model} failed
-        {pending.status ? ` (status ${pending.status})` : ''} after its retries. Switching to{' '}
-        <strong>
-          {pending.candidates[0]!.providerId} / {pending.candidates[0]!.model}
-        </strong>{' '}
-        in {remaining} s.
+        <ArrowRightLeft size={14} />{' '}
+        <Trans
+          i18n={surfaceI18n}
+          ns="desktop"
+          i18nKey={pending.status ? 'modelFallback.noticeStatus' : 'modelFallback.notice'}
+          values={{
+            from: `${pending.from.providerId} / ${pending.from.model}`,
+            status: pending.status,
+            to: `${pending.candidates[0]!.providerId} / ${pending.candidates[0]!.model}`,
+            seconds: remaining,
+          }}
+          components={{ strong: <strong /> }}
+        />
       </p>
       <div className="fallback-picker-actions">
         <button
@@ -75,7 +86,7 @@ export function FallbackPicker({ state, send }: { state: EngineState; send: Engi
           className="button primary small"
           onClick={() => choose({ autoSwitch: true })}
         >
-          Switch now
+          {t('modelFallback.switchNow')}
         </button>
         {pending.candidates.slice(1, 6).map((candidate) => (
           <button
@@ -84,7 +95,7 @@ export function FallbackPicker({ state, send }: { state: EngineState; send: Engi
             className="button secondary small"
             onClick={() => choose({ providerId: candidate.providerId, model: candidate.model })}
           >
-            Use {candidate.providerId} / {candidate.model}
+            {t('modelFallback.use', { target: `${candidate.providerId} / ${candidate.model}` })}
           </button>
         ))}
       </div>

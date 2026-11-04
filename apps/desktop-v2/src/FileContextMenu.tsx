@@ -1,4 +1,5 @@
 import { type ReactNode, useLayoutEffect, useRef } from 'react';
+import { useDesktopText } from './desktop-i18n';
 
 /**
  * A pointer-positioned context menu that owns the keyboard while open: the first item takes
@@ -18,6 +19,7 @@ export function FileContextMenu({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { t } = useDesktopText();
   const box = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
   useLayoutEffect(() => {
@@ -55,7 +57,7 @@ export function FileContextMenu({
       <button
         type="button"
         className="file-context-dismiss"
-        aria-label="Close file menu"
+        aria-label={t('tree.closeMenu')}
         tabIndex={-1}
         onClick={onClose}
       />

@@ -1,4 +1,3 @@
-import { projectLocalProviderPresets } from '@wrongstack/providers/definitions';
-
-export const LOCAL_PRESET_FAMILY = 'openai-compatible';
-export const LOCAL_SERVER_PRESETS = projectLocalProviderPresets();
+// Moved to @wrongstack/project-surfaces, shared with the desktop app. This path keeps
+// the WebUI imports and tests working.
+export * from '@wrongstack/project-surfaces/setup/local-presets';

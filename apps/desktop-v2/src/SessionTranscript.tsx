@@ -1,11 +1,13 @@
 import { ArrowDown, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { HistoryImage } from './HistoryImage';
 import { MarkdownContent } from './MarkdownContent';
 import type { HistorySearchSelection } from './ProjectHistorySearch';
+import { SessionInspectSummary } from './SessionInspectSummary';
 import { recoveryDate } from './session-recovery-model';
 import { StructuredToolValue } from './ToolApprovalCard';
 
@@ -23,6 +25,10 @@ export function SessionTranscript({
   onReuse: (text: string) => void;
   initialSearch?: HistorySearchSelection | undefined;
 }) {
+  const { t } = useDesktopText();
+  // Read through a ref so a language change does not reread the transcript.
+  const words = useRef(t);
+  words.current = t;
   const [page, setPage] = useState<Row | null>(null),
     [error, setError] = useState('');
   const [busy, setBusy] = useState(false),
@@ -73,9 +79,7 @@ export function SessionTranscript({
         if (generation !== version.current) return;
         const data = record(response['transcript']);
         if (typeof data['revision'] !== 'string')
-          throw Error(
-            'This engine did not return a readable transcript. Update the project runtime before retrying.',
-          );
+          throw Error(words.current('historyView.transcript.unreadable'));
         const next = {
           ...data,
           messages: reset
@@ -117,12 +121,13 @@ export function SessionTranscript({
     <section
       ref={container}
       className="history-transcript"
-      aria-label="Recorded session transcript"
+      aria-label={t('historyView.transcript.label')}
     >
+      <SessionInspectSummary key={id} id={id} command={command} />
       <header>
         <div>
-          <h3>Conversation</h3>
-          <p>Retained messages from this project’s journal. Reading does not resume the agent.</p>
+          <h3>{t('historyView.transcript.title')}</h3>
+          <p>{t('historyView.transcript.intro')}</p>
         </div>
         <button
           type="button"
@@ -135,7 +140,7 @@ export function SessionTranscript({
           }}
         >
           <RefreshCw size={13} />
-          Refresh transcript
+          {t('historyView.transcript.refresh')}
         </button>
       </header>
       <form
@@ -150,25 +155,27 @@ export function SessionTranscript({
         <label>
           <Search size={14} />
           <input
-            aria-label="Search full retained transcript"
+            aria-label={t('historyView.transcript.search')}
             value={query}
             maxLength={500}
-            placeholder="Search all retained text…"
+            placeholder={t('historyView.transcript.searchPlaceholder')}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
         <select
-          aria-label="Transcript message role"
+          aria-label={t('historyView.transcript.role')}
           value={role}
           onChange={(event) => setRole(event.target.value)}
         >
-          <option value="">All roles</option>
-          <option value="user">User</option>
-          <option value="assistant">Assistant</option>
-          <option value="system">System</option>
+          <option value="">{t('historyView.contentSearch.allRoles')}</option>
+          {['user', 'assistant', 'system'].map((value) => (
+            <option key={value} value={value}>
+              {t(`historyView.contentSearch.role.${value}`)}
+            </option>
+          ))}
         </select>
         <button type="submit" className="button secondary" disabled={busy}>
-          Search transcript
+          {t('historyView.transcript.submit')}
         </button>
       </form>
       {error && (
@@ -176,28 +183,33 @@ export function SessionTranscript({
           {error}
         </p>
       )}
-      {busy && <p role="status">Reading recorded messages…</p>}
+      {busy && <p role="status">{t('historyView.transcript.reading')}</p>}
       {page && (
         <p className="field-help">
-          {String(page['matching'])} matching messages · {String(page['total'])} retained messages.
-          Binary attachments stay unloaded; long text can be read in parts.
+          {t('historyView.transcript.counts', {
+            matching: String(page['matching']),
+            total: String(page['total']),
+          })}
         </p>
       )}
       {entries(page?.['messages']).map((message) => (
         <article
           className={`history-message history-role-${message['role']}`}
-          aria-label={`Recorded message ${Number(message['index']) + 1}`}
+          aria-label={t('historyView.transcript.message', { n: Number(message['index']) + 1 })}
           data-message-index={message['index'] as number}
           key={`${page?.['revision']}-${message['index']}-${filters.query}-${filters.role}`}
         >
           <header>
             <strong>
               {message['origin'] === 'runtime'
-                ? 'RUNTIME CONTEXT'
-                : String(message['role']).toUpperCase()}
+                ? t('historyView.transcript.runtime')
+                : t(`historyView.contentSearch.roleCaps.${String(message['role'])}`, {
+                    defaultValue: String(message['role']).toUpperCase(),
+                  })}
             </strong>
             <span>
-              #{Number(message['index']) + 1} · {recoveryDate(message['ts'])}
+              #{Number(message['index']) + 1} ·{' '}
+              {recoveryDate(message['ts'], t('recovery.timeMissing'))}
             </span>
           </header>
           {entries(message['blocks']).map((block) => (
@@ -235,7 +247,7 @@ export function SessionTranscript({
         </article>
       ))}
       {page && !entries(page['messages']).length && (
-        <p className="quiet-state">No retained messages match this search.</p>
+        <p className="quiet-state">{t('historyView.transcript.noMatches')}</p>
       )}
       {page?.['nextOffset'] !== null && page && (
         <button
@@ -245,7 +257,7 @@ export function SessionTranscript({
           onClick={() => void load(false)}
         >
           <ArrowDown size={14} />
-          Load next 10 messages
+          {t('historyView.transcript.loadMore')}
         </button>
       )}
     </section>
@@ -268,6 +280,7 @@ function TranscriptBlock({
   onLink: (href: string) => void;
   onReuse?: ((text: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [text, setText] = useState(String(block['text'] ?? ''));
   const [offset, setOffset] = useState(block['nextTextOffset']);
   const [fromStart, setFromStart] = useState(Number(block['textOffset'] ?? 0) === 0);
@@ -303,7 +316,7 @@ function TranscriptBlock({
       );
       if (!alive.current) return;
       const next = record(result['transcriptBlock']);
-      if (typeof next['text'] !== 'string') throw Error('The recorded text could not be read.');
+      if (typeof next['text'] !== 'string') throw Error(t('historyView.block.textUnreadable'));
       setText((previous) => (start ? String(next['text']) : previous + next['text']));
       setOffset(next['nextTextOffset']);
       if (start) setFromStart(true);
@@ -339,10 +352,11 @@ function TranscriptBlock({
     <>
       {block['type'] === 'document' && (
         <div className="history-attachment">
-          <strong>{String(block['name'] || 'PDF attachment')}</strong>
+          <strong>{String(block['name'] || t('historyView.block.pdf'))}</strong>
           <span>
-            {block['pages'] ? `${block['pages']} pages · ` : ''}Extracted text; binary PDF not
-            loaded.
+            {block['pages']
+              ? t('historyView.block.pdfPages', { n: String(block['pages']) })
+              : t('historyView.block.pdfText')}
           </span>
         </div>
       )}
@@ -357,10 +371,10 @@ function TranscriptBlock({
         </p>
       )}
       <div className="history-message-actions">
-        <CopyButton text={text} label="Copy visible recorded text" />
+        <CopyButton text={text} label={t('historyView.block.copy')} />
         {onReuse && text.trim() && (
           <button type="button" className="button secondary small" onClick={() => onReuse(text)}>
-            Add visible text to draft
+            {t('historyView.block.reuse')}
           </button>
         )}
         {!fromStart && (
@@ -370,7 +384,7 @@ function TranscriptBlock({
             disabled={busy}
             onClick={() => void read(true)}
           >
-            Read from start
+            {t('historyView.block.fromStart')}
           </button>
         )}
         {typeof offset === 'number' && (
@@ -380,28 +394,31 @@ function TranscriptBlock({
             disabled={busy}
             onClick={() => void read(false)}
           >
-            {busy ? 'Reading…' : 'Read next text part'}
+            {busy ? t('historyView.block.reading') : t('historyView.block.next')}
           </button>
         )}
       </div>
       {typeof offset === 'number' && (
         <p className="field-help">
-          Showing a bounded text excerpt{!fromStart ? ' around the search match' : ''}. More text is
-          available.
+          {fromStart ? t('historyView.block.excerpt') : t('historyView.block.excerptMatch')}
         </p>
       )}
     </>
   );
   return block['type'] === 'thinking' ? (
     <details className="history-thinking">
-      <summary>Recorded reasoning</summary>
+      <summary>{t('historyView.block.reasoning')}</summary>
       {body}
     </details>
   ) : block['type'] === 'tool_result' ? (
     <details className={`history-tool ${block['isError'] ? 'history-tool-error' : ''}`}>
       <summary>
-        Tool result · {String(block['name'] || block['toolId'])}
-        {block['isError'] ? ' · error' : ''}
+        {t(
+          block['isError'] ? 'historyView.block.toolResultError' : 'historyView.block.toolResult',
+          {
+            name: String(block['name'] || block['toolId']),
+          },
+        )}
       </summary>
       {body}
     </details>
@@ -428,6 +445,7 @@ function MoreMessageBlocks({
   command: EngineCommand;
   onLink: (href: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [more, setMore] = useState<Row[]>([]),
     [next, setNext] = useState<number | null>(shown),
     [busy, setBusy] = useState(false),
@@ -451,7 +469,7 @@ function MoreMessageBlocks({
         throw Error(
           typeof result['error'] === 'string'
             ? result['error']
-            : 'This engine did not return the remaining blocks.',
+            : t('historyView.block.moreUnreadable'),
         );
       setMore((current) => [...current, ...entries(page['blocks'])]);
       setNext(typeof page['nextBlockOffset'] === 'number' ? page['nextBlockOffset'] : null);
@@ -477,14 +495,16 @@ function MoreMessageBlocks({
       ))}
       {next !== null && remaining > 0 && (
         <p className="field-help">
-          {remaining} more blocks in this message.{' '}
+          {t('historyView.block.more', { n: remaining })}{' '}
           <button
             type="button"
             className="button secondary small"
             disabled={busy}
             onClick={() => void load()}
           >
-            {busy ? 'Loading…' : `Load next ${Math.min(100, remaining)} blocks`}
+            {busy
+              ? t('historyView.block.loading')
+              : t('historyView.block.loadMore', { n: Math.min(100, remaining) })}
           </button>
         </p>
       )}
@@ -511,6 +531,7 @@ function HistoryToolRequest({
   revision: string;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
   const [full, setFull] = useState<{ input: unknown } | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -536,7 +557,7 @@ function HistoryToolRequest({
         throw Error(
           typeof result['error'] === 'string'
             ? result['error']
-            : 'This engine did not return the complete input.',
+            : t('historyView.block.inputUnreadable'),
         );
       setFull({ input: read['input'] });
     } catch (failure) {
@@ -547,22 +568,22 @@ function HistoryToolRequest({
   };
   return (
     <details className="history-tool">
-      <summary>Tool request · {String(block['name'])}</summary>
+      <summary>{t('historyView.block.toolRequest', { name: String(block['name']) })}</summary>
       <div className="approval-arguments">
         <StructuredToolValue value={full ? full.input : block['input']} />
       </div>
       {full ? (
-        <p className="field-help">Complete recorded input.</p>
+        <p className="field-help">{t('historyView.block.inputComplete')}</p>
       ) : (
         <p className="field-help">
-          Bounded input preview from the journal.{' '}
+          {t('historyView.block.inputPreview')}{' '}
           <button
             type="button"
             className="button secondary small"
             disabled={busy}
             onClick={() => void load()}
           >
-            {busy ? 'Loading…' : 'Show complete input'}
+            {busy ? t('historyView.block.loading') : t('historyView.block.showInput')}
           </button>
         </p>
       )}

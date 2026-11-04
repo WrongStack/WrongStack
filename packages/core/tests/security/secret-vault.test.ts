@@ -593,4 +593,18 @@ describe('secret vault rotation boundaries', () => {
     expect(fsSync.readFileSync(keyFile).equals(before)).toBe(true);
     expect(vault.decrypt(ciphertext)).toBe('ceiling');
   });
+
+  it('loads existing on-disk key version when rotateKey() is called on a fresh DefaultSecretVault instance (F941)', async () => {
+    const { keyFile, vault: v1 } = await makeVault();
+    v1.encrypt('seed');
+    v1.rotateKey(); // 1 -> 2
+    v1.rotateKey(); // 2 -> 3
+
+    const freshVault = trackVault(new DefaultSecretVault({ keyFile }));
+    const rotated = freshVault.rotateKey();
+    expect(rotated).toEqual({ oldVersion: 3, newVersion: 4 });
+
+    const reloaded = trackVault(new DefaultSecretVault({ keyFile }));
+    expect(reloaded.keyVersion).toBe(4);
+  });
 });

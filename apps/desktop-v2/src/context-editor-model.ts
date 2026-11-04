@@ -75,13 +75,31 @@ export function removalProposal(
   };
 }
 
+/** The before and after figures of an engine validation, already formatted. */
+export interface ContextMetrics {
+  beforeMessages: string;
+  afterMessages: string;
+  beforeTokens: string;
+  afterTokens: string;
+}
+const englishMetrics = (m: ContextMetrics) =>
+  `${m.beforeMessages} → ${m.afterMessages} messages · ~${m.beforeTokens} → ~${m.afterTokens} request tokens`;
+
 /** One line describing an engine validation or apply metric pair. */
-export function metricsSummary(result: Record<string, unknown>): string {
+export function metricsSummary(
+  result: Record<string, unknown>,
+  words: (metrics: ContextMetrics) => string = englishMetrics,
+): string {
   const before = record(result['before']),
     after = record(result['after']);
   if (!Object.keys(after).length) return '';
   const tokens = (value: unknown) => Number(value ?? 0).toLocaleString();
-  return `${before['messages']} → ${after['messages']} messages · ~${tokens(before['fullRequestTokens'])} → ~${tokens(after['fullRequestTokens'])} request tokens`;
+  return words({
+    beforeMessages: String(before['messages']),
+    afterMessages: String(after['messages']),
+    beforeTokens: tokens(before['fullRequestTokens']),
+    afterTokens: tokens(after['fullRequestTokens']),
+  });
 }
 
 /** A text removal inside one message: its string content, or one of its text blocks. */
@@ -109,16 +127,22 @@ export function messageTexts(
  * Adds a text range unless it is empty or overlaps a range already chosen on the same text.
  * Returns the new list, or a reason the range was not added.
  */
+const englishRangeWords = {
+  empty: 'Select some text to remove first.',
+  overlap: 'That text overlaps a part already chosen for removal.',
+};
+
 export function withTextRange(
   ranges: readonly ContextTextRange[],
   next: ContextTextRange,
+  words: { empty: string; overlap: string } = englishRangeWords,
 ): ContextTextRange[] | string {
-  if (next.end <= next.start) return 'Select some text to remove first.';
+  if (next.end <= next.start) return words.empty;
   const sameTarget = ranges.filter(
     (range) => range.messageIndex === next.messageIndex && range.blockIndex === next.blockIndex,
   );
   if (sameTarget.some((range) => next.start < range.end && range.start < next.end))
-    return 'That text overlaps a part already chosen for removal.';
+    return words.overlap;
   return [...ranges, next];
 }
 

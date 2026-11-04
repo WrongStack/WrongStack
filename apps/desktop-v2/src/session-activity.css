@@ -171,3 +171,34 @@
   padding-left: 18px;
   font-size: 12px;
 }
+.activity-output-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tool-output-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-weight: 400;
+}
+.tool-exit {
+  padding: 2px 6px;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.tool-exit.ok {
+  color: var(--muted);
+}
+.tool-exit.failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+/* The collaboration bar sits under the run log's header, above its rows. */
+.session-collab {
+  margin: 0 0 12px;
+}

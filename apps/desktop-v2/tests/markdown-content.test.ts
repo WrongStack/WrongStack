@@ -13,7 +13,7 @@ describe('desktop-owned Markdown rendering', () => {
     expect(html).toContain('<h2>Result</h2>');
     expect(html).toContain('<strong>Ready</strong>');
     expect(html).toContain('<table>');
-    expect(html).toContain('const native = true;');
+    expect(html.replace(/<[^>]+>/g, '')).toContain('const native = true;');
     expect(html).toContain('aria-label="Copy code"');
     expect(html).toContain('language-ts');
   });
@@ -49,5 +49,21 @@ describe('desktop-owned Markdown rendering', () => {
       kind: 'external',
       value: 'https://example.com/docs',
     });
+  });
+});
+
+describe('code highlighting', () => {
+  const html = (text: string) =>
+    renderToStaticMarkup(createElement(MarkdownContent, { text, onLink: () => {} }));
+
+  it('highlights code with a named language, as the WebUI does', () => {
+    const out = html('```ts\nconst answer: number = 42;\n```');
+    expect(out).toContain('class="hljs language-ts"');
+    expect(out).toContain('<span class="hljs-keyword">const</span>');
+    expect(out).toContain('<span class="hljs-number">42</span>');
+  });
+
+  it('leaves code without a language plain', () => {
+    expect(html('```\nconst answer = 42;\n```')).not.toContain('hljs-keyword');
   });
 });

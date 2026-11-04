@@ -25,6 +25,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -51,7 +52,7 @@ const count = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
 const date = (value: unknown) => {
   const parsed = new Date(typeof value === 'number' ? value : String(value));
-  return Number.isNaN(parsed.getTime()) ? 'Not recorded' : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString();
 };
 type Section = 'overview' | 'learning' | 'skills';
 const chrome = new Map<
@@ -86,6 +87,7 @@ export function ProjectAgentRoster({
   onNewSession: () => void;
   onOpenFile: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
   const cached = chrome.get(projectId);
   const [catalog, setCatalog] = useState<RosterRecord[]>([]),
     [loaded, setLoaded] = useState(false);
@@ -307,13 +309,15 @@ export function ProjectAgentRoster({
     const action = confirmation;
     if (action.action === 'reset') {
       if (confirmText !== (action.role === '*' ? projectName : action.role))
-        throw Error('Type the exact project or role name to confirm.');
+        throw Error(t('roster.typeName'));
       const reply = await command('agent-roster.reset', { role: action.role }, [
         'agent-roster.reset',
       ]);
       await refresh();
       setNotice(
-        `Removed ${Array.isArray(reply['removed']) ? reply['removed'].length : 0} project role directories. Shared and bundled definitions remain available.`,
+        t('roster.removed', {
+          count: Array.isArray(reply['removed']) ? reply['removed'].length : 0,
+        }),
       );
       if (action.role === '*' || action.role === selected) setSelected('');
     } else if (action.action === 'clear-consolidated') {
@@ -323,10 +327,9 @@ export function ProjectAgentRoster({
       const readback = await command('agent-roster.read-consolidated', { role: action.role }, [
         'agent-roster.read-consolidated',
       ]);
-      if (readback['content'])
-        throw Error('The consolidated document is still present. Refresh before retrying.');
+      if (readback['content']) throw Error(t('roster.consolidatedStill'));
       await refresh();
-      setNotice('Project consolidated knowledge cleared.');
+      setNotice(t('roster.consolidatedCleared'));
     } else if (action.action === 'clear-skill') {
       await command('agent-roster.clear-skill', { role: action.role, skill: action.skill }, [
         'agent-roster.clear-skill',
@@ -336,9 +339,9 @@ export function ProjectAgentRoster({
         { role: action.role, skill: action.skill },
         ['agent-roster.read-skill'],
       );
-      if (readback['content']) throw Error('The project skill addendum is still present.');
+      if (readback['content']) throw Error(t('roster.addendumStill'));
       await refresh();
-      setNotice('Project skill addendum cleared.');
+      setNotice(t('roster.addendumCleared'));
     } else {
       const reply = await command('agent-roster.consolidate', { role: action.role }, [
         'agent-roster.consolidate',
@@ -346,30 +349,32 @@ export function ProjectAgentRoster({
       await refresh();
       if (reply['consolidated'] === true)
         setNotice(
-          `Optimized ${Number(reply['rawEntryCount'] ?? 0)} buffered directives using ${String(reply['model'] ?? 'the configured model')}. ${Array.isArray(reply['skills']) ? reply['skills'].length : 0} skill addenda updated${reply['pruned'] === true ? '; the consumed buffer was archived' : ''}.`,
+          t('roster.optimized', {
+            count: Number(reply['rawEntryCount'] ?? 0),
+            model: String(reply['model'] ?? t('roster.configuredModel')),
+            skills: Array.isArray(reply['skills']) ? reply['skills'].length : 0,
+            archived: reply['pruned'] === true ? t('roster.archived') : '',
+          }),
         );
       else if (typeof reply['instruction'] === 'string') {
         setInstruction(reply['instruction']);
-        setNotice('A consolidation instruction is ready for an existing conversation draft.');
+        setNotice(t('roster.instructionReady'));
       } else
         setNotice(
           reply['emptySynthesis'] === true
-            ? 'The model returned no usable synthesis. Existing knowledge was retained.'
-            : 'No pending directives to optimize. Existing consolidated knowledge was retained.',
+            ? t('roster.emptySynthesis')
+            : t('roster.nothingPending'),
         );
     }
     setConfirmation(null);
     setConfirmText('');
   };
   return (
-    <section className="project-agent-roster" aria-label="Project agent roster">
+    <section className="project-agent-roster" aria-label={t('roster.label')}>
       <header className="roster-hero">
         <div>
-          <h1>Agent roster</h1>
-          <p>
-            Role identities, project runtime policy and accumulated learning. This catalog describes
-            agents available to the engine.
-          </p>
+          <h1>{t('roster.title')}</h1>
+          <p>{t('roster.intro')}</p>
         </div>
         <div>
           <button
@@ -379,23 +384,24 @@ export function ProjectAgentRoster({
             onClick={() => void run(refresh)}
           >
             <RefreshCw size={14} />
-            Refresh roster
+            {t('roster.refresh')}
           </button>
           <button type="button" className="button primary" onClick={() => setCreate(true)}>
             <Plus size={14} />
-            Create project role
+            {t('roster.create')}
           </button>
         </div>
       </header>
       <div className="roster-summary">
         <span>
           <Users size={17} />
-          <strong>{loaded ? catalog.length : '—'}</strong>roles
+          <strong>{loaded ? catalog.length : '—'}</strong>
+          {t('roster.roles')}
         </span>
         <span>
           <GitFork size={17} />
           <strong>{catalog.filter((entry) => entry['custom'] === true).length}</strong>
-          project-created
+          {t('roster.projectCreated')}
         </span>
         <span>
           <Brain size={17} />
@@ -404,7 +410,7 @@ export function ProjectAgentRoster({
               .reduce((sum, entry) => sum + Number(record(entry['stats'])['entryCount'] ?? 0), 0)
               .toLocaleString()}
           </strong>
-          recorded directives
+          {t('roster.recordedDirectives')}
         </span>
         <button
           type="button"
@@ -415,7 +421,7 @@ export function ProjectAgentRoster({
             setConfirmText('');
           }}
         >
-          Reset project roster files
+          {t('roster.resetAll')}
         </button>
       </div>
       {error && (
@@ -430,13 +436,13 @@ export function ProjectAgentRoster({
       )}
       {inputState.review && (
         <div className="roster-confirm" role="alert">
-          <p>Another window saved different unsent role notes for this project.</p>
+          <p>{t('roster.notesConflict')}</p>
           <button
             type="button"
             className="button secondary"
             onClick={() => void inputStore.resolve('local')}
           >
-            Keep this window’s notes
+            {t('roster.keepWindowNotes')}
           </button>
           <button
             type="button"
@@ -448,7 +454,7 @@ export function ProjectAgentRoster({
               });
             }}
           >
-            Use saved notes
+            {t('roster.useSavedNotes')}
           </button>
         </div>
       )}
@@ -461,34 +467,34 @@ export function ProjectAgentRoster({
       <div className="roster-workbench">
         <aside className="roster-catalog">
           <label>
-            Find a role
+            {t('roster.find')}
             <input
-              aria-label="Search project agent roles"
+              aria-label={t('roster.searchLabel')}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setVisible(100);
               }}
-              placeholder="Name, purpose, task type…"
+              placeholder={t('roster.searchPlaceholder')}
             />
           </label>
           <label>
-            Catalog
+            {t('roster.catalog')}
             <select
-              aria-label="Agent role filter"
+              aria-label={t('roster.filterLabel')}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             >
-              <option value="all">All roles</option>
-              <option value="builtin">Built-in</option>
-              <option value="custom">Project-created</option>
-              <option value="modified">With project files</option>
+              <option value="all">{t('roster.filter.all')}</option>
+              <option value="builtin">{t('roster.filter.builtin')}</option>
+              <option value="custom">{t('roster.filter.custom')}</option>
+              <option value="modified">{t('roster.filter.modified')}</option>
             </select>
           </label>
           {!loaded ? (
             <p role="status">
               <LoaderCircle className="spin" size={16} />
-              Loading actual roster…
+              {t('roster.loading')}
             </p>
           ) : shown.length ? (
             <>
@@ -508,17 +514,21 @@ export function ProjectAgentRoster({
                     <strong>{String(entry['name'] ?? entry['role'])}</strong>
                     <small>
                       {entry['custom']
-                        ? 'Project role'
+                        ? t('roster.kind.project')
                         : entry['systemProtected']
-                          ? 'Built-in'
-                          : 'Project data role'}
+                          ? t('roster.kind.builtin')
+                          : t('roster.kind.data')}
                     </small>
                   </span>
                   <code>{String(entry['role'])}</code>
                   <p>{String(entry['summary'] ?? '')}</p>
                   <footer>
-                    <span>{Number(entry['tools'] ?? 0)} declared tools</span>
-                    <span>{count(record(entry['stats'])['entryCount'])} directives</span>
+                    <span>{t('roster.declaredTools', { count: Number(entry['tools'] ?? 0) })}</span>
+                    <span>
+                      {t('roster.directivesCount', {
+                        count: count(record(entry['stats'])['entryCount']),
+                      })}
+                    </span>
                   </footer>
                 </button>
               ))}
@@ -528,34 +538,36 @@ export function ProjectAgentRoster({
                   className="button secondary"
                   onClick={() => setVisible(visible + 100)}
                 >
-                  Show more roles ({shown.length - visible})
+                  {t('roster.showMore', { count: shown.length - visible })}
                 </button>
               )}
             </>
           ) : (
-            <p>No matching roles.</p>
+            <p>{t('roster.noMatch')}</p>
           )}
         </aside>
         <div className="roster-inspector">
           {!row ? (
             <div className="roster-empty">
               <Users size={36} />
-              <h2>Choose a role to inspect.</h2>
-              <p>
-                Identity documents, runtime overrides, learning evidence and skill addenda stay
-                attached to this project role.
-              </p>
+              <h2>{t('roster.choose')}</h2>
+              <p>{t('roster.chooseHelp')}</p>
             </div>
           ) : (
             <>
               <header className="roster-role-header">
                 <div>
                   <span className="eyebrow">
-                    {row['systemProtected'] ? 'BUILT-IN ROLE' : 'PROJECT ROLE'} · {selected}
+                    {row['systemProtected']
+                      ? t('roster.eyebrow.builtin')
+                      : t('roster.eyebrow.project')}{' '}
+                    · {selected}
                   </span>
                   <h2>{String(row['name'] ?? selected)}</h2>
                   <p>{String(row['summary'] ?? '')}</p>
-                  {Boolean(row['baseRole']) && <small>Based on {String(row['baseRole'])}</small>}
+                  {Boolean(row['baseRole']) && (
+                    <small>{t('roster.basedOn', { role: String(row['baseRole']) })}</small>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -563,15 +575,15 @@ export function ProjectAgentRoster({
                   onClick={() => setGraph(!graph)}
                 >
                   <GitFork size={14} />
-                  {graph ? 'Hide inheritance' : 'Inheritance map'}
+                  {graph ? t('roster.hideInheritance') : t('roster.inheritance')}
                 </button>
               </header>
               {graph && (
-                <Suspense fallback={<p>Opening inheritance map…</p>}>
+                <Suspense fallback={<p>{t('roster.openingInheritance')}</p>}>
                   <RosterInheritance catalog={catalog} selected={selected} onSelect={setSelected} />
                 </Suspense>
               )}
-              <nav className="roster-sections" aria-label="Agent role sections">
+              <nav className="roster-sections" aria-label={t('roster.sectionsLabel')}>
                 {(['overview', 'learning', 'skills'] as const).map((id) => (
                   <button
                     type="button"
@@ -579,18 +591,14 @@ export function ProjectAgentRoster({
                     aria-current={section === id ? 'page' : undefined}
                     onClick={() => setSection(id)}
                   >
-                    {id === 'overview'
-                      ? 'Identity & runtime'
-                      : id === 'learning'
-                        ? 'Learning & evidence'
-                        : 'Skill layer'}
+                    {t(`roster.section.${id}`)}
                   </button>
                 ))}
               </nav>
               {detailLoading && (
                 <p role="status">
                   <LoaderCircle className="spin" size={14} />
-                  Reading {selected}…
+                  {t('roster.reading', { role: selected })}
                 </p>
               )}
               {detailError && (
@@ -608,7 +616,7 @@ export function ProjectAgentRoster({
                       onClick={() => setDocument({ kind: 'identity' })}
                     >
                       <BookOpen size={14} />
-                      Read identity
+                      {t('roster.readIdentity')}
                     </button>
                     <button
                       type="button"
@@ -621,7 +629,7 @@ export function ProjectAgentRoster({
                       onClick={() => setRuntime(true)}
                     >
                       <Settings2 size={14} />
-                      Edit runtime policy
+                      {t('roster.editRuntime')}
                     </button>
                     <button
                       type="button"
@@ -629,52 +637,55 @@ export function ProjectAgentRoster({
                       onClick={() => onOpenFile(`.wrongstack/agents/${selected}/config.json`)}
                     >
                       <FileCode2 size={14} />
-                      Project config file
+                      {t('roster.configFile')}
                     </button>
                   </div>
                   {customization['configState'] === 'unreadable' && (
                     <p className="session-error" role="alert">
-                      The project config file is invalid or unreadable. Its content is preserved.
-                      Repair the file and refresh before editing runtime policy.
+                      {t('roster.configUnreadable')}
                     </p>
                   )}
                   <section className="roster-facts">
-                    <h3>Project documents</h3>
+                    <h3>{t('roster.documents')}</h3>
                     <dl>
-                      <dt>Local identity</dt>
+                      <dt>{t('roster.localIdentity')}</dt>
                       <dd>
                         {stats['hasIdentity'] === true
-                          ? 'Present'
+                          ? t('roster.present')
                           : stats['hasIdentity'] === false
-                            ? 'Not stored'
-                            : 'Not reported'}
+                            ? t('roster.notStored')
+                            : t('roster.notReported')}
                       </dd>
-                      <dt>Runtime config</dt>
-                      <dd>{String(customization['configState'] ?? 'Loading')}</dd>
-                      <dt>Knowledge checklist</dt>
-                      <dd>{stats['hasKnowledge'] === true ? 'Present' : 'Not stored'}</dd>
-                      <dt>Last learning capture</dt>
-                      <dd>{date(stats['lastCapture'])}</dd>
-                      <dt>Task types</dt>
+                      <dt>{t('roster.runtimeConfig')}</dt>
+                      <dd>{String(customization['configState'] ?? t('roster.loadingValue'))}</dd>
+                      <dt>{t('roster.knowledgeChecklist')}</dt>
+                      <dd>
+                        {stats['hasKnowledge'] === true
+                          ? t('roster.present')
+                          : t('roster.notStored')}
+                      </dd>
+                      <dt>{t('roster.lastLearning')}</dt>
+                      <dd>{date(stats['lastCapture']) || t('roster.notRecorded')}</dd>
+                      <dt>{t('roster.taskTypes')}</dt>
                       <dd>
                         {Array.isArray(row['taskTypes']) && row['taskTypes'].length
                           ? row['taskTypes'].join(', ')
-                          : 'Catalog default'}
+                          : t('roster.catalogDefault')}
                       </dd>
                     </dl>
                   </section>
                   <ResolvedRosterRuntime value={effective} />
                   <section className="roster-improve">
-                    <h3>Ask for a focused improvement</h3>
+                    <h3>{t('roster.improveTitle')}</h3>
                     <p>
                       Prepare an instruction for an existing conversation's leader to improve this
                       project's role files.
                     </p>
                     <textarea
-                      aria-label="Role improvement request"
+                      aria-label={t('roster.improveLabel')}
                       value={improve}
                       onChange={(event) => setImprove(event.target.value)}
-                      placeholder="Describe the behavior or knowledge to improve…"
+                      placeholder={t('roster.improvePlaceholder')}
                     />
                     <button
                       type="button"
@@ -688,13 +699,13 @@ export function ProjectAgentRoster({
                             ['agent-roster.llm-improve'],
                           );
                           if (typeof reply['instruction'] !== 'string')
-                            throw Error('The engine did not return an improvement instruction.');
+                            throw Error(t('roster.noImprovement'));
                           setInstruction(reply['instruction']);
                         })
                       }
                     >
                       <Sparkles size={14} />
-                      Prepare improvement
+                      {t('roster.prepareImprovement')}
                     </button>
                   </section>
                 </>
@@ -709,12 +720,12 @@ export function ProjectAgentRoster({
                   />
                   <div className="roster-learning-metrics">
                     {[
-                      ['Directives', stats['entryCount']],
-                      ['Buffer bytes', stats['totalBytes']],
-                      ['Lifetime captures', stats['lifetimeCaptureCount']],
-                      ['Applied directives', stats['appliedEntryCount']],
-                      ['Not exercised', stats['deadEntryCount']],
-                      ['Measured against control', stats['measuredEntryCount']],
+                      [t('roster.metric.directives'), stats['entryCount']],
+                      [t('roster.metric.bufferBytes'), stats['totalBytes']],
+                      [t('roster.metric.lifetime'), stats['lifetimeCaptureCount']],
+                      [t('roster.metric.applied'), stats['appliedEntryCount']],
+                      [t('roster.metric.dead'), stats['deadEntryCount']],
+                      [t('roster.metric.measured'), stats['measuredEntryCount']],
                     ].map(([label, value]) => (
                       <div key={String(label)}>
                         <strong>{count(value)}</strong>
@@ -723,15 +734,16 @@ export function ProjectAgentRoster({
                     ))}
                   </div>
                   <p className="roster-policy-note">
-                    Directive lift:{' '}
-                    {typeof stats['directiveLift'] === 'number'
-                      ? stats['directiveLift'].toFixed(3)
-                      : 'Not enough controlled evidence'}
-                    . Raw task success rate:{' '}
-                    {typeof stats['directiveHitRate'] === 'number'
-                      ? `${(stats['directiveHitRate'] * 100).toFixed(1)}%`
-                      : 'Not measured'}
-                    ; it does not establish that the directives caused success.
+                    {t('roster.lift', {
+                      lift:
+                        typeof stats['directiveLift'] === 'number'
+                          ? stats['directiveLift'].toFixed(3)
+                          : t('roster.notEnoughEvidence'),
+                      rate:
+                        typeof stats['directiveHitRate'] === 'number'
+                          ? `${(stats['directiveHitRate'] * 100).toFixed(1)}%`
+                          : t('roster.notMeasured'),
+                    })}
                   </p>
                   <div className="roster-role-actions">
                     <button
@@ -740,7 +752,7 @@ export function ProjectAgentRoster({
                       onClick={() => setDocument({ kind: 'learned' })}
                     >
                       <Pencil size={14} />
-                      Read / edit directives
+                      {t('roster.editDirectives')}
                     </button>
                     <button
                       type="button"
@@ -748,7 +760,7 @@ export function ProjectAgentRoster({
                       onClick={() => setDocument({ kind: 'consolidated' })}
                     >
                       <BookOpen size={14} />
-                      Consolidated knowledge
+                      {t('roster.consolidated')}
                     </button>
                     <button
                       type="button"
@@ -760,9 +772,7 @@ export function ProjectAgentRoster({
                             'agent-roster.stats',
                           ]);
                           if (current['learningEnabled'] !== stats['learningEnabled'])
-                            throw Error(
-                              'The learning policy changed elsewhere. Refresh before changing it.',
-                            );
+                            throw Error(t('roster.policyChanged'));
                           await command(
                             'agent-roster.update-learning',
                             { role: selected, enabled: !stats['learningEnabled'] },
@@ -771,13 +781,15 @@ export function ProjectAgentRoster({
                           await refresh();
                           setNotice(
                             stats['learningEnabled']
-                              ? 'Learning paused; existing project knowledge is retained.'
-                              : 'Learning enabled for this role.',
+                              ? t('roster.learningPaused')
+                              : t('roster.learningEnabled'),
                           );
                         })
                       }
                     >
-                      {stats['learningEnabled'] === true ? 'Pause learning' : 'Enable learning'}
+                      {stats['learningEnabled'] === true
+                        ? t('roster.pauseLearning')
+                        : t('roster.enableLearning')}
                     </button>
                     <button
                       type="button"
@@ -786,7 +798,7 @@ export function ProjectAgentRoster({
                       onClick={() => setConfirmation({ action: 'optimize', role: selected })}
                     >
                       <Sparkles size={14} />
-                      Optimize learning
+                      {t('roster.optimizeLearning')}
                     </button>
                     {stats['isConsolidated'] === true && (
                       <button
@@ -796,18 +808,15 @@ export function ProjectAgentRoster({
                           setConfirmation({ action: 'clear-consolidated', role: selected })
                         }
                       >
-                        Clear consolidated document
+                        {t('roster.clearConsolidated')}
                       </button>
                     )}
                   </div>
                   <section className="roster-teach">
-                    <h3>Teach a project instruction</h3>
-                    <p>
-                      Add a narrowly scoped convention, pattern, warning or fact. The engine
-                      deduplicates and structures the buffer.
-                    </p>
+                    <h3>{t('roster.teachTitle')}</h3>
+                    <p>{t('roster.teachHelp')}</p>
                     <textarea
-                      aria-label="Teach role instruction"
+                      aria-label={t('roster.teachLabel')}
                       value={teach}
                       onChange={(event) => setTeach(event.target.value)}
                     />
@@ -826,41 +835,44 @@ export function ProjectAgentRoster({
                           updateInput((current) => ({
                             teach: current.teach === teach ? '' : current.teach,
                           }));
-                          setNotice(
-                            'Project directive document updated. Inspect the stored directives below.',
-                          );
+                          setNotice(t('roster.directiveUpdated'));
                         })
                       }
                     >
                       <Plus size={14} />
-                      Add project instruction
+                      {t('roster.addInstruction')}
                     </button>
                   </section>
                   <AutoOptimizeStatus data={record(detail['agent-roster.auto-optimize-status'])} />
                   <section className="roster-facts">
-                    <h3>Capture and consolidation record</h3>
+                    <h3>{t('roster.recordTitle')}</h3>
                     <dl>
-                      <dt>Last capture</dt>
+                      <dt>{t('roster.lastCapture')}</dt>
                       <dd>
-                        {date(stats['lastCapture'])} ·{' '}
-                        {String(stats['lastCaptureSource'] ?? 'Not recorded')}
+                        {date(stats['lastCapture']) || t('roster.notRecorded')} ·{' '}
+                        {String(stats['lastCaptureSource'] ?? t('roster.notRecorded'))}
                       </dd>
-                      <dt>Capture window</dt>
+                      <dt>{t('roster.captureWindow')}</dt>
                       <dd>
-                        {count(stats['sessionCaptureCount'])} captures · cooldown{' '}
-                        {typeof stats['cooldownRemainingMs'] === 'number'
-                          ? `${Math.ceil(stats['cooldownRemainingMs'] / 1000)} s`
-                          : 'Not reported'}
+                        {t('roster.captures', {
+                          count: count(stats['sessionCaptureCount']),
+                          cooldown:
+                            typeof stats['cooldownRemainingMs'] === 'number'
+                              ? `${Math.ceil(stats['cooldownRemainingMs'] / 1000)} s`
+                              : t('roster.notReported'),
+                        })}
                       </dd>
-                      <dt>Routed to skills</dt>
-                      <dd>{count(stats['skilledEntryCount'])} directives</dd>
-                      <dt>Consolidation recommendation</dt>
+                      <dt>{t('roster.routedSkills')}</dt>
+                      <dd>
+                        {t('roster.directivesCount', { count: count(stats['skilledEntryCount']) })}
+                      </dd>
+                      <dt>{t('roster.recommendation')}</dt>
                       <dd>
                         {stats['needsSummarization'] === true
-                          ? 'Buffer is ready for consolidation review'
+                          ? t('roster.bufferReady')
                           : stats['needsSummarization'] === false
-                            ? 'No buffer-size recommendation'
-                            : 'Not reported'}
+                            ? t('roster.noRecommendation')
+                            : t('roster.notReported')}
                       </dd>
                       {Object.entries(
                         record(record(detail['agent-roster.read-consolidated'])['metadata']),
@@ -878,28 +890,14 @@ export function ProjectAgentRoster({
                         )
                         .map(([name, value]) => (
                           <div className="roster-consolidation-fact" key={name}>
-                            <dt>
-                              {
-                                (
-                                  {
-                                    consolidatedAt: 'Consolidated',
-                                    sourceEntryCount: 'Buffer entries after consolidation',
-                                    sourceBytes: 'Buffer bytes after consolidation',
-                                    consolidatedBytes: 'Stored bytes',
-                                    trigger: 'Trigger',
-                                    model: 'Model',
-                                    pruned: 'Consumed buffer archived',
-                                  } as Record<string, string>
-                                )[name]
-                              }
-                            </dt>
+                            <dt>{t(`roster.fact.${name}`)}</dt>
                             <dd>
                               {name === 'consolidatedAt'
-                                ? date(value)
+                                ? date(value) || t('roster.notRecorded')
                                 : typeof value === 'boolean'
                                   ? value
-                                    ? 'Yes'
-                                    : 'No'
+                                    ? t('roster.yes')
+                                    : t('roster.no')
                                   : String(value)}
                             </dd>
                           </div>
@@ -907,13 +905,10 @@ export function ProjectAgentRoster({
                     </dl>
                   </section>
                   <details className="roster-capture">
-                    <summary>Capture instructions from agent output</summary>
-                    <p className="field-help">
-                      Paste output containing a LEARNED section. The engine reports captures,
-                      skipped entries and quality refusals.
-                    </p>
+                    <summary>{t('roster.captureTitle')}</summary>
+                    <p className="field-help">{t('roster.captureHelp')}</p>
                     <textarea
-                      aria-label="Role capture output"
+                      aria-label={t('roster.captureLabel')}
                       value={capture}
                       onChange={(event) => updateInput({ capture: event.target.value })}
                     />
@@ -938,13 +933,15 @@ export function ProjectAgentRoster({
                         })
                       }
                     >
-                      Capture project instructions
+                      {t('roster.captureButton')}
                     </button>
                     {roleInput.captureResult && (
                       <p role="status">
-                        {String(roleInput.captureResult['status'])} · captured{' '}
-                        {count(roleInput.captureResult['captured'])}, skipped{' '}
-                        {count(roleInput.captureResult['skipped'])}
+                        {t('roster.captureResult', {
+                          status: String(roleInput.captureResult['status']),
+                          captured: count(roleInput.captureResult['captured']),
+                          skipped: count(roleInput.captureResult['skipped']),
+                        })}
                         {roleInput.captureResult['reason']
                           ? ` · ${String(roleInput.captureResult['reason'])}`
                           : ''}
@@ -952,11 +949,8 @@ export function ProjectAgentRoster({
                     )}
                   </details>
                   <section className="roster-overlap">
-                    <h3>Directive overlap</h3>
-                    <p className="field-help">
-                      Compare stored directives across this project's roles. Text similarity
-                      identifies review candidates; it does not establish a contradiction.
-                    </p>
+                    <h3>{t('roster.overlapTitle')}</h3>
+                    <p className="field-help">{t('roster.overlapHelp')}</p>
                     <button
                       type="button"
                       className="button secondary"
@@ -970,7 +964,7 @@ export function ProjectAgentRoster({
                         })
                       }
                     >
-                      Check project directive overlap
+                      {t('roster.checkOverlap')}
                     </button>
                     {overlap && (
                       <>
@@ -994,22 +988,28 @@ export function ProjectAgentRoster({
                                 </strong>
                                 <small>
                                   {typeof item['similarity'] === 'number'
-                                    ? `${(item['similarity'] * 100).toFixed(0)}% text overlap`
-                                    : 'Not measured'}
+                                    ? t('roster.textOverlap', {
+                                        percent: (item['similarity'] * 100).toFixed(0),
+                                      })
+                                    : t('roster.notMeasured')}
                                 </small>
                               </header>
                               <blockquote>{String(item['snippetA'])}</blockquote>
                               <blockquote>{String(item['snippetB'])}</blockquote>
-                              <small>Detected {date(item['detectedAt'])}</small>
+                              <small>
+                                {t('roster.detected', {
+                                  date: date(item['detectedAt']) || t('roster.notRecorded'),
+                                })}
+                              </small>
                             </article>
                           ))}
                       </>
                     )}
                   </section>
                   <label>
-                    Find a directive
+                    {t('roster.findDirective')}
                     <input
-                      aria-label="Search role directives"
+                      aria-label={t('roster.searchDirectives')}
                       value={directiveQuery}
                       onChange={(event) => setDirectiveQuery(event.target.value)}
                     />
@@ -1024,28 +1024,28 @@ export function ProjectAgentRoster({
                       .map((entry, index) => (
                         <details key={String(entry['key'] ?? index)}>
                           <summary>
-                            <span>{String(entry['category'] ?? 'Directive')}</span>
+                            <span>{String(entry['category'] ?? t('roster.directive'))}</span>
                             {String(entry['what'] ?? '')}
                           </summary>
                           <dl>
-                            <dt>Why</dt>
-                            <dd>{String(entry['why'] ?? 'Not recorded')}</dd>
-                            <dt>How / evidence</dt>
+                            <dt>{t('roster.why')}</dt>
+                            <dd>{String(entry['why'] ?? t('roster.notRecorded'))}</dd>
+                            <dt>{t('roster.how')}</dt>
                             <dd>
                               <MarkdownContent
-                                text={String(entry['how'] ?? 'Not recorded')}
+                                text={String(entry['how'] ?? t('roster.notRecorded'))}
                                 onLink={link}
                               />
                             </dd>
-                            <dt>Skill</dt>
-                            <dd>{String(entry['skill'] ?? 'Role-level')}</dd>
-                            <dt>Captured</dt>
-                            <dd>{date(entry['capturedAt'])}</dd>
-                            <dt>Applied / successful</dt>
+                            <dt>{t('roster.skill')}</dt>
+                            <dd>{String(entry['skill'] ?? t('roster.roleLevel'))}</dd>
+                            <dt>{t('roster.captured')}</dt>
+                            <dd>{date(entry['capturedAt']) || t('roster.notRecorded')}</dd>
+                            <dt>{t('roster.applied')}</dt>
                             <dd>
                               {count(entry['applied'] ?? 0)} / {count(entry['wins'] ?? 0)}
                             </dd>
-                            <dt>Control uses / successful</dt>
+                            <dt>{t('roster.control')}</dt>
                             <dd>
                               {count(entry['skipped'] ?? 0)} / {count(entry['skippedWins'] ?? 0)}
                             </dd>
@@ -1055,15 +1055,16 @@ export function ProjectAgentRoster({
                   </div>
                   <details className="roster-retired">
                     <summary>
-                      Retired directives (
-                      {entries(record(detail['agent-roster.quarantine'])['retired']).length})
+                      {t('roster.retired', {
+                        count: entries(record(detail['agent-roster.quarantine'])['retired']).length,
+                      })}
                     </summary>
                     {entries(record(detail['agent-roster.quarantine'])['retired']).map(
                       (entry, index) => (
                         <article key={index}>
                           <p>{String(entry['what'] ?? '')}</p>
                           {Boolean(entry['skill']) && (
-                            <small>Skill: {String(entry['skill'])}</small>
+                            <small>{t('roster.skillOf', { skill: String(entry['skill']) })}</small>
                           )}
                         </article>
                       ),
@@ -1074,10 +1075,11 @@ export function ProjectAgentRoster({
               {section === 'skills' && (
                 <section className="roster-skill-layer">
                   <header>
-                    <h3>Role skill delivery</h3>
+                    <h3>{t('roster.skillsTitle')}</h3>
                     <p>
-                      Ranking, project addenda and observed load failures from the engine. Eager
-                      limit: {count(record(detail['agent-roster.skills'])['eagerLimit'])}.
+                      {t('roster.skillsHelp', {
+                        limit: count(record(detail['agent-roster.skills'])['eagerLimit']),
+                      })}
                     </p>
                   </header>
                   {entries(record(detail['agent-roster.skills'])['skills']).map((entry) => {
@@ -1089,25 +1091,35 @@ export function ProjectAgentRoster({
                           <div>
                             <h4>{skill}</h4>
                             <small>
-                              {entry['eager'] === true ? 'Eager delivery' : 'Available candidate'} ·
-                              score{' '}
-                              {typeof entry['score'] === 'number'
-                                ? entry['score'].toFixed(2)
-                                : 'Not reported'}
+                              {entry['eager'] === true ? t('roster.eager') : t('roster.candidate')}{' '}
+                              ·{' '}
+                              {t('roster.score', {
+                                score:
+                                  typeof entry['score'] === 'number'
+                                    ? entry['score'].toFixed(2)
+                                    : t('roster.notReported'),
+                              })}
                             </small>
                           </div>
-                          <span>{entry['developed'] ? 'Project addendum' : 'Base skill'}</span>
+                          <span>
+                            {entry['developed']
+                              ? t('roster.projectAddendum')
+                              : t('roster.baseSkill')}
+                          </span>
                         </header>
                         {Boolean(entry['blocked']) && (
                           <p className="session-error">
-                            Last load refused: {String(entry['blocked'])}
+                            {t('roster.loadRefused', { reason: String(entry['blocked']) })}
                           </p>
                         )}
                         <p>
-                          Learned: {count(affinity['learned'])} · loaded:{' '}
-                          {count(affinity['loaded'])} · successful / failed outcomes:{' '}
-                          {count(affinity['succeeded'])} / {count(affinity['failed'])} · pinned:{' '}
-                          {affinity['pinned'] === true ? 'Yes' : 'No'}
+                          {t('roster.affinity', {
+                            learned: count(affinity['learned']),
+                            loaded: count(affinity['loaded']),
+                            succeeded: count(affinity['succeeded']),
+                            failed: count(affinity['failed']),
+                            pinned: affinity['pinned'] === true ? t('roster.yes') : t('roster.no'),
+                          })}
                         </p>
                         <div>
                           <button
@@ -1115,7 +1127,7 @@ export function ProjectAgentRoster({
                             className="button secondary"
                             onClick={() => setDocument({ kind: 'skill', skill })}
                           >
-                            Read / edit addendum
+                            {t('roster.editAddendum')}
                           </button>
                           <button
                             type="button"
@@ -1131,13 +1143,13 @@ export function ProjectAgentRoster({
                                 await refresh();
                                 setNotice(
                                   affinity['pinned']
-                                    ? `${skill} unpinned.`
-                                    : `${skill} pinned for this role.`,
+                                    ? t('roster.skillUnpinned', { skill })
+                                    : t('roster.skillPinned', { skill }),
                                 );
                               })
                             }
                           >
-                            {affinity['pinned'] ? 'Unpin skill' : 'Pin skill'}
+                            {affinity['pinned'] ? t('roster.unpin') : t('roster.pin')}
                           </button>
                           {entry['developed'] === true && (
                             <button
@@ -1147,7 +1159,7 @@ export function ProjectAgentRoster({
                                 setConfirmation({ action: 'clear-skill', role: selected, skill })
                               }
                             >
-                              Clear project addendum
+                              {t('roster.clearAddendum')}
                             </button>
                           )}
                         </div>
@@ -1159,9 +1171,9 @@ export function ProjectAgentRoster({
               {instruction && (
                 <section
                   className="roster-prepared-instruction"
-                  aria-label="Prepared role instruction"
+                  aria-label={t('roster.preparedLabel')}
                 >
-                  <h3>Prepared instruction</h3>
+                  <h3>{t('roster.prepared')}</h3>
                   <MarkdownContent text={instruction} onLink={link} />
                   <button
                     type="button"
@@ -1169,21 +1181,21 @@ export function ProjectAgentRoster({
                     onClick={() =>
                       void navigator.clipboard
                         .writeText(instruction)
-                        .then(() => setNotice('Instruction copied.'))
+                        .then(() => setNotice(t('roster.instructionCopied')))
                         .catch((error) => setError(String(error)))
                     }
                   >
                     <Copy size={14} />
-                    Copy instruction
+                    {t('roster.copyInstruction')}
                   </button>
                   <label>
-                    Existing conversation
+                    {t('roster.conversation')}
                     <select
-                      aria-label="Role instruction conversation"
+                      aria-label={t('roster.conversationLabel')}
                       value={targetSession}
                       onChange={(event) => setTargetSession(event.target.value)}
                     >
-                      <option value="">Choose a conversation</option>
+                      <option value="">{t('roster.chooseConversation')}</option>
                       {sessions
                         .filter((session) => session.kind === 'agent')
                         .map((session) => (
@@ -1199,10 +1211,10 @@ export function ProjectAgentRoster({
                     disabled={!targetSession}
                     onClick={() => onPrepare(targetSession, instruction)}
                   >
-                    Append to selected chat draft
+                    {t('roster.appendDraft')}
                   </button>
                   <button type="button" className="button secondary" onClick={onNewSession}>
-                    Create a conversation
+                    {t('roster.newConversation')}
                   </button>
                 </section>
               )}
@@ -1217,7 +1229,7 @@ export function ProjectAgentRoster({
                   }}
                 >
                   <Trash2 size={14} />
-                  Reset this role's project files
+                  {t('roster.resetRole')}
                 </button>
               </footer>
             </>
@@ -1225,7 +1237,7 @@ export function ProjectAgentRoster({
         </div>
       </div>
       {runtime && row && (
-        <Suspense fallback={<p role="status">Opening role runtime editor…</p>}>
+        <Suspense fallback={<p role="status">{t('roster.openingEditor')}</p>}>
           <RosterRuntimeEditor
             key={`${projectId}:${selected}`}
             projectId={projectId}
@@ -1255,7 +1267,7 @@ export function ProjectAgentRoster({
       )}
       {create && (
         <Modal
-          title="Create project roster role"
+          title={t('roster.createTitle')}
           onClose={() => {
             if (!busy) setCreate(false);
           }}
@@ -1270,7 +1282,7 @@ export function ProjectAgentRoster({
                   .map((value) => value.trim())
                   .filter(Boolean);
                 if (!createDraft.name.trim() || !createDraft.purpose.trim() || !taskTypes.length)
-                  throw Error('Enter a name, purpose and at least one task type.');
+                  throw Error(t('roster.createMissing'));
                 const result = await command(
                   'agent-roster.create',
                   { ...createDraft, role: createDraft.role.trim() || undefined, taskTypes },
@@ -1289,16 +1301,16 @@ export function ProjectAgentRoster({
                   taskTypes: '',
                   baseRole: 'generic',
                 });
-                setNotice('Project role created and listed.');
+                setNotice(t('roster.created'));
               });
             }}
           >
             <header>
-              <h2>Create project role</h2>
+              <h2>{t('roster.create')}</h2>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Close role creation"
+                aria-label={t('roster.closeCreate')}
                 disabled={busy}
                 onClick={() => setCreate(false)}
               >
@@ -1308,51 +1320,43 @@ export function ProjectAgentRoster({
             {createInput.notice}
             {createInput.restored && (createDraft.name || createDraft.purpose) && (
               <p className="roster-policy-note" role="status">
-                Restored the role you had not created yet.
+                {t('roster.restored')}
               </p>
             )}
-            <p>
-              The role inherits its base definition and stores its identity under this project's
-              .wrongstack/agents directory.
-            </p>
+            <p>{t('roster.createHelp')}</p>
             {error && (
               <p role="alert" className="session-error">
                 {error}
               </p>
             )}
-            {[
-              ['name', 'Display name'],
-              ['role', 'Role key (optional)'],
-              ['purpose', 'Purpose'],
-              ['taskTypes', 'Task types (comma or line separated)'],
-            ].map(([key, label]) => (
+            {(['name', 'role', 'purpose', 'taskTypes'] as const).map((key) => (
               <label key={key} htmlFor={`${projectId}-new-role-${key}`}>
-                {label}
+                {t(`roster.field.${key}`)}
                 {key === 'purpose' || key === 'taskTypes' ? (
                   <textarea
                     id={`${projectId}-new-role-${key}`}
-                    aria-label={`New role ${key}`}
+                    aria-label={t('roster.newRoleField', { field: key })}
                     value={createDraft[key as keyof typeof createDraft]}
                     onChange={(event) =>
-                      setCreateDraft({ ...createDraft, [key!]: event.target.value })
+                      setCreateDraft({ ...createDraft, [key]: event.target.value })
                     }
                   />
                 ) : (
                   <input
                     id={`${projectId}-new-role-${key}`}
-                    aria-label={`New role ${key}`}
+                    aria-label={t('roster.newRoleField', { field: key })}
                     value={createDraft[key as keyof typeof createDraft]}
                     onChange={(event) =>
-                      setCreateDraft({ ...createDraft, [key!]: event.target.value })
+                      setCreateDraft({ ...createDraft, [key]: event.target.value })
                     }
                   />
                 )}
               </label>
             ))}
             <label>
-              Base role
+              {t('roster.baseRole')}
               <select
-                aria-label="New role base"
+                aria-label={t('roster.baseRoleLabel')}
                 value={createDraft.baseRole}
                 onChange={(event) =>
                   setCreateDraft({ ...createDraft, baseRole: event.target.value })
@@ -1367,7 +1371,7 @@ export function ProjectAgentRoster({
             </label>
             <footer>
               <button type="submit" className="button primary" disabled={busy}>
-                Create project role
+                {t('roster.create')}
               </button>
             </footer>
           </form>
@@ -1377,10 +1381,10 @@ export function ProjectAgentRoster({
         <Modal
           title={
             confirmation.action === 'reset'
-              ? 'Reset project roster files'
+              ? t('roster.resetAll')
               : confirmation.action === 'optimize'
-                ? 'Optimize role learning'
-                : 'Clear project role document'
+                ? t('roster.confirm.optimize')
+                : t('roster.confirm.clear')
           }
           onClose={() => {
             if (!busy) setConfirmation(null);
@@ -1389,23 +1393,32 @@ export function ProjectAgentRoster({
           <div className="roster-confirm-dialog">
             <h2>
               {confirmation.action === 'reset'
-                ? 'Reset project roster files'
+                ? t('roster.resetAll')
                 : confirmation.action === 'optimize'
-                  ? 'Optimize role learning'
-                  : 'Clear project role document'}
+                  ? t('roster.confirm.optimize')
+                  : t('roster.confirm.clear')}
             </h2>
             <p>
               {confirmation.action === 'reset'
-                ? `Remove ${confirmation.role === '*' ? 'all role directories in this project' : `the project directory for ${confirmation.role}`}, including local identity, runtime, learning, custom-role definitions and skill addenda. Built-in and shared definitions remain.`
+                ? confirmation.role === '*'
+                  ? t('roster.confirm.resetAllBody')
+                  : t('roster.confirm.resetRoleBody', { role: confirmation.role })
                 : confirmation.action === 'optimize'
-                  ? `Synthesize the pending directives for ${confirmation.role}, update consolidated knowledge and skill addenda, and archive the consumed buffer when the configured model succeeds.`
-                  : `Clear ${confirmation.skill ? `the ${confirmation.skill} addendum` : 'the consolidated knowledge document'} for ${confirmation.role} in this project.`}
+                  ? t('roster.confirm.optimizeBody', { role: confirmation.role })
+                  : confirmation.skill
+                    ? t('roster.confirm.clearSkillBody', {
+                        skill: confirmation.skill,
+                        role: confirmation.role,
+                      })
+                    : t('roster.confirm.clearBody', { role: confirmation.role })}
             </p>
             {confirmation.action === 'reset' && (
               <label>
-                Type {confirmation.role === '*' ? projectName : confirmation.role}
+                {t('roster.confirm.type', {
+                  name: confirmation.role === '*' ? projectName : confirmation.role,
+                })}
                 <input
-                  aria-label="Confirm roster reset name"
+                  aria-label={t('roster.confirm.typeLabel')}
                   value={confirmText}
                   onChange={(event) => setConfirmText(event.target.value)}
                 />
@@ -1423,7 +1436,7 @@ export function ProjectAgentRoster({
                 disabled={busy}
                 onClick={() => setConfirmation(null)}
               >
-                Cancel
+                {t('fileView.cancel')}
               </button>
               <button
                 type="button"
@@ -1435,7 +1448,7 @@ export function ProjectAgentRoster({
                 }
                 onClick={() => void run(confirm)}
               >
-                Confirm roster action
+                {t('roster.confirm.action')}
               </button>
             </footer>
           </div>
@@ -1446,112 +1459,121 @@ export function ProjectAgentRoster({
 }
 
 function ResolvedRosterRuntime({ value }: { value: RosterRecord }) {
+  const { t } = useDesktopText();
   if (!Object.keys(value).length)
-    return (
-      <p className="field-help">
-        Resolved runtime details are unavailable on this engine. Stored project overrides remain
-        distinct from catalog defaults.
-      </p>
-    );
+    return <p className="field-help">{t('roster.runtimeUnavailable')}</p>;
   const budget = record(value['budget']),
     availability = record(value['availability']),
     policy = record(value['modelPolicy']);
   const names = (key: string) =>
     Array.isArray(value[key])
-      ? value[key].join(', ') || 'Explicit empty list'
-      : 'Catalog does not declare a static list';
+      ? value[key].join(', ') || t('roster.emptyList')
+      : t('roster.noStaticList');
   return (
     <section className="roster-resolved">
-      <h3>Resolved runtime for the next spawn</h3>
+      <h3>{t('roster.resolvedTitle')}</h3>
       <dl>
         {[
-          ['Provider', value['provider']],
-          ['Model', value['model']],
-          ['Fallback profile', value['fallbackProfile']],
-          ['Working directory', value['cwd']],
-          ['Checkout strategy', value['worktree']],
+          [t('roster.rt.provider'), value['provider']],
+          [t('roster.rt.model'), value['model']],
+          [t('roster.rt.fallback'), value['fallbackProfile']],
+          [t('roster.rt.cwd'), value['cwd']],
+          [t('roster.rt.worktree'), value['worktree']],
         ].map(([label, value]) => (
           <div key={String(label)}>
             <dt>{String(label)}</dt>
-            <dd>
-              {value === null || value === undefined ? 'Inherit from routing' : String(value)}
-            </dd>
+            <dd>{value === null || value === undefined ? t('roster.inherit') : String(value)}</dd>
           </div>
         ))}
         {rosterBudgetFields.map(({ key, label }) => (
           <div key={key}>
-            <dt>{label}</dt>
+            <dt>{t(`roster.budget.${key}`, { defaultValue: label })}</dt>
             <dd>{count(budget[key])}</dd>
           </div>
         ))}
       </dl>
       <details>
-        <summary>Tools, skills and capabilities</summary>
+        <summary>{t('roster.toolsSummary')}</summary>
         <dl>
-          <dt>Declared tools</dt>
+          <dt>{t('roster.declaredToolsLabel')}</dt>
           <dd>{names('tools')}</dd>
-          <dt>Role skills</dt>
+          <dt>{t('roster.roleSkills')}</dt>
           <dd>{names('skillNames')}</dd>
-          <dt>Capability requests</dt>
+          <dt>{t('roster.capabilityRequests')}</dt>
           <dd>{names('capabilities')}</dd>
-          <dt>Allowed capabilities</dt>
+          <dt>{t('roster.allowedCapabilities')}</dt>
           <dd>{names('allowedCapabilities')}</dd>
         </dl>
       </details>
       {Object.keys(policy).length > 0 && (
         <details>
-          <summary>Resolved model policy · {policy['strict'] ? 'Enforced' : 'Advisory'}</summary>
+          <summary>
+            {t('roster.policyTitle', {
+              mode: policy['strict'] ? t('roster.enforced') : t('roster.advisory'),
+            })}
+          </summary>
           <p>
-            Allowed:{' '}
-            {entries(policy['allowed'])
-              .map((target) => `${target['provider']}/${target['model']}`)
-              .join(', ')}
+            {t('roster.allowed', {
+              targets: entries(policy['allowed'])
+                .map((target) => `${target['provider']}/${target['model']}`)
+                .join(', '),
+            })}
           </p>
           <p>
-            Fallback order:{' '}
-            {entries(policy['fallbacks'])
-              .map((target) => `${target['provider']}/${target['model']}`)
-              .join(' → ') || 'None declared'}
+            {t('roster.fallbackOrder', {
+              targets:
+                entries(policy['fallbacks'])
+                  .map((target) => `${target['provider']}/${target['model']}`)
+                  .join(' → ') || t('roster.noneDeclared'),
+            })}
           </p>
         </details>
       )}
       {Object.keys(availability).length > 0 && (
         <p className="roster-policy-note">
-          Availability: {String(availability['timezone'])},{' '}
-          {Array.isArray(availability['days'])
-            ? availability['days']
-                .map((day) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][Number(day)])
-                .join(', ')
-            : ''}
-          , {String(availability['start'])}–{String(availability['end'])} ·{' '}
-          {String(availability['mode'])}.
+          {t('roster.availability', {
+            timezone: String(availability['timezone']),
+            days: Array.isArray(availability['days'])
+              ? availability['days'].map((day) => t(`roster.day.${Number(day)}`)).join(', ')
+              : '',
+            start: String(availability['start']),
+            end: String(availability['end']),
+            mode: String(availability['mode']),
+          })}
         </p>
       )}
     </section>
   );
 }
+const AUTO_REASONS = new Set([
+  'disabled',
+  'learning-paused',
+  'too-few-entries',
+  'below-threshold',
+  'cooling-down',
+  'size',
+  'pending-skills',
+]);
 function AutoOptimizeStatus({ data }: { data: RosterRecord }) {
+  const { t } = useDesktopText();
   const entry = entries(data['roles'])[0],
     policy = record(data['policy']);
-  const reasons: Record<string, string> = {
-    disabled: 'Automatic optimization is disabled.',
-    'learning-paused': 'Learning is paused for this role.',
-    'too-few-entries': 'The directive buffer has fewer entries than the configured minimum.',
-    'below-threshold': 'The buffer has not reached its size or pending-skill threshold.',
-    'cooling-down': 'The minimum interval has not elapsed.',
-    size: 'The buffer reached its size threshold.',
-    'pending-skills': 'Pending skill directives reached the configured threshold.',
-  };
   return entry ? (
     <section className="roster-policy-note">
-      <h3>Automatic optimization</h3>
+      <h3>{t('roster.auto.title')}</h3>
       <p>
-        {entry['eligible'] === true ? 'Eligible: ' : 'Waiting: '}
-        {reasons[String(entry['reason'])] ?? String(entry['reason'])}
+        {t(entry['eligible'] === true ? 'roster.auto.eligible' : 'roster.auto.waiting', {
+          reason: AUTO_REASONS.has(String(entry['reason']))
+            ? t(`roster.auto.reason.${String(entry['reason'])}`)
+            : String(entry['reason']),
+        })}
       </p>
       <small>
-        Minimum entries: {count(policy['minEntries'])} · buffer threshold:{' '}
-        {count(policy['thresholdBytes'])} bytes · interval: {count(policy['minIntervalMs'])} ms.
+        {t('roster.auto.policy', {
+          entries: count(policy['minEntries']),
+          bytes: count(policy['thresholdBytes']),
+          interval: count(policy['minIntervalMs']),
+        })}
       </small>
     </section>
   ) : null;

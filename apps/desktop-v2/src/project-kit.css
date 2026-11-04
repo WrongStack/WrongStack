@@ -157,6 +157,21 @@
   border: 1px solid var(--accent);
   border-radius: 12px;
 }
+.kit-request > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.kit-request-title {
+  margin: 0;
+}
+.kit-request textarea {
+  width: 100%;
+}
+.kit-detail > .kit-request + * {
+  margin-top: 16px;
+}
 .kit-detail details {
   padding: 16px 0;
   border-top: 1px solid var(--border);

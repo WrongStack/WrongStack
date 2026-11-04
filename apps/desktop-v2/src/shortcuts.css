@@ -1,0 +1,46 @@
+.shortcuts-dialog {
+  display: grid;
+  gap: 14px;
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(80vh, 720px);
+  overflow: auto;
+}
+.shortcuts-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.shortcuts-dialog h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.shortcuts-dialog dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.shortcuts-dialog dl > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.shortcuts-dialog dd {
+  margin: 0;
+}
+.shortcuts-dialog kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--raised);
+}

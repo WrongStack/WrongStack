@@ -8,6 +8,11 @@ import { describe, expect, it } from 'vitest';
  */
 const SCAN_ROOTS = [
   { package: 'webui', root: path.resolve(import.meta.dirname, '../../src') },
+  // Surfaces the WebUI shares with the desktop app follow the same theme rules.
+  {
+    package: 'project-surfaces',
+    root: path.resolve(import.meta.dirname, '../../../project-surfaces/src'),
+  },
 ] as const;
 
 /**
@@ -20,12 +25,19 @@ const ISOLATED_COLOR_SURFACES = new Map<string, string>([
   // ---- webui ----
   ['webui/components/CommandPalette/export-utils.ts', 'Standalone exported HTML document.'],
   ['webui/components/DesignGalleryView.tsx', 'Previews arbitrary user-selected design-kit tokens.'],
-  ['webui/components/KanbanContractGraphDashboard.tsx', 'Rendered SVG contract graph nodes.'],
   [
-    'webui/components/KanbanContractGraphView.ts',
+    'project-surfaces/kanban/KanbanContractGraphDashboard.tsx',
+    'Rendered SVG contract graph nodes.',
+  ],
+  [
+    'project-surfaces/kanban/KanbanContractGraphView.ts',
     'Graph canvas node colors and canvas backgrounds.',
   ],
-  ['webui/components/KanbanWorkbench.tsx', 'Kanban status badge highlights.'],
+  ['project-surfaces/kanban/KanbanWorkbench.tsx', 'Kanban status badge highlights.'],
+  [
+    'project-surfaces/kanban/kanban.css',
+    'The SDD header sheen gradient (moved out of index.css with the Kanban surface).',
+  ],
   [
     'webui/components/RepositoryHistoryView.tsx',
     'Git topology graph lanes and branch/tag badge tones.',
@@ -35,17 +47,18 @@ const ISOLATED_COLOR_SURFACES = new Map<string, string>([
     'Branch/tag badge tones and merge marker of the git history view (split from RepositoryHistoryView).',
   ],
   [
-    'webui/components/ProviderLogo.tsx',
+    'project-surfaces/ui/ProviderLogo.tsx',
     'Brand-mark tiles keep fixed white (dark for Kimi) backgrounds in both themes so original logo colors stay legible.',
   ],
-  [
-    'webui/components/SetupScreen/ProviderKeyCard.tsx',
-    'QR encoder requires explicit dark/light colors.',
-  ],
+  ['project-surfaces/setup/ProviderKeyCard.tsx', 'QR encoder requires explicit dark/light colors.'],
   ['webui/components/TerminalPanel.tsx', 'xterm owns a complete terminal ANSI palette.'],
   [
-    'webui/components/vector-memory-panel/index.tsx',
+    'project-surfaces/sage/vector/VectorMemoryPanel.tsx',
     'Data-viz heatmap: similarity scores map to an inline grayscale+blue-tint HSL ramp independent of the theme.',
+  ],
+  [
+    'project-surfaces/sage/vector/vector-memory-panel.css',
+    'The same heatmap ramp and its focus outlines (moved out of index.css with the panel).',
   ],
   ['webui/components/monaco-theme.ts', 'Monaco owns a complete editor/syntax palette.'],
   [

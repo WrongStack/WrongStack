@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+// The sidebar lives in the shared package and translates with the app's i18next instance.
+import '../../src/i18n';
 import { CodeMapTreeSidebar } from '../../src/components/CodeMapTreeSidebar.js';
 import type { CodeMapGraphResponse } from '../../src/components/codemap-model.js';
 

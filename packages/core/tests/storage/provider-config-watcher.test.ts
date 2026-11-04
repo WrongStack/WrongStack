@@ -178,4 +178,16 @@ describe('watchProviderConfig', () => {
     await new Promise((r) => setTimeout(r, 200));
     expect(snapshots).toHaveLength(0);
   });
+
+  it('strips a leading UTF-8 BOM in readProviderSnapshot (F942)', async () => {
+    const { configPath, vault } = await makeFixture();
+    await fs.writeFile(
+      configPath,
+      `\uFEFF${JSON.stringify({ version: 1, provider: 'openai', model: 'gpt-5', apiKey: 'sk-bom' })}`,
+      'utf8',
+    );
+    const snap = await readProviderSnapshot(configPath, vault);
+    expect(snap).toBeDefined();
+    expect(snap?.apiKey).toBe('sk-bom');
+  });
 });

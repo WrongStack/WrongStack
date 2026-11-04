@@ -33,12 +33,14 @@ export function deadCodeLabel(value: unknown): string {
   return typeof value === 'string' ? value.replaceAll('-', ' ') : 'Not reported';
 }
 /** The engine reports pre-restore conflicts even after force restored those files. */
-export function deadCodeRestoreOutcome(restored: string[], conflicts: string[]) {
+export function deadCodeRestoreOutcome(
+  restored: string[],
+  conflicts: string[],
+  words = (count: number, left: number) =>
+    `${count} ${count === 1 ? 'file' : 'files'} restored${left ? `; ${left} conflicts remain` : ''}.`,
+) {
   const remaining = conflicts.filter((file) => !restored.includes(file));
-  return {
-    remaining,
-    notice: `${restored.length} ${restored.length === 1 ? 'file' : 'files'} restored${remaining.length ? `; ${remaining.length} conflicts remain` : ''}.`,
-  };
+  return { remaining, notice: words(restored.length, remaining.length) };
 }
 export function deadCodeRequest(findings: Record<string, unknown>[]): string {
   return [

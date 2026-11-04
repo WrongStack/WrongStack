@@ -62,4 +62,12 @@ describe('project mailbox', () => {
     expect(mailboxDraftStore(id)).toBe(mailboxDraftStore(id));
     expect(mailboxDraftStore(id)).not.toBe(mailboxDraftStore(crypto.randomUUID()));
   });
+  it('words an invalid maintenance duration through the given words', () => {
+    expect(() => mailboxDuration('-1', 'Age')).toThrow(
+      'Age must be a non-negative number of hours.',
+    );
+    expect(() => mailboxDuration('-1', 'Yaş', (label) => `${label}: geçersiz`)).toThrow(
+      'Yaş: geçersiz',
+    );
+  });
 });

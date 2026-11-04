@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import './pdf-frame.css';
 
 /** True when the bytes start with the PDF signature `%PDF-`. */
@@ -19,6 +20,7 @@ export function looksLikePdf(bytes: Uint8Array): boolean {
  * such blob URLs. Bytes without the PDF signature are not shown.
  */
 export function PdfFrame({ bytes, title }: { bytes: Uint8Array<ArrayBuffer>; title: string }) {
+  const { t } = useDesktopText();
   const [url, setUrl] = useState('');
   const valid = looksLikePdf(bytes);
   useEffect(() => {
@@ -27,6 +29,6 @@ export function PdfFrame({ bytes, title }: { bytes: Uint8Array<ArrayBuffer>; tit
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [bytes, valid]);
-  if (!valid) return <p className="quiet-state">These bytes are not a PDF document.</p>;
+  if (!valid) return <p className="quiet-state">{t('pdfFrame.invalid')}</p>;
   return url ? <iframe className="pdf-frame" title={title} src={url} /> : null;
 }

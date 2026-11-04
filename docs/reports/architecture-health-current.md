@@ -1,22 +1,22 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-04T18:42:14.111Z
+**Generated:** 2026-11-04T20:27:31.895Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
 
 | Measure | Value |
 |---|---:|
-| Workspace packages | 47 |
-| Production source files | 5687 |
-| Production source lines | 1241703 |
-| Test files | 4923 |
-| Workspace dependency edges | 232 |
-| Relative module edges | 16655 |
+| Workspace packages | 48 |
+| Production source files | 6004 |
+| Production source lines | 1247716 |
+| Test files | 5010 |
+| Workspace dependency edges | 240 |
+| Relative module edges | 17655 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 187 |
+| Tests without TypeScript test-project coverage | 271 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 696 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 373 | 187 | @wrongstack/contracts, @wrongstack/core, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 438 | 271 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -53,6 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plugin-sdk | 12 | 10 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 152 | 133 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 25 | 20 | — |
+| @wrongstack/project-surfaces | 245 | 0 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers |
 | @wrongstack/providers | 138 | 122 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 20 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -67,7 +68,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tui | 497 | 431 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 69 | 24 | @wrongstack/webui-protocol |
-| @wrongstack/webui | 774 | 513 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 781 | 516 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 330 | 368 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
@@ -89,66 +90,66 @@ None.
 
 | Lines | File |
 |---:|---|
-| 2016 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 2034 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1733 | `packages/sage/src/wrongmemory-port.ts` |
-| 1559 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 1581 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
-| 1150 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 1098 | `packages/webui/src/components/codemap-model.ts` |
-| 1019 | `apps/desktop-v2/src/ProjectGoals.tsx` |
-| 997 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 927 | `apps/desktop-v2/src/ProjectKnowledge.tsx` |
-| 917 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
-| 915 | `apps/desktop-v2/src/CodeAtlas.tsx` |
+| 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
+| 1065 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1055 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 951 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 931 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 889 | `apps/desktop-v2/src/SkillLibrary.tsx` |
-| 833 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
-| 826 | `apps/desktop-v2/src/KanbanTaskInspector.tsx` |
-| 824 | `apps/desktop-v2/src/ProjectMemory.tsx` |
+| 850 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
-| 800 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
+| 812 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
-| 783 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
-| 777 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
+| 788 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
+| 779 | `apps/desktop-v2/src/ProjectChimera.tsx` |
+| 779 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
-| 775 | `apps/desktop-v2/src/ProjectChimera.tsx` |
+| 766 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
-| 748 | `apps/desktop-v2/src/ProjectKanban.tsx` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
-| 746 | `apps/desktop-v2/src/ProjectSdd.tsx` |
-| 746 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
+| 740 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
+| 733 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
-| 720 | `packages/webui/src/components/MemoryManager/useMemoryManagerState.ts` |
-| 715 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
+| 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 | 715 | `packages/plugins/src/audit/index.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |
+| 709 | `packages/core/src/storage/file-session-writer.ts` |
 | 709 | `packages/vibeui/src/components/memory-browser.tsx` |
 | 708 | `packages/core/src/core/agent-tools.ts` |
 | 707 | `packages/acp/src/client/acp-session.ts` |
-| 707 | `packages/core/src/storage/file-session-writer.ts` |
 | 707 | `packages/mailbox-mcp/src/adapter.ts` |
 | 706 | `packages/chronicle/src/project-server.ts` |
 | 705 | `packages/chronicle/src/project-server-client.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
+| 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
+| 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
+| 701 | `packages/coordination/src/provider-status-tracker.ts` |
+| 700 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
+| 700 | `apps/desktop-v2/src/useDesktop.ts` |
 
 ## Exports only tests reference
 
-- 1041 runtime exports are referenced by tests and by no other production file.
+- 1038 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 187 test files are not included in a package TypeScript test project.
+- 271 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

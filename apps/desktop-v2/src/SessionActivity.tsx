@@ -9,11 +9,15 @@ import {
   Wrench,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, Suspense, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
+import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
+import { GeneratedImages } from './GeneratedImages';
 import { activityRows } from './session-activity-model';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
+import { ToolOutputActions } from './ToolOutputActions';
 import './session-activity.css';
 
 function readableOutput(value: string): unknown {
@@ -34,11 +38,18 @@ export function SessionActivity({
   events,
   onOpenFile,
   compact = false,
+  command,
+  collab,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
   compact?: boolean;
+  /** The conversation's engine, to show the pictures an `image_generate` call saved. */
+  command?: EngineCommand | undefined;
+  /** The conversation's collaboration bar, shown under the full run log's header. */
+  collab?: ReactNode;
 }) {
+  const { t } = useDesktopText();
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
   const rows = useMemo(() => activityRows(events), [events]);
   const shown = rows.filter(
@@ -47,16 +58,16 @@ export function SessionActivity({
   return (
     <section
       className={`session-activity ${compact ? 'session-activity-compact' : ''}`}
-      aria-label={compact ? 'Current run activity' : 'Conversation activity'}
+      aria-label={compact ? t('runLog.currentLabel') : t('runLog.label')}
     >
       {!compact && (
         <header className="session-activity-header">
           <div>
-            <span className="eyebrow">THIS CONVERSATION</span>
-            <h2>Run activity</h2>
-            <p>Follow tool calls, reasoning and execution results for this session.</p>
+            <span className="eyebrow">{t('runLog.eyebrow')}</span>
+            <h2>{t('turn.activity')}</h2>
+            <p>{t('runLog.body')}</p>
           </div>
-          <nav aria-label="Activity filters">
+          <nav aria-label={t('runLog.filters')}>
             {(['all', 'tool', 'reasoning', 'run'] as const).map((kind) => (
               <button
                 type="button"
@@ -64,24 +75,15 @@ export function SessionActivity({
                 aria-pressed={filter === kind}
                 onClick={() => setFilter(kind)}
               >
-                {kind === 'all'
-                  ? 'All'
-                  : kind === 'tool'
-                    ? 'Tools'
-                    : kind === 'reasoning'
-                      ? 'Thinking'
-                      : 'Runs'}
+                {t(`runLog.filter.${kind}`)}
               </button>
             ))}
           </nav>
         </header>
       )}
+      {!compact && collab && <Suspense fallback={null}>{collab}</Suspense>}
       {!shown.length && (
-        <p className="quiet-state">
-          {rows.length
-            ? 'No activity matches this filter.'
-            : 'Tool calls and run events appear here as the agent works.'}
-        </p>
+        <p className="quiet-state">{rows.length ? t('runLog.noMatch') : t('runLog.empty')}</p>
       )}
       <div className="activity-list">
         {shown.map((row) => (
@@ -103,26 +105,30 @@ export function SessionActivity({
                 <small>
                   {row.agent ? `${row.agent} · ` : ''}
                   {row.status === 'running'
-                    ? 'In progress'
+                    ? t('runLog.status.running')
                     : row.status === 'done'
-                      ? 'Completed'
+                      ? t('runLog.status.done')
                       : row.status === 'failed'
-                        ? 'Failed'
+                        ? t('runLog.status.failed')
                         : row.status === 'aborted'
-                          ? 'Stopped'
+                          ? t('runLog.status.aborted')
                           : row.kind === 'retry'
-                            ? 'Retrying'
-                            : 'Recorded'}
+                            ? t('runLog.status.retry')
+                            : t('runLog.status.recorded')}
                 </small>
               </span>
               {row.durationMs !== undefined && (
                 <small className="activity-metric">
                   <Clock3 size={12} />{' '}
-                  {row.kind === 'retry' ? `wait ${row.durationMs} ms` : `${row.durationMs} ms`}
+                  {row.kind === 'retry'
+                    ? t('runLog.wait', { ms: row.durationMs })
+                    : `${row.durationMs} ms`}
                 </small>
               )}
               {row.outputBytes !== undefined && (
-                <small className="activity-metric">{row.outputBytes.toLocaleString()} bytes</small>
+                <small className="activity-metric">
+                  {t('runLog.bytes', { bytes: row.outputBytes.toLocaleString() })}
+                </small>
               )}
               {row.status === 'running' ? (
                 <LoaderCircle size={14} className="spin" />
@@ -134,8 +140,8 @@ export function SessionActivity({
             </summary>
             <div className="activity-entry-body">
               {row.input !== undefined && (
-                <section className="approval-arguments" aria-label="Tool input">
-                  <strong>Input</strong>
+                <section className="approval-arguments" aria-label={t('runLog.inputLabel')}>
+                  <strong>{t('runLog.input')}</strong>
                   {row.kind === 'tool' ? (
                     <ToolInputView name={row.title} input={row.input} />
                   ) : (
@@ -145,7 +151,7 @@ export function SessionActivity({
               )}
               {row.progress.length > 0 && (
                 <section>
-                  <h4>Progress</h4>
+                  <h4>{t('runLog.progress')}</h4>
                   {row.progress.map((text, i) => (
                     <pre key={i}>{text}</pre>
                   ))}
@@ -153,24 +159,30 @@ export function SessionActivity({
               )}
               {row.output && (
                 <section>
-                  <h4>
+                  <h4 className="activity-output-heading">
                     {row.kind === 'reasoning'
-                      ? 'Thinking'
+                      ? t('runLog.thinking')
                       : row.kind === 'retry'
-                        ? 'Retry details'
+                        ? t('runLog.retryDetails')
                         : row.outputBytes !== undefined &&
                             row.outputBytes > new TextEncoder().encode(row.output).length
-                          ? 'Output preview'
-                          : 'Output'}
+                          ? t('runLog.outputPreview')
+                          : t('runLog.output')}
+                    {row.kind === 'tool' && (
+                      <ToolOutputActions tool={row.title} output={row.output} />
+                    )}
                   </h4>
                   <div className="approval-arguments">
                     <StructuredToolValue value={readableOutput(row.output)} />
                   </div>
+                  {command && row.kind === 'tool' && row.title === 'image_generate' && (
+                    <GeneratedImages output={row.output} command={command} />
+                  )}
                 </section>
               )}
               {row.files.length > 0 && (
                 <section>
-                  <h4>Files</h4>
+                  <h4>{t('runLog.files')}</h4>
                   <div className="activity-files">
                     {row.files.map((file) => (
                       <button type="button" key={file.path} onClick={() => onOpenFile(file.path)}>
@@ -184,7 +196,7 @@ export function SessionActivity({
               )}
               {row.sage.length > 0 && (
                 <section>
-                  <h4>SAGE evidence</h4>
+                  <h4>{t('runLog.sage')}</h4>
                   <ul>
                     {row.sage.map((memory, i) => (
                       <li key={i}>{memory}</li>
@@ -196,7 +208,7 @@ export function SessionActivity({
                 !row.output &&
                 !row.progress.length &&
                 !row.files.length &&
-                !row.sage.length && <p>No additional details were reported.</p>}
+                !row.sage.length && <p>{t('runLog.noDetails')}</p>}
             </div>
           </details>
         ))}

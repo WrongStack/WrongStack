@@ -1,4 +1,5 @@
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import {
   confirmationKinds,
   confirmationMap,
@@ -16,26 +17,24 @@ export function ExecutionPolicySettings({
   draft: Record<string, unknown>;
   change: (key: string, value: unknown) => void;
 }) {
+  const { t } = useDesktopText();
   const mode = executionMode(draft),
     map = confirmationMap(draft['yoloConfirm']);
   return (
-    <section className="execution-policy" aria-label="Tool confirmation policy">
+    <section className="execution-policy" aria-label={t('execPolicy.label')}>
       <article className="execution-mode-card">
         <header>
           <ShieldCheck size={21} />
           <div>
-            <span className="eyebrow">TOOL PERMISSIONS</span>
-            <h3>Tool confirmation mode</h3>
+            <span className="eyebrow">{t('execPolicy.eyebrow')}</span>
+            <h3>{t('execPolicy.title')}</h3>
           </div>
         </header>
-        <p>
-          Choose the profile default for new runtimes. Existing conversations retain their own
-          permission options.
-        </p>
+        <p>{t('execPolicy.intro')}</p>
         <label>
-          Confirmation mode
+          {t('execPolicy.modeLabel')}
           <select
-            aria-label="Tool confirmation mode"
+            aria-label={t('execPolicy.title')}
             value={mode}
             onChange={(event) => {
               const next = executionModeValues(event.target.value as ExecutionMode);
@@ -43,55 +42,49 @@ export function ExecutionPolicySettings({
               change('yoloPlus', next.yoloPlus);
             }}
           >
-            <option value="standard">Standard approvals</option>
-            <option value="yolo">YOLO · selected destructive prompts</option>
-            <option value="yolo-plus">YOLO+ · bypass per-kind prompts</option>
+            <option value="standard">{t('execPolicy.mode.standard')}</option>
+            <option value="yolo">{t('execPolicy.mode.yolo')}</option>
+            <option value="yolo-plus">{t('execPolicy.mode.yolo-plus')}</option>
           </select>
         </label>
         <p role="status" className="execution-mode-note">
-          {mode === 'standard'
-            ? 'Standard mode follows configured permission rules and approval prompts.'
-            : mode === 'yolo'
-              ? 'YOLO skips routine prompts and asks about the selected categories below.'
-              : 'YOLO+ bypasses these per-kind prompts, including the protected categories. Explicit deny rules still refuse.'}
+          {t(`execPolicy.note.${mode}`)}
         </p>
       </article>
       <article className="execution-confirm-card">
-        <h3>Destructive-operation confirmations</h3>
-        <p>
-          {mode === 'yolo'
-            ? 'Checked categories require confirmation under YOLO.'
-            : 'Saved YOLO preferences are shown below. Choose YOLO mode to edit them.'}
-        </p>
+        <h3>{t('execPolicy.confirmTitle')}</h3>
+        <p>{mode === 'yolo' ? t('execPolicy.checkedYolo') : t('execPolicy.savedShown')}</p>
         <div className="execution-kind-list">
-          {confirmationKinds.map(({ kind, label, description }) => (
-            <label key={kind} className="execution-kind">
-              <span>
-                <strong>{label}</strong>
-                <small>{description}</small>
-                {lockedConfirmationKinds.has(kind) && (
-                  <em>
-                    <LockKeyhole size={11} />
-                    Required in YOLO
-                  </em>
-                )}
-              </span>
-              <input
-                type="checkbox"
-                aria-label={`Confirm: ${label}`}
-                checked={map[kind] === true}
-                disabled={mode !== 'yolo' || lockedConfirmationKinds.has(kind)}
-                onChange={(event) =>
-                  change('yoloConfirm', { ...map, [kind]: event.target.checked })
-                }
-              />
-            </label>
-          ))}
+          {confirmationKinds.map(({ kind, label: english, description }) => {
+            const label = t(`execPolicy.kind.${kind}.label`, { defaultValue: english });
+            return (
+              <label key={kind} className="execution-kind">
+                <span>
+                  <strong>{label}</strong>
+                  <small>
+                    {t(`execPolicy.kind.${kind}.description`, { defaultValue: description })}
+                  </small>
+                  {lockedConfirmationKinds.has(kind) && (
+                    <em>
+                      <LockKeyhole size={11} />
+                      {t('execPolicy.required')}
+                    </em>
+                  )}
+                </span>
+                <input
+                  type="checkbox"
+                  aria-label={t('execPolicy.confirmKind', { label })}
+                  checked={map[kind] === true}
+                  disabled={mode !== 'yolo' || lockedConfirmationKinds.has(kind)}
+                  onChange={(event) =>
+                    change('yoloConfirm', { ...map, [kind]: event.target.checked })
+                  }
+                />
+              </label>
+            );
+          })}
         </div>
-        <p className="execution-protection-note">
-          The trusted-state and credential categories are fixed in normal YOLO. Tool availability
-          and explicit deny rules are configured separately.
-        </p>
+        <p className="execution-protection-note">{t('execPolicy.protection')}</p>
       </article>
     </section>
   );

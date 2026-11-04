@@ -109,6 +109,7 @@
     "@wrongstack/goal": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/plugins": "workspace:*",
+    "@wrongstack/project-surfaces": "workspace:*",
     "@wrongstack/providers": "workspace:*",
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",

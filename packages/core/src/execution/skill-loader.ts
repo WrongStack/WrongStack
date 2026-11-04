@@ -142,6 +142,7 @@ export interface SkillLoaderOptions {
 export class DefaultSkillLoader implements SkillLoader {
   private readonly dirs: { dir: string; source: SkillManifest['source']; originTool?: string }[];
   private cache?: SkillManifest[] | undefined;
+  private inFlightList?: Promise<SkillManifest[]> | undefined;
   private entriesCache?: SkillEntry[] | undefined;
   /** Bodies with the `mtime:size` stamp of the files they were read from. */
   private readonly bodyCache = new Map<string, { text: string; stamp: string }>();
@@ -178,14 +179,21 @@ export class DefaultSkillLoader implements SkillLoader {
 
   async list(): Promise<SkillManifest[]> {
     if (this.cache) return this.cache;
+    this.inFlightList ??= this.scanList().finally(() => {
+      this.inFlightList = undefined;
+    });
+    return this.inFlightList;
+  }
+
+  private async scanList(): Promise<SkillManifest[]> {
     const found: SkillManifest[] = [];
     const seen = new Set<string>();
     // First-claimant map so a shadowed skill can report which layer won.
     const claimedBy = new Map<string, { source: SkillManifest['source']; path: string }>();
-    // Reset diagnostics for this fresh scan. A cache hit returns early above,
-    // so these always reflect the most recent full scan.
-    this.skipped = [];
-    this.shadowed = [];
+    // Collect into local arrays and publish atomically so concurrent callers
+    // never interleave or duplicate skipped/shadowed diagnostics.
+    const skipped: SkippedSkill[] = [];
+    const shadowed: ShadowedSkill[] = [];
     for (const { dir, source, originTool } of this.dirs) {
       try {
         // Node does not guarantee filesystem enumeration order. Sort each
@@ -204,7 +212,7 @@ export class DefaultSkillLoader implements SkillLoader {
           // name to the same agentskills.io charset as the frontmatter name, so
           // no shell metacharacter can ever reach a spawn argument this way.
           if (!isValidSkillNameFormat(e.name)) {
-            this.skipped.push({ dir, entry: e.name, reason: 'invalid-name-format' });
+            skipped.push({ dir, entry: e.name, reason: 'invalid-name-format' });
             continue;
           }
           const skillFile = path.join(dir, e.name, 'SKILL.md');
@@ -217,11 +225,11 @@ export class DefaultSkillLoader implements SkillLoader {
           }
           const fm = parseSkillFrontmatter(raw);
           if (!fm.name) {
-            this.skipped.push({ dir, entry: e.name, reason: 'missing-name' });
+            skipped.push({ dir, entry: e.name, reason: 'missing-name' });
             continue;
           }
           if (!fm.description) {
-            this.skipped.push({
+            skipped.push({
               dir,
               entry: e.name,
               reason: 'missing-description',
@@ -231,7 +239,7 @@ export class DefaultSkillLoader implements SkillLoader {
           }
           // agentskills.io name format — skip genuinely malformed names.
           if (!isValidSkillNameFormat(fm.name)) {
-            this.skipped.push({
+            skipped.push({
               dir,
               entry: e.name,
               reason: 'invalid-name-format',
@@ -243,7 +251,7 @@ export class DefaultSkillLoader implements SkillLoader {
             // A higher-priority layer already claimed this name — record the
             // shadow so it is diagnosable rather than silently dropped.
             const claimant = claimedBy.get(fm.name);
-            this.shadowed.push({
+            shadowed.push({
               name: fm.name,
               source,
               path: skillFile,
@@ -279,6 +287,8 @@ export class DefaultSkillLoader implements SkillLoader {
         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
       }
     }
+    this.skipped = skipped;
+    this.shadowed = shadowed;
     this.cache = found;
     return found;
   }
@@ -327,6 +337,7 @@ export class DefaultSkillLoader implements SkillLoader {
 
   invalidateCache(): void {
     this.cache = undefined;
+    this.inFlightList = undefined;
     this.entriesCache = undefined;
     this.bodyCache.clear();
     this.skipped = [];

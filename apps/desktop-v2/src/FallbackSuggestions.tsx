@@ -1,5 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { type EngineCommand, EngineReplyError } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -54,6 +55,7 @@ export function FallbackSuggestions({
   onUse: (chain: string[]) => void;
   onSaveProfile: (id: string, chain: string[]) => void;
 }) {
+  const { t } = useDesktopText();
   const [suggestions, setSuggestions] = useState<FallbackSuggestion[] | null>(null),
     [busy, setBusy] = useState(false),
     [note, setNote] = useState('');
@@ -66,7 +68,7 @@ export function FallbackSuggestions({
       const count = Number(payload['candidateCount'] ?? 0);
       const error = typeof payload['error'] === 'string' ? payload['error'] : '';
       setNote(
-        [error, list.length ? '' : `No chain could be built from ${count} reachable models.`]
+        [error, list.length ? '' : t('fallbackSuggest.noChain', { number: count })]
           .filter(Boolean)
           .join(' '),
       );
@@ -94,14 +96,12 @@ export function FallbackSuggestions({
   };
   const profiles = record(draft['fallbackProfiles']);
   return (
-    <section className="fallback-suggestions" aria-label="Suggested fallback chains">
+    <section className="fallback-suggestions" aria-label={t('fallbackSuggest.label')}>
       <header>
         <strong>
-          <Sparkles size={14} /> Suggested chains
+          <Sparkles size={14} /> {t('fallbackSuggest.title')}
         </strong>
-        <span className="field-help">
-          Built only from models your saved providers list and you have not hidden.
-        </span>
+        <span className="field-help">{t('fallbackSuggest.help')}</span>
       </header>
       <div className="fallback-suggestion-actions">
         <button
@@ -110,16 +110,16 @@ export function FallbackSuggestions({
           disabled={busy}
           onClick={() => void load('heuristic')}
         >
-          {busy ? 'Suggesting…' : 'Suggest chains'}
+          {busy ? t('fallbackSuggest.suggesting') : t('fallbackSuggest.suggest')}
         </button>
         <button
           type="button"
           className="button secondary small"
           disabled={busy}
-          title="The current conversation's model re-ranks the same models; this sends a request."
+          title={t('fallbackSuggest.askTitle')}
           onClick={() => void load('llm')}
         >
-          Ask the current model
+          {t('fallbackSuggest.ask')}
         </button>
       </div>
       {note && <p role="status">{note}</p>}
@@ -131,8 +131,11 @@ export function FallbackSuggestions({
               {suggestion.id}
               <small>
                 {' '}
-                · {suggestion.providerCount} provider{suggestion.providerCount === 1 ? '' : 's'}
-                {suggestion.source === 'llm' ? ' · ranked by the model' : ''}
+                ·{' '}
+                {suggestion.providerCount === 1
+                  ? t('fallbackSuggest.oneProvider')
+                  : t('fallbackSuggest.providers', { number: suggestion.providerCount })}
+                {suggestion.source === 'llm' ? ` · ${t('fallbackSuggest.ranked')}` : ''}
               </small>
             </h4>
             <ol>
@@ -149,7 +152,7 @@ export function FallbackSuggestions({
                 className="button secondary small"
                 onClick={() => onUse(suggestion.chain)}
               >
-                Use as default chain
+                {t('fallbackSuggest.use')}
               </button>
               <button
                 type="button"
@@ -157,12 +160,12 @@ export function FallbackSuggestions({
                 disabled={Object.hasOwn(profiles, profileId)}
                 title={
                   Object.hasOwn(profiles, profileId)
-                    ? `A profile named ${profileId} exists already.`
+                    ? t('fallbackSuggest.exists', { id: profileId })
                     : undefined
                 }
                 onClick={() => onSaveProfile(profileId, suggestion.chain)}
               >
-                Save as profile {profileId}
+                {t('fallbackSuggest.save', { id: profileId })}
               </button>
             </div>
           </article>

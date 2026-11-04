@@ -1,6 +1,7 @@
 import type { ApiSession } from '@wrongstack/webui-protocol';
 import { Megaphone } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 
@@ -9,12 +10,23 @@ export function broadcastTargets(sessions: readonly ApiSession[]): ApiSession[] 
   return sessions.filter((session) => session.status === 'active' || session.status === 'idle');
 }
 
+const englishSummary = {
+  delivered: (count: number) =>
+    `Delivered to ${count} session ${count === 1 ? 'mailbox' : 'mailboxes'}.`,
+  failed: (ids: string) => `Not delivered: ${ids}.`,
+  unconfirmed: 'Delivery does not confirm execution.',
+};
+
 /** One line for a finished broadcast. */
-export function broadcastSummary(delivered: number, failed: readonly string[]): string {
-  const base = `Delivered to ${delivered} session ${delivered === 1 ? 'mailbox' : 'mailboxes'}.`;
+export function broadcastSummary(
+  delivered: number,
+  failed: readonly string[],
+  words = englishSummary,
+): string {
+  const base = words.delivered(delivered);
   return failed.length
-    ? `${base} Not delivered: ${failed.join(', ')}. Delivery does not confirm execution.`
-    : `${base} Delivery does not confirm execution.`;
+    ? `${base} ${words.failed(failed.join(', '))} ${words.unconfirmed}`
+    : `${base} ${words.unconfirmed}`;
 }
 
 /**
@@ -34,6 +46,7 @@ export function FleetBroadcast({
   read: () => Promise<ApiSession[]>;
   onSent: () => void;
 }) {
+  const { t } = useDesktopText();
   const [open, setOpen] = useState(false),
     [text, setText] = useState(''),
     [busy, setBusy] = useState(false),
@@ -45,7 +58,7 @@ export function FleetBroadcast({
     setNotice('');
     try {
       const targets = broadcastTargets(await read());
-      if (targets.length === 0) throw Error('No live runtime in this project. Nothing was sent.');
+      if (targets.length === 0) throw Error(t('liveFleet.broadcast.none'));
       const failed: string[] = [];
       let delivered = 0;
       for (const session of targets) {
@@ -65,7 +78,16 @@ export function FleetBroadcast({
           failed.push(session.sessionId);
         }
       }
-      setNotice(broadcastSummary(delivered, failed));
+      setNotice(
+        broadcastSummary(delivered, failed, {
+          delivered: (n) =>
+            t(n === 1 ? 'liveFleet.broadcast.deliveredOne' : 'liveFleet.broadcast.deliveredMany', {
+              n,
+            }),
+          failed: (ids) => t('liveFleet.broadcast.failed', { ids }),
+          unconfirmed: t('liveFleet.broadcast.unconfirmed'),
+        }),
+      );
       if (failed.length === 0) {
         setText('');
         setOpen(false);
@@ -87,7 +109,7 @@ export function FleetBroadcast({
           }}
         >
           <label>
-            Message to every live runtime in this project
+            {t('liveFleet.broadcast.field')}
             <textarea
               rows={3}
               maxLength={4000}
@@ -98,7 +120,7 @@ export function FleetBroadcast({
           </label>
           <span className="feature-actions">
             <button type="submit" className="button primary" disabled={busy || !text.trim()}>
-              {busy ? 'Sending…' : 'Send to all'}
+              {busy ? t('liveFleet.broadcast.sending') : t('liveFleet.broadcast.send')}
             </button>
             <button
               type="button"
@@ -106,14 +128,14 @@ export function FleetBroadcast({
               disabled={busy}
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t('liveFleet.broadcast.cancel')}
             </button>
           </span>
         </form>
       ) : (
         <button type="button" className="button secondary" onClick={() => setOpen(true)}>
           <Megaphone size={14} />
-          Message all runtimes…
+          {t('liveFleet.broadcast.open')}
         </button>
       )}
       {notice && (

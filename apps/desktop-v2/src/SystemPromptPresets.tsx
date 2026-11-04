@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import {
   effectivePreset,
@@ -21,6 +22,9 @@ type Catalog = ReturnType<typeof promptPresets>;
  * saving can take the updated built-in text as the new base after review.
  */
 export function SystemPromptPresets({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
+  const variantWord = (variant: PromptVariant) =>
+    t(`systemPrompts.variant.${variant}`, { defaultValue: variantNames[variant] });
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -74,12 +78,9 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
   const presetsFor = (variant: PromptVariant) =>
     catalog?.presets.filter((preset) => preset.baseVariant === variant) ?? [];
   return (
-    <section className="prompt-presets" aria-label="Instruction presets">
-      <h3>Instruction presets</h3>
-      <p className="field-help">
-        A preset replaces one built-in instruction variant with your edited copy. Choose it for this
-        profile or only for this project; the project choice wins. Changes apply to new turns.
-      </p>
+    <section className="prompt-presets" aria-label={t('systemPrompts.title')}>
+      <h3>{t('systemPrompts.title')}</h3>
+      <p className="field-help">{t('systemPrompts.intro')}</p>
       {error && (
         <p role="alert" className="session-error">
           {error}
@@ -87,26 +88,30 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
       )}
       {notice && <p role="status">{notice}</p>}
       {!catalog ? (
-        <p role="status">Reading presets…</p>
+        <p role="status">{t('systemPrompts.reading')}</p>
       ) : (
         PROMPT_VARIANTS.map((variant) => {
           const current = effectivePreset(variant, catalog.active, catalog.projectActive);
           const options = presetsFor(variant);
           return (
             <fieldset key={variant} className="prompt-preset-variant">
-              <legend>{variantNames[variant]}</legend>
+              <legend>{variantWord(variant)}</legend>
               <p>
-                In use here:{' '}
                 {current.scope === 'built-in'
-                  ? 'the built-in instructions'
-                  : `${options.find((preset) => preset.id === current.id)?.name ?? current.id} (${current.scope})`}
+                  ? t('systemPrompts.inUseBuiltIn')
+                  : t('systemPrompts.inUse', {
+                      name: options.find((preset) => preset.id === current.id)?.name ?? current.id,
+                      scope: t(`systemPrompts.scope.${current.scope}`),
+                    })}
               </p>
               {(['profile', 'project'] as const).map((scope) => {
                 const selected =
                   (scope === 'project' ? catalog.projectActive : catalog.active)[variant] ?? '';
                 return (
                   <label key={scope}>
-                    {scope === 'profile' ? 'Profile choice' : 'This project'}
+                    {scope === 'profile'
+                      ? t('systemPrompts.profileChoice')
+                      : t('systemPrompts.projectChoice')}
                     <select
                       value={selected}
                       disabled={busy}
@@ -117,12 +122,19 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                             scope,
                             ...(event.target.value ? { id: event.target.value } : {}),
                           });
-                          setNotice(`${variantNames[variant]} ${scope} choice saved.`);
+                          setNotice(
+                            t('systemPrompts.choiceSaved', {
+                              variant: variantWord(variant),
+                              scope: t(`systemPrompts.scope.${scope}`),
+                            }),
+                          );
                         })
                       }
                     >
                       <option value="">
-                        {scope === 'profile' ? 'Built-in instructions' : 'Use the profile choice'}
+                        {scope === 'profile'
+                          ? t('systemPrompts.builtIn')
+                          : t('systemPrompts.useProfile')}
                       </option>
                       {options.map((preset) => (
                         <option key={preset.id} value={preset.id}>
@@ -139,9 +151,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                     <li key={preset.id}>
                       <span>
                         {preset.name}
-                        {preset.sourceChanged && (
-                          <em> · the built-in text changed since this was based on it</em>
-                        )}
+                        {preset.sourceChanged && <em>{t('systemPrompts.sourceChanged')}</em>}
                       </span>
                       <button
                         type="button"
@@ -149,7 +159,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                         disabled={busy || dirty}
                         onClick={() => open(preset)}
                       >
-                        Edit
+                        {t('systemPrompts.edit')}
                       </button>
                       {deleting === preset.id ? (
                         <>
@@ -162,18 +172,18 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                                 await act('delete', { id: preset.id });
                                 setDeleting('');
                                 if (editing?.id === preset.id) setEditing(null);
-                                setNotice(`Deleted ${preset.name}.`);
+                                setNotice(t('systemPrompts.deleted', { name: preset.name }));
                               })
                             }
                           >
-                            Confirm delete
+                            {t('systemPrompts.confirmDelete')}
                           </button>
                           <button
                             type="button"
                             className="button secondary small"
                             onClick={() => setDeleting('')}
                           >
-                            Keep
+                            {t('systemPrompts.keep')}
                           </button>
                         </>
                       ) : (
@@ -183,7 +193,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                           disabled={busy}
                           onClick={() => setDeleting(preset.id)}
                         >
-                          Delete
+                          {t('systemPrompts.delete')}
                         </button>
                       )}
                     </li>
@@ -207,7 +217,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
         }}
       >
         <label>
-          New preset name
+          {t('systemPrompts.newName')}
           <input
             value={newName}
             maxLength={80}
@@ -216,7 +226,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
           />
         </label>
         <label>
-          Based on
+          {t('systemPrompts.basedOn')}
           <select
             value={newVariant}
             disabled={busy}
@@ -224,7 +234,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
           >
             {PROMPT_VARIANTS.map((variant) => (
               <option key={variant} value={variant}>
-                {variantNames[variant]}
+                {variantWord(variant)}
               </option>
             ))}
           </select>
@@ -234,13 +244,13 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
           className="button secondary small"
           disabled={busy || !newName.trim() || dirty}
         >
-          Create from built-in
+          {t('systemPrompts.create')}
         </button>
       </form>
       {editing && (
         <form
           className="prompt-preset-editor"
-          aria-label={`Edit preset ${editing.name}`}
+          aria-label={t('systemPrompts.editLabel', { name: editing.name })}
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
@@ -253,12 +263,12 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
               });
               const saved = next.presets.find((preset) => preset.id === editing.id);
               if (saved) open(saved);
-              setNotice('Preset saved.');
+              setNotice(t('systemPrompts.saved'));
             });
           }}
         >
           <label>
-            Name
+            {t('systemPrompts.name')}
             <input
               value={name}
               maxLength={80}
@@ -267,7 +277,10 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
             />
           </label>
           <label>
-            Instructions ({variantNames[editing.baseVariant]} base, revision {editing.revision})
+            {t('systemPrompts.instructions', {
+              variant: variantWord(editing.baseVariant),
+              revision: editing.revision,
+            })}
             <textarea
               value={text}
               rows={16}
@@ -280,13 +293,9 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
           </label>
           {editing.sourceChanged && (
             <div className="prompt-preset-source">
-              <p>
-                The built-in {variantNames[editing.baseVariant]} instructions changed since this
-                preset was based on them. Compare, then mark them reviewed to record the current
-                built-in text as the new base. Your text is not changed.
-              </p>
+              <p>{t('systemPrompts.sourceBody', { variant: variantWord(editing.baseVariant) })}</p>
               <details>
-                <summary>Current built-in text</summary>
+                <summary>{t('systemPrompts.currentText')}</summary>
                 <pre>{editing.currentBaseText}</pre>
               </details>
               <label>
@@ -295,7 +304,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                   checked={reviewedSource}
                   onChange={(event) => setReviewedSource(event.target.checked)}
                 />
-                I reviewed the updated built-in text
+                {t('systemPrompts.reviewed')}
               </label>
             </div>
           )}
@@ -316,7 +325,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                 })
               }
             >
-              Check
+              {t('systemPrompts.check')}
             </button>
             <button
               type="button"
@@ -336,14 +345,14 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
                 })
               }
             >
-              Preview for this session
+              {t('systemPrompts.previewSession')}
             </button>
             <button
               type="submit"
               className="button primary small"
               disabled={busy || (!dirty && !reviewedSource)}
             >
-              Save preset
+              {t('systemPrompts.save')}
             </button>
             <button
               type="button"
@@ -351,20 +360,20 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
               disabled={busy}
               onClick={() => setEditing(null)}
             >
-              {dirty ? 'Discard changes' : 'Close'}
+              {dirty ? t('systemPrompts.discardChanges') : t('systemPrompts.close')}
             </button>
           </div>
           {issues && (
-            <ul className="prompt-preset-issues" aria-label="Preset check">
+            <ul className="prompt-preset-issues" aria-label={t('systemPrompts.issues')}>
               {issues.length === 0 ? (
-                <li>No problems found.</li>
+                <li>{t('systemPrompts.noProblems')}</li>
               ) : (
                 issues.map((issue) => (
                   <li
                     key={`${issue.line}:${issue.message}`}
                     className={issue.severity === 'error' ? 'session-error' : ''}
                   >
-                    Line {issue.line}: {issue.message}
+                    {t('systemPrompts.line', { line: issue.line, message: issue.message })}
                   </li>
                 ))
               )}
@@ -372,7 +381,7 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
           )}
           {preview && (
             <details open>
-              <summary>Rendered for this session's tools and tier</summary>
+              <summary>{t('systemPrompts.rendered')}</summary>
               <pre>{preview}</pre>
             </details>
           )}

@@ -819,6 +819,23 @@ describe('wsToVizEvent', () => {
     expect(result?.source).toBe('leader');
   });
 
+  it('reads the mailbox send event the mailbox actually emits as a send', () => {
+    const result = wsToVizEvent('mailbox.event', {
+      event: 'mailbox.message_sent',
+      from: 'leader',
+      to: 'sub-1',
+      subject: 'Result',
+    });
+    expect(result).toMatchObject({ kind: 'mailbox:send', source: 'leader', label: 'Result' });
+  });
+
+  it('makes no activity entry for mailbox heartbeats', () => {
+    expect(
+      wsToVizEvent('mailbox.event', { event: 'mailbox.agent_heartbeat', agentId: 'a' }),
+    ).toBeNull();
+    expect(wsToVizEvent('mailbox.event', { event: 'mailbox.client_heartbeat' })).toBeNull();
+  });
+
   it('handles iteration.started', () => {
     const result = wsToVizEvent('iteration.started', { index: 3 });
     expect(result?.kind).toBe('iteration:start');

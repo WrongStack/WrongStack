@@ -1,9 +1,13 @@
 import { Bell, ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import { FleetPanel } from './FleetPanel';
 import { ProjectViews } from './ProjectViews';
 import { native, openProjectWindow } from './platform';
 import { Sidebar } from './Sidebar';
+import { SurfaceLanguageSync } from './SurfaceLanguageSync';
+import { cachedLanguage, surfaceI18n } from './surface-i18n';
 import { useDesktop } from './useDesktop';
 import { WorkspaceDialogs } from './WorkspaceDialogs';
 
@@ -18,6 +22,9 @@ const WrongStackSettings = lazy(() =>
 );
 export function App() {
   const vm = useDesktop();
+  const { t } = useDesktopText();
+  // The display language is read from the profile once; afterwards the remembered one opens.
+  const [readLanguage, setReadLanguage] = useState(() => native && cachedLanguage() === null);
   const {
     snapshot,
     setProject,
@@ -38,6 +45,7 @@ export function App() {
   const focused = section === 'fleet' && currentSession !== undefined;
   return (
     <div className="app-shell">
+      {readLanguage && <SurfaceLanguageSync onKnown={() => setReadLanguage(false)} />}
       <Sidebar vm={vm} />
       <div
         className={`workspace-shell ${focused ? 'workspace-focused' : ''} ${section === 'project' ? 'project-focused' : ''} ${section === 'wrongstack' ? 'settings-focused' : ''}`}
@@ -50,17 +58,17 @@ export function App() {
                 <span className="breadcrumb-session">{currentSession.title}</span>
               </>
             ) : section === 'wrongstack' ? (
-              'WrongStack settings'
+              t('rail.settings')
             ) : section === 'project' && currentProject ? (
               currentProject.name
             ) : (
               {
-                fleet: 'Mission control',
-                projects: 'Projects',
-                activity: 'Activity',
-                engine: 'Appearance',
-                project: 'Project',
-                wrongstack: 'WrongStack settings',
+                fleet: t('rail.missionControl'),
+                projects: t('rail.projects'),
+                activity: t('rail.activity'),
+                engine: t('rail.appearance'),
+                project: t('topbar.project'),
+                wrongstack: t('rail.settings'),
               }[section]
             )}
           </h1>
@@ -69,8 +77,8 @@ export function App() {
               <button
                 type="button"
                 className="icon-button"
-                title="Open in its own window"
-                aria-label="Project window"
+                title={t('topbar.openInWindow')}
+                aria-label={t('topbar.projectWindow')}
                 onClick={() => void run(() => openProjectWindow(currentProject.id))}
               >
                 <ExternalLink size={15} />
@@ -84,14 +92,14 @@ export function App() {
                 onClick={() => newSession()}
               >
                 <Plus size={14} />
-                New session
+                {t('topbar.newSession')}
               </button>
             )}
             <button
               type="button"
               className="icon-button"
-              title={`Switch to ${vm.mode === 'dark' ? 'light' : 'dark'} mode`}
-              aria-label={`Switch to ${vm.mode === 'dark' ? 'light' : 'dark'} mode`}
+              title={t(vm.mode === 'dark' ? 'topbar.toLight' : 'topbar.toDark')}
+              aria-label={t(vm.mode === 'dark' ? 'topbar.toLight' : 'topbar.toDark')}
               onClick={() => vm.changeAppearance({ mode: vm.mode === 'dark' ? 'light' : 'dark' })}
             >
               {vm.mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -99,8 +107,8 @@ export function App() {
             <button
               type="button"
               className="icon-button"
-              title="Sessions needing attention"
-              aria-label="Sessions needing attention"
+              title={t('topbar.attention')}
+              aria-label={t('topbar.attention')}
               onClick={() => {
                 setFilter('attention');
                 setProject(null);
@@ -114,27 +122,36 @@ export function App() {
             <span
               className={`connection-dot ${connected ? 'running' : 'stopped'}`}
               role="status"
-              title={connected ? 'Local engine connected' : 'Local engine disconnected'}
-              aria-label={connected ? 'Local engine connected' : 'Local engine disconnected'}
+              title={t(connected ? 'topbar.connected' : 'topbar.disconnected')}
+              aria-label={t(connected ? 'topbar.connected' : 'topbar.disconnected')}
             />
           </div>
         </header>
         {error && (
           <div className="error-banner" role="alert">
             <span>{error}</span>
-            <button type="button" aria-label="Dismiss error" onClick={() => setError('')}>
+            <button
+              type="button"
+              aria-label={t('topbar.dismissError')}
+              onClick={() => setError('')}
+            >
               <X size={15} />
             </button>
           </div>
         )}
         {!native && (
           <div className="preview-banner">
-            <Radio size={15} /> Shell preview · Launch with <code>bun run desktop:v2</code> to
-            connect your local projects and sessions.
+            <Radio size={15} />{' '}
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="topbar.preview"
+              components={{ code: <code /> }}
+            />
           </div>
         )}
         <main className="main-content">
-          <Suspense fallback={<div className="runtime-state">Opening your workspace…</div>}>
+          <Suspense fallback={<div className="runtime-state">{t('topbar.opening')}</div>}>
             {section === 'fleet' &&
               (focused ? <SessionWorkbench vm={vm} /> : <FleetPanel vm={vm} />)}
             <ProjectViews vm={vm} />

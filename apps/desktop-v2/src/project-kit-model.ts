@@ -28,36 +28,68 @@ export function kitInitialValue(schema: KitSchema): unknown {
   }
 }
 
+/** English wording of the kit form feedback; the desktop passes the display-language catalog. */
+const KIT_INPUT_ERRORS = {
+  choose: '{{path}}: choose a listed value.',
+  object: '{{path}}: expected an object.',
+  required: '{{path}}: required.',
+  unknown: '{{path}}: unknown parameter.',
+  list: '{{path}}: expected a list.',
+  minItems: '{{path}}: at least {{value}} items.',
+  maxItems: '{{path}}: at most {{value}} items.',
+  finiteNumber: '{{path}}: enter a finite number.',
+  finiteInteger: '{{path}}: enter a finite integer.',
+  minimum: '{{path}}: minimum {{value}}.',
+  maximum: '{{path}}: maximum {{value}}.',
+  text: '{{path}}: expected text.',
+  minLength: '{{path}}: at least {{value}} characters.',
+  maxLength: '{{path}}: at most {{value}} characters.',
+  boolean: '{{path}}: choose yes or no.',
+  empty: '{{path}}: expected an empty value.',
+  unsupported: '{{path}}: unsupported parameter type.',
+} as const;
+export type KitInputError = keyof typeof KIT_INPUT_ERRORS;
+export type KitSay = (code: KitInputError, values: { path: string; value?: number }) => string;
+const english: KitSay = (code, values) =>
+  KIT_INPUT_ERRORS[code]
+    .replace('{{path}}', () => values.path)
+    .replace('{{value}}', () => String(values.value));
+
 /** Form feedback for the supported kit schema subset; the engine remains authoritative. */
-export function kitInputErrors(schema: KitSchema, value: unknown, path = 'Input'): string[] {
+export function kitInputErrors(
+  schema: KitSchema,
+  value: unknown,
+  path = 'Input',
+  say: KitSay = english,
+): string[] {
   const errors: string[] = [];
   if (schema.enum && !schema.enum.some((item) => kitValuesEqual(item, value)))
-    errors.push(`${path}: choose a listed value.`);
+    errors.push(say('choose', { path }));
   switch (schema.type) {
     case 'object': {
       if (!value || typeof value !== 'object' || Array.isArray(value))
-        return [`${path}: expected an object.`];
+        return [say('object', { path })];
       const object = value as Record<string, unknown>;
       for (const name of schema.required ?? [])
-        if (!Object.hasOwn(object, name)) errors.push(`${path}.${name}: required.`);
+        if (!Object.hasOwn(object, name)) errors.push(say('required', { path: `${path}.${name}` }));
       for (const [name, item] of Object.entries(object)) {
         const child = Object.hasOwn(schema.properties ?? {}, name)
           ? schema.properties?.[name]
           : undefined;
-        if (child) errors.push(...kitInputErrors(child, item, `${path}.${name}`));
-        else errors.push(`${path}.${name}: unknown parameter.`);
+        if (child) errors.push(...kitInputErrors(child, item, `${path}.${name}`, say));
+        else errors.push(say('unknown', { path: `${path}.${name}` }));
       }
       break;
     }
     case 'array':
-      if (!Array.isArray(value)) return [`${path}: expected a list.`];
+      if (!Array.isArray(value)) return [say('list', { path })];
       if (schema.minItems !== undefined && value.length < schema.minItems)
-        errors.push(`${path}: at least ${schema.minItems} items.`);
+        errors.push(say('minItems', { path, value: schema.minItems }));
       if (schema.maxItems !== undefined && value.length > schema.maxItems)
-        errors.push(`${path}: at most ${schema.maxItems} items.`);
+        errors.push(say('maxItems', { path, value: schema.maxItems }));
       if (schema.items)
         value.forEach((item, i) => {
-          errors.push(...kitInputErrors(schema.items as KitSchema, item, `${path}[${i + 1}]`));
+          errors.push(...kitInputErrors(schema.items as KitSchema, item, `${path}[${i + 1}]`, say));
         });
       break;
     case 'number':
@@ -67,27 +99,27 @@ export function kitInputErrors(schema: KitSchema, value: unknown, path = 'Input'
         !Number.isFinite(value) ||
         (schema.type === 'integer' && !Number.isInteger(value))
       )
-        return [`${path}: enter a finite ${schema.type}.`];
+        return [say(schema.type === 'integer' ? 'finiteInteger' : 'finiteNumber', { path })];
       if (schema.minimum !== undefined && value < schema.minimum)
-        errors.push(`${path}: minimum ${schema.minimum}.`);
+        errors.push(say('minimum', { path, value: schema.minimum }));
       if (schema.maximum !== undefined && value > schema.maximum)
-        errors.push(`${path}: maximum ${schema.maximum}.`);
+        errors.push(say('maximum', { path, value: schema.maximum }));
       break;
     case 'string':
-      if (typeof value !== 'string') return [`${path}: expected text.`];
+      if (typeof value !== 'string') return [say('text', { path })];
       if (schema.minLength !== undefined && value.length < schema.minLength)
-        errors.push(`${path}: at least ${schema.minLength} characters.`);
+        errors.push(say('minLength', { path, value: schema.minLength }));
       if (schema.maxLength !== undefined && value.length > schema.maxLength)
-        errors.push(`${path}: at most ${schema.maxLength} characters.`);
+        errors.push(say('maxLength', { path, value: schema.maxLength }));
       break;
     case 'boolean':
-      if (typeof value !== 'boolean') errors.push(`${path}: choose yes or no.`);
+      if (typeof value !== 'boolean') errors.push(say('boolean', { path }));
       break;
     case 'null':
-      if (value !== null) errors.push(`${path}: expected an empty value.`);
+      if (value !== null) errors.push(say('empty', { path }));
       break;
     default:
-      errors.push(`${path}: unsupported parameter type.`);
+      errors.push(say('unsupported', { path }));
   }
   return errors;
 }

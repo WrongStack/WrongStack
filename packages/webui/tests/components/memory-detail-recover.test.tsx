@@ -5,6 +5,7 @@ import type { SageEntry } from '../../src/types/sage.js';
 
 const translation = vi.hoisted(() => ({ t: (key: string) => key }));
 vi.mock('@/i18n', () => ({ useAppTranslation: () => translation }));
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => ({ useAppTranslation: () => translation }));
 afterEach(cleanup);
 
 function entry(overrides: Partial<SageEntry> = {}): SageEntry {

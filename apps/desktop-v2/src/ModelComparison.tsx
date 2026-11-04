@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { comparisonRows } from './model-comparison';
 import type { PickerModel } from './model-picker-details';
 
@@ -23,17 +24,36 @@ export function ModelComparison({
   onUse: (id: string, provider: string) => void;
   onBack: () => void;
 }) {
-  const rows = comparisonRows(models.map((entry) => entry.model));
+  const { t } = useDesktopText();
+  const rows = comparisonRows(
+    models.map((entry) => entry.model),
+    {
+      context: t('modelCompare.row.context'),
+      output: t('modelCompare.row.output'),
+      inputPrice: t('modelCompare.row.inputPrice'),
+      outputPrice: t('modelCompare.row.outputPrice'),
+      status: t('modelCompare.row.status'),
+      capabilities: {
+        tools: t('modelCompare.cap.tools'),
+        reasoning: t('modelCompare.cap.reasoning'),
+        vision: t('modelCompare.cap.vision'),
+        open_weights: t('modelCompare.cap.openWeights'),
+      },
+      unknown: t('modelCompare.unknown'),
+      yes: t('modelCompare.yes'),
+      notReported: t('modelCompare.notReported'),
+    },
+  );
   return (
     <div className="model-comparison">
       <button type="button" className="button secondary small" onClick={onBack}>
-        <ArrowLeft size={13} /> Back to models
+        <ArrowLeft size={13} /> {t('modelCompare.back')}
       </button>
       <div className="model-comparison-scroll">
-        <table aria-label="Model comparison">
+        <table aria-label={t('modelCompare.label')}>
           <thead>
             <tr>
-              <th scope="col">Fact</th>
+              <th scope="col">{t('modelCompare.fact')}</th>
               {models.map(({ key, provider, model }) => (
                 <th scope="col" key={key}>
                   <strong>{model.name}</strong>
@@ -50,13 +70,13 @@ export function ModelComparison({
                 {row.cells.map((cell, index) => (
                   <td key={models[index]!.key} className={cell.best ? 'best' : undefined}>
                     {cell.text}
-                    {cell.best && <small> best</small>}
+                    {cell.best && <small> {t('modelCompare.best')}</small>}
                   </td>
                 ))}
               </tr>
             ))}
             <tr>
-              <th scope="row">Choose</th>
+              <th scope="row">{t('modelCompare.choose')}</th>
               {models.map(({ key, provider, model }) => (
                 <td key={key}>
                   <button
@@ -65,7 +85,7 @@ export function ModelComparison({
                     disabled={disabled}
                     onClick={() => onUse(model.id, provider)}
                   >
-                    Use {model.name}
+                    {t('modelCompare.use', { name: model.name })}
                   </button>
                 </td>
               ))}
@@ -73,10 +93,7 @@ export function ModelComparison({
           </tbody>
         </table>
       </div>
-      <small className="field-help">
-        Catalog facts as reported by the engine. Unknown values are not estimated; the highlighted
-        value is the largest limit or lowest price among known values.
-      </small>
+      <small className="field-help">{t('modelCompare.note')}</small>
     </div>
   );
 }

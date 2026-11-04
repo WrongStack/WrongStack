@@ -1,5 +1,6 @@
 import { LoaderCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { Modal } from './Modal';
@@ -16,6 +17,7 @@ export function MergeConflictReview({
   onClose: () => void;
   onResolved: () => void;
 }) {
+  const { t } = useDesktopText();
   const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null),
     [text, setText] = useState(''),
     [choice, setChoice] = useState('text'),
@@ -33,7 +35,7 @@ export function MergeConflictReview({
         timeoutMs: 45000,
       });
       if (own !== generation.current) return;
-      if (result['path'] !== path) throw Error('The engine returned a different conflict.');
+      if (result['path'] !== path) throw Error(t('conflict.otherConflict'));
       setSnapshot(result);
       setText(String(result['working'] ?? ''));
       setChoice(
@@ -83,47 +85,41 @@ export function MergeConflictReview({
     }
   };
   return (
-    <Modal title="Resolve merge conflict" onClose={close}>
-      <section className="merge-conflict-review" aria-label="Merge conflict review">
+    <Modal title={t('conflict.title')} onClose={close}>
+      <section className="merge-conflict-review" aria-label={t('conflict.label')}>
         <header>
           <div>
-            <span className="eyebrow">REVIEW BOTH SIDES</span>
-            <h2>Resolve merge conflict</h2>
+            <span className="eyebrow">{t('conflict.eyebrow')}</span>
+            <h2>{t('conflict.title')}</h2>
             <p>{path}</p>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close conflict resolver"
+            aria-label={t('conflict.close')}
             disabled={busy}
             onClick={close}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Inspect the available Git sides. Choose a complete side, edit a text result, or explicitly
-          delete this path. Saving marks only this path resolved and does not create a commit.
-        </p>
+        <p>{t('conflict.help')}</p>
         {error && (
           <p role="alert" className="session-error">
-            {error} Your merge draft stays here.
+            {error} {t('conflict.draftKept')}
           </p>
         )}
         {loading ? (
           <p role="status">
-            <LoaderCircle size={16} className="spin" /> Reading conflict stages…
+            <LoaderCircle size={16} className="spin" /> {t('conflict.reading')}
           </p>
         ) : (
           snapshot && (
             <>
               <div className="merge-conflict-sides">
-                {[
-                  ['base', 'Common base'],
-                  ['ours', 'Ours'],
-                  ['theirs', 'Theirs'],
-                ].map(([key, label]) => {
-                  const info = record(record(snapshot['sides'])[key!]);
+                {(['base', 'ours', 'theirs'] as const).map((key) => {
+                  const label = t(`conflict.side.${key}`);
+                  const info = record(record(snapshot['sides'])[key]);
                   const exists = info['exists'] === true;
                   return (
                     <article key={key}>
@@ -136,40 +132,41 @@ export function MergeConflictReview({
                             disabled={busy || !exists}
                             aria-pressed={choice === key}
                             onClick={() => {
-                              setText(String(snapshot[key!] ?? ''));
-                              setChoice(key!);
+                              setText(String(snapshot[key] ?? ''));
+                              setChoice(key);
                             }}
                           >
-                            Use {key}
+                            {t(`conflict.useSide.${key}`)}
                           </button>
                         )}
                       </header>
-                      <section aria-label={`${label} content`}>
+                      <section aria-label={t('conflict.content', { side: label })}>
                         {!exists ? (
-                          <p className="merge-side-absent">Not present in this side.</p>
+                          <p className="merge-side-absent">{t('conflict.absent')}</p>
                         ) : binary ? (
                           <div className="merge-binary-side">
                             <strong>
-                              {info['kind'] === 'binary' ? 'Binary file' : 'UTF-8 text file'}
+                              {info['kind'] === 'binary'
+                                ? t('conflict.binaryFile')
+                                : t('conflict.textFile')}
                             </strong>
-                            <p>{Number(info['bytes']).toLocaleString()} bytes</p>
+                            <p>
+                              {t('conflict.bytes', {
+                                count: Number(info['bytes']).toLocaleString(),
+                              })}
+                            </p>
                             <code>{String(info['oid']).slice(0, 12)}</code>
-                            <p>Choose this side to preserve its file content.</p>
+                            <p>{t('conflict.chooseSide')}</p>
                           </div>
                         ) : (
-                          <pre>{String(snapshot[key!] ?? '')}</pre>
+                          <pre>{String(snapshot[key] ?? '')}</pre>
                         )}
                       </section>
                     </article>
                   );
                 })}
               </div>
-              {binary && (
-                <p>
-                  Binary conflict: choose a complete side or explicit deletion. Binary content is
-                  not converted into editable text.
-                </p>
-              )}
+              {binary && <p>{t('conflict.binaryHelp')}</p>}
               <div className="merge-delete-choice">
                 <button
                   type="button"
@@ -178,21 +175,16 @@ export function MergeConflictReview({
                   disabled={busy}
                   onClick={() => setChoice('delete')}
                 >
-                  Resolve by deleting file
+                  {t('conflict.deleteChoice')}
                 </button>
-                {choice === 'delete' && (
-                  <p>
-                    Saving will remove this path from the working tree and index. Other conflicted
-                    paths stay unresolved.
-                  </p>
-                )}
+                {choice === 'delete' && <p>{t('conflict.deleteHelp')}</p>}
               </div>
               {!binary && choice !== 'delete' && (
                 <>
                   <label className="merge-result-label">
-                    Merged result
+                    {t('conflict.merged')}
                     <textarea
-                      aria-label="Merged conflict result"
+                      aria-label={t('conflict.mergedLabel')}
                       value={text}
                       disabled={busy}
                       onChange={(event) => {
@@ -201,26 +193,26 @@ export function MergeConflictReview({
                       }}
                     />
                   </label>
-                  {markers && <p>Remove all conflict markers before marking the file resolved.</p>}
+                  {markers && <p>{t('conflict.markers')}</p>}
                 </>
               )}
               {Array.isArray(snapshot['relatedPaths']) &&
                 Number(snapshot['unresolvedPaths']) > 1 && (
-                  <section className="merge-related-paths" aria-label="Unresolved project paths">
+                  <section className="merge-related-paths" aria-label={t('conflict.related')}>
                     <strong>
-                      {Number(snapshot['unresolvedPaths'])} unresolved paths in this project
+                      {t('conflict.unresolved', { count: Number(snapshot['unresolvedPaths']) })}
                     </strong>
                     <p>
-                      Rename conflicts can span several paths. Resolve each remaining path from
-                      Changes; this action does not choose or remove other paths. Showing{' '}
-                      {Math.min(50, snapshot['relatedPaths'].length)} of{' '}
-                      {Number(snapshot['unresolvedPaths'])} paths.
+                      {t('conflict.relatedHelp', {
+                        shown: Math.min(50, snapshot['relatedPaths'].length),
+                        count: Number(snapshot['unresolvedPaths']),
+                      })}
                     </p>
                     <ul>
                       {(snapshot['relatedPaths'] as string[]).slice(0, 50).map((item) => (
                         <li key={item}>
                           <code>{item}</code>
-                          {item === path ? ' · reviewing' : ''}
+                          {item === path ? ` · ${t('conflict.reviewing')}` : ''}
                         </li>
                       ))}
                     </ul>
@@ -231,12 +223,12 @@ export function MergeConflictReview({
         )}
         {closing ? (
           <div className="merge-close-review">
-            <p>Discard the unsaved merge draft?</p>
+            <p>{t('conflict.discardAsk')}</p>
             <button type="button" className="button secondary" onClick={() => setClosing(false)}>
-              Keep editing merge
+              {t('conflict.keepEditing')}
             </button>
             <button type="button" className="button danger" onClick={onClose}>
-              Discard merge draft
+              {t('conflict.discard')}
             </button>
           </div>
         ) : (
@@ -247,7 +239,7 @@ export function MergeConflictReview({
               disabled={busy || loading}
               onClick={() => void load()}
             >
-              Reload conflict (discard merge draft)
+              {t('conflict.reload')}
             </button>
             <button
               type="button"
@@ -256,10 +248,10 @@ export function MergeConflictReview({
               onClick={() => void resolve()}
             >
               {busy
-                ? 'Saving and staging…'
+                ? t('conflict.saving')
                 : choice === 'delete'
-                  ? 'Delete file & mark resolved'
-                  : 'Save & mark resolved'}
+                  ? t('conflict.deleteResolve')
+                  : t('conflict.saveResolve')}
             </button>
           </footer>
         )}

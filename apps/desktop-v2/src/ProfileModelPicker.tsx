@@ -1,11 +1,18 @@
 import { Columns3, LoaderCircle, RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { type EngineState, emptyEngineState } from './engine-state';
 import { entries } from './engine-values';
 import { type ComparedModel, ModelComparison } from './ModelComparison';
-import { toggleCompared } from './model-comparison';
-import { modelDetailLine, type PickerModel, pickerModel } from './model-picker-details';
+import { MAX_COMPARED_MODELS, toggleCompared } from './model-comparison';
+import {
+  MODEL_DETAIL_WORDS,
+  type ModelDetailWords,
+  modelDetailLine,
+  type PickerModel,
+  pickerModel,
+} from './model-picker-details';
 import {
   RECENT_MODELS_KEY,
   type RecentModel,
@@ -31,8 +38,9 @@ interface Props {
   onBusy: (value: boolean) => void;
 }
 export function ProfileModelPicker(props: Props) {
+  const { t } = useDesktopText();
   return (
-    <RuntimeGate scope="profile" loadingTitle="Loading current profile model choices…">
+    <RuntimeGate scope="profile" loadingTitle={t('modelPicker.loadingTitle')}>
       <LiveProfileModelPicker {...props} />
     </RuntimeGate>
   );
@@ -43,12 +51,21 @@ function LiveProfileModelPicker({
   onPick,
   title,
   description,
-  providerLabel = 'Session model provider',
-  searchLabel = 'Search session models',
+  providerLabel,
+  searchLabel,
   onClose,
   onSettings,
   onBusy,
 }: Props) {
+  const { t } = useDesktopText();
+  const details: ModelDetailWords = {
+    context: (value) => t('modelPicker.detail.context', { value }),
+    output: (value) => t('modelPicker.detail.output', { value }),
+    noPrice: () => t('modelPicker.detail.noPrice'),
+    price: (input, output) => t('modelPicker.detail.price', { input, output }),
+    capability: (id) =>
+      t(`modelPicker.detail.${id}`, { defaultValue: MODEL_DETAIL_WORDS.capability(id) }),
+  };
   const [error, setError] = useState('');
   const reportError = useCallback(
     (error: unknown) => setError(error instanceof Error ? error.message : String(error)),
@@ -146,8 +163,7 @@ function LiveProfileModelPicker({
       ])
       .then((reply) => {
         if (!mounted.current || sequence.current !== version) return;
-        if (reply['provider'] !== provider)
-          throw Error('The profile engine returned another provider catalog.');
+        if (reply['provider'] !== provider) throw Error(t('modelPicker.otherCatalog'));
         setModels(entries(reply['models']).map(pickerModel));
       })
       .catch((error) => {
@@ -187,8 +203,8 @@ function LiveProfileModelPicker({
           (item) => compared.find((entry) => entry.key === item) ?? { key, provider, model },
         ),
       );
-    } catch (refusal) {
-      reportError(refusal);
+    } catch {
+      setError(t('modelPicker.tooMany', { number: MAX_COMPARED_MODELS }));
     }
   };
   const [recents, setRecents] = useState<RecentModel[]>(() =>
@@ -210,11 +226,11 @@ function LiveProfileModelPicker({
       if (!mounted.current) return;
       setPolicy(current);
       if (!selectableCatalogModels([{ id: model }], target, current).length)
-        throw Error('This model was disabled in your profile. Refresh choices before switching.');
+        throw Error(t('modelPicker.disabled'));
       if (onPick) await onPick(target, model);
       else if (sessionCommand)
         await sessionCommand('model.switch', { provider: target, model }, ['model.switch_result']);
-      else throw Error('No model selection target is available.');
+      else throw Error(t('modelPicker.noTarget'));
       const next = withRecentModel(recents, { provider: target, model });
       setRecents(next);
       try {
@@ -231,48 +247,45 @@ function LiveProfileModelPicker({
     }
   };
   return (
-    <section className="composer-dialog" aria-label="Current profile model choices">
+    <section className="composer-dialog" aria-label={t('modelPicker.label')}>
       <header>
         <div>
-          <span className="eyebrow">CURRENT PROFILE</span>
-          <h2 id="dialog-title">{title ?? 'Choose a model'}</h2>
+          <span className="eyebrow">{t('modelPicker.eyebrow')}</span>
+          <h2 id="dialog-title">{title ?? t('modelPicker.title')}</h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close model picker"
+          aria-label={t('modelPicker.close')}
           disabled={switching}
           onClick={onClose}
         >
           <X size={18} />
         </button>
       </header>
-      <p>
-        {description ??
-          'Current profile visibility and favorites. The current turn keeps its model; selecting applies to the next request.'}
-      </p>
+      <p>{description ?? t('modelPicker.description')}</p>
       <label>
-        Provider
+        {t('modelPicker.provider')}
         <select
-          aria-label={providerLabel}
+          aria-label={providerLabel ?? t('modelPicker.providerLabel')}
           value={provider}
           disabled={!ready || switching}
           onChange={(event) => setProvider(event.target.value)}
         >
           {!choices.some((item) => item.id === provider) && (
-            <option value={provider}>{provider} · unavailable in profile</option>
+            <option value={provider}>{t('modelPicker.unavailable', { provider })}</option>
           )}
           {choices.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
-              {item.saved ? ' · saved' : ''}
+              {item.saved ? t('modelPicker.saved') : ''}
             </option>
           ))}
         </select>
       </label>
       {ready && quickRecents.length > 0 && (
         <fieldset className="composer-model-recents">
-          <legend>Recent models</legend>
+          <legend>{t('modelPicker.recent')}</legend>
           {quickRecents.map((item) => (
             <button
               type="button"
@@ -291,10 +304,10 @@ function LiveProfileModelPicker({
       <label className="composer-model-search">
         <Search size={15} />
         <input
-          aria-label={searchLabel}
+          aria-label={searchLabel ?? t('modelPicker.searchLabel')}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find a model…"
+          placeholder={t('modelPicker.placeholder')}
         />
       </label>
       {error && (
@@ -305,15 +318,20 @@ function LiveProfileModelPicker({
       {comparing && !comparisonOpen && (
         <div className="model-compare-bar" role="status">
           {comparedModels.length < 2
-            ? `Pick ${comparedModels.length ? 'another model' : 'two to four models'} to compare; change the provider to add its models.`
-            : `${comparedModels.length} models picked from ${new Set(comparedModels.map((entry) => entry.provider)).size} provider(s).`}
+            ? comparedModels.length
+              ? t('modelPicker.pickAnother')
+              : t('modelPicker.pickTwo')
+            : t('modelPicker.picked', {
+                models: comparedModels.length,
+                providers: new Set(comparedModels.map((entry) => entry.provider)).size,
+              })}
           <button
             type="button"
             className="button small"
             disabled={comparedModels.length < 2}
             onClick={() => setComparisonOpen(true)}
           >
-            Show comparison
+            {t('modelPicker.show')}
           </button>
         </div>
       )}
@@ -327,10 +345,10 @@ function LiveProfileModelPicker({
       ) : (
         <div className="composer-model-list">
           {error && !ready ? (
-            <p>Model choices are unavailable. Refresh to retry.</p>
+            <p>{t('modelPicker.unavailableChoices')}</p>
           ) : !ready || loading ? (
             <p>
-              <LoaderCircle className="spin" size={15} /> Loading current profile catalog…
+              <LoaderCircle className="spin" size={15} /> {t('modelPicker.loading')}
             </p>
           ) : available.length ? (
             available.map((model) => (
@@ -347,17 +365,21 @@ function LiveProfileModelPicker({
               >
                 <strong>{model.name}</strong>
                 {comparing && compared.some((entry) => entry.key === comparedKey(model.id)) && (
-                  <span>Comparing</span>
+                  <span>{t('modelPicker.comparing')}</span>
                 )}
-                {modelListed(policy.favoriteModels, provider, model.id) && <span>Favorite</span>}
+                {modelListed(policy.favoriteModels, provider, model.id) && (
+                  <span>{t('modelPicker.favorite')}</span>
+                )}
                 <small>{model.id}</small>
-                {modelDetailLine(model) && (
-                  <small className="composer-model-details">{modelDetailLine(model)}</small>
+                {modelDetailLine(model, details) && (
+                  <small className="composer-model-details">
+                    {modelDetailLine(model, details)}
+                  </small>
                 )}
               </button>
             ))
           ) : (
-            <p>No available models match the current profile policy.</p>
+            <p>{t('modelPicker.none')}</p>
           )}
         </div>
       )}
@@ -374,7 +396,7 @@ function LiveProfileModelPicker({
           }}
         >
           <Columns3 size={14} />
-          {comparing ? 'Done comparing' : 'Compare models'}
+          {comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
         </button>
         <button
           type="button"
@@ -383,7 +405,7 @@ function LiveProfileModelPicker({
           onClick={() => void refresh()}
         >
           <RefreshCw size={14} />
-          Refresh model choices
+          {t('modelPicker.refresh')}
         </button>
         {onSettings && (
           <button
@@ -393,7 +415,7 @@ function LiveProfileModelPicker({
             onClick={onSettings}
           >
             <Settings2 size={14} />
-            Provider settings
+            {t('modelPicker.settings')}
           </button>
         )}
       </footer>

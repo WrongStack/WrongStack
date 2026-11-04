@@ -131,7 +131,11 @@
       }
     },
     {
-      "includes": ["packages/webui/src/index.css", "packages/hq-next/src/hq/index.css"],
+      "includes": [
+        "packages/webui/src/index.css",
+        "packages/hq-next/src/hq/index.css",
+        "packages/project-surfaces/src/sage/vector/vector-memory-panel.css"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -141,7 +145,11 @@
       }
     },
     {
-      "includes": ["packages/webui/src/index.css", "packages/hq-next/src/hq/index.css"],
+      "includes": [
+        "packages/webui/src/index.css",
+        "packages/hq-next/src/hq/index.css",
+        "apps/desktop-v2/src/surface-theme.css"
+      ],
       "linter": {
         "rules": {
           "style": {

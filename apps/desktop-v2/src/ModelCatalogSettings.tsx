@@ -1,6 +1,8 @@
 import { Check, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { CatalogModelSearch } from './CatalogModelSearch';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { LegacyModelDraftNotice } from './LegacyModelDraftNotice';
@@ -27,6 +29,7 @@ import {
 } from './model-catalog-editor';
 import type { ModelEditorState } from './model-editor-draft';
 import { sameSetting } from './settings-save-model';
+import { surfaceI18n } from './surface-i18n';
 import { useModelEditorDraft } from './useModelEditorDraft';
 import './model-catalog.css';
 
@@ -36,16 +39,17 @@ function makeEditor(id: string, initial?: Record<string, unknown>, name = ''): E
   return { originalId: id, initial, draft, baseline: draft };
 }
 export function ModelCatalogSettings({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
   const context = useModelProfile(command);
   if (!context.profile)
     return (
-      <section aria-label="Model catalog settings">
+      <section aria-label={t('modelCatalog.label')}>
         <p role={context.error ? 'alert' : 'status'}>
-          {context.error || 'Identifying the profile runtime…'}
+          {context.error || t('modelCatalog.identifying')}
         </p>
         {context.error && (
           <button type="button" className="button secondary" onClick={context.retry}>
-            Reconnect model profile
+            {t('modelCatalog.reconnect')}
           </button>
         )}
       </section>
@@ -65,6 +69,7 @@ function ProfileModelCatalogSettings({
   command: EngineCommand;
   profile: ModelProfileIdentity;
 }) {
+  const { t } = useDesktopText();
   const [providers, setProviders] = useState<Record<string, unknown>[]>([]);
   const [providerId, setProviderId] = useState('');
   const [provider, setProvider] = useState<Record<string, unknown>>({});
@@ -115,10 +120,9 @@ function ProfileModelCatalogSettings({
         command('provider.models', { providerId, includeDisabled: true }, ['provider.models']),
       ]);
       if (seq !== sequence.current) return;
-      if (catalog['provider'] !== providerId)
-        throw Error('The engine returned a different provider catalog.');
+      if (catalog['provider'] !== providerId) throw Error(t('modelCatalog.otherCatalog'));
       const current = savedModelProvider(saved, providerId);
-      if (!current) throw Error('This provider is no longer saved.');
+      if (!current) throw Error(t('modelCatalog.notSaved'));
       setProvider(current);
       setProviders(entries(saved['providers']));
       setModels(entries(catalog['models']));
@@ -165,7 +169,7 @@ function ProfileModelCatalogSettings({
       ? price
         ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 8 })}`
         : value.toLocaleString()
-      : 'Not reported';
+      : t('modelCatalog.notReported');
   const closeEditor = () => {
     if (busyRef.current) return;
     if (editor && !sameSetting(editor.draft, editor.baseline)) setDiscard(true);
@@ -203,11 +207,9 @@ function ProfileModelCatalogSettings({
       const id = input?.id ?? selected;
       const expected = action === 'save' ? editor?.initial : definition;
       const saved = await command('providers.saved', {}, ['providers.saved']);
-      if (!savedModelProvider(saved, providerId)) throw Error('This provider is no longer saved.');
+      if (!savedModelProvider(saved, providerId)) throw Error(t('modelCatalog.notSaved'));
       if (!sameSetting(modelDefinition(savedModelProvider(saved, providerId), id), expected))
-        throw Error(
-          'This model definition changed since it was opened. Your draft is retained. Close it and refresh before reviewing the newer definition.',
-        );
+        throw Error(t('modelCatalog.changed'));
       await command(
         `provider.custom_models.${action === 'save' ? 'set' : 'remove'}`,
         { providerId, modelId: id, ...(input ? { customModel: input.definition } : {}) },
@@ -223,9 +225,7 @@ function ProfileModelCatalogSettings({
           ? !containsModelDefinition(actualDefinition, input!.definition)
           : actualDefinition !== undefined
       )
-        throw Error(
-          'The model change was acknowledged but its saved definition could not be verified. Refresh before retrying.',
-        );
+        throw Error(t('modelCatalog.unverified'));
       if (
         action === 'save' &&
         editor?.draft.pricing.changed &&
@@ -234,9 +234,7 @@ function ProfileModelCatalogSettings({
           record(record(input!.definition['modelsDev'])['cost'])['tiers'],
         )
       )
-        throw Error(
-          'The saved price tiers did not match your reviewed changes. Your draft is retained.',
-        );
+        throw Error(t('modelCatalog.tiersMismatch'));
       if (action === 'save') await modelDraft.controller.clear();
       setEditorValue(null);
       setRemove(false);
@@ -244,9 +242,7 @@ function ProfileModelCatalogSettings({
       setSelected(action === 'save' ? id : '');
       await load();
       setNotice(
-        action === 'save'
-          ? 'Model definition saved and verified.'
-          : 'Custom model definition removed and verified.',
+        action === 'save' ? t('modelCatalog.savedNotice') : t('modelCatalog.removedNotice'),
       );
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
@@ -256,23 +252,20 @@ function ProfileModelCatalogSettings({
     }
   };
   return (
-    <section className="model-catalog-settings" aria-label="Model catalog settings">
+    <section className="model-catalog-settings" aria-label={t('modelCatalog.label')}>
       <header className="settings-section-heading">
         <div>
-          <span className="eyebrow">KNOW WHAT EACH MODEL CAN DO</span>
-          <h2>Model catalog</h2>
-          <p>
-            Inspect models and manage saved definitions for each connection. Existing runs keep
-            their model.
-          </p>
+          <span className="eyebrow">{t('modelCatalog.eyebrow')}</span>
+          <h2>{t('modelCatalog.title')}</h2>
+          <p>{t('modelCatalog.intro')}</p>
         </div>
       </header>
-      {!providers.length && <p>Add a provider connection to manage its model catalog.</p>}
+      {!providers.length && <p>{t('modelCatalog.noProviders')}</p>}
       <div className="model-catalog-toolbar">
         <label>
-          Saved provider
+          {t('modelCatalog.savedProvider')}
           <select
-            aria-label="Catalog provider"
+            aria-label={t('modelCatalog.providerLabel')}
             value={providerId}
             disabled={busy || !!editor || remove}
             onChange={(event) => {
@@ -302,7 +295,7 @@ function ProfileModelCatalogSettings({
           }}
         >
           <RefreshCw size={14} />
-          Refresh catalog
+          {t('modelCatalog.refresh')}
         </button>
         <button
           type="button"
@@ -314,7 +307,7 @@ function ProfileModelCatalogSettings({
           }}
         >
           <Plus size={14} />
-          Add model definition
+          {t('modelCatalog.add')}
         </button>
         <button
           type="button"
@@ -322,7 +315,7 @@ function ProfileModelCatalogSettings({
           disabled={loading || busy || !!editor || remove || !provider['id'] || blockedDraft}
           onClick={() => setRegistrySearch((value) => !value)}
         >
-          Find in model registry
+          {t('modelCatalog.registry')}
         </button>
         <ModelDraftAdministration
           profile={profile}
@@ -386,22 +379,25 @@ function ProfileModelCatalogSettings({
         </p>
       )}
       {loading ? (
-        <p role="status">Loading model metadata…</p>
+        <p role="status">{t('modelCatalog.loading')}</p>
       ) : (
         providerId && (
           <div className="model-catalog-layout">
             <aside className="model-catalog-list">
               <label>
                 <Search size={14} />
-                Search models
+                {t('modelCatalog.search')}
                 <input
-                  aria-label="Search provider models"
+                  aria-label={t('modelCatalog.searchLabel')}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>
               <small>
-                {rows.length} models · {Object.keys(definitions).length} saved definitions
+                {t('modelCatalog.counts', {
+                  models: rows.length,
+                  definitions: Object.keys(definitions).length,
+                })}
               </small>
               {rows
                 .filter((item) =>
@@ -422,23 +418,18 @@ function ProfileModelCatalogSettings({
                     <span>{item.id}</span>
                     <small>
                       {Object.hasOwn(definitions, item.id)
-                        ? 'Saved definition'
-                        : 'Provider catalog'}
+                        ? t('modelCatalog.savedDefinition')
+                        : t('modelCatalog.providerCatalog')}
                     </small>
                   </button>
                 ))}
-              {!rows.length && (
-                <p>
-                  No models reported. You can add a definition using the model ID served by this
-                  endpoint.
-                </p>
-              )}
+              {!rows.length && <p>{t('modelCatalog.noModels')}</p>}
             </aside>
             <article className="model-catalog-detail">
               {current ? (
                 <>
                   <span className="eyebrow">
-                    {definition ? 'SAVED DEFINITION' : 'PROVIDER CATALOG'}
+                    {definition ? t('modelCatalog.savedEyebrow') : t('modelCatalog.catalogEyebrow')}
                   </span>
                   <h3>{current.name}</h3>
                   <code>{current.id}</code>
@@ -446,24 +437,20 @@ function ProfileModelCatalogSettings({
                   <dl className="model-metrics">
                     {[
                       [
-                        'Context tokens',
+                        'limit.context',
                         limit['context'] ?? caps['maxContext'] ?? current['contextWindow'],
                       ],
                       [
-                        'Maximum output tokens',
+                        'limit.output',
                         limit['output'] ?? definition?.['maxOutput'] ?? current['maxOutput'],
                       ],
-                      ['Maximum input tokens', limit['input']],
-                      ['Input USD / million tokens', cost['input'] ?? current['inputCost'], true],
-                      [
-                        'Output USD / million tokens',
-                        cost['output'] ?? current['outputCost'],
-                        true,
-                      ],
-                      ['Cache read USD / million tokens', cost['cache_read'], true],
-                    ].map(([label, value, price]) => (
-                      <div key={String(label)}>
-                        <dt>{String(label)}</dt>
+                      ['limit.input', limit['input']],
+                      ['cost.input', cost['input'] ?? current['inputCost'], true],
+                      ['cost.output', cost['output'] ?? current['outputCost'], true],
+                      ['cost.cache_read', cost['cache_read'], true],
+                    ].map(([key, value, price]) => (
+                      <div key={String(key)}>
+                        <dt>{t(`modelCatalog.number.${String(key)}`)}</dt>
                         <dd>{metric(value, price === true)}</dd>
                       </div>
                     ))}
@@ -471,93 +458,103 @@ function ProfileModelCatalogSettings({
                   <SavedModelPriceTiers cost={cost} />
                   {definition && (
                     <details className="model-advanced-fields">
-                      <summary>Saved advanced behavior</summary>
+                      <summary>{t('modelCatalog.advanced')}</summary>
                       <dl className="model-info">
                         <div>
-                          <dt>Reasoning policy</dt>
+                          <dt>{t('modelCatalog.reasoningPolicy')}</dt>
                           <dd>
                             {advancedModel.runtimePolicy === 'preserve'
-                              ? 'Explicit runtime policy overrides catalog controls'
-                              : 'Catalog controls'}
+                              ? t('modelCatalog.explicitPolicy')
+                              : t('modelCatalog.catalogControls')}
                           </dd>
                         </div>
                         <div>
-                          <dt>Reasoning controls</dt>
+                          <dt>{t('modelCatalog.reasoningControls')}</dt>
                           <dd>
                             {advancedModel.options.length
                               ? advancedModel.options
                                   .map((option) =>
                                     option.type === 'effort'
-                                      ? `Effort: ${option.values.join(', ') || 'provider vocabulary'}`
+                                      ? t('modelCatalog.effort', {
+                                          values:
+                                            option.values.join(', ') ||
+                                            t('modelCatalog.providerVocabulary'),
+                                        })
                                       : option.type === 'budget_tokens'
-                                        ? `Token budget: ${option.min || 'provider minimum'} – ${option.max || 'provider maximum'}`
-                                        : 'On / off toggle',
+                                        ? t('modelCatalog.tokenBudget', {
+                                            min: option.min || t('modelCatalog.providerMin'),
+                                            max: option.max || t('modelCatalog.providerMax'),
+                                          })
+                                        : t('modelCatalog.toggle'),
                                   )
                                   .join(' · ')
-                              : 'Inherit catalog'}
+                              : t('modelCatalog.inheritCatalog')}
                           </dd>
                         </div>
                         {advancedModel.runtimePolicy === 'preserve' && (
                           <>
                             <div>
-                              <dt>Runtime reasoning default</dt>
+                              <dt>{t('modelCatalog.runtimeDefault')}</dt>
                               <dd>{advancedModel.runtime.default.replaceAll('_', ' ')}</dd>
                             </div>
                             <div>
-                              <dt>Disable reasoning</dt>
+                              <dt>{t('modelCatalog.disableReasoning')}</dt>
                               <dd>
                                 {advancedModel.runtime.disableSupported
-                                  ? 'Supported'
-                                  : 'Not supported'}
+                                  ? t('modelCatalog.supported')
+                                  : t('modelCatalog.notSupported')}
                               </dd>
                             </div>
                             <div>
-                              <dt>Runtime effort support</dt>
+                              <dt>{t('modelCatalog.effortSupport')}</dt>
                               <dd>
                                 {advancedModel.runtime.effortSupported === 'true'
                                   ? advancedModel.runtime.effortLevels.join(', ') ||
-                                    'No levels recorded'
+                                    t('modelCatalog.noLevels')
                                   : advancedModel.runtime.effortSupported === 'false'
-                                    ? 'Not supported'
-                                    : 'Undocumented; provider gates requests'}
+                                    ? t('modelCatalog.notSupported')
+                                    : t('modelCatalog.undocumented')}
                               </dd>
                             </div>
                             <div>
-                              <dt>Thinking retention</dt>
+                              <dt>{t('modelCatalog.thinkingRetention')}</dt>
                               <dd>{advancedModel.runtime.preserveThinking.replaceAll('_', ' ')}</dd>
                             </div>
                           </>
                         )}
                         <div>
-                          <dt>Interleaved reasoning</dt>
+                          <dt>{t('modelCatalog.interleaved')}</dt>
                           <dd>
                             {advancedModel.interleaved === 'field'
-                              ? `Replay ${advancedModel.field || 'provider default field'}`
+                              ? t('modelCatalog.replay', {
+                                  field:
+                                    advancedModel.field || t('modelCatalog.providerDefaultField'),
+                                })
                               : advancedModel.interleaved === 'inherit'
-                                ? 'Inherit catalog'
+                                ? t('modelCatalog.inheritCatalog')
                                 : advancedModel.interleaved === 'true'
-                                  ? 'Supported'
-                                  : 'Not supported'}
+                                  ? t('modelCatalog.supported')
+                                  : t('modelCatalog.notSupported')}
                           </dd>
                         </div>
                         <div>
-                          <dt>Lifecycle</dt>
+                          <dt>{t('modelCatalog.lifecycle')}</dt>
                           <dd>
-                            {advancedModel.status || 'Inherit catalog'}
+                            {advancedModel.status || t('modelCatalog.inheritCatalog')}
                             {advancedModel.experimental === 'true'
-                              ? ' · experimental'
+                              ? ` · ${t('modelCatalog.experimental')}`
                               : advancedModel.experimental === 'false'
-                                ? ' · not experimental'
+                                ? ` · ${t('modelCatalog.notExperimental')}`
                                 : ''}
                           </dd>
                         </div>
                         <div>
-                          <dt>SDK package</dt>
-                          <dd>{advancedModel.npm || 'Inherit provider'}</dd>
+                          <dt>{t('modelCatalog.sdk')}</dt>
+                          <dd>{advancedModel.npm || t('modelCatalog.inheritProvider')}</dd>
                         </div>
                         <div>
-                          <dt>API endpoint</dt>
-                          <dd>{advancedModel.api || 'Inherit provider'}</dd>
+                          <dt>{t('modelCatalog.api')}</dt>
+                          <dd>{advancedModel.api || t('modelCatalog.inheritProvider')}</dd>
                         </div>
                         {modelNumberFields
                           .filter(
@@ -565,10 +562,14 @@ function ProfileModelCatalogSettings({
                               group === 'cost' && !['input', 'output', 'cache_read'].includes(key),
                           )
                           .map(
-                            ([, key, label]) =>
+                            ([group, key, label]) =>
                               typeof cost[key] === 'number' && (
                                 <div key={key}>
-                                  <dt>{label}</dt>
+                                  <dt>
+                                    {t(`modelCatalog.number.${group}.${key}`, {
+                                      defaultValue: label,
+                                    })}
+                                  </dt>
                                   <dd>{metric(cost[key], true)}</dd>
                                 </div>
                               ),
@@ -576,7 +577,7 @@ function ProfileModelCatalogSettings({
                       </dl>
                     </details>
                   )}
-                  <h4>Capabilities</h4>
+                  <h4>{t('modelCatalog.capabilities')}</h4>
                   <div className="model-capabilities">
                     {(Array.isArray(current['capabilities']) ? current['capabilities'] : []).map(
                       (cap) => (
@@ -587,44 +588,48 @@ function ProfileModelCatalogSettings({
                   <dl className="model-info">
                     {modelFlags.map(([key, label]) => (
                       <div key={key}>
-                        <dt>{label}</dt>
+                        <dt>{t(`modelCatalog.flag.${key}`, { defaultValue: label })}</dt>
                         <dd>
                           {typeof md[key] === 'boolean'
                             ? md[key]
-                              ? 'Supported'
-                              : 'Not supported'
-                            : 'Not specified in this definition'}
+                              ? t('modelCatalog.supported')
+                              : t('modelCatalog.notSupported')
+                            : t('modelCatalog.notSpecified')}
                         </dd>
                       </div>
                     ))}
                     <div>
-                      <dt>Reasoning effort levels</dt>
+                      <dt>{t('modelCatalog.effortLevels')}</dt>
                       <dd>
                         {Array.isArray(current['reasoningEffortLevels'])
                           ? current['reasoningEffortLevels'].join(', ')
                           : current['effortSupported'] === false
-                            ? 'Not supported'
-                            : 'Not reported'}
+                            ? t('modelCatalog.notSupported')
+                            : t('modelCatalog.notReported')}
                       </dd>
                     </div>
                     {['input', 'output'].map((direction) => (
                       <div key={direction}>
-                        <dt>{direction === 'input' ? 'Input modalities' : 'Output modalities'}</dt>
+                        <dt>
+                          {direction === 'input'
+                            ? t('modelCatalog.inputModalities')
+                            : t('modelCatalog.outputModalities')}
+                        </dt>
                         <dd>
                           {Array.isArray(record(md['modalities'])[direction])
                             ? (record(md['modalities'])[direction] as string[]).join(', ')
-                            : 'Not reported'}
+                            : t('modelCatalog.notReported')}
                         </dd>
                       </div>
                     ))}
                     {modelTextFields.slice(2).map(([key, label]) => (
                       <div key={key}>
-                        <dt>{label}</dt>
+                        <dt>{t(`modelCatalog.field.${key}`, { defaultValue: label })}</dt>
                         <dd>
                           {String(
                             md[key] ??
                               current[key === 'release_date' ? 'releaseDate' : key] ??
-                              'Not reported',
+                              t('modelCatalog.notReported'),
                           )}
                         </dd>
                       </div>
@@ -640,7 +645,7 @@ function ProfileModelCatalogSettings({
                         setEditor(makeEditor(selected, definition, current.name));
                       }}
                     >
-                      Edit model definition
+                      {t('modelCatalog.edit')}
                     </button>
                     {definition && (
                       <button
@@ -649,16 +654,20 @@ function ProfileModelCatalogSettings({
                         disabled={busy}
                         onClick={() => setRemove(true)}
                       >
-                        Remove custom definition
+                        {t('modelCatalog.removeCustom')}
                       </button>
                     )}
                   </div>
                   {remove && (
                     <div className="model-remove-confirm">
                       <p>
-                        Remove the saved definition for <strong>{selected}</strong>? The engine also
-                        removes this ID from the provider’s saved model list. Built-in catalog
-                        metadata may still be available. Running sessions are not switched.
+                        <Trans
+                          i18n={surfaceI18n}
+                          ns="desktop"
+                          i18nKey="modelCatalog.removeAsk"
+                          values={{ id: selected }}
+                          components={{ strong: <strong /> }}
+                        />
                       </p>
                       <button
                         type="button"
@@ -666,7 +675,7 @@ function ProfileModelCatalogSettings({
                         disabled={busy}
                         onClick={() => setRemove(false)}
                       >
-                        Keep definition
+                        {t('modelCatalog.keep')}
                       </button>
                       <button
                         type="button"
@@ -674,15 +683,13 @@ function ProfileModelCatalogSettings({
                         disabled={busy}
                         onClick={() => void mutate('remove')}
                       >
-                        Confirm remove definition
+                        {t('modelCatalog.confirmRemove')}
                       </button>
                     </div>
                   )}
                 </>
               ) : (
-                <p>
-                  Select a model to inspect its limits, pricing, capabilities and saved overrides.
-                </p>
+                <p>{t('modelCatalog.selectHint')}</p>
               )}
             </article>
           </div>
@@ -696,13 +703,13 @@ function ProfileModelCatalogSettings({
                 {profile.name} · {providerId}
               </span>
               <h2 id="dialog-title">
-                {editor.draft.id ? 'Model definition' : 'Add model definition'}
+                {editor.draft.id ? t('modelCatalog.editorTitle') : t('modelCatalog.add')}
               </h2>
             </div>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close model editor"
+              aria-label={t('modelCatalog.close')}
               disabled={busy}
               onClick={closeEditor}
             >
@@ -716,10 +723,7 @@ function ProfileModelCatalogSettings({
               void mutate('save');
             }}
           >
-            <p>
-              Blank optional values inherit catalog defaults. Additional saved schema fields are
-              preserved.
-            </p>
+            <p>{t('modelCatalog.blankHint')}</p>
             <ModelDraftNotice
               state={modelDraft.state}
               controller={modelDraft.controller}
@@ -733,9 +737,9 @@ function ProfileModelCatalogSettings({
             />
             <fieldset disabled={busy}>
               <label>
-                Model ID
+                {t('modelCatalog.modelId')}
                 <input
-                  aria-label="Model definition ID"
+                  aria-label={t('modelCatalog.modelIdLabel')}
                   required
                   value={editor.draft.id}
                   disabled={!!editor.originalId}
@@ -747,9 +751,11 @@ function ProfileModelCatalogSettings({
               <div className="model-editor-grid">
                 {modelTextFields.map(([key, label]) => (
                   <label key={key}>
-                    {label}
+                    {t(`modelCatalog.field.${key}`, { defaultValue: label })}
                     <input
-                      aria-label={`Model ${label.toLowerCase()}`}
+                      aria-label={t(`modelCatalog.fieldLabel.${key}`, {
+                        defaultValue: `Model ${label.toLowerCase()}`,
+                      })}
                       required={key === 'name'}
                       value={editor.draft.text[key] ?? ''}
                       onChange={(event) =>
@@ -765,13 +771,13 @@ function ProfileModelCatalogSettings({
                   </label>
                 ))}
               </div>
-              <h3>Limits and pricing</h3>
+              <h3>{t('modelCatalog.limitsPricing')}</h3>
               <div className="model-editor-grid">
                 {modelNumberFields.map(([group, key, label]) => (
                   <label key={`${group}.${key}`}>
-                    {label}
+                    {t(`modelCatalog.number.${group}.${key}`, { defaultValue: label })}
                     <input
-                      aria-label={label}
+                      aria-label={t(`modelCatalog.number.${group}.${key}`, { defaultValue: label })}
                       type="number"
                       min={0}
                       step={group === 'limit' ? 1 : 'any'}
@@ -780,7 +786,7 @@ function ProfileModelCatalogSettings({
                       }
                       placeholder={
                         group === 'cost' && typeof editorCost[key] === 'object'
-                          ? 'Structured schedule preserved below'
+                          ? t('modelCatalog.structured')
                           : undefined
                       }
                       value={editor.draft.numbers[`${group}.${key}`] ?? ''}
@@ -807,13 +813,15 @@ function ProfileModelCatalogSettings({
                   setEditor({ ...editor, draft: { ...editor.draft, pricing } })
                 }
               />
-              <h3>Capabilities</h3>
+              <h3>{t('modelCatalog.capabilities')}</h3>
               <div className="model-editor-grid">
                 {modelFlags.map(([key, label]) => (
                   <label key={key}>
-                    {label}
+                    {t(`modelCatalog.flag.${key}`, { defaultValue: label })}
                     <select
-                      aria-label={`Model ${label.toLowerCase()}`}
+                      aria-label={t(`modelCatalog.flagLabel.${key}`, {
+                        defaultValue: `Model ${label.toLowerCase()}`,
+                      })}
                       value={editor.draft.flags[key]}
                       onChange={(event) =>
                         setEditor({
@@ -825,21 +833,27 @@ function ProfileModelCatalogSettings({
                         })
                       }
                     >
-                      <option value="inherit">Inherit / unspecified</option>
-                      <option value="true">Supported</option>
-                      <option value="false">Not supported</option>
+                      <option value="inherit">{t('modelCatalog.inheritUnspecified')}</option>
+                      <option value="true">{t('modelCatalog.supported')}</option>
+                      <option value="false">{t('modelCatalog.notSupported')}</option>
                     </select>
                   </label>
                 ))}
               </div>
-              <h3>Modalities</h3>
-              <p>Comma-separated values, for example text, image, audio, video, pdf.</p>
+              <h3>{t('modelCatalog.modalities')}</h3>
+              <p>{t('modelCatalog.modalitiesHelp')}</p>
               <div className="model-editor-grid">
                 {(['input', 'output'] as const).map((key) => (
                   <label key={key}>
-                    {key === 'input' ? 'Input modalities' : 'Output modalities'}
+                    {key === 'input'
+                      ? t('modelCatalog.inputModalities')
+                      : t('modelCatalog.outputModalities')}
                     <input
-                      aria-label={`Model ${key} modalities`}
+                      aria-label={
+                        key === 'input'
+                          ? t('modelCatalog.inputModalitiesLabel')
+                          : t('modelCatalog.outputModalitiesLabel')
+                      }
                       value={editor.draft[key]}
                       onChange={(event) =>
                         setEditor({
@@ -865,13 +879,13 @@ function ProfileModelCatalogSettings({
             )}
             {discard ? (
               <div>
-                <p>Discard this unsaved model definition?</p>
+                <p>{t('modelCatalog.discardAsk')}</p>
                 <button
                   type="button"
                   className="button secondary"
                   onClick={() => setDiscard(false)}
                 >
-                  Keep editing model
+                  {t('modelCatalog.keepEditing')}
                 </button>
                 <button
                   type="button"
@@ -881,7 +895,7 @@ function ProfileModelCatalogSettings({
                     void dismissEditor();
                   }}
                 >
-                  Discard model draft
+                  {t('modelCatalog.discard')}
                 </button>
               </div>
             ) : (
@@ -892,7 +906,7 @@ function ProfileModelCatalogSettings({
                   disabled={busy}
                   onClick={closeEditor}
                 >
-                  Cancel model editing
+                  {t('modelCatalog.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -904,7 +918,7 @@ function ProfileModelCatalogSettings({
                     !!modelDraft.state.error
                   }
                 >
-                  {busy ? 'Saving…' : 'Save model definition'}
+                  {busy ? t('modelCatalog.saving') : t('modelCatalog.save')}
                 </button>
               </footer>
             )}

@@ -151,6 +151,13 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     .click();
   await page.getByRole('dialog', { name: 'Create file', exact: true }).waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Edit file', exact: true }).click();
+  // Files open in the code editor (Monaco), which loads its bundled copy; the checks below
+  // drive the plain text editor, so switch to it once the code editor has shown up.
+  const plainEditor = page.getByRole('button', { name: 'Plain text editor', exact: true });
+  if ((await plainEditor.getAttribute('aria-pressed')) !== 'true') {
+    await page.locator('.file-monaco-editor .monaco-editor').waitFor({ state: 'visible' });
+    await plainEditor.click();
+  }
   const editor = () =>
     page.getByRole('textbox', { name: 'Edit desktop-notes/native.ts', exact: true });
   await editor().fill('export const desktop = 1;\n');

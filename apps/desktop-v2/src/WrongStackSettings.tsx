@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Check,
   Coins,
+  FlaskConical,
   Gauge,
   KeyRound,
   Layers3,
@@ -14,20 +15,24 @@ import {
   Route,
   Save,
   Search,
+  Send,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  SquareTerminal,
   Wrench,
 } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { AvailabilitySettings } from './AvailabilitySettings';
 import { availabilityIssue } from './availability-model';
+import { availabilityWords } from './availability-words';
 import { BrainPolicySettings } from './BrainPolicySettings';
 import { ExecutionPolicySettings } from './ExecutionPolicySettings';
 import { prepareExecutionPolicyPatch } from './execution-policy-model';
 import { FleetPolicySettings } from './FleetPolicySettings';
 import { fleetPolicyIssue } from './fleet-policy-model';
 import { IntegrationSettings } from './IntegrationSettings';
+import { PluginToggles } from './PluginToggles';
 import { RefinementPolicySettings } from './RefinementPolicySettings';
 import { prepareRefinementPolicyPatch } from './refinement-policy-model';
 import { SettingsSectionSelect } from './SettingsSectionSelect';
@@ -48,16 +53,35 @@ import { ModelVisibilitySettings } from './ModelVisibilitySettings';
 import { ProviderDiagnostics } from './ProviderDiagnostics';
 import { ProviderHealth } from './ProviderHealth';
 import { ProviderSettings } from './ProviderSettings';
+import { ProviderSurfaces } from './ProviderSurfaces';
 import { request } from './platform';
 import { ReviewPolicySettings } from './ReviewPolicySettings';
 import { RuntimeGate } from './RuntimeGate';
 import { reviewPolicyIssue } from './review-policy-model';
 import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
+import { useDesktopText } from './desktop-i18n';
+import { SettingRow } from './SettingRow';
 import { SkillLibrary } from './SkillLibrary';
-import { changedSettings, type SettingField, settingsSections } from './settings-fields';
+import {
+  changedSettings,
+  type SettingField,
+  settingChange,
+  settingsSections,
+  settingValue,
+  writeOnlySettings,
+} from './settings-fields';
+import { useRequestedSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 import { useProfileEngine } from './useEngine';
+
+/** The catalog key of each settings navigation group. */
+const SETTINGS_GROUP_KEY = {
+  Models: 'models',
+  Conversations: 'conversations',
+  'Agents & tools': 'agents',
+  Diagnostics: 'diagnostics',
+} as const;
 
 export function WrongStackSettings({ vm }: { vm: DesktopController }) {
   return (
@@ -70,18 +94,23 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
   const { state, send, command } = useProfileEngine(vm.reportError);
   const [search, setSearch] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const { t } = useDesktopText();
   const [modelsOpened, setModelsOpened] = useState(false);
   const [brainOpened, setBrainOpened] = useState(false);
   const [instructionDraft, setInstructionDraft] = useState<InstructionDraft>({
     document: null,
     text: '',
   });
-  const [section, setSection] = useState('providers'),
+  const [section, setSection] = useState(() => (state.needsSetup ? 'setup' : 'providers')),
     [base, setBase] = useState<Record<string, unknown>>({}),
     [draft, setDraft] = useState<Record<string, unknown>>({}),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  useRequestedSettingsSection((wanted) => {
+    if (wanted === 'brain') setBrainOpened(true);
+    setSection(wanted);
+  });
   useEffect(() => {
     if (!state.connected) return;
     let active = true;
@@ -158,6 +187,15 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
     },
   };
   const heading = fields ?? advanced[section];
+  // Registry sections and the hand-built ones name their words under different catalog keys.
+  const headingText = heading && {
+    title: t(fields ? `sectionInfo.${section}.title` : `settings.section.${section}`, {
+      defaultValue: heading.title,
+    }),
+    description: t(fields ? `sectionInfo.${section}.description` : `advanced.${section}`, {
+      defaultValue: heading.description,
+    }),
+  };
   const change = (key: string, value: unknown) => {
     setDraft((draft) => ({ ...draft, [key]: value }));
     setNotice('');
@@ -187,7 +225,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       const reviewIssue = reviewPolicyIssue(patch);
       if (reviewIssue) throw Error(reviewIssue);
       if (Object.hasOwn(patch, 'modelAvailabilitySchedule')) {
-        const issue = availabilityIssue(patch['modelAvailabilitySchedule']);
+        const issue = availabilityIssue(patch['modelAvailabilitySchedule'], availabilityWords(t));
         if (issue) throw Error(issue);
       }
       const profiles =
@@ -207,7 +245,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       await command('prefs.update', patch, ['key.operation_result']);
       const result = await command('prefs.get', {}, ['prefs.updated']);
       for (const [key, value] of Object.entries(patch)) {
-        if (!sameSetting(result[key], value))
+        if (!writeOnlySettings.has(key) && !sameSetting(result[key], value))
           throw new Error('The saved settings could not be verified. Reload before retrying.');
       }
       const { requestId: _requestId, sessionId: _sessionId, ...values } = result;
@@ -238,7 +276,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
   if (!state.connected)
     return (
       <div className="runtime-state">
-        <h2>Loading your WrongStack profile…</h2>
+        <h2>{t('settings.loading')}</h2>
       </div>
     );
   const openSection = (id: string) => {
@@ -263,23 +301,24 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             }}
           >
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('settings.back')}
           </button>
         </header>
       )}
       <div className="settings-workspace">
-        <nav className="settings-navigation" aria-label="WrongStack settings sections">
+        <nav className="settings-navigation" aria-label={t('settings.sections')}>
           <label className="settings-search">
             <Search size={14} />
             <input
-              aria-label="Search WrongStack settings"
-              placeholder="Find a setting…"
+              aria-label={t('settings.search')}
+              placeholder={t('settings.find')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </label>
           {(
             [
+              { id: 'setup', title: 'Quick setup', Icon: Sparkles, group: 'Models' },
               { id: 'providers', title: 'Providers & models', Icon: KeyRound, group: 'Models' },
               { id: 'models', title: 'Model catalog', Icon: Layers3, group: 'Models' },
               { id: 'model-visibility', title: 'Model visibility', Icon: Layers3, group: 'Models' },
@@ -329,7 +368,21 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               { id: 'brain', title: 'Brain policy', Icon: Brain, group: 'Agents & tools' },
               { id: 'skills', title: 'Profile skills', Icon: BookOpen, group: 'Agents & tools' },
               { id: 'integrations', title: 'Connected tools', Icon: Plug, group: 'Agents & tools' },
+              {
+                id: 'notifications',
+                title: 'HQ, proxy & Telegram',
+                Icon: Send,
+                group: 'Agents & tools',
+              },
               { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
+              { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
+              { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
+              {
+                id: 'terminal-display',
+                title: 'Terminal display',
+                Icon: SquareTerminal,
+                group: 'Diagnostics',
+              },
               {
                 id: 'logging',
                 title: 'Logs & diagnostics',
@@ -338,15 +391,26 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
               },
             ] as const
           )
+            .map((item) => ({
+              ...item,
+              english: item.title,
+              title: t(`settings.section.${item.id}`),
+              group: t(`settings.groups.${SETTINGS_GROUP_KEY[item.group]}`),
+            }))
             .filter(
               (item) =>
                 !search.trim() ||
                 (
                   item.title +
                   ' ' +
+                  item.english +
+                  ' ' +
                   (settingsSections
                     .find((s) => s.id === item.id)
-                    ?.fields.map((f) => f.label + ' ' + f.description)
+                    ?.fields.map(
+                      (f) =>
+                        `${f.label} ${f.description} ${t(`fields.${f.key}.label`, { defaultValue: '' })} ${t(`fields.${f.key}.description`, { defaultValue: '' })}`,
+                    )
                     .join(' ') ?? '') +
                   ' ' +
                   (advanced[item.id]?.description ?? '')
@@ -441,6 +505,18 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   : []
               }
             />
+          ) : section === 'setup' || section === 'quota' || section === 'model-tests' ? (
+            <ProviderSurfaces
+              page={section === 'model-tests' ? 'tests' : section === 'quota' ? 'quota' : 'setup'}
+              state={state}
+              command={command}
+              onConfigured={configured}
+              updatePrefs={(patch) =>
+                void command('prefs.update', { ...patch }, ['key.operation_result']).catch(
+                  vm.reportError,
+                )
+              }
+            />
           ) : section === 'health' ? (
             <>
               <ProviderHealth state={state} command={command} />
@@ -473,8 +549,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <>
               <header className="settings-section-heading">
                 <div>
-                  <h2>{heading.title}</h2>
-                  <p>{heading.description}</p>
+                  <h2>{headingText?.title}</h2>
+                  <p>{headingText?.description}</p>
                 </div>
               </header>
               <div className="settings-defaults-note">
@@ -487,17 +563,20 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 }}
               >
                 <fieldset className="settings-form-fields" disabled={busy}>
-                  {fields?.fields.map((field) => (
-                    <SettingRow
-                      key={field.key}
-                      field={field}
-                      value={draft[field.key]}
-                      onChange={(value) => change(field.key, value)}
-                    />
-                  ))}
+                  {(fields?.fields as readonly SettingField[] | undefined)
+                    ?.filter((field) => !field.when || settingValue(draft, field.when) === true)
+                    .map((field) => (
+                      <SettingRow
+                        key={field.key}
+                        field={field}
+                        value={settingValue(draft, field.key)}
+                        onChange={(value) => change(...settingChange(draft, field.key, value))}
+                      />
+                    ))}
                   {section === 'routing' && (
                     <FallbackPolicySettings draft={draft} change={change} command={command} />
                   )}
+                  {section === 'capabilities' && <PluginToggles draft={draft} change={change} />}
                   {section === 'refinement' && (
                     <RefinementPolicySettings
                       draft={draft}
@@ -571,111 +650,5 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         </div>
       </div>
     </section>
-  );
-}
-function SettingRow({
-  field,
-  value,
-  onChange,
-}: {
-  field: SettingField;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const options = field.options ?? [];
-  const labels: Record<string, string> = {
-    off: 'Off',
-    suggest: 'Suggest next steps',
-    auto: 'Automatic',
-    eternal: 'Continuous',
-    'eternal-parallel': 'Continuous, parallel',
-    hybrid: 'Hybrid',
-    intelligent: 'Intelligent',
-    selective: 'Selective',
-    balanced: 'Balanced',
-    frugal: 'Frugal',
-    deep: 'Deep',
-    lite: 'Compact',
-    default: 'Default',
-    pro: 'Full operating instructions',
-    '5m': '5 minutes',
-    '1h': '1 hour',
-  };
-  return (
-    <div className={`setting-row setting-${field.kind}`}>
-      <div>
-        <label htmlFor={`setting-${field.key}`}>{field.label}</label>
-        <p>{field.description}</p>
-        {value === undefined && <small>Not reported by this engine</small>}
-      </div>
-      <div className="setting-control">
-        {field.kind === 'toggle' ? (
-          <button
-            type="button"
-            id={`setting-${field.key}`}
-            role="switch"
-            aria-checked={value === true}
-            aria-label={field.label}
-            className="settings-switch"
-            onClick={() => onChange(value !== true)}
-          >
-            <span className="settings-switch-thumb" />
-          </button>
-        ) : field.kind === 'select' ? (
-          <select
-            id={`setting-${field.key}`}
-            value={typeof value === 'string' ? value : ''}
-            onChange={(event) => onChange(event.target.value)}
-          >
-            <option value="" disabled>
-              Choose a value
-            </option>
-            {[...new Set([...options, ...(typeof value === 'string' ? [value] : [])])].map(
-              (option) => (
-                <option key={option} value={option}>
-                  {labels[option] ?? option[0]!.toUpperCase() + option.slice(1)}
-                </option>
-              ),
-            )}
-          </select>
-        ) : field.kind === 'number' ? (
-          <span className="settings-number">
-            <input
-              id={`setting-${field.key}`}
-              type="number"
-              min={field.min ?? 0}
-              step={field.scale ? 'any' : undefined}
-              required
-              value={typeof value === 'number' ? value / (field.scale ?? 1) : ''}
-              onChange={(event) =>
-                onChange(
-                  event.target.value === ''
-                    ? undefined
-                    : field.scale
-                      ? Math.round(Number(event.target.value) * field.scale)
-                      : Number(event.target.value),
-                )
-              }
-            />
-            {field.unit && <span>{field.unit}</span>}
-          </span>
-        ) : (
-          <textarea
-            id={`setting-${field.key}`}
-            rows={5}
-            value={Array.isArray(value) ? value.join('\n') : ''}
-            onChange={(event) =>
-              onChange(
-                event.target.value
-                  .split('\n')
-                  .map((value) => value.trim())
-                  .filter(Boolean),
-              )
-            }
-            placeholder="One model identifier per line"
-          />
-        )}
-      </div>
-    </div>
   );
 }

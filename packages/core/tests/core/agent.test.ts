@@ -2170,4 +2170,29 @@ describe('Agent — additional coverage', () => {
     expect(receivedModels).toContain('override-model');
     expect(receivedModels).not.toContain('test-model');
   });
+
+  it('deduplicates burst ContentBlock[] inputs and clears _lastInputHashAt after failed runs (F938)', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'first block response' }], stopReason: 'end_turn' },
+      { content: [{ type: 'text', text: 'second block response' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, tmp } = await buildAgent(provider);
+    cleanupDirs.push(tmp);
+
+    const blockInput = [{ type: 'text' as const, text: 'burst block submission' }];
+    const first = await agent.run(blockInput);
+    const second = await agent.run(blockInput);
+    expect(first.status).toBe('done');
+    expect(second.status).toBe('done');
+    expect(provider.calls).toBe(1);
+
+    const failingProvider = new MockProvider([]);
+    vi.spyOn(failingProvider, 'complete').mockRejectedValueOnce(new Error('Fatal provider error'));
+    const { agent: failAgent, tmp: tmp2 } = await buildAgent(failingProvider);
+    cleanupDirs.push(tmp2);
+    const failed = await failAgent.run('will fail');
+    expect(failed.status).toBe('failed');
+    expect((failAgent as any)._lastInputHash).toBeUndefined();
+    expect((failAgent as any)._lastInputHashAt).toBeUndefined();
+  });
 });

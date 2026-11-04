@@ -1,5 +1,6 @@
 import { Send, X } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import { emptyMailDraft, type MailDraft, mailboxSendTypes } from './mailbox-model';
@@ -23,6 +24,7 @@ export function MailboxComposer({
   send: () => void;
   displayedError: string;
 }) {
+  const { t } = useDesktopText();
   const [preview, setPreview] = useState(false);
   const [discard, setDiscard] = useState(false);
   return (
@@ -36,13 +38,15 @@ export function MailboxComposer({
     >
       <header>
         <div>
-          <span className="eyebrow">PROJECT MAILBOX</span>
-          <h2 id="dialog-title">{draft.replyTo ? 'Reply to message' : 'Compose message'}</h2>
+          <span className="eyebrow">{t('mailboxPage.compose.eyebrow')}</span>
+          <h2 id="dialog-title">
+            {draft.replyTo ? t('mailboxPage.compose.replyTitle') : t('mailboxPage.composeMessage')}
+          </h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close mailbox composer"
+          aria-label={t('mailboxPage.compose.close')}
           disabled={busy}
           onClick={() => {
             setComposing(false);
@@ -59,19 +63,13 @@ export function MailboxComposer({
           send();
         }}
       >
-        <p>
-          Your unsent message is saved for this project and restored after a restart. Closing this
-          window does not send it; it is removed after a confirmed send or a discard.
-        </p>
-        <p>
-          Named recipients target an agent. This project workspace does not bind messages to a
-          conversation; the leader alias can reach project leaders.
-        </p>
+        <p>{t('mailboxPage.compose.saved')}</p>
+        <p>{t('mailboxPage.compose.recipients')}</p>
         {replacement && (
           <div className="mailbox-confirm">
-            <p>Replace the current message draft with this reply?</p>
+            <p>{t('mailboxPage.compose.replaceAsk')}</p>
             <button type="button" className="button secondary" onClick={() => setReplacement(null)}>
-              Keep current message draft
+              {t('mailboxPage.compose.keepCurrent')}
             </button>
             <button
               type="button"
@@ -81,16 +79,16 @@ export function MailboxComposer({
                 setReplacement(null);
               }}
             >
-              Replace message draft
+              {t('mailboxPage.compose.replace')}
             </button>
           </div>
         )}
         <fieldset disabled={busy || !!replacement}>
           <div className="mailbox-controls">
             <label>
-              To
+              {t('mailboxPage.compose.to')}
               <input
-                aria-label="Mailbox recipient"
+                aria-label={t('mailboxPage.compose.toLabel')}
                 required
                 value={draft.type === 'broadcast' ? '*' : draft.to}
                 disabled={draft.type === 'broadcast'}
@@ -99,56 +97,60 @@ export function MailboxComposer({
               />
             </label>
             <label>
-              Type
+              {t('mailboxPage.compose.type')}
               <select
-                aria-label="Mailbox message type"
+                aria-label={t('mailboxPage.compose.typeLabel')}
                 value={draft.type}
                 onChange={(event) => setDraft({ ...draft, type: event.target.value })}
               >
                 {mailboxSendTypes.map((type) => (
-                  <option key={type}>{type}</option>
+                  <option key={type} value={type}>
+                    {t(`mailboxPage.type.${type}`, { defaultValue: type })}
+                  </option>
                 ))}
               </select>
             </label>
           </div>
           <div className="mailbox-controls">
             <label>
-              Priority
+              {t('mailboxPage.compose.priority')}
               <select
-                aria-label="Mailbox priority"
+                aria-label={t('mailboxPage.compose.priorityLabel')}
                 value={draft.priority}
                 onChange={(event) => setDraft({ ...draft, priority: event.target.value })}
               >
                 {['low', 'normal', 'high'].map((priority) => (
-                  <option key={priority}>{priority}</option>
+                  <option key={priority} value={priority}>
+                    {t(`mailboxPage.priority.${priority}`)}
+                  </option>
                 ))}
               </select>
             </label>
             <label>
-              Audience
+              {t('mailboxPage.compose.audience')}
               <select
-                aria-label="Mailbox audience"
+                aria-label={t('mailboxPage.compose.audienceLabel')}
                 value={draft.audience}
                 onChange={(event) => setDraft({ ...draft, audience: event.target.value })}
               >
-                <option value="all">All eligible recipients</option>
-                <option value="leaders">Leaders only</option>
+                <option value="all">{t('mailboxPage.audienceAll')}</option>
+                <option value="leaders">{t('mailboxPage.audienceLeaders')}</option>
               </select>
             </label>
           </div>
           <label>
-            Subject
+            {t('mailboxPage.compose.subject')}
             <input
-              aria-label="Mailbox subject"
+              aria-label={t('mailboxPage.compose.subjectLabel')}
               required
               value={draft.subject}
               onChange={(event) => setDraft({ ...draft, subject: event.target.value })}
             />
           </label>
           <label>
-            Message
+            {t('mailboxPage.compose.body')}
             <textarea
-              aria-label="Mailbox message body"
+              aria-label={t('mailboxPage.compose.bodyLabel')}
               required
               rows={8}
               value={draft.body}
@@ -161,10 +163,12 @@ export function MailboxComposer({
               checked={preview}
               onChange={(event) => setPreview(event.target.checked)}
             />
-            Preview message
+            {t('mailboxPage.compose.preview')}
           </label>
           {preview && <MarkdownContent text={draft.body} />}
-          {draft.replyTo && <small>Reply reference: {draft.replyTo}</small>}
+          {draft.replyTo && (
+            <small>{t('mailboxPage.compose.reference', { id: draft.replyTo })}</small>
+          )}
         </fieldset>
         {displayedError && (
           <p role="alert" className="session-error">
@@ -173,9 +177,9 @@ export function MailboxComposer({
         )}
         {discard ? (
           <div className="mailbox-confirm">
-            <p>Discard this unsent message?</p>
+            <p>{t('mailboxPage.compose.discardAsk')}</p>
             <button type="button" className="button secondary" onClick={() => setDiscard(false)}>
-              Keep message draft
+              {t('mailboxPage.compose.keepDraft')}
             </button>
             <button
               type="button"
@@ -186,7 +190,7 @@ export function MailboxComposer({
                 setComposing(false);
               }}
             >
-              Confirm discard message draft
+              {t('mailboxPage.compose.confirmDiscard')}
             </button>
           </div>
         ) : (
@@ -197,11 +201,11 @@ export function MailboxComposer({
               disabled={busy}
               onClick={() => setDiscard(true)}
             >
-              Discard message draft
+              {t('mailboxPage.compose.discard')}
             </button>
             <button type="submit" className="button primary" disabled={busy || !!replacement}>
               <Send size={14} />
-              {busy ? 'Recording…' : 'Send mailbox message'}
+              {busy ? t('mailboxPage.compose.recording') : t('mailboxPage.compose.send')}
             </button>
           </footer>
         )}

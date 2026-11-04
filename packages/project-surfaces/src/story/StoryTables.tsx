@@ -1,0 +1,253 @@
+import { useState } from 'react';
+import { useAppTranslation } from '../lib/i18n';
+import type { storyStats } from './session-story-stats';
+
+type Stats = ReturnType<typeof storyStats>;
+const ms = (value: number | undefined) =>
+  value === undefined
+    ? '—'
+    : value < 1000
+      ? `${Math.round(value)} ms`
+      : `${(value / 1000).toFixed(2)} s`;
+
+export function StoryTables({
+  stats,
+  type,
+  onInspect,
+}: {
+  stats: Stats;
+  type: 'tools' | 'files';
+  onInspect(value: string): void;
+}) {
+  const { t } = useAppTranslation();
+  const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(50);
+  const tools = stats.tools.filter((tool) =>
+    tool.name.toLowerCase().includes(search.toLowerCase()),
+  );
+  const files = stats.files.filter((file) =>
+    file.path.toLowerCase().includes(search.toLowerCase()),
+  );
+  const count = type === 'tools' ? tools.length : files.length;
+  const max = Math.max(1, ...stats.tools.map((tool) => tool.calls));
+  return (
+    <section className="story-enter rounded-2xl border bg-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">
+            {t(type === 'tools' ? 'activity:story.toolPerformance' : 'activity:story.fileActivity')}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {type === 'tools'
+              ? t('activity:story.toolsSubtitle')
+              : t('activity:story.filesSubtitle', {
+                  files: stats.files.length,
+                  dirs: stats.directories,
+                })}
+          </p>
+        </div>
+        <input
+          aria-label={t(
+            type === 'tools'
+              ? 'activity:story.searchToolsLabel'
+              : 'activity:story.searchFilesLabel',
+          )}
+          placeholder={t(
+            type === 'tools'
+              ? 'activity:story.searchToolsPlaceholder'
+              : 'activity:story.searchFilesPlaceholder',
+          )}
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setLimit(50);
+          }}
+          className="rounded-xl border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        {type === 'tools' ? (
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                {[
+                  'Tool',
+                  'Calls',
+                  'Success',
+                  'Failed / denied',
+                  'Unsettled',
+                  'Avg',
+                  'P95',
+                  'Measured',
+                  'Total tool time',
+                ].map((label) => (
+                  <th key={label} className="whitespace-nowrap px-3 py-3 font-medium">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tools.slice(0, limit).map((tool) => (
+                <tr key={tool.name} className="border-t hover:bg-muted/30">
+                  <td className="min-w-44 px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => onInspect(tool.name)}
+                      className="font-mono text-xs text-info underline"
+                    >
+                      {tool.name}
+                    </button>
+                    <div className="mt-2 h-1.5 rounded-full bg-muted">
+                      <div
+                        className="story-meter h-full rounded-full bg-info"
+                        style={{ width: `${(tool.calls / max) * 100}%` }}
+                      />
+                    </div>
+                  </td>
+                  {[
+                    tool.calls,
+                    tool.success,
+                    tool.failed,
+                    tool.pending,
+                    ms(tool.avg),
+                    ms(tool.p95),
+                    `${tool.measured}/${tool.calls}`,
+                    ms(tool.measured ? tool.total : undefined),
+                  ].map((value, index) => (
+                    <td key={index} className="whitespace-nowrap px-3 py-3 font-mono text-xs">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                {[
+                  'File',
+                  'Reads',
+                  'Edits',
+                  'Writes',
+                  'Read lines',
+                  'Added / removed',
+                  'Line evidence',
+                ].map((label) => (
+                  <th key={label} className="whitespace-nowrap px-3 py-3 font-medium">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {files.slice(0, limit).map((file) => (
+                <tr key={file.path} className="border-t hover:bg-muted/30">
+                  <td className="max-w-96 break-all px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() => onInspect(file.path)}
+                      className="text-left font-mono text-xs text-info underline"
+                    >
+                      {file.path}
+                    </button>
+                    {file.conflicted && (
+                      <span
+                        title={t('activity:story.conflictFileNote', {
+                          defaultValue:
+                            'A failed tool call left this file changed on disk (patch --merge writes conflict markers). No line counts were measured.',
+                        })}
+                        className="ml-2 inline-block border border-destructive/40 px-1 py-0.5 align-middle font-mono text-[10px] uppercase tracking-wide text-destructive"
+                      >
+                        conflict
+                      </span>
+                    )}
+                    <div
+                      className="mt-2 flex h-1.5 w-28 overflow-hidden rounded-full bg-muted"
+                      title={`${file.reads} reads · ${file.edits} edits · ${file.writes} writes`}
+                    >
+                      {file.reads > 0 && <span className="bg-info" style={{ flex: file.reads }} />}
+                      {file.edits > 0 && (
+                        <span className="bg-primary" style={{ flex: file.edits }} />
+                      )}
+                      {file.writes > 0 && (
+                        <span className="bg-success" style={{ flex: file.writes }} />
+                      )}
+                    </div>
+                  </td>
+                  {[
+                    file.reads,
+                    file.edits,
+                    file.writes,
+                    file.readMeasured
+                      ? `${file.readLines}${file.readMeasured < file.reads ? '+' : ''}`
+                      : '—',
+                  ].map((value, index) => (
+                    <td key={index} className="px-3 py-3 font-mono text-xs">
+                      {value}
+                    </td>
+                  ))}
+                  <td className="whitespace-nowrap px-3 py-3 font-mono text-xs">
+                    {file.changeMeasured ? (
+                      <>
+                        <span className="text-success">+{file.added}</span> /{' '}
+                        <span className="text-destructive">−{file.removed}</span>
+                        {file.partial || file.changeMeasured < file.edits + file.writes
+                          ? ' (partial)'
+                          : ''}
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                    {file.readMeasured}/{file.reads} reads · {file.changeMeasured}/
+                    {file.edits + file.writes} changes
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {count === 0 && (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No recorded {type} match this filter.
+        </p>
+      )}
+      {count > limit && (
+        <button
+          type="button"
+          onClick={() => setLimit((value) => value + 50)}
+          className="mt-4 rounded-lg border px-3 py-2 text-xs"
+        >
+          Show 50 more
+        </button>
+      )}
+      {type === 'files' && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Activity bars: cyan = read · violet = edit · green = write
+          {stats.files.some((file) => file.conflicted) &&
+            ' · a “conflict” badge marks a file a failed call left changed on disk (no line counts measured)'}
+        </p>
+      )}
+      {type === 'files' && stats.conflictedTruncated && (
+        <p
+          role="status"
+          className="mt-2 border-l-2 border-destructive/60 pl-2 text-xs text-destructive"
+        >
+          More files were changed by a failed call than were recorded, so the “conflict” rows below
+          are a lower bound — check the session journal for the full list.
+        </p>
+      )}
+      <p className="mt-5 text-[11px] leading-5 text-muted-foreground">
+        {type === 'tools'
+          ? 'Total tool time adds durations across parallel agents; it is not session wall time. Missing terminal records are unsettled, not proof of a still-running tool.'
+          : 'Read lines count returned source lines, including repeated reads. Added/removed lines count diff operations, not net repository changes. Missing line evidence is shown as —; partial diffs and unmeasured operations are marked.'}{' '}
+        Click a name to inspect its timeline events.
+      </p>
+    </section>
+  );
+}

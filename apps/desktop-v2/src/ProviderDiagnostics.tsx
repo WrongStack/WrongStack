@@ -1,10 +1,12 @@
 import { FlaskConical, Square } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { providerChoices } from './provider-settings-model';
 
 export function ProviderDiagnostics({ state, send }: { state: EngineState; send: EngineSend }) {
+  const { t } = useDesktopText();
   const [provider, setProvider] = useState(state.needsSetup ? '' : state.provider);
   const [models, setModels] = useState(state.model);
   const [timeout, setTimeoutMs] = useState(45000);
@@ -27,12 +29,10 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
     if (!queued) return;
     const timer = setTimeout(() => {
       setQueued(false);
-      setError(
-        'The engine did not acknowledge this test request. Check the provider status before retrying.',
-      );
+      setError(t('providerTests.noAck'));
     }, 15000);
     return () => clearTimeout(timer);
-  }, [queued]);
+  }, [queued, t]);
   const start = async () => {
     setError('');
     const ids = [
@@ -44,7 +44,7 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
       ),
     ];
     if (!provider || !ids.length || ids.length > 200) {
-      setError('Choose a saved provider and between 1 and 200 model IDs.');
+      setError(t('providerTests.invalid'));
       return;
     }
     const requestId = crypto.randomUUID();
@@ -65,11 +65,8 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
   };
   return (
     <section className="feature-editor provider-test-workspace">
-      <h3>Model access tests</h3>
-      <p>
-        Test the saved connection against the selected models. Each model test sends a small
-        provider request.
-      </p>
+      <h3>{t('providerTests.title')}</h3>
+      <p>{t('providerTests.intro')}</p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -78,14 +75,14 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
       >
         <div className="feature-field-grid">
           <label>
-            Provider
+            {t('providerTests.provider')}
             <select
-              aria-label="Test provider"
+              aria-label={t('providerTests.providerLabel')}
               required
               value={provider}
               onChange={(event) => setProvider(event.target.value)}
             >
-              <option value="">Choose a saved provider</option>
+              <option value="">{t('providerTests.choose')}</option>
               {providerChoices(state)
                 .filter((item) => item.saved)
                 .map((item) => (
@@ -96,9 +93,9 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
             </select>
           </label>
           <label>
-            Timeout per model (seconds)
+            {t('providerTests.timeout')}
             <input
-              aria-label="Model test timeout"
+              aria-label={t('providerTests.timeoutLabel')}
               type="number"
               min={1}
               max={120}
@@ -107,9 +104,9 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
             />
           </label>
           <label>
-            Maximum output tokens
+            {t('providerTests.tokens')}
             <input
-              aria-label="Model test output limit"
+              aria-label={t('providerTests.tokensLabel')}
               type="number"
               min={1}
               max={4096}
@@ -119,14 +116,14 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
           </label>
         </div>
         <label>
-          Model IDs
+          {t('providerTests.models')}
           <textarea
-            aria-label="Models to test"
+            aria-label={t('providerTests.modelsLabel')}
             required
             rows={3}
             value={models}
             onChange={(event) => setModels(event.target.value)}
-            placeholder="Separate model IDs with commas or new lines"
+            placeholder={t('providerTests.modelsPlaceholder')}
           />
         </label>
         {error && (
@@ -137,7 +134,7 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
         <div className="feature-actions">
           <button type="submit" className="button primary" disabled={busy || !state.connected}>
             <FlaskConical size={13} />
-            Start model tests
+            {t('providerTests.start')}
           </button>
           {busy && run && (
             <button
@@ -150,23 +147,23 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
               }
             >
               <Square size={13} />
-              Stop model tests
+              {t('providerTests.stop')}
             </button>
           )}
         </div>
       </form>
       {runs.length > 0 && (
         <label>
-          Test run
+          {t('providerTests.run')}
           <select
-            aria-label="Model test run"
+            aria-label={t('providerTests.runLabel')}
             value={run?.id ?? ''}
             onChange={(event) => setSelected(event.target.value)}
           >
             {[...runs].reverse().map((item) => (
               <option value={item.id} key={item.id}>
                 {item.provider} · {Object.keys(item.results).length}/{item.total} ·{' '}
-                {item.complete ? 'finished' : 'running'}
+                {item.complete ? t('providerTests.finishedShort') : t('providerTests.runningShort')}
               </option>
             ))}
           </select>
@@ -176,8 +173,15 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
         <>
           <p role="status">
             {run.complete
-              ? `Finished: ${run.complete['passed'] ?? 0} passed, ${run.complete['failed'] ?? 0} failed, ${run.complete['cancelled'] ?? 0} cancelled`
-              : `Testing: ${Object.keys(run.results).length} of ${run.total} models`}
+              ? t('providerTests.finished', {
+                  passed: run.complete['passed'] ?? 0,
+                  failed: run.complete['failed'] ?? 0,
+                  cancelled: run.complete['cancelled'] ?? 0,
+                })
+              : t('providerTests.testing', {
+                  done: Object.keys(run.results).length,
+                  total: run.total,
+                })}
           </p>
           {run.complete?.['error'] && (
             <p className="session-error">{String(run.complete['error'])}</p>
@@ -186,17 +190,21 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
             <table>
               <thead>
                 <tr>
-                  <th>Model</th>
-                  <th>Status</th>
-                  <th>Latency</th>
-                  <th>Details</th>
+                  <th>{t('providerTests.model')}</th>
+                  <th>{t('providerTests.status')}</th>
+                  <th>{t('providerTests.latency')}</th>
+                  <th>{t('providerTests.details')}</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.values(run.results).map((item) => (
                   <tr key={String(item['modelId'])}>
                     <td>{String(item['modelId'])}</td>
-                    <td>{String(item['status'])}</td>
+                    <td>
+                      {t(`providerTests.result.${String(item['status'])}`, {
+                        defaultValue: String(item['status']),
+                      })}
+                    </td>
                     <td>{String(item['latencyMs'] ?? '—')} ms</td>
                     <td>{String(item['error'] ?? item['diagnosis'] ?? '')}</td>
                   </tr>

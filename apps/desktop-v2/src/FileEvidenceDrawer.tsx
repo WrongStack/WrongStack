@@ -13,6 +13,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { DesktopCodeAssist } from './DesktopCodeAssist';
 import { DiffPreview } from './DiffPreview';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -40,6 +41,7 @@ export function FileEvidenceDrawer({
   send: EngineSend;
   state: EngineState;
 }) {
+  const { t } = useDesktopText();
   const [tab, setTab] = useState('overview'),
     [height, setHeight] = useState(220),
     [expanded, setExpanded] = useState(true),
@@ -94,12 +96,12 @@ export function FileEvidenceDrawer({
   return (
     <section
       className="file-evidence-drawer"
-      aria-label="File details panel"
+      aria-label={t('evidence.label')}
       style={{ height: expanded ? height : 38 }}
     >
       <hr
         className="file-drawer-resize"
-        aria-label="Resize file details"
+        aria-label={t('evidence.resize')}
         aria-orientation="horizontal"
         aria-valuenow={height}
         aria-valuemin={120}
@@ -132,15 +134,15 @@ export function FileEvidenceDrawer({
         }}
       />
       <header className="file-drawer-header">
-        <nav aria-label="File details sections">
+        <nav aria-label={t('evidence.sections')}>
           {[
-            { id: 'overview', title: 'Overview', Icon: Info },
-            { id: 'changes', title: 'Changes', Icon: FileDiff },
-            { id: 'structure', title: 'Structure', Icon: ListTree },
-            { id: 'activity', title: 'Activity', Icon: Activity },
-            { id: 'memory', title: 'Memory', Icon: Brain },
-            { id: 'assist', title: 'Ask AI', Icon: Bot },
-          ].map(({ id, title, Icon }) => (
+            { id: 'overview', Icon: Info },
+            { id: 'changes', Icon: FileDiff },
+            { id: 'structure', Icon: ListTree },
+            { id: 'activity', Icon: Activity },
+            { id: 'memory', Icon: Brain },
+            { id: 'assist', Icon: Bot },
+          ].map(({ id, Icon }) => (
             <button
               type="button"
               key={id}
@@ -151,14 +153,14 @@ export function FileEvidenceDrawer({
               }}
             >
               <Icon size={13} />
-              {title}
+              {t(`evidence.tab.${id}`)}
             </button>
           ))}
         </nav>
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh file evidence"
+          aria-label={t('evidence.refresh')}
           onClick={() => setRevision((r) => r + 1)}
         >
           <RefreshCw size={13} />
@@ -166,7 +168,7 @@ export function FileEvidenceDrawer({
         <button
           type="button"
           className="icon-button"
-          aria-label={expanded ? 'Collapse file details' : 'Expand file details'}
+          aria-label={expanded ? t('evidence.collapse') : t('evidence.expand')}
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -175,7 +177,7 @@ export function FileEvidenceDrawer({
       {expanded && (
         <div className="file-drawer-content">
           {loading ? (
-            <p className="file-quiet-state">Reading {tab} for this file…</p>
+            <p className="file-quiet-state">{t(`evidence.reading.${tab}`)}</p>
           ) : error ? (
             <p className="session-error" role="alert">
               {error}
@@ -195,24 +197,25 @@ export function FileEvidenceDrawer({
                 <FileCode2 size={24} />
                 <strong>{path}</strong>
                 <small>
-                  Project file · {content !== saved ? 'Unsaved changes' : 'Saved on disk'}
+                  {t('evidence.projectFile')} ·{' '}
+                  {content !== saved ? t('evidence.unsaved') : t('evidence.saved')}
                 </small>
               </div>
               <dl>
                 <div>
-                  <dt>Language</dt>
+                  <dt>{t('evidence.language')}</dt>
                   <dd>{fileLanguage(path)}</dd>
                 </div>
                 <div>
-                  <dt>Size on disk</dt>
-                  <dd>{size === undefined ? 'Not reported' : byteSize(size)}</dd>
+                  <dt>{t('evidence.size')}</dt>
+                  <dd>{size === undefined ? t('evidence.notReported') : byteSize(size)}</dd>
                 </div>
                 <div>
-                  <dt>Lines</dt>
+                  <dt>{t('evidence.lines')}</dt>
                   <dd>{content.split('\n').length}</dd>
                 </div>
                 <div>
-                  <dt>Encoding</dt>
+                  <dt>{t('evidence.encoding')}</dt>
                   <dd>UTF-8</dd>
                 </div>
               </dl>
@@ -220,31 +223,25 @@ export function FileEvidenceDrawer({
           ) : tab === 'changes' ? (
             diff?.['binary'] || diff?.['tooLarge'] ? (
               <p className="file-quiet-state">
-                {diff['binary']
-                  ? 'Binary file — a text diff is unavailable.'
-                  : 'File exceeds the diff preview limit.'}
+                {diff['binary'] ? t('evidence.binary') : t('evidence.tooLarge')}
               </p>
             ) : diff?.['error'] ? (
               <p className="session-error">{String(diff['error'])}</p>
             ) : diff ? (
               <DiffPreview before={String(diff['oldText'] ?? '')} after={content} path={path} />
             ) : (
-              <p className="file-quiet-state">Reading repository changes…</p>
+              <p className="file-quiet-state">{t('evidence.readingChanges')}</p>
             )
           ) : tab === 'structure' ? (
             <div className="file-structure">
               <span>
-                {String(data['lang'] ?? fileLanguage(path))} · extracted from the actual source
+                {t('evidence.extracted', { lang: String(data['lang'] ?? fileLanguage(path)) })}
               </span>
-              <pre>
-                {String(data['skeleton'] ?? 'No structural outline was returned for this file.')}
-              </pre>
+              <pre>{String(data['skeleton'] ?? t('evidence.noOutline'))}</pre>
             </div>
           ) : tab === 'memory' ? (
             <div className="file-related-memories">
-              <p className="file-evidence-caption">
-                SAGE knowledge anchored to this file, its symbols, or its containing directory.
-              </p>
+              <p className="file-evidence-caption">{t('evidence.memoryCaption')}</p>
               {fileMemories(data).map((memory) => (
                 <article key={String(memory['id'])}>
                   <span>
@@ -255,7 +252,7 @@ export function FileEvidenceDrawer({
                 </article>
               ))}
               {!fileMemories(data).length && (
-                <p className="file-quiet-state">No project memories match this file path.</p>
+                <p className="file-quiet-state">{t('evidence.noMemory')}</p>
               )}
             </div>
           ) : (
@@ -269,12 +266,18 @@ export function FileEvidenceDrawer({
                     <div>
                       <strong>
                         {String(
-                          event['summary'] ?? event['action'] ?? event['kind'] ?? 'File activity',
+                          event['summary'] ??
+                            event['action'] ??
+                            event['kind'] ??
+                            t('evidence.fileActivity'),
                         )}
                       </strong>
                       <p>
                         {String(
-                          actor['name'] ?? actor['id'] ?? event['source'] ?? 'Project activity',
+                          actor['name'] ??
+                            actor['id'] ??
+                            event['source'] ??
+                            t('evidence.projectActivity'),
                         )}{' '}
                         · {String(resource['path'] ?? path)}
                       </p>
@@ -286,7 +289,7 @@ export function FileEvidenceDrawer({
                 );
               })}
               {!entries(data['events']).length && (
-                <p className="file-quiet-state">No recorded activity for this file.</p>
+                <p className="file-quiet-state">{t('evidence.noActivity')}</p>
               )}
             </div>
           )}

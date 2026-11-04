@@ -25,11 +25,7 @@ import {
   setCompactionDebugLogger,
 } from './compaction-core.js';
 import { markStaleCompactionReport, stampCompactionReport } from './compaction-result-state.js';
-import {
-  type CompactionSummaryCache,
-  compactionSummaryKey,
-  defaultCompactionSummaryCache,
-} from './compaction-summary-cache.js';
+import { CompactionSummaryCache, compactionSummaryKey } from './compaction-summary-cache.js';
 import { widenTailCut } from './compaction-tail.js';
 
 interface CollapsedRange {
@@ -140,7 +136,7 @@ export class SelectiveCompactor implements Compactor {
     // sentinel to the provider — that yields a 400 in non-dev deployments.
     // The debug event below makes this potentially expensive fallback observable.
     this.summarizerModel = opts.summarizerModel ?? opts.selectorModel;
-    this.summaryCache = opts.summaryCache ?? defaultCompactionSummaryCache;
+    this.summaryCache = opts.summaryCache ?? new CompactionSummaryCache();
     this.logger = opts.logger ?? noOpLogger;
     // Wire the module-level compaction debug logger so instrumentation
     // in compaction-core.ts (emitCompactionMetrics, findPreserveStart,
@@ -391,8 +387,9 @@ export class SelectiveCompactor implements Compactor {
         };
         // 30-second timeout so a stuck summarizer can't hang compaction.
         const timeoutSignal = AbortSignal.timeout(30_000);
+        const signal = ctx.signal ? AbortSignal.any([ctx.signal, timeoutSignal]) : timeoutSignal;
         const res = await this.provider.complete(req, {
-          signal: AbortSignal.any([ctx.signal, timeoutSignal]),
+          signal,
         });
         return (
           res.content
@@ -485,7 +482,7 @@ export class SelectiveCompactor implements Compactor {
     const result = coreEliseOldToolResults(
       ctx.messages,
       { preserveK: this.preserveK, eliseThreshold: this.eliseThreshold },
-      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k)),
+      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k * 2)),
     );
     if (result.changed) ctx.state.replaceMessages(result.messages);
     return result.saved;
@@ -493,9 +490,12 @@ export class SelectiveCompactor implements Compactor {
 
   /** Collapse superseded repeated reads that slipped under the elise threshold. */
   private dedupStaleReads(ctx: Context): number {
-    const result = dedupStaleReads(ctx.messages, ctx.contextEvidence?.repeatedReads ?? [], {
-      preserveK: this.preserveK,
-    });
+    const result = dedupStaleReads(
+      ctx.messages,
+      ctx.contextEvidence?.repeatedReads ?? [],
+      { preserveK: this.preserveK },
+      (msgs, k) => widenTailCut(ctx, msgs, findPreserveStart(msgs, k * 2)),
+    );
     if (result.changed) ctx.state.replaceMessages(result.messages);
     return result.saved;
   }

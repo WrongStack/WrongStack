@@ -21,6 +21,8 @@ const sharedSsr = {
 const sharedResolve = {
   alias: {
     '@': path.resolve(__dirname, './src'),
+    // Project surfaces shared with the desktop app resolve from source, like in vite.config.ts.
+    '@wrongstack/project-surfaces': path.resolve(__dirname, '../project-surfaces/src'),
     // Force @wrongstack/core to resolve from source (packages/core/src) instead
     // of going through the package's "exports" field which points to dist/.
     ...coreAliases(path.resolve(__dirname, '../core')),

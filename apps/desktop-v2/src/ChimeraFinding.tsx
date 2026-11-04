@@ -1,10 +1,17 @@
 import { FileCode2 } from 'lucide-react';
 import { useState } from 'react';
 import { reviewFindingTransitions, reviewLabel } from './chimera-model';
+import { useDesktopText } from './desktop-i18n';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 
 export function ReviewTimeline({ events }: { events: Record<string, unknown>[] }) {
+  const { t } = useDesktopText();
+  // Engine values are named per language; unknown ones read as reviewLabel shows them.
+  const named = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      : t('reviews.notReported');
   const [visible, setVisible] = useState(40);
   const ordered = [...events].reverse();
   return (
@@ -12,16 +19,16 @@ export function ReviewTimeline({ events }: { events: Record<string, unknown>[] }
       {ordered.slice(0, visible).map((event, index) => (
         <article key={String(event['id'] ?? index)}>
           <header>
-            <strong>{reviewLabel(event['eventType'])}</strong>
+            <strong>{named(event['eventType'])}</strong>
             <time>{String(event['timestamp'] ?? '')}</time>
           </header>
           <small>
-            {String(event['actorId'] ?? 'Not reported')} · {reviewLabel(event['actorKind'])}
+            {String(event['actorId'] ?? t('reviews.notReported'))} · {named(event['actorKind'])}
           </small>
           {event['toLifecycle'] || event['toStatus'] ? (
             <p>
-              {reviewLabel(event['fromLifecycle'] ?? event['fromStatus'])} →{' '}
-              {reviewLabel(event['toLifecycle'] ?? event['toStatus'])}
+              {named(event['fromLifecycle'] ?? event['fromStatus'])} →{' '}
+              {named(event['toLifecycle'] ?? event['toStatus'])}
             </p>
           ) : null}
           {typeof event['reason'] === 'string' && (
@@ -29,14 +36,14 @@ export function ReviewTimeline({ events }: { events: Record<string, unknown>[] }
           )}
         </article>
       ))}
-      {!ordered.length && <p>No journal entries recorded.</p>}
+      {!ordered.length && <p>{t('reviews.noJournal')}</p>}
       {ordered.length > visible && (
         <button
           type="button"
           className="button secondary small"
           onClick={() => setVisible((old) => old + 40)}
         >
-          Show older journal entries
+          {t('reviews.olderEntries')}
         </button>
       )}
     </div>
@@ -53,6 +60,12 @@ export function ChimeraFinding({
   onTransition: (finding: Record<string, unknown>, to: string) => void;
   onOpenFile: (path: string, line?: number) => void;
 }) {
+  const { t } = useDesktopText();
+  // Engine values are named per language; unknown ones read as reviewLabel shows them.
+  const named = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      : t('reviews.notReported');
   const finding = record(row['finding']),
     location = record(finding['location']),
     verification = record(finding['verification']),
@@ -60,20 +73,20 @@ export function ChimeraFinding({
   return (
     <article
       className={`review-finding review-severity-${finding['severity']}`}
-      aria-label={String(finding['title'] ?? 'Review finding')}
+      aria-label={String(finding['title'] ?? t('reviews.finding'))}
     >
       <header>
         <div className="review-finding-tags">
-          <span>{reviewLabel(finding['severity'])}</span>
-          <span>{reviewLabel(finding['status'])}</span>
+          <span>{named(finding['severity'])}</span>
+          <span>{named(finding['status'])}</span>
           {typeof finding['category'] === 'string' && (
             <span>{reviewLabel(finding['category'])}</span>
           )}
           {typeof finding['confidence'] === 'string' && (
-            <span>{reviewLabel(finding['confidence'])} reviewer confidence</span>
+            <span>{t('reviews.confidence', { level: named(finding['confidence']) })}</span>
           )}
         </div>
-        <small>{reviewLabel(finding['source'])}</small>
+        <small>{named(finding['source'])}</small>
       </header>
       <h3>{String(finding['title'])}</h3>
       {typeof location['file'] === 'string' && (
@@ -95,18 +108,18 @@ export function ChimeraFinding({
       <MarkdownContent text={String(finding['description'] ?? '')} />
       {typeof finding['suggestedFix'] === 'string' && (
         <details>
-          <summary>Reviewer’s suggested change</summary>
+          <summary>{t('reviews.suggested')}</summary>
           <MarkdownContent text={finding['suggestedFix']} />
         </details>
       )}
       <section className="review-citation">
-        <strong>Disk citation: {reviewLabel(verification['status'])}</strong>
+        <strong>{t('reviews.citation', { status: named(verification['status']) })}</strong>
         <p>{reviewLabel(verification['reason'])}</p>
         {typeof verification['evidence'] === 'string' && <code>{verification['evidence']}</code>}
       </section>
       {Object.keys(resolution).length > 0 && (
         <section className="review-resolution">
-          <strong>Recorded outcome: {reviewLabel(resolution['outcome'])}</strong>
+          <strong>{t('reviews.recordedOutcome', { outcome: named(resolution['outcome']) })}</strong>
           <p>
             {String(resolution['resolvedBy'] ?? '')} · {String(resolution['resolvedAt'] ?? '')}
           </p>
@@ -124,22 +137,24 @@ export function ChimeraFinding({
             onClick={() => onTransition(finding, to)}
           >
             {to === 'active'
-              ? 'Reopen finding'
+              ? t('reviews.reopenFinding')
               : to === 'resolved'
-                ? 'Record resolution'
+                ? t('reviews.resolveFinding')
                 : to === 'ignored'
-                  ? 'Ignore finding'
+                  ? t('reviews.ignoreFinding')
                   : to === 'triaged'
-                    ? 'Mark triaged'
-                    : 'Start finding work'}
+                    ? t('reviews.triageFinding')
+                    : t('reviews.startFinding')}
           </button>
         ))}
       </div>
       <details>
-        <summary>Finding history ({entries(row['events']).length})</summary>
+        <summary>{t('reviews.history', { n: entries(row['events']).length })}</summary>
         <ReviewTimeline events={entries(row['events'])} />
       </details>
-      <small className="review-record-id">Finding {String(finding['id'])}</small>
+      <small className="review-record-id">
+        {t('reviews.findingId', { id: String(finding['id']) })}
+      </small>
     </article>
   );
 }

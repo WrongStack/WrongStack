@@ -33,6 +33,8 @@ pub struct HostState {
     pub registry: Mutex<Registry>,
     pub live: Mutex<HashMap<String, LiveSession>>,
     pub dir: PathBuf,
+    /// The engine a later launch handed over when this host was started without one.
+    adopted_engine: Mutex<Option<PathBuf>>,
 }
 impl HostState {
     pub fn new(dir: &Path) -> Result<Arc<Self>> {
@@ -44,13 +46,15 @@ impl HostState {
             registry: Mutex::new(registry),
             live: Mutex::new(HashMap::new()),
             dir: dir.into(),
+            adopted_engine: Mutex::new(None),
         }))
     }
     pub fn request(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
         match method {
             "ping" => Ok(
-                json!({"protocol":1,"pid":std::process::id(),"projectApi":1,"engineBuild":crate::host::engine_build(),"requestFrameBytes":crate::host::REQUEST_FRAME_BYTES}),
+                json!({"protocol":1,"pid":std::process::id(),"projectApi":1,"engineBuild":crate::host::engine_build(),"requestFrameBytes":crate::host::REQUEST_FRAME_BYTES,"engine":self.engine_command().is_ok()}),
             ),
+            "engine.adopt" => self.adopt_engine(field(p, "path")?),
             "snapshot" => {
                 let r = self.registry.lock().map_err(err)?;
                 Ok(
@@ -68,6 +72,9 @@ impl HostState {
             ),
             "project.status" => self.project_runtime_status(field(p, "projectId")?),
             "project.events" => {
+                if p["tail"] == true {
+                    return self.project_journal_end(field(p, "projectId")?);
+                }
                 self.project_events(field(p, "projectId")?, p["offset"].as_u64().unwrap_or(0))
             }
             "project.send" => self.project_send(field(p, "projectId")?, p["message"].clone()),
@@ -89,6 +96,7 @@ impl HostState {
                 params["kind"] = json!("agent");
                 self.open(&params)
             }
+            "session.reconnect" => self.reconnect(p),
             "session.read" => self.read(field(p, "id")?, p["offset"].as_u64()),
             "session.write" => {
                 let mut live = self.live.lock().map_err(err)?;
@@ -243,6 +251,47 @@ impl HostState {
         }
         Ok(json!(s))
     }
+    /// Starts a stopped agent conversation's engine again on its own record and journal,
+    /// resuming the WrongStack session it recorded: the conversation keeps its id, its tab and
+    /// its history, and its journal continues where the stopped engine left it.
+    fn reconnect(self: &Arc<Self>, p: &Value) -> Result<Value> {
+        let id = field(p, "id")?;
+        let (history, fork) = history_source(p)?.ok_or("Missing history source")?;
+        if fork {
+            return Err("Reconnecting resumes the conversation's own session".into());
+        }
+        let session = self
+            .registry
+            .lock()
+            .map_err(err)?
+            .sessions()?
+            .into_iter()
+            .find(|s| s.id == id)
+            .ok_or("Unknown session")?;
+        if session.kind != "agent" {
+            return Err("Only agent conversations have an engine to reconnect".into());
+        }
+        if session.status == "running"
+            || session.status == "starting"
+            || self.live.lock().map_err(err)?.contains_key(id)
+        {
+            return Err("This conversation's engine is still running".into());
+        }
+        self.registry
+            .lock()
+            .map_err(err)?
+            .state(id, "starting", None, None)?;
+        if let Err(e) =
+            self.start_engine_with_history(id, &session.workdir, true, Some((history, false)))
+        {
+            self.registry
+                .lock()
+                .map_err(err)?
+                .state(id, "error", None, Some(&e))?;
+            return Err(e);
+        }
+        Ok(json!({ "id": id }))
+    }
     fn log_reader(
         self: &Arc<Self>,
         id: String,
@@ -359,6 +408,24 @@ impl HostState {
         });
         Ok(())
     }
+    fn engine_command(&self) -> Result<Command> {
+        let adopted = self.adopted_engine.lock().map_err(err)?.clone();
+        engine_command(adopted.as_deref())
+    }
+    /// A host started from a build output with no engine beside it outlives that window, so a
+    /// later launch that has an engine hands it over instead of failing every workspace. An
+    /// engine the host already has is never replaced.
+    fn adopt_engine(&self, path: &str) -> Result<Value> {
+        if self.engine_command().is_ok() {
+            return Ok(json!({"adopted":false}));
+        }
+        let path = PathBuf::from(path);
+        if !path.is_absolute() || !path.is_file() {
+            return Err("Invalid desktop engine executable path".into());
+        }
+        *self.adopted_engine.lock().map_err(err)? = Some(path);
+        Ok(json!({"adopted":true}))
+    }
     pub(crate) fn start_engine(
         self: &Arc<Self>,
         runtime_id: &str,
@@ -377,12 +444,15 @@ impl HostState {
         let reservation = TcpListener::bind("127.0.0.1:0").map_err(err)?;
         let port = reservation.local_addr().map_err(err)?.port();
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
-        let mut command = engine_command()?;
+        let mut command = self.engine_command()?;
         let ready_path = self
             .dir
             .join("transcripts")
             .join(format!("{runtime_id}.restore.json"));
         if let Some((id, fork)) = history {
+            // A reconnected conversation reuses its runtime id: an earlier restore's answer
+            // must not read as this start being ready.
+            let _ = std::fs::remove_file(&ready_path);
             command.args(["--resume", id]);
             command.env("WRONGSTACK_DESKTOP_RESTORE_READY", &ready_path);
             if fork {
@@ -632,6 +702,45 @@ mod history_tests {
     use super::*;
 
     #[test]
+    fn a_host_started_without_an_engine_takes_one_from_a_later_launch() {
+        if std::env::var_os("WRONGSTACK_DESKTOP_ENGINE").is_some()
+            || std::env::var_os("WRONGSTACK_DESKTOP_ENTRY").is_some()
+        {
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("desktop-engine-adopt-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        assert_eq!(host.request("ping", &json!({})).unwrap()["engine"], false);
+        assert!(host.engine_command().unwrap_err().contains("portable"));
+        assert!(host
+            .request("engine.adopt", &json!({"path":"relative-engine.exe"}))
+            .is_err());
+        let engine = dir.join("wrongstack-engine.exe");
+        std::fs::write(&engine, b"").unwrap();
+        let path = engine.to_string_lossy().to_string();
+        assert_eq!(
+            host.request("engine.adopt", &json!({"path":path})).unwrap()["adopted"],
+            true
+        );
+        assert_eq!(host.request("ping", &json!({})).unwrap()["engine"], true);
+        // An engine the host already has is never replaced.
+        let other = dir.join("other.exe");
+        std::fs::write(&other, b"").unwrap();
+        assert_eq!(
+            host.request("engine.adopt", &json!({"path":other.to_string_lossy()}))
+                .unwrap()["adopted"],
+            false
+        );
+        assert_eq!(
+            host.engine_command().unwrap().get_program(),
+            engine.as_os_str()
+        );
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn restore_requires_a_source_and_refuses_alternate_roots_before_creating_tabs() {
         let dir = std::env::temp_dir().join(format!("desktop-restore-contract-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -655,6 +764,78 @@ mod history_tests {
             .unwrap_err()
             .contains("project root"));
         assert!(host.registry.lock().unwrap().sessions().unwrap().is_empty());
+        drop(host);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn reconnect_refuses_unknown_terminal_running_and_forked_conversations() {
+        let dir = std::env::temp_dir().join(format!("desktop-reconnect-{}", Uuid::new_v4()));
+        let project_dir = dir.join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        let host = HostState::new(&dir).unwrap();
+        let project = host
+            .registry
+            .lock()
+            .unwrap()
+            .register(project_dir.to_str().unwrap())
+            .unwrap();
+        let record = |kind: &str, status: &str| {
+            let s = Session {
+                id: Uuid::new_v4().to_string(),
+                project_id: project.id.clone(),
+                title: "test".into(),
+                kind: kind.into(),
+                workdir: project_dir.to_string_lossy().into(),
+                status: status.into(),
+                created_at: now(),
+                updated_at: now(),
+                exit_code: None,
+                error: None,
+            };
+            host.registry.lock().unwrap().insert(&s).unwrap();
+            s.id
+        };
+        let resume = |id: &str| json!({"id": id, "history": {"id": "sess_ok", "mode": "resume"}});
+        assert!(host
+            .request("session.reconnect", &json!({"id": "missing"}))
+            .unwrap_err()
+            .contains("Missing history source"));
+        assert!(host
+            .request("session.reconnect", &resume("missing"))
+            .unwrap_err()
+            .contains("Unknown session"));
+        let terminal = record("terminal", "stopped");
+        assert!(host
+            .request("session.reconnect", &resume(&terminal))
+            .unwrap_err()
+            .contains("Only agent conversations"));
+        let running = record("agent", "running");
+        assert!(host
+            .request("session.reconnect", &resume(&running))
+            .unwrap_err()
+            .contains("still running"));
+        let stopped = record("agent", "interrupted");
+        assert!(host
+            .request(
+                "session.reconnect",
+                &json!({"id": stopped, "history": {"id": "sess_ok", "mode": "fork"}})
+            )
+            .unwrap_err()
+            .contains("own session"));
+        assert!(host
+            .request(
+                "session.reconnect",
+                &json!({"id": stopped, "history": {"id": "../outside", "mode": "resume"}})
+            )
+            .unwrap_err()
+            .contains("Invalid recorded session identity"));
+        // Every refusal leaves the conversation as it was.
+        let sessions = host.registry.lock().unwrap().sessions().unwrap();
+        assert_eq!(
+            sessions.iter().find(|s| s.id == stopped).unwrap().status,
+            "interrupted"
+        );
         drop(host);
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -688,7 +869,7 @@ mod history_tests {
         assert!(history_source(&json!({"history":{"id":"sess_ok","mode":"new"}})).is_err());
     }
 }
-fn engine_command() -> Result<Command> {
+fn engine_command(adopted: Option<&Path>) -> Result<Command> {
     if let (Ok(bun), Ok(entry)) = (
         std::env::var("WRONGSTACK_DESKTOP_BUN"),
         std::env::var("WRONGSTACK_DESKTOP_ENTRY"),
@@ -702,7 +883,12 @@ fn engine_command() -> Result<Command> {
     }
     let path = std::env::var_os("WRONGSTACK_DESKTOP_ENGINE")
         .map(PathBuf::from)
-        .ok_or("Desktop engine is not bundled yet. Launch with bun run desktop:v2.")?;
+        .or_else(|| adopted.map(Path::to_path_buf))
+        .ok_or(
+            "No desktop engine was found. Start wrongstack-desktop-native.exe from its portable \
+             folder (apps/desktop-v2/dist-native/<build>), next to wrongstack-engine.exe, or run \
+             bun run desktop:v2 for development.",
+        )?;
     if !path.is_absolute() || !path.is_file() {
         return Err("Invalid desktop engine executable path".into());
     }

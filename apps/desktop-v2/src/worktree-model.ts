@@ -12,6 +12,10 @@ export interface WorktreeView {
   files: number;
   conflictFiles: string[];
   lastError: string;
+  /** When the engine handed the worktree out; lanes and the graph keep this order. */
+  allocatedAt: number;
+  /** The newest lifecycle note (`kind: text`), or empty. */
+  latest: string;
 }
 
 export interface WorktreeOrphan {
@@ -22,6 +26,11 @@ export interface WorktreeOrphan {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+
+function latestActivity(value: unknown) {
+  const last = entries(value).at(-1);
+  return last ? [text(last['kind']), text(last['text'])].filter(Boolean).join(': ') : '';
+}
 
 /** Worktrees the engine is tracking for runs in this project (`worktree.state`). */
 export function worktreeViews(payload: unknown): { baseBranch: string; worktrees: WorktreeView[] } {
@@ -40,6 +49,8 @@ export function worktreeViews(payload: unknown): { baseBranch: string; worktrees
       files: count(row['files']),
       conflictFiles: Array.isArray(row['conflictFiles']) ? row['conflictFiles'].map(String) : [],
       lastError: text(row['lastError']),
+      allocatedAt: count(row['allocatedAt']),
+      latest: latestActivity(row['recentActivity']),
     })),
   };
 }
@@ -63,25 +74,47 @@ export function worktreeOrphans(payload: unknown): {
 }
 
 /** One line for a cleanup or removal result (`worktree.cleanup_result`). */
-export function cleanupOutcome(payload: unknown): string {
+/** English wording of the outcome lines; the desktop passes the display-language catalog. */
+const OUTCOME_WORDS = {
+  removedOne: 'Removed 1 item.',
+  removedMany: 'Removed {{number}} items.',
+  notRemoved: 'Nothing was removed: {{reason}}.',
+  refused: 'the engine refused the request',
+  merged: 'Merged {{branch}}.',
+  conflicts: '{{branch}} was not merged: conflicts in {{files}}.',
+  theCheckout: 'the checkout',
+  notMerged: '{{branch}} was not merged: {{reason}}.',
+} as const;
+export type WorktreeOutcomeWord = keyof typeof OUTCOME_WORDS;
+export type WorktreeSay = (
+  word: WorktreeOutcomeWord,
+  values?: Record<string, string | number>,
+) => string;
+const english: WorktreeSay = (word, values = {}) =>
+  OUTCOME_WORDS[word].replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name] ?? ''));
+
+export function cleanupOutcome(payload: unknown, say: WorktreeSay = english): string {
   const result = record(payload);
   const removed = count(result['removed']);
-  return result['ok'] === true
-    ? `Removed ${removed} ${removed === 1 ? 'item' : 'items'}.`
-    : `Nothing was removed: ${text(result['reason']) || 'the engine refused the request'}.`;
+  if (result['ok'] !== true)
+    return say('notRemoved', { reason: text(result['reason']) || say('refused') });
+  return removed === 1 ? say('removedOne') : say('removedMany', { number: removed });
 }
 
 /** One line for a merge result (`worktree.merge_result`), naming conflicts when reported. */
-export function mergeOutcome(payload: unknown): string {
+export function mergeOutcome(payload: unknown, say: WorktreeSay = english): string {
   const result = record(payload);
   const branch = text(result['branch']);
-  if (result['ok'] === true) return `Merged ${branch}.`;
+  if (result['ok'] === true) return say('merged', { branch });
   const conflicts = Array.isArray(result['conflictFiles'])
     ? result['conflictFiles'].map(String)
     : [];
   if (result['conflict'] === true || conflicts.length)
-    return `${branch} was not merged: conflicts in ${conflicts.length ? conflicts.join(', ') : 'the checkout'}.`;
-  return `${branch} was not merged: ${text(result['reason']) || 'the engine refused the request'}.`;
+    return say('conflicts', {
+      branch,
+      files: conflicts.length ? conflicts.join(', ') : say('theCheckout'),
+    });
+  return say('notMerged', { branch, reason: text(result['reason']) || say('refused') });
 }
 
 /** The changes summary for one checkout (`worktree.diff_result`), or null when unavailable. */

@@ -59,13 +59,17 @@ export function oauthAliasIssue(
   alias: string,
   existing: readonly string[],
   newAccount: boolean,
+  words = {
+    invalid: 'Use 1–80 letters, digits, hyphens or underscores, starting with a letter or digit.',
+    exists:
+      'This connection already exists. Choose a new account name or reconnect the saved account.',
+  },
 ): string | null {
   if (
     !/^[a-z0-9][a-z0-9_-]{0,79}$/i.test(alias) ||
     ['__proto__', 'prototype', 'constructor'].includes(alias.toLowerCase())
   )
-    return 'Use 1–80 letters, digits, hyphens or underscores, starting with a letter or digit.';
-  if (newAccount && existing.includes(alias))
-    return 'This connection already exists. Choose a new account name or reconnect the saved account.';
+    return words.invalid;
+  if (newAccount && existing.includes(alias)) return words.exists;
   return null;
 }

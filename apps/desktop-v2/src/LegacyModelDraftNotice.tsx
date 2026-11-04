@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import { ModelDraftSummary } from './ModelDraftNotice';
 import { modelDraftKey } from './model-draft-key';
@@ -21,6 +22,7 @@ export function LegacyModelDraftNotice({
   controller: ModelEditorDraftStore;
   onCopied: () => void;
 }) {
+  const { t } = useDesktopText();
   const [saved, setSaved] = useState<{
     snapshot: ModelDraftSnapshot;
     editor: ModelEditorState;
@@ -32,14 +34,11 @@ export function LegacyModelDraftNotice({
     const formKey = await modelDraftKey(providerId);
     const snapshot = await request<ModelDraftSnapshot>('profile-draft.get', { formKey });
     if (snapshot.value === null) return null;
-    if (record(snapshot.value)['profileId'] !== undefined)
-      throw Error(
-        'The earlier draft already has a profile owner; it cannot be treated as unassigned.',
-      );
+    if (record(snapshot.value)['profileId'] !== undefined) throw Error(t('modelDraft.ownerExists'));
     const editor = parseModelEditor(snapshot.value, providerId);
     if (!editor) return null;
     return { snapshot, editor };
-  }, [providerId]);
+  }, [providerId, t]);
   useEffect(() => {
     let active = true;
     void read()
@@ -61,7 +60,7 @@ export function LegacyModelDraftNotice({
       const current = await read();
       if (!current || current.snapshot.revision !== saved.snapshot.revision) {
         setSaved(current);
-        throw Error('The unassigned draft changed. Review its latest version before choosing.');
+        throw Error(t('modelDraft.legacyChanged'));
       }
       if (choice === 'copy') {
         await controller.load();
@@ -70,9 +69,7 @@ export function LegacyModelDraftNotice({
           controller.snapshot().review ||
           controller.snapshot().dirty
         )
-          throw Error(
-            'Finish or discard this profile’s current draft before copying an unassigned draft.',
-          );
+          throw Error(t('modelDraft.finishFirst'));
         await controller.prepare();
         controller.edit(current.editor);
         await controller.flush();
@@ -86,7 +83,7 @@ export function LegacyModelDraftNotice({
           expectedRevision: current.snapshot.revision,
         });
         if (reply.revision !== current.snapshot.revision + 1)
-          throw Error('The unassigned draft removal was not acknowledged.');
+          throw Error(t('modelDraft.notAcknowledged'));
         setSaved(null);
         setReview(false);
       }
@@ -98,12 +95,9 @@ export function LegacyModelDraftNotice({
   };
   if (!saved && !error) return null;
   return (
-    <section className="model-draft-notice" aria-label="Unassigned model draft">
-      <h3>Earlier model draft</h3>
-      <p>
-        This draft predates profile ownership. Review it before copying into {profileName}. Copying
-        keeps the unassigned source and does not apply provider settings.
-      </p>
+    <section className="model-draft-notice" aria-label={t('modelDraft.legacyLabel')}>
+      <h3>{t('modelDraft.legacyTitle')}</h3>
+      <p>{t('modelDraft.legacyIntro', { profile: profileName })}</p>
       {error && (
         <p role="alert" className="session-error">
           {error}
@@ -112,7 +106,7 @@ export function LegacyModelDraftNotice({
       {saved &&
         (!review ? (
           <button type="button" className="button secondary small" onClick={() => setReview(true)}>
-            Review unassigned model draft
+            {t('modelDraft.legacyReview')}
           </button>
         ) : (
           <>
@@ -126,7 +120,7 @@ export function LegacyModelDraftNotice({
                   void act('copy');
                 }}
               >
-                Copy and review in this profile
+                {t('modelDraft.legacyCopy')}
               </button>
               <button
                 type="button"
@@ -136,7 +130,7 @@ export function LegacyModelDraftNotice({
                   void act('discard');
                 }}
               >
-                Discard unassigned model draft
+                {t('modelDraft.legacyDiscard')}
               </button>
               <button
                 type="button"
@@ -144,7 +138,7 @@ export function LegacyModelDraftNotice({
                 disabled={busy}
                 onClick={() => setReview(false)}
               >
-                Keep unassigned draft
+                {t('modelDraft.legacyKeep')}
               </button>
             </div>
           </>

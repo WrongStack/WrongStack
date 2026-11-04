@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DiffPreview } from './DiffPreview';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { saveFileVersion } from './file-save';
 
@@ -14,7 +15,7 @@ export function CodeAssistEditReview({
   path,
   before,
   onRestored,
-  note = 'Only this file was captured before the run. Review the working tree for other files.',
+  note,
 }: {
   command: EngineCommand;
   path: string;
@@ -22,6 +23,7 @@ export function CodeAssistEditReview({
   onRestored?: () => void;
   note?: string;
 }) {
+  const { t } = useDesktopText();
   const [after, setAfter] = useState<string | null>(null),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
@@ -34,8 +36,7 @@ export function CodeAssistEditReview({
     void command('files.read', { filePath: path }, ['files.read'])
       .then((result) => {
         if (!current) return;
-        if (result['binary'] || result['tooLarge'])
-          throw Error('The file is no longer readable as text, so no comparison is shown.');
+        if (result['binary'] || result['tooLarge']) throw Error(t('codeReview.notText'));
         setAfter(String(result['content'] ?? ''));
       })
       .catch((failure) => {
@@ -53,27 +54,23 @@ export function CodeAssistEditReview({
       if (before === null) {
         const latest = await command('files.read', { filePath: path }, ['files.read']);
         if (latest['content'] !== after) {
-          setError(
-            'The file changed after this comparison was read. Nothing was removed; refresh the comparison first.',
-          );
+          setError(t('codeReview.changedNotRemoved'));
           return;
         }
         await command('files.delete', { filePath: path }, ['files.deleted']);
         setAfter(null);
         setRemoved(true);
-        setNotice('Removed the file this run created.');
+        setNotice(t('codeReview.removedFile'));
         onRestored?.();
         return;
       }
       const outcome = await saveFileVersion(command, path, before, after);
       if (outcome.kind === 'conflict') {
-        setError(
-          'The file changed after this comparison was read. Nothing was restored; refresh the comparison first.',
-        );
+        setError(t('codeReview.changedNotRestored'));
         return;
       }
       setAfter(before);
-      setNotice('Restored the content from before this run.');
+      setNotice(t('codeReview.restored'));
       onRestored?.();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -82,19 +79,19 @@ export function CodeAssistEditReview({
     }
   };
   return (
-    <section className="code-assist-edit-review" aria-label="Changes from this run">
+    <section className="code-assist-edit-review" aria-label={t('codeReview.label')}>
       <header>
         <strong>{path}</strong>
         <span>
           {removed
-            ? 'Removed'
+            ? t('codeReview.removed')
             : after === null
-              ? 'Reading the current file…'
+              ? t('codeReview.reading')
               : after === before
-                ? 'Same as before this run'
+                ? t('codeReview.same')
                 : before === null
-                  ? 'Created by this run'
-                  : 'Changed by this run or since it started'}
+                  ? t('codeReview.created')
+                  : t('codeReview.changed')}
         </span>
       </header>
       {error && (
@@ -114,14 +111,14 @@ export function CodeAssistEditReview({
           >
             <RotateCcw size={12} />
             {busy
-              ? 'Restoring…'
+              ? t('codeReview.restoring')
               : before === null
-                ? 'Remove the file this run created'
-                : 'Restore content from before this run'}
+                ? t('codeReview.removeCreated')
+                : t('codeReview.restore')}
           </button>
         </>
       )}
-      <small className="field-help">{note}</small>
+      <small className="field-help">{note ?? t('codeReview.note')}</small>
     </section>
   );
 }

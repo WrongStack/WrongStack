@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import {
   batchFailure,
   batchMoveItems,
@@ -50,6 +51,7 @@ export function FileBulkDialog({
   onClose: () => void;
   onFinished: (summary: string, changed: string[]) => void;
 }) {
+  const { t } = useDesktopText();
   const items = topLevelPaths(paths);
   const [target, setTarget] = useState(initialTarget);
   const [find, setFind] = useState(''),
@@ -151,16 +153,11 @@ export function FileBulkDialog({
         }}
       >
         <h2 id="dialog-title">
-          {kind === 'move'
-            ? 'Move'
-            : kind === 'copy'
-              ? 'Copy'
-              : kind === 'rename'
-                ? 'Rename'
-                : 'Delete'}{' '}
-          {items.length} selected {items.length === 1 ? 'item' : 'items'}
+          {t(`bulk.${items.length === 1 ? 'titleOne' : 'titleMany'}.${kind}`, {
+            count: items.length,
+          })}
         </h2>
-        <ul aria-label={kind === 'rename' ? 'Rename preview' : 'Selected items'}>
+        <ul aria-label={kind === 'rename' ? t('bulk.preview') : t('fileView.selectedItems')}>
           {items.map((path) => (
             <li key={path}>
               {path}
@@ -169,16 +166,12 @@ export function FileBulkDialog({
             </li>
           ))}
         </ul>
-        {paths.length > items.length && (
-          <p className="field-help">
-            Items inside a selected folder are included with that folder.
-          </p>
-        )}
+        {paths.length > items.length && <p className="field-help">{t('bulk.nested')}</p>}
         {kind === 'move' || kind === 'copy' ? (
           <label>
-            Destination folder (project-relative; empty is the project root)
+            {t('bulk.destination')}
             <input
-              aria-label={kind === 'copy' ? 'Bulk copy destination' : 'Bulk move destination'}
+              aria-label={kind === 'copy' ? t('bulk.copyDestination') : t('bulk.moveDestination')}
               value={target}
               disabled={running}
               onChange={(event) => setTarget(event.target.value)}
@@ -187,18 +180,18 @@ export function FileBulkDialog({
         ) : kind === 'rename' ? (
           <div className="file-bulk-rename">
             <label>
-              Find in names
+              {t('bulk.findNames')}
               <input
-                aria-label="Find in names"
+                aria-label={t('bulk.findNames')}
                 value={find}
                 disabled={running}
                 onChange={(event) => setFind(event.target.value)}
               />
             </label>
             <label>
-              Replace with
+              {t('find.replaceWith')}
               <input
-                aria-label="Replace in names"
+                aria-label={t('bulk.replaceNames')}
                 value={replacement}
                 disabled={running}
                 onChange={(event) => setReplacement(event.target.value)}
@@ -211,50 +204,34 @@ export function FileBulkDialog({
                 disabled={running}
                 onChange={(event) => setCaseSensitive(event.target.checked)}
               />{' '}
-              Match case
+              {t('find.matchCase')}
             </label>
             <p className="field-help">
-              Literal text in each name is replaced; folders stay where they are. An existing item
-              with the new name is never overwritten: that rename fails and is reported.
-              {find && plan.unchanged.length > 0 ? ` ${plan.unchanged.length} unchanged.` : ''}
+              {t('bulk.renameHelp')}
+              {find && plan.unchanged.length > 0
+                ? ` ${t('bulk.unchanged', { count: plan.unchanged.length })}`
+                : ''}
             </p>
           </div>
         ) : (
-          <p>
-            Selected folders are deleted with their contents. Each item is deleted separately; the
-            result lists any that fail.
-          </p>
+          <p>{t('bulk.deleteHelp')}</p>
         )}
         {unsaved.length > 0 && (
           <p role="alert" className="session-error">
-            Save or close edited files first: {unsaved.join(', ')}.
+            {t('bulk.unsaved', { paths: unsaved.join(', ') })}
           </p>
         )}
-        {kind === 'copy' && copyMany && (
-          <p className="field-help">
-            Every item is copied from its saved version, or none is: the engine copies them beside
-            their targets first and moves them into place only when all are complete. An existing
-            file or folder with the same name is never overwritten. Folders that contain symbolic
-            links are refused, and one copy is limited to 5,000 entries and 256 MiB.
-          </p>
-        )}
-        {kind === 'copy' && !copyMany && (
-          <p className="field-help">
-            Text files are copied from their saved version; an existing file or folder with the same
-            name is never overwritten. A folder is copied only when all of its listed files are text
-            (at most 200 files, 8 MiB); otherwise nothing of it is copied. Hidden entries, skipped
-            folders such as .git and node_modules, and symbolic links to files are not listed by the
-            engine and are not copied.
-          </p>
-        )}
+        {kind === 'copy' && copyMany && <p className="field-help">{t('bulk.copyAtomic')}</p>}
+        {kind === 'copy' && !copyMany && <p className="field-help">{t('bulk.copyText')}</p>}
         {intoItself.length > 0 && (
           <p role="alert" className="session-error">
-            A folder cannot {kind === 'copy' ? 'be copied' : 'move'} into itself:{' '}
-            {intoItself.join(', ')}.
+            {t(kind === 'copy' ? 'bulk.intoItselfCopy' : 'bulk.intoItselfMove', {
+              paths: intoItself.join(', '),
+            })}
           </p>
         )}
         {kind === 'rename' && plan.problems.length > 0 && (
-          <ul role="alert" className="session-error" aria-label="Rename problems">
+          <ul role="alert" className="session-error" aria-label={t('bulk.problems')}>
             {plan.problems.map((problem) => (
               <li key={problem}>{problem}</li>
             ))}
@@ -274,7 +251,7 @@ export function FileBulkDialog({
               else onClose();
             }}
           >
-            {running ? 'Stop after current item' : 'Cancel'}
+            {running ? t('bulk.stop') : t('fileView.cancel')}
           </button>
           <button
             type="submit"
@@ -282,12 +259,15 @@ export function FileBulkDialog({
             disabled={blocked || running}
           >
             {running
-              ? 'Working…'
+              ? t('fileView.working')
               : kind === 'move' || kind === 'copy'
-                ? `${kind === 'move' ? 'Move' : 'Copy'} ${items.length} to ${destination === '.' ? 'project root' : destination}`
+                ? t(kind === 'move' ? 'bulk.moveTo' : 'bulk.copyTo', {
+                    count: items.length,
+                    target: destination === '.' ? t('bulk.projectRoot') : destination,
+                  })
                 : kind === 'rename'
-                  ? `Rename ${plan.steps.length}`
-                  : `Delete ${items.length}`}
+                  ? t('bulk.renameCount', { count: plan.steps.length })
+                  : t('bulk.deleteCount', { count: items.length })}
           </button>
         </footer>
       </form>

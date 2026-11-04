@@ -41,8 +41,7 @@ import { AudienceMemoryPanel } from './AudienceMemoryPanel.js';
  */
 import type { CustomRosterStats, RosterAgentEntry, RosterTab } from './agent-roster-data.js';
 import { confirmModal } from './ConfirmModal';
-import { OfficeMapPanel } from './OfficeMapPanel.js';
-import { OfficeMapSettingsPanel } from './OfficeMapSettingsPanel.js';
+import { OfficeWorkspace } from './OfficeWorkspace.js';
 import { useAgentRosterData } from './useAgentRosterData.js';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -625,17 +624,7 @@ export function AgentRosterView({
         )}
 
         {activeTab === 'live' && <LiveFleetTab nowTick={nowTick} />}
-        {activeTab === 'officemap' && (
-          <div className="flex min-h-0 min-w-0 w-full flex-col xl:flex-row">
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <OfficeMapPanel />
-            </div>
-            {/* Display preferences — relocated from the retired ActivityBar side panel */}
-            <aside className="max-h-64 w-full shrink-0 overflow-y-auto border-t border-border/60 xl:max-h-none xl:w-60 xl:border-t-0 xl:border-l">
-              <OfficeMapSettingsPanel />
-            </aside>
-          </div>
-        )}
+        {activeTab === 'officemap' && <OfficeWorkspace />}
         {activeTab === 'catalog' && (
           <RosterCatalogTab customStats={customStats} catalog={catalog} />
         )}

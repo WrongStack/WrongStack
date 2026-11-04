@@ -1,5 +1,15 @@
 import type { AutomationValidation, EnvironmentReceipt } from '@wrongstack/webui-protocol';
 
+/** Each recorded evidence file of a run, and the id its display label is named by. */
+export const AUTOMATION_ARTIFACTS = {
+  'output.log': 'outputLog',
+  'verification.log': 'verificationLog',
+  'changes.patch': 'changesPatch',
+  'verification.json': 'verificationJson',
+  'environment.json': 'environmentJson',
+} as const;
+export type AutomationArtifact = keyof typeof AUTOMATION_ARTIFACTS;
+
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
 const strings = (value: unknown): value is string[] =>

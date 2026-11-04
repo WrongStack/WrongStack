@@ -1,13 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "../..",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": ["node", "vite/client"],
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@wrongstack/project-surfaces/host": ["../../packages/project-surfaces/src/host.tsx"],
+      "@wrongstack/project-surfaces/sage": ["../../packages/project-surfaces/src/sage/index.ts"],
+      "@wrongstack/project-surfaces/*": ["../../packages/project-surfaces/src/*"]
+    }
   },
   "include": ["src", "scripts", "engine", "vite.config.ts", "vitest.config.ts"]
 }

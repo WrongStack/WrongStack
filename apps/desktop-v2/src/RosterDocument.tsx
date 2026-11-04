@@ -1,6 +1,7 @@
 import { Copy, Pencil, Save, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DraftMergeChoices } from './DraftMergeChoices';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
@@ -8,12 +9,6 @@ import { rosterDocumentDraft } from './roster-document-store';
 import { rosterDocumentKey } from './roster-model';
 
 export type RosterDocumentKind = 'identity' | 'learned' | 'consolidated' | 'skill';
-const labels = {
-  identity: 'Identity instructions',
-  learned: 'Learned directives',
-  consolidated: 'Consolidated knowledge',
-  skill: 'Skill addendum',
-};
 const localDrafts = new Map<string, { base: string; text: string }>();
 export function RosterDocument({
   projectId,
@@ -34,6 +29,8 @@ export function RosterDocument({
   onSaved: () => void;
   onLink?: (url: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const label = t(`rosterDoc.kind.${kind}`);
   const key = rosterDocumentKey(projectId, role, `${kind}:${skill}`);
   const cached = useRef(localDrafts.get(key)).current;
   const [base, setBase] = useState(cached?.base ?? ''),
@@ -138,12 +135,10 @@ export function RosterDocument({
       const current = await read();
       if (current !== (reviewed ?? base)) {
         setConflict(current);
-        throw Error('The stored document changed. Compare the current text before replacing it.');
+        throw Error(t('rosterDoc.changed'));
       }
       if ((kind === 'skill' || kind === 'consolidated') && !text.trim())
-        throw Error(
-          'Use the dedicated clear action to remove this document. Empty synthesis is not saved.',
-        );
+        throw Error(t('rosterDoc.useClear'));
       const type =
         kind === 'identity'
           ? 'agent-roster.update-identity'
@@ -159,9 +154,7 @@ export function RosterDocument({
       const verified = actual.trim();
       if (verified !== expected) {
         setConflict(actual);
-        throw Error(
-          'The engine stored a different or bounded version. Your full local text is preserved; review the stored version.',
-        );
+        throw Error(t('rosterDoc.bounded'));
       }
       if (!live.current) return;
       setBase(actual);
@@ -169,7 +162,7 @@ export function RosterDocument({
       forget();
       setEditing(false);
       setConflict(null);
-      setNotice('Project document saved and read back.');
+      setNotice(t('rosterDoc.saved'));
       onSaved();
     } catch (error) {
       if (live.current) setError(error instanceof Error ? error.message : String(error));
@@ -179,7 +172,7 @@ export function RosterDocument({
     }
   };
   return (
-    <Modal title={`${labels[kind]} for ${role}`} onClose={close}>
+    <Modal title={t('rosterDoc.modalTitle', { kind: label, role })} onClose={close}>
       <div className="roster-document">
         <header>
           <div>
@@ -187,22 +180,19 @@ export function RosterDocument({
               {role}
               {skill ? ` · ${skill}` : ''}
             </span>
-            <h2>{labels[kind]}</h2>
+            <h2>{label}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close role document"
+            aria-label={t('rosterDoc.close')}
             disabled={busy}
             onClick={close}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          Read the engine-resolved document. Saving creates or updates this project's role file.
-          Unsaved drafts are kept on this device until you save or discard them.
-        </p>
+        <p>{t('rosterDoc.intro')}</p>
         {error && (
           <p className="session-error" role="alert">
             {error}
@@ -220,13 +210,13 @@ export function RosterDocument({
         )}
         {durableState.review && (
           <div className="roster-confirm" role="alert">
-            <p>Another window saved different unsaved text for this document.</p>
+            <p>{t('rosterDoc.conflict')}</p>
             <button
               type="button"
               className="button secondary"
               onClick={() => void durable.resolve('local')}
             >
-              Keep this window’s text
+              {t('rosterDoc.keepWindow')}
             </button>
             <button
               type="button"
@@ -241,7 +231,7 @@ export function RosterDocument({
                 });
               }}
             >
-              Use saved text
+              {t('rosterDoc.useSaved')}
             </button>
             {durableState.review.value?.base === base &&
               durableState.review.value.text !== text && (
@@ -258,9 +248,7 @@ export function RosterDocument({
           </div>
         )}
         {(cached || recovered) && dirty && (
-          <p className="roster-policy-note">
-            Recovered local draft. Saving checks the original stored-text baseline.
-          </p>
+          <p className="roster-policy-note">{t('rosterDoc.recovered')}</p>
         )}
         {!loaded ? (
           error ? (
@@ -269,10 +257,10 @@ export function RosterDocument({
               className="button secondary"
               onClick={() => setReadAttempt((value) => value + 1)}
             >
-              Retry reading document
+              {t('rosterDoc.retry')}
             </button>
           ) : (
-            <p role="status">Reading role document…</p>
+            <p role="status">{t('rosterDoc.reading')}</p>
           )
         ) : (
           <>
@@ -287,7 +275,7 @@ export function RosterDocument({
                 }}
               >
                 <Pencil size={14} />
-                {editing ? 'Preview text' : 'Edit project text'}
+                {editing ? t('rosterDoc.preview') : t('rosterDoc.edit')}
               </button>
               <button
                 type="button"
@@ -295,19 +283,19 @@ export function RosterDocument({
                 onClick={() =>
                   void navigator.clipboard
                     .writeText(text)
-                    .then(() => setNotice('Document copied.'))
+                    .then(() => setNotice(t('rosterDoc.copied')))
                     .catch((error) => setError(String(error)))
                 }
               >
                 <Copy size={14} />
-                Copy text
+                {t('rosterDoc.copy')}
               </button>
             </div>
             {editing ? (
               <label>
-                Markdown text
+                {t('rosterDoc.markdown')}
                 <textarea
-                  aria-label="Role document Markdown"
+                  aria-label={t('rosterDoc.markdownLabel')}
                   value={text}
                   disabled={busy}
                   onChange={(event) => change(event.target.value)}
@@ -315,17 +303,17 @@ export function RosterDocument({
                 />
               </label>
             ) : (
-              <section className="roster-markdown" aria-label="Role document preview">
+              <section className="roster-markdown" aria-label={t('rosterDoc.previewLabel')}>
                 <MarkdownContent
-                  text={text || 'This document has no stored content.'}
+                  text={text || t('rosterDoc.empty')}
                   {...(onLink ? { onLink } : {})}
                 />
               </section>
             )}
             {conflict !== null && (
               <section className="roster-document-conflict">
-                <h3>Stored text</h3>
-                <textarea aria-label="Current stored role document" readOnly value={conflict} />
+                <h3>{t('rosterDoc.stored')}</h3>
+                <textarea aria-label={t('rosterDoc.storedLabel')} readOnly value={conflict} />
                 <div>
                   <button
                     type="button"
@@ -340,7 +328,7 @@ export function RosterDocument({
                       forget();
                     }}
                   >
-                    Use stored text
+                    {t('rosterDoc.useStored')}
                   </button>
                   <button
                     type="button"
@@ -348,7 +336,7 @@ export function RosterDocument({
                     disabled={busy}
                     onClick={() => void save(conflict)}
                   >
-                    Replace the reviewed stored text
+                    {t('rosterDoc.replace')}
                   </button>
                 </div>
               </section>
@@ -357,12 +345,12 @@ export function RosterDocument({
         )}
         {leaving && (
           <div className="roster-confirm" role="alert">
-            <p>Your role document has unsaved text.</p>
+            <p>{t('rosterDoc.unsaved')}</p>
             <button type="button" className="button secondary" onClick={() => setLeaving(false)}>
-              Keep editing document
+              {t('rosterDoc.keepEditing')}
             </button>
             <button type="button" className="button secondary" onClick={onClose}>
-              Keep draft and close
+              {t('rosterDoc.keepClose')}
             </button>
             <button
               type="button"
@@ -372,12 +360,12 @@ export function RosterDocument({
                 onClose();
               }}
             >
-              Discard document draft
+              {t('rosterDoc.discard')}
             </button>
           </div>
         )}
         <footer>
-          <span>{dirty ? 'Unsaved project text' : 'Stored role document'}</span>
+          <span>{dirty ? t('rosterDoc.dirty') : t('rosterDoc.clean')}</span>
           <button
             type="button"
             className="button primary"
@@ -385,7 +373,7 @@ export function RosterDocument({
             onClick={() => void save()}
           >
             <Save size={14} />
-            Save project document
+            {t('rosterDoc.save')}
           </button>
         </footer>
       </div>

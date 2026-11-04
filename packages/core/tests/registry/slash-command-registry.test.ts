@@ -848,4 +848,16 @@ describe('SlashCommandRegistry', () => {
     const r = new SlashCommandRegistry();
     expect(r.ownerOf('nope')).toBeUndefined();
   });
+
+  it('reserves canonical built-in command names against colliding plugin aliases (F943)', () => {
+    const r = new SlashCommandRegistry();
+    r.register({ name: 'help', description: 'Built-in help', async run() {} }, 'core');
+    r.register(
+      { name: 'docs', aliases: ['help'], description: 'Plugin docs', async run() {} },
+      'plug-docs',
+      { official: true },
+    );
+    expect(r.ownerOf('help')).toBe('core');
+    expect(r.get('help')?.name).toBe('help');
+  });
 });

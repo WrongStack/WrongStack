@@ -119,6 +119,15 @@ impl HostState {
             offset,
         )
     }
+    pub(crate) fn project_journal_end(&self, project_id: &str) -> Result<Value> {
+        let id = self.project_runtime_id(project_id)?;
+        Engine::journal_end(
+            &self
+                .dir
+                .join("transcripts")
+                .join(format!("{id}.events.jsonl")),
+        )
+    }
     pub(crate) fn project_send(&self, project_id: &str, message: Value) -> Result<Value> {
         let kind = message["type"]
             .as_str()

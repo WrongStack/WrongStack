@@ -57,3 +57,12 @@ describe('desktop skill ownership and document preview', () => {
     expect(workspaceFilePath('../../outside.txt', 'C:/repo', 'C:/repo')).toBe('../../outside.txt');
   });
 });
+
+it('words the update summary through the given words', () => {
+  expect(
+    skillUpdateSummary(
+      { updated: ['a'], unchanged: [], errors: ['x', 'y'] },
+      (updated, unchanged, failed) => `${updated}/${unchanged}/${failed}`,
+    ),
+  ).toBe('1/0/2');
+});

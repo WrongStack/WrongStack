@@ -146,11 +146,11 @@ export class HookRunner {
   /**
    * Background hooks are advisory and must never form an unbounded work queue.
    * Keep at most one invocation running plus the latest pending payload for
-   * each registered hook.
+   * each registered hook per session.
    */
   private readonly backgroundRuns = new Map<
     HookEntry,
-    { pending: { payload: HookInput; env: HookRunEnv } | null }
+    Map<string, { pending: { payload: HookInput; env: HookRunEnv; sessionKey: string } | null }>
   >();
 
   /**
@@ -168,8 +168,7 @@ export class HookRunner {
     return env.session?.id ?? this.opts.sessionId?.() ?? '__default__';
   }
 
-  private bufferBackgroundContext(env: HookRunEnv, text: string): void {
-    const key = this.backgroundKey(env);
+  private bufferBackgroundContextForKey(key: string, text: string): void {
     const parts = this.pendingBackground.get(key) ?? [];
     parts.push(text);
     // Keep the newest: a stale scan is worth less than the one that just ran.
@@ -354,14 +353,15 @@ export class HookRunner {
   }
 
   async userPromptSubmit(prompt: string, env: HookRunEnv): Promise<PromptResult> {
-    // A turn that ran no tools still collects whatever a background hook
-    // finished since the last boundary.
-    const parts: string[] = [...this.drainBackgroundContext(env)];
     const entries = this.matching('UserPromptSubmit', undefined);
     if (entries.length === 0) {
+      // A turn that ran no tools still collects whatever a background hook
+      // finished since the last boundary.
+      const parts = this.drainBackgroundContext(env);
       return parts.length ? { additionalContext: parts.join('\n') } : {};
     }
     const payload: HookInput = { event: 'UserPromptSubmit', prompt, ...this.base(env) };
+    const hookParts: string[] = [];
     for (const entry of entries) {
       const outcome = await this.invoke(entry, payload, env);
       if (!outcome) continue;
@@ -370,8 +370,9 @@ export class HookRunner {
         const reason = 'reason' in outcome ? outcome.reason : undefined;
         return { block: true, reason: reason ?? 'Blocked by UserPromptSubmit hook' };
       }
-      if (outcome.additionalContext) parts.push(outcome.additionalContext);
+      if (outcome.additionalContext) hookParts.push(outcome.additionalContext);
     }
+    const parts: string[] = [...this.drainBackgroundContext(env), ...hookParts];
     return parts.length ? { additionalContext: parts.join('\n') } : {};
   }
 
@@ -423,23 +424,35 @@ export class HookRunner {
   }
 
   private scheduleBackground(entry: HookEntry, payload: HookInput, env: HookRunEnv): void {
-    const running = this.backgroundRuns.get(entry);
+    const sessionKey = payload.sessionId ?? this.backgroundKey(env);
+    let bySession = this.backgroundRuns.get(entry);
+    if (bySession === undefined) {
+      bySession = new Map();
+      this.backgroundRuns.set(entry, bySession);
+    }
+    const running = bySession.get(sessionKey);
     if (running !== undefined) {
       // Intermediate advisory scans are obsolete once a newer write arrives.
-      running.pending = { payload, env };
+      running.pending = { payload, env, sessionKey };
       return;
     }
 
-    const state = { pending: null as { payload: HookInput; env: HookRunEnv } | null };
-    this.backgroundRuns.set(entry, state);
+    const state = {
+      pending: null as { payload: HookInput; env: HookRunEnv; sessionKey: string } | null,
+    };
+    bySession.set(sessionKey, state);
     void (async () => {
-      let next: { payload: HookInput; env: HookRunEnv } | null = { payload, env };
+      let next: { payload: HookInput; env: HookRunEnv; sessionKey: string } | null = {
+        payload,
+        env,
+        sessionKey,
+      };
       while (next !== null) {
         try {
           const outcome = await this.invoke(entry, next.payload, next.env);
           const text = outcome?.additionalContext;
           if (typeof text === 'string' && text.length > 0) {
-            this.bufferBackgroundContext(next.env, text);
+            this.bufferBackgroundContextForKey(next.sessionKey, text);
           }
         } catch {
           // Background hooks are explicitly fail-open.
@@ -448,7 +461,10 @@ export class HookRunner {
         state.pending = null;
       }
     })().finally(() => {
-      this.backgroundRuns.delete(entry);
+      bySession.delete(sessionKey);
+      if (bySession.size === 0 && this.backgroundRuns.get(entry) === bySession) {
+        this.backgroundRuns.delete(entry);
+      }
     });
   }
 

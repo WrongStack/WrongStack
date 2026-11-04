@@ -54,7 +54,7 @@ vi.mock('@/hooks/useWebSocket', () => ({ useWebSocket: () => websocket }));
 vi.mock('@/hooks/useScrollPosition', () => ({ useScrollPosition: () => ({ current: null }) }));
 // The real MemoryGraph pulls in @xyflow/react, which needs a ResizeObserver
 // that jsdom does not provide.
-vi.mock('@/components/MemoryManager/MemoryGraph', () => ({
+vi.mock('@wrongstack/project-surfaces/sage/MemoryGraph', () => ({
   MemoryGraph: ({ graphEdges }: { graphEdges: unknown[] }) => (
     <div data-testid="memory-graph" data-edge-count={graphEdges.length} />
   ),

@@ -166,6 +166,7 @@ impl Client {
     pub fn connect_at(engine: Option<&Path>, dir: &Path) -> Result<Self> {
         protect_dir(&dir)?;
         if let Ok(c) = Self::load(&dir) {
+            c.hand_over_engine(engine)?;
             return Ok(c);
         }
         // OS file lock prevents two concurrently launched desktop windows from electing two hosts.
@@ -226,6 +227,17 @@ impl Client {
             }
             thread::sleep(Duration::from_millis(50));
         }
+    }
+    /// A running host that was started without an engine takes this launch's engine. Hosts
+    /// that predate the `engine` field report nothing and are left as they are.
+    fn hand_over_engine(&self, engine: Option<&Path>) -> Result<()> {
+        let Some(engine) = engine else {
+            return Ok(());
+        };
+        if self.call("ping", json!({}))?["engine"] == false {
+            self.call("engine.adopt", json!({"path": engine.to_string_lossy()}))?;
+        }
+        Ok(())
     }
     fn load(dir: &std::path::Path) -> Result<Self> {
         let endpoint: Endpoint =

@@ -1,6 +1,7 @@
 import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
 import { X } from 'lucide-react';
-import { changedFileOverlap, runFacts } from './automation-run-compare';
+import { changedFileOverlap, type RunFact, runFacts } from './automation-run-compare';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 
 /** Two runs' recorded results side by side; nothing is re-run or fetched. */
@@ -13,7 +14,20 @@ export function AutomationRunComparison({
   right: AutomationRunRecord;
   onClose: () => void;
 }) {
-  const facts = runFacts(left, right);
+  const { t } = useDesktopText();
+  const facts = runFacts(left, right, {
+    notRecorded: t('autoRun.notRecorded'),
+    truncated: t('autoRun.truncated'),
+  });
+  // Engine words in a fact's cells are named per language; the rest are shown as recorded.
+  const cell = (fact: RunFact, value: string) =>
+    fact.id === 'status'
+      ? t(`automation.runStatus.${value}`, { defaultValue: value })
+      : fact.id === 'trigger'
+        ? t(`automation.trigger.${value}`, { defaultValue: value })
+        : fact.id === 'verification'
+          ? t(`autoRun.verify.${value}`, { defaultValue: value })
+          : value;
   const files = changedFileOverlap(left, right);
   const list = (title: string, paths: string[]) => (
     <section>
@@ -29,52 +43,48 @@ export function AutomationRunComparison({
           ))}
         </ul>
       ) : (
-        <p className="quiet-state">None.</p>
+        <p className="quiet-state">{t('autoRun.none')}</p>
       )}
     </section>
   );
   return (
-    <Modal title="Compare automation runs" onClose={onClose}>
+    <Modal title={t('autoRun.compareTitle')} onClose={onClose}>
       <div className="automation-run-comparison">
         <header>
-          <h2>Compare runs</h2>
+          <h2>{t('autoRun.compareHeading')}</h2>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close run comparison"
+            aria-label={t('autoRun.closeCompare')}
             onClick={onClose}
           >
             <X size={18} />
           </button>
         </header>
-        <table aria-label="Run comparison">
+        <table aria-label={t('autoRun.compareTable')}>
           <thead>
             <tr>
-              <th scope="col">Recorded</th>
-              <th scope="col">Run {left.id.slice(0, 8)}</th>
-              <th scope="col">Run {right.id.slice(0, 8)}</th>
+              <th scope="col">{t('autoRun.recorded')}</th>
+              <th scope="col">{t('autoRun.run', { id: left.id.slice(0, 8) })}</th>
+              <th scope="col">{t('autoRun.run', { id: right.id.slice(0, 8) })}</th>
             </tr>
           </thead>
           <tbody>
             {facts.map((fact) => (
-              <tr key={fact.label} className={fact.differs ? 'differs' : undefined}>
-                <th scope="row">{fact.label}</th>
-                <td>{fact.left}</td>
-                <td>{fact.right}</td>
+              <tr key={fact.id} className={fact.differs ? 'differs' : undefined}>
+                <th scope="row">{t(`autoRun.fact.${fact.id}`)}</th>
+                <td>{cell(fact, fact.left)}</td>
+                <td>{cell(fact, fact.right)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <h3>Changed files</h3>
-        {files.partial && (
-          <p className="field-help">
-            At least one run's list was truncated at 200 files, so "only" lists may be incomplete.
-          </p>
-        )}
+        <h3>{t('autoRun.changedFiles')}</h3>
+        {files.partial && <p className="field-help">{t('autoRun.partial')}</p>}
         <div className="automation-run-comparison-files">
-          {list(`Only run ${left.id.slice(0, 8)}`, files.onlyLeft)}
-          {list('Both runs', files.both)}
-          {list(`Only run ${right.id.slice(0, 8)}`, files.onlyRight)}
+          {list(t('autoRun.onlyRun', { id: left.id.slice(0, 8) }), files.onlyLeft)}
+          {list(t('autoRun.bothRuns'), files.both)}
+          {list(t('autoRun.onlyRun', { id: right.id.slice(0, 8) }), files.onlyRight)}
         </div>
       </div>
     </Modal>

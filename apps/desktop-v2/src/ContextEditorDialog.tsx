@@ -12,6 +12,7 @@ import {
   removalSet,
   withTextRange,
 } from './context-editor-model';
+import { useDesktopText } from './desktop-i18n';
 import { type EngineCommand, EngineReplyError } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -34,6 +35,7 @@ export function ContextEditorDialog({
   onClose: () => void;
   onApplied: () => void;
 }) {
+  const { t } = useDesktopText();
   const [snapshot, setSnapshot] = useState<ContextEditorSnapshot | null>(null),
     [chosen, setChosen] = useState<Set<number>>(new Set()),
     [ranges, setRanges] = useState<ContextTextRange[]>([]),
@@ -80,12 +82,16 @@ export function ContextEditorDialog({
   const trimSelection = (messageIndex: number, blockIndex: number | undefined) => {
     const area = trimAreas.current.get(`${messageIndex}:${blockIndex ?? ''}`);
     if (!area) return;
-    const next = withTextRange(ranges, {
-      messageIndex,
-      ...(blockIndex === undefined ? {} : { blockIndex }),
-      start: area.selectionStart,
-      end: area.selectionEnd,
-    });
+    const next = withTextRange(
+      ranges,
+      {
+        messageIndex,
+        ...(blockIndex === undefined ? {} : { blockIndex }),
+        start: area.selectionStart,
+        end: area.selectionEnd,
+      },
+      { empty: t('contextEdit.selectFirst'), overlap: t('contextEdit.overlap') },
+    );
     if (typeof next === 'string') setError(next);
     else {
       setError('');
@@ -128,7 +134,7 @@ export function ContextEditorDialog({
         setValidation({ key, result: reply });
         return;
       }
-      setNotice(`${String(reply['message'] ?? 'Context editor applied.')}.`);
+      setNotice(`${String(reply['message'] ?? t('contextEdit.applied'))}.`);
       onApplied();
       await load();
     } catch (e) {
@@ -154,13 +160,13 @@ export function ContextEditorDialog({
     >
       <header>
         <div>
-          <span className="eyebrow">CONVERSATION CONTEXT</span>
-          <h2 id="dialog-title">Edit provider context</h2>
+          <span className="eyebrow">{t('contextEdit.eyebrow')}</span>
+          <h2 id="dialog-title">{t('contextEdit.title')}</h2>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="Close context editor"
+          aria-label={t('contextEdit.close')}
           disabled={busy}
           onClick={onClose}
         >
@@ -168,15 +174,10 @@ export function ContextEditorDialog({
         </button>
       </header>
       <section className="context-editor">
-        <p>
-          Remove whole messages, or selected text inside one, from what the model sees next. The
-          conversation transcript on disk is not changed. Removing or trimming your message also
-          removes the replies it produced. Every plan is checked by the engine before it can be
-          applied.
-        </p>
+        <p>{t('contextEdit.body')}</p>
         {running && (
           <p role="status" className="composer-notice">
-            Wait for this turn to finish; the engine refuses context edits while it runs.
+            {t('contextEdit.wait')}
           </p>
         )}
         {error && (
@@ -191,18 +192,28 @@ export function ContextEditorDialog({
         )}
         {!snapshot ? (
           <p role="status">
-            <LoaderCircle className="spin" size={14} /> Reading the context snapshot…
+            <LoaderCircle className="spin" size={14} /> {t('contextEdit.reading')}
           </p>
         ) : (
           <>
             <p className="field-help">
-              {snapshot.rows.length} messages · ~{snapshot.totalTokens.toLocaleString()} tokens in
-              the full request · {removed.size} selected for removal
-              {activeRanges.length > 0 && ` · ${activeRanges.length} text cuts`}
+              {t('contextEdit.summary', {
+                messages: snapshot.rows.length,
+                tokens: snapshot.totalTokens.toLocaleString(),
+                removed: removed.size,
+              })}
+              {activeRanges.length > 0 &&
+                ` · ${t('contextEdit.cuts', { count: activeRanges.length })}`}
               {editing &&
-                ` · about ~${draftTokenEstimate(snapshot, removalSet(snapshot, chosen), ranges).toLocaleString()} tokens after this edit (estimate; checking reports the engine figure)`}
+                ` · ${t('contextEdit.after', {
+                  tokens: draftTokenEstimate(
+                    snapshot,
+                    removalSet(snapshot, chosen),
+                    ranges,
+                  ).toLocaleString(),
+                })}`}
             </p>
-            <ol className="context-editor-rows" aria-label="Context messages">
+            <ol className="context-editor-rows" aria-label={t('contextEdit.messages')}>
               {snapshot.rows.map((row) => {
                 const pairedOnly = removed.has(row.index) && !chosen.has(row.index);
                 return (
@@ -210,7 +221,10 @@ export function ContextEditorDialog({
                     <label className="context-editor-row">
                       <input
                         type="checkbox"
-                        aria-label={`Remove message ${row.index + 1} (${row.role})`}
+                        aria-label={t('contextEdit.removeMessage', {
+                          number: row.index + 1,
+                          role: row.role,
+                        })}
                         checked={removed.has(row.index)}
                         disabled={busy || pairedOnly}
                         onChange={() => toggle(row.index)}
@@ -218,7 +232,9 @@ export function ContextEditorDialog({
                       <small>
                         {row.index + 1} · {row.role}
                       </small>
-                      <span className="context-editor-preview">{row.preview || '(no text)'}</span>
+                      <span className="context-editor-preview">
+                        {row.preview || t('contextEdit.noText')}
+                      </span>
                       <strong>~{row.tokens.toLocaleString()}</strong>
                     </label>
                     {!removed.has(row.index) &&
@@ -232,7 +248,9 @@ export function ContextEditorDialog({
                             setTrimming((current) => (current === row.index ? null : row.index))
                           }
                         >
-                          {trimming === row.index ? 'Close text' : 'Trim text'}
+                          {trimming === row.index
+                            ? t('contextEdit.closeText')
+                            : t('contextEdit.trimText')}
                         </button>
                       )}
                     {trimming === row.index &&
@@ -243,7 +261,14 @@ export function ContextEditorDialog({
                           <div key={id} className="context-editor-trim">
                             <textarea
                               readOnly
-                              aria-label={`Text of message ${row.index + 1}${target.blockIndex === undefined ? '' : `, block ${target.blockIndex + 1}`}`}
+                              aria-label={
+                                target.blockIndex === undefined
+                                  ? t('contextEdit.textOf', { number: row.index + 1 })
+                                  : t('contextEdit.textOfBlock', {
+                                      number: row.index + 1,
+                                      block: target.blockIndex + 1,
+                                    })
+                              }
                               ref={(element) => {
                                 if (element) trimAreas.current.set(id, element);
                                 else trimAreas.current.delete(id);
@@ -257,7 +282,7 @@ export function ContextEditorDialog({
                               disabled={busy}
                               onClick={() => trimSelection(row.index, target.blockIndex)}
                             >
-                              Remove selected text
+                              {t('contextEdit.removeSelected')}
                             </button>
                           </div>
                         );
@@ -269,11 +294,12 @@ export function ContextEditorDialog({
                           key={`${range.blockIndex ?? ''}:${range.start}`}
                           className="field-help"
                         >
-                          Cut {range.end - range.start} characters: “
+                          {t('contextEdit.cut', { count: range.end - range.start })}
                           {messageTexts(snapshot.messages[row.index] ?? {})
                             .find((target) => target.blockIndex === range.blockIndex)
                             ?.text.slice(range.start, Math.min(range.end, range.start + 80))}
-                          {range.end - range.start > 80 ? '…' : ''}”{' '}
+                          {range.end - range.start > 80 ? '…' : ''}
+                          {t('contextEdit.cutEnd')}{' '}
                           <button
                             type="button"
                             className="button secondary small"
@@ -282,15 +308,11 @@ export function ContextEditorDialog({
                               setRanges((current) => current.filter((item) => item !== range))
                             }
                           >
-                            Keep
+                            {t('contextEdit.keep')}
                           </button>
                         </small>
                       ))}
-                    {pairedOnly && (
-                      <small className="field-help">
-                        Removed with the user message it answers.
-                      </small>
-                    )}
+                    {pairedOnly && <small className="field-help">{t('contextEdit.paired')}</small>}
                     {row.warnings.map((warning) => (
                       <small key={warning} className="field-help">
                         {warning}
@@ -301,14 +323,21 @@ export function ContextEditorDialog({
               })}
             </ol>
             {current && (
-              <section className="context-editor-validation" aria-label="Context edit validation">
+              <section
+                className="context-editor-validation"
+                aria-label={t('contextEdit.validation')}
+              >
                 {current['ok'] === true ? (
-                  <p role="status">Valid: {metricsSummary(current)}.</p>
+                  <p role="status">
+                    {t('contextEdit.valid', {
+                      summary: metricsSummary(current, (metrics) =>
+                        t('contextEdit.metrics', { ...metrics }),
+                      ),
+                    })}
+                  </p>
                 ) : (
                   <p role="alert">
-                    {conflict['message']
-                      ? String(conflict['message'])
-                      : 'The engine refused this plan.'}
+                    {conflict['message'] ? String(conflict['message']) : t('contextEdit.refused')}
                   </p>
                 )}
                 {entries(current['validationErrors']).map((item) => (
@@ -316,9 +345,11 @@ export function ContextEditorDialog({
                 ))}
                 {repair['changed'] === true && (
                   <p>
-                    Protocol repair will also remove {count(repair['removedToolUses'])} tool calls,{' '}
-                    {count(repair['removedToolResults'])} tool results and{' '}
-                    {Number(repair['removedMessages'] ?? 0)} emptied messages.
+                    {t('contextEdit.repair', {
+                      toolUses: count(repair['removedToolUses']),
+                      toolResults: count(repair['removedToolResults']),
+                      messages: Number(repair['removedMessages'] ?? 0),
+                    })}
                   </p>
                 )}
                 {entries(current['warnings']).map((item) => (
@@ -336,7 +367,7 @@ export function ContextEditorDialog({
           disabled={busy}
           onClick={() => void load()}
         >
-          <RefreshCw size={13} /> Reload context
+          <RefreshCw size={13} /> {t('contextEdit.reload')}
         </button>
         <button
           type="button"
@@ -347,7 +378,7 @@ export function ContextEditorDialog({
             setRanges([]);
           }}
         >
-          Clear selection
+          {t('contextEdit.clearSelection')}
         </button>
         <button
           type="button"
@@ -355,7 +386,7 @@ export function ContextEditorDialog({
           disabled={busy || running || !editing}
           onClick={() => void run('validate')}
         >
-          Check removal
+          {t('contextEdit.check')}
         </button>
         <button
           type="button"
@@ -364,11 +395,16 @@ export function ContextEditorDialog({
           onClick={() => void run('apply')}
         >
           {removed.size > 0 &&
-            `Remove ${removed.size} ${removed.size === 1 ? 'message' : 'messages'}`}
-          {removed.size > 0 && activeRanges.length > 0 && ' and '}
+            (removed.size === 1
+              ? t('contextEdit.removeMessageOne')
+              : t('contextEdit.removeMessages', { count: removed.size }))}
+          {removed.size > 0 && activeRanges.length > 0 && t('contextEdit.and')}
           {activeRanges.length > 0 &&
-            `${removed.size ? 'cut' : 'Cut'} ${activeRanges.length} ${activeRanges.length === 1 ? 'text part' : 'text parts'}`}
-          {!editing && 'Remove 0 messages'}
+            t(activeRanges.length === 1 ? 'contextEdit.cutPart' : 'contextEdit.cutParts', {
+              count: activeRanges.length,
+              verb: removed.size ? t('contextEdit.verbCutAfter') : t('contextEdit.verbCut'),
+            })}
+          {!editing && t('contextEdit.nothingSelected')}
         </button>
       </footer>
     </Modal>

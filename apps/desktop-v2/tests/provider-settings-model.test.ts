@@ -78,3 +78,15 @@ describe('native provider setup', () => {
     expect(providerModels(state, 'openai')).toEqual([]);
   });
 });
+
+it('words a refused connection through the given words', () => {
+  const words = {
+    id: 'bad id',
+    keyAndLabel: 'key and label',
+    url: 'bad url',
+    credentials: 'credentials',
+    model: 'no model',
+  };
+  expect(() => buildProviderSave({ ...draft, model: ' ' }, words)).toThrow('no model');
+  expect(() => buildProviderSave({ ...draft, baseUrl: 'nope' }, words)).toThrow('bad url');
+});

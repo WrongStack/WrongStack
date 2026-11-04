@@ -1,0 +1,23 @@
+/* Compact conversation density (Appearance): tighter messages and text, as the WebUI's compact view. */
+:root[data-density="compact"] .native-chat-messages {
+  padding: 14px;
+}
+:root[data-density="compact"] .chat-message {
+  padding: 8px 0;
+}
+:root[data-density="compact"] .chat-message header {
+  margin-bottom: 6px;
+}
+:root[data-density="compact"] .chat-message > div {
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+:root[data-density="compact"] .user-chat-body {
+  padding: 8px 11px;
+}
+:root[data-density="compact"] .markdown-content {
+  line-height: 1.6;
+}
+:root[data-density="compact"] .markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  margin: 14px 0 8px;
+}

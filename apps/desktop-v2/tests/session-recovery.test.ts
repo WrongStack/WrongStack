@@ -3,6 +3,7 @@ import {
   checkpointBoundaries,
   checkpointMatches,
   recoveryCheckpoints,
+  recoveryDate,
   recoveryResult,
   redoResult,
   retryCheckpoint,
@@ -74,6 +75,14 @@ it('retries only the newest prompt, and only when it can be sent again unchanged
   const result = (rewind: Record<string, unknown>) =>
     recoveryResult({ rewind: { toPromptIndex: 1, ...rewind } })!;
   expect(retryPlan(result({ promptText: 'Fix it' }))).toEqual({ text: 'Fix it' });
+  expect(
+    retryPlan(result({ promptText: 'Fix it', promptHasAttachments: true }), {
+      noText: 'no text',
+      fileErrors: 'file errors',
+      attachments: 'attachments',
+    }),
+  ).toEqual({ reason: 'attachments' });
+  expect(recoveryDate('not a date', 'unknown time')).toBe('unknown time');
   expect(retryPlan(result({}))).toHaveProperty('reason');
   expect(
     retryPlan(result({ promptText: 'With an image', promptHasAttachments: true })),

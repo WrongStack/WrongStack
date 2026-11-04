@@ -21,6 +21,17 @@ vi.mock('@/lib/kanban-verification', async (importOriginal) => {
   };
 });
 
+vi.mock('@wrongstack/project-surfaces/kanban/kanban-verification', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/kanban-verification')>();
+  return {
+    ...actual,
+    selectVerificationSummary: vi.fn((board: KanbanBoard) => {
+      selectSpy(board);
+      return actual.selectVerificationSummary(board);
+    }),
+  };
+});
+
 function boardWith(revision: number): KanbanBoard {
   const task = {
     id: 't1',

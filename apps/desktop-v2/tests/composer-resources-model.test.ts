@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   appendToDraft,
-  desktopCommands,
   fileMention,
-  parseDesktopCommand,
   referenceKey,
   referenceLabel,
   referenceMessage,
@@ -95,22 +93,5 @@ describe('desktop composer project resources', () => {
     ])
       expect(fileMention(value, value.length)).toBeNull();
     expect(fileMention('```\ncode\n```\n@src', 18)?.query).toBe('src');
-  });
-  it('routes native slash commands deliberately and leaves literal paths alone', () => {
-    expect(parseDesktopCommand('/queue review the API')).toEqual({
-      action: 'queue',
-      argument: 'review the API',
-    });
-    expect(parseDesktopCommand('/abort')).toEqual({ action: 'stop', argument: '' });
-    expect(parseDesktopCommand('/compact!')).toEqual({
-      action: 'compact-aggressive',
-      argument: '',
-    });
-    expect(parseDesktopCommand('/not-implemented')).toEqual({ action: 'unknown', argument: '' });
-    expect(parseDesktopCommand('//help')).toBeNull();
-    expect(parseDesktopCommand('/src/main.ts')).toBeNull();
-    expect(new Set(desktopCommands.map((command) => command.name)).size).toBe(
-      desktopCommands.length,
-    );
   });
 });

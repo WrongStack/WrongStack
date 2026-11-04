@@ -1,3 +1,9 @@
+import {
+  formatAutoWakeNotice,
+  formatAutoWakeSuppressedNotice,
+  formatDeliveryPendingNotice,
+} from '@wrongstack/webui-protocol';
+
 /**
  * Engine reports about a conversation that change what the user should know or do next, but
  * that do not belong to a message: why a run stopped early, a damaged journal, a failed
@@ -11,6 +17,13 @@ export interface ConversationNotice {
   at: number;
   /** An engine request the user can make from the notice, such as accepting a proposal. */
   action?: { label: string; type: string; payload: Record<string, unknown> } | undefined;
+  /** Shown once per conversation: a repeat of the same text is dropped wherever it is. */
+  once?: boolean | undefined;
+  /**
+   * What the WebUI shows as a passing toast: only when it happens live (never from a replayed
+   * journal) and only for a few seconds.
+   */
+  transient?: boolean | undefined;
 }
 
 /** Notices kept per conversation, newest last. */
@@ -19,6 +32,100 @@ export const NOTICE_LIMIT = 10;
 const str = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 const num = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+const route = (value: unknown) => {
+  const target = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return [str(target['providerId']), str(target['model'])].filter(Boolean).join('/');
+};
+const ids = (value: unknown) =>
+  Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+
+/**
+ * What the WebUI tells the user about a run as it happens, in a toast or a system line: a stream
+ * warning, a model switch, a checkpoint, a cost that cannot be estimated, a persisted approval,
+ * background delegation results, and an MCP server that dropped or came back.
+ */
+function runEventNotice(
+  type: string,
+  payload: Record<string, unknown>,
+): {
+  severity: ConversationNotice['severity'];
+  text: string;
+  hint?: string;
+  once?: boolean;
+  transient?: boolean;
+} | null {
+  if (type === 'provider.stream_error')
+    return {
+      severity: 'warning',
+      text: `Provider stream warning (${str(payload['eventType']) || 'unknown event'}): ${str(payload['message']) || 'no detail'}.`,
+      hint: 'The engine skipped this stream event and kept going.',
+    };
+  if (type === 'provider.model_switched') {
+    const from = route(payload['from']),
+      to = route(payload['to']);
+    if (!to || from === to) return null;
+    return {
+      severity: 'info',
+      text: `Model: ${to}${from ? ` (was ${from})` : ''}.`,
+      transient: true,
+    };
+  }
+  if (type === 'checkpoint.written') {
+    const index = num(payload['promptIndex']),
+      files = num(payload['fileCount']);
+    return {
+      severity: 'info',
+      text: `Checkpoint${index === null ? '' : ` #${index}`} written (${files ?? 0} ${files === 1 ? 'file' : 'files'}).`,
+      hint: str(payload['promptPreview']),
+      transient: true,
+    };
+  }
+  if (type === 'token.cost_estimate_unavailable')
+    return {
+      severity: 'info',
+      text: `Cost estimate unavailable for ${str(payload['model']) || 'this model'}.`,
+      hint: 'Its price is not in the model catalog; token counts are still recorded.',
+      once: true,
+      transient: true,
+    };
+  if (type === 'trust.persisted') {
+    const label = `${str(payload['tool'])}: ${str(payload['displayPattern']) || str(payload['pattern'])}`;
+    return payload['decision'] === 'always'
+      ? { severity: 'info', text: `Always allowed ${label}.`, transient: true }
+      : { severity: 'warning', text: `Denied ${label}.`, transient: true };
+  }
+  if (type === 'delegation.delivery_pending') {
+    const delegations = ids(payload['delegationIds']);
+    return {
+      severity: 'info',
+      text: formatDeliveryPendingNotice(
+        delegations,
+        num(payload['count']) ?? (delegations.length || 1),
+      ),
+    };
+  }
+  if (type === 'delegation.auto_wake_started')
+    return {
+      severity: 'info',
+      text: formatAutoWakeNotice(ids(payload['delegationIds']), num(payload['chain']) ?? undefined),
+    };
+  if (type === 'delegation.auto_wake_suppressed' && payload['reason'] === 'chain_cap')
+    return { severity: 'info', text: formatAutoWakeSuppressedNotice(num(payload['pending']) ?? 1) };
+  if (type === 'mcp.server.disconnected' && payload['terminal'] === true && str(payload['name']))
+    return {
+      severity: 'warning',
+      text: `MCP server "${str(payload['name'])}" is not connected (${str(payload['reason']).split('\n')[0] || 'unknown'}); its tools are unavailable.`,
+      hint: 'Settings > Connected tools can reconnect it.',
+    };
+  if (type === 'mcp.server.reconnected' && str(payload['name']))
+    return {
+      severity: 'info',
+      text: `MCP server "${str(payload['name'])}" is connected again.`,
+      transient: true,
+    };
+  return null;
+}
 
 /** The notice an engine frame warrants, or null for frames that need none. */
 export function conversationNotice(
@@ -93,6 +200,13 @@ export function conversationNotice(
       `${str(payload['providerId']) || 'The provider'} answered with ${served} instead of ${requested || 'the requested model'}${str(payload['reason']) ? ` (${str(payload['reason'])})` : ''}.`,
     );
   }
+  const runNotice = runEventNotice(type, payload);
+  if (runNotice)
+    return {
+      ...notice(runNotice.severity, runNotice.text, runNotice.hint ?? ''),
+      ...(runNotice.once ? { once: true } : {}),
+      ...(runNotice.transient ? { transient: true } : {}),
+    };
   if (type === 'provider.active_blocked') {
     const fallback = [str(payload['fallbackProviderId']), str(payload['fallbackModel'])]
       .filter(Boolean)
@@ -109,5 +223,6 @@ export function conversationNotice(
 /** Appends a notice, dropping an identical text that is already the newest, within the bound. */
 export function appendNotice(notices: ConversationNotice[], notice: ConversationNotice) {
   if (notices.at(-1)?.text === notice.text) return notices;
+  if (notice.once && notices.some((item) => item.text === notice.text)) return notices;
   return [...notices, notice].slice(-NOTICE_LIMIT);
 }

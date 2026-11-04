@@ -35,9 +35,13 @@ export function skillSourceLink(source: unknown): string {
   const github = /^github:([\w.-]+\/[\w.-]+)$/.exec(value);
   return github ? `https://github.com/${github[1]}` : /^https?:\/\//.test(value) ? value : '';
 }
-export function skillUpdateSummary(result: Record<string, unknown>): string {
+export function skillUpdateSummary(
+  result: Record<string, unknown>,
+  words = (updated: number, unchanged: number, failed: number) =>
+    `${updated} updated · ${unchanged} unchanged · ${failed} failed.`,
+): string {
   const updated = Array.isArray(result['updated']) ? result['updated'].length : 0;
   const unchanged = Array.isArray(result['unchanged']) ? result['unchanged'].length : 0;
   const failed = Array.isArray(result['errors']) ? result['errors'].length : 0;
-  return `${updated} updated · ${unchanged} unchanged · ${failed} failed.`;
+  return words(updated, unchanged, failed);
 }

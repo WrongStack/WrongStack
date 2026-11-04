@@ -1,13 +1,33 @@
+import {
+  STREAM_WATCHDOG_DEFAULTS,
+  STREAM_WATCHDOG_MAX_SECONDS,
+} from '@wrongstack/contracts/types/config/runtime';
+
 export interface SettingField {
   key: string;
   label: string;
   description: string;
-  kind: 'toggle' | 'number' | 'select' | 'lines';
+  /** `secret` is write-only: the engine never reports it back, so it starts empty. */
+  kind: 'toggle' | 'number' | 'select' | 'lines' | 'text' | 'secret';
   options?: readonly string[];
   unit?: string;
   /** Stored value per displayed unit: a millisecond setting shown in seconds has 1000. */
   scale?: number;
   min?: number;
+  max?: number;
+  /** Words for a select's options, before the shared labels. */
+  optionLabels?: Readonly<Record<string, string>>;
+  /** A select whose options are numbers stored as numbers. */
+  numeric?: boolean;
+  /** For a setting that may stay unset: what unset means. Such a number may be left empty. */
+  unsetNote?: string;
+  placeholder?: string;
+  /** An HTML pattern a text value must match before the form saves. */
+  pattern?: string;
+  /** A text value that may not be left empty. */
+  required?: boolean;
+  /** Shown only while this boolean setting is on (Telegram fields need a bot token). */
+  when?: string;
 }
 export const settingsSections = [
   {
@@ -61,6 +81,26 @@ export const settingsSections = [
         min: 0,
         unit: 'seconds',
         scale: 1000,
+      },
+      {
+        key: 'nextStepsMode',
+        label: 'Require next steps',
+        description:
+          'Every finished turn ends with next steps or a completion marker, so automatic continuation keeps going until the agent declares the work complete. The continuation budget still pauses it.',
+        kind: 'select',
+        options: ['optional', 'required'],
+        optionLabels: { optional: 'Optional', required: 'Required' },
+      },
+      {
+        key: 'fsAccess',
+        label: 'Filesystem access',
+        description: 'Scope of the file tools. Applies on the next session.',
+        kind: 'select',
+        options: ['unrestricted', 'project'],
+        optionLabels: {
+          unrestricted: 'Unrestricted — any path',
+          project: 'Project — confined to the project root',
+        },
       },
     ],
   },
@@ -186,6 +226,31 @@ export const settingsSections = [
         description: 'Prepare the codebase index when a project runtime starts.',
         kind: 'toggle',
       },
+      {
+        key: 'readSymbols',
+        label: 'Read symbols',
+        description: 'The read tool includes codebase-index symbols alongside file content.',
+        kind: 'toggle',
+      },
+      {
+        key: 'showSageMemoryInject',
+        label: 'Show SAGE memory injection',
+        description: 'Show the SAGE memory-injection blocks added to tool results.',
+        kind: 'toggle',
+      },
+      {
+        key: 'sageMemoryInjectThreshold',
+        label: 'SAGE memory injection threshold',
+        description: 'Minimum relation strength required for an injected SAGE memory.',
+        kind: 'select',
+        numeric: true,
+        options: ['0.72', '0.75', '0.85', '0.90', '0.95'],
+        optionLabels: {
+          '0.72': '0.72 (relaxed)',
+          '0.85': '0.85 (default)',
+          '0.95': '0.95 (strict)',
+        },
+      },
     ],
   },
   {
@@ -207,11 +272,189 @@ export const settingsSections = [
         kind: 'toggle',
       },
       {
+        key: 'favoriteModelsOnly',
+        label: 'Favorites only',
+        description:
+          'When automatic fallback derives a chain, restrict it to your favorite models.',
+        kind: 'toggle',
+      },
+      {
+        key: 'streamTimeouts.hangTimeoutMs',
+        label: 'Silence between chunks',
+        description:
+          'Longest pause allowed once a reply is streaming before the attempt is failed and retried. Raise it for models with long silent thinking phases. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        max: STREAM_WATCHDOG_MAX_SECONDS,
+        unsetNote: `Default: ${STREAM_WATCHDOG_DEFAULTS.hangTimeoutMs / 1000} s (${STREAM_WATCHDOG_DEFAULTS.slowBackendHangTimeoutMs / 1000} s for MiniMax and Z.AI)`,
+      },
+      {
+        key: 'streamTimeouts.headersTimeoutMs',
+        label: 'Wait for response headers',
+        description: 'How long to wait for the provider to start answering at all. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        max: STREAM_WATCHDOG_MAX_SECONDS,
+        unsetNote: `Default: ${STREAM_WATCHDOG_DEFAULTS.headersTimeoutMs / 1000} s (${STREAM_WATCHDOG_DEFAULTS.slowBackendHeadersTimeoutMs / 1000} s for MiniMax and Z.AI)`,
+      },
+      {
         key: 'cacheTtl',
         label: 'Prompt cache lifetime',
         description: 'Requested cache lifetime for providers that support prompt caching.',
         kind: 'select',
         options: ['default', '5m', '1h'],
+      },
+    ],
+  },
+  {
+    id: 'notifications',
+    title: 'HQ, proxy & Telegram',
+    description:
+      'Publishing to WrongStack HQ, the local WrongProxy route for provider requests, and Telegram notifications. Telegram settings appear once a bot token is configured.',
+    fields: [
+      {
+        key: 'wrongProxyEnabled',
+        label: 'Route provider requests through WrongProxy',
+        description:
+          'Rewrites every provider’s base URL through the local proxy (default http://localhost:3444/proxy/<host><path>). openai-codex is excluded; it talks to the ChatGPT backend directly. Applies to the next request.',
+        kind: 'toggle',
+      },
+      {
+        key: 'wrongProxyUrl',
+        label: 'Proxy URL',
+        description:
+          'Where the proxy daemon listens. Its /api/health is probed; an unreachable daemon turns rewriting off until it answers again.',
+        kind: 'text',
+        placeholder: 'http://localhost:3444',
+      },
+      {
+        key: 'hqEnabled',
+        label: 'HQ publishing',
+        description: 'Publish this client’s sessions to WrongStack HQ.',
+        kind: 'toggle',
+      },
+      {
+        key: 'hqUrl',
+        label: 'HQ URL',
+        description: 'Leave empty for same-machine auto-discovery.',
+        kind: 'text',
+        placeholder: 'http://host:3499',
+      },
+      {
+        key: 'hqToken',
+        label: 'HQ client token',
+        description: 'The client token issued by WrongStack HQ.',
+        kind: 'secret',
+        placeholder: 'Type a new token to replace the saved one',
+        unsetNote: 'A saved token is never shown here.',
+      },
+      {
+        key: 'hqRawContent',
+        label: 'Raw HQ content',
+        description: 'Send raw content previews to HQ instead of redacted previews.',
+        kind: 'toggle',
+      },
+      {
+        key: 'tgSessionEnd',
+        label: 'Telegram: session end',
+        description: 'Send a summary when a session ends.',
+        kind: 'toggle',
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgDelegate',
+        label: 'Telegram: delegate finished',
+        description: 'Send a note when a subagent completes.',
+        kind: 'toggle',
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgLongToolMs',
+        label: 'Telegram: long-running tools',
+        description: 'Notify when a tool runs longer than this. 0 turns it off.',
+        kind: 'number',
+        unit: 'seconds',
+        scale: 1000,
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgPollIntervalSec',
+        label: 'Telegram polling interval',
+        description:
+          'Seconds between Telegram polls. Lower is more responsive but makes more API calls.',
+        kind: 'number',
+        unit: 'seconds',
+        min: 1,
+        max: 60,
+        when: 'tgConfigured',
+      },
+      {
+        key: 'tgChatId',
+        label: 'Telegram notification chat',
+        description:
+          'Default chat ID for notifications. A positive ID pairs your private chat with the bot; group IDs (negative) are refused unless allowGroupChats is enabled in the config. Leave empty to clear.',
+        kind: 'text',
+        pattern: '-?[1-9][0-9]*',
+        placeholder: 'Chat ID',
+        when: 'tgConfigured',
+      },
+    ],
+  },
+  {
+    id: 'terminal-display',
+    title: 'Terminal display',
+    description:
+      'How the WrongStack terminal UI shows work in progress. These profile settings do not change the desktop app’s own view.',
+    fields: [
+      {
+        key: 'statuslineMode',
+        label: 'Statusline mode',
+        description: 'Density of the terminal statusline rail.',
+        kind: 'select',
+        options: ['minimum', 'detailed', 'no-color'],
+        optionLabels: { minimum: 'Minimum', detailed: 'Detailed', 'no-color': 'No color' },
+      },
+      {
+        key: 'thinkingWord',
+        label: 'Thinking word',
+        description:
+          'One short word shown in the terminal status chip while the agent works: up to 16 letters, numbers, underscores or hyphens.',
+        kind: 'text',
+        pattern: '[\\p{L}\\p{N}_\\-]{1,16}',
+        required: true,
+      },
+      {
+        key: 'animationStyle',
+        label: 'Animation style',
+        description: 'Animation of the terminal’s working-state chip.',
+        kind: 'select',
+        options: ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle'],
+      },
+      {
+        key: 'showModelReasoning',
+        label: 'Show model reasoning',
+        description: 'Show the model’s reasoning blocks in the terminal and WebUI chat history.',
+        kind: 'toggle',
+      },
+      {
+        key: 'preRefineSeconds',
+        label: 'Pre-refine countdown',
+        description:
+          'Grace period before the prompt refiner starts. 0 skips the countdown and refines at once.',
+        kind: 'number',
+        unit: 'seconds',
+        min: 0,
+      },
+      {
+        key: 'multiDiffSummaryThreshold',
+        label: 'Multi-diff summary',
+        description:
+          'Minimum number of changed files before the aggregate “N files · +X −Y” line is shown above the per-file diffs. 0 turns it off.',
+        kind: 'number',
+        unit: 'files',
+        min: 0,
       },
     ],
   },
@@ -259,3 +502,37 @@ export function changedSettings(
     ),
   );
 }
+
+const group = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+/** A field's value; a dotted key (`streamTimeouts.hangTimeoutMs`) reads inside its setting. */
+export function settingValue(values: Record<string, unknown>, key: string): unknown {
+  const [top = key, inner] = key.split('.', 2);
+  return inner === undefined ? values[top] : group(values[top])[inner];
+}
+
+/**
+ * The top-level setting a field's new value changes: a dotted key rewrites its group, and an
+ * emptied field is dropped from it so the engine falls back to its default.
+ */
+export function settingChange(
+  values: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): [string, unknown] {
+  const [top = key, inner] = key.split('.', 2);
+  if (inner === undefined) return [top, value];
+  const { [inner]: _previous, ...rest } = group(values[top]);
+  return [top, value === undefined ? rest : { ...rest, [inner]: value }];
+}
+
+/** Settings the engine accepts but never reports back, so a save cannot read them to verify. */
+export const writeOnlySettings: ReadonlySet<string> = new Set(
+  settingsSections
+    .flatMap((section) => section.fields as readonly SettingField[])
+    .filter((field) => field.kind === 'secret')
+    .map((field) => field.key),
+);

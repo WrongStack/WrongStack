@@ -1,5 +1,6 @@
 import { Globe } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import './brain-policy.css';
@@ -19,6 +20,7 @@ export function browserPolicyState(message: string): { setup: string; origins: s
  * Changes are saved in the project's policy file and apply immediately.
  */
 export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
   const [state, setState] = useState<{ setup: string; origins: string[] } | null>(null),
     [origin, setOrigin] = useState(''),
     [busy, setBusy] = useState(''),
@@ -59,16 +61,13 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
     void run('', 'status');
   }, [run]);
   return (
-    <section className="brain-decisions" aria-label="Browser and network access">
+    <section className="brain-decisions" aria-label={t('networkPolicy.title')}>
       <h3>
-        <Globe size={14} /> Browser and network access
+        <Globe size={14} /> {t('networkPolicy.title')}
       </h3>
-      <p className="field-help">
-        Private origins (a local dev server, loopback ports) the agent's browser, fetch and URL
-        reads may reach in this project. Public sites are not affected.
-      </p>
+      <p className="field-help">{t('networkPolicy.intro')}</p>
       {state && <p>{state.setup}</p>}
-      {state && state.origins.length === 0 && <p>No private origins are allowed.</p>}
+      {state && state.origins.length === 0 && <p>{t('networkPolicy.none')}</p>}
       {state && state.origins.length > 0 && (
         <ol className="brain-decision-log">
           {state.origins.map((item) => (
@@ -81,7 +80,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
                   disabled={Boolean(busy)}
                   onClick={() => void run(`remove ${item}`)}
                 >
-                  Remove
+                  {t('networkPolicy.remove')}
                 </button>
               </span>
             </li>
@@ -100,7 +99,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
         }}
       >
         <label>
-          Allow an origin
+          {t('networkPolicy.allowOrigin')}
           <input
             value={origin}
             disabled={Boolean(busy)}
@@ -114,7 +113,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
             className="button primary small"
             disabled={Boolean(busy) || !origin.trim() || /\s/.test(origin.trim())}
           >
-            Allow
+            {t('networkPolicy.allow')}
           </button>
           <button
             type="button"
@@ -122,7 +121,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
             disabled={Boolean(busy)}
             onClick={() => void run('allow loopback')}
           >
-            Allow every loopback port
+            {t('networkPolicy.loopback')}
           </button>
           <button
             type="button"
@@ -134,7 +133,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
               })
             }
           >
-            {busy === 'install' ? 'Installing Chromium…' : 'Install Chromium'}
+            {busy === 'install' ? t('networkPolicy.installing') : t('networkPolicy.install')}
           </button>
         </span>
       </form>

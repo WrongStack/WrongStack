@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import './session-usage.css';
@@ -50,6 +51,7 @@ export function SessionPlanTemplates({
   running: boolean;
   onBack: () => void;
 }) {
+  const { t } = useDesktopText();
   const [templates, setTemplates] = useState<PlanTemplate[] | null>(null),
     [selected, setSelected] = useState(''),
     [busy, setBusy] = useState(false),
@@ -81,7 +83,9 @@ export function SessionPlanTemplates({
       const reply = await command('plan.template_use', { template: template.name }, [
         'key.operation_result',
       ]);
-      setNotice(typeof reply['message'] === 'string' ? reply['message'] : 'Template applied.');
+      setNotice(
+        typeof reply['message'] === 'string' ? reply['message'] : t('planTemplates.applied'),
+      );
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -89,28 +93,25 @@ export function SessionPlanTemplates({
     }
   };
   return (
-    <section className="session-plan-templates" aria-label="Plan templates">
+    <section className="session-plan-templates" aria-label={t('planTemplates.title')}>
       <header className="session-usage-heading">
         <div>
-          <h1>Plan templates</h1>
-          <p>
-            Add a template's steps to this conversation's plan. The plan shows above the composer;
-            the model is not asked to do anything.
-          </p>
+          <h1>{t('planTemplates.title')}</h1>
+          <p>{t('planTemplates.intro')}</p>
         </div>
         <div className="session-usage-controls">
           <button type="button" className="button secondary" onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('planTemplates.back')}
           </button>
         </div>
       </header>
-      {!templates && !error && <p>Loading templates…</p>}
-      {templates && !templates.length && <p>This engine offers no plan templates.</p>}
+      {!templates && !error && <p>{t('planTemplates.loading')}</p>}
+      {templates && !templates.length && <p>{t('planTemplates.none')}</p>}
       {!!templates?.length && (
         <>
           <label>
-            Template
+            {t('planTemplates.template')}
             <select value={selected} disabled={busy} onChange={(e) => setSelected(e.target.value)}>
               {templates.map((row) => (
                 <option key={row.name} value={row.name}>
@@ -123,7 +124,7 @@ export function SessionPlanTemplates({
           {template && (
             <>
               <p>{template.description}</p>
-              <ol aria-label={`Steps of ${template.name}`}>
+              <ol aria-label={t('planTemplates.steps', { name: template.name })}>
                 {template.items.map((item, index) => (
                   <li key={index}>
                     {item.title}
@@ -137,10 +138,10 @@ export function SessionPlanTemplates({
             type="button"
             className="button primary small"
             disabled={busy || running || !template}
-            title={running ? 'Wait until the current turn ends.' : undefined}
+            title={running ? t('planTemplates.waitTurn') : undefined}
             onClick={() => void apply()}
           >
-            {busy ? 'Adding…' : 'Add to plan'}
+            {busy ? t('planTemplates.adding') : t('planTemplates.add')}
           </button>
         </>
       )}

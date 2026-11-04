@@ -1176,3 +1176,9 @@
   color: var(--accent);
   font-size: 9px;
 }
+/* The code editor fills the document area; Monaco lays itself out inside it. */
+.file-document > .file-monaco-editor {
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+}

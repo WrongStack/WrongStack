@@ -115,7 +115,7 @@ export async function readProviderSnapshot(
   }
   let parsed: Record<string, unknown>;
   try {
-    const value: unknown = JSON.parse(raw);
+    const value: unknown = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       warn?.(`Config at ${configPath} must be a JSON object`);
       return undefined;
@@ -237,7 +237,13 @@ export function watchProviderConfig(
   // Seed the guard with current on-disk content so the first *change* fires
   // rather than re-applying what we already have.
   void readProviderSnapshot(configPath, vault, warn).then((seed) => {
-    if (!closed && seed && lastSerialized === undefined) {
+    if (
+      !closed &&
+      readGeneration === 0 &&
+      timer === undefined &&
+      seed &&
+      lastSerialized === undefined
+    ) {
       lastSerialized = serializeSnapshot(seed);
     }
   });

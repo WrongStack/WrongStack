@@ -1,5 +1,6 @@
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { request } from './platform';
 
 export function RuntimeGate({
@@ -13,6 +14,7 @@ export function RuntimeGate({
   children: React.ReactNode;
   loadingTitle?: string;
 }) {
+  const { t } = useDesktopText();
   const [status, setStatus] = useState('starting');
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
@@ -58,15 +60,15 @@ export function RuntimeGate({
   if (status === 'error' || status === 'stopped')
     return (
       <section className="runtime-state">
-        <h2>We couldn’t open this workspace.</h2>
-        <p role="alert">{error || 'The workspace connection stopped.'}</p>
+        <h2>{t('gate.failed')}</h2>
+        <p role="alert">{error || t('gate.stopped')}</p>
         <button
           type="button"
           className="button secondary"
           onClick={() => setRetry((retry) => retry + 1)}
         >
           <RefreshCw size={15} />
-          Try again
+          {t('gate.retry')}
         </button>
       </section>
     );
@@ -74,11 +76,8 @@ export function RuntimeGate({
     return (
       <section className="runtime-state">
         <LoaderCircle className="spin" size={25} />
-        <h2>
-          {loadingTitle ??
-            (scope === 'project' ? 'Opening your project…' : 'Opening WrongStack settings…')}
-        </h2>
-        <p>Your workspace will be ready in a moment.</p>
+        <h2>{loadingTitle ?? t(scope === 'project' ? 'gate.project' : 'gate.settings')}</h2>
+        <p>{t('gate.moment')}</p>
       </section>
     );
   return children;

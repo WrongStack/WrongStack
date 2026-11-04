@@ -1,53 +1,59 @@
+import { Trans } from 'react-i18next';
 import type { ManifestView } from './chronicle-manifest';
+import { useDesktopText } from './desktop-i18n';
+import { surfaceI18n } from './surface-i18n';
 
-const shown = (value: number | null) => (value === null ? 'not recorded' : value.toLocaleString());
 const short = (hash: string) => (hash ? hash.slice(0, 12) : '—');
 
 /** What a provider request sent, from the manifest Chronicle recorded for it. */
 export function ChronicleManifest({ manifest }: { manifest: ManifestView }) {
   const { system, tools } = manifest;
+  const { t } = useDesktopText();
+  const missing = t('chronicleView.manifest.notRecorded');
+  const shown = (value: number | null) => (value === null ? missing : value.toLocaleString());
   return (
-    <section className="chronicle-manifest" aria-label="Prompt manifest">
-      <h3>Prompt manifest</h3>
+    <section className="chronicle-manifest" aria-label={t('chronicleView.manifest.title')}>
+      <h3>{t('chronicleView.manifest.title')}</h3>
       <dl>
         <div>
-          <dt>Messages</dt>
+          <dt>{t('chronicleView.manifest.messages')}</dt>
           <dd>{shown(manifest.messageCount)}</dd>
         </div>
         <div>
-          <dt>Message tokens (engine estimate)</dt>
+          <dt>{t('chronicleView.manifest.messageTokens')}</dt>
           <dd>{shown(manifest.estimatedMessageTokens)}</dd>
         </div>
         <div>
-          <dt>Content bytes</dt>
+          <dt>{t('chronicleView.manifest.contentBytes')}</dt>
           <dd>{shown(manifest.contentBytes)}</dd>
         </div>
         <div>
-          <dt>Roles</dt>
+          <dt>{t('chronicleView.manifest.roles')}</dt>
           <dd>
-            {manifest.roles.map(([role, value]) => `${role} ${value}`).join(' · ') ||
-              'not recorded'}
+            {manifest.roles.map(([role, value]) => `${role} ${value}`).join(' · ') || missing}
           </dd>
         </div>
         <div>
-          <dt>Blocks</dt>
+          <dt>{t('chronicleView.manifest.blocks')}</dt>
           <dd>
-            {manifest.blockKinds.map(([kind, value]) => `${kind} ${value}`).join(' · ') ||
-              'not recorded'}
+            {manifest.blockKinds.map(([kind, value]) => `${kind} ${value}`).join(' · ') || missing}
           </dd>
         </div>
       </dl>
       <h4>
-        System prompt · {shown(system.blockCount)} blocks · {shown(system.bytes)} bytes ·{' '}
+        {t('chronicleView.manifest.system', {
+          blocks: shown(system.blockCount),
+          bytes: shown(system.bytes),
+        })}{' '}
         <code title={system.hash}>{short(system.hash)}</code>
       </h4>
       {system.blocks ? (
-        <table aria-label="System prompt composition">
+        <table aria-label={t('chronicleView.manifest.composition')}>
           <thead>
             <tr>
-              <th scope="col">Layer</th>
-              <th scope="col">Bytes</th>
-              <th scope="col">Hash</th>
+              <th scope="col">{t('chronicleView.manifest.layer')}</th>
+              <th scope="col">{t('chronicleView.manifest.bytes')}</th>
+              <th scope="col">{t('chronicleView.manifest.hash')}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,41 +69,49 @@ export function ChronicleManifest({ manifest }: { manifest: ManifestView }) {
           </tbody>
         </table>
       ) : (
+        <p className="field-help">{t('chronicleView.manifest.noBlocks')}</p>
+      )}
+      <h4>
+        {t('chronicleView.manifest.tools', {
+          count: shown(tools.count),
+          tokens: shown(tools.estimatedDefinitionTokens),
+          mutating: shown(tools.mutating),
+          destructive: shown(tools.destructive),
+        })}
+      </h4>
+      {tools.names ? (
+        <p className="chronicle-manifest-tools">
+          {tools.names.join(', ') || t('chronicleView.manifest.noTools')}
+        </p>
+      ) : (
         <p className="field-help">
-          This manifest predates per-block system composition, so only the total is recorded.
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="chronicleView.manifest.toolsRef"
+            values={{ hash: short(tools.namesRef || tools.manifestHash) }}
+            components={{ code: <code title={tools.namesRef || tools.manifestHash} /> }}
+          />
         </p>
       )}
       <h4>
-        Tools · {shown(tools.count)} · {shown(tools.estimatedDefinitionTokens)} definition tokens
-        (engine estimate) · {shown(tools.mutating)} mutating · {shown(tools.destructive)}{' '}
-        destructive
+        {manifest.messagesOmitted
+          ? t('chronicleView.manifest.messagesRecent')
+          : t('chronicleView.manifest.messages')}
       </h4>
-      {tools.names ? (
-        <p className="chronicle-manifest-tools">{tools.names.join(', ') || 'No tools offered.'}</p>
-      ) : (
-        <p className="field-help">
-          Tool names were recorded on an earlier request with the same tool set (
-          <code title={tools.namesRef || tools.manifestHash}>
-            {short(tools.namesRef || tools.manifestHash)}
-          </code>
-          ).
-        </p>
-      )}
-      <h4>Messages{manifest.messagesOmitted ? ' (most recent)' : ''}</h4>
       {manifest.messagesOmitted > 0 && (
         <p className="field-help">
-          {manifest.messagesOmitted.toLocaleString()} earlier messages are not itemised; the
-          manifest ID still covers them.
+          {t('chronicleView.manifest.omitted', { n: manifest.messagesOmitted.toLocaleString() })}
         </p>
       )}
-      <table aria-label="Manifest messages">
+      <table aria-label={t('chronicleView.manifest.messagesTable')}>
         <thead>
           <tr>
             <th scope="col">#</th>
-            <th scope="col">Role</th>
-            <th scope="col">Bytes</th>
-            <th scope="col">Tokens (estimate)</th>
-            <th scope="col">Hash</th>
+            <th scope="col">{t('chronicleView.manifest.role')}</th>
+            <th scope="col">{t('chronicleView.manifest.bytes')}</th>
+            <th scope="col">{t('chronicleView.manifest.tokens')}</th>
+            <th scope="col">{t('chronicleView.manifest.hash')}</th>
           </tr>
         </thead>
         <tbody>
@@ -115,7 +129,7 @@ export function ChronicleManifest({ manifest }: { manifest: ManifestView }) {
         </tbody>
       </table>
       <small>
-        Manifest <code>{manifest.manifestId}</code>
+        {t('chronicleView.manifest.id')} <code>{manifest.manifestId}</code>
       </small>
     </section>
   );

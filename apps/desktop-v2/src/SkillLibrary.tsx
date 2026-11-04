@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -34,6 +36,7 @@ import {
   skillUpdateSummary,
   skillWritable,
 } from './skill-model';
+import { surfaceI18n } from './surface-i18n';
 
 export function SkillLibrary({
   command,
@@ -47,6 +50,9 @@ export function SkillLibrary({
   projectId?: string;
   onOpenFile?: (path: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const sourceName = (value: unknown) =>
+    t(`skillLib.source.${String(value)}`, { defaultValue: skillSource(value) });
   const [skills, setSkills] = useState<Record<string, unknown>[]>([]),
     [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [content, setContent] = useState<Record<string, unknown> | null>(null),
@@ -171,10 +177,7 @@ export function SkillLibrary({
         { name: selected?.['name'], source: selected?.['source'] },
         ['skills.content'],
       );
-      if (before['body'] !== content?.['body'])
-        throw new Error(
-          'This skill changed on disk. Copy your draft and reopen the skill before saving.',
-        );
+      if (before['body'] !== content?.['body']) throw new Error(t('skillLib.changedOnDisk'));
       // The engine re-checks the same text right before writing (engines without it ignore it).
       const edited = await command(
         'skills.edit',
@@ -182,20 +185,19 @@ export function SkillLibrary({
         ['skills.edited'],
       );
       if (edited['success'] === false)
-        throw new Error(String(edited['error'] ?? 'The skill was not saved.'));
+        throw new Error(String(edited['error'] ?? t('skillLib.notSaved')));
       const result = await command(
         'skills.content',
         { name: selected?.['name'], source: selected?.['source'] },
         ['skills.content'],
       );
-      if (result['body'] !== draft)
-        throw new Error('The saved skill differs from your draft. Reopen it before continuing.');
+      if (result['body'] !== draft) throw new Error(t('skillLib.differs'));
       // Clear parked edits before the new disk text arrives, so they are not offered as stale.
       await drafts.settle();
       setContent(result);
       setEditing(false);
       await load();
-      setNotice('Skill saved and verified.');
+      setNotice(t('skillLib.saved'));
     });
   const confirm = () =>
     run(async () => {
@@ -216,7 +218,7 @@ export function SkillLibrary({
           description: description.trim(),
         });
         setEditing(true);
-        setNotice('Skill created. Review the generated instructions before using it.');
+        setNotice(t('skillLib.created'));
       } else if (dialog === 'install') {
         const result = await command(
           'skills.install',
@@ -229,10 +231,14 @@ export function SkillLibrary({
         const failures = results.filter((item) => item['error']);
         if (failures.length)
           setError(
-            failures.map((item) => `${item['name'] ?? 'Skill'}: ${item['error']}`).join('\n'),
+            failures
+              .map((item) => `${item['name'] ?? t('skillLib.skillFallback')}: ${item['error']}`)
+              .join('\n'),
           );
         setNotice(
-          `${results.length} installation result${results.length === 1 ? '' : 's'} received. The library now reflects the engine registry.`,
+          t(results.length === 1 ? 'skillLib.installResultsOne' : 'skillLib.installResultsMany', {
+            n: results.length,
+          }),
         );
       } else if (dialog === 'uninstall') {
         await command(
@@ -243,7 +249,7 @@ export function SkillLibrary({
         setSelected(null);
         setContent(null);
         await load();
-        setNotice('Installed skill removed.');
+        setNotice(t('skillLib.uninstalled'));
       }
       setDialog(null);
     });
@@ -269,20 +275,24 @@ export function SkillLibrary({
             .map((item) =>
               typeof item === 'string'
                 ? item
-                : `${record(item)['name'] ?? 'Skill'}: ${record(item)['error'] ?? record(item)['message']}`,
+                : `${record(item)['name'] ?? t('skillLib.skillFallback')}: ${record(item)['error'] ?? record(item)['message']}`,
             )
             .join('\n'),
         );
-      setNotice(skillUpdateSummary(result));
+      setNotice(
+        skillUpdateSummary(result, (updated, unchanged, failed) =>
+          t('skillLib.updateSummary', { updated, unchanged, failed }),
+        ),
+      );
     });
   const exportAll = () =>
     run(async () => {
       const result = await command('skills.export', {}, ['skills.exported'], { timeoutMs: 45000 });
       if (typeof result['zipBase64'] !== 'string' || !result['zipBase64'])
-        throw new Error('The engine did not return a skill archive.');
+        throw new Error(t('skillLib.noArchive'));
       const bytes = Uint8Array.from(atob(result['zipBase64']), (c) => c.charCodeAt(0));
       downloadSkillFile(bytes, 'wrongstack-skills.zip', 'application/zip');
-      setNotice(`Exported ${String(result['skillCount'] ?? 0)} skills.`);
+      setNotice(t('skillLib.exported', { n: String(result['skillCount'] ?? 0) }));
     });
   const link = (url: string) => {
     const target = markdownTarget(url);
@@ -307,18 +317,15 @@ export function SkillLibrary({
   return (
     <section
       className={`skill-library skill-library-${scope}`}
-      aria-label={`${scope === 'profile' ? 'Profile' : 'Project'} skill library`}
+      aria-label={scope === 'profile' ? t('skillLib.labelProfile') : t('skillLib.labelProject')}
     >
       <header className="studio-heading">
         <div>
           <span className="eyebrow">
-            {scope === 'project' ? 'PROJECT CAPABILITIES' : 'WRONGSTACK PROFILE CAPABILITIES'}
+            {scope === 'project' ? t('skillLib.eyebrowProject') : t('skillLib.eyebrowProfile')}
           </span>
-          <h1>Skills</h1>
-          <p>
-            Discover the instructions your agents can use. Build and maintain the knowledge behind
-            their work.
-          </p>
+          <h1>{t('skillLib.title')}</h1>
+          <p>{t('skillLib.intro')}</p>
         </div>
         <div className="skill-library-actions">
           <button
@@ -328,7 +335,7 @@ export function SkillLibrary({
             onClick={() => void exportAll()}
           >
             <Download size={14} />
-            Export library
+            {t('skillLib.export')}
           </button>
           <button
             type="button"
@@ -340,7 +347,7 @@ export function SkillLibrary({
             }}
           >
             <Globe size={14} />
-            Install from Git
+            {t('skillLib.installGit')}
           </button>
           <button
             type="button"
@@ -353,7 +360,7 @@ export function SkillLibrary({
             }}
           >
             <Plus size={14} />
-            New skill
+            {t('skillLib.new')}
           </button>
         </div>
       </header>
@@ -371,17 +378,17 @@ export function SkillLibrary({
       {!enabled ? (
         <div className="skill-empty">
           <ShieldCheck size={30} />
-          <h2>Skills are disabled in this profile.</h2>
-          <p>Enable skills in WrongStack capabilities to load the library.</p>
+          <h2>{t('skillLib.disabledTitle')}</h2>
+          <p>{t('skillLib.disabledHelp')}</p>
         </div>
       ) : (
         <>
           <div className="skill-library-summary">
             {[
-              ['Available', skills.length],
-              ['Project', skills.filter((s) => s['source'] === 'project').length],
-              ['Profile', skills.filter((s) => s['source'] === 'user').length],
-              ['Bundled', skills.filter((s) => s['source'] === 'bundled').length],
+              [t('skillLib.available'), skills.length],
+              [t('skillLib.project'), skills.filter((s) => s['source'] === 'project').length],
+              [t('skillLib.profile'), skills.filter((s) => s['source'] === 'user').length],
+              [t('skillLib.bundled'), skills.filter((s) => s['source'] === 'bundled').length],
             ].map(([label, value]) => (
               <div key={String(label)}>
                 <strong>{String(value)}</strong>
@@ -389,9 +396,7 @@ export function SkillLibrary({
               </div>
             ))}
             <small>
-              {scope === 'project'
-                ? 'Changes here belong to this project. Profile and foreign skills remain read-only.'
-                : 'Changes here belong to your active WrongStack profile.'}
+              {scope === 'project' ? t('skillLib.projectNote') : t('skillLib.profileNote')}
             </small>
           </div>
           <div className="skill-library-layout">
@@ -399,27 +404,27 @@ export function SkillLibrary({
               <div className="skill-library-search">
                 <Search size={14} />
                 <input
-                  aria-label="Search skills"
-                  placeholder="Find a skill or capability…"
+                  aria-label={t('skillLib.search')}
+                  placeholder={t('skillLib.searchPlaceholder')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <select
-                  aria-label="Filter skill source"
+                  aria-label={t('skillLib.sourceFilter')}
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                 >
-                  <option value="all">All sources</option>
+                  <option value="all">{t('skillLib.allSources')}</option>
                   {[...new Set(skills.map((s) => String(s['source'])))].sort().map((s) => (
                     <option key={s} value={s}>
-                      {skillSource(s)}
+                      {sourceName(s)}
                     </option>
                   ))}
                 </select>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label="Refresh skill library"
+                  aria-label={t('skillLib.refresh')}
                   disabled={busy || dirty}
                   onClick={() => void run(load)}
                 >
@@ -431,7 +436,7 @@ export function SkillLibrary({
                   <button
                     type="button"
                     key={`${skill['source']}:${skill['name']}`}
-                    aria-label={`Open skill ${skill['name']}`}
+                    aria-label={t('skillLib.open', { name: String(skill['name']) })}
                     className={selected?.['name'] === skill['name'] ? 'selected-skill-card' : ''}
                     disabled={busy}
                     onClick={() => choose(skill)}
@@ -441,7 +446,7 @@ export function SkillLibrary({
                       <strong>{String(skill['name'])}</strong>
                       <p>{String(skill['description'] ?? '')}</p>
                       <span>
-                        {skillSource(skill['source'])}
+                        {sourceName(skill['source'])}
                         {skill['version'] ? ` · v${skill['version']}` : ''}
                       </span>
                     </div>
@@ -452,12 +457,12 @@ export function SkillLibrary({
               {!visible.length && (
                 <div className="skill-empty">
                   {reading ? <LoaderCircle size={25} className="spin" /> : <Sparkles size={25} />}
-                  <h2>{reading ? 'Discovering skills…' : 'No matching skills.'}</h2>
-                  <p>Choose another source or create a skill for this workspace.</p>
+                  <h2>{reading ? t('skillLib.discovering') : t('skillLib.noMatch')}</h2>
+                  <p>{t('skillLib.noMatchHelp')}</p>
                 </div>
               )}
               <footer>
-                {visible.length} of {skills.length} skills
+                {t('skillLib.count', { visible: visible.length, total: skills.length })}
               </footer>
             </div>
             <div className="skill-reader">
@@ -467,12 +472,12 @@ export function SkillLibrary({
                     <button
                       type="button"
                       className="icon-button"
-                      aria-label="Close skill details"
+                      aria-label={t('skillLib.close')}
                       onClick={() => choose(null)}
                     >
                       <ArrowLeft size={15} />
                     </button>
-                    <span>{skillSource(selected['source'])}</span>
+                    <span>{sourceName(selected['source'])}</span>
                     {writable && content && !editing && (
                       <button
                         type="button"
@@ -481,14 +486,14 @@ export function SkillLibrary({
                         onClick={() => setEditing(true)}
                       >
                         <Pencil size={13} />
-                        Edit skill
+                        {t('skillLib.edit')}
                       </button>
                     )}
                     {content && (
                       <button
                         type="button"
                         className="icon-button"
-                        aria-label="Download skill Markdown"
+                        aria-label={t('skillLib.download')}
                         onClick={() =>
                           downloadSkillFile(
                             String(content['body']),
@@ -507,7 +512,7 @@ export function SkillLibrary({
                   </p>
                   {selected['trigger'] && (
                     <div className="skill-trigger">
-                      <span>WHEN TO USE</span>
+                      <span>{t('skillLib.whenToUse')}</span>
                       <p>{String(selected['trigger'])}</p>
                     </div>
                   )}
@@ -521,7 +526,7 @@ export function SkillLibrary({
                   {reading ? (
                     <div className="skill-empty">
                       <LoaderCircle className="spin" size={25} />
-                      <p>Reading skill instructions…</p>
+                      <p>{t('skillLib.reading')}</p>
                     </div>
                   ) : (
                     content && (
@@ -530,22 +535,24 @@ export function SkillLibrary({
                           <div className="skill-document-editor">
                             <header>
                               <span>
-                                SKILL.md · {draft.split('\n').length} lines · {draft.length}{' '}
-                                characters
+                                {t('skillLib.editorMeta', {
+                                  lines: draft.split('\n').length,
+                                  chars: draft.length,
+                                })}
                               </span>
                               <button
                                 type="button"
                                 aria-pressed={preview}
                                 onClick={() => setPreview(!preview)}
                               >
-                                {preview ? 'Show source' : 'Preview instructions'}
+                                {preview ? t('skillLib.showSource') : t('skillLib.preview')}
                               </button>
                             </header>
                             {preview ? (
                               <MarkdownContent text={skillInstructions(draft)} onLink={link} />
                             ) : (
                               <textarea
-                                aria-label="Skill Markdown source"
+                                aria-label={t('skillLib.sourceLabel')}
                                 spellCheck={false}
                                 value={draft}
                                 disabled={busy}
@@ -573,7 +580,7 @@ export function SkillLibrary({
                                   } else setEditing(false);
                                 }}
                               >
-                                Cancel editing
+                                {t('skillLib.cancelEditing')}
                               </button>
                               <button
                                 type="button"
@@ -582,7 +589,7 @@ export function SkillLibrary({
                                 onClick={() => void save()}
                               >
                                 <Save size={13} />
-                                {busy ? 'Saving…' : 'Save skill'}
+                                {busy ? t('skillLib.saving') : t('skillLib.save')}
                               </button>
                             </footer>
                           </div>
@@ -598,7 +605,7 @@ export function SkillLibrary({
                           <section>
                             <h3>
                               <FolderOpen size={14} />
-                              Source & provenance
+                              {t('skillLib.provenance')}
                             </h3>
                             <code>{String(content['path'] ?? '')}</code>
                             {typeof selected['sourceUrl'] === 'string' && selected['sourceUrl'] && (
@@ -611,19 +618,21 @@ export function SkillLibrary({
                               </button>
                             )}
                             {typeof selected['ref'] === 'string' && selected['ref'] && (
-                              <small>Installed revision {String(selected['ref'])}</small>
+                              <small>
+                                {t('skillLib.revision', { ref: String(selected['ref']) })}
+                              </small>
                             )}
                             {!writable && (
                               <p>
                                 <ShieldCheck size={13} />
-                                This source is read-only in this workspace.
+                                {t('skillLib.readOnly')}
                               </p>
                             )}
                           </section>
                           <section>
                             <h3>
                               <FileText size={14} />
-                              Related files
+                              {t('skillLib.related')}
                             </h3>
                             {Array.isArray(content['relatedFiles']) &&
                             content['relatedFiles'].length ? (
@@ -641,13 +650,13 @@ export function SkillLibrary({
                                 </button>
                               ))
                             ) : (
-                              <p>No supporting files were reported.</p>
+                              <p>{t('skillLib.noRelated')}</p>
                             )}
                           </section>
                           <section>
                             <h3>
                               <BookOpen size={14} />
-                              Referenced by
+                              {t('skillLib.referencedBy')}
                             </h3>
                             {Array.isArray(content['references']) &&
                             content['references'].length ? (
@@ -666,7 +675,7 @@ export function SkillLibrary({
                                 </button>
                               ))
                             ) : (
-                              <p>No other discovered skills reference this name.</p>
+                              <p>{t('skillLib.noReferences')}</p>
                             )}
                           </section>
                         </div>
@@ -679,7 +688,7 @@ export function SkillLibrary({
                               onClick={() => void update()}
                             >
                               <RefreshCw size={13} />
-                              Check for updates
+                              {t('skillLib.checkUpdates')}
                             </button>
                             <button
                               type="button"
@@ -688,7 +697,7 @@ export function SkillLibrary({
                               onClick={() => setDialog('uninstall')}
                             >
                               <Trash2 size={13} />
-                              Uninstall
+                              {t('skillLib.uninstall')}
                             </button>
                           </footer>
                         )}
@@ -699,10 +708,8 @@ export function SkillLibrary({
               ) : (
                 <div className="skill-reader-empty">
                   <BookOpen size={38} />
-                  <h2>Instructions with a purpose.</h2>
-                  <p>
-                    Select a skill to read its workflow, triggers, supporting files and provenance.
-                  </p>
+                  <h2>{t('skillLib.emptyTitle')}</h2>
+                  <p>{t('skillLib.emptyHelp')}</p>
                 </div>
               )}
             </div>
@@ -717,28 +724,28 @@ export function SkillLibrary({
             aria-modal="true"
             aria-label={
               dialog === 'create'
-                ? 'Create skill'
+                ? t('skillLib.dialog.create')
                 : dialog === 'install'
-                  ? 'Install skill'
+                  ? t('skillLib.dialog.install')
                   : dialog === 'leave'
-                    ? 'Unsaved skill changes'
-                    : 'Uninstall skill'
+                    ? t('skillLib.dialog.leave')
+                    : t('skillLib.dialog.uninstall')
             }
           >
             <header>
               <h2>
                 {dialog === 'create'
-                  ? 'Create a skill'
+                  ? t('skillLib.heading.create')
                   : dialog === 'install'
-                    ? 'Install from Git'
+                    ? t('skillLib.installGit')
                     : dialog === 'leave'
-                      ? 'Keep your draft?'
-                      : 'Uninstall skill'}
+                      ? t('skillLib.heading.leave')
+                      : t('skillLib.dialog.uninstall')}
               </h2>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Close skill dialog"
+                aria-label={t('skillLib.closeDialog')}
                 disabled={busy}
                 onClick={() => setDialog(null)}
               >
@@ -752,7 +759,7 @@ export function SkillLibrary({
             )}
             {dialog === 'leave' ? (
               <>
-                <p>This skill has unsaved changes. Copy the draft or discard it before leaving.</p>
+                <p>{t('skillLib.leaveHelp')}</p>
                 <footer>
                   <button
                     type="button"
@@ -760,19 +767,19 @@ export function SkillLibrary({
                     onClick={() =>
                       void navigator.clipboard
                         .writeText(draft)
-                        .then(() => setNotice('Draft copied.'))
+                        .then(() => setNotice(t('skillLib.draftCopied')))
                         .catch((e) => setError(String(e)))
                     }
                   >
                     <Copy size={13} />
-                    Copy draft
+                    {t('skillLib.copyDraft')}
                   </button>
                   <button
                     type="button"
                     className="button secondary"
                     onClick={() => setDialog(null)}
                   >
-                    Keep editing
+                    {t('skillLib.keepEditing')}
                   </button>
                   <button
                     type="button"
@@ -790,7 +797,7 @@ export function SkillLibrary({
                       }
                     }}
                   >
-                    Discard draft
+                    {t('skillLib.discardDraft')}
                   </button>
                 </footer>
               </>
@@ -804,16 +811,14 @@ export function SkillLibrary({
                 {dialog === 'create' ? (
                   <>
                     <p>
-                      Create a{' '}
                       {scope === 'profile'
-                        ? 'profile skill available across projects'
-                        : 'project skill stored with this repository'}
-                      .
+                        ? t('skillLib.createProfile')
+                        : t('skillLib.createProject')}
                     </p>
                     <label>
-                      Skill name
+                      {t('skillLib.name')}
                       <input
-                        aria-label="New skill name"
+                        aria-label={t('skillLib.nameLabel')}
                         placeholder="review-project-boundaries"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -823,10 +828,10 @@ export function SkillLibrary({
                       />
                     </label>
                     <label>
-                      Description & trigger
+                      {t('skillLib.description')}
                       <textarea
-                        aria-label="New skill description"
-                        placeholder="Use when reviewing changes across project boundaries…"
+                        aria-label={t('skillLib.descriptionLabel')}
+                        placeholder={t('skillLib.descriptionPlaceholder')}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         required
@@ -838,14 +843,14 @@ export function SkillLibrary({
                 ) : dialog === 'install' ? (
                   <>
                     <p>
-                      Install into{' '}
-                      {scope === 'profile' ? 'your WrongStack profile' : 'this project'}. The engine
-                      resolves the Git reference and records its source revision.
+                      {scope === 'profile'
+                        ? t('skillLib.installProfile')
+                        : t('skillLib.installProject')}
                     </p>
                     <label>
-                      Git source
+                      {t('skillLib.gitSource')}
                       <input
-                        aria-label="Skill Git reference"
+                        aria-label={t('skillLib.gitLabel')}
                         placeholder="owner/repository or https://github.com/owner/repository"
                         value={ref}
                         onChange={(e) => setRef(e.target.value)}
@@ -855,8 +860,17 @@ export function SkillLibrary({
                   </>
                 ) : (
                   <p>
-                    Remove <strong>{String(selected?.['name'])}</strong> and its installed files
-                    from {scope === 'profile' ? 'your active profile' : 'this project'}.
+                    <Trans
+                      i18n={surfaceI18n}
+                      ns="desktop"
+                      i18nKey={
+                        scope === 'profile'
+                          ? 'skillLib.uninstallProfile'
+                          : 'skillLib.uninstallProject'
+                      }
+                      values={{ name: String(selected?.['name']) }}
+                      components={{ strong: <strong /> }}
+                    />
                   </p>
                 )}
                 <footer>
@@ -866,16 +880,16 @@ export function SkillLibrary({
                     disabled={busy}
                     onClick={() => setDialog(null)}
                   >
-                    Cancel
+                    {t('skillLib.cancel')}
                   </button>
                   <button type="submit" className="button primary" disabled={busy}>
                     {busy
-                      ? 'Working…'
+                      ? t('skillLib.working')
                       : dialog === 'create'
-                        ? 'Create skill'
+                        ? t('skillLib.dialog.create')
                         : dialog === 'install'
-                          ? 'Install skill'
-                          : 'Uninstall skill'}
+                          ? t('skillLib.dialog.install')
+                          : t('skillLib.dialog.uninstall')}
                   </button>
                 </footer>
               </form>

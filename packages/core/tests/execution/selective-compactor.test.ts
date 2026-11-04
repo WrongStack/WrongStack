@@ -668,5 +668,38 @@ describe('SelectiveCompactor', () => {
       ]);
       expect(large).toBeGreaterThan(small);
     });
+
+    it('summarizes collapsed ranges when ctx.signal is undefined and preserves preserveK pairs in elision (F937)', async () => {
+      const provider = makeFakeProvider(['range summary without abort signal']);
+      const compactor = new SelectiveCompactor({
+        provider,
+        preserveK: 2,
+        eliseThreshold: 100,
+        summarizerPrompt: 'summarize range',
+      });
+      const bigResult = 'R'.repeat(1000);
+      const messages: Message[] = [
+        makeMessage('user', 'p1 user'),
+        makeMessage('assistant', 'p1 assistant'),
+        makeMessage('assistant', [
+          { type: 'tool_use', id: 'tu1', name: 'read', input: { path: 'a.ts' } },
+        ]),
+        makeMessage('user', [{ type: 'tool_result', tool_use_id: 'tu1', content: bigResult }]),
+        makeMessage('user', 'p3 user'),
+        makeMessage('assistant', 'p3 assistant'),
+      ];
+      const ctx = fakeContext(messages);
+      delete (ctx as any).signal;
+
+      (compactor as any).eliseOldToolResults(ctx);
+      expect((ctx.messages[3]?.content as any)?.[0]?.content).toBe(bigResult);
+
+      await (compactor as any).executePlan(ctx, {
+        kept: [],
+        collapsed: [{ from: 0, to: 1 }],
+        reasoning: 'collapse oldest',
+      });
+      expect(String(ctx.messages[0]?.content)).toContain('range summary without abort signal');
+    });
   });
 });

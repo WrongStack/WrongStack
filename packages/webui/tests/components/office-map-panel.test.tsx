@@ -16,11 +16,23 @@ vi.mock('@/i18n', () => ({
   }),
 }));
 
-vi.mock('../../src/components/AgentOfficeView', () => ({
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => ({
+  useAppTranslation: () => ({
+    t: (key: string) =>
+      ({
+        'activity:agentOffice.office': 'Office',
+        'activity:agentOffice.topology': 'Topology',
+        'activity:agentOffice.officeDescription': 'Live agent desks and work',
+        'activity:agentOffice.topologyDescription': 'Clients, agents and connections',
+      })[key] ?? key,
+  }),
+}));
+
+vi.mock('@wrongstack/project-surfaces/office/AgentOfficeView', () => ({
   AgentOfficeView: () => <div>Office content</div>,
 }));
 
-vi.mock('../../src/components/OfficeMapCanvas', () => ({
+vi.mock('@wrongstack/project-surfaces/office/OfficeMapCanvas', () => ({
   OfficeMapCanvas: () => <div>Topology content</div>,
 }));
 

@@ -701,4 +701,71 @@ describe('HookRunner.preToolUse carries the tool declaration', () => {
     expect(seen?.['toolCapabilities']).toEqual([]);
     expect(seen?.['toolMutating']).toBe(false);
   });
+
+  it('isolates pending background hooks per session and preserves background context across blocked prompts', async () => {
+    const reg = new HookRegistry();
+    const gates = new Map<string, () => void>();
+    let activeSession = 'sess-A';
+
+    reg.registerInProcess(
+      'PostToolUse',
+      'write',
+      async (input) => {
+        const sid = input.sessionId ?? 'unknown';
+        await new Promise<void>((resolve) => {
+          gates.set(sid, resolve);
+        });
+        return { additionalContext: `scan-${sid}` };
+      },
+      'scanner',
+      { background: true },
+    );
+    reg.registerInProcess(
+      'UserPromptSubmit',
+      undefined,
+      async (input) => {
+        if (input.prompt === 'reject') {
+          return { action: 'deny', reason: 'blocked prompt' };
+        }
+        return {};
+      },
+      'prompt-gate',
+    );
+
+    const runner = new HookRunner({
+      registry: reg,
+      sessionId: () => activeSession,
+    });
+
+    const envA = { cwd: '/work', session: { id: 'sess-A' } };
+    const envB = { cwd: '/work', session: { id: 'sess-B' } };
+    const envC = { cwd: '/work', session: { id: 'sess-C' } };
+
+    // Start background hooks concurrently across sessions on a shared HookRunner
+    await runner.postToolUse('write', {}, { content: 'ok', isError: false }, envA);
+    await runner.postToolUse('write', {}, { content: 'ok', isError: false }, envB);
+    await runner.postToolUse('write', {}, { content: 'ok', isError: false }, envC);
+
+    // Also schedule via opts.sessionId() fallback and swap activeSession before completion
+    activeSession = 'sess-swap-old';
+    await runner.postToolUse('write', {}, { content: 'ok', isError: false }, { cwd: '/work' });
+    activeSession = 'sess-swap-new';
+
+    gates.get('sess-A')?.();
+    gates.get('sess-B')?.();
+    gates.get('sess-C')?.();
+    gates.get('sess-swap-old')?.();
+    await new Promise((r) => setTimeout(r, 15));
+
+    // New session must not receive old session's background scan
+    expect(await runner.userPromptSubmit('ok', { cwd: '/work' })).toEqual({});
+
+    // Blocked prompt in sess-B must not discard sess-B's buffered background scan
+    const blockedB = await runner.userPromptSubmit('reject', envB);
+    expect(blockedB).toEqual({ block: true, reason: 'blocked prompt' });
+
+    const allowedB = await runner.userPromptSubmit('ok', envB);
+    expect(allowedB).toEqual({ additionalContext: 'scan-sess-B' });
+    expect(await runner.userPromptSubmit('ok', envC)).toEqual({ additionalContext: 'scan-sess-C' });
+  });
 });

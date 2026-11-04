@@ -50,11 +50,23 @@ describe('conversation continuation', () => {
   it('offers every mode and marks an unreported one', () => {
     const command = async () => ({});
     const html = renderToStaticMarkup(
-      createElement(AutonomyControl, { mode: '', command, disabled: false }),
+      createElement(AutonomyControl, { prefs: {}, command, disabled: false }),
     );
     expect(html).toContain('>Continuation</option>');
     for (const label of ['Manual', 'Suggest next steps', 'Continue automatically', 'Eternal'])
       expect(html).toContain(label);
+    // The YOLO level beside it, as the WebUI's session panel offers it.
+    expect(html).toContain('class="composer-chip effort-control yolo-off"');
+    for (const label of ['Approvals on', '>YOLO<', 'YOLO+']) expect(html).toContain(label);
+    const plus = renderToStaticMarkup(
+      createElement(AutonomyControl, {
+        prefs: { autonomy: 'auto', yolo: true, yoloPlus: true },
+        command,
+        disabled: false,
+      }),
+    );
+    expect(plus).toContain('yolo-plus');
+    expect(plus).toContain('title="Every call runs and nothing asks; deny rules still refuse."');
   });
 });
 

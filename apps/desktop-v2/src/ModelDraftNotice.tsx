@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { modelFlags, modelNumberFields, modelTextFields } from './model-catalog-editor';
 import type { ModelEditorDraftStore, ModelEditorState } from './model-editor-draft';
 import { tierPriceFields } from './model-price-tiers';
@@ -21,6 +22,7 @@ export function ModelDraftNotice({
   onDiscard: () => void;
   onResolved: () => void;
 }) {
+  const { t } = useDesktopText();
   const [working, setWorking] = useState(false);
   const resolve = async (choice: 'local' | 'saved') => {
     if (working) return;
@@ -33,17 +35,22 @@ export function ModelDraftNotice({
   };
   if (!editing && state.ready && !state.value && !state.review && !state.error) return null;
   return (
-    <section className="model-draft-notice" aria-label="Model draft recovery">
+    <section className="model-draft-notice" aria-label={t('modelDraft.label')}>
       <p role="status">
         {!state.ready
-          ? 'Loading native model draft…'
+          ? t('modelDraft.loading')
           : state.saving
-            ? 'Saving model draft on this computer…'
+            ? t('modelDraft.saving')
             : state.dirty
-              ? 'Model draft has unsaved local changes.'
+              ? t('modelDraft.dirty')
               : editing
-                ? 'Model draft saved on this computer. Provider settings change only when you save the definition.'
-                : `Saved model draft: ${state.value?.draft.text['name'] || state.value?.draft.id || 'New model'}. Continue to review it before applying.`}
+                ? t('modelDraft.savedEditing')
+                : t('modelDraft.savedIdle', {
+                    name:
+                      state.value?.draft.text['name'] ||
+                      state.value?.draft.id ||
+                      t('modelDraft.newModel'),
+                  })}
       </p>
       {!state.ready && (
         <button
@@ -53,7 +60,7 @@ export function ModelDraftNotice({
             void controller.load();
           }}
         >
-          Retry model draft loading
+          {t('modelDraft.retry')}
         </button>
       )}
       {!editing && state.value && !state.review && (
@@ -64,7 +71,7 @@ export function ModelDraftNotice({
             disabled={busy || working}
             onClick={onResume}
           >
-            Continue saved model draft
+            {t('modelDraft.continue')}
           </button>
           <button
             type="button"
@@ -72,7 +79,7 @@ export function ModelDraftNotice({
             disabled={busy || working || state.saving}
             onClick={onDiscard}
           >
-            Discard saved model draft
+            {t('modelDraft.discard')}
           </button>
         </div>
       )}
@@ -90,22 +97,19 @@ export function ModelDraftNotice({
             void controller.compare();
           }}
         >
-          Compare saved model draft
+          {t('modelDraft.compare')}
         </button>
       )}
       {state.review && (
         <>
-          <p>
-            This window and the saved draft differ. Review both before choosing; newer saved changes
-            are checked again.
-          </p>
+          <p>{t('modelDraft.differ')}</p>
           <div className="model-draft-comparison">
             <div>
-              <h4>This window</h4>
+              <h4>{t('modelDraft.thisWindow')}</h4>
               <ModelDraftSummary value={state.value} />
             </div>
             <div>
-              <h4>Saved draft</h4>
+              <h4>{t('modelDraft.savedDraft')}</h4>
               <ModelDraftSummary value={state.review.value} />
             </div>
           </div>
@@ -118,7 +122,7 @@ export function ModelDraftNotice({
                 void resolve('saved');
               }}
             >
-              Use saved model draft
+              {t('modelDraft.useSaved')}
             </button>
             <button
               type="button"
@@ -128,7 +132,7 @@ export function ModelDraftNotice({
                 void resolve('local');
               }}
             >
-              Keep this model draft
+              {t('modelDraft.keep')}
             </button>
           </div>
         </>
@@ -137,21 +141,26 @@ export function ModelDraftNotice({
   );
 }
 export function ModelDraftSummary({ value }: { value: ModelEditorState | null }) {
-  if (!value) return <p>No saved editor draft.</p>;
+  const { t } = useDesktopText();
+  if (!value) return <p>{t('modelDraft.noDraft')}</p>;
   const draft = value.draft;
   return (
     <details>
-      <summary>{draft.text['name'] || draft.id || 'New model'} · review form values</summary>
+      <summary>
+        {t('modelDraft.summary', {
+          name: draft.text['name'] || draft.id || t('modelDraft.newModel'),
+        })}
+      </summary>
       <dl className="model-info">
         <div>
-          <dt>Model ID</dt>
-          <dd>{draft.id || 'Not entered'}</dd>
+          <dt>{t('modelCatalog.modelId')}</dt>
+          <dd>{draft.id || t('modelDraft.notEntered')}</dd>
         </div>
         {modelTextFields.map(
           ([key, label]) =>
             draft.text[key] && (
               <div key={key}>
-                <dt>{label}</dt>
+                <dt>{t(`modelCatalog.field.${key}`, { defaultValue: label })}</dt>
                 <dd>{draft.text[key]}</dd>
               </div>
             ),
@@ -160,58 +169,63 @@ export function ModelDraftSummary({ value }: { value: ModelEditorState | null })
           ([group, key, label]) =>
             draft.numbers[`${group}.${key}`] && (
               <div key={`${group}.${key}`}>
-                <dt>{label}</dt>
+                <dt>{t(`modelCatalog.number.${group}.${key}`, { defaultValue: label })}</dt>
                 <dd>{draft.numbers[`${group}.${key}`]}</dd>
               </div>
             ),
         )}
         <div>
-          <dt>Input modalities</dt>
-          <dd>{draft.input || 'Unspecified'}</dd>
+          <dt>{t('modelCatalog.inputModalities')}</dt>
+          <dd>{draft.input || t('modelTiers.unspecified')}</dd>
         </div>
         {modelFlags.map(([key, label]) => (
           <div key={key}>
-            <dt>{label}</dt>
+            <dt>{t(`modelCatalog.flag.${key}`, { defaultValue: label })}</dt>
             <dd>
               {draft.flags[key] === 'inherit'
-                ? 'Inherit catalog'
+                ? t('modelCatalog.inheritCatalog')
                 : draft.flags[key] === 'true'
-                  ? 'Supported'
-                  : 'Not supported'}
+                  ? t('modelCatalog.supported')
+                  : t('modelCatalog.notSupported')}
             </dd>
           </div>
         ))}
         {(
           [
-            ['Catalog status', draft.advanced.status || 'Inherit catalog'],
-            ['Experimental', draft.advanced.experimental],
-            ['SDK package', draft.advanced.npm || 'Inherit provider'],
-            ['API endpoint', draft.advanced.api || 'Inherit provider'],
-            ['Reasoning replay', `${draft.advanced.interleaved} ${draft.advanced.field}`],
-            ['Can disable reasoning', draft.advanced.runtime.disableSupported ? 'Yes' : 'No'],
-            ['Effort support', draft.advanced.runtime.effortSupported],
-            ['Thinking retention', draft.advanced.runtime.preserveThinking],
+            ['status', draft.advanced.status || t('modelCatalog.inheritCatalog')],
+            ['experimental', draft.advanced.experimental],
+            ['sdk', draft.advanced.npm || t('modelCatalog.inheritProvider')],
+            ['api', draft.advanced.api || t('modelCatalog.inheritProvider')],
+            ['replay', `${draft.advanced.interleaved} ${draft.advanced.field}`],
+            [
+              'canDisable',
+              draft.advanced.runtime.disableSupported
+                ? t('modelAdvanced.yes')
+                : t('modelAdvanced.no'),
+            ],
+            ['effortSupport', draft.advanced.runtime.effortSupported],
+            ['retention', draft.advanced.runtime.preserveThinking],
           ] as const
         ).map(([label, text]) => (
           <div key={label}>
-            <dt>{label}</dt>
+            <dt>{t(`modelAdvanced.${label}`)}</dt>
             <dd>{text}</dd>
           </div>
         ))}
         <div>
-          <dt>Output modalities</dt>
-          <dd>{draft.output || 'Unspecified'}</dd>
+          <dt>{t('modelCatalog.outputModalities')}</dt>
+          <dd>{draft.output || t('modelTiers.unspecified')}</dd>
         </div>
         <div>
-          <dt>Reasoning policy</dt>
+          <dt>{t('modelCatalog.reasoningPolicy')}</dt>
           <dd>
             {draft.advanced.runtimePolicy} · {draft.advanced.runtime.default} ·{' '}
-            {draft.advanced.runtime.effortLevels.join(', ') || 'No explicit efforts'}
+            {draft.advanced.runtime.effortLevels.join(', ') || t('modelDraft.noEfforts')}
           </dd>
         </div>
         {draft.advanced.options.map((option, index) => (
           <div key={index}>
-            <dt>Reasoning control {index + 1}</dt>
+            <dt>{t('modelAdvanced.controlLabel', { n: index + 1 })}</dt>
             <dd>
               {option.type} · {option.values.join(', ')} {option.min} {option.max}
             </dd>
@@ -219,15 +233,15 @@ export function ModelDraftSummary({ value }: { value: ModelEditorState | null })
         ))}
         {draft.pricing.rows.map((row, index) => (
           <div key={index}>
-            <dt>Price tier {index + 1}</dt>
+            <dt>{t('modelTiers.tier', { n: index + 1 })}</dt>
             <dd>
               {row.editable
-                ? `Context threshold ${row.size || 'not entered'}`
-                : 'Provider-specific metadata preserved'}
+                ? t('modelDraft.threshold', { size: row.size || t('modelDraft.notEnteredLower') })
+                : t('modelDraft.providerMetadata')}
               {tierPriceFields
                 .map(([key, label]) =>
                   row.prices[key] !== '' && row.prices[key] !== undefined
-                    ? ` · ${label}: ${row.prices[key]}`
+                    ? ` · ${t(`modelTiers.price.${key}`, { defaultValue: label })}: ${row.prices[key]}`
                     : '',
                 )
                 .join('')}

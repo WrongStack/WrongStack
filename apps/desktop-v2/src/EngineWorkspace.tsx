@@ -1,4 +1,4 @@
-import { stripNextStepsBlock } from '@wrongstack/webui-protocol';
+import { parseBugHuntMessage } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import {
   ChevronDown,
   FolderCode,
@@ -6,46 +6,48 @@ import {
   LoaderCircle,
   MessageSquare,
   PanelsTopLeft,
-  RefreshCw,
   Settings2,
   Square,
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AttachmentPreview } from './ComposerAttachments';
+import { useAgentTabs } from './AgentTranscripts';
 import { ConversationNotices } from './ConversationNotices';
-import { CopyButton } from './CopyButton';
+import { useConversationShortcuts } from './ConversationShortcuts';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
 import {
   appendToDraft,
   type ComposerFileReference,
-  referenceKey,
-  referenceLabel,
   splitReferenceMessage,
   withReference,
 } from './composer-resources-model';
+import type { AppNavigation, DesktopNavigation } from './desktop-commands';
+import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
-import { type EngineState, record } from './engine-state';
 import { FallbackPicker } from './FallbackPicker';
+import { failedRun } from './failed-run-model';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
-import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
 import { ProjectSessionTools } from './ProjectSessionTools';
+import { ProviderWaitingRoom } from './ProviderWaitingRoom';
 import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
+import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
 import type { ProjectFormDraftStorage } from './requirement-draft';
+import { ScheduledJobs } from './ScheduledJobs';
 import { SessionActivity } from './SessionActivity';
 import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
 import { SessionRecovery } from './SessionRecovery';
+import { SessionStatusBar } from './SessionStatusBar';
 import { SessionTodos } from './SessionTodos';
 import { SessionWorklist } from './SessionWorklist';
-import { inlineUsageEstimate } from './session-usage-model';
 import { ToolApprovalCard } from './ToolApprovalCard';
-import { TurnTools } from './TurnTools';
-import type { ProjectPage } from './useDesktop';
+import { useTranscriptFind } from './TranscriptFind';
+import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
+import { AgentWorking, LiveRunActivity } from './TurnTools';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
@@ -64,6 +66,15 @@ const SessionPlanTemplates = lazy(() =>
 const SessionUsage = lazy(() =>
   import('./SessionUsage').then((module) => ({ default: module.SessionUsage })),
 );
+const SessionCollab = lazy(() => import('./SessionCollab'));
+const SessionStory = lazy(() =>
+  import('./SessionStory').then((module) => ({ default: module.SessionStory })),
+);
+const SessionContextDashboard = lazy(() =>
+  import('./SessionContextDashboard').then((module) => ({
+    default: module.SessionContextDashboard,
+  })),
+);
 export type EngineTab =
   | 'chat'
   | 'activity'
@@ -72,6 +83,8 @@ export type EngineTab =
   | 'processes'
   | 'side-effects'
   | 'usage'
+  | 'story'
+  | 'context'
   | 'plan'
   | 'files'
   | 'changes'
@@ -80,7 +93,12 @@ export type EngineTab =
   | 'kanban';
 export type { EngineSend } from './engine-operations';
 
-import { hiddenMessageCount, TRANSCRIPT_WINDOW } from './transcript-window';
+import {
+  dayLabel,
+  hiddenMessageCount,
+  replayProgress,
+  TRANSCRIPT_WINDOW,
+} from './transcript-window';
 
 export function EngineWorkspace({
   id,
@@ -99,7 +117,7 @@ export function EngineWorkspace({
   inputDrafts,
   onInputDraftChange,
   onSettings,
-  onProject,
+  onOpen,
   scopeKey,
   projectId,
   projectRoot,
@@ -120,14 +138,16 @@ export function EngineWorkspace({
   inputDrafts: Record<string, InputDraft>;
   onInputDraftChange: (key: string, draft: InputDraft | null) => void;
   onSettings: () => void;
-  onProject: (page?: ProjectPage) => void;
+  onOpen: (target: AppNavigation) => void;
   scopeKey: string;
   projectId: string;
   projectRoot: string;
 }) {
   const { state, send, command } = useEngine(id, onError);
+  const { t } = useDesktopText();
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
+  const backToChat = useCallback(() => setTab('chat'), []);
   const planDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'plan'), [id]);
   const refineDraftStorage = useMemo(() => sessionObjectDraftStorage(id, 'refine'), [id]);
   useEffect(() => {
@@ -145,10 +165,16 @@ export function EngineWorkspace({
     );
   }, [projectId, state.sessionId]);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const openTool = (name: EngineTab) => () => {
+    setTab(name);
+    setToolsOpen(false);
+  };
   const end = useRef<HTMLDivElement>(null);
   const chatPane = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
+  // Messages there were when the reader scrolled away from the end, to count what arrived since.
+  const leftAt = useRef(0);
   const [showConversation, setShowConversation] = useState(false);
   // Long conversations render their newest messages; earlier ones load on request.
   const [shownMessages, setShownMessages] = useState(TRANSCRIPT_WINDOW);
@@ -196,15 +222,36 @@ export function EngineWorkspace({
   const perform = (type: string, payload?: Record<string, unknown>) => {
     void send(type, payload).catch(onError);
   };
-  const recentEvents = state.activity.slice(
-    state.activity.findLastIndex((event) => event.type === 'run.result') + 1,
-  );
-  const liveTools = new Set(
-    recentEvents
-      .filter((event) => event.type === 'tool.started' || event.type === 'tool.executed')
-      .map((event) => event.payload['id'])
-      .filter((id) => typeof id === 'string'),
-  ).size;
+  const openFile = (path: string) => {
+    setFileTarget(path);
+    setTab('files');
+  };
+  const resendPrompt = async (text: string) => {
+    const capabilities = state.results['session.start']?.['protocolCapabilities'];
+    if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
+      throw Error('this engine cannot confirm that it accepted the prompt');
+    await command(
+      'user_message',
+      { id: crypto.randomUUID(), content: text, timestamp: Date.now() },
+      ['key.operation_result'],
+    );
+  };
+  const editAction = (message: { role: string; text: string }): MessageAction | undefined => {
+    if (message.role !== 'user' || parseBugHuntMessage(message.text)) return undefined;
+    if (draft.trim() || references.length)
+      return { reason: 'Send or clear the composer draft first; editing would replace it' };
+    const view = splitReferenceMessage(message.text);
+    return {
+      run: () => void onDraftChange(view.text).then(() => onReferencesChange(view.references)),
+    };
+  };
+  const askAgainAction = (): MessageAction | undefined => {
+    const prompt = state.messages.findLast((message) => message.role === 'user');
+    if (!prompt) return undefined;
+    if (state.running) return { reason: 'Wait for the running turn to finish' };
+    if (!state.connected) return { reason: 'The engine is not connected' };
+    return { run: () => void resendPrompt(prompt.text).catch(onError) };
+  };
   const openLink = useCallback(
     (url: string) => {
       const target = markdownTarget(url);
@@ -216,14 +263,30 @@ export function EngineWorkspace({
     },
     [send, onError],
   );
+  const navigate = (target: DesktopNavigation) =>
+    'tab' in target ? setTab(target.tab) : onOpen(target);
+  const shortcuts = useConversationShortcuts(navigate);
+  useRunSounds(state);
+  const agentTabs = useAgentTabs(state.agents, openLink);
+  const finder = useTranscriptFind({
+    messages: state.messages,
+    enabled: tab === 'chat' && !agentTabs.view,
+    reveal: (index) => {
+      following.current = false;
+      if (index < hiddenMessages) setShownMessages(state.messages.length - index);
+      const target = `[data-message-id="${CSS.escape(state.messages[index]?.id ?? '')}"]`;
+      setTimeout(() => document.querySelector(target)?.scrollIntoView({ block: 'center' }), 50);
+    },
+  });
   return (
     <div className="engine-workspace" data-engine-session={state.sessionId}>
-      <nav className="workspace-tabs" aria-label="Agent workspace views">
+      {shortcuts}
+      <nav className="workspace-tabs" aria-label={t('workspace.views')}>
         {(
           [
-            { name: 'chat', label: 'Chat', Icon: MessageSquare },
-            { name: 'files', label: 'Files', Icon: FolderCode },
-            { name: 'changes', label: 'Changes', Icon: GitCompareArrows },
+            { name: 'chat', label: t('workspace.chat'), Icon: MessageSquare },
+            { name: 'files', label: t('workspace.files'), Icon: FolderCode },
+            { name: 'changes', label: t('workspace.changes'), Icon: GitCompareArrows },
           ] as const
         ).map(({ name, label, Icon }) => (
           <button
@@ -251,6 +314,8 @@ export function EngineWorkspace({
               'processes',
               'side-effects',
               'usage',
+              'story',
+              'context',
               'plan',
             ].includes(tab)
               ? 'chosen-tab project-tools-button'
@@ -259,14 +324,14 @@ export function EngineWorkspace({
           onClick={() => setToolsOpen(true)}
         >
           <PanelsTopLeft size={14} />
-          Tools
+          {t('workspace.tools')}
           <ChevronDown size={11} />
         </button>
         <button
           type="button"
           className="icon-button project-tools-button"
-          aria-label="Settings"
-          title="Model & provider settings"
+          aria-label={t('workspace.settings')}
+          title={t('workspace.settingsTitle')}
           onClick={onSettings}
         >
           <Settings2 size={15} />
@@ -275,49 +340,27 @@ export function EngineWorkspace({
       {toolsOpen && (
         <WorkspaceTools
           onClose={() => setToolsOpen(false)}
-          onHistory={() => {
-            setTab('history');
-            setToolsOpen(false);
-          }}
-          onSkills={() => {
-            setTab('skills');
-            setToolsOpen(false);
-          }}
-          onMcpTasks={() => {
-            setTab('mcp-tasks');
-            setToolsOpen(false);
-          }}
-          onProcesses={() => {
-            setTab('processes');
-            setToolsOpen(false);
-          }}
-          onSideEffects={() => {
-            setTab('side-effects');
-            setToolsOpen(false);
-          }}
-          onUsage={() => {
-            setTab('usage');
-            setToolsOpen(false);
-          }}
-          onPlan={() => {
-            setTab('plan');
-            setToolsOpen(false);
-          }}
+          onHistory={openTool('history')}
+          onSkills={openTool('skills')}
+          onMcpTasks={openTool('mcp-tasks')}
+          onProcesses={openTool('processes')}
+          onSideEffects={openTool('side-effects')}
+          onUsage={openTool('usage')}
+          onStory={openTool('story')}
+          onContext={openTool('context')}
+          onPlan={openTool('plan')}
           onProject={() => {
             setToolsOpen(false);
-            onProject();
+            onOpen({ page: 'overview' });
           }}
           onSettings={() => {
             setToolsOpen(false);
             onSettings();
           }}
-          onActivity={() => {
-            setTab('activity');
-            setToolsOpen(false);
-          }}
+          onActivity={openTool('activity')}
         />
       )}
-      {state.error && (
+      {state.error && state.error !== failedRun(state)?.message && (
         <div className="session-error" role="alert">
           {state.error}
         </div>
@@ -348,8 +391,12 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          {agentTabs.bar}
+          {agentTabs.view}
+          {finder.bar}
           <div
             ref={chatPane}
+            hidden={agentTabs.view !== null}
             className="native-chat-messages"
             aria-live="polite"
             onScroll={(event) => {
@@ -357,17 +404,27 @@ export function EngineWorkspace({
               const near = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80;
               if (following.current !== near) {
                 following.current = near;
+                if (!near) leftAt.current = state.messages.length;
                 setShowLatest(!near);
               }
             }}
           >
-            {!state.messages.length && !state.inputs.length && (
+            {/* A conversation read for the first time appears once read to its end, not
+                message by message from its first prompt as if it were starting over. */}
+            {!state.synced && (
+              <div className="native-chat-welcome" role="status">
+                <LoaderCircle size={18} className="spin" />
+                <p>Loading this conversation…</p>
+                {state.replay && <small>{replayProgress(state.replay)}</small>}
+              </div>
+            )}
+            {state.synced && !state.messages.length && !state.inputs.length && (
               <div className="native-chat-welcome">
                 <h2>What should we work on?</h2>
                 {!state.connected && <LoaderCircle size={18} className="spin" />}
               </div>
             )}
-            {(!state.inputs.length || showConversation) && hiddenMessages > 0 && (
+            {state.synced && (!state.inputs.length || showConversation) && hiddenMessages > 0 && (
               <button
                 type="button"
                 className="button secondary small chat-earlier"
@@ -381,34 +438,28 @@ export function EngineWorkspace({
                 {hiddenMessages} not shown)
               </button>
             )}
-            {(!state.inputs.length || showConversation) &&
-              state.messages.slice(hiddenMessages).map((message) => (
-                <article className={`chat-message ${message.role}`} key={message.id}>
-                  <header className={message.role === 'user' ? 'user-chat-label' : undefined}>
-                    <span>{message.role === 'user' ? 'You' : 'WrongStack'}</span>
-                    <CopyButton text={message.text} label="Copy message" />
-                  </header>
-                  <div className={message.role === 'user' ? 'user-chat-body' : undefined}>
-                    {message.role === 'assistant' ? (
-                      <MarkdownContent text={stripNextStepsBlock(message.text)} onLink={openLink} />
-                    ) : (
-                      <UserComposerMessage text={message.text} />
-                    )}
-                    {!!message.attachments?.length && (
-                      <AttachmentPreview items={message.attachments} />
-                    )}
-                  </div>
-                  {state.turnActivity[message.id] && (
-                    <TurnTools
-                      events={state.turnActivity[message.id]!}
-                      onOpenFile={(path) => {
-                        setFileTarget(path);
-                        setTab('files');
-                      }}
-                    />
-                  )}
-                </article>
-              ))}
+            {state.synced &&
+              (!state.inputs.length || showConversation) &&
+              state.messages
+                .slice(hiddenMessages)
+                .map((message, index, shown) => (
+                  <TranscriptMessage
+                    key={message.id}
+                    message={message}
+                    state={state}
+                    onLink={openLink}
+                    onOpenFile={openFile}
+                    command={command}
+                    edit={editAction(message)}
+                    mark={finder.mark(message.id)}
+                    day={dayLabel(message, index ? shown[index - 1] : undefined)}
+                    askAgain={
+                      index === shown.length - 1 && message.role === 'assistant'
+                        ? askAgainAction()
+                        : undefined
+                    }
+                  />
+                ))}
             {state.inputs.map((request) => (
               <InputRequestCard
                 key={request.id}
@@ -427,36 +478,11 @@ export function EngineWorkspace({
                 connected={state.connected}
               />
             ))}
-            {state.running &&
-              !state.inputs.length &&
-              recentEvents.some(
-                (event) =>
-                  ['tool.started', 'tool.progress', 'tool.executed'].includes(event.type) ||
-                  event.type === 'provider.thinking_delta' ||
-                  event.type === 'provider.retry',
-              ) && (
-                <details className="chat-run-activity">
-                  <summary>
-                    Run activity
-                    {liveTools
-                      ? ` · ${liveTools} ${liveTools === 1 ? 'tool call' : 'tool calls'}`
-                      : ''}
-                  </summary>
-                  <SessionActivity
-                    compact
-                    events={recentEvents}
-                    onOpenFile={(path) => {
-                      setFileTarget(path);
-                      setTab('files');
-                    }}
-                  />
-                </details>
-              )}
+            {state.running && !state.inputs.length && (
+              <LiveRunActivity events={state.runTimeline} command={command} onOpenFile={openFile} />
+            )}
             {state.running && (
-              <div className="agent-working">
-                <LoaderCircle size={13} className="spin" />
-                {state.inputs.length ? 'Waiting for your answers…' : 'WrongStack is working…'}
-              </div>
+              <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
             )}
             <div ref={end} />
           </div>
@@ -471,6 +497,8 @@ export function EngineWorkspace({
                 }}
               >
                 Jump to latest
+                {state.messages.length > leftAt.current &&
+                  ` · ${state.messages.length - leftAt.current} new`}
               </button>
             </div>
           )}
@@ -487,7 +515,9 @@ export function EngineWorkspace({
             }}
           />
           <FallbackPicker state={state} send={send} />
+          <ProviderWaitingRoom state={state} command={command} />
           <SessionTodos state={state} command={command} />
+          <ScheduledJobs state={state} />
           <SessionWorklist state={state} command={command} />
           <SessionBrowser
             id={id}
@@ -528,11 +558,7 @@ export function EngineWorkspace({
               projectRoot={projectRoot}
               planDraftStorage={planDraftStorage}
               refineDraftStorage={refineDraftStorage}
-              onNavigate={(target) => {
-                if (target === 'files' || target === 'changes' || target === 'skills')
-                  setTab(target);
-                else onProject(target);
-              }}
+              onNavigate={navigate}
             />
           </div>
         </>
@@ -565,6 +591,29 @@ export function EngineWorkspace({
             command={command}
             onBack={() => setTab('chat')}
             delegations={state.delegations}
+          />
+        </Suspense>
+      ) : tab === 'story' ? (
+        <Suspense fallback={<p role="status">Opening the session story…</p>}>
+          <SessionStory
+            key={state.sessionId}
+            projectId={projectId}
+            projectRoot={projectRoot}
+            state={state}
+            send={send}
+            command={command}
+            onBack={backToChat}
+          />
+        </Suspense>
+      ) : tab === 'context' ? (
+        <Suspense fallback={<p role="status">Opening the context dashboard…</p>}>
+          <SessionContextDashboard
+            key={state.sessionId}
+            projectId={projectId}
+            projectRoot={projectRoot}
+            state={state}
+            command={command}
+            onBack={backToChat}
           />
         </Suspense>
       ) : tab === 'processes' ? (
@@ -607,24 +656,16 @@ export function EngineWorkspace({
             });
           }}
           onRetryPrompt={async (text) => {
-            const capabilities = state.results['session.start']?.['protocolCapabilities'];
-            if (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
-              throw Error('this engine cannot confirm that it accepted the prompt');
-            await command(
-              'user_message',
-              { id: crypto.randomUUID(), content: text, timestamp: Date.now() },
-              ['key.operation_result'],
-            );
+            await resendPrompt(text);
             setTab('chat');
           }}
         />
       ) : tab === 'activity' ? (
         <SessionActivity
           events={state.activity}
-          onOpenFile={(path) => {
-            setFileTarget(path);
-            setTab('files');
-          }}
+          command={command}
+          onOpenFile={openFile}
+          collab={<SessionCollab id={id} state={state} />}
         />
       ) : tab === 'skills' || tab === 'files' || tab === 'changes' ? (
         <ProjectSessionTools
@@ -652,43 +693,7 @@ export function EngineWorkspace({
       ) : (
         <EngineDataView tab={tab} state={state} send={send} onError={onError} />
       )}
-      <EngineUsage state={state} refresh={() => perform('stats.get')} />
-    </div>
-  );
-}
-function UserComposerMessage({ text }: { text: string }) {
-  const view = splitReferenceMessage(text);
-  return (
-    <>
-      {view.text}
-      {view.paths.length > 0 && (
-        <section className="chat-file-references" aria-label="Referenced project files">
-          {view.references.map((ref) => (
-            <code key={referenceKey(ref)}>{referenceLabel(ref)}</code>
-          ))}
-        </section>
-      )}
-    </>
-  );
-}
-function EngineUsage({ state, refresh }: { state: EngineState; refresh: () => void }) {
-  const stats = state.results['stats.get'];
-  const usage = record(stats?.['usage']);
-  const estimate = inlineUsageEstimate(stats);
-  return (
-    <div className="native-usage">
-      <span>{state.running ? 'Working' : state.connected ? 'Ready' : 'Connecting'}</span>
-      {typeof usage['input'] === 'number' && <span>{usage['input'].toLocaleString()} in</span>}
-      {typeof usage['output'] === 'number' && <span>{usage['output'].toLocaleString()} out</span>}
-      {typeof estimate === 'number' && <span>Estimated ${estimate.toFixed(4)}</span>}
-      <button
-        type="button"
-        title="Refresh engine usage"
-        onClick={refresh}
-        disabled={!state.connected}
-      >
-        <RefreshCw size={12} />
-      </button>
+      <SessionStatusBar state={state} command={command} refresh={() => perform('stats.get')} />
     </div>
   );
 }

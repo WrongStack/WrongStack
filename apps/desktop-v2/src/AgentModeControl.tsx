@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -37,6 +38,7 @@ export function AgentModeControl({
   announced: string;
   disabled: boolean;
 }) {
+  const { t } = useDesktopText();
   const [list, setList] = useState<{ modes: AgentMode[]; activeId: string } | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -54,13 +56,11 @@ export function AgentModeControl({
     <label
       className="composer-chip effort-control"
       title={
-        error ||
-        list.modes.find((mode) => mode.id === current)?.description ||
-        'The agent mode for this conversation.'
+        error || list.modes.find((mode) => mode.id === current)?.description || t('agentMode.title')
       }
     >
       <select
-        aria-label="Agent mode"
+        aria-label={t('agentMode.label')}
         value={current}
         disabled={disabled || busy}
         onChange={(event) => {
@@ -75,7 +75,7 @@ export function AgentModeControl({
             .finally(() => setBusy(false));
         }}
       >
-        <option value="default">Default mode</option>
+        <option value="default">{t('agentMode.default')}</option>
         {!known && <option value={current}>{current}</option>}
         {list.modes.map((mode) => (
           <option key={mode.id} value={mode.id}>

@@ -24,7 +24,7 @@ const websocket = {
 vi.mock('@/hooks/useWebSocket', () => ({ useWebSocket: () => websocket }));
 vi.mock('@/hooks/useScrollPosition', () => ({ useScrollPosition: () => ({ current: null }) }));
 vi.mock('@/lib/roster-ws', () => ({ sendRosterMessage: () => Promise.resolve({ roles: [] }) }));
-vi.mock('@/components/MemoryManager/MemoryGraph', () => ({ MemoryGraph: () => <div /> }));
+vi.mock('@wrongstack/project-surfaces/sage/MemoryGraph', () => ({ MemoryGraph: () => <div /> }));
 const enCatalog = await vi.hoisted(async () => {
   // browser-jsdom rewrites import.meta.url to an http URL, so the catalog is
   // read via a cwd-relative path (vitest runs with the package as cwd).
@@ -33,6 +33,27 @@ const enCatalog = await vi.hoisted(async () => {
   return JSON.parse(raw);
 });
 vi.mock('@/i18n', () => {
+  // Catalog-backed: resolves real en values (the vector panel's t() keys are
+  // not enumerable here — it gained useAppTranslation in the i18n port), so
+  // assertions on translated chrome keep working as keys evolve.
+  const resolve = (key: string): string => {
+    if (!key.startsWith('activity:')) return key;
+    let cur: unknown = enCatalog;
+    for (const part of key.slice('activity:'.length).split('.')) {
+      cur = (cur as Record<string, unknown>)?.[part];
+    }
+    return typeof cur === 'string' ? cur : key;
+  };
+  return {
+    useAppTranslation: () => ({
+      t: (key: string) =>
+        ({
+          'activity:memoryManager.tabVectorMemory': 'Vector memory',
+        })[key] ?? resolve(key),
+    }),
+  };
+});
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => {
   // Catalog-backed: resolves real en values (the vector panel's t() keys are
   // not enumerable here — it gained useAppTranslation in the i18n port), so
   // assertions on translated chrome keep working as keys evolve.

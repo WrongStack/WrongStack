@@ -1,5 +1,6 @@
 import { Play, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -23,6 +24,7 @@ export function McpToolRunner({
   onRun: (tool: string, input: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
+  const { t } = useDesktopText();
   const [tools, setTools] = useState<Record<string, unknown>[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
@@ -56,33 +58,35 @@ export function McpToolRunner({
   };
   const run = () => {
     const parsed = parseToolInput(input);
-    if (!parsed.ok) return setInputError(parsed.error);
+    if (!parsed.ok)
+      return setInputError(
+        parsed.reason === 'object'
+          ? t('mcpTools.notObject')
+          : t('mcpTools.notJson', { detail: parsed.detail ?? '' }),
+      );
     onRun(selected, parsed.value);
   };
   const shown = tools.filter((row) =>
     `${row['name']} ${row['description'] ?? ''}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
-    <Modal title={`MCP tools from ${name}`} onClose={onClose}>
+    <Modal title={t('mcpTools.modalTitle', { name })} onClose={onClose}>
       <div className="mcp-content-browser">
         <header>
           <div>
-            <span className="eyebrow">PROFILE CONNECTION · {name}</span>
-            <h2>Run a tool in this conversation</h2>
+            <span className="eyebrow">{t('mcpEditor.eyebrow', { name })}</span>
+            <h2>{t('mcpTools.title')}</h2>
           </div>
           <button
             type="button"
             className="icon-button"
-            aria-label="Close MCP tools"
+            aria-label={t('mcpTools.close')}
             onClick={onClose}
           >
             <X size={18} />
           </button>
         </header>
-        <p>
-          The tool runs as a step of this conversation: its permission rules apply, an approval may
-          be asked in the conversation, and its result is added there for the next turn.
-        </p>
+        <p>{t('mcpTools.intro')}</p>
         {error && (
           <p className="session-error" role="alert">
             {error}
@@ -93,16 +97,16 @@ export function McpToolRunner({
             <label className="mcp-content-search">
               <Search size={14} />
               <input
-                aria-label="Search MCP tools"
+                aria-label={t('mcpTools.search')}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Find a tool…"
+                placeholder={t('mcpTools.placeholder')}
               />
             </label>
-            {loading && <p role="status">Reading MCP tools…</p>}
+            {loading && <p role="status">{t('mcpTools.reading')}</p>}
             <section>
               <h3>
-                Tools <small>{shown.length}</small>
+                {t('mcpTools.tools')} <small>{shown.length}</small>
               </h3>
               {shown.map((row) => (
                 <button
@@ -115,7 +119,7 @@ export function McpToolRunner({
                   <p>{String(row['description'] ?? '')}</p>
                 </button>
               ))}
-              {!loading && !shown.length && <p className="quiet-state">No matching tools.</p>}
+              {!loading && !shown.length && <p className="quiet-state">{t('mcpTools.none')}</p>}
             </section>
           </aside>
           <div className="mcp-content-detail">
@@ -127,15 +131,15 @@ export function McpToolRunner({
                 }}
               >
                 <header>
-                  <span className="eyebrow">TOOL</span>
+                  <span className="eyebrow">{t('mcpTools.eyebrow')}</span>
                   <h3>{selected}</h3>
                   <p>{String(tool['description'] ?? '')}</p>
                 </header>
                 <ToolFields schema={record(tool['inputSchema'])} />
                 <label>
-                  Input (JSON)
+                  {t('mcpTools.input')}
                   <textarea
-                    aria-label="Tool input"
+                    aria-label={t('mcpTools.inputLabel')}
                     rows={8}
                     spellCheck={false}
                     value={input}
@@ -152,11 +156,11 @@ export function McpToolRunner({
                 )}
                 <button type="submit" className="button primary">
                   <Play size={14} />
-                  Run in this conversation
+                  {t('mcpTools.run')}
                 </button>
               </form>
             ) : (
-              <p className="mcp-content-empty">Choose a tool to see its input.</p>
+              <p className="mcp-content-empty">{t('mcpTools.choose')}</p>
             )}
           </div>
         </div>
@@ -166,8 +170,9 @@ export function McpToolRunner({
 }
 
 function ToolFields({ schema }: { schema: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   const fields = schemaFields(schema);
-  if (!fields.length) return <p className="quiet-state">This tool takes no input fields.</p>;
+  if (!fields.length) return <p className="quiet-state">{t('mcpTools.noFields')}</p>;
   return (
     <p className="mcp-tool-fields">
       {fields.map((field) => (

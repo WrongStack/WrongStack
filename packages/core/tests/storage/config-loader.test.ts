@@ -940,6 +940,23 @@ describe('DefaultConfigLoader', () => {
       }),
     );
   });
+
+  it('does not mutate CONFIG_BEHAVIOR_DEFAULTS.log.level when WRONGSTACK_LOG_LEVEL is set (F942)', async () => {
+    const { CONFIG_BEHAVIOR_DEFAULTS } = await import(
+      '../../src/storage/config-loader/defaults.js'
+    );
+    const prev = process.env.WRONGSTACK_LOG_LEVEL;
+    try {
+      process.env.WRONGSTACK_LOG_LEVEL = 'debug';
+      const { loader: l } = loader();
+      const cfg = await l.load();
+      expect(cfg.log.level).toBe('debug');
+      expect(CONFIG_BEHAVIOR_DEFAULTS.log.level).toBe('warn');
+    } finally {
+      if (prev === undefined) delete process.env.WRONGSTACK_LOG_LEVEL;
+      else process.env.WRONGSTACK_LOG_LEVEL = prev;
+    }
+  });
 });
 
 describe('repairConfigDefaults', () => {

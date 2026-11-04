@@ -59,10 +59,13 @@ uncommitted dependencies, verification exceptions, implementation priorities and
 
 ## Product constraints that must survive the handoff
 
-1. All product screens and interactions belong inside the Tauri application. Do not open, embed,
-   iframe or import the WebUI frontend to implement projects, sessions or settings. Reading its
-   source to understand behavior is expected. Sharing engine services and protocol contracts is
-   allowed. Runtime frontend imports must not reach WebUI/HQ/VibeUI UI modules.
+1. All product screens and interactions belong inside the Tauri application. Do not open, embed
+   or iframe the WebUI frontend. Sharing engine services and protocol contracts is allowed.
+   **Owner override (2026-11-03):** the project surfaces the owner rates as the quality bar move
+   into `@wrongstack/project-surfaces` and both apps render the same components, each through its
+   own `SurfaceHost`: SAGE memory (done), then Kanban, Codebase Atlas and Office topology. The
+   desktop must not import WebUI modules outside that package (its CSS imports of the WebUI
+   workbench class files and locale catalogs are the exception that serves these surfaces).
 2. Preserve ownership boundaries:
    - Project: Memory/SAGE, Kanban, Atlas, Chronicle, reviews, Goals/SDD, Automations and other
      project tools open without creating a conversation.

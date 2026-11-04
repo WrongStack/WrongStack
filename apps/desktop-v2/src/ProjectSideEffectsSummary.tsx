@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -73,6 +74,7 @@ export function ProjectSideEffectsSummary({
   /** Opens a conversation's recorded history, when the host can. */
   onOpenSession?: ((sessionId: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [risk, setRisk] = useState(''),
     [summary, setSummary] = useState<SideEffectsSummary | null>(null),
     [busy, setBusy] = useState(false),
@@ -88,7 +90,7 @@ export function ProjectSideEffectsSummary({
         { timeoutMs: 180000 },
       );
       const read = readSideEffectsSummary(reply['sideEffectsSummary']);
-      if (!read) throw Error('This engine does not summarize project side effects yet.');
+      if (!read) throw Error(t('historyView.effects.unsupported'));
       setSummary(read);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -98,16 +100,13 @@ export function ProjectSideEffectsSummary({
   };
   return (
     <details className="project-usage-summary">
-      <summary>Recorded side effects</summary>
-      <p className="field-help">
-        Commands, file writes, packages, network and configuration operations recorded in this
-        project's conversations, newest first.
-      </p>
+      <summary>{t('historyView.effects.title')}</summary>
+      <p className="field-help">{t('historyView.effects.help')}</p>
       <div className="project-side-effect-controls">
         <label>
-          Risk
+          {t('historyView.effects.risk')}
           <select value={risk} disabled={busy} onChange={(event) => setRisk(event.target.value)}>
-            <option value="">All</option>
+            <option value="">{t('historyView.effects.all')}</option>
             {SIDE_EFFECT_RISKS.map((value) => (
               <option key={value} value={value}>
                 {value}
@@ -121,7 +120,11 @@ export function ProjectSideEffectsSummary({
           disabled={busy}
           onClick={() => void load()}
         >
-          {busy ? 'Reading journals…' : summary ? 'Refresh' : 'Summarize side effects'}
+          {busy
+            ? t('historyView.effects.reading')
+            : summary
+              ? t('historyView.effects.refresh')
+              : t('historyView.effects.summarize')}
         </button>
       </div>
       {error && (
@@ -132,10 +135,15 @@ export function ProjectSideEffectsSummary({
       {summary && (
         <>
           <p role="status">
-            {summary.total.toLocaleString()} recorded in {summary.sessionsWithEffects} of{' '}
-            {summary.sessionsScanned} conversations
-            {summary.capped ? ' (the newest conversations up to the scan limit)' : ''}
-            {summary.unreadable ? `; ${summary.unreadable} journals could not be read` : ''}.
+            {t('historyView.effects.total', {
+              total: summary.total.toLocaleString(),
+              with: summary.sessionsWithEffects,
+              scanned: summary.sessionsScanned,
+              capped: summary.capped ? t('historyView.effects.capped') : '',
+              unreadable: summary.unreadable
+                ? t('historyView.effects.unreadable', { n: summary.unreadable })
+                : '',
+            })}
           </p>
           {summary.byRisk.length > 0 && (
             <p>
@@ -147,14 +155,14 @@ export function ProjectSideEffectsSummary({
             </p>
           )}
           {summary.records.length > 0 && (
-            <table aria-label="Recorded side effects">
+            <table aria-label={t('historyView.effects.title')}>
               <thead>
                 <tr>
-                  <th scope="col">When</th>
-                  <th scope="col">Conversation</th>
-                  <th scope="col">Tool</th>
-                  <th scope="col">Risk</th>
-                  <th scope="col">Input / outcome</th>
+                  <th scope="col">{t('historyView.effects.column.when')}</th>
+                  <th scope="col">{t('historyView.effects.column.conversation')}</th>
+                  <th scope="col">{t('historyView.effects.column.tool')}</th>
+                  <th scope="col">{t('historyView.effects.column.risk')}</th>
+                  <th scope="col">{t('historyView.effects.column.input')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,7 +193,7 @@ export function ProjectSideEffectsSummary({
               </tbody>
             </table>
           )}
-          {summary.recordsTruncated && <p>Only the newest 200 records are listed.</p>}
+          {summary.recordsTruncated && <p>{t('historyView.effects.truncated')}</p>}
         </>
       )}
     </details>

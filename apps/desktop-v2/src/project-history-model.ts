@@ -1,7 +1,11 @@
 import { isLive, type Session } from './model';
 
-export function historyTitle(row: Record<string, unknown>, owner?: Session) {
-  return String(row['name'] || owner?.title || row['title'] || 'Untitled conversation');
+export function historyTitle(
+  row: Record<string, unknown>,
+  owner?: Session,
+  untitled = 'Untitled conversation',
+) {
+  return String(row['name'] || owner?.title || row['title'] || untitled);
 }
 export function historyHasContent(row: Record<string, unknown>) {
   return row['isEmpty'] !== true;

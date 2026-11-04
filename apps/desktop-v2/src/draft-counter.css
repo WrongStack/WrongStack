@@ -1,0 +1,23 @@
+.composer-input {
+  position: relative;
+}
+.draft-counter {
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  font-size: 10px;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+.draft-counter > span {
+  opacity: 0.8;
+}
+.draft-counter.tight {
+  font-weight: 600;
+  color: var(--brand-secondary);
+}
+.draft-counter.over {
+  font-weight: 600;
+  color: var(--danger);
+}

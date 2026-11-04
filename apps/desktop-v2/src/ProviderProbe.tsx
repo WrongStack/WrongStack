@@ -1,5 +1,6 @@
 import { Activity } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { type EngineCommand, EngineReplyError } from './engine-operations';
 import { record } from './engine-values';
 
@@ -15,14 +16,19 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 /** One line for a `provider.probe` reply. */
-export function probeOutcome(value: unknown): string {
+export function probeOutcome(
+  value: unknown,
+  words = {
+    status: (status: string) => STATUS_TEXT[status] ?? status,
+    models: (count: number) => `${count} ${count === 1 ? 'model' : 'models'} listed`,
+  },
+): string {
   const result = record(value);
   const status = String(result['status'] ?? '');
-  const parts = [STATUS_TEXT[status] ?? status ?? 'Unknown'];
+  const parts = [status ? words.status(status) : status];
   if (typeof result['httpStatus'] === 'number') parts.push(`HTTP ${result['httpStatus']}`);
   if (typeof result['elapsedMs'] === 'number') parts.push(`${result['elapsedMs']} ms`);
-  if (typeof result['modelCount'] === 'number')
-    parts.push(`${result['modelCount']} ${result['modelCount'] === 1 ? 'model' : 'models'} listed`);
+  if (typeof result['modelCount'] === 'number') parts.push(words.models(result['modelCount']));
   if (typeof result['detail'] === 'string' && result['detail']) parts.push(result['detail']);
   return parts.join(' · ');
 }
@@ -38,6 +44,15 @@ export function ProviderProbe({
   providerId: string;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
+  const words = {
+    status: (status: string) =>
+      t(`providerSettings.probe.status.${status}`, { defaultValue: STATUS_TEXT[status] ?? status }),
+    models: (count: number) =>
+      t(count === 1 ? 'providerSettings.probe.modelOne' : 'providerSettings.probe.modelMany', {
+        n: count,
+      }),
+  };
   const [busy, setBusy] = useState(false),
     [outcome, setOutcome] = useState(''),
     [ok, setOk] = useState<boolean | null>(null);
@@ -49,13 +64,13 @@ export function ProviderProbe({
         'provider.probe',
       ]);
       setOk(reply['ok'] === true);
-      setOutcome(probeOutcome(reply));
+      setOutcome(probeOutcome(reply, words));
     } catch (failure) {
       // A failed probe is a reply with ok:false, which the transport raises with the reply.
       setOk(false);
       setOutcome(
         failure instanceof EngineReplyError && typeof failure.details['status'] === 'string'
-          ? probeOutcome(failure.details)
+          ? probeOutcome(failure.details, words)
           : failure instanceof Error
             ? failure.message
             : String(failure),
@@ -70,10 +85,11 @@ export function ProviderProbe({
         type="button"
         className="button secondary small"
         disabled={busy}
-        aria-label={`Check the endpoint of ${providerId}`}
+        aria-label={t('providerSettings.probe.label', { provider: providerId })}
         onClick={() => void probe()}
       >
-        <Activity size={12} /> {busy ? 'Checking…' : 'Check endpoint'}
+        <Activity size={12} />{' '}
+        {busy ? t('providerSettings.probe.checking') : t('providerSettings.probe.check')}
       </button>
       {outcome && (
         <small role="status" className={ok ? '' : 'session-error'}>

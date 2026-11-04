@@ -29,6 +29,7 @@ import { ExtensionRegistry } from '../extension/registry.js';
 import type { HookRegistry } from '../hooks/registry.js';
 import { ProviderAuthRegistry } from '../registry/provider-auth-registry.js';
 import type { ToolWrapper } from '../registry/tool-registry.js';
+import { resolvePluginManifestConfig } from './config.js';
 import { KERNEL_API_VERSION } from './loader.js';
 import type { PluginAPIInit } from './plugin-api-init.js';
 import { makePluginJev } from './plugin-jev.js';
@@ -204,8 +205,10 @@ export class DefaultPluginAPI implements PluginAPI {
       // solely registered and (re)wrapped is "plugin" or "plugin+plugin".
       // The plugin owns the tool only if EVERY segment is itself — so a core
       // tool ("core") or one another plugin touched ("core+plugin") is denied.
+      const canonical = tr.resolveName(name);
       const ownedSolelyByMe =
-        toolNamesIRegistered.has(name) && currentOwner.split('+').every((seg) => seg === owner);
+        toolNamesIRegistered.has(canonical) &&
+        currentOwner.split('+').every((seg) => seg === owner);
       if (ownedSolelyByMe) return;
 
       // 2026-06-13: Capability-based mutation check for non-official plugins
@@ -241,8 +244,9 @@ export class DefaultPluginAPI implements PluginAPI {
       },
       unregister: (name: string) => {
         this.assertActive();
+        const canonical = tr.resolveName(name);
         assertCanMutateTool(name, 'unregister');
-        toolNamesIRegistered.delete(name);
+        toolNamesIRegistered.delete(canonical);
         return tr.unregister(name);
       },
       wrap: (name: string, wrapper: ToolWrapper) => {
@@ -667,6 +671,20 @@ export function definePlugin<const TOptions extends Record<string, unknown> | un
     // The opts parameter ({ signal }) is accepted by Plugin.setup but the
     // definePlugin factory doesn't need to declare it — the host always passes
     // it at the call site; the factory just doesn't have to care about it.
-    setup: (api: PluginAPI) => factory(api, metadata.defaultConfig as TOptions),
+    setup: (api: PluginAPI) => {
+      const resolved = resolvePluginManifestConfig(
+        {
+          name: metadata.name,
+          ...(metadata.defaultConfig !== undefined
+            ? { defaultConfig: metadata.defaultConfig as Record<string, unknown> }
+            : {}),
+        },
+        api?.config,
+      );
+      const options = (
+        metadata.defaultConfig !== undefined || resolved.configured ? resolved.options : undefined
+      ) as TOptions;
+      return factory(api, options);
+    },
   };
 }

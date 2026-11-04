@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { BTW_STATUS_LABELS, btwReceipts, btwStatus } from './btw-receipts';
+import { btwReceipts, btwStatus } from './btw-receipts';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -19,6 +20,7 @@ export function BtwReceipts({
 }) {
   const notes = useSyncExternalStore(btwReceipts.subscribe, () => btwReceipts.list(sessionId));
   const saveError = useSyncExternalStore(btwReceipts.subscribe, () => btwReceipts.error(sessionId));
+  const { t } = useDesktopText();
   const [mail, setMail] = useState<Map<string, Record<string, unknown>> | null>(null),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
@@ -46,12 +48,9 @@ export function BtwReceipts({
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary>BTW notes · {notes.length}</summary>
-      <section aria-label="BTW receipts">
-        <p className="field-help">
-          Notes sent to this session's leader while it was working, kept on this desktop across
-          restarts. Saved means it is in the mailbox; it does not mean it has been read.
-        </p>
+      <summary>{t('btw.title', { count: notes.length })}</summary>
+      <section aria-label={t('btw.label')}>
+        <p className="field-help">{t('btw.help')}</p>
         {error && (
           <p role="alert" className="session-error">
             {error}
@@ -71,7 +70,7 @@ export function BtwReceipts({
                 <span>{note.text.length > 120 ? `${note.text.slice(0, 119)}…` : note.text}</span>
                 <small>
                   {new Date(note.sentAt).toLocaleTimeString()} ·{' '}
-                  {mail ? BTW_STATUS_LABELS[btwStatus(found)] : 'Checking receipts…'}
+                  {mail ? t(`btw.status.${btwStatus(found)}`) : t('btw.checking')}
                   {readers.length ? ` · ${readers.join(', ')}` : ''}
                 </small>
               </li>
@@ -84,7 +83,7 @@ export function BtwReceipts({
           disabled={busy}
           onClick={() => void refresh()}
         >
-          <RefreshCw size={12} /> Refresh receipts
+          <RefreshCw size={12} /> {t('btw.refresh')}
         </button>
       </section>
     </details>

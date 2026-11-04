@@ -1,3 +1,9 @@
+import { normalizeLiveSessions } from '@wrongstack/project-surfaces/office/feed-model';
+import {
+  deriveMonitorStats,
+  type FleetAggregate,
+} from '@wrongstack/project-surfaces/office/monitor-stats';
+import type { ClientCounts, LiveSession } from '@wrongstack/project-surfaces/office/types';
 import { create } from 'zustand';
 
 // ============================================
@@ -6,11 +12,15 @@ import { create } from 'zustand';
 // Tracks connected clients, mail queue activity, and agent counts
 // for the real-time monitoring dashboard.
 
-export interface ClientCounts {
-  tui: number;
-  webui: number;
-  repl: number;
-}
+export type {
+  ClientCounts,
+  LiveAgent,
+  LiveAgentActivity,
+  LiveMailActivity,
+  LiveSession,
+  LiveTodoItem,
+  LiveToolActivity,
+} from '@wrongstack/project-surfaces/office/types';
 
 export interface MailActivity {
   timestamp: number;
@@ -23,173 +33,11 @@ export interface MailActivity {
   seq?: number;
 }
 
-/** One agent inside a live cross-process session (from sessions.status_update). */
-export interface LiveAgent {
-  id: string;
-  name: string;
-  status: string;
-  currentTool?: string;
-  currentTask?: string;
-  taskId?: string;
-  iterations?: number;
-  toolCalls?: number;
-  costUsd?: number;
-  tokensIn?: number;
-  tokensOut?: number;
-  ctxPct?: number;
-  model?: string;
-  partialText?: string;
-  recentTools?: LiveToolActivity[];
-  recentMail?: LiveMailActivity[];
-  todos?: LiveTodoItem[];
-  latestPrompt?: string;
-  latestPromptAt?: number;
-  activity?: LiveAgentActivity;
-  lastActivityAt?: string;
-}
-
-export interface LiveTodoItem {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  activeForm?: string;
-}
-
-/** Compact completed tool receipt mirrored through the project session registry. */
-export interface LiveToolActivity {
-  id: string;
-  name: string;
-  startedAt: number;
-  completedAt: number;
-  durationMs: number;
-  ok: boolean;
-  input?: unknown;
-  output?: string;
-  inputLines?: number;
-  oldLines?: number;
-  newLines?: number;
-  addedLines?: number;
-  removedLines?: number;
-  outputLines?: number;
-  outputBytes?: number;
-  outputTokens?: number;
-}
-
-/** Compact mail receipt mirrored through the project session registry. */
-export interface LiveMailActivity {
-  id: string;
-  direction: 'incoming' | 'outgoing';
-  from: string;
-  to: string;
-  type: string;
-  subject: string;
-  at: number;
-}
-
-export interface LiveAgentActivity {
-  filesTouched: string[];
-  reads: number;
-  writes: number;
-  edits: number;
-  terminalCalls: number;
-  webCalls: number;
-  searches: number;
-  otherCalls: number;
-  mailReceived: number;
-  mailSent: number;
-  linesRead: number;
-  linesWritten: number;
-  linesAdded: number;
-  linesRemoved: number;
-}
-
-/** Project-wide totals summed across every live session's agents. */
-interface FleetAggregate {
-  toolCalls: number;
-  costUsd: number;
-  tokensIn: number;
-  tokensOut: number;
-}
-
-/** One live session across any surface, as broadcast by the server's
- *  SessionRegistry poll (`sessions.status_update`). This is the cross-process
- *  source of truth the Fleet HQ office map renders from. */
-export interface LiveSession {
-  sessionId: string;
-  pid?: number;
-  /** Surface that owns the session: 'tui' | 'webui' | 'cli'. */
-  clientType?: string;
-  projectName?: string;
-  projectSlug?: string;
-  gitBranch?: string;
-  status?: string;
-  /** UTC ISO when the session was registered — used for uptime. */
-  startedAt?: string;
-  /** Last registry heartbeat proving the terminal process is still live. */
-  lastHeartbeatAt?: string;
-  /** Absolute working directory of the session. */
-  workingDir?: string;
-  agentCount?: number;
-  agents: LiveAgent[];
-}
-
-/** Map a registry surface to one of the office-map client buckets. CLI/REPL
- *  sessions land in the `repl` bucket; anything unknown defaults to `webui`. */
-export function clientBucket(clientType: string | undefined): keyof ClientCounts {
-  switch (clientType) {
-    case 'tui':
-      return 'tui';
-    case 'cli':
-    case 'repl':
-      return 'repl';
-    case 'webui':
-      return 'webui';
-    default:
-      return 'webui';
-  }
-}
-
-/** Derive client counts, agent totals, and project-wide cost/token/tool
- *  aggregates from a live-session snapshot. */
-export function deriveMonitorStats(sessions: LiveSession[]): {
-  clientCounts: ClientCounts;
-  totalAgents: number;
-  activeAgents: number;
-  aggregate: FleetAggregate;
-} {
-  const clientCounts: ClientCounts = { tui: 0, webui: 0, repl: 0 };
-  let totalAgents = 0;
-  let activeAgents = 0;
-  const aggregate: FleetAggregate = { toolCalls: 0, costUsd: 0, tokensIn: 0, tokensOut: 0 };
-  for (const s of sessions) {
-    clientCounts[clientBucket(s.clientType)] += 1;
-    for (const a of s.agents) {
-      totalAgents += 1;
-      if (a.status === 'running' || a.status === 'streaming') activeAgents += 1;
-      aggregate.toolCalls += a.toolCalls ?? 0;
-      aggregate.costUsd += a.costUsd ?? 0;
-      aggregate.tokensIn += a.tokensIn ?? 0;
-      aggregate.tokensOut += a.tokensOut ?? 0;
-    }
-  }
-  return { clientCounts, totalAgents, activeAgents, aggregate };
-}
-
-function clampCtxPct(pct: number | undefined): number | undefined {
-  if (pct === undefined) return undefined;
-  if (!Number.isFinite(pct)) return 0;
-  return Math.max(0, Math.min(100, Math.round(pct)));
-}
-
-function normalizeLiveSessions(sessions: LiveSession[]): LiveSession[] {
-  return sessions.map((session) => ({
-    ...session,
-    agents: session.agents.map((agent) => ({
-      ...agent,
-      ctxPct: clampCtxPct(agent.ctxPct),
-    })),
-  }));
-}
+export {
+  clientBucket,
+  deriveMonitorStats,
+  type FleetAggregate,
+} from '@wrongstack/project-surfaces/office/monitor-stats';
 
 /** Real-time session stats from client.status_update events */
 export interface CurrentSessionStats {

@@ -1,12 +1,23 @@
 import { GitBranch, GitMerge, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
+import { surfaceI18n } from './surface-i18n';
+import { WorktreeHistory } from './WorktreeHistory';
+import {
+  WorktreeGraph,
+  WorktreeLanes,
+  type WorktreeLayout,
+  WorktreeLayoutSwitch,
+} from './WorktreeViews';
 import {
   cleanupOutcome,
   diffSummary,
   mergeOutcome,
   type WorktreeOrphan,
+  type WorktreeSay,
   worktreeOrphans,
   worktreeViews,
 } from './worktree-model';
@@ -24,6 +35,8 @@ type Pending =
  * Results are broadcast, so the newest result of each kind is shown.
  */
 export function ProjectWorktrees({ state, send }: { state: EngineState; send: EngineSend }) {
+  const { t } = useDesktopText();
+  const say: WorktreeSay = (word, values) => t(`worktrees.outcome.${word}`, values ?? {});
   const live = worktreeViews(state.results['worktree.state']);
   const leftovers = worktreeOrphans(state.results['worktree.orphans']);
   const scanned = Boolean(state.results['worktree.orphans']);
@@ -31,6 +44,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
     [error, setError] = useState(''),
     [waiting, setWaiting] = useState(''),
     [outcome, setOutcome] = useState('');
+  const [layout, setLayout] = useState<WorktreeLayout>('list');
   const baseline = useRef<Record<string, unknown>>({});
   const request = (type: string, payload: Record<string, unknown>, resultType: string) => {
     setError('');
@@ -47,8 +61,8 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
     if (!waiting) return;
     const incoming = state.results[waiting];
     if (!incoming || incoming === baseline.current[waiting]) return;
-    if (waiting === 'worktree.cleanup_result') setOutcome(cleanupOutcome(incoming));
-    if (waiting === 'worktree.merge_result') setOutcome(mergeOutcome(incoming));
+    if (waiting === 'worktree.cleanup_result') setOutcome(cleanupOutcome(incoming, say));
+    if (waiting === 'worktree.merge_result') setOutcome(mergeOutcome(incoming, say));
     setWaiting('');
   }, [state.results, waiting]);
   useEffect(() => {
@@ -63,16 +77,20 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
         disabled={Boolean(waiting)}
         onClick={() => request('worktree.diff', { dir }, 'worktree.diff_result')}
       >
-        View changes
+        {t('worktrees.viewChanges')}
       </button>
     ) : null;
   const diffView = (dir: string) =>
     diff.dir === dir &&
     (diff.summary ? (
-      <section className="worktree-diff" aria-label={`Changes in ${dir}`}>
+      <section className="worktree-diff" aria-label={t('worktrees.changesIn', { dir })}>
         <p>
-          {diff.summary.commits} commits ahead · +{diff.summary.insertions} −
-          {diff.summary.deletions} uncommitted in {diff.summary.files.length} files
+          {t('worktrees.diff', {
+            commits: diff.summary.commits,
+            insertions: diff.summary.insertions,
+            deletions: diff.summary.deletions,
+            files: diff.summary.files.length,
+          })}
         </p>
         <ul>
           {diff.summary.files.slice(0, 200).map((file) => (
@@ -83,14 +101,14 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
         </ul>
       </section>
     ) : (
-      <p className="field-help">No change summary is available for this checkout.</p>
+      <p className="field-help">{t('worktrees.noSummary')}</p>
     ));
   const confirmText = (pending: Pending) =>
     pending.kind === 'cleanup'
-      ? `Remove all ${leftovers.orphans.length} leftover worktrees and branches? Uncommitted work in them is lost.`
+      ? t('worktrees.confirmCleanup', { number: leftovers.orphans.length })
       : pending.kind === 'remove'
-        ? `Remove ${pending.orphan.branch || pending.orphan.dir}? Uncommitted work in it is lost.`
-        : `Merge ${pending.branch} into its base branch in the project checkout? Conflicts stop the merge and are listed.`;
+        ? t('worktrees.confirmRemove', { name: pending.orphan.branch || pending.orphan.dir })
+        : t('worktrees.confirmMerge', { branch: pending.branch });
   const apply = (pending: Pending) => {
     setConfirm(null);
     if (pending.kind === 'cleanup') request('worktree.cleanup', {}, 'worktree.cleanup_result');
@@ -106,14 +124,18 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
     else request('worktree.merge', { branch: pending.branch }, 'worktree.merge_result');
   };
   return (
-    <section className="project-worktrees" aria-label="Project worktrees">
+    <section className="project-worktrees" aria-label={t('worktrees.label')}>
       <header className="settings-section-heading">
         <div>
-          <span className="eyebrow">ISOLATED WORK</span>
-          <h2>Worktrees</h2>
+          <span className="eyebrow">{t('worktrees.eyebrow')}</span>
+          <h2>{t('worktrees.title')}</h2>
           <p>
-            Checkouts the engine creates for Goal, SDD and fleet runs. Only managed{' '}
-            <code>wstack/ap/*</code> branches are shown or changed here.
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="worktrees.intro"
+              components={{ code: <code /> }}
+            />
           </p>
         </div>
         <button
@@ -122,7 +144,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
           disabled={Boolean(waiting)}
           onClick={() => request('worktree.scan', {}, 'worktree.orphans')}
         >
-          <RefreshCw size={13} /> Scan again
+          <RefreshCw size={13} /> {t('worktrees.scan')}
         </button>
       </header>
       {error && (
@@ -130,11 +152,18 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
           {error}
         </p>
       )}
-      {waiting && <p role="status">Waiting for the engine…</p>}
+      {waiting && <p role="status">{t('worktrees.waiting')}</p>}
       {outcome && <p role="status">{outcome}</p>}
-      <h3>In use by runs</h3>
+      <div className="worktree-heading">
+        <h3>{t('worktrees.inUse')}</h3>
+        {live.worktrees.length > 0 && <WorktreeLayoutSwitch value={layout} onChange={setLayout} />}
+      </div>
       {live.worktrees.length === 0 ? (
-        <p className="field-help">No run in this engine is using a worktree.</p>
+        <p className="field-help">{t('worktrees.noLive')}</p>
+      ) : layout === 'lanes' ? (
+        <WorktreeLanes worktrees={live.worktrees} baseBranch={live.baseBranch} />
+      ) : layout === 'graph' ? (
+        <WorktreeGraph worktrees={live.worktrees} baseBranch={live.baseBranch} />
       ) : (
         <ul className="worktree-list">
           {live.worktrees.map((worktree) => (
@@ -143,13 +172,20 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
               <div>
                 <strong>{worktree.branch}</strong>
                 <span>
-                  {worktree.ownerLabel} · {worktree.status} · base{' '}
-                  {worktree.baseBranch || live.baseBranch || 'unknown'} · +{worktree.insertions} −
-                  {worktree.deletions} in {worktree.files} files
+                  {t('worktrees.liveLine', {
+                    owner: worktree.ownerLabel,
+                    status: t(`worktreeView.state.${worktree.status}`, {
+                      defaultValue: worktree.status,
+                    }),
+                    base: worktree.baseBranch || live.baseBranch || t('worktrees.unknownBase'),
+                    insertions: worktree.insertions,
+                    deletions: worktree.deletions,
+                    files: worktree.files,
+                  })}
                 </span>
                 {worktree.conflictFiles.length > 0 && (
                   <span className="session-error">
-                    Conflicts: {worktree.conflictFiles.join(', ')}
+                    {t('worktrees.conflicts', { files: worktree.conflictFiles.join(', ') })}
                   </span>
                 )}
                 {worktree.lastError && <span className="session-error">{worktree.lastError}</span>}
@@ -160,11 +196,13 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
           ))}
         </ul>
       )}
-      <h3>Left over</h3>
+      <h3>{t('worktrees.history')}</h3>
+      <WorktreeHistory events={state.worktreeEvents} />
+      <h3>{t('worktrees.leftOver')}</h3>
       {!scanned ? (
-        <p role="status">Scanning managed worktrees…</p>
+        <p role="status">{t('worktrees.scanning')}</p>
       ) : leftovers.orphans.length === 0 ? (
-        <p className="field-help">No leftover worktrees or branches.</p>
+        <p className="field-help">{t('worktrees.noLeftovers')}</p>
       ) : (
         <>
           <ul className="worktree-list">
@@ -173,7 +211,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
                 <GitBranch size={14} />
                 <div>
                   <strong>{orphan.branch || orphan.dir}</strong>
-                  <span>{orphan.kind === 'branch' ? 'Branch without a checkout' : orphan.dir}</span>
+                  <span>{orphan.kind === 'branch' ? t('worktrees.branchOnly') : orphan.dir}</span>
                   <div className="worktree-actions">
                     {changes(orphan.dir)}
                     {orphan.branch && (
@@ -183,7 +221,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
                         disabled={Boolean(waiting)}
                         onClick={() => setConfirm({ kind: 'merge', branch: orphan.branch })}
                       >
-                        <GitMerge size={13} /> Merge
+                        <GitMerge size={13} /> {t('worktrees.merge')}
                       </button>
                     )}
                     <button
@@ -192,7 +230,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
                       disabled={Boolean(waiting)}
                       onClick={() => setConfirm({ kind: 'remove', orphan })}
                     >
-                      <Trash2 size={13} /> Remove
+                      <Trash2 size={13} /> {t('worktrees.remove')}
                     </button>
                   </div>
                   {diffView(orphan.dir)}
@@ -207,10 +245,12 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
             title={leftovers.canClean ? undefined : leftovers.reason}
             onClick={() => setConfirm({ kind: 'cleanup' })}
           >
-            Clean up all leftovers
+            {t('worktrees.cleanup')}
           </button>
           {!leftovers.canClean && leftovers.reason && (
-            <p className="field-help">Cleanup is unavailable: {leftovers.reason}.</p>
+            <p className="field-help">
+              {t('worktrees.cleanupUnavailable', { reason: leftovers.reason })}
+            </p>
           )}
         </>
       )}
@@ -222,10 +262,10 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
             className={`button ${confirm.kind === 'merge' ? 'primary' : 'danger'} small`}
             onClick={() => apply(confirm)}
           >
-            {confirm.kind === 'merge' ? 'Merge' : 'Remove'}
+            {confirm.kind === 'merge' ? t('worktrees.merge') : t('worktrees.remove')}
           </button>
           <button type="button" className="button secondary small" onClick={() => setConfirm(null)}>
-            Keep
+            {t('worktrees.keep')}
           </button>
         </div>
       )}

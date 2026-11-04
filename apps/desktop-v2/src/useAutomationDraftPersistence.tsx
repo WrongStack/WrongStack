@@ -8,6 +8,7 @@ import {
   projectAutomationDrafts,
   type SavedAutomationDrafts,
 } from './automation-draft';
+import { useDesktopText } from './desktop-i18n';
 import { DurableFormDraft } from './durable-form-draft';
 import { projectFormDraftStorage } from './platform';
 
@@ -95,18 +96,20 @@ export function AutomationDraftPersistenceStatus({
   resolve,
   retry,
 }: ReturnType<typeof useAutomationDraftPersistence>) {
+  const { t } = useDesktopText();
   if (state.review)
     return (
       <div className="automation-draft-review" role="alert">
         <p className="automation-draft-review-text">
-          Another window saved different unsaved automation drafts for this project (
-          {Object.keys(state.review.value?.drafts ?? {}).length} job drafts).
+          {t('automation.otherWindow', {
+            drafts: Object.keys(state.review.value?.drafts ?? {}).length,
+          })}
         </p>
         <button type="button" className="button secondary" onClick={() => void resolve('local')}>
-          Keep this window’s drafts
+          {t('automation.keepWindow')}
         </button>
         <button type="button" className="button secondary" onClick={() => void resolve('saved')}>
-          Use saved drafts
+          {t('automation.useSaved')}
         </button>
       </div>
     );
@@ -116,7 +119,7 @@ export function AutomationDraftPersistenceStatus({
         {state.error}{' '}
         {!state.ready && (
           <button type="button" className="text-link" onClick={retry}>
-            Retry loading saved drafts
+            {t('automation.retryDrafts')}
           </button>
         )}
       </p>

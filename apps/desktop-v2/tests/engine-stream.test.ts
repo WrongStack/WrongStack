@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { backendStream } from '../src/engine-stream';
+import { backendStream, DORMANT_STREAM_LIMIT } from '../src/engine-stream';
 import { request } from '../src/platform';
 
 vi.mock('../src/platform', () => ({ request: vi.fn() }));
@@ -37,7 +37,33 @@ describe('shared backend journal reader', () => {
     const after = reads.length;
     await vi.advanceTimersByTimeAsync(1000);
     expect(reads).toHaveLength(after);
-    expect(backendStream('project', 'p1')).not.toBe(stream);
+    // Reopening continues from the position already read, with the state kept meanwhile.
+    expect(backendStream('project', 'p1')).toBe(stream);
+    const titled = stream.state;
+    const stopAgain = stream.subscribe({ changed: vi.fn(), onError: () => {} });
+    expect(stream.state).toBe(titled);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(reads.slice(after).every((offset) => offset === 10)).toBe(true);
+    expect(reads.filter((offset) => offset === 0)).toHaveLength(1);
+    stopAgain();
+  });
+  it('drops the least recently closed readers beyond the dormant limit', async () => {
+    vi.useFakeTimers();
+    mocked.mockImplementation(async (_command, args) => ({
+      offset: (args as { offset: number }).offset + 1,
+      events: [],
+    }));
+    const opened = Array.from({ length: DORMANT_STREAM_LIMIT + 2 }, (_, i) => {
+      const stream = backendStream('engine', `dormant-${i}`);
+      return { stream, stop: stream.subscribe({ changed: () => {}, onError: () => {} }) };
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    for (const { stop } of opened) stop();
+    expect(backendStream('engine', 'dormant-0')).not.toBe(opened[0]!.stream);
+    expect(backendStream('engine', 'dormant-1')).not.toBe(opened[1]!.stream);
+    expect(backendStream('engine', `dormant-${DORMANT_STREAM_LIMIT + 1}`)).toBe(
+      opened.at(-1)!.stream,
+    );
   });
   it('keeps a single reader across a quick unsubscribe and resubscribe', async () => {
     vi.useFakeTimers();

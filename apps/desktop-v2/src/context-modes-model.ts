@@ -65,26 +65,50 @@ export function modeDraft(mode?: ContextMode): ModeDraft {
  * The `context.mode.create`/`update` payload, checked against the engine's rules so a refusal
  * is explained here: 0 ≤ warn ≤ soft ≤ hard ≤ 100 % of the window, whole non-negative counts.
  */
-export function modePayload(draft: ModeDraft) {
+/** How a refused mode draft is explained; English unless the caller words it. */
+export interface ModeWords {
+  id: string;
+  name: string;
+  percent: (label: string) => string;
+  rising: string;
+  count: (label: string) => string;
+  warn: string;
+  soft: string;
+  hard: string;
+  preserveK: string;
+  elise: string;
+}
+const englishModeWords: ModeWords = {
+  id: 'The mode ID uses letters, digits, "-" or "_" (up to 64 characters).',
+  name: 'Give the mode a name.',
+  percent: (label) => `${label} must be a percentage from 0 to 100.`,
+  rising: 'Levels must rise: warning ≤ compaction ≤ hard limit.',
+  count: (label) => `${label} must be a whole number of 0 or more.`,
+  warn: 'The warning level',
+  soft: 'The compaction level',
+  hard: 'The hard limit',
+  preserveK: 'Recent turns kept',
+  elise: 'The elision size',
+};
+
+export function modePayload(draft: ModeDraft, words: ModeWords = englishModeWords) {
   const id = draft.id.trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(id))
-    throw Error('The mode ID uses letters, digits, "-" or "_" (up to 64 characters).');
-  if (!draft.name.trim()) throw Error('Give the mode a name.');
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(id)) throw Error(words.id);
+  if (!draft.name.trim()) throw Error(words.name);
   const share = (value: string, label: string) => {
     const number = Number(value);
     if (!value.trim() || !Number.isFinite(number) || number < 0 || number > 100)
-      throw Error(`${label} must be a percentage from 0 to 100.`);
+      throw Error(words.percent(label));
     return number / 100;
   };
-  const warn = share(draft.warn, 'The warning level');
-  const soft = share(draft.soft, 'The compaction level');
-  const hard = share(draft.hard, 'The hard limit');
-  if (!(warn <= soft && soft <= hard))
-    throw Error('Levels must rise: warning ≤ compaction ≤ hard limit.');
+  const warn = share(draft.warn, words.warn);
+  const soft = share(draft.soft, words.soft);
+  const hard = share(draft.hard, words.hard);
+  if (!(warn <= soft && soft <= hard)) throw Error(words.rising);
   const count = (value: string, label: string) => {
     const number = Number(value);
     if (!value.trim() || !Number.isSafeInteger(number) || number < 0)
-      throw Error(`${label} must be a whole number of 0 or more.`);
+      throw Error(words.count(label));
     return number;
   };
   return {
@@ -92,7 +116,7 @@ export function modePayload(draft: ModeDraft) {
     name: draft.name.trim(),
     description: draft.description.trim(),
     thresholds: { warn, soft, hard },
-    preserveK: count(draft.preserveK, 'Recent turns kept'),
-    eliseThreshold: count(draft.eliseThreshold, 'The elision size'),
+    preserveK: count(draft.preserveK, words.preserveK),
+    eliseThreshold: count(draft.eliseThreshold, words.elise),
   };
 }

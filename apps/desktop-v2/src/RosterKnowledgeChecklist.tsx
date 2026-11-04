@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 
 const lines = (value: string) =>
@@ -20,6 +21,7 @@ export function RosterKnowledgeChecklist({
   command: EngineCommand;
   disabled: boolean;
 }) {
+  const { t } = useDesktopText();
   const [stored, setStored] = useState<string[] | null>(null),
     [text, setText] = useState(''),
     [threshold, setThreshold] = useState('0.5'),
@@ -69,7 +71,7 @@ export function RosterKnowledgeChecklist({
         ['agent-roster.update-knowledge'],
       );
       if (typeof result['error'] === 'string') throw Error(result['error']);
-      setNotice('Knowledge checklist saved for this project.');
+      setNotice(t('knowledge.saved'));
       await load();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -78,20 +80,17 @@ export function RosterKnowledgeChecklist({
     }
   };
   return (
-    <section className="roster-knowledge" aria-label={`Knowledge checklist for ${role}`}>
-      <h4>Knowledge checklist</h4>
-      <p className="field-help">
-        Injected into this role's prompt: what to verify from live sources before answering. One
-        item per line, at most 50 items of 500 characters.
-      </p>
+    <section className="roster-knowledge" aria-label={t('knowledge.label', { role })}>
+      <h4>{t('knowledge.title')}</h4>
+      <p className="field-help">{t('knowledge.help')}</p>
       {stored === null && !error ? (
-        <p role="status">Loading checklist…</p>
+        <p role="status">{t('knowledge.loading')}</p>
       ) : (
         <>
           <label>
-            Checklist items
+            {t('knowledge.items')}
             <textarea
-              aria-label="Knowledge checklist items"
+              aria-label={t('knowledge.itemsLabel')}
               value={text}
               rows={Math.min(10, Math.max(3, items.length + 1))}
               disabled={disabled || busy}
@@ -99,9 +98,9 @@ export function RosterKnowledgeChecklist({
             />
           </label>
           <label>
-            Re-verify below confidence
+            {t('knowledge.threshold')}
             <input
-              aria-label="Knowledge verify threshold"
+              aria-label={t('knowledge.thresholdLabel')}
               type="number"
               min={0}
               max={1}
@@ -113,9 +112,7 @@ export function RosterKnowledgeChecklist({
           </label>
           {(tooLong || !validThreshold) && (
             <p className="field-help" role="alert">
-              {tooLong
-                ? 'Keep at most 50 items of at most 500 characters.'
-                : 'Use a threshold between 0 and 1.'}
+              {tooLong ? t('knowledge.tooLong') : t('knowledge.badThreshold')}
             </p>
           )}
           <div className="feature-actions">
@@ -128,7 +125,7 @@ export function RosterKnowledgeChecklist({
                 setThreshold(String(storedThreshold));
               }}
             >
-              Revert
+              {t('knowledge.revert')}
             </button>
             <button
               type="button"
@@ -136,7 +133,7 @@ export function RosterKnowledgeChecklist({
               disabled={disabled || busy || !changed || tooLong || !validThreshold}
               onClick={() => void save()}
             >
-              {busy ? 'Saving…' : 'Save checklist'}
+              {busy ? t('knowledge.saving') : t('knowledge.save')}
             </button>
           </div>
         </>

@@ -244,12 +244,15 @@ export function createSessionEventBridge(
       const target = resolveWriter();
       if (!target || events.length === 0) return;
 
-      // Clean up sampling state for any tool_call_end or tool_result events in the batch.
+      const allowed: SessionEvent[] = [];
       for (const e of events) {
-        if (e.type === 'tool_call_end' || e.type === 'tool_result') progressCounters.delete(e.id);
+        if (e.type === 'tool_call_end' || e.type === 'tool_result') {
+          progressCounters.delete(e.id);
+        }
+        if (isAllowed(e.type, currentLevel) && shouldSample(e)) {
+          allowed.push(e);
+        }
       }
-
-      const allowed = events.filter((e) => isAllowed(e.type, currentLevel) && shouldSample(e));
       if (allowed.length === 0) return;
       try {
         await target.appendBatch(allowed);

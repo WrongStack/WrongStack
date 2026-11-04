@@ -1,6 +1,7 @@
 import { matchSkillMentions, type SkillMentionCandidate } from '@wrongstack/webui-protocol';
 import { FileText, LoaderCircle, Sparkles } from 'lucide-react';
 import { type MutableRefObject, useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
 import { RuntimeGate } from './RuntimeGate';
 import { useProjectEngine } from './useEngine';
@@ -36,6 +37,7 @@ function ProjectMentionPicker({
   onDismiss: () => void;
   keys: MutableRefObject<((key: string) => void) | null>;
 }) {
+  const { t } = useDesktopText();
   const [error, setError] = useState(''),
     [loading, setLoading] = useState(true),
     [rows, setRows] = useState<Array<{ value: string; description: string }>>([]),
@@ -67,7 +69,7 @@ function ProjectMentionPicker({
             setRows(
               (Array.isArray(result['files']) ? result['files'] : [])
                 .filter((value): value is string => typeof value === 'string')
-                .map((value) => ({ value, description: 'Project file · full read required' })),
+                .map((value) => ({ value, description: '' })),
             );
           else
             setRows(
@@ -108,22 +110,29 @@ function ProjectMentionPicker({
     document.getElementById(`mention-choice-${index}`)?.scrollIntoView({ block: 'nearest' });
   }, [index]);
   return (
-    <section aria-label={kind === 'file' ? 'Project file suggestions' : 'Skill suggestions'}>
+    <section
+      aria-label={
+        kind === 'file' ? t('mentionPicker.fileSuggestions') : t('mentionPicker.skillSuggestions')
+      }
+    >
       <header>
         {kind === 'file' ? <FileText size={14} /> : <Sparkles size={14} />}{' '}
-        {kind === 'file' ? 'Project files' : 'Installed skills'}
-        <small>↑↓ select · Enter/Tab insert · Esc dismiss</small>
+        {kind === 'file' ? t('mentionPicker.files') : t('mentionPicker.skills')}
+        <small>{t('mentionPicker.keys')}</small>
       </header>
       {loading ? (
         <p role="status">
-          <LoaderCircle size={13} className="spin" /> Loading…
+          <LoaderCircle size={13} className="spin" /> {t('mentionPicker.loading')}
         </p>
       ) : error ? (
         <p role="alert">{error}</p>
       ) : !rows.length ? (
-        <p>No matching {kind === 'file' ? 'project files' : 'skills'}.</p>
+        <p>{kind === 'file' ? t('mentionPicker.noFiles') : t('mentionPicker.noSkills')}</p>
       ) : (
-        <div role="listbox" aria-label={kind === 'file' ? 'Project files' : 'Skills'}>
+        <div
+          role="listbox"
+          aria-label={kind === 'file' ? t('mentionPicker.files') : t('mentionPicker.skillsList')}
+        >
           {rows.map((row, i) => (
             <button
               type="button"
@@ -139,7 +148,7 @@ function ProjectMentionPicker({
                 {kind === 'skill' ? '$' : ''}
                 {row.value}
               </strong>
-              <span>{row.description}</span>
+              <span>{kind === 'file' ? t('mentionPicker.fileDescription') : row.description}</span>
             </button>
           ))}
         </div>

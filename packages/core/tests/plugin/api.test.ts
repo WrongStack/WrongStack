@@ -1248,4 +1248,28 @@ describe('DefaultPluginAPI.llm', () => {
     await api.llm!.complete('again');
     expect(calls).toHaveLength(1); // back on the host default provider
   });
+
+  it('allows a plugin to wrap/unregister its own tool by alias and resolves user config in definePlugin (F944)', async () => {
+    const { api, toolRegistry } = mkApi();
+    api.tools.register({
+      ...tool('canonical_tool'),
+      aliases: ['alias_tool'],
+    });
+    expect(() => api.tools.wrap('alias_tool', (orig) => ({ ...orig }))).not.toThrow();
+    expect(api.tools.unregister('alias_tool')).toBe(true);
+    expect(toolRegistry.get('canonical_tool')).toBeUndefined();
+
+    const { definePlugin } = await import('../../src/plugin/api.js');
+    let observedThreshold = 0;
+    const plug = definePlugin(
+      { name: 'cfg-plug', defaultConfig: { threshold: 10 } },
+      (_api, opts) => {
+        observedThreshold = opts.threshold;
+      },
+    );
+    await plug.setup({
+      config: { extensions: { 'cfg-plug': { threshold: 42 } } },
+    } as never);
+    expect(observedThreshold).toBe(42);
+  });
 });

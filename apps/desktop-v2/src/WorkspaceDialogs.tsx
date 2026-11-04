@@ -14,6 +14,7 @@ import {
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { visibleSessions } from './model';
+import { PaletteActions } from './PaletteActions';
 import { openPreview } from './platform';
 
 import type { DesktopController } from './useDesktop';
@@ -225,6 +226,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                     <ArrowRight size={15} />
                   </button>
                 ))}
+              <PaletteActions vm={vm} search={search} />
               {!snapshot.projects.length && (
                 <p className="quiet-state">Connect your first project to get started.</p>
               )}

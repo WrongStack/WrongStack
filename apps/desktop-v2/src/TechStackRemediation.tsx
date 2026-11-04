@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
-import { techLabel, techPlanKey, techPlanSelectionIsCurrent } from './techstack-model';
+import { techPlanKey, techPlanSelectionIsCurrent } from './techstack-model';
+import { techWord } from './techstack-text';
 
 export function TechStackRemediation({
   http,
@@ -12,6 +14,7 @@ export function TechStackRemediation({
   snapshotId: string;
   onChanged: () => void;
 }) {
+  const { t } = useDesktopText();
   const [plan, setPlan] = useState<Record<string, unknown> | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [review, setReview] = useState(false);
@@ -44,7 +47,7 @@ export function TechStackRemediation({
         setPlan(latest);
         setSelected([]);
         setReview(false);
-        throw Error('The plan changed. Review its current targets and select items again.');
+        throw Error(t('techRemedy.planChanged'));
       }
       const response = record(
         await http('/api/techstack/remediation/apply', 'POST', {
@@ -67,14 +70,11 @@ export function TechStackRemediation({
   };
   const items = entries(plan?.['items']);
   return (
-    <section className="tech-remediation" aria-label="Dependency remediation">
+    <section className="tech-remediation" aria-label={t('techRemedy.label')}>
       <header className="tech-section-heading">
         <div>
-          <h2>Review the next changes</h2>
-          <p>
-            Choose individual package operations and review their targets before requesting
-            execution.
-          </p>
+          <h2>{t('techRemedy.title')}</h2>
+          <p>{t('techRemedy.intro')}</p>
         </div>
         <button
           type="button"
@@ -82,7 +82,7 @@ export function TechStackRemediation({
           disabled={busy}
           onClick={() => void load()}
         >
-          Refresh plan
+          {t('techRemedy.refresh')}
         </button>
       </header>
       {error && (
@@ -91,12 +91,11 @@ export function TechStackRemediation({
         </p>
       )}
       {!plan ? (
-        !error && <p role="status">Building the upgrade plan…</p>
+        !error && <p role="status">{t('techRemedy.building')}</p>
       ) : (
         <>
           <p className="field-help">
-            Plan generated {String(plan['generatedAt'])}. Execution uses the engine’s package
-            permission flow.
+            {t('techRemedy.generated', { at: String(plan['generatedAt']) })}
           </p>
           {items.length ? (
             items.map((item, index) => {
@@ -106,7 +105,10 @@ export function TechStackRemediation({
                   <label>
                     <input
                       type="checkbox"
-                      aria-label={`Select ${item['dependencyName']} in ${item['workspaceId']}`}
+                      aria-label={t('techRemedy.select', {
+                        name: String(item['dependencyName']),
+                        workspace: String(item['workspaceId']),
+                      })}
                       checked={selected.includes(key)}
                       disabled={busy || review}
                       onChange={(e) =>
@@ -117,15 +119,16 @@ export function TechStackRemediation({
                     />
                     <strong>{String(item['dependencyName'])}</strong>
                     <span>
-                      {techLabel(item['severity'])} · {techLabel(item['action'])}
+                      {techWord(item['severity'], t)} · {techWord(item['action'], t)}
                     </span>
                   </label>
                   <small>
-                    {String(item['ecosystem'])} · workspace {String(item['workspaceId'])}
+                    {String(item['ecosystem'])} ·{' '}
+                    {t('techRemedy.workspace', { id: String(item['workspaceId']) })}
                   </small>
                   <p>
-                    {String(item['currentVersion'] ?? 'Not reported')} →{' '}
-                    {String(item['targetVersion'] ?? 'No explicit version target')}
+                    {String(item['currentVersion'] ?? t('techRemedy.notReported'))} →{' '}
+                    {String(item['targetVersion'] ?? t('techRemedy.noTarget'))}
                   </p>
                   <p>{String(item['rationale'] ?? '')}</p>
                   {typeof item['breakingRisk'] === 'string' && (
@@ -133,7 +136,7 @@ export function TechStackRemediation({
                   )}
                   {typeof item['suggestedCommand'] === 'string' && (
                     <details>
-                      <summary>Informational command</summary>
+                      <summary>{t('techRemedy.command')}</summary>
                       <code>{item['suggestedCommand']}</code>
                     </details>
                   )}
@@ -141,22 +144,19 @@ export function TechStackRemediation({
               );
             })
           ) : (
-            <p>No remediation actions in this snapshot.</p>
+            <p>{t('techRemedy.noActions')}</p>
           )}
           {review ? (
             <div className="tech-plan-confirm">
-              <h3>Execute {selected.length} selected operations?</h3>
-              <p>
-                These operations can change project manifests and lockfiles. Review the selected
-                versions above.
-              </p>
+              <h3>{t('techRemedy.confirmTitle', { number: selected.length })}</h3>
+              <p>{t('techRemedy.confirmBody')}</p>
               <button
                 type="button"
                 className="button secondary"
                 disabled={busy}
                 onClick={() => setReview(false)}
               >
-                Keep reviewing plan
+                {t('techRemedy.keepReviewing')}
               </button>
               <button
                 type="button"
@@ -164,7 +164,7 @@ export function TechStackRemediation({
                 disabled={busy}
                 onClick={() => void apply()}
               >
-                {busy ? 'Waiting for the engine…' : 'Execute selected operations'}
+                {busy ? t('techRemedy.waiting') : t('techRemedy.execute')}
               </button>
             </div>
           ) : (
@@ -174,18 +174,18 @@ export function TechStackRemediation({
               disabled={busy || !selected.length}
               onClick={() => setReview(true)}
             >
-              Review {selected.length} selected operations
+              {t('techRemedy.review', { number: selected.length })}
             </button>
           )}
         </>
       )}
       {result && (
         <section role="status">
-          <h3>{result['dryRun'] === true ? 'Plan preview' : 'Execution results'}</h3>
+          <h3>{result['dryRun'] === true ? t('techRemedy.preview') : t('techRemedy.results')}</h3>
           {entries(result['items']).map((item, index) => (
             <article className="tech-plan-item" key={index}>
               <strong>
-                {String(item['dependencyName'])} · {techLabel(item['status'])}
+                {String(item['dependencyName'])} · {techWord(item['status'], t)}
               </strong>
               {typeof item['detail'] === 'string' && <p>{item['detail']}</p>}
             </article>

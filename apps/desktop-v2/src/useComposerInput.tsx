@@ -2,12 +2,10 @@ import { detectSkillMention, insertSkillMention } from '@wrongstack/webui-protoc
 import { Terminal } from 'lucide-react';
 import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { ComposerMentionPicker } from './ComposerMentionPicker';
-import {
-  type ComposerFileReference,
-  desktopCommands,
-  fileMention,
-  withReference,
-} from './composer-resources-model';
+import { type ComposerFileReference, fileMention, withReference } from './composer-resources-model';
+import { commandDescription } from './desktop-command-text';
+import { matchDesktopCommands } from './desktop-commands';
+import { useDesktopText } from './desktop-i18n';
 import type { ChatMessage } from './engine-state';
 import { recallHistory } from './journal-recall';
 
@@ -31,6 +29,7 @@ export function useComposerInput({
   projectId: string;
   textarea: RefObject<HTMLTextAreaElement | null>;
 }) {
+  const { t } = useDesktopText();
   const [cursor, setCursor] = useState(draft.length),
     [dismissed, setDismissed] = useState(''),
     [commandIndex, setCommandIndex] = useState(0);
@@ -42,15 +41,7 @@ export function useComposerInput({
   const file = dismissed === identity || skill ? null : fileMention(draft, cursor);
   const commandQuery =
     dismissed !== identity && /^\/[\w!-]*$/.test(draft) ? draft.toLowerCase() : null;
-  const commands =
-    commandQuery === null
-      ? []
-      : desktopCommands.filter(
-          (command) =>
-            command.name.startsWith(commandQuery) ||
-            ('aliases' in command &&
-              command.aliases.some((alias) => alias.startsWith(commandQuery))),
-        );
+  const commands = commandQuery === null ? [] : matchDesktopCommands(commandQuery);
   const replace = (text: string, nextCursor = text.length) => {
     pending.current = { text, cursor: nextCursor };
     onDraftChange(text);
@@ -144,13 +135,13 @@ export function useComposerInput({
     ) : commandQuery !== null && commands.length ? (
       <section
         className="composer-mention-popup command-suggestions"
-        aria-label="Desktop command suggestions"
+        aria-label={t('commandHelp.suggestions')}
       >
         <header>
-          <Terminal size={14} /> Desktop commands
-          <small>↑↓ select · Enter/Tab complete · Enter again runs</small>
+          <Terminal size={14} /> {t('commandHelp.title')}
+          <small>{t('commandHelp.suggestKeys')}</small>
         </header>
-        <div role="listbox" aria-label="Desktop commands">
+        <div role="listbox" aria-label={t('commandHelp.title')}>
           {commands.map((command, i) => (
             <button
               type="button"
@@ -160,8 +151,11 @@ export function useComposerInput({
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => replace(`${command.name} `)}
             >
-              <strong>{command.name}</strong>
-              <span>{command.description}</span>
+              <strong>
+                {command.name}
+                {command.usage && <small> {command.usage}</small>}
+              </strong>
+              <span>{commandDescription(command, t)}</span>
             </button>
           ))}
         </div>

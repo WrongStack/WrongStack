@@ -38,6 +38,16 @@ describe('completed-turn suggestions', () => {
       'Add selected to draft',
     ])
       expect(html).toContain(text);
+    expect(html).not.toContain('Your message');
+    const sendable = renderToStaticMarkup(
+      createElement(NextStepsPanel, {
+        steps: state.nextSteps,
+        onAdd: () => {},
+        onSend: async () => true,
+      }),
+    );
+    expect(sendable).toContain('Your message');
+    expect(sendable).toMatch(/disabled="">.*Send 0 steps<\/button>/s);
     state = reduceEngine(state, {
       type: 'desktop.user_message',
       payload: { sessionId: 'one', id: 'new', content: 'Continue' },

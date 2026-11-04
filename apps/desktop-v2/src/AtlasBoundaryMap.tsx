@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { atlasBoundaries } from './atlas-boundary-model';
+import { useDesktopText } from './desktop-i18n';
 import { GraphCanvas } from './GraphCanvas';
 import type { VisualGraph } from './graph-model';
 import './atlas-boundaries.css';
@@ -15,6 +16,7 @@ export function AtlasBoundaryMap({
   onOpen: (id: string) => void;
   nodeLimit?: number | null;
 }) {
+  const { t } = useDesktopText();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState('');
   const projection = useMemo(() => atlasBoundaries(graph, expanded), [graph, expanded]);
@@ -47,14 +49,11 @@ export function AtlasBoundaryMap({
       )
     : [];
   return (
-    <section className="atlas-boundaries" aria-label="Collapsible subsystem map">
+    <section className="atlas-boundaries" aria-label={t('atlasBoundary.label')}>
       <header>
         <div>
-          <h3>Boundary map</h3>
-          <p>
-            Open a subsystem to inspect its code. Arrows follow stored references in the current
-            filtered scope.
-          </p>
+          <h3>{t('atlasBoundary.title')}</h3>
+          <p>{t('atlasBoundary.intro')}</p>
         </div>
         <button
           type="button"
@@ -65,10 +64,10 @@ export function AtlasBoundaryMap({
             setSelected('');
           }}
         >
-          Collapse all subsystems
+          {t('atlasBoundary.collapseAll')}
         </button>
       </header>
-      <fieldset className="boundary-groups" aria-label="Subsystem expansion controls">
+      <fieldset className="boundary-groups" aria-label={t('atlasBoundary.controls')}>
         {[...projection.groups.values()].map((name) => (
           <button
             type="button"
@@ -76,7 +75,9 @@ export function AtlasBoundaryMap({
             aria-expanded={expanded.has(name)}
             onClick={() => toggle(name)}
           >
-            {expanded.has(name) ? 'Collapse' : 'Expand'} {name}
+            {expanded.has(name)
+              ? t('atlasBoundary.collapse', { name })
+              : t('atlasBoundary.expand', { name })}
           </button>
         ))}
       </fieldset>
@@ -85,31 +86,29 @@ export function AtlasBoundaryMap({
         selected={active?.id ?? ''}
         onSelect={choose}
         onActivate={activate}
-        label="Subsystem boundary graph"
-        empty="No indexed nodes match the current filters."
+        label={t('atlasBoundary.graph')}
+        empty={t('atlasViews.noNodes')}
         layout="layers"
         minimap
         directed
         nodeLimit={nodeLimit}
       />
       {nodeLimit !== null && projection.graph.nodes.length > nodeLimit && (
-        <p>
-          Smart map shows up to {nodeLimit} nodes. Inspect every loaded member in the subsystem
-          lists below or choose All nodes.
-        </p>
+        <p>{t('atlasBoundary.limit', { number: nodeLimit })}</p>
       )}
       <p className="boundary-legend">
-        {projection.graph.nodes.length} projected nodes · {projection.graph.edges.length} directed
-        relation groups. Internal references stay inside closed subsystems; edge weights sum stored
-        weights, and reference counts count records.
+        {t('atlasBoundary.legend', {
+          nodes: projection.graph.nodes.length,
+          edges: projection.graph.edges.length,
+        })}
       </p>
       {active && (
-        <aside aria-label="Selected subsystem boundary" className="boundary-detail">
+        <aside aria-label={t('atlasBoundary.selected')} className="boundary-detail">
           <h4>{active.label}</h4>
           <p>{active.detail}</p>
           {group !== undefined && (
             <button type="button" className="button secondary small" onClick={() => toggle(group)}>
-              Expand {group}
+              {t('atlasBoundary.expand', { name: group })}
             </button>
           )}
           {typeof original === 'string' && (
@@ -118,10 +117,10 @@ export function AtlasBoundaryMap({
               className="button secondary small"
               onClick={() => onOpen(original)}
             >
-              Explore {active.label}
+              {t('atlasBoundary.explore', { name: active.label })}
             </button>
           )}
-          <h4>Directed boundary references</h4>
+          <h4>{t('atlasBoundary.references')}</h4>
           {links.length ? (
             <ul>
               {links.map((edge, index) => (
@@ -134,13 +133,13 @@ export function AtlasBoundaryMap({
                     {projection.graph.nodes.find((node) => node.id === edge.target)?.label}
                   </button>
                   <small>
-                    {edge.label} · stored weight {edge.weight}
+                    {t('atlasBoundary.weight', { label: edge.label, weight: edge.weight })}
                   </small>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>No boundary references in the current filtered scope.</p>
+            <p>{t('atlasBoundary.none')}</p>
           )}
         </aside>
       )}

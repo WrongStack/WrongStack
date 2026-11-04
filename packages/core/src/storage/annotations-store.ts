@@ -278,7 +278,7 @@ export class AnnotationsStore {
     try {
       await this.enqueue(input.sessionId, async () => {
         await withFileLock(fp, async () => {
-          const all = await this.list(input.sessionId);
+          const all = (await this.readFile(input.sessionId))?.annotations ?? [];
           const idx = all.findIndex((a) => a.id === input.annotationId);
           if (idx === -1) {
             updated = null;

@@ -239,3 +239,25 @@
   gap: 6px;
   font-size: 12px;
 }
+.brain-rules > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brain-rules ol {
+  margin: 12px 0 0;
+  padding-left: 22px;
+}
+.brain-rules-dropped {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: 12px;
+}
+.brain-rules-dropped p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}

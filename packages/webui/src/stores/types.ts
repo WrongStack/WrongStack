@@ -1,4 +1,5 @@
 import type { Usage } from '@wrongstack/contracts/types';
+import type { CouncilDecisionData } from '@wrongstack/project-surfaces/council/types';
 import type { BugHuntLimit, BugHuntMode } from '@/lib/bug-hunt-message';
 import type { PerfRunMetric, PerfRunMode } from '@/lib/perf-run-message';
 
@@ -6,30 +7,11 @@ import type { PerfRunMetric, PerfRunMode } from '@/lib/perf-run-message';
 // Shared Types
 // ============================================
 
-export type CouncilVoteStatus = 'valid' | 'invalid' | 'failed' | 'cancelled';
-
-/** One council seat's observable vote. No hidden chain-of-thought is retained. */
-export interface CouncilSeatVote {
-  seatId: string;
-  persona: string;
-  status: CouncilVoteStatus | string;
-  /** The option this seat voted for, on an option-bearing question. */
-  optionId?: string | undefined;
-  /** Free-text stance / rationale; only present when trace content is full. */
-  stance?: string | undefined;
-  rationale?: string | undefined;
-  providerId?: string | undefined;
-  model?: string | undefined;
-  veto?: boolean | undefined;
-  weight?: number | undefined;
-  durationMs?: number | undefined;
-  error?: string | undefined;
-  /** Deliberation round this ballot came from; 1 is the independent round. */
-  round?: number | undefined;
-  /** The seat changed its vote after seeing the other seats' ballots. */
-  changed?: boolean | undefined;
-  at: number;
-}
+export type {
+  CouncilDecisionData,
+  CouncilSeatVote,
+  CouncilVoteStatus,
+} from '@wrongstack/project-surfaces/council/types';
 
 export interface ToolExecution {
   id: string;
@@ -198,33 +180,6 @@ export interface ChatMessage {
   brainDecision?: BrainDecisionData | undefined;
 }
 
-export interface CouncilDecisionData {
-  requestId?: string | undefined;
-  phase?: 'voting' | 'resolved' | undefined;
-  startedAt?: number | undefined;
-  resolvedAt?: number | undefined;
-  status?: string | undefined;
-  resolution?: string | undefined;
-  optionId?: string | undefined;
-  question?: string | undefined;
-  reason?: string | undefined;
-  configuredSeatCount?: number | undefined;
-  validVoteCount?: number | undefined;
-  distinctTargetCount?: number | undefined;
-  judgeUsed?: boolean | undefined;
-  judgeModel?: string | undefined;
-  /** The tie-breaker had already cast one of the votes it is breaking. */
-  judgeIsVoter?: boolean | undefined;
-  judgeRationale?: string | undefined;
-  totalTokens?: number | undefined;
-  durationMs?: number | undefined;
-  /** Deliberation rounds run (1 = none) and seats that moved in the last one. */
-  rounds?: number | undefined;
-  deliberationChanges?: number | undefined;
-  warnings?: string[] | undefined;
-  seats: CouncilSeatVote[];
-}
-
 export interface BrainDecisionData {
   id?: string | undefined;
   kind: 'answered' | 'denied' | 'ask_human' | 'intervention' | 'check' | 'direct' | string;
@@ -276,164 +231,12 @@ export interface SessionHistoryEntry {
   isCurrent: boolean;
 }
 
-export type AgentTranscriptKind =
-  | 'text'
-  | 'thinking'
-  | 'tool_use'
-  | 'tool_result'
-  | 'error'
-  | 'status'
-  | 'system';
-
-export interface AgentTranscriptEntry {
-  id: string;
-  subagentId: string;
-  sessionId?: string | undefined;
-  agentName: string;
-  content: string;
-  kind: AgentTranscriptKind;
-  iteration: number;
-  ts: string;
-  toolName?: string | undefined;
-  toolOk?: boolean | undefined;
-  costUsd?: number | undefined;
-  status?: string | undefined;
-}
-
-/** One live (or just-finished) subagent in the fleet roster. */
-export interface SubagentView {
-  id: string;
-  /** Session this agent belongs to — ties the agent to a specific project/session.
-   *  Used to filter/cleanup agents on project switch. */
-  sessionId?: string | undefined;
-  /** Display name — the leader-assigned nickname (may be multi-word, e.g.
-   *  "Von Neumann"). Falls back to the raw id until `spawned` names it. */
-  name: string;
-  status: 'running' | 'completed' | 'failed' | 'timeout' | 'stopped';
-  provider?: string | undefined;
-  model?: string | undefined;
-  description?: string | undefined;
-  taskId?: string | undefined;
-  /** Latest iteration index from iteration_summary. */
-  iteration: number;
-  /** Cumulative tool calls (authoritative from iteration_summary, live-bumped
-   *  by tool_executed between summaries). */
-  toolCalls: number;
-  costUsd: number;
-  /** Tool the agent says it's running right now (iteration_summary). */
-  currentTool?: string | undefined;
-  /** Most-recent completed tool name (tool_executed). */
-  lastTool?: string | undefined;
-  /** Context-window load 0–100. */
-  ctxPct: number;
-  ctxTokens: number;
-  maxContext: number;
-  /** How many times this agent self-extended its budget. */
-  extensions: number;
-  error?: { kind: string | undefined; message: string };
-  startedAt: number;
-  completedAt?: number | undefined;
-  /** Accumulated partial text from periodic iteration_summary snapshots.
-   *  Last ~200 chars of the subagent's streaming output — gives live
-   *  visibility into what the subagent is writing. */
-  partialText?: string | undefined;
-  /** Final output text from task_completed — the subagent's complete response. */
-  finalText?: string | undefined;
-  /** Running log of tool executions: name, ok/fail, duration. Most recent
-   *  first, capped at ~50 entries to avoid memory bloat on long runs. */
-  toolLog: Array<{ name: string; ok: boolean; durationMs: number; at: number }>;
-  /** 12-bin activity sparkline (0–12, one per 2-second bucket). Each value
-   *  is the count of events in that bucket, normalized to 0–12 for display.
-   *  Updated on tool_executed and iteration_summary events. */
-  sparklineBins: number[];
-  /** Budget warning: subagent hit a soft limit and coordinator is auto-extending.
-   *  Rendered as "⚡ hitting {kind} limit ({used}/{limit}) — extending". */
-  budgetWarning?: { kind: string; used: number; limit: number } | undefined;
-  /** Human-readable reason for terminal failure when status is failed/timeout.
-   *  E.g. "provider_auth", "rate_limit", "timeout", "budget_iterations". */
-  failureReason?: string | undefined;
-  /** True when this is the leader agent (vs. a spawned subagent). */
-  isLeader?: boolean | undefined;
-  /** Per-agent token usage (from ctx_pct event). ctxPct is display-capped at 100. */
-  tokensIn?: number | undefined;
-  tokensOut?: number | undefined;
-}
-
-/** Discriminated payload mirroring the subagent.* events the backend forwards. */
-export interface SubagentEvent {
-  kind:
-    | 'spawned'
-    | 'task_started'
-    | 'tool_executed'
-    | 'iteration_summary'
-    | 'budget_warning'
-    | 'budget_extended'
-    | 'ctx_pct'
-    | 'task_completed'
-    | 'removed'
-    | 'session_stopped'
-    | 'leader_updated';
-  subagentId?: string | undefined;
-  /** Session this agent belongs to — forwarded from the server on every subagent event. */
-  sessionId?: string | undefined;
-  name?: string | undefined;
-  provider?: string | undefined;
-  model?: string | undefined;
-  description?: string | undefined;
-  taskId?: string | undefined;
-  toolName?: string | undefined;
-  iteration?: number | undefined;
-  toolCalls?: number | undefined;
-  costUsd?: number | undefined;
-  currentTool?: string | undefined;
-  load?: number | undefined;
-  rawLoad?: number | undefined;
-  tokens?: number | undefined;
-  maxContext?: number | undefined;
-  totalExtensions?: number | undefined;
-  /** Budget warning details from subagent.budget_warning. */
-  budgetKind?: string | undefined;
-  used?: number | undefined;
-  limit?: number | undefined;
-  status?: 'success' | 'failed' | 'timeout' | 'stopped' | undefined;
-  iterations?: number | undefined;
-  error?: { kind: string | undefined; message: string };
-  /** Tool execution result (tool_executed event). */
-  ok?: boolean | undefined;
-  /** Tool execution duration in ms (tool_executed event). */
-  durationMs?: number | undefined;
-  /** Accumulated partial text (iteration_summary event). */
-  partialText?: string | undefined;
-  /** Final output text (task_completed event). */
-  finalText?: string | undefined;
-  /** Failure reason for task_completed with failed/timeout status. */
-  failureReason?: string | undefined;
-  /** Lifecycle removal reason, when kind is removed. */
-  reason?: string | undefined;
-  /** True when this event marks the agent as the leader. */
-  isLeader?: boolean | undefined;
-  /** Tokens in/out for fleet-wide aggregation (from ctx_pct event). */
-  tokensIn?: number | undefined;
-  tokensOut?: number | undefined;
-}
-
-/** A single entry in the Fleet Monitor event timeline. */
-export interface FleetTimelineEvent {
-  id: string;
-  kind:
-    | 'spawned'
-    | 'task_started'
-    | 'tool_executed'
-    | 'iteration_summary'
-    | 'budget_warning'
-    | 'budget_extended'
-    | 'task_completed'
-    | 'ctx_pct'
-    | 'leader_updated';
-  agentId: string;
-  agentName: string;
-  timestamp: number;
-  message: string;
-  /** Numeric value for sorting/display (e.g. duration, cost delta). */
-  value?: number | undefined;
-}
+export type {
+  FleetTimelineEvent,
+  SubagentEvent,
+} from '@wrongstack/project-surfaces/office/fleet-transcript';
+export type {
+  AgentTranscriptEntry,
+  AgentTranscriptKind,
+  SubagentView,
+} from '@wrongstack/project-surfaces/office/types';

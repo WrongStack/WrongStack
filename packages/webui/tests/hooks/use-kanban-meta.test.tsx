@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (msg: { payload?: unknown }) => void;
 
@@ -153,16 +153,16 @@ describe('useKanbanMeta', () => {
     expect(seenUrls).toContain('ws://localhost:3456');
   });
 
-  it('re-subscribes against the new URL when wsUrl changes', () => {
+  it('keeps one subscription when the configured URL changes', () => {
+    // The WebUI client is a process singleton: the URL only picks it on first creation, so a
+    // later change re-subscribes nothing and must not leave a second listener behind.
     const { rerender } = renderHook(() => useKanbanMeta(true));
     expect(handlers.get('kanban.meta')?.size).toBe(1);
     act(() => {
       useConfigStore.setState({ wsUrl: 'ws://localhost:9999' } as never);
     });
     rerender();
-    // Old subscription torn down, exactly one live listener remains.
     expect(handlers.get('kanban.meta')?.size).toBe(1);
-    expect(seenUrls).toContain('ws://localhost:9999');
   });
 
   it('unsubscribes on unmount', () => {

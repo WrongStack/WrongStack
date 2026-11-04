@@ -36,6 +36,37 @@ vi.mock('../../src/i18n', () => {
   };
 });
 
+vi.mock('@wrongstack/project-surfaces/lib/i18n', () => {
+  const EN_COPY: Record<string, string> = {
+    'activity:kanban.workbench.loading': 'Loading project workbench…',
+    'activity:kanban.workbench.loadError': 'Project workbench could not be loaded: {{error}}',
+    'activity:kanban.workbench.notLoaded': 'Project workbench has not been loaded yet.',
+    'activity:kanban.workbench.retry': 'Retry workbench',
+    'activity:kanban.workbench.headerLabel': 'Project workbench',
+    'activity:kanban.workbench.headline': 'One truthful view of every active board',
+    'activity:kanban.workbench.description':
+      'Session mirrors remain tactical; managed cards remain durable.',
+    'activity:kanban.workbench.metricBoards': 'BOARDS',
+    'activity:kanban.workbench.metricActive': 'ACTIVE',
+    'activity:kanban.workbench.metricAlerts': 'ALERTS',
+    'activity:kanban.workbench.attentionRequired': 'Attention required · {{count}}',
+    'activity:kanban.workbench.moreAlertsHidden':
+      '{{count}} more alerts hidden by the bounded view',
+    'activity:kanban.workbench.noWorkInLane': 'No work in this lane',
+    'activity:kanban.workbench.moreCardsHidden': '{{count}} more cards hidden to keep focus',
+  };
+  return {
+    useAppTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        const template = EN_COPY[key] ?? key;
+        return template.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
+          String(opts?.[name] ?? `{{${name}}}`),
+        );
+      },
+    }),
+  };
+});
+
 const snapshot: KanbanWorkbenchSnapshot = {
   generatedAt: '2026-08-09T12:00:00.000Z',
   boardCount: 2,

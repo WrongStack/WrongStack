@@ -16,6 +16,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        // Project surfaces shared with the desktop app, compiled from source by both.
+        find: /^@wrongstack\/project-surfaces\/(.*)$/,
+        replacement: path.resolve(__dirname, '../project-surfaces/src/$1'),
+      },
+      {
         find: /^@wrongstack\/webui-server\/protocol$/,
         replacement: path.resolve(__dirname, '../webui-server/src/protocol/index.ts'),
       },

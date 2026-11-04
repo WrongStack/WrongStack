@@ -1074,7 +1074,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 80,
-      "sourceLines": 17092
+      "sourceLines": 17090
     },
     {
       "directory": "design",
@@ -1088,7 +1088,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 107,
-      "sourceLines": 26336
+      "sourceLines": 26391
     },
     {
       "directory": "extension",
@@ -1102,14 +1102,14 @@
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 8,
-      "sourceLines": 1764
+      "sourceLines": 1780
     },
     {
       "directory": "infrastructure",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 2113
+      "sourceLines": 2133
     },
     {
       "directory": "models",
@@ -1144,7 +1144,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 10,
-      "sourceLines": 2673
+      "sourceLines": 2707
     },
     {
       "directory": "prompts",
@@ -1165,7 +1165,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 11,
-      "sourceLines": 1908
+      "sourceLines": 1926
     },
     {
       "directory": "replay",
@@ -1186,7 +1186,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10005
+      "sourceLines": 10006
     },
     {
       "directory": "session-catalog",
@@ -1214,7 +1214,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 119,
-      "sourceLines": 26624
+      "sourceLines": 26633
     },
     {
       "directory": "tasking",
