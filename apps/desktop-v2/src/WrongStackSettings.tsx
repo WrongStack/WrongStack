@@ -60,7 +60,7 @@ import { RuntimeGate } from './RuntimeGate';
 import { reviewPolicyIssue } from './review-policy-model';
 import { SystemPromptPresets } from './SystemPromptPresets';
 import './review-policy.css';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import { SettingRow } from './SettingRow';
 import { SkillLibrary } from './SkillLibrary';
 import {
@@ -444,7 +444,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
         <div className="settings-detail">
           {error && (
             <div className="session-error" role="alert">
-              {error}
+              {localizedText(error, 'settingsMessage', t)}
               <button
                 type="button"
                 className="button secondary small"

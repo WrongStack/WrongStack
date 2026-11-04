@@ -2,7 +2,7 @@ import { Check, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { CatalogModelSearch } from './CatalogModelSearch';
-import { useDesktopText } from './desktop-i18n';
+import { localizedText, useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { LegacyModelDraftNotice } from './LegacyModelDraftNotice';
@@ -369,7 +369,7 @@ function ProfileModelCatalogSettings({
       )}
       {error && !editor && (
         <p className="session-error" role="alert">
-          {error}
+          {localizedText(error, 'settingsMessage', t)}
         </p>
       )}
       {notice && (

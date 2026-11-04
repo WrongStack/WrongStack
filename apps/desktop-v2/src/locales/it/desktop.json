@@ -8716,5 +8716,28 @@
     "draftNotCleared": "Il messaggio è stato accettato, ma la bozza salvata non è stata cancellata. Controllala prima di inviare di nuovo.",
     "differentGoal": "Questa richiesta sembra avviare un obiettivo diverso.",
     "topicChanged": "La bozza è cambiata durante il controllo dell’argomento. Rivedila e invia di nuovo."
+  },
+  "settingsMessage": {
+    "tierFormat": "Rimuovi il formato di livelli salvato non supportato prima di aggiungere livelli di prezzo.",
+    "tierThreshold": "Il livello di prezzo {{n}} richiede una soglia di contesto intera positiva.",
+    "tierUnique": "Le soglie di contesto dei livelli di prezzo devono essere univoche.",
+    "tierPrice": "Il prezzo \"{{field}}\" del livello {{n}} deve essere un numero non negativo.",
+    "tierEmpty": "Il livello di prezzo {{n}} richiede almeno un prezzo. I prezzi vuoti non valgono zero.",
+    "rosterNumber": "{{label}} deve essere un numero non negativo. Lascia vuoto per ereditare.",
+    "rosterWhole": "{{label}} deve essere un numero intero non negativo. Lascia vuoto per ereditare.",
+    "rosterNames": "{{key}} deve contenere nomi non vuoti.",
+    "rosterCwd": "La directory di lavoro del ruolo deve restare all’interno del suo checkout.",
+    "rosterTimezone": "Scegli un fuso orario di disponibilità valido.",
+    "rosterDays": "Scegli almeno un giorno di disponibilità.",
+    "rosterPolicy": "La policy dei modelli richiede almeno un modello consentito completo.",
+    "rosterFallback": "Ogni modello di riserva della policy deve essere anche consentito.",
+    "planUnreadable": "La sessione ha restituito un piano degli agenti illeggibile. È stato conservato.",
+    "planOverrides": "La sessione ha restituito sostituzioni di ruolo non valide. Sono state conservate.",
+    "planLanes": "La sessione ha restituito corsie di modello non valide. Ricarica prima di modificare.",
+    "planLaneCount": "Scegli tra 1 e 16 corsie.",
+    "planChanged": "Il piano dei modelli di questa sessione è cambiato altrove. Le tue modifiche sono conservate; ricarica il piano salvato prima di riprovare.",
+    "execMode": "Scegli una modalità di conferma degli strumenti valida.",
+    "execYoloPlus": "YOLO+ richiede YOLO. Scegli una modalità di conferma prima di salvare.",
+    "execChanged": "La modalità di conferma degli strumenti è cambiata altrove. Ricarica i valori salvati prima di applicare questa modifica."
   }
 }

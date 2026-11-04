@@ -8422,3 +8422,23 @@ copies, starting with SAGE memory.
   its values, checks that each line is recognised as itself only, that other text passes
   through, and that the English the composer still writes matches its catalog lines; desktop
   tests pass (274 files, 966 tests); typecheck clean.
+
+### Settings editor messages in the display language (2026-11-04)
+
+- Gap: the validation messages of the price-tier, role runtime, session model plan and tool
+  confirmation editors (invalid thresholds and prices, budgets, availability, model policy,
+  lane counts, plans or modes changed elsewhere) were English in every language. The role
+  runtime editor also showed them with an `Error:` prefix.
+- Change: the four models build those messages from a `settingsMessage` catalog group in
+  English (`englishText`), unchanged, and the session model plan, role runtime, WrongStack
+  settings and model catalog pages show their error through `localizedText`, so a known
+  line appears in the display language with its values; other errors are shown as they came.
+  The role runtime editor shows the error message without the `Error:` prefix. No hotspot
+  grew. 21 keys in all seven languages.
+- Remaining English by design: field names inside a few of these lines (a price field or
+  budget label written by the model), engine protocol-integrity errors and slash command
+  output.
+- Checks: new `settings-messages-i18n.test.ts` pins the earlier English of the validators,
+  turns every line of the group back into its line in six languages with its values, and
+  checks each line is recognised as itself only; desktop tests pass (275 files, 969 tests);
+  typecheck clean.

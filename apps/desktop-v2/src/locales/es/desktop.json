@@ -8716,5 +8716,28 @@
     "draftNotCleared": "El mensaje se aceptó, pero no se pudo borrar el borrador guardado. Revísalo antes de volver a enviar.",
     "differentGoal": "Esta solicitud parece iniciar un objetivo distinto.",
     "topicChanged": "El borrador cambió durante la comprobación del tema. Revísalo y vuelve a enviarlo."
+  },
+  "settingsMessage": {
+    "tierFormat": "Quita el formato de niveles guardado no compatible antes de añadir niveles de precio.",
+    "tierThreshold": "El nivel de precio {{n}} necesita un umbral de contexto entero positivo.",
+    "tierUnique": "Los umbrales de contexto de los niveles de precio deben ser únicos.",
+    "tierPrice": "El precio \"{{field}}\" del nivel {{n}} debe ser un número no negativo.",
+    "tierEmpty": "El nivel de precio {{n}} necesita al menos un precio. Un precio vacío no es cero.",
+    "rosterNumber": "{{label}} debe ser un número no negativo. Déjalo vacío para heredar.",
+    "rosterWhole": "{{label}} debe ser un número entero no negativo. Déjalo vacío para heredar.",
+    "rosterNames": "{{key}} debe contener nombres no vacíos.",
+    "rosterCwd": "El directorio de trabajo del rol debe quedar dentro de su checkout.",
+    "rosterTimezone": "Elige una zona horaria de disponibilidad válida.",
+    "rosterDays": "Elige al menos un día de disponibilidad.",
+    "rosterPolicy": "La política de modelos necesita al menos un modelo permitido completo.",
+    "rosterFallback": "Cada modelo de respaldo de la política también debe estar permitido.",
+    "planUnreadable": "La sesión devolvió un plan de agentes ilegible. Se ha conservado.",
+    "planOverrides": "La sesión devolvió reemplazos de rol no válidos. Se han conservado.",
+    "planLanes": "La sesión devolvió carriles de modelo no válidos. Recarga antes de editar.",
+    "planLaneCount": "Elige entre 1 y 16 carriles.",
+    "planChanged": "El plan de modelos de esta sesión cambió en otro lugar. Tus cambios se conservan; recarga el plan guardado antes de volver a intentarlo.",
+    "execMode": "Elige un modo de confirmación de herramientas válido.",
+    "execYoloPlus": "YOLO+ requiere YOLO. Elige un modo de confirmación antes de guardar.",
+    "execChanged": "El modo de confirmación de herramientas cambió en otro lugar. Recarga los valores guardados antes de aplicar este cambio."
   }
 }

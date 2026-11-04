@@ -8716,5 +8716,28 @@
     "draftNotCleared": "The message was accepted, but the saved draft could not be cleared. Check it before sending again.",
     "differentGoal": "This request appears to start a different goal.",
     "topicChanged": "The draft changed during the topic check. Review it and send again."
+  },
+  "settingsMessage": {
+    "tierFormat": "Remove the unsupported saved tier format before adding price tiers.",
+    "tierThreshold": "Price tier {{n}} needs a positive whole context threshold.",
+    "tierUnique": "Context price tier thresholds must be unique.",
+    "tierPrice": "Price tier {{n}} {{field}} price must be a non-negative number.",
+    "tierEmpty": "Price tier {{n}} needs at least one price. Blank prices are not zero.",
+    "rosterNumber": "{{label}} must be a non-negative number. Leave it empty to inherit.",
+    "rosterWhole": "{{label}} must be a non-negative whole number. Leave it empty to inherit.",
+    "rosterNames": "{{key}} must contain non-empty names.",
+    "rosterCwd": "The role working directory must stay inside its checkout.",
+    "rosterTimezone": "Choose a valid availability timezone.",
+    "rosterDays": "Choose at least one availability day.",
+    "rosterPolicy": "Model policy needs at least one complete allowed model.",
+    "rosterFallback": "Each model-policy fallback must also be allowed.",
+    "planUnreadable": "The session returned an unreadable agent plan. It has been preserved.",
+    "planOverrides": "The session returned invalid role overrides. They have been preserved.",
+    "planLanes": "The session returned invalid model lanes. Reload before editing.",
+    "planLaneCount": "Choose between 1 and 16 lanes.",
+    "planChanged": "This session model plan changed elsewhere. Your edits are kept; reload the saved plan before retrying.",
+    "execMode": "Choose a valid tool confirmation mode.",
+    "execYoloPlus": "YOLO+ requires YOLO. Choose a confirmation mode before saving.",
+    "execChanged": "Tool confirmation mode changed elsewhere. Reload saved values before applying this change."
   }
 }

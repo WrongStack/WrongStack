@@ -8716,5 +8716,28 @@
     "draftNotCleared": "Mesaj kabul edildi, ancak kayıtlı taslak temizlenemedi. Yeniden göndermeden önce kontrol edin.",
     "differentGoal": "Bu istek farklı bir hedef başlatıyor gibi görünüyor.",
     "topicChanged": "Taslak konu kontrolü sırasında değişti. Gözden geçirip yeniden gönderin."
+  },
+  "settingsMessage": {
+    "tierFormat": "Fiyat katmanı eklemeden önce desteklenmeyen kayıtlı katman biçimini kaldırın.",
+    "tierThreshold": "{{n}}. fiyat katmanı pozitif bir tam sayı bağlam eşiği gerektirir.",
+    "tierUnique": "Bağlam fiyat katmanı eşikleri benzersiz olmalıdır.",
+    "tierPrice": "{{n}}. fiyat katmanının {{field}} fiyatı negatif olmayan bir sayı olmalıdır.",
+    "tierEmpty": "{{n}}. fiyat katmanı en az bir fiyat gerektirir. Boş fiyatlar sıfır sayılmaz.",
+    "rosterNumber": "{{label}} negatif olmayan bir sayı olmalıdır. Devralmak için boş bırakın.",
+    "rosterWhole": "{{label}} negatif olmayan bir tam sayı olmalıdır. Devralmak için boş bırakın.",
+    "rosterNames": "{{key}} boş olmayan adlar içermelidir.",
+    "rosterCwd": "Rolün çalışma dizini kendi checkout’unun içinde kalmalıdır.",
+    "rosterTimezone": "Geçerli bir uygunluk saat dilimi seçin.",
+    "rosterDays": "En az bir uygunluk günü seçin.",
+    "rosterPolicy": "Model politikası en az bir eksiksiz izinli model gerektirir.",
+    "rosterFallback": "Model politikasındaki her yedek model de izinli olmalıdır.",
+    "planUnreadable": "Oturum okunamayan bir ajan planı döndürdü. Plan korundu.",
+    "planOverrides": "Oturum geçersiz rol geçersiz kılmaları döndürdü. Bunlar korundu.",
+    "planLanes": "Oturum geçersiz model şeritleri döndürdü. Düzenlemeden önce yeniden yükleyin.",
+    "planLaneCount": "1 ile 16 arasında şerit seçin.",
+    "planChanged": "Bu oturumun model planı başka bir yerde değişti. Düzenlemeleriniz korunuyor; yeniden denemeden önce kayıtlı planı yeniden yükleyin.",
+    "execMode": "Geçerli bir araç onay modu seçin.",
+    "execYoloPlus": "YOLO+ için YOLO gerekir. Kaydetmeden önce bir onay modu seçin.",
+    "execChanged": "Araç onay modu başka bir yerde değişti. Bu değişikliği uygulamadan önce kayıtlı değerleri yeniden yükleyin."
   }
 }

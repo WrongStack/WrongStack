@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T20:23:50.540Z",
+  "generatedAt": "2026-11-04T20:29:41.231Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6005,
-    "testFiles": 5011,
-    "sourceLines": 1248466,
+    "testFiles": 5012,
+    "sourceLines": 1248469,
     "workspaceEdges": 240,
-    "moduleEdges": 17662,
+    "moduleEdges": 17666,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 274,
+    "testsWithoutTypecheck": 275,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1039
   },
@@ -394,7 +394,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 439,
-      "testFiles": 274,
+      "testFiles": 275,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2790,6 +2790,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-fields.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-messages-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33103,6 +33109,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-fields.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/settings-messages-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

@@ -8716,5 +8716,28 @@
     "draftNotCleared": "Die Nachricht wurde angenommen, aber der gespeicherte Entwurf konnte nicht geleert werden. Prüfen Sie ihn, bevor Sie erneut senden.",
     "differentGoal": "Diese Anfrage scheint ein anderes Ziel zu beginnen.",
     "topicChanged": "Der Entwurf wurde während der Themenprüfung geändert. Prüfen Sie ihn und senden Sie erneut."
+  },
+  "settingsMessage": {
+    "tierFormat": "Entfernen Sie das nicht unterstützte gespeicherte Stufenformat, bevor Sie Preisstufen hinzufügen.",
+    "tierThreshold": "Preisstufe {{n}} braucht eine positive ganzzahlige Kontextschwelle.",
+    "tierUnique": "Die Kontextschwellen der Preisstufen müssen eindeutig sein.",
+    "tierPrice": "Der Preis „{{field}}“ der Preisstufe {{n}} muss eine nicht negative Zahl sein.",
+    "tierEmpty": "Preisstufe {{n}} braucht mindestens einen Preis. Leere Preise sind nicht null.",
+    "rosterNumber": "{{label}} muss eine nicht negative Zahl sein. Leer lassen, um den Wert zu erben.",
+    "rosterWhole": "{{label}} muss eine nicht negative ganze Zahl sein. Leer lassen, um den Wert zu erben.",
+    "rosterNames": "{{key}} darf nur nicht leere Namen enthalten.",
+    "rosterCwd": "Das Arbeitsverzeichnis der Rolle muss innerhalb ihres Checkouts bleiben.",
+    "rosterTimezone": "Wählen Sie eine gültige Zeitzone für die Verfügbarkeit.",
+    "rosterDays": "Wählen Sie mindestens einen Verfügbarkeitstag.",
+    "rosterPolicy": "Die Modellrichtlinie braucht mindestens ein vollständig angegebenes erlaubtes Modell.",
+    "rosterFallback": "Jedes Ausweichmodell der Modellrichtlinie muss auch erlaubt sein.",
+    "planUnreadable": "Die Sitzung hat einen unlesbaren Agentenplan zurückgegeben. Er wurde beibehalten.",
+    "planOverrides": "Die Sitzung hat ungültige Rollenüberschreibungen zurückgegeben. Sie wurden beibehalten.",
+    "planLanes": "Die Sitzung hat ungültige Modellspuren zurückgegeben. Laden Sie vor dem Bearbeiten neu.",
+    "planLaneCount": "Wählen Sie zwischen 1 und 16 Spuren.",
+    "planChanged": "Der Modellplan dieser Sitzung wurde an anderer Stelle geändert. Ihre Änderungen bleiben erhalten; laden Sie den gespeicherten Plan vor einem neuen Versuch neu.",
+    "execMode": "Wählen Sie einen gültigen Bestätigungsmodus für Werkzeuge.",
+    "execYoloPlus": "YOLO+ setzt YOLO voraus. Wählen Sie vor dem Speichern einen Bestätigungsmodus.",
+    "execChanged": "Der Bestätigungsmodus für Werkzeuge wurde an anderer Stelle geändert. Laden Sie die gespeicherten Werte neu, bevor Sie diese Änderung anwenden."
   }
 }

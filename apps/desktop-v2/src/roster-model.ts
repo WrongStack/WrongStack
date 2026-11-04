@@ -1,3 +1,4 @@
+import { englishText } from './desktop-text';
 import { entries, record } from './engine-values';
 import { prepareSettingsPatch } from './settings-save-model';
 
@@ -32,7 +33,9 @@ export function rosterConfig(value: RosterRecord): RosterRecord {
       (key !== 'maxCostUsd' && !Number.isSafeInteger(amount))
     )
       throw Error(
-        `${label} must be a non-negative ${key === 'maxCostUsd' ? 'number' : 'whole number'}. Leave it empty to inherit.`,
+        englishText('settingsMessage', key === 'maxCostUsd' ? 'rosterNumber' : 'rosterWhole', {
+          label,
+        }),
       );
     budget[key] = amount;
   }
@@ -44,7 +47,7 @@ export function rosterConfig(value: RosterRecord): RosterRecord {
   if (typeof next['cwd'] === 'string') {
     const cwd = next['cwd'].replaceAll('\\', '/').trim();
     if (cwd.startsWith('/') || /^[a-z]:/i.test(cwd) || cwd.split('/').includes('..'))
-      throw Error('The role working directory must stay inside its checkout.');
+      throw Error(englishText('settingsMessage', 'rosterCwd'));
     next['cwd'] = cwd;
   }
   for (const key of ['tools', 'skillNames', 'allowedCapabilities']) {
@@ -53,23 +56,23 @@ export function rosterConfig(value: RosterRecord): RosterRecord {
       (!Array.isArray(next[key]) ||
         next[key].some((item: unknown) => typeof item !== 'string' || !item.trim()))
     )
-      throw Error(`${key} must contain non-empty names.`);
+      throw Error(englishText('settingsMessage', 'rosterNames', { key }));
   }
   if (next['availability']) {
     const available = record(next['availability']);
     try {
       new Intl.DateTimeFormat('en', { timeZone: String(available['timezone']) }).format();
     } catch {
-      throw Error('Choose a valid availability timezone.');
+      throw Error(englishText('settingsMessage', 'rosterTimezone'));
     }
     if (!Array.isArray(available['days']) || !available['days'].length)
-      throw Error('Choose at least one availability day.');
+      throw Error(englishText('settingsMessage', 'rosterDays'));
   }
   const policy = record(next['modelPolicy']);
   if (next['modelPolicy']) {
     const allowed = entries(policy['allowed']);
     if (!allowed.length || allowed.some((row) => !row['provider'] || !row['model']))
-      throw Error('Model policy needs at least one complete allowed model.');
+      throw Error(englishText('settingsMessage', 'rosterPolicy'));
     if (
       entries(policy['fallbacks']).some(
         (row) =>
@@ -78,7 +81,7 @@ export function rosterConfig(value: RosterRecord): RosterRecord {
           ),
       )
     )
-      throw Error('Each model-policy fallback must also be allowed.');
+      throw Error(englishText('settingsMessage', 'rosterFallback'));
   }
   return next;
 }

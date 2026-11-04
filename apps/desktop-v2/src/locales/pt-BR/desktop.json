@@ -8716,5 +8716,28 @@
     "draftNotCleared": "A mensagem foi aceita, mas o rascunho salvo não pôde ser limpo. Verifique-o antes de enviar novamente.",
     "differentGoal": "Este pedido parece iniciar um objetivo diferente.",
     "topicChanged": "O rascunho mudou durante a verificação do tópico. Revise-o e envie novamente."
+  },
+  "settingsMessage": {
+    "tierFormat": "Remova o formato de níveis salvo não compatível antes de adicionar níveis de preço.",
+    "tierThreshold": "O nível de preço {{n}} precisa de um limite de contexto inteiro positivo.",
+    "tierUnique": "Os limites de contexto dos níveis de preço devem ser únicos.",
+    "tierPrice": "O preço \"{{field}}\" do nível {{n}} deve ser um número não negativo.",
+    "tierEmpty": "O nível de preço {{n}} precisa de pelo menos um preço. Preços em branco não são zero.",
+    "rosterNumber": "{{label}} deve ser um número não negativo. Deixe vazio para herdar.",
+    "rosterWhole": "{{label}} deve ser um número inteiro não negativo. Deixe vazio para herdar.",
+    "rosterNames": "{{key}} deve conter nomes não vazios.",
+    "rosterCwd": "O diretório de trabalho da função deve ficar dentro do seu checkout.",
+    "rosterTimezone": "Escolha um fuso horário de disponibilidade válido.",
+    "rosterDays": "Escolha pelo menos um dia de disponibilidade.",
+    "rosterPolicy": "A política de modelos precisa de pelo menos um modelo permitido completo.",
+    "rosterFallback": "Cada modelo de reserva da política também deve ser permitido.",
+    "planUnreadable": "A sessão retornou um plano de agentes ilegível. Ele foi preservado.",
+    "planOverrides": "A sessão retornou substituições de função inválidas. Elas foram preservadas.",
+    "planLanes": "A sessão retornou faixas de modelo inválidas. Recarregue antes de editar.",
+    "planLaneCount": "Escolha entre 1 e 16 faixas.",
+    "planChanged": "O plano de modelos desta sessão mudou em outro lugar. Suas edições foram mantidas; recarregue o plano salvo antes de tentar novamente.",
+    "execMode": "Escolha um modo de confirmação de ferramentas válido.",
+    "execYoloPlus": "YOLO+ exige YOLO. Escolha um modo de confirmação antes de salvar.",
+    "execChanged": "O modo de confirmação de ferramentas mudou em outro lugar. Recarregue os valores salvos antes de aplicar esta alteração."
   }
 }
