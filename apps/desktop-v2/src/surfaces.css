@@ -28,6 +28,17 @@
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
+/* The desktop's own page title (`h1` in styles.css) is unlayered, so it wins over the shared
+   page header's title in the components layer whatever its specificity: a Kanban board title
+   showed at 39 px and its truncation cut off descenders. Keep the WebUI's header title. */
+.ws-surfaces .ws-page-header :where(h1) {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 1.5vw, 23px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+}
 
 /* A canvas surface takes the whole project page, as the file workspace does. */
 .project-page-content:has(> .ws-surface-frame.is-fill) {

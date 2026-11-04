@@ -8597,3 +8597,36 @@ copies, starting with SAGE memory.
   frontend grew from 2.7 MB with the Monaco editor (about 4 MB) and its language workers
   (TypeScript 6.6 MB, CSS 1.0 MB, HTML 0.7 MB, d72d698a2); each worker loads only when a file
   of its language is opened.
+
+### Long German labels and the English left on the main screens (2026-11-05)
+
+- Why: the release status lists long localized labels as a manual pass. The accessibility
+  scope now checks them: after the light and dark axe audits it sets the profile's display
+  language to German, reloads the window into it, walks the same screens by the catalog's own
+  labels and measures every label-like text (`native-long-labels.mjs`). Text cut off without
+  an ellipsis, text spilling out of its box, or an ellipsis whose full text is offered nowhere
+  else fails the scope.
+- Found and fixed:
+  - In the desktop the shared page header's title took the desktop's own page `h1` (39 px;
+    unlayered, so it beats the components layer whatever the specificity) and the Kanban
+    board title's truncation cut off descenders. `surfaces.css` restores the WebUI's header
+    title for the shared surfaces.
+  - The screenshots showed English on the most used surfaces. Moved into the catalog (66 keys,
+    7 languages): the conversation view (provider banner, welcome, loading, "Jump to latest",
+    pending requests, form wait bar, side page loading lines, the message actions' disabled
+    reasons), plan and task lists with their statuses, auto-continue, the draft counter and
+    its title, the branch chip, the unread-mail badge, binary MCP content, the Markdown image
+    placeholder, file type "Plain text" (`fileKind`), and lines in the roster, requirements,
+    hunk review, file manager and settings. The project tools button showed "More tools" from
+    CSS `content`; it now shows its accessible name, "Project tools".
+- Still English, recorded:
+  - Mission control (`FleetPanel.tsx`), the session cards and the new-session, preview and
+    palette dialogs: these files hold another session's uncommitted work and were left alone.
+  - The surfaces shared with the WebUI (Kanban, SAGE, Code Atlas, Office, story, context,
+    diagnostics) still render about 300 English literals of their own ("5 columns / 0 tasks",
+    the board view tabs, task activity lines); the same text shows in the WebUI.
+- Results (release portable `9f847dbc0117-f356dfb1eb14`, `--release --bundled`): a11y PASSED
+  with 0 axe violations and 0 German label findings (189 s); files PASSED on the portable with
+  the catalog changes (85 s). Desktop 976 unit tests pass, including the new
+  `shell-gaps-i18n.test.ts`; desktop typecheck and Biome clean. `FileWorkspace.tsx` hotspot
+  ratchet lowered to 2030.
