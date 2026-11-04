@@ -1,5 +1,6 @@
 import type { AutomationPullRequestView, AutomationRunRecord } from '@wrongstack/webui-protocol';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { MarkdownContent } from './MarkdownContent';
 import { openExternal } from './platform';
@@ -11,6 +12,7 @@ export function AutomationPublication({
   run: AutomationRunRecord;
   http: EngineHttp;
 }) {
+  const { t } = useDesktopText();
   const [view, setView] = useState<AutomationPullRequestView | null>(null),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
@@ -63,59 +65,51 @@ export function AutomationPublication({
     !!checks?.length &&
     checks.every((check) => check.exitCode === 0);
   return (
-    <section className="automation-publication" aria-label="Automation pull request review">
+    <section className="automation-publication" aria-label={t('autoPr.label')}>
       <header>
-        <h3>Pull request workflow</h3>
+        <h3>{t('autoPr.heading')}</h3>
         <button
           type="button"
           className="button secondary"
           disabled={busy}
           onClick={() => void perform()}
         >
-          {open ? 'Refresh publication state' : 'Review publication state'}
+          {open ? t('autoPr.refresh') : t('autoPr.review')}
         </button>
       </header>
-      <p>
-        Prepare a reviewed patch for a draft pull request. Publication uses the engine's verified
-        evidence and fingerprint checks.
-      </p>
-      {!eligible && (
-        <p className="quiet-state">
-          A completed run with independently passed checks is required to prepare a publication
-          plan.
-        </p>
-      )}
+      <p>{t('autoPr.intro')}</p>
+      {!eligible && <p className="quiet-state">{t('autoPr.notEligible')}</p>}
       {error && (
         <p className="session-error" role="alert">
           {error}
         </p>
       )}
-      {busy && <p role="status">Reading or updating publication state…</p>}
+      {busy && <p role="status">{t('autoPr.busy')}</p>}
       {open &&
         view &&
         (view.plan ? (
           <>
             <dl>
-              <dt>Repository</dt>
+              <dt>{t('autoPr.repository')}</dt>
               <dd>{view.plan.repository}</dd>
-              <dt>Base</dt>
+              <dt>{t('autoPr.base')}</dt>
               <dd>
                 {view.plan.base} · <code>{view.plan.baseCommit}</code>
               </dd>
-              <dt>Branch</dt>
+              <dt>{t('autoPr.branch')}</dt>
               <dd>{view.plan.branch}</dd>
-              <dt>Title</dt>
+              <dt>{t('autoPr.title')}</dt>
               <dd>{view.plan.title}</dd>
               {view.plan.target && (
                 <>
-                  <dt>Existing pull request</dt>
+                  <dt>{t('autoPr.existing')}</dt>
                   <dd>
                     #{view.plan.target.number} · <code>{view.plan.target.headCommit}</code>
                   </dd>
                 </>
               )}
             </dl>
-            <h4>Reviewed files</h4>
+            <h4>{t('autoPr.reviewedFiles')}</h4>
             <ul>
               {view.plan.files.map((file) => (
                 <li key={file}>
@@ -124,22 +118,22 @@ export function AutomationPublication({
               ))}
             </ul>
             <details>
-              <summary>Publication evidence and identity</summary>
+              <summary>{t('autoPr.identity')}</summary>
               <MarkdownContent text={view.plan.body} />
               <dl>
-                <dt>Plan fingerprint</dt>
+                <dt>{t('autoPr.planFingerprint')}</dt>
                 <dd>
                   <code>{view.plan.fingerprint}</code>
                 </dd>
-                <dt>Patch SHA-256</dt>
+                <dt>{t('autoPr.patchSha')}</dt>
                 <dd>
                   <code>{view.plan.patchSha256}</code>
                 </dd>
-                <dt>Verification SHA-256</dt>
+                <dt>{t('autoPr.verificationSha')}</dt>
                 <dd>
                   <code>{view.plan.verificationSha256}</code>
                 </dd>
-                <dt>Source / candidate tree</dt>
+                <dt>{t('autoPr.trees')}</dt>
                 <dd>
                   <code>
                     {view.plan.sourceTree} / {view.plan.candidateTree}
@@ -156,7 +150,7 @@ export function AutomationPublication({
                     void openExternal(view.receipt!.url).catch((error) => setError(String(error)))
                   }
                 >
-                  Open draft PR #{view.receipt.number}
+                  {t('autoPr.openDraft', { number: view.receipt.number })}
                 </button>
                 <button
                   type="button"
@@ -164,7 +158,7 @@ export function AutomationPublication({
                   disabled={busy}
                   onClick={() => void perform('check', {})}
                 >
-                  Check publication CI
+                  {t('autoPr.checkCi')}
                 </button>
               </div>
             ) : (
@@ -174,22 +168,16 @@ export function AutomationPublication({
                 disabled={busy || !eligible}
                 onClick={() => setReviewPublish(true)}
               >
-                {view.plan.target ? 'Review pull request update' : 'Review draft PR publication'}
+                {view.plan.target ? t('autoPr.reviewUpdate') : t('autoPr.reviewPublish')}
               </button>
             )}
             {reviewPublish && (
               <div className="automation-leave" role="alert">
-                <h4>
-                  {view.plan.target
-                    ? 'Update this pull request?'
-                    : 'Publish this draft pull request?'}
-                </h4>
+                <h4>{view.plan.target ? t('autoPr.askUpdate') : t('autoPr.askPublish')}</h4>
                 <p>
-                  The engine will push the reviewed branch and{' '}
-                  {view.plan.target
-                    ? 'update the existing pull request'
-                    : 'create a draft pull request'}{' '}
-                  in {view.plan.repository}. Only the displayed plan fingerprint is accepted.
+                  {t(view.plan.target ? 'autoPr.pushUpdate' : 'autoPr.pushCreate', {
+                    repository: view.plan.repository,
+                  })}
                 </p>
                 <button
                   type="button"
@@ -197,7 +185,7 @@ export function AutomationPublication({
                   disabled={busy}
                   onClick={() => setReviewPublish(false)}
                 >
-                  Keep plan unpublished
+                  {t('autoPr.keepUnpublished')}
                 </button>
                 <button
                   type="button"
@@ -205,16 +193,22 @@ export function AutomationPublication({
                   disabled={busy}
                   onClick={() => void perform('publish', { fingerprint: view.plan!.fingerprint })}
                 >
-                  Publish reviewed plan
+                  {t('autoPr.publish')}
                 </button>
               </div>
             )}
             {view.ci && (
               <section>
-                <h4>Published commit checks · {view.ci.status}</h4>
+                <h4>
+                  {t('autoPr.ciChecks', {
+                    status: t(`autoPr.ciStatus.${view.ci.status}`, {
+                      defaultValue: view.ci.status,
+                    }),
+                  })}
+                </h4>
                 <p>
-                  <code>{view.ci.commit}</code> · checked{' '}
-                  {new Date(view.ci.checkedAt).toLocaleString()}
+                  <code>{view.ci.commit}</code> ·{' '}
+                  {t('autoPr.checked', { time: new Date(view.ci.checkedAt).toLocaleString() })}
                 </p>
                 {view.ci.checks.map((check, index) => (
                   <article key={index}>
@@ -230,22 +224,19 @@ export function AutomationPublication({
                     disabled={busy}
                     onClick={() => setReviewFollowUp(true)}
                   >
-                    Review CI follow-up run
+                    {t('autoPr.reviewFollowUp')}
                   </button>
                 )}
                 {reviewFollowUp && (
                   <div className="automation-leave" role="alert">
-                    <p>
-                      Queue a follow-up for the displayed failed CI evidence? The worker may run a
-                      new model task using the saved job.
-                    </p>
+                    <p>{t('autoPr.followUpAsk')}</p>
                     <button
                       type="button"
                       className="button secondary"
                       disabled={busy}
                       onClick={() => setReviewFollowUp(false)}
                     >
-                      Keep current run
+                      {t('autoPr.keepRun')}
                     </button>
                     <button
                       type="button"
@@ -255,7 +246,7 @@ export function AutomationPublication({
                         void perform('follow-up', { fingerprint: view.ci!.fingerprint })
                       }
                     >
-                      Queue reviewed follow-up
+                      {t('autoPr.queueFollowUp')}
                     </button>
                   </div>
                 )}
@@ -263,7 +254,7 @@ export function AutomationPublication({
             )}
             {view.followUpRunId && (
               <p role="status">
-                Follow-up queued: <code>{view.followUpRunId}</code>
+                {t('autoPr.followUpQueued')} <code>{view.followUpRunId}</code>
               </p>
             )}
           </>
@@ -275,11 +266,11 @@ export function AutomationPublication({
             }}
           >
             <fieldset disabled={busy || !eligible}>
-              <legend>Prepare a publication plan</legend>
+              <legend>{t('autoPr.prepareLegend')}</legend>
               <label>
-                Repository
+                {t('autoPr.repository')}
                 <input
-                  aria-label="Automation PR repository"
+                  aria-label={t('autoPr.repositoryLabel')}
                   required
                   placeholder="owner/repository"
                   value={repository}
@@ -287,18 +278,18 @@ export function AutomationPublication({
                 />
               </label>
               <label>
-                Base branch
+                {t('autoPr.baseBranch')}
                 <input
-                  aria-label="Automation PR base"
+                  aria-label={t('autoPr.baseLabel')}
                   required
                   value={base}
                   onChange={(event) => setBase(event.target.value)}
                 />
               </label>
               <label>
-                Pull request title
+                {t('autoPr.prTitle')}
                 <input
-                  aria-label="Automation PR title"
+                  aria-label={t('autoPr.titleLabel')}
                   required
                   maxLength={200}
                   value={title}
@@ -306,7 +297,7 @@ export function AutomationPublication({
                 />
               </label>
               <button type="submit" className="button secondary">
-                Prepare reviewed publication plan
+                {t('autoPr.preparePlan')}
               </button>
             </fieldset>
           </form>

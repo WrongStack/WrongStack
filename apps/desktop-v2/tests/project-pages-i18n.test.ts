@@ -243,8 +243,16 @@ describe('the project pages in the display language', () => {
     for (const text of ['Compare runs', 'Run aaaaaaaa', 'Status', 'completed', 'Not recorded'])
       expect(page.text).toContain(text);
     page = await mount(inspector());
-    for (const text of ['Execution & evidence', 'queued', 'Execution log', 'Recorded evidence'])
+    for (const text of [
+      'Execution & evidence',
+      'queued',
+      'Execution log',
+      'Recorded evidence',
+      'Pull request workflow',
+      'Review publication state',
+    ])
       expect(page.text).toContain(text);
+    expect(page.labels).toContain('Automation pull request review');
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(comparison());
@@ -257,7 +265,15 @@ describe('the project pages in the display language', () => {
     ])
       expect(page.text).toContain(text);
     page = await mount(inspector());
-    for (const text of ['Yürütme ve kanıt', 'sırada', 'Yürütme günlüğü', 'Kaydedilen kanıt'])
+    for (const text of [
+      'Yürütme ve kanıt',
+      'sırada',
+      'Yürütme günlüğü',
+      'Kaydedilen kanıt',
+      'Pull request iş akışı',
+      'Yayın durumunu incele',
+    ])
       expect(page.text).toContain(text);
+    expect(page.labels).toContain('Otomasyon pull request incelemesi');
   });
 });

@@ -7350,3 +7350,15 @@ copies, starting with SAGE memory.
   - The comparison and the inspector render in English and then in Turkish (jsdom).
   - A new unit test covers fact ids and translated missing values.
   - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.
+
+### Automation pull request panel in the display language (2026-11-04)
+
+- The pull request workflow inside the run inspector now follows the display language in all seven
+  languages: the eligibility note, the plan with its evidence and identity, the publish and update
+  confirmations, observed CI with its follow-up confirmation, and the form that prepares a plan.
+- Observed CI statuses are named per language; check names and GitHub conclusions are shown as
+  GitHub reports them.
+- Checks:
+  - The inspector test now also checks the panel heading, button and label in English and then in
+    Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (882); typecheck clean.
