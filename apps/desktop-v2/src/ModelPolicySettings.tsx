@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { FallbackSuggestions } from './FallbackSuggestions';
@@ -12,6 +13,7 @@ export interface PolicyProps {
   command: EngineCommand;
 }
 export function ModelCatalog({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
   const id = useId();
   const [models, setModels] = useState<string[]>([]),
     [error, setError] = useState('');
@@ -36,9 +38,7 @@ export function ModelCatalog({ command }: { command: EngineCommand }) {
             ),
           ]);
           if (results.some((result) => result.status === 'rejected'))
-            setError(
-              'Some model catalogs could not be loaded. Stored model references remain editable.',
-            );
+            setError(t('modelPolicy.catalogError'));
         }
       })
       .catch((e) => {
@@ -47,7 +47,7 @@ export function ModelCatalog({ command }: { command: EngineCommand }) {
     return () => {
       live = false;
     };
-  }, [command]);
+  }, [command, t]);
   return (
     <>
       <datalist id={id}>
@@ -73,6 +73,7 @@ export function ModelReference({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { t } = useDesktopText();
   // A datalist keeps unavailable or custom stored references visible and editable.
   const [catalog, setCatalog] = useState<string>();
   useEffect(() => {
@@ -87,7 +88,7 @@ export function ModelReference({
         aria-label={label}
         list={catalog}
         value={value}
-        placeholder="provider/model · or inherit"
+        placeholder={t('modelPolicy.refPlaceholder')}
         onChange={(e) => onChange(e.target.value)}
       />
     </label>
@@ -102,6 +103,7 @@ export function OrderedModelChain({
   value: unknown;
   onChange: (v: string[]) => void;
 }) {
+  const { t } = useDesktopText();
   const chain = Array.isArray(value) ? value.map(String) : [];
   const move = (i: number, delta: number) => {
     const next = [...chain];
@@ -112,13 +114,13 @@ export function OrderedModelChain({
     <section className="policy-chain" aria-label={label}>
       <header>
         <h3>{label}</h3>
-        <span>{chain.length} models · tried in order</span>
+        <span>{t('modelPolicy.chainCount', { number: chain.length })}</span>
       </header>
       {chain.map((model, i) => (
         <div className="policy-chain-row" key={i}>
           <span className="policy-order">{i + 1}</span>
           <ModelReference
-            label={label + ' model ' + (i + 1)}
+            label={t('modelPolicy.chainModel', { label, number: i + 1 })}
             value={model}
             onChange={(v) => onChange(chain.map((old, n) => (n === i ? v : old)))}
           />
@@ -126,7 +128,7 @@ export function OrderedModelChain({
             type="button"
             className="icon-button"
             disabled={i === 0}
-            aria-label={'Move ' + label + ' model ' + (i + 1) + ' up'}
+            aria-label={t('modelPolicy.moveUp', { label, number: i + 1 })}
             onClick={() => move(i, -1)}
           >
             <ArrowUp size={14} />
@@ -135,7 +137,7 @@ export function OrderedModelChain({
             type="button"
             className="icon-button"
             disabled={i === chain.length - 1}
-            aria-label={'Move ' + label + ' model ' + (i + 1) + ' down'}
+            aria-label={t('modelPolicy.moveDown', { label, number: i + 1 })}
             onClick={() => move(i, 1)}
           >
             <ArrowDown size={14} />
@@ -143,33 +145,34 @@ export function OrderedModelChain({
           <button
             type="button"
             className="icon-button danger"
-            aria-label={'Remove ' + label + ' model ' + (i + 1)}
+            aria-label={t('modelPolicy.removeModel', { label, number: i + 1 })}
             onClick={() => onChange(chain.filter((_, n) => n !== i))}
           >
             <Trash2 size={14} />
           </button>
         </div>
       ))}
-      {!chain.length && <p className="field-help">No fallback models configured.</p>}
+      {!chain.length && <p className="field-help">{t('modelPolicy.noModels')}</p>}
       <button
         type="button"
         className="button secondary small"
         onClick={() => onChange([...chain, ''])}
       >
         <Plus size={13} />
-        Add model
+        {t('modelPolicy.addModel')}
       </button>
     </section>
   );
 }
 export function FallbackPolicySettings({ draft, change, command }: PolicyProps) {
+  const { t } = useDesktopText();
   const profiles = record(draft['fallbackProfiles']);
   const [name, setName] = useState(''),
     [error, setError] = useState('');
   const add = () => {
     const id = name.trim();
     if (!validSettingsName(id) || Object.hasOwn(profiles, id)) {
-      setError('Choose a unique profile name.');
+      setError(t('modelPolicy.uniqueProfile'));
       return;
     }
     change('fallbackProfiles', { ...profiles, [id]: [] });
@@ -188,12 +191,9 @@ export function FallbackPolicySettings({ draft, change, command }: PolicyProps) 
   return (
     <div className="model-policy-settings">
       <ModelCatalog command={command} />
-      <p className="settings-defaults-note">
-        The first available model wins. Named profiles can be selected by task assignments, routing
-        rules and cost tiers.
-      </p>
+      <p className="settings-defaults-note">{t('modelPolicy.fallbackIntro')}</p>
       <OrderedModelChain
-        label="Default fallback chain"
+        label={t('modelPolicy.defaultChain')}
         value={draft['fallbackModels']}
         onChange={(v) => change('fallbackModels', v)}
       />
@@ -205,16 +205,16 @@ export function FallbackPolicySettings({ draft, change, command }: PolicyProps) 
       />
       <section className="policy-profile-create">
         <label>
-          New fallback profile
+          {t('modelPolicy.newProfile')}
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. daily-build"
+            placeholder={t('modelPolicy.newProfilePlaceholder')}
           />
         </label>
         <button type="button" className="button secondary" disabled={!name.trim()} onClick={add}>
           <Plus size={14} />
-          Create profile
+          {t('modelPolicy.createProfile')}
         </button>
       </section>
       {error && (
@@ -226,7 +226,7 @@ export function FallbackPolicySettings({ draft, change, command }: PolicyProps) 
         <article className="policy-profile" key={id}>
           <header>
             <div>
-              <span className="eyebrow">NAMED PROFILE</span>
+              <span className="eyebrow">{t('modelPolicy.profileEyebrow')}</span>
               <h3>{id}</h3>
             </div>
             <button
@@ -234,31 +234,27 @@ export function FallbackPolicySettings({ draft, change, command }: PolicyProps) 
               className="button secondary small"
               onClick={() => change('fallbackModels', Array.isArray(chain) ? [...chain] : [])}
             >
-              Use as default chain
+              {t('modelPolicy.useDefault')}
             </button>
             <button
               type="button"
               className="icon-button danger"
               disabled={refs(id)}
               title={
-                refs(id)
-                  ? 'Remove refiner, review, routing and tier references before deleting this profile'
-                  : 'Remove profile from this draft'
+                refs(id) ? t('modelPolicy.removeBlocked') : t('modelPolicy.removeProfileTitle')
               }
-              aria-label={'Remove profile ' + id}
+              aria-label={t('modelPolicy.removeProfile', { id })}
               onClick={() => change('fallbackProfiles', withoutSetting(profiles, id))}
             >
               <Trash2 size={15} />
             </button>
           </header>
           <OrderedModelChain
-            label={id + ' chain'}
+            label={t('modelPolicy.profileChain', { id })}
             value={chain}
             onChange={(v) => change('fallbackProfiles', { ...profiles, [id]: v })}
           />
-          {refs(id) && (
-            <p className="field-help">Used by refinement, review, routing or a cost tier.</p>
-          )}
+          {refs(id) && <p className="field-help">{t('modelPolicy.usedBy')}</p>}
         </article>
       ))}
     </div>
@@ -294,20 +290,24 @@ export function ProfileSelect({
   profiles: Row;
   onChange: (v: string) => void;
 }) {
+  const { t } = useDesktopText();
   const selected = typeof value === 'string' ? value : '';
   return (
     <label>
       {label}
       <select aria-label={label} value={selected} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Inherit</option>
+        <option value="">{t('modelPolicy.inherit')}</option>
         {[...new Set([...Object.keys(profiles), ...(selected ? [selected] : [])])].map((id) => (
-          <option key={id}>{id}</option>
+          <option key={id} value={id}>
+            {id}
+          </option>
         ))}
       </select>
     </label>
   );
 }
 export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
+  const { t } = useDesktopText();
   const routes = record(draft['modelMatrix']),
     profiles = record(draft['fallbackProfiles']);
   const [name, setName] = useState(''),
@@ -327,7 +327,7 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
   const add = () => {
     const id = name.trim();
     if (!validSettingsName(id) || Object.hasOwn(routes, id)) {
-      setError('Choose a unique phase, role, or wildcard route.');
+      setError(t('modelPolicy.uniqueRoute'));
       return;
     }
     update(id, { modelRuntime: { reasoning: { mode: 'auto' } } });
@@ -337,18 +337,15 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
   return (
     <div className="model-policy-settings">
       <ModelCatalog command={command} />
-      <p className="settings-defaults-note">
-        Exact role → phase → wildcard (*) → engine default. Each rule can override its model,
-        fallback profile and reasoning while preserving other runtime settings.
-      </p>
+      <p className="settings-defaults-note">{t('modelPolicy.routingIntro')}</p>
       <section className="policy-profile-create">
         <label>
-          New model route
+          {t('modelPolicy.newRoute')}
           <input
             list="desktop-route-phases"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="architect, build, or *"
+            placeholder={t('modelPolicy.newRoutePlaceholder')}
           />
         </label>
         <datalist id="desktop-route-phases">
@@ -369,7 +366,7 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
         </datalist>
         <button type="button" className="button secondary" disabled={!name.trim()} onClick={add}>
           <Plus size={14} />
-          Add route
+          {t('modelPolicy.addRoute')}
         </button>
       </section>
       {error && (
@@ -377,9 +374,7 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
           {error}
         </p>
       )}
-      {!Object.keys(routes).length && (
-        <p className="quiet-state">No overrides. Agents inherit the engine’s configured model.</p>
-      )}
+      {!Object.keys(routes).length && <p className="quiet-state">{t('modelPolicy.noRoutes')}</p>}
       {Object.entries(routes).map(([id, value]) => {
         const entry = record(value),
           r = record(record(entry['modelRuntime'])['reasoning']);
@@ -387,13 +382,15 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
           <article className="policy-profile" key={id}>
             <header>
               <div>
-                <span className="eyebrow">{id === '*' ? 'ALL AGENTS' : 'ROLE / PHASE'}</span>
+                <span className="eyebrow">
+                  {id === '*' ? t('modelPolicy.allAgents') : t('modelPolicy.rolePhase')}
+                </span>
                 <h3>{id}</h3>
               </div>
               <button
                 type="button"
                 className="icon-button danger"
-                aria-label={'Remove route ' + id}
+                aria-label={t('modelPolicy.removeRoute', { id })}
                 onClick={() => change('modelMatrix', withoutSetting(routes, id))}
               >
                 <Trash2 size={15} />
@@ -401,12 +398,12 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
             </header>
             <div className="policy-field-grid">
               <ModelReference
-                label={id + ' model'}
+                label={t('modelPolicy.routeModel', { id })}
                 value={modelRef(entry)}
                 onChange={(v) => update(id, modelRefPatch(entry, v))}
               />
               <ProfileSelect
-                label={id + ' fallback profile'}
+                label={t('modelPolicy.routeFallback', { id })}
                 value={entry['fallbackProfile']}
                 profiles={profiles}
                 onChange={(v) => update(id, optional(entry, 'fallbackProfile', v))}
@@ -414,43 +411,43 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
             </div>
             <div className="policy-field-grid">
               <label>
-                {id} reasoning
+                {t('modelPolicy.reasoning', { id })}
                 <select
-                  aria-label={id + ' reasoning'}
+                  aria-label={t('modelPolicy.reasoning', { id })}
                   value={String(r['mode'] ?? '')}
                   onChange={(e) => reasoning(id, 'mode', e.target.value)}
                 >
                   {['', 'auto', 'on', 'off'].map((v) => (
                     <option key={v} value={v}>
-                      {v || 'Inherit'}
+                      {v || t('modelPolicy.inherit')}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                {id} effort
+                {t('modelPolicy.effort', { id })}
                 <select
-                  aria-label={id + ' effort'}
+                  aria-label={t('modelPolicy.effort', { id })}
                   value={String(r['effort'] ?? '')}
                   onChange={(e) => reasoning(id, 'effort', e.target.value)}
                 >
                   {['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map((v) => (
                     <option key={v} value={v}>
-                      {v || 'Inherit'}
+                      {v || t('modelPolicy.inherit')}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                {id} preserve reasoning
+                {t('modelPolicy.preserve', { id })}
                 <select
-                  aria-label={id + ' preserve reasoning'}
+                  aria-label={t('modelPolicy.preserve', { id })}
                   value={r['preserve'] === undefined ? '' : String(r['preserve'])}
                   onChange={(e) => reasoning(id, 'preserve', e.target.value)}
                 >
-                  <option value="">Inherit</option>
-                  <option value="true">Preserve</option>
-                  <option value="false">Do not preserve</option>
+                  <option value="">{t('modelPolicy.inherit')}</option>
+                  <option value="true">{t('modelPolicy.preserveYes')}</option>
+                  <option value="false">{t('modelPolicy.preserveNo')}</option>
                 </select>
               </label>
             </div>

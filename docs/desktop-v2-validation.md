@@ -8191,3 +8191,16 @@ copies, starting with SAGE memory.
   from the engine, and provider, model and rule ids.
 - Checks: new `jev-visibility-i18n.test.ts` renders both panels with engine replies in English
   and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Fallback chains, profiles and model routes in the display language (2026-11-04)
+
+- The model policy settings (`modelPolicy`) follow the display language in all seven
+  languages: the shared model reference field and catalog notice, ordered fallback chains with
+  their move and remove controls, named fallback profiles, and the role and phase model routes
+  with their reasoning controls. The review, refinement and tier settings that reuse these
+  fields pick up the same wording.
+- Profile options now carry the profile name as their value explicitly.
+- Still English by design: profile and route names, provider and model references, and the
+  reasoning mode and effort values the engine accepts.
+- Checks: new `model-policy-i18n.test.ts` renders the fallback and routing panels with a
+  referenced profile in English and Turkish; desktop tests pass (PASSED); typecheck clean.
