@@ -1,15 +1,17 @@
 import { ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { openPreview } from './platform';
 import { processPreviewUrls } from './process-preview-urls';
 
 /** Local URLs the process printed, each opening a private preview window. */
 export function ProcessPreviewLinks({ lines }: { lines: readonly string[] }) {
+  const { t } = useDesktopText();
   const urls = processPreviewUrls(lines);
   const [error, setError] = useState('');
   if (!urls.length) return null;
   return (
-    <fieldset className="process-preview-links" aria-label="Local URLs in this output">
+    <fieldset className="process-preview-links" aria-label={t('processes.urls')}>
       {urls.map((url) => (
         <button
           type="button"
@@ -22,7 +24,7 @@ export function ProcessPreviewLinks({ lines }: { lines: readonly string[] }) {
             );
           }}
         >
-          Preview {url}
+          {t('processes.preview', { url })}
           <ArrowUpRight size={12} />
         </button>
       ))}

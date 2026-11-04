@@ -59,6 +59,19 @@ describe('engine-reported process ends', () => {
       failed: true,
     });
     expect(endLabel(base!)).toEqual({ text: 'Exit not reported', failed: null });
+    expect(
+      endLabel(
+        { ...base!, exitCode: 2 },
+        {
+          terminatedExit: (code) => `killed ${code}`,
+          exit: (code) => `code ${code}`,
+          terminatedSignal: (signal) => `killed ${signal}`,
+          stopped: (signal) => `stopped ${signal}`,
+          terminatedUnreported: 'killed',
+          unreported: 'unknown',
+        },
+      ).text,
+    ).toBe('code 2');
     expect(endLabel({ ...base!, killed: true }).failed).toBeNull();
   });
 });

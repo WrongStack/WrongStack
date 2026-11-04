@@ -7625,3 +7625,18 @@ copies, starting with SAGE memory.
     connection's check, models and cloud routing in English and then in Turkish.
   - The OAuth model test covers the alias words.
   - Catalog parity and the key guard pass; desktop tests pass (901); typecheck clean.
+
+### Session processes in the display language (2026-11-04)
+
+- Session processes and their preview links now follow the display language in all seven
+  languages: the heading, summary counts, search, selection bar, the process list, recently
+  ended processes, the output panel, and the single and batch termination dialogs.
+- Process states are named per language with the engine value as the fallback.
+- `endLabel` and `batchTerminationSummary` take optional words, with English as the default.
+  Durations keep their short unit names (`s`, `min`, `h`).
+- Still English by design: commands, tool names, signals, engine replies and output lines.
+- Checks:
+  - The session pages jsdom test now also renders a running background process in English and
+    then in Turkish.
+  - The reported-end test covers the end words.
+  - Catalog parity and the key guard pass; desktop tests pass (902); typecheck clean.

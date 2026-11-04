@@ -89,24 +89,29 @@ export function reportedEnded(
       : [],
   );
 }
+const englishEnd = {
+  terminatedExit: (code: number) => `Terminated on request · exit code ${code}`,
+  exit: (code: number) => `Exit code ${code}`,
+  terminatedSignal: (signal: string) => `Terminated on request · ${signal}`,
+  stopped: (signal: string) => `Stopped · ${signal}`,
+  terminatedUnreported: 'Terminated on request · exit not reported',
+  unreported: 'Exit not reported',
+};
 /** How an ended process finished, as reported; an unreported exit is never shown as success. */
-export function endLabel(end: ReportedEnd): { text: string; failed: boolean | null } {
+export function endLabel(
+  end: ReportedEnd,
+  words: typeof englishEnd = englishEnd,
+): { text: string; failed: boolean | null } {
   // Windows reports a terminated process by its exit code rather than a signal.
   if (end.killed && end.exitCode !== null)
-    return { text: `Terminated on request · exit code ${end.exitCode}`, failed: true };
-  if (end.exitCode !== null)
-    return end.exitCode === 0
-      ? { text: 'Exit code 0', failed: false }
-      : { text: `Exit code ${end.exitCode}`, failed: true };
+    return { text: words.terminatedExit(end.exitCode), failed: true };
+  if (end.exitCode !== null) return { text: words.exit(end.exitCode), failed: end.exitCode !== 0 };
   if (end.signal)
     return {
-      text: `${end.killed ? 'Terminated on request' : 'Stopped'} · ${end.signal}`,
+      text: end.killed ? words.terminatedSignal(end.signal) : words.stopped(end.signal),
       failed: true,
     };
-  return {
-    text: end.killed ? 'Terminated on request · exit not reported' : 'Exit not reported',
-    failed: null,
-  };
+  return { text: end.killed ? words.terminatedUnreported : words.unreported, failed: null };
 }
 export function sameSessionProcess(left: SessionProcess, right: SessionProcess): boolean {
   return (
@@ -141,22 +146,28 @@ export function batchTermination(
   return { send, skipped };
 }
 
+const englishBatch = {
+  acknowledged: (done: number, total: number) =>
+    `Termination acknowledged for ${done} of ${total} processes.`,
+  failed: (list: string) => `Failed: ${list}.`,
+  skipped: (list: string) => `Not sent because they exited, changed or became protected: ${list}.`,
+  refresh: 'Refresh verifies whether they are still tracked.',
+};
 export function batchTerminationSummary(
   total: number,
   done: readonly SessionProcess[],
   failed: readonly { proc: SessionProcess; error: string }[],
   skipped: readonly SessionProcess[],
+  words: typeof englishBatch = englishBatch,
 ): string {
-  const parts = [`Termination acknowledged for ${done.length} of ${total} processes.`];
+  const parts = [words.acknowledged(done.length, total)];
   if (failed.length)
     parts.push(
-      `Failed: ${failed.map((item) => `PID ${item.proc.pid} (${item.error})`).join('; ')}.`,
+      words.failed(failed.map((item) => `PID ${item.proc.pid} (${item.error})`).join('; ')),
     );
   if (skipped.length)
-    parts.push(
-      `Not sent because they exited, changed or became protected: ${skipped.map((proc) => `PID ${proc.pid}`).join(', ')}.`,
-    );
-  parts.push('Refresh verifies whether they are still tracked.');
+    parts.push(words.skipped(skipped.map((proc) => `PID ${proc.pid}`).join(', ')));
+  parts.push(words.refresh);
   return parts.join(' ');
 }
 

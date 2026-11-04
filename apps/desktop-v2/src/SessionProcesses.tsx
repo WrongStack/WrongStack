@@ -1,5 +1,7 @@
 import { ArrowLeft, RefreshCw, Search, Square, Terminal, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
 import { ProcessPreviewLinks } from './ProcessPreviewLinks';
@@ -18,6 +20,7 @@ import {
   sessionProcesses,
   terminable,
 } from './session-process-model';
+import { surfaceI18n } from './surface-i18n';
 import './session-processes.css';
 
 /** Ended runs seen by this window, per session; kept while the window stays open. */
@@ -37,6 +40,15 @@ export function SessionProcesses({
   command: EngineCommand;
   onBack: () => void;
 }) {
+  const { t } = useDesktopText();
+  const endWords = {
+    terminatedExit: (code: number) => t('processes.end.terminatedExit', { code }),
+    exit: (code: number) => t('processes.end.exit', { code }),
+    terminatedSignal: (signal: string) => t('processes.end.terminatedSignal', { signal }),
+    stopped: (signal: string) => t('processes.end.stopped', { signal }),
+    terminatedUnreported: t('processes.end.terminatedUnreported'),
+    unreported: t('processes.end.unreported'),
+  };
   const [processes, setProcesses] = useState<SessionProcess[]>([]),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
@@ -118,27 +130,23 @@ export function SessionProcesses({
     try {
       const rows = await read(),
         current = rows.find((row) => sameSessionProcess(row, proc));
-      if (!current) throw Error('This process has exited or changed. Refresh the process list.');
-      if (!current.hasOutput)
-        throw Error(
-          'This command has no background output log. Its foreground output appears in run activity.',
-        );
+      if (!current) throw Error(t('processes.changedOutput'));
+      if (!current.hasOutput) throw Error(t('processes.noLog'));
       const result = await command(
         'process.output',
         { sessionId, pid: proc.pid, expectedStartedAt: current.startedAt, lines: count },
         ['process.output', 'key.operation_result'],
       );
       if (result['sessionId'] !== sessionId || result['pid'] !== proc.pid)
-        throw Error('Output belongs to another process or conversation.');
-      if (result['gone']) throw Error('The process is no longer tracked.');
+        throw Error(t('processes.otherProcess'));
+      if (result['gone']) throw Error(t('processes.gone'));
       if (
         !Array.isArray(result['lines']) ||
         !result['lines'].every((line) => typeof line === 'string')
       )
-        throw Error('The engine returned invalid output lines.');
+        throw Error(t('processes.invalidLines'));
       const text = result['lines'].slice(-count).join('\n');
-      if (text.length > 262144)
-        throw Error('Output exceeds the display limit. Request fewer lines.');
+      if (text.length > 262144) throw Error(t('processes.tooLarge'));
       if (alive.current && sequence === outputSequence.current)
         setOutput(result['lines'].slice(-count));
     } catch (error) {
@@ -158,7 +166,7 @@ export function SessionProcesses({
       const rows = await read(),
         current = rows.find((row) => sameSessionProcess(row, proc));
       if (!current || current.protected || current.status !== 'running')
-        throw Error('This process changed, exited or became protected. No termination was sent.');
+        throw Error(t('processes.notSent'));
       const result = await command(
         'process.kill',
         { sessionId, pid: proc.pid, expectedStartedAt: current.startedAt },
@@ -166,7 +174,9 @@ export function SessionProcesses({
       );
       if (!alive.current) return;
       setNotice(
-        `${String(result['message'] ?? 'The engine acknowledged termination.')} Refresh verifies whether it is still tracked.`,
+        t('processes.refreshVerifies', {
+          message: String(result['message'] ?? t('processes.acknowledged')),
+        }),
       );
       setReview(null);
       await refresh();
@@ -208,7 +218,14 @@ export function SessionProcesses({
         }
       }
       if (!alive.current) return;
-      setNotice(batchTerminationSummary(targets.length, done, failed, skipped));
+      setNotice(
+        batchTerminationSummary(targets.length, done, failed, skipped, {
+          acknowledged: (count, total) => t('processes.batch.acknowledged', { done: count, total }),
+          failed: (list) => t('processes.batch.failed', { list }),
+          skipped: (list) => t('processes.batch.skipped', { list }),
+          refresh: t('processes.batch.refresh'),
+        }),
+      );
       setPicked([]);
       setBatchReview(false);
       await refresh();
@@ -226,20 +243,17 @@ export function SessionProcesses({
     allPicked =
       selectable.length > 0 && selectable.every((proc) => picked.includes(processKey(proc)));
   return (
-    <section className="session-processes" aria-label="Session processes">
+    <section className="session-processes" aria-label={t('processes.label')}>
       <header>
         <div>
-          <span className="eyebrow">THIS CONVERSATION</span>
-          <h2>Processes</h2>
-          <p>
-            Commands tracked by this session's engine. Native terminal tabs remain in the session
-            tree.
-          </p>
+          <span className="eyebrow">{t('processes.eyebrow')}</span>
+          <h2>{t('processes.title')}</h2>
+          <p>{t('processes.intro')}</p>
         </div>
         <div className="feature-actions">
           <button type="button" className="button secondary" onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('processes.back')}
           </button>
           <button
             type="button"
@@ -248,17 +262,29 @@ export function SessionProcesses({
             onClick={() => void refresh()}
           >
             <RefreshCw size={14} />
-            Refresh processes
+            {t('processes.refresh')}
           </button>
         </div>
       </header>
       <div className="process-summary">
         <span>
-          <strong>{processes.filter((proc) => proc.status === 'running').length}</strong> running
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="processes.running"
+            values={{ n: processes.filter((proc) => proc.status === 'running').length }}
+            components={{ strong: <strong /> }}
+          />
         </span>
-        <span>{processes.filter((proc) => proc.background).length} background</span>
-        <span>{processes.filter((proc) => proc.protected).length} protected</span>
-        <small>{connected ? 'Metadata refreshes every 2 seconds' : 'Disconnected'}</small>
+        <span>
+          {t('processes.backgroundCount', {
+            n: processes.filter((proc) => proc.background).length,
+          })}
+        </span>
+        <span>
+          {t('processes.protectedCount', { n: processes.filter((proc) => proc.protected).length })}
+        </span>
+        <small>{connected ? t('processes.polling') : t('processes.disconnected')}</small>
       </div>
       {error && (
         <p className="session-error" role="alert">
@@ -273,22 +299,22 @@ export function SessionProcesses({
       <label className="process-search">
         <Search size={14} />
         <input
-          aria-label="Search session processes"
-          placeholder="Command, tool or PID…"
+          aria-label={t('processes.search')}
+          placeholder={t('processes.searchPlaceholder')}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
       {connected && processes.some(terminable) && (
-        <div className="process-batch-bar" role="toolbar" aria-label="Process selection">
-          <span>{pickedProcesses.length} selected</span>
+        <div className="process-batch-bar" role="toolbar" aria-label={t('processes.selection')}>
+          <span>{t('processes.selected', { n: pickedProcesses.length })}</span>
           <button
             type="button"
             className="button secondary small"
             disabled={pending}
             onClick={() => setPicked(allPicked ? [] : selectable.map(processKey))}
           >
-            {allPicked ? 'Clear selection' : 'Select all running'}
+            {allPicked ? t('processes.clearSelection') : t('processes.selectAll')}
           </button>
           <button
             type="button"
@@ -300,23 +326,19 @@ export function SessionProcesses({
             }}
           >
             <Square size={12} />
-            Terminate selected…
+            {t('processes.terminateSelected')}
           </button>
         </div>
       )}
       {!connected ? (
-        <p className="quiet-state">Reconnect this conversation to inspect its commands.</p>
+        <p className="quiet-state">{t('processes.reconnect')}</p>
       ) : !loaded ? (
-        <p role="status">
-          {error
-            ? 'Process metadata is unavailable. Refresh to try again.'
-            : 'Reading tracked processes…'}
-        </p>
+        <p role="status">{error ? t('processes.unavailable') : t('processes.reading')}</p>
       ) : !visible.length ? (
         <div className="process-empty">
           <Terminal size={30} />
-          <h3>{processes.length ? 'No matching processes.' : 'No tracked processes.'}</h3>
-          <p>Opening this view does not execute a command.</p>
+          <h3>{processes.length ? t('processes.noMatch') : t('processes.none')}</h3>
+          <p>{t('processes.noExecute')}</p>
         </div>
       ) : (
         <div className="process-list">
@@ -326,7 +348,7 @@ export function SessionProcesses({
                 {terminable(proc) && (
                   <input
                     type="checkbox"
-                    aria-label={`Select PID ${proc.pid}`}
+                    aria-label={t('processes.selectPid', { pid: proc.pid })}
                     checked={picked.includes(processKey(proc))}
                     disabled={pending}
                     onChange={(event) =>
@@ -338,18 +360,20 @@ export function SessionProcesses({
                     }
                   />
                 )}
-                <span className={`process-status ${proc.status}`}>{proc.status}</span>
+                <span className={`process-status ${proc.status}`}>
+                  {t(`processes.status.${proc.status}`, { defaultValue: proc.status })}
+                </span>
                 <code>PID {proc.pid}</code>
                 <small>
                   {proc.tool}
-                  {proc.background ? ' · Background' : ' · Foreground'}
-                  {proc.protected ? ' · Protected' : ''}
+                  {` · ${proc.background ? t('processes.background') : t('processes.foreground')}`}
+                  {proc.protected ? ` · ${t('processes.protected')}` : ''}
                 </small>
               </header>
               <pre>{proc.command}</pre>
               <footer>
                 <time dateTime={new Date(proc.startedAt).toISOString()}>
-                  Started {new Date(proc.startedAt).toLocaleString()}
+                  {t('processes.started', { time: new Date(proc.startedAt).toLocaleString() })}
                 </time>
                 <div className="feature-actions">
                   <button
@@ -358,7 +382,7 @@ export function SessionProcesses({
                     disabled={!connected || pending}
                     onClick={() => void readOutput(proc)}
                   >
-                    {proc.hasOutput ? 'View output' : 'Output details'}
+                    {proc.hasOutput ? t('processes.viewOutput') : t('processes.outputDetails')}
                   </button>
                   <button
                     type="button"
@@ -370,7 +394,7 @@ export function SessionProcesses({
                     }}
                   >
                     <Square size={12} />
-                    Terminate process
+                    {t('processes.terminate')}
                   </button>
                 </div>
               </footer>
@@ -380,17 +404,15 @@ export function SessionProcesses({
       )}
       {reported && reported.length > 0 && (
         <details className="process-ended">
-          <summary>Recently ended · {reported.length}</summary>
-          <p className="field-help">
-            Exits as the engine recorded them when each process left its registry.
-          </p>
-          <ul aria-label="Recently ended processes">
+          <summary>{t('processes.ended', { n: reported.length })}</summary>
+          <p className="field-help">{t('processes.reportedHint')}</p>
+          <ul aria-label={t('processes.endedLabel')}>
             {reported.map((item) => {
-              const end = endLabel(item);
+              const end = endLabel(item, endWords);
               return (
                 <li key={`${item.pid}:${item.startedAt}`}>
                   <code>PID {item.pid}</code> {item.tool}
-                  {item.background ? ' · Background' : ''}
+                  {item.background ? ` · ${t('processes.background')}` : ''}
                   <b
                     className={
                       end.failed === null
@@ -404,9 +426,11 @@ export function SessionProcesses({
                   </b>
                   <pre>{item.command}</pre>
                   <small>
-                    Started {new Date(item.startedAt).toLocaleString()} · ended{' '}
-                    {new Date(item.endedAt).toLocaleTimeString()} · ran{' '}
-                    {observedDuration(item.startedAt, item.endedAt)}
+                    {t('processes.reportedTimes', {
+                      started: new Date(item.startedAt).toLocaleString(),
+                      ended: new Date(item.endedAt).toLocaleTimeString(),
+                      duration: observedDuration(item.startedAt, item.endedAt),
+                    })}
                   </small>
                 </li>
               );
@@ -416,22 +440,21 @@ export function SessionProcesses({
       )}
       {!reported && ended.length > 0 && (
         <details className="process-ended">
-          <summary>Recently ended · {ended.length}</summary>
-          <p className="field-help">
-            Runs this window saw that the engine no longer tracks. The engine does not report how
-            they ended or their exit code; times are when this window last saw them.
-          </p>
-          <ul aria-label="Recently ended processes">
+          <summary>{t('processes.ended', { n: ended.length })}</summary>
+          <p className="field-help">{t('processes.observedHint')}</p>
+          <ul aria-label={t('processes.endedLabel')}>
             {ended.map((item) => (
               <li key={`${item.proc.pid}:${item.proc.startedAt}`}>
                 <code>PID {item.proc.pid}</code> {item.proc.tool}
-                {item.proc.background ? ' · Background' : ''}
+                {item.proc.background ? ` · ${t('processes.background')}` : ''}
                 <pre>{item.proc.command}</pre>
                 <small>
-                  Started {new Date(item.proc.startedAt).toLocaleString()} · last seen{' '}
-                  {new Date(item.lastSeenAt).toLocaleTimeString()} · gone by{' '}
-                  {new Date(item.goneBy).toLocaleTimeString()} · tracked for at least{' '}
-                  {observedDuration(item.proc.startedAt, item.lastSeenAt)}
+                  {t('processes.observedTimes', {
+                    started: new Date(item.proc.startedAt).toLocaleString(),
+                    seen: new Date(item.lastSeenAt).toLocaleTimeString(),
+                    gone: new Date(item.goneBy).toLocaleTimeString(),
+                    duration: observedDuration(item.proc.startedAt, item.lastSeenAt),
+                  })}
                 </small>
               </li>
             ))}
@@ -445,15 +468,18 @@ export function SessionProcesses({
               setEnded([]);
             }}
           >
-            Clear ended list
+            {t('processes.clearEnded')}
           </button>
         </details>
       )}
       {selected && (
-        <aside className="process-output" aria-label={`Output for PID ${selected.pid}`}>
+        <aside
+          className="process-output"
+          aria-label={t('processes.outputLabel', { pid: selected.pid })}
+        >
           <header>
             <div>
-              <span className="eyebrow">REGISTERED BACKGROUND LOG</span>
+              <span className="eyebrow">{t('processes.logEyebrow')}</span>
               <h3>
                 PID {selected.pid} · {selected.tool}
               </h3>
@@ -461,7 +487,7 @@ export function SessionProcesses({
             <button
               type="button"
               className="icon-button"
-              aria-label="Close process output"
+              aria-label={t('processes.closeOutput')}
               onClick={() => {
                 outputSequence.current++;
                 setSelected(null);
@@ -472,7 +498,7 @@ export function SessionProcesses({
           </header>
           <div className="feature-actions">
             <select
-              aria-label="Process output line count"
+              aria-label={t('processes.lineCount')}
               value={lines}
               onChange={(event) => {
                 const next = Number(event.target.value);
@@ -480,9 +506,11 @@ export function SessionProcesses({
                 void readOutput(selected, next);
               }}
             >
-              <option value={50}>Last 50 lines</option>
-              <option value={100}>Last 100 lines</option>
-              <option value={200}>Last 200 lines</option>
+              {[50, 100, 200].map((count) => (
+                <option key={count} value={count}>
+                  {t('processes.lastLines', { n: count })}
+                </option>
+              ))}
             </select>
             <button
               type="button"
@@ -490,10 +518,10 @@ export function SessionProcesses({
               disabled={!connected || outputBusy}
               onClick={() => void readOutput(selected)}
             >
-              Refresh output
+              {t('processes.refreshOutput')}
             </button>
           </div>
-          {outputBusy && <p role="status">Reading output…</p>}
+          {outputBusy && <p role="status">{t('processes.readingOutput')}</p>}
           {outputError && (
             <p className="session-error" role="alert">
               {outputError}
@@ -502,35 +530,35 @@ export function SessionProcesses({
           {output !== null && (
             <>
               <ProcessPreviewLinks lines={output} />
-              <pre>{output.join('\n') || 'The registered log has no output yet.'}</pre>
+              <pre>{output.join('\n') || t('processes.emptyLog')}</pre>
             </>
           )}
         </aside>
       )}
       {batchReview && (
         <Modal
-          title="Terminate selected processes"
+          title={t('processes.batchTitle')}
           onClose={() => {
             if (!pending) setBatchReview(false);
           }}
         >
           <div className="process-review">
             <h2>
-              Terminate {pickedProcesses.length}{' '}
-              {pickedProcesses.length === 1 ? 'process' : 'processes'}?
+              {t(
+                pickedProcesses.length === 1 ? 'processes.batchAskOne' : 'processes.batchAskMany',
+                {
+                  n: pickedProcesses.length,
+                },
+              )}
             </h2>
-            <ul aria-label="Processes to terminate">
+            <ul aria-label={t('processes.batchList')}>
               {pickedProcesses.map((proc) => (
                 <li key={processKey(proc)}>
                   <code>PID {proc.pid}</code> {proc.command}
                 </li>
               ))}
             </ul>
-            <p>
-              Each selected command and its child process tree is stopped separately. A process that
-              exits, changes or becomes protected before its turn is skipped and reported. Unsaved
-              work inside these commands may be lost.
-            </p>
+            <p>{t('processes.batchBody')}</p>
             {error && (
               <p role="alert" className="session-error">
                 {error}
@@ -543,7 +571,7 @@ export function SessionProcesses({
                 disabled={pending}
                 onClick={() => setBatchReview(false)}
               >
-                Keep processes running
+                {t('processes.keepAll')}
               </button>
               <button
                 type="button"
@@ -552,8 +580,8 @@ export function SessionProcesses({
                 onClick={() => void terminateBatch(pickedProcesses)}
               >
                 {pending
-                  ? 'Requesting termination…'
-                  : `Confirm termination of ${pickedProcesses.length}`}
+                  ? t('processes.requesting')
+                  : t('processes.confirmBatch', { n: pickedProcesses.length })}
               </button>
             </div>
           </div>
@@ -561,18 +589,15 @@ export function SessionProcesses({
       )}
       {review && (
         <Modal
-          title="Terminate session process"
+          title={t('processes.singleTitle')}
           onClose={() => {
             if (!pending) setReview(null);
           }}
         >
           <div className="process-review">
-            <h2>Terminate PID {review.pid}?</h2>
+            <h2>{t('processes.singleAsk', { pid: review.pid })}</h2>
             <pre>{review.command}</pre>
-            <p>
-              This stops the selected tracked command and its child process tree. Unsaved work
-              inside that command may be lost.
-            </p>
+            <p>{t('processes.singleBody')}</p>
             {error && (
               <p role="alert" className="session-error">
                 {error}
@@ -585,7 +610,7 @@ export function SessionProcesses({
                 disabled={pending}
                 onClick={() => setReview(null)}
               >
-                Keep process running
+                {t('processes.keepOne')}
               </button>
               <button
                 type="button"
@@ -593,7 +618,7 @@ export function SessionProcesses({
                 disabled={pending || !connected}
                 onClick={() => void terminate(review)}
               >
-                {pending ? 'Requesting termination…' : 'Confirm process termination'}
+                {pending ? t('processes.requesting') : t('processes.confirmSingle')}
               </button>
             </div>
           </div>

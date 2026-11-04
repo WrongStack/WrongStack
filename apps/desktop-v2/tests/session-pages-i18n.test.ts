@@ -3,6 +3,7 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { SessionProcesses } from '../src/SessionProcesses';
 import { SessionRecovery } from '../src/SessionRecovery';
 import { surfaceI18n } from '../src/surface-i18n';
 
@@ -56,6 +57,29 @@ const recovery = () =>
     onRetryPrompt: vi.fn(),
   });
 
+const processList = {
+  sessionId: 'core-1',
+  processes: [
+    {
+      sessionId: 'core-1',
+      pid: 42,
+      command: 'npm run dev',
+      tool: 'shell',
+      startedAt: Date.parse('2026-11-04T10:00:00Z'),
+      status: 'running',
+      background: true,
+      hasOutput: true,
+    },
+  ],
+};
+const processes = () =>
+  createElement(SessionProcesses, {
+    sessionId: 'core-1',
+    connected: true,
+    command: vi.fn(async () => processList),
+    onBack: vi.fn(),
+  });
+
 describe('the session pages in the display language', () => {
   afterAll(() => surfaceI18n.changeLanguage('en'));
 
@@ -106,6 +130,48 @@ describe('the session pages in the display language', () => {
         '1. isteme geri sarmayı incele',
         'read kayıtlı çağrıları',
       ]),
+    );
+  });
+
+  it('show session processes in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(processes());
+    for (const text of [
+      'THIS CONVERSATION',
+      'Processes',
+      '1 running',
+      '1 background',
+      'Metadata refreshes every 2 seconds',
+      '0 selected',
+      'Select all running',
+      'running',
+      'shell · Background',
+      'View output',
+      'Terminate process',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Session processes', 'Process selection', 'Select PID 42']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(processes());
+    for (const text of [
+      'BU KONUŞMA',
+      'Süreçler',
+      '1 çalışıyor',
+      '1 arka planda',
+      'Üst veriler her 2 saniyede yenilenir',
+      '0 seçili',
+      'Çalışanların tümünü seç',
+      'çalışıyor',
+      'shell · Arka plan',
+      'Çıktıyı görüntüle',
+      'Süreci sonlandır',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Oturum süreçleri', 'Süreç seçimi', 'PID 42 seç']),
     );
   });
 });
