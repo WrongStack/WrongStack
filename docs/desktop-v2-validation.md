@@ -7396,3 +7396,18 @@ copies, starting with SAGE memory.
   - The goals catalog renders in English and then in Turkish (jsdom).
   - A new unit test covers the budget words.
   - Catalog parity and the key guard pass; desktop tests pass (885); typecheck clean.
+
+### Project mission, goal revert and phase verification in the display language (2026-11-04)
+
+- The persistent mission panel, the goal revert control and the phase verification details now
+  follow the display language in all seven languages, which completes the goals page.
+- Mission states, verification verdicts and integration states are named per language; an unknown
+  mission state still shows the engine's own word.
+- `goalRevertOutcome` takes optional words with English as the default. The revert control keeps
+  the engine's reply and words it at render, so the outcome follows a language change.
+- English text is unchanged, so the native goals scenario keeps matching.
+- Checks:
+  - The mission panel, phase verification and revert control render in English and then in
+    Turkish (jsdom).
+  - A new unit test covers the revert words.
+  - Catalog parity and the key guard pass; desktop tests pass (886); typecheck clean.

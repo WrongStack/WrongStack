@@ -40,3 +40,15 @@ it('reports what the engine reverted, or why it refused', () => {
     }),
   ).toBe('Nothing was reverted: no git baseline was captured for this run.');
 });
+
+it('words the outcome through the given words', () => {
+  const words = {
+    refused: (reason: string) => `Geri alınmadı: ${reason}`,
+    refusedReason: 'reddedildi',
+    reverted: (count: number) => `${count} commit geri alındı`,
+    none: 'Commit yok',
+  };
+  expect(goalRevertOutcome({ ok: false }, words)).toBe('Geri alınmadı: reddedildi');
+  expect(goalRevertOutcome({ ok: true, reverted: 2 }, words)).toBe('2 commit geri alındı');
+  expect(goalRevertOutcome({ ok: true, reverted: 0 }, words)).toBe('Commit yok');
+});

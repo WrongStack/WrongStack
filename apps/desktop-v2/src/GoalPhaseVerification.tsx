@@ -1,11 +1,8 @@
+import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
 import { recoveryDate } from './session-recovery-model';
 
-const INTEGRATION: Record<string, string> = {
-  merged: 'Merged into the project',
-  needs_review: 'Integration needs review',
-  merge_failed: 'Merge failed',
-};
+const INTEGRATION = new Set(['merged', 'needs_review', 'merge_failed']);
 
 export interface PhaseVerificationAttempt {
   attempt: number;
@@ -18,7 +15,7 @@ export interface PhaseVerificationAttempt {
 
 /** "skipped" is kept apart from "passed": nothing was checked. */
 const verdict = (item: PhaseVerificationAttempt) =>
-  item.skipped ? 'skipped (nothing to check)' : item.ok ? 'passed' : 'failed';
+  item.skipped ? 'skipped' : item.ok ? 'passed' : 'failed';
 
 /** Verification attempts the engine recorded on a Goal phase, oldest first. */
 export function phaseVerificationAttempts(phase: Record<string, unknown>) {
@@ -39,6 +36,7 @@ export function phaseVerificationAttempts(phase: Record<string, unknown>) {
 
 /** A phase's verification gate attempts and integration state, when the engine recorded them. */
 export function GoalPhaseVerification({ phase }: { phase: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   const attempts = phaseVerificationAttempts(phase);
   const integration =
     typeof phase['integrationStatus'] === 'string' ? phase['integrationStatus'] : '';
@@ -48,19 +46,26 @@ export function GoalPhaseVerification({ phase }: { phase: Record<string, unknown
     <details className="goal-phase-verification">
       <summary>
         {last
-          ? `Verification ${verdict(last)} · ${attempts.length} ${attempts.length === 1 ? 'attempt' : 'attempts'}`
-          : 'Integration'}
-        {integration ? ` · ${INTEGRATION[integration] ?? integration}` : ''}
+          ? t(attempts.length === 1 ? 'phaseVerify.summaryOne' : 'phaseVerify.summaryMany', {
+              verdict: t(`phaseVerify.${verdict(last)}`),
+              n: attempts.length,
+            })
+          : t('phaseVerify.integrationTitle')}
+        {integration
+          ? ` · ${INTEGRATION.has(integration) ? t(`phaseVerify.integration.${integration}`) : integration}`
+          : ''}
       </summary>
-      <ol aria-label="Verification attempts">
+      <ol aria-label={t('phaseVerify.attempts')}>
         {attempts.map((item) => (
           <li
             key={item.attempt}
             className={item.skipped ? 'skipped' : item.ok ? 'passed' : 'failed'}
           >
             <strong>
-              {item.attempt === 0 ? 'First check' : `After repair ${item.attempt}`} ·{' '}
-              {verdict(item)}
+              {item.attempt === 0
+                ? t('phaseVerify.firstCheck')
+                : t('phaseVerify.afterRepair', { n: item.attempt })}{' '}
+              · {t(`phaseVerify.${verdict(item)}`)}
             </strong>
             {item.at !== null && <small> · {recoveryDate(new Date(item.at).toISOString())}</small>}
             {item.output && <pre>{item.output}</pre>}
@@ -68,9 +73,7 @@ export function GoalPhaseVerification({ phase }: { phase: Record<string, unknown
         ))}
       </ol>
       {attempts.some((item) => item.output.length >= 4000) && (
-        <p className="settings-defaults-note">
-          Long checker output keeps its last 4,000 characters.
-        </p>
+        <p className="settings-defaults-note">{t('phaseVerify.longOutput')}</p>
       )}
     </details>
   );

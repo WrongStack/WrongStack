@@ -1,8 +1,11 @@
 import { Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { record } from './engine-values';
+import { surfaceI18n } from './surface-i18n';
 
 /** The baseline a Goal run can be reverted to, when the engine captured one. */
 export function goalRevertBaseline(goal: unknown): { branch: string; sha: string } | null {
@@ -14,15 +17,34 @@ export function goalRevertBaseline(goal: unknown): { branch: string; sha: string
     : null;
 }
 
+/** How a revert outcome is worded; English by default. */
+export interface GoalRevertWords {
+  refused: (reason: string) => string;
+  /** The reason when the engine gave none. */
+  refusedReason: string;
+  reverted: (count: number) => string;
+  none: string;
+}
+const englishRevertWords: GoalRevertWords = {
+  refused: (reason) => `Nothing was reverted: ${reason}.`,
+  refusedReason: 'the engine refused the request',
+  reverted: (count) =>
+    `Reverted ${count} ${count === 1 ? 'commit' : 'commits'} with new revert commits; the run was cleared.`,
+  none: 'The run made no commits to revert; the run was cleared.',
+};
+
 /** One line for `goal.reverted`. */
-export function goalRevertOutcome(value: unknown): string {
+export function goalRevertOutcome(
+  value: unknown,
+  words: GoalRevertWords = englishRevertWords,
+): string {
   const result = record(value);
   const count = typeof result['reverted'] === 'number' ? result['reverted'] : 0;
   if (result['ok'] !== true)
-    return `Nothing was reverted: ${typeof result['reason'] === 'string' ? result['reason'] : 'the engine refused the request'}.`;
-  return count
-    ? `Reverted ${count} ${count === 1 ? 'commit' : 'commits'} with new revert commits; the run was cleared.`
-    : 'The run made no commits to revert; the run was cleared.';
+    return words.refused(
+      typeof result['reason'] === 'string' ? result['reason'] : words.refusedReason,
+    );
+  return count ? words.reverted(count) : words.none;
 }
 
 /**
@@ -43,17 +65,29 @@ export function GoalRevert({
   send: EngineSend;
   readOnly: boolean;
 }) {
+  const { t } = useDesktopText();
   const baseline = goalRevertBaseline(goal);
+  // The engine's reply is kept as received and worded at render, in the current language.
   const [confirm, setConfirm] = useState(false),
     [waiting, setWaiting] = useState(false),
     [error, setError] = useState(''),
-    [outcome, setOutcome] = useState('');
+    [reply, setReply] = useState<unknown>(null);
+  const outcome =
+    reply === null
+      ? ''
+      : goalRevertOutcome(reply, {
+          refused: (reason) => t('goalRevert.refused', { reason }),
+          refusedReason: t('goalRevert.refusedReason'),
+          reverted: (n) =>
+            n === 1 ? t('goalRevert.revertedOne', { n }) : t('goalRevert.revertedMany', { n }),
+          none: t('goalRevert.none'),
+        });
   const seen = useRef<unknown>(undefined);
   const incoming = state.results['goal.reverted'];
   useEffect(() => {
     if (!waiting || !incoming || incoming === seen.current) return;
     setWaiting(false);
-    setOutcome(goalRevertOutcome(incoming));
+    setReply(incoming);
   }, [incoming, waiting]);
   if (!baseline && !outcome) return null;
   return (
@@ -65,19 +99,22 @@ export function GoalRevert({
           disabled={readOnly || waiting}
           onClick={() => {
             setConfirm(true);
-            setOutcome('');
+            setReply(null);
           }}
         >
-          <Undo2 size={14} /> Revert run
+          <Undo2 size={14} /> {t('goalRevert.revertRun')}
         </button>
       )}
       {baseline && confirm && (
         <div className="goal-revert-confirm" role="alert">
           <p>
-            Stop this run, remove its managed worktrees and revert every commit made on{' '}
-            <code>{baseline.branch}</code> since <code>{baseline.sha.slice(0, 7)}</code>? Revert
-            commits are added; history is not rewritten. Commits made by anyone else on that branch
-            in the meantime are reverted too.
+            <Trans
+              i18n={surfaceI18n}
+              ns="desktop"
+              i18nKey="goalRevert.confirm"
+              values={{ branch: baseline.branch, sha: baseline.sha.slice(0, 7) }}
+              components={{ code: <code /> }}
+            />
           </p>
           <button
             type="button"
@@ -93,18 +130,18 @@ export function GoalRevert({
               });
             }}
           >
-            Revert run
+            {t('goalRevert.revertRun')}
           </button>
           <button
             type="button"
             className="button secondary small"
             onClick={() => setConfirm(false)}
           >
-            Keep
+            {t('goalRevert.keep')}
           </button>
         </div>
       )}
-      {waiting && <p role="status">Reverting…</p>}
+      {waiting && <p role="status">{t('goalRevert.reverting')}</p>}
       {outcome && <p role="status">{outcome}</p>}
       {error && (
         <p role="alert" className="session-error">

@@ -9,6 +9,8 @@ import { AutomationRunComparison } from '../src/AutomationRunComparison';
 import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { emptyEngineState } from '../src/engine-state';
+import { GoalPhaseVerification } from '../src/GoalPhaseVerification';
+import { GoalRevert } from '../src/GoalRevert';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
@@ -118,6 +120,22 @@ const environmentEditor = (projectId: string) =>
 
 const goalsPage = () =>
   createElement(ProjectGoals, { state: emptyEngineState, send: vi.fn(pending), onKanban: vi.fn() });
+
+const goalParts = () =>
+  createElement(
+    'div',
+    null,
+    createElement(GoalPhaseVerification, {
+      phase: { verificationAttempts: [{ attempt: 0, ok: true }], integrationStatus: 'merged' },
+    }),
+    createElement(GoalRevert, {
+      goalId: 'g1',
+      goal: { revert: { branch: 'main', sha: 'abc1234def' } },
+      state: emptyEngineState,
+      send: vi.fn(pending),
+      readOnly: false,
+    }),
+  );
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -329,9 +347,20 @@ describe('the project pages in the display language', () => {
       'Execution goals',
       '0 recorded goal runs',
       'Reading the project goal catalog…',
+      'Persistent mission',
+      'Loading the project mission…',
     ])
       expect(page.text).toContain(text);
-    expect(page.labels).toEqual(expect.arrayContaining(['Project Goals', 'Search goals']));
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Project Goals', 'Search goals', 'Persistent project mission']),
+    );
+    page = await mount(goalParts());
+    for (const text of [
+      'Verification passed · 1 attempt · Merged into the project',
+      'First check · passed',
+      'Revert run',
+    ])
+      expect(page.text).toContain(text);
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(goalsPage());
@@ -341,8 +370,19 @@ describe('the project pages in the display language', () => {
       'Yürütme hedefleri',
       '0 kayıtlı hedef çalıştırması',
       'Proje hedef kataloğu okunuyor…',
+      'Kalıcı görev',
+      'Proje görevi yükleniyor…',
     ])
       expect(page.text).toContain(text);
-    expect(page.labels).toEqual(expect.arrayContaining(['Proje Hedefleri', 'Hedeflerde ara']));
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Proje Hedefleri', 'Hedeflerde ara', 'Kalıcı proje görevi']),
+    );
+    page = await mount(goalParts());
+    for (const text of [
+      'Doğrulama geçti · 1 deneme · Projeye birleştirildi',
+      'İlk kontrol · geçti',
+      'Çalıştırmayı geri al',
+    ])
+      expect(page.text).toContain(text);
   });
 });

@@ -1,14 +1,18 @@
 import { CheckCircle2, Circle, Compass, LoaderCircle, Pause, Play, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 const missionIdentity = (mission: Record<string, unknown>) =>
   JSON.stringify([mission['missionId'], mission['setAt'], mission['goal']]);
+/** Mission requests, each with its own waiting notice. */
+type MissionRequest = 'update' | 'refresh' | 'pause' | 'resume' | 'refine' | 'clear';
 
 /** The persistent project mission is independent from executable phase graphs. */
 export function ProjectMission({ state, send }: { state: EngineState; send: EngineSend }) {
+  const { t } = useDesktopText();
   const mission = state.results['goal-state.updated'];
   const exists = Boolean(text(mission?.['goal']).trim());
   const identity = missionIdentity(mission ?? {});
@@ -48,13 +52,13 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
     const failure = state.results['goal-state.error'];
     if (failure && failure !== seenError.current) {
       setPending('');
-      setError(text(failure['message']) || 'Mission request failed.');
+      setError(text(failure['message']) || t('mission.failed'));
     }
     seenError.current = failure;
   }, [state.results['goal-state.error']]);
-  const request = async (type: string, payload: Record<string, unknown>, description: string) => {
+  const request = async (type: string, payload: Record<string, unknown>, kind: MissionRequest) => {
     setError('');
-    setPending(`${description} requested; waiting for the project engine.`);
+    setPending(t(`mission.requested.${kind}`));
     try {
       await send(type, payload);
     } catch (e) {
@@ -73,9 +77,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
     if (!draft.trim()) return;
     if (editIdentity !== identity) {
       setConfirm(null);
-      setError(
-        'The project mission changed while you were editing. Copy your draft, then reload the current mission.',
-      );
+      setError(t('mission.changedWhileEditing'));
       return;
     }
     if (exists && confirm !== 'replace') {
@@ -84,11 +86,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
     }
     setConfirm(null);
     setSaveAttempt({ identity, goal: draft.trim() });
-    void request(
-      'goal-state.set',
-      { goal: draft.trim(), expectedMission: missionKey },
-      'Mission update',
-    );
+    void request('goal-state.set', { goal: draft.trim(), expectedMission: missionKey }, 'update');
   };
   const progress = mission?.['progress'];
   const deliverables = Array.isArray(mission?.['deliverables']) ? mission['deliverables'] : [];
@@ -96,33 +94,31 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
     (row) => typeof row['iteration'] === 'number',
   );
   return (
-    <section className="project-mission" aria-label="Persistent project mission">
+    <section className="project-mission" aria-label={t('mission.label')}>
       <div className="project-mission-heading">
         <div className="project-mission-title">
           <Compass size={19} />
           <div>
-            <span className="eyebrow">PROJECT DIRECTION</span>
-            <h2>Persistent mission</h2>
+            <span className="eyebrow">{t('mission.eyebrow')}</span>
+            <h2>{t('mission.title')}</h2>
           </div>
         </div>
         <div className="project-mission-actions">
           <button
             type="button"
             className="button secondary"
-            onClick={() => void request('goal-state.get', {}, 'Refresh')}
+            onClick={() => void request('goal-state.get', {}, 'refresh')}
           >
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={13} /> {t('mission.refresh')}
           </button>
           {!editing && (
             <button type="button" className="button secondary" onClick={beginEdit}>
-              {exists ? 'Replace mission' : 'Set mission'}
+              {exists ? t('mission.replace') : t('mission.set')}
             </button>
           )}
         </div>
       </div>
-      <p className="project-mission-intro">
-        A project-wide direction for ongoing work, independent of the execution goals below.
-      </p>
+      <p className="project-mission-intro">{t('mission.intro')}</p>
       {error && (
         <p className="session-error" role="alert">
           {error}
@@ -136,24 +132,19 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
       {editing ? (
         <div className="project-mission-editor">
           <label>
-            Mission
+            {t('mission.mission')}
             <textarea
-              aria-label="Mission"
+              aria-label={t('mission.mission')}
               value={draft}
               onChange={(event) => {
                 setDraft(event.target.value);
                 setConfirm(null);
                 setSaveAttempt(null);
               }}
-              placeholder="Describe the project’s enduring direction…"
+              placeholder={t('mission.placeholder')}
             />
           </label>
-          {confirm === 'replace' && (
-            <p>
-              Replacing this mission starts a new mission and resets the previous mission’s progress
-              and journal.
-            </p>
-          )}
+          {confirm === 'replace' && <p>{t('mission.replaceWarning')}</p>}
           <div className="project-mission-actions">
             <button
               type="button"
@@ -164,7 +155,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                 setSaveAttempt(null);
               }}
             >
-              Cancel
+              {t('mission.cancel')}
             </button>
             <button
               type="button"
@@ -172,26 +163,28 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
               disabled={!draft.trim() || Boolean(pending)}
               onClick={save}
             >
-              {confirm === 'replace' ? 'Confirm replacement' : 'Save mission'}
+              {confirm === 'replace' ? t('mission.confirmReplace') : t('mission.save')}
             </button>
           </div>
         </div>
       ) : !mission ? (
-        <p className="project-mission-empty">Loading the project mission…</p>
+        <p className="project-mission-empty">{t('mission.loading')}</p>
       ) : !exists ? (
-        <p className="project-mission-empty">
-          No persistent mission has been set for this project.
-        </p>
+        <p className="project-mission-empty">{t('mission.none')}</p>
       ) : (
         <>
           <div className="project-mission-main">
             <div>
               <span className="project-mission-status">
-                {text(mission['goalState']) || 'Status not reported'}
+                {text(mission['goalState'])
+                  ? t(`mission.state.${text(mission['goalState'])}`, {
+                      defaultValue: text(mission['goalState']),
+                    })
+                  : t('mission.statusMissing')}
               </span>
               {refining && (
                 <span className="goal-request" role="status">
-                  Refining mission…
+                  {t('mission.refining')}
                 </span>
               )}
               <p className="project-mission-goal">{text(mission['goal'])}</p>
@@ -203,10 +196,10 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                   className="button secondary"
                   disabled={Boolean(pending)}
                   onClick={() =>
-                    void request('goal-state.pause', { expectedMission: missionKey }, 'Pause')
+                    void request('goal-state.pause', { expectedMission: missionKey }, 'pause')
                   }
                 >
-                  <Pause size={13} /> Pause
+                  <Pause size={13} /> {t('mission.pause')}
                 </button>
               )}
               {mission['goalState'] === 'paused' && (
@@ -215,41 +208,39 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                   className="button secondary"
                   disabled={Boolean(pending)}
                   onClick={() =>
-                    void request('goal-state.resume', { expectedMission: missionKey }, 'Resume')
+                    void request('goal-state.resume', { expectedMission: missionKey }, 'resume')
                   }
                 >
-                  <Play size={13} /> Resume
+                  <Play size={13} /> {t('mission.resume')}
                 </button>
               )}
               <button
                 type="button"
                 className="button secondary"
                 disabled={refining || Boolean(pending)}
-                onClick={() => void request('goal-state.refine', {}, 'Refine')}
+                onClick={() => void request('goal-state.refine', {}, 'refine')}
               >
-                Refine
+                {t('mission.refine')}
               </button>
               {confirm === 'clear' ? (
                 <>
-                  <span>Clear this mission and its history?</span>
+                  <span>{t('mission.clearAsk')}</span>
                   <button
                     type="button"
                     className="button secondary"
                     onClick={() => {
                       setConfirm(null);
                       if (clearIdentity !== identity) {
-                        setError(
-                          'The project mission changed. Review the current mission before clearing it.',
-                        );
+                        setError(t('mission.changedBeforeClear'));
                         return;
                       }
-                      void request('goal-state.clear', { expectedMission: missionKey }, 'Clear');
+                      void request('goal-state.clear', { expectedMission: missionKey }, 'clear');
                     }}
                   >
-                    Confirm clear
+                    {t('mission.confirmClear')}
                   </button>
                   <button type="button" onClick={() => setConfirm(null)}>
-                    Cancel
+                    {t('mission.cancel')}
                   </button>
                 </>
               ) : (
@@ -262,35 +253,37 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                     setConfirm('clear');
                   }}
                 >
-                  Clear
+                  {t('mission.clear')}
                 </button>
               )}
             </div>
           </div>
           {text(mission['refinedGoal']) && mission['refinedGoal'] !== mission['goal'] && (
             <div className="project-mission-refined">
-              <span className="eyebrow">REFINED DIRECTION</span>
+              <span className="eyebrow">{t('mission.refinedEyebrow')}</span>
               <p>{text(mission['refinedGoal'])}</p>
             </div>
           )}
           <div className="project-mission-metrics">
             <span>
-              Progress{' '}
+              {t('mission.progress')}{' '}
               <strong>
                 {typeof progress === 'number' && Number.isFinite(progress)
                   ? `${progress}%`
-                  : 'Not reported'}
+                  : t('mission.notReported')}
               </strong>
             </span>
             <span>
-              Iterations{' '}
+              {t('mission.iterations')}{' '}
               <strong>
-                {typeof mission['iterations'] === 'number' ? mission['iterations'] : 'Not reported'}
+                {typeof mission['iterations'] === 'number'
+                  ? mission['iterations']
+                  : t('mission.notReported')}
               </strong>
             </span>
             {text(mission['lastStatus']) && (
               <span>
-                Last status <strong>{text(mission['lastStatus'])}</strong>
+                {t('mission.lastStatus')} <strong>{text(mission['lastStatus'])}</strong>
               </span>
             )}
           </div>
@@ -301,7 +294,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
             <div className="project-mission-columns">
               {deliverables.length > 0 && (
                 <div>
-                  <h3>Deliverables</h3>
+                  <h3>{t('mission.deliverables')}</h3>
                   <ul>
                     {deliverables.map((item, index) => {
                       const row = record(item);
@@ -322,7 +315,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
               )}
               {journal.length > 0 && (
                 <div>
-                  <h3>Recent activity</h3>
+                  <h3>{t('mission.recentActivity')}</h3>
                   <ul>
                     {journal.slice(0, 8).map((item, index) => (
                       <li key={`${String(item['iteration'])}-${index}`}>
@@ -331,7 +324,7 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
                           {text(item['task']) ||
                             text(item['status']) ||
                             text(item['progressNote']) ||
-                            'No details recorded'}
+                            t('mission.noDetails')}
                         </span>
                       </li>
                     ))}
