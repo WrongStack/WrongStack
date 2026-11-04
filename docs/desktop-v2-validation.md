@@ -8040,3 +8040,17 @@ copies, starting with SAGE memory.
 - Checks: `context-dialogs-i18n.test.ts` now also renders a custom active mode, a cache layout
   with a verdict and the retention rows in English and Turkish; desktop tests pass (930);
   typecheck clean.
+
+### Session workbench, draft conflict and status bar in the display language (2026-11-04)
+
+- The session workbench follows the display language in all seven languages: the open session
+  tabs and their detach buttons, new session, stop session, the draft restore error and retry,
+  and the restoring and opening terminal states (`workbench`).
+- The draft conflict notice is translated, including the version comparison, the delivery,
+  files and attachments line, and the replace confirmations (`draftConflict`).
+- The status line under the composer is translated: run state, the context meter and its
+  accessible name, cache and memory chips, the provider limit warning, the iteration counter,
+  token counts, the cost estimate and refresh (`statusBar`).
+- Still English by design: session titles, file and attachment names, and delivery mode ids.
+- Checks: new `workbench-i18n.test.ts` renders the workbench and the status bar in English and
+  Turkish; desktop tests pass (PASSED); typecheck clean.

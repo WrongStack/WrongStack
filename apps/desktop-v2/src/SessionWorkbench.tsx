@@ -2,6 +2,7 @@ import { Plus, Square, Terminal, Workflow, X } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { ConversationReconnect } from './ConversationReconnect';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import { EngineWorkspace } from './EngineWorkspace';
 import { isLive } from './model';
 import { request } from './platform';
@@ -15,6 +16,7 @@ const TerminalPane = lazy(() =>
 import type { DesktopController } from './useDesktop';
 
 export function SessionWorkbench({ vm }: { vm: DesktopController }) {
+  const { t } = useDesktopText();
   const {
     snapshot,
     currentSession: session,
@@ -28,8 +30,8 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
   } = vm;
   if (!session) return null;
   return (
-    <section className="session-workbench" aria-label="Session workbench">
-      <nav className="session-tabs" aria-label="Open sessions">
+    <section className="session-workbench" aria-label={t('workbench.label')}>
+      <nav className="session-tabs" aria-label={t('workbench.tabs')}>
         {openSessionIds
           .map((id) => snapshot.sessions.find((s) => s.id === id))
           .filter((s) => s !== undefined)
@@ -56,8 +58,8 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
               <button
                 type="button"
                 className="session-tab-close"
-                title={`Detach ${s.title}`}
-                aria-label={`Detach ${s.title}`}
+                title={t('workbench.detach', { title: s.title })}
+                aria-label={t('workbench.detach', { title: s.title })}
                 onClick={() => closeSessionTab(s.id)}
               >
                 <X size={12} />
@@ -67,7 +69,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
         <button
           type="button"
           className="icon-button new-session-tab"
-          aria-label="New session in this project"
+          aria-label={t('workbench.new')}
           onClick={() => vm.newSession(session.projectId)}
         >
           <Plus size={15} />
@@ -76,11 +78,11 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
           <button
             type="button"
             className="session-stop"
-            title="Stop this session"
+            title={t('workbench.stopTitle')}
             onClick={() => void run(() => request('session.kill', { id: session.id }))}
           >
             <Square size={10} />
-            Stop session
+            {t('workbench.stop')}
           </button>
         )}
       </nav>
@@ -111,14 +113,14 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             {vm.draftErrors[session.id] ? (
               <>
                 <p role="alert">
-                  Could not restore this session draft: {vm.draftErrors[session.id]}
+                  {t('workbench.draftError', { error: vm.draftErrors[session.id] })}
                 </p>
                 <button type="button" className="button secondary" onClick={vm.retryDraft}>
-                  Retry
+                  {t('workbench.retry')}
                 </button>
               </>
             ) : (
-              <p>Restoring session draft…</p>
+              <p>{t('workbench.restoring')}</p>
             )}
           </div>
         ) : session.kind === 'agent' ? (
@@ -156,7 +158,9 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             }}
           />
         ) : (
-          <Suspense fallback={<div className="runtime-state">Opening terminal…</div>}>
+          <Suspense
+            fallback={<div className="runtime-state">{t('workbench.openingTerminal')}</div>}
+          >
             <TerminalPane
               key={session.id}
               id={session.id}
@@ -194,15 +198,14 @@ function DraftConflictNotice({
   onReview: () => void;
   onResolve: (choice: 'local' | 'saved') => void;
 }) {
+  const { t } = useDesktopText();
   const [confirm, setConfirm] = useState<'local' | 'saved' | null>(null);
+  const none = t('draftConflict.none');
   return (
     <div className="draft-conflict" role="alert">
-      <strong>This draft changed in another window.</strong>
-      <p>
-        Your local edits are still visible here but are not saved. Sending is paused to avoid mixing
-        versions.
-      </p>
-      <CopyButton text={text} label="Copy my local draft" />{' '}
+      <strong>{t('draftConflict.title')}</strong>
+      <p>{t('draftConflict.body')}</p>
+      <CopyButton text={text} label={t('draftConflict.copy')} />{' '}
       <button
         type="button"
         onClick={() => {
@@ -211,22 +214,29 @@ function DraftConflictNotice({
         }}
         disabled={loading}
       >
-        {loading ? 'Loading…' : saved ? 'Refresh saved version' : 'Compare versions'}
+        {loading
+          ? t('draftConflict.loading')
+          : saved
+            ? t('draftConflict.refresh')
+            : t('draftConflict.compare')}
       </button>
       {error && <p role="alert">{error}</p>}
       {saved && (
         <div className="draft-comparison">
           {[
-            { title: 'This window', text, ...local },
-            { title: 'Saved version', ...saved },
+            { title: t('draftConflict.thisWindow'), text, ...local },
+            { title: t('draftConflict.saved'), ...saved },
           ].map((item) => (
             <section key={item.title}>
               <h3>{item.title}</h3>
-              <pre>{item.text || '(No text)'}</pre>
+              <pre>{item.text || t('draftConflict.noText')}</pre>
               <p>
-                Delivery: {item.mode} · Files:{' '}
-                {item.references.map((ref) => ref.path).join(', ') || 'None'} · Attachments:{' '}
-                {item.attachments.map((attachment) => attachment.name).join(', ') || 'None'}
+                {t('draftConflict.details', {
+                  mode: item.mode,
+                  files: item.references.map((ref) => ref.path).join(', ') || none,
+                  attachments:
+                    item.attachments.map((attachment) => attachment.name).join(', ') || none,
+                })}
               </p>
             </section>
           ))}
@@ -237,23 +247,25 @@ function DraftConflictNotice({
           <>
             <span>
               {confirm === 'local'
-                ? 'This replaces the saved draft with this window’s version.'
-                : 'This replaces this window’s draft with the saved version.'}
+                ? t('draftConflict.replaceSaved')
+                : t('draftConflict.replaceLocal')}
             </span>{' '}
             <button type="button" onClick={() => onResolve(confirm)}>
-              {confirm === 'local' ? 'Confirm use my version' : 'Confirm use saved version'}
+              {confirm === 'local'
+                ? t('draftConflict.confirmLocal')
+                : t('draftConflict.confirmSaved')}
             </button>{' '}
             <button type="button" onClick={() => setConfirm(null)}>
-              Cancel
+              {t('draftConflict.cancel')}
             </button>
           </>
         ) : (
           <>
             <button type="button" onClick={() => setConfirm('local')}>
-              Keep my version
+              {t('draftConflict.keepMine')}
             </button>{' '}
             <button type="button" onClick={() => setConfirm('saved')}>
-              Use saved version
+              {t('draftConflict.useSaved')}
             </button>
           </>
         ))}

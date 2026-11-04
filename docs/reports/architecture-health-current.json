@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T17:34:33.021Z",
+  "generatedAt": "2026-11-04T17:39:51.821Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6001,
-    "testFiles": 4984,
-    "sourceLines": 1247682,
+    "testFiles": 4985,
+    "sourceLines": 1247711,
     "workspaceEdges": 240,
-    "moduleEdges": 17550,
+    "moduleEdges": 17552,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 247,
+    "testsWithoutTypecheck": 248,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 435,
-      "testFiles": 247,
+      "testFiles": 248,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2781,6 +2781,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/workbench-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32931,6 +32937,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/word-diff.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/workbench-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
