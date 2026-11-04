@@ -3,6 +3,8 @@ import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
+import { ProjectRequirements } from '../src/ProjectRequirements';
+import { RequirementSummary } from '../src/RequirementSummary';
 import { RosterKnowledgeChecklist } from '../src/RosterKnowledgeChecklist';
 import { surfaceI18n } from '../src/surface-i18n';
 
@@ -45,6 +47,14 @@ const checklist = () =>
     disabled: false,
   });
 
+const requirements = () =>
+  createElement(ProjectRequirements, { http: vi.fn(pending), onStartSdd: vi.fn() });
+
+const summary = () =>
+  createElement(RequirementSummary, {
+    detail: { originalRequest: 'Add a login page', priority: 'high' },
+  });
+
 describe('the project pages in the display language', () => {
   afterAll(async () => {
     await surfaceI18n.changeLanguage('en');
@@ -78,5 +88,29 @@ describe('the project pages in the display language', () => {
     page = await mount(checklist());
     expect(page.text).toContain('Kontrol listesi yükleniyor…');
     expect(page.labels).toContain('reviewer için bilgi kontrol listesi');
+  });
+
+  it('show the requirements page in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(requirements());
+    for (const text of ['Requirements', 'New requirement', 'Loading requirements…'])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Project requirements', 'Search requirements']),
+    );
+    page = await mount(summary());
+    for (const text of ['Original request', 'Business goal', 'Not recorded', 'high', 'Standard'])
+      expect(page.text).toContain(text);
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(requirements());
+    for (const text of ['Gereksinimler', 'Yeni gereksinim', 'Gereksinimler yükleniyor…'])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Proje gereksinimleri', 'Gereksinimlerde ara']),
+    );
+    page = await mount(summary());
+    for (const text of ['Özgün istek', 'İş hedefi', 'Kaydedilmedi', 'yüksek', 'Standart'])
+      expect(page.text).toContain(text);
   });
 });

@@ -7266,3 +7266,20 @@ copies, starting with SAGE memory.
 - Checks:
   - The knowledge checklist renders in English and then in Turkish beside the roster (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (878); typecheck clean.
+
+### Requirements page in the display language (2026-11-04)
+
+- The requirements page now follows the display language in all seven languages:
+  - the list, search and status filter;
+  - the new-requirement form with its draft recovery and version choice;
+  - the record view with its questions, answers, submit, cancel and archive steps and its change
+    history;
+  - the request summary and the record draft notice.
+- Request types, priorities, statuses, question states and history actions are named per language.
+  An unknown value from the engine still shows as before, with underscores turned into spaces.
+- English text is unchanged, so the native requirement scenarios keep matching.
+- ProjectRequirements imports one more module and shrank by five lines; its hotspot ratchet is
+  updated to match.
+- Checks:
+  - The page and its summary render in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (879); typecheck clean.

@@ -1,4 +1,6 @@
+import type { TFunction } from 'i18next';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import {
   hasRecordDraft,
   type RecordDraftState,
@@ -6,7 +8,11 @@ import {
   type RequirementRecordDraftStore,
 } from './requirement-record-draft';
 
-function preview(draft: RequirementRecordDraft, questions: Record<string, unknown>[]) {
+function preview(
+  draft: RequirementRecordDraft,
+  questions: Record<string, unknown>[],
+  t: TFunction<'desktop'>,
+) {
   const parts: string[] = [];
   if (draft.fields) {
     for (const [key, value] of Object.entries(draft.fields))
@@ -15,10 +21,10 @@ function preview(draft: RequirementRecordDraft, questions: Record<string, unknow
   for (const [id, answer] of Object.entries(draft.answers)) {
     const question = questions.find((item) => item['id'] === id);
     parts.push(
-      `${typeof question?.['question'] === 'string' ? question['question'] : 'Saved answer'}\n${answer.text}`,
+      `${typeof question?.['question'] === 'string' ? question['question'] : t('req.record.savedAnswer')}\n${answer.text}`,
     );
   }
-  return parts.join('\n\n') || 'No information or answer drafts.';
+  return parts.join('\n\n') || t('req.record.empty');
 }
 
 export function RequirementRecordDraftNotice({
@@ -30,6 +36,7 @@ export function RequirementRecordDraftNotice({
   store: RequirementRecordDraftStore | null;
   questions: Record<string, unknown>[];
 }) {
+  const { t } = useDesktopText();
   const [choice, setChoice] = useState<'saved' | 'local' | null>(null);
   if (
     !store ||
@@ -40,17 +47,17 @@ export function RequirementRecordDraftNotice({
   )
     return null;
   return (
-    <section className="requirement-draft-status" aria-label="Requirement record draft storage">
+    <section className="requirement-draft-status" aria-label={t('req.record.label')}>
       <p>
         {state.status === 'loading'
-          ? 'Loading saved edit and answer drafts…'
+          ? t('req.record.loading')
           : state.status === 'saving'
-            ? 'Saving this requirement’s edit and answer drafts…'
+            ? t('req.record.saving')
             : state.status === 'conflict'
-              ? 'This requirement draft changed in another window. Local edits and answers are preserved.'
+              ? t('req.record.conflict')
               : state.status === 'error'
-                ? 'This requirement draft could not be saved.'
-                : 'Edit and answer drafts for this requirement are saved on this device.'}
+                ? t('req.record.error')
+                : t('req.record.saved')}
       </p>
       {state.error && (
         <p className="session-error" role="alert">
@@ -59,7 +66,7 @@ export function RequirementRecordDraftNotice({
       )}
       {!state.ready && state.status === 'error' && (
         <button type="button" className="button secondary" onClick={() => void store.load()}>
-          Retry loading record draft
+          {t('req.record.retry')}
         </button>
       )}
       {state.status === 'conflict' && (
@@ -72,30 +79,30 @@ export function RequirementRecordDraftNotice({
             void store.compare();
           }}
         >
-          Compare record drafts
+          {t('req.record.compare')}
         </button>
       )}
       {state.review && (
         <>
           <div className="requirement-draft-comparison">
             <div>
-              <h4>Local record draft</h4>
+              <h4>{t('req.record.local')}</h4>
               <textarea
-                aria-label="Local record draft"
+                aria-label={t('req.record.local')}
                 readOnly
-                value={preview(state.value, questions)}
+                value={preview(state.value, questions, t)}
               />
             </div>
             <div>
-              <h4>Saved record draft</h4>
+              <h4>{t('req.record.saved2')}</h4>
               <textarea
-                aria-label="Saved record draft"
+                aria-label={t('req.record.saved2')}
                 readOnly
-                value={preview(state.review.value, questions)}
+                value={preview(state.review.value, questions, t)}
               />
             </div>
           </div>
-          <p>Your choice replaces the complete edit and answer draft for this requirement.</p>
+          <p>{t('req.record.choiceHelp')}</p>
           <div className="sdd-actions">
             {choice ? (
               <>
@@ -105,11 +112,10 @@ export function RequirementRecordDraftNotice({
                   disabled={state.resolving}
                   onClick={() => void store.resolve(choice).then(() => setChoice(null))}
                 >
-                  Confirm{' '}
-                  {choice === 'saved' ? 'use saved record draft' : 'keep local record draft'}
+                  {choice === 'saved' ? t('req.record.confirmSaved') : t('req.record.confirmLocal')}
                 </button>
                 <button type="button" disabled={state.resolving} onClick={() => setChoice(null)}>
-                  Cancel choice
+                  {t('req.cancelChoice')}
                 </button>
               </>
             ) : (
@@ -120,7 +126,7 @@ export function RequirementRecordDraftNotice({
                   disabled={state.resolving}
                   onClick={() => setChoice('saved')}
                 >
-                  Use saved record draft
+                  {t('req.record.useSaved')}
                 </button>
                 <button
                   type="button"
@@ -128,7 +134,7 @@ export function RequirementRecordDraftNotice({
                   disabled={state.resolving}
                   onClick={() => setChoice('local')}
                 >
-                  Keep local record draft
+                  {t('req.record.keepLocal')}
                 </button>
               </>
             )}
