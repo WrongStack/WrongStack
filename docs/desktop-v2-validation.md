@@ -7663,3 +7663,18 @@ copies, starting with SAGE memory.
   - A new jsdom test renders the interview start and a running board with its activity feed and
     maintenance section in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (903); typecheck clean.
+
+### SDD task details in the display language (2026-11-04)
+
+- The selected task beside the SDD board now follows the display language in all seven
+  languages: its metadata, dependencies and dependents, the run controls with their
+  confirmations, the assignment, model, fallback, verification and split forms with their
+  placeholders, and the task activity.
+- Keys live under `sddView.taskDetail`; statuses, priorities and activity kinds reuse the
+  `sddView` value and feed names, with the engine value as the fallback.
+- The waiting line of a task action now names the action in the display language.
+- Still English by design: task titles, descriptions, activity text and engine replies.
+- Checks:
+  - A new jsdom test renders a running board's in-progress task with its controls in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (904); typecheck clean.

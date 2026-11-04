@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { emptyEngineState } from '../src/engine-state';
 import { ProjectSdd } from '../src/ProjectSdd';
+import { SddTaskDetails } from '../src/SddTaskDetails';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -128,5 +129,48 @@ describe('project SDD in the display language', () => {
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(expect.arrayContaining(['Pano etkinliği', 'SDD proje bakımı']));
+  });
+
+  it('shows the selected task and its controls in English, then in Turkish', async () => {
+    const task = { id: 't1', shortId: 'T1', title: 'Write tests', status: 'in_progress' };
+    const details = () =>
+      createElement(SddTaskDetails, {
+        task,
+        tasks: [task],
+        board: { runId: 'r1', status: 'running' },
+        waiting: false,
+        request: vi.fn(async () => {}),
+        onSelect: vi.fn(),
+      });
+
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(details());
+    for (const text of [
+      'TASK T1',
+      'Status',
+      'in progress',
+      'Not reported',
+      'Cancel task',
+      'Assigned agent',
+      'Update model',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['SDD task details', 'Assigned agent', 'Model override']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(details());
+    for (const text of [
+      'GÖREV T1',
+      'Durum',
+      'sürüyor',
+      'Görevi iptal et',
+      'Atanan ajan',
+      'Modeli güncelle',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.text).not.toContain('Not reported');
+    expect(page.labels).not.toContain('SDD task details');
   });
 });
