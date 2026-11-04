@@ -1,6 +1,7 @@
 import type { ReasoningEffort } from '@wrongstack/contracts/types';
 import type { WSUserMessageImage } from '@wrongstack/webui-protocol';
 import { validateAttachmentPayload, validateAttachments } from './composer-attachments';
+import { englishText } from './desktop-text';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import { type EngineState, entries } from './engine-state';
 
@@ -76,8 +77,8 @@ export async function dispatchComposer(
 ): Promise<string> {
   const content = text.trim();
   const state = ports.current();
-  if (state.hydrating) throw Error('The session history is still syncing. Your draft is kept.');
-  if (!content && !images.length) throw Error('Write a message or attach a file first.');
+  if (state.hydrating) throw Error(englishText('composerMessage', 'hydrating'));
+  if (!content && !images.length) throw Error(englishText('composerMessage', 'empty'));
   const delivery = mode === 'btw' && state.running && images.length ? 'queue' : mode;
   validateAttachments(images, delivery === 'queue');
   const media = images.length ? { images } : {};
@@ -90,21 +91,16 @@ export async function dispatchComposer(
       !Array.isArray(capabilities) ||
       !capabilities.includes('context.topic-boundary'))
   )
-    throw Error(
-      'A fresh topic context requires an idle conversation on a supporting engine. Your draft is kept.',
-    );
+    throw Error(englishText('composerMessage', 'freshContext'));
   if (
     images.length &&
     delivery !== 'queue' &&
     (!Array.isArray(capabilities) || !capabilities.includes('session.user-ack'))
   )
-    throw Error(
-      'This older engine cannot confirm file acceptance. Keep the draft and open a session on the current build.',
-    );
+    throw Error(englishText('composerMessage', 'noUserAck'));
   if (!state.connected || state.needsSetup)
-    throw Error('Connect a provider before sending. Your draft is kept.');
-  if (state.inputs.length)
-    throw Error('Answer the pending questions before sending. Your draft is kept.');
+    throw Error(englishText('composerMessage', 'noProvider'));
+  if (state.inputs.length) throw Error(englishText('composerMessage', 'pendingQuestions'));
   if (delivery === 'btw' && state.running) {
     const saved = await ports.command(
       'mailbox.send',
@@ -120,14 +116,12 @@ export async function dispatchComposer(
       ['mailbox.sent'],
     );
     if (typeof saved['messageId'] === 'string') ports.onBtwSaved?.(saved['messageId'], content);
-    return 'BTW saved for this session’s leader. Delivery does not mean it has been read.';
+    return englishText('composerMessage', 'btwSaved');
   }
   if (delivery === 'steer' && state.running) {
     if (state.queue.length) {
       if (!Array.isArray(capabilities) || !capabilities.includes('session.prompt-queue-front'))
-        throw Error(
-          'Remove pending queued prompts before steering, so another prompt cannot start ahead of your instruction. Your draft is kept.',
-        );
+        throw Error(englishText('composerMessage', 'steerQueue'));
       validateAttachments(images, true);
       validateAttachmentPayload({ content, journalRaw, ...media }, true);
       // The engine places the instruction first in its queue, then the run stops: the queue
@@ -145,20 +139,19 @@ export async function dispatchComposer(
       try {
         await ports.send('abort');
       } catch (failure) {
-        return `Your instruction is first in the queue, but the current run could not be stopped (${failure instanceof Error ? failure.message : String(failure)}). It runs when the turn ends.`;
+        return englishText('composerMessage', 'steerNotStopped', {
+          error: failure instanceof Error ? failure.message : String(failure),
+        });
       }
-      return 'Instruction placed ahead of the queued prompts; the current run is stopping.';
+      return englishText('composerMessage', 'steerPlaced');
     }
     await ports.send('abort');
     await ports.waitForIdle();
   }
   const latest = ports.current();
   if (!latest.connected || latest.inputs.length)
-    throw Error('The session changed. Your draft is kept.');
-  if (freshContext && latest.running)
-    throw Error(
-      'A turn started while choosing the topic context. Your draft is kept; review it before sending.',
-    );
+    throw Error(englishText('composerMessage', 'sessionChanged'));
+  if (freshContext && latest.running) throw Error(englishText('composerMessage', 'turnStarted'));
   if (delivery === 'queue' && supportsQueue(latest)) {
     await ports.command(
       'queue.add',
@@ -169,14 +162,10 @@ export async function dispatchComposer(
       },
       ['queue.state'],
     );
-    return latest.running
-      ? 'Prompt accepted by the engine queue.'
-      : 'Prompt accepted by the engine.';
+    return englishText('composerMessage', latest.running ? 'queued' : 'accepted');
   }
   if (delivery === 'queue' || latest.running)
-    throw Error(
-      'This engine does not support the persistent prompt queue. Reopen this session on the current build.',
-    );
+    throw Error(englishText('composerMessage', 'noQueue'));
   const payload = {
     id: crypto.randomUUID(),
     content,
@@ -199,7 +188,7 @@ export function refinementText(
   if (variant === 'original') return original;
   const text = result[variant];
   if (typeof text !== 'string' || !text.trim())
-    throw Error('The refiner did not return this version. Your original draft is kept.');
+    throw Error(englishText('composerMessage', 'refinerMissing'));
   return text;
 }
 /**

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T20:16:13.066Z",
+  "generatedAt": "2026-11-04T20:23:50.540Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6004,
-    "testFiles": 5010,
-    "sourceLines": 1248410,
+    "sourceFiles": 6005,
+    "testFiles": 5011,
+    "sourceLines": 1248466,
     "workspaceEdges": 240,
-    "moduleEdges": 17659,
+    "moduleEdges": 17662,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 273,
+    "testsWithoutTypecheck": 274,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1039
   },
@@ -393,8 +393,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 438,
-      "testFiles": 273,
+      "sourceFiles": 439,
+      "testFiles": 274,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1566,6 +1566,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/composer-attachments.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/composer-messages-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31675,6 +31681,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/composer-messages-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/composer-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33565,6 +33578,11 @@
     {
       "from": "apps/desktop-v2/src/desktop-atlas-host.tsx",
       "specifier": "./atlas-views.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/desktop-text.ts",
+      "specifier": "./locales/en/desktop.json",
       "syntax": "import"
     },
     {

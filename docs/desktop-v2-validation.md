@@ -8401,3 +8401,24 @@ copies, starting with SAGE memory.
   to the earlier sentences, checks every key each branch uses exists in all seven languages,
   and renders notices, hints and an action in Turkish; the existing notice tests and the
   catalog guard pass; typecheck clean.
+
+### Composer messages in the display language (2026-11-04)
+
+- Gap: what the composer reports when a message cannot be sent, is queued, steers a run or
+  carries attachments (history still syncing, no provider, pending questions, an older
+  engine, queue and steer outcomes, BTW receipts, attachment type, size and count limits,
+  unreadable files, draft conflicts, the topic-change prompt) was English text from the
+  composer model, the attachment model and the composer itself, shown as it was in every
+  language.
+- Change: those messages are now lines of a `composerMessage` catalog group. The models build
+  their English from the English catalog (`englishText`, in the new pure `desktop-text.ts`),
+  so it stays byte-identical, and the composer, its attachment picker and its topic prompt
+  render error, notice and reason text through `localizedText`, which recognises an English
+  line of the group (values carried over) and shows it in the display language; other text,
+  such as an engine's own message or a slash command's output, is shown as it came.
+  `SessionComposer` keeps its line count (1054). 40 keys in all seven languages.
+- Checks: new `composer-messages-i18n.test.ts` pins the earlier English of the model
+  messages, turns every English line of the group back into its line in six languages with
+  its values, checks that each line is recognised as itself only, that other text passes
+  through, and that the English the composer still writes matches its catalog lines; desktop
+  tests pass (274 files, 966 tests); typecheck clean.
