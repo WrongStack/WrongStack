@@ -25,6 +25,7 @@ import {
 import { Fragment, useEffect, useState } from 'react';
 import { AvailabilitySettings } from './AvailabilitySettings';
 import { availabilityIssue } from './availability-model';
+import { availabilityWords } from './availability-words';
 import { BrainPolicySettings } from './BrainPolicySettings';
 import { ExecutionPolicySettings } from './ExecutionPolicySettings';
 import { prepareExecutionPolicyPatch } from './execution-policy-model';
@@ -224,7 +225,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
       const reviewIssue = reviewPolicyIssue(patch);
       if (reviewIssue) throw Error(reviewIssue);
       if (Object.hasOwn(patch, 'modelAvailabilitySchedule')) {
-        const issue = availabilityIssue(patch['modelAvailabilitySchedule']);
+        const issue = availabilityIssue(patch['modelAvailabilitySchedule'], availabilityWords(t));
         if (issue) throw Error(issue);
       }
       const profiles =

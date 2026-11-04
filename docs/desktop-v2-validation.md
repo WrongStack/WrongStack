@@ -8145,3 +8145,21 @@ copies, starting with SAGE memory.
   returns, and changed setting paths.
 - Checks: new `settings-tools-i18n.test.ts` renders the four static panels and a loaded tool
   catalog in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Availability windows and background services in the display language (2026-11-04)
+
+- The model availability windows follow the display language in all seven languages: each
+  window's state, behavior, provider, model, times, timezone, weekdays and local time preview,
+  including the weekday names and the accessible names of every field (`availability`). The
+  check that blocks saving an invalid window words its message the same way:
+  `availabilityIssue` takes an `AvailabilityWords` object with English as the default, and
+  `availability-words.ts` builds it for the editor and the settings save check.
+- Background services (`bgServices`) are translated, including the service states the engine
+  reports (healthy, degraded, offline, unavailable, error) with the raw value as the fallback.
+- A new window's default label is written in the display language; labels the user typed are
+  kept as typed.
+- Still English by design: provider and model ids, timezones, service names, versions and the
+  messages the engine returns for a service action.
+- Checks: new `availability-services-i18n.test.ts` renders an allow window and a service list
+  and words an invalid window in English and Turkish; desktop tests pass (PASSED); typecheck
+  clean.

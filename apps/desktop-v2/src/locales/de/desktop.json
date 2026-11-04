@@ -6879,5 +6879,103 @@
     "matches": "Die Konfiguration entspricht den aktuellen Standards.",
     "added": "ergänzt",
     "replaced": "ersetzt"
+  },
+  "availability": {
+    "catalogError": "Einige Kataloge sind nicht verfügbar. Eigene und gespeicherte Modell-IDs bleiben bearbeitbar.",
+    "newWindow": "Neues Verfügbarkeitsfenster",
+    "intro": "Sperrfenster verhindern die Nutzung zu ausgewählten Zeiten. Erlaubnisfenster werden kombiniert: Ein Modell darf in jedem passenden Erlaubnisfenster genutzt werden, passende Sperrfenster gelten weiterhin. Neue Fenster beginnen deaktiviert.",
+    "add": "Verfügbarkeitsfenster hinzufügen",
+    "emptyTitle": "Keine Verfügbarkeitsbeschränkungen",
+    "emptyBody": "Modelle folgen dem normalen Routing der Engine und der Anbieterverfügbarkeit.",
+    "window": "Fenster {{number}}",
+    "enabled": "AKTIVIERT",
+    "disabled": "DEAKTIVIERT",
+    "allowWindow": "ERLAUBNISFENSTER",
+    "blackoutWindow": "SPERRFENSTER",
+    "remove": "{{name}} entfernen",
+    "enabledLabel": "{{name}} aktiviert",
+    "enable": "Dieses Fenster aktivieren",
+    "labelLabel": "{{name}} Bezeichnung",
+    "provider": "Anbieter · leer passt auf jeden Anbieter",
+    "providerLabel": "{{name}} Anbieter",
+    "model": "Modell · leer passt auf den ganzen Anbieter",
+    "modelLabel": "{{name}} Modell",
+    "behavior": "Verhalten des Fensters",
+    "behaviorLabel": "{{name}} Verhalten",
+    "mode": {
+      "blackout": "In diesem Fenster nicht verwenden",
+      "allow_only": "Nur in passenden Erlaubnisfenstern verwenden"
+    },
+    "starts": "Beginnt",
+    "startLabel": "{{name}} Beginn",
+    "ends": "Endet",
+    "endLabel": "{{name}} Ende",
+    "timezone": "Zeitzone",
+    "timezoneLabel": "{{name}} Zeitzone",
+    "hostTimezone": "Zeitzone des Engine-Hosts",
+    "everyDay": "Jeden Tag",
+    "everyDayLabel": "{{name}} jeden Tag",
+    "weekdays": "{{name}} Wochentage",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "{{name}} Vorschau in Ortszeit",
+    "preview": "Vorschau in Ortszeit",
+    "overnightNote": "Fenster über Nacht laufen in den Folgetag weiter. Gleiche Start- und Endzeiten decken den ganzen gewählten Tag ab. Die Vorschau zeigt dieses Fenster, nicht die kombinierte Routing-Entscheidung.",
+    "day": {
+      "0": "Sonntag",
+      "1": "Montag",
+      "2": "Dienstag",
+      "3": "Mittwoch",
+      "4": "Donnerstag",
+      "5": "Freitag",
+      "6": "Samstag"
+    },
+    "dayShort": {
+      "0": "So",
+      "1": "Mo",
+      "2": "Di",
+      "3": "Mi",
+      "4": "Do",
+      "5": "Fr",
+      "6": "Sa"
+    },
+    "issue": {
+      "uniqueId": "eine eindeutige Fenster-ID verwenden.",
+      "target": "einen Anbieter oder ein Modell als Ziel wählen.",
+      "times": "Zeiten im Format HH:mm eingeben.",
+      "days": "gültige Wochentage wählen.",
+      "timezone": "eine IANA-Zeitzone wie Europe/Kyiv oder UTC verwenden."
+    }
+  },
+  "bgServices": {
+    "title": "Hintergrunddienste",
+    "actionDone": "{{label}}: {{action}} erledigt.",
+    "restarted": "{{done}} von {{total}} Diensten neu gestartet.",
+    "overall": "Gesamt: {{status}}",
+    "checked": "geprüft {{time}}",
+    "restartNote": "Ein gestoppter Dienst startet beim nächsten Bedarf wieder.",
+    "required": "erforderlich",
+    "pid": "PID {{pid}}",
+    "mismatch": "Läuft mit einer anderen Version als diese Engine; zum Aktualisieren neu starten.",
+    "restarting": "Wird neu gestartet…",
+    "restart": "Neu starten",
+    "stopping": "Wird gestoppt…",
+    "stopIt": "Stoppen",
+    "keepRunning": "Weiterlaufen lassen",
+    "stop": "Stoppen…",
+    "restartingAll": "Alle werden neu gestartet…",
+    "restartAll": "Alle laufenden neu starten ({{number}})",
+    "checkAgain": "Erneut prüfen",
+    "action": {
+      "restart": "Neustart",
+      "shutdown": "Herunterfahren"
+    },
+    "status": {
+      "healthy": "gesund",
+      "degraded": "eingeschränkt",
+      "offline": "offline",
+      "unavailable": "nicht verfügbar",
+      "error": "Fehler",
+      "unknown": "unbekannt"
+    }
   }
 }

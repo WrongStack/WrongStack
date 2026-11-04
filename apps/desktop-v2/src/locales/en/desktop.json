@@ -6879,5 +6879,103 @@
     "matches": "The configuration matches the current defaults.",
     "added": "added",
     "replaced": "replaced"
+  },
+  "availability": {
+    "catalogError": "Some catalogs are unavailable. Custom and stored model IDs remain editable.",
+    "newWindow": "New availability window",
+    "intro": "Blackout windows prevent use during selected times. Allow windows are combined: a model can be used inside any matching allow window, while matching blackout windows still apply. New windows start disabled.",
+    "add": "Add availability window",
+    "emptyTitle": "No availability restrictions",
+    "emptyBody": "Models follow the engine’s normal routing and provider availability.",
+    "window": "Window {{number}}",
+    "enabled": "ENABLED",
+    "disabled": "DISABLED",
+    "allowWindow": "ALLOW WINDOW",
+    "blackoutWindow": "BLACKOUT WINDOW",
+    "remove": "Remove {{name}}",
+    "enabledLabel": "{{name}} enabled",
+    "enable": "Enable this window",
+    "labelLabel": "{{name}} label",
+    "provider": "Provider · blank matches any provider",
+    "providerLabel": "{{name}} provider",
+    "model": "Model · blank matches the whole provider",
+    "modelLabel": "{{name}} model",
+    "behavior": "Window behavior",
+    "behaviorLabel": "{{name}} behavior",
+    "mode": {
+      "blackout": "Do not use inside this window",
+      "allow_only": "Use only inside matching allow windows"
+    },
+    "starts": "Starts",
+    "startLabel": "{{name}} start",
+    "ends": "Ends",
+    "endLabel": "{{name}} end",
+    "timezone": "Timezone",
+    "timezoneLabel": "{{name}} timezone",
+    "hostTimezone": "Engine host timezone",
+    "everyDay": "Every day",
+    "everyDayLabel": "{{name}} every day",
+    "weekdays": "{{name}} weekdays",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "{{name}} local time preview",
+    "preview": "Local time preview",
+    "overnightNote": "Overnight windows continue into the following day. Equal start and end times cover the entire selected day. Preview shows this window, not the combined routing decision.",
+    "day": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "dayShort": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "issue": {
+      "uniqueId": "use a unique window identifier.",
+      "target": "choose a provider or model target.",
+      "times": "enter times in HH:mm format.",
+      "days": "choose valid weekdays.",
+      "timezone": "use an IANA timezone such as Europe/Kyiv or UTC."
+    }
+  },
+  "bgServices": {
+    "title": "Background services",
+    "actionDone": "{{label}}: {{action}} done.",
+    "restarted": "Restarted {{done}} of {{total}} services.",
+    "overall": "Overall: {{status}}",
+    "checked": "checked {{time}}",
+    "restartNote": "A stopped service starts again the next time it is needed.",
+    "required": "required",
+    "pid": "pid {{pid}}",
+    "mismatch": "Runs a different release than this engine; restart it to update.",
+    "restarting": "Restarting…",
+    "restart": "Restart",
+    "stopping": "Stopping…",
+    "stopIt": "Stop it",
+    "keepRunning": "Keep running",
+    "stop": "Stop…",
+    "restartingAll": "Restarting all…",
+    "restartAll": "Restart all running ({{number}})",
+    "checkAgain": "Check again",
+    "action": {
+      "restart": "restart",
+      "shutdown": "shutdown"
+    },
+    "status": {
+      "healthy": "healthy",
+      "degraded": "degraded",
+      "offline": "offline",
+      "unavailable": "unavailable",
+      "error": "error",
+      "unknown": "unknown"
+    }
   }
 }

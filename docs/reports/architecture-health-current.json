@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T18:17:29.766Z",
+  "generatedAt": "2026-11-04T18:22:20.844Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6002,
-    "testFiles": 4991,
-    "sourceLines": 1247908,
+    "sourceFiles": 6003,
+    "testFiles": 4992,
+    "sourceLines": 1247971,
     "workspaceEdges": 240,
-    "moduleEdges": 17593,
+    "moduleEdges": 17599,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 254,
+    "testsWithoutTypecheck": 255,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1041
   },
@@ -391,8 +391,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 436,
-      "testFiles": 254,
+      "sourceFiles": 437,
+      "testFiles": 255,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1420,6 +1420,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/availability-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/availability-services-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31385,6 +31391,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/availability-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/availability-services-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

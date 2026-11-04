@@ -6879,5 +6879,103 @@
     "matches": "A configuração corresponde aos padrões atuais.",
     "added": "adicionada",
     "replaced": "substituída"
+  },
+  "availability": {
+    "catalogError": "Alguns catálogos não estão disponíveis. IDs de modelos personalizados e salvos continuam editáveis.",
+    "newWindow": "Nova janela de disponibilidade",
+    "intro": "Janelas de bloqueio impedem o uso nos horários escolhidos. Janelas de permissão se combinam: um modelo pode ser usado em qualquer janela de permissão correspondente, e as janelas de bloqueio correspondentes continuam valendo. Novas janelas começam desativadas.",
+    "add": "Adicionar janela de disponibilidade",
+    "emptyTitle": "Nenhuma restrição de disponibilidade",
+    "emptyBody": "Os modelos seguem o roteamento normal do motor e a disponibilidade dos provedores.",
+    "window": "Janela {{number}}",
+    "enabled": "ATIVADA",
+    "disabled": "DESATIVADA",
+    "allowWindow": "JANELA DE PERMISSÃO",
+    "blackoutWindow": "JANELA DE BLOQUEIO",
+    "remove": "Remover {{name}}",
+    "enabledLabel": "{{name}} ativada",
+    "enable": "Ativar esta janela",
+    "labelLabel": "Rótulo de {{name}}",
+    "provider": "Provedor · vazio corresponde a qualquer provedor",
+    "providerLabel": "Provedor de {{name}}",
+    "model": "Modelo · vazio corresponde ao provedor inteiro",
+    "modelLabel": "Modelo de {{name}}",
+    "behavior": "Comportamento da janela",
+    "behaviorLabel": "Comportamento de {{name}}",
+    "mode": {
+      "blackout": "Não usar dentro desta janela",
+      "allow_only": "Usar apenas dentro das janelas de permissão correspondentes"
+    },
+    "starts": "Começa",
+    "startLabel": "Início de {{name}}",
+    "ends": "Termina",
+    "endLabel": "Fim de {{name}}",
+    "timezone": "Fuso horário",
+    "timezoneLabel": "Fuso horário de {{name}}",
+    "hostTimezone": "Fuso horário do host do motor",
+    "everyDay": "Todos os dias",
+    "everyDayLabel": "{{name}} todos os dias",
+    "weekdays": "Dias de {{name}}",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "Pré-visualização em hora local de {{name}}",
+    "preview": "Pré-visualização em hora local",
+    "overnightNote": "Janelas noturnas continuam no dia seguinte. Horários de início e fim iguais cobrem o dia escolhido inteiro. A pré-visualização mostra esta janela, não a decisão de roteamento combinada.",
+    "day": {
+      "0": "Domingo",
+      "1": "Segunda-feira",
+      "2": "Terça-feira",
+      "3": "Quarta-feira",
+      "4": "Quinta-feira",
+      "5": "Sexta-feira",
+      "6": "Sábado"
+    },
+    "dayShort": {
+      "0": "Dom",
+      "1": "Seg",
+      "2": "Ter",
+      "3": "Qua",
+      "4": "Qui",
+      "5": "Sex",
+      "6": "Sáb"
+    },
+    "issue": {
+      "uniqueId": "use um identificador de janela único.",
+      "target": "escolha um provedor ou modelo de destino.",
+      "times": "informe os horários no formato HH:mm.",
+      "days": "escolha dias da semana válidos.",
+      "timezone": "use um fuso horário IANA como Europe/Kyiv ou UTC."
+    }
+  },
+  "bgServices": {
+    "title": "Serviços em segundo plano",
+    "actionDone": "{{label}}: {{action}} concluído.",
+    "restarted": "{{done}} de {{total}} serviços reiniciados.",
+    "overall": "Geral: {{status}}",
+    "checked": "verificado às {{time}}",
+    "restartNote": "Um serviço parado volta a iniciar na próxima vez que for necessário.",
+    "required": "obrigatório",
+    "pid": "pid {{pid}}",
+    "mismatch": "Executa uma versão diferente deste motor; reinicie-o para atualizar.",
+    "restarting": "Reiniciando…",
+    "restart": "Reiniciar",
+    "stopping": "Parando…",
+    "stopIt": "Pará-lo",
+    "keepRunning": "Manter em execução",
+    "stop": "Parar…",
+    "restartingAll": "Reiniciando todos…",
+    "restartAll": "Reiniciar todos em execução ({{number}})",
+    "checkAgain": "Verificar de novo",
+    "action": {
+      "restart": "reinício",
+      "shutdown": "desligamento"
+    },
+    "status": {
+      "healthy": "saudável",
+      "degraded": "degradado",
+      "offline": "offline",
+      "unavailable": "indisponível",
+      "error": "erro",
+      "unknown": "desconhecido"
+    }
   }
 }

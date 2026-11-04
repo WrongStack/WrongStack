@@ -6879,5 +6879,103 @@
     "matches": "La configurazione corrisponde ai valori predefiniti attuali.",
     "added": "aggiunta",
     "replaced": "sostituita"
+  },
+  "availability": {
+    "catalogError": "Alcuni cataloghi non sono disponibili. Gli ID dei modelli personalizzati e salvati restano modificabili.",
+    "newWindow": "Nuova finestra di disponibilità",
+    "intro": "Le finestre di blocco impediscono l’uso negli orari scelti. Le finestre di consenso si combinano: un modello può essere usato in qualsiasi finestra di consenso corrispondente, mentre le finestre di blocco corrispondenti restano valide. Le nuove finestre partono disattivate.",
+    "add": "Aggiungi una finestra di disponibilità",
+    "emptyTitle": "Nessuna restrizione di disponibilità",
+    "emptyBody": "I modelli seguono l’instradamento normale del motore e la disponibilità dei provider.",
+    "window": "Finestra {{number}}",
+    "enabled": "ATTIVA",
+    "disabled": "DISATTIVATA",
+    "allowWindow": "FINESTRA DI CONSENSO",
+    "blackoutWindow": "FINESTRA DI BLOCCO",
+    "remove": "Rimuovi {{name}}",
+    "enabledLabel": "{{name}} attiva",
+    "enable": "Attiva questa finestra",
+    "labelLabel": "Etichetta di {{name}}",
+    "provider": "Provider · vuoto corrisponde a qualsiasi provider",
+    "providerLabel": "Provider di {{name}}",
+    "model": "Modello · vuoto corrisponde all’intero provider",
+    "modelLabel": "Modello di {{name}}",
+    "behavior": "Comportamento della finestra",
+    "behaviorLabel": "Comportamento di {{name}}",
+    "mode": {
+      "blackout": "Non usare in questa finestra",
+      "allow_only": "Usa solo nelle finestre di consenso corrispondenti"
+    },
+    "starts": "Inizio",
+    "startLabel": "Inizio di {{name}}",
+    "ends": "Fine",
+    "endLabel": "Fine di {{name}}",
+    "timezone": "Fuso orario",
+    "timezoneLabel": "Fuso orario di {{name}}",
+    "hostTimezone": "Fuso orario dell’host del motore",
+    "everyDay": "Ogni giorno",
+    "everyDayLabel": "{{name}} ogni giorno",
+    "weekdays": "Giorni di {{name}}",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "Anteprima in ora locale di {{name}}",
+    "preview": "Anteprima in ora locale",
+    "overnightNote": "Le finestre notturne proseguono nel giorno successivo. Orari di inizio e fine uguali coprono l’intero giorno scelto. L’anteprima mostra questa finestra, non la decisione di instradamento combinata.",
+    "day": {
+      "0": "Domenica",
+      "1": "Lunedì",
+      "2": "Martedì",
+      "3": "Mercoledì",
+      "4": "Giovedì",
+      "5": "Venerdì",
+      "6": "Sabato"
+    },
+    "dayShort": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Gio",
+      "5": "Ven",
+      "6": "Sab"
+    },
+    "issue": {
+      "uniqueId": "usa un identificatore di finestra univoco.",
+      "target": "scegli un provider o un modello di destinazione.",
+      "times": "inserisci gli orari nel formato HH:mm.",
+      "days": "scegli giorni della settimana validi.",
+      "timezone": "usa un fuso orario IANA come Europe/Kyiv o UTC."
+    }
+  },
+  "bgServices": {
+    "title": "Servizi in background",
+    "actionDone": "{{label}}: {{action}} completato.",
+    "restarted": "Riavviati {{done}} servizi su {{total}}.",
+    "overall": "Complessivo: {{status}}",
+    "checked": "controllato alle {{time}}",
+    "restartNote": "Un servizio fermato riparte la prossima volta che serve.",
+    "required": "obbligatorio",
+    "pid": "pid {{pid}}",
+    "mismatch": "Esegue una versione diversa da questo motore; riavvialo per aggiornarlo.",
+    "restarting": "Riavvio…",
+    "restart": "Riavvia",
+    "stopping": "Arresto…",
+    "stopIt": "Fermalo",
+    "keepRunning": "Lascialo in esecuzione",
+    "stop": "Ferma…",
+    "restartingAll": "Riavvio di tutti…",
+    "restartAll": "Riavvia tutti quelli in esecuzione ({{number}})",
+    "checkAgain": "Controlla di nuovo",
+    "action": {
+      "restart": "riavvio",
+      "shutdown": "arresto"
+    },
+    "status": {
+      "healthy": "integro",
+      "degraded": "degradato",
+      "offline": "offline",
+      "unavailable": "non disponibile",
+      "error": "errore",
+      "unknown": "sconosciuto"
+    }
   }
 }

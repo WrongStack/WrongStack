@@ -1,5 +1,6 @@
 import { Server } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './brain-policy.css';
@@ -57,6 +58,8 @@ export function backgroundServices(value: unknown): {
  * engine's policy authorizes each action; a stopped service starts again when next needed.
  */
 export function BackgroundServices({ command }: { command: EngineCommand }) {
+  const { t } = useDesktopText();
+  const status = (value: string) => t(`bgServices.status.${value}`, { defaultValue: value });
   const [report, setReport] = useState<ReturnType<typeof backgroundServices> | null>(null),
     [busy, setBusy] = useState(''),
     [stopping, setStopping] = useState(''),
@@ -83,7 +86,15 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
           'connections.service_action_result',
         ]),
       );
-      setNotice(String(reply['message'] ?? `${service.label}: ${action} done.`));
+      setNotice(
+        String(
+          reply['message'] ??
+            t('bgServices.actionDone', {
+              label: service.label,
+              action: t(`bgServices.action.${action}`),
+            }),
+        ),
+      );
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -115,21 +126,28 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
         );
       }
     }
-    setNotice(`Restarted ${running.length - failed.length} of ${running.length} services.`);
+    setNotice(
+      t('bgServices.restarted', {
+        done: running.length - failed.length,
+        total: running.length,
+      }),
+    );
     if (failed.length) setError(failed.join(' · '));
     setBusy('');
     await load().catch(() => {});
   };
   return (
-    <section className="brain-decisions" aria-label="Background services">
+    <section className="brain-decisions" aria-label={t('bgServices.title')}>
       <h3>
-        <Server size={14} /> Background services
+        <Server size={14} /> {t('bgServices.title')}
       </h3>
       {report && (
         <p className="field-help">
-          Overall: {report.overall}
-          {report.checkedAt ? ` · checked ${new Date(report.checkedAt).toLocaleTimeString()}` : ''}.
-          A stopped service starts again the next time it is needed.
+          {t('bgServices.overall', { status: status(report.overall) })}
+          {report.checkedAt
+            ? ` · ${t('bgServices.checked', { time: new Date(report.checkedAt).toLocaleTimeString() })}`
+            : ''}
+          . {t('bgServices.restartNote')}
         </p>
       )}
       {report && (
@@ -137,14 +155,12 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
           {report.services.map((service) => (
             <li key={service.id}>
               <span>
-                <strong>{service.label}</strong> · {service.status}
-                {service.required ? ' · required' : ''}
+                <strong>{service.label}</strong> · {status(service.status)}
+                {service.required ? ` · ${t('bgServices.required')}` : ''}
                 {service.version ? ` · ${service.version}` : ''}
-                {service.pid ? ` · pid ${service.pid}` : ''}
+                {service.pid ? ` · ${t('bgServices.pid', { pid: service.pid })}` : ''}
               </span>
-              {service.versionMismatch && (
-                <span>Runs a different release than this engine; restart it to update.</span>
-              )}
+              {service.versionMismatch && <span>{t('bgServices.mismatch')}</span>}
               {(service.lastError || service.detail) && (
                 <span>{service.lastError || service.detail}</span>
               )}
@@ -156,7 +172,9 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
                     disabled={Boolean(busy)}
                     onClick={() => void act(service, 'restart')}
                   >
-                    {busy === `${service.id}:restart` ? 'Restarting…' : 'Restart'}
+                    {busy === `${service.id}:restart`
+                      ? t('bgServices.restarting')
+                      : t('bgServices.restart')}
                   </button>
                   {stopping === service.id ? (
                     <>
@@ -166,14 +184,16 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
                         disabled={Boolean(busy)}
                         onClick={() => void act(service, 'shutdown')}
                       >
-                        {busy === `${service.id}:shutdown` ? 'Stopping…' : 'Stop it'}
+                        {busy === `${service.id}:shutdown`
+                          ? t('bgServices.stopping')
+                          : t('bgServices.stopIt')}
                       </button>
                       <button
                         type="button"
                         className="button secondary small"
                         onClick={() => setStopping('')}
                       >
-                        Keep running
+                        {t('bgServices.keepRunning')}
                       </button>
                     </>
                   ) : (
@@ -183,7 +203,7 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
                       disabled={Boolean(busy)}
                       onClick={() => setStopping(service.id)}
                     >
-                      Stop…
+                      {t('bgServices.stop')}
                     </button>
                   )}
                 </span>
@@ -199,7 +219,9 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
           disabled={Boolean(busy)}
           onClick={() => void restartAll()}
         >
-          {busy === 'all:restart' ? 'Restarting all…' : `Restart all running (${running.length})`}
+          {busy === 'all:restart'
+            ? t('bgServices.restartingAll')
+            : t('bgServices.restartAll', { number: running.length })}
         </button>
       )}
       <button
@@ -208,7 +230,7 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
         disabled={Boolean(busy)}
         onClick={() => void load().catch((failure) => setError(String(failure)))}
       >
-        Check again
+        {t('bgServices.checkAgain')}
       </button>
       {notice && <p role="status">{notice}</p>}
       {error && (

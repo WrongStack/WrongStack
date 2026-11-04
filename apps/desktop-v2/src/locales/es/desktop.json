@@ -6879,5 +6879,103 @@
     "matches": "La configuración coincide con los valores predeterminados actuales.",
     "added": "añadido",
     "replaced": "reemplazado"
+  },
+  "availability": {
+    "catalogError": "Algunos catálogos no están disponibles. Los ID de modelos personalizados y guardados siguen siendo editables.",
+    "newWindow": "Nueva ventana de disponibilidad",
+    "intro": "Las ventanas de bloqueo impiden el uso en los horarios elegidos. Las ventanas de permiso se combinan: un modelo puede usarse dentro de cualquier ventana de permiso que coincida, y las ventanas de bloqueo que coincidan siguen aplicándose. Las ventanas nuevas empiezan desactivadas.",
+    "add": "Añadir una ventana de disponibilidad",
+    "emptyTitle": "Sin restricciones de disponibilidad",
+    "emptyBody": "Los modelos siguen el enrutamiento normal del motor y la disponibilidad de los proveedores.",
+    "window": "Ventana {{number}}",
+    "enabled": "ACTIVADA",
+    "disabled": "DESACTIVADA",
+    "allowWindow": "VENTANA DE PERMISO",
+    "blackoutWindow": "VENTANA DE BLOQUEO",
+    "remove": "Quitar {{name}}",
+    "enabledLabel": "{{name}} activada",
+    "enable": "Activar esta ventana",
+    "labelLabel": "Etiqueta de {{name}}",
+    "provider": "Proveedor · vacío coincide con cualquier proveedor",
+    "providerLabel": "Proveedor de {{name}}",
+    "model": "Modelo · vacío coincide con todo el proveedor",
+    "modelLabel": "Modelo de {{name}}",
+    "behavior": "Comportamiento de la ventana",
+    "behaviorLabel": "Comportamiento de {{name}}",
+    "mode": {
+      "blackout": "No usar dentro de esta ventana",
+      "allow_only": "Usar solo dentro de las ventanas de permiso que coincidan"
+    },
+    "starts": "Empieza",
+    "startLabel": "Inicio de {{name}}",
+    "ends": "Termina",
+    "endLabel": "Fin de {{name}}",
+    "timezone": "Zona horaria",
+    "timezoneLabel": "Zona horaria de {{name}}",
+    "hostTimezone": "Zona horaria del host del motor",
+    "everyDay": "Todos los días",
+    "everyDayLabel": "{{name}} todos los días",
+    "weekdays": "Días de {{name}}",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "Vista previa en hora local de {{name}}",
+    "preview": "Vista previa en hora local",
+    "overnightNote": "Las ventanas nocturnas continúan al día siguiente. Horas de inicio y fin iguales cubren todo el día elegido. La vista previa muestra esta ventana, no la decisión de enrutamiento combinada.",
+    "day": {
+      "0": "Domingo",
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado"
+    },
+    "dayShort": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb"
+    },
+    "issue": {
+      "uniqueId": "usa un identificador de ventana único.",
+      "target": "elige un proveedor o un modelo de destino.",
+      "times": "introduce las horas en formato HH:mm.",
+      "days": "elige días de la semana válidos.",
+      "timezone": "usa una zona horaria IANA como Europe/Kyiv o UTC."
+    }
+  },
+  "bgServices": {
+    "title": "Servicios en segundo plano",
+    "actionDone": "{{label}}: {{action}} completado.",
+    "restarted": "Se reiniciaron {{done}} de {{total}} servicios.",
+    "overall": "General: {{status}}",
+    "checked": "comprobado a las {{time}}",
+    "restartNote": "Un servicio detenido vuelve a iniciarse la próxima vez que se necesite.",
+    "required": "obligatorio",
+    "pid": "pid {{pid}}",
+    "mismatch": "Ejecuta una versión distinta de este motor; reinícialo para actualizarlo.",
+    "restarting": "Reiniciando…",
+    "restart": "Reiniciar",
+    "stopping": "Deteniendo…",
+    "stopIt": "Detenerlo",
+    "keepRunning": "Dejarlo en ejecución",
+    "stop": "Detener…",
+    "restartingAll": "Reiniciando todos…",
+    "restartAll": "Reiniciar todos los activos ({{number}})",
+    "checkAgain": "Comprobar de nuevo",
+    "action": {
+      "restart": "reinicio",
+      "shutdown": "apagado"
+    },
+    "status": {
+      "healthy": "en buen estado",
+      "degraded": "degradado",
+      "offline": "sin conexión",
+      "unavailable": "no disponible",
+      "error": "error",
+      "unknown": "desconocido"
+    }
   }
 }

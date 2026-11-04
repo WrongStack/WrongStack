@@ -6879,5 +6879,103 @@
     "matches": "Yapılandırma geçerli varsayılanlarla eşleşiyor.",
     "added": "eklendi",
     "replaced": "değiştirildi"
+  },
+  "availability": {
+    "catalogError": "Bazı kataloglar kullanılamıyor. Özel ve kayıtlı model kimlikleri düzenlenebilir kalır.",
+    "newWindow": "Yeni kullanılabilirlik penceresi",
+    "intro": "Kapatma pencereleri seçili zamanlarda kullanımı engeller. İzin pencereleri birleştirilir: bir model eşleşen herhangi bir izin penceresinde kullanılabilir, eşleşen kapatma pencereleri yine geçerlidir. Yeni pencereler devre dışı başlar.",
+    "add": "Kullanılabilirlik penceresi ekle",
+    "emptyTitle": "Kullanılabilirlik kısıtı yok",
+    "emptyBody": "Modeller motorun olağan yönlendirmesini ve sağlayıcı kullanılabilirliğini izler.",
+    "window": "Pencere {{number}}",
+    "enabled": "ETKİN",
+    "disabled": "DEVRE DIŞI",
+    "allowWindow": "İZİN PENCERESİ",
+    "blackoutWindow": "KAPATMA PENCERESİ",
+    "remove": "{{name}} kaldır",
+    "enabledLabel": "{{name}} etkin",
+    "enable": "Bu pencereyi etkinleştir",
+    "labelLabel": "{{name}} etiketi",
+    "provider": "Sağlayıcı · boş bırakılırsa her sağlayıcıyla eşleşir",
+    "providerLabel": "{{name}} sağlayıcısı",
+    "model": "Model · boş bırakılırsa tüm sağlayıcıyla eşleşir",
+    "modelLabel": "{{name}} modeli",
+    "behavior": "Pencere davranışı",
+    "behaviorLabel": "{{name}} davranışı",
+    "mode": {
+      "blackout": "Bu pencere içinde kullanma",
+      "allow_only": "Yalnızca eşleşen izin pencerelerinde kullan"
+    },
+    "starts": "Başlangıç",
+    "startLabel": "{{name}} başlangıcı",
+    "ends": "Bitiş",
+    "endLabel": "{{name}} bitişi",
+    "timezone": "Saat dilimi",
+    "timezoneLabel": "{{name}} saat dilimi",
+    "hostTimezone": "Motor ana makinesinin saat dilimi",
+    "everyDay": "Her gün",
+    "everyDayLabel": "{{name}} her gün",
+    "weekdays": "{{name}} hafta günleri",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "{{name}} yerel saat önizlemesi",
+    "preview": "Yerel saat önizlemesi",
+    "overnightNote": "Gece pencereleri ertesi güne devam eder. Eşit başlangıç ve bitiş saatleri seçili günün tamamını kapsar. Önizleme birleşik yönlendirme kararını değil, bu pencereyi gösterir.",
+    "day": {
+      "0": "Pazar",
+      "1": "Pazartesi",
+      "2": "Salı",
+      "3": "Çarşamba",
+      "4": "Perşembe",
+      "5": "Cuma",
+      "6": "Cumartesi"
+    },
+    "dayShort": {
+      "0": "Paz",
+      "1": "Pzt",
+      "2": "Sal",
+      "3": "Çar",
+      "4": "Per",
+      "5": "Cum",
+      "6": "Cmt"
+    },
+    "issue": {
+      "uniqueId": "benzersiz bir pencere kimliği kullan.",
+      "target": "bir sağlayıcı ya da model hedefi seç.",
+      "times": "saatleri SS:dd biçiminde gir.",
+      "days": "geçerli hafta günleri seç.",
+      "timezone": "Europe/Kyiv ya da UTC gibi bir IANA saat dilimi kullan."
+    }
+  },
+  "bgServices": {
+    "title": "Arka plan servisleri",
+    "actionDone": "{{label}}: {{action}} tamamlandı.",
+    "restarted": "{{total}} servisten {{done}} tanesi yeniden başlatıldı.",
+    "overall": "Genel: {{status}}",
+    "checked": "{{time}} denetlendi",
+    "restartNote": "Durdurulan bir servis bir sonraki gerektiğinde yeniden başlar.",
+    "required": "zorunlu",
+    "pid": "pid {{pid}}",
+    "mismatch": "Bu motordan farklı bir sürüm çalıştırıyor; güncellemek için yeniden başlat.",
+    "restarting": "Yeniden başlatılıyor…",
+    "restart": "Yeniden başlat",
+    "stopping": "Durduruluyor…",
+    "stopIt": "Durdur",
+    "keepRunning": "Çalışmaya devam etsin",
+    "stop": "Durdur…",
+    "restartingAll": "Tümü yeniden başlatılıyor…",
+    "restartAll": "Çalışanların tümünü yeniden başlat ({{number}})",
+    "checkAgain": "Yeniden denetle",
+    "action": {
+      "restart": "yeniden başlatma",
+      "shutdown": "kapatma"
+    },
+    "status": {
+      "healthy": "sağlıklı",
+      "degraded": "kısıtlı",
+      "offline": "çevrimdışı",
+      "unavailable": "kullanılamıyor",
+      "error": "hata",
+      "unknown": "bilinmiyor"
+    }
   }
 }

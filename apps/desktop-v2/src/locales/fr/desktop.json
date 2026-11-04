@@ -6879,5 +6879,103 @@
     "matches": "La configuration correspond aux valeurs par défaut actuelles.",
     "added": "ajouté",
     "replaced": "remplacé"
+  },
+  "availability": {
+    "catalogError": "Certains catalogues sont indisponibles. Les ID de modèles personnalisés et enregistrés restent modifiables.",
+    "newWindow": "Nouvelle fenêtre de disponibilité",
+    "intro": "Les fenêtres d’interdiction empêchent l’usage aux heures choisies. Les fenêtres d’autorisation se combinent : un modèle peut servir dans toute fenêtre d’autorisation correspondante, les fenêtres d’interdiction correspondantes s’appliquant toujours. Les nouvelles fenêtres démarrent désactivées.",
+    "add": "Ajouter une fenêtre de disponibilité",
+    "emptyTitle": "Aucune restriction de disponibilité",
+    "emptyBody": "Les modèles suivent le routage normal du moteur et la disponibilité des fournisseurs.",
+    "window": "Fenêtre {{number}}",
+    "enabled": "ACTIVÉE",
+    "disabled": "DÉSACTIVÉE",
+    "allowWindow": "FENÊTRE D’AUTORISATION",
+    "blackoutWindow": "FENÊTRE D’INTERDICTION",
+    "remove": "Retirer {{name}}",
+    "enabledLabel": "{{name}} activée",
+    "enable": "Activer cette fenêtre",
+    "labelLabel": "Libellé de {{name}}",
+    "provider": "Fournisseur · vide correspond à tous les fournisseurs",
+    "providerLabel": "Fournisseur de {{name}}",
+    "model": "Modèle · vide correspond à tout le fournisseur",
+    "modelLabel": "Modèle de {{name}}",
+    "behavior": "Comportement de la fenêtre",
+    "behaviorLabel": "Comportement de {{name}}",
+    "mode": {
+      "blackout": "Ne pas utiliser dans cette fenêtre",
+      "allow_only": "Utiliser uniquement dans les fenêtres d’autorisation correspondantes"
+    },
+    "starts": "Début",
+    "startLabel": "Début de {{name}}",
+    "ends": "Fin",
+    "endLabel": "Fin de {{name}}",
+    "timezone": "Fuseau horaire",
+    "timezoneLabel": "Fuseau horaire de {{name}}",
+    "hostTimezone": "Fuseau horaire de l’hôte du moteur",
+    "everyDay": "Tous les jours",
+    "everyDayLabel": "{{name}} tous les jours",
+    "weekdays": "Jours de {{name}}",
+    "dayLabel": "{{name}} {{day}}",
+    "previewLabel": "Aperçu en heure locale de {{name}}",
+    "preview": "Aperçu en heure locale",
+    "overnightNote": "Les fenêtres de nuit se prolongent sur le jour suivant. Des heures de début et de fin égales couvrent toute la journée choisie. L’aperçu montre cette fenêtre, pas la décision de routage combinée.",
+    "day": {
+      "0": "Dimanche",
+      "1": "Lundi",
+      "2": "Mardi",
+      "3": "Mercredi",
+      "4": "Jeudi",
+      "5": "Vendredi",
+      "6": "Samedi"
+    },
+    "dayShort": {
+      "0": "Dim",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mer",
+      "4": "Jeu",
+      "5": "Ven",
+      "6": "Sam"
+    },
+    "issue": {
+      "uniqueId": "utilise un identifiant de fenêtre unique.",
+      "target": "choisis un fournisseur ou un modèle cible.",
+      "times": "saisis les heures au format HH:mm.",
+      "days": "choisis des jours de semaine valides.",
+      "timezone": "utilise un fuseau horaire IANA comme Europe/Kyiv ou UTC."
+    }
+  },
+  "bgServices": {
+    "title": "Services d’arrière-plan",
+    "actionDone": "{{label}} : {{action}} terminé.",
+    "restarted": "{{done}} services sur {{total}} redémarrés.",
+    "overall": "Global : {{status}}",
+    "checked": "vérifié à {{time}}",
+    "restartNote": "Un service arrêté redémarre la prochaine fois qu’il est nécessaire.",
+    "required": "requis",
+    "pid": "pid {{pid}}",
+    "mismatch": "Exécute une autre version que ce moteur ; redémarre-le pour le mettre à jour.",
+    "restarting": "Redémarrage…",
+    "restart": "Redémarrer",
+    "stopping": "Arrêt…",
+    "stopIt": "L’arrêter",
+    "keepRunning": "Le laisser tourner",
+    "stop": "Arrêter…",
+    "restartingAll": "Redémarrage de tous…",
+    "restartAll": "Redémarrer tous ceux en cours ({{number}})",
+    "checkAgain": "Vérifier à nouveau",
+    "action": {
+      "restart": "redémarrage",
+      "shutdown": "arrêt"
+    },
+    "status": {
+      "healthy": "sain",
+      "degraded": "dégradé",
+      "offline": "hors ligne",
+      "unavailable": "indisponible",
+      "error": "erreur",
+      "unknown": "inconnu"
+    }
   }
 }
