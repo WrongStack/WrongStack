@@ -11,12 +11,14 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { AtlasNodeEvidence } from './AtlasDetails';
 import { AtlasImpactView, AtlasMatrixView, AtlasSubsystemView } from './AtlasViews';
 import { DesktopCodeAssist } from './DesktopCodeAssist';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { record } from './engine-values';
 import { atlasGraph } from './graph-model';
 import { projectPath } from './project-path';
+import { surfaceI18n } from './surface-i18n';
 import './atlas-views.css';
 
 /** What the desktop's atlas panels read: the project's engine and its live state. */
@@ -69,6 +71,7 @@ const STATUS_POLL_MS = 1200;
 /** Builds the project's code index on request and reports a running or failed build. */
 function AtlasIndexControls() {
   const { http } = useDesktopAtlas();
+  const { t } = useDesktopText();
   const [indexing, setIndexing] = useState(false);
   const [error, setError] = useState('');
   const building = useRef(false);
@@ -91,7 +94,7 @@ function AtlasIndexControls() {
           } else if (result['status'] === 'error') {
             building.current = false;
             setIndexing(false);
-            setError(String(result['error'] ?? 'The project index could not be built.'));
+            setError(String(result['error'] ?? t('atlasHost.indexFailed')));
           } else if (result['status'] === 'ready') {
             setIndexing(false);
             // The map reloads in place when a build it waited for finishes.
@@ -141,7 +144,7 @@ function AtlasIndexControls() {
         onClick={() => void index()}
       >
         {indexing ? <LoaderCircle size={13} className="spin" /> : <RefreshCw size={13} />}
-        {indexing ? 'Mapping project…' : 'Index project'}
+        {indexing ? t('atlasHost.mapping') : t('atlasHost.index')}
       </button>
     </div>
   );
@@ -171,25 +174,40 @@ function AtlasAnalysis({ kind, context }: { kind: AnalysisKind; context: AtlasCo
   );
 }
 
+/** Read when the shared atlas renders, so the tab labels follow the display language. */
+const desktopWord = (key: string) => surfaceI18n.t(key, { ns: 'desktop' });
+
 const ANALYSIS_VIEWS: readonly AtlasView[] = [
   {
     id: 'subsystems',
-    label: 'Subsystems',
-    hint: 'Inspect boundaries and coupling',
+    get label() {
+      return desktopWord('atlasHost.subsystems');
+    },
+    get hint() {
+      return desktopWord('atlasHost.subsystemsHint');
+    },
     Icon: Boxes,
     render: (context) => <AtlasAnalysis kind="subsystems" context={context} />,
   },
   {
     id: 'matrix',
-    label: 'Dependency matrix',
-    hint: 'Compare directed references',
+    get label() {
+      return desktopWord('atlasHost.matrix');
+    },
+    get hint() {
+      return desktopWord('atlasHost.matrixHint');
+    },
     Icon: Grid2X2,
     render: (context) => <AtlasAnalysis kind="matrix" context={context} />,
   },
   {
     id: 'impact',
-    label: 'Change impact',
-    hint: 'Trace dependents and dependencies',
+    get label() {
+      return desktopWord('atlasHost.impact');
+    },
+    get hint() {
+      return desktopWord('atlasHost.impactHint');
+    },
     Icon: Crosshair,
     render: (context) => <AtlasAnalysis kind="impact" context={context} />,
   },

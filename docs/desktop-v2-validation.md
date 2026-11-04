@@ -8340,3 +8340,17 @@ copies, starting with SAGE memory.
   engine reasons and errors, and durations.
 - Checks: new `worktree-i18n.test.ts` renders the lanes and the history and words cleanup and
   merge results in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Desktop Code Atlas additions in the display language (2026-11-04)
+
+- The desktop's additions to the shared Code Atlas follow the display language in all seven
+  languages: the index button and analysis tabs (`atlasHost`), the subsystem, dependency
+  matrix and change impact views (`atlasViews`), the boundary map (`atlasBoundary`), the node
+  evidence with facts, centrality, WrongTrace signals, SAGE knowledge and file history
+  (`atlasDetails`), and the graph canvas controls and caption (`graphCanvas`).
+- The analysis tab labels are read when the shared atlas renders, so they follow a language
+  change without rebuilding the host.
+- Still English by design: file, symbol, subsystem and group names, relation labels, memory
+  text and kinds, journal summaries and actors, and engine errors.
+- Checks: new `atlas-i18n.test.ts` renders the three analysis views and the node evidence and
+  reads the tab labels in English and Turkish; desktop tests pass (PASSED); typecheck clean.
