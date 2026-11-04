@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T17:20:48.297Z",
+  "generatedAt": "2026-11-04T17:30:07.382Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6001,
-    "testFiles": 4982,
-    "sourceLines": 1247545,
+    "testFiles": 4984,
+    "sourceLines": 1247620,
     "workspaceEdges": 240,
-    "moduleEdges": 17544,
+    "moduleEdges": 17548,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 245,
+    "testsWithoutTypecheck": 247,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 435,
-      "testFiles": 245,
+      "testFiles": 247,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1568,6 +1568,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/context-dialogs-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
         "projects": [
           "root-node"
@@ -2553,6 +2559,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-collab.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-effects-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31504,6 +31516,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/context-dialogs-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/context-editor-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32653,6 +32672,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-collab.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-effects-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

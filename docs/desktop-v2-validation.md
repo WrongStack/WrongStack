@@ -8003,3 +8003,24 @@ copies, starting with SAGE memory.
 - Checks: new `session-usage-i18n.test.ts` renders the page with a priced snapshot and a failed
   delegation in English and Turkish; catalog parity and the key guard pass; desktop tests pass
   (928); typecheck clean.
+
+### Side effects and context dialogs in the display language (2026-11-04)
+
+- The conversation's side effects page follows the display language in all seven languages:
+  source and refresh, loaded and retained counts, the paging window, search, kind and sort
+  filters, CSV copy and download notices, the empty states and the record inspector. Group
+  `effectsView`; operation kinds are worded through `effectsView.kind.*` with the old English
+  labels as the fallback for kinds the engine adds later.
+- The context inspector (`contextPanel`) and the context editor (`contextEdit`) follow it too:
+  estimates and sections, compaction results with each reduction phase, the quality flag and
+  digest, the instructions reader, repair, compaction and clearing with its confirmation; and
+  in the editor the summary line, message rows, text trimming and cuts, validation, the repair
+  preview and the apply button. `withTextRange` and `metricsSummary` take their wording and keep
+  English as the default. This closes the English action labels in `ContextEditorDialog` that
+  `desktop-v2-vs-webui.md` cites.
+- Still English by design: engine messages and validation errors, message roles, context mode
+  names, tool names and model-validation errors from the side-effect and context models.
+- Checks: new `session-effects-i18n.test.ts` (a paged runtime window with a shell and a file
+  write, the record inspector) and `context-dialogs-i18n.test.ts` (the inspector, and the
+  editor with a user message chosen together with its reply), each in English and Turkish;
+  catalog parity and the key guard pass; desktop tests pass (930); typecheck clean.
