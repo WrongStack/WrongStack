@@ -4878,6 +4878,85 @@
         "input": "Entrada / resultado"
       },
       "truncated": "Solo se muestran los 200 registros más recientes."
+    },
+    "transcript": {
+      "label": "Transcripción de la sesión registrada",
+      "title": "Conversación",
+      "intro": "Mensajes conservados en el diario de este proyecto. Leer no reanuda el agente.",
+      "refresh": "Actualizar la transcripción",
+      "search": "Buscar en toda la transcripción conservada",
+      "searchPlaceholder": "Buscar en todo el texto conservado…",
+      "role": "Rol del mensaje de la transcripción",
+      "submit": "Buscar en la transcripción",
+      "reading": "Leyendo los mensajes registrados…",
+      "counts": "{{matching}} mensajes coincidentes · {{total}} mensajes conservados. Los adjuntos binarios no se cargan; el texto largo se puede leer por partes.",
+      "message": "Mensaje registrado {{n}}",
+      "runtime": "CONTEXTO DE EJECUCIÓN",
+      "noMatches": "Ningún mensaje conservado coincide con esta búsqueda.",
+      "loadMore": "Cargar los 10 mensajes siguientes",
+      "unreadable": "Este motor no devolvió una transcripción legible. Actualiza el entorno de ejecución del proyecto antes de reintentar."
+    },
+    "block": {
+      "textUnreadable": "No se pudo leer el texto registrado.",
+      "pdf": "Adjunto PDF",
+      "pdfText": "Texto extraído; PDF binario no cargado.",
+      "pdfPages": "{{n}} páginas · Texto extraído; PDF binario no cargado.",
+      "copy": "Copiar el texto registrado visible",
+      "reuse": "Añadir el texto visible al borrador",
+      "fromStart": "Leer desde el principio",
+      "reading": "Leyendo…",
+      "next": "Leer la siguiente parte del texto",
+      "excerpt": "Se muestra un extracto de texto limitado. Hay más texto disponible.",
+      "excerptMatch": "Se muestra un extracto de texto limitado alrededor de la coincidencia. Hay más texto disponible.",
+      "reasoning": "Razonamiento registrado",
+      "toolResult": "Resultado de herramienta · {{name}}",
+      "toolResultError": "Resultado de herramienta · {{name}} · error",
+      "moreUnreadable": "Este motor no devolvió los bloques restantes.",
+      "more": "{{n}} bloques más en este mensaje.",
+      "loading": "Cargando…",
+      "loadMore": "Cargar los {{n}} bloques siguientes",
+      "toolRequest": "Solicitud de herramienta · {{name}}",
+      "inputUnreadable": "Este motor no devolvió la entrada completa.",
+      "inputComplete": "Entrada registrada completa.",
+      "inputPreview": "Vista previa limitada de la entrada desde el diario.",
+      "showInput": "Mostrar la entrada completa"
+    },
+    "image": {
+      "title": "Imagen adjunta",
+      "alt": "Adjunto conservado, {{type}}",
+      "loading": "Cargando la imagen…",
+      "show": "Mostrar la imagen",
+      "unreadable": "Este motor no devolvió la imagen. Puede ser anterior a la lectura de imágenes en el historial."
+    },
+    "inspect": {
+      "title": "Resumen de la sesión",
+      "reading": "Leyendo la sesión registrada…",
+      "stat": {
+        "tokens": "Tokens",
+        "messages": "Mensajes",
+        "iterations": "Iteraciones",
+        "toolCalls": "Llamadas a herramientas",
+        "filesChanged": "Archivos modificados",
+        "compactions": "Compactaciones",
+        "events": "Eventos"
+      },
+      "failed": "{{n}} fallidas",
+      "outcome": "Resultado: {{outcome}}",
+      "timeline": "Cronología de eventos",
+      "timelineCount": "Cronología de eventos · {{shown}} / {{total}}",
+      "filter": "Filtrar los eventos de la sesión",
+      "filterPlaceholder": "Filtrar eventos…",
+      "event": "Evento",
+      "noEvents": "Ningún evento coincide con el filtro.",
+      "tools": "Desglose por herramienta",
+      "files": "Cambios de archivos",
+      "filesCount": "Cambios de archivos · {{n}}",
+      "operation": {
+        "create": "Creado",
+        "modify": "Modificado",
+        "edit": "Editado",
+        "delete": "Eliminado"
+      }
     }
   }
 }

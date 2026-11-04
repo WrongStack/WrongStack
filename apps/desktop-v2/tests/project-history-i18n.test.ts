@@ -6,6 +6,8 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 import { ProjectHistorySearch } from '../src/ProjectHistorySearch';
 import { ProjectSessionHistory } from '../src/ProjectSessionHistory';
 import { ProjectUsageSummary } from '../src/ProjectUsageSummary';
+import { SessionInspectSummary } from '../src/SessionInspectSummary';
+import { SessionTranscript } from '../src/SessionTranscript';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -154,6 +156,66 @@ const typeQuery = (value: string) => (host: HTMLElement) => {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
+// A recorded exchange whose blocks cover every kind the reader draws, and its session summary.
+const readerReply = async (_type: string, payload: Record<string, unknown> = {}) =>
+  payload['transcript']
+    ? {
+        transcript: {
+          revision: 'r1',
+          matching: 2,
+          total: 2,
+          nextOffset: null,
+          messages: [
+            {
+              index: 0,
+              role: 'user',
+              ts: '2026-11-04T10:00:00Z',
+              blocks: [{ index: 0, type: 'text', text: 'Fix the login form' }],
+            },
+            {
+              index: 1,
+              role: 'assistant',
+              ts: '2026-11-04T10:01:00Z',
+              blocks: [
+                { index: 0, type: 'thinking', text: 'Look at the form first.' },
+                { index: 1, type: 'tool_use', name: 'read', input: { path: 'login.ts' } },
+                { index: 2, type: 'tool_result', name: 'read', isError: true, text: 'Missing' },
+                { index: 3, type: 'image', mediaType: 'image/png' },
+                { index: 4, type: 'document', pages: 3, text: 'Terms', nextTextOffset: 5 },
+              ],
+            },
+          ],
+        },
+      }
+    : {
+        tokenTotal: 900,
+        messageCount: 4,
+        iterationCount: 2,
+        toolCallCount: 3,
+        toolErrorCount: 1,
+        fileChangeCount: 1,
+        compactionCount: 0,
+        outcome: 'completed',
+        events: [{ type: 'tool_call', label: 'Read file', ts: '2026-11-04T10:01:00Z' }],
+        toolBreakdown: { read: 3 },
+        fileEvents: [{ filePath: 'src/login.ts', toolName: 'edit', operation: 'modify' }],
+      };
+const reader = () =>
+  createElement(SessionTranscript, {
+    id: 'h1',
+    command: vi.fn(readerReply),
+    onLink: vi.fn(),
+    onReuse: vi.fn(),
+  });
+const inspector = () =>
+  createElement(SessionInspectSummary, { id: 'h1', command: vi.fn(readerReply) });
+/** Opens the session summary the way a click on its disclosure does. */
+const openSummary = (host: HTMLElement) => {
+  const details = host.querySelector('details') as HTMLDetailsElement;
+  details.open = true;
+  details.dispatchEvent(new Event('toggle'));
+};
+
 describe('project session history in the display language', () => {
   afterAll(() => surfaceI18n.changeLanguage('en'));
 
@@ -294,5 +356,93 @@ describe('project session history in the display language', () => {
     expect(page.labels).toContain('h1 arama eşleşmesinin 2. iletisini oku');
     page = await mount(search(), typeQuery('nothing'), submit);
     expect(page.text).toContain('Bu aramayla eşleşen saklı konuşma metni yok.');
+  });
+
+  it('shows the conversation reader and session summary in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(reader());
+    for (const text of [
+      'Refresh transcript',
+      'Search transcript',
+      '2 matching messages · 2 retained messages.',
+      'USER',
+      'ASSISTANT',
+      'Add visible text to draft',
+      'Recorded reasoning',
+      'Tool request · read',
+      'Bounded input preview from the journal.',
+      'Show complete input',
+      'Tool result · read · error',
+      'Image attachment',
+      'Show image',
+      'PDF attachment',
+      '3 pages · Extracted text; binary PDF not loaded.',
+      'Read next text part',
+      'Showing a bounded text excerpt. More text is available.',
+      'Session summary',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Recorded session transcript',
+        'Recorded message 1',
+        'Copy visible recorded text',
+      ]),
+    );
+    page = await mount(inspector(), openSummary);
+    for (const text of [
+      'Tool calls',
+      '3 · 1 failed',
+      'Outcome: completed',
+      'Event timeline · 1 / 1',
+      'Tool breakdown',
+      'File changes · 1',
+      'Modified',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toContain('Filter session events');
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(reader());
+    for (const text of [
+      'Dökümü yenile',
+      'Dökümde ara',
+      '2 eşleşen ileti · 2 saklı ileti.',
+      'KULLANICI',
+      'ASİSTAN',
+      'Görünen metni taslağa ekle',
+      'Kayıtlı akıl yürütme',
+      'Araç isteği · read',
+      'Günlükten sınırlı girdi önizlemesi.',
+      'Girdinin tamamını göster',
+      'Araç sonucu · read · hata',
+      'Görsel eki',
+      'Görseli göster',
+      'PDF eki',
+      '3 sayfa · Çıkarılan metin; ikili PDF yüklenmedi.',
+      'Sonraki metin parçasını oku',
+      'Sınırlı bir metin alıntısı gösteriliyor.',
+      'Oturum özeti',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Kayıtlı oturum dökümü',
+        'Kayıtlı ileti 1',
+        'Görünen kayıtlı metni kopyala',
+      ]),
+    );
+    page = await mount(inspector(), openSummary);
+    for (const text of [
+      'Araç çağrıları',
+      '3 · 1 başarısız',
+      'Sonuç: tamamlandı',
+      'Olay zaman çizelgesi · 1 / 1',
+      'Araç dağılımı',
+      'Dosya değişiklikleri · 1',
+      'Değiştirildi',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toContain('Oturum olaylarını filtrele');
   });
 });

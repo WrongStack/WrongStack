@@ -4878,6 +4878,85 @@
         "input": "Entrée / résultat"
       },
       "truncated": "Seuls les 200 enregistrements les plus récents sont listés."
+    },
+    "transcript": {
+      "label": "Transcription de la session enregistrée",
+      "title": "Conversation",
+      "intro": "Messages conservés dans le journal de ce projet. La lecture ne reprend pas l’agent.",
+      "refresh": "Actualiser la transcription",
+      "search": "Rechercher dans toute la transcription conservée",
+      "searchPlaceholder": "Rechercher dans tout le texte conservé…",
+      "role": "Rôle du message de la transcription",
+      "submit": "Rechercher dans la transcription",
+      "reading": "Lecture des messages enregistrés…",
+      "counts": "{{matching}} messages correspondants · {{total}} messages conservés. Les pièces jointes binaires ne sont pas chargées ; un long texte peut être lu par parties.",
+      "message": "Message enregistré {{n}}",
+      "runtime": "CONTEXTE D’EXÉCUTION",
+      "noMatches": "Aucun message conservé ne correspond à cette recherche.",
+      "loadMore": "Charger les 10 messages suivants",
+      "unreadable": "Ce moteur n’a pas renvoyé de transcription lisible. Mettez à jour le runtime du projet avant de réessayer."
+    },
+    "block": {
+      "textUnreadable": "Le texte enregistré n’a pas pu être lu.",
+      "pdf": "Pièce jointe PDF",
+      "pdfText": "Texte extrait ; PDF binaire non chargé.",
+      "pdfPages": "{{n}} pages · Texte extrait ; PDF binaire non chargé.",
+      "copy": "Copier le texte enregistré visible",
+      "reuse": "Ajouter le texte visible au brouillon",
+      "fromStart": "Lire depuis le début",
+      "reading": "Lecture…",
+      "next": "Lire la partie de texte suivante",
+      "excerpt": "Affichage d’un extrait de texte limité. Davantage de texte est disponible.",
+      "excerptMatch": "Affichage d’un extrait de texte limité autour du résultat de recherche. Davantage de texte est disponible.",
+      "reasoning": "Raisonnement enregistré",
+      "toolResult": "Résultat d’outil · {{name}}",
+      "toolResultError": "Résultat d’outil · {{name}} · erreur",
+      "moreUnreadable": "Ce moteur n’a pas renvoyé les blocs restants.",
+      "more": "{{n}} blocs supplémentaires dans ce message.",
+      "loading": "Chargement…",
+      "loadMore": "Charger les {{n}} blocs suivants",
+      "toolRequest": "Demande d’outil · {{name}}",
+      "inputUnreadable": "Ce moteur n’a pas renvoyé l’entrée complète.",
+      "inputComplete": "Entrée enregistrée complète.",
+      "inputPreview": "Aperçu limité de l’entrée depuis le journal.",
+      "showInput": "Afficher l’entrée complète"
+    },
+    "image": {
+      "title": "Image jointe",
+      "alt": "Pièce jointe conservée, {{type}}",
+      "loading": "Chargement de l’image…",
+      "show": "Afficher l’image",
+      "unreadable": "Ce moteur n’a pas renvoyé l’image. Il est peut-être antérieur à la lecture d’images dans l’historique."
+    },
+    "inspect": {
+      "title": "Résumé de la session",
+      "reading": "Lecture de la session enregistrée…",
+      "stat": {
+        "tokens": "Jetons",
+        "messages": "Messages",
+        "iterations": "Itérations",
+        "toolCalls": "Appels d’outils",
+        "filesChanged": "Fichiers modifiés",
+        "compactions": "Compactages",
+        "events": "Événements"
+      },
+      "failed": "{{n}} en échec",
+      "outcome": "Résultat : {{outcome}}",
+      "timeline": "Chronologie des événements",
+      "timelineCount": "Chronologie des événements · {{shown}} / {{total}}",
+      "filter": "Filtrer les événements de la session",
+      "filterPlaceholder": "Filtrer les événements…",
+      "event": "Événement",
+      "noEvents": "Aucun événement ne correspond au filtre.",
+      "tools": "Répartition par outil",
+      "files": "Modifications de fichiers",
+      "filesCount": "Modifications de fichiers · {{n}}",
+      "operation": {
+        "create": "Créé",
+        "modify": "Modifié",
+        "edit": "Édité",
+        "delete": "Supprimé"
+      }
     }
   }
 }

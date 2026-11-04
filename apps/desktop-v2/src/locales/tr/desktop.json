@@ -4878,6 +4878,85 @@
         "input": "Girdi / sonuç"
       },
       "truncated": "Yalnızca en yeni 200 kayıt listelenir."
+    },
+    "transcript": {
+      "label": "Kayıtlı oturum dökümü",
+      "title": "Konuşma",
+      "intro": "Bu projenin günlüğünde saklanan iletiler. Okumak ajanı sürdürmez.",
+      "refresh": "Dökümü yenile",
+      "search": "Saklanan dökümün tamamında ara",
+      "searchPlaceholder": "Saklanan tüm metinde ara…",
+      "role": "Döküm iletisi rolü",
+      "submit": "Dökümde ara",
+      "reading": "Kayıtlı iletiler okunuyor…",
+      "counts": "{{matching}} eşleşen ileti · {{total}} saklı ileti. İkili ekler yüklenmez; uzun metin parça parça okunabilir.",
+      "message": "Kayıtlı ileti {{n}}",
+      "runtime": "ÇALIŞMA ZAMANI BAĞLAMI",
+      "noMatches": "Bu aramayla eşleşen saklı ileti yok.",
+      "loadMore": "Sonraki 10 iletiyi yükle",
+      "unreadable": "Bu motor okunabilir bir döküm döndürmedi. Yeniden denemeden önce proje çalışma zamanını güncelle."
+    },
+    "block": {
+      "textUnreadable": "Kayıtlı metin okunamadı.",
+      "pdf": "PDF eki",
+      "pdfText": "Çıkarılan metin; ikili PDF yüklenmedi.",
+      "pdfPages": "{{n}} sayfa · Çıkarılan metin; ikili PDF yüklenmedi.",
+      "copy": "Görünen kayıtlı metni kopyala",
+      "reuse": "Görünen metni taslağa ekle",
+      "fromStart": "Baştan oku",
+      "reading": "Okunuyor…",
+      "next": "Sonraki metin parçasını oku",
+      "excerpt": "Sınırlı bir metin alıntısı gösteriliyor. Daha fazla metin var.",
+      "excerptMatch": "Arama eşleşmesi çevresinde sınırlı bir metin alıntısı gösteriliyor. Daha fazla metin var.",
+      "reasoning": "Kayıtlı akıl yürütme",
+      "toolResult": "Araç sonucu · {{name}}",
+      "toolResultError": "Araç sonucu · {{name}} · hata",
+      "moreUnreadable": "Bu motor kalan blokları döndürmedi.",
+      "more": "Bu iletide {{n}} blok daha var.",
+      "loading": "Yükleniyor…",
+      "loadMore": "Sonraki {{n}} bloğu yükle",
+      "toolRequest": "Araç isteği · {{name}}",
+      "inputUnreadable": "Bu motor girdinin tamamını döndürmedi.",
+      "inputComplete": "Kayıtlı girdinin tamamı.",
+      "inputPreview": "Günlükten sınırlı girdi önizlemesi.",
+      "showInput": "Girdinin tamamını göster"
+    },
+    "image": {
+      "title": "Görsel eki",
+      "alt": "Saklanan ek, {{type}}",
+      "loading": "Görsel yükleniyor…",
+      "show": "Görseli göster",
+      "unreadable": "Bu motor görseli döndürmedi. Geçmişte görsel okumadan önceki bir sürüm olabilir."
+    },
+    "inspect": {
+      "title": "Oturum özeti",
+      "reading": "Kayıtlı oturum okunuyor…",
+      "stat": {
+        "tokens": "Token",
+        "messages": "İletiler",
+        "iterations": "Yinelemeler",
+        "toolCalls": "Araç çağrıları",
+        "filesChanged": "Değişen dosyalar",
+        "compactions": "Sıkıştırmalar",
+        "events": "Olaylar"
+      },
+      "failed": "{{n}} başarısız",
+      "outcome": "Sonuç: {{outcome}}",
+      "timeline": "Olay zaman çizelgesi",
+      "timelineCount": "Olay zaman çizelgesi · {{shown}} / {{total}}",
+      "filter": "Oturum olaylarını filtrele",
+      "filterPlaceholder": "Olayları filtrele…",
+      "event": "Olay",
+      "noEvents": "Filtreyle eşleşen olay yok.",
+      "tools": "Araç dağılımı",
+      "files": "Dosya değişiklikleri",
+      "filesCount": "Dosya değişiklikleri · {{n}}",
+      "operation": {
+        "create": "Oluşturuldu",
+        "modify": "Değiştirildi",
+        "edit": "Düzenlendi",
+        "delete": "Silindi"
+      }
     }
   }
 }

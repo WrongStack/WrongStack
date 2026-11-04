@@ -7722,3 +7722,23 @@ copies, starting with SAGE memory.
   - The history jsdom test now also runs the usage and side-effect summaries and a content
     search (with and without a match) in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (906); typecheck clean.
+
+### History conversation reader in the display language (2026-11-04)
+
+- The recorded conversation reader on the session history page now follows the display language
+  in all seven languages: the heading and transcript search, message headers and counts, text
+  blocks with their copy, reuse and paging actions, recorded reasoning, tool requests and results,
+  PDF and image attachments, more-blocks paging, and the session summary with its statistics,
+  outcome, event timeline, tool breakdown and file changes.
+- Keys live under `historyView.transcript`, `historyView.block`, `historyView.image` and
+  `historyView.inspect`; message roles reuse the search role names.
+- Roles, outcomes and file operations are named per language with the engine value as the
+  fallback. The session summary's statistics are now identified by id rather than by their
+  English label, and its fixed English operation table is replaced by catalog keys.
+- Session history is now fully translated.
+- Still English by design: recorded message text, tool names and inputs, event labels, file paths
+  and engine replies.
+- Checks:
+  - The history jsdom test now also renders a recorded exchange covering every block kind, and
+    the opened session summary, in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (907); typecheck clean.

@@ -4878,6 +4878,85 @@
         "input": "Input / outcome"
       },
       "truncated": "Only the newest 200 records are listed."
+    },
+    "transcript": {
+      "label": "Recorded session transcript",
+      "title": "Conversation",
+      "intro": "Retained messages from this project’s journal. Reading does not resume the agent.",
+      "refresh": "Refresh transcript",
+      "search": "Search full retained transcript",
+      "searchPlaceholder": "Search all retained text…",
+      "role": "Transcript message role",
+      "submit": "Search transcript",
+      "reading": "Reading recorded messages…",
+      "counts": "{{matching}} matching messages · {{total}} retained messages. Binary attachments stay unloaded; long text can be read in parts.",
+      "message": "Recorded message {{n}}",
+      "runtime": "RUNTIME CONTEXT",
+      "noMatches": "No retained messages match this search.",
+      "loadMore": "Load next 10 messages",
+      "unreadable": "This engine did not return a readable transcript. Update the project runtime before retrying."
+    },
+    "block": {
+      "textUnreadable": "The recorded text could not be read.",
+      "pdf": "PDF attachment",
+      "pdfText": "Extracted text; binary PDF not loaded.",
+      "pdfPages": "{{n}} pages · Extracted text; binary PDF not loaded.",
+      "copy": "Copy visible recorded text",
+      "reuse": "Add visible text to draft",
+      "fromStart": "Read from start",
+      "reading": "Reading…",
+      "next": "Read next text part",
+      "excerpt": "Showing a bounded text excerpt. More text is available.",
+      "excerptMatch": "Showing a bounded text excerpt around the search match. More text is available.",
+      "reasoning": "Recorded reasoning",
+      "toolResult": "Tool result · {{name}}",
+      "toolResultError": "Tool result · {{name}} · error",
+      "moreUnreadable": "This engine did not return the remaining blocks.",
+      "more": "{{n}} more blocks in this message.",
+      "loading": "Loading…",
+      "loadMore": "Load next {{n}} blocks",
+      "toolRequest": "Tool request · {{name}}",
+      "inputUnreadable": "This engine did not return the complete input.",
+      "inputComplete": "Complete recorded input.",
+      "inputPreview": "Bounded input preview from the journal.",
+      "showInput": "Show complete input"
+    },
+    "image": {
+      "title": "Image attachment",
+      "alt": "Retained attachment, {{type}}",
+      "loading": "Loading image…",
+      "show": "Show image",
+      "unreadable": "This engine did not return the image. It may predate image reads in history."
+    },
+    "inspect": {
+      "title": "Session summary",
+      "reading": "Reading the recorded session…",
+      "stat": {
+        "tokens": "Tokens",
+        "messages": "Messages",
+        "iterations": "Iterations",
+        "toolCalls": "Tool calls",
+        "filesChanged": "Files changed",
+        "compactions": "Compactions",
+        "events": "Events"
+      },
+      "failed": "{{n}} failed",
+      "outcome": "Outcome: {{outcome}}",
+      "timeline": "Event timeline",
+      "timelineCount": "Event timeline · {{shown}} / {{total}}",
+      "filter": "Filter session events",
+      "filterPlaceholder": "Filter events…",
+      "event": "Event",
+      "noEvents": "No events match the filter.",
+      "tools": "Tool breakdown",
+      "files": "File changes",
+      "filesCount": "File changes · {{n}}",
+      "operation": {
+        "create": "Created",
+        "modify": "Modified",
+        "edit": "Edited",
+        "delete": "Deleted"
+      }
     }
   }
 }

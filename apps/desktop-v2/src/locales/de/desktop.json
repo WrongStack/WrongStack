@@ -4878,6 +4878,85 @@
         "input": "Eingabe / Ergebnis"
       },
       "truncated": "Nur die neuesten 200 Einträge werden aufgeführt."
+    },
+    "transcript": {
+      "label": "Transkript der aufgezeichneten Sitzung",
+      "title": "Unterhaltung",
+      "intro": "Gespeicherte Nachrichten aus dem Journal dieses Projekts. Lesen setzt den Agenten nicht fort.",
+      "refresh": "Transkript aktualisieren",
+      "search": "Gesamtes gespeichertes Transkript durchsuchen",
+      "searchPlaceholder": "Gesamten gespeicherten Text durchsuchen…",
+      "role": "Rolle der Transkriptnachricht",
+      "submit": "Transkript durchsuchen",
+      "reading": "Aufgezeichnete Nachrichten werden gelesen…",
+      "counts": "{{matching}} passende Nachrichten · {{total}} gespeicherte Nachrichten. Binäre Anhänge bleiben ungeladen; langer Text kann in Teilen gelesen werden.",
+      "message": "Aufgezeichnete Nachricht {{n}}",
+      "runtime": "LAUFZEITKONTEXT",
+      "noMatches": "Keine gespeicherten Nachrichten passen zu dieser Suche.",
+      "loadMore": "Nächste 10 Nachrichten laden",
+      "unreadable": "Diese Engine hat kein lesbares Transkript zurückgegeben. Aktualisiere die Projektlaufzeit, bevor du es erneut versuchst."
+    },
+    "block": {
+      "textUnreadable": "Der aufgezeichnete Text konnte nicht gelesen werden.",
+      "pdf": "PDF-Anhang",
+      "pdfText": "Extrahierter Text; binäres PDF nicht geladen.",
+      "pdfPages": "{{n}} Seiten · Extrahierter Text; binäres PDF nicht geladen.",
+      "copy": "Sichtbaren aufgezeichneten Text kopieren",
+      "reuse": "Sichtbaren Text zum Entwurf hinzufügen",
+      "fromStart": "Von Anfang an lesen",
+      "reading": "Wird gelesen…",
+      "next": "Nächsten Textteil lesen",
+      "excerpt": "Ein begrenzter Textauszug wird angezeigt. Weiterer Text ist verfügbar.",
+      "excerptMatch": "Ein begrenzter Textauszug um den Suchtreffer wird angezeigt. Weiterer Text ist verfügbar.",
+      "reasoning": "Aufgezeichnetes Denken",
+      "toolResult": "Werkzeugergebnis · {{name}}",
+      "toolResultError": "Werkzeugergebnis · {{name}} · Fehler",
+      "moreUnreadable": "Diese Engine hat die übrigen Blöcke nicht zurückgegeben.",
+      "more": "{{n}} weitere Blöcke in dieser Nachricht.",
+      "loading": "Wird geladen…",
+      "loadMore": "Nächste {{n}} Blöcke laden",
+      "toolRequest": "Werkzeuganfrage · {{name}}",
+      "inputUnreadable": "Diese Engine hat die vollständige Eingabe nicht zurückgegeben.",
+      "inputComplete": "Vollständige aufgezeichnete Eingabe.",
+      "inputPreview": "Begrenzte Eingabevorschau aus dem Journal.",
+      "showInput": "Vollständige Eingabe anzeigen"
+    },
+    "image": {
+      "title": "Bildanhang",
+      "alt": "Gespeicherter Anhang, {{type}}",
+      "loading": "Bild wird geladen…",
+      "show": "Bild anzeigen",
+      "unreadable": "Diese Engine hat das Bild nicht zurückgegeben. Sie ist möglicherweise älter als das Lesen von Bildern im Verlauf."
+    },
+    "inspect": {
+      "title": "Sitzungszusammenfassung",
+      "reading": "Aufgezeichnete Sitzung wird gelesen…",
+      "stat": {
+        "tokens": "Tokens",
+        "messages": "Nachrichten",
+        "iterations": "Iterationen",
+        "toolCalls": "Werkzeugaufrufe",
+        "filesChanged": "Geänderte Dateien",
+        "compactions": "Verdichtungen",
+        "events": "Ereignisse"
+      },
+      "failed": "{{n}} fehlgeschlagen",
+      "outcome": "Ergebnis: {{outcome}}",
+      "timeline": "Ereignisverlauf",
+      "timelineCount": "Ereignisverlauf · {{shown}} / {{total}}",
+      "filter": "Sitzungsereignisse filtern",
+      "filterPlaceholder": "Ereignisse filtern…",
+      "event": "Ereignis",
+      "noEvents": "Keine Ereignisse passen zum Filter.",
+      "tools": "Werkzeugaufschlüsselung",
+      "files": "Dateiänderungen",
+      "filesCount": "Dateiänderungen · {{n}}",
+      "operation": {
+        "create": "Erstellt",
+        "modify": "Geändert",
+        "edit": "Bearbeitet",
+        "delete": "Gelöscht"
+      }
     }
   }
 }

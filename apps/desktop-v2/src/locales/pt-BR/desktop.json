@@ -4878,6 +4878,85 @@
         "input": "Entrada / resultado"
       },
       "truncated": "Apenas os 200 registros mais recentes são listados."
+    },
+    "transcript": {
+      "label": "Transcrição da sessão registrada",
+      "title": "Conversa",
+      "intro": "Mensagens retidas no diário deste projeto. Ler não retoma o agente.",
+      "refresh": "Atualizar a transcrição",
+      "search": "Pesquisar em toda a transcrição retida",
+      "searchPlaceholder": "Pesquisar em todo o texto retido…",
+      "role": "Papel da mensagem da transcrição",
+      "submit": "Pesquisar na transcrição",
+      "reading": "Lendo as mensagens registradas…",
+      "counts": "{{matching}} mensagens correspondentes · {{total}} mensagens retidas. Os anexos binários não são carregados; textos longos podem ser lidos em partes.",
+      "message": "Mensagem registrada {{n}}",
+      "runtime": "CONTEXTO DE EXECUÇÃO",
+      "noMatches": "Nenhuma mensagem retida corresponde a esta pesquisa.",
+      "loadMore": "Carregar as próximas 10 mensagens",
+      "unreadable": "Este mecanismo não retornou uma transcrição legível. Atualize o runtime do projeto antes de tentar novamente."
+    },
+    "block": {
+      "textUnreadable": "Não foi possível ler o texto registrado.",
+      "pdf": "Anexo PDF",
+      "pdfText": "Texto extraído; PDF binário não carregado.",
+      "pdfPages": "{{n}} páginas · Texto extraído; PDF binário não carregado.",
+      "copy": "Copiar o texto registrado visível",
+      "reuse": "Adicionar o texto visível ao rascunho",
+      "fromStart": "Ler do início",
+      "reading": "Lendo…",
+      "next": "Ler a próxima parte do texto",
+      "excerpt": "Mostrando um trecho de texto limitado. Há mais texto disponível.",
+      "excerptMatch": "Mostrando um trecho de texto limitado em torno do resultado da pesquisa. Há mais texto disponível.",
+      "reasoning": "Raciocínio registrado",
+      "toolResult": "Resultado da ferramenta · {{name}}",
+      "toolResultError": "Resultado da ferramenta · {{name}} · erro",
+      "moreUnreadable": "Este mecanismo não retornou os blocos restantes.",
+      "more": "Mais {{n}} blocos nesta mensagem.",
+      "loading": "Carregando…",
+      "loadMore": "Carregar os próximos {{n}} blocos",
+      "toolRequest": "Solicitação de ferramenta · {{name}}",
+      "inputUnreadable": "Este mecanismo não retornou a entrada completa.",
+      "inputComplete": "Entrada registrada completa.",
+      "inputPreview": "Prévia limitada da entrada a partir do diário.",
+      "showInput": "Mostrar a entrada completa"
+    },
+    "image": {
+      "title": "Imagem anexada",
+      "alt": "Anexo retido, {{type}}",
+      "loading": "Carregando a imagem…",
+      "show": "Mostrar a imagem",
+      "unreadable": "Este mecanismo não retornou a imagem. Ele pode ser anterior à leitura de imagens no histórico."
+    },
+    "inspect": {
+      "title": "Resumo da sessão",
+      "reading": "Lendo a sessão registrada…",
+      "stat": {
+        "tokens": "Tokens",
+        "messages": "Mensagens",
+        "iterations": "Iterações",
+        "toolCalls": "Chamadas de ferramentas",
+        "filesChanged": "Arquivos alterados",
+        "compactions": "Compactações",
+        "events": "Eventos"
+      },
+      "failed": "{{n}} com falha",
+      "outcome": "Resultado: {{outcome}}",
+      "timeline": "Linha do tempo de eventos",
+      "timelineCount": "Linha do tempo de eventos · {{shown}} / {{total}}",
+      "filter": "Filtrar os eventos da sessão",
+      "filterPlaceholder": "Filtrar eventos…",
+      "event": "Evento",
+      "noEvents": "Nenhum evento corresponde ao filtro.",
+      "tools": "Distribuição por ferramenta",
+      "files": "Alterações de arquivos",
+      "filesCount": "Alterações de arquivos · {{n}}",
+      "operation": {
+        "create": "Criado",
+        "modify": "Modificado",
+        "edit": "Editado",
+        "delete": "Excluído"
+      }
     }
   }
 }
