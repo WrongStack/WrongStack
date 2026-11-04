@@ -38,7 +38,7 @@ import { FileBulkDialog } from './FileBulkDialog';
 import { FileContentSearch } from './FileContentSearch';
 import { FileContextMenu } from './FileContextMenu';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
-import { FileTreeView } from './FileTreeView';
+import { FileTreeView, useTreeChanges } from './FileTreeView';
 import {
   copyTarget,
   EMPTY_SHA256,
@@ -239,6 +239,7 @@ export function FileWorkspace({
       .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)))
       .finally(() => setLoading(''));
   }, [refresh]);
+  useTreeChanges(state.results['files.tree.changed'], refresh, setError);
   const openFile = useCallback(
     async (rawPath: string) => {
       const path = projectRelativePath(rawPath, scopeKey);

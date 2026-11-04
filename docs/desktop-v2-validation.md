@@ -6901,3 +6901,15 @@ copies, starting with SAGE memory.
   never when a journal is replayed, and closes by itself after eight seconds.
 - Checks: wording, quiet cases, once-per-conversation, replay vs live and the self-closing notice
   are tested (jsdom for the notice list); desktop tests pass; typecheck clean.
+
+### File tree follows changes on disk (2026-11-04)
+
+- The file workspace reloads its tree and the git change list when the engine's project watcher
+  reports `files.tree.changed`, as the WebUI's explorer does; before, both stayed as they were
+  when the workspace opened until a manual refresh, so files an agent created did not appear.
+  The engine already coalesces bursts (400 ms); the workspace waits a further 250 ms and skips
+  the change frame that was current when it opened.
+- The hook lives in `FileTreeView.tsx`; `FileWorkspace.tsx` gains the one line that calls it
+  (hotspot ratchet 2013).
+- Checks: tested in jsdom with fake timers (skips the opening frame, coalesces two frames,
+  reports a failed reload); desktop tests pass; typecheck clean.

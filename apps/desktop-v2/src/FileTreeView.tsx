@@ -159,3 +159,27 @@ export function FileTreeView({
     </div>
   );
 }
+
+/**
+ * Reloads the tree when the engine reports that files under the project changed, as the WebUI's
+ * explorer does on `files.tree.changed` (already coalesced by the engine's watcher). The value
+ * seen when the workspace opened is skipped: the first read already reflects it.
+ */
+export function useTreeChanges(
+  changed: unknown,
+  refresh: () => Promise<void>,
+  onError: (message: string) => void,
+) {
+  const opened = useRef(changed);
+  useEffect(() => {
+    if (!changed || changed === opened.current) return;
+    const timer = window.setTimeout(
+      () =>
+        void refresh().catch((error: unknown) =>
+          onError(String(error instanceof Error ? error.message : error)),
+        ),
+      250,
+    );
+    return () => window.clearTimeout(timer);
+  }, [changed, refresh, onError]);
+}
