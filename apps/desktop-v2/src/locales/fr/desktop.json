@@ -4788,6 +4788,96 @@
       "restore": "La vue de l’historique n’a pas pu être restaurée. Vous pouvez parcourir avec les valeurs par défaut ; les modifications de la vue risquent de ne pas être enregistrées.",
       "retry": "Le stockage de la vue de l’historique est toujours indisponible ou dans un format non pris en charge. Votre vue actuelle est conservée.",
       "save": "Les modifications de la vue de l’historique ne sont pas enregistrées. Votre vue actuelle est conservée. Réessayez l’enregistrement lorsque le stockage natif est disponible."
+    },
+    "contentSearch": {
+      "label": "Rechercher dans les conversations du projet",
+      "field": "Rechercher dans le contenu des conversations",
+      "placeholder": "Trouver des mots dans les conversations enregistrées…",
+      "roleLabel": "Rôle de la recherche",
+      "allRoles": "Tous les rôles",
+      "role": {
+        "user": "Utilisateur",
+        "assistant": "Assistant",
+        "system": "Système"
+      },
+      "roleCaps": {
+        "user": "UTILISATEUR",
+        "assistant": "ASSISTANT",
+        "system": "SYSTÈME"
+      },
+      "submit": "Rechercher dans les conversations",
+      "stop": "Arrêter la recherche",
+      "help": "Recherche le texte conservé dans tout le catalogue du projet, indépendamment de la page d’historique affichée et des filtres de résumé. L’historique supprimé et les données binaires des pièces jointes sont exclus.",
+      "tooShort": "Saisissez au moins deux caractères.",
+      "unsupported": "Ce moteur ne prend pas en charge la recherche dans le contenu des conversations. Mettez à jour le runtime du projet.",
+      "unpaged": "Ce runtime ne prend pas en charge la recherche paginée dans le catalogue. Mettez à jour le runtime du projet.",
+      "badCursor": "Le moteur a renvoyé une suite de recherche non valide.",
+      "status": {
+        "reading": "Lecture du catalogue du projet…",
+        "searching": "Recherche dans les conversations conservées…",
+        "complete": "Recherche terminée.",
+        "truncated": "Limite d’analyse héritée atteinte. La recherche peut être incomplète.",
+        "incomplete": "Recherche incomplète. Les résultats déjà lus sont conservés.",
+        "stopped": "Arrêtée. Le lot de lecture en cours est peut-être encore en train de se terminer."
+      },
+      "progress": "{{status}} {{scanned}} enregistrements vérifiés sur {{total}} · {{n}} conversations correspondantes.",
+      "progressLabel": "Progression de la recherche",
+      "unreadable": "{{n}} enregistrements n’ont pas pu être lus ; les résultats sont incomplets.",
+      "matching": "{{n}} messages correspondants · {{provider}} / {{model}}",
+      "readMatch": "Lire le résultat {{id}}, message {{n}}",
+      "message": "Message {{n}}",
+      "readMessage": "Lire le message correspondant →",
+      "firstThree": "Affichage des trois premiers messages correspondants. Ouvrez un résultat pour rechercher dans la transcription complète.",
+      "noMatches": "Aucun texte de conversation conservé ne correspond à cette recherche."
+    },
+    "usage": {
+      "title": "Utilisation enregistrée",
+      "help": "Jetons enregistrés par chaque conversation, regroupés selon le fournisseur et le modèle utilisés en dernier. Les prix ne sont pas calculés ici.",
+      "scopeLegend": "Conversations à compter",
+      "scope": {
+        "project": "Ce projet",
+        "profile": "Tous les projets de ce profil"
+      },
+      "noProject": "Ce moteur ne résume pas encore l’utilisation du projet.",
+      "noProfile": "Ce moteur ne résume pas encore l’utilisation de tous les projets.",
+      "summarizing": "Synthèse en cours…",
+      "refresh": "Actualiser le résumé",
+      "summarize": "Résumer l’utilisation enregistrée",
+      "total": "{{tokens}} jetons sur {{sessions}} conversations{{projects}}{{missing}}{{capped}}.",
+      "inProjects": " dans {{n}} projets",
+      "withoutTotal": " ({{n}} sans total enregistré)",
+      "capped": " ; seules les conversations les plus récentes jusqu’à la limite d’analyse ont été lues",
+      "byProject": "Jetons enregistrés par projet",
+      "byModel": "Jetons enregistrés par modèle",
+      "column": {
+        "project": "Projet",
+        "tokens": "Jetons",
+        "provider": "Fournisseur",
+        "model": "Modèle",
+        "conversations": "Conversations"
+      },
+      "notRead": "Non lu : {{error}}"
+    },
+    "effects": {
+      "title": "Effets de bord enregistrés",
+      "help": "Commandes, écritures de fichiers, paquets, opérations réseau et de configuration enregistrées dans les conversations de ce projet, les plus récentes en premier.",
+      "risk": "Risque",
+      "all": "Tous",
+      "reading": "Lecture des journaux…",
+      "refresh": "Actualiser",
+      "summarize": "Résumer les effets de bord",
+      "unsupported": "Ce moteur ne résume pas encore les effets de bord du projet.",
+      "total": "{{total}} enregistrés dans {{with}} conversations sur {{scanned}}{{capped}}{{unreadable}}.",
+      "capped": " (les conversations les plus récentes jusqu’à la limite d’analyse)",
+      "unreadable": " ; {{n}} journaux n’ont pas pu être lus",
+      "column": {
+        "when": "Quand",
+        "conversation": "Conversation",
+        "tool": "Outil",
+        "risk": "Risque",
+        "input": "Entrée / résultat"
+      },
+      "truncated": "Seuls les 200 enregistrements les plus récents sont listés."
     }
   }
 }

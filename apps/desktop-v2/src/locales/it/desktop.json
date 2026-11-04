@@ -4788,6 +4788,96 @@
       "restore": "Impossibile ripristinare la vista della cronologia. Puoi navigare con le impostazioni predefinite; le modifiche alla vista potrebbero non essere salvate.",
       "retry": "L’archiviazione della vista della cronologia non è ancora disponibile o ha un formato non supportato. La vista attuale viene mantenuta.",
       "save": "Le modifiche alla vista della cronologia non sono salvate. La vista attuale viene mantenuta. Riprova a salvare quando l’archivio nativo è disponibile."
+    },
+    "contentSearch": {
+      "label": "Cerca nelle conversazioni del progetto",
+      "field": "Cerca nel contenuto delle conversazioni",
+      "placeholder": "Trova parole nelle conversazioni registrate…",
+      "roleLabel": "Ruolo della ricerca",
+      "allRoles": "Tutti i ruoli",
+      "role": {
+        "user": "Utente",
+        "assistant": "Assistente",
+        "system": "Sistema"
+      },
+      "roleCaps": {
+        "user": "UTENTE",
+        "assistant": "ASSISTENTE",
+        "system": "SISTEMA"
+      },
+      "submit": "Cerca nelle conversazioni",
+      "stop": "Interrompi la ricerca",
+      "help": "Cerca il testo conservato in tutto il catalogo del progetto, indipendentemente dalla pagina della cronologia mostrata e dai filtri del riepilogo. La cronologia rimossa e i dati binari degli allegati sono esclusi.",
+      "tooShort": "Inserisci almeno due caratteri.",
+      "unsupported": "Questo motore non supporta la ricerca nel contenuto delle conversazioni. Aggiorna il runtime del progetto.",
+      "unpaged": "Questo runtime non supporta la ricerca paginata nel catalogo. Aggiorna il runtime del progetto.",
+      "badCursor": "Il motore ha restituito una continuazione della ricerca non valida.",
+      "status": {
+        "reading": "Lettura del catalogo del progetto…",
+        "searching": "Ricerca nelle conversazioni conservate…",
+        "complete": "Ricerca completata.",
+        "truncated": "Raggiunto il limite di scansione legacy. La ricerca potrebbe essere incompleta.",
+        "incomplete": "Ricerca incompleta. I risultati già letti vengono mantenuti.",
+        "stopped": "Interrotta. Il lotto di lettura corrente potrebbe essere ancora in chiusura."
+      },
+      "progress": "{{status}} {{scanned}} di {{total}} record controllati · {{n}} conversazioni corrispondenti.",
+      "progressLabel": "Avanzamento della ricerca",
+      "unreadable": "Impossibile leggere {{n}} record; i risultati sono incompleti.",
+      "matching": "{{n}} messaggi corrispondenti · {{provider}} / {{model}}",
+      "readMatch": "Leggi il risultato {{id}}, messaggio {{n}}",
+      "message": "Messaggio {{n}}",
+      "readMessage": "Leggi il messaggio corrispondente →",
+      "firstThree": "Vengono mostrati i primi tre messaggi corrispondenti. Apri un risultato per cercare nella trascrizione completa.",
+      "noMatches": "Nessun testo di conversazione conservato corrisponde a questa ricerca."
+    },
+    "usage": {
+      "title": "Utilizzo registrato",
+      "help": "Token registrati da ogni conversazione, raggruppati per l’ultimo provider e modello usati. I prezzi non vengono calcolati qui.",
+      "scopeLegend": "Conversazioni da contare",
+      "scope": {
+        "project": "Questo progetto",
+        "profile": "Tutti i progetti di questo profilo"
+      },
+      "noProject": "Questo motore non riepiloga ancora l’utilizzo del progetto.",
+      "noProfile": "Questo motore non riepiloga ancora l’utilizzo tra i progetti.",
+      "summarizing": "Riepilogo in corso…",
+      "refresh": "Aggiorna il riepilogo",
+      "summarize": "Riepiloga l’utilizzo registrato",
+      "total": "{{tokens}} token in {{sessions}} conversazioni{{projects}}{{missing}}{{capped}}.",
+      "inProjects": " in {{n}} progetti",
+      "withoutTotal": " ({{n}} senza totale registrato)",
+      "capped": "; sono state lette solo le conversazioni più recenti fino al limite di scansione",
+      "byProject": "Token registrati per progetto",
+      "byModel": "Token registrati per modello",
+      "column": {
+        "project": "Progetto",
+        "tokens": "Token",
+        "provider": "Provider",
+        "model": "Modello",
+        "conversations": "Conversazioni"
+      },
+      "notRead": "Non letto: {{error}}"
+    },
+    "effects": {
+      "title": "Effetti collaterali registrati",
+      "help": "Comandi, scritture di file, pacchetti, operazioni di rete e di configurazione registrati nelle conversazioni di questo progetto, dai più recenti.",
+      "risk": "Rischio",
+      "all": "Tutti",
+      "reading": "Lettura dei journal…",
+      "refresh": "Aggiorna",
+      "summarize": "Riepiloga gli effetti collaterali",
+      "unsupported": "Questo motore non riepiloga ancora gli effetti collaterali del progetto.",
+      "total": "{{total}} registrati in {{with}} conversazioni su {{scanned}}{{capped}}{{unreadable}}.",
+      "capped": " (le conversazioni più recenti fino al limite di scansione)",
+      "unreadable": "; impossibile leggere {{n}} journal",
+      "column": {
+        "when": "Quando",
+        "conversation": "Conversazione",
+        "tool": "Strumento",
+        "risk": "Rischio",
+        "input": "Input / esito"
+      },
+      "truncated": "Sono elencati solo i 200 record più recenti."
     }
   }
 }

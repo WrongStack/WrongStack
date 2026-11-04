@@ -4788,6 +4788,96 @@
       "restore": "Die Verlaufsansicht konnte nicht wiederhergestellt werden. Du kannst mit Standardwerten browsen; Ansichtsänderungen werden eventuell nicht gespeichert.",
       "retry": "Der Speicher der Verlaufsansicht ist weiterhin nicht verfügbar oder hat ein nicht unterstütztes Format. Deine aktuelle Ansicht bleibt erhalten.",
       "save": "Änderungen an der Verlaufsansicht sind nicht gespeichert. Deine aktuelle Ansicht bleibt erhalten. Versuche erneut zu speichern, sobald der native Speicher verfügbar ist."
+    },
+    "contentSearch": {
+      "label": "Projektunterhaltungen übergreifend durchsuchen",
+      "field": "Inhalt der Unterhaltungen durchsuchen",
+      "placeholder": "Wörter in aufgezeichneten Unterhaltungen finden…",
+      "roleLabel": "Rolle für die Suche",
+      "allRoles": "Alle Rollen",
+      "role": {
+        "user": "Benutzer",
+        "assistant": "Assistent",
+        "system": "System"
+      },
+      "roleCaps": {
+        "user": "BENUTZER",
+        "assistant": "ASSISTENT",
+        "system": "SYSTEM"
+      },
+      "submit": "Unterhaltungen durchsuchen",
+      "stop": "Suche stoppen",
+      "help": "Durchsucht gespeicherten Text im gesamten Projektkatalog, unabhängig von der angezeigten Verlaufsseite und den Zusammenfassungsfiltern. Entfernter Verlauf und binäre Anhangsdaten sind ausgeschlossen.",
+      "tooShort": "Gib mindestens zwei Zeichen ein.",
+      "unsupported": "Diese Engine unterstützt keine Suche im Unterhaltungsinhalt. Aktualisiere die Projektlaufzeit.",
+      "unpaged": "Diese Laufzeit unterstützt keine seitenweise Katalogsuche. Aktualisiere die Projektlaufzeit.",
+      "badCursor": "Die Engine hat eine ungültige Suchfortsetzung zurückgegeben.",
+      "status": {
+        "reading": "Projektkatalog wird gelesen…",
+        "searching": "Gespeicherte Unterhaltungen werden durchsucht…",
+        "complete": "Suche abgeschlossen.",
+        "truncated": "Altes Scanlimit erreicht. Die Suche ist möglicherweise unvollständig.",
+        "incomplete": "Suche unvollständig. Bereits gelesene Ergebnisse bleiben erhalten.",
+        "stopped": "Gestoppt. Der aktuelle Lesestapel wird möglicherweise noch abgeschlossen."
+      },
+      "progress": "{{status}} {{scanned}} von {{total}} Einträgen geprüft · {{n}} passende Unterhaltungen.",
+      "progressLabel": "Fortschritt der Suche",
+      "unreadable": "{{n}} Einträge konnten nicht gelesen werden; die Ergebnisse sind unvollständig.",
+      "matching": "{{n}} passende Nachrichten · {{provider}} / {{model}}",
+      "readMatch": "Suchtreffer {{id}}, Nachricht {{n}} lesen",
+      "message": "Nachricht {{n}}",
+      "readMessage": "Passende Nachricht lesen →",
+      "firstThree": "Die ersten drei passenden Nachrichten werden angezeigt. Öffne einen Treffer, um das vollständige Transkript zu durchsuchen.",
+      "noMatches": "Kein gespeicherter Unterhaltungstext passt zu dieser Suche."
+    },
+    "usage": {
+      "title": "Aufgezeichnete Nutzung",
+      "help": "Von jeder Unterhaltung aufgezeichnete Tokens, gruppiert nach dem zuletzt genutzten Anbieter und Modell. Preise werden hier nicht abgeleitet.",
+      "scopeLegend": "Zu zählende Unterhaltungen",
+      "scope": {
+        "project": "Dieses Projekt",
+        "profile": "Alle Projekte in diesem Profil"
+      },
+      "noProject": "Diese Engine fasst die Projektnutzung noch nicht zusammen.",
+      "noProfile": "Diese Engine fasst die Nutzung über Projekte hinweg noch nicht zusammen.",
+      "summarizing": "Wird zusammengefasst…",
+      "refresh": "Zusammenfassung aktualisieren",
+      "summarize": "Aufgezeichnete Nutzung zusammenfassen",
+      "total": "{{tokens}} Tokens in {{sessions}} Unterhaltungen{{projects}}{{missing}}{{capped}}.",
+      "inProjects": " in {{n}} Projekten",
+      "withoutTotal": " ({{n}} ohne aufgezeichnete Summe)",
+      "capped": "; nur die neuesten Unterhaltungen bis zum Scanlimit wurden gelesen",
+      "byProject": "Aufgezeichnete Tokens nach Projekt",
+      "byModel": "Aufgezeichnete Tokens nach Modell",
+      "column": {
+        "project": "Projekt",
+        "tokens": "Tokens",
+        "provider": "Anbieter",
+        "model": "Modell",
+        "conversations": "Unterhaltungen"
+      },
+      "notRead": "Nicht gelesen: {{error}}"
+    },
+    "effects": {
+      "title": "Aufgezeichnete Nebenwirkungen",
+      "help": "In den Unterhaltungen dieses Projekts aufgezeichnete Befehle, Dateischreibvorgänge, Pakete, Netzwerk- und Konfigurationsvorgänge, neueste zuerst.",
+      "risk": "Risiko",
+      "all": "Alle",
+      "reading": "Journale werden gelesen…",
+      "refresh": "Aktualisieren",
+      "summarize": "Nebenwirkungen zusammenfassen",
+      "unsupported": "Diese Engine fasst Nebenwirkungen des Projekts noch nicht zusammen.",
+      "total": "{{total}} aufgezeichnet in {{with}} von {{scanned}} Unterhaltungen{{capped}}{{unreadable}}.",
+      "capped": " (die neuesten Unterhaltungen bis zum Scanlimit)",
+      "unreadable": "; {{n}} Journale konnten nicht gelesen werden",
+      "column": {
+        "when": "Wann",
+        "conversation": "Unterhaltung",
+        "tool": "Werkzeug",
+        "risk": "Risiko",
+        "input": "Eingabe / Ergebnis"
+      },
+      "truncated": "Nur die neuesten 200 Einträge werden aufgeführt."
     }
   }
 }

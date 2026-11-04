@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './project-history-search.css';
@@ -19,10 +20,12 @@ export function ProjectHistorySearch({
   command: EngineCommand;
   onSelect: (selection: HistorySearchSelection, summary: Row) => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState(''),
     [role, setRole] = useState('');
   const [results, setResults] = useState<Row[]>([]),
     [errors, setErrors] = useState<Row[]>([]);
+  // A status code, worded at render time so it follows the display language.
   const [busy, setBusy] = useState(false),
     [status, setStatus] = useState(''),
     [error, setError] = useState('');
@@ -42,7 +45,7 @@ export function ProjectHistorySearch({
     if (pending.current) return;
     const text = query.trim();
     if (text.length < 2) {
-      setError('Enter at least two characters.');
+      setError(t('historyView.contentSearch.tooShort'));
       return;
     }
     const version = ++generation.current;
@@ -53,7 +56,7 @@ export function ProjectHistorySearch({
     setErrors([]);
     setProgress({ scanned: 0, total: 0 });
     setApplied({ query: text, role });
-    setStatus('Reading the project catalog…');
+    setStatus('reading');
     let cursor = 0,
       revision: string | undefined,
       catalogRevision: string | undefined;
@@ -83,14 +86,10 @@ export function ProjectHistorySearch({
           typeof page['scanned'] !== 'number' ||
           typeof page['total'] !== 'number'
         )
-          throw Error(
-            'This engine does not support conversation content search. Update the project runtime.',
-          );
+          throw Error(t('historyView.contentSearch.unsupported'));
         revision = page['revision'];
         if (typeof page['catalogRevision'] !== 'string')
-          throw Error(
-            'This runtime does not support paged catalog search. Update the project runtime.',
-          );
+          throw Error(t('historyView.contentSearch.unpaged'));
         catalogRevision = page['catalogRevision'];
         found.push(...entries(page['results']));
         failed.push(...entries(page['errors']));
@@ -98,22 +97,18 @@ export function ProjectHistorySearch({
         setErrors([...failed]);
         setProgress({ scanned: page['scanned'], total: page['total'] });
         if (page['nextCursor'] === null) {
-          setStatus(
-            page['truncated'] === true
-              ? 'Legacy scan limit reached. Search may be incomplete.'
-              : 'Search complete.',
-          );
+          setStatus(page['truncated'] === true ? 'truncated' : 'complete');
           break;
         }
         if (typeof page['nextCursor'] !== 'number' || page['nextCursor'] <= cursor)
-          throw Error('The engine returned an invalid search continuation.');
+          throw Error(t('historyView.contentSearch.badCursor'));
         cursor = page['nextCursor'];
-        setStatus('Searching retained conversations…');
+        setStatus('searching');
       }
     } catch (error) {
       if (mounted.current && generation.current === version) {
         setError(error instanceof Error ? error.message : String(error));
-        setStatus('Search incomplete. Results already read are kept.');
+        setStatus('incomplete');
       }
     } finally {
       pending.current = false;
@@ -121,7 +116,7 @@ export function ProjectHistorySearch({
     }
   };
   return (
-    <section className="project-history-search" aria-label="Search across project conversations">
+    <section className="project-history-search" aria-label={t('historyView.contentSearch.label')}>
       <form
         className="history-transcript-search"
         onSubmit={(event) => {
@@ -132,31 +127,33 @@ export function ProjectHistorySearch({
         <label>
           <Search size={14} />
           <input
-            aria-label="Search conversation content"
+            aria-label={t('historyView.contentSearch.field')}
             value={query}
             maxLength={500}
             disabled={busy}
-            placeholder="Find words inside recorded conversations…"
+            placeholder={t('historyView.contentSearch.placeholder')}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
         <select
-          aria-label="Conversation search role"
+          aria-label={t('historyView.contentSearch.roleLabel')}
           value={role}
           disabled={busy}
           onChange={(event) => setRole(event.target.value)}
         >
-          <option value="">All roles</option>
-          <option value="user">User</option>
-          <option value="assistant">Assistant</option>
-          <option value="system">System</option>
+          <option value="">{t('historyView.contentSearch.allRoles')}</option>
+          {['user', 'assistant', 'system'].map((value) => (
+            <option key={value} value={value}>
+              {t(`historyView.contentSearch.role.${value}`)}
+            </option>
+          ))}
         </select>
         <button
           type="submit"
           className="button secondary"
           disabled={busy || query.trim().length < 2}
         >
-          Search conversations
+          {t('historyView.contentSearch.submit')}
         </button>
         {busy && (
           <button
@@ -164,26 +161,27 @@ export function ProjectHistorySearch({
             className="button secondary"
             onClick={() => {
               generation.current++;
-              setStatus('Stopped. The current read batch may still be finishing.');
+              setStatus('stopped');
             }}
           >
-            Stop search
+            {t('historyView.contentSearch.stop')}
           </button>
         )}
       </form>
-      <p className="field-help">
-        Searches retained text across the project catalog, independently of the displayed history
-        page and summary filters. Removed history and binary attachment data are excluded.
-      </p>
+      <p className="field-help">{t('historyView.contentSearch.help')}</p>
       {status && (
         <p role="status">
-          {status} {progress.scanned} of {progress.total} records checked · {results.length}{' '}
-          matching conversations.
+          {t('historyView.contentSearch.progress', {
+            status: t(`historyView.contentSearch.status.${status}`),
+            scanned: progress.scanned,
+            total: progress.total,
+            n: results.length,
+          })}
         </p>
       )}
       {busy && (
         <progress
-          aria-label="Conversation search progress"
+          aria-label={t('historyView.contentSearch.progressLabel')}
           value={progress.scanned}
           max={Math.max(1, progress.total)}
         />
@@ -195,7 +193,7 @@ export function ProjectHistorySearch({
       )}
       {!!errors.length && (
         <details>
-          <summary>{errors.length} records could not be read; results are incomplete.</summary>
+          <summary>{t('historyView.contentSearch.unreadable', { n: errors.length })}</summary>
           {errors.map((item) => (
             <p className="field-help" key={String(item['id'])}>
               {String(item['id'])}: {String(item['message'])}
@@ -209,15 +207,21 @@ export function ProjectHistorySearch({
             <header>
               <strong>{String(result['title'])}</strong>
               <span>
-                {String(result['matching'])} matching messages · {String(result['provider'])} /{' '}
-                {String(result['model'])}
+                {t('historyView.contentSearch.matching', {
+                  n: String(result['matching']),
+                  provider: String(result['provider']),
+                  model: String(result['model']),
+                })}
               </span>
             </header>
             {entries(result['hits']).map((hit) => (
               <button
                 type="button"
                 key={String(hit['messageIndex'])}
-                aria-label={`Read search match ${result['id']} message ${Number(hit['messageIndex']) + 1}`}
+                aria-label={t('historyView.contentSearch.readMatch', {
+                  id: String(result['id']),
+                  n: Number(hit['messageIndex']) + 1,
+                })}
                 onClick={() =>
                   onSelect(
                     {
@@ -231,23 +235,23 @@ export function ProjectHistorySearch({
                 }
               >
                 <small>
-                  {String(hit['role']).toUpperCase()} · Message {Number(hit['messageIndex']) + 1}
+                  {t(`historyView.contentSearch.roleCaps.${String(hit['role'])}`, {
+                    defaultValue: String(hit['role']).toUpperCase(),
+                  })}{' '}
+                  · {t('historyView.contentSearch.message', { n: Number(hit['messageIndex']) + 1 })}
                 </small>
                 <p>{String(hit['excerpt'])}</p>
-                <span>Read matching message →</span>
+                <span>{t('historyView.contentSearch.readMessage')}</span>
               </button>
             ))}
             {Number(result['matching']) > 3 && (
-              <p className="field-help">
-                Showing the first three matching messages. Open a match to search the complete
-                transcript.
-              </p>
+              <p className="field-help">{t('historyView.contentSearch.firstThree')}</p>
             )}
           </article>
         ))}
       </div>
-      {status === 'Search complete.' && !results.length && !errors.length && (
-        <p className="quiet-state">No retained conversation text matches this search.</p>
+      {status === 'complete' && !results.length && !errors.length && (
+        <p className="quiet-state">{t('historyView.contentSearch.noMatches')}</p>
       )}
     </section>
   );

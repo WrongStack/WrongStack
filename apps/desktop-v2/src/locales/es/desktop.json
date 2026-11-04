@@ -4788,6 +4788,96 @@
       "restore": "No se pudo restaurar la vista del historial. Puedes navegar con los valores predeterminados; es posible que los cambios de la vista no se guarden.",
       "retry": "El almacenamiento de la vista del historial sigue sin estar disponible o tiene un formato no compatible. Se conserva tu vista actual.",
       "save": "Los cambios de la vista del historial no se guardaron. Se conserva tu vista actual. Vuelve a intentar guardar cuando el almacén nativo esté disponible."
+    },
+    "contentSearch": {
+      "label": "Buscar en las conversaciones del proyecto",
+      "field": "Buscar en el contenido de las conversaciones",
+      "placeholder": "Busca palabras dentro de las conversaciones registradas…",
+      "roleLabel": "Rol de la búsqueda",
+      "allRoles": "Todos los roles",
+      "role": {
+        "user": "Usuario",
+        "assistant": "Asistente",
+        "system": "Sistema"
+      },
+      "roleCaps": {
+        "user": "USUARIO",
+        "assistant": "ASISTENTE",
+        "system": "SISTEMA"
+      },
+      "submit": "Buscar en las conversaciones",
+      "stop": "Detener la búsqueda",
+      "help": "Busca el texto conservado en todo el catálogo del proyecto, independientemente de la página del historial mostrada y de los filtros de resumen. Se excluyen el historial eliminado y los datos binarios de los adjuntos.",
+      "tooShort": "Escribe al menos dos caracteres.",
+      "unsupported": "Este motor no admite la búsqueda en el contenido de las conversaciones. Actualiza el entorno de ejecución del proyecto.",
+      "unpaged": "Este entorno de ejecución no admite la búsqueda paginada en el catálogo. Actualiza el entorno de ejecución del proyecto.",
+      "badCursor": "El motor devolvió una continuación de búsqueda no válida.",
+      "status": {
+        "reading": "Leyendo el catálogo del proyecto…",
+        "searching": "Buscando en las conversaciones conservadas…",
+        "complete": "Búsqueda completada.",
+        "truncated": "Se alcanzó el límite de escaneo heredado. La búsqueda puede estar incompleta.",
+        "incomplete": "Búsqueda incompleta. Se conservan los resultados ya leídos.",
+        "stopped": "Detenida. Puede que el lote de lectura actual aún esté terminando."
+      },
+      "progress": "{{status}} {{scanned}} de {{total}} registros revisados · {{n}} conversaciones coincidentes.",
+      "progressLabel": "Progreso de la búsqueda",
+      "unreadable": "No se pudieron leer {{n}} registros; los resultados están incompletos.",
+      "matching": "{{n}} mensajes coincidentes · {{provider}} / {{model}}",
+      "readMatch": "Leer la coincidencia {{id}}, mensaje {{n}}",
+      "message": "Mensaje {{n}}",
+      "readMessage": "Leer el mensaje coincidente →",
+      "firstThree": "Se muestran los tres primeros mensajes coincidentes. Abre una coincidencia para buscar en la transcripción completa.",
+      "noMatches": "Ningún texto de conversación conservado coincide con esta búsqueda."
+    },
+    "usage": {
+      "title": "Uso registrado",
+      "help": "Tokens registrados por cada conversación, agrupados por el proveedor y el modelo que usó por última vez. Aquí no se calculan precios.",
+      "scopeLegend": "Conversaciones que contar",
+      "scope": {
+        "project": "Este proyecto",
+        "profile": "Todos los proyectos de este perfil"
+      },
+      "noProject": "Este motor todavía no resume el uso del proyecto.",
+      "noProfile": "Este motor todavía no resume el uso entre proyectos.",
+      "summarizing": "Resumiendo…",
+      "refresh": "Actualizar el resumen",
+      "summarize": "Resumir el uso registrado",
+      "total": "{{tokens}} tokens en {{sessions}} conversaciones{{projects}}{{missing}}{{capped}}.",
+      "inProjects": " en {{n}} proyectos",
+      "withoutTotal": " ({{n}} sin total registrado)",
+      "capped": "; solo se leyeron las conversaciones más recientes hasta el límite de escaneo",
+      "byProject": "Tokens registrados por proyecto",
+      "byModel": "Tokens registrados por modelo",
+      "column": {
+        "project": "Proyecto",
+        "tokens": "Tokens",
+        "provider": "Proveedor",
+        "model": "Modelo",
+        "conversations": "Conversaciones"
+      },
+      "notRead": "No leído: {{error}}"
+    },
+    "effects": {
+      "title": "Efectos secundarios registrados",
+      "help": "Comandos, escrituras de archivos, paquetes, operaciones de red y de configuración registradas en las conversaciones de este proyecto, primero las más recientes.",
+      "risk": "Riesgo",
+      "all": "Todos",
+      "reading": "Leyendo diarios…",
+      "refresh": "Actualizar",
+      "summarize": "Resumir los efectos secundarios",
+      "unsupported": "Este motor todavía no resume los efectos secundarios del proyecto.",
+      "total": "{{total}} registrados en {{with}} de {{scanned}} conversaciones{{capped}}{{unreadable}}.",
+      "capped": " (las conversaciones más recientes hasta el límite de escaneo)",
+      "unreadable": "; no se pudieron leer {{n}} diarios",
+      "column": {
+        "when": "Cuándo",
+        "conversation": "Conversación",
+        "tool": "Herramienta",
+        "risk": "Riesgo",
+        "input": "Entrada / resultado"
+      },
+      "truncated": "Solo se muestran los 200 registros más recientes."
     }
   }
 }

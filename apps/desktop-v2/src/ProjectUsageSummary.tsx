@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { ProjectSideEffectsSummary } from './ProjectSideEffectsSummary';
@@ -65,10 +66,7 @@ export function readUsageSummary(value: unknown): Usage | null {
   };
 }
 
-const SCOPES: readonly (readonly [Scope, string])[] = [
-  ['project', 'This project'],
-  ['profile', 'All projects in this profile'],
-];
+const SCOPES: readonly Scope[] = ['project', 'profile'];
 
 /**
  * Recorded tokens across this project's conversations, or across every project in the profile,
@@ -83,25 +81,27 @@ export function ProjectUsageSummary({
   /** Opens a conversation's recorded history from the side-effect list. */
   onOpenSession?: ((sessionId: string) => void) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [scope, setScope] = useState<Scope>('project'),
     [usage, setUsage] = useState<Usage | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  /** Asks one engine catalog for its usage summary. */
+  const request = (type: string, timeoutMs: number) =>
+    command(type, { usageSummary: true }, [type], { timeoutMs });
   const load = async () => {
     setBusy(true);
     setError('');
     try {
-      const type = scope === 'project' ? 'sessions.list' : 'projects.list';
-      const reply = await command(type, { usageSummary: true }, [type], {
-        timeoutMs: scope === 'project' ? 60000 : 300000,
-      });
+      const reply =
+        scope === 'project'
+          ? await request('sessions.list', 60000)
+          : await request('projects.list', 300000);
       if (typeof reply['error'] === 'string') throw Error(reply['error']);
       const read = readUsageSummary(reply['usageSummary']);
       if (!read)
         throw Error(
-          scope === 'project'
-            ? 'This engine does not summarize project usage yet.'
-            : 'This engine does not summarize usage across projects yet.',
+          scope === 'project' ? t('historyView.usage.noProject') : t('historyView.usage.noProfile'),
         );
       setUsage(read);
     } catch (failure) {
@@ -114,14 +114,11 @@ export function ProjectUsageSummary({
     <>
       <ProjectSideEffectsSummary command={command} onOpenSession={onOpenSession} />
       <details className="project-usage-summary">
-        <summary>Recorded usage</summary>
-        <p className="field-help">
-          Tokens recorded by each conversation, grouped by the provider and model it last used.
-          Prices are not derived here.
-        </p>
+        <summary>{t('historyView.usage.title')}</summary>
+        <p className="field-help">{t('historyView.usage.help')}</p>
         <fieldset className="usage-scope">
-          <legend>Conversations to count</legend>
-          {SCOPES.map(([value, label]) => (
+          <legend>{t('historyView.usage.scopeLegend')}</legend>
+          {SCOPES.map((value) => (
             <label key={value}>
               <input
                 type="radio"
@@ -134,7 +131,7 @@ export function ProjectUsageSummary({
                   setError('');
                 }}
               />
-              {label}
+              {t(`historyView.usage.scope.${value}`)}
             </label>
           ))}
         </fieldset>
@@ -144,7 +141,11 @@ export function ProjectUsageSummary({
           disabled={busy}
           onClick={() => void load()}
         >
-          {busy ? 'Summarizing…' : usage ? 'Refresh summary' : 'Summarize recorded usage'}
+          {busy
+            ? t('historyView.usage.summarizing')
+            : usage
+              ? t('historyView.usage.refresh')
+              : t('historyView.usage.summarize')}
         </button>
         {error && (
           <p role="alert" className="session-error">
@@ -154,21 +155,29 @@ export function ProjectUsageSummary({
         {usage && (
           <>
             <p role="status">
-              {usage.tokenTotal.toLocaleString()} tokens across {usage.sessions.toLocaleString()}{' '}
-              conversations
-              {usage.projects ? ` in ${usage.projects.length.toLocaleString()} projects` : ''}
-              {usage.sessionsWithTokens < usage.sessions
-                ? ` (${(usage.sessions - usage.sessionsWithTokens).toLocaleString()} without a recorded total)`
-                : ''}
-              {usage.capped ? '; only the newest conversations up to the scan limit were read' : ''}
-              .
+              {t('historyView.usage.total', {
+                tokens: usage.tokenTotal.toLocaleString(),
+                sessions: usage.sessions.toLocaleString(),
+                projects: usage.projects
+                  ? t('historyView.usage.inProjects', {
+                      n: usage.projects.length.toLocaleString(),
+                    })
+                  : '',
+                missing:
+                  usage.sessionsWithTokens < usage.sessions
+                    ? t('historyView.usage.withoutTotal', {
+                        n: (usage.sessions - usage.sessionsWithTokens).toLocaleString(),
+                      })
+                    : '',
+                capped: usage.capped ? t('historyView.usage.capped') : '',
+              })}
             </p>
             {usage.projects && (
-              <table aria-label="Recorded tokens by project">
+              <table aria-label={t('historyView.usage.byProject')}>
                 <thead>
                   <tr>
-                    <th scope="col">Project</th>
-                    <th scope="col">Tokens</th>
+                    <th scope="col">{t('historyView.usage.column.project')}</th>
+                    <th scope="col">{t('historyView.usage.column.tokens')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -177,7 +186,7 @@ export function ProjectUsageSummary({
                       <td title={row.root}>{row.name}</td>
                       <td>
                         {row.error
-                          ? `Not read: ${row.error}`
+                          ? t('historyView.usage.notRead', { error: row.error })
                           : (row.tokenTotal ?? 0).toLocaleString()}
                       </td>
                     </tr>
@@ -185,13 +194,13 @@ export function ProjectUsageSummary({
                 </tbody>
               </table>
             )}
-            <table aria-label="Recorded tokens by model">
+            <table aria-label={t('historyView.usage.byModel')}>
               <thead>
                 <tr>
-                  <th scope="col">Provider</th>
-                  <th scope="col">Model</th>
-                  <th scope="col">Conversations</th>
-                  <th scope="col">Tokens</th>
+                  <th scope="col">{t('historyView.usage.column.provider')}</th>
+                  <th scope="col">{t('historyView.usage.column.model')}</th>
+                  <th scope="col">{t('historyView.usage.column.conversations')}</th>
+                  <th scope="col">{t('historyView.usage.column.tokens')}</th>
                 </tr>
               </thead>
               <tbody>

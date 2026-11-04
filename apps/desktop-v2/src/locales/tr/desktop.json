@@ -4788,6 +4788,96 @@
       "restore": "Geçmiş görünümü geri yüklenemedi. Varsayılanlarla gezinebilirsin; görünüm değişiklikleri kaydedilmeyebilir.",
       "retry": "Geçmiş görünümü kaydı hâlâ kullanılamıyor veya desteklenmeyen bir biçimde. Mevcut görünümün korunuyor.",
       "save": "Geçmiş görünümü değişiklikleri kaydedilmedi. Mevcut görünümün korunuyor. Yerel depo kullanılabilir olduğunda kaydetmeyi yeniden dene."
+    },
+    "contentSearch": {
+      "label": "Proje konuşmaları genelinde ara",
+      "field": "Konuşma içeriğinde ara",
+      "placeholder": "Kayıtlı konuşmaların içindeki sözcükleri bul…",
+      "roleLabel": "Konuşma araması rolü",
+      "allRoles": "Tüm roller",
+      "role": {
+        "user": "Kullanıcı",
+        "assistant": "Asistan",
+        "system": "Sistem"
+      },
+      "roleCaps": {
+        "user": "KULLANICI",
+        "assistant": "ASİSTAN",
+        "system": "SİSTEM"
+      },
+      "submit": "Konuşmalarda ara",
+      "stop": "Aramayı durdur",
+      "help": "Saklanan metni, gösterilen geçmiş sayfasından ve özet filtrelerinden bağımsız olarak proje kataloğunun tamamında arar. Kaldırılan geçmiş ve ikili ek verileri hariç tutulur.",
+      "tooShort": "En az iki karakter gir.",
+      "unsupported": "Bu motor konuşma içeriği aramasını desteklemiyor. Proje çalışma zamanını güncelle.",
+      "unpaged": "Bu çalışma zamanı sayfalı katalog aramasını desteklemiyor. Proje çalışma zamanını güncelle.",
+      "badCursor": "Motor geçersiz bir arama devamı döndürdü.",
+      "status": {
+        "reading": "Proje kataloğu okunuyor…",
+        "searching": "Saklanan konuşmalarda aranıyor…",
+        "complete": "Arama tamamlandı.",
+        "truncated": "Eski tarama sınırına ulaşıldı. Arama eksik olabilir.",
+        "incomplete": "Arama tamamlanmadı. Zaten okunan sonuçlar korunur.",
+        "stopped": "Durduruldu. Geçerli okuma grubu hâlâ bitiyor olabilir."
+      },
+      "progress": "{{status}} {{total}} kaydın {{scanned}} tanesi kontrol edildi · {{n}} eşleşen konuşma.",
+      "progressLabel": "Konuşma araması ilerlemesi",
+      "unreadable": "{{n}} kayıt okunamadı; sonuçlar eksik.",
+      "matching": "{{n}} eşleşen ileti · {{provider}} / {{model}}",
+      "readMatch": "{{id}} arama eşleşmesinin {{n}}. iletisini oku",
+      "message": "İleti {{n}}",
+      "readMessage": "Eşleşen iletiyi oku →",
+      "firstThree": "Eşleşen ilk üç ileti gösteriliyor. Tüm dökümde aramak için bir eşleşmeyi aç.",
+      "noMatches": "Bu aramayla eşleşen saklı konuşma metni yok."
+    },
+    "usage": {
+      "title": "Kayıtlı kullanım",
+      "help": "Her konuşmanın kaydettiği tokenlar, en son kullandığı sağlayıcı ve modele göre gruplanır. Fiyatlar burada hesaplanmaz.",
+      "scopeLegend": "Sayılacak konuşmalar",
+      "scope": {
+        "project": "Bu proje",
+        "profile": "Bu profildeki tüm projeler"
+      },
+      "noProject": "Bu motor henüz proje kullanımını özetlemiyor.",
+      "noProfile": "Bu motor henüz projeler genelindeki kullanımı özetlemiyor.",
+      "summarizing": "Özetleniyor…",
+      "refresh": "Özeti yenile",
+      "summarize": "Kayıtlı kullanımı özetle",
+      "total": "{{sessions}} konuşmada{{projects}} {{tokens}} token{{missing}}{{capped}}.",
+      "inProjects": " ({{n}} projede)",
+      "withoutTotal": " ({{n}} tanesinin kayıtlı toplamı yok)",
+      "capped": "; yalnızca tarama sınırına kadarki en yeni konuşmalar okundu",
+      "byProject": "Projeye göre kayıtlı tokenlar",
+      "byModel": "Modele göre kayıtlı tokenlar",
+      "column": {
+        "project": "Proje",
+        "tokens": "Token",
+        "provider": "Sağlayıcı",
+        "model": "Model",
+        "conversations": "Konuşmalar"
+      },
+      "notRead": "Okunamadı: {{error}}"
+    },
+    "effects": {
+      "title": "Kayıtlı yan etkiler",
+      "help": "Bu projenin konuşmalarında kaydedilen komutlar, dosya yazımları, paketler, ağ ve yapılandırma işlemleri; en yenisi önce.",
+      "risk": "Risk",
+      "all": "Tümü",
+      "reading": "Günlükler okunuyor…",
+      "refresh": "Yenile",
+      "summarize": "Yan etkileri özetle",
+      "unsupported": "Bu motor henüz proje yan etkilerini özetlemiyor.",
+      "total": "{{scanned}} konuşmanın {{with}} tanesinde {{total}} kayıt{{capped}}{{unreadable}}.",
+      "capped": " (tarama sınırına kadarki en yeni konuşmalar)",
+      "unreadable": "; {{n}} günlük okunamadı",
+      "column": {
+        "when": "Ne zaman",
+        "conversation": "Konuşma",
+        "tool": "Araç",
+        "risk": "Risk",
+        "input": "Girdi / sonuç"
+      },
+      "truncated": "Yalnızca en yeni 200 kayıt listelenir."
     }
   }
 }

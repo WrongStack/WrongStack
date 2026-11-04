@@ -7701,3 +7701,24 @@ copies, starting with SAGE memory.
   - A new jsdom test renders the catalog and a selected conversation in English and then in
     Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (905); typecheck clean.
+
+### History search and usage summaries in the display language (2026-11-04)
+
+- The session history page's cross-conversation search, recorded usage and recorded side effects
+  now follow the display language in all seven languages: controls and help text, the search
+  status and progress line, result headers, role labels and match links, the usage and
+  side-effect status lines, table headings, and the errors shown when an engine cannot answer.
+- Keys live under `historyView.contentSearch`, `historyView.usage` and `historyView.effects`.
+- The search status is now kept as a code (`reading`, `searching`, `complete`, `truncated`,
+  `incomplete`, `stopped`) and worded at render time. The "no matches" state used to compare
+  against the English "Search complete." text; it now checks the code, so it works in every
+  language.
+- The usage summary asks each catalog through a small local `request` helper, so each engine
+  message type is written directly in the call that sends it.
+- Still English by design: conversation titles, excerpts, tool names, risk names, journal errors
+  and numbers, which keep the system number format.
+- Not yet translated: the conversation reader. It follows in the next change.
+- Checks:
+  - The history jsdom test now also runs the usage and side-effect summaries and a content
+    search (with and without a match) in English and then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (906); typecheck clean.

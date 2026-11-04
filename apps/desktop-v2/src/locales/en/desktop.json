@@ -4788,6 +4788,96 @@
       "restore": "History view could not be restored. You can browse with defaults; view changes may not be saved.",
       "retry": "History view storage is still unavailable or has an unsupported format. Your current view is retained.",
       "save": "History view changes are not saved. Your current view is retained. Retry saving when the native store is available."
+    },
+    "contentSearch": {
+      "label": "Search across project conversations",
+      "field": "Search conversation content",
+      "placeholder": "Find words inside recorded conversations…",
+      "roleLabel": "Conversation search role",
+      "allRoles": "All roles",
+      "role": {
+        "user": "User",
+        "assistant": "Assistant",
+        "system": "System"
+      },
+      "roleCaps": {
+        "user": "USER",
+        "assistant": "ASSISTANT",
+        "system": "SYSTEM"
+      },
+      "submit": "Search conversations",
+      "stop": "Stop search",
+      "help": "Searches retained text across the project catalog, independently of the displayed history page and summary filters. Removed history and binary attachment data are excluded.",
+      "tooShort": "Enter at least two characters.",
+      "unsupported": "This engine does not support conversation content search. Update the project runtime.",
+      "unpaged": "This runtime does not support paged catalog search. Update the project runtime.",
+      "badCursor": "The engine returned an invalid search continuation.",
+      "status": {
+        "reading": "Reading the project catalog…",
+        "searching": "Searching retained conversations…",
+        "complete": "Search complete.",
+        "truncated": "Legacy scan limit reached. Search may be incomplete.",
+        "incomplete": "Search incomplete. Results already read are kept.",
+        "stopped": "Stopped. The current read batch may still be finishing."
+      },
+      "progress": "{{status}} {{scanned}} of {{total}} records checked · {{n}} matching conversations.",
+      "progressLabel": "Conversation search progress",
+      "unreadable": "{{n}} records could not be read; results are incomplete.",
+      "matching": "{{n}} matching messages · {{provider}} / {{model}}",
+      "readMatch": "Read search match {{id}} message {{n}}",
+      "message": "Message {{n}}",
+      "readMessage": "Read matching message →",
+      "firstThree": "Showing the first three matching messages. Open a match to search the complete transcript.",
+      "noMatches": "No retained conversation text matches this search."
+    },
+    "usage": {
+      "title": "Recorded usage",
+      "help": "Tokens recorded by each conversation, grouped by the provider and model it last used. Prices are not derived here.",
+      "scopeLegend": "Conversations to count",
+      "scope": {
+        "project": "This project",
+        "profile": "All projects in this profile"
+      },
+      "noProject": "This engine does not summarize project usage yet.",
+      "noProfile": "This engine does not summarize usage across projects yet.",
+      "summarizing": "Summarizing…",
+      "refresh": "Refresh summary",
+      "summarize": "Summarize recorded usage",
+      "total": "{{tokens}} tokens across {{sessions}} conversations{{projects}}{{missing}}{{capped}}.",
+      "inProjects": " in {{n}} projects",
+      "withoutTotal": " ({{n}} without a recorded total)",
+      "capped": "; only the newest conversations up to the scan limit were read",
+      "byProject": "Recorded tokens by project",
+      "byModel": "Recorded tokens by model",
+      "column": {
+        "project": "Project",
+        "tokens": "Tokens",
+        "provider": "Provider",
+        "model": "Model",
+        "conversations": "Conversations"
+      },
+      "notRead": "Not read: {{error}}"
+    },
+    "effects": {
+      "title": "Recorded side effects",
+      "help": "Commands, file writes, packages, network and configuration operations recorded in this project's conversations, newest first.",
+      "risk": "Risk",
+      "all": "All",
+      "reading": "Reading journals…",
+      "refresh": "Refresh",
+      "summarize": "Summarize side effects",
+      "unsupported": "This engine does not summarize project side effects yet.",
+      "total": "{{total}} recorded in {{with}} of {{scanned}} conversations{{capped}}{{unreadable}}.",
+      "capped": " (the newest conversations up to the scan limit)",
+      "unreadable": "; {{n}} journals could not be read",
+      "column": {
+        "when": "When",
+        "conversation": "Conversation",
+        "tool": "Tool",
+        "risk": "Risk",
+        "input": "Input / outcome"
+      },
+      "truncated": "Only the newest 200 records are listed."
     }
   }
 }
