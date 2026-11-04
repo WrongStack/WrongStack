@@ -7475,3 +7475,19 @@ copies, starting with SAGE memory.
 - Checks:
   - The page and a finding render in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (888); typecheck clean.
+
+### Skill library in the display language (2026-11-04)
+
+- The skill library (project and profile) and its draft notice now follow the display language in
+  all seven languages: the toolbar, summary, catalog with search and source filter, the reader and
+  editor, source and provenance, related files, references, the create, install, uninstall and
+  leave dialogs, and the draft conflict and earlier-edits notices.
+- Skill sources are named per language; `skillSource` stays the English source and fallback. The
+  key group is `skillLib`, because the library quotes `skills.*` engine messages.
+- `skillUpdateSummary` takes optional words, with English as the default.
+- SkillLibrary grew by 14 lines and imports two more modules; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - The project library renders in English and then in Turkish (jsdom).
+  - A new unit test covers the update summary words.
+  - Catalog parity and the key guard pass; desktop tests pass (890); typecheck clean.

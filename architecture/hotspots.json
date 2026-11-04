@@ -191,8 +191,8 @@
       "relativeImports": 37
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {
-      "lines": 889,
-      "relativeImports": 7
+      "lines": 903,
+      "relativeImports": 9
     }
   }
 }

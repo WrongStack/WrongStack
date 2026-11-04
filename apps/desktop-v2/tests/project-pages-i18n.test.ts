@@ -28,6 +28,7 @@ import { ProjectRequirements } from '../src/ProjectRequirements';
 import { RequirementEvidence } from '../src/RequirementResources';
 import { RequirementSummary } from '../src/RequirementSummary';
 import { RosterKnowledgeChecklist } from '../src/RosterKnowledgeChecklist';
+import { SkillLibrary } from '../src/SkillLibrary';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -220,6 +221,9 @@ const chimera = () =>
       onOpenFile: vi.fn(),
     }),
   );
+
+const skills = () =>
+  createElement(SkillLibrary, { command: vi.fn(pending), scope: 'project', projectId: 'skills' });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -564,6 +568,43 @@ describe('the project pages in the display language', () => {
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
       expect.arrayContaining(['Proje Chimera incelemeleri', 'Chimera raporlarında ara']),
+    );
+  });
+
+  it('show the skill library in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(skills());
+    for (const text of [
+      'PROJECT CAPABILITIES',
+      'Skills',
+      'Install from Git',
+      'Bundled',
+      'Discovering skills…',
+      '0 of 0 skills',
+      'Instructions with a purpose.',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Project skill library', 'Search skills', 'Filter skill source']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(skills());
+    for (const text of [
+      'PROJE YETENEKLERİ',
+      'Beceriler',
+      "Git'ten kur",
+      'Yerleşik',
+      'Beceriler keşfediliyor…',
+      'Amacı olan talimatlar.',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Proje beceri kütüphanesi',
+        'Becerilerde ara',
+        'Beceri kaynağını filtrele',
+      ]),
     );
   });
 });

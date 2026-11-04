@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T12:49:58.287Z",
+  "generatedAt": "2026-11-04T12:57:23.237Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4968,
-    "sourceLines": 1245864,
+    "sourceLines": 1245877,
     "workspaceEdges": 240,
-    "moduleEdges": 17452,
+    "moduleEdges": 17455,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33719,8 +33719,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 889,
-      "relativeImports": 7
+      "lines": 903,
+      "relativeImports": 9
     }
   ],
   "hotspots": [
@@ -33770,14 +33770,14 @@
       "relativeImports": 18
     },
     {
+      "file": "apps/desktop-v2/src/SkillLibrary.tsx",
+      "lines": 903,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
       "lines": 903,
       "relativeImports": 2
-    },
-    {
-      "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 889,
-      "relativeImports": 7
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",

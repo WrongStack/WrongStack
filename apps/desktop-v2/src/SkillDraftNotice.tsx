@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DiffPreview } from './DiffPreview';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { SkillEditorDraft } from './skill-editor-draft';
 import { type SkillDraftScope, useDraftState, useSkillEditorDraft } from './useSkillEditorDraft';
@@ -90,12 +91,13 @@ export function SkillDraftNotice({
   binding: ReturnType<typeof useSkillDraftBinding>;
   onUseSaved: (text: string) => void;
 }) {
+  const { t } = useDesktopText();
   const { state, stale, restored, unavailable, controller } = binding;
   return (
     <>
       {unavailable && unavailable !== 'pending' && (
         <p className="field-help" role="status">
-          Unsaved skill edits are not kept on this device: {unavailable}
+          {t('skillLib.draft.unavailable', { reason: unavailable })}
         </p>
       )}
       {state?.error && (
@@ -104,11 +106,9 @@ export function SkillDraftNotice({
         </p>
       )}
       {state?.review && controller && (
-        <section className="skill-draft-notice" aria-label="Skill draft conflict">
-          <p>Another window saved different unsaved edits for this skill. Choose which to keep.</p>
-          <p className="field-help">
-            Lines below change from the other window’s edits to this window’s.
-          </p>
+        <section className="skill-draft-notice" aria-label={t('skillLib.draft.conflictLabel')}>
+          <p>{t('skillLib.draft.conflict')}</p>
+          <p className="field-help">{t('skillLib.draft.conflictDiff')}</p>
           <DiffPreview
             before={state.review.value?.body ?? binding.body ?? ''}
             after={state.value?.body ?? binding.body ?? ''}
@@ -120,7 +120,7 @@ export function SkillDraftNotice({
               className="button secondary small"
               onClick={() => void controller.resolve('local')}
             >
-              Keep this window’s edits
+              {t('skillLib.draft.keepThis')}
             </button>
             <button
               type="button"
@@ -132,34 +132,29 @@ export function SkillDraftNotice({
                 });
               }}
             >
-              Use saved edits
+              {t('skillLib.draft.useSaved')}
             </button>
           </footer>
         </section>
       )}
       {stale && (
-        <section className="skill-draft-notice" aria-label="Earlier skill edits">
-          <p>
-            Unsaved edits kept on this device started from an older version of this skill. The file
-            has changed since. Compare them before continuing; nothing is applied until you choose.
-          </p>
-          <p className="field-help">
-            Lines below change from the current skill file to your earlier edits.
-          </p>
+        <section className="skill-draft-notice" aria-label={t('skillLib.draft.staleLabel')}>
+          <p>{t('skillLib.draft.stale')}</p>
+          <p className="field-help">{t('skillLib.draft.staleDiff')}</p>
           <DiffPreview before={binding.body ?? ''} after={stale.body} path="SKILL.md" />
           <footer>
             <button type="button" className="button secondary small" onClick={binding.useStale}>
-              Continue with my edits
+              {t('skillLib.draft.continue')}
             </button>
             <button type="button" className="button secondary small" onClick={binding.discard}>
-              Discard my edits
+              {t('skillLib.draft.discard')}
             </button>
           </footer>
         </section>
       )}
       {restored && !stale && !state?.review && state?.value && (
         <p className="skill-draft-status" role="status">
-          Restored unsaved edits kept on this device.
+          {t('skillLib.draft.restored')}
         </p>
       )}
     </>
