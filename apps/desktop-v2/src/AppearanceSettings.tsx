@@ -185,7 +185,8 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
                 <i />
               </span>
               <span className="theme-label">
-                <strong>theme.name</strong>appearance.accent === theme.id && <Check size={14} />
+                <strong>{theme.name}</strong>
+                {appearance.accent === theme.id && <Check size={14} />}
               </span>
             </button>
           ))}

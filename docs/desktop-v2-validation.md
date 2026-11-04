@@ -7077,3 +7077,12 @@ copies, starting with SAGE memory.
   - A settings row renders its label, option and unset note in Turkish after a language switch
     (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (872); typecheck clean.
+
+### Colour palette names restored (2026-11-04)
+
+- Since the compact-density change (133763892) every palette button in Appearance showed the
+  literal text "theme.name" and the code of its check condition instead of the palette's name,
+  and every button carried the check mark. The braces around both expressions had been lost.
+  Each button again shows its palette's name, and only the chosen one is checked.
+- Checks: a jsdom test renders Appearance and requires every palette name, no literal
+  expression text, and a single check mark on the chosen palette.
