@@ -677,5 +677,140 @@
       "connecting": "Çalışma alanına bağlanılıyor",
       "note": "Bir pencereyi kapattığında oturumlar çalışmaya devam eder."
     }
+  },
+  "approval": {
+    "label": "{{tool}} için onay",
+    "eyebrow": "ONAY GEREKİYOR",
+    "review": "Çalışmasına izin vermeden önce bu aracın ne yapacağını incele.",
+    "risk": {
+      "destructive": "Yıkıcı",
+      "safe": "Güvenli",
+      "standard": "Standart"
+    },
+    "rule": "Bir kullanıcı kuralı bu onayı gerektiriyor. Hatırlanan bir izin kuralı bunu geçersiz kılmaz.",
+    "window": "Karar süresi: {{time}}",
+    "waitingDecision": "Motorun kararı bekleniyor…",
+    "commandLabel": "Çalıştırılacak komut",
+    "command": "Komut",
+    "diffLabel": "Önerilen dosya düzenlemesi",
+    "diff": "Önerilen düzenleme",
+    "file": "Dosya",
+    "args": "Araç argümanları",
+    "pattern": "Eşleşen konu",
+    "remember": "Şunun için onayı hatırla",
+    "scopeLabel": "Hatırlanan onayın kapsamı",
+    "scope": {
+      "exact": "Tam olarak bu istek",
+      "command": "Bu çalıştırılabilir dosya, her argümanla",
+      "tool": "{{tool}} için tüm istekler"
+    },
+    "saved": "Onay mümkünse 24 saat saklanır. Korunan işlemler yine de sorabilir.",
+    "notConfirmed": "Motor bu kararı onaylamadı. Yeniden denemeden önce bağlantıyı kontrol et.",
+    "sending": "Karar gönderiliyor; motor bekleniyor…",
+    "hint": "Reddet, bu motor bellekteki reddi tuttuğu sürece eşleşen yeniden denemeleri de engeller. Reddi hatırla, eşleşen konu için bir kural kaydeder; kapsam seçicisi hatırlanan onaylara uygulanır.",
+    "rememberDenialTitle": "Bunu ve gösterilen konuyla eşleşen gelecekteki istekleri reddet",
+    "rememberDenial": "Reddi hatırla",
+    "denyTitle": "Bu isteği ve motor bellekteki reddi tuttuğu sürece eşleşen yeniden denemeleri reddet",
+    "deny": "Reddet",
+    "allowRemember": "İzin ver ve hatırla",
+    "allowOnce": "Bir kez izin ver"
+  },
+  "input": {
+    "eyebrow": "GİRDİN GEREKİYOR",
+    "groups": "Soru grupları",
+    "notConfirmed": "Motor bu yanıtı henüz onaylamadı. Yeniden denemeden önce oturumu kontrol et.",
+    "cancel": "İsteği iptal et",
+    "waiting": "Motor bekleniyor…",
+    "submit": "Yanıtları gönder",
+    "sent": "Yanıtın gönderildi. Motorun bu isteği sonuçlandırması bekleniyor.",
+    "optional": "İsteğe bağlı",
+    "recommendation": "Öneri: {{reason}}",
+    "recommended": "Önerilen",
+    "yourAnswer": "Yanıtın",
+    "writeOwn": "Kendi yanıtını yaz",
+    "customLabel": "Özel yanıt: {{prompt}}",
+    "typeAnswer": "Yanıtını yaz…",
+    "delegate": "Bu yanıta WrongStack karar versin"
+  },
+  "todoList": {
+    "title": "Yapılacaklar",
+    "progress": "{{total}} işin {{done}} tanesi bitti",
+    "done": "Bitti",
+    "inProgress": "Sürüyor",
+    "pending": "Bekliyor",
+    "kanbanTask": "Kanban görevi",
+    "statusOf": "{{item}} durumu",
+    "remove": "{{item}} kaldır",
+    "running": "Ajan çalışıyor; listeyi çalışma bitince değiştir.",
+    "clearConfirm": "Listeyi temizle",
+    "keep": "Koru",
+    "clear": "Listeyi temizle…"
+  },
+  "failedRun": {
+    "title": "Çalışma bir hatayla durdu",
+    "details": "Ayrıntılar",
+    "continue": "Devam et",
+    "cancel": "İptal"
+  },
+  "working": {
+    "waiting": "Yanıtların bekleniyor…",
+    "busy": "WrongStack çalışıyor…"
+  },
+  "turn": {
+    "activity": "Çalışma etkinliği",
+    "toolCall": "{{count}} araç çağrısı",
+    "toolCalls": "{{count}} araç çağrısı",
+    "failed": "{{count}} başarısız",
+    "workedWith": "{{calls}} ile çalıştı",
+    "iteration": "{{count}} yineleme",
+    "iterations": "{{count}} yineleme",
+    "promptTokens": "{{tokens}} prompt token",
+    "output": "{{tokens}} çıktı",
+    "cache": "%{{percent}} önbellekten"
+  },
+  "notices": {
+    "label": "Konuşma bildirimleri",
+    "dismiss": "Bildirimi kapat"
+  },
+  "message": {
+    "you": "Sen",
+    "edit": "Yazma alanında düzenle",
+    "editTitle": "Bu promptu yazma alanına koy",
+    "askAgain": "Yeniden sor",
+    "askAgainTitle": "Bu yanıtın arkasındaki promptu yeniden gönder",
+    "showFormatted": "Biçimlendirilmiş yanıtı göster",
+    "showSource": "Yanıtın Markdown kaynağını göster",
+    "formatted": "Biçimli",
+    "source": "Kaynak",
+    "copy": "Mesajı kopyala",
+    "references": "Başvurulan proje dosyaları"
+  },
+  "copy": {
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "failed": "Kopyalanamadı",
+    "code": "Kodu kopyala",
+    "codeLanguage": "Kod"
+  },
+  "nextSteps": {
+    "title": "Önerilen sonraki adımlar",
+    "body": "Önerileri seç, istersen kendi mesajını ekle ve hepsini birlikte gönder ya da önce düzenlemek için taslağına ekle.",
+    "message": "Mesajın",
+    "placeholder": "Başka bir talimat ekle ya da kendi sonraki adımını yaz…",
+    "add": "Seçilenleri taslağa ekle",
+    "sendOne": "{{count}} adımı gönder",
+    "sendMany": "{{count}} adımı gönder"
+  },
+  "value": {
+    "none": "Yok",
+    "emptyList": "Boş liste",
+    "emptyObject": "Boş nesne",
+    "emptyText": "(boş metin)"
+  },
+  "output": {
+    "copy": "Çıktıyı kopyala",
+    "exitCode": "çıkış kodu {{code}}",
+    "saveTitle": "Çıktıyı metin dosyası olarak kaydet",
+    "save": "Kaydet"
   }
 }

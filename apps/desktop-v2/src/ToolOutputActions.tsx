@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 
 /** The exit code a shell-style result ends with ("exit code: 1", "[exit 1]"), as the WebUI reads it. */
 function toolExitCode(output: string): number | undefined {
@@ -19,17 +20,20 @@ function outputFileName(tool: string): string {
  * which may be a preview of a longer result.
  */
 export function ToolOutputActions({ tool, output }: { tool: string; output: string }) {
+  const { t } = useDesktopText();
   const exit = toolExitCode(output);
   return (
     <span className="tool-output-actions">
       {exit !== undefined && (
-        <small className={exit === 0 ? 'tool-exit ok' : 'tool-exit failed'}>exit code {exit}</small>
+        <small className={exit === 0 ? 'tool-exit ok' : 'tool-exit failed'}>
+          {t('output.exitCode', { code: exit })}
+        </small>
       )}
-      <CopyButton text={output} label="Copy output" />
+      <CopyButton text={output} label={t('output.copy')} />
       <button
         type="button"
         className="copy-button"
-        title="Save the output as a text file"
+        title={t('output.saveTitle')}
         onClick={() => {
           const url = URL.createObjectURL(new Blob([output], { type: 'text/plain;charset=utf-8' }));
           const link = document.createElement('a');
@@ -39,7 +43,7 @@ export function ToolOutputActions({ tool, output }: { tool: string; output: stri
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         }}
       >
-        <Download size={12} /> <span>Save</span>
+        <Download size={12} /> <span>{t('output.save')}</span>
       </button>
     </span>
   );

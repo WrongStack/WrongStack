@@ -1,7 +1,9 @@
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 
 export function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useDesktopText();
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
     setStatus('idle');
@@ -28,7 +30,11 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
     >
       {status === 'copied' ? <Check size={12} /> : <Copy size={12} />}
       <span role="status">
-        {status === 'copied' ? 'Copied' : status === 'failed' ? 'Copy failed' : 'Copy'}
+        {status === 'copied'
+          ? t('copy.copied')
+          : status === 'failed'
+            ? t('copy.failed')
+            : t('copy.copy')}
       </span>
     </button>
   );

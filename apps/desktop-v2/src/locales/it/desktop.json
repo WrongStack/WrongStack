@@ -677,5 +677,140 @@
       "connecting": "Connessione all'area di lavoro",
       "note": "Le sessioni continuano quando chiudi una finestra."
     }
+  },
+  "approval": {
+    "label": "Approvazione per {{tool}}",
+    "eyebrow": "APPROVAZIONE RICHIESTA",
+    "review": "Controlla cosa farà questo strumento prima di consentirne l'esecuzione.",
+    "risk": {
+      "destructive": "Distruttivo",
+      "safe": "Sicuro",
+      "standard": "Standard"
+    },
+    "rule": "Una regola dell'utente richiede questa conferma. Una regola di autorizzazione memorizzata non la sostituirebbe.",
+    "window": "Tempo per decidere: {{time}}",
+    "waitingDecision": "In attesa della decisione del motore…",
+    "commandLabel": "Comando da eseguire",
+    "command": "Comando",
+    "diffLabel": "Modifica al file proposta",
+    "diff": "Modifica proposta",
+    "file": "File",
+    "args": "Argomenti dello strumento",
+    "pattern": "Soggetto corrispondente",
+    "remember": "Memorizza un'approvazione per",
+    "scopeLabel": "Ambito dell'approvazione memorizzata",
+    "scope": {
+      "exact": "Questa richiesta esatta",
+      "command": "Questo eseguibile, con qualsiasi argomento",
+      "tool": "Tutte le richieste per {{tool}}"
+    },
+    "saved": "L'approvazione viene salvata per 24 ore quando possibile. Le operazioni protette possono comunque chiedere.",
+    "notConfirmed": "Il motore non ha confermato questa decisione. Controlla la connessione prima di riprovare.",
+    "sending": "Invio della decisione; in attesa del motore…",
+    "hint": "Nega blocca anche i tentativi corrispondenti finché questo motore conserva il rifiuto in memoria. «Memorizza il rifiuto» salva una regola per il soggetto corrispondente; il selettore di ambito vale per le approvazioni memorizzate.",
+    "rememberDenialTitle": "Nega questa e le future richieste corrispondenti al soggetto mostrato",
+    "rememberDenial": "Memorizza il rifiuto",
+    "denyTitle": "Nega questa richiesta e i tentativi corrispondenti finché il motore conserva il rifiuto in memoria",
+    "deny": "Nega",
+    "allowRemember": "Consenti e memorizza",
+    "allowOnce": "Consenti una volta"
+  },
+  "input": {
+    "eyebrow": "SERVE IL TUO INTERVENTO",
+    "groups": "Gruppi di domande",
+    "notConfirmed": "Il motore non ha ancora confermato questa risposta. Controlla la sessione prima di riprovare.",
+    "cancel": "Annulla la richiesta",
+    "waiting": "In attesa del motore…",
+    "submit": "Invia le risposte",
+    "sent": "La tua risposta è stata inviata. In attesa che il motore risolva questa richiesta.",
+    "optional": "Facoltativo",
+    "recommendation": "Raccomandazione: {{reason}}",
+    "recommended": "Consigliato",
+    "yourAnswer": "La tua risposta",
+    "writeOwn": "Scrivi la tua risposta",
+    "customLabel": "Risposta personalizzata: {{prompt}}",
+    "typeAnswer": "Scrivi la tua risposta…",
+    "delegate": "Lascia decidere a WrongStack questa risposta"
+  },
+  "todoList": {
+    "title": "Elenco delle cose da fare",
+    "progress": "{{done}} di {{total}} completate",
+    "done": "Completata",
+    "inProgress": "In corso",
+    "pending": "In attesa",
+    "kanbanTask": "Attività Kanban",
+    "statusOf": "Stato di {{item}}",
+    "remove": "Rimuovi {{item}}",
+    "running": "L'agente sta lavorando; modifica l'elenco quando l'esecuzione termina.",
+    "clearConfirm": "Svuota l'elenco",
+    "keep": "Mantieni",
+    "clear": "Svuota l'elenco…"
+  },
+  "failedRun": {
+    "title": "L'esecuzione si è interrotta per un errore",
+    "details": "Dettagli",
+    "continue": "Continua",
+    "cancel": "Annulla"
+  },
+  "working": {
+    "waiting": "In attesa delle tue risposte…",
+    "busy": "WrongStack sta lavorando…"
+  },
+  "turn": {
+    "activity": "Attività di esecuzione",
+    "toolCall": "{{count}} chiamata a strumento",
+    "toolCalls": "{{count}} chiamate a strumenti",
+    "failed": "{{count}} non riuscite",
+    "workedWith": "Ha usato {{calls}}",
+    "iteration": "{{count}} iterazione",
+    "iterations": "{{count}} iterazioni",
+    "promptTokens": "{{tokens}} token di prompt",
+    "output": "{{tokens}} in uscita",
+    "cache": "{{percent}}% dalla cache"
+  },
+  "notices": {
+    "label": "Avvisi della conversazione",
+    "dismiss": "Chiudi l'avviso"
+  },
+  "message": {
+    "you": "Tu",
+    "edit": "Modifica nel campo di scrittura",
+    "editTitle": "Metti questo prompt nel campo di scrittura",
+    "askAgain": "Chiedi di nuovo",
+    "askAgainTitle": "Invia di nuovo il prompt all'origine di questa risposta",
+    "showFormatted": "Mostra la risposta formattata",
+    "showSource": "Mostra il sorgente Markdown della risposta",
+    "formatted": "Formattato",
+    "source": "Sorgente",
+    "copy": "Copia il messaggio",
+    "references": "File del progetto citati"
+  },
+  "copy": {
+    "copy": "Copia",
+    "copied": "Copiato",
+    "failed": "Copia non riuscita",
+    "code": "Copia il codice",
+    "codeLanguage": "Codice"
+  },
+  "nextSteps": {
+    "title": "Passaggi successivi suggeriti",
+    "body": "Scegli i suggerimenti, aggiungi un tuo messaggio se vuoi e inviali insieme, oppure aggiungili alla bozza per modificarli prima.",
+    "message": "Il tuo messaggio",
+    "placeholder": "Aggiungi un’altra istruzione o scrivi il tuo passaggio successivo…",
+    "add": "Aggiungi la selezione alla bozza",
+    "sendOne": "Invia {{count}} passaggio",
+    "sendMany": "Invia {{count}} passaggi"
+  },
+  "value": {
+    "none": "Nessuno",
+    "emptyList": "Elenco vuoto",
+    "emptyObject": "Oggetto vuoto",
+    "emptyText": "(testo vuoto)"
+  },
+  "output": {
+    "copy": "Copia l'output",
+    "exitCode": "codice di uscita {{code}}",
+    "saveTitle": "Salva l'output come file di testo",
+    "save": "Salva"
   }
 }

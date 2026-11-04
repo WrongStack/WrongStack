@@ -677,5 +677,140 @@
       "connecting": "Verbindung zu deinem Arbeitsbereich wird hergestellt",
       "note": "Sitzungen laufen weiter, wenn du ein Fenster schließt."
     }
+  },
+  "approval": {
+    "label": "Freigabe für {{tool}}",
+    "eyebrow": "FREIGABE ERFORDERLICH",
+    "review": "Prüfe, was dieses Werkzeug tun wird, bevor du es ausführen lässt.",
+    "risk": {
+      "destructive": "Destruktiv",
+      "safe": "Sicher",
+      "standard": "Standard"
+    },
+    "rule": "Eine Nutzerregel verlangt diese Bestätigung. Eine gemerkte Erlaubnisregel würde sie nicht aufheben.",
+    "window": "Entscheidungsfenster: {{time}}",
+    "waitingDecision": "Warte auf die Entscheidung der Engine…",
+    "commandLabel": "Auszuführender Befehl",
+    "command": "Befehl",
+    "diffLabel": "Vorgeschlagene Dateiänderung",
+    "diff": "Vorgeschlagene Änderung",
+    "file": "Datei",
+    "args": "Werkzeugargumente",
+    "pattern": "Passender Gegenstand",
+    "remember": "Freigabe merken für",
+    "scopeLabel": "Umfang der gemerkten Freigabe",
+    "scope": {
+      "exact": "Genau diese Anfrage",
+      "command": "Diese ausführbare Datei, mit beliebigen Argumenten",
+      "tool": "Alle Anfragen für {{tool}}"
+    },
+    "saved": "Die Freigabe wird nach Möglichkeit 24 Stunden gespeichert. Geschützte Vorgänge können trotzdem fragen.",
+    "notConfirmed": "Die Engine hat diese Entscheidung nicht bestätigt. Prüfe die Verbindung, bevor du es erneut versuchst.",
+    "sending": "Entscheidung wird gesendet; warte auf die Engine…",
+    "hint": "Ablehnen blockiert auch passende Wiederholungen, solange diese Engine die Ablehnung im Speicher hält. „Ablehnung merken“ speichert eine Regel für den passenden Gegenstand; die Umfangsauswahl gilt für gemerkte Freigaben.",
+    "rememberDenialTitle": "Diese und künftige Anfragen zum angezeigten Gegenstand ablehnen",
+    "rememberDenial": "Ablehnung merken",
+    "denyTitle": "Diese Anfrage und passende Wiederholungen ablehnen, solange die Engine die Ablehnung im Speicher hält",
+    "deny": "Ablehnen",
+    "allowRemember": "Erlauben & merken",
+    "allowOnce": "Einmal erlauben"
+  },
+  "input": {
+    "eyebrow": "DEINE EINGABE WIRD GEBRAUCHT",
+    "groups": "Fragengruppen",
+    "notConfirmed": "Die Engine hat diese Antwort noch nicht bestätigt. Prüfe die Sitzung, bevor du es erneut versuchst.",
+    "cancel": "Anfrage abbrechen",
+    "waiting": "Warte auf die Engine…",
+    "submit": "Antworten senden",
+    "sent": "Deine Antwort wurde gesendet. Warte darauf, dass die Engine diese Anfrage abschließt.",
+    "optional": "Optional",
+    "recommendation": "Empfehlung: {{reason}}",
+    "recommended": "Empfohlen",
+    "yourAnswer": "Deine Antwort",
+    "writeOwn": "Eigene Antwort schreiben",
+    "customLabel": "Eigene Antwort: {{prompt}}",
+    "typeAnswer": "Antwort eingeben…",
+    "delegate": "WrongStack über diese Antwort entscheiden lassen"
+  },
+  "todoList": {
+    "title": "Todo-Liste",
+    "progress": "{{done}} von {{total}} erledigt",
+    "done": "Erledigt",
+    "inProgress": "In Arbeit",
+    "pending": "Offen",
+    "kanbanTask": "Kanban-Aufgabe",
+    "statusOf": "Status von {{item}}",
+    "remove": "{{item}} entfernen",
+    "running": "Der Agent arbeitet; ändere die Liste, wenn der Lauf endet.",
+    "clearConfirm": "Liste leeren",
+    "keep": "Behalten",
+    "clear": "Liste leeren…"
+  },
+  "failedRun": {
+    "title": "Der Lauf wurde durch einen Fehler beendet",
+    "details": "Details",
+    "continue": "Fortsetzen",
+    "cancel": "Abbrechen"
+  },
+  "working": {
+    "waiting": "Warte auf deine Antworten…",
+    "busy": "WrongStack arbeitet…"
+  },
+  "turn": {
+    "activity": "Ausführungsaktivität",
+    "toolCall": "{{count}} Werkzeugaufruf",
+    "toolCalls": "{{count}} Werkzeugaufrufe",
+    "failed": "{{count}} fehlgeschlagen",
+    "workedWith": "Arbeitete mit {{calls}}",
+    "iteration": "{{count}} Iteration",
+    "iterations": "{{count}} Iterationen",
+    "promptTokens": "{{tokens}} Prompt-Tokens",
+    "output": "{{tokens}} Ausgabe",
+    "cache": "{{percent}} % aus dem Cache"
+  },
+  "notices": {
+    "label": "Hinweise zur Unterhaltung",
+    "dismiss": "Hinweis schließen"
+  },
+  "message": {
+    "you": "Du",
+    "edit": "Im Eingabefeld bearbeiten",
+    "editTitle": "Diesen Prompt ins Eingabefeld übernehmen",
+    "askAgain": "Erneut fragen",
+    "askAgainTitle": "Den Prompt hinter dieser Antwort erneut senden",
+    "showFormatted": "Formatierte Antwort zeigen",
+    "showSource": "Markdown-Quelltext der Antwort zeigen",
+    "formatted": "Formatiert",
+    "source": "Quelle",
+    "copy": "Nachricht kopieren",
+    "references": "Referenzierte Projektdateien"
+  },
+  "copy": {
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "failed": "Kopieren fehlgeschlagen",
+    "code": "Code kopieren",
+    "codeLanguage": "Code"
+  },
+  "nextSteps": {
+    "title": "Vorgeschlagene nächste Schritte",
+    "body": "Wähle Vorschläge, füge bei Bedarf eine eigene Nachricht hinzu und sende sie zusammen, oder übernimm sie zum Bearbeiten in deinen Entwurf.",
+    "message": "Deine Nachricht",
+    "placeholder": "Füge eine weitere Anweisung hinzu oder schreibe deinen eigenen nächsten Schritt…",
+    "add": "Auswahl zum Entwurf hinzufügen",
+    "sendOne": "{{count}} Schritt senden",
+    "sendMany": "{{count}} Schritte senden"
+  },
+  "value": {
+    "none": "Keine",
+    "emptyList": "Leere Liste",
+    "emptyObject": "Leeres Objekt",
+    "emptyText": "(leerer Text)"
+  },
+  "output": {
+    "copy": "Ausgabe kopieren",
+    "exitCode": "Exit-Code {{code}}",
+    "saveTitle": "Ausgabe als Textdatei speichern",
+    "save": "Speichern"
   }
 }

@@ -4,6 +4,7 @@ import Markdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import { CopyButton } from './CopyButton';
+import { useDesktopText } from './desktop-i18n';
 import { markdownTarget } from './markdown-target';
 import './syntax-highlight.css';
 
@@ -22,6 +23,7 @@ function textContent(children: ReactNode): string {
     .join('');
 }
 function CodeBlock({ children }: { children?: ReactNode }) {
+  const { t } = useDesktopText();
   const child = Children.toArray(children)[0];
   const language = isValidElement<{ className?: string }>(child)
     ? child.props.className?.match(/language-([\w+-]+)/)?.[1]
@@ -29,8 +31,8 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   return (
     <div className="markdown-code-block">
       <div className="code-block-toolbar">
-        <span>{language ?? 'Code'}</span>
-        <CopyButton text={textContent(children)} label="Copy code" />
+        <span>{language ?? t('copy.codeLanguage')}</span>
+        <CopyButton text={textContent(children)} label={t('copy.code')} />
       </div>
       <pre>{children}</pre>
     </div>

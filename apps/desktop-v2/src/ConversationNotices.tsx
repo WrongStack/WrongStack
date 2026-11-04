@@ -1,6 +1,7 @@
 import { AlertTriangle, Info, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ConversationNotice } from './conversation-notices';
+import { useDesktopText } from './desktop-i18n';
 
 /** How long a passing notice stays before it closes by itself. */
 const TRANSIENT_NOTICE_MS = 8000;
@@ -14,6 +15,7 @@ export function ConversationNotices({
   /** Makes a notice's engine request; the notice closes once it succeeds. */
   onAction?: ((action: NonNullable<ConversationNotice['action']>) => Promise<void>) | undefined;
 }) {
+  const { t } = useDesktopText();
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
   // A passing notice closes by itself, as a WebUI toast does.
@@ -33,7 +35,7 @@ export function ConversationNotices({
   const shown = notices.filter((notice) => !dismissed.includes(notice.id));
   if (!shown.length) return null;
   return (
-    <section className="conversation-notices" aria-label="Conversation notices">
+    <section className="conversation-notices" aria-label={t('notices.label')}>
       {shown.map((notice) => (
         <div
           key={notice.id}
@@ -65,7 +67,7 @@ export function ConversationNotices({
           <button
             type="button"
             className="icon-button"
-            aria-label="Dismiss notice"
+            aria-label={t('notices.dismiss')}
             onClick={() => setDismissed((ids) => [...ids, notice.id])}
           >
             <X size={13} />

@@ -1,6 +1,8 @@
+import type { TFunction } from 'i18next';
 import { LoaderCircle, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
 import { SessionActivity } from './SessionActivity';
@@ -23,8 +25,9 @@ export function TurnTools({
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
 }) {
+  const { t } = useDesktopText();
   const summary = turnToolSummary(events);
-  const meta = stats ? turnMeta(stats) : '';
+  const meta = stats ? turnMeta(stats, t) : '';
   if (summary.calls === 0 && !meta) return null;
   return (
     <>
@@ -32,9 +35,9 @@ export function TurnTools({
       {summary.calls > 0 && (
         <details className="chat-run-activity turn-tools">
           <summary>
-            <Wrench size={12} /> Worked with {summary.calls}{' '}
-            {summary.calls === 1 ? 'tool call' : 'tool calls'}
-            {summary.failed ? ` · ${summary.failed} failed` : ''} · {summary.text}
+            <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
+            {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
+            {summary.text}
           </summary>
           <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />
         </details>
@@ -42,14 +45,21 @@ export function TurnTools({
     </>
   );
 }
-function turnMeta(stats: TurnStats): string {
+function toolCalls(count: number, t: TFunction<'desktop'>): string {
+  return t(count === 1 ? 'turn.toolCall' : 'turn.toolCalls', { count });
+}
+function turnMeta(stats: TurnStats, t: TFunction<'desktop'>): string {
   const parts: string[] = [];
   if (stats.iterations)
-    parts.push(`${stats.iterations} ${stats.iterations === 1 ? 'iteration' : 'iterations'}`);
-  if (stats.prompt) parts.push(`${formatTokens(stats.prompt)} prompt tokens`);
-  if (stats.output) parts.push(`${formatTokens(stats.output)} output`);
+    parts.push(
+      t(stats.iterations === 1 ? 'turn.iteration' : 'turn.iterations', {
+        count: stats.iterations,
+      }),
+    );
+  if (stats.prompt) parts.push(t('turn.promptTokens', { tokens: formatTokens(stats.prompt) }));
+  if (stats.output) parts.push(t('turn.output', { tokens: formatTokens(stats.output) }));
   if (stats.prompt && stats.cacheRead)
-    parts.push(`${Math.round((stats.cacheRead / stats.prompt) * 100)}% from cache`);
+    parts.push(t('turn.cache', { percent: Math.round((stats.cacheRead / stats.prompt) * 100) }));
   if (stats.durationMs !== undefined) parts.push(formatDuration(stats.durationMs));
   return parts.join(' · ');
 }
@@ -71,6 +81,7 @@ export function AgentWorking({
   /** When the turn's first iteration started; unknown in journals without frame times. */
   since: number | null;
 }) {
+  const { t } = useDesktopText();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!since) return;
@@ -80,7 +91,7 @@ export function AgentWorking({
   return (
     <div className="agent-working">
       <LoaderCircle size={13} className="spin" />
-      {waiting ? 'Waiting for your answers…' : 'WrongStack is working…'}
+      {waiting ? t('working.waiting') : t('working.busy')}
       {since ? <span className="agent-working-elapsed"> {formatDuration(now - since)}</span> : null}
     </div>
   );
@@ -98,6 +109,7 @@ export function LiveRunActivity({
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
 }) {
+  const { t } = useDesktopText();
   if (!events.length) return null;
   const summary = turnToolSummary(events);
   const calls = new Set(
@@ -109,9 +121,9 @@ export function LiveRunActivity({
   return (
     <details className="chat-run-activity" open>
       <summary>
-        <Wrench size={12} /> Run activity
-        {calls ? ` · ${calls} ${calls === 1 ? 'tool call' : 'tool calls'}` : ''}
-        {summary.failed ? ` · ${summary.failed} failed` : ''}
+        <Wrench size={12} /> {t('turn.activity')}
+        {calls ? ` · ${toolCalls(calls, t)}` : ''}
+        {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''}
         {summary.text ? ` · ${summary.text}` : ''}
       </summary>
       <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />

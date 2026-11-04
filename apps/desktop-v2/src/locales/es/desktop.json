@@ -677,5 +677,140 @@
       "connecting": "Conectando con tu espacio de trabajo",
       "note": "Las sesiones siguen en marcha cuando cierras una ventana."
     }
+  },
+  "approval": {
+    "label": "Aprobación para {{tool}}",
+    "eyebrow": "APROBACIÓN NECESARIA",
+    "review": "Revisa lo que hará esta herramienta antes de permitir que se ejecute.",
+    "risk": {
+      "destructive": "Destructivo",
+      "safe": "Seguro",
+      "standard": "Estándar"
+    },
+    "rule": "Una regla del usuario exige esta confirmación. Una regla de permiso recordada no la anularía.",
+    "window": "Plazo de decisión: {{time}}",
+    "waitingDecision": "Esperando la decisión del motor…",
+    "commandLabel": "Comando que se ejecutará",
+    "command": "Comando",
+    "diffLabel": "Edición de archivo propuesta",
+    "diff": "Edición propuesta",
+    "file": "Archivo",
+    "args": "Argumentos de la herramienta",
+    "pattern": "Asunto coincidente",
+    "remember": "Recordar una aprobación para",
+    "scopeLabel": "Alcance de la aprobación recordada",
+    "scope": {
+      "exact": "Esta solicitud exacta",
+      "command": "Este ejecutable, con cualquier argumento",
+      "tool": "Todas las solicitudes para {{tool}}"
+    },
+    "saved": "La aprobación se guarda 24 horas cuando es posible. Las operaciones protegidas pueden seguir preguntando.",
+    "notConfirmed": "El motor no ha confirmado esta decisión. Comprueba la conexión antes de reintentar.",
+    "sending": "Enviando la decisión; esperando al motor…",
+    "hint": "Denegar también bloquea los reintentos coincidentes mientras este motor conserve la denegación en memoria. «Recordar denegación» guarda una regla para el asunto coincidente; el selector de alcance se aplica a las aprobaciones recordadas.",
+    "rememberDenialTitle": "Denegar esta y las futuras solicitudes que coincidan con el asunto mostrado",
+    "rememberDenial": "Recordar denegación",
+    "denyTitle": "Denegar esta solicitud y los reintentos coincidentes mientras el motor conserve la denegación en memoria",
+    "deny": "Denegar",
+    "allowRemember": "Permitir y recordar",
+    "allowOnce": "Permitir una vez"
+  },
+  "input": {
+    "eyebrow": "SE NECESITA TU RESPUESTA",
+    "groups": "Grupos de preguntas",
+    "notConfirmed": "El motor aún no ha confirmado esta respuesta. Comprueba la sesión antes de reintentar.",
+    "cancel": "Cancelar la solicitud",
+    "waiting": "Esperando al motor…",
+    "submit": "Enviar respuestas",
+    "sent": "Tu respuesta se envió. Esperando a que el motor resuelva esta solicitud.",
+    "optional": "Opcional",
+    "recommendation": "Recomendación: {{reason}}",
+    "recommended": "Recomendado",
+    "yourAnswer": "Tu respuesta",
+    "writeOwn": "Escribe tu propia respuesta",
+    "customLabel": "Respuesta personalizada: {{prompt}}",
+    "typeAnswer": "Escribe tu respuesta…",
+    "delegate": "Dejar que WrongStack decida esta respuesta"
+  },
+  "todoList": {
+    "title": "Lista de tareas",
+    "progress": "{{done}} de {{total}} hechas",
+    "done": "Hecha",
+    "inProgress": "En curso",
+    "pending": "Pendiente",
+    "kanbanTask": "Tarea de Kanban",
+    "statusOf": "Estado de {{item}}",
+    "remove": "Quitar {{item}}",
+    "running": "El agente está trabajando; cambia la lista cuando termine la ejecución.",
+    "clearConfirm": "Vaciar la lista",
+    "keep": "Conservar",
+    "clear": "Vaciar la lista…"
+  },
+  "failedRun": {
+    "title": "La ejecución se detuvo por un error",
+    "details": "Detalles",
+    "continue": "Continuar",
+    "cancel": "Cancelar"
+  },
+  "working": {
+    "waiting": "Esperando tus respuestas…",
+    "busy": "WrongStack está trabajando…"
+  },
+  "turn": {
+    "activity": "Actividad de ejecución",
+    "toolCall": "{{count}} llamada a herramienta",
+    "toolCalls": "{{count}} llamadas a herramientas",
+    "failed": "{{count}} fallidas",
+    "workedWith": "Trabajó con {{calls}}",
+    "iteration": "{{count}} iteración",
+    "iterations": "{{count}} iteraciones",
+    "promptTokens": "{{tokens}} tokens de prompt",
+    "output": "{{tokens}} de salida",
+    "cache": "{{percent}} % desde la caché"
+  },
+  "notices": {
+    "label": "Avisos de la conversación",
+    "dismiss": "Descartar aviso"
+  },
+  "message": {
+    "you": "Tú",
+    "edit": "Editar en el campo de redacción",
+    "editTitle": "Poner este prompt en el campo de redacción",
+    "askAgain": "Volver a preguntar",
+    "askAgainTitle": "Volver a enviar el prompt que originó esta respuesta",
+    "showFormatted": "Mostrar la respuesta con formato",
+    "showSource": "Mostrar el código Markdown de la respuesta",
+    "formatted": "Con formato",
+    "source": "Código",
+    "copy": "Copiar mensaje",
+    "references": "Archivos del proyecto referenciados"
+  },
+  "copy": {
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "failed": "Error al copiar",
+    "code": "Copiar código",
+    "codeLanguage": "Código"
+  },
+  "nextSteps": {
+    "title": "Siguientes pasos sugeridos",
+    "body": "Elige sugerencias, añade tu propio mensaje si quieres y envíalas juntas, o añádelas a tu borrador para editarlas antes.",
+    "message": "Tu mensaje",
+    "placeholder": "Añade otra instrucción o escribe tu propio siguiente paso…",
+    "add": "Añadir lo seleccionado al borrador",
+    "sendOne": "Enviar {{count}} paso",
+    "sendMany": "Enviar {{count}} pasos"
+  },
+  "value": {
+    "none": "Ninguno",
+    "emptyList": "Lista vacía",
+    "emptyObject": "Objeto vacío",
+    "emptyText": "(texto vacío)"
+  },
+  "output": {
+    "copy": "Copiar salida",
+    "exitCode": "código de salida {{code}}",
+    "saveTitle": "Guardar la salida como archivo de texto",
+    "save": "Guardar"
   }
 }

@@ -677,5 +677,140 @@
       "connecting": "Connexion à votre espace de travail",
       "note": "Les sessions continuent quand vous fermez une fenêtre."
     }
+  },
+  "approval": {
+    "label": "Approbation pour {{tool}}",
+    "eyebrow": "APPROBATION REQUISE",
+    "review": "Vérifiez ce que cet outil va faire avant d'autoriser son exécution.",
+    "risk": {
+      "destructive": "Destructif",
+      "safe": "Sûr",
+      "standard": "Standard"
+    },
+    "rule": "Une règle de l'utilisateur exige cette confirmation. Une règle d'autorisation mémorisée ne la remplacerait pas.",
+    "window": "Délai de décision : {{time}}",
+    "waitingDecision": "En attente de la décision du moteur…",
+    "commandLabel": "Commande à exécuter",
+    "command": "Commande",
+    "diffLabel": "Modification de fichier proposée",
+    "diff": "Modification proposée",
+    "file": "Fichier",
+    "args": "Arguments de l'outil",
+    "pattern": "Sujet correspondant",
+    "remember": "Mémoriser une approbation pour",
+    "scopeLabel": "Portée de l'approbation mémorisée",
+    "scope": {
+      "exact": "Cette requête exacte",
+      "command": "Cet exécutable, avec n'importe quels arguments",
+      "tool": "Toutes les requêtes pour {{tool}}"
+    },
+    "saved": "L'approbation est conservée 24 heures si possible. Les opérations protégées peuvent encore demander.",
+    "notConfirmed": "Le moteur n'a pas confirmé cette décision. Vérifiez la connexion avant de réessayer.",
+    "sending": "Envoi de la décision ; en attente du moteur…",
+    "hint": "Refuser bloque aussi les nouvelles tentatives correspondantes tant que ce moteur garde le refus en mémoire. « Mémoriser le refus » enregistre une règle pour le sujet correspondant ; le sélecteur de portée s'applique aux approbations mémorisées.",
+    "rememberDenialTitle": "Refuser cette requête et les futures requêtes correspondant au sujet affiché",
+    "rememberDenial": "Mémoriser le refus",
+    "denyTitle": "Refuser cette requête et les nouvelles tentatives correspondantes tant que le moteur garde le refus en mémoire",
+    "deny": "Refuser",
+    "allowRemember": "Autoriser et mémoriser",
+    "allowOnce": "Autoriser une fois"
+  },
+  "input": {
+    "eyebrow": "VOTRE RÉPONSE EST NÉCESSAIRE",
+    "groups": "Groupes de questions",
+    "notConfirmed": "Le moteur n'a pas encore confirmé cette réponse. Vérifiez la session avant de réessayer.",
+    "cancel": "Annuler la demande",
+    "waiting": "En attente du moteur…",
+    "submit": "Envoyer les réponses",
+    "sent": "Votre réponse a été envoyée. En attente de la résolution de cette demande par le moteur.",
+    "optional": "Facultatif",
+    "recommendation": "Recommandation : {{reason}}",
+    "recommended": "Recommandé",
+    "yourAnswer": "Votre réponse",
+    "writeOwn": "Rédigez votre propre réponse",
+    "customLabel": "Réponse personnalisée : {{prompt}}",
+    "typeAnswer": "Saisissez votre réponse…",
+    "delegate": "Laisser WrongStack décider de cette réponse"
+  },
+  "todoList": {
+    "title": "Liste de tâches",
+    "progress": "{{done}} sur {{total}} terminées",
+    "done": "Terminée",
+    "inProgress": "En cours",
+    "pending": "En attente",
+    "kanbanTask": "Tâche Kanban",
+    "statusOf": "Statut de {{item}}",
+    "remove": "Supprimer {{item}}",
+    "running": "L'agent travaille ; modifiez la liste à la fin de l'exécution.",
+    "clearConfirm": "Vider la liste",
+    "keep": "Garder",
+    "clear": "Vider la liste…"
+  },
+  "failedRun": {
+    "title": "L'exécution s'est arrêtée sur une erreur",
+    "details": "Détails",
+    "continue": "Continuer",
+    "cancel": "Annuler"
+  },
+  "working": {
+    "waiting": "En attente de vos réponses…",
+    "busy": "WrongStack travaille…"
+  },
+  "turn": {
+    "activity": "Activité d'exécution",
+    "toolCall": "{{count}} appel d'outil",
+    "toolCalls": "{{count}} appels d'outils",
+    "failed": "{{count}} en échec",
+    "workedWith": "A utilisé {{calls}}",
+    "iteration": "{{count}} itération",
+    "iterations": "{{count}} itérations",
+    "promptTokens": "{{tokens}} jetons de prompt",
+    "output": "{{tokens}} en sortie",
+    "cache": "{{percent}} % depuis le cache"
+  },
+  "notices": {
+    "label": "Avis de la conversation",
+    "dismiss": "Fermer l'avis"
+  },
+  "message": {
+    "you": "Vous",
+    "edit": "Modifier dans la zone de saisie",
+    "editTitle": "Placer ce prompt dans la zone de saisie",
+    "askAgain": "Redemander",
+    "askAgainTitle": "Renvoyer le prompt à l'origine de cette réponse",
+    "showFormatted": "Afficher la réponse mise en forme",
+    "showSource": "Afficher la source Markdown de la réponse",
+    "formatted": "Mis en forme",
+    "source": "Source",
+    "copy": "Copier le message",
+    "references": "Fichiers du projet référencés"
+  },
+  "copy": {
+    "copy": "Copier",
+    "copied": "Copié",
+    "failed": "Échec de la copie",
+    "code": "Copier le code",
+    "codeLanguage": "Code"
+  },
+  "nextSteps": {
+    "title": "Prochaines étapes suggérées",
+    "body": "Choisissez des suggestions, ajoutez votre propre message si vous le souhaitez et envoyez-les ensemble, ou ajoutez-les à votre brouillon pour les modifier.",
+    "message": "Votre message",
+    "placeholder": "Ajoutez une autre instruction ou rédigez votre propre prochaine étape…",
+    "add": "Ajouter la sélection au brouillon",
+    "sendOne": "Envoyer {{count}} étape",
+    "sendMany": "Envoyer {{count}} étapes"
+  },
+  "value": {
+    "none": "Aucune",
+    "emptyList": "Liste vide",
+    "emptyObject": "Objet vide",
+    "emptyText": "(texte vide)"
+  },
+  "output": {
+    "copy": "Copier la sortie",
+    "exitCode": "code de sortie {{code}}",
+    "saveTitle": "Enregistrer la sortie dans un fichier texte",
+    "save": "Enregistrer"
   }
 }

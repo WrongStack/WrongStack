@@ -1,6 +1,7 @@
 import { CheckCircle2, Circle, ListTodo, LoaderCircle, Trash2 } from 'lucide-react';
 import './session-todos.css';
 import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -31,10 +32,16 @@ export function sessionTodos(value: unknown): SessionTodo[] {
     }));
 }
 
-export function todoProgress(todos: readonly SessionTodo[]): string {
+function todoCounts(todos: readonly SessionTodo[]) {
   const done = todos.filter((todo) => todo.status === 'completed').length;
   const active = todos.find((todo) => todo.status === 'in_progress');
-  return `${done} of ${todos.length} done${active ? ` · ${active.activeForm || active.content}` : ''}`;
+  return { done, total: todos.length, current: active ? active.activeForm || active.content : '' };
+}
+
+/** The English progress line the slash command reports. */
+export function todoProgress(todos: readonly SessionTodo[]): string {
+  const { done, total, current } = todoCounts(todos);
+  return `${done} of ${total} done${current ? ` · ${current}` : ''}`;
 }
 
 /**
@@ -42,6 +49,7 @@ export function todoProgress(todos: readonly SessionTodo[]): string {
  * marked or removed by hand; Kanban-bound items are task projections and change on the board.
  */
 export function SessionTodos({ state, command }: { state: EngineState; command: EngineCommand }) {
+  const { t } = useDesktopText();
   const todos = sessionTodos(state.results['todos.updated']);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -67,42 +75,44 @@ export function SessionTodos({ state, command }: { state: EngineState; command: 
     }
   };
   const editable = todos.some((todo) => !todo.managed);
+  const { done, total, current } = todoCounts(todos);
   return (
     <details className="session-todos">
       <summary>
-        <ListTodo size={14} /> Todo list · {todoProgress(todos)}
+        <ListTodo size={14} /> {t('todoList.title')} · {t('todoList.progress', { done, total })}
+        {current ? ` · ${current}` : ''}
       </summary>
       <ol>
         {todos.map((todo) => (
           <li key={todo.id} className={`todo-${todo.status}`}>
             {todo.status === 'completed' ? (
-              <CheckCircle2 size={14} aria-label="Done" />
+              <CheckCircle2 size={14} aria-label={t('todoList.done')} />
             ) : todo.status === 'in_progress' ? (
-              <LoaderCircle size={14} aria-label="In progress" />
+              <LoaderCircle size={14} aria-label={t('todoList.inProgress')} />
             ) : (
-              <Circle size={14} aria-label="Pending" />
+              <Circle size={14} aria-label={t('todoList.pending')} />
             )}
             <span>{todo.content}</span>
             {todo.managed ? (
-              <small>Kanban task</small>
+              <small>{t('todoList.kanbanTask')}</small>
             ) : (
               <>
                 <select
-                  aria-label={`Status of ${todo.content}`}
+                  aria-label={t('todoList.statusOf', { item: todo.content })}
                   value={todo.status}
                   disabled={busy || state.running}
                   onChange={(event) =>
                     void act('todo.update', { id: todo.id, status: event.target.value })
                   }
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="completed">Done</option>
+                  <option value="pending">{t('todoList.pending')}</option>
+                  <option value="in_progress">{t('todoList.inProgress')}</option>
+                  <option value="completed">{t('todoList.done')}</option>
                 </select>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label={`Remove ${todo.content}`}
+                  aria-label={t('todoList.remove', { item: todo.content })}
                   disabled={busy || state.running}
                   onClick={() => void act('todos.remove', { id: todo.id })}
                 >
@@ -113,9 +123,7 @@ export function SessionTodos({ state, command }: { state: EngineState; command: 
           </li>
         ))}
       </ol>
-      {state.running && editable && (
-        <p className="field-help">The agent is working; change the list when the run ends.</p>
-      )}
+      {state.running && editable && <p className="field-help">{t('todoList.running')}</p>}
       {editable && !todos.some((todo) => todo.managed) && (
         <div className="session-todos-actions">
           {clearing ? (
@@ -126,14 +134,14 @@ export function SessionTodos({ state, command }: { state: EngineState; command: 
                 disabled={busy || state.running}
                 onClick={() => void act('todos.clear')}
               >
-                Clear the list
+                {t('todoList.clearConfirm')}
               </button>
               <button
                 type="button"
                 className="button secondary small"
                 onClick={() => setClearing(false)}
               >
-                Keep
+                {t('todoList.keep')}
               </button>
             </>
           ) : (
@@ -143,7 +151,7 @@ export function SessionTodos({ state, command }: { state: EngineState; command: 
               disabled={busy || state.running}
               onClick={() => setClearing(true)}
             >
-              Clear list…
+              {t('todoList.clear')}
             </button>
           )}
         </div>

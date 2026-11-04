@@ -677,5 +677,140 @@
       "connecting": "Connecting to your workspace",
       "note": "Sessions keep running when you close a window."
     }
+  },
+  "approval": {
+    "label": "Approval for {{tool}}",
+    "eyebrow": "APPROVAL REQUIRED",
+    "review": "Review what this tool will do before allowing it to run.",
+    "risk": {
+      "destructive": "Destructive",
+      "safe": "Safe",
+      "standard": "Standard"
+    },
+    "rule": "A user rule requires this confirmation. A remembered allow rule would not override it.",
+    "window": "Decision window: {{time}}",
+    "waitingDecision": "Waiting for the engine’s decision…",
+    "commandLabel": "Command to run",
+    "command": "Command",
+    "diffLabel": "Proposed file edit",
+    "diff": "Proposed edit",
+    "file": "File",
+    "args": "Tool arguments",
+    "pattern": "Matching subject",
+    "remember": "Remember an approval for",
+    "scopeLabel": "Remembered approval scope",
+    "scope": {
+      "exact": "This exact request",
+      "command": "This executable, with any arguments",
+      "tool": "All requests for {{tool}}"
+    },
+    "saved": "Approval is saved for 24 hours when possible. Protected operations may still ask.",
+    "notConfirmed": "The engine has not confirmed this decision. Check the connection before retrying.",
+    "sending": "Sending decision; waiting for the engine…",
+    "hint": "Deny also blocks matching retries while this engine retains its in-memory denial. Remember denial saves a rule for the matching subject; the scope selector applies to remembered approvals.",
+    "rememberDenialTitle": "Deny this and future requests matching the displayed subject",
+    "rememberDenial": "Remember denial",
+    "denyTitle": "Deny this request and matching retries while the engine retains its in-memory denial",
+    "deny": "Deny",
+    "allowRemember": "Allow & remember",
+    "allowOnce": "Allow once"
+  },
+  "input": {
+    "eyebrow": "YOUR INPUT IS NEEDED",
+    "groups": "Question groups",
+    "notConfirmed": "The engine has not confirmed this answer yet. Check the session before retrying.",
+    "cancel": "Cancel request",
+    "waiting": "Waiting for engine…",
+    "submit": "Submit answers",
+    "sent": "Your response was sent. Waiting for the engine to resolve this request.",
+    "optional": "Optional",
+    "recommendation": "Recommendation: {{reason}}",
+    "recommended": "Recommended",
+    "yourAnswer": "Your answer",
+    "writeOwn": "Write your own answer",
+    "customLabel": "Custom answer: {{prompt}}",
+    "typeAnswer": "Type your answer…",
+    "delegate": "Let WrongStack decide this answer"
+  },
+  "todoList": {
+    "title": "Todo list",
+    "progress": "{{done}} of {{total}} done",
+    "done": "Done",
+    "inProgress": "In progress",
+    "pending": "Pending",
+    "kanbanTask": "Kanban task",
+    "statusOf": "Status of {{item}}",
+    "remove": "Remove {{item}}",
+    "running": "The agent is working; change the list when the run ends.",
+    "clearConfirm": "Clear the list",
+    "keep": "Keep",
+    "clear": "Clear list…"
+  },
+  "failedRun": {
+    "title": "The run stopped on an error",
+    "details": "Details",
+    "continue": "Continue",
+    "cancel": "Cancel"
+  },
+  "working": {
+    "waiting": "Waiting for your answers…",
+    "busy": "WrongStack is working…"
+  },
+  "turn": {
+    "activity": "Run activity",
+    "toolCall": "{{count}} tool call",
+    "toolCalls": "{{count}} tool calls",
+    "failed": "{{count}} failed",
+    "workedWith": "Worked with {{calls}}",
+    "iteration": "{{count}} iteration",
+    "iterations": "{{count}} iterations",
+    "promptTokens": "{{tokens}} prompt tokens",
+    "output": "{{tokens}} output",
+    "cache": "{{percent}}% from cache"
+  },
+  "notices": {
+    "label": "Conversation notices",
+    "dismiss": "Dismiss notice"
+  },
+  "message": {
+    "you": "You",
+    "edit": "Edit in composer",
+    "editTitle": "Put this prompt in the composer",
+    "askAgain": "Ask again",
+    "askAgainTitle": "Send the prompt behind this answer again",
+    "showFormatted": "Show the formatted answer",
+    "showSource": "Show the answer’s Markdown source",
+    "formatted": "Formatted",
+    "source": "Source",
+    "copy": "Copy message",
+    "references": "Referenced project files"
+  },
+  "copy": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "failed": "Copy failed",
+    "code": "Copy code",
+    "codeLanguage": "Code"
+  },
+  "nextSteps": {
+    "title": "Suggested next steps",
+    "body": "Choose suggestions, add your own message if you like, and send them together, or add them to your draft to edit first.",
+    "message": "Your message",
+    "placeholder": "Add another instruction or write your own next step…",
+    "add": "Add selected to draft",
+    "sendOne": "Send {{count}} step",
+    "sendMany": "Send {{count}} steps"
+  },
+  "value": {
+    "none": "None",
+    "emptyList": "Empty list",
+    "emptyObject": "Empty object",
+    "emptyText": "(empty text)"
+  },
+  "output": {
+    "copy": "Copy output",
+    "exitCode": "exit code {{code}}",
+    "saveTitle": "Save the output as a text file",
+    "save": "Save"
   }
 }

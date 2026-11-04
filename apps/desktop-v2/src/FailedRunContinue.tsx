@@ -1,6 +1,7 @@
 import { TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { sessionAutonomy } from './autonomy-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineState } from './engine-state';
 import {
   automaticResumeDelayMs,
@@ -32,6 +33,7 @@ export function FailedRunContinue({
   send: (text: string) => Promise<string>;
   report: (notice: string, problem: string) => void;
 }) {
+  const { t } = useDesktopText();
   const result = state.results['run.result'];
   const failure = failedRun(state);
   const live = state.connected && !state.hydrating;
@@ -89,11 +91,11 @@ export function FailedRunContinue({
     <div className="failed-run" role="status">
       <TriangleAlert size={15} />
       <div>
-        <strong>The run stopped on an error</strong>
+        <strong>{t('failedRun.title')}</strong>
         <span>{headline}</span>
         {rest.join('\n').trim() && (
           <details>
-            <summary>Details</summary>
+            <summary>{t('failedRun.details')}</summary>
             <pre>{rest.join('\n').trim()}</pre>
           </details>
         )}
@@ -105,11 +107,12 @@ export function FailedRunContinue({
         disabled={!state.connected}
         onClick={() => fire(null)}
       >
-        Continue{seconds === null ? '' : ` · ${seconds} s`}
+        {t('failedRun.continue')}
+        {seconds === null ? '' : ` · ${seconds} s`}
       </button>
       {seconds !== null && (
         <button type="button" className="button secondary small" onClick={() => setArmed(null)}>
-          Cancel
+          {t('failedRun.cancel')}
         </button>
       )}
     </div>

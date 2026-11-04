@@ -7108,3 +7108,25 @@ copies, starting with SAGE memory.
   - The project list and activity render their counts, states, kinds and exit codes in English
     and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
+
+### Conversation cards in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - tool approval requests: risk, decision window, command, proposed edit, arguments,
+    remembered scope, hints and the four decisions;
+  - questions the agent asks: tabs, optional and recommended marks, own answers, delegating,
+    cancel and submit;
+  - the todo list with its states and actions;
+  - the failed-run card with Continue and its countdown;
+  - the running and finished turn lines (tool calls, iterations, tokens, cache share);
+  - message actions (edit, ask again, formatted/source, copy), code block and tool output copy and
+    save, conversation notice controls and suggested next steps.
+- English is unchanged, so the native smoke scripts that look for "Allow once", "Run activity" or
+  "Cancel request" keep matching.
+- The slash command's todo summary stays in English with the other command notices.
+- The catalog check compares placeholders as a set: word order differs between languages
+  (Turkish says "2 işin 1 tanesi bitti" for "1 of 2 done").
+- Checks:
+  - The approval card, finished-turn line, next steps and todo list render in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.

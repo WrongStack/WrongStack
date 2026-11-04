@@ -1,6 +1,7 @@
 import type { ParsedNextStep } from '@wrongstack/webui-protocol';
 import { ArrowUp, Lightbulb, Plus } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import './next-steps.css';
 
 /**
@@ -20,6 +21,7 @@ export function NextStepsPanel({
   onSend?: ((text: string) => Promise<boolean>) | undefined;
   sending?: boolean | undefined;
 }) {
+  const { t } = useDesktopText();
   const [selected, setSelected] = useState<number[]>([]);
   const [message, setMessage] = useState('');
   const messageId = useId();
@@ -32,13 +34,10 @@ export function NextStepsPanel({
   return (
     <details className="next-steps-panel">
       <summary>
-        <Lightbulb size={14} /> Suggested next steps <small>{steps.length}</small>
+        <Lightbulb size={14} /> {t('nextSteps.title')} <small>{steps.length}</small>
       </summary>
       <div className="next-steps-body">
-        <p>
-          Choose suggestions, add your own message if you like, and send them together, or add them
-          to your draft to edit first.
-        </p>
+        <p>{t('nextSteps.body')}</p>
         {steps.map((step) => (
           <label key={step.index} className="next-step">
             <input
@@ -57,12 +56,12 @@ export function NextStepsPanel({
         ))}
         {onSend && (
           <label className="next-steps-message" htmlFor={messageId}>
-            Your message
+            {t('nextSteps.message')}
             <textarea
               id={messageId}
               rows={2}
               value={message}
-              placeholder="Add another instruction or write your own next step…"
+              placeholder={t('nextSteps.placeholder')}
               onChange={(event) => setMessage(event.target.value)}
             />
           </label>
@@ -78,7 +77,7 @@ export function NextStepsPanel({
               setMessage('');
             }}
           >
-            <Plus size={13} /> Add selected to draft
+            <Plus size={13} /> {t('nextSteps.add')}
           </button>
           {onSend && (
             <button
@@ -93,7 +92,10 @@ export function NextStepsPanel({
                 })
               }
             >
-              <ArrowUp size={13} /> Send {batch.length} {batch.length === 1 ? 'step' : 'steps'}
+              <ArrowUp size={13} />{' '}
+              {t(batch.length === 1 ? 'nextSteps.sendOne' : 'nextSteps.sendMany', {
+                count: batch.length,
+              })}
             </button>
           )}
         </div>

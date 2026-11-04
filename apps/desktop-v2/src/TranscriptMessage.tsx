@@ -5,6 +5,7 @@ import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { AttachmentPreview } from './ComposerAttachments';
 import { CopyButton } from './CopyButton';
 import { referenceKey, referenceLabel, splitReferenceMessage } from './composer-resources-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { HuntRoundCard } from './HuntRounds';
@@ -49,6 +50,7 @@ export function TranscriptMessage({
   /** A day separator to show before the message. */
   day?: string | undefined;
 }) {
+  const { t } = useDesktopText();
   const [source, setSource] = useState(false);
   const user = message.role === 'user';
   const answer = !user && !message.council;
@@ -65,7 +67,7 @@ export function TranscriptMessage({
       >
         <header className={user ? 'user-chat-label' : undefined}>
           <span>
-            {user ? 'You' : 'WrongStack'}
+            {user ? t('message.you') : 'WrongStack'}
             {message.at && (
               <time
                 dateTime={new Date(message.at).toISOString()}
@@ -80,19 +82,15 @@ export function TranscriptMessage({
           </span>
           <span className="message-actions">
             {edit && (
-              <ActionButton
-                action={edit}
-                label="Edit in composer"
-                title="Put this prompt in the composer"
-              >
+              <ActionButton action={edit} label={t('message.edit')} title={t('message.editTitle')}>
                 <Pencil size={12} />
               </ActionButton>
             )}
             {askAgain && (
               <ActionButton
                 action={askAgain}
-                label="Ask again"
-                title="Send the prompt behind this answer again"
+                label={t('message.askAgain')}
+                title={t('message.askAgainTitle')}
               >
                 <RotateCcw size={12} />
               </ActionButton>
@@ -102,13 +100,14 @@ export function TranscriptMessage({
                 type="button"
                 className="copy-button"
                 aria-pressed={source}
-                title={source ? 'Show the formatted answer' : 'Show the answer’s Markdown source'}
+                title={source ? t('message.showFormatted') : t('message.showSource')}
                 onClick={() => setSource(!source)}
               >
-                <Code2 size={12} /> <span>{source ? 'Formatted' : 'Source'}</span>
+                <Code2 size={12} />{' '}
+                <span>{source ? t('message.formatted') : t('message.source')}</span>
               </button>
             )}
-            <CopyButton text={message.text} label="Copy message" />
+            <CopyButton text={message.text} label={t('message.copy')} />
           </span>
         </header>
         <div className={user ? 'user-chat-body' : undefined}>
@@ -163,6 +162,7 @@ function ActionButton({
 }
 
 function UserComposerMessage({ text }: { text: string }) {
+  const { t } = useDesktopText();
   const hunt = parseBugHuntMessage(text);
   if (hunt) return <HuntRoundCard round={hunt} />;
   const view = splitReferenceMessage(text);
@@ -170,7 +170,7 @@ function UserComposerMessage({ text }: { text: string }) {
     <>
       {view.text}
       {view.paths.length > 0 && (
-        <section className="chat-file-references" aria-label="Referenced project files">
+        <section className="chat-file-references" aria-label={t('message.references')}>
           {view.references.map((ref) => (
             <code key={referenceKey(ref)}>{referenceLabel(ref)}</code>
           ))}

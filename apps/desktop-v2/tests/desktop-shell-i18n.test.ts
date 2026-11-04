@@ -29,7 +29,9 @@ function flat(value: unknown, prefix = ''): Record<string, string> {
     {},
   );
 }
-const placeholders = (text: string) => [...text.matchAll(/\{\{\w+\}\}|<\/?\w+>/g)].map(String);
+// Word order differs between languages, so the placeholders are compared as a sorted list.
+const placeholders = (text: string) =>
+  [...text.matchAll(/\{\{\w+\}\}|<\/?\w+>/g)].map(String).sort();
 
 describe('the desktop shell catalogs', () => {
   it('ship every display language with the same keys and placeholders as English', () => {
