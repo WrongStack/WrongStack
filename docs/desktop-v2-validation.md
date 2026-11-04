@@ -7429,3 +7429,16 @@ copies, starting with SAGE memory.
   - The catalog renders in English and then in Turkish once the profile engine identifies itself
     (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.
+
+### Model advanced fields and price tiers in the display language (2026-11-04)
+
+- The model editor's advanced behavior section and its context price tiers now follow the display
+  language in all seven languages: reasoning policy and controls, replay, lifecycle, connection
+  override, the tier editor, saved tiers and the legacy over-200k schedule.
+- Reasoning modes are named per language. Effort levels (`low`, `high`, ...) stay as the provider
+  vocabulary they are.
+- Price labels still come from `tierPriceFields`; the editor names them per language and falls back
+  to the table's English label. English labels such as "Price tier 1 input price" are unchanged.
+- Checks:
+  - Both sections render in English and then in Turkish beside the catalog (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.

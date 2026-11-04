@@ -11,7 +11,11 @@ import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { emptyEngineState } from '../src/engine-state';
 import { GoalPhaseVerification } from '../src/GoalPhaseVerification';
 import { GoalRevert } from '../src/GoalRevert';
+import { ModelAdvancedFields } from '../src/ModelAdvancedFields';
 import { ModelCatalogSettings } from '../src/ModelCatalogSettings';
+import { ModelPriceTiers } from '../src/ModelPriceTiers';
+import { modelAdvancedDraft } from '../src/model-advanced-editor';
+import { priceTierDraft } from '../src/model-price-tiers';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
@@ -149,6 +153,17 @@ const modelCatalog = () =>
         : pending(),
     ),
   });
+
+const modelEditorParts = () =>
+  createElement(
+    'div',
+    null,
+    createElement(ModelAdvancedFields, { value: modelAdvancedDraft({}), onChange: vi.fn() }),
+    createElement(ModelPriceTiers, {
+      value: { changed: false, unsupported: false, rows: [priceTierDraft()] },
+      onChange: vi.fn(),
+    }),
+  );
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -412,6 +427,18 @@ describe('the project pages in the display language', () => {
     expect(page.labels).toEqual(
       expect.arrayContaining(['Model catalog settings', 'Catalog provider']),
     );
+    page = await mount(modelEditorParts());
+    for (const text of [
+      'Advanced model behavior',
+      'Add reasoning control',
+      'Context price tiers',
+      'Price tier 1',
+      'Input USD / million tokens',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Model reasoning policy source', 'Price tier 1 input price']),
+    );
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(modelCatalog());
@@ -424,6 +451,21 @@ describe('the project pages in the display language', () => {
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
       expect.arrayContaining(['Model kataloğu ayarları', 'Katalog sağlayıcısı']),
+    );
+    page = await mount(modelEditorParts());
+    for (const text of [
+      'Gelişmiş model davranışı',
+      'Akıl yürütme denetimi ekle',
+      'Bağlam fiyat kademeleri',
+      'Fiyat kademesi 1',
+      'Girdi USD / milyon token',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Model akıl yürütme politikası kaynağı',
+        'Fiyat kademesi 1 girdi fiyatı',
+      ]),
     );
   });
 });

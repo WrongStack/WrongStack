@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import {
   type ModelPriceTiersDraft,
@@ -16,40 +17,34 @@ export function ModelPriceTiers({
   onChange: (value: ModelPriceTiersDraft) => void;
   legacySchedule?: unknown;
 }) {
+  const { t } = useDesktopText();
   const change = (rows: ModelPriceTiersDraft['rows']) =>
     onChange({ ...value, changed: true, rows });
   return (
-    <section className="model-price-tiers" aria-label="Model context price tiers">
+    <section className="model-price-tiers" aria-label={t('modelTiers.label')}>
       <header>
-        <h3>Context price tiers</h3>
-        <p>
-          USD per million tokens at each catalog context threshold. Blank rates remain unspecified;
-          zero means explicitly free. These catalog prices do not change provider billing or apply
-          tiers to the Usage &amp; cost estimate.
-        </p>
+        <h3>{t('modelTiers.title')}</h3>
+        <p>{t('modelTiers.intro')}</p>
       </header>
       <LegacyContextPrices value={legacySchedule} />
       {value.unsupported ? (
-        <p>
-          This definition uses a provider-specific tier format. It will be preserved until you
-          explicitly remove it.
-        </p>
+        <p>{t('modelTiers.unsupported')}</p>
       ) : (
         <>
-          {!value.rows.length && (
-            <p>No context price tiers configured. Base prices remain separate.</p>
-          )}
+          {!value.rows.length && <p>{t('modelTiers.none')}</p>}
           {value.rows.map((row, index) => (
             <article className="model-price-tier" key={index}>
               <header>
-                <strong>Price tier {index + 1}</strong>
+                <strong>{t('modelTiers.tier', { n: index + 1 })}</strong>
                 <div className="model-tier-actions">
                   {([-1, 1] as const).map((delta) => (
                     <button
                       type="button"
                       className="icon-button"
                       key={delta}
-                      aria-label={`Move price tier ${index + 1} ${delta < 0 ? 'up' : 'down'}`}
+                      aria-label={t(delta < 0 ? 'modelTiers.moveUp' : 'modelTiers.moveDown', {
+                        n: index + 1,
+                      })}
                       disabled={delta < 0 ? index === 0 : index === value.rows.length - 1}
                       onClick={() => {
                         const rows = [...value.rows];
@@ -63,7 +58,7 @@ export function ModelPriceTiers({
                   <button
                     type="button"
                     className="icon-button danger"
-                    aria-label={`Remove price tier ${index + 1}`}
+                    aria-label={t('modelTiers.remove', { n: index + 1 })}
                     onClick={() => change(value.rows.filter((_, i) => i !== index))}
                   >
                     <Trash2 size={14} />
@@ -73,12 +68,12 @@ export function ModelPriceTiers({
               {row.editable ? (
                 <div className="model-editor-grid">
                   <label>
-                    Context threshold (tokens)
+                    {t('modelTiers.threshold')}
                     <input
                       type="number"
                       min={1}
                       step={1}
-                      aria-label={`Price tier ${index + 1} context threshold`}
+                      aria-label={t('modelTiers.thresholdLabel', { n: index + 1 })}
                       value={row.size}
                       onChange={(event) =>
                         change(
@@ -91,13 +86,20 @@ export function ModelPriceTiers({
                   </label>
                   {tierPriceFields.map(([key, label]) => (
                     <label key={key}>
-                      {label} USD / million tokens
+                      {t('modelTiers.perMillion', {
+                        label: t(`modelTiers.price.${key}`, { defaultValue: label }),
+                      })}
                       <input
                         type="number"
                         min={0}
                         step="any"
-                        placeholder="Unspecified"
-                        aria-label={`Price tier ${index + 1} ${label.toLowerCase()} price`}
+                        placeholder={t('modelTiers.unspecified')}
+                        aria-label={t('modelTiers.priceLabel', {
+                          n: index + 1,
+                          price: t(`modelTiers.priceLower.${key}`, {
+                            defaultValue: label.toLowerCase(),
+                          }),
+                        })}
                         value={row.prices[key] ?? ''}
                         onChange={(event) =>
                           change(
@@ -113,10 +115,7 @@ export function ModelPriceTiers({
                   ))}
                 </div>
               ) : (
-                <p>
-                  Provider-specific tier preserved. Its fields cannot be edited with the
-                  context-tier form. Remove this row only if you intend to delete it.
-                </p>
+                <p>{t('modelTiers.providerSpecific')}</p>
               )}
             </article>
           ))}
@@ -125,7 +124,7 @@ export function ModelPriceTiers({
             className="button secondary small"
             onClick={() => change([...value.rows, priceTierDraft()])}
           >
-            <Plus size={14} /> Add context price tier
+            <Plus size={14} /> {t('modelTiers.add')}
           </button>
         </>
       )}
@@ -135,7 +134,7 @@ export function ModelPriceTiers({
           className="button secondary small"
           onClick={() => onChange({ changed: true, unsupported: false, rows: [] })}
         >
-          Remove all saved price tiers
+          {t('modelTiers.removeAll')}
         </button>
       )}
     </section>
@@ -143,34 +142,32 @@ export function ModelPriceTiers({
 }
 
 export function SavedModelPriceTiers({ cost }: { cost: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   const value = modelPriceTiersDraft(cost);
   const legacy = record(cost['context_over_200k']);
   if (cost['tiers'] === undefined && !Object.keys(legacy).length) return null;
   return (
-    <section className="model-price-tiers" aria-label="Saved model price tiers">
-      <h4>Saved context price tiers</h4>
-      <p>
-        Catalog metadata in USD per million tokens. Current-rate usage estimates do not apply these
-        tiers.
-      </p>
+    <section className="model-price-tiers" aria-label={t('modelTiers.savedLabel')}>
+      <h4>{t('modelTiers.savedTitle')}</h4>
+      <p>{t('modelTiers.savedIntro')}</p>
       <LegacyContextPrices value={cost['context_over_200k']} />
       {value.unsupported ? (
-        <p>Provider-specific tier format is preserved.</p>
+        <p>{t('modelTiers.savedUnsupported')}</p>
       ) : value.rows.length ? (
         <ol>
           {value.rows.map((row, index) => (
             <li key={index}>
               <strong>
                 {row.editable
-                  ? `Context threshold: ${Number(row.size).toLocaleString()} tokens`
-                  : 'Provider-specific price tier'}
+                  ? t('modelTiers.savedThreshold', { tokens: Number(row.size).toLocaleString() })
+                  : t('modelTiers.savedProviderTier')}
               </strong>
               <dl className="model-info">
                 {tierPriceFields.map(
                   ([key, label]) =>
                     typeof record(row.source)[key] === 'number' && (
                       <div key={key}>
-                        <dt>{label}</dt>
+                        <dt>{t(`modelTiers.price.${key}`, { defaultValue: label })}</dt>
                         <dd>
                           $
                           {Number(record(row.source)[key]).toLocaleString(undefined, {
@@ -185,28 +182,30 @@ export function SavedModelPriceTiers({ cost }: { cost: Record<string, unknown> }
           ))}
         </ol>
       ) : (
-        <p>No saved context price tiers.</p>
+        <p>{t('modelTiers.savedNone')}</p>
       )}
     </section>
   );
 }
 
 function LegacyContextPrices({ value }: { value: unknown }) {
+  const { t } = useDesktopText();
   const prices = record(value);
   if (!Object.keys(prices).length) return null;
   return (
     <div>
-      <h4>Legacy over-200k schedule</h4>
-      <p>
-        This saved structured schedule is preserved separately from context tiers. The scalar
-        over-200k field does not replace it.
-      </p>
+      <h4>{t('modelTiers.legacyTitle')}</h4>
+      <p>{t('modelTiers.legacyNote')}</p>
       <dl className="model-info">
         {tierPriceFields.map(
           ([key, label]) =>
             typeof prices[key] === 'number' && (
               <div key={key}>
-                <dt>{label} USD / million tokens</dt>
+                <dt>
+                  {t('modelTiers.perMillion', {
+                    label: t(`modelTiers.price.${key}`, { defaultValue: label }),
+                  })}
+                </dt>
                 <dd>
                   ${Number(prices[key]).toLocaleString(undefined, { maximumFractionDigits: 8 })}
                 </dd>
