@@ -163,8 +163,8 @@
       "relativeImports": 8
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
-      "lines": 1019,
-      "relativeImports": 9
+      "lines": 1065,
+      "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
       "lines": 800,

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { goalBudgetPayload, goalBudgetText } from '../src/goal-budget-model';
+import { type GoalBudgetWords, goalBudgetPayload, goalBudgetText } from '../src/goal-budget-model';
 
 it('builds the optional budget and refuses values the engine would ignore', () => {
   expect(goalBudgetPayload('', ' ')).toBeUndefined();
@@ -40,4 +40,17 @@ it('carries a cost limit and shows the estimate with unpriced responses', () => 
   expect(
     goalBudgetText({ maxCostUsd: 1 }, { tasks: 1, elapsedMs: 0, costUsd: 0, unpricedResponses: 2 }),
   ).toBe('Budget: ~$0.00 of $1 estimated (2 unpriced responses)');
+});
+
+it('words limits and refusals through the given words', () => {
+  const words: GoalBudgetWords = {
+    tasks: (used, max) => `${used}/${max} görev`,
+    minutes: (used, max) => `${used}/${max} dk`,
+    tokens: (used, max) => `${used}/${max} token`,
+    cost: (used, max) => `$${used}/$${max}`,
+    budget: (parts) => `Bütçe: ${parts}`,
+    invalid: (limit, max) => `${limit} ${max}`,
+  };
+  expect(goalBudgetText({ maxTasks: 4 }, { tasks: 1 }, words)).toBe('Bütçe: 1/4 görev');
+  expect(() => goalBudgetPayload('0', '', '', '', words)).toThrow('tasks 10000');
 });

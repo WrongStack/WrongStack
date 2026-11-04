@@ -7375,3 +7375,24 @@ copies, starting with SAGE memory.
 - Checks:
   - The editor renders in English and then in Turkish (jsdom).
   - Catalog parity and the key guard pass; desktop tests pass (883); typecheck clean.
+
+### Goals page in the display language (2026-11-04)
+
+- The goals page now follows the display language in all seven languages:
+  - the catalog with its search, progress lines and empty states;
+  - the new-goal form with feasibility assessment, options and limits;
+  - the goal detail with its controls, resume limits, stop confirmation, metrics, phases and tasks;
+  - the task inspector with status change, retry, assignment and move.
+- Goal, phase, task and verification statuses and priorities are named per language; a value the
+  catalog does not know still shows the engine's own word.
+- The waiting notice after each request is worded per language. The refresh notice is now cleared
+  by a flag instead of matching its English text.
+- The budget line and limit errors take optional words, with English as the default, so the
+  existing budget test is unchanged.
+- The mission panel, revert and phase verification follow in the next change.
+- ProjectGoals grew by 46 lines and imports one more module; its hotspot ratchet is updated to
+  match.
+- Checks:
+  - The goals catalog renders in English and then in Turkish (jsdom).
+  - A new unit test covers the budget words.
+  - Catalog parity and the key guard pass; desktop tests pass (885); typecheck clean.

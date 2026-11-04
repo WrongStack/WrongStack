@@ -8,7 +8,9 @@ import { AutomationEnvironmentEditor } from '../src/AutomationEnvironmentEditor'
 import { AutomationRunComparison } from '../src/AutomationRunComparison';
 import { AutomationRunInspector } from '../src/AutomationRunInspector';
 import { AutomationWorkspace } from '../src/AutomationWorkspace';
+import { emptyEngineState } from '../src/engine-state';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
+import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
 import { RequirementEvidence } from '../src/RequirementResources';
 import { RequirementSummary } from '../src/RequirementSummary';
@@ -113,6 +115,9 @@ const environmentEditor = (projectId: string) =>
     onApply: vi.fn(),
     onClose: vi.fn(),
   });
+
+const goalsPage = () =>
+  createElement(ProjectGoals, { state: emptyEngineState, send: vi.fn(pending), onKanban: vi.fn() });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -313,5 +318,31 @@ describe('the project pages in the display language', () => {
     expect(page.labels).toEqual(
       expect.arrayContaining(['Ortam profili adı', 'Otomasyon ortamını kapat']),
     );
+  });
+
+  it('show the goals page in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(goalsPage());
+    for (const text of [
+      'Goals',
+      'New goal',
+      'Execution goals',
+      '0 recorded goal runs',
+      'Reading the project goal catalog…',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(expect.arrayContaining(['Project Goals', 'Search goals']));
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(goalsPage());
+    for (const text of [
+      'Hedefler',
+      'Yeni hedef',
+      'Yürütme hedefleri',
+      '0 kayıtlı hedef çalıştırması',
+      'Proje hedef kataloğu okunuyor…',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(expect.arrayContaining(['Proje Hedefleri', 'Hedeflerde ara']));
   });
 });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T11:23:34.000Z",
+  "generatedAt": "2026-11-04T11:31:51.338Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4968,
-    "sourceLines": 1245698,
+    "sourceLines": 1245781,
     "workspaceEdges": 240,
-    "moduleEdges": 17436,
+    "moduleEdges": 17437,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33684,8 +33684,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1019,
-      "relativeImports": 9
+      "lines": 1065,
+      "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
@@ -33750,14 +33750,14 @@
       "relativeImports": 0
     },
     {
+      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
+      "lines": 1065,
+      "relativeImports": 10
+    },
+    {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
       "lines": 1055,
       "relativeImports": 37
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1019,
-      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
