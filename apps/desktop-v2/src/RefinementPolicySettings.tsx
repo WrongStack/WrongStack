@@ -1,6 +1,7 @@
 import { LoaderCircle, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { refinementText } from './composer-model';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -19,6 +20,7 @@ export function RefinementPolicySettings({
   change: (key: string, value: unknown) => void;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
   const [models, setModels] = useState<{ provider: string; model: string }[]>([]),
     [catalogError, setCatalogError] = useState('');
   const [sample, setSample] = useState(''),
@@ -53,9 +55,7 @@ export function RefinementPolicySettings({
         if (current === generation.current) {
           setModels(results.flatMap((value) => (value.status === 'fulfilled' ? value.value : [])));
           if (results.some((value) => value.status === 'rejected'))
-            setCatalogError(
-              'Some saved model catalogs are unavailable. Existing and custom model IDs remain editable.',
-            );
+            setCatalogError(t('refinePolicy.catalogError'));
         }
       })
       .catch((error) => {
@@ -66,7 +66,7 @@ export function RefinementPolicySettings({
       generation.current++;
       previewGeneration.current++;
     };
-  }, [command]);
+  }, [command, t]);
   const savedRouteKey = JSON.stringify([
     refinerRoute(saved),
     record(saved['fallbackProfiles'])[String(saved['refinerFallbackProfile'] ?? '')],
@@ -106,81 +106,75 @@ export function RefinementPolicySettings({
     }
   };
   return (
-    <section className="refinement-policy" aria-label="Prompt refinement policy">
+    <section className="refinement-policy" aria-label={t('refinePolicy.label')}>
       <article>
         <header>
           <Sparkles size={21} />
           <div>
-            <span className="eyebrow">BEFORE A MESSAGE</span>
-            <h3>Refinement behavior</h3>
+            <span className="eyebrow">{t('refinePolicy.eyebrow')}</span>
+            <h3>{t('refinePolicy.title')}</h3>
           </div>
         </header>
         <label className="refinement-policy-toggle">
           <span>
-            <strong>Review refinement on submit</strong>
-            <small>
-              Open the refinement review when submitting a prompt. You still choose whether to apply
-              or send a version.
-            </small>
+            <strong>{t('refinePolicy.reviewOnSubmit')}</strong>
+            <small>{t('refinePolicy.reviewOnSubmitHelp')}</small>
           </span>
           <input
             type="checkbox"
-            aria-label="Review refinement on submit"
+            aria-label={t('refinePolicy.reviewOnSubmit')}
             checked={draft['enhanceEnabled'] === true}
             onChange={(event) => change('enhanceEnabled', event.target.checked)}
           />
         </label>
         <label>
-          Preferred refinement language
+          {t('refinePolicy.language')}
           <select
-            aria-label="Preferred refinement language"
+            aria-label={t('refinePolicy.language')}
             value={String(draft['enhanceLanguage'] ?? 'original')}
             onChange={(event) => change('enhanceLanguage', event.target.value)}
           >
-            <option value="original">Keep original language</option>
-            <option value="english">English</option>
+            <option value="original">{t('refinePolicy.keepOriginal')}</option>
+            <option value="english">{t('refinePolicy.english')}</option>
           </select>
         </label>
-        <p>Choose a version, edit it if needed, then approve when you are ready to send.</p>
+        <p>{t('refinePolicy.chooseNote')}</p>
       </article>
       <article>
-        <h3>Dedicated refiner route</h3>
-        <p>
-          A named profile takes precedence. Prompt refinement uses its first configured candidate;
-          explicit provider/model fields are used when no profile candidate is selected. Empty
-          fields inherit the active runtime’s provider or model.
-        </p>
+        <h3>{t('refinePolicy.routeTitle')}</h3>
+        <p>{t('refinePolicy.routeIntro')}</p>
         <label>
-          Named refiner profile
+          {t('refinePolicy.profile')}
           <select
-            aria-label="Named refiner profile"
+            aria-label={t('refinePolicy.profile')}
             value={selected}
             onChange={(event) => change('refinerFallbackProfile', event.target.value)}
           >
-            <option value="">No named profile</option>
+            <option value="">{t('refinePolicy.noProfile')}</option>
             {Object.keys(profiles).map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
             ))}
             {selected && !Object.hasOwn(profiles, selected) && (
-              <option value={selected}>{selected} · unavailable</option>
+              <option value={selected}>{t('refinePolicy.unavailable', { name: selected })}</option>
             )}
           </select>
         </label>
         {selected && (
           <p>
-            Profile candidates:{' '}
+            {t('refinePolicy.candidates')}{' '}
             {Array.isArray(profiles[selected])
-              ? (profiles[selected] as unknown[]).map(String).join(' → ') || 'Empty profile'
-              : 'Unavailable profile; configure it under Fallbacks & agent defaults.'}
+              ? (profiles[selected] as unknown[]).map(String).join(' → ') ||
+                t('refinePolicy.emptyProfile')
+              : t('refinePolicy.unavailableProfile')}
           </p>
         )}
         {catalogError && <p role="status">{catalogError}</p>}
         <label>
-          Saved refiner model
+          {t('refinePolicy.savedModel')}
           <select
-            aria-label="Saved refiner model"
+            aria-label={t('refinePolicy.savedModel')}
             value=""
             onChange={(event) => {
               const choice = models[Number(event.target.value)];
@@ -190,7 +184,7 @@ export function RefinementPolicySettings({
               }
             }}
           >
-            <option value="">Choose from saved catalogs…</option>
+            <option value="">{t('refinePolicy.chooseSaved')}</option>
             {models.map((entry, index) => (
               <option value={index} key={index}>
                 {entry.provider}/{entry.model}
@@ -200,46 +194,39 @@ export function RefinementPolicySettings({
         </label>
         <div className="refinement-route-fields">
           <label>
-            Explicit refiner provider
+            {t('refinePolicy.provider')}
             <input
-              aria-label="Explicit refiner provider"
+              aria-label={t('refinePolicy.provider')}
               value={String(draft['refinerProvider'] ?? '')}
-              placeholder="Inherit active provider"
+              placeholder={t('refinePolicy.inheritProvider')}
               onChange={(event) => change('refinerProvider', event.target.value)}
             />
           </label>
           <label>
-            Explicit refiner model
+            {t('refinePolicy.model')}
             <input
-              aria-label="Explicit refiner model"
+              aria-label={t('refinePolicy.model')}
               value={String(draft['refinerModel'] ?? '')}
-              placeholder="Inherit active model"
+              placeholder={t('refinePolicy.inheritModel')}
               onChange={(event) => change('refinerModel', event.target.value)}
             />
           </label>
         </div>
-        <p>
-          Goals and missions can walk additional configured candidates. An unavailable dedicated
-          provider can fall back to the active runtime. The preview below identifies the provider
-          and model actually used.
-        </p>
+        <p>{t('refinePolicy.routeNote')}</p>
       </article>
       <article>
-        <h3>Try the saved refiner</h3>
-        <p>
-          Send a sample to the saved model and inspect the returned text. This does not submit a
-          chat message or create a conversation.
-        </p>
+        <h3>{t('refinePolicy.tryTitle')}</h3>
+        <p>{t('refinePolicy.tryIntro')}</p>
         <label>
-          Sample prompt
+          {t('refinePolicy.sample')}
           <textarea
             rows={3}
-            aria-label="Refiner sample prompt"
+            aria-label={t('refinePolicy.sampleLabel')}
             value={sample}
             onChange={(event) => setSample(event.target.value)}
           />
         </label>
-        {pending && <p>Save route changes before trying the refiner.</p>}
+        {pending && <p>{t('refinePolicy.saveFirst')}</p>}
         <button
           type="button"
           className="button secondary"
@@ -247,7 +234,7 @@ export function RefinementPolicySettings({
           onClick={() => void preview()}
         >
           {busy ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} />}
-          {busy ? 'Refining sample…' : 'Preview with saved refiner'}
+          {busy ? t('refinePolicy.refining') : t('refinePolicy.preview')}
         </button>
         {error && (
           <p role="alert" className="session-error">
@@ -255,18 +242,24 @@ export function RefinementPolicySettings({
           </p>
         )}
         {result && (
-          <section aria-label="Saved refiner preview">
+          <section aria-label={t('refinePolicy.previewLabel')}>
             <p>
-              Used {String(record(result['refinedWith'])['provider'] ?? 'unreported provider')} /{' '}
-              {String(record(result['refinedWith'])['model'] ?? 'unreported model')}
+              {t('refinePolicy.used', {
+                provider: String(
+                  record(result['refinedWith'])['provider'] ?? t('refinePolicy.unreportedProvider'),
+                ),
+                model: String(
+                  record(result['refinedWith'])['model'] ?? t('refinePolicy.unreportedModel'),
+                ),
+              })}
             </p>
             <div className="refinement-preview-columns">
               <div>
-                <h4>Original-language refinement</h4>
+                <h4>{t('refinePolicy.originalRefinement')}</h4>
                 <MarkdownContent text={String(result['refined'] ?? '')} />
               </div>
               <div>
-                <h4>English version</h4>
+                <h4>{t('refinePolicy.englishVersion')}</h4>
                 <MarkdownContent text={String(result['english'] ?? '')} />
               </div>
             </div>

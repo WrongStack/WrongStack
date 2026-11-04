@@ -8163,3 +8163,17 @@ copies, starting with SAGE memory.
 - Checks: new `availability-services-i18n.test.ts` renders an allow window and a service list
   and words an invalid window in English and Turkish; desktop tests pass (PASSED); typecheck
   clean.
+
+### Refinement, limits and cost tier settings in the display language (2026-11-04)
+
+- The prompt refinement policy with its route, saved refiner preview and sample
+  (`refinePolicy`), the context, output and worker budget limits (`limitsPolicy`), and the cost
+  tiers with their budgets, role and phase routes and leader switching (`tierPolicy`) follow
+  the display language in all seven languages.
+- The leader switching options now carry their ids as option values, so a translated label
+  never becomes the saved value.
+- Still English by design: the limit explanations and ranges from the shared limits contract,
+  tier, route and profile names, and provider and model ids.
+- Checks: new `refine-limits-i18n.test.ts` renders the three panels with a missing refiner
+  profile and a tier in English and Turkish and checks the saved option value; desktop tests
+  pass (PASSED); typecheck clean.
