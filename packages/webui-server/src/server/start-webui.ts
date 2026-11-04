@@ -227,6 +227,7 @@ export async function startWebUI(
     // it just resolves to `undefined` and the API router answers 503.
     getVectorMemoryStore: () => vectorMemoryStore,
     vectorMemoryModelCacheDir,
+    getMemoryStore: () => memoryStore,
     // The browser must not fetch HQ directly: HQ correctly rejects a foreign
     // Origin. Read the live metadata so a settings change is visible before
     // its asynchronous config write completes.

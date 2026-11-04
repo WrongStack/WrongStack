@@ -8477,3 +8477,24 @@ copies, starting with SAGE memory.
   before the editor's loader, uses five file workers and that the policy allows no `blob:`
   scripts or workers; native release `--files` scope PASSED on the rebuilt portable with no
   renderer errors (10 steps).
+
+### Ranked SAGE search answers on every host (2026-11-04)
+
+- Defect (found by the rewritten native SAGE scenario): the shared SAGE library's ranked
+  results ("Ranked SAGE results") never loaded on the desktop, for two reasons.
+  - The native HTTP bridge adds the selected session to every engine API request, and the
+    ranked memory search and vector memory search refuse any `sessionId` (they always apply
+    the non-session visibility policy and reject a selector they cannot honour, on purpose).
+    The desktop showed "Unsupported search parameter: sessionId".
+  - The HTTP API router reads the SAGE store for `/api/memory/search-page`,
+    `/api/memory/resolve` and `/api/memory/search` from `getMemoryStore`, but no host passed it,
+    so those routes answered 503 "SAGE search unavailable" on the desktop and in the WebUI alike.
+- Fix: the bridge adds no session selector to those two searches (a caller's own selector is
+  still dropped); `getMemoryStore` is part of the HTTP server options, settled for both hosts in
+  `resolveCreateHttpServerOptions`, and both the standalone WebUI and the CLI-embedded host
+  pass the same store the WebSocket memory routes use.
+- Checks: new bridge test `adds_no_session_selector_to_searches_that_refuse_one` (7/7 bridge
+  tests pass); the options parity test now requires `getMemoryStore` from both hosts; the
+  memory search, router, static-serve and start wiring tests pass (74); webui-server and cli
+  typecheck clean; on the rebuilt native release portable the SAGE scenario's ranked retrieval
+  and the Memory recover step PASSED.

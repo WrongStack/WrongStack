@@ -533,6 +533,8 @@ export function startHttpServer(opts: {
     | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /** The SAGE memory store behind the ranked memory search routes. */
+  getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
   /** Extra `connect-src` origins for the served page (HQ / WrongProxy probes). */
   getExtraConnectSrc?: (() => readonly string[]) | undefined;
   /** Resolves the configured target for fixed, same-origin integration probes. */
@@ -582,6 +584,7 @@ export function startHttpServer(opts: {
       getIntegrationTarget: opts.getIntegrationTarget,
       getVectorMemoryStore: opts.getVectorMemoryStore,
       vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir,
+      getMemoryStore: opts.getMemoryStore,
     }),
   );
   return httpServer;

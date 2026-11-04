@@ -180,6 +180,11 @@ export interface CreateHttpServerOptions {
     | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /**
+   * The project's SAGE memory store for the ranked `/api/memory/search-page`, `/api/memory/resolve`
+   * and `/api/memory/search` routes. When omitted, those routes answer 503.
+   */
+  getMemoryStore?: (() => import('@wrongstack/contracts/types').MemoryPort | undefined) | undefined;
 }
 
 /**
@@ -241,6 +246,7 @@ export function resolveCreateHttpServerOptions(
     intakeService: input.intakeService,
     getVectorMemoryStore: input.getVectorMemoryStore,
     vectorMemoryModelCacheDir: input.vectorMemoryModelCacheDir,
+    getMemoryStore: input.getMemoryStore,
   };
 }
 

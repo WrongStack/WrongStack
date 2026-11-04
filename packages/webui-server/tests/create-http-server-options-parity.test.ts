@@ -79,6 +79,8 @@ describe('startStaticServe / startHttpServer → createHttpServer key parity', (
       'executePackageOperation',
       'secureCookies',
       'enableWsCookie',
+      // Without it the ranked SAGE search routes answered 503 on every host.
+      'getMemoryStore',
     ]) {
       expect(fromStatic).toContain(key);
     }

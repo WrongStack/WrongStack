@@ -97,6 +97,8 @@ export async function startWebuiHttpBridge(input: WebuiHttpBridgeInput) {
         : undefined;
     },
     ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
+    // The same SAGE store the WebSocket memory routes use, for the ranked HTTP search.
+    ...(opts.memoryStore ? { getMemoryStore: () => opts.memoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
       : {}),
