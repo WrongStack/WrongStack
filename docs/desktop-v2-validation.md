@@ -7934,3 +7934,27 @@ copies, starting with SAGE memory.
   - WebUI completion tests pass through the re-export (21).
   - Desktop tests pass (920); typecheck clean for desktop, WebUI and project-surfaces; a
     production build places Monaco in its own lazy chunks with its workers and icon font.
+
+### Conversation collaboration bar (2026-11-04)
+
+- A conversation's Activity view now carries the WebUI's collaboration bar: who is watching
+  the run, joining as an observer, annotator or controller, the open note count, pause and
+  resume, handing control to another participant, and injecting a result for a running tool
+  call (the calls still running are offered as targets).
+- The panel moved to `@wrongstack/project-surfaces/collab/CollabPanel` with the `collab.*`
+  types (`collab/types`); the WebUI component is a wrapper on its WebSocket and chat store, and
+  its lane disposal clears the parked panel state through `forgetCollabSession`. Wording comes
+  from the shared `activity:collab.*` catalog in all seven languages.
+- Desktop transport (`session-collab-model.ts`): requests go out on the conversation's engine;
+  replies are read from its journal reader, and only frames stamped after the bar opened reach
+  it, so a replayed history never shows an earlier run's participants. A request the engine
+  refuses reaches the bar as a collaboration error.
+- The engine decides the roles: without a role authorizer, which neither the WebUI server nor
+  the desktop engine configures, annotator and controller are refused and the bar shows the
+  engine's reason. While joined, the engine mirrors the run as `collab.event` frames, which the
+  conversation journal records.
+- Checks:
+  - New `session-collab.test.ts`: live-only frames and refusals, running tool calls as
+    targets, and the shared panel joining as an observer and showing the participant in jsdom.
+  - WebUI dock inspector, collab handler and slash routing tests pass (264).
+  - Desktop tests pass (923); typecheck clean for desktop, WebUI and project-surfaces.

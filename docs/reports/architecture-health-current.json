@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T16:51:59.935Z",
+  "generatedAt": "2026-11-04T17:02:58.289Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5993,
-    "testFiles": 4979,
-    "sourceLines": 1247038,
+    "sourceFiles": 5997,
+    "testFiles": 4980,
+    "sourceLines": 1247213,
     "workspaceEdges": 240,
-    "moduleEdges": 17517,
+    "moduleEdges": 17526,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 242,
+    "testsWithoutTypecheck": 243,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 429,
-      "testFiles": 242,
+      "sourceFiles": 431,
+      "testFiles": 243,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -737,7 +737,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 243,
+      "sourceFiles": 245,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -2541,6 +2541,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-browser.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-collab.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32627,6 +32633,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/session-collab.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/session-identity.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33472,6 +33485,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/SessionCollab.tsx",
+      "specifier": "./surfaces.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/SessionComposer.tsx",
       "specifier": "./composer.css",
       "syntax": "import"
@@ -34108,12 +34126,12 @@
       "relativeImports": 4
     },
     {
-      "file": "apps/desktop-v2/src/useDesktop.ts",
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
       "lines": 700,
-      "relativeImports": 9
+      "relativeImports": 45
     },
     {
-      "file": "packages/coordination/src/fleet-manager.ts",
+      "file": "apps/desktop-v2/src/useDesktop.ts",
       "lines": 700,
       "relativeImports": 9
     }

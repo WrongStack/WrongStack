@@ -9,7 +9,7 @@ import {
   Wrench,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { type ReactNode, Suspense, useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
@@ -39,12 +39,15 @@ export function SessionActivity({
   onOpenFile,
   compact = false,
   command,
+  collab,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
   compact?: boolean;
   /** The conversation's engine, to show the pictures an `image_generate` call saved. */
   command?: EngineCommand | undefined;
+  /** The conversation's collaboration bar, shown under the full run log's header. */
+  collab?: ReactNode;
 }) {
   const { t } = useDesktopText();
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
@@ -78,6 +81,7 @@ export function SessionActivity({
           </nav>
         </header>
       )}
+      {!compact && collab && <Suspense fallback={null}>{collab}</Suspense>}
       {!shown.length && (
         <p className="quiet-state">{rows.length ? t('runLog.noMatch') : t('runLog.empty')}</p>
       )}

@@ -198,3 +198,7 @@
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
+/* The collaboration bar sits under the run log's header, above its rows. */
+.session-collab {
+  margin: 0 0 12px;
+}

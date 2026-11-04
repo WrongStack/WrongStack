@@ -66,6 +66,7 @@ const SessionPlanTemplates = lazy(() =>
 const SessionUsage = lazy(() =>
   import('./SessionUsage').then((module) => ({ default: module.SessionUsage })),
 );
+const SessionCollab = lazy(() => import('./SessionCollab'));
 const SessionStory = lazy(() =>
   import('./SessionStory').then((module) => ({ default: module.SessionStory })),
 );
@@ -660,7 +661,12 @@ export function EngineWorkspace({
           }}
         />
       ) : tab === 'activity' ? (
-        <SessionActivity events={state.activity} command={command} onOpenFile={openFile} />
+        <SessionActivity
+          events={state.activity}
+          command={command}
+          onOpenFile={openFile}
+          collab={<SessionCollab id={id} state={state} />}
+        />
       ) : tab === 'skills' || tab === 'files' || tab === 'changes' ? (
         <ProjectSessionTools
           projectId={projectId}
