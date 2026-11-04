@@ -178,6 +178,20 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         return;
       try {
         const primaryProvider = await deps.buildProvider(primary.providerId, primary.model);
+        if (
+          !evaluateModelCalendar(
+            cfg.modelAvailabilitySchedule,
+            [
+              ...new Set([
+                ...providerIdentities(primaryProvider),
+                ...configuredProviderIdentities(cfg.providers, primary.providerId),
+              ]),
+            ],
+            primary.model,
+          ).allowed
+        ) {
+          return;
+        }
         // A fallback can safely carry a larger history than the recovered
         // primary. Do this check *after* building the target provider so its
         // own, model-specific maxContext is authoritative. This mirrors the
@@ -401,8 +415,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         }
 
         if (
-          !alreadyTracked &&
-          shouldFallback(firstErr_) !== null &&
+          (alreadyTracked || shouldFallback(firstErr_) !== null) &&
           sameTarget(selectedPrimary(cfg), current)
         ) {
           markPrimaryFailure(cfg);

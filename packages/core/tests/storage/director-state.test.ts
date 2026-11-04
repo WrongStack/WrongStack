@@ -2,7 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DirectorStateCheckpoint, loadDirectorState } from '../../src/storage/director-state.js';
+import {
+  acquireDirectorStateLock,
+  DirectorStateCheckpoint,
+  loadDirectorState,
+} from '../../src/storage/director-state.js';
 
 describe('director-state checkpoint', () => {
   it('records spawns and writes to disk', async () => {
@@ -286,6 +290,20 @@ describe('director-state checkpoint', () => {
       // If debounce works, we get the final spawnCount=10 in a single write
       const loaded = await loadDirectorState(file);
       expect(loaded?.spawnCount).toBe(10);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('serializes concurrent acquireDirectorStateLock calls so only one caller acquires (F965)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-dstate-'));
+    try {
+      const lockPath = path.join(dir, 'director-state.json.lock');
+      const [r1, r2] = await Promise.all([
+        acquireDirectorStateLock(lockPath, process.pid),
+        acquireDirectorStateLock(lockPath, process.pid),
+      ]);
+      expect(r1 !== r2).toBe(true);
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }

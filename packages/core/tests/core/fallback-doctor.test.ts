@@ -238,5 +238,34 @@ describe('FallbackDoctor', () => {
       expect(skipped?.reason).toContain('Quarantined');
       expect(result.finalTarget).toEqual({ providerId: 'google', model: 'gemini-2.0-flash' });
     });
+
+    it('includes fallthrough profile candidates when explicit fallbackModels are quarantined and honors modelContextLimitMap (F962)', () => {
+      const cfg = {
+        provider: 'anthropic',
+        model: 'claude-3-7-sonnet',
+        fallbackModels: ['openai/gpt-4o'],
+        fallbackProfile: 'backup',
+        fallbackProfiles: {
+          backup: ['google/gemini-2.5-pro'],
+        },
+        providers: {
+          anthropic: { apiKey: 'k1', models: ['claude-3-7-sonnet'] },
+          openai: { apiKey: 'k2', models: ['gpt-4o'] },
+          google: { apiKey: 'k3', models: ['gemini-2.5-pro'] },
+        },
+      } as unknown as Config;
+      const tracker = quarantined(new Set(['openai/gpt-4o']));
+
+      const diag = diagnoseFallbackConfig(cfg, tracker);
+      expect(diag.status).not.toBe('critical');
+      expect(diag.effectiveOrder).toContain('google/gemini-2.5-pro');
+
+      const sim = simulateFallbackFailover(cfg, {
+        errorKind: 'rate_limit',
+        currentTokens: 200_000,
+        modelContextLimitMap: { 'gpt-4o': 128_000 },
+      });
+      expect(sim.steps.find((s) => s.model === 'gpt-4o')?.skipped).toBe(true);
+    });
   });
 });

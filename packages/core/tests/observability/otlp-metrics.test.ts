@@ -267,4 +267,33 @@ describe('startOtlpMetricsExporter', () => {
       afterStop,
     );
   });
+
+  it('stop() awaits any in-flight flush() before resolving', async () => {
+    vi.useRealTimers();
+    try {
+      const sink = new InMemoryMetricsSink();
+      let flushFinished = false;
+      let callCount = 0;
+      const fetchImpl = vi.fn(async () => {
+        const idx = ++callCount;
+        await new Promise((r) => setTimeout(r, idx === 1 ? 40 : 5));
+        if (idx === 1) flushFinished = true;
+        return new Response('', { status: 200 });
+      }) as never as typeof globalThis.fetch;
+
+      const exp = startOtlpMetricsExporter({
+        sink,
+        endpoint: 'http://collector:4318',
+        intervalMs: 60_000,
+        fetchImpl,
+      });
+
+      const p = exp.flush();
+      await exp.stop();
+      expect(flushFinished).toBe(true);
+      await p;
+    } finally {
+      vi.useFakeTimers();
+    }
+  });
 });

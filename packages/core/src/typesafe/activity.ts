@@ -158,11 +158,18 @@ function recordedContent(value: unknown, secrets: readonly string[]): unknown {
   for (const secret of secrets) {
     // A short "secret" is an ordinary word far more often than a credential,
     // and replacing it would corrupt every record to protect nothing.
-    if (secret.length >= 8) text = text.split(secret).join('[redacted]');
+    if (secret.length >= 8) {
+      const escaped = JSON.stringify(secret).slice(1, -1);
+      text = text.split(escaped).join('[redacted]').split(secret).join('[redacted]');
+    }
   }
   if (text.length > CONTENT_MAX_CHARS)
     return `[truncated: ${text.length} chars, limit ${CONTENT_MAX_CHARS}]`;
-  return JSON.parse(text);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return '[unserializable]';
+  }
 }
 
 export function observeJevClient(

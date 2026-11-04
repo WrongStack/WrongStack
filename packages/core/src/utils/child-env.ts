@@ -144,32 +144,63 @@ function valueHasHeaderCredential(value: string): boolean {
 const NODE_OPTIONS_INJECTION_FLAG = /^(?:--require|-r|--import|--loader|--experimental-loader)$/;
 const NODE_OPTIONS_INJECTION_FLAG_EQ = /^(?:--require|-r|--import|--loader|--experimental-loader)=/;
 
+function tokenizeNodeOptions(value: string): Array<{ raw: string; unquoted: string }> {
+  const tokens: Array<{ raw: string; unquoted: string }> = [];
+  let i = 0;
+  while (i < value.length) {
+    while (i < value.length && /\s/.test(value[i]!)) i++;
+    if (i >= value.length) break;
+    const start = i;
+    let inQuotes = false;
+    let unquoted = '';
+    while (i < value.length) {
+      const ch = value[i]!;
+      if (!inQuotes && /\s/.test(ch)) break;
+      if (ch === '\\' && value[i + 1] === '"') {
+        unquoted += '"';
+        i += 2;
+        continue;
+      }
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+        i++;
+        continue;
+      }
+      unquoted += ch;
+      i++;
+    }
+    tokens.push({ raw: value.slice(start, i), unquoted });
+  }
+  return tokens;
+}
+
 /**
  * Strip module-preload directives from a `NODE_OPTIONS` value while preserving
  * benign flags (`--no-warnings`, `--max-old-space-size=…`, etc.). Handles both
- * the `--require=./x.js` and space-separated `--require ./x.js` forms. Returns
- * the sanitized string (possibly empty).
+ * the `--require=./x.js`, `-r./x.js`, quoted, and space-separated `--require ./x.js`
+ * forms. Returns the sanitized string (possibly empty).
  */
 export function sanitizeNodeOptions(value: string): string {
-  const tokens = value.split(/\s+/).filter(Boolean);
+  const tokens = tokenizeNodeOptions(value);
   const kept: string[] = [];
   for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i] as string;
+    const tok = tokens[i]!;
+    const unquoted = tok.unquoted;
     // Node treats `_` and `-` as interchangeable in an option NAME
     // (`--experimental_loader` ≡ `--experimental-loader`), so classify on the
     // normalized name or the underscore spelling slips past the blocklist.
-    const eq = tok.indexOf('=');
-    const name = (eq === -1 ? tok : tok.slice(0, eq)).replace(/_/g, '-');
-    const normalized = eq === -1 ? name : name + tok.slice(eq);
-    if (NODE_OPTIONS_INJECTION_FLAG_EQ.test(normalized)) continue; // --require=./x
+    const eq = unquoted.indexOf('=');
+    const name = (eq === -1 ? unquoted : unquoted.slice(0, eq)).replace(/_/g, '-');
+    const normalized = eq === -1 ? name : name + unquoted.slice(eq);
+    if (NODE_OPTIONS_INJECTION_FLAG_EQ.test(normalized) || /^-r.+/.test(unquoted)) continue;
     if (NODE_OPTIONS_INJECTION_FLAG.test(normalized)) {
       const next = tokens[i + 1];
-      if (next && !next.startsWith('-')) {
-        i++; // also drop the following path token (--require ./x)
+      if (next && !next.unquoted.startsWith('-')) {
+        i++; // also drop the following path token (--require ./x or --require "./a b/x")
       }
       continue;
     }
-    kept.push(tok);
+    kept.push(tok.raw);
   }
   return kept.join(' ');
 }

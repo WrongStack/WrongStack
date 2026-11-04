@@ -451,5 +451,66 @@ describe('NotifierImpl', () => {
         suppressed: 0,
       });
     });
+
+    it('deduplicates duplicate channel names in notify() and preserves active channel counters on eviction', async () => {
+      let calls = 0;
+      notifier.registerChannel({
+        name: 'dup-ch',
+        type: 'webhook',
+        async deliver() {
+          calls++;
+          return { ok: true, channel: 'dup-ch', deliveredAt: 'now' };
+        },
+        async ping() {
+          return { ok: true };
+        },
+      });
+      const res = await notifier.notify(['dup-ch', 'dup-ch'], SAMPLE_MSG);
+      expect(res).toHaveLength(1);
+      expect(calls).toBe(1);
+
+      for (let i = 0; i < 105; i++) {
+        notifier.registerChannel(
+          mockChannel(`temp-${i}`, 'webhook', {
+            ok: true,
+            channel: `temp-${i}`,
+            deliveredAt: 'now',
+          }),
+        );
+        notifier.unregisterChannel(`temp-${i}`);
+      }
+      expect(notifier.perChannelCounters()['dup-ch']?.delivered).toBe(1);
+    });
+
+    it('keeps a registered channel counters when every soft-cap slot is registered (F971)', async () => {
+      for (let i = 0; i < 100; i++) {
+        notifier.registerChannel(
+          mockChannel(`cap-${i}`, 'webhook', {
+            ok: true,
+            channel: `cap-${i}`,
+            deliveredAt: 'now',
+          }),
+        );
+      }
+      await notifier.notify('cap-0', SAMPLE_MSG);
+
+      // No unregistered victim exists: the soft cap must yield instead of
+      // deleting a live channel's delivery history.
+      notifier.registerChannel(
+        mockChannel('overflow', 'webhook', {
+          ok: true,
+          channel: 'overflow',
+          deliveredAt: 'now',
+        }),
+      );
+
+      expect(notifier.perChannelCounters()['cap-0']?.attempted).toBe(1);
+      expect(notifier.counters().attempted).toBe(1);
+      expect(notifier.perChannelCounters()['overflow']).toEqual({
+        attempted: 0,
+        delivered: 0,
+        failed: 0,
+      });
+    });
   });
 });

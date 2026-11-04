@@ -35,6 +35,7 @@ import type { SessionSummary } from '@wrongstack/contracts/types/session';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
+import { shouldSkipSessionDirectoryEntry } from './session-store/directory-scan.js';
 import { summarizeSessionFile } from './session-store/summary-builder.js';
 
 /** Lifecycle boundaries, in the order a healthy session writes them. */
@@ -152,12 +153,15 @@ const TYPE_PROBE_CHARS = 200;
  * one of them exhausts the heap on a multi-hundred-MB journal.
  */
 function readEventType(line: string): string | null {
-  if (line.length === 0 || line[0] !== '{') return null;
-  const fast = TYPE_RE.exec(line.slice(0, TYPE_PROBE_CHARS));
+  const trimmed = line.trimEnd();
+  if (trimmed.length < 2 || trimmed[0] !== '{' || trimmed[trimmed.length - 1] !== '}') {
+    return null;
+  }
+  const fast = TYPE_RE.exec(trimmed.slice(0, TYPE_PROBE_CHARS));
   if (fast?.[1]) return fast[1];
   // Rare: a big leading field pushed `"type"` past the window. Scanning the
   // whole line is linear and allocates only the match.
-  return line.length > TYPE_PROBE_CHARS ? (TYPE_RE.exec(line)?.[1] ?? null) : null;
+  return trimmed.length > TYPE_PROBE_CHARS ? (TYPE_RE.exec(trimmed)?.[1] ?? null) : null;
 }
 
 function severityRank(diagnosis: SessionDiagnosis): number {
@@ -177,8 +181,8 @@ async function collectJournals(sessionsDir: string): Promise<Array<{ id: string;
     return out;
   }
   for (const day of days) {
-    // `_cas`, `_trash` and friends are stores, not shards.
-    if (day.startsWith('_')) continue;
+    // `_cas`, `_trash`, `shared`, `subagents`, and `.`-prefixed directories are stores, not shards.
+    if (day.startsWith('_') || shouldSkipSessionDirectoryEntry(day)) continue;
     let names: string[];
     try {
       names = await fsp.readdir(path.join(sessionsDir, day));

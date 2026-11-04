@@ -201,5 +201,28 @@ describe('InputHistoryStore', () => {
       await a.save(['x']);
       expect(await new InputHistoryStore(file, fakeScrubber).load()).toEqual(['x']);
     });
+
+    it('preserves merged foreign entry ordering on subsequent saves and resets tracking on clear (F966)', async () => {
+      const a = new InputHistoryStore(file, fakeScrubber);
+      const b = new InputHistoryStore(file, fakeScrubber);
+      await a.save(['initial']);
+      await b.load();
+      await b.save(['foreign-b1', 'initial']);
+      await a.save(['local-a1', 'initial']);
+      await a.save(['local-a2', 'local-a1', 'initial']);
+      expect(await new InputHistoryStore(file, fakeScrubber).load()).toEqual([
+        'local-a2',
+        'local-a1',
+        'foreign-b1',
+        'initial',
+      ]);
+
+      await a.clear();
+      await b.save(['foreign-after-clear']);
+      await a.save(['local-after-clear']);
+      expect(await new InputHistoryStore(file, fakeScrubber).load()).toContain(
+        'foreign-after-clear',
+      );
+    });
   });
 });

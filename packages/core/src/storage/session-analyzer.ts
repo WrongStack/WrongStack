@@ -114,7 +114,8 @@ export class SessionAnalyzer {
   query(events: SessionEvent[], filter: QueryFilter): SessionEvent[] {
     return events.filter((e) => {
       if (filter.eventTypes?.length && !filter.eventTypes.includes(e.type)) return false;
-      if (filter.toolNames?.length && e.type === 'tool_use') {
+      if (filter.toolNames?.length) {
+        if (e.type !== 'tool_use') return false;
         const toolEvent = e as { type: 'tool_use'; name: string };
         if (!filter.toolNames.includes(toolEvent.name)) return false;
       }

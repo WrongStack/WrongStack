@@ -291,6 +291,26 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('treats search limits as a maximum count, never as a negative slice (F976)', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-limit-'));
+    try {
+      for (let i = 0; i < 3; i++) {
+        await recordPromptJournalEntry({
+          projectRoot: tempDir,
+          sessionId: 'sess_limit',
+          category: 'raw_user',
+          content: `prompt ${i}`,
+        });
+      }
+      expect(await getPromptJournalEntries(tempDir)).toHaveLength(3);
+      expect(await getPromptJournalEntries(tempDir, { limit: 2 })).toHaveLength(2);
+      expect(await getPromptJournalEntries(tempDir, { limit: 0 })).toHaveLength(0);
+      expect(await getPromptJournalEntries(tempDir, { limit: -1 })).toHaveLength(0);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 vi.mock('node:fs/promises', async (importOriginal) => ({

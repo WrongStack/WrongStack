@@ -29,6 +29,7 @@ interface ExtensionRegistration {
   extension: AgentExtension;
   order: number;
   previous?: ExtensionRegistration;
+  replacedBy?: ExtensionRegistration;
   removed?: boolean;
 }
 export class ExtensionRegistry implements ExtensionRegistryPort {
@@ -114,10 +115,17 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
     return () => {
       if (registration.removed) return;
       registration.removed = true;
-      if (this.registrations.get(ext.name) !== registration) return;
-      const index = this.extensions.indexOf(ext);
+      let active: ExtensionRegistration = registration;
+      if (registration.previous) {
+        while (active.replacedBy && !active.replacedBy.removed) {
+          active = active.replacedBy;
+          active.removed = true;
+        }
+      }
+      if (this.registrations.get(ext.name) !== active) return;
+      const index = this.extensions.indexOf(active.extension);
       if (index >= 0) this.extensions.splice(index, 1);
-      let previous = registration.previous;
+      let previous = active.previous ?? registration.previous;
       while (previous?.removed) previous = previous.previous;
       if (previous) {
         this.registrations.set(ext.name, previous);
@@ -140,15 +148,24 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
    * with the same name. Use this when overriding a default extension.
    */
   registerOrReplace(ext: AgentExtension): () => void {
+    const existing = this.registrations.get(ext.name);
     const idx = this.extensions.findIndex((e) => e.name === ext.name);
     if (idx >= 0) this.extensions.splice(idx, 1);
-    return this.register(ext);
+    const dispose = this.register(ext);
+    const registration = this.registrations.get(ext.name)!;
+    if (existing?.previous) {
+      existing.replacedBy = registration;
+      registration.previous = existing.previous;
+    }
+    return dispose;
   }
 
   /** Temporarily replace an extension; cleanup restores only surviving previous registrations. */
   registerOrReplaceScoped(ext: AgentExtension): () => void {
     const previous = this.registrations.get(ext.name);
-    const dispose = this.registerOrReplace(ext);
+    const idx = this.extensions.findIndex((e) => e.name === ext.name);
+    if (idx >= 0) this.extensions.splice(idx, 1);
+    const dispose = this.register(ext);
     const registration = this.registrations.get(ext.name)!;
     if (previous) registration.previous = previous;
     return dispose;
@@ -161,6 +178,11 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
     const idx = this.extensions.findIndex((e) => e.name === name);
     if (idx === -1) return false;
     this.extensions.splice(idx, 1);
+    let current = this.registrations.get(name);
+    while (current) {
+      current.removed = true;
+      current = current.previous;
+    }
     this.registrations.delete(name);
     return true;
   }

@@ -319,4 +319,14 @@ describe('configureChildEnvGitIdentity', () => {
     configureChildEnvGitIdentity({ name: ' Alt Name ', email: ' alt@example.com ' });
     expect(getChildEnvGitIdentity()).toEqual({ name: 'Alt Name', email: 'alt@example.com' });
   });
+
+  it('strips attached -r<path>, quoted flags, and quoted path args with spaces from NODE_OPTIONS (F960)', () => {
+    process.env = {
+      PATH: '/usr/bin',
+      NODE_OPTIONS:
+        '-r./evil.js "--require=/tmp/bad.js" --require "/tmp/my dir/evil.js" --max-old-space-size=4096',
+    };
+    const env = buildChildEnv();
+    expect(env.NODE_OPTIONS).toBe('--max-old-space-size=4096');
+  });
 });

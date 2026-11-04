@@ -39,6 +39,8 @@ export class InputHistoryStore {
   private readonly known = new Set<string>();
   /** The list this instance last loaded or saved — its "new" entries are the rest. */
   private lastSaved = new Set<string>();
+  /** Full merged list from the last load or save, preserving foreign entry positions. */
+  private lastPersisted: string[] = [];
 
   /**
    * @param file Absolute path to the per-project input-history.json.
@@ -59,6 +61,7 @@ export class InputHistoryStore {
     const entries = await this.readEntries();
     for (const entry of entries) this.known.add(entry);
     this.lastSaved = new Set(entries);
+    this.lastPersisted = [...entries];
     return entries;
   }
 
@@ -107,21 +110,28 @@ export class InputHistoryStore {
   async save(entries: string[]): Promise<void> {
     await ensureDir(path.dirname(this.file));
     await withFileLock(this.file, async () => {
-      const foreign = (await this.readEntries(true)).filter(
-        (entry) => !this.known.has(entry) && !entries.includes(entry),
-      );
-      // Newest first: this instance's new prompts, then the other instance's,
-      // then the rest of this instance's list.
+      const onDisk = await this.readEntries(true);
+      const foreign = onDisk.filter((entry) => !this.known.has(entry) && !entries.includes(entry));
+      // Newest first: this instance's new prompts, then newly-arrived foreign
+      // prompts, then previously persisted history (excluding any local entries
+      // the caller removed) and the rest of this instance's list.
       const fresh = entries.filter((entry) => !this.lastSaved.has(entry));
-      const merged = [...new Set([...fresh, ...foreign, ...entries])];
+      const nextSet = new Set(entries);
+      const removedLocal = new Set([...this.lastSaved].filter((entry) => !nextSet.has(entry)));
+      const priorMerged = this.lastPersisted.filter((entry) => !removedLocal.has(entry));
+      const merged = [...new Set([...fresh, ...foreign, ...priorMerged, ...entries])];
+      const scrubbed = this.scrubAndFilter(merged);
       const payload: InputHistoryFile = {
         version: 1,
         updatedAt: new Date().toISOString(),
-        entries: this.scrubAndFilter(merged),
+        entries: scrubbed,
       };
       await atomicWrite(this.file, JSON.stringify(payload, null, 2));
+      for (const entry of onDisk) this.known.add(entry);
       for (const entry of entries) this.known.add(entry);
+      for (const entry of scrubbed) this.known.add(entry);
       this.lastSaved = new Set(entries);
+      this.lastPersisted = scrubbed;
     });
   }
 
@@ -135,6 +145,9 @@ export class InputHistoryStore {
         entries: [],
       };
       await atomicWrite(this.file, JSON.stringify(payload, null, 2));
+      this.known.clear();
+      this.lastSaved.clear();
+      this.lastPersisted = [];
     });
   }
 

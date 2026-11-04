@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compileGlobMatcher, matchAny, matchGlob } from '../../src/utils/glob-match.js';
+import {
+  compileGlobMatcher,
+  matchAny,
+  matchAnyCommand,
+  matchCommandGlob,
+  matchGlob,
+} from '../../src/utils/glob-match.js';
 
 describe('glob-match', () => {
   it('matches *', () => {
@@ -109,5 +115,26 @@ describe('compileGlobMatcher required-literal short-circuit', () => {
   it('matches a pattern with no literals at all', () => {
     expect(compileGlobMatcher('*').test('anything')).toBe(true);
     expect(compileGlobMatcher('**').test('a/b/c')).toBe(true);
+  });
+
+  it('handles unclosed leading-!]; and valid []a] character classes in matchGlob (F959)', () => {
+    expect(() => matchGlob('[!]a*', '[!]abc')).not.toThrow();
+    expect(matchGlob('[!]a*', '[!]abc')).toBe(true);
+    expect(matchGlob('[]a]', ']')).toBe(true);
+    expect(matchGlob('[]a]', 'a')).toBe(true);
+    expect(matchGlob('[]a]', 'b')).toBe(false);
+  });
+
+  it('keeps path and command compile caches separate for NUL-bearing patterns (F972)', () => {
+    // A command-mode pattern primes `cmd\u0000<pattern>`; a path pattern that
+    // literally starts with `cmd\u0000` must not reuse it.
+    expect(matchCommandGlob('f972-*', 'f972-bash')).toBe(true);
+    expect(matchGlob('cmd\u0000f972-*', 'f972-bash')).toBe(false);
+    expect(matchAnyCommand(['f972-*'], 'f972-bash')).toBe(true);
+    expect(matchAny(['cmd\u0000f972-*'], 'f972-bash')).toBe(false);
+
+    // And the reverse: a NUL-bearing path pattern must not poison command mode.
+    expect(matchGlob('cmd\u0000f972rev*', 'x')).toBe(false);
+    expect(matchCommandGlob('f972rev*', 'f972rev')).toBe(true);
   });
 });

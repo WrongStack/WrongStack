@@ -342,16 +342,30 @@ export class ModelRouter {
 
     if (scored.length === 0) return undefined;
 
-    // Guarded by scored.length === 0 check above — but use optional
-    // chaining instead of `!` to satisfy the non-null assertion lint rule.
-    const best = scored[0]?.profile;
-    if (!best) return undefined;
-    // Find the actual model id from the provider's configured models
-    const models = this.getProviderModels(best.provider);
-    const match = models.find((m) => best.pattern.test(m)) ?? models[0];
-    if (!match) return undefined;
+    const isAvoided = (provider: string, model: string): boolean =>
+      this.profiles.some(
+        (p) => p.provider === provider && p.pattern.test(model) && p.avoidFor?.includes(category),
+      );
 
-    return { provider: best.provider, model: match };
+    for (const entry of scored) {
+      const models = this.getProviderModels(entry.profile.provider);
+      const match = models.find(
+        (m) => entry.profile.pattern.test(m) && !isAvoided(entry.profile.provider, m),
+      );
+      if (match) {
+        return { provider: entry.profile.provider, model: match };
+      }
+    }
+
+    for (const entry of scored) {
+      const models = this.getProviderModels(entry.profile.provider);
+      const fallbackModel = models.find((m) => !isAvoided(entry.profile.provider, m));
+      if (fallbackModel) {
+        return { provider: entry.profile.provider, model: fallbackModel };
+      }
+    }
+
+    return undefined;
   }
 
   /** Check if a provider has an API key configured. */

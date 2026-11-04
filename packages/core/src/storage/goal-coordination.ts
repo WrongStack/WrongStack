@@ -3,7 +3,13 @@ import type { BrainArbiter } from '../brain/brain.js';
 import { boardStore } from './board-store-port.js';
 import type { EventBus } from './event-bus-port.js';
 import { findGoalBoardByTag, findGoalKanbanBoard, type GoalFileWithKanban } from './goal-kanban.js';
-import { appendJournal, type GoalFile, loadGoal, recordProgress, saveGoal } from './goal-store.js';
+import {
+  appendJournal,
+  type GoalFile,
+  loadGoal,
+  recordProgress,
+  updateGoal,
+} from './goal-store.js';
 
 const DONE_MARKER = /\[done:\s*([^\]]+)\]/gi;
 const DONE_PREFIX = /^\s*(?:✅|\[[x✓]\]|\(done\))\s*/i;
@@ -210,8 +216,55 @@ export async function coordinateGoalIteration(
       },
     );
   }
-  await saveGoal(options.goalPath, goal, options.events);
-  return { goal, completed, kanbanUpdatedTaskIds, reached };
+  let persistedGoal: GoalFile = goal;
+  await updateGoal(
+    options.goalPath,
+    (latest) => {
+      if (!latest) return goal;
+      if (
+        latest.missionId !== undefined &&
+        current.missionId !== undefined &&
+        latest.missionId !== current.missionId
+      ) {
+        persistedGoal = latest;
+        return latest;
+      }
+      const addedJournals = goal.journal.slice(current.journal.length);
+      let merged: GoalFile = {
+        ...latest,
+        deliverables: goal.deliverables,
+        progress: goal.progress,
+        progressNote: goal.progressNote,
+        progressHistory: goal.progressHistory,
+        progressTrend: goal.progressTrend,
+        lastActivityAt: goal.lastActivityAt,
+        ...(reached
+          ? {
+              goalState: 'completed',
+              engineState: 'stopped',
+              progress: 100,
+              progressNote: 'goal reached',
+              reachedAt: goal.reachedAt,
+              reachedNote: goal.reachedNote,
+            }
+          : {}),
+      };
+      for (const entry of addedJournals) {
+        merged = appendJournal(merged, {
+          source: entry.source,
+          task: entry.task,
+          status: entry.status,
+          note: entry.note,
+          tokens: entry.tokens,
+          costUsd: entry.costUsd,
+        });
+      }
+      persistedGoal = merged;
+      return merged;
+    },
+    options.events,
+  );
+  return { goal: persistedGoal, completed, kanbanUpdatedTaskIds, reached };
 }
 
 async function resolveGoalBoard(projectRoot: string, goal: GoalFile) {

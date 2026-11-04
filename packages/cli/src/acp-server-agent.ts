@@ -271,7 +271,8 @@ function makeAcpEdit(base: Tool, api: RunTurnApi): Tool {
       }
       const after = i.replace_all
         ? before.split(i.old_string).join(i.new_string ?? '')
-        : before.replace(i.old_string, i.new_string ?? '');
+        : // A string replacer expands $$, $&, $`, and $'. The replacement is exact text.
+          before.replace(i.old_string, () => i.new_string ?? '');
       await api.writeTextFile({ path: i.path, content: after });
       return { path: i.path, replacements: i.replace_all ? occurrences : 1 };
     },

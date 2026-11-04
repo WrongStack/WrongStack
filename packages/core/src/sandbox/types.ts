@@ -89,7 +89,7 @@ export interface SandboxBackend {
    * The helper closes over whatever plan it needs (ACL grants, integrity
    * policy) — the choke point only routes.
    */
-  applyHelper?(route: SandboxRoute): Promise<SandboxRoute | void>;
+  applyHelper?(route: SandboxRoute, config?: SandboxConfig): Promise<SandboxRoute | void>;
 }
 
 /** The deny arm of SandboxDecision — what denials, audit events, and expansion requests carry. */

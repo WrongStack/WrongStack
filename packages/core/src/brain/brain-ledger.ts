@@ -262,13 +262,14 @@ export class BrainDecisionLedger {
           question: truncate(`[${e.kind}] ${e.request.question}`, QUESTION_MAX),
           detail: e.intervened ? 'steered' : 'observed only',
         });
-        if (!e.intervened) return;
         // A same-kind re-engagement inside the retry window means the
-        // previous steer did not fix the underlying problem.
+        // previous steer did not fix the underlying problem — even if this
+        // second signal was observed-only or suppressed.
         const sessionId = e.sessionId ?? e.request.sessionId;
         const interventionKey = JSON.stringify([sessionId, e.kind]);
         const prev = this.lastInterventionByKind.get(interventionKey);
         if (prev && e.at - prev.at <= this.retryWindowMs) {
+          this.lastInterventionByKind.delete(interventionKey);
           this.recordOutcome(
             prev.requestId,
             'failure',
@@ -276,6 +277,7 @@ export class BrainDecisionLedger {
             sessionId,
           );
         }
+        if (!e.intervened) return;
         this.lastInterventionByKind.set(interventionKey, {
           requestId: e.request.id,
           at: e.at,

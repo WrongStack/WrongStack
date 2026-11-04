@@ -513,13 +513,17 @@ export function createProxyInstantApply(deps: ProxyInstantApplyDeps): ProxyInsta
     lastEffectiveUrl = nextUrl;
     if (nextUrl === baselineUrl) return;
     rebuildChain = rebuildChain
-      .then(() => rebuildProvider(providerId))
-      .then(() => {
+      .then(async () => {
+        if (disposed) return;
+        await rebuildProvider(providerId);
         if (!disposed) {
           logger.info(`WrongProxy routing changed — live provider rebuilt (${providerId})`);
         }
       })
       .catch((err: unknown) => {
+        if (lastProviderId === providerId && lastEffectiveUrl === nextUrl) {
+          lastEffectiveUrl = baselineUrl;
+        }
         if (!disposed) {
           logger.warn(
             `WrongProxy instant-apply: provider rebuild failed for ${providerId}: ${

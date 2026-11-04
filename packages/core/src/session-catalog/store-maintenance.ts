@@ -350,6 +350,8 @@ export function executeDeleteSession(
       if (!current) throw conflict('Delete maintenance lease expired while staging artifacts');
       db.prepare('DELETE FROM sessions WHERE session_id=?').run(sessionId);
       db.prepare('DELETE FROM maintenance_leases WHERE session_id=?').run(sessionId);
+      db.prepare('DELETE FROM session_agents WHERE session_id=?').run(sessionId);
+      db.prepare('DELETE FROM session_agent_index WHERE session_id=?').run(sessionId);
       bumpGeneration();
     });
   } catch (error) {

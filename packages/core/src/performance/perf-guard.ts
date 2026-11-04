@@ -118,10 +118,21 @@ export function parseBaselineFile(text: string): PerfBaselineFile {
   } catch (error) {
     throw new Error(`perf baseline is not valid JSON: ${(error as Error).message}`);
   }
-  if (raw === null || typeof raw !== 'object') {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('perf baseline must be a JSON object');
   }
   const candidate = raw as Partial<PerfBaselineFile>;
+  if (candidate.entries !== undefined && !Array.isArray(candidate.entries)) {
+    throw new Error('perf baseline entries must be an array');
+  }
+  if (
+    candidate.thresholdPct !== undefined &&
+    (typeof candidate.thresholdPct !== 'number' ||
+      !Number.isFinite(candidate.thresholdPct) ||
+      candidate.thresholdPct < 0)
+  ) {
+    throw new Error('perf baseline thresholdPct must be a non-negative number');
+  }
   const entries = Array.isArray(candidate.entries) ? candidate.entries : [];
   const seen = new Set<string>();
   for (const entry of entries) {

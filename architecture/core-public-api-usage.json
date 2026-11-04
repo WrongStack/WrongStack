@@ -74,8 +74,8 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/models": {
-      "files": 46,
-      "typeOnly": 11,
+      "files": 45,
+      "typeOnly": 10,
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/notifications": {
@@ -194,9 +194,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/utils/next-steps": {
-      "files": 2,
+      "files": 3,
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/utils/residency-labels": {
       "files": 6,
@@ -5023,12 +5023,6 @@
       "file": "packages/webui/src/components/SettingsPanel/ModelSchemaEditor.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/models",
-      "file": "packages/webui/src/lib/model-calendar.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/models",
@@ -16468,6 +16462,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/project-surfaces/src/atlas/use-code-map-graph-loader.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
       "file": "packages/techstack/src/remediation.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16534,12 +16534,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils/error",
-      "file": "packages/webui/src/components/use-code-map-graph-loader.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils/error",
       "file": "packages/webui/src/components/use-skill-detail.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16576,6 +16570,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils/expect-defined",
+      "file": "packages/project-surfaces/src/office/message/ErrorBody.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/expect-defined",
       "file": "packages/webui/src/components/ChatInput/slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16607,12 +16607,6 @@
     {
       "specifier": "@wrongstack/core/utils/expect-defined",
       "file": "packages/webui/src/components/FilePicker.tsx",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils/expect-defined",
-      "file": "packages/webui/src/components/MessageBubble/ErrorBody.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16684,6 +16678,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils/next-steps",
+      "file": "apps/desktop-v2/src/engine-state.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/next-steps",
       "file": "packages/tools/src/next-steps.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16708,13 +16708,13 @@
     },
     {
       "specifier": "@wrongstack/core/utils/residency-labels",
-      "file": "packages/webui/src/components/context-dashboard-residency.tsx",
+      "file": "packages/project-surfaces/src/context/context-dashboard-residency.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils/residency-labels",
-      "file": "packages/webui/src/components/context-dashboard-sections.tsx",
+      "file": "packages/project-surfaces/src/context/context-host.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16733,6 +16733,12 @@
     {
       "specifier": "@wrongstack/core/utils/sage-kinds",
       "file": "packages/cli/src/slash-commands/memory-flags.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/sage-kinds",
+      "file": "packages/project-surfaces/src/sage/shared.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16757,12 +16763,6 @@
     {
       "specifier": "@wrongstack/core/utils/sage-kinds",
       "file": "packages/tui/tests/memory-split-modules.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils/sage-kinds",
-      "file": "packages/webui/src/components/MemoryManager/shared.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

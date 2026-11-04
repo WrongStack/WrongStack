@@ -43,7 +43,7 @@
       "relativeImports": 18
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 707,
+      "lines": 709,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
@@ -57,6 +57,14 @@
     "packages/plugins/src/audit/index.ts": {
       "lines": 715,
       "relativeImports": 0
+    },
+    "packages/project-surfaces/src/atlas/codemap-model.ts": {
+      "lines": 1098,
+      "relativeImports": 0
+    },
+    "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {
+      "lines": 718,
+      "relativeImports": 14
     },
     "packages/sage/src/wrongmemory-port.ts": {
       "lines": 1696,
@@ -114,14 +122,6 @@
       "lines": 705,
       "relativeImports": 5
     },
-    "packages/project-surfaces/src/atlas/codemap-model.ts": {
-      "lines": 1098,
-      "relativeImports": 0
-    },
-    "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {
-      "lines": 718,
-      "relativeImports": 14
-    },
     "packages/webui-server/src/server/completion-handlers.ts": {
       "lines": 737,
       "relativeImports": 3
@@ -138,6 +138,10 @@
       "lines": 850,
       "relativeImports": 15
     },
+    "apps/desktop-v2/src/EngineWorkspace.tsx": {
+      "lines": 703,
+      "relativeImports": 45
+    },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
       "lines": 2032,
       "relativeImports": 31
@@ -147,7 +151,7 @@
       "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
-      "lines": 1581,
+      "lines": 1579,
       "relativeImports": 17
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
@@ -171,7 +175,7 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
-      "lines": 951,
+      "lines": 955,
       "relativeImports": 13
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {

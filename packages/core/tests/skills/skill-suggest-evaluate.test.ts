@@ -134,6 +134,21 @@ describe('sweepThresholds', () => {
     expect(high.score.correct).toBe(1);
     expect(high.score.needless).toBe(0);
   });
+
+  it('preserves distinct traces when two evaluation rows share the same request.text', () => {
+    const rows = [
+      {
+        request: { text: 'same prompt', gold: 'git-flow' } as LabeledRequest,
+        trace: trace({ gate: 0.9, winner: 'git-flow', fits: { 'git-flow': 0.9 } }),
+      },
+      {
+        request: { text: 'same prompt', gold: 'git-flow' } as LabeledRequest,
+        trace: trace({ gate: 0.1 }),
+      },
+    ];
+    const sweep = sweepThresholds(rows, [0.5], [0.5]);
+    expect(sweep[0]?.score.correct).toBe(0.5);
+  });
 });
 
 describe('parseEvalJsonl', () => {

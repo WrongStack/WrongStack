@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-04T22:04:00.156Z
+**Generated:** 2026-11-04T22:24:36.043Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6007 |
-| Production source lines | 1248546 |
+| Production source lines | 1248589 |
 | Test files | 5015 |
 | Workspace dependency edges | 240 |
-| Relative module edges | 17668 |
+| Relative module edges | 17674 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -21,12 +21,7 @@
 
 ## Verification result
 
-- packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change
-- apps/desktop-v2/src/desktop-command-text.ts: "commandTextKey" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/core/src/session-catalog/store-agents.ts: "readSessionAgentRows" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/core/src/session-catalog/store-rebuild.ts: "summarizeTranscriptFile" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- apps/desktop-v2/src/KanbanContractMap.tsx: "endpointLabel" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- apps/desktop-v2/src/model-comparison.ts: "MAX_COMPARED_MODELS" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -97,12 +92,12 @@ None.
 |---:|---|
 | 2032 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1696 | `packages/sage/src/wrongmemory-port.ts` |
-| 1581 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 1579 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1065 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1055 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 951 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 955 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 931 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
@@ -139,11 +134,11 @@ None.
 | 706 | `packages/chronicle/src/project-server.ts` |
 | 705 | `packages/chronicle/src/project-server-client.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
+| 703 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 | 701 | `packages/coordination/src/provider-status-tracker.ts` |
-| 700 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 700 | `apps/desktop-v2/src/useDesktop.ts` |
 
 ## Exports only tests reference

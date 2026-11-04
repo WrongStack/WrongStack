@@ -101,8 +101,11 @@ const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
 
 function getCachedGlob(pattern: string, commandSubject = false): RegExp {
   // The mode changes the compiled regex, so it must be part of the cache key —
-  // otherwise the first caller's mode is served to every later one.
-  const cacheKey = commandSubject ? `cmd\u0000${pattern}` : pattern;
+  // otherwise the first caller's mode is served to every later one. Prefix both
+  // modes: prefixing only command mode let a path pattern that itself starts
+  // with `cmd\u0000` collide with the command key for the remainder and serve
+  // one mode's matcher to the other.
+  const cacheKey = commandSubject ? `cmd\u0000${pattern}` : `path\u0000${pattern}`;
   const cached = COMPILED_GLOB_CACHE.get(cacheKey);
   if (cached) return cached;
   if (COMPILED_GLOB_CACHE.size >= CACHE_MAX_SIZE) {
@@ -211,7 +214,14 @@ function parseGlob(
       tokens.push({ kind: 'one' });
       i++;
     } else if (c === '[') {
-      const closeIndex = pattern.indexOf(']', i + 1);
+      let closeSearchStart = i + 1;
+      if (pattern[closeSearchStart] === '!' || pattern[closeSearchStart] === '^') {
+        closeSearchStart++;
+      }
+      if (pattern[closeSearchStart] === ']') {
+        closeSearchStart++;
+      }
+      const closeIndex = pattern.indexOf(']', closeSearchStart);
       if (closeIndex === -1) {
         re += '\\[';
         tokens.push({ kind: 'literal', ch: '[' });

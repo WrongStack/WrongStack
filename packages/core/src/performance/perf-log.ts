@@ -64,7 +64,8 @@ const ROUND_HEADING = /^##\s+(\d{4}-\d{2}-\d{2})\s*(?:—|–|--|-)\s*(.+?)\s*$/
 const FIELD_LINE = /^(commit|machine|command|baseline|current|failed hypotheses):\s*(.*)$/i;
 const ATTEMPT_LINE = /^-\s+\[(KEPT|REVERTED)\]\s+(.*)$/;
 /** The arrow separating "what changed" from "what it measured". */
-const RESULT_ARROW = /\s+(?:→|->)\s+/;
+const RESULT_UNICODE_ARROW = /\s+→\s+/g;
+const RESULT_ASCII_ARROW = /\s+->\s+/;
 
 /** Label column width so `commit:` / `baseline:` / `current:` line up. */
 const LABEL_WIDTH = 10;
@@ -109,9 +110,14 @@ export function parsePerfLog(text: string): PerfLogDocument {
     const attempt = ATTEMPT_LINE.exec(line);
     if (attempt) {
       const rest = (attempt[2] ?? '').trim();
-      const split = RESULT_ARROW.exec(rest);
-      const summary = split ? rest.slice(0, split.index).trim() : rest;
-      const result = split ? rest.slice(split.index + split[0].length).trim() : '';
+      const unicodeMatches = [...rest.matchAll(RESULT_UNICODE_ARROW)];
+      const split =
+        unicodeMatches.length > 0
+          ? unicodeMatches[unicodeMatches.length - 1]
+          : RESULT_ASCII_ARROW.exec(rest);
+      const summary = split && split.index !== undefined ? rest.slice(0, split.index).trim() : rest;
+      const result =
+        split && split.index !== undefined ? rest.slice(split.index + split[0].length).trim() : '';
       current.attempts.push({ outcome: attempt[1] as PerfAttemptOutcome, summary, result });
       continue;
     }
@@ -200,7 +206,8 @@ async function readOrSeed(file: string): Promise<PerfLogDocument> {
  */
 export async function appendPerfRound(file: string, round: PerfRound): Promise<PerfLogDocument> {
   const doc = await readOrSeed(file);
-  const existing = doc.rounds.find((r) => r.date === round.date && r.title === round.title);
+  const normalizedTitle = round.title.trim();
+  const existing = doc.rounds.find((r) => r.date === round.date && r.title === normalizedTitle);
   if (existing) {
     existing.attempts.push(...round.attempts);
     if (round.commit) existing.commit = round.commit;
@@ -210,7 +217,7 @@ export async function appendPerfRound(file: string, round: PerfRound): Promise<P
     if (round.current) existing.current = round.current;
     if (round.failedHypotheses) existing.failedHypotheses = round.failedHypotheses;
   } else {
-    doc.rounds.push(round);
+    doc.rounds.push({ ...round, title: normalizedTitle });
   }
   await ensureDir(path.dirname(file));
   await atomicWrite(file, renderPerfLog(doc));

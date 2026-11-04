@@ -7,6 +7,7 @@ import type {
   WireFamily,
 } from '@wrongstack/contracts/types/models-registry';
 import type { ReasoningConfig, ReasoningEffort } from '@wrongstack/contracts/types/provider';
+import { OVERLAY_DIRECTIVE_KEYS } from '../utils/merge-models-payload.js';
 
 /** Fields an account snapshot may borrow from a same-id catalog model when it is silent. */
 export const ACCOUNT_GAP_FIELDS = [
@@ -63,6 +64,15 @@ export function annotatePayload(
 ): ModelsDevPayload {
   const out: ModelsDevPayload = {};
   for (const [providerId, provider] of Object.entries(payload)) {
+    // Directive keys (`_removeProviders`, `_removeModels`) are instructions,
+    // not providers. Rebuilding them as provider entries turned the
+    // `_removeProviders` ARRAY into `{ models: {} }`, which `mergeModelsPayload`
+    // no longer recognizes as an array — silently dropping every provider
+    // removal the moment an overlay passed through the registry.
+    if (OVERLAY_DIRECTIVE_KEYS.has(providerId)) {
+      out[providerId] = provider;
+      continue;
+    }
     const models: ModelsDevProvider['models'] = {};
     for (const [modelId, model] of Object.entries(provider.models ?? {})) {
       const existing = model.provenance;
@@ -203,20 +213,30 @@ export function hasEntries(payload: ModelsDevPayload | undefined): payload is Mo
  * values are strings/numbers is rejected. `requireModels` additionally demands
  * that at least one entry carry a `models` map (the base catalog always does);
  * it is relaxed for curated overlays, which may be partial diffs.
+ *
+ * Overlay directive keys (`_removeProviders`, `_removeModels`, see
+ * `OVERLAY_DIRECTIVE_KEYS`) are instructions, not providers, so they are
+ * excluded from the entry checks: `_removeProviders` is a top-level ARRAY, and
+ * validating it as a provider rejected the entire curated overlay — silently,
+ * because `loadOverlayFromUrl` reads a shape rejection as an overlay outage and
+ * falls back to the bundled file. An overlay made ONLY of directives is still a
+ * meaningful diff (a removals-only release), so it passes for overlays while
+ * `requireModels` keeps rejecting it as a base catalog.
  */
 export function looksLikeModelsPayload(
   value: unknown,
   requireModels: boolean,
 ): value is ModelsDevPayload {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  const entries = Object.values(value as Record<string, unknown>);
-  if (entries.length === 0) return false;
-  const allObjects = entries.every(
-    (entry) => entry !== null && typeof entry === 'object' && !Array.isArray(entry),
+  const top = Object.entries(value as Record<string, unknown>);
+  if (top.length === 0) return false;
+  const providers = top.filter(([key]) => !OVERLAY_DIRECTIVE_KEYS.has(key));
+  const allObjects = providers.every(
+    ([, entry]) => entry !== null && typeof entry === 'object' && !Array.isArray(entry),
   );
   if (!allObjects) return false;
   if (!requireModels) return true;
-  return entries.some((entry) => {
+  return providers.some(([, entry]) => {
     const models = (entry as Record<string, unknown>)['models'];
     return models !== null && typeof models === 'object';
   });

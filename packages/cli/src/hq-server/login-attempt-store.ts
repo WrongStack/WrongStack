@@ -232,7 +232,9 @@ export class LoginAttemptStore {
       await atomicWrite(this.filePath, JSON.stringify(obj, null, 2), { mode: 0o600 });
       await restrictFilePermissions(this.filePath, { label: 'hq-login-attempts' });
     } catch {
-      // Best-effort — the in-memory state is still correct.
+      // dirty was cleared before this attempt. A failed write must stay pending
+      // so a later flush (including shutdown) retries instead of dropping the lockout.
+      this.dirty = true;
     }
   }
 

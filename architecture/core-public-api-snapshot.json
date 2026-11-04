@@ -1067,14 +1067,14 @@
       "classification": "agent-domain service",
       "intendedOwner": "Core decision arbiter, exported via the coordination subpath",
       "sourceFiles": 14,
-      "sourceLines": 4053
+      "sourceLines": 4071
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 80,
-      "sourceLines": 17092
+      "sourceLines": 17126
     },
     {
       "directory": "design",
@@ -1088,84 +1088,84 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 107,
-      "sourceLines": 26336
+      "sourceLines": 26391
     },
     {
       "directory": "extension",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin/extension contract",
       "sourceFiles": 2,
-      "sourceLines": 373
+      "sourceLines": 395
     },
     {
       "directory": "hooks",
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 8,
-      "sourceLines": 1764
+      "sourceLines": 1780
     },
     {
       "directory": "infrastructure",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 2113
+      "sourceLines": 2133
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 19,
-      "sourceLines": 4373
+      "sourceLines": 4414
     },
     {
       "directory": "notifications",
       "classification": "host/application concern",
       "intendedOwner": "host adapter behind contract",
       "sourceFiles": 4,
-      "sourceLines": 252
+      "sourceLines": 255
     },
     {
       "directory": "observability",
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 15,
-      "sourceLines": 2378
+      "sourceLines": 2387
     },
     {
       "directory": "performance",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused performance package",
       "sourceFiles": 9,
-      "sourceLines": 1780
+      "sourceLines": 1815
     },
     {
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 10,
-      "sourceLines": 2673
+      "sourceLines": 2707
     },
     {
       "directory": "prompts",
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 675
+      "sourceLines": 714
     },
     {
       "directory": "quota",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 1,
-      "sourceLines": 498
+      "sourceLines": 502
     },
     {
       "directory": "registry",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 11,
-      "sourceLines": 1908
+      "sourceLines": 1926
     },
     {
       "directory": "replay",
@@ -1179,28 +1179,28 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused sandbox implementation",
       "sourceFiles": 12,
-      "sourceLines": 1284
+      "sourceLines": 1302
     },
     {
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10005
+      "sourceLines": 10052
     },
     {
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 20,
-      "sourceLines": 5726
+      "sourceLines": 5741
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 27,
-      "sourceLines": 5651
+      "sourceLines": 5662
     },
     {
       "directory": "statusline",
@@ -1214,28 +1214,28 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 119,
-      "sourceLines": 26624
+      "sourceLines": 26765
     },
     {
       "directory": "tasking",
       "classification": "agent-domain contract",
       "intendedOwner": "Core tasking subpath",
       "sourceFiles": 3,
-      "sourceLines": 680
+      "sourceLines": 717
     },
     {
       "directory": "typesafe",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused TypeSafe integration",
       "sourceFiles": 15,
-      "sourceLines": 2615
+      "sourceLines": 2631
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 95,
-      "sourceLines": 14725
+      "sourceLines": 14882
     },
     {
       "directory": "vcs",
@@ -1249,7 +1249,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 542
+      "sourceLines": 546
     }
   ]
 }

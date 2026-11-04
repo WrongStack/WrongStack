@@ -121,19 +121,22 @@ export async function runOnce(
     };
     options.signal?.addEventListener('abort', onAbort, { once: true });
 
+    // One decoder per stream keeps a multi-byte character that straddles two
+    // chunks intact; per-chunk `toString` turned each half into U+FFFD.
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
+
     const finish = (exitCode: number | null) => {
       if (settled) return;
       settled = true;
+      stdout = appendCapped(stdout, stdoutDecoder.end());
+      stderr = appendCapped(stderr, stderrDecoder.end());
       clearTimeout(timer);
       for (const pending of pendingTimers) clearTimeout(pending);
       options.signal?.removeEventListener('abort', onAbort);
       resolve({ stdout, stderr, wallMs: Date.now() - startedAt, exitCode, timedOut });
     };
 
-    // One decoder per stream keeps a multi-byte character that straddles two
-    // chunks intact; per-chunk `toString` turned each half into U+FFFD.
-    const stdoutDecoder = new StringDecoder('utf8');
-    const stderrDecoder = new StringDecoder('utf8');
     child.stdout?.on('data', (chunk: Buffer | string) => {
       stdout = appendCapped(stdout, typeof chunk === 'string' ? chunk : stdoutDecoder.write(chunk));
     });
@@ -182,6 +185,10 @@ export async function measure(options: MeasureOptions): Promise<PerfMeasurement>
       break;
     }
     const result = await runOnce(options);
+    if (options.signal?.aborted) {
+      notes.push(`aborted after ${samples.length} run(s)`);
+      break;
+    }
     if (result.timedOut) {
       notes.push(`run ${index + 1} timed out and was killed`);
       continue;
@@ -196,6 +203,16 @@ export async function measure(options: MeasureOptions): Promise<PerfMeasurement>
       continue;
     }
     samples.push(value);
+    if (options.signal?.aborted) {
+      notes.push(`aborted after ${samples.length} run(s)`);
+      break;
+    }
+  }
+
+  if (options.signal?.aborted) {
+    throw new Error(
+      `measure(): aborted after ${samples.length} usable run(s) out of ${runs} for \`${options.command}\`. ${notes.join('; ')}`,
+    );
   }
 
   if (samples.length < 3) {

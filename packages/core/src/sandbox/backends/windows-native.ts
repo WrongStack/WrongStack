@@ -122,7 +122,10 @@ export function createWindowsNativeSandboxBackend(
 
     ...(applyHelper
       ? {
-          applyHelper: (route: SandboxRoute): Promise<SandboxRoute | void> => applyHelper(route),
+          applyHelper: (
+            route: SandboxRoute,
+            config?: SandboxConfig,
+          ): Promise<SandboxRoute | void> => applyHelper(route, config),
         }
       : {}),
   };

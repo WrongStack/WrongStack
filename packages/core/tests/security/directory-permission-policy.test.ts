@@ -1,3 +1,4 @@
+import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/contracts/types';
@@ -159,6 +160,31 @@ describe('resolveTargetPath', () => {
     expect(resolveTargetPath({ path: 'clients/[acme]/secret.txt' }, ctx)).toBe(
       'clients/[acme]/secret.txt',
     );
+  });
+
+  it('resolves symlink/junction aliases before matching rules (F974)', async () => {
+    const projectRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-dir-link-'));
+    try {
+      await fsp.mkdir(path.join(projectRoot, 'secrets'));
+      await fsp.writeFile(path.join(projectRoot, 'secrets', 'key.txt'), 'x');
+      const link = path.join(projectRoot, 'public-link');
+      await fsp.symlink(
+        path.join(projectRoot, 'secrets'),
+        link,
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      const ctx = makeCtx(projectRoot);
+      expect(resolveTargetPath({ path: path.join(link, 'key.txt') }, ctx)).toBe('secrets/key.txt');
+      expect(resolveTargetPath({ path: path.join(link, 'new.txt') }, ctx)).toBe('secrets/new.txt');
+
+      const wrapper = new DirectoryPermissionPolicy(allowInner(), {
+        policy: policy([{ directory: 'secrets/**', denyTools: ['write'] }]),
+      });
+      const result = await wrapper.evaluate(writeTool, { path: path.join(link, 'new.txt') }, ctx);
+      expect(result.permission).toBe('deny');
+    } finally {
+      await fsp.rm(projectRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -795,5 +821,23 @@ describe('DirectoryPermissionPolicy', () => {
     expect(trace.steps.some((s) => s.rule === 'denyTools')).toBe(true);
     expect(trace.decision.permission).toBe('deny');
     expect(trace.decision.source).toBe('directory_rules');
+  });
+
+  it('folds case in glob prefixes and subtree containment on win32', async () => {
+    const { matchTargetRules } = await import(
+      '../../src/security/directory-permission-matching.js'
+    );
+    const rulesPolicy = policy([
+      { directory: 'infra/**', denyTools: ['grep'] },
+      { directory: 'infra/terraform/**', allowOnlyTools: ['grep'] },
+    ]);
+    const upperMatches = matchTargetRules(
+      rulesPolicy,
+      'INFRA/TERRAFORM/*.tf',
+      new Set(['INFRA/TERRAFORM/*.tf']),
+    );
+    if (process.platform === 'win32') {
+      expect(upperMatches.map((r) => r.directory)).toEqual(['infra/terraform/**']);
+    }
   });
 });

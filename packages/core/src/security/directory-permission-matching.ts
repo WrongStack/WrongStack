@@ -4,6 +4,7 @@
  * file for rule precedence.
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
@@ -74,19 +75,48 @@ function extractPathInputs(input: unknown): string[] {
  * the project root the absolute path is returned unchanged, prefixed
  * with `..` so leading-wildcard patterns still match.
  */
+/**
+ * Resolve symlinks/junctions for the matching subject.
+ *
+ * A lexical path is not the file the OS touches: `public-link/key.txt` where
+ * `public-link` is a junction/symlink to `secrets/` would bypass a `secrets/**`
+ * deny while writing the protected file. Only existing components can be
+ * resolved, so for a not-yet-created target walk up to the nearest existing
+ * ancestor (a write through a linked directory is still governed by the real
+ * directory) and append the remaining segments. Falls back to the lexical path
+ * on any error other than a missing component.
+ */
+function realPathForMatching(absolute: string): string {
+  let candidate = absolute;
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      const real = fs.realpathSync(candidate);
+      return tail.length > 0 ? path.join(real, ...tail) : real;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') return absolute;
+      const parent = path.dirname(candidate);
+      if (parent === candidate) return absolute;
+      tail.unshift(path.basename(candidate));
+      candidate = parent;
+    }
+  }
+}
+
 function resolveRawTargetPath(raw: string, ctx: AgentContext): string {
   // If the path is absolute, use it directly. Otherwise resolve against
   // workingDir. We deliberately do NOT use projectRoot here — the agent
   // may have set a working directory inside the project, and the rule
   // should follow its position, not the project root.
   const absolute = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(ctx.workingDir, raw);
-  const normalizedAbsolute = path.resolve(absolute).replace(/\\/g, '/');
+  const normalizedAbsolute = realPathForMatching(path.resolve(absolute)).replace(/\\/g, '/');
 
   // Strip the project-root prefix so user globs like `infra/**` match
   // the project-relative shape. When the target is outside the project
   // we keep the absolute path with a `..` marker so leading-wildcard
   // patterns like `**/secrets/**` still work.
-  const projectRoot = path.resolve(ctx.projectRoot).replace(/\\/g, '/');
+  const projectRoot = realPathForMatching(path.resolve(ctx.projectRoot)).replace(/\\/g, '/');
   return path.relative(projectRoot, normalizedAbsolute).replace(/\\/g, '/');
 }
 
@@ -115,11 +145,9 @@ export function resolveGlobSelectors(input: unknown, ctx: AgentContext): Set<str
 }
 
 function literalGlobPrefix(pattern: string): string {
-  const wildcardIndex = pattern.search(/[*?[\]]/);
-  const prefix = (wildcardIndex < 0 ? pattern : pattern.slice(0, wildcardIndex)).replace(
-    /\/+$/,
-    '',
-  );
+  const folded = foldFsPath(pattern);
+  const wildcardIndex = folded.search(/[*?[\]]/);
+  const prefix = (wildcardIndex < 0 ? folded : folded.slice(0, wildcardIndex)).replace(/\/+$/, '');
   return prefix === '.' ? '' : prefix;
 }
 
@@ -136,7 +164,8 @@ function selectorMayOverlapRule(selector: string, rulePattern: string): boolean 
 
 /** True when every path under `selectorPrefix` lies in the plain subtree `pattern` names. */
 function subtreeContainsSelector(pattern: string, selectorPrefix: string): boolean {
-  const dir = pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern;
+  const folded = foldFsPath(pattern);
+  const dir = folded.endsWith('/**') ? folded.slice(0, -3) : folded;
   if (!dir || /[*?[\]]/.test(dir)) return false;
   return selectorPrefix === dir || selectorPrefix.startsWith(`${dir}/`);
 }

@@ -273,4 +273,45 @@ describe('goal coordination', () => {
     expect(result?.goal.progress).toBe(0);
     expect(result?.goal.goalState).toBe('active');
   });
+
+  it('preserves concurrent updateGoal writes during coordinateGoalIteration Brain await (F965)', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-goal-race-'));
+    roots.push(projectRoot);
+    const goalPath = goalFilePath(projectRoot);
+    await fs.mkdir(path.dirname(goalPath), { recursive: true });
+    await saveGoal(goalPath, { ...emptyGoal('Ship feature'), deliverables: ['Task 1'] });
+
+    const { updateGoal } = await import('../../src/storage/goal-store.js');
+    const brain: BrainArbiter = {
+      decide: async () => {
+        await updateGoal(goalPath, (curr) => {
+          if (!curr) throw new Error('missing goal');
+          return {
+            ...curr,
+            journal: [
+              ...curr.journal,
+              {
+                ts: new Date().toISOString(),
+                summary: 'concurrent subagent journal entry',
+                source: 'manual',
+              },
+            ],
+          };
+        });
+        return { type: 'complete', reason: 'All deliverables complete' };
+      },
+    };
+
+    await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
+      projectRoot,
+      goalPath,
+      finalText: '[DONE: 1]',
+      brain,
+    });
+    const after = await loadGoal(goalPath);
+    expect(after?.journal.some((j) => j.summary === 'concurrent subagent journal entry')).toBe(
+      true,
+    );
+  });
 });

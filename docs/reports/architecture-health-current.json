@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T22:04:00.156Z",
+  "generatedAt": "2026-11-04T22:24:36.043Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 6007,
     "testFiles": 5015,
-    "sourceLines": 1248546,
+    "sourceLines": 1248589,
     "workspaceEdges": 240,
-    "moduleEdges": 17668,
+    "moduleEdges": 17674,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -24,14 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1039
   },
-  "errors": [
-    "packages/core/src/storage/file-session-writer.ts: hotspot grew from 707 to 709 lines; review and update the ratchet in the same change",
-    "apps/desktop-v2/src/desktop-command-text.ts: \"commandTextKey\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/core/src/session-catalog/store-agents.ts: \"readSessionAgentRows\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "packages/core/src/session-catalog/store-rebuild.ts: \"summarizeTranscriptFile\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
-    "apps/desktop-v2/src/KanbanContractMap.tsx: \"endpointLabel\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
-    "apps/desktop-v2/src/model-comparison.ts: \"MAX_COMPARED_MODELS\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -34292,6 +34285,11 @@
       "relativeImports": 15
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 703,
+      "relativeImports": 45
+    },
+    {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
       "lines": 2032,
       "relativeImports": 31
@@ -34303,7 +34301,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1581,
+      "lines": 1579,
       "relativeImports": 17
     },
     {
@@ -34333,7 +34331,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 951,
+      "lines": 955,
       "relativeImports": 13
     },
     {
@@ -34375,7 +34373,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1581,
+      "lines": 1579,
       "relativeImports": 17
     },
     {
@@ -34400,7 +34398,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 951,
+      "lines": 955,
       "relativeImports": 13
     },
     {
@@ -34584,6 +34582,11 @@
       "relativeImports": 5
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 703,
+      "relativeImports": 45
+    },
+    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
@@ -34602,11 +34605,6 @@
       "file": "packages/coordination/src/provider-status-tracker.ts",
       "lines": 701,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 700,
-      "relativeImports": 45
     },
     {
       "file": "apps/desktop-v2/src/useDesktop.ts",

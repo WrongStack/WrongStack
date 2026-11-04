@@ -110,4 +110,14 @@ describe('SkillInstaller.update keeps the selection', () => {
     expect(result.errors.map((error) => error.name)).toEqual(['first']);
     expect(await installedNames(installer)).toEqual(['first']);
   });
+
+  it('honors an explicit #skillName fragment when updating a multi-skill repo', async () => {
+    await serveRepo(['first', 'second']);
+    const installer = makeInstaller();
+    await installer.install('user/repo');
+
+    const result = await installer.update('user/repo@v2#first');
+
+    expect(result.updated.map((entry) => entry.name)).toEqual(['first']);
+  });
 });

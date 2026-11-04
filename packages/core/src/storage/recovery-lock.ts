@@ -90,13 +90,15 @@ export class RecoveryLock {
    * instance, references a clean-closed session, is too old, or is
    * malformed. Otherwise returns enough detail to prompt the user.
    *
-   * Important: this is a read-only check. We never delete an active
-   * lock from here — if another wstack instance is alive, the caller
-   * should bail or run with a fresh session instead.
+   * Stale, unchanged lockfiles are cleaned up, but a lock replaced by
+   * another process while we inspect it is left alone — if another
+   * wstack instance is alive, the caller should bail or run with a fresh
+   * session instead.
    */
   async checkAbandoned(): Promise<AbandonedSession | null> {
-    const lock = await this.readLock();
-    if (!lock) return null;
+    const entry = await this.readLock();
+    if (!entry) return null;
+    const lock = entry.lock;
 
     // PID liveness only meaningful on the same host. Check this BEFORE
     // clearing stale or skew locks: an active process on the local box
@@ -110,14 +112,14 @@ export class RecoveryLock {
     if (Number.isNaN(ageMs) || ageMs < 0) {
       // Clock skew or corrupted timestamp — treat as orphan. Clean up the
       // stale lockfile so a subsequent write() with O_EXCL doesn't fail.
-      await this.clear().catch(() => undefined);
+      await this.clearIfUnchanged(entry.raw);
       return null;
     }
     if (ageMs > this.maxAgeMs) {
       // Lock is older than the max-age window — the owning process is
       // guaranteed dead (disk wipe, OS reinstall, 24h+ uptime since crash).
       // Clean up the stale file so a subsequent write() doesn't hit EEXIST.
-      await this.clear().catch(() => undefined);
+      await this.clearIfUnchanged(entry.raw);
       return null;
     }
 
@@ -145,7 +147,10 @@ export class RecoveryLock {
                 e.type === 'llm_response' ||
                 e.type === 'in_flight_start',
             );
-        if (closed) return null;
+        if (closed) {
+          await this.clearIfUnchanged(entry.raw);
+          return null;
+        }
         messageCount = Array.isArray(data?.messages) ? data.messages.length : 0;
         for (const event of events) {
           if (event.type !== 'user_input') continue;
@@ -155,6 +160,7 @@ export class RecoveryLock {
       } catch {
         // Lock points to a session that doesn't exist on disk (deleted
         // out from under us). Nothing to recover.
+        await this.clearIfUnchanged(entry.raw);
         return null;
       }
     }
@@ -222,7 +228,7 @@ export class RecoveryLock {
     }
   }
 
-  private async readLock(): Promise<LockFile | null> {
+  private async readLock(): Promise<{ lock: LockFile; raw: string } | null> {
     let raw: string;
     try {
       raw = await fsp.readFile(this.file, 'utf8');
@@ -233,11 +239,32 @@ export class RecoveryLock {
     }
     try {
       const parsed = JSON.parse(raw) as unknown;
-      if (!isLockFile(parsed)) return null;
-      return parsed;
+      if (!isLockFile(parsed)) {
+        await this.clearIfUnchanged(raw);
+        return null;
+      }
+      return { lock: parsed, raw };
     } catch {
+      await this.clearIfUnchanged(raw);
       return null;
     }
+  }
+
+  /**
+   * Remove the lockfile only if it still contains the exact bytes that were
+   * judged stale. Another process may clear the stale file and acquire a
+   * fresh lock while we await session loading; unlinking by path alone would
+   * delete that live owner's lock and defeat `write()`'s O_EXCL guarantee.
+   */
+  private async clearIfUnchanged(raw: string): Promise<void> {
+    let current: string;
+    try {
+      current = await fsp.readFile(this.file, 'utf8');
+    } catch {
+      return; // Already gone, or unreadable: nothing this check owns.
+    }
+    if (current !== raw) return;
+    await this.clear().catch(() => undefined);
   }
 }
 

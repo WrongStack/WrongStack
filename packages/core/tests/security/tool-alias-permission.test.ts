@@ -94,4 +94,29 @@ describe('alias permission identity', () => {
         .permission,
     ).toBe('confirm');
   });
+
+  it('enforces leader deny rules across tool aliases and subjectless calls in AutoApprovePermissionPolicy', async () => {
+    const { AutoApprovePermissionPolicy } = await import(
+      '../../src/security/auto-approve-policy.js'
+    );
+    const trustFile = path.join(dir, 'trust.json');
+    await fs.writeFile(
+      trustFile,
+      JSON.stringify({
+        canonical: { allow: [], deny: ['secret*'] },
+      }),
+    );
+    const policy = new AutoApprovePermissionPolicy(['fs.read'], { trustFile });
+    const aliasTool: Tool = {
+      ...fixture,
+      name: 'old_name',
+      aliases: ['canonical'],
+      capabilities: ['fs.read'],
+    };
+    const aliasDec = await policy.evaluate(aliasTool, { path: 'secret-doc.txt' });
+    expect(aliasDec.permission).toBe('deny');
+
+    const subjectlessDec = await policy.evaluate({ ...fixture, capabilities: ['fs.read'] }, {});
+    expect(subjectlessDec.permission).toBe('deny');
+  });
 });

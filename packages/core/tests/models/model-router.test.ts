@@ -154,4 +154,20 @@ describe('ModelRouter.suggestMatrix', () => {
       expect(pick.fromMatrix).toBe(false);
     }
   });
+
+  it('does not select an avoided model (e.g. gpt-4o-mini for planning) via broader pattern or fallback', () => {
+    const r = new ModelRouter({
+      config: {
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        providers: {
+          openai: { apiKey: 'sk-oai', models: ['gpt-4o-mini'] },
+          anthropic: { apiKey: 'sk-ant', models: ['claude-sonnet-4-20250514'] },
+        },
+      },
+    });
+    const pick = r.pickForTask('planner', 'design system architecture');
+    expect(pick.model).toBe('claude-sonnet-4-20250514');
+    expect(pick.provider).toBe('anthropic');
+  });
 });

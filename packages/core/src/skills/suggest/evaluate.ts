@@ -143,13 +143,14 @@ export function sweepThresholds(
   gateThresholds: readonly number[],
   fitsThresholds: readonly number[],
 ): SweepRow[] {
-  const byText = new Map(rows.map((row) => [row.request.text, row.trace]));
-  const requests = rows.map((row) => row.request);
+  const indexedRows = rows.map((row) => ({ request: { ...row.request }, trace: row.trace }));
+  const byRequest = new Map(indexedRows.map((row) => [row.request, row.trace]));
+  const requests = indexedRows.map((row) => row.request);
   const sweep: SweepRow[] = [];
   for (const gateThreshold of gateThresholds) {
     for (const fitsThreshold of fitsThresholds) {
       const { score } = scoreSuggestions(requests, (request) => {
-        const trace = byText.get(request.text);
+        const trace = byRequest.get(request);
         return trace ? redecide(trace, gateThreshold, fitsThreshold) : undefined;
       });
       sweep.push({ gateThreshold, fitsThreshold, score });

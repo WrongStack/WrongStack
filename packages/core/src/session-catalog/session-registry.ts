@@ -217,7 +217,9 @@ export class SessionRegistry {
     if (this.lastEntry) {
       this.lastEntry.agents = agents;
       this.lastEntry.agentCount = agents.length;
-      this.lastEntry.status = deriveSessionStatus(agents);
+      if (this.lastEntry.status !== 'closing') {
+        this.lastEntry.status = deriveSessionStatus(agents);
+      }
       this.lastEntry.lastHeartbeatAt = new Date().toISOString();
     }
 
@@ -266,7 +268,7 @@ export class SessionRegistry {
       }
       entry.agents = agents;
       entry.agentCount = agents.length;
-      entry.status = status;
+      entry.status = entry.status === 'closing' || owner.status === 'closing' ? 'closing' : status;
       entry.lastHeartbeatAt = nowIso;
     });
   }
@@ -302,6 +304,7 @@ export class SessionRegistry {
     const sessionId = this.currentSessionId;
     const owner = this.lastEntry;
     if (!owner) return;
+    owner.status = 'closing';
     // Fold any coalesced-but-unwritten agent snapshot into this final write so
     // the trailing timer can't fire later and flip us back to active.
     const pendingAgents = this.cancelPendingAgentsFlush();

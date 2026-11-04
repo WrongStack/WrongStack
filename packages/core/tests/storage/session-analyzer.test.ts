@@ -195,4 +195,15 @@ describe('SessionAnalyzer', () => {
     const r = analyzer.analyze(events);
     expect(r.tasks).toEqual([]);
   });
+
+  it('query({ toolNames }) excludes non-tool_use events instead of matching everything (F964)', () => {
+    const events = [
+      { type: 'user_input', ts: '2024-01-01T00:00:00Z', content: 'hi' } as any,
+      { type: 'tool_use', ts: '2024-01-01T00:00:01Z', id: '1', name: 'bash', input: {} } as any,
+      { type: 'tool_result', ts: '2024-01-01T00:00:02Z', id: '1', output: 'ok' } as any,
+    ];
+    const filtered = analyzer.query(events, { toolNames: ['bash'] });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]?.type).toBe('tool_use');
+  });
 });

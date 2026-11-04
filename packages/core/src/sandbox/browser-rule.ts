@@ -12,25 +12,35 @@ import { SandboxDeniedError } from './types.js';
 export function createSandboxBrowserTierGate(): <I, O>(tool: Tool<I, O>) => Tool<I, O> {
   return <I, O>(tool: Tool<I, O>): Tool<I, O> => {
     const rawExecute = tool.execute;
-    if (!rawExecute) return tool;
-    const gated: Tool<I, O> = {
-      ...tool,
-      execute: async (input, ctx, opts) => {
-        const config = resolveSandboxConfigForAgent(
-          (ctx as { agentId?: string } | undefined)?.agentId,
-        );
-        if (config.mode === 'enforced' && config.backend === 'container') {
-          const decision = {
-            outcome: 'deny' as const,
-            reason:
-              'browser automation is disabled under the container tier (deny-by-default network; no browser in the image)',
-            missing: [],
-          };
-          throw new SandboxDeniedError(tool.name, decision);
-        }
-        return rawExecute.call(tool, input, ctx, opts);
-      },
+    const rawExecuteStream = tool.executeStream;
+    if (!rawExecute && !rawExecuteStream) return tool;
+    const assertBrowserAllowed = (ctx: unknown): void => {
+      const config = resolveSandboxConfigForAgent(
+        (ctx as { agentId?: string } | undefined)?.agentId,
+      );
+      if (config.mode === 'enforced' && config.backend === 'container') {
+        const decision = {
+          outcome: 'deny' as const,
+          reason:
+            'browser automation is disabled under the container tier (deny-by-default network; no browser in the image)',
+          missing: [],
+        };
+        throw new SandboxDeniedError(tool.name, decision);
+      }
     };
+    const gated: Tool<I, O> = { ...tool };
+    if (rawExecute) {
+      gated.execute = async (input, ctx, opts) => {
+        assertBrowserAllowed(ctx);
+        return rawExecute.call(tool, input, ctx, opts);
+      };
+    }
+    if (rawExecuteStream) {
+      gated.executeStream = async function* (input, ctx, opts) {
+        assertBrowserAllowed(ctx);
+        yield* rawExecuteStream.call(tool, input, ctx, opts);
+      } as typeof rawExecuteStream;
+    }
     return gated;
   };
 }

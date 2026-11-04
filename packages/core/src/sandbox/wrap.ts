@@ -228,7 +228,7 @@ export function createSandboxExecWrapper(
           if (routeRequest) {
             let routed = backend.routeExec(routeRequest, cfg);
             if (routed && typeof backend.applyHelper === 'function') {
-              routed = (await backend.applyHelper(routed)) ?? routed;
+              routed = (await backend.applyHelper(routed, cfg)) ?? routed;
             }
             if (routed) {
               input = applyRoute(tool.name, input as Record<string, unknown>, routed) as I;
@@ -266,7 +266,7 @@ export function createSandboxExecWrapper(
           if (routeRequest) {
             let routed = backend.routeExec(routeRequest, cfg);
             if (routed && typeof backend.applyHelper === 'function') {
-              routed = (await backend.applyHelper(routed)) ?? routed;
+              routed = (await backend.applyHelper(routed, cfg)) ?? routed;
             }
             if (routed) {
               input = applyRoute(tool.name, input as Record<string, unknown>, routed) as I;

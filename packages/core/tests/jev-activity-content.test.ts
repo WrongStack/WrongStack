@@ -139,4 +139,39 @@ describe('Jev content-logging setting', () => {
     expect(() => validateJevSettingsPatch({ logContent: 'yes' })).toThrow(/log content/);
     expect(validateJevSettingsPatch({ logContent: false })).toMatchObject({ logContent: false });
   });
+
+  it('redacts secrets containing JSON-escaped characters without throwing and rejects cleartext remote endpoints', async () => {
+    const { resolveTypeSafeAccount } = await import('../src/typesafe/resolve.js');
+    const backslashSecret = '1234567\\';
+    await expect(
+      observeJevClient(stub, 'typesafe', 'jev', {
+        logContent: true,
+        secrets: [backslashSecret],
+      }).systemOne(ask({ credential: backslashSecret })),
+    ).resolves.toEqual(ANSWERED);
+
+    const remoteHttp = resolveTypeSafeAccount({
+      config: {
+        typesafe: {
+          enabled: true,
+          route: 'custom',
+          endpoint: 'http://evil.example.com/v1/systemone',
+        },
+      } as unknown as Config,
+      env: { TYPESAFE_API_KEY: 'ts-key' },
+    });
+    expect(remoteHttp.status).toBe('unusable');
+
+    const queryUrl = resolveTypeSafeAccount({
+      config: {
+        typesafe: {
+          enabled: true,
+          route: 'custom',
+          endpoint: 'https://api.example.com/v1/systemone?foo=1',
+        },
+      } as unknown as Config,
+      env: { TYPESAFE_API_KEY: 'ts-key' },
+    });
+    expect(queryUrl.status).toBe('unusable');
+  });
 });

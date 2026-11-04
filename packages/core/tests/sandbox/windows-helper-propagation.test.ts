@@ -62,4 +62,71 @@ describeWin('helper exit-code/stdio propagation (plan 28 T5.2)', () => {
     expect(echoed.code).toBe(0);
     expect(echoed.out).toContain('t52-propagated-marker');
   });
+
+  it('gates browser executeStream and threads per-agent sandbox config into windows helper', async () => {
+    const {
+      clearSandboxAgentOverrides,
+      createSandboxBrowserTierGate,
+      createSandboxExecWrapper,
+      createWindowsNativeSandboxBackend,
+      setSandboxAgentOverride,
+    } = await import('../../src/sandbox/index.js');
+    try {
+      configureSandboxPolicy({
+        mode: 'enforced',
+        tier: 'workspace-write',
+        backend: 'container',
+        image: 'alpine:3.19',
+        writableRoots: [dir],
+      });
+      const gatedBrowser = createSandboxBrowserTierGate()({
+        name: 'browser_open',
+        description: 'open browser',
+        parameters: { type: 'object', properties: {} },
+        capabilities: ['network.http'],
+        execute: async () => ({ content: 'ok' }),
+        executeStream: async function* () {
+          yield 'chunk';
+        },
+      });
+      await expect(async () => {
+        for await (const _ of gatedBrowser.executeStream!(
+          { url: 'https://example.com' },
+          {} as never,
+        )) {
+          // consume
+        }
+      }).rejects.toThrow();
+
+      configureSandboxPolicy({
+        mode: 'enforced',
+        tier: 'workspace-write',
+        backend: 'windows-native',
+        writableRoots: ['D:\\global-root', dir],
+      });
+      setSandboxAgentOverride('sub-narrow', {
+        tier: 'workspace-write',
+        writableRoots: [dir],
+      });
+      let capturedCmd = '';
+      const backend = createWindowsNativeSandboxBackend({
+        platform: 'win32',
+        helperRunner: defaultWindowsHelperRunner(),
+      });
+      const wrappedBash = createSandboxExecWrapper(backend)({
+        name: 'bash',
+        description: 'shell',
+        parameters: { type: 'object', properties: {} },
+        capabilities: ['shell.exec'],
+        execute: async (input: { command: string }) => {
+          capturedCmd = input.command;
+          return { content: 'ok' };
+        },
+      });
+      await wrappedBash.execute({ command: 'echo test' }, { agentId: 'sub-narrow' } as never);
+      expect(capturedCmd).not.toContain('D:\\global-root');
+    } finally {
+      clearSandboxAgentOverrides();
+    }
+  });
 });

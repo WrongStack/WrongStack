@@ -185,6 +185,7 @@ export function startOtlpMetricsExporter(
   const scopeName = opts.scopeName ?? 'wrongstack';
 
   let stopped = false;
+  const inFlight = new Set<Promise<void>>();
 
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -223,19 +224,27 @@ export function startOtlpMetricsExporter(
     }
   }
 
+  function trackedPush(): Promise<void> {
+    const p = pushOnce().finally(() => {
+      inFlight.delete(p);
+    });
+    inFlight.add(p);
+    return p;
+  }
+
   const handle = setInterval(() => {
-    if (!stopped) void pushOnce();
+    if (!stopped) void trackedPush();
   }, intervalMs);
   // Don't keep the process alive just to push metrics — graceful shutdown
   // is the host's job.
   handle.unref?.();
 
   return {
-    flush: pushOnce,
+    flush: trackedPush,
     async stop() {
       stopped = true;
       clearInterval(handle);
-      await pushOnce().catch(onError);
+      await Promise.all([...inFlight, trackedPush().catch(onError)]);
     },
   };
 }

@@ -6,8 +6,8 @@ import {
   appendPerfAttempt,
   appendPerfRound,
   latestRound,
-  parsePerfLog,
   type PerfRound,
+  parsePerfLog,
   renderPerfLog,
   renderRound,
   summarizePerfLog,
@@ -194,5 +194,23 @@ describe('summarizePerfLog', () => {
     expect(summarizePerfLog(parsePerfLog(SAMPLE))[0]).toBe(
       '2026-09-01  parser throughput — 2 kept / 1 reverted — 301ms median, 340MB allocs, 58k allocs/op (-27% wall vs baseline)',
     );
+  });
+
+  it('preserves ASCII -> inside attempt summaries and matches trimmed round titles (F969)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-perflog-f969-'));
+    try {
+      const f = path.join(dir, 'PERF_LOG.md');
+      await appendPerfRound(f, { date: '2026-09-01', title: '  boot  ', attempts: [] });
+      await appendPerfAttempt(
+        f,
+        { outcome: 'KEPT', summary: 'map a -> b in hot loop', result: '-12% wall' },
+        { title: 'boot' },
+      );
+      const doc = parsePerfLog(await fs.readFile(f, 'utf8'));
+      expect(doc.rounds[0]?.attempts[0]?.summary).toBe('map a -> b in hot loop');
+      expect(doc.rounds[0]?.attempts[0]?.result).toBe('-12% wall');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
