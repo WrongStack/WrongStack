@@ -576,6 +576,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   if (event.type === 'desktop.disconnected') {
     next.connected = false;
     next.running = false;
+    // Scheduled jobs live in the engine's memory; a new engine starts with none.
+    delete next.results['cron.snapshot'];
     next.error = String(p['message'] ?? 'Engine disconnected');
   }
   if (

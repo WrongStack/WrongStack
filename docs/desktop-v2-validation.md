@@ -6951,3 +6951,18 @@ copies, starting with SAGE memory.
     replies, refusals, next-step selection, the Markdown download, `/goal` routing and the
     one-time settings request (jsdom).
   - Desktop tests pass (856); typecheck clean.
+
+### Scheduled jobs above the composer (2026-11-04)
+
+- The WebUI shows the jobs an agent scheduled with `cron_schedule` (a top-bar count that opens a
+  table, fed by `cron.snapshot`); the desktop ignored those frames.
+- A conversation now shows a "Scheduled jobs" panel next to its todo list while it has jobs:
+  - The summary counts active, overdue and total runs.
+  - Each job shows its interval, run count, next and last run, and action.
+  - Times move on by themselves every 30 seconds.
+  - The panel is outlined in the danger colour when a job is overdue.
+- The scheduler keeps jobs in engine memory by default. The snapshot is forgotten when the engine
+  connection closes, so a restarted engine never shows jobs from its predecessor's journal.
+- Checks:
+  - Wording, the live panel, the moving clock and forgetting on disconnect are tested (jsdom).
+  - Typecheck clean.

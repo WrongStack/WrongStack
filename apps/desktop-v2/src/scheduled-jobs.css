@@ -1,0 +1,69 @@
+.scheduled-jobs {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.scheduled-jobs.overdue {
+  border-color: var(--danger);
+}
+.scheduled-jobs > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scheduled-jobs ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.scheduled-jobs li {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.scheduled-job-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scheduled-job-head strong {
+  overflow-wrap: anywhere;
+}
+.scheduled-job-status {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+}
+.scheduled-job-status.active {
+  border-color: hsl(var(--ws-success));
+  color: hsl(var(--ws-success));
+}
+.scheduled-job-status.overdue {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.scheduled-job-status.paused {
+  color: var(--muted);
+}
+.scheduled-jobs li small,
+.scheduled-jobs > p {
+  color: var(--muted);
+}
+.scheduled-job-action {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.scheduled-jobs > p {
+  margin: 8px 0 0;
+}

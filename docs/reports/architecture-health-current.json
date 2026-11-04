@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T07:57:10.931Z",
+  "generatedAt": "2026-11-04T08:03:34.768Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 5980,
-    "testFiles": 4957,
-    "sourceLines": 1244763,
+    "sourceFiles": 5982,
+    "testFiles": 4958,
+    "sourceLines": 1244909,
     "workspaceEdges": 240,
-    "moduleEdges": 17357,
+    "moduleEdges": 17361,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 221,
+    "testsWithoutTypecheck": 222,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -390,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 419,
-      "testFiles": 221,
+      "sourceFiles": 421,
+      "testFiles": 222,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2397,6 +2397,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/scheduled-jobs.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32327,6 +32333,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/scheduled-jobs.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/sdd-board-feed.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33170,6 +33183,11 @@
     {
       "from": "apps/desktop-v2/src/RefinementPolicySettings.tsx",
       "specifier": "./refinement-policy.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ScheduledJobs.tsx",
+      "specifier": "./scheduled-jobs.css",
       "syntax": "import"
     },
     {

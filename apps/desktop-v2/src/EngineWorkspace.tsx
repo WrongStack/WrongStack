@@ -35,6 +35,7 @@ import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from
 import { useRunSounds } from './RunSounds';
 import { recoveryLog, recoveryLogKey, type SavedRecoveryLog } from './recovery-log';
 import type { ProjectFormDraftStorage } from './requirement-draft';
+import { ScheduledJobs } from './ScheduledJobs';
 import { SessionActivity } from './SessionActivity';
 import { SessionBrowser } from './SessionBrowser';
 import { SessionComposer } from './SessionComposer';
@@ -513,6 +514,7 @@ export function EngineWorkspace({
           <FallbackPicker state={state} send={send} />
           <ProviderWaitingRoom state={state} command={command} />
           <SessionTodos state={state} command={command} />
+          <ScheduledJobs state={state} />
           <SessionWorklist state={state} command={command} />
           <SessionBrowser
             id={id}
