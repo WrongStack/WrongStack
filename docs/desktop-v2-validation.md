@@ -7491,3 +7491,21 @@ copies, starting with SAGE memory.
   - The project library renders in English and then in Turkish (jsdom).
   - A new unit test covers the update summary words.
   - Catalog parity and the key guard pass; desktop tests pass (890); typecheck clean.
+
+### Design Studio in the display language (2026-11-04)
+
+- The Design Studio, its theme preview and its edit draft notice now follow the display language
+  in all seven languages: the heading, the unsaved-edit notices, the gallery search and count, the
+  kit details, the use and reset confirmations, project colors, shape and rhythm, the theme output
+  and its confirmation, contrast observations, the implementation guide and the design
+  verification summary. The theme preview sample text is translated too.
+- The key group is `designStudio`, because the page quotes `design.*` engine messages.
+- Tuning choices are named per language with the engine value as the fallback; their options now
+  carry an explicit value, so a translated label never changes what is sent.
+- Accessible field names keep the English token words the native scenarios address
+  (`Design light primary`, `Design radius`); other languages name the theme and color in words.
+- ProjectDesignStudio grew by 5 lines and imports one more module; its hotspot ratchet is updated
+  to match.
+- Checks:
+  - The design studio renders a kit in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (891); typecheck clean.

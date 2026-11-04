@@ -23,6 +23,7 @@ import { modelEditorDraft } from '../src/model-catalog-editor';
 import { priceTierDraft } from '../src/model-price-tiers';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectChimera } from '../src/ProjectChimera';
+import { ProjectDesignStudio } from '../src/ProjectDesignStudio';
 import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
 import { RequirementEvidence } from '../src/RequirementResources';
@@ -224,6 +225,31 @@ const chimera = () =>
 
 const skills = () =>
   createElement(SkillLibrary, { command: vi.fn(pending), scope: 'project', projectId: 'skills' });
+
+// One kit and no active kit: the gallery and the kit details render, and no draft is read.
+const studio = () =>
+  createElement(ProjectDesignStudio, {
+    projectId: 'design',
+    onOpenFile: vi.fn(),
+    command: vi.fn(async (type: string) =>
+      type === 'design.list'
+        ? {
+            kits: [
+              {
+                id: 'calm',
+                name: 'Calm',
+                aesthetic: 'Quiet',
+                bestFor: 'Docs',
+                tags: ['minimal'],
+                stacks: ['web'],
+                light: {},
+                dark: {},
+              },
+            ],
+          }
+        : pending(),
+    ),
+  });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -604,6 +630,56 @@ describe('the project pages in the display language', () => {
         'Proje beceri kütüphanesi',
         'Becerilerde ara',
         'Beceri kaynağını filtrele',
+      ]),
+    );
+  });
+
+  it('show the design studio in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(studio());
+    for (const text of [
+      'Design Studio',
+      'Refresh design gallery',
+      '1 of 1 kits',
+      'EXPLORE THIS DESIGN',
+      'Use kit for project',
+      'Target stack',
+      'YOUR NEXT IDEA',
+      'THEME SAMPLE',
+      'Scan project design',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Project Design Studio',
+        'Search design kits',
+        'Preview Calm',
+        'Light theme sample',
+        'Design target stack',
+      ]),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(studio());
+    for (const text of [
+      'Tasarım Stüdyosu',
+      'Tasarım galerisini yenile',
+      '1 kitten 1 tanesi',
+      'BU TASARIMI KEŞFET',
+      'Kiti projede kullan',
+      'Hedef yığın',
+      'SIRADAKİ FİKRİN',
+      'TEMA ÖRNEĞİ',
+      'Proje tasarımını tara',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Proje Tasarım Stüdyosu',
+        'Tasarım kitlerinde ara',
+        'Calm önizlemesi',
+        'Açık tema örneği',
+        'Tasarım hedef yığını',
       ]),
     );
   });

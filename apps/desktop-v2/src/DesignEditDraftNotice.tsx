@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { type DesignEditDraft, designEditCodec, designEditEmpty } from './design-edit-draft';
+import { useDesktopText } from './desktop-i18n';
 import { DurableFormDraft, type FormDraftSnapshot } from './durable-form-draft';
 import { request } from './platform';
 
@@ -92,6 +93,7 @@ export function useDesignEditDraft(
 
 export function DesignEditDraftNotice({ draft }: { draft: ReturnType<typeof useDesignEditDraft> }) {
   const { state, stale, restored } = draft;
+  const { t } = useDesktopText();
   return (
     <>
       {state.error && (
@@ -100,41 +102,35 @@ export function DesignEditDraftNotice({ draft }: { draft: ReturnType<typeof useD
         </p>
       )}
       {state.review && (
-        <section className="design-draft-notice" aria-label="Design edit conflict">
-          <span>
-            Another window saved different unsaved design edits for this project. Choose which to
-            keep.
-          </span>
+        <section className="design-draft-notice" aria-label={t('designStudio.conflictLabel')}>
+          <span>{t('designStudio.conflict')}</span>
           <button
             type="button"
             className="button secondary small"
             onClick={() => void draft.resolve('local')}
           >
-            Keep this window’s edits
+            {t('designStudio.keepLocal')}
           </button>
           <button
             type="button"
             className="button secondary small"
             onClick={() => void draft.resolve('saved')}
           >
-            Use saved edits
+            {t('designStudio.useSaved')}
           </button>
         </section>
       )}
       {stale && (
-        <section className="design-draft-notice" aria-label="Earlier design edits">
-          <span>
-            Unsaved edits on this device belong to {stale.kit}, which is no longer the active kit.
-            They are not applied to the current kit.
-          </span>
+        <section className="design-draft-notice" aria-label={t('designStudio.staleLabel')}>
+          <span>{t('designStudio.stale', { kit: stale.kit })}</span>
           <button type="button" className="button secondary small" onClick={draft.discardStale}>
-            Discard earlier edits
+            {t('designStudio.discardStale')}
           </button>
         </section>
       )}
       {restored && !stale && !state.review && (
         <p className="design-draft-status" role="status">
-          Restored unsaved design edits kept on this device.
+          {t('designStudio.restored')}
         </p>
       )}
     </>

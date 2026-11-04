@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T12:57:23.237Z",
+  "generatedAt": "2026-11-04T13:08:35.976Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 5986,
     "testFiles": 4968,
-    "sourceLines": 1245877,
+    "sourceLines": 1245880,
     "workspaceEdges": 240,
-    "moduleEdges": 17455,
+    "moduleEdges": 17458,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -33679,8 +33679,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 783,
-      "relativeImports": 8
+      "lines": 788,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
@@ -33801,8 +33801,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 783,
-      "relativeImports": 8
+      "lines": 788,
+      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",

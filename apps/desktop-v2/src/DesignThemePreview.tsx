@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useDesktopText } from './desktop-i18n';
 
 export function DesignThemePreview({
   tokens,
@@ -9,6 +10,7 @@ export function DesignThemePreview({
   label: string;
   compact?: boolean;
 }) {
+  const { t } = useDesktopText();
   const style: CSSProperties = {
     backgroundColor: tokens['bg'] ?? '#ffffff',
     color: tokens['fg'] ?? '#18181b',
@@ -28,7 +30,7 @@ export function DesignThemePreview({
       className={`design-theme-preview ${compact ? 'design-preview-compact' : ''}`}
       style={style}
       role="img"
-      aria-label={`${label} theme sample`}
+      aria-label={t('designStudio.themeSample', { label })}
     >
       <div className="design-preview-top">
         <span className="design-preview-brand">
@@ -47,18 +49,18 @@ export function DesignThemePreview({
           <i />
         </aside>
         <div className="design-preview-canvas">
-          <span className="design-preview-overline">YOUR NEXT IDEA</span>
+          <span className="design-preview-overline">{t('designStudio.sample.overline')}</span>
           <h3>
-            Make room
+            {t('designStudio.sample.titleTop')}
             <br />
-            for great work.
+            {t('designStudio.sample.titleBottom')}
           </h3>
-          <p>A quiet place to focus, create and move forward.</p>
+          <p>{t('designStudio.sample.body')}</p>
           <div className="design-preview-actions">
             <span>
-              Start creating <b>↗</b>
+              {t('designStudio.sample.start')} <b>↗</b>
             </span>
-            <small>Explore</small>
+            <small>{t('designStudio.sample.explore')}</small>
           </div>
           <div className="design-preview-content">
             <div className="design-preview-chart" aria-hidden="true">
@@ -75,7 +77,7 @@ export function DesignThemePreview({
         </div>
       </div>
       <footer>
-        <span>THEME SAMPLE</span>
+        <span>{t('designStudio.sample.footer')}</span>
         <div>
           {['primary', 'accent', 'fg', 'surface'].map((key) => (
             <i key={key} style={{ backgroundColor: tokens[key] }} title={key} />
