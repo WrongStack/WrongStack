@@ -1,7 +1,16 @@
 import { CalendarClock } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Trans } from 'react-i18next';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineState } from './engine-state';
-import { intervalText, scheduledJobs, scheduledSummary, whenText } from './scheduled-jobs-model';
+import {
+  intervalText,
+  type ScheduleWords,
+  scheduledJobs,
+  scheduledSummary,
+  whenText,
+} from './scheduled-jobs-model';
+import { surfaceI18n } from './surface-i18n';
 import './scheduled-jobs.css';
 
 /**
@@ -10,6 +19,14 @@ import './scheduled-jobs.css';
  * move on by themselves.
  */
 export function ScheduledJobs({ state }: { state: EngineState }) {
+  const { t } = useDesktopText();
+  const words: ScheduleWords = {
+    in: (amount) => t('jobs.in', { amount }),
+    ago: (amount) => t('jobs.ago', { amount }),
+    active: (active, total) => t('jobs.active', { active, total }),
+    overdue: (count) => t('jobs.overdue', { count }),
+    runs: (count) => t(count === 1 ? 'jobs.run' : 'jobs.runs', { count }),
+  };
   const { jobs, maxConcurrent } = scheduledJobs(state.results['cron.snapshot']);
   const [now, setNow] = useState(() => Date.now());
   const hasJobs = jobs.length > 0;
@@ -24,7 +41,7 @@ export function ScheduledJobs({ state }: { state: EngineState }) {
   return (
     <details className={overdue ? 'scheduled-jobs overdue' : 'scheduled-jobs'}>
       <summary>
-        <CalendarClock size={14} /> Scheduled jobs · {scheduledSummary(jobs)}
+        <CalendarClock size={14} /> {t('jobs.title')} · {scheduledSummary(jobs, words)}
       </summary>
       <ul>
         {jobs.map((job) => {
@@ -33,12 +50,17 @@ export function ScheduledJobs({ state }: { state: EngineState }) {
             <li key={job.name}>
               <div className="scheduled-job-head">
                 <strong>{job.name}</strong>
-                <span className={`scheduled-job-status ${status}`}>{status}</span>
+                <span className={`scheduled-job-status ${status}`}>
+                  {t(`jobs.status.${status}`)}
+                </span>
               </div>
               <small>
-                every {intervalText(job.intervalMs)} · {job.runCount} run
-                {job.runCount === 1 ? '' : 's'} · next {whenText(job.nextRun, now)} · last{' '}
-                {whenText(job.lastRun, now)}
+                {[
+                  t('jobs.every', { interval: intervalText(job.intervalMs) }),
+                  words.runs(job.runCount),
+                  t('jobs.next', { when: whenText(job.nextRun, now, words) }),
+                  t('jobs.last', { when: whenText(job.lastRun, now, words) }),
+                ].join(' · ')}
               </small>
               {job.action && (
                 <code className="scheduled-job-action" title={job.action}>
@@ -50,8 +72,13 @@ export function ScheduledJobs({ state }: { state: EngineState }) {
         })}
       </ul>
       <p>
-        {maxConcurrent > 0 && `Up to ${maxConcurrent} run at once. `}Ask the agent to schedule a job
-        with <code>cron_schedule</code> or remove one with <code>cron_cancel</code>.
+        {maxConcurrent > 0 && `${t('jobs.limit', { count: maxConcurrent })} `}
+        <Trans
+          i18n={surfaceI18n}
+          ns="desktop"
+          i18nKey="jobs.howTo"
+          components={{ code: <code /> }}
+        />
       </p>
     </details>
   );

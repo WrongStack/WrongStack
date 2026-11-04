@@ -1,18 +1,25 @@
 import type { ModelBlackoutRule } from '@wrongstack/contracts/types/model-availability';
 import { blockingCalendarRules, ruleTarget } from '@wrongstack/project-surfaces/lib/model-calendar';
+import type { TFunction } from 'i18next';
 import { AlertTriangle, Clock3, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { siblingTrigger, type WaitingPair, waitRemaining } from './provider-waiting';
 import './provider-waiting-room.css';
 
-function ago(at: number | undefined, now: number) {
+function ago(at: number | undefined, now: number, t: TFunction<'desktop'>) {
   if (!at) return '';
   const seconds = Math.max(0, Math.floor((now - at) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
-  return minutes < 60 ? `${minutes}m ago` : `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
+  const time =
+    seconds < 60
+      ? `${seconds}s`
+      : minutes < 60
+        ? `${minutes}m`
+        : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  return t('waiting.ago', { time });
 }
 
 function WaitingPairRow({
@@ -26,6 +33,7 @@ function WaitingPairRow({
   busy: boolean;
   onControl: (pair: WaitingPair, action: 'retry' | 'clear') => void;
 }) {
+  const { t } = useDesktopText();
   const [open, setOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const via = siblingTrigger(pair);
@@ -40,35 +48,47 @@ function WaitingPairRow({
       >
         <Clock3 size={13} />
         <code>{name}</code>
-        <span className="waiting-state">{pair.state}</span>
+        <span className="waiting-state">{t(`waiting.state.${pair.state}`)}</span>
         <span>{pair.reason.replaceAll('_', ' ')}</span>
-        {via && <span className="waiting-via">via {via}</span>}
-        <span className="waiting-left">{waitRemaining(pair.stateExpiresAt, now)}</span>
+        {via && <span className="waiting-via">{t('waiting.via', { via })}</span>}
+        <span className="waiting-left">
+          {!pair.stateExpiresAt
+            ? t('waiting.resetUnknown')
+            : pair.stateExpiresAt <= now
+              ? t('waiting.rechecking')
+              : waitRemaining(pair.stateExpiresAt, now)}
+        </span>
       </button>
       {open && (
         <div className="waiting-detail">
           {pair.lastErrorMessage && (
-            <p className="waiting-error">Last error: {pair.lastErrorMessage.slice(0, 300)}</p>
+            <p className="waiting-error">
+              {t('waiting.lastError', { message: pair.lastErrorMessage.slice(0, 300) })}
+            </p>
           )}
           <p className="waiting-counts">
-            {pair.totalFailures !== undefined && <span>failures: {pair.totalFailures}</span>}
-            {pair.rateLimitHits ? <span>rate limits: {pair.rateLimitHits}</span> : null}
+            {pair.totalFailures !== undefined && (
+              <span>{t('waiting.failures', { count: pair.totalFailures })}</span>
+            )}
+            {pair.rateLimitHits ? (
+              <span>{t('waiting.rateLimits', { count: pair.rateLimitHits })}</span>
+            ) : null}
             {pair.consecutiveFailures !== undefined && (
-              <span>streak: {pair.consecutiveFailures}</span>
+              <span>{t('waiting.streak', { count: pair.consecutiveFailures })}</span>
             )}
             {pair.lastErrorStatus !== undefined && <span>HTTP {pair.lastErrorStatus}</span>}
-            {pair.lastFailureAt && <span>{ago(pair.lastFailureAt, now)}</span>}
+            {pair.lastFailureAt && <span>{ago(pair.lastFailureAt, now, t)}</span>}
           </p>
           {pair.recentErrors?.length ? (
             <details>
-              <summary>Error history ({pair.recentErrors.length})</summary>
+              <summary>{t('waiting.history', { count: pair.recentErrors.length })}</summary>
               <ul className="waiting-history">
                 {pair.recentErrors.map((error, index) => (
                   <li key={index}>
                     <span>{error.kind}</span>
                     <span>HTTP {error.status}</span>
                     <span className="waiting-message">{error.message.slice(0, 200)}</span>
-                    <span>{ago(error.timestamp, now)}</span>
+                    <span>{ago(error.timestamp, now, t)}</span>
                   </li>
                 ))}
               </ul>
@@ -76,17 +96,14 @@ function WaitingPairRow({
           ) : null}
           {confirmClear ? (
             <div className="waiting-actions">
-              <span>
-                Clear tracked failures for {name}? This resets local health history; it does not
-                restore account quota.
-              </span>
+              <span>{t('waiting.clearConfirm', { name })}</span>
               <button
                 type="button"
                 className="button secondary"
                 disabled={busy}
                 onClick={() => setConfirmClear(false)}
               >
-                Keep
+                {t('waiting.keep')}
               </button>
               <button
                 type="button"
@@ -94,7 +111,7 @@ function WaitingPairRow({
                 disabled={busy}
                 onClick={() => onControl(pair, 'clear')}
               >
-                Clear tracking
+                {t('waiting.clear')}
               </button>
             </div>
           ) : (
@@ -106,7 +123,7 @@ function WaitingPairRow({
                 onClick={() => onControl(pair, 'retry')}
               >
                 <RotateCcw size={13} />
-                Release for next probe
+                {t('waiting.release')}
               </button>
               <button
                 type="button"
@@ -115,7 +132,7 @@ function WaitingPairRow({
                 onClick={() => setConfirmClear(true)}
               >
                 <Trash2 size={13} />
-                Clear tracking
+                {t('waiting.clear')}
               </button>
             </div>
           )}
@@ -138,6 +155,7 @@ export function ProviderWaitingRoom({
   state: EngineState;
   command: EngineCommand;
 }) {
+  const { t } = useDesktopText();
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -194,21 +212,27 @@ export function ProviderWaitingRoom({
   };
   const blocked = pairs.filter((pair) => pair.state === 'blocked').length;
   return (
-    <section className="waiting-room" aria-label="Provider and model availability">
+    <section className="waiting-room" aria-label={t('waiting.label')}>
       <div className="waiting-summary">
         <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
           <AlertTriangle size={14} />
-          <strong>Provider/model availability</strong>
+          <strong>{t('waiting.title')}</strong>
           <span>
-            {blocked} blocked · {pairs.length - blocked} degraded · {rules.length} scheduled
+            {t('waiting.summary', {
+              blocked,
+              degraded: pairs.length - blocked,
+              scheduled: rules.length,
+            })}
           </span>
-          <span className="waiting-left">{expanded ? 'Hide' : 'Details'}</span>
+          <span className="waiting-left">
+            {expanded ? t('waiting.hide') : t('waiting.details')}
+          </span>
         </button>
         <button
           type="button"
           className="icon-button"
-          aria-label="Refresh provider status"
-          title="Refresh provider status"
+          aria-label={t('waiting.refresh')}
+          title={t('waiting.refresh')}
           onClick={refresh}
         >
           <RefreshCw size={13} />
@@ -230,10 +254,10 @@ export function ProviderWaitingRoom({
               <li key={rule.id} className="waiting-pair">
                 <Clock3 size={13} />
                 <code>{ruleTarget(rule)}</code>
-                <span className="waiting-state scheduled">scheduled</span>
-                <span>{rule.label ?? 'calendar blackout'}</span>
+                <span className="waiting-state scheduled">{t('waiting.scheduled')}</span>
+                <span>{rule.label ?? t('waiting.blackout')}</span>
                 <span className="waiting-left">
-                  {rule.start}–{rule.end} · {rule.timezone ?? 'local time'}
+                  {rule.start}–{rule.end} · {rule.timezone ?? t('waiting.localTime')}
                 </span>
               </li>
             ))}
@@ -243,10 +267,7 @@ export function ProviderWaitingRoom({
               {error}
             </p>
           )}
-          <small>
-            WrongStack routes around these until their reset time or schedule ends. Settings →
-            Provider health shows the full history.
-          </small>
+          <small>{t('waiting.note')}</small>
         </div>
       )}
     </section>

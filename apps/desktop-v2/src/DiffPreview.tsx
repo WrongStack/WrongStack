@@ -1,5 +1,6 @@
 import { Columns2, MessageSquarePlus, Rows3 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { lineDiff } from './file-model';
 
 export function DiffPreview({
@@ -13,6 +14,7 @@ export function DiffPreview({
   path: string;
   onComment?: (line: number) => void;
 }) {
+  const { t } = useDesktopText();
   const [split, setSplit] = useState(false),
     [all, setAll] = useState(false);
   const lines = useMemo(() => lineDiff(before, after), [before, after]);
@@ -28,18 +30,18 @@ export function DiffPreview({
   const added = lines.filter((l) => l.kind === 'add').length,
     removed = lines.filter((l) => l.kind === 'remove').length;
   return (
-    <section className="file-diff-preview" aria-label={`Changes in ${path}`}>
+    <section className="file-diff-preview" aria-label={t('diff.label', { path })}>
       <div className="diff-preview-toolbar">
         <strong>{path.split('/').at(-1)}</strong>
         <span className="diff-added">+{added}</span>
         <span className="diff-removed">−{removed}</span>
         <button type="button" onClick={() => setAll(!all)}>
-          {all ? 'Changes only' : 'Show entire file'}
+          {all ? t('diff.changesOnly') : t('diff.wholeFile')}
         </button>
         <div className="file-mode-switch">
           <button
             type="button"
-            aria-label="Unified diff"
+            aria-label={t('diff.unified')}
             aria-pressed={!split}
             onClick={() => setSplit(false)}
           >
@@ -47,7 +49,7 @@ export function DiffPreview({
           </button>
           <button
             type="button"
-            aria-label="Side by side diff"
+            aria-label={t('diff.split')}
             aria-pressed={split}
             onClick={() => setSplit(true)}
           >
@@ -56,7 +58,7 @@ export function DiffPreview({
         </div>
       </div>
       {!added && !removed ? (
-        <div className="file-quiet-state">This file matches HEAD.</div>
+        <div className="file-quiet-state">{t('diff.matchesHead')}</div>
       ) : (
         <div className={`diff-code-lines ${split ? 'diff-split' : ''}`}>
           {lines.map((line, index) => {
@@ -68,7 +70,7 @@ export function DiffPreview({
                   className="diff-gap"
                   onClick={() => setAll(true)}
                 >
-                  Show unchanged lines
+                  {t('diff.unchanged')}
                 </button>
               ) : null;
             return (
@@ -98,7 +100,7 @@ export function DiffPreview({
                   <button
                     type="button"
                     className="diff-line-comment"
-                    aria-label={`Review line ${line.newLine ?? line.oldLine}`}
+                    aria-label={t('diff.review', { line: line.newLine ?? line.oldLine })}
                     onClick={() => onComment(line.newLine ?? line.oldLine ?? 1)}
                   >
                     <MessageSquarePlus size={13} />

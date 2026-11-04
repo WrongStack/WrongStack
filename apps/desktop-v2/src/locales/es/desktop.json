@@ -812,5 +812,117 @@
     "exitCode": "código de salida {{code}}",
     "saveTitle": "Guardar la salida como archivo de texto",
     "save": "Guardar"
+  },
+  "runLog": {
+    "currentLabel": "Actividad de la ejecución actual",
+    "label": "Actividad de la conversación",
+    "eyebrow": "ESTA CONVERSACIÓN",
+    "body": "Sigue las llamadas a herramientas, el razonamiento y los resultados de ejecución de esta sesión.",
+    "filters": "Filtros de actividad",
+    "filter": {
+      "all": "Todo",
+      "tool": "Herramientas",
+      "reasoning": "Razonamiento",
+      "run": "Ejecuciones"
+    },
+    "noMatch": "Ninguna actividad coincide con este filtro.",
+    "empty": "Las llamadas a herramientas y los eventos de ejecución aparecen aquí mientras el agente trabaja.",
+    "status": {
+      "running": "En curso",
+      "done": "Completado",
+      "failed": "Fallido",
+      "aborted": "Detenido",
+      "retry": "Reintentando",
+      "recorded": "Registrado"
+    },
+    "wait": "espera {{ms}} ms",
+    "bytes": "{{bytes}} bytes",
+    "inputLabel": "Entrada de la herramienta",
+    "input": "Entrada",
+    "progress": "Progreso",
+    "thinking": "Razonamiento",
+    "retryDetails": "Detalles del reintento",
+    "outputPreview": "Vista previa de la salida",
+    "output": "Salida",
+    "files": "Archivos",
+    "sage": "Evidencia de SAGE",
+    "noDetails": "No se informaron más detalles."
+  },
+  "toolInput": {
+    "allReplaced": "Se reemplazan todas las apariciones.",
+    "moreLines": "… {{count}} líneas más",
+    "in": "en {{path}}",
+    "search": "Buscar <code>{{pattern}}</code>",
+    "searchIn": "Buscar <code>{{pattern}}</code> en <code>{{path}}</code>",
+    "find": "Buscar archivos <code>{{pattern}}</code>",
+    "findIn": "Buscar archivos <code>{{pattern}}</code> en <code>{{path}}</code>",
+    "replace": "Reemplazar <code>{{pattern}}</code> por <code>{{replacement}}</code>",
+    "nothing": "(nada)",
+    "more": "… {{count}} más"
+  },
+  "modelFallback": {
+    "label": "Modelo de respaldo",
+    "notice": "{{from}} falló tras sus reintentos. Cambiando a <strong>{{to}}</strong> en {{seconds}} s.",
+    "noticeStatus": "{{from}} falló (estado {{status}}) tras sus reintentos. Cambiando a <strong>{{to}}</strong> en {{seconds}} s.",
+    "switchNow": "Cambiar ahora",
+    "use": "Usar {{target}}"
+  },
+  "jobs": {
+    "title": "Tareas programadas",
+    "status": {
+      "paused": "en pausa",
+      "overdue": "atrasada",
+      "active": "activa"
+    },
+    "every": "cada {{interval}}",
+    "run": "{{count}} ejecución",
+    "runs": "{{count}} ejecuciones",
+    "next": "siguiente {{when}}",
+    "last": "última {{when}}",
+    "in": "en {{amount}}",
+    "ago": "hace {{amount}}",
+    "active": "{{active}} de {{total}} activas",
+    "overdue": "{{count}} atrasadas",
+    "limit": "Hasta {{count}} ejecuciones a la vez.",
+    "howTo": "Pide al agente que programe una tarea con <code>cron_schedule</code> o que quite una con <code>cron_cancel</code>."
+  },
+  "waiting": {
+    "ago": "hace {{time}}",
+    "via": "vía {{via}}",
+    "lastError": "Último error: {{message}}",
+    "failures": "fallos: {{count}}",
+    "rateLimits": "límites de tasa: {{count}}",
+    "streak": "racha: {{count}}",
+    "history": "Historial de errores ({{count}})",
+    "clearConfirm": "¿Borrar los fallos registrados de {{name}}? Esto restablece el historial de estado local; no restaura la cuota de la cuenta.",
+    "keep": "Conservar",
+    "clear": "Borrar el seguimiento",
+    "release": "Liberar para la próxima comprobación",
+    "label": "Disponibilidad de proveedores y modelos",
+    "title": "Disponibilidad de proveedor/modelo",
+    "summary": "{{blocked}} bloqueados · {{degraded}} degradados · {{scheduled}} programados",
+    "state": {
+      "blocked": "bloqueado",
+      "degraded": "degradado"
+    },
+    "hide": "Ocultar",
+    "details": "Detalles",
+    "refresh": "Actualizar el estado de los proveedores",
+    "scheduled": "programado",
+    "blackout": "bloqueo de calendario",
+    "localTime": "hora local",
+    "resetUnknown": "hora de restablecimiento desconocida",
+    "rechecking": "volviendo a comprobar ahora",
+    "note": "WrongStack los evita hasta su hora de restablecimiento o hasta que termine su programación. Ajustes → Estado de los proveedores muestra el historial completo."
+  },
+  "diff": {
+    "label": "Cambios en {{path}}",
+    "changesOnly": "Solo cambios",
+    "wholeFile": "Mostrar el archivo completo",
+    "unified": "Diff unificado",
+    "split": "Diff lado a lado",
+    "matchesHead": "Este archivo coincide con HEAD.",
+    "unchanged": "Mostrar las líneas sin cambios",
+    "review": "Revisar la línea {{line}}"
   }
 }

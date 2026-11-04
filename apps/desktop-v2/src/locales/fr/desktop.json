@@ -812,5 +812,117 @@
     "exitCode": "code de sortie {{code}}",
     "saveTitle": "Enregistrer la sortie dans un fichier texte",
     "save": "Enregistrer"
+  },
+  "runLog": {
+    "currentLabel": "Activité de l'exécution en cours",
+    "label": "Activité de la conversation",
+    "eyebrow": "CETTE CONVERSATION",
+    "body": "Suivez les appels d'outils, le raisonnement et les résultats d'exécution de cette session.",
+    "filters": "Filtres d'activité",
+    "filter": {
+      "all": "Tout",
+      "tool": "Outils",
+      "reasoning": "Réflexion",
+      "run": "Exécutions"
+    },
+    "noMatch": "Aucune activité ne correspond à ce filtre.",
+    "empty": "Les appels d'outils et les événements d'exécution apparaissent ici pendant que l'agent travaille.",
+    "status": {
+      "running": "En cours",
+      "done": "Terminé",
+      "failed": "Échec",
+      "aborted": "Arrêté",
+      "retry": "Nouvelle tentative",
+      "recorded": "Enregistré"
+    },
+    "wait": "attente {{ms}} ms",
+    "bytes": "{{bytes}} octets",
+    "inputLabel": "Entrée de l'outil",
+    "input": "Entrée",
+    "progress": "Progression",
+    "thinking": "Réflexion",
+    "retryDetails": "Détails de la nouvelle tentative",
+    "outputPreview": "Aperçu de la sortie",
+    "output": "Sortie",
+    "files": "Fichiers",
+    "sage": "Preuves SAGE",
+    "noDetails": "Aucun détail supplémentaire n'a été signalé."
+  },
+  "toolInput": {
+    "allReplaced": "Toutes les occurrences sont remplacées.",
+    "moreLines": "… {{count}} lignes de plus",
+    "in": "dans {{path}}",
+    "search": "Rechercher <code>{{pattern}}</code>",
+    "searchIn": "Rechercher <code>{{pattern}}</code> dans <code>{{path}}</code>",
+    "find": "Trouver les fichiers <code>{{pattern}}</code>",
+    "findIn": "Trouver les fichiers <code>{{pattern}}</code> dans <code>{{path}}</code>",
+    "replace": "Remplacer <code>{{pattern}}</code> par <code>{{replacement}}</code>",
+    "nothing": "(rien)",
+    "more": "… {{count}} de plus"
+  },
+  "modelFallback": {
+    "label": "Modèle de repli",
+    "notice": "{{from}} a échoué après ses nouvelles tentatives. Passage à <strong>{{to}}</strong> dans {{seconds}} s.",
+    "noticeStatus": "{{from}} a échoué (statut {{status}}) après ses nouvelles tentatives. Passage à <strong>{{to}}</strong> dans {{seconds}} s.",
+    "switchNow": "Changer maintenant",
+    "use": "Utiliser {{target}}"
+  },
+  "jobs": {
+    "title": "Tâches planifiées",
+    "status": {
+      "paused": "en pause",
+      "overdue": "en retard",
+      "active": "active"
+    },
+    "every": "toutes les {{interval}}",
+    "run": "{{count}} exécution",
+    "runs": "{{count}} exécutions",
+    "next": "prochaine {{when}}",
+    "last": "dernière {{when}}",
+    "in": "dans {{amount}}",
+    "ago": "il y a {{amount}}",
+    "active": "{{active}} sur {{total}} actives",
+    "overdue": "{{count}} en retard",
+    "limit": "Jusqu'à {{count}} exécutions simultanées.",
+    "howTo": "Demandez à l'agent de planifier une tâche avec <code>cron_schedule</code> ou d'en supprimer une avec <code>cron_cancel</code>."
+  },
+  "waiting": {
+    "ago": "il y a {{time}}",
+    "via": "via {{via}}",
+    "lastError": "Dernière erreur : {{message}}",
+    "failures": "échecs : {{count}}",
+    "rateLimits": "limites de débit : {{count}}",
+    "streak": "série : {{count}}",
+    "history": "Historique des erreurs ({{count}})",
+    "clearConfirm": "Effacer les échecs suivis pour {{name}} ? Cela réinitialise l'historique de santé local ; cela ne rétablit pas le quota du compte.",
+    "keep": "Garder",
+    "clear": "Effacer le suivi",
+    "release": "Libérer pour la prochaine vérification",
+    "label": "Disponibilité des fournisseurs et des modèles",
+    "title": "Disponibilité fournisseur/modèle",
+    "summary": "{{blocked}} bloqués · {{degraded}} dégradés · {{scheduled}} planifiés",
+    "state": {
+      "blocked": "bloqué",
+      "degraded": "dégradé"
+    },
+    "hide": "Masquer",
+    "details": "Détails",
+    "refresh": "Actualiser l'état des fournisseurs",
+    "scheduled": "planifié",
+    "blackout": "indisponibilité planifiée",
+    "localTime": "heure locale",
+    "resetUnknown": "heure de réinitialisation inconnue",
+    "rechecking": "nouvelle vérification en cours",
+    "note": "WrongStack les contourne jusqu'à leur heure de réinitialisation ou la fin de leur planification. Paramètres → Santé des fournisseurs affiche l'historique complet."
+  },
+  "diff": {
+    "label": "Modifications dans {{path}}",
+    "changesOnly": "Modifications seulement",
+    "wholeFile": "Afficher tout le fichier",
+    "unified": "Diff unifié",
+    "split": "Diff côte à côte",
+    "matchesHead": "Ce fichier correspond à HEAD.",
+    "unchanged": "Afficher les lignes inchangées",
+    "review": "Commenter la ligne {{line}}"
   }
 }

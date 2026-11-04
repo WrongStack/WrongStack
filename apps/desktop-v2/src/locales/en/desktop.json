@@ -812,5 +812,117 @@
     "exitCode": "exit code {{code}}",
     "saveTitle": "Save the output as a text file",
     "save": "Save"
+  },
+  "runLog": {
+    "currentLabel": "Current run activity",
+    "label": "Conversation activity",
+    "eyebrow": "THIS CONVERSATION",
+    "body": "Follow tool calls, reasoning and execution results for this session.",
+    "filters": "Activity filters",
+    "filter": {
+      "all": "All",
+      "tool": "Tools",
+      "reasoning": "Thinking",
+      "run": "Runs"
+    },
+    "noMatch": "No activity matches this filter.",
+    "empty": "Tool calls and run events appear here as the agent works.",
+    "status": {
+      "running": "In progress",
+      "done": "Completed",
+      "failed": "Failed",
+      "aborted": "Stopped",
+      "retry": "Retrying",
+      "recorded": "Recorded"
+    },
+    "wait": "wait {{ms}} ms",
+    "bytes": "{{bytes}} bytes",
+    "inputLabel": "Tool input",
+    "input": "Input",
+    "progress": "Progress",
+    "thinking": "Thinking",
+    "retryDetails": "Retry details",
+    "outputPreview": "Output preview",
+    "output": "Output",
+    "files": "Files",
+    "sage": "SAGE evidence",
+    "noDetails": "No additional details were reported."
+  },
+  "toolInput": {
+    "allReplaced": "Every occurrence is replaced.",
+    "moreLines": "… {{count}} more lines",
+    "in": "in {{path}}",
+    "search": "Search for <code>{{pattern}}</code>",
+    "searchIn": "Search for <code>{{pattern}}</code> in <code>{{path}}</code>",
+    "find": "Find files <code>{{pattern}}</code>",
+    "findIn": "Find files <code>{{pattern}}</code> in <code>{{path}}</code>",
+    "replace": "Replace <code>{{pattern}}</code> with <code>{{replacement}}</code>",
+    "nothing": "(nothing)",
+    "more": "… {{count}} more"
+  },
+  "modelFallback": {
+    "label": "Model fallback",
+    "notice": "{{from}} failed after its retries. Switching to <strong>{{to}}</strong> in {{seconds}} s.",
+    "noticeStatus": "{{from}} failed (status {{status}}) after its retries. Switching to <strong>{{to}}</strong> in {{seconds}} s.",
+    "switchNow": "Switch now",
+    "use": "Use {{target}}"
+  },
+  "jobs": {
+    "title": "Scheduled jobs",
+    "status": {
+      "paused": "paused",
+      "overdue": "overdue",
+      "active": "active"
+    },
+    "every": "every {{interval}}",
+    "run": "{{count}} run",
+    "runs": "{{count}} runs",
+    "next": "next {{when}}",
+    "last": "last {{when}}",
+    "in": "in {{amount}}",
+    "ago": "{{amount}} ago",
+    "active": "{{active}} of {{total}} active",
+    "overdue": "{{count}} overdue",
+    "limit": "Up to {{count}} run at once.",
+    "howTo": "Ask the agent to schedule a job with <code>cron_schedule</code> or remove one with <code>cron_cancel</code>."
+  },
+  "waiting": {
+    "ago": "{{time}} ago",
+    "via": "via {{via}}",
+    "lastError": "Last error: {{message}}",
+    "failures": "failures: {{count}}",
+    "rateLimits": "rate limits: {{count}}",
+    "streak": "streak: {{count}}",
+    "history": "Error history ({{count}})",
+    "clearConfirm": "Clear tracked failures for {{name}}? This resets local health history; it does not restore account quota.",
+    "keep": "Keep",
+    "clear": "Clear tracking",
+    "release": "Release for next probe",
+    "label": "Provider and model availability",
+    "title": "Provider/model availability",
+    "summary": "{{blocked}} blocked · {{degraded}} degraded · {{scheduled}} scheduled",
+    "state": {
+      "blocked": "blocked",
+      "degraded": "degraded"
+    },
+    "hide": "Hide",
+    "details": "Details",
+    "refresh": "Refresh provider status",
+    "scheduled": "scheduled",
+    "blackout": "calendar blackout",
+    "localTime": "local time",
+    "resetUnknown": "reset time unknown",
+    "rechecking": "rechecking now",
+    "note": "WrongStack routes around these until their reset time or schedule ends. Settings → Provider health shows the full history."
+  },
+  "diff": {
+    "label": "Changes in {{path}}",
+    "changesOnly": "Changes only",
+    "wholeFile": "Show entire file",
+    "unified": "Unified diff",
+    "split": "Side by side diff",
+    "matchesHead": "This file matches HEAD.",
+    "unchanged": "Show unchanged lines",
+    "review": "Review line {{line}}"
   }
 }

@@ -1,14 +1,18 @@
+import { Trans } from 'react-i18next';
 import { DiffPreview } from './DiffPreview';
+import { useDesktopText } from './desktop-i18n';
+import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { toolInputView } from './tool-input-view';
 
 /** A tool's input in the form that fits it: a diff, a file preview, a command, or the raw value. */
 export function ToolInputView({ name, input }: { name: string; input: unknown }) {
+  const { t } = useDesktopText();
   const view = toolInputView(name, input);
   if (view.kind === 'edit')
     return (
       <div className="tool-input-view">
-        {view.all && <small>Every occurrence is replaced.</small>}
+        {view.all && <small>{t('toolInput.allReplaced')}</small>}
         <DiffPreview
           before={view.removed.join('\n')}
           after={view.added.join('\n')}
@@ -22,14 +26,14 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
         <code>{view.path}</code>
         <pre className="tool-diff">
           {view.lines.join('\n')}
-          {view.more ? `\n… ${view.more} more lines` : ''}
+          {view.more ? `\n${t('toolInput.moreLines', { count: view.more })}` : ''}
         </pre>
       </div>
     );
   if (view.kind === 'command')
     return (
       <div className="tool-input-view">
-        {view.cwd && <small>in {view.cwd}</small>}
+        {view.cwd && <small>{t('toolInput.in', { path: view.cwd })}</small>}
         <pre className="tool-command">{`$ ${view.command}`}</pre>
       </div>
     );
@@ -45,13 +49,21 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
     return (
       <div className="tool-input-view">
         <span>
-          {view.tool === 'grep' ? 'Search for' : 'Find files'} <code>{view.pattern}</code>
-          {view.path ? (
-            <>
-              {' '}
-              in <code>{view.path}</code>
-            </>
-          ) : null}
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey={
+              view.tool === 'grep'
+                ? view.path
+                  ? 'toolInput.searchIn'
+                  : 'toolInput.search'
+                : view.path
+                  ? 'toolInput.findIn'
+                  : 'toolInput.find'
+            }
+            values={{ pattern: view.pattern, path: view.path }}
+            components={{ code: <code /> }}
+          />
         </span>
         {view.details.length > 0 && <small>{view.details.join(' · ')}</small>}
       </div>
@@ -60,7 +72,16 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
     return (
       <div className="tool-input-view">
         <span>
-          Replace <code>{view.pattern}</code> with <code>{view.replacement || '(nothing)'}</code>
+          <Trans
+            i18n={surfaceI18n}
+            ns="desktop"
+            i18nKey="toolInput.replace"
+            values={{
+              pattern: view.pattern,
+              replacement: view.replacement || t('toolInput.nothing'),
+            }}
+            components={{ code: <code /> }}
+          />
         </span>
         <small>{view.details.join(' · ')}</small>
         {view.files.length > 0 && (
@@ -70,7 +91,9 @@ export function ToolInputView({ name, input }: { name: string; input: unknown })
                 <code>{file}</code>
               </li>
             ))}
-            {view.files.length > 20 && <li>… {view.files.length - 20} more</li>}
+            {view.files.length > 20 && (
+              <li>{t('toolInput.more', { count: view.files.length - 20 })}</li>
+            )}
           </ul>
         )}
       </div>

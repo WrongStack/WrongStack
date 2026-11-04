@@ -812,5 +812,117 @@
     "exitCode": "çıkış kodu {{code}}",
     "saveTitle": "Çıktıyı metin dosyası olarak kaydet",
     "save": "Kaydet"
+  },
+  "runLog": {
+    "currentLabel": "Geçerli çalışma etkinliği",
+    "label": "Konuşma etkinliği",
+    "eyebrow": "BU KONUŞMA",
+    "body": "Bu oturumun araç çağrılarını, akıl yürütmesini ve çalışma sonuçlarını izle.",
+    "filters": "Etkinlik filtreleri",
+    "filter": {
+      "all": "Tümü",
+      "tool": "Araçlar",
+      "reasoning": "Düşünme",
+      "run": "Çalışmalar"
+    },
+    "noMatch": "Bu filtreyle eşleşen etkinlik yok.",
+    "empty": "Ajan çalıştıkça araç çağrıları ve çalışma olayları burada görünür.",
+    "status": {
+      "running": "Sürüyor",
+      "done": "Tamamlandı",
+      "failed": "Başarısız",
+      "aborted": "Durduruldu",
+      "retry": "Yeniden deneniyor",
+      "recorded": "Kaydedildi"
+    },
+    "wait": "{{ms}} ms bekleme",
+    "bytes": "{{bytes}} bayt",
+    "inputLabel": "Araç girdisi",
+    "input": "Girdi",
+    "progress": "İlerleme",
+    "thinking": "Düşünme",
+    "retryDetails": "Yeniden deneme ayrıntıları",
+    "outputPreview": "Çıktı önizlemesi",
+    "output": "Çıktı",
+    "files": "Dosyalar",
+    "sage": "SAGE kanıtı",
+    "noDetails": "Ek ayrıntı bildirilmedi."
+  },
+  "toolInput": {
+    "allReplaced": "Tüm geçişler değiştirilir.",
+    "moreLines": "… {{count}} satır daha",
+    "in": "{{path}} içinde",
+    "search": "<code>{{pattern}}</code> ara",
+    "searchIn": "<code>{{path}}</code> içinde <code>{{pattern}}</code> ara",
+    "find": "<code>{{pattern}}</code> dosyalarını bul",
+    "findIn": "<code>{{path}}</code> içinde <code>{{pattern}}</code> dosyalarını bul",
+    "replace": "<code>{{pattern}}</code> yerine <code>{{replacement}}</code> koy",
+    "nothing": "(hiçbir şey)",
+    "more": "… {{count}} tane daha"
+  },
+  "modelFallback": {
+    "label": "Yedek model",
+    "notice": "{{from}} yeniden denemelerinden sonra başarısız oldu. {{seconds}} sn içinde <strong>{{to}}</strong> modeline geçiliyor.",
+    "noticeStatus": "{{from}} yeniden denemelerinden sonra başarısız oldu (durum {{status}}). {{seconds}} sn içinde <strong>{{to}}</strong> modeline geçiliyor.",
+    "switchNow": "Şimdi geç",
+    "use": "{{target}} kullan"
+  },
+  "jobs": {
+    "title": "Zamanlanmış işler",
+    "status": {
+      "paused": "duraklatıldı",
+      "overdue": "gecikti",
+      "active": "etkin"
+    },
+    "every": "her {{interval}}",
+    "run": "{{count}} çalışma",
+    "runs": "{{count}} çalışma",
+    "next": "sonraki {{when}}",
+    "last": "son {{when}}",
+    "in": "{{amount}} sonra",
+    "ago": "{{amount}} önce",
+    "active": "{{total}} işin {{active}} tanesi etkin",
+    "overdue": "{{count}} gecikmiş",
+    "limit": "Aynı anda en çok {{count}} çalışma.",
+    "howTo": "Ajandan <code>cron_schedule</code> ile bir iş zamanlamasını ya da <code>cron_cancel</code> ile kaldırmasını iste."
+  },
+  "waiting": {
+    "ago": "{{time}} önce",
+    "via": "{{via}} üzerinden",
+    "lastError": "Son hata: {{message}}",
+    "failures": "hata: {{count}}",
+    "rateLimits": "hız sınırı: {{count}}",
+    "streak": "art arda: {{count}}",
+    "history": "Hata geçmişi ({{count}})",
+    "clearConfirm": "{{name}} için izlenen hatalar temizlensin mi? Bu, yerel sağlık geçmişini sıfırlar; hesap kotasını geri getirmez.",
+    "keep": "Koru",
+    "clear": "İzlemeyi temizle",
+    "release": "Sonraki yoklamaya bırak",
+    "label": "Sağlayıcı ve model kullanılabilirliği",
+    "title": "Sağlayıcı/model kullanılabilirliği",
+    "summary": "{{blocked}} engelli · {{degraded}} zayıflamış · {{scheduled}} zamanlanmış",
+    "state": {
+      "blocked": "engelli",
+      "degraded": "zayıflamış"
+    },
+    "hide": "Gizle",
+    "details": "Ayrıntılar",
+    "refresh": "Sağlayıcı durumunu yenile",
+    "scheduled": "zamanlanmış",
+    "blackout": "takvim kapanışı",
+    "localTime": "yerel saat",
+    "resetUnknown": "sıfırlanma zamanı bilinmiyor",
+    "rechecking": "şimdi yeniden denetleniyor",
+    "note": "WrongStack, sıfırlanma zamanları ya da zamanlamaları bitene kadar bunları atlar. Ayarlar → Sağlayıcı sağlığı tüm geçmişi gösterir."
+  },
+  "diff": {
+    "label": "{{path}} içindeki değişiklikler",
+    "changesOnly": "Yalnızca değişiklikler",
+    "wholeFile": "Tüm dosyayı göster",
+    "unified": "Birleşik fark",
+    "split": "Yan yana fark",
+    "matchesHead": "Bu dosya HEAD ile aynı.",
+    "unchanged": "Değişmeyen satırları göster",
+    "review": "{{line}}. satırı incele"
   }
 }

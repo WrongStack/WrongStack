@@ -7130,3 +7130,23 @@ copies, starting with SAGE memory.
   - The approval card, finished-turn line, next steps and todo list render in English and then in
     Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.
+
+### Run activity, tool input, fallback, scheduled jobs, waiting room and diffs in the display language (2026-11-04)
+
+- These now follow the display language in all seven languages:
+  - run activity: filters, entry states, input, progress, output, files, SAGE evidence;
+  - tool input: replaced occurrences, more lines, working directory, search, find and replace;
+  - the model fallback countdown with Switch now and the other candidates;
+  - scheduled jobs: summary, states, interval, runs, next and last run, the concurrency limit and
+    the `cron_schedule` hint;
+  - the provider waiting room: pair states, counts, error history, clear and release, calendar
+    blackouts and the note;
+  - diff previews: toolbar, unified and side-by-side views, unchanged lines and line review.
+- The scheduled jobs helpers take the panel's words and keep English as the default, so the
+  slash command and their unit tests read as before.
+- Fallback keys use `modelFallback.*` and run activity keys `runLog.*`, because the engine's
+  message types already use `fallback.*` and `run.*`.
+- Checks:
+  - The fallback countdown, scheduled jobs, a grep input and a diff preview render in English and
+    then in Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (875); typecheck clean.

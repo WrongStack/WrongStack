@@ -812,5 +812,117 @@
     "exitCode": "código de saída {{code}}",
     "saveTitle": "Salvar a saída como arquivo de texto",
     "save": "Salvar"
+  },
+  "runLog": {
+    "currentLabel": "Atividade da execução atual",
+    "label": "Atividade da conversa",
+    "eyebrow": "ESTA CONVERSA",
+    "body": "Acompanhe as chamadas de ferramentas, o raciocínio e os resultados de execução desta sessão.",
+    "filters": "Filtros de atividade",
+    "filter": {
+      "all": "Tudo",
+      "tool": "Ferramentas",
+      "reasoning": "Raciocínio",
+      "run": "Execuções"
+    },
+    "noMatch": "Nenhuma atividade corresponde a este filtro.",
+    "empty": "As chamadas de ferramentas e os eventos de execução aparecem aqui enquanto o agente trabalha.",
+    "status": {
+      "running": "Em andamento",
+      "done": "Concluído",
+      "failed": "Falhou",
+      "aborted": "Interrompido",
+      "retry": "Tentando novamente",
+      "recorded": "Registrado"
+    },
+    "wait": "espera {{ms}} ms",
+    "bytes": "{{bytes}} bytes",
+    "inputLabel": "Entrada da ferramenta",
+    "input": "Entrada",
+    "progress": "Progresso",
+    "thinking": "Raciocínio",
+    "retryDetails": "Detalhes da nova tentativa",
+    "outputPreview": "Prévia da saída",
+    "output": "Saída",
+    "files": "Arquivos",
+    "sage": "Evidências do SAGE",
+    "noDetails": "Nenhum detalhe adicional foi informado."
+  },
+  "toolInput": {
+    "allReplaced": "Todas as ocorrências são substituídas.",
+    "moreLines": "… mais {{count}} linhas",
+    "in": "em {{path}}",
+    "search": "Pesquisar <code>{{pattern}}</code>",
+    "searchIn": "Pesquisar <code>{{pattern}}</code> em <code>{{path}}</code>",
+    "find": "Encontrar arquivos <code>{{pattern}}</code>",
+    "findIn": "Encontrar arquivos <code>{{pattern}}</code> em <code>{{path}}</code>",
+    "replace": "Substituir <code>{{pattern}}</code> por <code>{{replacement}}</code>",
+    "nothing": "(nada)",
+    "more": "… mais {{count}}"
+  },
+  "modelFallback": {
+    "label": "Modelo de reserva",
+    "notice": "{{from}} falhou após suas novas tentativas. Mudando para <strong>{{to}}</strong> em {{seconds}} s.",
+    "noticeStatus": "{{from}} falhou (status {{status}}) após suas novas tentativas. Mudando para <strong>{{to}}</strong> em {{seconds}} s.",
+    "switchNow": "Mudar agora",
+    "use": "Usar {{target}}"
+  },
+  "jobs": {
+    "title": "Tarefas agendadas",
+    "status": {
+      "paused": "pausada",
+      "overdue": "atrasada",
+      "active": "ativa"
+    },
+    "every": "a cada {{interval}}",
+    "run": "{{count}} execução",
+    "runs": "{{count}} execuções",
+    "next": "próxima {{when}}",
+    "last": "última {{when}}",
+    "in": "em {{amount}}",
+    "ago": "há {{amount}}",
+    "active": "{{active}} de {{total}} ativas",
+    "overdue": "{{count}} atrasadas",
+    "limit": "Até {{count}} execuções ao mesmo tempo.",
+    "howTo": "Peça ao agente para agendar uma tarefa com <code>cron_schedule</code> ou remover uma com <code>cron_cancel</code>."
+  },
+  "waiting": {
+    "ago": "há {{time}}",
+    "via": "via {{via}}",
+    "lastError": "Último erro: {{message}}",
+    "failures": "falhas: {{count}}",
+    "rateLimits": "limites de taxa: {{count}}",
+    "streak": "sequência: {{count}}",
+    "history": "Histórico de erros ({{count}})",
+    "clearConfirm": "Limpar as falhas registradas de {{name}}? Isso redefine o histórico de saúde local; não restaura a cota da conta.",
+    "keep": "Manter",
+    "clear": "Limpar o acompanhamento",
+    "release": "Liberar para a próxima verificação",
+    "label": "Disponibilidade de provedores e modelos",
+    "title": "Disponibilidade de provedor/modelo",
+    "summary": "{{blocked}} bloqueados · {{degraded}} degradados · {{scheduled}} agendados",
+    "state": {
+      "blocked": "bloqueado",
+      "degraded": "degradado"
+    },
+    "hide": "Ocultar",
+    "details": "Detalhes",
+    "refresh": "Atualizar o status dos provedores",
+    "scheduled": "agendado",
+    "blackout": "bloqueio de calendário",
+    "localTime": "horário local",
+    "resetUnknown": "horário de redefinição desconhecido",
+    "rechecking": "verificando de novo agora",
+    "note": "O WrongStack os contorna até o horário de redefinição ou o fim do agendamento. Configurações → Saúde dos provedores mostra o histórico completo."
+  },
+  "diff": {
+    "label": "Alterações em {{path}}",
+    "changesOnly": "Somente alterações",
+    "wholeFile": "Mostrar o arquivo inteiro",
+    "unified": "Diff unificado",
+    "split": "Diff lado a lado",
+    "matchesHead": "Este arquivo corresponde ao HEAD.",
+    "unchanged": "Mostrar as linhas inalteradas",
+    "review": "Revisar a linha {{line}}"
   }
 }

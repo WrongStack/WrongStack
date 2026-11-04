@@ -812,5 +812,117 @@
     "exitCode": "Exit-Code {{code}}",
     "saveTitle": "Ausgabe als Textdatei speichern",
     "save": "Speichern"
+  },
+  "runLog": {
+    "currentLabel": "Aktivität des laufenden Laufs",
+    "label": "Aktivität der Unterhaltung",
+    "eyebrow": "DIESE UNTERHALTUNG",
+    "body": "Verfolge Werkzeugaufrufe, Überlegungen und Ausführungsergebnisse dieser Sitzung.",
+    "filters": "Aktivitätsfilter",
+    "filter": {
+      "all": "Alle",
+      "tool": "Werkzeuge",
+      "reasoning": "Denken",
+      "run": "Läufe"
+    },
+    "noMatch": "Keine Aktivität passt zu diesem Filter.",
+    "empty": "Werkzeugaufrufe und Laufereignisse erscheinen hier, während der Agent arbeitet.",
+    "status": {
+      "running": "In Arbeit",
+      "done": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "aborted": "Gestoppt",
+      "retry": "Neuer Versuch",
+      "recorded": "Aufgezeichnet"
+    },
+    "wait": "{{ms}} ms warten",
+    "bytes": "{{bytes}} Byte",
+    "inputLabel": "Werkzeugeingabe",
+    "input": "Eingabe",
+    "progress": "Fortschritt",
+    "thinking": "Denken",
+    "retryDetails": "Details zum neuen Versuch",
+    "outputPreview": "Ausgabevorschau",
+    "output": "Ausgabe",
+    "files": "Dateien",
+    "sage": "SAGE-Belege",
+    "noDetails": "Es wurden keine weiteren Details gemeldet."
+  },
+  "toolInput": {
+    "allReplaced": "Jedes Vorkommen wird ersetzt.",
+    "moreLines": "… {{count}} weitere Zeilen",
+    "in": "in {{path}}",
+    "search": "Suche nach <code>{{pattern}}</code>",
+    "searchIn": "Suche nach <code>{{pattern}}</code> in <code>{{path}}</code>",
+    "find": "Dateien finden: <code>{{pattern}}</code>",
+    "findIn": "Dateien finden: <code>{{pattern}}</code> in <code>{{path}}</code>",
+    "replace": "Ersetze <code>{{pattern}}</code> durch <code>{{replacement}}</code>",
+    "nothing": "(nichts)",
+    "more": "… {{count}} weitere"
+  },
+  "modelFallback": {
+    "label": "Ausweichmodell",
+    "notice": "{{from}} ist nach seinen Wiederholungen fehlgeschlagen. Wechsel zu <strong>{{to}}</strong> in {{seconds}} s.",
+    "noticeStatus": "{{from}} ist nach seinen Wiederholungen fehlgeschlagen (Status {{status}}). Wechsel zu <strong>{{to}}</strong> in {{seconds}} s.",
+    "switchNow": "Jetzt wechseln",
+    "use": "{{target}} verwenden"
+  },
+  "jobs": {
+    "title": "Geplante Aufgaben",
+    "status": {
+      "paused": "pausiert",
+      "overdue": "überfällig",
+      "active": "aktiv"
+    },
+    "every": "alle {{interval}}",
+    "run": "{{count}} Lauf",
+    "runs": "{{count}} Läufe",
+    "next": "nächster {{when}}",
+    "last": "letzter {{when}}",
+    "in": "in {{amount}}",
+    "ago": "vor {{amount}}",
+    "active": "{{active}} von {{total}} aktiv",
+    "overdue": "{{count}} überfällig",
+    "limit": "Bis zu {{count}} Läufe gleichzeitig.",
+    "howTo": "Bitte den Agenten, mit <code>cron_schedule</code> eine Aufgabe zu planen oder mit <code>cron_cancel</code> eine zu entfernen."
+  },
+  "waiting": {
+    "ago": "vor {{time}}",
+    "via": "über {{via}}",
+    "lastError": "Letzter Fehler: {{message}}",
+    "failures": "Fehler: {{count}}",
+    "rateLimits": "Ratenlimits: {{count}}",
+    "streak": "Serie: {{count}}",
+    "history": "Fehlerverlauf ({{count}})",
+    "clearConfirm": "Erfasste Fehler für {{name}} löschen? Das setzt den lokalen Zustandsverlauf zurück, stellt aber kein Kontingent wieder her.",
+    "keep": "Behalten",
+    "clear": "Erfassung löschen",
+    "release": "Für die nächste Prüfung freigeben",
+    "label": "Verfügbarkeit von Anbietern und Modellen",
+    "title": "Verfügbarkeit von Anbieter/Modell",
+    "summary": "{{blocked}} gesperrt · {{degraded}} eingeschränkt · {{scheduled}} geplant",
+    "state": {
+      "blocked": "gesperrt",
+      "degraded": "eingeschränkt"
+    },
+    "hide": "Ausblenden",
+    "details": "Details",
+    "refresh": "Anbieterstatus aktualisieren",
+    "scheduled": "geplant",
+    "blackout": "Kalendersperre",
+    "localTime": "Ortszeit",
+    "resetUnknown": "Rücksetzzeit unbekannt",
+    "rechecking": "wird jetzt erneut geprüft",
+    "note": "WrongStack umgeht diese, bis ihre Rücksetzzeit oder ihr Zeitplan endet. Einstellungen → Anbieterzustand zeigt den vollständigen Verlauf."
+  },
+  "diff": {
+    "label": "Änderungen in {{path}}",
+    "changesOnly": "Nur Änderungen",
+    "wholeFile": "Ganze Datei zeigen",
+    "unified": "Einheitlicher Diff",
+    "split": "Diff nebeneinander",
+    "matchesHead": "Diese Datei entspricht HEAD.",
+    "unchanged": "Unveränderte Zeilen zeigen",
+    "review": "Zeile {{line}} kommentieren"
   }
 }
