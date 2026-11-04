@@ -7411,3 +7411,21 @@ copies, starting with SAGE memory.
     Turkish (jsdom).
   - A new unit test covers the revert words.
   - Catalog parity and the key guard pass; desktop tests pass (886); typecheck clean.
+
+### Model catalog settings in the display language (2026-11-04)
+
+- The model catalog page now follows the display language in all seven languages: the profile
+  check, provider choice and toolbar, the model list, the detail view with limits, prices, saved
+  advanced behavior and capabilities, the remove confirmation and the definition editor.
+- Field, limit, price and capability labels still come from the tables in
+  `model-catalog-editor.ts`; the page names them per language and falls back to the table's
+  English label. English labels, including "Model display name" style editor labels, are unchanged.
+- Errors raised by `buildModelDefinition` and the profile check are still English; the price
+  tiers, advanced fields, registry search and draft notices follow in the next changes.
+- ModelCatalogSettings grew by 14 lines and imports two more modules; its hotspot ratchet is
+  updated to match.
+- The page test now settles replies that resolve during the first render before reading the page.
+- Checks:
+  - The catalog renders in English and then in Turkish once the profile engine identifies itself
+    (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass (887); typecheck clean.

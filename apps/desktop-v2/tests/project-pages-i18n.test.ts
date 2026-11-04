@@ -11,6 +11,7 @@ import { AutomationWorkspace } from '../src/AutomationWorkspace';
 import { emptyEngineState } from '../src/engine-state';
 import { GoalPhaseVerification } from '../src/GoalPhaseVerification';
 import { GoalRevert } from '../src/GoalRevert';
+import { ModelCatalogSettings } from '../src/ModelCatalogSettings';
 import { ProjectAgentRoster } from '../src/ProjectAgentRoster';
 import { ProjectGoals } from '../src/ProjectGoals';
 import { ProjectRequirements } from '../src/ProjectRequirements';
@@ -38,6 +39,8 @@ async function mount(page: ReactElement) {
     root = createRoot(host);
     root.render(page);
   });
+  // Lets replies that resolved during the first render reach their state.
+  await act(async () => {});
   const text = host.textContent ?? '';
   const labels = [...host.querySelectorAll('[aria-label]')].map((node) =>
     node.getAttribute('aria-label'),
@@ -136,6 +139,16 @@ const goalParts = () =>
       readOnly: false,
     }),
   );
+
+// The profile engine identifies itself; the provider list never arrives.
+const modelCatalog = () =>
+  createElement(ModelCatalogSettings, {
+    command: vi.fn((type: string) =>
+      type === 'prefs.get'
+        ? Promise.resolve({ profileIdentity: { id: 'a'.repeat(64), name: 'Default' } })
+        : pending(),
+    ),
+  });
 
 describe('the project pages in the display language', () => {
   afterAll(async () => {
@@ -384,5 +397,33 @@ describe('the project pages in the display language', () => {
       'Çalıştırmayı geri al',
     ])
       expect(page.text).toContain(text);
+  });
+
+  it('show the model catalog in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(modelCatalog());
+    for (const text of [
+      'Model catalog',
+      'Add a provider connection to manage its model catalog.',
+      'Refresh catalog',
+      'Find in model registry',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Model catalog settings', 'Catalog provider']),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(modelCatalog());
+    for (const text of [
+      'Model kataloğu',
+      'Model kataloğunu yönetmek için bir sağlayıcı bağlantısı ekle.',
+      'Kataloğu yenile',
+      'Model kayıt defterinde bul',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining(['Model kataloğu ayarları', 'Katalog sağlayıcısı']),
+    );
   });
 });
