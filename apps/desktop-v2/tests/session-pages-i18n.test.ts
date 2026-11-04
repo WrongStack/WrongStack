@@ -3,11 +3,20 @@
 import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { emptyEngineState } from '../src/engine-state';
+import { SessionAgentPlan } from '../src/SessionAgentPlan';
 import { SessionProcesses } from '../src/SessionProcesses';
 import { SessionRecovery } from '../src/SessionRecovery';
 import { surfaceI18n } from '../src/surface-i18n';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+// jsdom has no modal dialogs; opening one only has to mark it open here.
+HTMLDialogElement.prototype.showModal ??= function showModal(this: HTMLDialogElement) {
+  this.open = true;
+};
+HTMLDialogElement.prototype.close ??= function close(this: HTMLDialogElement) {
+  this.open = false;
+};
 
 /** Renders a page after its first replies arrive, then reads its text and accessible names. */
 async function mount(page: ReactElement) {
@@ -78,6 +87,26 @@ const processes = () =>
     connected: true,
     command: vi.fn(async () => processList),
     onBack: vi.fn(),
+  });
+
+// A session plan with one tier lane and one role pinned to a model.
+const planPrefs = {
+  subagentsAllowed: true,
+  subagentCompanionsAllowed: false,
+  subagentModelPlan: {
+    enabled: true,
+    lock: false,
+    slots: [{ tier: 'fast', label: 'Research', modelRuntime: { reasoning: { effort: 'high' } } }],
+    roles: { reviewer: { provider: 'zai', model: 'glm' } },
+  },
+  modelTiers: { fast: {} },
+  fallbackProfiles: {},
+};
+const agentPlan = () =>
+  createElement(SessionAgentPlan, {
+    state: { ...emptyEngineState, provider: 'zai', model: 'glm' },
+    command: vi.fn(async (type: string) => (type === 'prefs.get' ? planPrefs : {})),
+    onClose: vi.fn(),
   });
 
 describe('the session pages in the display language', () => {
@@ -172,6 +201,69 @@ describe('the session pages in the display language', () => {
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
       expect.arrayContaining(['Oturum süreçleri', 'Süreç seçimi', 'PID 42 seç']),
+    );
+  });
+
+  it('shows the agent model plan in English, then in Turkish', async () => {
+    await surfaceI18n.changeLanguage('en');
+    let page = await mount(agentPlan());
+    for (const text of [
+      'THIS CONVERSATION',
+      'Subagents: Allowed',
+      'Companions: Blocked',
+      'Chat model: zai/glm',
+      'Enable this model plan',
+      'Parallel lanes',
+      'Lane 1',
+      'Cost/capability tier',
+      'Reasoning overrides',
+      'High',
+      'Role reviewer',
+      'Remove role override',
+      'Saved session plan',
+      'Save session plan',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Close agent model plan',
+        'Model lane count',
+        'Lane 1 label',
+        'Lane 1 tier',
+        'Lane 1 reasoning effort',
+        'Role reviewer choose model',
+        'Remove session role reviewer',
+      ]),
+    );
+
+    await surfaceI18n.changeLanguage('tr');
+    page = await mount(agentPlan());
+    for (const text of [
+      'BU KONUŞMA',
+      'Alt ajanlar: İzinli',
+      'Yoldaşlar: Engelli',
+      'Sohbet modeli: zai/glm',
+      'Bu model planını etkinleştir',
+      'Paralel şeritler',
+      'Şerit 1',
+      'Maliyet/yetenek kademesi',
+      'Akıl yürütme geçersiz kılmaları',
+      'Yüksek',
+      'Rol reviewer',
+      'Rol geçersiz kılmasını kaldır',
+      'Kayıtlı oturum planı',
+      'Oturum planını kaydet',
+    ])
+      expect(page.text).toContain(text);
+    expect(page.labels).toEqual(
+      expect.arrayContaining([
+        'Ajan model planını kapat',
+        'Model şeridi sayısı',
+        'Şerit 1 etiketi',
+        'Şerit 1 kademesi',
+        'Rol reviewer için model seç',
+        'reviewer oturum rolünü kaldır',
+      ]),
     );
   });
 });

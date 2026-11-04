@@ -1,6 +1,7 @@
 import { Check, LoaderCircle, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { effortNames } from './composer-model';
+import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -31,6 +32,7 @@ export function SessionAgentPlan({
   /** Native storage for unsaved edits of this session's plan. */
   draftStorage?: FormDraftStorage;
 }) {
+  const { t } = useDesktopText();
   const [base, setBase] = useState<unknown>(undefined);
   const [plan, setPlan] = useState<AgentModelPlan | null>(null);
   const [prefs, setPrefs] = useState<Route>({});
@@ -112,6 +114,18 @@ export function SessionAgentPlan({
   };
   const route =
     picker?.role !== undefined ? plan?.roles?.[picker.role] : plan?.slots[picker?.index ?? -1];
+  const pickerTitle =
+    picker?.role !== undefined
+      ? t('agentPlan.pickRole', { name: picker.role })
+      : t('agentPlan.pickLane', { n: (picker?.index ?? 0) + 1 });
+  const policy = (allowed: unknown) =>
+    t(
+      allowed === true
+        ? 'agentPlan.policy.allowed'
+        : allowed === false
+          ? 'agentPlan.policy.blocked'
+          : 'agentPlan.policy.unknown',
+    );
   const save = async () => {
     if (!plan) return;
     setBusy(true);
@@ -129,16 +143,12 @@ export function SessionAgentPlan({
       await command('prefs.update', patch, ['key.operation_result']);
       const actual = await command('prefs.get', {}, ['prefs.updated']);
       if (!sameSetting(agentModelPlan(actual['subagentModelPlan']), plan))
-        throw Error(
-          'The engine did not confirm the complete model plan. Your edits are kept; reload before retrying.',
-        );
+        throw Error(t('agentPlan.unconfirmed'));
       if (!live.current) return;
       setBase(actual['subagentModelPlan']);
       original.current = plan;
       setPrefs(actual);
-      setNotice(
-        'Model plan saved and verified for this conversation. Existing workers keep their current assignments.',
-      );
+      setNotice(t('agentPlan.saved'));
     } catch (error) {
       if (live.current) setError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -158,27 +168,24 @@ export function SessionAgentPlan({
   );
   return (
     <>
-      <Modal onClose={close} title="Agent model plan">
+      <Modal onClose={close} title={t('agentPlan.title')}>
         <div className="session-agent-plan">
           <header>
             <div>
-              <span className="eyebrow">THIS CONVERSATION</span>
-              <h2>Agent model plan</h2>
+              <span className="eyebrow">{t('agentPlan.eyebrow')}</span>
+              <h2>{t('agentPlan.title')}</h2>
             </div>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close agent model plan"
+              aria-label={t('agentPlan.close')}
               disabled={busy}
               onClick={close}
             >
               <X size={18} />
             </button>
           </header>
-          <p>
-            Choose models for future parallel workers in this session. The active chat model, other
-            sessions and profile routing stay separate. Edits apply only after Save.
-          </p>
+          <p>{t('agentPlan.intro')}</p>
           {error && (
             <p className="session-error" role="alert">
               {error}
@@ -196,10 +203,10 @@ export function SessionAgentPlan({
               {busy ? (
                 <>
                   <LoaderCircle className="spin" size={16} />
-                  Reading the session plan…
+                  {t('agentPlan.reading')}
                 </>
               ) : (
-                'Use Reload saved plan to try again.'
+                t('agentPlan.retryHint')
               )}
             </p>
           ) : (
@@ -207,23 +214,15 @@ export function SessionAgentPlan({
               <>
                 <div className="agent-plan-policy">
                   <span>
-                    Subagents:{' '}
-                    {prefs['subagentsAllowed'] === true
-                      ? 'Allowed'
-                      : prefs['subagentsAllowed'] === false
-                        ? 'Blocked'
-                        : 'Not reported'}
+                    {t('agentPlan.subagents', { value: policy(prefs['subagentsAllowed']) })}
                   </span>
                   <span>
-                    Companions:{' '}
-                    {prefs['subagentCompanionsAllowed'] === true
-                      ? 'Allowed'
-                      : prefs['subagentCompanionsAllowed'] === false
-                        ? 'Blocked'
-                        : 'Not reported'}
+                    {t('agentPlan.companions', {
+                      value: policy(prefs['subagentCompanionsAllowed']),
+                    })}
                   </span>
                   <span>
-                    Chat model: {state.provider}/{state.model}
+                    {t('agentPlan.chatModel', { provider: state.provider, model: state.model })}
                   </span>
                 </div>
                 <fieldset disabled={busy} className="agent-plan-switches">
@@ -233,7 +232,7 @@ export function SessionAgentPlan({
                       checked={plan.enabled}
                       onChange={(event) => change({ ...plan, enabled: event.target.checked })}
                     />
-                    Enable this model plan
+                    {t('agentPlan.enable')}
                   </label>
                   <label>
                     <input
@@ -241,7 +240,7 @@ export function SessionAgentPlan({
                       checked={plan.lock}
                       onChange={(event) => change({ ...plan, lock: event.target.checked })}
                     />
-                    User model pins override leader choices
+                    {t('agentPlan.lock')}
                   </label>
                   <label>
                     <input
@@ -251,24 +250,20 @@ export function SessionAgentPlan({
                         change({ ...plan, followSessionModel: event.target.checked })
                       }
                     />
-                    Follow the session model for plain workers
+                    {t('agentPlan.follow')}
                   </label>
                 </fieldset>
-                <p className="field-help">
-                  Disabling retains the plan. Role overrides take priority over lanes; following the
-                  chat model retains lane pins for later use. This plan does not grant permission to
-                  spawn workers.
-                </p>
+                <p className="field-help">{t('agentPlan.switchHelp')}</p>
                 <section>
                   <header className="agent-plan-section">
                     <div>
-                      <h3>Parallel lanes</h3>
-                      <p>Each active worker occupies a lane; released lanes can be reused.</p>
+                      <h3>{t('agentPlan.lanesTitle')}</h3>
+                      <p>{t('agentPlan.lanesHelp')}</p>
                     </div>
                     <label>
-                      Lane count
+                      {t('agentPlan.laneCount')}
                       <input
-                        aria-label="Model lane count"
+                        aria-label={t('agentPlan.laneCountLabel')}
                         type="number"
                         min={1}
                         max={16}
@@ -290,15 +285,14 @@ export function SessionAgentPlan({
                   {resize !== null && (
                     <div className="agent-plan-confirm" role="alert">
                       <p>
-                        Remove lanes {resize + 1}–{plan.slots.length} and their stored model/runtime
-                        choices from your draft?
+                        {t('agentPlan.removeLanesAsk', { from: resize + 1, to: plan.slots.length })}
                       </p>
                       <button
                         type="button"
                         className="button secondary"
                         onClick={() => setResize(null)}
                       >
-                        Keep lanes
+                        {t('agentPlan.keepLanes')}
                       </button>
                       <button
                         type="button"
@@ -308,29 +302,29 @@ export function SessionAgentPlan({
                           setResize(null);
                         }}
                       >
-                        Remove extra lanes
+                        {t('agentPlan.removeLanes')}
                       </button>
                     </div>
                   )}
                   <div className="agent-plan-routes">
                     {plan.slots.map((slot, index) =>
-                      editRoute(`Lane ${index + 1}`, slot, { index }),
+                      editRoute(t('agentPlan.lane', { n: index + 1 }), slot, { index }),
                     )}
                   </div>
                 </section>
                 <section>
                   <header className="agent-plan-section">
                     <div>
-                      <h3>Role overrides</h3>
-                      <p>Exact role matches outrank lanes and do not consume a lane.</p>
+                      <h3>{t('agentPlan.rolesTitle')}</h3>
+                      <p>{t('agentPlan.rolesHelp')}</p>
                     </div>
                   </header>
                   <div className="agent-plan-role-create">
                     <input
-                      aria-label="New session role"
+                      aria-label={t('agentPlan.newRole')}
                       value={role}
                       onChange={(event) => setRole(event.target.value)}
-                      placeholder="reviewer, architect…"
+                      placeholder={t('agentPlan.newRolePlaceholder')}
                       disabled={busy}
                     />
                     <button
@@ -343,9 +337,7 @@ export function SessionAgentPlan({
                           !/^[a-zA-Z0-9_:/.-]{1,80}$/.test(name) ||
                           Object.hasOwn(plan.roles ?? {}, name)
                         ) {
-                          setError(
-                            'Choose a unique role using letters, numbers, dots, slashes, colons, underscores or hyphens.',
-                          );
+                          setError(t('agentPlan.roleInvalid'));
                           return;
                         }
                         change({
@@ -359,23 +351,21 @@ export function SessionAgentPlan({
                       }}
                     >
                       <Plus size={14} />
-                      Add role
+                      {t('agentPlan.addRole')}
                     </button>
                   </div>
                   {!Object.keys(plan.roles ?? {}).length && (
-                    <p className="field-help">
-                      No role overrides. Workers use lane or profile routing.
-                    </p>
+                    <p className="field-help">{t('agentPlan.noRoles')}</p>
                   )}
                   <div className="agent-plan-routes">
                     {Object.entries(plan.roles ?? {}).map(([name, value]) => (
                       <div key={name}>
-                        {editRoute(`Role ${name}`, value, { role: name })}
+                        {editRoute(t('agentPlan.role', { name }), value, { role: name })}
                         <button
                           type="button"
                           className="button secondary small"
                           disabled={busy}
-                          aria-label={`Remove session role ${name}`}
+                          aria-label={t('agentPlan.removeRoleLabel', { name })}
                           onClick={() => {
                             const next = { ...plan.roles };
                             delete next[name];
@@ -386,7 +376,7 @@ export function SessionAgentPlan({
                           }}
                         >
                           <Trash2 size={13} />
-                          Remove role override
+                          {t('agentPlan.removeRole')}
                         </button>
                       </div>
                     ))}
@@ -407,9 +397,9 @@ export function SessionAgentPlan({
           )}
           {discard && (
             <div className="agent-plan-confirm" role="alert">
-              <p>Your model plan has unsaved edits.</p>
+              <p>{t('agentPlan.unsavedAsk')}</p>
               <button type="button" className="button secondary" onClick={() => setDiscard(false)}>
-                Keep editing plan
+                {t('agentPlan.keepEditing')}
               </button>
               <button
                 type="button"
@@ -419,15 +409,15 @@ export function SessionAgentPlan({
                   onClose();
                 }}
               >
-                Discard plan and close
+                {t('agentPlan.discardClose')}
               </button>
               <button type="button" className="button secondary" onClick={() => void load()}>
-                Discard plan and reload
+                {t('agentPlan.discardReload')}
               </button>
             </div>
           )}
           <footer>
-            <span>{dirty ? 'Unsaved session plan' : 'Saved session plan'}</span>
+            <span>{dirty ? t('agentPlan.unsaved') : t('agentPlan.savedPlan')}</span>
             <button
               type="button"
               className="button secondary"
@@ -435,7 +425,7 @@ export function SessionAgentPlan({
               onClick={() => (dirty ? setDiscard(true) : void load())}
             >
               <RefreshCw size={14} />
-              Reload saved plan
+              {t('agentPlan.reload')}
             </button>
             <button
               type="button"
@@ -444,14 +434,14 @@ export function SessionAgentPlan({
               onClick={() => void save()}
             >
               <Save size={14} />
-              Save session plan
+              {t('agentPlan.save')}
             </button>
           </footer>
         </div>
       </Modal>
       {picker && (
         <Modal
-          title={`Choose ${picker.role !== undefined ? `role ${picker.role}` : `lane ${(picker.index ?? 0) + 1}`} model`}
+          title={pickerTitle}
           onClose={() => {
             if (!pickerBusy) setPicker(null);
           }}
@@ -462,8 +452,8 @@ export function SessionAgentPlan({
               provider: String(route?.['provider'] ?? state.provider),
               model: String(route?.['model'] ?? ''),
             }}
-            title={`Choose ${picker.role !== undefined ? `role ${picker.role}` : `lane ${(picker.index ?? 0) + 1}`} model`}
-            description="Choose a current-profile model for this plan draft. A concrete model replaces tier/fallback targets; labels and runtime overrides are retained. The active chat model is unchanged."
+            title={pickerTitle}
+            description={t('agentPlan.pickHelp')}
             onPick={(provider, model) => {
               updateRoute(picker, agentRouteTarget(route ?? {}, 'model', provider, model));
             }}
@@ -491,6 +481,7 @@ function AgentRoute({
   onChange: (next: Route) => void;
   onPick: () => void;
 }) {
+  const { t } = useDesktopText();
   const storedMode =
     value['provider'] || value['model']
       ? 'model'
@@ -519,9 +510,9 @@ function AgentRoute({
     <fieldset className="agent-plan-route" disabled={disabled}>
       <legend>{label}</legend>
       <label>
-        Label
+        {t('agentPlan.route.label')}
         <input
-          aria-label={`${label} label`}
+          aria-label={t('agentPlan.route.labelField', { route: label })}
           value={String(value['label'] ?? '')}
           onChange={(event) => {
             const next = { ...value };
@@ -532,9 +523,9 @@ function AgentRoute({
         />
       </label>
       <label>
-        Model source
+        {t('agentPlan.route.source')}
         <select
-          aria-label={`${label} model source`}
+          aria-label={t('agentPlan.route.sourceField', { route: label })}
           value={mode}
           onChange={(event) => {
             const selected = event.target.value;
@@ -555,26 +546,30 @@ function AgentRoute({
             }
           }}
         >
-          <option value="inherit">Inherit model routing</option>
-          <option value="model">Specific model</option>
-          <option value="tier">Cost/capability tier</option>
-          <option value="profile">Fallback profile</option>
+          {['inherit', 'model', 'tier', 'profile'].map((source) => (
+            <option key={source} value={source}>
+              {t(`agentPlan.route.sourceOption.${source}`)}
+            </option>
+          ))}
         </select>
       </label>
       {mode === 'model' ? (
         <button
           type="button"
           className="button secondary"
-          aria-label={`${label} choose model`}
+          aria-label={t('agentPlan.route.chooseField', { route: label })}
           onClick={onPick}
         >
           {String(value['provider'] ?? '*')}/{String(value['model'] ?? '*')}
         </button>
       ) : mode === 'tier' || mode === 'profile' ? (
         <label>
-          {mode === 'tier' ? 'Tier' : 'Fallback profile'}
+          {mode === 'tier' ? t('agentPlan.route.tier') : t('agentPlan.route.sourceOption.profile')}
           <input
-            aria-label={`${label} ${mode}`}
+            aria-label={t(
+              mode === 'tier' ? 'agentPlan.route.tierField' : 'agentPlan.route.profileField',
+              { route: label },
+            )}
             list={`${catalogs}-${mode}`}
             value={String(value[mode === 'tier' ? 'tier' : 'fallbackProfile'] ?? '')}
             onChange={(event) => onChange(agentRouteTarget(value, mode, event.target.value))}
@@ -584,53 +579,53 @@ function AgentRoute({
         <button
           type="button"
           className="button secondary"
-          aria-label={`${label} choose model`}
+          aria-label={t('agentPlan.route.chooseField', { route: label })}
           onClick={onPick}
         >
-          Choose a model
+          {t('agentPlan.route.choose')}
         </button>
       )}
       <details>
-        <summary>Reasoning overrides</summary>
+        <summary>{t('agentPlan.route.reasoning')}</summary>
         <label>
-          Mode
+          {t('agentPlan.route.mode')}
           <select
-            aria-label={`${label} reasoning mode`}
+            aria-label={t('agentPlan.route.modeField', { route: label })}
             value={String(reasoning['mode'] ?? '')}
             onChange={(event) => changeReasoning('mode', event.target.value)}
           >
             {['', 'auto', 'on', 'off'].map((mode) => (
               <option key={mode} value={mode}>
-                {mode || 'Inherit'}
+                {mode ? t(`agentPlan.route.reasoningMode.${mode}`) : t('agentPlan.route.inherit')}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Effort
+          {t('agentPlan.route.effort')}
           <select
-            aria-label={`${label} reasoning effort`}
+            aria-label={t('agentPlan.route.effortField', { route: label })}
             value={String(reasoning['effort'] ?? '')}
             onChange={(event) => changeReasoning('effort', event.target.value)}
           >
-            <option value="">Inherit</option>
-            {Object.entries(effortNames).map(([id, label]) => (
+            <option value="">{t('agentPlan.route.inherit')}</option>
+            {Object.entries(effortNames).map(([id, name]) => (
               <option key={id} value={id}>
-                {label}
+                {t(`options.${id}`, { defaultValue: name })}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Preserve reasoning
+          {t('agentPlan.route.preserve')}
           <select
-            aria-label={`${label} preserve reasoning`}
+            aria-label={t('agentPlan.route.preserveField', { route: label })}
             value={reasoning['preserve'] === undefined ? '' : String(reasoning['preserve'])}
             onChange={(event) => changeReasoning('preserve', event.target.value)}
           >
-            <option value="">Inherit</option>
-            <option value="true">Preserve</option>
-            <option value="false">Discard</option>
+            <option value="">{t('agentPlan.route.inherit')}</option>
+            <option value="true">{t('agentPlan.route.keep')}</option>
+            <option value="false">{t('agentPlan.route.drop')}</option>
           </select>
         </label>
       </details>

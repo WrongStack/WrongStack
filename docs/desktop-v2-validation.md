@@ -7742,3 +7742,25 @@ copies, starting with SAGE memory.
   - The history jsdom test now also renders a recorded exchange covering every block kind, and
     the opened session summary, in English and then in Turkish.
   - Catalog parity and the key guard pass; desktop tests pass (907); typecheck clean.
+
+### Agent model plan in the display language (2026-11-04)
+
+- The session agent model plan now follows the display language in all seven languages: the
+  dialog heading and intro, the subagent, companion and chat-model policy line, the plan switches
+  and their help, parallel lanes with the lane-removal confirmation, role overrides with their
+  validation, each lane's or role's label, model source, tier or profile and reasoning overrides,
+  the unsaved-edit and saved-draft prompts, the footer, and the model picker's title and help.
+- The key group is `agentPlan`. Lane and role names ("Lane 1", "Role reviewer") are translated,
+  and the accessible names built from them follow, so English stays "Lane 1 label",
+  "Lane 1 reasoning effort" and so on.
+- Reasoning efforts reuse the composer's `options.*` names with the English effort name as the
+  fallback. Reasoning modes are named per language; English keeps the engine words (auto, on,
+  off).
+- Not yet translated: the shared profile model picker opened from the plan. It is used by five
+  surfaces and follows in its own change.
+- Still English by design: role identifiers, tier and profile names, provider and model ids, and
+  engine replies.
+- Checks:
+  - A new jsdom test renders a plan with a tier lane and a pinned role in English and then in
+    Turkish.
+  - Catalog parity and the key guard pass; desktop tests pass (908); typecheck clean.
