@@ -12,6 +12,7 @@ import {
   requestResidency,
   retentionRows,
 } from './context-residency-model';
+import { useDesktopText } from './desktop-i18n';
 
 /**
  * How the last request was laid out for the provider cache, and what the next compaction
@@ -24,57 +25,70 @@ export function ContextResidency({
   residency: unknown;
   retention: unknown;
 }) {
+  const { t } = useDesktopText();
+  const word = (group: string, key: string, fallback: Record<string, string>) =>
+    t(`residency.${group}.${key}`, { defaultValue: fallback[key] ?? key });
   const residency = requestResidency(rawResidency);
   const retention = historyRetention(rawRetention);
   return (
     <>
       <details>
         <summary>
-          Last request cache layout
+          {t('residency.layout')}
           {residency
-            ? ` · ${CACHE_VERDICT_LABELS[residency.verdict] ?? residency.verdict}`
-            : ' · none recorded'}
+            ? ` · ${word('verdict', residency.verdict, CACHE_VERDICT_LABELS)}`
+            : ` · ${t('residency.noneRecorded')}`}
         </summary>
         {!residency ? (
-          <p className="field-help">
-            No request has been recorded for this session yet, or the engine did not report one.
-          </p>
+          <p className="field-help">{t('residency.noRequest')}</p>
         ) : (
-          <section className="context-residency" aria-label="Request cache layout">
+          <section className="context-residency" aria-label={t('residency.layoutLabel')}>
             <p className="field-help">
-              {residency.providerId}/{residency.model} · ~{residency.total.toLocaleString()}{' '}
-              estimated request tokens · layout allows {percent(residency.expectedCacheRatio, 1)}%
-              from cache
+              {t('residency.summary', {
+                route: `${residency.providerId}/${residency.model}`,
+                tokens: residency.total.toLocaleString(),
+                percent: percent(residency.expectedCacheRatio, 1),
+              })}
               {residency.actual
-                ? ` · provider read ${residency.actual.cacheRead.toLocaleString()} of ${residency.actual.total.toLocaleString()} from cache (${percent(residency.actual.cacheRatio, 1)}%)`
-                : ' · provider usage not reported yet'}
+                ? t('residency.actual', {
+                    read: residency.actual.cacheRead.toLocaleString(),
+                    total: residency.actual.total.toLocaleString(),
+                    percent: percent(residency.actual.cacheRatio, 1),
+                  })
+                : t('residency.notReported')}
             </p>
             {CACHE_LANE_ORDER.map((lane) => (
-              <div className="context-token-row" key={lane} title={CACHE_LANE_HINTS[lane]}>
-                <span>{CACHE_LANE_LABELS[lane]}</span>
+              <div
+                className="context-token-row"
+                key={lane}
+                title={word('hint', lane, CACHE_LANE_HINTS)}
+              >
+                <span>{word('lane', lane, CACHE_LANE_LABELS)}</span>
                 <meter
                   min={0}
                   max={Math.max(1, residency.total)}
                   value={residency.lanes[lane] ?? 0}
-                  aria-label={`Cache lane ${CACHE_LANE_LABELS[lane]}`}
+                  aria-label={t('residency.laneLabel', {
+                    lane: word('lane', lane, CACHE_LANE_LABELS),
+                  })}
                 />
                 <strong>~{(residency.lanes[lane] ?? 0).toLocaleString()}</strong>
               </div>
             ))}
-            <section className="context-entries" aria-label="Request segments">
+            <section className="context-entries" aria-label={t('residency.segments')}>
               {residency.segments.map((segment, index) => (
                 <div key={`${segment.kind}-${index}`}>
                   <span>
-                    {RESIDENCY_SEGMENT_LABELS[segment.kind] ?? segment.kind} ·{' '}
-                    {CACHE_LANE_LABELS[segment.lane] ?? segment.lane} · {segment.count}
+                    {word('segment', segment.kind, RESIDENCY_SEGMENT_LABELS)} ·{' '}
+                    {word('lane', segment.lane, CACHE_LANE_LABELS)} · {segment.count}
                   </span>
                   <strong>~{segment.tokens.toLocaleString()}</strong>
                 </div>
               ))}
             </section>
             {residency.breakers.length > 0 && (
-              <section aria-label="Cache breakers">
-                <p className="field-help">Why cached bytes were not reused:</p>
+              <section aria-label={t('residency.breakers')}>
+                <p className="field-help">{t('residency.why')}</p>
                 <ul>
                   {residency.breakers.map((breaker, index) => (
                     <li key={index}>
@@ -85,12 +99,13 @@ export function ContextResidency({
               </section>
             )}
             <p className="field-help">
-              Next request:{' '}
-              {residency.next.rewritten
-                ? 'history was rewritten, so the cached history prefix is lost'
-                : 'history prefix unchanged'}
+              {t('residency.next')}
+              {residency.next.rewritten ? t('residency.rewritten') : t('residency.unchanged')}
               {residency.next.pendingMessages > 0
-                ? ` · ${residency.next.pendingMessages} new messages (~${residency.next.pendingTokens.toLocaleString()} tokens) waiting`
+                ? t('residency.pending', {
+                    count: residency.next.pendingMessages,
+                    tokens: residency.next.pendingTokens.toLocaleString(),
+                  })
                 : ''}
               .
             </p>
@@ -99,27 +114,33 @@ export function ContextResidency({
       </details>
       <details>
         <summary>
-          What the next compaction keeps
-          {retention ? ` · ${retention.total.toLocaleString()} tokens` : ' · not reported'}
+          {t('residency.keeps')}
+          {retention
+            ? t('residency.keepsTokens', { tokens: retention.total.toLocaleString() })
+            : t('residency.keepsNone')}
         </summary>
         {!retention ? (
-          <p className="field-help">The engine did not report retention for this context.</p>
+          <p className="field-help">{t('residency.noRetention')}</p>
         ) : (
-          <section className="context-retention" aria-label="Compaction retention">
+          <section className="context-retention" aria-label={t('residency.retentionLabel')}>
             <p className="field-help">
-              The last {retention.preserveK} turns are protected; long tool output above ~
-              {retention.eliseThreshold.toLocaleString()} tokens can be elided first.
+              {t('residency.protectedNote', {
+                keep: retention.preserveK,
+                threshold: retention.eliseThreshold.toLocaleString(),
+              })}
             </p>
             {retentionRows(retention).map((row) => (
               <div className="context-token-row" key={row.name}>
                 <span>
-                  {RETENTION_LABELS[row.name]} · {row.messages}
+                  {word('retention', row.name, RETENTION_LABELS)} · {row.messages}
                 </span>
                 <meter
                   min={0}
                   max={Math.max(1, retention.total)}
                   value={row.tokens}
-                  aria-label={`Retention ${RETENTION_LABELS[row.name]}`}
+                  aria-label={t('residency.retentionRow', {
+                    label: word('retention', row.name, RETENTION_LABELS),
+                  })}
                 />
                 <strong>~{row.tokens.toLocaleString()}</strong>
               </div>

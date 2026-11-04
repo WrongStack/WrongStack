@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} mensagens · ~{{beforeTokens}} → ~{{afterTokens}} tokens de solicitação",
     "selectFirst": "Selecione primeiro o texto a remover.",
     "overlap": "Esse texto se sobrepõe a uma parte já escolhida para remoção."
+  },
+  "contextModes": {
+    "label": "Modos de contexto",
+    "new": "Novo modo",
+    "done": "Concluído.",
+    "reading": "Lendo os modos de contexto…",
+    "facts": "{{id}} · aviso {{warn}}% · compactar {{soft}}% · limite {{hard}}% · mantém {{keep}} turnos recentes",
+    "custom": " · personalizado",
+    "inUse": "Em uso",
+    "use": "Usar",
+    "edit": "Editar",
+    "confirmDelete": "Confirmar exclusão",
+    "delete": "Excluir",
+    "deleteTitle": "As conversas que o usam voltam ao modo padrão",
+    "editForm": "Editar o modo de contexto",
+    "newForm": "Novo modo de contexto",
+    "field": {
+      "id": "ID do modo",
+      "name": "Nome",
+      "description": "Descrição",
+      "warn": "Avisar em (% da janela)",
+      "soft": "Compactar em (% da janela)",
+      "hard": "Limite rígido (% da janela)",
+      "preserveK": "Turnos recentes mantidos",
+      "eliseThreshold": "Omitir resultados antigos de ferramentas acima de (tokens)"
+    },
+    "cancel": "Cancelar",
+    "save": "Salvar modo",
+    "create": "Criar modo",
+    "error": {
+      "id": "O ID do modo usa letras, dígitos, \"-\" ou \"_\" (até 64 caracteres).",
+      "name": "Dê um nome ao modo.",
+      "percent": "{{label}} deve ser uma porcentagem de 0 a 100.",
+      "rising": "Os níveis devem subir: aviso ≤ compactação ≤ limite rígido.",
+      "count": "{{label}} deve ser um número inteiro de 0 ou mais.",
+      "warn": "O nível de aviso",
+      "soft": "O nível de compactação",
+      "hard": "O limite rígido",
+      "preserveK": "Os turnos recentes mantidos",
+      "elise": "O tamanho de omissão"
+    }
+  },
+  "residency": {
+    "layout": "Layout de cache da última solicitação",
+    "noneRecorded": "nada registrado",
+    "noRequest": "Nenhuma solicitação foi registrada nesta sessão ainda, ou o motor não informou.",
+    "layoutLabel": "Layout de cache da solicitação",
+    "summary": "{{route}} · ~{{tokens}} tokens de solicitação estimados · o layout permite {{percent}}% do cache",
+    "actual": " · o provedor leu {{read}} de {{total}} do cache ({{percent}}%)",
+    "notReported": " · uso do provedor ainda não informado",
+    "laneLabel": "Faixa de cache {{lane}}",
+    "segments": "Segmentos da solicitação",
+    "breakers": "Quebras de cache",
+    "why": "Por que os bytes em cache não foram reutilizados:",
+    "next": "Próxima solicitação: ",
+    "rewritten": "o histórico foi reescrito, então o prefixo do histórico em cache foi perdido",
+    "unchanged": "prefixo do histórico inalterado",
+    "pending": " · {{count}} novas mensagens (~{{tokens}} tokens) aguardando",
+    "keeps": "O que a próxima compactação mantém",
+    "keepsTokens": " · {{tokens}} tokens",
+    "keepsNone": " · não informado",
+    "noRetention": "O motor não informou a retenção deste contexto.",
+    "retentionLabel": "Retenção da compactação",
+    "protectedNote": "Os últimos {{keep}} turnos são protegidos; saídas longas de ferramentas acima de ~{{threshold}} tokens podem ser omitidas primeiro.",
+    "retentionRow": "Retenção {{label}}",
+    "segment": {
+      "tools": "definições de ferramentas",
+      "system": "prompt do sistema (estável)",
+      "history-prior": "histórico · enviado antes",
+      "history-new": "histórico · novo nesta solicitação",
+      "live-snapshots": "contexto ao vivo · retratos anteriores",
+      "live-tail": "contexto ao vivo · esta solicitação",
+      "request-scoped": "específico da solicitação (correio) · enviado uma vez"
+    },
+    "lane": {
+      "cached": "em cache",
+      "written": "gravado",
+      "uncached": "sem cache"
+    },
+    "hint": {
+      "cached": "servido do cache do provedor",
+      "written": "novo prefixo — cobrado agora, reutilizável pela próxima solicitação",
+      "uncached": "estado ao vivo por solicitação — nunca parte de um prefixo reutilizável"
+    },
+    "verdict": {
+      "pending": "aguardando a resposta",
+      "cold": "início a frio — a primeira solicitação constrói o cache",
+      "hit": "acerto — o prefixo foi reutilizado como esperado",
+      "partial": "parcial — foi lido menos do cache do que o layout permite",
+      "miss": "falha — nada foi lido do cache",
+      "unsupported": "este provedor não armazena prompts em cache"
+    },
+    "retention": {
+      "protected": "protegidos (turnos recentes)",
+      "elision-candidate": "candidatos à omissão",
+      "compactable": "compactáveis",
+      "elided": "já omitidos",
+      "digest": "resumos de compactação"
+    }
   }
 }

@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} messages · ~{{beforeTokens}} → ~{{afterTokens}} request tokens",
     "selectFirst": "Select some text to remove first.",
     "overlap": "That text overlaps a part already chosen for removal."
+  },
+  "contextModes": {
+    "label": "Context modes",
+    "new": "New mode",
+    "done": "Done.",
+    "reading": "Reading context modes…",
+    "facts": "{{id}} · warn {{warn}}% · compact {{soft}}% · hard {{hard}}% · keeps {{keep}} recent turns",
+    "custom": " · custom",
+    "inUse": "In use",
+    "use": "Use",
+    "edit": "Edit",
+    "confirmDelete": "Confirm delete",
+    "delete": "Delete",
+    "deleteTitle": "Conversations using it return to the default mode",
+    "editForm": "Edit context mode",
+    "newForm": "New context mode",
+    "field": {
+      "id": "Mode ID",
+      "name": "Name",
+      "description": "Description",
+      "warn": "Warn at (% of window)",
+      "soft": "Compact at (% of window)",
+      "hard": "Hard limit (% of window)",
+      "preserveK": "Recent turns kept",
+      "eliseThreshold": "Elide older tool results above (tokens)"
+    },
+    "cancel": "Cancel",
+    "save": "Save mode",
+    "create": "Create mode",
+    "error": {
+      "id": "The mode ID uses letters, digits, \"-\" or \"_\" (up to 64 characters).",
+      "name": "Give the mode a name.",
+      "percent": "{{label}} must be a percentage from 0 to 100.",
+      "rising": "Levels must rise: warning ≤ compaction ≤ hard limit.",
+      "count": "{{label}} must be a whole number of 0 or more.",
+      "warn": "The warning level",
+      "soft": "The compaction level",
+      "hard": "The hard limit",
+      "preserveK": "Recent turns kept",
+      "elise": "The elision size"
+    }
+  },
+  "residency": {
+    "layout": "Last request cache layout",
+    "noneRecorded": "none recorded",
+    "noRequest": "No request has been recorded for this session yet, or the engine did not report one.",
+    "layoutLabel": "Request cache layout",
+    "summary": "{{route}} · ~{{tokens}} estimated request tokens · layout allows {{percent}}% from cache",
+    "actual": " · provider read {{read}} of {{total}} from cache ({{percent}}%)",
+    "notReported": " · provider usage not reported yet",
+    "laneLabel": "Cache lane {{lane}}",
+    "segments": "Request segments",
+    "breakers": "Cache breakers",
+    "why": "Why cached bytes were not reused:",
+    "next": "Next request: ",
+    "rewritten": "history was rewritten, so the cached history prefix is lost",
+    "unchanged": "history prefix unchanged",
+    "pending": " · {{count}} new messages (~{{tokens}} tokens) waiting",
+    "keeps": "What the next compaction keeps",
+    "keepsTokens": " · {{tokens}} tokens",
+    "keepsNone": " · not reported",
+    "noRetention": "The engine did not report retention for this context.",
+    "retentionLabel": "Compaction retention",
+    "protectedNote": "The last {{keep}} turns are protected; long tool output above ~{{threshold}} tokens can be elided first.",
+    "retentionRow": "Retention {{label}}",
+    "segment": {
+      "tools": "tool definitions",
+      "system": "system prompt (stable)",
+      "history-prior": "history · sent before",
+      "history-new": "history · new this request",
+      "live-snapshots": "live context · earlier snapshots",
+      "live-tail": "live context · this request",
+      "request-scoped": "request-scoped (mail) · sent once"
+    },
+    "lane": {
+      "cached": "cached",
+      "written": "written",
+      "uncached": "not cached"
+    },
+    "hint": {
+      "cached": "served from the provider cache",
+      "written": "new prefix — billed fresh now, reusable by the next request",
+      "uncached": "per-request live state — never part of a reusable prefix"
+    },
+    "verdict": {
+      "pending": "waiting for the response",
+      "cold": "cold start — the first request builds the cache",
+      "hit": "hit — the prefix was reused as expected",
+      "partial": "partial — less was read from cache than the layout allows",
+      "miss": "miss — nothing was read from cache",
+      "unsupported": "this provider does not cache prompts"
+    },
+    "retention": {
+      "protected": "protected (recent turns)",
+      "elision-candidate": "elision candidates",
+      "compactable": "compactable",
+      "elided": "already elided",
+      "digest": "compaction digests"
+    }
   }
 }

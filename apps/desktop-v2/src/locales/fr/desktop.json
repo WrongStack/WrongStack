@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} messages · ~{{beforeTokens}} → ~{{afterTokens}} tokens de requête",
     "selectFirst": "Sélectionne d’abord du texte à retirer.",
     "overlap": "Ce texte chevauche une partie déjà choisie pour suppression."
+  },
+  "contextModes": {
+    "label": "Modes de contexte",
+    "new": "Nouveau mode",
+    "done": "Terminé.",
+    "reading": "Lecture des modes de contexte…",
+    "facts": "{{id}} · alerte {{warn}} % · compaction {{soft}} % · limite {{hard}} % · garde {{keep}} tours récents",
+    "custom": " · personnalisé",
+    "inUse": "Utilisé",
+    "use": "Utiliser",
+    "edit": "Modifier",
+    "confirmDelete": "Confirmer la suppression",
+    "delete": "Supprimer",
+    "deleteTitle": "Les conversations qui l’utilisent reviennent au mode par défaut",
+    "editForm": "Modifier le mode de contexte",
+    "newForm": "Nouveau mode de contexte",
+    "field": {
+      "id": "ID du mode",
+      "name": "Nom",
+      "description": "Description",
+      "warn": "Alerte à (% de la fenêtre)",
+      "soft": "Compacter à (% de la fenêtre)",
+      "hard": "Limite stricte (% de la fenêtre)",
+      "preserveK": "Tours récents conservés",
+      "eliseThreshold": "Élider les anciens résultats d’outils au-delà de (tokens)"
+    },
+    "cancel": "Annuler",
+    "save": "Enregistrer le mode",
+    "create": "Créer le mode",
+    "error": {
+      "id": "L’ID du mode utilise des lettres, des chiffres, « - » ou « _ » (64 caractères au plus).",
+      "name": "Donne un nom au mode.",
+      "percent": "{{label}} doit être un pourcentage de 0 à 100.",
+      "rising": "Les niveaux doivent croître : alerte ≤ compaction ≤ limite stricte.",
+      "count": "{{label}} doit être un nombre entier positif ou nul.",
+      "warn": "Le niveau d’alerte",
+      "soft": "Le niveau de compaction",
+      "hard": "La limite stricte",
+      "preserveK": "Les tours récents conservés",
+      "elise": "La taille d’élision"
+    }
+  },
+  "residency": {
+    "layout": "Disposition du cache de la dernière requête",
+    "noneRecorded": "rien d’enregistré",
+    "noRequest": "Aucune requête n’a encore été enregistrée pour cette session, ou le moteur n’en a signalé aucune.",
+    "layoutLabel": "Disposition du cache de la requête",
+    "summary": "{{route}} · ~{{tokens}} tokens de requête estimés · la disposition permet {{percent}} % depuis le cache",
+    "actual": " · le fournisseur a lu {{read}} sur {{total}} depuis le cache ({{percent}} %)",
+    "notReported": " · utilisation du fournisseur pas encore signalée",
+    "laneLabel": "Voie de cache {{lane}}",
+    "segments": "Segments de la requête",
+    "breakers": "Ruptures de cache",
+    "why": "Pourquoi les octets en cache n’ont pas été réutilisés :",
+    "next": "Prochaine requête : ",
+    "rewritten": "l’historique a été réécrit, le préfixe d’historique en cache est donc perdu",
+    "unchanged": "préfixe d’historique inchangé",
+    "pending": " · {{count}} nouveaux messages (~{{tokens}} tokens) en attente",
+    "keeps": "Ce que garde la prochaine compaction",
+    "keepsTokens": " · {{tokens}} tokens",
+    "keepsNone": " · non signalé",
+    "noRetention": "Le moteur n’a pas signalé la rétention pour ce contexte.",
+    "retentionLabel": "Rétention de compaction",
+    "protectedNote": "Les {{keep}} derniers tours sont protégés ; les longues sorties d’outils au-delà de ~{{threshold}} tokens peuvent être élidées d’abord.",
+    "retentionRow": "Rétention {{label}}",
+    "segment": {
+      "tools": "définitions d’outils",
+      "system": "prompt système (stable)",
+      "history-prior": "historique · envoyé avant",
+      "history-new": "historique · nouveau dans cette requête",
+      "live-snapshots": "contexte en direct · instantanés précédents",
+      "live-tail": "contexte en direct · cette requête",
+      "request-scoped": "propre à la requête (courrier) · envoyé une fois"
+    },
+    "lane": {
+      "cached": "en cache",
+      "written": "écrit",
+      "uncached": "pas en cache"
+    },
+    "hint": {
+      "cached": "servi depuis le cache du fournisseur",
+      "written": "nouveau préfixe — facturé maintenant, réutilisable par la requête suivante",
+      "uncached": "état en direct propre à la requête — jamais dans un préfixe réutilisable"
+    },
+    "verdict": {
+      "pending": "en attente de la réponse",
+      "cold": "démarrage à froid — la première requête construit le cache",
+      "hit": "succès — le préfixe a été réutilisé comme prévu",
+      "partial": "partiel — moins a été lu depuis le cache que la disposition ne le permet",
+      "miss": "échec — rien n’a été lu depuis le cache",
+      "unsupported": "ce fournisseur ne met pas les prompts en cache"
+    },
+    "retention": {
+      "protected": "protégés (tours récents)",
+      "elision-candidate": "candidats à l’élision",
+      "compactable": "compactables",
+      "elided": "déjà élidés",
+      "digest": "condensés de compaction"
+    }
   }
 }

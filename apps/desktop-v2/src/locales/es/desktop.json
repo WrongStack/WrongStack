@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} mensajes · ~{{beforeTokens}} → ~{{afterTokens}} tokens de solicitud",
     "selectFirst": "Selecciona primero el texto que quieres quitar.",
     "overlap": "Ese texto se solapa con una parte ya elegida para quitar."
+  },
+  "contextModes": {
+    "label": "Modos de contexto",
+    "new": "Nuevo modo",
+    "done": "Hecho.",
+    "reading": "Leyendo los modos de contexto…",
+    "facts": "{{id}} · aviso {{warn}} % · compactar {{soft}} % · límite {{hard}} % · conserva {{keep}} turnos recientes",
+    "custom": " · personalizado",
+    "inUse": "En uso",
+    "use": "Usar",
+    "edit": "Editar",
+    "confirmDelete": "Confirmar eliminación",
+    "delete": "Eliminar",
+    "deleteTitle": "Las conversaciones que lo usan vuelven al modo predeterminado",
+    "editForm": "Editar el modo de contexto",
+    "newForm": "Nuevo modo de contexto",
+    "field": {
+      "id": "ID del modo",
+      "name": "Nombre",
+      "description": "Descripción",
+      "warn": "Avisar al (% de la ventana)",
+      "soft": "Compactar al (% de la ventana)",
+      "hard": "Límite estricto (% de la ventana)",
+      "preserveK": "Turnos recientes conservados",
+      "eliseThreshold": "Omitir resultados antiguos de herramientas por encima de (tokens)"
+    },
+    "cancel": "Cancelar",
+    "save": "Guardar modo",
+    "create": "Crear modo",
+    "error": {
+      "id": "El ID del modo usa letras, dígitos, \"-\" o \"_\" (hasta 64 caracteres).",
+      "name": "Ponle un nombre al modo.",
+      "percent": "{{label}} debe ser un porcentaje de 0 a 100.",
+      "rising": "Los niveles deben subir: aviso ≤ compactación ≤ límite estricto.",
+      "count": "{{label}} debe ser un número entero de 0 o más.",
+      "warn": "El nivel de aviso",
+      "soft": "El nivel de compactación",
+      "hard": "El límite estricto",
+      "preserveK": "Los turnos recientes conservados",
+      "elise": "El tamaño de omisión"
+    }
+  },
+  "residency": {
+    "layout": "Disposición de caché de la última solicitud",
+    "noneRecorded": "nada registrado",
+    "noRequest": "Aún no se ha registrado ninguna solicitud en esta sesión, o el motor no la informó.",
+    "layoutLabel": "Disposición de caché de la solicitud",
+    "summary": "{{route}} · ~{{tokens}} tokens de solicitud estimados · la disposición permite {{percent}} % desde caché",
+    "actual": " · el proveedor leyó {{read}} de {{total}} desde caché ({{percent}} %)",
+    "notReported": " · uso del proveedor aún no informado",
+    "laneLabel": "Carril de caché {{lane}}",
+    "segments": "Segmentos de la solicitud",
+    "breakers": "Rupturas de caché",
+    "why": "Por qué no se reutilizaron los bytes en caché:",
+    "next": "Próxima solicitud: ",
+    "rewritten": "el historial se reescribió, así que se pierde el prefijo del historial en caché",
+    "unchanged": "prefijo del historial sin cambios",
+    "pending": " · {{count}} mensajes nuevos (~{{tokens}} tokens) en espera",
+    "keeps": "Lo que conserva la próxima compactación",
+    "keepsTokens": " · {{tokens}} tokens",
+    "keepsNone": " · no informado",
+    "noRetention": "El motor no informó la retención de este contexto.",
+    "retentionLabel": "Retención de compactación",
+    "protectedNote": "Los últimos {{keep}} turnos están protegidos; las salidas largas de herramientas por encima de ~{{threshold}} tokens pueden omitirse primero.",
+    "retentionRow": "Retención {{label}}",
+    "segment": {
+      "tools": "definiciones de herramientas",
+      "system": "prompt del sistema (estable)",
+      "history-prior": "historial · enviado antes",
+      "history-new": "historial · nuevo en esta solicitud",
+      "live-snapshots": "contexto en vivo · instantáneas anteriores",
+      "live-tail": "contexto en vivo · esta solicitud",
+      "request-scoped": "propio de la solicitud (correo) · enviado una vez"
+    },
+    "lane": {
+      "cached": "en caché",
+      "written": "escrito",
+      "uncached": "sin caché"
+    },
+    "hint": {
+      "cached": "servido desde la caché del proveedor",
+      "written": "prefijo nuevo — se cobra ahora, reutilizable por la siguiente solicitud",
+      "uncached": "estado en vivo por solicitud — nunca forma parte de un prefijo reutilizable"
+    },
+    "verdict": {
+      "pending": "esperando la respuesta",
+      "cold": "arranque en frío — la primera solicitud construye la caché",
+      "hit": "acierto — el prefijo se reutilizó como se esperaba",
+      "partial": "parcial — se leyó menos de la caché de lo que permite la disposición",
+      "miss": "fallo — no se leyó nada de la caché",
+      "unsupported": "este proveedor no almacena prompts en caché"
+    },
+    "retention": {
+      "protected": "protegidos (turnos recientes)",
+      "elision-candidate": "candidatos a omisión",
+      "compactable": "compactables",
+      "elided": "ya omitidos",
+      "digest": "resúmenes de compactación"
+    }
   }
 }

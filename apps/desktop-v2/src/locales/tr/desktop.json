@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} mesaj · ~{{beforeTokens}} → ~{{afterTokens}} istek tokenı",
     "selectFirst": "Önce çıkarılacak metni seç.",
     "overlap": "Bu metin, çıkarılmak üzere seçilmiş bir parçayla çakışıyor."
+  },
+  "contextModes": {
+    "label": "Bağlam modları",
+    "new": "Yeni mod",
+    "done": "Tamam.",
+    "reading": "Bağlam modları okunuyor…",
+    "facts": "{{id}} · uyarı %{{warn}} · sıkıştırma %{{soft}} · kesin sınır %{{hard}} · son {{keep}} turu tutar",
+    "custom": " · özel",
+    "inUse": "Kullanımda",
+    "use": "Kullan",
+    "edit": "Düzenle",
+    "confirmDelete": "Silmeyi onayla",
+    "delete": "Sil",
+    "deleteTitle": "Bunu kullanan konuşmalar varsayılan moda döner",
+    "editForm": "Bağlam modunu düzenle",
+    "newForm": "Yeni bağlam modu",
+    "field": {
+      "id": "Mod kimliği",
+      "name": "Ad",
+      "description": "Açıklama",
+      "warn": "Uyarı eşiği (pencerenin %’si)",
+      "soft": "Sıkıştırma eşiği (pencerenin %’si)",
+      "hard": "Kesin sınır (pencerenin %’si)",
+      "preserveK": "Tutulan son turlar",
+      "eliseThreshold": "Şunun üzerindeki eski araç sonuçlarını kısalt (token)"
+    },
+    "cancel": "İptal",
+    "save": "Modu kaydet",
+    "create": "Mod oluştur",
+    "error": {
+      "id": "Mod kimliği harf, rakam, \"-\" ya da \"_\" kullanır (en fazla 64 karakter).",
+      "name": "Moda bir ad ver.",
+      "percent": "{{label}} 0 ile 100 arasında bir yüzde olmalı.",
+      "rising": "Seviyeler artmalı: uyarı ≤ sıkıştırma ≤ kesin sınır.",
+      "count": "{{label}} 0 ya da daha büyük bir tam sayı olmalı.",
+      "warn": "Uyarı seviyesi",
+      "soft": "Sıkıştırma seviyesi",
+      "hard": "Kesin sınır",
+      "preserveK": "Tutulan son turlar",
+      "elise": "Kısaltma boyutu"
+    }
+  },
+  "residency": {
+    "layout": "Son isteğin önbellek düzeni",
+    "noneRecorded": "kayıt yok",
+    "noRequest": "Bu oturum için henüz istek kaydedilmedi ya da motor bildirmedi.",
+    "layoutLabel": "İstek önbellek düzeni",
+    "summary": "{{route}} · ~{{tokens}} tahmini istek tokenı · düzen önbellekten %{{percent}} izin veriyor",
+    "actual": " · sağlayıcı {{total}} tokenın {{read}} kadarını önbellekten okudu (%{{percent}})",
+    "notReported": " · sağlayıcı kullanımı henüz bildirilmedi",
+    "laneLabel": "Önbellek şeridi {{lane}}",
+    "segments": "İstek bölümleri",
+    "breakers": "Önbellek kırıcıları",
+    "why": "Önbellekteki baytlar neden yeniden kullanılmadı:",
+    "next": "Sonraki istek: ",
+    "rewritten": "geçmiş yeniden yazıldı, bu yüzden önbellekteki geçmiş öneki kayboldu",
+    "unchanged": "geçmiş öneki değişmedi",
+    "pending": " · bekleyen {{count}} yeni mesaj (~{{tokens}} token)",
+    "keeps": "Sonraki sıkıştırmanın tuttukları",
+    "keepsTokens": " · {{tokens}} token",
+    "keepsNone": " · bildirilmedi",
+    "noRetention": "Motor bu bağlam için tutma bilgisini bildirmedi.",
+    "retentionLabel": "Sıkıştırma tutması",
+    "protectedNote": "Son {{keep}} tur korunur; ~{{threshold}} tokenın üzerindeki uzun araç çıktıları önce kısaltılabilir.",
+    "retentionRow": "Tutma {{label}}",
+    "segment": {
+      "tools": "araç tanımları",
+      "system": "sistem istemi (sabit)",
+      "history-prior": "geçmiş · önceden gönderildi",
+      "history-new": "geçmiş · bu istekte yeni",
+      "live-snapshots": "canlı bağlam · önceki görüntüler",
+      "live-tail": "canlı bağlam · bu istek",
+      "request-scoped": "isteğe özel (posta) · bir kez gönderilir"
+    },
+    "lane": {
+      "cached": "önbellekte",
+      "written": "yazıldı",
+      "uncached": "önbellekte değil"
+    },
+    "hint": {
+      "cached": "sağlayıcı önbelleğinden sunuldu",
+      "written": "yeni önek — şimdi yeniden faturalanır, sonraki istek yeniden kullanabilir",
+      "uncached": "isteğe özel canlı durum — hiçbir zaman yeniden kullanılabilir önekin parçası olmaz"
+    },
+    "verdict": {
+      "pending": "yanıt bekleniyor",
+      "cold": "soğuk başlangıç — ilk istek önbelleği oluşturur",
+      "hit": "isabet — önek beklendiği gibi yeniden kullanıldı",
+      "partial": "kısmi — önbellekten düzenin izin verdiğinden daha az okundu",
+      "miss": "ıska — önbellekten hiçbir şey okunmadı",
+      "unsupported": "bu sağlayıcı istemleri önbelleğe almıyor"
+    },
+    "retention": {
+      "protected": "korunuyor (son turlar)",
+      "elision-candidate": "kısaltma adayları",
+      "compactable": "sıkıştırılabilir",
+      "elided": "zaten kısaltıldı",
+      "digest": "sıkıştırma özetleri"
+    }
   }
 }

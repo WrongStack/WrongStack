@@ -8024,3 +8024,19 @@ copies, starting with SAGE memory.
   write, the record inspector) and `context-dialogs-i18n.test.ts` (the inspector, and the
   editor with a user message chosen together with its reply), each in English and Turkish;
   catalog parity and the key guard pass; desktop tests pass (930); typecheck clean.
+
+### Context modes and cache layout in the display language (2026-11-04)
+
+- The rest of the context inspector follows the display language in all seven languages: the
+  context modes list with each mode's thresholds, use, edit and delete, the mode form and its
+  validation (`contextModes`), and the last request's cache layout, lanes, segments, cache
+  breakers, the next request and what the next compaction keeps (`residency`).
+- The shared residency vocabulary from `@wrongstack/core/utils/residency-labels` (segments,
+  lanes, hints, verdicts, retention classes) is worded through `residency.*` with the core label
+  as the fallback for values added later. `modePayload` takes a `ModeWords` object and keeps
+  English as the default.
+- Still English by design: mode ids, names and descriptions, provider and model ids, and cache
+  breaker kinds and details reported by the engine.
+- Checks: `context-dialogs-i18n.test.ts` now also renders a custom active mode, a cache layout
+  with a verdict and the retention rows in English and Turkish; desktop tests pass (930);
+  typecheck clean.

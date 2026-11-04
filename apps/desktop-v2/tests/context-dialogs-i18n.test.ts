@@ -21,6 +21,48 @@ const debug = {
   mode: 'balanced',
   tools: { total: 300, count: 2, breakdown: [{ name: 'read', tokens: 150 }] },
   messages: { total: 500, count: 4, breakdown: [{ role: 'user', preview: 'first', tokens: 5 }] },
+  residency: {
+    seq: 3,
+    at: 1,
+    providerId: 'local',
+    model: 'm1',
+    mechanism: 'explicit',
+    segments: [{ kind: 'tools', tokens: 400, lane: 'cached', count: 12 }],
+    lanes: { cached: 400, written: 0, uncached: 0 },
+    total: 400,
+    expectedCacheRatio: 1,
+    verdict: 'hit',
+    breakers: [],
+    next: { rewritten: false, pendingMessages: 0, pendingTokens: 0 },
+  },
+  retention: {
+    preserveK: 4,
+    eliseThreshold: 2000,
+    preserveStart: 2,
+    total: 950,
+    classes: {
+      protected: { messages: 4, tokens: 900 },
+      'elision-candidate': { messages: 0, tokens: 0 },
+      compactable: { messages: 0, tokens: 0 },
+      elided: { messages: 0, tokens: 0 },
+      digest: { messages: 1, tokens: 50 },
+    },
+  },
+};
+const modes = {
+  activeId: 'focus',
+  modes: [
+    {
+      id: 'focus',
+      name: 'Focus',
+      description: '',
+      isActive: true,
+      custom: true,
+      thresholds: { warn: 0.5, soft: 0.6, hard: 0.8 },
+      preserveK: 4,
+      eliseThreshold: 1000,
+    },
+  ],
 };
 const editor = {
   revision: 'rev-1',
@@ -57,7 +99,9 @@ async function render(
   return { text, labels };
 }
 
-const command = vi.fn(async (type: string) => (type === 'context.debug' ? debug : editor));
+const command = vi.fn(async (type: string) =>
+  type === 'context.debug' ? debug : type === 'context.modes.list' ? modes : editor,
+);
 const panel = () =>
   createElement(SessionContextPanel, {
     command,
@@ -94,6 +138,12 @@ describe('context dialogs in the display language', () => {
       'Read effective instructions',
       'Compact aggressively',
       'Clear provider context',
+      'Context modes',
+      'focus · warn 50% · compact 60% · hard 80% · keeps 4 recent turns · custom',
+      'In use',
+      'Last request cache layout · hit — the prefix was reused as expected',
+      'What the next compaction keeps',
+      'protected (recent turns) · 4',
     ])
       expect(english.text).toContain(text);
     expect(english.labels).toEqual(
@@ -121,6 +171,12 @@ describe('context dialogs in the display language', () => {
       'Araç tanımları · 2',
       'Geçerli talimatları oku',
       'Agresif sıkıştır',
+      'Bağlam modları',
+      'focus · uyarı %50 · sıkıştırma %60 · kesin sınır %80 · son 4 turu tutar · özel',
+      'Kullanımda',
+      'Son isteğin önbellek düzeni · isabet — önek beklendiği gibi yeniden kullanıldı',
+      'Sonraki sıkıştırmanın tuttukları',
+      'korunuyor (son turlar) · 4',
     ])
       expect(turkish.text).toContain(text);
     const turkishEditor = await render(dialog(), choose);

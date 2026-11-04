@@ -6065,5 +6065,104 @@
     "metrics": "{{beforeMessages}} → {{afterMessages}} Nachrichten · ~{{beforeTokens}} → ~{{afterTokens}} Anfrage-Tokens",
     "selectFirst": "Markiere zuerst Text zum Entfernen.",
     "overlap": "Dieser Text überschneidet sich mit einem bereits zum Entfernen gewählten Teil."
+  },
+  "contextModes": {
+    "label": "Kontextmodi",
+    "new": "Neuer Modus",
+    "done": "Erledigt.",
+    "reading": "Kontextmodi werden gelesen…",
+    "facts": "{{id}} · Warnung {{warn}} % · Verdichtung {{soft}} % · hart {{hard}} % · behält {{keep}} letzte Runden",
+    "custom": " · eigen",
+    "inUse": "Aktiv",
+    "use": "Verwenden",
+    "edit": "Bearbeiten",
+    "confirmDelete": "Löschen bestätigen",
+    "delete": "Löschen",
+    "deleteTitle": "Unterhaltungen, die ihn nutzen, kehren zum Standardmodus zurück",
+    "editForm": "Kontextmodus bearbeiten",
+    "newForm": "Neuer Kontextmodus",
+    "field": {
+      "id": "Modus-ID",
+      "name": "Name",
+      "description": "Beschreibung",
+      "warn": "Warnen bei (% des Fensters)",
+      "soft": "Verdichten bei (% des Fensters)",
+      "hard": "Harte Grenze (% des Fensters)",
+      "preserveK": "Behaltene letzte Runden",
+      "eliseThreshold": "Ältere Werkzeugergebnisse kürzen ab (Tokens)"
+    },
+    "cancel": "Abbrechen",
+    "save": "Modus speichern",
+    "create": "Modus erstellen",
+    "error": {
+      "id": "Die Modus-ID besteht aus Buchstaben, Ziffern, \"-\" oder \"_\" (bis zu 64 Zeichen).",
+      "name": "Gib dem Modus einen Namen.",
+      "percent": "{{label}} muss ein Prozentwert von 0 bis 100 sein.",
+      "rising": "Die Stufen müssen steigen: Warnung ≤ Verdichtung ≤ harte Grenze.",
+      "count": "{{label}} muss eine ganze Zahl ab 0 sein.",
+      "warn": "Die Warnstufe",
+      "soft": "Die Verdichtungsstufe",
+      "hard": "Die harte Grenze",
+      "preserveK": "Behaltene letzte Runden",
+      "elise": "Die Kürzungsgröße"
+    }
+  },
+  "residency": {
+    "layout": "Cache-Aufbau der letzten Anfrage",
+    "noneRecorded": "nichts aufgezeichnet",
+    "noRequest": "Für diese Sitzung wurde noch keine Anfrage aufgezeichnet, oder die Engine hat keine gemeldet.",
+    "layoutLabel": "Cache-Aufbau der Anfrage",
+    "summary": "{{route}} · ~{{tokens}} geschätzte Anfrage-Tokens · Aufbau erlaubt {{percent}} % aus dem Cache",
+    "actual": " · Anbieter las {{read}} von {{total}} aus dem Cache ({{percent}} %)",
+    "notReported": " · Anbieternutzung noch nicht gemeldet",
+    "laneLabel": "Cache-Spur {{lane}}",
+    "segments": "Anfrageabschnitte",
+    "breakers": "Cache-Brecher",
+    "why": "Warum zwischengespeicherte Bytes nicht wiederverwendet wurden:",
+    "next": "Nächste Anfrage: ",
+    "rewritten": "der Verlauf wurde umgeschrieben, daher ist das zwischengespeicherte Verlaufspräfix verloren",
+    "unchanged": "Verlaufspräfix unverändert",
+    "pending": " · {{count}} neue Nachrichten (~{{tokens}} Tokens) warten",
+    "keeps": "Was die nächste Verdichtung behält",
+    "keepsTokens": " · {{tokens}} Tokens",
+    "keepsNone": " · nicht gemeldet",
+    "noRetention": "Die Engine hat für diesen Kontext keine Aufbewahrung gemeldet.",
+    "retentionLabel": "Aufbewahrung bei Verdichtung",
+    "protectedNote": "Die letzten {{keep}} Runden sind geschützt; lange Werkzeugausgaben über ~{{threshold}} Tokens können zuerst gekürzt werden.",
+    "retentionRow": "Aufbewahrung {{label}}",
+    "segment": {
+      "tools": "Werkzeugdefinitionen",
+      "system": "Systemprompt (stabil)",
+      "history-prior": "Verlauf · zuvor gesendet",
+      "history-new": "Verlauf · neu in dieser Anfrage",
+      "live-snapshots": "Live-Kontext · frühere Stände",
+      "live-tail": "Live-Kontext · diese Anfrage",
+      "request-scoped": "anfragebezogen (Mail) · einmal gesendet"
+    },
+    "lane": {
+      "cached": "zwischengespeichert",
+      "written": "geschrieben",
+      "uncached": "nicht zwischengespeichert"
+    },
+    "hint": {
+      "cached": "aus dem Anbieter-Cache bedient",
+      "written": "neues Präfix — jetzt neu berechnet, von der nächsten Anfrage wiederverwendbar",
+      "uncached": "Live-Zustand pro Anfrage — nie Teil eines wiederverwendbaren Präfixes"
+    },
+    "verdict": {
+      "pending": "wartet auf die Antwort",
+      "cold": "Kaltstart — die erste Anfrage baut den Cache auf",
+      "hit": "Treffer — das Präfix wurde wie erwartet wiederverwendet",
+      "partial": "teilweise — weniger aus dem Cache gelesen, als der Aufbau erlaubt",
+      "miss": "Fehlschlag — nichts wurde aus dem Cache gelesen",
+      "unsupported": "dieser Anbieter speichert Prompts nicht zwischen"
+    },
+    "retention": {
+      "protected": "geschützt (letzte Runden)",
+      "elision-candidate": "Kürzungskandidaten",
+      "compactable": "verdichtbar",
+      "elided": "bereits gekürzt",
+      "digest": "Verdichtungszusammenfassungen"
+    }
   }
 }
