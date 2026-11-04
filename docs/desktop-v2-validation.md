@@ -8132,3 +8132,16 @@ copies, starting with SAGE memory.
 - Checks: new `settings-policies-i18n.test.ts` renders the four panels with YOLO on, a disabled
   provider and a missing review profile in English and Turkish; desktop tests pass (PASSED);
   typecheck clean.
+
+### Tool availability, global instructions, network access, plugins and configuration check in the display language (2026-11-04)
+
+- Five more settings panels follow the display language in all seven languages: tool
+  availability with its counts, filters and per-tool cards (`toolAccess`), global instructions
+  with the editor, preview, reload and save states (`userInstructions`), browser and network
+  access (`networkPolicy`), per-plugin controls (`pluginToggles`), and the configuration
+  check with its repair confirmation (`configDoctor`).
+- Still English by design: tool names, owners, descriptions and parameters, plugin summaries
+  from the plugin catalog, the instruction file path, the browser policy messages the engine
+  returns, and changed setting paths.
+- Checks: new `settings-tools-i18n.test.ts` renders the four static panels and a loaded tool
+  catalog in English and Turkish; desktop tests pass (PASSED); typecheck clean.

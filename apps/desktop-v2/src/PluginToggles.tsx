@@ -1,6 +1,7 @@
 import { PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/plugin-audit-catalog';
 import { Puzzle } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 
 /** A plugin's readable name: the catalog id without its scope or `wstack-` prefix, in words. */
 function pluginLabel(name: string) {
@@ -30,6 +31,7 @@ export function PluginToggles({
   draft: Record<string, unknown>;
   change: (key: string, value: unknown) => void;
 }) {
+  const { t } = useDesktopText();
   const [query, setQuery] = useState('');
   const [enabledOnly, setEnabledOnly] = useState(false);
   const decided =
@@ -50,18 +52,16 @@ export function PluginToggles({
         )),
   );
   return (
-    <section className="plugin-toggles" aria-label="Per-plugin controls">
+    <section className="plugin-toggles" aria-label={t('pluginToggles.title')}>
       <h3>
-        <Puzzle size={15} /> Per-plugin controls
+        <Puzzle size={15} /> {t('pluginToggles.title')}
       </h3>
-      <p className="field-help">
-        Enable or disable individual plugins. Changes take effect in the next session.
-      </p>
+      <p className="field-help">{t('pluginToggles.intro')}</p>
       <div className="plugin-toggle-filters">
         <input
           type="search"
-          aria-label="Search plugins"
-          placeholder="Search plugins"
+          aria-label={t('pluginToggles.search')}
+          placeholder={t('pluginToggles.search')}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -71,13 +71,13 @@ export function PluginToggles({
           aria-pressed={enabledOnly}
           onClick={() => setEnabledOnly((value) => !value)}
         >
-          Enabled only
+          {t('pluginToggles.enabledOnly')}
         </button>
         <span className="plugin-toggle-count" aria-live="polite">
           {visible.length} / {PLUGINS.length}
         </span>
       </div>
-      {visible.length === 0 && <p className="field-help">No plugins match this filter.</p>}
+      {visible.length === 0 && <p className="field-help">{t('pluginToggles.noMatch')}</p>}
       {visible.map((entry) => {
         const on = enabled(entry);
         return (
@@ -85,7 +85,7 @@ export function PluginToggles({
             <div>
               <label htmlFor={`plugin-${entry.name}`}>{pluginLabel(entry.name)}</label>
               <p>{entry.summary}</p>
-              {!entry.canDisable && <small>Always on</small>}
+              {!entry.canDisable && <small>{t('pluginToggles.alwaysOn')}</small>}
             </div>
             <div className="setting-control">
               <button
