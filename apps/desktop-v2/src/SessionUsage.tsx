@@ -1,29 +1,55 @@
 import { ArrowLeft, Coins, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 import { type DelegationRecord, withWorkerEstimates } from './delegations';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { SessionDelegations } from './SessionDelegations';
 import {
   type PromptUsage,
   type UsageSnapshot,
   usageKinds,
-  usageLabels,
   usageMoney,
   usageNumber,
   usageRatio,
   usageSnapshot,
 } from './session-usage-model';
+import { surfaceI18n } from './surface-i18n';
 import './session-usage.css';
+
+/** The usage formatters with the display language's words for a missing value. */
+function useUsageFormat() {
+  const { t } = useDesktopText();
+  const notReported = t('usageView.notReported');
+  return {
+    t,
+    number: (value: number | null | undefined) => usageNumber(value, notReported),
+    money: (value: number | null | undefined) => usageMoney(value, t('usageView.unavailable')),
+    ratio: (value: number | null | undefined) => usageRatio(value, notReported),
+  };
+}
 
 /** The estimate above plus the engine's estimates for this conversation's workers. */
 function WorkerTotal({ combined }: { combined: ReturnType<typeof withWorkerEstimates> }) {
+  const { t, money } = useUsageFormat();
   if (!combined) return null;
   return (
     <p className="usage-worker-total">
-      With worker delegations: <strong>{usageMoney(combined.totalUsd)}</strong> ({combined.priced}{' '}
-      priced {combined.priced === 1 ? 'worker' : 'workers'}
-      {combined.unpriced ? `; ${combined.unpriced} without a cost estimate are not included` : ''}
-      ).
+      <Trans
+        i18n={surfaceI18n}
+        ns="desktop"
+        i18nKey="usageView.workerTotal"
+        values={{
+          total: money(combined.totalUsd),
+          workers: t(combined.priced === 1 ? 'usageView.pricedWorker' : 'usageView.pricedWorkers', {
+            count: combined.priced,
+          }),
+          unpriced: combined.unpriced
+            ? t('usageView.unpricedWorkers', { count: combined.unpriced })
+            : '',
+        }}
+        components={{ strong: <strong /> }}
+      />
     </p>
   );
 }
@@ -37,48 +63,41 @@ function PromptCard({
   value: PromptUsage | null;
   providerReported?: boolean;
 }) {
+  const { t, number, ratio } = useUsageFormat();
   return (
     <article className="usage-card" aria-label={label}>
       <h3>{label}</h3>
       {value ? (
         <>
           <strong className="usage-big-number">
-            {usageNumber(value.input + value.cacheRead + value.cacheWrite)}{' '}
-            <small>prompt tokens</small>
+            {number(value.input + value.cacheRead + value.cacheWrite)}{' '}
+            <small>{t('usageView.promptTokens')}</small>
           </strong>
           <dl className="usage-detail-list">
             <div>
-              <dt>Fresh input</dt>
-              <dd>{usageNumber(value.input)}</dd>
+              <dt>{t('usageView.kind.input')}</dt>
+              <dd>{number(value.input)}</dd>
             </div>
             <div>
-              <dt>Cache read</dt>
-              <dd>{usageNumber(value.cacheRead)}</dd>
+              <dt>{t('usageView.kind.cache-read')}</dt>
+              <dd>{number(value.cacheRead)}</dd>
             </div>
             <div>
-              <dt>Cache write</dt>
-              <dd>{usageNumber(value.cacheWrite)}</dd>
+              <dt>{t('usageView.kind.cache-write')}</dt>
+              <dd>{number(value.cacheWrite)}</dd>
             </div>
             {providerReported && (
               <div>
-                <dt>Request cache hit</dt>
-                <dd>{usageRatio(value.hitRatio)}</dd>
+                <dt>{t('usageView.requestHit')}</dt>
+                <dd>{ratio(value.hitRatio)}</dd>
               </div>
             )}
           </dl>
         </>
       ) : (
-        <p>
-          {providerReported
-            ? 'No provider-reported request has been recorded.'
-            : 'This runtime did not report a current context snapshot.'}
-        </p>
+        <p>{providerReported ? t('usageView.noLast') : t('usageView.noCurrent')}</p>
       )}
-      <p>
-        {providerReported
-          ? 'Only the most recent accounted provider response. This is separate from session totals.'
-          : 'The engine’s latest context snapshot can change after compaction without another provider response.'}
-      </p>
+      <p>{providerReported ? t('usageView.lastNote') : t('usageView.currentNote')}</p>
     </article>
   );
 }
@@ -98,6 +117,7 @@ export function SessionUsage({
   /** Worker delegations the engine reported for this conversation. */
   delegations?: DelegationRecord[] | undefined;
 }) {
+  const { t, number, money, ratio } = useUsageFormat();
   const [snapshot, setSnapshot] = useState<UsageSnapshot | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -149,21 +169,19 @@ export function SessionUsage({
       clearTimeout(timer);
     };
   }, [load, live]);
+  const kindLabel = (kind: (typeof usageKinds)[number]) => t(`usageView.kind.${kind}`);
   return (
-    <section className="session-usage" aria-label="Conversation usage and cost">
+    <section className="session-usage" aria-label={t('usageView.label')}>
       <header className="session-usage-heading">
         <div>
-          <h1>Usage & cost</h1>
+          <h1>{t('usageView.title')}</h1>
           <strong className="usage-conversation-title">{sessionTitle}</strong>
-          <p>
-            Understand token traffic, cache behavior and estimates without leaving your
-            conversation.
-          </p>
+          <p>{t('usageView.body')}</p>
         </div>
         <div className="session-usage-controls">
           <button type="button" className="button secondary" onClick={onBack}>
             <ArrowLeft size={14} />
-            Back to conversation
+            {t('usageView.back')}
           </button>
           <button
             type="button"
@@ -174,7 +192,7 @@ export function SessionUsage({
             }}
           >
             <RefreshCw size={14} />
-            Refresh usage
+            {t('usageView.refresh')}
           </button>
         </div>
       </header>
@@ -185,21 +203,21 @@ export function SessionUsage({
             checked={live}
             onChange={(event) => setLive(event.target.checked)}
           />
-          Live usage updates
+          {t('usageView.live')}
         </label>
         <span>
           {busy
-            ? 'Refreshing usage…'
+            ? t('usageView.refreshing')
             : updatedAt
-              ? `Last successful snapshot ${updatedAt}`
-              : 'Waiting for usage'}
+              ? t('usageView.lastSnapshot', { time: updatedAt })
+              : t('usageView.waiting')}
         </span>
       </div>
-      {!connected && <p role="status">Reconnect this conversation to refresh its counters.</p>}
+      {!connected && <p role="status">{t('usageView.reconnect')}</p>}
       {error && (
         <p className="session-error" role="alert">
           {error}
-          {snapshot ? ' The last successful snapshot is retained.' : ''}
+          {snapshot ? ` ${t('usageView.retained')}` : ''}
         </p>
       )}
       {snapshot && (
@@ -207,21 +225,21 @@ export function SessionUsage({
           <div className="usage-route">
             <Coins size={16} />
             <strong>
-              {snapshot.provider || 'Provider not reported'} /{' '}
-              {snapshot.model || 'Model not reported'}
+              {snapshot.provider || t('usageView.noProvider')} /{' '}
+              {snapshot.model || t('usageView.noModel')}
             </strong>
-            <span>Current route</span>
+            <span>{t('usageView.route')}</span>
           </div>
-          <section className="usage-token-overview" aria-label="Session token totals">
+          <section className="usage-token-overview" aria-label={t('usageView.totalsLabel')}>
             <header>
-              <h2>Accumulated token traffic</h2>
-              <strong>{usageNumber(snapshot.total)} tokens</strong>
+              <h2>{t('usageView.totalsTitle')}</h2>
+              <strong>{t('usageView.tokens', { value: number(snapshot.total) })}</strong>
             </header>
             <div
               className="usage-segments"
               role="img"
               aria-label={usageKinds
-                .map((kind) => `${usageLabels[kind]} ${usageNumber(snapshot.tokens[kind])}`)
+                .map((kind) => `${kindLabel(kind)} ${number(snapshot.tokens[kind])}`)
                 .join(', ')}
             >
               {usageKinds.map((kind) => (
@@ -237,73 +255,62 @@ export function SessionUsage({
             <div className="usage-total-grid">
               {usageKinds.map((kind) => (
                 <article key={kind} className={`usage-total-${kind}`}>
-                  <span>{usageLabels[kind]}</span>
-                  <strong>{usageNumber(snapshot.tokens[kind])}</strong>
+                  <span>{kindLabel(kind)}</span>
+                  <strong>{number(snapshot.tokens[kind])}</strong>
                 </article>
               ))}
             </div>
-            <p>
-              Fresh input, cache reads and cache writes are disjoint prompt segments; output is
-              counted separately. These are session counters, not a context-window size.
-            </p>
+            <p>{t('usageView.segmentsNote')}</p>
           </section>
           <div className="usage-prompt-grid">
-            <PromptCard
-              label="Last provider-reported request"
-              value={snapshot.last}
-              providerReported
-            />
-            <PromptCard label="Current context snapshot" value={snapshot.current} />
+            <PromptCard label={t('usageView.lastLabel')} value={snapshot.last} providerReported />
+            <PromptCard label={t('usageView.currentLabel')} value={snapshot.current} />
           </div>
-          <section className="usage-card" aria-label="Session cache behavior">
-            <h2>Cache over this session</h2>
+          <section className="usage-card" aria-label={t('usageView.cacheLabel')}>
+            <h2>{t('usageView.cacheTitle')}</h2>
             <dl className="usage-metric-grid">
               <div>
-                <dt>Cumulative cache hit</dt>
-                <dd>{usageRatio(snapshot.cache.hitRatio)}</dd>
+                <dt>{t('usageView.cumulativeHit')}</dt>
+                <dd>{ratio(snapshot.cache.hitRatio)}</dd>
               </div>
               <div>
-                <dt>5 minute cache writes</dt>
-                <dd>{usageNumber(snapshot.cache.write5m)}</dd>
+                <dt>{t('usageView.write5m')}</dt>
+                <dd>{number(snapshot.cache.write5m)}</dd>
               </div>
               <div>
-                <dt>1 hour cache writes</dt>
-                <dd>{usageNumber(snapshot.cache.write1h)}</dd>
+                <dt>{t('usageView.write1h')}</dt>
+                <dd>{number(snapshot.cache.write1h)}</dd>
               </div>
               <div>
-                <dt>Known cache-read discount</dt>
-                <dd>{usageMoney(snapshot.cache.savedUsd)}</dd>
+                <dt>{t('usageView.discount')}</dt>
+                <dd>{money(snapshot.cache.savedUsd)}</dd>
               </div>
             </dl>
-            <p>
-              The cumulative ratio includes cold requests and can lag the last request. The engine’s
-              read-discount estimate may omit unresolved pricing and excludes cache-write premiums.
-              Missing TTL splits stay unreported.
-            </p>
-            <h3>Routed providers</h3>
+            <p>{t('usageView.cacheNote')}</p>
+            <h3>{t('usageView.providersTitle')}</h3>
             {snapshot.cache.providers.length ? (
               <div className="usage-table-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <th>Provider</th>
-                      <th>Fresh input</th>
-                      <th>Cache read</th>
-                      <th>Cache write</th>
-                      <th>Cache hit</th>
-                      <th>5 min / 1 hour writes</th>
+                      <th>{t('usageView.column.provider')}</th>
+                      <th>{t('usageView.kind.input')}</th>
+                      <th>{t('usageView.kind.cache-read')}</th>
+                      <th>{t('usageView.kind.cache-write')}</th>
+                      <th>{t('usageView.column.cacheHit')}</th>
+                      <th>{t('usageView.column.writes')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {snapshot.cache.providers.map((provider, index) => (
                       <tr key={`${provider.provider}-${index}`}>
                         <th>{provider.provider}</th>
-                        <td>{usageNumber(provider.input)}</td>
-                        <td>{usageNumber(provider.cacheRead)}</td>
-                        <td>{usageNumber(provider.cacheWrite)}</td>
-                        <td>{usageRatio(provider.hitRatio)}</td>
+                        <td>{number(provider.input)}</td>
+                        <td>{number(provider.cacheRead)}</td>
+                        <td>{number(provider.cacheWrite)}</td>
+                        <td>{ratio(provider.hitRatio)}</td>
                         <td>
-                          {usageNumber(provider.write5m)} / {usageNumber(provider.write1h)}
+                          {number(provider.write5m)} / {number(provider.write1h)}
                         </td>
                       </tr>
                     ))}
@@ -311,35 +318,29 @@ export function SessionUsage({
                 </table>
               </div>
             ) : (
-              <p>No per-provider cache breakdown was reported.</p>
+              <p>{t('usageView.noProviders')}</p>
             )}
           </section>
-          <section className="usage-card" aria-label="Usage estimate">
+          <section className="usage-card" aria-label={t('usageView.estimateLabel')}>
             <header>
               <div>
-                <h2>Estimate at current model rates</h2>
+                <h2>{t('usageView.estimateTitle')}</h2>
                 <p>
                   {snapshot.pricing
                     ? snapshot.pricing.coverage === 'complete'
-                      ? 'All aggregate rate fields are available.'
+                      ? t('usageView.coverage.complete')
                       : snapshot.pricing.coverage === 'partial'
-                        ? 'Some aggregate rate fields are unavailable.'
-                        : 'No catalog pricing is available.'
-                    : 'Pricing detail is unavailable from this runtime.'}
+                        ? t('usageView.coverage.partial')
+                        : t('usageView.coverage.none')
+                    : t('usageView.coverage.unavailable')}
                 </p>
               </div>
-              <strong className="usage-big-number">
-                {usageMoney(snapshot.pricing?.estimateUsd)}
-              </strong>
+              <strong className="usage-big-number">{money(snapshot.pricing?.estimateUsd)}</strong>
             </header>
-            <p>
-              Current model rates are applied to accumulated session tokens; cache writes are priced
-              by the lifetime the provider reported. Historical routing/model changes and context
-              price tiers are not reconstructed here. This estimate is not an invoice.
-            </p>
+            <p>{t('usageView.estimateNote')}</p>
             {snapshot.pricing && (
               <>
-                <p>Known priced components: {usageMoney(snapshot.pricing.knownCostUsd)}</p>
+                <p>{t('usageView.knownPriced', { value: money(snapshot.pricing.knownCostUsd) })}</p>
                 <WorkerTotal
                   combined={withWorkerEstimates(snapshot.pricing.estimateUsd, delegations)}
                 />
@@ -347,31 +348,31 @@ export function SessionUsage({
                   <table>
                     <thead>
                       <tr>
-                        <th>Token category</th>
-                        <th>Tokens</th>
-                        <th>USD / 1M</th>
-                        <th>Rate source</th>
-                        <th>Estimated USD</th>
+                        <th>{t('usageView.column.category')}</th>
+                        <th>{t('usageView.column.tokens')}</th>
+                        <th>{t('usageView.column.rate')}</th>
+                        <th>{t('usageView.column.source')}</th>
+                        <th>{t('usageView.column.estimate')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {snapshot.pricing.parts.map((part) => (
                         <tr key={part.kind}>
-                          <th>{usageLabels[part.kind]}</th>
-                          <td>{usageNumber(part.tokens)}</td>
+                          <th>{kindLabel(part.kind)}</th>
+                          <td>{number(part.tokens)}</td>
                           <td>
                             {part.rateUsdPerMillion === null
-                              ? 'Unpriced'
-                              : usageMoney(part.rateUsdPerMillion)}
+                              ? t('usageView.unpriced')
+                              : money(part.rateUsdPerMillion)}
                           </td>
                           <td>
                             {part.rateSource === 'input-fallback'
-                              ? 'Input rate fallback'
+                              ? t('usageView.source.input-fallback')
                               : part.rateSource === 'catalog'
-                                ? 'Catalog / saved override'
-                                : 'Not available'}
+                                ? t('usageView.source.catalog')
+                                : t('usageView.source.none')}
                           </td>
-                          <td>{usageMoney(part.estimateUsd)}</td>
+                          <td>{money(part.estimateUsd)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -380,25 +381,24 @@ export function SessionUsage({
               </>
             )}
           </section>
-          <section className="usage-card" aria-label="Conversation footprint">
-            <h2>Conversation footprint</h2>
+          <section className="usage-card" aria-label={t('usageView.footprintTitle')}>
+            <h2>{t('usageView.footprintTitle')}</h2>
             <dl className="usage-metric-grid">
-              {[
-                ['Messages', snapshot.messages],
-                ['Files read', snapshot.readFiles],
-                ['Available tools', snapshot.tools],
-                ['Recorded side effects', snapshot.sideEffects],
-              ].map(([label, value]) => (
-                <div key={String(label)}>
-                  <dt>{label}</dt>
-                  <dd>{usageNumber(value as number | null)}</dd>
+              {(
+                [
+                  ['messages', snapshot.messages],
+                  ['readFiles', snapshot.readFiles],
+                  ['tools', snapshot.tools],
+                  ['sideEffects', snapshot.sideEffects],
+                ] as const
+              ).map(([id, value]) => (
+                <div key={id}>
+                  <dt>{t(`usageView.footprint.${id}`)}</dt>
+                  <dd>{number(value)}</dd>
                 </div>
               ))}
             </dl>
-            <p>
-              Retained live-runtime counters for this conversation. Provider account balances and
-              project-wide totals have their own scope.
-            </p>
+            <p>{t('usageView.footprintNote')}</p>
           </section>
         </>
       )}

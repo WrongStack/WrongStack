@@ -7988,3 +7988,18 @@ copies, starting with SAGE memory.
     states and stored settings size, the reconnect call paging the journal, the notice in
     Turkish with a conversation that recorded nothing, and the diagnostics table.
   - Desktop tests pass (927); typecheck clean for desktop and project-surfaces.
+
+### Conversation usage in the display language (2026-11-04)
+
+- The conversation's Usage & cost page and its worker delegations follow the display language
+  in all seven languages: the token traffic and its segments, the last provider request and
+  current context cards, cache behavior with the routed provider table, the estimate with its
+  coverage, rate sources and worker total, the conversation footprint, and each finished
+  delegation with its outcome, turns, tool calls and duration.
+- Key groups `usageView` and `delegationsView`. `usageNumber`, `usageMoney` and `usageRatio`
+  take the word for a missing value and keep English as the default; amounts stay in USD.
+- Still English by design: provider and model names, delegation targets and statuses, and the
+  summaries workers reported.
+- Checks: new `session-usage-i18n.test.ts` renders the page with a priced snapshot and a failed
+  delegation in English and Turkish; catalog parity and the key guard pass; desktop tests pass
+  (928); typecheck clean.

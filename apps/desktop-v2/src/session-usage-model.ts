@@ -176,20 +176,20 @@ export function usageSnapshot(value: Record<string, unknown>, sessionId: string)
     pricing,
   };
 }
-export const usageNumber = (value: number | null | undefined) =>
-  value == null ? 'Not reported' : value.toLocaleString();
-export const usageMoney = (value: number | null | undefined) =>
+export const usageNumber = (value: number | null | undefined, missing = 'Not reported') =>
+  value == null ? missing : value.toLocaleString();
+export const usageMoney = (value: number | null | undefined, missing = 'Unavailable') =>
   value == null
-    ? 'Unavailable'
+    ? missing
     : new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 4,
         maximumFractionDigits: 6,
       }).format(value);
-export const usageRatio = (value: number | null | undefined) =>
+export const usageRatio = (value: number | null | undefined, missing = 'Not reported') =>
   value == null
-    ? 'Not reported'
+    ? missing
     : `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 export function inlineUsageEstimate(
   stats: Record<string, unknown> | undefined,
