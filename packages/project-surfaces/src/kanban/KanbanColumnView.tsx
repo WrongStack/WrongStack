@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { priorityClass } from './KanbanTaskFields';
+import {
+  ATOMICITY_VERDICT_KEYS,
+  enumLabel,
+  routeLabel,
+  VERIFICATION_STATE_KEYS,
+} from './kanban-labels';
 import { kanbanMetadataText } from './kanban-metadata';
 import { useKanbanStore } from './kanban-store';
 import { type TaskVerificationState, verificationStateOf } from './kanban-verification';
@@ -343,7 +349,7 @@ export function KanbanColumnView({
             >
               <button
                 type="button"
-                aria-label={`Select task: ${task.title}`}
+                aria-label={t('activity:kanbanText.selectTask', { title: task.title })}
                 onClick={() => onSelectTask(task.id)}
                 className="absolute inset-0 cursor-pointer rounded-md"
               />
@@ -366,15 +372,22 @@ export function KanbanColumnView({
                         )}
                         title={
                           intelligence.atomicityVerdict
-                            ? `Atomicity: ${intelligence.atomicityVerdict}`
-                            : 'Atomic task (subtree verification required)'
+                            ? t('activity:kanbanText.atomicityTitle', {
+                                verdict: enumLabel(
+                                  t,
+                                  ATOMICITY_VERDICT_KEYS,
+                                  intelligence.atomicityVerdict,
+                                ),
+                              })
+                            : t('activity:kanbanText.atomicTaskTitle')
                         }
                       >
                         {task.atomic
-                          ? 'atomic'
+                          ? t('activity:kanbanText.verdict.atomic')
                           : intelligence.atomicityVerdict === 'needs_decomposition'
-                            ? 'split me'
-                            : intelligence.atomicityVerdict}
+                            ? t('activity:kanbanText.splitMe')
+                            : intelligence.atomicityVerdict &&
+                              enumLabel(t, ATOMICITY_VERDICT_KEYS, intelligence.atomicityVerdict)}
                       </span>
                     )}
                     <span className="line-clamp-2 text-sm font-medium leading-5">{task.title}</span>
@@ -453,27 +466,27 @@ export function KanbanColumnView({
                 )}
                 {task.assignment && (
                   <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                    {intelligence.route}
+                    {routeLabel(t, intelligence.route)}
                   </span>
                 )}
                 {task.assignment?.attempt ? (
                   <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                    attempt {intelligence.attempts}
+                    {t('activity:kanbanText.attemptBadge', { attempts: intelligence.attempts })}
                   </span>
                 ) : null}
                 {intelligence.fallbackCount > 0 && (
                   <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                    {intelligence.fallbackCount} fallback
+                    {t('activity:kanbanText.fallbackCount', { count: intelligence.fallbackCount })}
                   </span>
                 )}
                 {intelligence.blockers > 0 ? (
                   <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                    {intelligence.blockers} blocker
+                    {t('activity:kanbanText.blockerCount', { count: intelligence.blockers })}
                   </span>
                 ) : null}
                 {intelligence.activeUsers > 0 && (
                   <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">
-                    {intelligence.activeUsers} active
+                    {t('activity:kanbanText.activeCount', { count: intelligence.activeUsers })}
                   </span>
                 )}
                 {intelligence.parked && (
@@ -494,22 +507,26 @@ export function KanbanColumnView({
                 )}
                 {intelligence.criticalRisks > 0 && (
                   <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
-                    {intelligence.criticalRisks} critical risk
+                    {t('activity:kanbanText.criticalRiskCount', {
+                      count: intelligence.criticalRisks,
+                    })}
                   </span>
                 )}
                 {intelligence.warningRisks > 0 && (
                   <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                    {intelligence.warningRisks} warning
+                    {t('activity:kanbanText.countWarning', { count: intelligence.warningRisks })}
                   </span>
                 )}
                 {task.chain && (
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
-                    chain {task.chain.order + 1}
+                    {t('activity:kanbanText.chainPosition', { position: task.chain.order + 1 })}
                   </span>
                 )}
                 {task.assignment?.skills?.length ? (
                   <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">
-                    {task.assignment.skills.length} skills
+                    {t('activity:kanbanText.skillCount', {
+                      count: task.assignment.skills.length,
+                    })}
                   </span>
                 ) : null}
                 {intelligence.verification !== 'unverified' && (
@@ -523,17 +540,20 @@ export function KanbanColumnView({
                           : 'bg-warning/10 text-warning',
                     )}
                   >
-                    ✓ {intelligence.verification}
+                    ✓ {enumLabel(t, VERIFICATION_STATE_KEYS, intelligence.verification)}
                   </span>
                 )}
                 {intelligence.subtaskCounts && (
                   <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                    {intelligence.subtaskCounts.done}/{intelligence.subtaskCounts.total} subtasks
+                    {t('activity:kanbanText.subtaskProgress', {
+                      done: intelligence.subtaskCounts.done,
+                      total: intelligence.subtaskCounts.total,
+                    })}
                   </span>
                 )}
                 {intelligence.evidenceCount > 0 && (
                   <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                    {intelligence.evidenceCount} evidence
+                    {t('activity:kanbanText.evidenceCount', { count: intelligence.evidenceCount })}
                   </span>
                 )}
                 {intelligence.pendingDecomposition && (

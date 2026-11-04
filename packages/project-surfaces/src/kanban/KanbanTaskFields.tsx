@@ -40,12 +40,15 @@ export function SelectField({
   options,
   placeholder,
   onChange,
+  optionLabel,
 }: {
   label: string;
   value: string;
   options: readonly string[];
   placeholder?: string;
   onChange: (value: string) => void;
+  /** Display text for an option; the option value itself is what is saved. */
+  optionLabel?: ((option: string) => string) | undefined;
 }) {
   return (
     <label className="block">
@@ -58,7 +61,7 @@ export function SelectField({
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (
           <option key={opt} value={opt}>
-            {opt}
+            {optionLabel ? optionLabel(opt) : opt}
           </option>
         ))}
       </select>

@@ -439,7 +439,7 @@ export function SetupScreen() {
                     pageSize={catalogPage.pageSize}
                     totalItems={catalogPage.totalItems}
                     onPageChange={catalogPage.setPage}
-                    itemLabel="providers"
+                    itemLabel={t('activity:uiText.item.providers')}
                   />
                 </div>
               )}
@@ -544,7 +544,7 @@ export function SetupScreen() {
                 pageSize={modelPage.pageSize}
                 totalItems={modelPage.totalItems}
                 onPageChange={modelPage.setPage}
-                itemLabel="models"
+                itemLabel={t('activity:uiText.item.models')}
               />
             </div>
           )}

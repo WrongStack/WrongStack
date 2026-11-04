@@ -72,7 +72,9 @@ export function MemoryManagerStatsBar({
         <div className="flex shrink-0 items-center gap-2 border-b border-border/70 bg-primary/5 px-4 py-1.5">
           <BrainCircuit className="size-3.5 text-primary" />
           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
-            {scopedCount} audience-scoped {scopedCount === 1 ? 'memory' : 'memories'}
+            {t(scopedCount === 1 ? 'activity:sageText.scopedOne' : 'activity:sageText.scopedMany', {
+              count: scopedCount,
+            })}
           </span>
           {roles.size > 0 && (
             <span className="text-[10px] text-muted-foreground">

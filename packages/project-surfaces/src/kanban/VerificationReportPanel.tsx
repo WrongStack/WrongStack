@@ -177,13 +177,17 @@ function FileScopeCard({ fileScope }: { fileScope: KanbanVerificationFileScope }
     <div className="space-y-1.5">
       <div className="flex items-center gap-3 text-xs">
         <span className="text-muted-foreground">
-          {t('activity:verifyReport.expected')} <strong>{fileScope.expectedChanges}</strong> changes
+          {t('activity:verifyReport.expected')} <strong>{fileScope.expectedChanges}</strong>{' '}
+          {t('activity:kanbanText.changes')}
         </span>
         <span className="text-muted-foreground">
-          {t('activity:verifyReport.actual')} <strong>{fileScope.actualChanges}</strong> changes
+          {t('activity:verifyReport.actual')} <strong>{fileScope.actualChanges}</strong>{' '}
+          {t('activity:kanbanText.changes')}
         </span>
         <span className={fileScope.scopeMatches ? 'text-success' : 'text-destructive'}>
-          {fileScope.scopeMatches ? '✅ Scope matches' : '❌ Scope mismatch'}
+          {fileScope.scopeMatches
+            ? `✅ ${t('activity:kanbanText.scopeMatches')}`
+            : `❌ ${t('activity:kanbanText.scopeMismatch')}`}
         </span>
       </div>
       <div className="space-y-1">
@@ -202,11 +206,16 @@ function FileScopeCard({ fileScope }: { fileScope: KanbanVerificationFileScope }
             </span>
             <span className="min-w-0 flex-1 truncate">{file.path}</span>
             <span className="text-[10px]">
-              {file.linesChanged} line{file.linesChanged !== 1 ? 's' : ''}
+              {t(
+                file.linesChanged === 1
+                  ? 'activity:kanbanText.lineCountOne'
+                  : 'activity:kanbanText.lineCountMany',
+                { count: file.linesChanged },
+              )}
             </span>
             {!file.expected && (
               <span className="rounded bg-warning/10 px-1 text-[10px] text-warning">
-                unexpected
+                {t('activity:kanbanText.unexpected')}
               </span>
             )}
           </div>
@@ -345,7 +354,10 @@ export function VerificationReportPanel({ report }: VerificationReportPanelProps
 
       {/* Attachments */}
       {report.attachments.length > 0 && (
-        <CollapsibleSection title={`Attachments (${report.attachments.length})`} icon={FileText}>
+        <CollapsibleSection
+          title={t('activity:kanbanText.attachmentsCount', { count: report.attachments.length })}
+          icon={FileText}
+        >
           <AttachmentCard attachments={report.attachments} />
         </CollapsibleSection>
       )}

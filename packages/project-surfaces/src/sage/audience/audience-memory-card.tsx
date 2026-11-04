@@ -43,7 +43,9 @@ export function AudienceMemoryCard({
             size="icon"
             className="size-6"
             onClick={onClearScope}
-            aria-label={`Remove audience scope from ${memoryPreview(memory.text, 42)}`}
+            aria-label={t('activity:sageText.removeScope', {
+              memory: memoryPreview(memory.text, 42),
+            })}
             title={t('activity:audienceMem.makeGeneralMemory')}
           >
             <ShieldOff className="size-3" />
@@ -53,7 +55,9 @@ export function AudienceMemoryCard({
             size="icon"
             className="size-6 text-destructive hover:text-destructive"
             onClick={onDelete}
-            aria-label={`Delete ${memoryPreview(memory.text, 42)}`}
+            aria-label={t('activity:sageText.deleteNamed', {
+              memory: memoryPreview(memory.text, 42),
+            })}
             title={t('activity:audienceMem.delete')}
           >
             <Trash2 className="size-3" />
@@ -71,6 +75,7 @@ export function AudienceBadges({
   audience: MemoryAudience;
   onFilter: (value: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const badges = [
     ...(audience.roles ?? []).map((value) => ({ label: 'role', value })),
     ...(audience.taskTypes ?? []).map((value) => ({ label: 'task', value })),
@@ -84,7 +89,7 @@ export function AudienceBadges({
           type="button"
           className="max-w-full truncate rounded border border-primary/15 bg-primary/7 px-1.5 py-0.5 font-mono text-[9px] text-foreground transition-colors hover:border-primary/35 hover:bg-primary/12"
           onClick={() => onFilter(value)}
-          title={`Filter by ${label}: ${value}`}
+          title={t('activity:sageText.filterBy', { label, value })}
         >
           {label}:{value}
         </button>

@@ -57,7 +57,11 @@ export function KanbanBoardSidebar({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{t('activity:kanban.kanban')}</div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {boardTotal} boards · {activeBoardTotal} active · {orphanedBoardTotal} orphaned
+            {t('activity:kanbanText.boardsSummary', {
+              total: boardTotal,
+              active: activeBoardTotal,
+              orphaned: orphanedBoardTotal,
+            })}
           </div>
         </div>
         <button
@@ -100,7 +104,7 @@ export function KanbanBoardSidebar({
             summary line in the header, where server-wide is the point. */}
         {activeBoards.length > 0 && (
           <div className="mb-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-success">
-            Active session · {activeBoards.length}
+            {t('activity:kanbanText.activeSessionCount', { count: activeBoards.length })}
           </div>
         )}
         {activeBoards.map((board) => (
@@ -114,7 +118,7 @@ export function KanbanBoardSidebar({
         ))}
         {orphanedBoards.length > 0 && (
           <div className="mb-1 mt-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            No active session · {orphanedBoards.length}
+            {t('activity:kanbanText.noActiveSessionCount', { count: orphanedBoards.length })}
           </div>
         )}
         {orphanedBoards.map((board) => (
@@ -133,7 +137,7 @@ export function KanbanBoardSidebar({
         totalItems={boardTotal}
         onPageChange={onBoardPageChange}
         compact
-        itemLabel="boards"
+        itemLabel={t('activity:uiText.item.boards')}
       />
     </aside>
   );
@@ -150,6 +154,7 @@ function BoardListItem({
   dotClassName: string;
   onSelect: (boardId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <button
       type="button"
@@ -165,9 +170,9 @@ function BoardListItem({
       <div className="mt-0.5 flex items-center justify-between text-[11px]">
         <span className="inline-flex items-center gap-1">
           <span className={cn('h-1.5 w-1.5 rounded-full', dotClassName)} />
-          {board.taskCount} tasks
+          {t('activity:kanbanText.taskCount', { count: board.taskCount })}
         </span>
-        <span>{board.completedTaskCount} done</span>
+        <span>{t('activity:kanbanText.doneCount', { count: board.completedTaskCount })}</span>
       </div>
     </button>
   );

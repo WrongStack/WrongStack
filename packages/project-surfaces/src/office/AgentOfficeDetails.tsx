@@ -91,7 +91,10 @@ function ToolActionDetail({
   const output = stringify(call.output);
 
   return (
-    <aside className="agent-office__detail" aria-label={`${call.toolName} details`}>
+    <aside
+      className="agent-office__detail"
+      aria-label={t('activity:officeText.details', { name: call.toolName })}
+    >
       <div className="agent-office__detail-header">
         <div className={cn('agent-office__detail-icon', `is-${call.kind}`)}>
           <ToolIcon aria-hidden="true" />
@@ -214,7 +217,10 @@ function MailActionDetail({
   const { t } = useAppTranslation();
   const { mail, agentName } = selected;
   return (
-    <aside className="agent-office__detail" aria-label={`${mail.subject} details`}>
+    <aside
+      className="agent-office__detail"
+      aria-label={t('activity:officeText.details', { name: mail.subject })}
+    >
       <div className="agent-office__detail-header">
         <div className="agent-office__detail-icon is-mail">
           <Mail aria-hidden="true" />
@@ -273,7 +279,10 @@ function TaskActionDetail({
 }) {
   const { t } = useAppTranslation();
   return (
-    <aside className="agent-office__detail" aria-label={`${selected.agentName} task details`}>
+    <aside
+      className="agent-office__detail"
+      aria-label={t('activity:officeText.taskDetails', { name: selected.agentName })}
+    >
       <div className="agent-office__detail-header">
         <div className="agent-office__detail-icon is-task">
           <ListTodo aria-hidden="true" />
@@ -310,7 +319,10 @@ function OfficeBriefingDetail({
   const { t } = useAppTranslation();
   const activeCount = selected.todos.filter((todo) => todo.status !== 'completed').length;
   return (
-    <aside className="agent-office__detail" aria-label={`${selected.officeLabel} briefing`}>
+    <aside
+      className="agent-office__detail"
+      aria-label={t('activity:officeText.briefing', { name: selected.officeLabel })}
+    >
       <div className="agent-office__detail-header">
         <div className="agent-office__detail-icon is-briefing">
           <MessageSquareText aria-hidden="true" />

@@ -162,18 +162,24 @@ export function CodeMapRelationInspector({
         <div className="border-b bg-muted/30 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <span className="font-mono text-[10px] font-semibold uppercase text-primary">
-              Step {activeTourStep.order}/{tourSteps.length} • {activeTourStep.stage}
+              {t('activity:codeMapText.tourStep', {
+                step: activeTourStep.order,
+                total: tourSteps.length,
+                stage: activeTourStep.stage,
+              })}
             </span>
             <div className="flex items-center gap-1">
               <select
                 value={tourPersona}
                 onChange={(e) => setTourPersona(e.target.value as CanvasTourPersona)}
-                aria-label="Tour persona"
+                aria-label={t('activity:codeMapText.tourPersona')}
                 className="rounded border bg-background px-1 py-0.5 text-[9px] text-muted-foreground"
               >
-                <option value="experienced">Dev</option>
-                <option value="junior">Junior</option>
-                <option value="non-technical">PM</option>
+                <option value="experienced">{t('activity:codeMapText.persona.experienced')}</option>
+                <option value="junior">{t('activity:codeMapText.persona.junior')}</option>
+                <option value="non-technical">
+                  {t('activity:codeMapText.persona.nonTechnical')}
+                </option>
               </select>
               <button
                 type="button"
@@ -201,7 +207,7 @@ export function CodeMapRelationInspector({
       {clusters.length > 0 && onToggleCluster && (
         <div className="border-b bg-muted/20 px-3 py-2">
           <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Clusters ({clusters.length})
+            {t('activity:codeMapText.clusters', { count: clusters.length })}
           </div>
           <div className="flex flex-wrap gap-1">
             {clusters.map((c) => {
@@ -212,7 +218,11 @@ export function CodeMapRelationInspector({
                   type="button"
                   onClick={() => onToggleCluster(c.name)}
                   className="inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] hover:bg-muted"
-                  title={isCollapsed ? 'Click to expand cluster' : 'Click to collapse cluster'}
+                  title={
+                    isCollapsed
+                      ? t('activity:codeMapText.expandCluster')
+                      : t('activity:codeMapText.collapseCluster')
+                  }
                 >
                   <span>{isCollapsed ? '▸' : '▾'}</span>
                   <span className="max-w-[140px] truncate">{c.name}</span>
@@ -287,7 +297,7 @@ export function CodeMapRelationInspector({
                 <div className="flex items-center gap-1.5">
                   <Route className="h-3 w-3 text-muted-foreground" />
                   <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">
-                    Path & Flow Finder
+                    {t('activity:codeMapText.pathFinder')}
                   </h3>
                 </div>
                 {outgoing.length > 0 && (
@@ -303,7 +313,9 @@ export function CodeMapRelationInspector({
                         : 'text-muted-foreground hover:bg-muted'
                     }`}
                   >
-                    {traceFlowActive ? 'Flow Active' : 'Trace Flow'}
+                    {traceFlowActive
+                      ? t('activity:codeMapText.flowActive')
+                      : t('activity:codeMapText.traceFlow')}
                   </button>
                 )}
               </div>
@@ -345,7 +357,7 @@ export function CodeMapRelationInspector({
                     </div>
                   ) : (
                     <p className="text-[11px] text-muted-foreground">
-                      No connection path in current view.
+                      {t('activity:codeMapText.noPath')}
                     </p>
                   )}
                 </div>

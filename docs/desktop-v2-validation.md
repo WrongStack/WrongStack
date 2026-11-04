@@ -8630,3 +8630,30 @@ copies, starting with SAGE memory.
   the catalog changes (85 s). Desktop 976 unit tests pass, including the new
   `shell-gaps-i18n.test.ts`; desktop typecheck and Biome clean. `FileWorkspace.tsx` hotspot
   ratchet lowered to 2030.
+
+### Shared surfaces in the display language (2026-11-05)
+
+- Why: the German walk showed the surfaces the desktop shares with the WebUI rendering English
+  of their own: lines a component builds itself ("5 columns / 0 tasks", the board view tabs,
+  the Kanban Agent status line, card badges, Code Atlas header and tree, SAGE paging and
+  dialogs, story tables, context thresholds, council tiles, Agent Office details, pagination).
+- Change: those lines come from the WebUI `activity` catalog in all seven languages: 264 keys
+  under `kanbanText` and 164 under `codeMapText`, `sageText`, `storyText`, `contextText`,
+  `councilText`, `officeText` and `uiText`. Enum labels on the board go through
+  `kanban-labels.ts`; .ts helpers that build text (task activity, intelligence, contract
+  graph) take an optional translator and stay English without one; Kanban Cleaner issues
+  carry an optional message key. The Kanban Agent's server-built status line is re-rendered
+  from its numbers. English is unchanged except "1 line" for a one-line file event.
+- Left as data, on purpose: board column titles, task status and priority values, lifecycle
+  stage and graph node kinds, `key:value` payload chips, ids, notes written to the board,
+  issue text from `@wrongstack/kanban`, and the WebUI-only callers of the pager.
+- The German label gate found one more: the Kanban Agent line is longer in German and its
+  truncation offered the full text nowhere; it is now the line's title.
+- Results: WebUI 6,239 of 6,241 tests pass; the 2 failures are locale-dependent number
+  formats in context timeline tests ("25.000" for "25,000" on this machine), in files this
+  change does not touch. `kanban-cleaner-parity` keeps its 2 earlier failures (it reads
+  source text from a file that is now a re-export). Typecheck clean in project-surfaces,
+  webui and desktop-v2; Biome clean.
+- Native (release portable `8c47a2b63100-f356dfb1eb14`, `--release --bundled`): a11y PASSED
+  with 0 axe violations and 0 German label findings (186 s); files (72 s), atlas (22 s) and
+  sage (28 s) PASSED, and surfaces PASSED on the build before the last fix (23 s).

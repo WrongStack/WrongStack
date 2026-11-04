@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 
 export interface ZoneConfig {
@@ -170,6 +171,7 @@ export function AnimatedDonutGauge({
   size?: number;
   strokeWidth?: number;
 }) {
+  const { t } = useAppTranslation();
   const clamped = Math.max(0, Math.min(100, pct));
   const r = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * r;
@@ -179,7 +181,7 @@ export function AnimatedDonutGauge({
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-lg">
-      <title>Context usage: {clamped.toFixed(0)}%</title>
+      <title>{t('activity:contextText.usageTitle', { pct: clamped.toFixed(0) })}</title>
       {/* Background track */}
       <circle
         cx={size / 2}

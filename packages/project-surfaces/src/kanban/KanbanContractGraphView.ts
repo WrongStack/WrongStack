@@ -10,6 +10,7 @@ import {
   taskContractEndpoint,
 } from '@wrongstack/kanban/contract-graph';
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
+import type { TFunction } from 'i18next';
 import { scaledPx } from '../lib/fonts';
 
 const X_BY_KIND: Record<KanbanContractNode['kind'], number> = {
@@ -146,7 +147,23 @@ export function summarizeBoardContractHealth(board: KanbanBoard): BoardContractH
   };
 }
 
-export function buildBoardContractGraphView(board: KanbanBoard): { nodes: Node[]; edges: Edge[] } {
+/** Second line of a task node: readiness · completion, or a missing contract. */
+function taskNodeStatus(health: ContractTaskHealth | undefined, t?: TFunction): string {
+  if (!health?.contracted) return t ? t('activity:kanbanText.contractMissing') : 'contract missing';
+  if (!t) {
+    return `${health.ready ? 'START READY' : `${health.readinessIssueCount} setup gaps`} · ${health.issueCount} completion open`;
+  }
+  const readiness = health.ready
+    ? t('activity:kanbanText.startReadyUpper')
+    : t('activity:kanbanText.setupGaps', { count: health.readinessIssueCount });
+  return `${readiness} · ${t('activity:kanbanText.completionOpen', { count: health.issueCount })}`;
+}
+
+/** `t` renders the task-node status in the display language; without it the labels are English. */
+export function buildBoardContractGraphView(
+  board: KanbanBoard,
+  t?: TFunction,
+): { nodes: Node[]; edges: Edge[] } {
   const graph = board.contractGraph;
   const taskHealth = new Map(
     summarizeBoardContractHealth(board).tasks.map((task) => [task.taskId, task]),
@@ -185,7 +202,7 @@ export function buildBoardContractGraphView(board: KanbanBoard): { nodes: Node[]
       id: taskContractEndpoint(task.id),
       position: { x: 0, y: band.top + (band.height - 72) / 2 },
       data: {
-        label: `${task.title}\n${health?.contracted ? `${health.ready ? 'START READY' : `${health.readinessIssueCount} setup gaps`} · ${health.issueCount} completion open` : 'contract missing'}`,
+        label: `${task.title}\n${taskNodeStatus(health, t)}`,
         color,
       },
       style: nodeStyle(color, true),

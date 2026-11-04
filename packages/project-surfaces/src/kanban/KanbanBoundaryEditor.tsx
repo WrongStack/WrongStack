@@ -15,6 +15,31 @@ const DEFAULT_POLICY: KanbanBoundaryPolicy = {
   allow: [],
 };
 
+const BOUNDARY_MODE_KEYS: Record<string, string> = {
+  confirm: 'activity:kanbanText.boundaryMode.confirm',
+  block: 'activity:kanbanText.boundaryMode.block',
+  allow: 'activity:kanbanText.boundaryMode.allow',
+};
+
+const SELECTOR_ERROR_KEYS = {
+  format: 'activity:kanbanText.boundaryLineFormat',
+  kind: 'activity:kanbanText.boundaryLineKind',
+  access: 'activity:kanbanText.boundaryLineAccess',
+} as const;
+
+/** A selector line the parser rejected; `message` stays English, `line`/`reason` drive the UI text. */
+export class BoundarySelectorError extends Error {
+  readonly line: number;
+  readonly reason: keyof typeof SELECTOR_ERROR_KEYS;
+
+  constructor(line: number, reason: keyof typeof SELECTOR_ERROR_KEYS, message: string) {
+    super(message);
+    this.name = 'BoundarySelectorError';
+    this.line = line;
+    this.reason = reason;
+  }
+}
+
 export function KanbanBoundaryEditor({
   title,
   value,
@@ -31,6 +56,10 @@ export function KanbanBoundaryEditor({
   const [allowText, setAllowText] = useState(formatBoundarySelectors(value?.allow ?? []));
   const [denyText, setDenyText] = useState(formatBoundarySelectors(value?.deny ?? []));
   const [error, setError] = useState<string | null>(null);
+  const modeLabel = (mode: string) => {
+    const key = BOUNDARY_MODE_KEYS[mode];
+    return key ? t(key) : mode;
+  };
 
   useEffect(() => {
     setPolicy(value ?? DEFAULT_POLICY);
@@ -46,7 +75,13 @@ export function KanbanBoundaryEditor({
       onSave({ ...policy, allow, deny });
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(
+        cause instanceof BoundarySelectorError
+          ? t(SELECTOR_ERROR_KEYS[cause.reason], { line: cause.line })
+          : cause instanceof Error
+            ? cause.message
+            : String(cause),
+      );
     }
   };
 
@@ -57,10 +92,14 @@ export function KanbanBoundaryEditor({
         <span>{title}</span>
         <span className="ml-auto font-normal text-muted-foreground">
           {value?.enabled
-            ? `${value.enforcement} · ${value.allow.length} allow · shell ${value.shellAccess}`
+            ? t('activity:kanbanText.boundarySummary', {
+                enforcement: modeLabel(value.enforcement),
+                count: value.allow.length,
+                shell: modeLabel(value.shellAccess),
+              })
             : inherited?.enabled
-              ? 'inherits board boundary'
-              : 'unrestricted'}
+              ? t('activity:kanbanText.inheritsBoardBoundary')
+              : t('activity:kanbanText.unrestricted')}
         </span>
       </summary>
       <div className="space-y-2 border-t p-3 text-xs">
@@ -127,10 +166,7 @@ export function KanbanBoundaryEditor({
           onChange={setDenyText}
         />
         <div className="text-[10px] text-muted-foreground">
-          One per line: kind:access:path — for example directory:read_write:packages/webui or
-          file:read:README.md. Kinds: file, directory, package, glob. If an access type has no allow
-          selector, it remains unrestricted except for deny rules.{' '}
-          {t('activity:kanban.crossPathSelectors')}
+          {t('activity:kanbanText.boundaryHelp')} {t('activity:kanban.crossPathSelectors')}
         </div>
         {error && <div className="text-destructive">{error}</div>}
         <div className="flex gap-2">
@@ -196,17 +232,38 @@ export function parseBoundarySelectors(value: string): KanbanBoundarySelector[] 
     .map((line, index) => {
       const first = line.indexOf(':');
       const second = line.indexOf(':', first + 1);
+      const lineNumber = index + 1;
       if (first <= 0 || second <= first + 1 || second === line.length - 1) {
-        throw new Error(`Boundary line ${index + 1} must use kind:access:path.`);
+        throw new BoundarySelectorError(
+          lineNumber,
+          'format',
+          `Boundary line ${lineNumber} must use kind:access:path.`,
+        );
       }
       const kind = line.slice(0, first) as KanbanBoundarySelectorKind;
       const access = line.slice(first + 1, second) as KanbanBoundaryAccess;
       const selectorPath = line.slice(second + 1).trim();
       if (!selectorPath) {
-        throw new Error(`Boundary line ${index + 1} must use kind:access:path.`);
+        throw new BoundarySelectorError(
+          lineNumber,
+          'format',
+          `Boundary line ${lineNumber} must use kind:access:path.`,
+        );
       }
-      if (!kinds.has(kind)) throw new Error(`Boundary line ${index + 1} has unknown kind.`);
-      if (!accesses.has(access)) throw new Error(`Boundary line ${index + 1} has unknown access.`);
+      if (!kinds.has(kind)) {
+        throw new BoundarySelectorError(
+          lineNumber,
+          'kind',
+          `Boundary line ${lineNumber} has unknown kind.`,
+        );
+      }
+      if (!accesses.has(access)) {
+        throw new BoundarySelectorError(
+          lineNumber,
+          'access',
+          `Boundary line ${lineNumber} has unknown access.`,
+        );
+      }
       return { kind, access, path: selectorPath };
     });
 }

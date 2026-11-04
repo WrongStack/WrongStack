@@ -71,18 +71,18 @@ export function StoryTables({
             <thead className="text-xs text-muted-foreground">
               <tr>
                 {[
-                  'Tool',
-                  'Calls',
-                  'Success',
-                  'Failed / denied',
-                  'Unsettled',
-                  'Avg',
-                  'P95',
-                  'Measured',
-                  'Total tool time',
+                  'tool',
+                  'calls',
+                  'success',
+                  'failed',
+                  'unsettled',
+                  'avg',
+                  'p95',
+                  'measured',
+                  'totalTime',
                 ].map((label) => (
                   <th key={label} className="whitespace-nowrap px-3 py-3 font-medium">
-                    {label}
+                    {t(`activity:storyText.col.${label}`)}
                   </th>
                 ))}
               </tr>
@@ -128,16 +128,16 @@ export function StoryTables({
             <thead className="text-xs text-muted-foreground">
               <tr>
                 {[
-                  'File',
-                  'Reads',
-                  'Edits',
-                  'Writes',
-                  'Read lines',
-                  'Added / removed',
-                  'Line evidence',
+                  'file',
+                  'reads',
+                  'edits',
+                  'writes',
+                  'readLines',
+                  'addedRemoved',
+                  'lineEvidence',
                 ].map((label) => (
                   <th key={label} className="whitespace-nowrap px-3 py-3 font-medium">
-                    {label}
+                    {t(`activity:storyText.col.${label}`)}
                   </th>
                 ))}
               </tr>
@@ -161,12 +161,16 @@ export function StoryTables({
                         })}
                         className="ml-2 inline-block border border-destructive/40 px-1 py-0.5 align-middle font-mono text-[10px] uppercase tracking-wide text-destructive"
                       >
-                        conflict
+                        {t('activity:storyText.conflict')}
                       </span>
                     )}
                     <div
                       className="mt-2 flex h-1.5 w-28 overflow-hidden rounded-full bg-muted"
-                      title={`${file.reads} reads · ${file.edits} edits · ${file.writes} writes`}
+                      title={t('activity:storyText.barTitle', {
+                        reads: file.reads,
+                        edits: file.edits,
+                        writes: file.writes,
+                      })}
                     >
                       {file.reads > 0 && <span className="bg-info" style={{ flex: file.reads }} />}
                       {file.edits > 0 && (
@@ -195,7 +199,7 @@ export function StoryTables({
                         <span className="text-success">+{file.added}</span> /{' '}
                         <span className="text-destructive">−{file.removed}</span>
                         {file.partial || file.changeMeasured < file.edits + file.writes
-                          ? ' (partial)'
+                          ? ` (${t('activity:storyText.partial')})`
                           : ''}
                       </>
                     ) : (
@@ -203,8 +207,12 @@ export function StoryTables({
                     )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                    {file.readMeasured}/{file.reads} reads · {file.changeMeasured}/
-                    {file.edits + file.writes} changes
+                    {t('activity:storyText.evidenceCounts', {
+                      readMeasured: file.readMeasured,
+                      reads: file.reads,
+                      changeMeasured: file.changeMeasured,
+                      changes: file.edits + file.writes,
+                    })}
                   </td>
                 </tr>
               ))}
@@ -214,7 +222,7 @@ export function StoryTables({
       </div>
       {count === 0 && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No recorded {type} match this filter.
+          {t(type === 'tools' ? 'activity:storyText.noTools' : 'activity:storyText.noFiles')}
         </p>
       )}
       {count > limit && (
@@ -223,14 +231,14 @@ export function StoryTables({
           onClick={() => setLimit((value) => value + 50)}
           className="mt-4 rounded-lg border px-3 py-2 text-xs"
         >
-          Show 50 more
+          {t('activity:storyText.showMore')}
         </button>
       )}
       {type === 'files' && (
         <p className="mt-3 text-xs text-muted-foreground">
-          Activity bars: cyan = read · violet = edit · green = write
+          {t('activity:storyText.legend')}
           {stats.files.some((file) => file.conflicted) &&
-            ' · a “conflict” badge marks a file a failed call left changed on disk (no line counts measured)'}
+            ` · ${t('activity:storyText.legendConflict')}`}
         </p>
       )}
       {type === 'files' && stats.conflictedTruncated && (
@@ -238,15 +246,12 @@ export function StoryTables({
           role="status"
           className="mt-2 border-l-2 border-destructive/60 pl-2 text-xs text-destructive"
         >
-          More files were changed by a failed call than were recorded, so the “conflict” rows below
-          are a lower bound — check the session journal for the full list.
+          {t('activity:storyText.truncated')}
         </p>
       )}
       <p className="mt-5 text-[11px] leading-5 text-muted-foreground">
-        {type === 'tools'
-          ? 'Total tool time adds durations across parallel agents; it is not session wall time. Missing terminal records are unsettled, not proof of a still-running tool.'
-          : 'Read lines count returned source lines, including repeated reads. Added/removed lines count diff operations, not net repository changes. Missing line evidence is shown as —; partial diffs and unmeasured operations are marked.'}{' '}
-        Click a name to inspect its timeline events.
+        {type === 'tools' ? t('activity:storyText.toolsNote') : t('activity:storyText.filesNote')}{' '}
+        {t('activity:storyText.clickName')}
       </p>
     </section>
   );

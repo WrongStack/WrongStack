@@ -47,7 +47,7 @@ export function CodeMapActivityStreamPanel({
             {t('activity:codeMap.eventStream')}
           </h3>
           <span className="ml-auto font-mono text-[8px] text-muted-foreground">
-            {activityTotalCount} total
+            {t('activity:codeMapText.total', { count: activityTotalCount })}
           </span>
         </div>
         {recentActivities.length > 0 ? (

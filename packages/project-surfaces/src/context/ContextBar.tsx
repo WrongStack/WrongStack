@@ -277,7 +277,10 @@ export function ContextBar({
           className="ml-1 inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-success"
           title={
             cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
-              ? `Cache covers ${cache.coverageTokens.toLocaleString()} of ${maxTokens.toLocaleString()} tokens`
+              ? t('activity:contextText.cacheCovers', {
+                  covered: cache.coverageTokens.toLocaleString(),
+                  max: maxTokens.toLocaleString(),
+                })
               : cacheTitle(cache)
           }
         >
@@ -398,7 +401,10 @@ export function ContextFillBar({
           className="text-[10px] font-mono tabular-nums text-success"
           title={
             cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
-              ? `Cache covers ${cache.coverageTokens.toLocaleString()} of ${maxTokens.toLocaleString()} tokens`
+              ? t('activity:contextText.cacheCovers', {
+                  covered: cache.coverageTokens.toLocaleString(),
+                  max: maxTokens.toLocaleString(),
+                })
               : cacheTitle(cache)
           }
         >

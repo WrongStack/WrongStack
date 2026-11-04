@@ -224,6 +224,7 @@ function WorkbenchCard({
   item: KanbanWorkbenchItem;
   onSelect: (boardId: string, taskId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   return (
     <button
       type="button"
@@ -241,8 +242,11 @@ function WorkbenchCard({
         <span className="rounded border px-1 py-0.5">{item.priority}</span>
         {item.childProgress ? (
           <span className="flex items-center gap-1">
-            <GitBranch size={10} /> {item.childProgress.completed}/{item.childProgress.total}{' '}
-            children
+            <GitBranch size={10} />{' '}
+            {t('activity:kanbanText.childProgress', {
+              completed: item.childProgress.completed,
+              total: item.childProgress.total,
+            })}
           </span>
         ) : null}
       </div>
@@ -256,12 +260,16 @@ function WorkbenchCard({
           }`}
         >
           {item.contractStatus.startReady
-            ? 'Contract · start ready'
-            : `Contract · ${item.contractStatus.setupGaps} setup gaps`}{' '}
+            ? t('activity:kanbanText.contractStartReady')
+            : t('activity:kanbanText.contractSetupGaps', {
+                count: item.contractStatus.setupGaps,
+              })}{' '}
           ·{' '}
           {item.contractStatus.closed
-            ? 'closed'
-            : `${item.contractStatus.completionOpen} completion open`}
+            ? t('activity:kanbanText.closedLower')
+            : t('activity:kanbanText.completionOpen', {
+                count: item.contractStatus.completionOpen,
+              })}
         </div>
       ) : null}
     </button>

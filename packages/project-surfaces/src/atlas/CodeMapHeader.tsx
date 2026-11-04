@@ -68,7 +68,7 @@ export function CodeMapHeader({
           onClick={() => navigate({ level: 'packages' })}
           aria-current={scope.level === 'packages' ? 'page' : undefined}
         >
-          <Home className="h-3 w-3" /> workspace
+          <Home className="h-3 w-3" /> {t('activity:codeMapText.workspace')}
         </button>
         {scope.level !== 'packages' && (
           <>
@@ -114,26 +114,34 @@ export function CodeMapHeader({
           <Radio className={cn('h-3 w-3', agentPresences.length > 0 && 'animate-pulse')} />
           <div>
             <div className="font-mono text-[10px] font-bold">{agentPresences.length} LIVE</div>
-            <div className="text-[7px] uppercase tracking-wider">agents</div>
+            <div className="text-[7px] uppercase tracking-wider">
+              {t('activity:codeMapText.agents')}
+            </div>
           </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{graph.nodes.length}</div>
-          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">nodes</div>
+          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
+            {t('activity:codeMapText.nodes')}
+          </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{graph.edges.length}</div>
-          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">links</div>
+          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
+            {t('activity:codeMapText.links')}
+          </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{edgeWeight}</div>
           <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
-            references
+            {t('activity:codeMapText.references')}
           </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm font-semibold">{connectedNodeCount}</div>
-          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">connected</div>
+          <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
+            {t('activity:codeMapText.connected')}
+          </div>
         </div>
       </div>
       {actions && <div className="ml-auto flex items-center gap-2 xl:ml-0">{actions}</div>}

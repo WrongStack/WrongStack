@@ -43,7 +43,11 @@ export interface KanbanAuditIssue {
   taskTitle: string;
   code: KanbanAuditIssueCode;
   severity: KanbanAuditSeverity;
+  /** English text; also the sort key and the fallback when no translator applies. */
   message: string;
+  /** Catalog key for `message` (`activity:kanbanText.cleaner.*`), with its values. */
+  messageKey?: string | undefined;
+  messageParams?: Record<string, string | number> | undefined;
 }
 
 export interface KanbanAuditSummary {
@@ -79,6 +83,9 @@ const TERMINAL_STATUSES = new Set<KanbanTaskStatus>(['completed', 'archived']);
  * `kanban-cleaner-parity.test.ts` pins both copies to the exported constant.
  */
 const BOARD_SOFT_MAX_BYTES = 512 * 1024;
+
+/** Issue messages are English; `messageKey` lets a surface show them in its display language. */
+const CLEANER_KEY_PREFIX = 'activity:kanbanText.cleaner.';
 
 /**
  * Optional fields are read structurally so the WebUI can audit boards written by
@@ -155,7 +162,9 @@ function addRequiredDetailIssues(
   managed: boolean,
 ): void {
   if (!hasText(task.description)) {
-    pushIssue(issues, task, 'missing-description', 'warning', 'Add a description');
+    pushIssue(issues, task, 'missing-description', 'warning', 'Add a description', [
+      'missingDescription',
+    ]);
   }
   // A managed card's owner is the lifecycle's `assignee`, which the gate reads
   // directly; `subagentId` alone identifies a worker, not an owner, so it does
@@ -166,10 +175,12 @@ function addRequiredDetailIssues(
       )
     : assignmentIdentities(task).length > 0;
   if (!hasAssignee) {
-    pushIssue(issues, task, 'missing-assignee', 'warning', 'Assign an owner');
+    pushIssue(issues, task, 'missing-assignee', 'warning', 'Assign an owner', ['missingAssignee']);
   }
   if (requireDueDate && toEpoch(task.dueDate) === null) {
-    pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a valid due date');
+    pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a valid due date', [
+      'missingDueDate',
+    ]);
   }
   // `hasTextItem`, not a length check: `['  ']` is an empty label list wearing
   // a costume, and boards written by wizards are full of them.
@@ -180,6 +191,7 @@ function addRequiredDetailIssues(
       'missing-labels',
       'warning',
       managed ? 'Add at least one label' : 'Add labels or tags',
+      [managed ? 'missingLabelsManaged' : 'missingLabels'],
     );
   }
   const requiresChildren = managed ? task.atomic === true : !hasMeaningfulSubtask(task.subtasks);
@@ -190,10 +202,13 @@ function addRequiredDetailIssues(
       'missing-subtasks',
       'warning',
       managed ? 'Persist at least one child task' : 'Define subtasks',
+      [managed ? 'missingSubtasksManaged' : 'missingSubtasks'],
     );
   }
   if (!hasValidSuccessCriteria(task.successCriteria, managed)) {
-    pushIssue(issues, task, 'missing-success-criteria', 'warning', 'Add success criteria');
+    pushIssue(issues, task, 'missing-success-criteria', 'warning', 'Add success criteria', [
+      'missingSuccessCriteria',
+    ]);
   }
 }
 
@@ -210,13 +225,17 @@ function addRequiredDetailIssues(
 function addBoardSizeIssue(issues: KanbanAuditIssue[], board: KanbanBoard): void {
   const bytes = boardByteSize(board);
   if (bytes <= BOARD_SOFT_MAX_BYTES) return;
+  const kb = Math.round(bytes / 1024);
+  const cards = board.tasks.length;
   issues.push({
     id: `${board.id}:board-oversized`,
     taskId: board.id,
     taskTitle: board.title,
     code: 'board-oversized',
     severity: 'warning',
-    message: `Board is ~${Math.round(bytes / 1024)} KB across ${board.tasks.length} cards; archive completed cards before it stops syncing to HQ`,
+    message: `Board is ~${kb} KB across ${cards} cards; archive completed cards before it stops syncing to HQ`,
+    messageKey: `${CLEANER_KEY_PREFIX}boardOversized`,
+    messageParams: { kb, cards },
   });
 }
 
@@ -251,6 +270,10 @@ function addParkedIssue(issues: KanbanAuditIssue[], task: AuditableTask): void {
     'parked-card',
     'warning',
     `Verification gave up after ${park.attempts} refusal${park.attempts === 1 ? '' : 's'}: ${park.reason}`,
+    [
+      park.attempts === 1 ? 'parkedOne' : 'parkedMany',
+      { count: park.attempts, reason: park.reason },
+    ],
   );
 }
 
@@ -276,13 +299,16 @@ function addRunningIssue(issues: KanbanAuditIssue[], task: AuditableTask, now: n
       'abandoned-running-task',
       'error',
       'Running without a complete assignment lease',
+      ['abandonedRunning'],
     );
     return;
   }
 
   const expiresAt = toEpoch(assignment.leaseExpiresAt);
   if (expiresAt === null || expiresAt <= now) {
-    pushIssue(issues, task, 'stale-running-task', 'error', 'Assignment lease is expired');
+    pushIssue(issues, task, 'stale-running-task', 'error', 'Assignment lease is expired', [
+      'staleRunning',
+    ]);
     return;
   }
   // A valid lease is the authoritative liveness signal. The WebUI fleet
@@ -303,7 +329,10 @@ function addReviewIssue(
   if (enteredReviewAt === null || now - enteredReviewAt <= staleAfterMs) return;
 
   const hours = Math.max(1, Math.floor((now - enteredReviewAt) / (60 * 60 * 1000)));
-  pushIssue(issues, task, 'stale-review', 'warning', `Waiting in review for ${hours}h`);
+  pushIssue(issues, task, 'stale-review', 'warning', `Waiting in review for ${hours}h`, [
+    'staleReview',
+    { hours },
+  ]);
 }
 
 function addLifecycleIssue(
@@ -332,6 +361,7 @@ function addLifecycleIssue(
       'skipped-lifecycle-state',
       'error',
       `Lifecycle skipped ${previous.state} → ${current.state}`,
+      ['skippedLifecycle', { from: previous.state, to: current.state }],
     );
     return;
   }
@@ -505,6 +535,7 @@ function pushIssue(
   code: KanbanAuditIssueCode,
   severity: KanbanAuditSeverity,
   message: string,
+  [messageKey, messageParams]: [string, Record<string, string | number>?],
 ): void {
   issues.push({
     id: `${task.id}:${code}`,
@@ -513,6 +544,8 @@ function pushIssue(
     code,
     severity,
     message,
+    messageKey: `${CLEANER_KEY_PREFIX}${messageKey}`,
+    ...(messageParams ? { messageParams } : {}),
   });
 }
 

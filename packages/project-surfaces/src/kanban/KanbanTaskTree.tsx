@@ -19,6 +19,7 @@ import {
 import { useMemo } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
+import { ATOMICITY_VERDICT_KEYS, enumLabel } from './kanban-labels';
 import { useKanbanStore } from './kanban-store';
 import {
   buildTaskTree,
@@ -130,7 +131,7 @@ export function KanbanTaskTree({
                 <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
                 {task.atomic && (
                   <span className="shrink-0 rounded bg-warning/15 px-1 py-0.5 text-[10px] text-warning">
-                    atomic
+                    {t('activity:kanbanText.verdict.atomic')}
                   </span>
                 )}
                 {verdict && verdict !== 'atomic' && (
@@ -144,7 +145,9 @@ export function KanbanTaskTree({
                           : 'bg-warning/15 text-warning',
                     )}
                   >
-                    {verdict === 'needs_decomposition' ? 'split me' : verdict}
+                    {verdict === 'needs_decomposition'
+                      ? t('activity:kanbanText.splitMe')
+                      : enumLabel(t, ATOMICITY_VERDICT_KEYS, verdict)}
                   </span>
                 )}
                 {task.decomposition?.status === 'proposed' && (

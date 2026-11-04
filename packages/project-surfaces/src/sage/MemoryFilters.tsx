@@ -149,10 +149,10 @@ export function MemoryFilters({
             )}
             title={
               tagFilter
-                ? `Active filter: ${tagFilter} (click the chip to clear)`
+                ? t('activity:sageText.activeFilterTitle', { tag: tagFilter })
                 : tagsVisible
-                  ? 'Hide tag filters'
-                  : `Show tag filters (${allTags.length})`
+                  ? t('activity:sageText.hideTags')
+                  : t('activity:sageText.showTags', { count: allTags.length })
             }
           >
             <ChevronDown
@@ -168,7 +168,7 @@ export function MemoryFilters({
           {tagFilter && (
             <span
               role="status"
-              aria-label={`Active tag filter: ${tagFilter}`}
+              aria-label={t('activity:sageText.activeTag', { tag: tagFilter })}
               className="border border-info/55 bg-info/10 px-1 font-mono text-[9px] uppercase text-info"
             >
               {tagFilter}

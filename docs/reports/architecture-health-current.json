@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T22:46:10.013Z",
+  "generatedAt": "2026-11-04T23:37:20.822Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6007,
+    "sourceFiles": 6008,
     "testFiles": 5016,
-    "sourceLines": 1248599,
+    "sourceLines": 1249321,
     "workspaceEdges": 240,
-    "moduleEdges": 17674,
+    "moduleEdges": 17686,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -733,7 +733,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 245,
+      "sourceFiles": 246,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",

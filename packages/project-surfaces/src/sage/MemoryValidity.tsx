@@ -29,7 +29,9 @@ export function MemoryValidity({
       {companion && companion.observedRevision === revision && (
         <div className="space-y-1 border-t border-border pt-2">
           <h4 className="font-semibold">
-            Memory Companion · {t(`activity:memoryValidity.${companion.verdict}`)}
+            {t('activity:sageText.companionVerdict', {
+              verdict: t(`activity:memoryValidity.${companion.verdict}`),
+            })}
           </h4>
           <p className="text-muted-foreground">{t('activity:memoryValidity.advisory')}</p>
           <p>

@@ -99,7 +99,9 @@ export function SelectedNodeDetailPanel({
           <>
             {agentModelLabel(d.provider, d.model) && (
               <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
-                <span className="text-muted-foreground">Provider / Model</span>
+                <span className="text-muted-foreground">
+                  {t('activity:officeText.providerModel')}
+                </span>
                 <span className="min-w-0 break-all text-right font-mono text-primary">
                   {agentModelLabel(d.provider, d.model)}
                 </span>

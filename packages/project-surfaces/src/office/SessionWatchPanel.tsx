@@ -399,9 +399,9 @@ export function SessionWatchPanel({
             title={t('activity:sessionWatch.priority')}
             className="rounded bg-muted border border-border px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="high">high</option>
-            <option value="normal">normal</option>
-            <option value="low">low</option>
+            <option value="high">{t('activity:officeText.priority.high')}</option>
+            <option value="normal">{t('activity:officeText.priority.normal')}</option>
+            <option value="low">{t('activity:officeText.priority.low')}</option>
           </select>
         </div>
         <div className="flex items-end gap-1.5">

@@ -25,15 +25,15 @@ import {
 
 const KIND_LEGEND: Array<{
   kind: KanbanContractNodeKind;
-  label: string;
+  labelKey: string;
   color: string;
 }> = [
-  { kind: 'objective', label: 'Objective', color: 'bg-blue-500' },
-  { kind: 'component', label: 'Affected component', color: 'bg-slate-500' },
-  { kind: 'artifact', label: 'Artifact', color: 'bg-slate-400' },
-  { kind: 'risk', label: 'Risk', color: 'bg-amber-500' },
-  { kind: 'guardrail', label: 'Guardrail', color: 'bg-emerald-500' },
-  { kind: 'verification', label: 'Evidence', color: 'bg-violet-500' },
+  { kind: 'objective', labelKey: 'activity:kanbanText.kind.objective', color: 'bg-blue-500' },
+  { kind: 'component', labelKey: 'activity:kanbanText.kind.component', color: 'bg-slate-500' },
+  { kind: 'artifact', labelKey: 'activity:kanbanText.kind.artifact', color: 'bg-slate-400' },
+  { kind: 'risk', labelKey: 'activity:kanbanText.kind.risk', color: 'bg-amber-500' },
+  { kind: 'guardrail', labelKey: 'activity:kanbanText.kind.guardrail', color: 'bg-emerald-500' },
+  { kind: 'verification', labelKey: 'activity:kanbanText.evidence', color: 'bg-violet-500' },
 ];
 
 function HealthStat({
@@ -102,10 +102,11 @@ function BoardContractCanvas({
     >
       <div className="pointer-events-none absolute left-4 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-3 py-2 backdrop-blur">
         <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-100">
-          <Network size={13} className="text-cyan-300" /> Live dependency field
+          <Network size={13} className="text-cyan-300" />{' '}
+          {t('activity:kanbanText.liveDependencyField')}
         </div>
         <div className="mt-0.5 text-[9px] text-slate-400">
-          Drag canvas to pan · use wheel or controls to zoom
+          {t('activity:kanbanText.dragCanvasHint')}
         </div>
       </div>
       {onExpand && (
@@ -115,7 +116,7 @@ function BoardContractCanvas({
           className="absolute right-4 top-3 z-10 inline-flex items-center gap-2 rounded-lg border border-cyan-300/25 bg-slate-950/85 px-3 py-2 text-[11px] font-semibold text-cyan-200 ws-dialog backdrop-blur transition-colors hover:border-cyan-300/50 hover:bg-slate-900"
           aria-label={t('activity:kanban.contractGraph.expandBoardAria')}
         >
-          <Maximize2 size={13} /> Expand map
+          <Maximize2 size={13} /> {t('activity:kanbanText.expandMap')}
         </button>
       )}
       <ReactFlow
@@ -159,9 +160,10 @@ export function KanbanContractGraphDashboard({
   board: KanbanBoard;
   onSelectTask: (taskId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(false);
   const health = useMemo(() => summarizeBoardContractHealth(board), [board.id, board.revision]);
-  const graph = useMemo(() => buildBoardContractGraphView(board), [board.id, board.revision]);
+  const graph = useMemo(() => buildBoardContractGraphView(board, t), [board.id, board.revision, t]);
   const nodeOwner = useMemo(
     () => new Map(board.contractGraph?.nodes.map((node) => [node.id, node.taskId]) ?? []),
     [board.id, board.revision],
@@ -182,7 +184,9 @@ export function KanbanContractGraphDashboard({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-bold tracking-tight">Contract Map</h2>
+                <h2 className="text-base font-bold tracking-tight">
+                  {t('activity:kanbanText.contractMap')}
+                </h2>
                 <span
                   className={cn(
                     'rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider',
@@ -195,25 +199,28 @@ export function KanbanContractGraphDashboard({
                 </span>
                 {fullyClosed && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
-                    <Sparkles size={11} /> all contracts closed
+                    <Sparkles size={11} /> {t('activity:kanbanText.allContractsClosed')}
                   </span>
                 )}
               </div>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
-                The board&apos;s objective, blast radius, risks, invariants, and evidence chain. Red
-                paths demand attention; animated links carry verification evidence.
+                {t('activity:kanbanText.contractMapDescription')}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-background/60 px-4 py-2 backdrop-blur">
             <ProgressRing pct={health.closurePct} />
             <div>
-              <div className="text-xs font-semibold">Safety closure</div>
+              <div className="text-xs font-semibold">{t('activity:kanbanText.safetyClosure')}</div>
               <div className="text-[11px] text-muted-foreground">
-                {health.closedTasks}/{health.totalTasks} task contracts closed
+                {t('activity:kanbanText.taskContractsClosed', {
+                  closed: health.closedTasks,
+                  total: health.totalTasks,
+                })}
               </div>
               <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                <CircleDot size={10} /> coverage {Math.round(health.coveragePct)}%
+                <CircleDot size={10} />{' '}
+                {t('activity:kanbanText.coveragePct', { pct: Math.round(health.coveragePct) })}
               </div>
             </div>
           </div>
@@ -223,37 +230,39 @@ export function KanbanContractGraphDashboard({
       <section className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
         <HealthStat
           icon={Network}
-          label="Mapped tasks"
+          label={t('activity:kanbanText.mappedTasks')}
           value={`${health.contractedTasks}/${health.totalTasks}`}
-          detail={`${Math.round(health.coveragePct)}% contract coverage`}
+          detail={t('activity:kanbanText.contractCoverage', {
+            pct: Math.round(health.coveragePct),
+          })}
           tone="primary"
         />
         <HealthStat
           icon={CircleDot}
-          label="Start ready"
+          label={t('activity:kanbanText.startReady')}
           value={`${health.readyTasks}/${health.totalTasks}`}
-          detail={`${health.readinessIssues} setup gaps`}
+          detail={t('activity:kanbanText.setupGaps', { count: health.readinessIssues })}
           tone={health.readyTasks === health.totalTasks ? 'success' : 'warning'}
         />
         <HealthStat
           icon={ShieldCheck}
-          label="Closed"
+          label={t('activity:kanbanText.closed')}
           value={health.closedTasks}
-          detail="objectives and guardrails proven"
+          detail={t('activity:kanbanText.objectivesProven')}
           tone="success"
         />
         <HealthStat
           icon={ShieldAlert}
-          label="Open issues"
+          label={t('activity:kanbanText.openIssues')}
           value={health.openIssues}
-          detail={`${health.openTasks} tasks need attention`}
+          detail={t('activity:kanbanText.tasksNeedAttention', { count: health.openTasks })}
           tone={health.openIssues > 0 ? 'danger' : 'success'}
         />
         <HealthStat
           icon={GitBranch}
-          label="Evidence"
+          label={t('activity:kanbanText.evidence')}
           value={health.evidenceNodes}
-          detail={`${health.blockingNodes} blocking nodes`}
+          detail={t('activity:kanbanText.blockingNodes', { count: health.blockingNodes })}
           tone={health.evidenceNodes > 0 ? 'primary' : 'warning'}
         />
       </section>
@@ -274,7 +283,7 @@ export function KanbanContractGraphDashboard({
                 size={14}
                 className={health.openTasks ? 'text-warning' : 'text-success'}
               />
-              Task contract status
+              {t('activity:kanbanText.taskContractStatus')}
             </div>
             <div className="max-h-72 divide-y overflow-y-auto">
               {[...health.tasks]
@@ -297,8 +306,14 @@ export function KanbanContractGraphDashboard({
                       <span className="block truncate text-xs font-medium">{task.title}</span>
                       <span className="mt-0.5 block text-[10px] text-muted-foreground">
                         {task.contracted
-                          ? `${task.ready ? 'start ready' : `${task.readinessIssueCount} setup gaps`} · ${task.issueCount} completion open`
-                          : 'No contract nodes — objective and guardrail missing'}
+                          ? `${
+                              task.ready
+                                ? t('activity:kanbanText.startReadyLower')
+                                : t('activity:kanbanText.setupGaps', {
+                                    count: task.readinessIssueCount,
+                                  })
+                            } · ${t('activity:kanbanText.completionOpen', { count: task.issueCount })}`
+                          : t('activity:kanbanText.noContractNodes')}
                       </span>
                     </span>
                   </button>
@@ -308,13 +323,13 @@ export function KanbanContractGraphDashboard({
 
           <div className="rounded-xl border bg-card/80 p-3 shadow-sm">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Contract vocabulary
+              {t('activity:kanbanText.contractVocabulary')}
             </div>
             <div className="grid grid-cols-2 gap-2">
               {KIND_LEGEND.map((entry) => (
                 <div key={entry.kind} className="flex items-center gap-2 text-[10px]">
                   <span className={cn('h-2.5 w-2.5 rounded-sm shadow-sm', entry.color)} />
-                  <span className="min-w-0 truncate">{entry.label}</span>
+                  <span className="min-w-0 truncate">{t(entry.labelKey)}</span>
                   <span className="ml-auto font-mono text-muted-foreground">
                     {health.nodesByKind[entry.kind]}
                   </span>
@@ -326,12 +341,9 @@ export function KanbanContractGraphDashboard({
           {!strict && (
             <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-[11px] leading-5 text-warning">
               <div className="flex items-center gap-2 font-semibold">
-                <ShieldAlert size={14} /> Strict enforcement is not active
+                <ShieldAlert size={14} /> {t('activity:kanbanText.strictNotActive')}
               </div>
-              <p className="mt-1 text-muted-foreground">
-                Autonomous coding boards should use strict contracts so unresolved guardrails block
-                Done instead of becoming advisory metadata.
-              </p>
+              <p className="mt-1 text-muted-foreground">{t('activity:kanbanText.strictAdvice')}</p>
             </div>
           )}
         </aside>
@@ -344,14 +356,14 @@ export function KanbanContractGraphDashboard({
         >
           <div className="shrink-0 border-b border-white/10 bg-slate-950/90 px-5 py-4 pr-14 text-slate-100">
             <DialogTitle className="flex items-center gap-2 text-base">
-              <Network size={17} className="text-cyan-300" /> Contract Map · {board.title}
+              <Network size={17} className="text-cyan-300" />{' '}
+              {t('activity:kanbanText.contractMapTitle', { title: board.title })}
             </DialogTitle>
             <DialogDescription
               id="board-contract-map-modal-description"
               className="mt-1 text-xs text-slate-400"
             >
-              Full-board dependency field · drag to pan, use wheel or controls to zoom, click a node
-              to inspect its task.
+              {t('activity:kanbanText.boardMapDescription')}
             </DialogDescription>
           </div>
           <div className="min-h-0 flex-1">

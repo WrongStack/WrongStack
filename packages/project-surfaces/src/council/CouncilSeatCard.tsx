@@ -74,8 +74,8 @@ export function CouncilSeatCard({
                 )}
                 title={
                   seat.veto
-                    ? 'This veto seat changed its vote after seeing the other ballots.'
-                    : 'Changed its vote after seeing the other ballots.'
+                    ? t('activity:councilText.vetoChanged')
+                    : t('activity:councilText.changed')
                 }
               >
                 <RefreshCw className="h-3 w-3" />
@@ -107,7 +107,9 @@ export function CouncilSeatCard({
 
         {/* Vote Pill */}
         <div className="flex items-center gap-1.5 my-1">
-          <span className="text-[11px] text-muted-foreground font-medium">Vote:</span>
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {t('activity:councilText.vote')}
+          </span>
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-bold capitalize shadow-2xs',
@@ -132,7 +134,9 @@ export function CouncilSeatCard({
       <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
         <div className="flex items-center gap-2 font-mono">
           {seat.durationMs !== undefined ? <span>{seat.durationMs}ms</span> : null}
-          {seat.weight !== undefined && seat.weight !== 1 ? <span>wt: {seat.weight}</span> : null}
+          {seat.weight !== undefined && seat.weight !== 1 ? (
+            <span>{t('activity:councilText.weight', { weight: seat.weight })}</span>
+          ) : null}
         </div>
 
         {hasRationale ? (

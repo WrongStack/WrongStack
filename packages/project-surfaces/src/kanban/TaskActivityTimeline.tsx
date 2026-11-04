@@ -126,6 +126,7 @@ export function TaskActivityTimeline({
       if (!needle) return true;
       return [
         eventTitle(event),
+        eventTitle(event, t),
         event.type,
         event.actor,
         event.sessionId,
@@ -140,7 +141,7 @@ export function TaskActivityTimeline({
         .toLowerCase()
         .includes(needle);
     });
-  }, [activity, filter, query]);
+  }, [activity, filter, query, t]);
   const activityPage = usePagination(visible, 50, `${filter}:${query}`);
   const displayed = activityPage.pageItems;
   const actors = [...new Set(activity.map((event) => event.actor).filter(Boolean))].length;
@@ -217,15 +218,17 @@ export function TaskActivityTimeline({
       </div>
 
       <div className="mb-2 grid grid-cols-4 gap-px overflow-hidden rounded-md border border-border/60 bg-border/60 text-center">
-        {[
-          ['Events', activity.length],
-          ['Actors', actors],
-          ['Sessions', sessions],
-          ['Failures', counts.failures],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="bg-background/90 px-1 py-1.5">
+        {(
+          [
+            ['activity:kanbanText.statEvents', activity.length],
+            ['activity:kanbanText.statActors', actors],
+            ['activity:kanbanText.statSessions', sessions],
+            ['activity:kanbanText.statFailures', counts.failures],
+          ] as const
+        ).map(([labelKey, value]) => (
+          <div key={labelKey} className="bg-background/90 px-1 py-1.5">
             <div className="text-xs font-semibold tabular-nums">{value}</div>
-            <div className="text-[8px] uppercase text-muted-foreground">{label}</div>
+            <div className="text-[8px] uppercase text-muted-foreground">{t(labelKey)}</div>
           </div>
         ))}
       </div>
@@ -244,7 +247,7 @@ export function TaskActivityTimeline({
                   : 'border-border text-muted-foreground hover:text-foreground',
               )}
             >
-              {value} {counts[value]}
+              {t(`activity:kanbanText.filter.${value}`)} {counts[value]}
             </button>
           ),
         )}
@@ -285,7 +288,7 @@ export function TaskActivityTimeline({
         <>
           <ol className="relative ml-1.5 space-y-0 border-l border-border/70">
             {displayed.map((event) => {
-              const description = eventDescription(event);
+              const description = eventDescription(event, t);
               const effectiveSessionId = event.sessionId ?? sessionId;
               const changes = eventFieldChanges(event);
               const isFailure = activityCategory(event) === 'failures';
@@ -302,7 +305,7 @@ export function TaskActivityTimeline({
                   />
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium leading-5">{eventTitle(event)}</p>
+                      <p className="text-xs font-medium leading-5">{eventTitle(event, t)}</p>
                       <code
                         className="block truncate text-[8px] text-muted-foreground/70"
                         title={event.type}
@@ -335,7 +338,11 @@ export function TaskActivityTimeline({
                       )}
                     >
                       <strong>
-                        {isFailure ? 'Error' : isSuccess ? 'Result' : 'Reason / result'}:
+                        {isFailure
+                          ? t('activity:kanbanText.noteError')
+                          : isSuccess
+                            ? t('activity:kanbanText.noteResult')
+                            : t('activity:kanbanText.noteReason')}
                       </strong>{' '}
                       {event.note}
                     </div>
@@ -355,10 +362,12 @@ export function TaskActivityTimeline({
                             </code>
                             <span className="min-w-0 break-all text-muted-foreground">
                               <span className="line-through opacity-70">
-                                {compactValue(change.before)}
+                                {compactValue(change.before, t)}
                               </span>{' '}
                               <span aria-hidden>→</span>{' '}
-                              <span className="text-foreground">{compactValue(change.after)}</span>
+                              <span className="text-foreground">
+                                {compactValue(change.after, t)}
+                              </span>
                             </span>
                           </div>
                         ))}
@@ -417,7 +426,7 @@ export function TaskActivityTimeline({
             totalItems={activityPage.totalItems}
             onPageChange={activityPage.setPage}
             className="mt-3"
-            itemLabel="activity events"
+            itemLabel={t('activity:uiText.item.activityEvents')}
           />
         </>
       )}

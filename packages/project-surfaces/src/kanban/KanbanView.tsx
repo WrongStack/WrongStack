@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 import { EmptyState } from '../ui/empty-state';
 import { PageMotif } from '../ui/PageMotif';
 import { useKanbanHost, useKanbanSocket } from './feed';
-import { BoardPresence, SupervisorBar } from './KanbanBoardChrome';
+import { BoardHeading, BoardPresence, SupervisorBar } from './KanbanBoardChrome';
 import { KanbanBoardSidebar } from './KanbanBoardSidebar';
 import {
   collectActiveSessionIds,
@@ -299,7 +299,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         };
       };
       if (payload.success === false) {
-        setTaskActivityError(payload.error ?? 'Task activity could not be loaded.');
+        setTaskActivityError(payload.error ?? t('activity:kanbanText.taskActivityLoadFailed'));
         setTaskActivityLoading(false);
         return;
       }
@@ -418,14 +418,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       <main className="flex min-h-0 min-w-0 flex-none flex-col md:flex-1">
         <header className="ws-page-header flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b">
           <PageMotif kind="flow" />
-          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-            <h1 className="truncate">{activeBoard?.title ?? 'No board selected'}</h1>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {activeBoard
-                ? `${activeBoard.columns.length} columns / ${activeBoard.tasks.length} tasks`
-                : 'Create or select a board'}
-            </div>
-          </div>
+          <BoardHeading board={activeBoard} />
           {activeBoard && (
             <>
               <input

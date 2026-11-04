@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import * as React from 'react';
+import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { useSurfacePortal } from './portal';
 
@@ -32,6 +33,12 @@ interface DialogContentProps
   showCloseButton?: boolean | undefined;
 }
 
+/** The close button's name, in the display language. */
+function CloseLabel() {
+  const { t } = useAppTranslation();
+  return <span className="sr-only">{t('common:action.close')}</span>;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
@@ -51,7 +58,7 @@ const DialogContent = React.forwardRef<
       {showCloseButton && (
         <DialogPrimitive.Close className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground ring-offset-background transition-colors hover:border-border hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <CloseLabel />
         </DialogPrimitive.Close>
       )}
     </DialogPrimitive.Content>

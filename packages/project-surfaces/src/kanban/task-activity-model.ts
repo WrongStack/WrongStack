@@ -1,4 +1,5 @@
 import type { KanbanEvent, KanbanTask } from '@wrongstack/kanban';
+import type { TFunction } from 'i18next';
 
 export type TaskActivityFilter = 'all' | 'execution' | 'changes' | 'notes' | 'failures';
 
@@ -79,15 +80,50 @@ export function eventFieldChanges(event: KanbanEvent): TaskFieldChange[] {
     .map((field) => ({ field, before: before[field], after: after[field] }));
 }
 
-export function eventTitle(event: KanbanEvent): string {
+/** Catalog keys for the event titles below, by event type. */
+const EVENT_TITLE_KEYS: Record<string, string> = {
+  'task.created': 'activity:kanbanText.eventTitle.taskCreated',
+  'task.copied': 'activity:kanbanText.eventTitle.taskCopied',
+  'task.updated': 'activity:kanbanText.eventTitle.taskUpdated',
+  'task.moved': 'activity:kanbanText.eventTitle.taskMoved',
+  'task.assigned': 'activity:kanbanText.eventTitle.agentAssigned',
+  'task.claimed': 'activity:kanbanText.eventTitle.taskClaimed',
+  'task.released': 'activity:kanbanText.eventTitle.assignmentReleased',
+  'task.assignment.updated': 'activity:kanbanText.eventTitle.assignmentUpdated',
+  'task.assignment.running': 'activity:kanbanText.eventTitle.agentStarted',
+  'task.assignment.completed': 'activity:kanbanText.eventTitle.agentCompleted',
+  'task.assignment.failed': 'activity:kanbanText.eventTitle.agentRunFailed',
+  'task.assignment.cancelled': 'activity:kanbanText.eventTitle.agentRunCancelled',
+  'task.assignment.heartbeat': 'activity:kanbanText.eventTitle.agentHeartbeat',
+  'task.note.added': 'activity:kanbanText.eventTitle.noteAdded',
+  'task.check.added': 'activity:kanbanText.eventTitle.checkAdded',
+  'task.check.updated': 'activity:kanbanText.eventTitle.checkUpdated',
+  'task.metric.added': 'activity:kanbanText.eventTitle.metricAdded',
+  'task.metric.updated': 'activity:kanbanText.eventTitle.metricUpdated',
+  'task.lifecycle.transition': 'activity:kanbanText.eventTitle.lifecycleAdvanced',
+  'task.assignment.snapshot': 'activity:kanbanText.eventTitle.assignmentObserved',
+  'task.stale_recovered': 'activity:kanbanText.eventTitle.staleRecovered',
+  'task.reconciled': 'activity:kanbanText.eventTitle.reconciled',
+};
+
+function titleCase(value: string): string {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+/** `t` gives the title in the display language; without it the title is English. */
+export function eventTitle(event: KanbanEvent, t?: TFunction): string {
   if (event.type.startsWith('task.file.')) {
-    const operation = event.type.slice('task.file.'.length);
-    return `File ${operation}`.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const operation = titleCase(event.type.slice('task.file.'.length));
+    return t
+      ? t('activity:kanbanText.eventTitle.fileOperation', { operation })
+      : `File ${operation}`;
   }
   if (event.type.startsWith('task.activity.')) {
-    const kind = event.type.slice('task.activity.'.length);
-    return `Recorded ${kind}`.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const kind = titleCase(event.type.slice('task.activity.'.length));
+    return t ? t('activity:kanbanText.eventTitle.recordedKind', { kind }) : `Recorded ${kind}`;
   }
+  const titleKey = t ? EVENT_TITLE_KEYS[event.type] : undefined;
+  if (t && titleKey) return t(titleKey);
   switch (event.type) {
     case 'task.created':
       return 'Task created';
@@ -141,20 +177,33 @@ export function eventTitle(event: KanbanEvent): string {
   }
 }
 
-export function eventDescription(event: KanbanEvent): string | undefined {
+/** `t` gives the description in the display language; without it the text is English. */
+export function eventDescription(event: KanbanEvent, t?: TFunction): string | undefined {
   const before = record(event.before);
   const after = record(event.after);
+  const unknown = t ? t('activity:kanbanText.valueUnknown') : 'unknown';
   if (event.type.startsWith('task.file.')) {
     const filePath = text(after['filePath']);
     const toolName = text(after['toolName']);
     const durationMs = typeof after['durationMs'] === 'number' ? after['durationMs'] : undefined;
     const lines = typeof after['lines'] === 'number' ? after['lines'] : undefined;
+    const lineCount =
+      lines === undefined
+        ? undefined
+        : t
+          ? t(
+              lines === 1
+                ? 'activity:kanbanText.lineCountOne'
+                : 'activity:kanbanText.lineCountMany',
+              { count: lines },
+            )
+          : `${lines} lines`;
     return (
       [
         filePath,
         toolName ? `tool:${toolName}` : undefined,
         durationMs !== undefined ? `${durationMs}ms` : undefined,
-        lines !== undefined ? `${lines} lines` : undefined,
+        lineCount,
       ]
         .filter(Boolean)
         .join(' · ') || undefined
@@ -168,17 +217,29 @@ export function eventDescription(event: KanbanEvent): string | undefined {
   if (event.type === 'task.moved') {
     const from = text(before['columnId']);
     const to = text(after['columnId']);
-    if (from || to) return `${from ?? 'unknown'} → ${to ?? 'unknown'}`;
+    if (from || to) return `${from ?? unknown} → ${to ?? unknown}`;
   }
   if (event.type === 'task.updated') {
     const changes = eventFieldChanges(event);
+    const fields = changes.map((change) => change.field).join(', ');
+    if (changes.length && t) {
+      return t(
+        changes.length === 1
+          ? 'activity:kanbanText.fieldsChangedOne'
+          : 'activity:kanbanText.fieldsChangedMany',
+        { count: changes.length, fields },
+      );
+    }
     if (changes.length)
-      return `${changes.length} field${changes.length === 1 ? '' : 's'} changed: ${changes.map((change) => change.field).join(', ')}`;
+      return `${changes.length} field${changes.length === 1 ? '' : 's'} changed: ${fields}`;
   }
   if (event.type === 'task.lifecycle.transition') {
     const from = text(before['stage']);
     const to = text(after['stage']);
-    if (to) return from ? `${from} → ${to}` : `Entered ${to}`;
+    if (to) {
+      if (from) return `${from} → ${to}`;
+      return t ? t('activity:kanbanText.enteredStage', { stage: to }) : `Entered ${to}`;
+    }
   }
   if (event.type === 'task.assigned' || event.type === 'task.assignment.snapshot') {
     const owner = text(after['name']) ?? text(after['agentId']) ?? text(after['role']);
@@ -227,10 +288,11 @@ export function formatTimestamp(value: string): string {
   }).format(parsed);
 }
 
-export function compactValue(value: unknown): string {
-  if (value === undefined) return 'unset';
-  if (value === null) return 'none';
-  if (typeof value === 'string') return value || 'empty';
+export function compactValue(value: unknown, t?: TFunction): string {
+  if (value === undefined) return t ? t('activity:kanbanText.valueUnset') : 'unset';
+  if (value === null) return t ? t('activity:kanbanText.valueNone') : 'none';
+  if (typeof value === 'string')
+    return value || (t ? t('activity:kanbanText.valueEmpty') : 'empty');
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   try {
     return JSON.stringify(value);

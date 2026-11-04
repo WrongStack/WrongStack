@@ -6,6 +6,7 @@
  * feature stays self-contained.
  */
 import { Loader2, Trash2 } from 'lucide-react';
+import { useAppTranslation } from '../../lib/i18n';
 
 import { Button } from '../../ui/button';
 import {
@@ -37,6 +38,7 @@ export function ForgetVectorMemoryDialog({
   onConfirm,
   onOpenChange,
 }: ForgetVectorMemoryDialogProps) {
+  const { t } = useAppTranslation();
   return (
     <Dialog open={hit !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -44,9 +46,9 @@ export function ForgetVectorMemoryDialog({
           <span className="mb-2 flex size-10 items-center justify-center border border-destructive/35 bg-destructive/10 text-destructive">
             <Trash2 className="size-4" />
           </span>
-          <DialogTitle>Forget this vector memory?</DialogTitle>
+          <DialogTitle>{t('activity:sageText.forgetTitle')}</DialogTitle>
           <DialogDescription className="leading-6">
-            This removes the entry and its embedding from the vector memory store.
+            {t('activity:sageText.forgetBody')}
           </DialogDescription>
         </DialogHeader>
         <div className="border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
@@ -59,11 +61,11 @@ export function ForgetVectorMemoryDialog({
         ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={busy}>
-            Cancel
+            {t('common:action.cancel')}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-            {busy ? 'Forgetting…' : 'Forget memory'}
+            {busy ? t('activity:sageText.forgetting') : t('activity:sageText.forgetMemory')}
           </Button>
         </DialogFooter>
       </DialogContent>

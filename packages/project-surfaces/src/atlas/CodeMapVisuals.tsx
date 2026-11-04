@@ -226,7 +226,7 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
               <span>{graphNode.kind}</span>
               {graphNode.external && (
                 <span className="border border-border px-1 py-0.5 text-[8px] text-warning">
-                  external
+                  {t('activity:codeMapText.external')}
                 </span>
               )}
               {graphNode.rank !== undefined && graphNode.rank >= HUB_RANK && (
@@ -258,10 +258,14 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
               {graphNode.isFragile && (
                 <span
                   className="border border-destructive/50 bg-destructive/10 px-1 py-0.5 font-mono text-[8px] text-destructive"
-                  title={`WrongTrace Fragile File${
-                    graphNode.healthScore !== undefined ? ` (score ${graphNode.healthScore})` : ''
+                  title={`${t('activity:codeMapText.fragileFile')}${
+                    graphNode.healthScore !== undefined
+                      ? ` (${t('activity:codeMapText.fragileScore', { score: graphNode.healthScore })})`
+                      : ''
                   }${
-                    graphNode.thrashingCount ? ` · ${graphNode.thrashingCount} thrash cycles` : ''
+                    graphNode.thrashingCount
+                      ? ` · ${t('activity:codeMapText.thrashCycles', { count: graphNode.thrashingCount })}`
+                      : ''
                   }`}
                 >
                   FRAGILE
@@ -270,7 +274,7 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
               {graphNode.lockOwner && (
                 <span
                   className="border border-warning/50 bg-warning/10 px-1 py-0.5 font-mono text-[8px] text-warning"
-                  title={`Locked by ${graphNode.lockOwner}`}
+                  title={t('activity:codeMapText.lockedBy', { owner: graphNode.lockOwner })}
                 >
                   LOCK
                 </span>
@@ -312,7 +316,9 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
           <span title={t('activity:codeMapVisuals.incomingRelationships')}>← {incoming}</span>
           <span title={t('activity:codeMapVisuals.outgoingRelationships')}>→ {outgoing}</span>
           {graphNode.symbolCount !== undefined && graphNode.kind === 'file' && (
-            <span className="ml-auto">{graphNode.symbolCount} sym</span>
+            <span className="ml-auto">
+              {t('activity:codeMapText.symbols', { count: graphNode.symbolCount })}
+            </span>
           )}
           {isActive && (
             <span className="ml-auto flex items-center gap-1 font-bold text-warning">

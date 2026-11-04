@@ -16,6 +16,7 @@ import { Check, ChevronDown, ChevronRight, Scissors, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
+import { ATOMICITY_VERDICT_KEYS, enumLabel } from './kanban-labels';
 import { type FlowTask, SddFlowGraph } from './SddFlowGraph';
 
 type SendKanban = (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
@@ -43,7 +44,12 @@ export function KanbanDecompositionApprovalCard({
       >
         {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
         <Scissors size={13} />
-        {pending.length} decomposition proposal{pending.length > 1 ? 's' : ''} awaiting approval
+        {t(
+          pending.length > 1
+            ? 'activity:kanbanText.decompositionAwaitingMany'
+            : 'activity:kanbanText.decompositionAwaitingOne',
+          { count: pending.length },
+        )}
       </button>
       {!collapsed && (
         <ul className="mt-1.5 space-y-1">
@@ -56,7 +62,10 @@ export function KanbanDecompositionApprovalCard({
               >
                 {task.title}
                 <span className="ml-1.5 text-muted-foreground">
-                  → {task.decomposition?.proposedSubtasks.length ?? 0} subtasks
+                  →{' '}
+                  {t('activity:kanbanText.subtaskCount', {
+                    count: task.decomposition?.proposedSubtasks.length ?? 0,
+                  })}
                 </span>
               </button>
               <button
@@ -94,6 +103,14 @@ export function KanbanDecompositionApprovalCard({
 }
 
 const STAGES = ['assessed', 'proposed', 'approval', 'applied'] as const;
+
+const STAGE_KEYS: Record<(typeof STAGES)[number] | 'rejected', string> = {
+  assessed: 'activity:kanbanText.stage.assessed',
+  proposed: 'activity:kanbanText.stage.proposed',
+  approval: 'activity:kanbanText.stage.approval',
+  applied: 'activity:kanbanText.stage.applied',
+  rejected: 'activity:kanbanText.stage.rejected',
+};
 
 function stageIndex(task: KanbanTask): number {
   const status = task.decomposition?.status;
@@ -161,12 +178,15 @@ export function KanbanDecompositionPanel({
     const columns = [
       { label: t('activity:kanbanDecomp.parent'), taskIds: ['parent'] },
       {
-        label: proposal.status === 'applied' ? 'Subtasks' : 'Proposed subtasks',
+        label:
+          proposal.status === 'applied'
+            ? t('activity:kanbanText.subtasks')
+            : t('activity:kanbanText.proposedSubtasks'),
         taskIds: proposal.proposedSubtasks.map((_, index) => `s${index}`),
       },
     ];
     return { tasks, columns, appliedChildren };
-  }, [board, proposal, task]);
+  }, [board, proposal, task, t]);
 
   if (!proposal && !task.atomicityAssessment) return null;
 
@@ -192,13 +212,16 @@ export function KanbanDecompositionPanel({
                     : 'bg-muted text-muted-foreground',
               )}
             >
-              {proposal?.status === 'rejected' && index === 2 ? 'rejected' : stage}
+              {t(STAGE_KEYS[proposal?.status === 'rejected' && index === 2 ? 'rejected' : stage])}
             </span>
           </div>
         ))}
         {task.atomicityAssessment && (
           <span className="ml-auto text-muted-foreground">
-            {task.atomicityAssessment.verdict} · score {task.atomicityAssessment.score}
+            {t('activity:kanbanText.verdictScore', {
+              verdict: enumLabel(t, ATOMICITY_VERDICT_KEYS, task.atomicityAssessment.verdict),
+              score: task.atomicityAssessment.score,
+            })}
           </span>
         )}
       </div>
@@ -290,7 +313,7 @@ export function KanbanDecompositionPanel({
           )}
           {proposal.status === 'rejected' && proposal.resolutionReason && (
             <div className="mt-2 text-[11px] text-muted-foreground">
-              Rejected: {proposal.resolutionReason}
+              {t('activity:kanbanText.rejectedReason', { reason: proposal.resolutionReason })}
             </div>
           )}
         </>

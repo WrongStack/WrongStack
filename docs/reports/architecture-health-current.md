@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-04T22:46:10.013Z
+**Generated:** 2026-11-04T23:37:20.822Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6007 |
-| Production source lines | 1248599 |
+| Production source files | 6008 |
+| Production source lines | 1249321 |
 | Test files | 5016 |
 | Workspace dependency edges | 240 |
-| Relative module edges | 17674 |
+| Relative module edges | 17686 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plugin-sdk | 12 | 10 | @wrongstack/contracts, @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 152 | 133 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/primitives | 25 | 20 | — |
-| @wrongstack/project-surfaces | 245 | 0 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers |
+| @wrongstack/project-surfaces | 246 | 0 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/providers |
 | @wrongstack/providers | 138 | 122 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 20 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
