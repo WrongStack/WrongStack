@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T13:26:34.320Z",
+  "generatedAt": "2026-11-04T13:45:14.677Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4969,
-    "sourceLines": 1245900,
+    "testFiles": 4970,
+    "sourceLines": 1245918,
     "workspaceEdges": 240,
-    "moduleEdges": 17461,
+    "moduleEdges": 17463,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 232,
+    "testsWithoutTypecheck": 233,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 425,
-      "testFiles": 232,
+      "testFiles": 233,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2235,6 +2235,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/profile-surface-host.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-analysis-pages-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32204,6 +32210,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/profile-surface-host.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-analysis-pages-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

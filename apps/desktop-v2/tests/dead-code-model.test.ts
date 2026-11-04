@@ -52,6 +52,12 @@ describe('Desktop dead-code review', () => {
     });
     expect(deadCodeRestoreOutcome(['a.ts'], ['a.ts', 'b.ts']).remaining).toEqual(['b.ts']);
   });
+  it('words the restore outcome through the given words', () => {
+    expect(
+      deadCodeRestoreOutcome(['a.ts'], ['a.ts', 'b.ts'], (count, left) => `${count}/${left}`)
+        .notice,
+    ).toBe('1/1');
+  });
   it('keeps confidence, category, package search and mechanical fix filters distinct', () => {
     expect(filterDeadCode(findings, '', 'medium', '', false)).toHaveLength(2);
     expect(filterDeadCode(findings, '', 'low', '', true).map((item) => item['id'])).toEqual(['1']);

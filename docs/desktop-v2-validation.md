@@ -7532,3 +7532,21 @@ copies, starting with SAGE memory.
     and then in Turkish.
   - A new unit test covers the duration words.
   - Catalog parity and the key guard pass; desktop tests pass (894); typecheck clean.
+
+### Dead code in the display language (2026-11-04)
+
+- The dead-code workspace, its change preview and its execution result now follow the display
+  language in all seven languages: the heading, scan controls, progress and replies, statistics,
+  scope line, filters, selection, findings, the apply confirmation, the agent hand-off, the empty
+  state, recovery backups with the restore confirmation, the exact-change preview and the cleanup
+  result.
+- Finding categories, confidence levels, fix actions and change actions are named per language
+  through `useDeadCodeLabel`, with `deadCodeLabel` as the fallback for values the catalog does not
+  know (symbol kinds such as `function` keep their code names).
+- `deadCodeRestoreOutcome` takes optional words, with English as the default.
+- Still English by design: the request handed to an agent (`deadCodeRequest`) and engine reasons.
+- Checks:
+  - A new jsdom test scans a project and renders the findings and backups in English and then in
+    Turkish.
+  - A new unit test covers the restore outcome words.
+  - Catalog parity and the key guard pass; desktop tests pass (896); typecheck clean.
