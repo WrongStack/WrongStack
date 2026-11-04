@@ -8204,3 +8204,17 @@ copies, starting with SAGE memory.
   reasoning mode and effort values the engine accepts.
 - Checks: new `model-policy-i18n.test.ts` renders the fallback and routing panels with a
   referenced profile in English and Turkish; desktop tests pass (PASSED); typecheck clean.
+
+### Provider health, quota and model access tests in the display language (2026-11-04)
+
+- Provider health and quota (`providerHealth`) follow the display language in all seven
+  languages: quota cards with their windows, resets, balance and observation note, the refresh
+  results, the model waiting room with its counters and clear confirmation, and the recent
+  provider events. `quotaPercent` and the date helper take the missing-value word from the
+  caller with English as the default.
+- Model access tests (`providerTests`) are translated, including the run summary, the result
+  table headings and the reported result states (with the raw value as the fallback).
+- Still English by design: provider, meter, window and model ids, error kinds and messages from
+  the engine, and balance values.
+- Checks: new `provider-pages-i18n.test.ts` renders a quota card, the health page and the
+  model tests in English and Turkish; desktop tests pass (PASSED); typecheck clean.
