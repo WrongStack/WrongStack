@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T10:18:31.400Z",
+  "generatedAt": "2026-11-04T10:35:18.245Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 5986,
-    "testFiles": 4966,
-    "sourceLines": 1245610,
+    "testFiles": 4967,
+    "sourceLines": 1245632,
     "workspaceEdges": 240,
-    "moduleEdges": 17419,
+    "moduleEdges": 17420,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 230,
+    "testsWithoutTypecheck": 231,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -391,7 +391,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 425,
-      "testFiles": 230,
+      "testFiles": 231,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2253,6 +2253,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-kit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-pages-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32213,6 +32219,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/project-pages-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/project-sdd.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33645,8 +33658,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1559,
-      "relativeImports": 16
+      "lines": 1581,
+      "relativeImports": 17
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
@@ -33717,8 +33730,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1559,
-      "relativeImports": 16
+      "lines": 1581,
+      "relativeImports": 17
     },
     {
       "file": "packages/vibeui/src/components/workspace.tsx",

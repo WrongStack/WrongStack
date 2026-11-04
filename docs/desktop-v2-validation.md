@@ -7230,3 +7230,22 @@ copies, starting with SAGE memory.
   - The binary change card renders in English and then in Turkish, beside the find bars and draft
     merge.
   - Catalog parity and the key guard pass; desktop tests pass (877); typecheck clean.
+
+### Agent roster in the display language (2026-11-04)
+
+- The project agent roster now follows the display language in all seven languages:
+  - the catalog, filters and role cards;
+  - identity and runtime, with the resolved runtime, budgets, model policy and availability days;
+  - learning and evidence: metrics, lift, teaching, capture, overlap, directives and retired
+    directives;
+  - the skill layer;
+  - the prepared instruction, the create-role dialog, the confirmation dialogs and every notice
+    the page raises.
+- Budget labels use `roster.budget.<field>` with the model's English label as the default, and
+  automatic optimization reasons map the engine's reason ids to keys; unknown ids are shown as
+  the engine sent them.
+- The page grew from 1559 to 1581 lines because worded counts became interpolated calls; the
+  hotspot ratchet is updated to match.
+- Checks:
+  - The roster's loading view renders in English and then in Turkish (jsdom).
+  - Catalog parity and the key guard pass; desktop tests pass; typecheck clean.
