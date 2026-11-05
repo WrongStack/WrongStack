@@ -6,7 +6,7 @@ import { createHqFleetControl } from './hq-fleet-control.js';
 import type { UpdateInfo } from './update-check.js';
 
 /** The fleet commands the WebUI runs from this process's registry, over the CLI's fleet host. */
-const HOST_FLEET_COMMANDS = ['spawn', 'delegate', 'director', 'supervisor'];
+const HOST_FLEET_COMMANDS = ['spawn', 'delegate', 'director', 'supervisor', 'acp', 'ensemble'];
 
 export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
   const {

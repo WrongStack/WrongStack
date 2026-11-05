@@ -16,7 +16,7 @@ vi.mock('@wrongstack/acp', () => ({
   resolveAcpAgentCommand: vi.fn(() => ({ command: 'gemini', args: ['--acp'] })),
 }));
 
-vi.mock('../src/acp-registry-cache.js', () => ({
+vi.mock('../../runtime/src/portable-commands/acp-registry-cache.js', () => ({
   loadCachedAcpRegistry: vi.fn(async () => null),
 }));
 

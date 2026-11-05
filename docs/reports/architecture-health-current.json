@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T10:57:58.680Z",
+  "generatedAt": "2026-11-05T11:08:14.056Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6036,
-    "testFiles": 5030,
-    "sourceLines": 1251337,
-    "workspaceEdges": 242,
-    "moduleEdges": 17772,
+    "sourceFiles": 6040,
+    "testFiles": 5031,
+    "sourceLines": 1251420,
+    "workspaceEdges": 243,
+    "moduleEdges": 17779,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -818,9 +818,10 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 52,
-      "testFiles": 41,
+      "sourceFiles": 56,
+      "testFiles": 42,
       "workspaceDependencies": [
+        "@wrongstack/acp",
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
         "@wrongstack/chronicle",
@@ -846,7 +847,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 41
+          "testFiles": 42
         }
       ]
     },
@@ -18391,6 +18392,12 @@
       },
       {
         "file": "packages/requirement-intake/tests/vibe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/acp-commands.test.ts",
         "projects": [
           "root-node"
         ]

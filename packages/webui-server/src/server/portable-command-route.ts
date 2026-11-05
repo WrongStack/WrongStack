@@ -5,7 +5,7 @@ import type {
   SlashCommand,
 } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { getActiveFleetSupervisor } from '@wrongstack/fleet';
+import { getActiveFleetSupervisor, wrongstackBridgeSetup } from '@wrongstack/fleet';
 import {
   buildPluginCommands,
   buildPortableCommands,
@@ -88,6 +88,13 @@ export function portableCommandRoute(host: {
       return host.fleet?.()?.onDirector;
     },
     getFleetSupervisor: getActiveFleetSupervisor,
+    get paths() {
+      return host.getPaths?.();
+    },
+    // ACP agents reach WrongStack's tools as in the TUI; with no terminal to stream into, their
+    // tasks run in the fleet, where the agents view shows the progress.
+    acpSessionSetup: wrongstackBridgeSetup,
+    inlineAcpRuns: false,
     renderer: quiet,
   };
   return {

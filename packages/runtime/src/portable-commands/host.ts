@@ -1,5 +1,7 @@
-import type { ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
+import type { runOneAcpTask } from '@wrongstack/acp';
+import type { Config, ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
 import type { DispatchClassifier, FleetSupervisor } from '@wrongstack/coordination';
+import type { WstackPaths } from '@wrongstack/core/utils';
 
 /**
  * What the portable slash commands need from the process running them. The TUI passes its
@@ -44,6 +46,33 @@ export interface FleetCommandHost {
   getFleetSupervisor?: (() => FleetSupervisor | null) | undefined;
 }
 
+/** What `/acp` hands an agent so it can reach WrongStack (`acp.bridge` config). */
+type AcpSessionSetup = Parameters<typeof runOneAcpTask>[0]['sessionSetup'];
+type AcpBridgeConfig = NonNullable<Config['acp']>['bridge'];
+
+/** `/acp` and `/ensemble`: the external ACP agents installed on this machine. */
+export interface AcpCommandHost {
+  renderer: CommandNotices;
+  projectRoot: string;
+  cwd: string;
+  /** The user config: `acp.agents` command overrides and the `acp.bridge` setup. */
+  configStore?: ConfigStore | undefined;
+  /** The profile paths; the synced ACP registry snapshot is cached under them. */
+  paths?: WstackPaths | undefined;
+  /** Runs `--bg` tasks as fleet subagents. */
+  onSpawn?: FleetCommandHost['onSpawn'];
+  /** Hands an agent WrongStack's tools; absent, the agent works on its own. */
+  acpSessionSetup?:
+    | ((
+        agentId: string,
+        projectRoot: string,
+        bridge: AcpBridgeConfig | undefined,
+      ) => AcpSessionSetup)
+    | undefined;
+  /** False where no terminal shows a running agent's progress: tasks run in the fleet. */
+  inlineAcpRuns?: boolean | undefined;
+}
+
 export interface InitCommandHost {
   projectRoot: string;
   renderer: CommandNotices;
@@ -73,4 +102,5 @@ export interface PortableCommandHost
     InitCommandHost,
     GitCommandHost,
     GitIdCommandHost,
-    FleetCommandHost {}
+    FleetCommandHost,
+    AcpCommandHost {}

@@ -8823,3 +8823,18 @@ commands.
 - Verification: runtime, webui-server and affected CLI suites (478 files; the Windows
   handle-timing test in file-batch-mutations passes alone), fleet command tests, CLI, runtime
   and webui-server typechecks, architecture gate.
+
+### Command bridge: ACP agents (2026-11-05)
+
+- `/acp` and `/ensemble` moved to `@wrongstack/runtime/commands` with the ACP registry cache and
+  the agent list renderer; the CLI files re-export them. Runtime now depends on `@wrongstack/acp`
+  (one `bun.lock` line). The host hands an agent WrongStack's tools (`acpSessionSetup`, the
+  fleet's `wrongstackBridgeSetup`) in the TUI and in the engines alike.
+- An engine has no terminal to stream an agent's progress into, so `/acp <agent> <task>` runs as
+  a fleet subagent there (as `--bg` does), and the agents view shows it; without a fleet it runs
+  inline and returns the result. The CLI's WebUI host serves its own `/acp` and `/ensemble`.
+- Still TUI-only: `/coordinator` (claiming a task types into the terminal's next prompt),
+  `/shadow` (the TUI's shadow reviewer controller) and `/tuneup`.
+- Verification: runtime, webui-server and 110 affected CLI test files (521 files, 5,410 tests;
+  the Windows handle-timing tests in file-batch-mutations and acp-leader-context fail
+  intermittently and pass on rerun), CLI, runtime and webui-server typechecks, architecture gate.

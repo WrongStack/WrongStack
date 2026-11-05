@@ -629,6 +629,7 @@
       "name": "@wrongstack/runtime",
       "version": "1.4.0",
       "dependencies": {
+        "@wrongstack/acp": "workspace:*",
         "@wrongstack/agent-catalog": "workspace:*",
         "@wrongstack/builtin-plugins": "workspace:*",
         "@wrongstack/chronicle": "workspace:*",

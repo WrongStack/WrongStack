@@ -35,7 +35,7 @@ vi.mock('@wrongstack/acp', () => ({
 
 const loadCachedAcpRegistry = vi.fn(async (..._args: unknown[]): Promise<any> => null);
 const refreshAcpRegistry = vi.fn();
-vi.mock('../src/acp-registry-cache.js', () => ({
+vi.mock('../../runtime/src/portable-commands/acp-registry-cache.js', () => ({
   loadCachedAcpRegistry: (...a: unknown[]) => loadCachedAcpRegistry(...a),
   refreshAcpRegistry: (...a: unknown[]) => refreshAcpRegistry(...a),
 }));

@@ -79,6 +79,7 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@wrongstack/acp": "workspace:*",
     "@wrongstack/agent-catalog": "workspace:*",
     "@wrongstack/builtin-plugins": "workspace:*",
     "@wrongstack/chronicle": "workspace:*",

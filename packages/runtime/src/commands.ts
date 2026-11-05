@@ -4,7 +4,9 @@
  * builders for its REPL. Each builder declares the host fields it reads.
  */
 import type { SlashCommand } from '@wrongstack/contracts/types';
+import { buildAcpCommand } from './portable-commands/acp.js';
 import { buildDelegateCommand } from './portable-commands/delegate.js';
+import { buildEnsembleCommand } from './portable-commands/ensemble.js';
 import {
   buildDirectorCommand,
   buildSpawnCommand,
@@ -24,7 +26,15 @@ import { buildSandboxCommand } from './portable-commands/sandbox.js';
 import { buildScoutStatsCommand } from './portable-commands/scout-stats.js';
 import { buildSecurityCommand } from './portable-commands/security.js';
 
+export { buildAcpCommand } from './portable-commands/acp.js';
+export { formatAcpAgentList } from './portable-commands/acp-agent-list.js';
+export {
+  type LoadedAcpRegistry,
+  loadCachedAcpRegistry,
+  refreshAcpRegistry,
+} from './portable-commands/acp-registry-cache.js';
 export { buildDelegateCommand } from './portable-commands/delegate.js';
+export { buildEnsembleCommand } from './portable-commands/ensemble.js';
 export {
   askingSessionId,
   buildDirectorCommand,
@@ -41,6 +51,7 @@ export {
 } from './portable-commands/git.js';
 export { buildGitIdCommand } from './portable-commands/gitid.js';
 export type {
+  AcpCommandHost,
   CommandNotices,
   FleetCommandHost,
   GitCommandHost,
@@ -94,5 +105,7 @@ export function buildPortableCommands(host: PortableCommandHost): SlashCommand[]
     buildDelegateCommand(host),
     buildDirectorCommand(host),
     buildSupervisorCommand(host),
+    buildAcpCommand(host),
+    buildEnsembleCommand(host),
   ];
 }
