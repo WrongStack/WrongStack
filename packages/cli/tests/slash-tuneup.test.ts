@@ -4,8 +4,6 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SlashCommandContext } from '../src/slash-commands/index.js';
-import { buildTuneupCommand } from '../src/slash-commands/tuneup.js';
 import {
   buildDeepPrompt,
   checkAutonomy,
@@ -23,7 +21,9 @@ import {
   isReadOnlyCommand,
   runTuneup,
   type TuneupInput,
-} from '../src/tuneup.js';
+} from '../../runtime/src/portable-commands/tuneup-report.js';
+import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildTuneupCommand } from '../src/slash-commands/tuneup.js';
 
 // ---------------------------------------------------------------------------
 // Pure engine

@@ -439,6 +439,10 @@ export function SessionComposer({
         setNotice(message);
       },
       fail: setError,
+      prompt: (text) =>
+        void dispatchComposer(text, mode, dispatchPorts).catch((failure: unknown) =>
+          setError(failure instanceof Error ? failure.message : String(failure)),
+        ),
     });
   const submit = () => {
     if (

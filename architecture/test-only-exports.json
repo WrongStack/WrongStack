@@ -560,17 +560,6 @@
       "selectExposedTools",
       "yoloServePolicy"
     ],
-    "packages/cli/src/tuneup.ts": [
-      "checkAutonomy",
-      "checkConfigDoctor",
-      "checkHooks",
-      "checkMcp",
-      "checkMemoryDedup",
-      "checkMemorySize",
-      "checkPlugins",
-      "checkPowerProfile",
-      "checkSkills"
-    ],
     "packages/cli/src/update-check.ts": [
       "fetchLatestFromNpm",
       "getUpdateNotification"
@@ -1327,6 +1316,17 @@
       "applyWrongStackPack",
       "applyWrongStackPacks",
       "createRuntimeHostFromParts"
+    ],
+    "packages/runtime/src/portable-commands/tuneup-report.ts": [
+      "checkAutonomy",
+      "checkConfigDoctor",
+      "checkHooks",
+      "checkMcp",
+      "checkMemoryDedup",
+      "checkMemorySize",
+      "checkPlugins",
+      "checkPowerProfile",
+      "checkSkills"
     ],
     "packages/sage-mcp/src/cli.ts": [
       "projectRelativeStorageDirectory"

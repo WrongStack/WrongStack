@@ -42,6 +42,8 @@ export interface EmbeddedMessageRouterOptions {
    * commands over its fleet host); they replace the engine's commands of the same name.
    */
   hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
+  /** The hosting process's version check, config doctor and history for `/tuneup`. */
+  tuneupHooks?: import('@wrongstack/runtime/commands').TuneupHooks | undefined;
 }
 
 export interface EmbeddedMessageRouterDeps {

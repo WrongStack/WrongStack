@@ -88,6 +88,8 @@ export function runEngineSlashCommand(
   args: string,
   client: SlashRoutingClient | null | undefined,
   addMessage: (message: ChatAssistantMessage) => void,
+  /** Sends the follow-up turn a command asks for (`runText`), as the user would. */
+  sendMsg?: ((content: string) => void) | undefined,
 ): boolean {
   const command = findEngineCommand(cmd);
   if (!command || !client?.on || !client.send) return false;
@@ -107,6 +109,8 @@ export function runEngineSlashCommand(
             ? `\`\`\`text\n${text}\n\`\`\``
             : `/${command.name} finished.`,
       });
+      const followUp = typeof payload['runText'] === 'string' ? payload['runText'].trim() : '';
+      if (!error && followUp) sendMsg?.(followUp);
     });
     client.send?.({
       type: 'command.run',

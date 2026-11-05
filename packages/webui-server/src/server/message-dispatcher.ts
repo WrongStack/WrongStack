@@ -596,6 +596,8 @@ export function createMessageDispatcher(
         ? (mutate) => opts.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
       fleet: () => deps.fleetCommands,
+      getProfileConfigPath: () => deps.profileConfigPath,
+      getMcpRegistry: () => deps.mcpRegistry,
       send,
     }),
     getKanbanContext: kanbanContext,

@@ -512,6 +512,9 @@ export function createEmbeddedMessageRouter(
         ? (mutate) => deps.introspectionCtx.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
       hostCommands: opts.hostCommands,
+      getProfileConfigPath: () => opts.profileConfigPath,
+      getMcpRegistry: () => opts.mcpRegistry,
+      tuneup: opts.tuneupHooks,
       send,
     }),
     getKanbanContext: () => ({

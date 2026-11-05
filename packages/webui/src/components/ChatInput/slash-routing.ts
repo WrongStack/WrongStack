@@ -487,6 +487,6 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       return runFKeyPanelCommand(cmd, args, client, ws, addMessage);
     default:
       // The engine's own commands (the TUI's that need no terminal) before the model.
-      return runEngineSlashCommand(cmd, args, client, addMessage);
+      return runEngineSlashCommand(cmd, args, client, addMessage, sendMsg);
   }
 }

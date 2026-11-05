@@ -2,6 +2,7 @@ import type { runOneAcpTask } from '@wrongstack/acp';
 import type { Config, ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
 import type { DispatchClassifier, FleetSupervisor } from '@wrongstack/coordination';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import type { TuneupUpdateInfo } from './tuneup-types.js';
 
 /**
  * What the portable slash commands need from the process running them. The TUI passes its
@@ -73,6 +74,45 @@ export interface AcpCommandHost {
   inlineAcpRuns?: boolean | undefined;
 }
 
+/** What only the TUI's process has for /tuneup: its version check, config doctor and history. */
+export interface TuneupHooks {
+  checkForUpdate?: (() => Promise<TuneupUpdateInfo | undefined>) | undefined;
+  /** How many problems the config doctor finds in a profile config. */
+  countConfigIssues?: ((config: Record<string, unknown>) => number) | undefined;
+  /** Records a config change in the config history. */
+  appendConfigHistory?:
+    | ((
+        before: Record<string, unknown>,
+        after: Record<string, unknown>,
+        reason: string,
+        file: string,
+      ) => Promise<unknown>)
+    | undefined;
+}
+
+/** `/tuneup`: the config it checks and fixes, and what the session has loaded. */
+export interface TuneupCommandHost extends TuneupHooks {
+  projectRoot: string;
+  configStore?: ConfigStore | undefined;
+  paths?: WstackPaths | undefined;
+  /** The active profile's config file, which the fixes are written to. */
+  getProfileConfigPath?: (() => string | undefined) | undefined;
+  skillLoader?:
+    | {
+        list(): Promise<Array<{ name: string; source: string }>>;
+        readBody(name: string): Promise<string>;
+      }
+    | undefined;
+  mcpStatus?:
+    | (() => Array<{ name: string; state: string; enabled: boolean; toolCount: number }>)
+    | undefined;
+  /** Asks about one fix (`--pick`); absent where nothing can ask. */
+  confirm?: ((question: string, defaultYes?: boolean) => Promise<boolean | null>) | undefined;
+  /** Applies the fixes' YOLO and autonomy changes to the running session. */
+  onYolo?: ((setTo?: boolean) => unknown) | undefined;
+  onAutonomy?: ((setTo?: 'auto') => unknown) | undefined;
+}
+
 export interface InitCommandHost {
   projectRoot: string;
   renderer: CommandNotices;
@@ -103,4 +143,5 @@ export interface PortableCommandHost
     GitCommandHost,
     GitIdCommandHost,
     FleetCommandHost,
-    AcpCommandHost {}
+    AcpCommandHost,
+    TuneupCommandHost {}

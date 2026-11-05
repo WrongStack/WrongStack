@@ -25,6 +25,7 @@ import { buildPruneCommand } from './portable-commands/prune.js';
 import { buildSandboxCommand } from './portable-commands/sandbox.js';
 import { buildScoutStatsCommand } from './portable-commands/scout-stats.js';
 import { buildSecurityCommand } from './portable-commands/security.js';
+import { buildTuneupCommand } from './portable-commands/tuneup.js';
 
 export { buildAcpCommand } from './portable-commands/acp.js';
 export { formatAcpAgentList } from './portable-commands/acp-agent-list.js';
@@ -60,6 +61,8 @@ export type {
   PortableCommandHost,
   SessionCommandHost,
   SpawnCommandOptions,
+  TuneupCommandHost,
+  TuneupHooks,
 } from './portable-commands/host.js';
 export { buildInitCommand } from './portable-commands/init.js';
 export {
@@ -87,6 +90,8 @@ export {
   type SecurityCommandHost,
 } from './portable-commands/security.js';
 export { unknownSubcommand } from './portable-commands/subcommands.js';
+export { buildTuneupCommand } from './portable-commands/tuneup.js';
+export type { TuneupUpdateInfo } from './portable-commands/tuneup-types.js';
 
 /** Every portable command, built for one host. */
 export function buildPortableCommands(host: PortableCommandHost): SlashCommand[] {
@@ -107,5 +112,6 @@ export function buildPortableCommands(host: PortableCommandHost): SlashCommand[]
     buildSupervisorCommand(host),
     buildAcpCommand(host),
     buildEnsembleCommand(host),
+    buildTuneupCommand(host),
   ];
 }

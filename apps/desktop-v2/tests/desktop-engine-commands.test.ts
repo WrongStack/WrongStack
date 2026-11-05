@@ -71,6 +71,22 @@ describe('engine commands in the composer', () => {
     expect(shown.error).toBe('broken');
   });
 
+  it('sends the follow-up turn a command asks for', async () => {
+    const { ctx, shown, answer } = context();
+    const prompts: string[] = [];
+    (ctx as { prompt?: (text: string) => void }).prompt = (text) => prompts.push(text);
+    answer({ message: 'Tune-up report', runText: '  Plan the fixes.  ' });
+    runDesktopCommand('/sandbox', ctx);
+    await settle();
+    expect(shown.notice).toBe('Tune-up report');
+    expect(prompts).toEqual(['Plan the fixes.']);
+    // A failed command asks for nothing.
+    answer({ error: 'broken', runText: 'never' });
+    runDesktopCommand('/sandbox', ctx);
+    await settle();
+    expect(prompts).toEqual(['Plan the fixes.']);
+  });
+
   it('asks before a destructive command and runs it when the same draft is sent again', async () => {
     const { ctx, calls } = context();
     const first = runDesktopCommand('/gc 14', ctx);

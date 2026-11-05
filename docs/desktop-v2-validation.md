@@ -8838,3 +8838,20 @@ commands.
 - Verification: runtime, webui-server and 110 affected CLI test files (521 files, 5,410 tests;
   the Windows handle-timing tests in file-batch-mutations and acp-leader-context fail
   intermittently and pass on rerun), CLI, runtime and webui-server typechecks, architecture gate.
+
+### Command bridge: /tuneup and follow-up turns (2026-11-05)
+
+- `/tuneup` (`/checkup`) moved to `@wrongstack/runtime/commands` with its pure analysis; the CLI's
+  analysis files are gone and the CLI command passes its own version check, config doctor and
+  config history (`cliTuneupHooks`), which the CLI's WebUI host also hands the engine route.
+  The standalone engine reports without them (the desktop updates itself and has no `/doctor`),
+  writes fixes to its profile config with the same `.last` and `.bak` backups, and refuses
+  `--pick`, which needs a terminal to ask about each fix.
+- A command's follow-up turn (`runText`: `/tuneup deep`, the instruction-file hand-off of
+  `/tuneup fix`) now reaches the agent: the desktop sends it through the composer, the WebUI
+  as the user's message.
+- Still TUI-only: `/coordinator` and `/shadow`.
+- Verification: runtime, webui-server and 113 affected CLI test files (525 files), desktop suite
+  (285 files; the three i18n catalog tests time out under the full run and pass alone), WebUI
+  component tests (the locale-dependent context timeline test as before), typechecks for CLI,
+  runtime, webui-server, desktop and WebUI, architecture gate.

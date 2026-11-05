@@ -3,6 +3,7 @@ import { runWebUIDispatch } from './boot/dispatch-webui.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
 import { createHqFleetControl } from './hq-fleet-control.js';
+import { cliTuneupHooks } from './tuneup-hooks.js';
 import type { UpdateInfo } from './update-check.js';
 
 /** The fleet commands the WebUI runs from this process's registry, over the CLI's fleet host. */
@@ -161,6 +162,7 @@ export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
         };
       },
       ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
+      tuneupHooks: cliTuneupHooks,
       hostCommands: () =>
         HOST_FLEET_COMMANDS.flatMap((name) => {
           const command = slashRegistry.get(name);

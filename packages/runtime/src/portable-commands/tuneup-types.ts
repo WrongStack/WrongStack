@@ -1,5 +1,4 @@
 import type { Config } from '@wrongstack/contracts/types';
-import type { UpdateInfo } from './update-check.js';
 
 type TuneupSeverity = 'error' | 'warning' | 'info' | 'ok';
 
@@ -97,7 +96,7 @@ export interface TuneupInput {
   /** Instruction-file layers (user memory, project AGENTS.md, root CLAUDE.md/AGENTS.md). */
   memoryFiles: TuneupMemoryFile[];
   /** Self-update info (from `checkForUpdate`), when the version check ran. */
-  update?: UpdateInfo | undefined;
+  update?: TuneupUpdateInfo | undefined;
   /** Parsed trust file, when present. */
   trust?: TuneupTrustPolicy | undefined;
   /**
@@ -121,4 +120,12 @@ export interface TuneupReport {
   findings: TuneupFinding[];
   /** Composed agent follow-up prompt for fuzzy items; empty when none. */
   agentHandoff: string;
+}
+
+/** What a version check reports (the CLI's `checkForUpdate`). */
+export interface TuneupUpdateInfo {
+  current: string;
+  latest: string;
+  outdated: boolean;
+  checkFailed: boolean;
 }

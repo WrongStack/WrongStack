@@ -122,6 +122,8 @@ export interface WebUIDispatchContext {
    * commands over its fleet host); they replace the engine's commands of the same name.
    */
   hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
+  /** The hosting process's version check, config doctor and history for `/tuneup`. */
+  tuneupHooks?: import('@wrongstack/runtime/commands').TuneupHooks | undefined;
   onKanbanDispatch?:
     | ((
         description: string,
@@ -212,6 +214,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sddSubagentFactory,
     onKanbanDispatch,
     hostCommands,
+    tuneupHooks,
     getFleetBudget,
     stopSessionFleet,
     interruptController,
@@ -390,6 +393,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     updateInfo: ctx.updateInfo,
     onKanbanDispatch,
     hostCommands,
+    tuneupHooks,
     getVectorMemoryStore,
     vectorMemoryModelCacheDir,
     // Print the "open this" banner only once the server is actually

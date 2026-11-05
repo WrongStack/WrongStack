@@ -110,6 +110,9 @@ export function runEngineCommand(
       if (typeof reply['error'] === 'string') return context.fail(reply['error']);
       const text = typeof reply['message'] === 'string' ? reply['message'].trim() : '';
       context.notify(text || `${command.name} finished.`);
+      // A command may hand the agent a follow-up turn (`/tuneup deep`, `/init`).
+      const followUp = typeof reply['runText'] === 'string' ? reply['runText'].trim() : '';
+      if (followUp) context.prompt?.(followUp);
     },
     (error) => context.fail(reason(error)),
   );

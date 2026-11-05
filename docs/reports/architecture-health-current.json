@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T11:08:14.056Z",
+  "generatedAt": "2026-11-05T11:28:28.170Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6040,
-    "testFiles": 5031,
-    "sourceLines": 1251420,
+    "sourceFiles": 6042,
+    "testFiles": 5032,
+    "sourceLines": 1251566,
     "workspaceEdges": 243,
-    "moduleEdges": 17779,
+    "moduleEdges": 17784,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -208,7 +208,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 628,
+      "sourceFiles": 626,
       "testFiles": 686,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -818,8 +818,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 56,
-      "testFiles": 42,
+      "sourceFiles": 60,
+      "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -847,7 +847,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 42
+          "testFiles": 43
         }
       ]
     },
@@ -18637,6 +18637,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/tuneup-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/vision.test.ts",
         "projects": [
           "root-node"
@@ -34514,7 +34520,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1056,
+      "lines": 1060,
       "relativeImports": 37
     },
     {
@@ -34556,7 +34562,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1056,
+      "lines": 1060,
       "relativeImports": 37
     },
     {
@@ -35739,42 +35745,6 @@
     {
       "file": "packages/cli/src/tool-gateway.ts",
       "name": "yoloServePolicy"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkAutonomy"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkConfigDoctor"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkHooks"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkMcp"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkMemoryDedup"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkMemorySize"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkPlugins"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkPowerProfile"
-    },
-    {
-      "file": "packages/cli/src/tuneup.ts",
-      "name": "checkSkills"
     },
     {
       "file": "packages/cli/src/update-check.ts",
@@ -37211,6 +37181,42 @@
     {
       "file": "packages/runtime/src/host.ts",
       "name": "createRuntimeHostFromParts"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkAutonomy"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkConfigDoctor"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkHooks"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkMcp"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkMemoryDedup"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkMemorySize"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkPlugins"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkPowerProfile"
+    },
+    {
+      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
+      "name": "checkSkills"
     },
     {
       "file": "packages/sage-mcp/src/cli.ts",

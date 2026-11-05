@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T11:08:14.056Z
+**Generated:** 2026-11-05T11:28:28.170Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6040 |
-| Production source lines | 1251420 |
-| Test files | 5031 |
+| Production source files | 6042 |
+| Production source lines | 1251566 |
+| Test files | 5032 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17779 |
+| Relative module edges | 17784 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -32,7 +32,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 32 | 64 | @wrongstack/core |
 | @wrongstack/builtin-plugins | 33 | 28 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/chronicle | 52 | 43 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/cli | 628 | 686 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/cli | 626 | 686 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/bench, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/codebase-index-mcp, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/hq-next, @wrongstack/kanban, @wrongstack/kanban-mcp, @wrongstack/mailbox-mcp, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/requirement-intake-mcp, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sage-mcp, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/vibeui, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/client | 7 | 4 | @wrongstack/webui-protocol |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/providers | 138 | 122 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/requirement-intake | 18 | 20 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 6 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
-| @wrongstack/runtime | 56 | 42 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol |
+| @wrongstack/runtime | 60 | 43 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/governance, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/sage, @wrongstack/security-scanner, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol |
 | @wrongstack/sage | 170 | 175 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/hq, @wrongstack/persistence, @wrongstack/primitives, @wrongstack/wrongmemory-client |
 | @wrongstack/sage-mcp | 7 | 7 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 45 | 42 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake, @wrongstack/worktree |
@@ -96,7 +96,7 @@ None.
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1065 | `apps/desktop-v2/src/ProjectGoals.tsx` |
-| 1056 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1060 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 955 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 931 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |

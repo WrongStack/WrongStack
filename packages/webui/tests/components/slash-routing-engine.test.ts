@@ -73,6 +73,29 @@ describe('engine commands in the WebUI chat', () => {
     expect(messages).toEqual([{ role: 'assistant', content: '```text\nmode: off\n```' }]);
   });
 
+  it('sends the follow-up turn a command asks for as the user', async () => {
+    const bridge = await load();
+    const { client, sent, emit } = fakeClient();
+    bridge.requestEngineCommands(client);
+    emit('command.catalog', catalog);
+    const followUps: string[] = [];
+    bridge.runEngineSlashCommand(
+      '/sandbox',
+      'deep',
+      client,
+      () => undefined,
+      (text) => followUps.push(text),
+    );
+    const run = sent.find((message) => message.type === 'command.run');
+    emit('command.result', {
+      requestId: run?.payload['requestId'],
+      name: 'sandbox',
+      message: 'report',
+      runText: 'Plan the fixes.',
+    });
+    expect(followUps).toEqual(['Plan the fixes.']);
+  });
+
   it('leaves unknown names to the model and confirms destructive commands', async () => {
     const bridge = await load();
     const { client, sent, emit } = fakeClient();

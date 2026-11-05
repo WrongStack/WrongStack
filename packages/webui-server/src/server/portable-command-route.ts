@@ -12,12 +12,17 @@ import {
   type FleetCommandHost,
   type PluginCommandHost,
   type PortableCommandHost,
+  type TuneupHooks,
 } from '@wrongstack/runtime/commands';
 import type { WebSocket } from 'ws';
 import type { CommandRouteContext } from './command-routes.js';
 import type { WSServerMessage } from './types.js';
 
 type CommandContext = Parameters<SlashCommand['run']>[1];
+/** The MCP servers as `/tuneup` sees them. */
+interface McpServers {
+  describe(): Array<{ name: string; state: string; enabled: boolean; toolCount: number }>;
+}
 /** The worker-starting part of the fleet commands' host. */
 export type FleetCallbacks = Pick<FleetCommandHost, 'onSpawn' | 'onFleetSpawn' | 'onDirector'>;
 interface LeaderContext {
@@ -50,6 +55,12 @@ export function portableCommandRoute(host: {
   fleet?: (() => FleetCallbacks | undefined) | undefined;
   /** Commands the hosting process runs itself; they replace the engine's of the same name. */
   hostCommands?: (() => readonly SlashCommand[]) | undefined;
+  /** The active profile's config file, which `/tuneup fix` writes. */
+  getProfileConfigPath?: (() => string | undefined) | undefined;
+  /** The MCP servers `/tuneup` weighs. */
+  getMcpRegistry?: (() => McpServers | undefined) | undefined;
+  /** The hosting process's version check, config doctor and history, where it has them. */
+  tuneup?: TuneupHooks | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
 }): CommandRouteContext {
   let commands: Promise<SlashCommand[]> | undefined;
@@ -95,6 +106,18 @@ export function portableCommandRoute(host: {
     // tasks run in the fleet, where the agents view shows the progress.
     acpSessionSetup: wrongstackBridgeSetup,
     inlineAcpRuns: false,
+    ...host.tuneup,
+    getProfileConfigPath: host.getProfileConfigPath,
+    get skillLoader() {
+      return host.skillLoader;
+    },
+    mcpStatus: () =>
+      (host.getMcpRegistry?.()?.describe() ?? []).map((server) => ({
+        name: server.name,
+        state: server.state,
+        enabled: server.enabled,
+        toolCount: server.toolCount,
+      })),
     renderer: quiet,
   };
   return {

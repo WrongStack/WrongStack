@@ -25,6 +25,8 @@ export interface DesktopCommandContext {
   navigate(target: DesktopNavigation): void;
   notify(message: string): void;
   fail(message: string): void;
+  /** Sends a prompt a command asked for after it ran (an engine command's follow-up turn). */
+  prompt?: ((text: string) => void) | undefined;
 }
 
 /**
