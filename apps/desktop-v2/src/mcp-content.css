@@ -41,6 +41,11 @@
   align-items: center;
   gap: 8px;
 }
+/* The modal input rule (12px padding, 9px top margin) put the search icon over the placeholder. */
+.modal .mcp-content-search.search-field > input {
+  margin-top: 0;
+  padding-left: 32px;
+}
 .mcp-content-workbench > :where(aside) :where(section) > button {
   width: 100%;
   display: grid;

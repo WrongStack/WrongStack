@@ -168,7 +168,7 @@ function ProfileModelCatalogSettings({
   const metric = (value: unknown, price = false) =>
     typeof value === 'number'
       ? price
-        ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 8 })}`
+        ? `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
         : value.toLocaleString()
       : t('modelCatalog.notReported');
   const closeEditor = () => {

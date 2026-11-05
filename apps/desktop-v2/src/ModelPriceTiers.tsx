@@ -171,6 +171,7 @@ export function SavedModelPriceTiers({ cost }: { cost: Record<string, unknown> }
                         <dd>
                           $
                           {Number(record(row.source)[key]).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
                             maximumFractionDigits: 8,
                           })}
                         </dd>
@@ -207,7 +208,11 @@ function LegacyContextPrices({ value }: { value: unknown }) {
                   })}
                 </dt>
                 <dd>
-                  ${Number(prices[key]).toLocaleString(undefined, { maximumFractionDigits: 8 })}
+                  $
+                  {Number(prices[key]).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 8,
+                  })}
                 </dd>
               </div>
             ),
