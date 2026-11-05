@@ -5,8 +5,13 @@
 import type { ToolResultBlock, ToolUseBlock } from '@wrongstack/contracts/types/blocks';
 import { sliceUtf16Safe } from './compaction-scoring.js';
 
+// Kept in sync with the twin pattern in utils/compaction-preview.ts (fixed by
+// 69ce9f3fc): a hint starts only at a run boundary and segments are bounded to
+// a filename's length (255). Without the lookbehind and bounds a >255-char
+// segment swallows the whole match, and the 220-char receipt cap below then
+// drops the real path that follows it.
 const PATH_HINT_PATTERN =
-  /(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]+(?:[\\/][\w@(). -]+)+\.[A-Za-z0-9]{1,12})/g;
+  /(?<![\w@.-])(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]{1,255}(?:[\\/][\w@(). -]{1,255})+\.[A-Za-z0-9]{1,12})/g;
 
 export const PATH_BACKSLASH_PATTERN = /\\/g;
 
