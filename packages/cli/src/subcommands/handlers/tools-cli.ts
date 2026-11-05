@@ -64,7 +64,7 @@ const processIo: ToolsCliIo = {
 /** One settled call, as `run --json` prints it and `batch` prints per line. */
 type CallReport =
   | { ok: boolean; tool: string; settlement: ToolSettlement; durationMs: number; content: string }
-  | { ok: false; tool: string; error: string; message: string };
+  | { ok: false; tool: string; error: string; message: string; settlement?: ToolSettlement };
 
 interface CallOutcome {
   code: number;
@@ -368,12 +368,16 @@ function exitCodeFor(settlement: ToolSettlement, isError: boolean): number {
 }
 
 function notExposed(gateway: ToolGateway, registry: ToolRegistry, name: string): CallOutcome {
-  return failure(
+  const outcome = failure(
     name,
     'not_exposed',
     withheldReason(gateway, registry, name),
     TOOLS_CLI_EXIT.notExposed,
   );
+  if (registry.get(name) && !gateway.withheldBy(name)) {
+    outcome.report.settlement = 'denied_by_policy';
+  }
+  return outcome;
 }
 
 function failure(tool: string, error: string, message: string, code: number): CallOutcome {
