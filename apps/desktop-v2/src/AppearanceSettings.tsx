@@ -3,6 +3,7 @@ import { LANGUAGES } from '@wrongstack/project-surfaces/lib/languages';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { AppearanceFonts } from './AppearanceFonts';
+import { AppearanceStatusChips } from './AppearanceStatusChips';
 import { accentThemes } from './appearance';
 import { useDesktopText } from './desktop-i18n';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
@@ -129,6 +130,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
         </fieldset>
       </div>
       <AppearanceFonts appearance={appearance} changeAppearance={changeAppearance} />
+      <AppearanceStatusChips appearance={appearance} changeAppearance={changeAppearance} />
       <div className="appearance-section">
         <div>
           <h3>{t('appearance.sounds.title')}</h3>

@@ -701,6 +701,18 @@
       "body": "Fusionne des symboles comme => et !== en un seul glyphe dans les polices qui le permettent.",
       "on": "Activées",
       "off": "Désactivées"
+    },
+    "statusBar": {
+      "title": "Barre d’état",
+      "body": "Ce que la barre d’état d’une conversation affiche sous la zone de saisie. L’état et la jauge de contexte restent toujours visibles.",
+      "chip": {
+        "cache": "Cache des requêtes",
+        "memory": "Mémoires en contexte",
+        "iteration": "Itération",
+        "git": "Branche Git",
+        "tokens": "Tokens en entrée et en sortie",
+        "cost": "Coût estimé"
+      }
     }
   },
   "approval": {

@@ -8734,3 +8734,16 @@ Verification: desktop 283 test files / 990 tests, desktop typecheck (699 files),
 (246) and WebUI (1,021) typechecks, the WebUI analytics dashboard test, biome on every changed
 file. Native acceptance of fonts, zoom and the diff editor is pending the end-of-work native
 run.
+
+### Status bar chips, and gaps that were not gaps (2026-11-05)
+
+- **Status bar chips.** Appearance → Status bar chooses what a conversation's status bar shows
+  (prompt cache, memories in context, iteration, Git branch, tokens in and out, estimated cost),
+  as the TUI's `/statusline` picker and the WebUI's dock customizer do. The state and the context
+  meter always show. Hidden chips are a data attribute on the document that `status-chips.css`
+  reads, so the bar's markup only gained `data-chip` names.
+- Checked and left as they are, because neither WebUI component calls them: `goal.selectPhase`
+  (a hook export) and `codebase.index.server.shutdown` (a client method). MCP tasks: the desktop
+  polls every two seconds where the WebUI subscribes; both show the same live list.
+- Verification: appearance and session-status tests (6 files, 15 tests), desktop typecheck
+  (701 files), biome on the changed files.

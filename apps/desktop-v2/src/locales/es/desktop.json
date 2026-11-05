@@ -701,6 +701,18 @@
       "body": "Une símbolos como => y !== en un solo glifo en las fuentes que lo admiten.",
       "on": "Activadas",
       "off": "Desactivadas"
+    },
+    "statusBar": {
+      "title": "Barra de estado",
+      "body": "Lo que muestra la barra de estado de una conversación bajo el editor. El estado y el medidor de contexto se muestran siempre.",
+      "chip": {
+        "cache": "Caché de prompts",
+        "memory": "Memorias en contexto",
+        "iteration": "Iteración",
+        "git": "Rama de Git",
+        "tokens": "Tokens de entrada y salida",
+        "cost": "Coste estimado"
+      }
     }
   },
   "approval": {

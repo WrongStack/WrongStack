@@ -701,6 +701,18 @@
       "body": "Destekleyen yazı tiplerinde => ve !== gibi sembolleri tek bir glife birleştirir.",
       "on": "Açık",
       "off": "Kapalı"
+    },
+    "statusBar": {
+      "title": "Durum çubuğu",
+      "body": "Bir konuşmanın durum çubuğunun yazma alanının altında ne göstereceği. Durum ve bağlam ölçeri her zaman görünür.",
+      "chip": {
+        "cache": "İstem önbelleği",
+        "memory": "Bağlamdaki bellekler",
+        "iteration": "İterasyon",
+        "git": "Git dalı",
+        "tokens": "Giren ve çıkan token",
+        "cost": "Tahmini maliyet"
+      }
     }
   },
   "approval": {

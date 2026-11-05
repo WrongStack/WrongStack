@@ -701,6 +701,18 @@
       "body": "Unisce simboli come => e !== in un unico glifo nei caratteri che lo prevedono.",
       "on": "Attive",
       "off": "Disattivate"
+    },
+    "statusBar": {
+      "title": "Barra di stato",
+      "body": "Cosa mostra la barra di stato di una conversazione sotto l’area di scrittura. Lo stato e l’indicatore di contesto restano sempre visibili.",
+      "chip": {
+        "cache": "Cache dei prompt",
+        "memory": "Memorie nel contesto",
+        "iteration": "Iterazione",
+        "git": "Branch Git",
+        "tokens": "Token in entrata e in uscita",
+        "cost": "Costo stimato"
+      }
     }
   },
   "approval": {

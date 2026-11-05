@@ -74,6 +74,7 @@ export function SessionStatusBar({
       </button>
       {hit !== null && (
         <span
+          data-chip="cache"
           title={t('statusBar.cacheTitle', {
             read: usage.cacheRead.toLocaleString(),
             written: usage.cacheWrite.toLocaleString(),
@@ -83,7 +84,12 @@ export function SessionStatusBar({
         </span>
       )}
       {!!state.memoryContext?.active.length && (
-        <button type="button" title={t('statusBar.memoryTitle')} onClick={() => setDetails(true)}>
+        <button
+          type="button"
+          data-chip="memory"
+          title={t('statusBar.memoryTitle')}
+          onClick={() => setDetails(true)}
+        >
           <Brain size={11} /> {t('statusBar.memory', { count: state.memoryContext.active.length })}
         </button>
       )}
@@ -96,7 +102,7 @@ export function SessionStatusBar({
         </span>
       )}
       {state.running && index !== null && (
-        <span>
+        <span data-chip="iteration">
           <Repeat size={11} />{' '}
           {limit
             ? t('statusBar.iterationOf', { number: index + 1, limit })
@@ -104,10 +110,14 @@ export function SessionStatusBar({
         </span>
       )}
       <GitChip command={command} connected={state.connected} />
-      {input !== null && <span>{t('statusBar.in', { tokens: formatTokens(input) })}</span>}
-      {output !== null && <span>{t('statusBar.out', { tokens: formatTokens(output) })}</span>}
+      {input !== null && (
+        <span data-chip="tokens">{t('statusBar.in', { tokens: formatTokens(input) })}</span>
+      )}
+      {output !== null && (
+        <span data-chip="tokens">{t('statusBar.out', { tokens: formatTokens(output) })}</span>
+      )}
       {typeof estimate === 'number' && (
-        <span>{t('statusBar.estimated', { value: estimate.toFixed(4) })}</span>
+        <span data-chip="cost">{t('statusBar.estimated', { value: estimate.toFixed(4) })}</span>
       )}
       <button
         type="button"

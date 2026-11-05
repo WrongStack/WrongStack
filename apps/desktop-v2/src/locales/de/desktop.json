@@ -701,6 +701,18 @@
       "body": "Verbindet Zeichen wie => und !== zu einem Glyph, sofern die Schrift das kann.",
       "on": "Ein",
       "off": "Aus"
+    },
+    "statusBar": {
+      "title": "Statusleiste",
+      "body": "Was die Statusleiste einer Unterhaltung unter dem Eingabefeld zeigt. Status und Kontextanzeige sind immer sichtbar.",
+      "chip": {
+        "cache": "Prompt-Cache",
+        "memory": "Erinnerungen im Kontext",
+        "iteration": "Iteration",
+        "git": "Git-Branch",
+        "tokens": "Ein- und ausgehende Tokens",
+        "cost": "Geschätzte Kosten"
+      }
     }
   },
   "approval": {

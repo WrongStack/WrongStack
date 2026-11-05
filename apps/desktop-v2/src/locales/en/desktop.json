@@ -701,6 +701,18 @@
       "body": "Joins symbols such as => and !== into one glyph in fonts that have them.",
       "on": "On",
       "off": "Off"
+    },
+    "statusBar": {
+      "title": "Status bar",
+      "body": "What a conversation’s status bar shows under the composer. Its state and the context meter always show.",
+      "chip": {
+        "cache": "Prompt cache",
+        "memory": "Memories in context",
+        "iteration": "Iteration",
+        "git": "Git branch",
+        "tokens": "Tokens in and out",
+        "cost": "Estimated cost"
+      }
     }
   },
   "approval": {

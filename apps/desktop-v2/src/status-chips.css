@@ -1,0 +1,9 @@
+/* Status bar chips hidden in Appearance (appearance-status.ts). */
+:root[data-status-hidden~="cache"] .session-status [data-chip="cache"],
+:root[data-status-hidden~="memory"] .session-status [data-chip="memory"],
+:root[data-status-hidden~="iteration"] .session-status [data-chip="iteration"],
+:root[data-status-hidden~="git"] .session-status .git-chip,
+:root[data-status-hidden~="tokens"] .session-status [data-chip="tokens"],
+:root[data-status-hidden~="cost"] .session-status [data-chip="cost"] {
+  display: none;
+}

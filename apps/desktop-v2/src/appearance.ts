@@ -1,5 +1,10 @@
 import { applyFontAppearance, type FontAppearance, parseFontAppearance } from './appearance-fonts';
 import {
+  applyStatusAppearance,
+  parseStatusAppearance,
+  type StatusAppearance,
+} from './appearance-status';
+import {
   type BrandPaletteId,
   brandDefaultPalette,
   brandNeutrals,
@@ -12,7 +17,7 @@ export const appearanceModes = ['system', 'light', 'dark'] as const;
 /** System follows the OS "more contrast" preference; "more" forces stronger text and borders. */
 export const contrastModes = ['system', 'standard', 'more'] as const;
 export const accentThemes = brandPalettes;
-export interface Appearance extends FontAppearance {
+export interface Appearance extends FontAppearance, StatusAppearance {
   mode: (typeof appearanceModes)[number];
   accent: BrandPaletteId;
   contrast: (typeof contrastModes)[number];
@@ -49,6 +54,7 @@ export function parseAppearance(raw: string | null | undefined): Appearance {
       ...(candidate['density'] === 'compact' ? { density: 'compact' as const } : {}),
       ...(candidate['sound'] === 'on' ? { sound: 'on' as const } : {}),
       ...parseFontAppearance(candidate),
+      ...parseStatusAppearance(candidate),
     };
   } catch {
     return defaultAppearance;
@@ -115,6 +121,7 @@ export function applyAppearance(appearance: Appearance, systemDark: boolean, sys
   if (appearance.sound === 'on') root.dataset['sound'] = 'on';
   else delete root.dataset['sound'];
   applyFontAppearance(root, appearance);
+  applyStatusAppearance(root, appearance);
   if (appearance.accent === 'signal') delete root.dataset['palette'];
   else root.dataset['palette'] = appearance.accent;
   const colors = paletteColors(appearance, systemDark);
