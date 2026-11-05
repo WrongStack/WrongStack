@@ -690,7 +690,7 @@
     },
     "language": {
       "title": "Anzeigesprache",
-      "body": "Mit der WebUI und der CLI geteilt. Der Desktop folgt ihr; einige Projektseiten sind noch auf Englisch."
+      "body": "Mit der WebUI und der CLI geteilt. Meldungen der Engine, etwa Fehler, können auf Englisch bleiben."
     },
     "host": {
       "connected": "Lokaler Arbeitsbereich verbunden",
@@ -923,6 +923,14 @@
     "save": "Speichern"
   },
   "runLog": {
+    "title": {
+      "iteration": "Iteration {{number}}",
+      "retry": "{{provider}}: Wiederholung {{attempt}}",
+      "limit": "Iterationslimit erreicht",
+      "completed": "Lauf abgeschlossen",
+      "stopped": "Lauf gestoppt",
+      "ended": "Lauf beendet"
+    },
     "currentLabel": "Aktivität des laufenden Laufs",
     "label": "Aktivität der Unterhaltung",
     "eyebrow": "DIESE UNTERHALTUNG",
@@ -3594,7 +3602,7 @@
     "tuneReadback": "Die zurückgelesene Abstimmung hat sich geändert. Aktualisiere, bevor du fortfährst.",
     "tuneSaved": "Form-, Abstands- und Typografie-Einstellungen des Projekts gespeichert.",
     "themeWritten": "Theme geschrieben und zurückgelesen: {{path}}",
-    "scanReturned": "Die Engine hat den Designscan des Projekts geliefert.",
+    "scanReturned": "Designscan abgeschlossen. Die Ergebnisse stehen unten.",
     "colorEdits": "Nicht gespeicherte Farbänderungen im Projekt.",
     "colorEditsFor": "Nicht gespeicherte Farbänderungen im Projekt für {{kit}}.",
     "reviewColors": "Farbänderungen prüfen",
@@ -3906,6 +3914,24 @@
     }
   },
   "deadCode": {
+    "count": {
+      "visible_one": "{{count}} sichtbarer Befund",
+      "visible": "{{count}} sichtbare Befunde",
+      "selected_one": "{{count}} ausgewählt",
+      "selected": "{{count}} ausgewählt",
+      "fixable_one": "{{count}} mechanisch behebbar",
+      "fixable": "{{count}} mechanisch behebbar",
+      "edit_one": "{{count}} Datei zu bearbeiten",
+      "edit": "{{count}} Dateien zu bearbeiten",
+      "remove_one": "{{count}} Datei zu löschen",
+      "remove": "{{count}} Dateien zu löschen",
+      "changed_one": "{{count}} Datei geändert",
+      "changed": "{{count}} Dateien geändert",
+      "deleted_one": "{{count}} Datei gelöscht",
+      "deleted": "{{count}} Dateien gelöscht",
+      "attempts_one": "{{count}} Versuch",
+      "attempts": "{{count}} Versuche"
+    },
     "value": {
       "unreachable-file": "unerreichbare Datei",
       "dead-export": "toter Export",
@@ -3974,7 +4000,7 @@
     "confidenceMedium": "Hohe und mittlere Konfidenz",
     "confidenceAll": "Alle Konfidenzstufen",
     "onlyFixable": "Nur mechanische Korrekturen",
-    "selection": "{{visible}} sichtbare Befunde · {{selected}} ausgewählt · {{fixable}} mechanisch behebbar",
+    "selection": "{{visible}} · {{selected}} · {{fixable}}",
     "selectFiltered": "Gefilterte Befunde auswählen",
     "clearSelection": "Auswahl aufheben",
     "selectFinding": "Befund {{id}} auswählen",
@@ -4019,7 +4045,7 @@
     "plan": {
       "label": "Vorschau der Änderungen an totem Code",
       "title": "Die exakten Änderungen prüfen",
-      "counts": "{{edit}} Dateien zu bearbeiten · {{remove}} Dateien zu löschen",
+      "counts": "{{edit}} · {{remove}}",
       "diff": "Diff-Vorschau für {{file}}",
       "skipped": "Übersprungene Befunde ({{n}})"
     },
@@ -4028,7 +4054,7 @@
       "rolledBack": "Änderungen zurückgenommen",
       "completed": "Bereinigung abgeschlossen",
       "incomplete": "Bereinigung nicht abgeschlossen",
-      "counts": "{{changed}} Dateien geändert · {{deleted}} Dateien gelöscht · {{attempts}} Versuche",
+      "counts": "{{changed}} · {{deleted}} · {{attempts}}",
       "files": {
         "changed": "geänderte Dateien",
         "deleted": "gelöschte Dateien"
@@ -4173,6 +4199,13 @@
       "previousHash": "Vorheriger Hash"
     },
     "insights": {
+      "operation": {
+        "write": "Geschrieben",
+        "edit": "Bearbeitet",
+        "delete": "Gelöscht",
+        "rename": "Umbenannt",
+        "create": "Erstellt"
+      },
       "title": "Projekteinblicke",
       "subtitle": "Anbieter · Aufgaben · Dateien",
       "intro": "Aus dem Projektjournal über alle Sitzungen abgeleitet. Die Filter der Zeitleiste gelten hier nicht.",
@@ -6472,6 +6505,8 @@
     "fullWidth": "In voller Breite anzeigen"
   },
   "planTemplates": {
+    "addedSteps_one": "{{count}} Schritt aus „{{name}}“ zum Plan hinzugefügt.",
+    "addedSteps": "{{count}} Schritte aus „{{name}}“ zum Plan hinzugefügt.",
     "title": "Planvorlagen",
     "intro": "Füge die Schritte einer Vorlage zum Plan dieser Unterhaltung hinzu. Der Plan erscheint über dem Eingabefeld; das Modell wird zu nichts aufgefordert.",
     "back": "Zurück zur Unterhaltung",
@@ -6481,10 +6516,10 @@
     "steps": "Schritte von {{name}}",
     "waitTurn": "Warte, bis der aktuelle Zug endet.",
     "adding": "Wird hinzugefügt…",
-    "add": "Zum Plan hinzufügen",
-    "applied": "Vorlage angewendet."
+    "add": "Zum Plan hinzufügen"
   },
   "fallbackSuggest": {
+    "noChain_one": "Eine Kette braucht mindestens zwei erreichbare Modelle; nur {{count}} ist erreichbar.",
     "label": "Vorgeschlagene Fallback-Ketten",
     "title": "Vorgeschlagene Ketten",
     "help": "Nur aus Modellen gebildet, die deine gespeicherten Anbieter auflisten und die du nicht ausgeblendet hast.",
@@ -6492,7 +6527,7 @@
     "suggest": "Ketten vorschlagen",
     "askTitle": "Das Modell der aktuellen Unterhaltung ordnet dieselben Modelle neu; dabei wird eine Anfrage gesendet.",
     "ask": "Aktuelles Modell fragen",
-    "noChain": "Aus {{number}} erreichbaren Modellen ließ sich keine Kette bilden.",
+    "noChain": "Aus {{count}} erreichbaren Modellen ließ sich keine Kette bilden.",
     "oneProvider": "1 Anbieter",
     "providers": "{{number}} Anbieter",
     "ranked": "vom Modell eingestuft",
@@ -7445,6 +7480,11 @@
     "preserveNo": "Nicht behalten"
   },
   "providerHealth": {
+    "state": {
+      "healthy": "Gesund",
+      "degraded": "Beeinträchtigt",
+      "blocked": "Blockiert"
+    },
     "notReported": "Nicht gemeldet",
     "quotaLabel": "Kontingent {{provider}} {{meter}}",
     "accountQuota": "Kontokontingent",
@@ -7957,6 +7997,8 @@
     "save": "Vorlage speichern"
   },
   "promptJournal": {
+    "dayField": "Tag",
+    "monthField": "Monat",
     "olderOne": "1 älterer Eintrag geladen.",
     "olderMany": "{{number}} ältere Einträge geladen.",
     "noOlder": "Es wurden keine älteren Einträge zurückgegeben.",

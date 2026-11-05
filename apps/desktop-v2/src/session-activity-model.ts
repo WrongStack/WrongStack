@@ -13,6 +13,8 @@ export interface ActivityRow {
   durationMs?: number;
   outputBytes?: number;
   agent?: string;
+  /** Catalog wording for run rows; `title` stays the English plain-text form. */
+  label?: { key: string; values?: Record<string, string | number> };
 }
 /** Build readable, session-local activity from canonical engine frames. */
 export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
@@ -92,6 +94,7 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
           id: `thinking:${index}`,
           kind: 'reasoning',
           title: 'Thinking',
+          label: { key: 'runLog.thinking' },
           status: 'info',
           output: text,
           progress: [],
@@ -103,6 +106,13 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
         id: `retry:${index}`,
         kind: 'retry',
         title: `${String(p['providerId'] ?? 'Provider')} retry ${String(p['attempt'] ?? '')}`,
+        label: {
+          key: 'runLog.title.retry',
+          values: {
+            provider: String(p['providerId'] ?? 'Provider'),
+            attempt: String(p['attempt'] ?? ''),
+          },
+        },
         status: 'info',
         output: String(p['description'] ?? ''),
         ...(typeof p['delayMs'] === 'number' ? { durationMs: p['delayMs'] } : {}),
@@ -111,10 +121,13 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
         sage: [],
       });
     } else if (event.type === 'iteration.started') {
+      // The engine counts iterations from zero; the status bar shows the first one as 1.
+      const number = typeof p['index'] === 'number' ? p['index'] + 1 : String(p['index'] ?? '');
       iteration = {
         id: `iteration:${index}`,
         kind: 'run',
-        title: `Iteration ${String(p['index'] ?? '')}`,
+        title: `Iteration ${number}`,
+        label: { key: 'runLog.title.iteration', values: { number } },
         status: 'running',
         progress: [],
         files: [],
@@ -136,9 +149,18 @@ export function activityRows(events: readonly EngineEvent[]): ActivityRow[] {
       if (iteration?.status === 'running') iteration.status = status;
       iteration = undefined;
       const message = record(p['error'])['message'];
+      const outcome =
+        p['status'] === 'max_iterations'
+          ? 'limit'
+          : status === 'done'
+            ? 'completed'
+            : status === 'aborted'
+              ? 'stopped'
+              : 'ended';
       rows.push({
         id: `result:${index}`,
         kind: 'run',
+        label: { key: `runLog.title.${outcome}` },
         title:
           p['status'] === 'max_iterations'
             ? 'Iteration limit reached'

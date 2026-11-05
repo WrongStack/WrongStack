@@ -48,6 +48,10 @@
   gap: 12px;
   margin: 16px 0;
 }
+/* The grid stretched the submit button across the whole card. */
+.oauth-progress form > button {
+  justify-self: start;
+}
 .oauth-device-code {
   display: flex;
   flex-wrap: wrap;

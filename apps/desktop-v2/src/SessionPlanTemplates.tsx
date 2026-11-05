@@ -80,11 +80,10 @@ export function SessionPlanTemplates({
     setError('');
     setNotice('');
     try {
-      const reply = await command('plan.template_use', { template: template.name }, [
-        'key.operation_result',
-      ]);
+      await command('plan.template_use', { template: template.name }, ['key.operation_result']);
+      // The engine's reply is English prose; the page words the result in the display language.
       setNotice(
-        typeof reply['message'] === 'string' ? reply['message'] : t('planTemplates.applied'),
+        t('planTemplates.addedSteps', { name: template.name, count: template.items.length }),
       );
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));

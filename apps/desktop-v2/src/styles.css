@@ -1688,7 +1688,8 @@ h1 {
 }
 .modal {
   margin: min(14vh, 120px) auto;
-  max-height: calc(100vh - 80px);
+  /* Below its top margin: 100vh - 80px ran the bottom of a tall dialog off a 960 px window. */
+  max-height: calc(100dvh - min(14vh, 120px) - 24px);
   overflow-y: auto;
   width: 490px;
   background: var(--raised);

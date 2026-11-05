@@ -105,6 +105,10 @@
 .approval-empty {
   color: var(--muted);
 }
+/* The generic `.approval-card > div` row pushed the label and subject to the right edge. */
+.approval-card.tool-approval > .approval-pattern {
+  display: block;
+}
 .approval-pattern code {
   display: block;
   white-space: pre-wrap;

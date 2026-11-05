@@ -225,8 +225,27 @@
   margin-top: 18px;
 }
 .composer-dialog footer.journal-limit {
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.composer-dialog footer.journal-limit > :first-child {
+  margin-right: auto;
+}
+.composer-dialog.resource-dialog .resource-toolbar > label.journal-date-filter {
+  flex: 0 0 auto;
+  min-width: 0;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.composer-dialog.resource-dialog .resource-toolbar label.journal-date-filter input {
+  width: auto;
+}
+/* Inside a dialog the composer's inline inset only indented the line. */
+.composer-dialog :is(.composer-notice, .composer-error) {
+  margin-inline: 0;
 }
 .native-composer-stack {
   position: relative;
@@ -576,9 +595,11 @@
   font-size: 12px;
   min-width: 0;
 }
-.memory-injections > header {
+/* Beats `.composer-dialog header` (space-between), which split the icon from its title. */
+section.memory-injections > header {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
 }
 .memory-injections ol,

@@ -100,7 +100,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
       )}
       {state && state.origins.length === 0 && <p>{t('networkPolicy.none')}</p>}
       {state && state.origins.length > 0 && (
-        <ol className="brain-decision-log">
+        <ol className="brain-decision-log network-origin-list">
           {state.origins.map((item) => (
             <li key={item}>
               <code>{item}</code>

@@ -690,7 +690,7 @@
     },
     "language": {
       "title": "Display language",
-      "body": "Shared with the WebUI and CLI. The desktop follows it; some project pages are still in English."
+      "body": "Shared with the WebUI and CLI. Messages the engine reports, such as errors, can stay in English."
     },
     "host": {
       "connected": "Local workspace connected",
@@ -712,7 +712,7 @@
     "textSize": {
       "title": "Text size",
       "body": "Scales the whole window, editors and terminals included.",
-      "percent": "{{n}} %"
+      "percent": "{{n}}%"
     },
     "ligatures": {
       "title": "Code ligatures",
@@ -923,6 +923,14 @@
     "save": "Save"
   },
   "runLog": {
+    "title": {
+      "iteration": "Iteration {{number}}",
+      "retry": "{{provider}} retry {{attempt}}",
+      "limit": "Iteration limit reached",
+      "completed": "Run completed",
+      "stopped": "Run stopped",
+      "ended": "Run ended"
+    },
     "currentLabel": "Current run activity",
     "label": "Conversation activity",
     "eyebrow": "THIS CONVERSATION",
@@ -3594,7 +3602,7 @@
     "tuneReadback": "The tuning readback changed. Refresh before continuing.",
     "tuneSaved": "Project shape, spacing and typography settings saved.",
     "themeWritten": "Theme written and read back: {{path}}",
-    "scanReturned": "The engine returned the project design scan.",
+    "scanReturned": "Design scan finished. Results are below.",
     "colorEdits": "Unsaved project color edits.",
     "colorEditsFor": "Unsaved project color edits for {{kit}}.",
     "reviewColors": "Review color edits",
@@ -3906,6 +3914,24 @@
     }
   },
   "deadCode": {
+    "count": {
+      "visible_one": "{{count}} visible finding",
+      "visible": "{{count}} visible findings",
+      "selected_one": "{{count}} selected",
+      "selected": "{{count}} selected",
+      "fixable_one": "{{count}} mechanically fixable",
+      "fixable": "{{count}} mechanically fixable",
+      "edit_one": "{{count}} file to edit",
+      "edit": "{{count}} files to edit",
+      "remove_one": "{{count}} file to delete",
+      "remove": "{{count}} files to delete",
+      "changed_one": "{{count}} file changed",
+      "changed": "{{count}} files changed",
+      "deleted_one": "{{count}} file deleted",
+      "deleted": "{{count}} files deleted",
+      "attempts_one": "{{count}} attempt",
+      "attempts": "{{count}} attempts"
+    },
     "value": {
       "unreachable-file": "unreachable file",
       "dead-export": "dead export",
@@ -3974,7 +4000,7 @@
     "confidenceMedium": "High and medium confidence",
     "confidenceAll": "All confidence levels",
     "onlyFixable": "Mechanical fixes only",
-    "selection": "{{visible}} visible findings · {{selected}} selected · {{fixable}} mechanically fixable",
+    "selection": "{{visible}} · {{selected}} · {{fixable}}",
     "selectFiltered": "Select filtered findings",
     "clearSelection": "Clear selection",
     "selectFinding": "Select finding {{id}}",
@@ -4019,7 +4045,7 @@
     "plan": {
       "label": "Dead-code change preview",
       "title": "Review the exact changes",
-      "counts": "{{edit}} files to edit · {{remove}} files to delete",
+      "counts": "{{edit}} · {{remove}}",
       "diff": "Preview diff for {{file}}",
       "skipped": "Skipped findings ({{n}})"
     },
@@ -4028,7 +4054,7 @@
       "rolledBack": "Changes rolled back",
       "completed": "Cleanup completed",
       "incomplete": "Cleanup did not complete",
-      "counts": "{{changed}} files changed · {{deleted}} files deleted · {{attempts}} attempts",
+      "counts": "{{changed}} · {{deleted}} · {{attempts}}",
       "files": {
         "changed": "changed files",
         "deleted": "deleted files"
@@ -4173,6 +4199,13 @@
       "previousHash": "Previous hash"
     },
     "insights": {
+      "operation": {
+        "write": "Written",
+        "edit": "Edited",
+        "delete": "Deleted",
+        "rename": "Renamed",
+        "create": "Created"
+      },
       "title": "Project insights",
       "subtitle": "Providers · tasks · files",
       "intro": "Derived from the project journal across sessions. Timeline filters do not apply here.",
@@ -6472,6 +6505,8 @@
     "fullWidth": "Show at full width"
   },
   "planTemplates": {
+    "addedSteps_one": "Added {{count}} step from “{{name}}” to the plan.",
+    "addedSteps": "Added {{count}} steps from “{{name}}” to the plan.",
     "title": "Plan templates",
     "intro": "Add a template's steps to this conversation's plan. The plan shows above the composer; the model is not asked to do anything.",
     "back": "Back to conversation",
@@ -6481,10 +6516,10 @@
     "steps": "Steps of {{name}}",
     "waitTurn": "Wait until the current turn ends.",
     "adding": "Adding…",
-    "add": "Add to plan",
-    "applied": "Template applied."
+    "add": "Add to plan"
   },
   "fallbackSuggest": {
+    "noChain_one": "A chain needs at least two reachable models; only {{count}} is reachable.",
     "label": "Suggested fallback chains",
     "title": "Suggested chains",
     "help": "Built only from models your saved providers list and you have not hidden.",
@@ -6492,7 +6527,7 @@
     "suggest": "Suggest chains",
     "askTitle": "The current conversation's model re-ranks the same models; this sends a request.",
     "ask": "Ask the current model",
-    "noChain": "No chain could be built from {{number}} reachable models.",
+    "noChain": "No chain could be built from {{count}} reachable models.",
     "oneProvider": "1 provider",
     "providers": "{{number}} providers",
     "ranked": "ranked by the model",
@@ -7445,6 +7480,11 @@
     "preserveNo": "Do not preserve"
   },
   "providerHealth": {
+    "state": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "blocked": "Blocked"
+    },
     "notReported": "Not reported",
     "quotaLabel": "Quota {{provider}} {{meter}}",
     "accountQuota": "Account quota",
@@ -7957,6 +7997,8 @@
     "save": "Save template"
   },
   "promptJournal": {
+    "dayField": "Day",
+    "monthField": "Month",
     "olderOne": "Loaded 1 older entry.",
     "olderMany": "Loaded {{number}} older entries.",
     "noOlder": "No older entries were returned.",

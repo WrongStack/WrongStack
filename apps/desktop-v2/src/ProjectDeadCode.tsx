@@ -301,7 +301,7 @@ export function ProjectDeadCode({
               <option value="">{t('deadCode.allCategories')}</option>
               {deadCodeCategories.map((name) => (
                 <option value={name} key={name}>
-                  {`${label(name)} (${findings.filter((item) => item['category'] === name).length})`}
+                  {`${label(name, true)} (${findings.filter((item) => item['category'] === name).length})`}
                 </option>
               ))}
             </select>
@@ -329,9 +329,9 @@ export function ProjectDeadCode({
           <div className="dead-code-selection">
             <span>
               {t('deadCode.selection', {
-                visible: filtered.length,
-                selected: selected.length,
-                fixable: fixable.length,
+                visible: t('deadCode.count.visible', { count: filtered.length }),
+                selected: t('deadCode.count.selected', { count: selected.length }),
+                fixable: t('deadCode.count.fixable', { count: fixable.length }),
               })}
             </span>
             <button
@@ -368,7 +368,7 @@ export function ProjectDeadCode({
                     onChange={(e) => toggle([String(item['id'])], e.target.checked)}
                   />
                   <strong>{String(item['name'] ?? item['file'])}</strong>
-                  <span>{label(item['category'])}</span>
+                  <span>{label(item['category'], true)}</span>
                   <small>{t('deadCode.confidence', { level: label(item['confidence']) })}</small>
                 </label>
                 <button
@@ -385,13 +385,13 @@ export function ProjectDeadCode({
                   <FileCode2 size={13} />
                   {String(item['file'])}
                   {item['line']
-                    ? `:${item['line']}${item['endLine'] ? `–${item['endLine']}` : ''}`
+                    ? `:${item['line']}${item['endLine'] && item['endLine'] !== item['line'] ? `–${item['endLine']}` : ''}`
                     : ''}
                 </button>
                 <p>{String(item['reason'] ?? '')}</p>
                 <small>
                   {item['package'] ? `${t('deadCode.package', { name: item['package'] })} · ` : ''}
-                  {label(item['kind'])}
+                  {label(item['kind'], true)}
                   {item['typeOnly'] === true ? ` · ${t('deadCode.typeOnly')}` : ''}
                 </small>
                 <p className="field-help">

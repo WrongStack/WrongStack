@@ -202,6 +202,17 @@
 .brain-decision-log li span {
   color: var(--muted);
 }
+/* An allowed origin and its Remove button share one row instead of stacking. */
+.network-origin-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.network-origin-list code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .brain-ask {
   display: grid;
   gap: 6px;

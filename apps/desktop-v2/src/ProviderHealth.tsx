@@ -115,6 +115,10 @@ export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }
 export function ProviderHealth({ state, command }: { state: EngineState; command: EngineCommand }) {
   const { t } = useDesktopText();
   const missing = t('providerHealth.notReported');
+  const stateLabel = (value: unknown) =>
+    typeof value === 'string'
+      ? t(`providerHealth.state.${value}`, { defaultValue: words(value) })
+      : '';
   const [snapshots, setSnapshots] = useState<Record<string, unknown>[]>([]);
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [audit, setAudit] = useState<Record<string, unknown>[]>([]);
@@ -298,7 +302,7 @@ export function ProviderHealth({ state, command }: { state: EngineState; command
                 <strong>
                   {String(entry['providerId'])} / {String(entry['model'])}
                 </strong>
-                <span className="sdd-chip">{words(entry['state'])}</span>
+                <span className="sdd-chip">{stateLabel(entry['state'])}</span>
               </header>
               <p>
                 {words(entry['lastErrorKind']) || t('providerHealth.noError')}
@@ -385,8 +389,8 @@ export function ProviderHealth({ state, command }: { state: EngineState; command
             <strong>
               {item['from'] && item['to']
                 ? item['from'] === item['to']
-                  ? words(item['to'])
-                  : `${words(item['from'])} → ${words(item['to'])}`
+                  ? stateLabel(item['to'])
+                  : `${stateLabel(item['from'])} → ${stateLabel(item['to'])}`
                 : t('providerHealth.event')}
             </strong>
             <small>{date(item['ts'], false, missing)}</small>

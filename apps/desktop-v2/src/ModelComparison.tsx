@@ -81,7 +81,7 @@ export function ModelComparison({
                 <td key={key}>
                   <button
                     type="button"
-                    className="button small"
+                    className="button secondary small"
                     disabled={disabled}
                     onClick={() => onUse(model.id, provider)}
                   >

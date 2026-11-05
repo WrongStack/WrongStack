@@ -690,7 +690,7 @@
     },
     "language": {
       "title": "Lingua di visualizzazione",
-      "body": "Condivisa con la WebUI e la CLI. Il desktop la segue; alcune pagine di progetto sono ancora in inglese."
+      "body": "Condivisa con la WebUI e la CLI. I messaggi riportati dal motore, come gli errori, possono restare in inglese."
     },
     "host": {
       "connected": "Area di lavoro locale connessa",
@@ -923,6 +923,14 @@
     "save": "Salva"
   },
   "runLog": {
+    "title": {
+      "iteration": "Iterazione {{number}}",
+      "retry": "{{provider}}: nuovo tentativo {{attempt}}",
+      "limit": "Limite di iterazioni raggiunto",
+      "completed": "Esecuzione completata",
+      "stopped": "Esecuzione interrotta",
+      "ended": "Esecuzione terminata"
+    },
     "currentLabel": "Attività dell'esecuzione corrente",
     "label": "Attività della conversazione",
     "eyebrow": "QUESTA CONVERSAZIONE",
@@ -3594,7 +3602,7 @@
     "tuneReadback": "La rilettura della regolazione è cambiata. Aggiorna prima di continuare.",
     "tuneSaved": "Impostazioni di forma, spaziatura e tipografia del progetto salvate.",
     "themeWritten": "Tema scritto e riletto: {{path}}",
-    "scanReturned": "Il motore ha restituito la scansione di design del progetto.",
+    "scanReturned": "Scansione di design completata. I risultati sono qui sotto.",
     "colorEdits": "Modifiche ai colori del progetto non salvate.",
     "colorEditsFor": "Modifiche ai colori del progetto non salvate per {{kit}}.",
     "reviewColors": "Rivedi le modifiche ai colori",
@@ -3906,6 +3914,24 @@
     }
   },
   "deadCode": {
+    "count": {
+      "visible_one": "{{count}} risultato visibile",
+      "visible": "{{count}} risultati visibili",
+      "selected_one": "{{count}} selezionato",
+      "selected": "{{count}} selezionati",
+      "fixable_one": "{{count}} correggibile meccanicamente",
+      "fixable": "{{count}} correggibili meccanicamente",
+      "edit_one": "{{count}} file da modificare",
+      "edit": "{{count}} file da modificare",
+      "remove_one": "{{count}} file da eliminare",
+      "remove": "{{count}} file da eliminare",
+      "changed_one": "{{count}} file modificato",
+      "changed": "{{count}} file modificati",
+      "deleted_one": "{{count}} file eliminato",
+      "deleted": "{{count}} file eliminati",
+      "attempts_one": "{{count}} tentativo",
+      "attempts": "{{count}} tentativi"
+    },
     "value": {
       "unreachable-file": "file irraggiungibile",
       "dead-export": "export morto",
@@ -3974,7 +4000,7 @@
     "confidenceMedium": "Affidabilità alta e media",
     "confidenceAll": "Tutti i livelli di affidabilità",
     "onlyFixable": "Solo correzioni meccaniche",
-    "selection": "{{visible}} risultati visibili · {{selected}} selezionati · {{fixable}} correggibili meccanicamente",
+    "selection": "{{visible}} · {{selected}} · {{fixable}}",
     "selectFiltered": "Seleziona i risultati filtrati",
     "clearSelection": "Cancella la selezione",
     "selectFinding": "Seleziona il risultato {{id}}",
@@ -4019,7 +4045,7 @@
     "plan": {
       "label": "Anteprima delle modifiche al codice morto",
       "title": "Rivedi le modifiche esatte",
-      "counts": "{{edit}} file da modificare · {{remove}} file da eliminare",
+      "counts": "{{edit}} · {{remove}}",
       "diff": "Anteprima del diff per {{file}}",
       "skipped": "Risultati saltati ({{n}})"
     },
@@ -4028,7 +4054,7 @@
       "rolledBack": "Modifiche annullate",
       "completed": "Pulizia completata",
       "incomplete": "La pulizia non è stata completata",
-      "counts": "{{changed}} file modificati · {{deleted}} file eliminati · {{attempts}} tentativi",
+      "counts": "{{changed}} · {{deleted}} · {{attempts}}",
       "files": {
         "changed": "file modificati",
         "deleted": "file eliminati"
@@ -4173,6 +4199,13 @@
       "previousHash": "Hash precedente"
     },
     "insights": {
+      "operation": {
+        "write": "Scritto",
+        "edit": "Modificato",
+        "delete": "Eliminato",
+        "rename": "Rinominato",
+        "create": "Creato"
+      },
       "title": "Approfondimenti del progetto",
       "subtitle": "Provider · attività · file",
       "intro": "Derivato dal diario del progetto attraverso le sessioni. I filtri della cronologia non si applicano qui.",
@@ -6472,6 +6505,8 @@
     "fullWidth": "Mostra a larghezza piena"
   },
   "planTemplates": {
+    "addedSteps_one": "Aggiunto {{count}} passaggio da «{{name}}» al piano.",
+    "addedSteps": "Aggiunti {{count}} passaggi da «{{name}}» al piano.",
     "title": "Modelli di piano",
     "intro": "Aggiungi i passaggi di un modello al piano di questa conversazione. Il piano compare sopra l’area di scrittura; al modello non viene chiesto nulla.",
     "back": "Torna alla conversazione",
@@ -6481,10 +6516,10 @@
     "steps": "Passaggi di {{name}}",
     "waitTurn": "Attendi la fine del turno corrente.",
     "adding": "Aggiunta…",
-    "add": "Aggiungi al piano",
-    "applied": "Modello applicato."
+    "add": "Aggiungi al piano"
   },
   "fallbackSuggest": {
+    "noChain_one": "Una catena richiede almeno due modelli raggiungibili; solo {{count}} è raggiungibile.",
     "label": "Catene di riserva suggerite",
     "title": "Catene suggerite",
     "help": "Create solo dai modelli elencati dai tuoi provider salvati e che non hai nascosto.",
@@ -6492,7 +6527,7 @@
     "suggest": "Suggerisci catene",
     "askTitle": "Il modello della conversazione corrente riordina gli stessi modelli; questo invia una richiesta.",
     "ask": "Chiedi al modello corrente",
-    "noChain": "Non è stato possibile creare una catena da {{number}} modelli raggiungibili.",
+    "noChain": "Non è stato possibile formare una catena da {{count}} modelli raggiungibili.",
     "oneProvider": "1 provider",
     "providers": "{{number}} provider",
     "ranked": "ordinata dal modello",
@@ -7445,6 +7480,11 @@
     "preserveNo": "Non conservare"
   },
   "providerHealth": {
+    "state": {
+      "healthy": "Integro",
+      "degraded": "Degradato",
+      "blocked": "Bloccato"
+    },
     "notReported": "Non segnalato",
     "quotaLabel": "Quota {{provider}} {{meter}}",
     "accountQuota": "Quota dell’account",
@@ -7957,6 +7997,8 @@
     "save": "Salva il modello"
   },
   "promptJournal": {
+    "dayField": "Giorno",
+    "monthField": "Mese",
     "olderOne": "Caricata 1 voce precedente.",
     "olderMany": "Caricate {{number}} voci precedenti.",
     "noOlder": "Non sono state restituite voci precedenti.",

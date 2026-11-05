@@ -1,5 +1,5 @@
 .session-side-effects {
-  padding: 24px;
+  padding: 28px;
   min-height: 0;
   height: 100%;
   overflow: auto;
@@ -12,9 +12,20 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.session-side-effects > header {
+  align-items: flex-start;
+}
+.session-side-effects > header > div:first-child {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.session-side-effects > header > .feature-actions {
+  flex: 0 0 auto;
+}
 .session-side-effects h2 {
-  font-size: 26px;
-  margin: 8px 0;
+  font-size: 30px;
+  letter-spacing: -1px;
+  margin: 9px 0;
 }
 .session-side-effects p {
   line-height: 1.8;
@@ -23,6 +34,8 @@
 }
 .session-side-effects > header p {
   max-width: 650px;
+  font-size: 12px;
+  line-height: 1.7;
 }
 .effects-summary {
   display: flex;

@@ -118,7 +118,7 @@ export async function exerciseNativeGapClose({
 
   const baseRatio = await page.evaluate(() => window.devicePixelRatio);
   const sizes = appearance.getByRole('group', { name: 'Text size', exact: true });
-  await sizes.getByRole('button', { name: '125 %', exact: true }).click();
+  await sizes.getByRole('button', { name: '125%', exact: true }).click();
   await waitFor(async () => (await saved()).textSize === 125, 'Text size is saved');
   await waitFor(
     async () =>
@@ -126,7 +126,7 @@ export async function exerciseNativeGapClose({
     'The window zooms to 125 %',
   );
   await shot('native-text-size-125.png');
-  await sizes.getByRole('button', { name: '100 %', exact: true }).click();
+  await sizes.getByRole('button', { name: '100%', exact: true }).click();
   await waitFor(
     async () => Math.abs((await page.evaluate(() => window.devicePixelRatio)) - baseRatio) < 0.01,
     'The window zooms back to 100 %',

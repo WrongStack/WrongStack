@@ -690,7 +690,7 @@
     },
     "language": {
       "title": "Idioma de exibição",
-      "body": "Compartilhado com a WebUI e a CLI. O desktop o segue; algumas páginas de projeto ainda estão em inglês."
+      "body": "Compartilhado com a WebUI e a CLI. Mensagens informadas pelo motor, como erros, podem ficar em inglês."
     },
     "host": {
       "connected": "Espaço de trabalho local conectado",
@@ -923,6 +923,14 @@
     "save": "Salvar"
   },
   "runLog": {
+    "title": {
+      "iteration": "Iteração {{number}}",
+      "retry": "{{provider}}: nova tentativa {{attempt}}",
+      "limit": "Limite de iterações atingido",
+      "completed": "Execução concluída",
+      "stopped": "Execução interrompida",
+      "ended": "Execução encerrada"
+    },
     "currentLabel": "Atividade da execução atual",
     "label": "Atividade da conversa",
     "eyebrow": "ESTA CONVERSA",
@@ -3594,7 +3602,7 @@
     "tuneReadback": "A releitura do ajuste mudou. Atualize antes de continuar.",
     "tuneSaved": "Configurações de forma, espaçamento e tipografia do projeto salvas.",
     "themeWritten": "Tema gravado e relido: {{path}}",
-    "scanReturned": "O motor retornou a varredura de design do projeto.",
+    "scanReturned": "Varredura de design concluída. Os resultados estão abaixo.",
     "colorEdits": "Edições de cor do projeto não salvas.",
     "colorEditsFor": "Edições de cor do projeto não salvas para {{kit}}.",
     "reviewColors": "Revisar edições de cor",
@@ -3906,6 +3914,24 @@
     }
   },
   "deadCode": {
+    "count": {
+      "visible_one": "{{count}} achado visível",
+      "visible": "{{count}} achados visíveis",
+      "selected_one": "{{count}} selecionado",
+      "selected": "{{count}} selecionados",
+      "fixable_one": "{{count}} corrigível mecanicamente",
+      "fixable": "{{count}} corrigíveis mecanicamente",
+      "edit_one": "{{count}} arquivo a editar",
+      "edit": "{{count}} arquivos a editar",
+      "remove_one": "{{count}} arquivo a excluir",
+      "remove": "{{count}} arquivos a excluir",
+      "changed_one": "{{count}} arquivo alterado",
+      "changed": "{{count}} arquivos alterados",
+      "deleted_one": "{{count}} arquivo excluído",
+      "deleted": "{{count}} arquivos excluídos",
+      "attempts_one": "{{count}} tentativa",
+      "attempts": "{{count}} tentativas"
+    },
     "value": {
       "unreachable-file": "arquivo inalcançável",
       "dead-export": "exportação morta",
@@ -3974,7 +4000,7 @@
     "confidenceMedium": "Confiança alta e média",
     "confidenceAll": "Todos os níveis de confiança",
     "onlyFixable": "Somente correções mecânicas",
-    "selection": "{{visible}} achados visíveis · {{selected}} selecionados · {{fixable}} corrigíveis mecanicamente",
+    "selection": "{{visible}} · {{selected}} · {{fixable}}",
     "selectFiltered": "Selecionar os achados filtrados",
     "clearSelection": "Limpar a seleção",
     "selectFinding": "Selecionar o achado {{id}}",
@@ -4019,7 +4045,7 @@
     "plan": {
       "label": "Pré-visualização das alterações de código morto",
       "title": "Revise as alterações exatas",
-      "counts": "{{edit}} arquivos a editar · {{remove}} arquivos a excluir",
+      "counts": "{{edit}} · {{remove}}",
       "diff": "Pré-visualização do diff de {{file}}",
       "skipped": "Achados ignorados ({{n}})"
     },
@@ -4028,7 +4054,7 @@
       "rolledBack": "Alterações revertidas",
       "completed": "Limpeza concluída",
       "incomplete": "A limpeza não foi concluída",
-      "counts": "{{changed}} arquivos alterados · {{deleted}} arquivos excluídos · {{attempts}} tentativas",
+      "counts": "{{changed}} · {{deleted}} · {{attempts}}",
       "files": {
         "changed": "arquivos alterados",
         "deleted": "arquivos excluídos"
@@ -4173,6 +4199,13 @@
       "previousHash": "Hash anterior"
     },
     "insights": {
+      "operation": {
+        "write": "Gravado",
+        "edit": "Editado",
+        "delete": "Excluído",
+        "rename": "Renomeado",
+        "create": "Criado"
+      },
       "title": "Insights do projeto",
       "subtitle": "Provedores · tarefas · arquivos",
       "intro": "Derivado do diário do projeto entre sessões. Os filtros da linha do tempo não se aplicam aqui.",
@@ -6472,6 +6505,8 @@
     "fullWidth": "Mostrar na largura total"
   },
   "planTemplates": {
+    "addedSteps_one": "{{count}} etapa de “{{name}}” adicionada ao plano.",
+    "addedSteps": "{{count}} etapas de “{{name}}” adicionadas ao plano.",
     "title": "Modelos de plano",
     "intro": "Adicione os passos de um modelo ao plano desta conversa. O plano aparece acima da caixa de mensagem; nada é pedido ao modelo.",
     "back": "Voltar à conversa",
@@ -6481,10 +6516,10 @@
     "steps": "Passos de {{name}}",
     "waitTurn": "Aguarde o fim do turno atual.",
     "adding": "Adicionando…",
-    "add": "Adicionar ao plano",
-    "applied": "Modelo aplicado."
+    "add": "Adicionar ao plano"
   },
   "fallbackSuggest": {
+    "noChain_one": "Uma cadeia precisa de pelo menos dois modelos acessíveis; só {{count}} está acessível.",
     "label": "Cadeias de fallback sugeridas",
     "title": "Cadeias sugeridas",
     "help": "Montadas apenas com modelos que seus provedores salvos listam e que você não ocultou.",
@@ -6492,7 +6527,7 @@
     "suggest": "Sugerir cadeias",
     "askTitle": "O modelo da conversa atual reordena os mesmos modelos; isso envia uma solicitação.",
     "ask": "Perguntar ao modelo atual",
-    "noChain": "Nenhuma cadeia pôde ser montada a partir de {{number}} modelos acessíveis.",
+    "noChain": "Não foi possível montar uma cadeia com {{count}} modelos acessíveis.",
     "oneProvider": "1 provedor",
     "providers": "{{number}} provedores",
     "ranked": "ordenada pelo modelo",
@@ -7445,6 +7480,11 @@
     "preserveNo": "Não preservar"
   },
   "providerHealth": {
+    "state": {
+      "healthy": "Saudável",
+      "degraded": "Degradado",
+      "blocked": "Bloqueado"
+    },
     "notReported": "Não informado",
     "quotaLabel": "Cota {{provider}} {{meter}}",
     "accountQuota": "Cota da conta",
@@ -7957,6 +7997,8 @@
     "save": "Salvar o modelo"
   },
   "promptJournal": {
+    "dayField": "Dia",
+    "monthField": "Mês",
     "olderOne": "1 entrada mais antiga carregada.",
     "olderMany": "{{number}} entradas mais antigas carregadas.",
     "noOlder": "Nenhuma entrada mais antiga foi retornada.",

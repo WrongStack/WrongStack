@@ -101,7 +101,7 @@ export function SessionActivity({
                 )}
               </span>
               <span className="activity-entry-label">
-                <strong>{row.title}</strong>
+                <strong>{row.label ? t(row.label.key, row.label.values ?? {}) : row.title}</strong>
                 <small>
                   {row.agent ? `${row.agent} · ` : ''}
                   {row.status === 'running'

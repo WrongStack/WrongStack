@@ -301,6 +301,10 @@
     padding: 14px;
   }
 }
+/* At the default 490 px every draft wrapped its actions between its details and its explanation. */
+.modal:has(.model-draft-admin) {
+  width: min(720px, calc(100vw - 32px));
+}
 .model-draft-admin {
   display: grid;
   gap: 12px;

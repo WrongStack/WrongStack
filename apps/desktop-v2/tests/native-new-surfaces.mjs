@@ -54,7 +54,7 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   const templates = page.getByRole('region', { name: 'Plan templates', exact: true });
   await templates.getByRole('list', { name: /^Steps of / }).waitFor();
   await templates.getByRole('button', { name: 'Add to plan', exact: true }).click();
-  await templates.getByRole('status').filter({ hasText: 'Applied template' }).waitFor();
+  await templates.getByRole('status').filter({ hasText: 'to the plan.' }).waitFor();
   await shot('native-plan-templates.png');
   await templates.getByRole('button', { name: 'Back to conversation', exact: true }).click();
   await page.locator('.session-todos summary').filter({ hasText: 'Plan' }).first().waitFor();

@@ -3,13 +3,19 @@ import { deadCodeLabel } from './dead-code-model';
 import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
 
-/** Names an engine value per language; a value the catalog does not know reads as before. */
+/**
+ * Names an engine value per language; a value the catalog does not know reads as before.
+ * `start` is for a label standing on its own; inside a sentence the value stays as written.
+ */
 export function useDeadCodeLabel() {
-  const { t } = useDesktopText();
-  return (value: unknown) =>
-    typeof value === 'string'
-      ? t(`deadCode.value.${value}`, { defaultValue: deadCodeLabel(value) })
-      : t('deadCode.notReported');
+  const { t, i18n } = useDesktopText();
+  return (value: unknown, start = false) => {
+    const text =
+      typeof value === 'string'
+        ? t(`deadCode.value.${value}`, { defaultValue: deadCodeLabel(value) })
+        : t('deadCode.notReported');
+    return start ? text.charAt(0).toLocaleUpperCase(i18n.language) + text.slice(1) : text;
+  };
 }
 
 export function DeadCodePlan({
@@ -26,8 +32,12 @@ export function DeadCodePlan({
       <h2>{t('deadCode.plan.title')}</h2>
       <p>
         {t('deadCode.plan.counts', {
-          edit: entries(plan['changes']).filter((item) => item['action'] === 'edit').length,
-          remove: entries(plan['changes']).filter((item) => item['action'] === 'delete').length,
+          edit: t('deadCode.count.edit', {
+            count: entries(plan['changes']).filter((item) => item['action'] === 'edit').length,
+          }),
+          remove: t('deadCode.count.remove', {
+            count: entries(plan['changes']).filter((item) => item['action'] === 'delete').length,
+          }),
         })}
       </p>
       {(Array.isArray(plan['notes']) ? plan['notes'] : []).map((note, index) => (
@@ -49,7 +59,7 @@ export function DeadCodePlan({
               <FileCode2 size={13} />
               {String(change['file'])}
             </button>
-            <strong>{label(change['action'])}</strong>
+            <strong>{label(change['action'], true)}</strong>
           </header>
           <pre className="dead-code-diff">
             {String(change['diff'] ?? '')
@@ -99,9 +109,13 @@ export function DeadCodeResult({ result }: { result: Record<string, unknown> }) 
       </h2>
       <p>
         {t('deadCode.result.counts', {
-          changed: Array.isArray(result['changed']) ? result['changed'].length : 0,
-          deleted: Array.isArray(result['deleted']) ? result['deleted'].length : 0,
-          attempts: String(result['attempts'] ?? 0),
+          changed: t('deadCode.count.changed', {
+            count: Array.isArray(result['changed']) ? result['changed'].length : 0,
+          }),
+          deleted: t('deadCode.count.deleted', {
+            count: Array.isArray(result['deleted']) ? result['deleted'].length : 0,
+          }),
+          attempts: t('deadCode.count.attempts', { count: Number(result['attempts'] ?? 0) }),
         })}
       </p>
       {(['changed', 'deleted'] as const).map((key) =>

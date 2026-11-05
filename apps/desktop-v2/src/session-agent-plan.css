@@ -59,6 +59,8 @@
   border-radius: 8px;
   padding: 14px;
   display: grid;
+  /* A shorter lane beside a taller one spread its fields down the card. */
+  align-content: start;
   gap: 10px;
 }
 .agent-plan-route legend {

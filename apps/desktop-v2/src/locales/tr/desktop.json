@@ -690,7 +690,7 @@
     },
     "language": {
       "title": "Görüntüleme dili",
-      "body": "WebUI ve CLI ile ortak. Masaüstü bunu izler; bazı proje sayfaları henüz İngilizce."
+      "body": "WebUI ve CLI ile ortak. Motorun bildirdiği hata gibi mesajlar İngilizce kalabilir."
     },
     "host": {
       "connected": "Yerel çalışma alanı bağlı",
@@ -923,6 +923,14 @@
     "save": "Kaydet"
   },
   "runLog": {
+    "title": {
+      "iteration": "İterasyon {{number}}",
+      "retry": "{{provider}} yeniden deneme {{attempt}}",
+      "limit": "İterasyon sınırına ulaşıldı",
+      "completed": "Çalışma tamamlandı",
+      "stopped": "Çalışma durduruldu",
+      "ended": "Çalışma sona erdi"
+    },
     "currentLabel": "Geçerli çalışma etkinliği",
     "label": "Konuşma etkinliği",
     "eyebrow": "BU KONUŞMA",
@@ -3594,7 +3602,7 @@
     "tuneReadback": "Ayarın geri okuması değişti. Devam etmeden önce yenile.",
     "tuneSaved": "Projenin biçim, aralık ve tipografi ayarları kaydedildi.",
     "themeWritten": "Tema yazıldı ve geri okundu: {{path}}",
-    "scanReturned": "Motor proje tasarım taramasını döndürdü.",
+    "scanReturned": "Tasarım taraması bitti. Sonuçlar aşağıda.",
     "colorEdits": "Kaydedilmemiş proje renk düzenlemeleri.",
     "colorEditsFor": "{{kit}} için kaydedilmemiş proje renk düzenlemeleri.",
     "reviewColors": "Renk düzenlemelerini incele",
@@ -3906,6 +3914,24 @@
     }
   },
   "deadCode": {
+    "count": {
+      "visible_one": "{{count}} görünür bulgu",
+      "visible": "{{count}} görünür bulgu",
+      "selected_one": "{{count}} seçili",
+      "selected": "{{count}} seçili",
+      "fixable_one": "{{count}} mekanik olarak düzeltilebilir",
+      "fixable": "{{count}} mekanik olarak düzeltilebilir",
+      "edit_one": "{{count}} dosya düzenlenecek",
+      "edit": "{{count}} dosya düzenlenecek",
+      "remove_one": "{{count}} dosya silinecek",
+      "remove": "{{count}} dosya silinecek",
+      "changed_one": "{{count}} dosya değişti",
+      "changed": "{{count}} dosya değişti",
+      "deleted_one": "{{count}} dosya silindi",
+      "deleted": "{{count}} dosya silindi",
+      "attempts_one": "{{count}} deneme",
+      "attempts": "{{count}} deneme"
+    },
     "value": {
       "unreachable-file": "erişilemeyen dosya",
       "dead-export": "ölü dışa aktarım",
@@ -3960,8 +3986,8 @@
       "fixes": "Mekanik düzeltmeler",
       "cachedFiles": "Önbellek isabetleri"
     },
-    "scopeLine": "{{scope}} gösteriliyor.",
-    "scopeLinePublic": "Kullanılmayan genel API dışa aktarımları dahil {{scope}} gösteriliyor.",
+    "scopeLine": "Gösterilen: {{scope}}.",
+    "scopeLinePublic": "Gösterilen: {{scope}}, kullanılmayan genel API dışa aktarımları dahil.",
     "entireProject": "projenin tamamı",
     "scanFacts": "{{seconds}} saniye · {{parsed}} ayrıştırıldı · {{tests}} test dosyası",
     "warnings": "Tarama sınırlamaları ({{n}})",
@@ -3974,7 +4000,7 @@
     "confidenceMedium": "Yüksek ve orta güven",
     "confidenceAll": "Tüm güven düzeyleri",
     "onlyFixable": "Yalnızca mekanik düzeltmeler",
-    "selection": "{{visible}} görünür bulgu · {{selected}} seçili · {{fixable}} mekanik olarak düzeltilebilir",
+    "selection": "{{visible}} · {{selected}} · {{fixable}}",
     "selectFiltered": "Filtrelenen bulguları seç",
     "clearSelection": "Seçimi temizle",
     "selectFinding": "{{id}} bulgusunu seç",
@@ -4019,7 +4045,7 @@
     "plan": {
       "label": "Ölü kod değişiklik önizlemesi",
       "title": "Tam değişiklikleri incele",
-      "counts": "{{edit}} dosya düzenlenecek · {{remove}} dosya silinecek",
+      "counts": "{{edit}} · {{remove}}",
       "diff": "{{file}} için fark önizlemesi",
       "skipped": "Atlanan bulgular ({{n}})"
     },
@@ -4028,7 +4054,7 @@
       "rolledBack": "Değişiklikler geri alındı",
       "completed": "Temizlik tamamlandı",
       "incomplete": "Temizlik tamamlanmadı",
-      "counts": "{{changed}} dosya değişti · {{deleted}} dosya silindi · {{attempts}} deneme",
+      "counts": "{{changed}} · {{deleted}} · {{attempts}}",
       "files": {
         "changed": "değişen dosyalar",
         "deleted": "silinen dosyalar"
@@ -4173,6 +4199,13 @@
       "previousHash": "Önceki özet"
     },
     "insights": {
+      "operation": {
+        "write": "Yazıldı",
+        "edit": "Düzenlendi",
+        "delete": "Silindi",
+        "rename": "Yeniden adlandırıldı",
+        "create": "Oluşturuldu"
+      },
       "title": "Proje içgörüleri",
       "subtitle": "Sağlayıcılar · görevler · dosyalar",
       "intro": "Oturumlar boyunca proje günlüğünden çıkarılır. Zaman çizelgesi filtreleri burada geçerli değildir.",
@@ -6472,6 +6505,8 @@
     "fullWidth": "Tam genişlikte göster"
   },
   "planTemplates": {
+    "addedSteps_one": "“{{name}}” şablonundan plana {{count}} adım eklendi.",
+    "addedSteps": "“{{name}}” şablonundan plana {{count}} adım eklendi.",
     "title": "Plan şablonları",
     "intro": "Bir şablonun adımlarını bu konuşmanın planına ekle. Plan, mesaj kutusunun üstünde görünür; modelden hiçbir şey istenmez.",
     "back": "Konuşmaya dön",
@@ -6481,10 +6516,10 @@
     "steps": "{{name}} adımları",
     "waitTurn": "Geçerli tur bitene kadar bekle.",
     "adding": "Ekleniyor…",
-    "add": "Plana ekle",
-    "applied": "Şablon uygulandı."
+    "add": "Plana ekle"
   },
   "fallbackSuggest": {
+    "noChain_one": "Bir zincir için en az iki erişilebilir model gerekir; yalnızca {{count}} model erişilebilir.",
     "label": "Önerilen yedek zincirleri",
     "title": "Önerilen zincirler",
     "help": "Yalnızca kayıtlı sağlayıcılarının listelediği ve gizlemediğin modellerden oluşturulur.",
@@ -6492,7 +6527,7 @@
     "suggest": "Zincir öner",
     "askTitle": "Geçerli konuşmanın modeli aynı modelleri yeniden sıralar; bu bir istek gönderir.",
     "ask": "Geçerli modele sor",
-    "noChain": "Erişilebilen {{number}} modelden zincir oluşturulamadı.",
+    "noChain": "{{count}} erişilebilir modelden zincir kurulamadı.",
     "oneProvider": "1 sağlayıcı",
     "providers": "{{number}} sağlayıcı",
     "ranked": "model tarafından sıralandı",
@@ -7445,6 +7480,11 @@
     "preserveNo": "Koruma"
   },
   "providerHealth": {
+    "state": {
+      "healthy": "Sağlıklı",
+      "degraded": "Bozulmuş",
+      "blocked": "Engellendi"
+    },
     "notReported": "Bildirilmedi",
     "quotaLabel": "Kota {{provider}} {{meter}}",
     "accountQuota": "Hesap kotası",
@@ -7957,6 +7997,8 @@
     "save": "Şablonu kaydet"
   },
   "promptJournal": {
+    "dayField": "Gün",
+    "monthField": "Ay",
     "olderOne": "1 eski kayıt yüklendi.",
     "olderMany": "{{number}} eski kayıt yüklendi.",
     "noOlder": "Daha eski kayıt dönmedi.",

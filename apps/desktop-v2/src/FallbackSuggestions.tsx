@@ -68,7 +68,7 @@ export function FallbackSuggestions({
       const count = Number(payload['candidateCount'] ?? 0);
       const error = typeof payload['error'] === 'string' ? payload['error'] : '';
       setNote(
-        [error, list.length ? '' : t('fallbackSuggest.noChain', { number: count })]
+        [error, list.length ? '' : t('fallbackSuggest.noChain', { count })]
           .filter(Boolean)
           .join(' '),
       );

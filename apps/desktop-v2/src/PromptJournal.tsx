@@ -183,18 +183,24 @@ export function PromptJournal({
           <option value="raw_user">{t('promptJournal.original')}</option>
           <option value="refined_user">{t('promptJournal.refined')}</option>
         </select>
-        <input
-          type="month"
-          aria-label={t('promptJournal.month')}
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-        />
-        <input
-          type="date"
-          aria-label={t('promptJournal.date')}
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        <label className="journal-date-filter">
+          <span>{t('promptJournal.monthField')}</span>
+          <input
+            type="month"
+            aria-label={t('promptJournal.month')}
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+          />
+        </label>
+        <label className="journal-date-filter">
+          <span>{t('promptJournal.dayField')}</span>
+          <input
+            type="date"
+            aria-label={t('promptJournal.date')}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
         <button
           type="button"
           className="icon-button"

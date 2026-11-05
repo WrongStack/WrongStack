@@ -76,11 +76,11 @@
   color: var(--text);
   border: 0;
   outline: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .skill-library-search > select {
   padding: 7px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   background: var(--base);
   border: 1px solid var(--border);
@@ -88,7 +88,7 @@
   max-width: 145px;
 }
 .skill-catalog-list {
-  max-height: calc(100dvh - 440px);
+  height: calc(100dvh - 440px);
   min-height: 220px;
   overflow: auto;
 }
@@ -434,6 +434,7 @@
     grid-template-columns: 1fr;
   }
   .skill-catalog-list {
+    height: auto;
     max-height: 280px;
   }
   .skill-reader {

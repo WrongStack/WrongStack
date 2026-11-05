@@ -188,7 +188,11 @@ export function ChronicleInsights({
                     <header>
                       <strong>{label(row['path'])}</strong>
                       {typeof row['operation'] === 'string' && (
-                        <span className="insights-operation">{row['operation']}</span>
+                        <span className="insights-operation">
+                          {t(`chronicleView.insights.operation.${row['operation']}`, {
+                            defaultValue: row['operation'],
+                          })}
+                        </span>
                       )}
                     </header>
                     <p>

@@ -45,6 +45,10 @@
   padding: 9px;
   color: var(--text);
 }
+/* The dialog's 9 px input padding put the search icon on top of the placeholder text. */
+.composer-dialog .search-field > input {
+  padding-left: 32px;
+}
 .composer-dialog .composer-model-search {
   display: flex;
   align-items: center;

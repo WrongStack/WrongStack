@@ -139,5 +139,19 @@ describe('session activity', () => {
   it('describes an iteration limit without fabricating a failed tool or run', () => {
     const rows = activityRows([{ type: 'run.result', payload: { status: 'max_iterations' } }]);
     expect(rows[0]).toMatchObject({ title: 'Iteration limit reached', status: 'info' });
+    expect(rows[0]?.label).toEqual({ key: 'runLog.title.limit' });
+  });
+  it('numbers iterations from 1 like the status bar and names run rows through the catalog', () => {
+    const rows = activityRows([
+      { type: 'iteration.started', payload: { index: 0 } },
+      { type: 'provider.retry', payload: { providerId: 'local', attempt: 2 } },
+      { type: 'run.result', payload: { status: 'done' } },
+    ]);
+    expect(rows.map((row) => row.title)).toEqual(['Iteration 1', 'local retry 2', 'Run completed']);
+    expect(rows.map((row) => row.label)).toEqual([
+      { key: 'runLog.title.iteration', values: { number: 1 } },
+      { key: 'runLog.title.retry', values: { provider: 'local', attempt: '2' } },
+      { key: 'runLog.title.completed' },
+    ]);
   });
 });

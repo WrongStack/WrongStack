@@ -125,7 +125,7 @@ export async function exerciseNativeDesignStudio({
     'export function Plain() { return <div>Native no signal</div>; }',
   );
   await screen.getByRole('button', { name: 'Scan project design', exact: true }).click();
-  await screen.getByText('The engine returned the project design scan.', { exact: true }).waitFor();
+  await screen.getByText('Design scan finished. Results are below.', { exact: true }).waitFor();
   const scan = await call('design.verify');
   assert.equal(scan.source, 'kit');
   assert.ok(scan.filesScanned >= 2);
