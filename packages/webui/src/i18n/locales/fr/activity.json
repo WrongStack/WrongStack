@@ -5125,6 +5125,25 @@
     "heading": "Paramètres de routage cloud"
   },
   "kanbanText": {
+    "supervisorIdle": "Rien à superviser",
+    "supervisorPart": {
+      "running_one": "{{count}} en cours",
+      "running": "{{count}} en cours",
+      "ready_one": "{{count}} prête",
+      "ready": "{{count}} prêtes",
+      "review_one": "{{count}} en revue",
+      "review": "{{count}} en revue",
+      "blocked_one": "{{count}} bloquée",
+      "blocked": "{{count}} bloquées",
+      "failed_one": "{{count}} échouée",
+      "failed": "{{count}} échouées",
+      "stale_one": "{{count}} obsolète",
+      "stale": "{{count}} obsolètes",
+      "dependencyBlocked_one": "{{count}} bloquée par dépendances",
+      "dependencyBlocked": "{{count}} bloquées par dépendances",
+      "parked_one": "{{count}} en pause",
+      "parked": "{{count}} en pause"
+    },
     "columnCount_one": "{{count}} colonne",
     "columnCount": "{{count}} colonnes",
     "boardsSummary_one": "{{total}} tableau · {{active}} actifs · {{orphaned}} orphelins",

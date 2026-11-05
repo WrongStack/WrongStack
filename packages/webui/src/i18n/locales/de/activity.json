@@ -5125,6 +5125,25 @@
     "heading": "Cloud-Routing-Einstellungen"
   },
   "kanbanText": {
+    "supervisorIdle": "Nichts zu überwachen",
+    "supervisorPart": {
+      "running_one": "{{count}} laufend",
+      "running": "{{count}} laufend",
+      "ready_one": "{{count}} bereit",
+      "ready": "{{count}} bereit",
+      "review_one": "{{count}} in Prüfung",
+      "review": "{{count}} in Prüfung",
+      "blocked_one": "{{count}} blockiert",
+      "blocked": "{{count}} blockiert",
+      "failed_one": "{{count}} fehlgeschlagen",
+      "failed": "{{count}} fehlgeschlagen",
+      "stale_one": "{{count}} veraltet",
+      "stale": "{{count}} veraltet",
+      "dependencyBlocked_one": "{{count}} durch Abhängigkeiten blockiert",
+      "dependencyBlocked": "{{count}} durch Abhängigkeiten blockiert",
+      "parked_one": "{{count}} geparkt",
+      "parked": "{{count}} geparkt"
+    },
     "columnCount_one": "{{count}} Spalte",
     "columnCount": "{{count}} Spalten",
     "boardsSummary_one": "{{total}} Board · {{active}} aktiv · {{orphaned}} verwaist",

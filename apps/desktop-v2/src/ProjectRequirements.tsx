@@ -422,8 +422,12 @@ export function ProjectRequirements({
                   />
                   <small>
                     {t('shellText.reqDraftCounts', {
-                      attachments: draft.value.attachments.length,
-                      resources: draft.value.resources.length,
+                      attachments: t('counts.attachmentReferences', {
+                        count: draft.value.attachments.length,
+                      }),
+                      resources: t('counts.relatedResources', {
+                        count: draft.value.resources.length,
+                      }),
                     })}
                   </small>
                 </div>

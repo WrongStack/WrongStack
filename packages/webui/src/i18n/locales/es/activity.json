@@ -5125,6 +5125,25 @@
     "heading": "Ajustes de enrutado en la nube"
   },
   "kanbanText": {
+    "supervisorIdle": "Nada que supervisar",
+    "supervisorPart": {
+      "running_one": "{{count}} en ejecución",
+      "running": "{{count}} en ejecución",
+      "ready_one": "{{count}} lista",
+      "ready": "{{count}} listas",
+      "review_one": "{{count}} en revisión",
+      "review": "{{count}} en revisión",
+      "blocked_one": "{{count}} bloqueada",
+      "blocked": "{{count}} bloqueadas",
+      "failed_one": "{{count}} fallida",
+      "failed": "{{count}} fallidas",
+      "stale_one": "{{count}} obsoleta",
+      "stale": "{{count}} obsoletas",
+      "dependencyBlocked_one": "{{count}} bloqueada por dependencias",
+      "dependencyBlocked": "{{count}} bloqueadas por dependencias",
+      "parked_one": "{{count}} aparcada",
+      "parked": "{{count}} aparcadas"
+    },
     "columnCount_one": "{{count}} columna",
     "columnCount": "{{count}} columnas",
     "boardsSummary_one": "{{total}} tablero · {{active}} activos · {{orphaned}} huérfanos",

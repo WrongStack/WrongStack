@@ -172,10 +172,10 @@ export function ProjectHistorySearch({
       {status && (
         <p role="status">
           {t('historyView.contentSearch.progress', {
+            count: results.length,
             status: t(`historyView.contentSearch.status.${status}`),
             scanned: progress.scanned,
             total: progress.total,
-            n: results.length,
           })}
         </p>
       )}

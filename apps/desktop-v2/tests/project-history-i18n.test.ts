@@ -314,7 +314,7 @@ describe('project session history in the display language', () => {
     );
     page = await mount(search(), typeQuery('login'), submit);
     for (const text of [
-      'Search complete. 3 of 3 records checked · 1 matching conversations.',
+      'Search complete. 3 of 3 records checked · 1 matching conversation.',
       '1 matching message · zai / glm',
       'USER · Message 2',
       'Read matching message →',

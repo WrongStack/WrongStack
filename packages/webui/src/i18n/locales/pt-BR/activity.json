@@ -5125,6 +5125,25 @@
     "heading": "Configurações de roteamento na nuvem"
   },
   "kanbanText": {
+    "supervisorIdle": "Nada a supervisionar",
+    "supervisorPart": {
+      "running_one": "{{count}} em execução",
+      "running": "{{count}} em execução",
+      "ready_one": "{{count}} pronta",
+      "ready": "{{count}} prontas",
+      "review_one": "{{count}} em revisão",
+      "review": "{{count}} em revisão",
+      "blocked_one": "{{count}} bloqueada",
+      "blocked": "{{count}} bloqueadas",
+      "failed_one": "{{count}} com falha",
+      "failed": "{{count}} com falha",
+      "stale_one": "{{count}} obsoleta",
+      "stale": "{{count}} obsoletas",
+      "dependencyBlocked_one": "{{count}} bloqueada por dependências",
+      "dependencyBlocked": "{{count}} bloqueadas por dependências",
+      "parked_one": "{{count}} estacionada",
+      "parked": "{{count}} estacionadas"
+    },
     "columnCount_one": "{{count}} coluna",
     "columnCount": "{{count}} colunas",
     "boardsSummary_one": "{{total}} quadro · {{active}} ativos · {{orphaned}} órfãos",

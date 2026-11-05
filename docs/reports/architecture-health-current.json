@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T19:15:24.671Z",
+  "generatedAt": "2026-11-05T20:21:57.226Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6045,
     "testFiles": 5036,
-    "sourceLines": 1252386,
+    "sourceLines": 1252392,
     "workspaceEdges": 243,
     "moduleEdges": 17799,
     "nonCommandSlashImports": 0,
@@ -34592,7 +34592,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 950,
+      "lines": 954,
       "relativeImports": 13
     },
     {
@@ -34659,7 +34659,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 950,
+      "lines": 954,
       "relativeImports": 13
     },
     {

@@ -5125,6 +5125,25 @@
     "heading": "Bulut yönlendirme ayarları"
   },
   "kanbanText": {
+    "supervisorIdle": "Denetlenecek iş yok",
+    "supervisorPart": {
+      "running_one": "{{count}} çalışıyor",
+      "running": "{{count}} çalışıyor",
+      "ready_one": "{{count}} hazır",
+      "ready": "{{count}} hazır",
+      "review_one": "{{count}} incelemede",
+      "review": "{{count}} incelemede",
+      "blocked_one": "{{count}} engellendi",
+      "blocked": "{{count}} engellendi",
+      "failed_one": "{{count}} başarısız",
+      "failed": "{{count}} başarısız",
+      "stale_one": "{{count}} bayat",
+      "stale": "{{count}} bayat",
+      "dependencyBlocked_one": "{{count}} bağımlılıkta engelli",
+      "dependencyBlocked": "{{count}} bağımlılıkta engelli",
+      "parked_one": "{{count}} park edildi",
+      "parked": "{{count}} park edildi"
+    },
     "columnCount_one": "{{count}} sütun",
     "columnCount": "{{count}} sütun",
     "boardsSummary_one": "{{total}} pano · {{active}} etkin · {{orphaned}} sahipsiz",

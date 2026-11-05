@@ -5125,6 +5125,25 @@
     "heading": "Impostazioni di routing cloud"
   },
   "kanbanText": {
+    "supervisorIdle": "Niente da supervisionare",
+    "supervisorPart": {
+      "running_one": "{{count}} in esecuzione",
+      "running": "{{count}} in esecuzione",
+      "ready_one": "{{count}} pronto",
+      "ready": "{{count}} pronti",
+      "review_one": "{{count}} in revisione",
+      "review": "{{count}} in revisione",
+      "blocked_one": "{{count}} bloccato",
+      "blocked": "{{count}} bloccati",
+      "failed_one": "{{count}} fallito",
+      "failed": "{{count}} falliti",
+      "stale_one": "{{count}} obsoleto",
+      "stale": "{{count}} obsoleti",
+      "dependencyBlocked_one": "{{count}} bloccato da dipendenze",
+      "dependencyBlocked": "{{count}} bloccati da dipendenze",
+      "parked_one": "{{count}} in pausa",
+      "parked": "{{count}} in pausa"
+    },
     "columnCount_one": "{{count}} colonna",
     "columnCount": "{{count}} colonne",
     "boardsSummary_one": "{{total}} board · {{active}} attive · {{orphaned}} orfane",

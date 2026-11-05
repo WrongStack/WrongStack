@@ -68,16 +68,14 @@ export function localizeSupervisorSummary(summary: string, t: TFunction): string
   if (!match) return summary;
   const [, running, ready, review, blocked, failed, stale, dependencyBlocked, parked, suffix] =
     match;
-  let line = t('activity:kanbanText.supervisorHealth', {
-    running,
-    ready,
-    review,
-    blocked,
-    failed,
-    stale,
-    dependencyBlocked,
-    parked,
-  });
+  // Only counters that are not zero: eight mostly-zero counters overflowed the bar.
+  const counts = { running, ready, review, blocked, failed, stale, dependencyBlocked, parked };
+  const parts = Object.entries(counts).flatMap(([name, value]) =>
+    Number(value) > 0
+      ? [t(`activity:kanbanText.supervisorPart.${name}`, { count: Number(value) })]
+      : [],
+  );
+  let line = parts.length ? parts.join(' · ') : t('activity:kanbanText.supervisorIdle');
   if (suffix) {
     line += ` · ${t(
       suffix.includes('unavailable')
@@ -173,8 +171,8 @@ export function BoardPresence({ presence = [] }: { presence?: KanbanBoardPresenc
             )}
           />
           <CircleUserRound size={13} aria-hidden="true" />
+          {/* The session ID is in the chip's title; shown, it was a truncated opaque string. */}
           <span className="max-w-32 truncate font-medium">{entry.agentName ?? entry.agentId}</span>
-          <span className="max-w-32 truncate text-muted-foreground">{entry.sessionId}</span>
           <Clock3 size={12} className="text-muted-foreground" aria-hidden="true" />
           <time dateTime={entry.lastSeenAt} className="tabular-nums text-muted-foreground">
             {relativeLastSeen(entry.lastSeenAt, t)}

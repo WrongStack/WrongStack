@@ -429,7 +429,7 @@ export function ProjectSessionHistory({
       <div className="history-catalog-status">
         <span>
           {t('historyView.catalogStatus', {
-            matching: visible.length,
+            count: visible.length,
             from: rows.length ? page.offset + 1 : 0,
             to: page.offset + rows.length,
             total: page.total,

@@ -187,8 +187,8 @@ export function SessionTranscript({
       {page && (
         <p className="field-help">
           {t('historyView.transcript.counts', {
-            matching: String(page['matching']),
-            total: String(page['total']),
+            matching: t('counts.matchingMessages', { count: Number(page['matching']) }),
+            total: t('counts.retainedMessages', { count: Number(page['total']) }),
           })}
         </p>
       )}

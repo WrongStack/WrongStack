@@ -158,7 +158,12 @@ export async function exerciseNativeTaskExecution({
   await kanban.getByRole('button', { name: 'Audit now', exact: true }).click();
   await waitFor(async () => {
     const line = (await supervisor.textContent()) ?? '';
-    return /\d+ running · \d+ ready · /.test(line) && /checked \ds ago/.test(line);
+    // The bar lists only counters that are not zero, or says there is nothing to supervise.
+    return (
+      /\d+ (running|ready|review|blocked|failed|stale|dependency-blocked|parked)\b|Nothing to supervise/.test(
+        line,
+      ) && /checked \ds ago/.test(line)
+    );
   }, 'Kanban Agent audit result line');
   await supervisor.click();
 

@@ -198,7 +198,7 @@ export function ContextEditorDialog({
           <>
             <p className="field-help">
               {t('contextEdit.summary', {
-                messages: snapshot.rows.length,
+                count: snapshot.rows.length,
                 tokens: snapshot.totalTokens.toLocaleString(),
                 removed: removed.size,
               })}
@@ -346,9 +346,13 @@ export function ContextEditorDialog({
                 {repair['changed'] === true && (
                   <p>
                     {t('contextEdit.repair', {
-                      toolUses: count(repair['removedToolUses']),
-                      toolResults: count(repair['removedToolResults']),
-                      messages: Number(repair['removedMessages'] ?? 0),
+                      toolUses: t('counts.toolCalls', { count: count(repair['removedToolUses']) }),
+                      toolResults: t('counts.toolResults', {
+                        count: count(repair['removedToolResults']),
+                      }),
+                      messages: t('counts.emptiedMessages', {
+                        count: Number(repair['removedMessages'] ?? 0),
+                      }),
                     })}
                   </p>
                 )}

@@ -98,8 +98,8 @@ export function AtlasBoundaryMap({
       )}
       <p className="boundary-legend">
         {t('atlasBoundary.legend', {
-          nodes: projection.graph.nodes.length,
-          edges: projection.graph.edges.length,
+          nodes: t('counts.projectedNodes', { count: projection.graph.nodes.length }),
+          edges: t('counts.relationGroups', { count: projection.graph.edges.length }),
         })}
       </p>
       {active && (

@@ -5125,6 +5125,25 @@
     "heading": "Cloud routing settings"
   },
   "kanbanText": {
+    "supervisorIdle": "Nothing to supervise",
+    "supervisorPart": {
+      "running_one": "{{count}} running",
+      "running": "{{count}} running",
+      "ready_one": "{{count}} ready",
+      "ready": "{{count}} ready",
+      "review_one": "{{count}} review",
+      "review": "{{count}} review",
+      "blocked_one": "{{count}} blocked",
+      "blocked": "{{count}} blocked",
+      "failed_one": "{{count}} failed",
+      "failed": "{{count}} failed",
+      "stale_one": "{{count}} stale",
+      "stale": "{{count}} stale",
+      "dependencyBlocked_one": "{{count}} dependency-blocked",
+      "dependencyBlocked": "{{count}} dependency-blocked",
+      "parked_one": "{{count}} parked",
+      "parked": "{{count}} parked"
+    },
     "columnCount_one": "{{count}} column",
     "columnCount": "{{count}} columns",
     "boardsSummary_one": "{{total}} board · {{active}} active · {{orphaned}} orphaned",
