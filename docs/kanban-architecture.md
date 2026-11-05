@@ -135,7 +135,7 @@ Primary implementation files:
 | Embedded WebUI WS | `packages/cli/src/webui-server/kanban-host-adapter.ts` | CLI-hosted WebUI messages |
 | Standalone WebUI WS | `packages/webui-server/src/server/kanban-routes.ts` | Standalone WebUI messages |
 | Frontend store | `packages/webui/src/stores/kanban-store.ts` | Client state/actions for boards and tasks |
-| Frontend board audit | `packages/webui/src/lib/kanban-cleaner.ts` | The WebUI half of the board audit; must produce the same codes as the TUI copy |
+| Frontend board audit | `packages/project-surfaces/src/kanban/kanban-cleaner.ts` | The WebUI half of the board audit; must produce the same codes as the TUI copy |
 | HQ store | `packages/hq/src/kanban-store.ts` | Cross-project snapshot merge by revision then timestamp; a stale writer never wins |
 
 ---
@@ -662,7 +662,7 @@ same operations for UI usage. The board view has five modes — `focus`, `board`
 inspector, contract graph, verification report, decomposition proposals, the
 boundary editor and the queue health bar.
 
-`packages/webui/src/lib/kanban-cleaner.ts` is the WebUI half of the TUI board
+`packages/project-surfaces/src/kanban/kanban-cleaner.ts` is the WebUI half of the TUI board
 audit and must produce identical verdicts; see [§15](#15-testing-and-verification).
 
 Contract-map routes live in

@@ -1,8 +1,8 @@
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { createManagedLifecyclePolicy, validateManagedTaskTransition } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
+import { auditKanbanBoard as auditWebui } from '../../project-surfaces/src/kanban/kanban-cleaner.js';
 import { auditKanbanBoard as auditTui } from '../../tui/src/kanban-audit.js';
-import { auditKanbanBoard as auditWebui } from '../../webui/src/lib/kanban-cleaner.js';
 
 const at = '2026-10-03T12:00:00Z';
 function fixture(atomic: boolean): { board: KanbanBoard; task: KanbanTask } {

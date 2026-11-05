@@ -1,7 +1,7 @@
 /**
  * `kanban-audit.ts` — Pure, dependency-free Kanban Cleaner audit for the TUI.
  *
- * Mirrors the WebUI's `packages/webui/src/lib/kanban-cleaner.ts` but
+ * Mirrors the WebUI's `packages/project-surfaces/src/kanban/kanban-cleaner.ts` but
  * lives in the TUI package so we don't have to thread `@wrongstack/webui`
  * (which depends on React) into a server-side TUI pipeline.
  *

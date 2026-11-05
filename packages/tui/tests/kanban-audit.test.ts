@@ -1,5 +1,5 @@
 // Tests for the TUI-side Kanban Cleaner audit. The audit vocabulary must
-// stay in lock-step with the WebUI's `packages/webui/src/lib/kanban-cleaner.ts`
+// stay in lock-step with the WebUI's `packages/project-surfaces/src/kanban/kanban-cleaner.ts`
 // so a board audited from either surface produces the same findings.
 
 import type { KanbanAgentAssignment, KanbanBoard, KanbanTask } from '@wrongstack/kanban';

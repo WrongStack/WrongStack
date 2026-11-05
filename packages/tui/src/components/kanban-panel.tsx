@@ -107,7 +107,7 @@ export function KanbanPanel({
 
   // Kanban Cleaner audit — computed once per board change so the header
   // badge and top-issue list stay in sync with the loaded data. The audit
-  // is pure, deterministic, and mirrors `packages/webui/src/lib/kanban-cleaner.ts`.
+  // is pure, deterministic, and mirrors `packages/project-surfaces/src/kanban/kanban-cleaner.ts`.
   const audit: KanbanAuditSummary | null = useMemo(() => {
     if (!board) return null;
     // `now` is captured at memoization time; tests pin deterministic clocks.

@@ -1,6 +1,8 @@
 /**
  * The Kanban Cleaner has two implementations: `packages/tui/src/kanban-audit.ts`
- * and `packages/webui/src/lib/kanban-cleaner.ts`. Both file headers claimed they
+ * and `packages/project-surfaces/src/kanban/kanban-cleaner.ts` (the WebUI and the
+ * desktop render it; `packages/webui/src/lib/kanban-cleaner.ts` only re-exports
+ * it). Both file headers claimed they
  * stayed "in lock-step"; when the claim was actually checked, they disagreed on
  * more than a dozen boards — whether a managed card needs a label, whether a
  * half-written lease counts as abandoned, whether `['  ']` is a label at all.
@@ -30,13 +32,13 @@ import type { KanbanAgentAssignment, KanbanBoard, KanbanTask } from '@wrongstack
 import { KANBAN_BOARD_SOFT_MAX_BYTES } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import {
+  auditKanbanBoard as auditWebui,
+  ALL_AUDIT_CODES as WEBUI_CODES,
+} from '../../project-surfaces/src/kanban/kanban-cleaner.js';
+import {
   auditKanbanBoard as auditTui,
   ALL_AUDIT_CODES as TUI_CODES,
 } from '../../tui/src/kanban-audit.js';
-import {
-  auditKanbanBoard as auditWebui,
-  ALL_AUDIT_CODES as WEBUI_CODES,
-} from '../../webui/src/lib/kanban-cleaner.js';
 
 const NOW = new Date('2026-07-18T12:00:00.000Z');
 const NOW_ISO = NOW.toISOString();
@@ -455,7 +457,7 @@ describe('Kanban Cleaner parity', () => {
     // inline `512 * 1024`, and this is what keeps the copies honest.
     const sources = [
       'packages/tui/src/kanban-audit.ts',
-      'packages/webui/src/lib/kanban-cleaner.ts',
+      'packages/project-surfaces/src/kanban/kanban-cleaner.ts',
     ];
     expect(KANBAN_BOARD_SOFT_MAX_BYTES).toBe(512 * 1024);
     for (const relativePath of sources) {
@@ -467,7 +469,7 @@ describe('Kanban Cleaner parity', () => {
   it('names this test from both implementations', () => {
     for (const relativePath of [
       'packages/tui/src/kanban-audit.ts',
-      'packages/webui/src/lib/kanban-cleaner.ts',
+      'packages/project-surfaces/src/kanban/kanban-cleaner.ts',
     ]) {
       expect(readRepoFile(relativePath), relativePath).toContain('kanban-cleaner-parity.test.ts');
     }

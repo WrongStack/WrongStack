@@ -6,7 +6,19 @@
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    // @wrongstack/project-surfaces ships sources, not declarations. Mapped straight to
+    // ../project-surfaces/src (as tsconfig.json does for typechecking), tsc counts those files
+    // as this project's own: every one is outside rootDir (TS6059) and its .d.ts lands back in
+    // project-surfaces/src. Through the workspace link the path holds node_modules, so tsc
+    // treats them as a library — read and checked, never emitted — like core's sources.
+    "paths": {
+      "@/*": ["./src/*"],
+      "@wrongstack/project-surfaces/host": [
+        "./node_modules/@wrongstack/project-surfaces/src/host.tsx"
+      ],
+      "@wrongstack/project-surfaces/*": ["./node_modules/@wrongstack/project-surfaces/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
