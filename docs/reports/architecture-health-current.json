@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T10:23:36.570Z",
+  "generatedAt": "2026-11-05T10:36:17.604Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6032,
-    "testFiles": 5028,
-    "sourceLines": 1250978,
+    "sourceFiles": 6033,
+    "testFiles": 5029,
+    "sourceLines": 1251169,
     "workspaceEdges": 241,
-    "moduleEdges": 17760,
+    "moduleEdges": 17765,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1108,8 +1108,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 781,
-      "testFiles": 516,
+      "sourceFiles": 782,
+      "testFiles": 517,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1135,7 +1135,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 516
+          "testFiles": 517
         }
       ]
     },
@@ -29712,6 +29712,12 @@
       },
       {
         "file": "packages/webui/tests/components/slash-commands.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/slash-routing-engine.test.ts",
         "projects": [
           "webui-jsdom"
         ]

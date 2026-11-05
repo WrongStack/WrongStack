@@ -1,4 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
+import { engineSlashCommands } from './slash-routing-engine.js';
 
 // Slash command registry and matching utilities for ChatInput
 
@@ -294,11 +295,13 @@ export const SLASH_CATEGORY_ORDER: SlashCategory[] = [
 
 export function matchSlash(query: string): SlashCommandDef[] {
   const q = query.toLowerCase();
+  // The engine's own commands (the TUI's that need no terminal) follow the WebUI's.
+  const all: SlashCommandDef[] = [...SLASH_COMMANDS, ...engineSlashCommands(SLASH_COMMANDS)];
   if (q === '/' || q === '') {
     // When no query is given, hide commands marked as hidden.
-    return SLASH_COMMANDS.filter((c) => !c.hidden);
+    return all.filter((c) => !c.hidden);
   }
-  return SLASH_COMMANDS.filter(
+  return all.filter(
     (c) => c.name.startsWith(q) || (c.aliases?.some((a) => a.startsWith(q)) ?? false),
   );
 }

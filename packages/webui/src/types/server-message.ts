@@ -153,6 +153,8 @@ import type {
   WSAuthOAuthProviders,
   WSAuthOAuthStatus,
   WSCatalogModelSearchResult,
+  WSCommandCatalog,
+  WSCommandResult,
   WSCompletionResult,
   WSDiagGet,
   WSFallbackSuggestions,
@@ -309,6 +311,8 @@ export type WSServerMessage =
   | WSSkillsExported
   | WSDiagGet
   | WSStatsGet
+  | WSCommandCatalog
+  | WSCommandResult
   | { type: 'connections.health_result'; payload: ConnectionsHealthReport }
   | { type: 'connections.health_error'; payload: { message: string } }
   | { type: 'connections.service_action_result'; payload: ServiceActionResult }

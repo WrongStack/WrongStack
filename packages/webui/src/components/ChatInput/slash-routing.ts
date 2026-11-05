@@ -6,6 +6,7 @@ import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { downloadChatAsMarkdown } from '../CommandPalette/export-utils.js';
 import { SLASH_COMMANDS } from './slash-commands.js';
 
+import { engineSlashCommands, runEngineSlashCommand } from './slash-routing-engine.js';
 import { runFKeyPanelCommand } from './slash-routing-fkeys.js';
 import { runGoalSlashCommand } from './slash-routing-goal.js';
 import { runHuntSlashCommand } from './slash-routing-hunt.js';
@@ -93,6 +94,11 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
             `• \`${c.name}\`${c.aliases?.length ? ` (${c.aliases.map((a) => `\`${a}\``).join(', ')})` : ''} — ${c.description}`,
         ),
       ];
+      const engine = engineSlashCommands(SLASH_COMMANDS);
+      if (engine.length) {
+        lines.push('', '🧰 **Engine commands**', '');
+        for (const c of engine) lines.push(`• \`${c.name}\` — ${c.description}`);
+      }
       addMessage({ role: 'assistant', content: lines.join('\n') });
       return true;
     }
@@ -480,6 +486,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/f12':
       return runFKeyPanelCommand(cmd, args, client, ws, addMessage);
     default:
-      return false;
+      // The engine's own commands (the TUI's that need no terminal) before the model.
+      return runEngineSlashCommand(cmd, args, client, addMessage);
   }
 }

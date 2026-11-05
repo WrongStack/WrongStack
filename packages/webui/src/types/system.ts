@@ -24,6 +24,35 @@ export interface WSDiagGet {
   };
 }
 
+/** The slash commands the engine runs itself (`command.list`). */
+export interface WSCommandCatalog {
+  type: 'command.catalog';
+  payload: {
+    requestId?: string | undefined;
+    commands: Array<{
+      name: string;
+      aliases: string[];
+      description: string;
+      category: string;
+      argsHint?: string | undefined;
+      help?: string | undefined;
+      destructive: boolean;
+    }>;
+  };
+}
+
+/** What an engine command printed (`command.run`), or why it failed. */
+export interface WSCommandResult {
+  type: 'command.result';
+  payload: {
+    requestId?: string | undefined;
+    name: string;
+    message?: string | undefined;
+    error?: string | undefined;
+    runText?: string | undefined;
+  };
+}
+
 export interface WSStatsGet {
   type: 'stats.get';
   payload: SessionScopedPayload & {

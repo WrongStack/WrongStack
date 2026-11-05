@@ -8793,3 +8793,13 @@ commands.
   triggers (the agent loop's events drive them).
 - Verification: webui-server and runtime suites (407 of 408 files; the Windows handle-timing
   test in file-batch-mutations passes alone), runtime plugin-command tests, architecture gate.
+
+### Command bridge in the WebUI (2026-11-05)
+
+- The WebUI chat asks the engine for its command catalog when it mounts. A slash command the
+  WebUI does not route itself runs on the engine when the catalog lists it, before the draft
+  would go to the model; its output is written into the chat as a text block. Commands that
+  change or delete data ask through the WebUI's confirm dialog; the slash picker and `/help` list
+  the engine's commands after the WebUI's own.
+- Verification: WebUI suite 512 of 515 files (the two locale-dependent context timeline tests as
+  before), the bridge tests, WebUI typecheck (1,022 files), architecture gate.

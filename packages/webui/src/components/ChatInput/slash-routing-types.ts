@@ -21,6 +21,8 @@ export type SlashRoutingView = 'chat' | 'sessions' | 'settings';
 export type SlashRoutingClientMessage = Extract<
   WSClientMessage,
   | { type: 'webui.shutdown' }
+  | { type: 'command.list' }
+  | { type: 'command.run' }
   | { type: 'brain.risk' }
   | { type: 'brain.ask' }
   | { type: 'brain.status' }

@@ -210,6 +210,15 @@ export type ClientMessageServices =
     }
   | { type: 'diag.get'; payload?: SessionScopedPayload }
   | { type: 'stats.get'; payload?: SessionScopedPayload }
+  | { type: 'command.list'; payload?: { requestId?: string | undefined } }
+  | {
+      type: 'command.run';
+      payload: {
+        name: string;
+        args?: string | undefined;
+        requestId?: string | undefined;
+      } & SessionScopedPayload;
+    }
   | { type: 'session.save'; payload?: SessionScopedPayload }
   | { type: 'sessions.list'; payload: { limit: number } & SessionScopedPayload }
   | { type: 'session.delete'; payload: { id: string } & SessionScopedPayload }

@@ -36,6 +36,7 @@ import { useSkillMentionPicker } from './ChatInput/skill-mention-picker.js';
 import { detectAtMention } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
+import { requestEngineCommands } from './ChatInput/slash-routing-engine.js';
 import { useChatInputMcp } from './ChatInput/use-chat-input-mcp.js';
 import { useChatKeyDown } from './ChatInput/use-chat-keydown.js';
 import { useChatSubmit } from './ChatInput/use-chat-submit.js';
@@ -160,6 +161,8 @@ export function ChatInput({
   useEffect(() => {
     useUIStore.getState().setDraftInput(input);
   }, [input]);
+  // The engine's own commands complete a slash draft before it would go to the model.
+  useEffect(() => requestEngineCommands(client), [client]);
 
   useEffect(
     () => () => {
