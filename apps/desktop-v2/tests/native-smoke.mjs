@@ -33,6 +33,7 @@ import { exerciseNativeEvidence } from './native-evidence.mjs';
 import { exerciseNativeExecutionPolicy } from './native-execution-policy.mjs';
 import { exerciseNativeFiles } from './native-files.mjs';
 import { exerciseNativeFleetPolicy } from './native-fleet-policy.mjs';
+import { exerciseNativeGapClose } from './native-gap-close.mjs';
 import { exerciseNativeGitGraph } from './native-git-graph.mjs';
 import { exerciseNativeGoals } from './native-goals.mjs';
 import { exerciseNativeTaskExecution } from './native-kanban-execution.mjs';
@@ -106,6 +107,7 @@ const surfacesOnly = process.argv.includes('--surfaces');
 const multiOnly = process.argv.includes('--multi');
 const perfOnly = process.argv.includes('--perf');
 const a11yOnly = process.argv.includes('--a11y');
+const gapsOnly = process.argv.includes('--gaps');
 const artifactDir = resolve(
   root,
   '.temp_files/desktop-v2-native',
@@ -185,7 +187,9 @@ const artifactDir = resolve(
                                                                           : 'composer'
                                                                         : companion
                                                                           ? 'companion'
-                                                                          : '.',
+                                                                          : gapsOnly
+                                                                            ? 'gap-close'
+                                                                            : '.',
 );
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
@@ -673,6 +677,7 @@ try {
     fleetOnly ||
     usageOnly ||
     surfacesOnly ||
+    gapsOnly ||
     multiOnly ||
     perfOnly
   )
@@ -1388,6 +1393,25 @@ try {
     result = {
       result: 'PASS',
       scope: 'accessibility',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (gapsOnly) {
+    await exerciseNativeGapClose({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      providerFixture,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'gap-close',
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,

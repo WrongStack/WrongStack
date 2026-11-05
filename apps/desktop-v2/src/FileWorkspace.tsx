@@ -1405,7 +1405,16 @@ export function FileWorkspace({
                         edit={
                           change?.['status'] === 'D'
                             ? undefined
-                            : { command, onApplied: () => void refresh().then(refreshDiff) }
+                            : {
+                                command,
+                                // Reloading may outlive the workspace (detached); say why, never throw.
+                                onApplied: () =>
+                                  void refresh()
+                                    .then(refreshDiff)
+                                    .catch((e: unknown) =>
+                                      setError(String(e instanceof Error ? e.message : e)),
+                                    ),
+                              }
                         }
                       />
                     </>

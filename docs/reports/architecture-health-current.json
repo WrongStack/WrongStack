@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T11:38:28.029Z",
+  "generatedAt": "2026-11-05T12:00:31.344Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6042,
     "testFiles": 5032,
-    "sourceLines": 1251566,
+    "sourceLines": 1251594,
     "workspaceEdges": 243,
     "moduleEdges": 17784,
     "nonCommandSlashImports": 0,
@@ -34460,7 +34460,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2035,
+      "lines": 2044,
       "relativeImports": 31
     },
     {
@@ -34532,7 +34532,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2035,
+      "lines": 2044,
       "relativeImports": 31
     },
     {

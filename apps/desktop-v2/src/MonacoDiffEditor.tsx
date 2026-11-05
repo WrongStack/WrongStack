@@ -1,7 +1,7 @@
 import { DiffEditor } from '@monaco-editor/react';
 import { getLanguage } from '@wrongstack/project-surfaces/lib/completion';
 import type * as monaco from 'monaco-editor';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCodeFont } from './appearance-fonts';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
@@ -31,6 +31,22 @@ export default function MonacoDiffEditor({
   const theme = useEditorTheme();
   const codeFont = useCodeFont();
   const editor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const models = useRef<monaco.editor.IDiffEditorModel | null>(null);
+  // The wrapper disposes its models before the editor when it unmounts, which Monaco reports as
+  // "TextModel got disposed before DiffEditorWidget model got reset". This component owns the
+  // models instead: the editor lets go of them first, then they are disposed.
+  useEffect(
+    () => () => {
+      try {
+        editor.current?.setModel(null);
+      } catch {
+        // The wrapper disposed the editor first; the models are no longer attached.
+      }
+      models.current?.original.dispose();
+      models.current?.modified.dispose();
+    },
+    [],
+  );
   const [dirty, setDirty] = useState(false);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'conflict' | 'failed'>('idle');
   const [error, setError] = useState('');
@@ -75,8 +91,11 @@ export default function MonacoDiffEditor({
         modified={after}
         language={getLanguage(path)}
         theme={theme}
+        keepCurrentOriginalModel
+        keepCurrentModifiedModel
         onMount={(mounted) => {
           editor.current = mounted;
+          models.current = mounted.getModel();
           mounted.getModifiedEditor().onDidChangeModelContent(() => {
             setDirty(true);
             setState((current) => (current === 'saving' ? current : 'idle'));

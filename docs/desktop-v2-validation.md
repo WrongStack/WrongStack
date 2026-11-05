@@ -8855,3 +8855,17 @@ commands.
   (285 files; the three i18n catalog tests time out under the full run and pass alone), WebUI
   component tests (the locale-dependent context timeline test as before), typechecks for CLI,
   runtime, webui-server, desktop and WebUI, architecture gate.
+
+### Native acceptance of the gap-closing round (2026-11-05)
+
+- New native scope `--gaps` (`tests/native-gap-close.mjs`) drives the round through the real
+  controls on the release build with its bundled engine: `/sandbox`, `/delegate list` and
+  `/tuneup` run on the engine from the composer, `/prune` asks first, nothing reaches the model;
+  `/analytics` opens the shared dashboard; the side-by-side diff editor applies an edit to the
+  file; the interface font, the window text size (125 % zoom and back) and the status bar chips
+  apply and persist.
+- It found two desktop bugs, both fixed: leaving the side-by-side diff editor made Monaco throw
+  "TextModel got disposed before DiffEditorWidget model got reset" (the wrapper disposed its
+  models before the editor; the component now owns them), and the reload after applying an
+  edit rejected unhandled when the workspace detached (it now reports the error).
+- Result: `--gaps --release --bundled` PASS, no renderer errors.
