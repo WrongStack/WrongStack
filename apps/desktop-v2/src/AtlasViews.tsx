@@ -166,53 +166,56 @@ export function AtlasMatrixView({ graph, selected, onSelect }: Props) {
           <p>{t('atlasViews.matrixIntro')}</p>
         </div>
       </header>
-      <div className="atlas-matrix-pages">
-        <span>
-          {t('atlasViews.sources', {
-            from: nodes.length ? safeRow * size + 1 : 0,
-            to: Math.min((safeRow + 1) * size, nodes.length),
-          })}
-        </span>
-        <button
-          type="button"
-          aria-label={t('atlasViews.prevSources')}
-          disabled={safeRow === 0}
-          onClick={() => setRowPage(safeRow - 1)}
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <button
-          type="button"
-          aria-label={t('atlasViews.nextSources')}
-          disabled={safeRow >= pages - 1}
-          onClick={() => setRowPage(safeRow + 1)}
-        >
-          <ChevronRight size={14} />
-        </button>
-        <span>
-          {t('atlasViews.targets', {
-            from: nodes.length ? safeCol * size + 1 : 0,
-            to: Math.min((safeCol + 1) * size, nodes.length),
-            total: nodes.length,
-          })}
-        </span>
-        <button
-          type="button"
-          aria-label={t('atlasViews.prevTargets')}
-          disabled={safeCol === 0}
-          onClick={() => setColPage(safeCol - 1)}
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <button
-          type="button"
-          aria-label={t('atlasViews.nextTargets')}
-          disabled={safeCol >= pages - 1}
-          onClick={() => setColPage(safeCol + 1)}
-        >
-          <ChevronRight size={14} />
-        </button>
-      </div>
+      {pages > 1 && (
+        <div className="atlas-matrix-pages">
+          <span>
+            {t('atlasViews.sources', {
+              from: nodes.length ? safeRow * size + 1 : 0,
+              to: Math.min((safeRow + 1) * size, nodes.length),
+              total: nodes.length,
+            })}
+          </span>
+          <button
+            type="button"
+            aria-label={t('atlasViews.prevSources')}
+            disabled={safeRow === 0}
+            onClick={() => setRowPage(safeRow - 1)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            type="button"
+            aria-label={t('atlasViews.nextSources')}
+            disabled={safeRow >= pages - 1}
+            onClick={() => setRowPage(safeRow + 1)}
+          >
+            <ChevronRight size={14} />
+          </button>
+          <span>
+            {t('atlasViews.targets', {
+              from: nodes.length ? safeCol * size + 1 : 0,
+              to: Math.min((safeCol + 1) * size, nodes.length),
+              total: nodes.length,
+            })}
+          </span>
+          <button
+            type="button"
+            aria-label={t('atlasViews.prevTargets')}
+            disabled={safeCol === 0}
+            onClick={() => setColPage(safeCol - 1)}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            type="button"
+            aria-label={t('atlasViews.nextTargets')}
+            disabled={safeCol >= pages - 1}
+            onClick={() => setColPage(safeCol + 1)}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
       <div className="atlas-matrix-scroll">
         <table>
           <caption>{t('atlasViews.caption')}</caption>

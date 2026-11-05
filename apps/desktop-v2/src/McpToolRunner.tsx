@@ -69,6 +69,21 @@ export function McpToolRunner({
   const shown = tools.filter((row) =>
     `${row['name']} ${row['description'] ?? ''}`.toLowerCase().includes(query.toLowerCase()),
   );
+  const editor = (
+    <label>
+      {t('mcpTools.input')}
+      <textarea
+        aria-label={t('mcpTools.inputLabel')}
+        rows={8}
+        spellCheck={false}
+        value={input}
+        onChange={(event) => {
+          setInput(event.target.value);
+          setInputError('');
+        }}
+      />
+    </label>
+  );
   return (
     <Modal title={t('mcpTools.modalTitle', { name })} onClose={onClose}>
       <div className="mcp-content-browser">
@@ -94,7 +109,7 @@ export function McpToolRunner({
         )}
         <div className="mcp-content-workbench">
           <aside>
-            <label className="mcp-content-search">
+            <label className="mcp-content-search search-field">
               <Search size={14} />
               <input
                 aria-label={t('mcpTools.search')}
@@ -136,19 +151,14 @@ export function McpToolRunner({
                   <p>{String(tool['description'] ?? '')}</p>
                 </header>
                 <ToolFields schema={record(tool['inputSchema'])} />
-                <label>
-                  {t('mcpTools.input')}
-                  <textarea
-                    aria-label={t('mcpTools.inputLabel')}
-                    rows={8}
-                    spellCheck={false}
-                    value={input}
-                    onChange={(event) => {
-                      setInput(event.target.value);
-                      setInputError('');
-                    }}
-                  />
-                </label>
+                {schemaFields(record(tool['inputSchema'])).length ? (
+                  editor
+                ) : (
+                  <details className="mcp-tool-raw-input">
+                    <summary>{t('mcpTools.rawInput')}</summary>
+                    {editor}
+                  </details>
+                )}
                 {inputError && (
                   <p className="session-error" role="alert">
                     {inputError}

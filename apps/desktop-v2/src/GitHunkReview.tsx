@@ -178,42 +178,46 @@ export function GitHunkReview({
               <pre>
                 {String(hunk['text'])
                   .split('\n')
-                  .map((line, index) => (
-                    <span
-                      key={index}
-                      className={
-                        line.startsWith('+')
-                          ? 'git-hunk-add'
-                          : line.startsWith('-')
-                            ? 'git-hunk-remove'
-                            : ''
-                      }
-                    >
-                      {index > 0 && (line.startsWith('+') || line.startsWith('-')) && (
-                        <input
-                          type="checkbox"
-                          aria-label={t('hunks.selectLine', {
-                            line: index,
-                            n: Number(hunk['id']) + 1,
-                          })}
-                          disabled={busy}
-                          checked={picked[Number(hunk['id'])]?.includes(index - 1) ?? false}
-                          onChange={(event) => {
-                            const id = Number(hunk['id']);
-                            setPicked((current) => {
-                              const lines = (current[id] ?? []).filter((at) => at !== index - 1);
-                              return {
-                                ...current,
-                                [id]: event.target.checked ? [...lines, index - 1] : lines,
-                              };
-                            });
-                          }}
-                        />
-                      )}
-                      {line}
-                      {'\n'}
-                    </span>
-                  ))}
+                  .map((line, index, all) =>
+                    // Line 0 is the `@@` range, already the hunk's header; the text ends in a newline.
+                    (index === 0 && line.startsWith('@@')) ||
+                    (index === all.length - 1 && !line) ? null : (
+                      <span
+                        key={index}
+                        className={
+                          line.startsWith('+')
+                            ? 'git-hunk-add'
+                            : line.startsWith('-')
+                              ? 'git-hunk-remove'
+                              : ''
+                        }
+                      >
+                        {index > 0 && (line.startsWith('+') || line.startsWith('-')) && (
+                          <input
+                            type="checkbox"
+                            aria-label={t('hunks.selectLine', {
+                              line: index,
+                              n: Number(hunk['id']) + 1,
+                            })}
+                            disabled={busy}
+                            checked={picked[Number(hunk['id'])]?.includes(index - 1) ?? false}
+                            onChange={(event) => {
+                              const id = Number(hunk['id']);
+                              setPicked((current) => {
+                                const lines = (current[id] ?? []).filter((at) => at !== index - 1);
+                                return {
+                                  ...current,
+                                  [id]: event.target.checked ? [...lines, index - 1] : lines,
+                                };
+                              });
+                            }}
+                          />
+                        )}
+                        {line}
+                        {'\n'}
+                      </span>
+                    ),
+                  )}
               </pre>
             </article>
           ))

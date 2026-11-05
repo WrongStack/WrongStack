@@ -13,6 +13,7 @@ import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import type { MemoryContext, MemoryInjectorRun } from './memory-injections';
 import { SessionMemoryInjections } from './SessionMemoryInjections';
+import './composer-dialog.css';
 
 export function SessionContextPanel({
   command,

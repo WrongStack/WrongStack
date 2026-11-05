@@ -175,3 +175,11 @@
   font-family: var(--user-font-code, Consolas, monospace);
   font-size: 12px;
 }
+
+/* A tool without input fields keeps its JSON editor folded away. */
+.mcp-tool-raw-input > summary {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}

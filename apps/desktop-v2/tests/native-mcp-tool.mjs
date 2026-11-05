@@ -59,6 +59,8 @@ export async function exerciseNativeMcpTool({
       .click();
     const runner = page.getByRole('dialog', { name: `MCP tools from ${name}`, exact: true });
     await runner.getByRole('button').filter({ hasText: 'native_note' }).click();
+    // The fixture tool declares no input fields, so its JSON editor starts folded away.
+    await runner.getByText('Edit the JSON input', { exact: true }).click();
     assert.equal(await runner.getByLabel('Tool input', { exact: true }).inputValue(), '{}');
     await runner.getByLabel('Tool input', { exact: true }).fill('[1]');
     await runner.getByRole('button', { name: 'Run in this conversation', exact: true }).click();
@@ -86,9 +88,12 @@ export async function exerciseNativeMcpTool({
       .filter({ hasText: 'Its result is in the conversation' })
       .waitFor({ timeout: 90000 });
     assert.equal(fixture.calls.filter((row) => row.method === 'tools/call').length, 1);
+    // The engine adds the result to the conversation as a note; the run's activity may show the
+    // same output again, so look for the note itself.
     await page
-      .locator('.native-chat-messages')
-      .getByText('Native fixture note: the tool ran.', { exact: false })
+      .locator('.native-chat-messages .user-chat-body')
+      .filter({ hasText: '[User-run MCP tool]' })
+      .filter({ hasText: 'Native fixture note: the tool ran.' })
       .waitFor();
     await page.screenshot({
       path: join(artifactDir, 'native-mcp-tool-result.png'),

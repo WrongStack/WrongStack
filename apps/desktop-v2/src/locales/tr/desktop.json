@@ -31,7 +31,7 @@
     "projects": "Projeler",
     "activity": "Etkinlik",
     "appearance": "Görünüm",
-    "quota": "Sağlayıcı kotası",
+    "quota": "Plan kotası",
     "settings": "WrongStack ayarları",
     "projectTools": "Proje araçları"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Proje araçları açılıyor…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} kaydedilmemiş değişiklik",
+      "unsaved_other": "{{count}} kaydedilmemiş değişiklik",
+      "allSaved": "Tüm değişiklikler kaydedildi",
+      "discard": "Değişiklikleri at",
+      "save": "Ayarları kaydet",
+      "saving": "Kaydediliyor…",
+      "reloadSaved": "Kayıtlı değerleri yeniden yükle (taslakları at)"
+    },
     "back": "Konuşmaya dön",
     "sections": "WrongStack ayar bölümleri",
     "search": "WrongStack ayarlarında ara",
@@ -570,6 +579,7 @@
     "tool-access": "Kayıtlı araç kataloğu, izin meta verileri, araçları açma ve kapatma."
   },
   "project": {
+    "breadcrumb": "Projedeki konum",
     "opening": "{{name}} açılıyor…",
     "gettingReady": "Proje bilgin ve araçların hazırlanıyor.",
     "openingPage": "{{page}} açılıyor…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "BU KONUŞMA · KAYITLI GEÇMİŞ",
     "title": "Geçmiş ve kurtarma",
     "intro": "Günlüğü incele, dosya etkinliğini takip et ya da kayıtlı bir istem kontrol noktasına dön.",
-    "back": "Sohbete dön",
+    "back": "Konuşmaya dön",
     "refresh": "Oturum geçmişini yenile",
     "reading": "Bu oturumun günlüğü okunuyor…",
     "rewindLabel": "Gözlenen geri sarma sonucu",
@@ -6716,7 +6726,7 @@
     "newAgent": "Yeni ajan oturumu başlat",
     "newTerminal": "Yeni terminal aç",
     "settings": "WrongStack ayarlarını aç",
-    "quota": "Sağlayıcı kotasını göster",
+    "quota": "Plan kotasını göster",
     "light": "Açık moda geç",
     "dark": "Koyu moda geç",
     "comfortable": "Rahat konuşma yoğunluğunu kullan",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "Sağlayıcı sağlık izleyicisi bu çalışma ortamında kullanılamıyor.",
     "auditError": "Sağlayıcı denetimi: {{error}}",
     "acknowledged": "Sağlayıcı durum işlemi onaylandı.",
-    "label": "Sağlayıcı sağlığı ve kotası",
-    "title": "Sağlayıcı sağlığı ve kotası",
+    "label": "Sağlayıcı tanılama",
+    "title": "Sağlayıcı tanılama",
     "intro": "Kayıtlı hesap hakları, model bekleme süreleri ve son sağlayıcı olayları.",
     "reload": "Kayıtlı okumaları yeniden yükle",
     "refresh": "Hesap kotalarını yenile",
@@ -8163,6 +8173,7 @@
     "noPreview": "Bu içerik bloğunun metin önizlemesi yok."
   },
   "mcpTools": {
+    "rawInput": "JSON girdisini düzenle",
     "modalTitle": "{{name}} kaynağından MCP araçları",
     "title": "Bu konuşmada bir araç çalıştır",
     "close": "MCP araçlarını kapat",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Atlas bağımlılık matrisi",
     "matrixTitle": "Bağımlılık matrisi",
     "matrixIntro": "Satırlar sütunlara bağımlıdır. Her dolu hücre kayıtlı, yönlü referansları gösterir.",
-    "sources": "Kaynaklar {{from}}–{{to}}",
+    "sources": "Kaynaklar {{from}}–{{to}} / {{total}}",
     "targets": "Hedefler {{from}}–{{to}} / {{total}}",
     "prevSources": "Önceki matris kaynakları",
     "nextSources": "Sonraki matris kaynakları",

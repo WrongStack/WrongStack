@@ -31,7 +31,7 @@
     "projects": "Projekte",
     "activity": "Aktivität",
     "appearance": "Darstellung",
-    "quota": "Anbieter-Kontingent",
+    "quota": "Plan-Kontingent",
     "settings": "WrongStack-Einstellungen",
     "projectTools": "Projektwerkzeuge"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Projektwerkzeuge werden geöffnet…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} ungespeicherte Änderung",
+      "unsaved_other": "{{count}} ungespeicherte Änderungen",
+      "allSaved": "Alle Änderungen gespeichert",
+      "discard": "Änderungen verwerfen",
+      "save": "Einstellungen speichern",
+      "saving": "Wird gespeichert…",
+      "reloadSaved": "Gespeicherte Werte neu laden (Entwürfe verwerfen)"
+    },
     "back": "Zurück zur Unterhaltung",
     "sections": "Bereiche der WrongStack-Einstellungen",
     "search": "WrongStack-Einstellungen durchsuchen",
@@ -570,6 +579,7 @@
     "tool-access": "Katalog registrierter Werkzeuge, Berechtigungsmetadaten, Werkzeuge aktivieren und deaktivieren."
   },
   "project": {
+    "breadcrumb": "Position im Projekt",
     "opening": "{{name}} wird geöffnet…",
     "gettingReady": "Dein Projektwissen und deine Werkzeuge werden vorbereitet.",
     "openingPage": "{{page}} wird geöffnet…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "DIESE UNTERHALTUNG · ERFASSTER VERLAUF",
     "title": "Verlauf und Wiederherstellung",
     "intro": "Prüfe das Journal, verfolge Dateiaktivität oder kehre zu einem erfassten Prompt-Checkpoint zurück.",
-    "back": "Zurück zum Chat",
+    "back": "Zurück zur Unterhaltung",
     "refresh": "Sitzungsverlauf aktualisieren",
     "reading": "Journal dieser Sitzung wird gelesen…",
     "rewindLabel": "Beobachtetes Ergebnis des Zurückspulens",
@@ -6716,7 +6726,7 @@
     "newAgent": "Neue Agentensitzung starten",
     "newTerminal": "Neues Terminal öffnen",
     "settings": "WrongStack-Einstellungen öffnen",
-    "quota": "Anbieter-Kontingent anzeigen",
+    "quota": "Plan-Kontingent anzeigen",
     "light": "Zum hellen Modus wechseln",
     "dark": "Zum dunklen Modus wechseln",
     "comfortable": "Komfortable Unterhaltungsdichte verwenden",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "Der Gesundheitsmonitor der Anbieter ist in dieser Laufzeit nicht verfügbar.",
     "auditError": "Anbieter-Audit: {{error}}",
     "acknowledged": "Anbieter-Statusaktion bestätigt.",
-    "label": "Anbieterzustand und Kontingent",
-    "title": "Anbieterzustand & Kontingent",
+    "label": "Anbieterdiagnose",
+    "title": "Anbieterdiagnose",
     "intro": "Aufgezeichnete Kontingente, Modell-Abkühlzeiten und aktuelle Anbieterereignisse.",
     "reload": "Aufgezeichnete Werte neu laden",
     "refresh": "Kontokontingente aktualisieren",
@@ -8163,6 +8173,7 @@
     "noPreview": "Dieser Inhaltsblock hat keine Textvorschau."
   },
   "mcpTools": {
+    "rawInput": "JSON-Eingabe bearbeiten",
     "modalTitle": "MCP-Werkzeuge von {{name}}",
     "title": "Ein Werkzeug in dieser Unterhaltung ausführen",
     "close": "MCP-Werkzeuge schließen",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Atlas-Abhängigkeitsmatrix",
     "matrixTitle": "Abhängigkeitsmatrix",
     "matrixIntro": "Zeilen hängen von Spalten ab. Jede gefüllte Zelle steht für gespeicherte, gerichtete Referenzen.",
-    "sources": "Quellen {{from}}–{{to}}",
+    "sources": "Quellen {{from}}–{{to}} / {{total}}",
     "targets": "Ziele {{from}}–{{to}} / {{total}}",
     "prevSources": "Vorherige Matrixquellen",
     "nextSources": "Nächste Matrixquellen",

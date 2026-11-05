@@ -8,6 +8,26 @@ import '@xterm/xterm/css/xterm.css';
 
 const TERMINAL_FONT = 'Cascadia Code, Consolas, monospace';
 
+/** ANSI colours readable on the light terminal background. */
+const LIGHT_ANSI = {
+  black: '#1f2328',
+  red: '#b3261e',
+  green: '#1a7f37',
+  yellow: '#7a5600',
+  blue: '#0b5cad',
+  magenta: '#8e3fb2',
+  cyan: '#0f6b78',
+  white: '#57606a',
+  brightBlack: '#57606a',
+  brightRed: '#a40e26',
+  brightGreen: '#116329',
+  brightYellow: '#6f4e00',
+  brightBlue: '#0a4a8c',
+  brightMagenta: '#6e2d8f',
+  brightCyan: '#0b5866',
+  brightWhite: '#424a53',
+};
+
 export function TerminalPane({
   id,
   writable,
@@ -34,6 +54,9 @@ export function TerminalPane({
         foreground: css.getPropertyValue('--terminal-foreground').trim(),
         cursor: css.getPropertyValue('--terminal-cursor').trim(),
         selectionBackground: css.getPropertyValue('--terminal-selection').trim(),
+        // The ANSI colours xterm ships are made for a dark background; on the light one its
+        // yellow (PowerShell's commands) and bright colours were unreadable.
+        ...(document.documentElement.dataset['mode'] === 'dark' ? {} : LIGHT_ANSI),
       };
     };
     updateTheme();

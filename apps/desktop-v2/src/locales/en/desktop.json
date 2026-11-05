@@ -31,7 +31,7 @@
     "projects": "Projects",
     "activity": "Activity",
     "appearance": "Appearance",
-    "quota": "Provider quota",
+    "quota": "Plan quota",
     "settings": "WrongStack settings",
     "projectTools": "Project tools"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Opening project tools…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} unsaved change",
+      "unsaved_other": "{{count}} unsaved changes",
+      "allSaved": "All changes saved",
+      "discard": "Discard changes",
+      "save": "Save settings",
+      "saving": "Saving…",
+      "reloadSaved": "Reload saved values (discard drafts)"
+    },
     "back": "Back to conversation",
     "sections": "WrongStack settings sections",
     "search": "Search WrongStack settings",
@@ -570,6 +579,7 @@
     "tool-access": "Registered tool catalog, permission metadata, enable and disable tools."
   },
   "project": {
+    "breadcrumb": "Location in the project",
     "opening": "Opening {{name}}…",
     "gettingReady": "Your project knowledge and tools are getting ready.",
     "openingPage": "Opening {{page}}…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "THIS CONVERSATION · RECORDED HISTORY",
     "title": "History & recovery",
     "intro": "Inspect the journal, follow file activity, or return to a recorded prompt checkpoint.",
-    "back": "Back to chat",
+    "back": "Back to conversation",
     "refresh": "Refresh session history",
     "reading": "Reading this session’s journal…",
     "rewindLabel": "Observed rewind result",
@@ -6716,7 +6726,7 @@
     "newAgent": "Start a new agent session",
     "newTerminal": "Open a new terminal",
     "settings": "Open WrongStack settings",
-    "quota": "Show provider quota",
+    "quota": "Show plan quota",
     "light": "Switch to light mode",
     "dark": "Switch to dark mode",
     "comfortable": "Use comfortable conversation density",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "Provider health tracker is unavailable in this runtime.",
     "auditError": "Provider audit: {{error}}",
     "acknowledged": "Provider status action acknowledged.",
-    "label": "Provider health and quota",
-    "title": "Provider health & quota",
+    "label": "Provider diagnostics",
+    "title": "Provider diagnostics",
     "intro": "Recorded account allowances, model cooldowns and recent provider events.",
     "reload": "Reload recorded readings",
     "refresh": "Refresh account quotas",
@@ -8163,6 +8173,7 @@
     "noPreview": "This content block has no text preview."
   },
   "mcpTools": {
+    "rawInput": "Edit the JSON input",
     "modalTitle": "MCP tools from {{name}}",
     "title": "Run a tool in this conversation",
     "close": "Close MCP tools",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Atlas dependency matrix",
     "matrixTitle": "Dependency matrix",
     "matrixIntro": "Rows depend on columns. Each filled cell represents stored, directed references.",
-    "sources": "Sources {{from}}–{{to}}",
+    "sources": "Sources {{from}}–{{to}} / {{total}}",
     "targets": "Targets {{from}}–{{to}} / {{total}}",
     "prevSources": "Previous matrix sources",
     "nextSources": "Next matrix sources",

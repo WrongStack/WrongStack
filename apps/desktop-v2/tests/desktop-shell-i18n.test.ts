@@ -65,7 +65,11 @@ describe('the shell’s use of the catalog', () => {
       if (!text.includes('useDesktopText') && !text.includes('ns="desktop"')) continue;
       for (const match of text.matchAll(keyLike)) {
         const key = `${match[1]}.${match[2]}`;
-        expect(Object.hasOwn(english, key), `${name}: ${key}`).toBe(true);
+        // A counted message is a set of plural forms (`key_one`, `key_other`) under one key.
+        const present =
+          Object.hasOwn(english, key) ||
+          (Object.hasOwn(english, `${key}_one`) && Object.hasOwn(english, `${key}_other`));
+        expect(present, `${name}: ${key}`).toBe(true);
         checked += 1;
       }
       for (const match of text.matchAll(prefixLike)) {

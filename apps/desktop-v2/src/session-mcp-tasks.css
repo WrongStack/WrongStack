@@ -1,6 +1,10 @@
 .session-mcp-tasks {
   padding: 24px;
   min-width: 0;
+  /* Takes the workspace like the processes page, scrolling inside it. */
+  overflow: auto;
+  min-height: 0;
+  height: 100%;
 }
 .session-mcp-tasks > :where(header),
 .mcp-task-list :where(article) > header {

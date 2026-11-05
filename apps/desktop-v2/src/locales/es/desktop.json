@@ -31,7 +31,7 @@
     "projects": "Proyectos",
     "activity": "Actividad",
     "appearance": "Apariencia",
-    "quota": "Cuota de proveedores",
+    "quota": "Cuota del plan",
     "settings": "Ajustes de WrongStack",
     "projectTools": "Herramientas del proyecto"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Abriendo las herramientas del proyecto…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} cambio sin guardar",
+      "unsaved_other": "{{count}} cambios sin guardar",
+      "allSaved": "Todos los cambios guardados",
+      "discard": "Descartar cambios",
+      "save": "Guardar ajustes",
+      "saving": "Guardando…",
+      "reloadSaved": "Volver a cargar los valores guardados (descartar borradores)"
+    },
     "back": "Volver a la conversación",
     "sections": "Secciones de ajustes de WrongStack",
     "search": "Buscar en los ajustes de WrongStack",
@@ -570,6 +579,7 @@
     "tool-access": "Catálogo de herramientas registradas, metadatos de permisos, activar y desactivar herramientas."
   },
   "project": {
+    "breadcrumb": "Ubicación en el proyecto",
     "opening": "Abriendo {{name}}…",
     "gettingReady": "El conocimiento y las herramientas de tu proyecto se están preparando.",
     "openingPage": "Abriendo {{page}}…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "ESTA CONVERSACIÓN · HISTORIAL REGISTRADO",
     "title": "Historial y recuperación",
     "intro": "Revisa el diario, sigue la actividad de archivos o vuelve a un punto de control de prompt registrado.",
-    "back": "Volver al chat",
+    "back": "Volver a la conversación",
     "refresh": "Actualizar el historial de la sesión",
     "reading": "Leyendo el diario de esta sesión…",
     "rewindLabel": "Resultado observado del retroceso",
@@ -6716,7 +6726,7 @@
     "newAgent": "Iniciar una nueva sesión de agente",
     "newTerminal": "Abrir un nuevo terminal",
     "settings": "Abrir los ajustes de WrongStack",
-    "quota": "Mostrar la cuota de proveedores",
+    "quota": "Mostrar la cuota del plan",
     "light": "Cambiar a modo claro",
     "dark": "Cambiar a modo oscuro",
     "comfortable": "Usar una densidad de conversación cómoda",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "El seguimiento de salud de proveedores no está disponible en este entorno.",
     "auditError": "Auditoría de proveedores: {{error}}",
     "acknowledged": "Acción de estado del proveedor confirmada.",
-    "label": "Salud y cuota de proveedores",
-    "title": "Salud y cuota de proveedores",
+    "label": "Diagnóstico de proveedores",
+    "title": "Diagnóstico de proveedores",
     "intro": "Asignaciones de cuenta registradas, enfriamientos de modelos y eventos recientes de proveedores.",
     "reload": "Recargar las lecturas registradas",
     "refresh": "Actualizar las cuotas de las cuentas",
@@ -8163,6 +8173,7 @@
     "noPreview": "Este bloque de contenido no tiene vista previa de texto."
   },
   "mcpTools": {
+    "rawInput": "Editar la entrada JSON",
     "modalTitle": "Herramientas MCP de {{name}}",
     "title": "Ejecutar una herramienta en esta conversación",
     "close": "Cerrar las herramientas MCP",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Matriz de dependencias del atlas",
     "matrixTitle": "Matriz de dependencias",
     "matrixIntro": "Las filas dependen de las columnas. Cada celda llena representa referencias dirigidas guardadas.",
-    "sources": "Orígenes {{from}}–{{to}}",
+    "sources": "Orígenes {{from}}–{{to}} / {{total}}",
     "targets": "Destinos {{from}}–{{to}} / {{total}}",
     "prevSources": "Orígenes anteriores de la matriz",
     "nextSources": "Orígenes siguientes de la matriz",

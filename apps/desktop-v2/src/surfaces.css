@@ -52,6 +52,12 @@
   min-width: 0;
   min-height: 0;
 }
+/* Its surface takes the whole frame whatever it shows: an empty Kanban (no board yet) shrank
+   to the width of its sidebar and empty state and left the rest of the page blank. */
+.ws-surface-frame.is-fill > * {
+  flex: 1;
+  min-width: 0;
+}
 
 /* The WebUI's thin scrollbars, so the surfaces' narrow toolbars and lists keep their size. */
 .ws-surfaces ::-webkit-scrollbar {

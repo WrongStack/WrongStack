@@ -17,6 +17,23 @@ const graph: VisualGraph = {
   edges: [{ source: 'a', target: 'b', label: 'imports', weight: 2 }],
 };
 const props = { graph, selected: 'b', onSelect: () => undefined, onOpen: () => undefined };
+// More files than one matrix page (18) holds, so the page controls show.
+const wide: VisualGraph = {
+  nodes: Array.from({ length: 20 }, (_, index) => ({
+    id: `n${index}`,
+    label: `file-${index}.ts`,
+    detail: `src/file-${index}.ts`,
+    group: 'core',
+    weight: 1,
+    data: {},
+  })),
+  edges: [],
+};
+const pager = () =>
+  renderToStaticMarkup(createElement(AtlasMatrixView, { ...props, graph: wide })).replaceAll(
+    '<!-- -->',
+    '',
+  );
 
 const render = () =>
   renderToStaticMarkup(
@@ -44,8 +61,6 @@ describe('Desktop Code Atlas additions in the display language', () => {
       'Subsystem boundaries',
       'Inferred communities',
       'Boundary map',
-      'Sources 1–2',
-      'Targets 1–2 / 2',
       'Dependents · what uses this',
       '2 hops',
       'Line 4',
@@ -53,6 +68,10 @@ describe('Desktop Code Atlas additions in the display language', () => {
       'Drag to explore · select a node to inspect · showing',
     ])
       expect(english).toContain(text);
+    // One page of files needs no page controls; more than one shows them, labelled alike.
+    expect(english).not.toContain('atlas-matrix-pages');
+    expect(pager()).toContain('Sources 1–18 / 20');
+    expect(pager()).toContain('Targets 1–18 / 20');
     expect(DESKTOP_ATLAS.views?.map((view) => view.label)).toEqual([
       'Subsystems',
       'Dependency matrix',
@@ -65,8 +84,6 @@ describe('Desktop Code Atlas additions in the display language', () => {
       'Alt sistem sınırları',
       'Çıkarılan topluluklar',
       'Sınır haritası',
-      'Kaynaklar 1–2',
-      'Hedefler 1–2 / 2',
       'Bağımlılar · bunu ne kullanıyor',
       '2 adım',
       'Satır 4',
@@ -74,6 +91,8 @@ describe('Desktop Code Atlas additions in the display language', () => {
       'Keşfetmek için sürükle · incelemek için bir düğüm seç',
     ])
       expect(turkish).toContain(text);
+    expect(pager()).toContain('Kaynaklar 1–18 / 20');
+    expect(pager()).toContain('Hedefler 1–18 / 20');
     expect(DESKTOP_ATLAS.views?.map((view) => view.label)).toEqual([
       'Alt sistemler',
       'Bağımlılık matrisi',

@@ -1404,6 +1404,11 @@ h1 {
   border-radius: 5px;
   font-size: 12px;
 }
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+.provider-card select:not([multiple]) {
+  display: flex;
+  align-items: center;
+}
 .provider-card .provider-checkbox {
   display: flex;
   align-items: center;
@@ -1725,6 +1730,11 @@ h1 {
   margin-top: 9px;
   font-size: 12px;
 }
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+.modal select:not([multiple]) {
+  display: flex;
+  align-items: center;
+}
 .kind-picker {
   display: flex;
   gap: 12px;
@@ -2040,4 +2050,28 @@ h1 {
 }
 .card-pin.is-pinned {
   font-weight: 600;
+}
+
+/* A search box: the magnifier sits inside the field's left edge instead of on a row of its own
+   (a block label or a modal's label rule stacked it above the input). */
+.search-field,
+.modal label.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.search-field > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.search-field > input,
+.modal .search-field > input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding-left: 32px;
 }

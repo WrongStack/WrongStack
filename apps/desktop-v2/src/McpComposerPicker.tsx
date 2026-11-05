@@ -6,6 +6,7 @@ import { entries } from './engine-values';
 import { McpContentBrowser } from './McpContentBrowser';
 import { McpToolRunner } from './McpToolRunner';
 import { Modal } from './Modal';
+import './composer-dialog.css';
 
 export function McpComposerPicker({
   command,

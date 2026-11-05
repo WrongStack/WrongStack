@@ -1,5 +1,5 @@
 .next-steps-panel {
-  margin: 0 18px 8px;
+  margin: 0 var(--composer-inline) 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--raised);

@@ -1,3 +1,11 @@
+/* The dialog chrome the composer shares with dialogs opened outside a session. */
+@import "./composer-dialog.css";
+
+/* The composer's centred side margin, shared by the panels stacked above it so they line up
+   with it and the transcript (a narrow box, like a dialog, keeps 18 px). */
+:root {
+  --composer-inline: max(18px, calc((100% - 860px) / 2));
+}
 .native-composer-stack {
   flex-shrink: 0;
   min-width: 0;
@@ -129,7 +137,7 @@
 .composer-notice {
   font-size: 11px;
   line-height: 1.7;
-  margin: 8px 18px;
+  margin: 8px var(--composer-inline);
   overflow-wrap: anywhere;
 }
 .composer-error {
@@ -149,14 +157,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin: 8px 18px;
+  margin: 8px var(--composer-inline);
   font-size: 11px;
 }
 .composer-restore button {
   color: var(--accent);
 }
 .composer-queue {
-  margin: 8px 18px;
+  margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 11px;
@@ -209,87 +217,6 @@
 .composer-queue :where(li) > div {
   display: flex;
   gap: 8px;
-}
-.composer-dialog {
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-}
-.modal:has(.composer-dialog) {
-  margin: auto;
-  width: min(720px, calc(100vw - 48px));
-  max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
-  padding: 26px;
-}
-.composer-dialog header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 15px;
-}
-.composer-dialog h2 {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin: 8px 0 0;
-}
-.composer-dialog p {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.8;
-}
-.composer-dialog label:not(.refine-edit-toggle) {
-  display: grid;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--muted);
-}
-.composer-dialog :is(input:not([type="checkbox"]), select) {
-  width: 100%;
-  background: var(--base);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 9px;
-  color: var(--text);
-}
-.composer-dialog .composer-model-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 15px 0 10px;
-}
-.composer-model-list {
-  max-height: 350px;
-  overflow-y: auto;
-  display: grid;
-  gap: 4px;
-}
-.composer-model-list > button {
-  text-align: left;
-  display: grid;
-  gap: 6px;
-  border: 1px solid transparent;
-  padding: 13px;
-  border-radius: 5px;
-}
-.composer-model-list > button:hover,
-.composer-model-list > button[aria-pressed="true"] {
-  background: var(--raised);
-  border-color: var(--border);
-}
-.composer-model-list small {
-  font-size: 10px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-.composer-dialog footer {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 9px;
-  margin-top: 20px;
 }
 .refine-versions {
   border: 0;
@@ -401,7 +328,7 @@
 }
 
 .btw-receipts {
-  margin: 8px 18px;
+  margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 11px;

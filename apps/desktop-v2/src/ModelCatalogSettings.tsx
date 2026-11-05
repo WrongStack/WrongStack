@@ -384,11 +384,11 @@ function ProfileModelCatalogSettings({
         providerId && (
           <div className="model-catalog-layout">
             <aside className="model-catalog-list">
-              <label>
+              <label className="search-field">
                 <Search size={14} />
-                {t('modelCatalog.search')}
                 <input
                   aria-label={t('modelCatalog.searchLabel')}
+                  placeholder={t('modelCatalog.search')}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />

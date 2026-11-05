@@ -9,15 +9,19 @@
   font-size: 10px;
   padding: 5px 8px;
 }
+/* A destructive action, drawn as one: it read as muted text, like a section label. */
 .saved-provider-list .provider-remove-button {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: auto;
   margin-top: 14px;
-  padding: 5px 0;
+  padding: 6px 10px;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--danger);
   background: transparent;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 6px;
 }
 .provider-management-confirm {
   padding: 12px;

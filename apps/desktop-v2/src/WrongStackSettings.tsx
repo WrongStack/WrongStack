@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   SquareTerminal,
+  Stethoscope,
   Wrench,
 } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
@@ -375,7 +376,12 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 Icon: Send,
                 group: 'Agents & tools',
               },
-              { id: 'health', title: 'Provider diagnostics', Icon: Gauge, group: 'Diagnostics' },
+              {
+                id: 'health',
+                title: 'Provider diagnostics',
+                Icon: Stethoscope,
+                group: 'Diagnostics',
+              },
               { id: 'quota', title: 'Plan quota', Icon: Gauge, group: 'Diagnostics' },
               { id: 'model-tests', title: 'Model tests', Icon: FlaskConical, group: 'Diagnostics' },
               {
@@ -463,7 +469,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                     .finally(() => setLoaded(true));
                 }}
               >
-                Reload saved values (discard drafts)
+                {t('settings.saveBar.reloadSaved')}
               </button>
             </div>
           )}
@@ -622,8 +628,8 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                 <div className="settings-save-bar">
                   <span className="settings-save-summary">
                     {Object.keys(dirty).length
-                      ? `${Object.keys(dirty).length} unsaved changes`
-                      : 'All changes saved'}
+                      ? t('settings.saveBar.unsaved', { count: Object.keys(dirty).length })
+                      : t('settings.saveBar.allSaved')}
                   </span>
                   <button
                     type="button"
@@ -634,7 +640,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                       setNotice('');
                     }}
                   >
-                    Discard changes
+                    {t('settings.saveBar.discard')}
                   </button>
                   <button
                     type="submit"
@@ -642,7 +648,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                     disabled={busy || !Object.keys(dirty).length}
                   >
                     <Save size={14} />
-                    {busy ? 'Saving…' : 'Save settings'}
+                    {busy ? t('settings.saveBar.saving') : t('settings.saveBar.save')}
                   </button>
                 </div>
               </form>

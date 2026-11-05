@@ -397,7 +397,9 @@
     display: none;
   }
   .settings-section-select {
-    display: block;
+    /* Flex, not block: a block select stacked its picker arrow under the value. */
+    display: flex;
+    align-items: center;
     width: 100%;
     padding: 9px 10px;
     border: 1px solid var(--border);

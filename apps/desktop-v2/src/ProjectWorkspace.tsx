@@ -1,13 +1,11 @@
 import {
   Activity,
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   Box,
   Brain,
   Building2,
   CalendarClock,
-  Folder,
   Gauge,
   GitBranch,
   Mail,
@@ -25,6 +23,7 @@ import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
 import { ProjectAnalytics } from './ProjectAnalytics';
 import { ProjectAtlas } from './ProjectAtlas';
+import { ProjectBreadcrumb } from './ProjectBreadcrumb';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectDiagnostics } from './ProjectDiagnostics';
 import { ProjectGoals } from './ProjectGoals';
@@ -79,16 +78,7 @@ export function ProjectWorkspace({ project, vm }: { project: Project; vm: Deskto
   return (
     <div className="project-workspace">
       <div className="project-context-bar">
-        <button
-          type="button"
-          className="project-home-button"
-          title={project.root.replace(/^\\\\\?\\/, '')}
-          onClick={() => vm.setProjectPage('overview')}
-        >
-          <ArrowLeft size={14} />
-          <Folder size={15} />
-          <strong>{project.name}</strong>
-        </button>
+        <ProjectBreadcrumb project={project} vm={vm} />
         <button
           type="button"
           className="button secondary small"

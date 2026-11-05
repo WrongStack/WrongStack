@@ -11,6 +11,7 @@ import { PromptJournal } from './PromptJournal';
 import { PromptTemplateForm } from './PromptTemplateForm';
 import { RuntimeGate } from './RuntimeGate';
 import { useProjectEngine } from './useEngine';
+import './composer-dialog.css';
 import './composer-resources.css';
 
 export function PromptWorkspace({

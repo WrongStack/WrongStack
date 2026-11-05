@@ -45,14 +45,17 @@ export function KanbanBoardSidebar({
   return (
     <aside className="flex max-h-[45dvh] w-full shrink-0 flex-col border-b bg-card/40 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
       <div className="flex h-12 items-center gap-2 border-b px-3">
-        <button
-          type="button"
-          title={t('common:action.back')}
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft size={16} />
-        </button>
+        {/* A host with its own navigation (the desktop's project page) passes no close. */}
+        {onClose && (
+          <button
+            type="button"
+            title={t('common:action.back')}
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft size={16} />
+          </button>
+        )}
         <Columns3 size={17} className="text-primary" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{t('activity:kanban.kanban')}</div>

@@ -24,6 +24,7 @@ import { emptyModelPolicy, mergeModelPolicy, readProfileModelPolicy } from './pr
 import { providerChoices } from './provider-settings-model';
 import { RuntimeGate } from './RuntimeGate';
 import { useProfileEngine } from './useEngine';
+import './composer-dialog.css';
 
 interface Props {
   session: EngineState;
@@ -301,7 +302,7 @@ function LiveProfileModelPicker({
           ))}
         </fieldset>
       )}
-      <label className="composer-model-search">
+      <label className="composer-model-search search-field">
         <Search size={15} />
         <input
           aria-label={searchLabel ?? t('modelPicker.searchLabel')}

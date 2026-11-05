@@ -181,7 +181,7 @@ export function McpContentBrowser({
         )}
         <div className="mcp-content-workbench">
           <aside>
-            <label className="mcp-content-search">
+            <label className="mcp-content-search search-field">
               <Search size={14} />
               <input
                 aria-label={t('mcpContent.search')}

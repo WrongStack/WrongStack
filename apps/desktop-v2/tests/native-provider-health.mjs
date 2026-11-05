@@ -81,7 +81,7 @@ export async function exerciseNativeProviderHealth({
       .getByRole('navigation', { name: 'WrongStack settings sections' })
       .getByRole('button', { name: 'Provider diagnostics', exact: true })
       .click();
-    const health = page.getByRole('region', { name: 'Provider health and quota' });
+    const health = page.getByRole('region', { name: 'Provider diagnostics' });
     await health.getByRole('button', { name: 'Refresh account quotas', exact: true }).click();
     const card = health.getByRole('article', {
       name: 'Quota native-quota-good default',

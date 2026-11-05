@@ -196,6 +196,11 @@
   font: inherit;
   line-height: 1.7;
 }
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+.feature-editor select:not([multiple]) {
+  display: flex;
+  align-items: center;
+}
 .feature-editor textarea {
   resize: vertical;
 }

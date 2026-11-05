@@ -15,6 +15,7 @@ import { type RefinementDraft, refinementDraftResult } from './refinement-draft'
 import { preferredRefinementVariant } from './refinement-policy-model';
 import { type RefinerTarget, refinementRecovery } from './refinement-recovery';
 import { surfaceI18n } from './surface-i18n';
+import './composer-dialog.css';
 
 export function PromptRefinement({
   original,

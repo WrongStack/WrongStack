@@ -522,8 +522,8 @@ export function ProjectSessionHistory({
                     t('recovery.timeMissing'),
                   )}
                 </small>
-                <span>
-                  {String(item['provider'])} / {String(item['model'])}
+                <span className="history-row-model">
+                  {[item['provider'], item['model']].filter(Boolean).map(String).join(' / ')}
                 </span>
                 <p>{String(item['lastUserMessage'] || t('historyView.noPrompt'))}</p>
                 <span className="history-row-status">

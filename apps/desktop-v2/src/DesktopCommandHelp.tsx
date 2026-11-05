@@ -5,6 +5,7 @@ import { DESKTOP_CATEGORY_ORDER, desktopCommands } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { surfaceI18n } from './surface-i18n';
+import './composer-dialog.css';
 
 /** Every desktop command by category; choosing one puts it in the draft. */
 export function DesktopCommandHelp({

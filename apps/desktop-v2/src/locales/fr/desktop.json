@@ -31,7 +31,7 @@
     "projects": "Projets",
     "activity": "Activité",
     "appearance": "Apparence",
-    "quota": "Quota des fournisseurs",
+    "quota": "Quota du forfait",
     "settings": "Paramètres WrongStack",
     "projectTools": "Outils du projet"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Ouverture des outils du projet…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} modification non enregistrée",
+      "unsaved_other": "{{count}} modifications non enregistrées",
+      "allSaved": "Toutes les modifications sont enregistrées",
+      "discard": "Annuler les modifications",
+      "save": "Enregistrer les paramètres",
+      "saving": "Enregistrement…",
+      "reloadSaved": "Recharger les valeurs enregistrées (abandonner les brouillons)"
+    },
     "back": "Retour à la conversation",
     "sections": "Sections des paramètres WrongStack",
     "search": "Rechercher dans les paramètres WrongStack",
@@ -570,6 +579,7 @@
     "tool-access": "Catalogue des outils enregistrés, métadonnées d'autorisation, activation et désactivation des outils."
   },
   "project": {
+    "breadcrumb": "Emplacement dans le projet",
     "opening": "Ouverture de {{name}}…",
     "gettingReady": "Les connaissances et les outils de votre projet se préparent.",
     "openingPage": "Ouverture de {{page}}…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "CETTE CONVERSATION · HISTORIQUE ENREGISTRÉ",
     "title": "Historique et récupération",
     "intro": "Examinez le journal, suivez l’activité des fichiers ou revenez à un point de contrôle de prompt enregistré.",
-    "back": "Retour au chat",
+    "back": "Retour à la conversation",
     "refresh": "Actualiser l’historique de la session",
     "reading": "Lecture du journal de cette session…",
     "rewindLabel": "Résultat observé du retour arrière",
@@ -6716,7 +6726,7 @@
     "newAgent": "Démarrer une nouvelle session d’agent",
     "newTerminal": "Ouvrir un nouveau terminal",
     "settings": "Ouvrir les réglages de WrongStack",
-    "quota": "Afficher le quota des fournisseurs",
+    "quota": "Afficher le quota du forfait",
     "light": "Passer en mode clair",
     "dark": "Passer en mode sombre",
     "comfortable": "Utiliser une densité de conversation confortable",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "Le suivi de santé des fournisseurs est indisponible dans cet environnement.",
     "auditError": "Audit des fournisseurs : {{error}}",
     "acknowledged": "Action sur l’état du fournisseur confirmée.",
-    "label": "Santé et quota des fournisseurs",
-    "title": "Santé et quota des fournisseurs",
+    "label": "Diagnostic des fournisseurs",
+    "title": "Diagnostic des fournisseurs",
     "intro": "Allocations de compte enregistrées, temps de repos des modèles et événements récents des fournisseurs.",
     "reload": "Recharger les lectures enregistrées",
     "refresh": "Actualiser les quotas des comptes",
@@ -8163,6 +8173,7 @@
     "noPreview": "Ce bloc de contenu n’a pas d’aperçu texte."
   },
   "mcpTools": {
+    "rawInput": "Modifier l’entrée JSON",
     "modalTitle": "Outils MCP de {{name}}",
     "title": "Exécuter un outil dans cette conversation",
     "close": "Fermer les outils MCP",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Matrice des dépendances de l’atlas",
     "matrixTitle": "Matrice des dépendances",
     "matrixIntro": "Les lignes dépendent des colonnes. Chaque cellule remplie représente des références orientées enregistrées.",
-    "sources": "Sources {{from}}–{{to}}",
+    "sources": "Sources {{from}}–{{to}} / {{total}}",
     "targets": "Cibles {{from}}–{{to}} / {{total}}",
     "prevSources": "Sources précédentes de la matrice",
     "nextSources": "Sources suivantes de la matrice",

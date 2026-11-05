@@ -66,7 +66,10 @@
   max-height: 38vh;
 }
 .git-hunk-review pre span {
+  position: relative;
   display: block;
+  /* A gutter for the line checkboxes, so changed and context lines keep one height and column. */
+  padding-left: 24px;
   white-space: pre;
 }
 .git-hunk-add {
@@ -77,7 +80,14 @@
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
+/* In the gutter: the dialog's `.modal input` rule made each checkbox a full-width row. */
 .git-hunk-review pre input[type="checkbox"] {
-  margin: 0 6px 0 0;
-  vertical-align: middle;
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  transform: translateY(-50%);
 }

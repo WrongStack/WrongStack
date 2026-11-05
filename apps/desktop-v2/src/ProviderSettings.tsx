@@ -1,4 +1,4 @@
-import { Check, KeyRound, LoaderCircle, Plus, RefreshCw, Server } from 'lucide-react';
+import { Check, KeyRound, LoaderCircle, Plus, RefreshCw, Server, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
@@ -361,6 +361,7 @@ export function ProviderSettings({
                       })}
                       onClick={() => setConfirmation({ providerId: provider.id })}
                     >
+                      <Trash2 size={13} />
                       {t('providerSettings.removeConnection')}
                     </button>
                     {confirmation?.providerId === provider.id && (

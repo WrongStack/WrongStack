@@ -385,3 +385,8 @@
   flex-basis: 100%;
   margin: 0;
 }
+
+/* No provider or model recorded: no empty line in the card. */
+.history-catalog .history-row-model:empty {
+  display: none;
+}

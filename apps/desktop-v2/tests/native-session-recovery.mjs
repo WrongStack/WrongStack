@@ -185,7 +185,7 @@ export async function exerciseNativeSessionRecovery({
   const review = () =>
     screen.getByRole('button', { name: `Review rewind to prompt ${firstIndex}`, exact: true });
   await waitFor(async () => await review().isEnabled(), 'Stable checkpoint available');
-  await screen.getByRole('button', { name: 'Back to chat', exact: true }).click();
+  await screen.getByRole('button', { name: 'Back to conversation', exact: true }).click();
   assert.equal(await page.getByText(fixtureText, { exact: true }).count(), 2);
   await input.fill('Keep my separate composer draft');
   const draftRpc = (method, params) =>
@@ -365,7 +365,7 @@ export async function exerciseNativeSessionRecovery({
     path: join(artifactDir, 'native-session-recovery-partial.png'),
     fullPage: true,
   });
-  await screen.getByRole('button', { name: 'Back to chat', exact: true }).click();
+  await screen.getByRole('button', { name: 'Back to conversation', exact: true }).click();
   assert.equal(await page.getByText(fixtureText, { exact: true }).count(), 0);
   assert.equal(await input.inputValue(), 'Keep my separate composer draft');
   assert.equal(

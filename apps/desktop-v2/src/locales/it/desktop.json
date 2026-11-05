@@ -31,7 +31,7 @@
     "projects": "Progetti",
     "activity": "Attività",
     "appearance": "Aspetto",
-    "quota": "Quota dei provider",
+    "quota": "Quota del piano",
     "settings": "Impostazioni di WrongStack",
     "projectTools": "Strumenti del progetto"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Apertura degli strumenti del progetto…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} modifica non salvata",
+      "unsaved_other": "{{count}} modifiche non salvate",
+      "allSaved": "Tutte le modifiche salvate",
+      "discard": "Scarta modifiche",
+      "save": "Salva impostazioni",
+      "saving": "Salvataggio…",
+      "reloadSaved": "Ricarica i valori salvati (scarta le bozze)"
+    },
     "back": "Torna alla conversazione",
     "sections": "Sezioni delle impostazioni di WrongStack",
     "search": "Cerca nelle impostazioni di WrongStack",
@@ -570,6 +579,7 @@
     "tool-access": "Catalogo degli strumenti registrati, metadati dei permessi, abilita e disabilita strumenti."
   },
   "project": {
+    "breadcrumb": "Posizione nel progetto",
     "opening": "Apertura di {{name}}…",
     "gettingReady": "Le conoscenze e gli strumenti del progetto si stanno preparando.",
     "openingPage": "Apertura di {{page}}…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "QUESTA CONVERSAZIONE · CRONOLOGIA REGISTRATA",
     "title": "Cronologia e ripristino",
     "intro": "Esamina il diario, segui l’attività dei file o torna a un checkpoint di prompt registrato.",
-    "back": "Torna alla chat",
+    "back": "Torna alla conversazione",
     "refresh": "Aggiorna la cronologia della sessione",
     "reading": "Lettura del diario di questa sessione…",
     "rewindLabel": "Risultato osservato del riavvolgimento",
@@ -6716,7 +6726,7 @@
     "newAgent": "Avvia una nuova sessione agente",
     "newTerminal": "Apri un nuovo terminale",
     "settings": "Apri le impostazioni di WrongStack",
-    "quota": "Mostra la quota dei provider",
+    "quota": "Mostra la quota del piano",
     "light": "Passa alla modalità chiara",
     "dark": "Passa alla modalità scura",
     "comfortable": "Usa una densità di conversazione comoda",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "Il monitoraggio dello stato dei provider non è disponibile in questo runtime.",
     "auditError": "Audit dei provider: {{error}}",
     "acknowledged": "Azione sullo stato del provider confermata.",
-    "label": "Stato e quota dei provider",
-    "title": "Stato e quota dei provider",
+    "label": "Diagnostica dei provider",
+    "title": "Diagnostica dei provider",
     "intro": "Allocazioni dell’account registrate, pause dei modelli ed eventi recenti dei provider.",
     "reload": "Ricarica le letture registrate",
     "refresh": "Aggiorna le quote degli account",
@@ -8163,6 +8173,7 @@
     "noPreview": "Questo blocco di contenuto non ha un’anteprima testuale."
   },
   "mcpTools": {
+    "rawInput": "Modifica l’input JSON",
     "modalTitle": "Strumenti MCP da {{name}}",
     "title": "Esegui uno strumento in questa conversazione",
     "close": "Chiudi gli strumenti MCP",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Matrice delle dipendenze dell’atlante",
     "matrixTitle": "Matrice delle dipendenze",
     "matrixIntro": "Le righe dipendono dalle colonne. Ogni cella piena rappresenta riferimenti orientati salvati.",
-    "sources": "Origini {{from}}–{{to}}",
+    "sources": "Origini {{from}}–{{to}} / {{total}}",
     "targets": "Destinazioni {{from}}–{{to}} / {{total}}",
     "prevSources": "Origini precedenti della matrice",
     "nextSources": "Origini successive della matrice",

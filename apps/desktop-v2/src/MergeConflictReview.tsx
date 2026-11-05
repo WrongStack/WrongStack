@@ -156,7 +156,7 @@ export function MergeConflictReview({
                               })}
                             </p>
                             <code>{String(info['oid']).slice(0, 12)}</code>
-                            <p>{t('conflict.chooseSide')}</p>
+                            {key !== 'base' && <p>{t('conflict.chooseSide')}</p>}
                           </div>
                         ) : (
                           <pre>{String(snapshot[key] ?? '')}</pre>

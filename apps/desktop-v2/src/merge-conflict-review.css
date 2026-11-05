@@ -41,6 +41,9 @@
   background: var(--base);
   flex-wrap: wrap;
   font-size: 12px;
+  /* The base side has no choose button; keep its header as tall as the others so the three
+     columns line up. */
+  min-height: 58px;
 }
 .merge-conflict-sides pre {
   padding: 12px;

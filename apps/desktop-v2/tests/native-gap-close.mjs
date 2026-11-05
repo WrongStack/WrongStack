@@ -146,10 +146,10 @@ export async function exerciseNativeGapClose({
   );
   console.log('PASS: fonts, window text size and status bar chips apply and persist');
 
-  // Provider quota sits on the main rail: it opens the plan quota page directly, also when
+  // Plan quota sits on the main rail: it opens the plan quota page directly, also when
   // settings are already open on another section.
   const rail = page.getByRole('navigation', { name: 'Main navigation' });
-  const quota = rail.getByRole('button', { name: 'Provider quota', exact: true });
+  const quota = rail.getByRole('button', { name: 'Plan quota', exact: true });
   await rail.getByRole('button', { name: 'WrongStack settings', exact: true }).click();
   await page.getByRole('navigation', { name: 'WrongStack settings sections' }).waitFor();
   assert.equal(await quota.evaluate((button) => button.classList.contains('active')), false);

@@ -31,7 +31,7 @@
     "projects": "Projetos",
     "activity": "Atividade",
     "appearance": "Aparência",
-    "quota": "Cota dos provedores",
+    "quota": "Cota do plano",
     "settings": "Configurações do WrongStack",
     "projectTools": "Ferramentas do projeto"
   },
@@ -127,6 +127,15 @@
     "openingProject": "Abrindo as ferramentas do projeto…"
   },
   "settings": {
+    "saveBar": {
+      "unsaved_one": "{{count}} alteração não salva",
+      "unsaved_other": "{{count}} alterações não salvas",
+      "allSaved": "Todas as alterações foram salvas",
+      "discard": "Descartar alterações",
+      "save": "Salvar configurações",
+      "saving": "Salvando…",
+      "reloadSaved": "Recarregar valores salvos (descartar rascunhos)"
+    },
     "back": "Voltar à conversa",
     "sections": "Seções de configurações do WrongStack",
     "search": "Pesquisar nas configurações do WrongStack",
@@ -570,6 +579,7 @@
     "tool-access": "Catálogo de ferramentas registradas, metadados de permissão, ativar e desativar ferramentas."
   },
   "project": {
+    "breadcrumb": "Localização no projeto",
     "opening": "Abrindo {{name}}…",
     "gettingReady": "O conhecimento e as ferramentas do seu projeto estão sendo preparados.",
     "openingPage": "Abrindo {{page}}…",
@@ -4191,7 +4201,7 @@
     "eyebrow": "ESTA CONVERSA · HISTÓRICO REGISTRADO",
     "title": "Histórico e recuperação",
     "intro": "Examine o diário, acompanhe a atividade dos arquivos ou volte a um checkpoint de prompt registrado.",
-    "back": "Voltar ao chat",
+    "back": "Voltar à conversa",
     "refresh": "Atualizar o histórico da sessão",
     "reading": "Lendo o diário desta sessão…",
     "rewindLabel": "Resultado observado do retrocesso",
@@ -6716,7 +6726,7 @@
     "newAgent": "Iniciar uma nova sessão de agente",
     "newTerminal": "Abrir um novo terminal",
     "settings": "Abrir as configurações do WrongStack",
-    "quota": "Mostrar a cota dos provedores",
+    "quota": "Mostrar a cota do plano",
     "light": "Mudar para o modo claro",
     "dark": "Mudar para o modo escuro",
     "comfortable": "Usar densidade de conversa confortável",
@@ -7349,8 +7359,8 @@
     "trackerUnavailable": "O monitor de saúde dos provedores não está disponível neste ambiente.",
     "auditError": "Auditoria de provedores: {{error}}",
     "acknowledged": "Ação de status do provedor confirmada.",
-    "label": "Saúde e cota dos provedores",
-    "title": "Saúde e cota dos provedores",
+    "label": "Diagnóstico de provedores",
+    "title": "Diagnóstico de provedores",
     "intro": "Cotas de conta registradas, pausas de modelos e eventos recentes de provedores.",
     "reload": "Recarregar as leituras registradas",
     "refresh": "Atualizar as cotas das contas",
@@ -8163,6 +8173,7 @@
     "noPreview": "Este bloco de conteúdo não tem pré-visualização de texto."
   },
   "mcpTools": {
+    "rawInput": "Editar a entrada JSON",
     "modalTitle": "Ferramentas MCP de {{name}}",
     "title": "Executar uma ferramenta nesta conversa",
     "close": "Fechar as ferramentas MCP",
@@ -8507,7 +8518,7 @@
     "matrixLabel": "Matriz de dependências do atlas",
     "matrixTitle": "Matriz de dependências",
     "matrixIntro": "As linhas dependem das colunas. Cada célula preenchida representa referências direcionadas salvas.",
-    "sources": "Origens {{from}}–{{to}}",
+    "sources": "Origens {{from}}–{{to}} / {{total}}",
     "targets": "Destinos {{from}}–{{to}} / {{total}}",
     "prevSources": "Origens anteriores da matriz",
     "nextSources": "Próximas origens da matriz",

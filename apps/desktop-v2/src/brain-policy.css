@@ -133,7 +133,7 @@
   background: var(--base);
   border-top: 1px solid var(--border);
   z-index: 2;
-  margin-bottom: 22px;
+  /* No bottom margin: a sticky bar's margin keeps it that far above the window edge. */
 }
 .brain-save-bar > span {
   flex: 1;

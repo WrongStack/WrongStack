@@ -3,6 +3,7 @@ import { commandDescription } from './desktop-command-text';
 import { useDesktopText } from './desktop-i18n';
 import { shortcutGroups } from './desktop-shortcuts';
 import { Modal } from './Modal';
+import './composer-dialog.css';
 import './shortcuts.css';
 
 /** Every desktop keyboard shortcut, by where it works. */

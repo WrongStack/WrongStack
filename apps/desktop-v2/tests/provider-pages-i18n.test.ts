@@ -41,7 +41,7 @@ describe('provider health, quota and model tests in the display language', () =>
       '40% used',
       'Reset: Not reported',
       'Unlimited',
-      'Provider health &amp; quota',
+      'Provider diagnostics',
       'Model access tests',
       'Choose a saved provider',
     ])
@@ -54,7 +54,7 @@ describe('provider health, quota and model tests in the display language', () =>
       '40% kullanıldı',
       'Sıfırlanma: Bildirilmedi',
       'Sınırsız',
-      'Sağlayıcı sağlığı ve kotası',
+      'Sağlayıcı tanılama',
       'Model erişim testleri',
       'Kayıtlı bir sağlayıcı seç',
     ])

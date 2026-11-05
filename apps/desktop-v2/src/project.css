@@ -7,6 +7,14 @@
 .settings-focused .main-content {
   min-height: 0;
   overflow: auto;
+  padding-top: 28px;
+  /* A sticky save bar stops at the scroll box's padding edge: with the page's bottom padding
+     it floated 60 px above the window bottom with settings scrolling underneath. The end space
+     lives inside the page instead. */
+  padding-bottom: 0;
+}
+.settings-focused .settings-workspace {
+  padding-bottom: 60px;
 }
 .project-focused .main-content {
   display: flex;
@@ -31,11 +39,35 @@
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+.project-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
 .project-home-button {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
   font-size: 12px;
+}
+.project-home-button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-breadcrumb-separator {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.project-breadcrumb > [aria-current="page"]:not(button) {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .project-context-bar > .button {
   margin-left: auto;
@@ -44,7 +76,13 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 32px clamp(22px, 3vw, 48px) 40px;
+  --page-pad-bottom: 40px;
+  padding: 32px clamp(22px, 3vw, 48px) var(--page-pad-bottom);
+}
+/* A sticky save bar stops at the scroll box's padding edge; reach past it to the window bottom
+   so settings do not scroll visibly underneath. */
+.project-page-content :is(.settings-save-bar, .brain-save-bar) {
+  bottom: calc(-1 * var(--page-pad-bottom));
 }
 .runtime-state {
   flex: 1;
@@ -743,6 +781,11 @@
   font: inherit;
   font-size: 12px;
   line-height: 1.7;
+}
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+:is(.memory-inspector, .task-inspector, .modal) select:not([multiple]) {
+  display: flex;
+  align-items: center;
 }
 :is(.memory-inspector, .task-inspector, .modal) textarea {
   resize: vertical;
@@ -1473,6 +1516,11 @@
   font-size: 11px;
   border-radius: 5px;
 }
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+.setting-control select:not([multiple]) {
+  display: flex;
+  align-items: center;
+}
 .settings-number {
   display: flex;
   align-items: center;
@@ -1764,7 +1812,8 @@
 }
 @media (max-width: 800px) {
   .project-page-content {
-    padding: 25px 18px;
+    --page-pad-bottom: 25px;
+    padding: 25px 18px var(--page-pad-bottom);
   }
   .studio-heading,
   .wrongstack-settings-heading {

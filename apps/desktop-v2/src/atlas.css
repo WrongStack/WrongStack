@@ -253,6 +253,11 @@
   font-size: 10px;
   margin-top: 7px;
 }
+/* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
+.desktop-code-assist select:not([multiple]) {
+  display: flex;
+  align-items: center;
+}
 .desktop-code-assist textarea {
   display: block;
   width: 100%;
