@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOOLEAN_FLAGS, parseArgs, parseAuthFlags, parseSpawnFlags } from '../src/arg-parser.js';
+import { BOOLEAN_FLAGS, parseArgs, parseAuthFlags } from '../src/arg-parser.js';
 import { resolveExecutionMode } from '../src/boot/execution-mode.js';
 
 it.each([['--alias', 'work-account'], ['--alias=work-account']])(
@@ -420,109 +420,6 @@ describe('parseAuthFlags', () => {
     const r = parseAuthFlags(['local', '--audit=stderr', 'ollama']);
     expect(r.audit).toBe('stderr');
     expect(r.positional).toEqual(['local', 'ollama']);
-  });
-});
-
-describe('parseSpawnFlags', () => {
-  it('returns empty opts when input is empty', () => {
-    expect(parseSpawnFlags('')).toEqual({ description: '', opts: {} });
-  });
-
-  it('parses --provider= / --model=', () => {
-    const r = parseSpawnFlags('--provider=openai --model=gpt-4 do something');
-    expect(r.opts.provider).toBe('openai');
-    expect(r.opts.model).toBe('gpt-4');
-    expect(r.description).toBe('do something');
-  });
-
-  it('parses --provider= / --model= with quoted values', () => {
-    const r = parseSpawnFlags('--provider="anthropic" --model="gpt-4o" audit the code');
-    expect(r.opts.provider).toBe('anthropic');
-    expect(r.opts.model).toBe('gpt-4o');
-    expect(r.description).toBe('audit the code');
-  });
-
-  it('parses -p / -m with single-quoted values', () => {
-    const r = parseSpawnFlags("-p 'openai' -m 'claude-sonnet-4' run checks");
-    expect(r.opts.provider).toBe('openai');
-    expect(r.opts.model).toBe('claude-sonnet-4');
-    expect(r.description).toBe('run checks');
-  });
-
-  it('keeps quoted --model values containing spaces and preserves the description', () => {
-    const r = parseSpawnFlags('--model="gpt 4" fix the auth bug');
-    expect(r.opts.model).toBe('gpt 4');
-    expect(r.description).toBe('fix the auth bug');
-  });
-
-  it('falls back to the raw token when a quote is unterminated', () => {
-    const r = parseSpawnFlags('--model="gpt-4o fix it');
-    expect(r.opts.model).toBe('"gpt-4o');
-    expect(r.description).toBe('fix it');
-  });
-
-  it('parses --name= with quoted value', () => {
-    const r = parseSpawnFlags('--name="bug hunter" find bugs');
-    expect(r.opts.name).toBe('bug hunter');
-    expect(r.description).toBe('find bugs');
-  });
-
-  it('parses --name= unquoted', () => {
-    const r = parseSpawnFlags('--name=quick run it');
-    expect(r.opts.name).toBe('quick');
-    expect(r.description).toBe('run it');
-  });
-
-  it('parses --tools= and splits on commas', () => {
-    const r = parseSpawnFlags('--tools=read,grep,write do task');
-    expect(r.opts.tools).toEqual(['read', 'grep', 'write']);
-    expect(r.description).toBe('do task');
-  });
-
-  it('parses -p / -m / -n short flags', () => {
-    const r = parseSpawnFlags('-p openai -m gpt-4 -n agent7 chase the bug');
-    expect(r.opts.provider).toBe('openai');
-    expect(r.opts.model).toBe('gpt-4');
-    expect(r.opts.name).toBe('agent7');
-    expect(r.description).toBe('chase the bug');
-  });
-
-  it('handles -n with quoted multi-word name', () => {
-    const r = parseSpawnFlags('-n "code monkey" hello');
-    expect(r.opts.name).toBe('code monkey');
-    expect(r.description).toBe('hello');
-  });
-
-  it('stops at the first non-flag and returns rest as description', () => {
-    const r = parseSpawnFlags('describe this task');
-    expect(r.opts).toEqual({});
-    expect(r.description).toBe('describe this task');
-  });
-
-  it('trims trailing whitespace from description', () => {
-    const r = parseSpawnFlags('--provider=x   hello world   ');
-    expect(r.description).toBe('hello world');
-  });
-
-  it('handles all flags together', () => {
-    const r = parseSpawnFlags(
-      '--provider=openai --model=gpt-4 --name="my agent" --tools=a,b do it',
-    );
-    expect(r.opts.provider).toBe('openai');
-    expect(r.opts.model).toBe('gpt-4');
-    expect(r.opts.name).toBe('my agent');
-    expect(r.opts.tools).toEqual(['a', 'b']);
-    expect(r.description).toBe('do it');
-  });
-
-  it('handles space-separated long flags and equal-separated short flags', () => {
-    const r = parseSpawnFlags(
-      '--provider openai --model gpt-4 -n="custom agent" -p=anthropic fix issue',
-    );
-    expect(r.opts.provider).toBe('anthropic');
-    expect(r.opts.model).toBe('gpt-4');
-    expect(r.opts.name).toBe('custom agent');
-    expect(r.description).toBe('fix issue');
   });
 });
 

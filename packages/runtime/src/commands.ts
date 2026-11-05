@@ -4,6 +4,12 @@
  * builders for its REPL. Each builder declares the host fields it reads.
  */
 import type { SlashCommand } from '@wrongstack/contracts/types';
+import { buildDelegateCommand } from './portable-commands/delegate.js';
+import {
+  buildDirectorCommand,
+  buildSpawnCommand,
+  buildSupervisorCommand,
+} from './portable-commands/fleet.js';
 import {
   buildCommitCommand,
   buildGitCommand,
@@ -18,6 +24,15 @@ import { buildSandboxCommand } from './portable-commands/sandbox.js';
 import { buildScoutStatsCommand } from './portable-commands/scout-stats.js';
 import { buildSecurityCommand } from './portable-commands/security.js';
 
+export { buildDelegateCommand } from './portable-commands/delegate.js';
+export {
+  askingSessionId,
+  buildDirectorCommand,
+  buildSpawnCommand,
+  buildSupervisorCommand,
+  parseSpawnFlags,
+} from './portable-commands/fleet.js';
+export { type FleetSpawnBackend, fleetSpawnCallbacks } from './portable-commands/fleet-host.js';
 export {
   buildCommitCommand,
   buildGitCommand,
@@ -27,11 +42,13 @@ export {
 export { buildGitIdCommand } from './portable-commands/gitid.js';
 export type {
   CommandNotices,
+  FleetCommandHost,
   GitCommandHost,
   GitIdCommandHost,
   InitCommandHost,
   PortableCommandHost,
   SessionCommandHost,
+  SpawnCommandOptions,
 } from './portable-commands/host.js';
 export { buildInitCommand } from './portable-commands/init.js';
 export {
@@ -73,5 +90,9 @@ export function buildPortableCommands(host: PortableCommandHost): SlashCommand[]
     buildPushCommand(host),
     buildGitIdCommand(host),
     buildSecurityCommand(host),
+    buildSpawnCommand(host),
+    buildDelegateCommand(host),
+    buildDirectorCommand(host),
+    buildSupervisorCommand(host),
   ];
 }

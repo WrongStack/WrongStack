@@ -49,7 +49,8 @@ describe('surface protocol contract', () => {
     // +1: session.redo (redo the newest rewind).
     // +3: files.move_many / files.delete_many / files.copy_many (all-or-nothing batches).
     // +2: mcp.tools / mcp.tool.call (explicit MCP tool use in a conversation).
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(311);
+    // +2: command.list / command.run (the engine's slash commands).
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(313);
     expect(CLIENT_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.call']));
     expect(CLIENT_MESSAGE_TYPES).toEqual(
       expect.arrayContaining([
@@ -81,7 +82,8 @@ describe('surface protocol contract', () => {
     // +3: files.moved_many / files.deleted_many / files.copied_many (batch replies).
     // +1: provider.primary_restored (the fallback chain moved back to the primary).
     // +2: mcp.tools / mcp.tool.result (their replies).
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(321);
+    // +2: command.catalog / command.result (the engine's slash commands).
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(323);
     expect(SERVER_MESSAGE_TYPES).toEqual(expect.arrayContaining(['mcp.tools', 'mcp.tool.result']));
     expect(SERVER_MESSAGE_TYPES).toContain('provider.primary_restored');
     expect(SERVER_MESSAGE_TYPES).toEqual(
@@ -316,6 +318,7 @@ describe('protocol registry ↔ route-family dispatcher parity', () => {
         send: vi.fn(),
       } as unknown as IntrospectionRouteContext,
       getKanbanContext: () => ({ projectRoot: root }),
+      commands: { getCommands: () => [], send: vi.fn() },
       onUnknown: (_socket, message) => {
         unhandled.push(message.type);
       },

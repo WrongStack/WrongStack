@@ -595,6 +595,7 @@ export function createMessageDispatcher(
       patchProfileConfig: opts.updateGlobalConfig
         ? (mutate) => opts.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
+      fleet: () => deps.fleetCommands,
       send,
     }),
     getKanbanContext: kanbanContext,

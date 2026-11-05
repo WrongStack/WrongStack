@@ -291,6 +291,11 @@ export interface CliWebUIOptions {
    * can display an "update available" warning.
    */
   updateInfo?: import('./webui-server/session-start-payload.js').BootUpdateInfo | undefined;
+  /**
+   * Slash commands the hosting process already runs over its own state (the CLI's fleet
+   * commands over its fleet host); they replace the engine's commands of the same name.
+   */
+  hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
   /** Optional kanban task dispatch hook, backed by the CLI multi-agent host. */
   onKanbanDispatch?:
     | ((

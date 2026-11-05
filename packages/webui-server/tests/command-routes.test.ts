@@ -115,4 +115,49 @@ describe('command bridge', () => {
     await handleCommandRoute(ctx, ws, { type: 'command.run', payload: { name: 'prune' } });
     expect(sent[1]?.payload['message']).toBe('Pruned 3 sessions older than 30 days.');
   });
+
+  it('starts workers on the engine’s fleet and lets the host run its own commands', async () => {
+    const spawned: Array<{ description: string; options: unknown }> = [];
+    const sent: Array<{ payload: Record<string, unknown> }> = [];
+    const hosted: SlashCommand = {
+      name: 'director',
+      description: 'The host’s director',
+      run: async () => ({ message: 'host director' }),
+    };
+    const ctx = portableCommandRoute({
+      getSessionStore: () => undefined,
+      getProjectRoot: () => process.cwd(),
+      getContext: (sessionId) => (sessionId ? { session: { id: sessionId } } : undefined),
+      getConfigStore: () => undefined,
+      fleet: () => ({
+        onSpawn: async (description, options) => {
+          spawned.push({ description, options });
+          return 'Spawned w1';
+        },
+      }),
+      hostCommands: () => [hosted],
+      send: (_ws, message) => sent.push(message as never),
+    });
+    const commands = await ctx.getCommands();
+    expect(commands.filter((command) => command.name === 'director')).toEqual([hosted]);
+
+    // The worker belongs to the tab that asked.
+    await handleCommandRoute(ctx, ws, {
+      type: 'command.run',
+      payload: { name: 'spawn', args: '--name=fixer fix the bug', sessionId: 'tab-2' },
+    });
+    expect(spawned).toEqual([
+      { description: 'fix the bug', options: { name: 'fixer', originSessionId: 'tab-2' } },
+    ]);
+    expect(sent[0]?.payload['message']).toBe('Spawned w1');
+
+    await handleCommandRoute(ctx, ws, { type: 'command.run', payload: { name: 'director' } });
+    expect(sent[1]?.payload['message']).toBe('host director');
+    // /delegate without a fleet host says so instead of failing.
+    await handleCommandRoute(ctx, ws, {
+      type: 'command.run',
+      payload: { name: 'delegate', args: '--role=debugger find the leak' },
+    });
+    expect(sent[2]?.payload['message']).toContain('No fleet active');
+  });
 });

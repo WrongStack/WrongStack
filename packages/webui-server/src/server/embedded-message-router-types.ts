@@ -37,6 +37,11 @@ export interface EmbeddedMessageRouterOptions {
   mcpRegistry?: MCPRegistry | undefined;
   memoryStore?: MemoryPort | undefined;
   onKanbanDispatch?: KanbanTaskDispatcher | undefined;
+  /**
+   * Slash commands the hosting process already runs over its own state (the CLI's fleet
+   * commands over its fleet host); they replace the engine's commands of the same name.
+   */
+  hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
 }
 
 export interface EmbeddedMessageRouterDeps {

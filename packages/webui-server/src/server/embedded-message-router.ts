@@ -511,6 +511,7 @@ export function createEmbeddedMessageRouter(
       patchProfileConfig: deps.introspectionCtx.updateGlobalConfig
         ? (mutate) => deps.introspectionCtx.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
+      hostCommands: opts.hostCommands,
       send,
     }),
     getKanbanContext: () => ({

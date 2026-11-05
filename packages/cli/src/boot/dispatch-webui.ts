@@ -117,6 +117,11 @@ export interface WebUIDispatchContext {
   updateInfo?: import('../webui-server/session-start-payload.js').BootUpdateInfo | undefined;
   /** Per-task agent factory for the SDD wizard's multi-agent run. */
   sddSubagentFactory?: import('@wrongstack/coordination').AgentFactory | undefined;
+  /**
+   * Slash commands the hosting process already runs over its own state (the CLI's fleet
+   * commands over its fleet host); they replace the engine's commands of the same name.
+   */
+  hostCommands?: (() => readonly import('@wrongstack/contracts/types').SlashCommand[]) | undefined;
   onKanbanDispatch?:
     | ((
         description: string,
@@ -206,6 +211,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     agentTranscripts,
     sddSubagentFactory,
     onKanbanDispatch,
+    hostCommands,
     getFleetBudget,
     stopSessionFleet,
     interruptController,
@@ -383,6 +389,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sddSubagentFactory,
     updateInfo: ctx.updateInfo,
     onKanbanDispatch,
+    hostCommands,
     getVectorMemoryStore,
     vectorMemoryModelCacheDir,
     // Print the "open this" banner only once the server is actually

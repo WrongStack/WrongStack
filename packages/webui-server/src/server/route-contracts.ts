@@ -191,6 +191,13 @@ export interface WebuiDeps {
    * absent when the engine has no `delegate` tool.
    */
   autoWake?: import('./leader-auto-wake-host.js').WebuiLeaderAutoWakeHost | undefined;
+  /** How `/spawn`, `/delegate` and `/director` start workers; absent without the fleet. */
+  fleetCommands?:
+    | Pick<
+        import('@wrongstack/runtime/commands').FleetCommandHost,
+        'onSpawn' | 'onFleetSpawn' | 'onDirector'
+      >
+    | undefined;
 }
 
 /**

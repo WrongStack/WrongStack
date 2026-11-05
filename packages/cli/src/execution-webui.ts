@@ -5,6 +5,9 @@ import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
 import { createHqFleetControl } from './hq-fleet-control.js';
 import type { UpdateInfo } from './update-check.js';
 
+/** The fleet commands the WebUI runs from this process's registry, over the CLI's fleet host. */
+const HOST_FLEET_COMMANDS = ['spawn', 'delegate', 'director', 'supervisor'];
+
 export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
   const {
     core: {
@@ -17,6 +20,7 @@ export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
       flags,
       activateSessionIdentity,
       updateInfo: initialUpdateInfo,
+      slashRegistry,
     },
     session: {
       session,
@@ -157,6 +161,11 @@ export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
         };
       },
       ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
+      hostCommands: () =>
+        HOST_FLEET_COMMANDS.flatMap((name) => {
+          const command = slashRegistry.get(name);
+          return command ? [command] : [];
+        }),
     });
   } finally {
     webuiLeaderAutoWake.dispose();

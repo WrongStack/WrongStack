@@ -4,7 +4,6 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '@wrongstack/contracts/kernel';
-import { AgentError } from '@wrongstack/contracts/types';
 import {
   areSubagentsAllowedForSession,
   type Director,
@@ -14,6 +13,7 @@ import { loadDirectorState } from '@wrongstack/core/storage';
 import { color, expectDefined, isSessionTranscriptFileName } from '@wrongstack/core/utils';
 import type { MultiAgentHost } from '@wrongstack/fleet';
 import { formatFleetBudgetLines } from '@wrongstack/fleet';
+import { fleetSpawnCallbacks } from '@wrongstack/runtime/commands';
 import { fmtTaskResultLine } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
@@ -45,16 +45,11 @@ interface FleetCommandHandlersInput {
 
 export function createFleetCommandHandlers(input: FleetCommandHandlersInput): FleetCommandHandlers {
   return {
-    onSpawn: async (description, options) => {
-      const { subagentId, taskId } = await input.multiAgentHost.spawn(description, options);
-      const tags = [
-        options?.provider,
-        options?.model,
-        options?.name ? `"${options.name}"` : undefined,
-      ].filter((tag): tag is string => Boolean(tag));
-      const suffix = tags.length > 0 ? ` (${tags.join(' / ')})` : '';
-      return `Spawned subagent ${subagentId}${suffix} for task ${taskId}. Use /agents to track progress.`;
-    },
+    ...fleetSpawnCallbacks({
+      host: input.multiAgentHost,
+      getDirector: input.getDirector,
+      getSessionId: input.getSessionId,
+    }),
     onSpawnAndWait: async (description, options) => {
       const result = await input.multiAgentHost.spawnAndWait(description, options);
       const tags = [options?.provider, options?.model, options?.name].filter((tag): tag is string =>
@@ -98,35 +93,8 @@ export function createFleetCommandHandlers(input: FleetCommandHandlersInput): Fl
         return false;
       }
     },
-    onFleetSpawn: async (role) => {
-      const originSessionId = input.getSessionId();
-      if (!areSubagentsAllowedForSession(originSessionId)) {
-        throw new Error('Subagents are disabled for this session.');
-      }
-      const director = input.getDirector();
-      if (!director) {
-        throw new AgentError({
-          message: 'Director is not available.',
-          code: 'AGENT_RUN_FAILED',
-          context: { phase: 'fleet-spawn', role },
-        });
-      }
-      return director.spawn({
-        ...(FLEET_ROSTER[role] ?? {
-          id: `manual-${Date.now()}`,
-          name: role,
-          maxIterations: 50,
-          maxToolCalls: 200,
-        }),
-        originSessionId,
-      });
-    },
     onFleetLog: (subagentId, mode) => readFleetLog(input.fleetRoot, subagentId, mode),
     onFleetRetry: (taskId) => retryInterruptedTasks(input, taskId),
-    onDirector: async () => {
-      const director = await input.multiAgentHost.ensureDirector();
-      return director ? 'Director mode is active.' : 'Director is not available.';
-    },
   };
 }
 

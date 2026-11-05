@@ -8803,3 +8803,23 @@ commands.
   the engine's commands after the WebUI's own.
 - Verification: WebUI suite 512 of 515 files (the two locale-dependent context timeline tests as
   before), the bridge tests, WebUI typecheck (1,022 files), architecture gate.
+
+### Command bridge: fleet commands (2026-11-05)
+
+- `/spawn`, `/delegate`, `/director` and `/supervisor` moved to `@wrongstack/runtime/commands`
+  (with the `/spawn` flag parser and its tests); the CLI files re-export them. `/delegate` brings
+  `@wrongstack/agent-catalog` into runtime (one `bun.lock` line).
+- `fleetSpawnCallbacks` starts workers over a fleet host and is shared by the TUI and the
+  standalone engine, which drives it with its `delegate` fleet host. A worker belongs to the
+  conversation that asked, so a command from a second tab no longer lands in the first tab's
+  roster. The CLI's WebUI host runs its own registered fleet commands instead
+  (`hostCommands`), over the CLI's fleet host.
+- Kept in the TUI: `/coordinator` (claiming a task types its description into the terminal's
+  next prompt), `/shadow` (the TUI's shadow reviewer controller) and `/acp` / `/ensemble` (they
+  stream external agent CLIs into the terminal); `/agents` and `/fleet` already have their own
+  views on both surfaces.
+- The protocol contract test now counts the four command bridge message types (it was left at
+  the old counts when the bridge landed).
+- Verification: runtime, webui-server and affected CLI suites (478 files; the Windows
+  handle-timing test in file-batch-mutations passes alone), fleet command tests, CLI, runtime
+  and webui-server typechecks, architecture gate.

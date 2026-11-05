@@ -1,5 +1,6 @@
 import { DefaultConfigLoader } from '@wrongstack/core/storage';
 import { startSharedHeapWatchdog } from '@wrongstack/core/utils';
+import { fleetSpawnCallbacks } from '@wrongstack/runtime/commands';
 import type { WebSocket } from 'ws';
 import type { createAgentServices } from './backend-services.js';
 import { createConnectionHandler } from './connection-handler.js';
@@ -431,5 +432,15 @@ export function buildStandaloneWebuiDeps(input: {
     brainRuntime,
     brainLog,
     ...(input.autoWake ? { autoWake: input.autoWake } : {}),
+    // The engine's fleet host starts the workers `/spawn` and `/delegate` ask for.
+    ...(agentServices.delegation
+      ? {
+          fleetCommands: fleetSpawnCallbacks({
+            host: agentServices.delegation.host,
+            getDirector: () => agentServices.delegation?.host.getDirector(),
+            getSessionId: () => context.session.id,
+          }),
+        }
+      : {}),
   });
 }

@@ -1,4 +1,5 @@
 import type { ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
+import type { DispatchClassifier, FleetSupervisor } from '@wrongstack/coordination';
 
 /**
  * What the portable slash commands need from the process running them. The TUI passes its
@@ -13,6 +14,34 @@ export interface CommandNotices {
   write(text: string): void;
   writeInfo(text: string): void;
   writeWarning(text: string): void;
+}
+
+/** What `/spawn` sets on the worker it starts. */
+export interface SpawnCommandOptions {
+  provider?: string | undefined;
+  model?: string | undefined;
+  tools?: string[] | undefined;
+  name?: string | undefined;
+  /** The conversation that asked; its roster gets the worker. */
+  originSessionId?: string | undefined;
+}
+
+/**
+ * The fleet commands' host: how a worker is started, how the Director comes up and where the
+ * fleet supervisor is. A host without a fleet leaves the callbacks out and the commands say so.
+ */
+export interface FleetCommandHost {
+  renderer: CommandNotices;
+  /** Starts a worker on a task and returns a one-line summary. */
+  onSpawn?: ((description: string, opts?: SpawnCommandOptions) => Promise<string>) | undefined;
+  /** Starts a worker in a roster role and returns its id. */
+  onFleetSpawn?: ((role: string, originSessionId?: string) => Promise<string>) | undefined;
+  /** The model that picks a role when the keyword heuristic is unsure. */
+  onDispatchClassify?: DispatchClassifier | undefined;
+  /** Brings the Director up; null when it cannot. */
+  onDirector?: (() => Promise<string | null>) | undefined;
+  /** The running fleet supervisor, if any. */
+  getFleetSupervisor?: (() => FleetSupervisor | null) | undefined;
 }
 
 export interface InitCommandHost {
@@ -43,4 +72,5 @@ export interface PortableCommandHost
   extends SessionCommandHost,
     InitCommandHost,
     GitCommandHost,
-    GitIdCommandHost {}
+    GitIdCommandHost,
+    FleetCommandHost {}

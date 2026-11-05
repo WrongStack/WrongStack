@@ -5,9 +5,11 @@ import type {
   SlashCommand,
 } from '@wrongstack/contracts/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { getActiveFleetSupervisor } from '@wrongstack/fleet';
 import {
   buildPluginCommands,
   buildPortableCommands,
+  type FleetCommandHost,
   type PluginCommandHost,
   type PortableCommandHost,
 } from '@wrongstack/runtime/commands';
@@ -16,6 +18,8 @@ import type { CommandRouteContext } from './command-routes.js';
 import type { WSServerMessage } from './types.js';
 
 type CommandContext = Parameters<SlashCommand['run']>[1];
+/** The worker-starting part of the fleet commands' host. */
+export type FleetCallbacks = Pick<FleetCommandHost, 'onSpawn' | 'onFleetSpawn' | 'onDirector'>;
 interface LeaderContext {
   provider?: Provider | undefined;
   model?: string | undefined;
@@ -42,6 +46,10 @@ export function portableCommandRoute(host: {
   getPaths?: (() => WstackPaths | undefined) | undefined;
   skillLoader?: PluginCommandHost['skillLoader'];
   vault?: PluginCommandHost['vault'];
+  /** How the engine starts workers (`/spawn`, `/delegate`, `/director`); absent without a fleet. */
+  fleet?: (() => FleetCallbacks | undefined) | undefined;
+  /** Commands the hosting process runs itself; they replace the engine's of the same name. */
+  hostCommands?: (() => readonly SlashCommand[]) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
 }): CommandRouteContext {
   let commands: Promise<SlashCommand[]> | undefined;
@@ -70,27 +78,46 @@ export function portableCommandRoute(host: {
       return host.getConfigStore();
     },
     patchProfileConfig: host.patchProfileConfig,
+    get onSpawn() {
+      return host.fleet?.()?.onSpawn;
+    },
+    get onFleetSpawn() {
+      return host.fleet?.()?.onFleetSpawn;
+    },
+    get onDirector() {
+      return host.fleet?.()?.onDirector;
+    },
+    getFleetSupervisor: getActiveFleetSupervisor,
     renderer: quiet,
   };
   return {
     getCommands: () =>
-      (commands ??= buildCommands(portable, {
-        skillLoader: host.skillLoader,
-        paths: host.getPaths?.(),
-        configStore: host.getConfigStore(),
-        vault: host.vault,
-      })),
+      (commands ??= buildCommands(
+        portable,
+        {
+          skillLoader: host.skillLoader,
+          paths: host.getPaths?.(),
+          configStore: host.getConfigStore(),
+          vault: host.vault,
+        },
+        host.hostCommands?.() ?? [],
+      )),
     getContext: (sessionId) => host.getContext(sessionId) as CommandContext,
     send: host.send,
   };
 }
 
-/** The portable commands, then the plugins' commands whose names are still free. */
+/** The host's commands, the portable ones it does not run, then the plugins' still-free names. */
 async function buildCommands(
   portable: PortableCommandHost,
   plugins: PluginCommandHost,
+  hosted: readonly SlashCommand[],
 ): Promise<SlashCommand[]> {
-  const own = buildPortableCommands(portable);
+  const replaced = new Set(hosted.map((command) => command.name));
+  const own = [
+    ...hosted,
+    ...buildPortableCommands(portable).filter((command) => !replaced.has(command.name)),
+  ];
   const taken = new Set(own.flatMap((command) => [command.name, ...(command.aliases ?? [])]));
   const extra = await buildPluginCommands(plugins).catch(() => []);
   return [...own, ...extra.filter((command) => !taken.has(command.name))];
