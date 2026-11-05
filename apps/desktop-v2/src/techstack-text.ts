@@ -1,4 +1,5 @@
 import type { useDesktopText } from './desktop-i18n';
+import { sentenceStart } from './engine-values';
 import { techLabel } from './techstack-model';
 
 type Translate = ReturnType<typeof useDesktopText>['t'];
@@ -11,3 +12,7 @@ export const techWord = (value: unknown, t: Translate) =>
   typeof value === 'string' && value
     ? t(`techStack.value.${value}`, { defaultValue: techLabel(value) })
     : t('techStack.notReported');
+
+/** A TechStack value that stands alone as a label (a status chip or heading). */
+export const techTitle = (value: unknown, t: Translate, language: string) =>
+  sentenceStart(techWord(value, t), language);

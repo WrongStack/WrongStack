@@ -91,7 +91,7 @@ describe('TechStack detail, trends and remediation in the display language', () 
     await surfaceI18n.changeLanguage('en');
     const english = detail();
     for (const text of [
-      'npm · Transitive · development',
+      'npm · transitive · development',
       'Locked version',
       'No flags reported',
       'high · upgrade minor',
@@ -106,7 +106,7 @@ describe('TechStack detail, trends and remediation in the display language', () 
     await surfaceI18n.changeLanguage('tr');
     const turkish = detail();
     for (const text of [
-      'npm · Dolaylı · geliştirme',
+      'npm · dolaylı · geliştirme',
       'Kilitli sürüm',
       'İşaret bildirilmedi',
       'yüksek · küçük sürüm yükseltmesi',

@@ -1,6 +1,29 @@
 import type { SideEffect } from '@wrongstack/contracts/types';
 import { record } from './engine-values';
 
+type Words = (key: string, values: Record<string, string>) => string;
+
+/**
+ * A recorded outcome in the display language. Tools record English text in a few shapes
+ * ("launched (pid 42)", "timed out (exit 1)"); other text is shown as recorded.
+ */
+export function outcomeText(outcome: string, t: Words): string {
+  const text = outcome.trim();
+  let m = /^launched \(pid (\S+)\)$/.exec(text);
+  if (m) return t('effectsView.outcome.launched', { pid: m[1] ?? '' });
+  m = /^started background job (\S+) \(PID: (\S+)\)$/.exec(text);
+  if (m) return t('effectsView.outcome.backgroundJob', { job: m[1] ?? '', pid: m[2] ?? '' });
+  if (text === 'aborted') return t('effectsView.outcome.aborted', {});
+  if (text === 'success') return t('effectsView.outcome.success', {});
+  m = /^timed out \(exit (\S+)\)$/.exec(text);
+  if (m) return t('effectsView.outcome.timedOut', { code: m[1] ?? '' });
+  m = /^exit (\S+)$/.exec(text);
+  if (m) return t('effectsView.outcome.exit', { code: m[1] ?? '' });
+  m = /^error \((.*)\)$/s.exec(text);
+  if (m) return t('effectsView.outcome.error', { message: m[1] ?? '' });
+  return outcome;
+}
+
 export const effectKinds = ['shell', 'package', 'network', 'fs.write', 'config'] as const;
 export const effectLabels: Record<string, string> = {
   shell: 'Shell',

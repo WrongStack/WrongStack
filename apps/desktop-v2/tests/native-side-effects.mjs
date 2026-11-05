@@ -27,7 +27,7 @@ export async function exerciseNativeSideEffects({
     .locator('.effects-records > button')
     .filter({ hasText: 'native-process-output-ready' });
   await effect.waitFor({ timeout: 30000 });
-  assert.ok((await effect.innerText()).includes('launched (pid'));
+  assert.ok((await effect.innerText()).includes('Launched · PID'));
   await effect.click();
   const detail = panel().getByRole('complementary', { name: 'Side-effect detail', exact: true });
   await detail.getByRole('heading', { name: 'Recorded input', exact: true }).waitFor();

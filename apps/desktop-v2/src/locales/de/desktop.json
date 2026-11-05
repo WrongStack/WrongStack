@@ -6223,6 +6223,15 @@
     "seconds": "{{count}} s"
   },
   "effectsView": {
+    "outcome": {
+      "launched": "Gestartet · PID {{pid}}",
+      "backgroundJob": "Hintergrundjob {{job}} · PID {{pid}}",
+      "aborted": "Abgebrochen",
+      "error": "Fehlgeschlagen: {{message}}",
+      "timedOut": "Zeitüberschreitung · Exit {{code}}",
+      "exit": "Exit {{code}}",
+      "success": "Erfolgreich"
+    },
     "label": "Nebenwirkungen der Sitzung",
     "eyebrow": "DIESE UNTERHALTUNG",
     "title": "Nebenwirkungen",

@@ -6223,6 +6223,15 @@
     "seconds": "{{count}} s"
   },
   "effectsView": {
+    "outcome": {
+      "launched": "Lancé · PID {{pid}}",
+      "backgroundJob": "Tâche d’arrière-plan {{job}} · PID {{pid}}",
+      "aborted": "Interrompu",
+      "error": "Échec : {{message}}",
+      "timedOut": "Délai dépassé · sortie {{code}}",
+      "exit": "Sortie {{code}}",
+      "success": "Réussi"
+    },
     "label": "Effets de bord de la session",
     "eyebrow": "CETTE CONVERSATION",
     "title": "Effets de bord",

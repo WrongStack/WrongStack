@@ -6223,6 +6223,15 @@
     "seconds": "{{count}} sn"
   },
   "effectsView": {
+    "outcome": {
+      "launched": "Başlatıldı · PID {{pid}}",
+      "backgroundJob": "Arka plan işi {{job}} · PID {{pid}}",
+      "aborted": "Durduruldu",
+      "error": "Başarısız: {{message}}",
+      "timedOut": "Zaman aşımı · çıkış {{code}}",
+      "exit": "Çıkış {{code}}",
+      "success": "Başarılı"
+    },
     "label": "Oturum yan etkileri",
     "eyebrow": "BU KONUŞMA",
     "title": "Yan etkiler",

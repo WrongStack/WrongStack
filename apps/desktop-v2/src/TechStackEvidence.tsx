@@ -2,7 +2,7 @@ import { FileCode2, Sparkles } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import { dateTimeText, entries } from './engine-values';
 import { techInterpretation, techVersion } from './techstack-model';
-import { techWord } from './techstack-text';
+import { techTitle, techWord } from './techstack-text';
 
 export function TechEvidence({
   items,
@@ -17,7 +17,7 @@ export function TechEvidence({
       {items.map((item, index) => (
         <li key={index}>
           <header>
-            <strong>{techWord(item['kind'], t)}</strong>
+            <strong>{techTitle(item['kind'], t, i18n.language)}</strong>
             <time dateTime={String(item['retrievedAt'] ?? '')}>
               {dateTimeText(item['retrievedAt'], i18n.language)}
             </time>
@@ -53,11 +53,11 @@ export function TechFinding({
   finding: Record<string, unknown>;
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   return (
     <article className={`tech-finding severity-${finding['severity']}`}>
       <header>
-        <strong>{techWord(finding['type'], t)}</strong>
+        <strong>{techTitle(finding['type'], t, i18n.language)}</strong>
         <span>
           {techWord(finding['severity'], t)} · {techWord(finding['action'], t)}
         </span>
@@ -103,19 +103,19 @@ export function TechDependencyDetail({
   onResearch: () => void;
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const missing = t('techDetail.notReported');
   return (
     <article className="tech-dependency-detail" aria-label={t('techDetail.label')}>
       <header>
         <span className="eyebrow">
           {String(dependency['ecosystem'])} ·{' '}
-          {dependency['direct'] === true ? t('techDetail.direct') : t('techDetail.transitive')} ·{' '}
+          {dependency['direct'] === true ? t('techStack.directWord') : techWord('transitive', t)} ·{' '}
           {techWord(dependency['scope'], t)}
         </span>
         <h2>{String(dependency['name'])}</h2>
         <span className={`tech-status status-${dependency['status']}`}>
-          {techWord(dependency['status'], t)}
+          {techTitle(dependency['status'], t, i18n.language)}
         </span>
         <p>
           {techVersion(dependency)}

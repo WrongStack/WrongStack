@@ -4,6 +4,7 @@ import {
   effectsCsv,
   effectsSnapshot,
   journalEffectsSnapshot,
+  outcomeText,
   withOlderPage,
 } from '../src/side-effects-model';
 
@@ -94,4 +95,21 @@ it('reads journal pages only with their position and reports engines without jou
       'one',
     ),
   ).toThrow('another');
+});
+
+it('words the recorded tool outcomes and keeps other text as recorded', () => {
+  const t = (key: string, values: Record<string, string>) => `${key} ${JSON.stringify(values)}`;
+  expect(outcomeText('launched (pid 42)', t)).toBe('effectsView.outcome.launched {"pid":"42"}');
+  expect(outcomeText('started background job j1 (PID: 7)', t)).toBe(
+    'effectsView.outcome.backgroundJob {"job":"j1","pid":"7"}',
+  );
+  expect(outcomeText('timed out (exit 124)', t)).toBe(
+    'effectsView.outcome.timedOut {"code":"124"}',
+  );
+  expect(outcomeText('exit 0', t)).toBe('effectsView.outcome.exit {"code":"0"}');
+  expect(outcomeText('error (spawn ENOENT)', t)).toBe(
+    'effectsView.outcome.error {"message":"spawn ENOENT"}',
+  );
+  expect(outcomeText('aborted', t)).toBe('effectsView.outcome.aborted {}');
+  expect(outcomeText('HTTP 200 (application/json)', t)).toBe('HTTP 200 (application/json)');
 });

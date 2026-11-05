@@ -12,6 +12,7 @@ import {
   effectsCsv,
   effectsSnapshot,
   journalEffectsSnapshot,
+  outcomeText,
   withOlderPage,
 } from './side-effects-model';
 import { surfaceI18n } from './surface-i18n';
@@ -387,7 +388,9 @@ export function SessionSideEffects({
               <strong>{entry.toolName}</strong>
               <time>{new Date(entry.ts).toLocaleString()}</time>
               <p>{effectSummary(entry)}</p>
-              <small>{entry.outcome || t('effectsView.noOutcome')}</small>
+              <small>
+                {entry.outcome ? outcomeText(entry.outcome, t) : t('effectsView.noOutcome')}
+              </small>
             </button>
           ))}
         </div>
@@ -417,7 +420,9 @@ export function SessionSideEffects({
             <dt>{t('effectsView.field.kind')}</dt>
             <dd>{kindLabel(selected.risk)}</dd>
             <dt>{t('effectsView.field.outcome')}</dt>
-            <dd>{selected.outcome || t('effectsView.notReported')}</dd>
+            <dd>
+              {selected.outcome ? outcomeText(selected.outcome, t) : t('effectsView.notReported')}
+            </dd>
           </dl>
           <h4>{t('effectsView.input')}</h4>
           <div className="effect-input">

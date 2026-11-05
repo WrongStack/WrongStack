@@ -10,7 +10,7 @@ import { TechDependencyDetail, TechFinding } from './TechStackEvidence';
 import { TechStackRemediation } from './TechStackRemediation';
 import { TechStackTrends } from './TechStackTrends';
 import { techFilteredDependencies, techRunning, techSummary, techVersion } from './techstack-model';
-import { techWord } from './techstack-text';
+import { techTitle, techWord } from './techstack-text';
 import { useTechStack } from './useTechStack';
 import './project-techstack.css';
 
@@ -377,7 +377,7 @@ export function ProjectTechStack({
                           <td>{String(item['latestStable'] ?? t('techStack.notReported'))}</td>
                           <td>
                             <span className={`tech-status status-${item['status']}`}>
-                              {word(item['status'])}
+                              {techTitle(item['status'], t, i18n.language)}
                             </span>
                           </td>
                         </tr>

@@ -6223,6 +6223,15 @@
     "seconds": "{{count}} s"
   },
   "effectsView": {
+    "outcome": {
+      "launched": "Launched · PID {{pid}}",
+      "backgroundJob": "Background job {{job}} · PID {{pid}}",
+      "aborted": "Stopped",
+      "error": "Failed: {{message}}",
+      "timedOut": "Timed out · exit {{code}}",
+      "exit": "Exit {{code}}",
+      "success": "Succeeded"
+    },
     "label": "Session side effects",
     "eyebrow": "THIS CONVERSATION",
     "title": "Side effects",

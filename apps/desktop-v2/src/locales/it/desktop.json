@@ -6223,6 +6223,15 @@
     "seconds": "{{count}} s"
   },
   "effectsView": {
+    "outcome": {
+      "launched": "Avviato · PID {{pid}}",
+      "backgroundJob": "Job in background {{job}} · PID {{pid}}",
+      "aborted": "Interrotto",
+      "error": "Non riuscito: {{message}}",
+      "timedOut": "Tempo scaduto · uscita {{code}}",
+      "exit": "Uscita {{code}}",
+      "success": "Riuscito"
+    },
     "label": "Effetti collaterali della sessione",
     "eyebrow": "QUESTA CONVERSAZIONE",
     "title": "Effetti collaterali",

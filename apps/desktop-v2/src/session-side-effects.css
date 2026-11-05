@@ -22,6 +22,9 @@
 .session-side-effects > header > .feature-actions {
   flex: 0 0 auto;
 }
+.session-side-effects > header > .feature-actions select {
+  font-size: 12px;
+}
 .session-side-effects h2 {
   font-size: 30px;
   letter-spacing: -1px;
@@ -79,6 +82,7 @@
   background: var(--base);
   color: var(--text);
   font: inherit;
+  font-size: 13px;
 }
 .effects-export {
   justify-content: flex-end;
