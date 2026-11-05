@@ -164,9 +164,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 952,
-      "typeOnly": 69,
-      "runtimeOrMixed": 918
+      "files": 958,
+      "typeOnly": 72,
+      "runtimeOrMixed": 921
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -654,12 +654,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/slash-commands/review.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/slash-commands/security.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1584,6 +1578,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/portable-commands/security.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6917,12 +6917,6 @@
     },
     {
       "specifier": "@wrongstack/core/sandbox",
-      "file": "packages/cli/src/slash-commands/sandbox.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/sandbox",
       "file": "packages/coordination/src/director-core.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6948,6 +6942,12 @@
     {
       "specifier": "@wrongstack/core/sandbox",
       "file": "packages/mcp/tests/wrap-tool-sandbox.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/sandbox",
+      "file": "packages/runtime/src/portable-commands/sandbox.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9275,12 +9275,6 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/cli/src/slash-commands/prune.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/slash-commands/session-live-status.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 2
@@ -9740,6 +9734,12 @@
       "file": "packages/runtime/src/kanban-ports.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/portable-commands/prune.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -11051,12 +11051,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-registry-cache.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11681,19 +11675,7 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/services/project-facts.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/project-manifest.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/services/run-git.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11736,12 +11718,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/settings-menu.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/acp.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11825,12 +11801,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/delegate.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/design.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11861,12 +11831,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/ensemble.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/fallback-chain-view.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11891,12 +11855,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/git.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/gitid.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11916,12 +11874,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/hq.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/init.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12107,19 +12059,7 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/prune.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/refiner.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/scout-stats.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12233,12 +12173,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/spawn-agents.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/subagent-models.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12246,12 +12180,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/suggest.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/supervisor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12312,12 +12240,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/tools.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/tuneup.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14291,6 +14213,96 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/delegate.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/ensemble.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/fleet.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/git.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/gitid.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/init.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/plugin-commands.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/project-facts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/prune.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/run-git.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/scout-stats.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/tuneup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/tool-registration.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14304,6 +14316,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/tests/tool-wire-budget.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/tests/tuneup-command.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15725,6 +15743,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/command-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/config-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15995,6 +16019,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/message-dispatcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/mode-operations.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16004,6 +16034,12 @@
       "file": "packages/webui-server/src/server/model-operations.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/portable-command-route.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

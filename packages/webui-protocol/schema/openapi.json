@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WrongStack WebUI HTTP session API",
-    "version": "1.4.0",
-    "description": "Every live WrongStack session on the machine, read from the cross-process session registry. Generated from @wrongstack/webui-protocol 1.4.0 (src/http-api.ts)."
+    "version": "1.5.0",
+    "description": "Every live WrongStack session on the machine, read from the cross-process session registry. Generated from @wrongstack/webui-protocol 1.5.0 (src/http-api.ts)."
   },
   "servers": [
     {

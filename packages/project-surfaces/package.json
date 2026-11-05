@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/project-surfaces",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "license": "MIT",
   "description": "Project surfaces shared by the WebUI and the desktop app (SAGE memory first). Each app renders the same components and feeds them through its own SurfaceHost; the components never import an app.",
