@@ -437,3 +437,74 @@ describe('toolSearchTool model-facing output', () => {
     expect(exactText).toContain(schemaJson);
   });
 });
+
+describe('toolSearchTool MCP suggestions', () => {
+  const mcp = (name: string, description: string) => ({
+    name,
+    description,
+    permission: 'confirm',
+    mutating: true,
+    inputSchema: { type: 'object', properties: {} },
+  });
+
+  it('points at a similarly named MCP tool when the query matched nothing', async () => {
+    const ctx = makeCtx([
+      mcp('mcp__github__search', 'Search GitHub repositories.'),
+      { name: 'read', description: 'Read a file.', permission: 'auto', mutating: false },
+    ]);
+    // The ranked scorer sees no hits: the registered name has `__` where the
+    // query uses `_`, and neither string contains the other.
+    const result = await executeToolSearch({ query: 'github_search' }, ctx);
+    expect(result.tools).toEqual([]);
+    expect(result.mcpSuggestions?.[0]).toMatchObject({
+      name: 'mcp__github__search',
+      server: 'github',
+      tool: 'search',
+    });
+    expect(result.hint).toContain("Might the tool you're looking for be in this MCP?");
+    expect(result.hint).toContain('mcp__github__search');
+    expect(result.hint).toContain('tool_use');
+  });
+
+  it('catches a typo in one name segment via edit distance', async () => {
+    const ctx = makeCtx([mcp('mcp__github__search', 'Search GitHub repositories.')]);
+    const result = await executeToolSearch({ query: 'github-serch' }, ctx);
+    expect(result.tools).toEqual([]);
+    expect(result.mcpSuggestions?.[0]?.name).toBe('mcp__github__search');
+    expect(result.mcpSuggestions?.[0]?.similarity).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it('stays silent when no registered MCP tool is similar', async () => {
+    const ctx = makeCtx([
+      mcp('mcp__github__search', 'Search GitHub repositories.'),
+      { name: 'read', description: 'Read a file.', permission: 'auto', mutating: false },
+    ]);
+    const result = await executeToolSearch({ query: 'quantum_flux_capacitor' }, ctx);
+    expect(result.mcpSuggestions).toBeUndefined();
+    expect(result.hint).toContain('No tools matched');
+  });
+
+  it('suggests only MCP-provisioned tools, not near-named builtins', async () => {
+    const ctx = makeCtx([
+      {
+        name: 'codebase_search',
+        description: 'Search the codebase index.',
+        permission: 'auto',
+        mutating: false,
+      },
+    ]);
+    const result = await executeToolSearch({ query: 'codebase-serch' }, ctx);
+    expect(result.tools).toEqual([]);
+    expect(result.mcpSuggestions).toBeUndefined();
+  });
+
+  it('renders the suggestion and the question in model-facing output', async () => {
+    const ctx = makeCtx([mcp('mcp__github__search', 'Search GitHub repositories.')]);
+    const result = await executeToolSearch({ query: 'github_search' }, ctx);
+    const rendered = toolSearchTool.serialize!(result, { query: 'github_search' });
+    expect(rendered).toContain("Might the tool you're looking for be in this MCP?");
+    expect(rendered).toContain('mcp suggestion: mcp__github__search');
+    expect(rendered).toContain('server "github"');
+    expect(rendered).toContain('100% name match');
+  });
+});

@@ -40,6 +40,20 @@ export interface ToolSearchOutput {
   truncated: boolean;
   /** Guidance: why nothing matched, or how to get an omitted schema. */
   hint?: string | undefined;
+  /**
+   * Near-name matches among MCP-provisioned tools, present only when a query
+   * matched nothing: the name the model used (any separator style, typo'd, or
+   * missing the `mcp__<server>__` prefix) was close to a registered tool.
+   */
+  mcpSuggestions?:
+    | {
+        name: string;
+        server: string;
+        tool: string;
+        /** 0-1 similarity between the query and the qualified tool name. */
+        similarity: number;
+      }[]
+    | undefined;
   /** Total count of tools in the registry (for "no results" hints). */
   _available?: number;
 }
@@ -181,20 +195,38 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
     // that was in the catalog all along (an `image_generate` search with
     // `permission: 'auto'` hid a confirm-gated tool).
     const excludedByFilters = results.length === 0 && query ? scores.size : 0;
+    // Truly nothing matched: before telling the model to broaden the query,
+    // check whether its name is close to an MCP-provisioned tool. Models
+    // routinely search `github_search`-style names while registered tools are
+    // qualified `mcp__github__search`, or mistype one segment — the ranked
+    // scorer above scores all of those as zero hits.
+    const mcpSuggestions = results.length === 0 && query ? nearestMcpTools(tools, query) : [];
     const hint =
       excludedByFilters > 0
         ? `${excludedByFilters} tool(s) match "${input.query}" but the tags/permission/mutating filters excluded them; search again without those filters.`
-        : results.length === 0 && query
-          ? `No tools matched "${input.query}". ${totalAvailable} tools are available; try a broader query, or call tool_search with no query and limit up to 100.`
-          : results.length > SCHEMA_RESULTS
-            ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
-            : undefined;
+        : mcpSuggestions.length > 0
+          ? `Might the tool you're looking for be in this MCP? ${mcpSuggestions
+              .map(
+                (suggestion) =>
+                  `${suggestion.name} (server "${suggestion.server}", ${Math.round(
+                    suggestion.similarity * 100,
+                  )}% name match)`,
+              )
+              .join(
+                '; ',
+              )}. Search the exact suggested name to get its schema, then call it with tool_use.`
+          : results.length === 0 && query
+            ? `No tools matched "${input.query}". ${totalAvailable} tools are available; try a broader query, or call tool_search with no query and limit up to 100.`
+            : results.length > SCHEMA_RESULTS
+              ? `Schemas are included for the first ${SCHEMA_RESULTS} results; call tool_search with another tool's exact name to get its inputSchema.`
+              : undefined;
 
     return {
       tools: results,
       total: filtered.length,
       truncated: filtered.length > limit,
       ...(hint ? { hint } : {}),
+      ...(mcpSuggestions.length > 0 ? { mcpSuggestions } : {}),
       _available: totalAvailable,
     };
   },
@@ -295,7 +327,16 @@ function renderToolSearch(output: ToolSearchOutput, input: ToolSearchInput): str
       ...(shownUsage ? [exactName ? `   usage:\n${shownUsage}` : `   usage: ${shownUsage}`] : []),
     ].join('\n');
   });
-  return [header, ...lines, ...(output.hint ? [`hint: ${output.hint}`] : [])].join('\n');
+  const suggestionLines = (output.mcpSuggestions ?? []).map(
+    (suggestion) =>
+      `mcp suggestion: ${suggestion.name} [server "${suggestion.server}", tool "${suggestion.tool}", ${Math.round(suggestion.similarity * 100)}% name match]`,
+  );
+  return [
+    header,
+    ...lines,
+    ...suggestionLines,
+    ...(output.hint ? [`hint: ${output.hint}`] : []),
+  ].join('\n');
 }
 
 /** First sentence of a description, capped — enough to tell tools apart. */
@@ -425,4 +466,96 @@ function queryScore(t: Tool, query: string): number {
     }
   }
   return hits * 2 >= terms.length ? score : 0;
+}
+
+/**
+ * "Tool not found" rescue: when the ranked scorer above matched nothing, the
+ * name the model used may still be close to an MCP-provisioned tool. Models
+ * search `github_search`-style names while registered tools are qualified as
+ * `mcp__<server>__<tool>` (core/utils/tool-name.ts), and a typo in one
+ * segment scores zero. Similarity is separator-agnostic token coverage or
+ * edit distance over the qualified name with the `mcp__` prefix stripped —
+ * the prefix is registration machinery, not something a model would type.
+ */
+const MCP_SUGGESTION_LIMIT = 3;
+/** Below this 0-1 similarity a suggestion reads as noise, not help. */
+const MCP_SUGGESTION_MIN_SIMILARITY = 0.6;
+/** Skip the O(n*m) pass when even zero edits cannot reach the threshold. */
+const MCP_SUGGESTION_LENGTH_SLACK = 0.4;
+
+type McpSuggestion = NonNullable<ToolSearchOutput['mcpSuggestions']>;
+
+function nearestMcpTools(tools: readonly Tool[], query: string): McpSuggestion {
+  const suggestions: McpSuggestion = [];
+  for (const tool of tools) {
+    const parsed = parseMcpToolName(tool.name);
+    if (!parsed) continue;
+    const similarity = mcpNameSimilarity(query, `${parsed.server}__${parsed.tool}`);
+    if (similarity >= MCP_SUGGESTION_MIN_SIMILARITY) {
+      suggestions.push({ name: tool.name, server: parsed.server, tool: parsed.tool, similarity });
+    }
+  }
+  suggestions.sort((a, b) => b.similarity - a.similarity);
+  return suggestions.slice(0, MCP_SUGGESTION_LIMIT);
+}
+
+/** Split `mcp__<server>__<tool>`; the first `__` after the prefix separates. */
+function parseMcpToolName(name: string): { server: string; tool: string } | undefined {
+  if (!name.startsWith('mcp__')) return undefined;
+  const rest = name.slice('mcp__'.length);
+  const separator = rest.indexOf('__');
+  if (separator <= 0 || separator >= rest.length - 2) return undefined;
+  return { server: rest.slice(0, separator), tool: rest.slice(separator + 2) };
+}
+
+/** Lowercase word tokens; camelCase and every separator style split alike. */
+function nameTokens(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/** Two-row Levenshtein; inputs are short tool names, so no early exit. */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const current: number[] = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current.push(
+        Math.min(
+          (previous[j] ?? Number.MAX_SAFE_INTEGER) + 1,
+          (current[j - 1] ?? Number.MAX_SAFE_INTEGER) + 1,
+          (previous[j - 1] ?? Number.MAX_SAFE_INTEGER) + (a[i - 1] === b[j - 1] ? 0 : 1),
+        ),
+      );
+    }
+    previous = current;
+  }
+  return previous[b.length] ?? a.length;
+}
+
+/** Best 0-1 similarity: token coverage, or edit distance over packed words. */
+function mcpNameSimilarity(query: string, qualifiedName: string): number {
+  const queryTokens = nameTokens(query);
+  const qualifiedTokens = nameTokens(qualifiedName);
+  let covered = 0;
+  for (const token of queryTokens) {
+    if (qualifiedTokens.includes(token)) covered++;
+  }
+  const tokenScore = queryTokens.length > 0 ? covered / queryTokens.length : 0;
+  const queryPacked = queryTokens.join('');
+  const namePacked = qualifiedTokens.join('');
+  let editScore = 0;
+  if (
+    queryPacked.length > 0 &&
+    namePacked.length > 0 &&
+    Math.abs(queryPacked.length - namePacked.length) <=
+      MCP_SUGGESTION_LENGTH_SLACK * Math.max(queryPacked.length, namePacked.length)
+  ) {
+    editScore =
+      1 - editDistance(queryPacked, namePacked) / Math.max(queryPacked.length, namePacked.length);
+  }
+  return Math.max(tokenScore, editScore);
 }
