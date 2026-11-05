@@ -12,14 +12,16 @@ import {
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
-import { visibleSessions } from './model';
+import { sessionStatus, visibleSessions } from './model';
 import { PaletteActions } from './PaletteActions';
 import { openPreview } from './platform';
 
 import type { DesktopController } from './useDesktop';
 
 export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
+  const { t } = useDesktopText();
   const {
     snapshot,
     search,
@@ -49,19 +51,19 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
         <Modal onClose={() => setDialog(null)}>
           <header>
             <div>
-              <span className="eyebrow">WRONGSTACK WORKSPACE</span>
+              <span className="eyebrow">{t('workspaceDialog.eyebrow')}</span>
               <h2 id="dialog-title">
                 {dialog === 'session'
-                  ? 'A fresh session.'
+                  ? t('workspaceDialog.title.session')
                   : dialog === 'preview'
-                    ? 'Preview your work.'
-                    : 'Find your next move.'}
+                    ? t('workspaceDialog.title.preview')
+                    : t('workspaceDialog.title.palette')}
               </h2>
             </div>
             <button
               type="button"
               className="icon-button"
-              title="Close dialog"
+              title={t('workspaceDialog.close')}
               onClick={() => setDialog(null)}
             >
               <X size={19} />
@@ -75,7 +77,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
               }}
             >
               <label>
-                Project
+                {t('workspaceDialog.project')}
                 <select
                   required
                   value={sessionProject}
@@ -96,8 +98,8 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   onClick={() => setKind('agent')}
                 >
                   <Workflow size={20} />
-                  <strong>Agent</strong>
-                  <span>The full WrongStack engine</span>
+                  <strong>{t('workspaceDialog.agent')}</strong>
+                  <span>{t('workspaceDialog.agentBody')}</span>
                 </button>
                 <button
                   type="button"
@@ -106,38 +108,46 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   onClick={() => setKind('terminal')}
                 >
                   <Terminal size={20} />
-                  <strong>Terminal</strong>
-                  <span>A persistent native shell</span>
+                  <strong>{t('workspaceDialog.terminal')}</strong>
+                  <span>{t('workspaceDialog.terminalBody')}</span>
                 </button>
               </div>
               <label>
-                Session name <span className="field-hint">optional</span>
+                {t('workspaceDialog.sessionName')}{' '}
+                <span className="field-hint">{t('workspaceDialog.optional')}</span>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder={kind === 'agent' ? 'What are we building?' : 'Development terminal'}
+                  placeholder={
+                    kind === 'agent'
+                      ? t('workspaceDialog.placeholderAgent')
+                      : t('workspaceDialog.placeholderTerminal')
+                  }
                   maxLength={200}
                 />
               </label>
               <label>
-                Working directory <span className="field-hint">relative to project · optional</span>
+                {t('workspaceDialog.workdir')}{' '}
+                <span className="field-hint">{t('workspaceDialog.workdirHint')}</span>
                 <input
                   value={workdir}
                   onChange={(e) => setWorkdir(e.target.value)}
-                  placeholder="Project root"
+                  placeholder={t('workspaceDialog.projectRoot')}
                 />
               </label>
               <p className="form-note">
                 <ShieldCheck size={14} />
-                Your existing WrongStack permissions apply.
+                {t('workspaceDialog.permissions')}
               </p>
               <button
                 type="submit"
                 className="button primary full"
                 disabled={pending || !sessionProject}
               >
-                {pending ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Create{' '}
-                {kind} session
+                {pending ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}
+                {kind === 'agent'
+                  ? t('workspaceDialog.createAgent')
+                  : t('workspaceDialog.createTerminal')}
               </button>
             </form>
           )}
@@ -152,7 +162,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
               }}
             >
               <label>
-                Local preview URL
+                {t('workspaceDialog.previewUrl')}
                 <input
                   type="url"
                   required
@@ -167,14 +177,11 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   checked={previewDevtools}
                   onChange={(e) => setPreviewDevtools(e.target.checked)}
                 />
-                Open developer tools
+                {t('workspaceDialog.devtools')}
               </label>
-              <p className="form-note">
-                Opens in a separate native webview with no desktop IPC permissions and a private
-                profile: cookies and storage are discarded when the preview closes.
-              </p>
+              <p className="form-note">{t('workspaceDialog.previewNote')}</p>
               <button type="submit" className="button primary full">
-                Open preview
+                {t('workspaceDialog.openPreview')}
                 <ArrowUpRight size={16} />
               </button>
             </form>
@@ -184,10 +191,10 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
               <div className="palette-input">
                 <Search size={19} />
                 <input
-                  aria-label="Search projects and sessions"
+                  aria-label={t('workspaceDialog.searchLabel')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search projects and sessions…"
+                  placeholder={t('workspaceDialog.searchPlaceholder')}
                 />
               </div>
               {snapshot.projects
@@ -205,7 +212,7 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   >
                     <Folder size={17} />
                     <span>{p.name}</span>
-                    <small>PROJECT</small>
+                    <small>{t('workspaceDialog.projectTag')}</small>
                     <ArrowRight size={15} />
                   </button>
                 ))}
@@ -222,16 +229,16 @@ export function WorkspaceDialogs({ vm }: { vm: DesktopController }) {
                   >
                     <Terminal size={17} />
                     <span>{s.title}</span>
-                    <small>{s.status}</small>
+                    <small>{t(`fleetView.status.${sessionStatus(s)}`)}</small>
                     <ArrowRight size={15} />
                   </button>
                 ))}
               <PaletteActions vm={vm} search={search} />
               {!snapshot.projects.length && (
-                <p className="quiet-state">Connect your first project to get started.</p>
+                <p className="quiet-state">{t('workspaceDialog.noProjects')}</p>
               )}
               <footer>
-                <Command size={12} /> Ctrl K to toggle · Esc to close
+                <Command size={12} /> {t('workspaceDialog.footer')}
               </footer>
             </div>
           )}

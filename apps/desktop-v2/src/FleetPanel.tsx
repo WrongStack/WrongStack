@@ -1,4 +1,12 @@
 import { ArrowRight, FolderPlus, Layers3, Plus, Search, Terminal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
+import {
+  PINNED_SESSIONS_KEY,
+  readPinnedSessions,
+  sortSessions,
+  writePinnedSessions,
+} from './model';
 import { addProject, native } from './platform';
 import { SessionCard } from './SessionCard';
 import type { DesktopController } from './useDesktop';
@@ -20,25 +28,44 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
     sessions,
     jumpToSession,
   } = vm;
+  const { t } = useDesktopText();
+  const [pinned, setPinned] = useState<string[]>([]);
+  useEffect(() => {
+    setPinned(readPinnedSessions());
+    const sync = (event: StorageEvent) => {
+      if (event.key === PINNED_SESSIONS_KEY || event.key === null) setPinned(readPinnedSessions());
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  const togglePin = (id: string) => {
+    // Windows share this storage: start from what is persisted now, not from
+    // the copy this window read at mount, or one window erases another's pins.
+    const current = readPinnedSessions();
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+    writePinnedSessions(next);
+    setPinned(next);
+  };
   const projects = snapshot.projects.filter(
     (item) =>
       (!project || item.id === project) &&
       sessions.some((session) => session.projectId === item.id),
   );
   return (
-    <section className="sessions-region" aria-label="Sessions">
+    <section className="sessions-region" aria-label={t('fleetView.sessionsLabel')}>
       <div className="workspace-overview">
         <span>
           <i className="status-dot running" />
-          <strong>{active.length}</strong> active {active.length === 1 ? 'session' : 'sessions'}
+          <strong>{active.length}</strong>{' '}
+          {t(active.length === 1 ? 'fleetView.activeOne' : 'fleetView.activeMany')}
         </span>
         <span>
           <strong>{snapshot.projects.length}</strong>{' '}
-          {snapshot.projects.length === 1 ? 'project' : 'projects'}
+          {t(snapshot.projects.length === 1 ? 'fleetView.projectOne' : 'fleetView.projectMany')}
         </span>
         {attention.length > 0 && (
           <button type="button" onClick={() => setFilter('attention')}>
-            {attention.length} need attention <ArrowRight size={12} />
+            {t('fleetView.needAttention', { count: attention.length })} <ArrowRight size={12} />
           </button>
         )}
         <button
@@ -48,16 +75,16 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           onClick={() => newSession(undefined, 'terminal')}
         >
           <Terminal size={14} />
-          Open terminal
+          {t('fleetView.openTerminal')}
         </button>
       </div>
       <div className="section-toolbar">
-        <div className="tab-list" role="tablist" aria-label="Filter sessions">
+        <div className="tab-list" role="tablist" aria-label={t('fleetView.filterSessions')}>
           {[
-            { id: 'all', label: 'All sessions' },
-            { id: 'active', label: 'Active' },
-            { id: 'attention', label: 'Attention' },
-            { id: 'history', label: 'History' },
+            { id: 'all', label: t('fleetView.tab.all') },
+            { id: 'active', label: t('fleetView.tab.active') },
+            { id: 'attention', label: t('fleetView.tab.attention') },
+            { id: 'history', label: t('fleetView.tab.history') },
           ].map((item) => (
             <button
               type="button"
@@ -74,10 +101,10 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
         <label className="inline-search">
           <Search size={14} />
           <input
-            aria-label="Search sessions"
+            aria-label={t('fleetView.searchSessions')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Find a session…"
+            placeholder={t('fleetView.findSession')}
           />
         </label>
       </div>
@@ -85,7 +112,7 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
         <section
           className="project-session-group"
           key={item.id}
-          aria-label={`${item.name} sessions`}
+          aria-label={t('fleetView.groupSessions', { name: item.name })}
         >
           <header>
             <div>
@@ -94,9 +121,9 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
               </span>
               <h2>{item.name}</h2>
               <span>
-                {countLabel(
+                {sessionCount(
+                  t,
                   sessions.filter((session) => session.projectId === item.id).length,
-                  'session',
                 )}
               </span>
             </div>
@@ -107,22 +134,25 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
               onClick={() => newSession(item.id)}
             >
               <Plus size={13} />
-              New session
+              {t('fleetView.newSession')}
             </button>
           </header>
           <div className="session-grid">
-            {sessions
-              .filter((session) => session.projectId === item.id)
-              .map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  name={item.name}
-                  selected={selected === session.id}
-                  onOpen={() => jumpToSession(session)}
-                  onLaunch={() => jumpToSession(session)}
-                />
-              ))}
+            {sortSessions(
+              sessions.filter((session) => session.projectId === item.id),
+              pinned,
+            ).map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                name={item.name}
+                selected={selected === session.id}
+                pinned={pinned.includes(session.id)}
+                onOpen={() => jumpToSession(session)}
+                onLaunch={() => jumpToSession(session)}
+                onTogglePin={() => togglePin(session.id)}
+              />
+            ))}
           </div>
         </section>
       ))}
@@ -133,15 +163,15 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
           </div>
           <h2>
             {search || filter !== 'all'
-              ? 'No matching sessions.'
+              ? t('fleetView.empty.noMatch')
               : snapshot.projects.length
-                ? 'What are we working on?'
-                : 'Bring your projects together.'}
+                ? t('fleetView.empty.welcome')
+                : t('fleetView.empty.noProjects')}
           </h2>
           <p>
             {search || filter !== 'all'
-              ? 'Try another filter or create a session for this project.'
-              : 'Start a conversation or open a terminal in one of your projects.'}
+              ? t('fleetView.empty.tryFilter')
+              : t('fleetView.empty.start')}
           </p>
           <button
             type="button"
@@ -150,7 +180,9 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
             onClick={() => (snapshot.projects.length ? newSession() : void run(addProject))}
           >
             {snapshot.projects.length ? <Plus size={15} /> : <FolderPlus size={15} />}
-            {snapshot.projects.length ? 'Create a session' : 'Add your first project'}
+            {snapshot.projects.length
+              ? t('fleetView.createSession')
+              : t('fleetView.addFirstProject')}
             <ArrowRight size={14} />
           </button>
         </div>
@@ -159,6 +191,6 @@ export function FleetPanel({ vm }: { vm: DesktopController }) {
   );
 }
 
-function countLabel(count: number, noun: string): string {
-  return `${count} ${count === 1 ? noun : `${noun}s`}`;
+function sessionCount(t: (key: string, values: { count: number }) => string, count: number) {
+  return t(count === 1 ? 'fleetView.sessionOne' : 'fleetView.sessionMany', { count });
 }

@@ -159,19 +159,23 @@ export function SessionActivity({
               )}
               {row.output && (
                 <section>
-                  <h4 className="activity-output-heading">
-                    {row.kind === 'reasoning'
-                      ? t('runLog.thinking')
-                      : row.kind === 'retry'
-                        ? t('runLog.retryDetails')
-                        : row.outputBytes !== undefined &&
-                            row.outputBytes > new TextEncoder().encode(row.output).length
-                          ? t('runLog.outputPreview')
-                          : t('runLog.output')}
+                  {/* The actions sit beside the heading, not in it: a heading is named by its
+                      text, so "Output" must not read as "Output exit 0 Copy Save". */}
+                  <div className="activity-output-heading">
+                    <h4>
+                      {row.kind === 'reasoning'
+                        ? t('runLog.thinking')
+                        : row.kind === 'retry'
+                          ? t('runLog.retryDetails')
+                          : row.outputBytes !== undefined &&
+                              row.outputBytes > new TextEncoder().encode(row.output).length
+                            ? t('runLog.outputPreview')
+                            : t('runLog.output')}
+                    </h4>
                     {row.kind === 'tool' && (
                       <ToolOutputActions tool={row.title} output={row.output} />
                     )}
-                  </h4>
+                  </div>
                   <div className="approval-arguments">
                     <StructuredToolValue value={readableOutput(row.output)} />
                   </div>

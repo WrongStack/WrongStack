@@ -311,7 +311,7 @@ export async function exerciseNativeComposerResources({
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await page
     .getByRole('alert')
-    .filter({ hasText: 'This desktop command is not available' })
+    .filter({ hasText: 'is not a desktop command. Your draft was not sent' })
     .waitFor();
   assert.equal(await input().inputValue(), '/unsupported-native-command');
   assert.equal(providerFixture.calls.filter((call) => call.stream === true).length, beforeUnknown);

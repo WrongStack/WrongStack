@@ -2016,3 +2016,30 @@ h1 {
   border-radius: 6px;
   font-size: 12px;
 }
+
+/* Session pinning. The pin control is quiet (muted text, not reduced opacity, so it keeps
+   4.5:1) and at least 24 px tall (WCAG 2.2 target size). */
+.session-card.pinned {
+  outline: 1px solid var(--accent, currentColor);
+}
+.card-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85em;
+  padding: 2px 6px;
+}
+.card-pin:hover,
+.card-pin:focus-visible,
+.card-pin.is-pinned {
+  color: var(--text);
+}
+.card-pin.is-pinned {
+  font-weight: 600;
+}
