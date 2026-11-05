@@ -2,7 +2,7 @@ import { Activity, ArrowRight, Brain, FileCode2, ShieldCheck, Users } from 'luci
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries, record } from './engine-values';
+import { entries, record, sentenceStart } from './engine-values';
 import { fileName } from './file-model';
 import type { VisualNode } from './graph-model';
 import { fileMemories } from './sage-model';
@@ -18,7 +18,11 @@ export function AtlasNodeEvidence({
   onOpenMemory?: (id: string) => void;
   onOpenFile?: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
+  const kindLabel = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`atlasDetails.kind_${value}`, { defaultValue: sentenceStart(value, i18n.language) })
+      : undefined;
   const [memoryData, setMemoryData] = useState<Record<string, unknown>[]>([]),
     [events, setEvents] = useState<Record<string, unknown>[]>([]),
     [error, setError] = useState(''),
@@ -79,7 +83,7 @@ export function AtlasNodeEvidence({
       )}
       <dl className="atlas-node-facts">
         {[
-          [t('atlasDetails.kind'), node.data['symbolKind'] ?? node.data['kind']],
+          [t('atlasDetails.kind'), kindLabel(node.data['symbolKind'] ?? node.data['kind'])],
           [t('atlasDetails.subsystem'), node.data['subsystem']],
           [t('atlasDetails.language'), node.data['lang']],
           [t('atlasDetails.scope'), node.data['scope']],
