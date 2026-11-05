@@ -5473,7 +5473,9 @@
     "fragileScore": "Wert {{score}}",
     "thrashCycles": "{{count}} Thrashing-Zyklen",
     "lockedBy": "Gesperrt von {{owner}}",
-    "symbols": "{{count}} Sym."
+    "symbols": "{{count}} Sym.",
+    "filesSymbols": "{{files}} Dateien · {{symbols}} Symbole",
+    "allLinks": "ALLE VERBINDUNGEN"
   },
   "sageText": {
     "anchorType": "Typ von Anker {{n}}",
@@ -5504,7 +5506,16 @@
     "forgetTitle": "Diese Vektorerinnerung vergessen?",
     "forgetBody": "Dadurch werden der Eintrag und sein Embedding aus dem Vektorspeicher entfernt.",
     "forgetting": "Wird vergessen…",
-    "forgetMemory": "Erinnerung vergessen"
+    "forgetMemory": "Erinnerung vergessen",
+    "never": "nie",
+    "unknown": "unbekannt",
+    "justNow": "gerade eben",
+    "minutesAgo": "vor {{n}} Min.",
+    "hoursAgo": "vor {{n}} Std.",
+    "daysAgo": "vor {{n}} T.",
+    "visible": "{{count}} sichtbar",
+    "retrievable": "abrufbar",
+    "tags": "{{count}} Tags"
   },
   "storyText": {
     "col": {

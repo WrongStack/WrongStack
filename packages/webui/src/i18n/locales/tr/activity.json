@@ -5473,7 +5473,9 @@
     "fragileScore": "puan {{score}}",
     "thrashCycles": "{{count}} çalkalanma döngüsü",
     "lockedBy": "{{owner}} tarafından kilitli",
-    "symbols": "{{count}} sembol"
+    "symbols": "{{count}} sembol",
+    "filesSymbols": "{{files}} dosya · {{symbols}} sembol",
+    "allLinks": "TÜM BAĞLANTILAR"
   },
   "sageText": {
     "anchorType": "{{n}}. çapanın türü",
@@ -5504,7 +5506,16 @@
     "forgetTitle": "Bu vektör belleği unutulsun mu?",
     "forgetBody": "Bu işlem kaydı ve gömmesini vektör bellek deposundan kaldırır.",
     "forgetting": "Unutuluyor…",
-    "forgetMemory": "Belleği unut"
+    "forgetMemory": "Belleği unut",
+    "never": "hiç",
+    "unknown": "bilinmiyor",
+    "justNow": "az önce",
+    "minutesAgo": "{{n}} dk önce",
+    "hoursAgo": "{{n}} sa önce",
+    "daysAgo": "{{n}} gün önce",
+    "visible": "{{count}} görünür",
+    "retrievable": "erişilebilir",
+    "tags": "{{count}} etiket"
   },
   "storyText": {
     "col": {

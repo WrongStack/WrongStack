@@ -36,7 +36,7 @@ export function MemoryManagerStatsBar({
         <MetricCard
           label={t('activity:memoryManager.tabMemories')}
           value={stats?.total ?? memories.length}
-          hint={`${filteredCount} visible`}
+          hint={t('activity:sageText.visible', { count: filteredCount })}
         />
         <MetricCard
           label={t('activity:memoryManager.tabActive')}
@@ -48,7 +48,7 @@ export function MemoryManagerStatsBar({
               ? t('activity:memoryManager.healthPrecisionHint', {
                   percent: Math.round(precision * 100),
                 })
-              : 'retrievable'
+              : t('activity:sageText.retrievable')
           }
           tone="success"
         />
@@ -62,7 +62,7 @@ export function MemoryManagerStatsBar({
           <MetricCard
             label={t('activity:memoryManager.tabGraphEdges')}
             value={stats?.edges ?? 0}
-            hint={`${allTagsCount} tags`}
+            hint={t('activity:sageText.tags', { count: allTagsCount })}
             tone="info"
           />
         </div>

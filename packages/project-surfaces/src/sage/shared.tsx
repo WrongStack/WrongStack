@@ -1,4 +1,5 @@
 import { SAGE_MEMORY_KINDS } from '@wrongstack/core/utils/sage-kinds';
+import type { TFunction } from 'i18next';
 import { cn } from '../lib/utils';
 import type { SageAnchor, SageEntry, SageScope, SageStatus } from './model-types';
 
@@ -159,15 +160,31 @@ export function formatDate(value?: string): string {
   }).format(parsed);
 }
 
-export function relativeDate(value?: string): string {
-  if (!value) return 'never';
+/** How long ago, in the display language when a translator is given (English without one). */
+export function relativeDate(value?: string, t?: TFunction): string {
+  const say = (key: string, english: string, n?: number): string =>
+    !t
+      ? english
+      : n === undefined
+        ? t(`activity:sageText.${key}`)
+        : t(`activity:sageText.${key}`, { n });
+  if (!value) return say('never', 'never');
   const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return 'unknown';
+  if (!Number.isFinite(parsed)) return say('unknown', 'unknown');
   const seconds = Math.max(0, Math.round((Date.now() - parsed) / 1000));
-  if (seconds < 60) return 'just now';
-  if (seconds < 3_600) return `${Math.round(seconds / 60)}m ago`;
-  if (seconds < 86_400) return `${Math.round(seconds / 3_600)}h ago`;
-  if (seconds < 604_800) return `${Math.round(seconds / 86_400)}d ago`;
+  if (seconds < 60) return say('justNow', 'just now');
+  if (seconds < 3_600) {
+    const n = Math.round(seconds / 60);
+    return say('minutesAgo', `${n}m ago`, n);
+  }
+  if (seconds < 86_400) {
+    const n = Math.round(seconds / 3_600);
+    return say('hoursAgo', `${n}h ago`, n);
+  }
+  if (seconds < 604_800) {
+    const n = Math.round(seconds / 86_400);
+    return say('daysAgo', `${n}d ago`, n);
+  }
   return formatDate(value);
 }
 

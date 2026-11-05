@@ -8685,3 +8685,17 @@ copies, starting with SAGE memory.
   The first run of these scopes, overnight, stopped in companion at SAGE "Memory updated." and
   then hung for seven hours taking a screenshot; that step passed in the sage scope and in both
   later companion runs.
+
+### SAGE page width and the last English pieces (2026-11-05)
+
+- The desktop mounted the shared SAGE workbench without `fill`, so the project page padding
+  framed it with empty margins while Kanban, Code Atlas, Office and diagnostics take the whole
+  page. `ProjectSage` passes `fill`; SageTabs already fills its panel and scrolls its lists.
+- German screens still showed SAGE relative dates and stat hints, Code Atlas package card
+  counts and "ALL LINKS"; 11 more activity keys in all seven languages.
+- Results (release portable `cb5b2a2659aa-f356dfb1eb14`): sage PASSED, a11y PASSED (0 axe
+  violations, 0 German label findings), atlas PASSED twice (43 s, 27 s); WebUI 6,239 of 6,241
+  tests pass (the 2 locale-dependent context timeline tests as before). Three earlier atlas
+  runs stopped at "Show N more files" not becoming stable while other tools held the CPU at
+  57 %; a build without this change passed once and this change then passed twice, so the
+  stop is load, not this change.

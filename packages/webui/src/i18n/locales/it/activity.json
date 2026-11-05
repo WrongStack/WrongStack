@@ -5473,7 +5473,9 @@
     "fragileScore": "punteggio {{score}}",
     "thrashCycles": "{{count}} cicli di thrashing",
     "lockedBy": "Bloccato da {{owner}}",
-    "symbols": "{{count}} simb."
+    "symbols": "{{count}} simb.",
+    "filesSymbols": "{{files}} file · {{symbols}} simboli",
+    "allLinks": "TUTTI I COLLEGAMENTI"
   },
   "sageText": {
     "anchorType": "Tipo dell’ancora {{n}}",
@@ -5504,7 +5506,16 @@
     "forgetTitle": "Dimenticare questa memoria vettoriale?",
     "forgetBody": "Questo rimuove la voce e il suo embedding dall’archivio della memoria vettoriale.",
     "forgetting": "Rimozione in corso…",
-    "forgetMemory": "Dimentica memoria"
+    "forgetMemory": "Dimentica memoria",
+    "never": "mai",
+    "unknown": "sconosciuto",
+    "justNow": "proprio ora",
+    "minutesAgo": "{{n}} min fa",
+    "hoursAgo": "{{n}} h fa",
+    "daysAgo": "{{n}} g fa",
+    "visible": "{{count}} visibili",
+    "retrievable": "recuperabili",
+    "tags": "{{count}} tag"
   },
   "storyText": {
     "col": {

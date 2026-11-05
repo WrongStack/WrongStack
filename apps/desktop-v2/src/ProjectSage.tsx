@@ -32,7 +32,9 @@ export function ProjectSage({
   );
   useEffect(() => attach(), [attach]);
   return (
-    <SurfaceFrame host={host} confirm={confirm}>
+    // The WebUI's SAGE workbench fills its panel and scrolls its own lists, as Kanban and Atlas
+    // do; without `fill` the project page's padding framed it with empty margins.
+    <SurfaceFrame host={host} confirm={confirm} fill>
       <SageTabs key={initialMemoryId ?? ''} linkedMemoryId={initialMemoryId} />
     </SurfaceFrame>
   );

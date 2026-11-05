@@ -450,7 +450,7 @@ export function ReviewQueue({
                   <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <span className="font-mono text-warning">{c.suggestedAction ?? 'review'}</span>
                     <span>·</span>
-                    <span>{relativeDate(c.createdAt)}</span>
+                    <span>{relativeDate(c.createdAt, t)}</span>
                     {c.tags?.includes('triage') && (
                       <>
                         <span>·</span>

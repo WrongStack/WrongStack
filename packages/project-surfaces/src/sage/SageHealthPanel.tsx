@@ -193,7 +193,7 @@ export function SageHealthPanel({
         <span className="text-[11px] text-muted-foreground">
           {report
             ? t('activity:memoryManager.healthGeneratedAt', {
-                time: relativeDate(report.generatedAt),
+                time: relativeDate(report.generatedAt, t),
               })
             : null}
         </span>
@@ -298,11 +298,11 @@ export function SageHealthPanel({
                 <dt className="text-muted-foreground">
                   {t('activity:memoryManager.healthMaintLastRun')}
                 </dt>
-                <dd>{relativeDate(maint.lastRunAt)}</dd>
+                <dd>{relativeDate(maint.lastRunAt, t)}</dd>
                 <dt className="text-muted-foreground">
                   {t('activity:memoryManager.healthMaintNextRun')}
                 </dt>
-                <dd>{maint.nextRunAt ? relativeDate(maint.nextRunAt) : '—'}</dd>
+                <dd>{maint.nextRunAt ? relativeDate(maint.nextRunAt, t) : '—'}</dd>
                 {maint.lastError ? (
                   <>
                     <dt className="text-muted-foreground">

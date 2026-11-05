@@ -198,7 +198,7 @@ function MemoryCard({
             <StatusBadge status={match.memory.status} />
             <span>
               {t('activity:memoryManager.updatedSuffix', {
-                date: relativeDate(match.memory.updatedAt),
+                date: relativeDate(match.memory.updatedAt, t),
               })}
             </span>
           </div>

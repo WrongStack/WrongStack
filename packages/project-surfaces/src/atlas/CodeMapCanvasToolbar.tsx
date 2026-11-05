@@ -129,7 +129,9 @@ export function CodeMapCanvasToolbar({
             )}
             onClick={() => onEdgeFilterChange(filter)}
           >
-            {filter === 'all' ? 'ALL LINKS' : filter.replace('_', ' ').toUpperCase()}
+            {filter === 'all'
+              ? t('activity:codeMapText.allLinks')
+              : filter.replace('_', ' ').toUpperCase()}
           </button>
         ))}
       </div>

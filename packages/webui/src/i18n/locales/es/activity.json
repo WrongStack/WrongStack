@@ -5473,7 +5473,9 @@
     "fragileScore": "puntuación {{score}}",
     "thrashCycles": "{{count}} ciclos de thrashing",
     "lockedBy": "Bloqueado por {{owner}}",
-    "symbols": "{{count}} símb."
+    "symbols": "{{count}} símb.",
+    "filesSymbols": "{{files}} archivos · {{symbols}} símbolos",
+    "allLinks": "TODOS LOS ENLACES"
   },
   "sageText": {
     "anchorType": "Tipo del ancla {{n}}",
@@ -5504,7 +5506,16 @@
     "forgetTitle": "¿Olvidar esta memoria vectorial?",
     "forgetBody": "Esto quita la entrada y su embedding del almacén de memoria vectorial.",
     "forgetting": "Olvidando…",
-    "forgetMemory": "Olvidar memoria"
+    "forgetMemory": "Olvidar memoria",
+    "never": "nunca",
+    "unknown": "desconocido",
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace {{n}} min",
+    "hoursAgo": "hace {{n}} h",
+    "daysAgo": "hace {{n}} d",
+    "visible": "{{count}} visibles",
+    "retrievable": "recuperables",
+    "tags": "{{count}} etiquetas"
   },
   "storyText": {
     "col": {

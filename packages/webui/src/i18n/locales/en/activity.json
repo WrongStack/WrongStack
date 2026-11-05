@@ -5473,7 +5473,9 @@
     "fragileScore": "score {{score}}",
     "thrashCycles": "{{count}} thrash cycles",
     "lockedBy": "Locked by {{owner}}",
-    "symbols": "{{count}} sym"
+    "symbols": "{{count}} sym",
+    "filesSymbols": "{{files}} files · {{symbols}} symbols",
+    "allLinks": "ALL LINKS"
   },
   "sageText": {
     "anchorType": "Anchor {{n}} type",
@@ -5504,7 +5506,16 @@
     "forgetTitle": "Forget this vector memory?",
     "forgetBody": "This removes the entry and its embedding from the vector memory store.",
     "forgetting": "Forgetting…",
-    "forgetMemory": "Forget memory"
+    "forgetMemory": "Forget memory",
+    "never": "never",
+    "unknown": "unknown",
+    "justNow": "just now",
+    "minutesAgo": "{{n}}m ago",
+    "hoursAgo": "{{n}}h ago",
+    "daysAgo": "{{n}}d ago",
+    "visible": "{{count}} visible",
+    "retrievable": "retrievable",
+    "tags": "{{count}} tags"
   },
   "storyText": {
     "col": {

@@ -148,7 +148,10 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
       ? `${graphNode.symbolKind ?? 'symbol'}${graphNode.line ? ` · L${graphNode.line}` : ''}`
       : graphNode.kind === 'file'
         ? relativeFilePath(graphNode)
-        : `${graphNode.fileCount ?? 0} files · ${graphNode.symbolCount ?? 0} symbols`;
+        : t('activity:codeMapText.filesSymbols', {
+            files: graphNode.fileCount ?? 0,
+            symbols: graphNode.symbolCount ?? 0,
+          });
 
   return (
     <div

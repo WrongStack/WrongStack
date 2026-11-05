@@ -157,6 +157,7 @@ interface MemoryCardProps {
 }
 
 function MemoryCard({ memory, isSelected, onClick }: MemoryCardProps) {
+  const { t } = useAppTranslation();
   return (
     <button
       type="button"
@@ -221,7 +222,7 @@ function MemoryCard({ memory, isSelected, onClick }: MemoryCardProps) {
           </span>
         )}
         <span className="ml-auto shrink-0 text-[9px] text-muted-foreground">
-          {relativeDate(memory.updatedAt)}
+          {relativeDate(memory.updatedAt, t)}
         </span>
         <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-info" />
       </div>
