@@ -273,8 +273,10 @@ export function SupervisorBar({
         </span>
         <ChevronDown size={13} className={cn('transition-transform', expanded && 'rotate-180')} />
       </button>
+      {/* Columns follow the panel, not the window: with the task inspector open the board is
+          narrow, and fixed columns pushed the save and audit buttons out of view. */}
       {expanded && (
-        <div className="grid gap-3 border-t p-3 text-xs lg:grid-cols-[220px_220px_1fr_auto]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 border-t p-3 text-xs">
           <label className="flex items-center gap-2 rounded-md border bg-card px-2 py-2">
             <input
               type="checkbox"
@@ -319,11 +321,11 @@ export function SupervisorBar({
             </button>
           </div>
           {mode === 'deterministic' ? (
-            <div className="lg:col-span-4 rounded-md border border-success/20 bg-success/5 px-3 py-2 text-muted-foreground">
+            <div className="col-span-full rounded-md border border-success/20 bg-success/5 px-3 py-2 text-muted-foreground">
               {t('activity:boardChrome.deterministicModeUsesNoProviderModel')}
             </div>
           ) : (
-            <div className="grid gap-3 lg:col-span-4 lg:grid-cols-2">
+            <div className="col-span-full grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
               <SelectField
                 label={t('activity:kanban.kanbanAgentModelSource')}
                 value={routingMode}

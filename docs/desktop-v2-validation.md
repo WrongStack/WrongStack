@@ -8657,3 +8657,31 @@ copies, starting with SAGE memory.
 - Native (release portable `8c47a2b63100-f356dfb1eb14`, `--release --bundled`): a11y PASSED
   with 0 axe violations and 0 German label findings (186 s); files (72 s), atlas (22 s) and
   sage (28 s) PASSED, and surfaces PASSED on the build before the last fix (23 s).
+
+### Pinned sessions, Mission control language and the blocked native scopes (2026-11-05)
+
+- Taken over: an uncommitted change from another session (since 2026-11-03) that pinned
+  session cards, reworded their status and removed the new-session "Session name" field. The
+  pinning, status wording and card changes landed in 66c7ffc6e (pin control with muted text and
+  a 24 px target instead of reduced opacity); its rustfmt-only engine.rs change in 46ce8437c.
+  The field removal was not kept: the host has no way to rename a live session afterwards
+  (`session.rename` renames saved history), and its hint named defaults the host does not
+  use ("Agent session" and "Terminal" are the real ones). The change is backed up in
+  `.temp_files/wip-backup-1105/`.
+- Mission control, the session cards and the new-session, preview and palette dialogs now come
+  from the catalog in all seven languages (70 keys, `fleetView`, `workspaceDialog`); the palette
+  shows a session's status in the card's words. Test: `fleet-view-i18n.test.ts`.
+- With the field back, the default, companion and composer scopes ran again and found:
+  - Stale scenario: the unknown slash command refusal changed in b856a431e
+    ("… is not a desktop command. Your draft was not sent …").
+  - A tool output's copy and save buttons and exit code sat inside its `h4`, so the heading was
+    named "Output exit 0 Copy Save"; they now sit beside it.
+  - With the task inspector open, the Kanban Agent panel's fixed columns pushed Save and Audit
+    now past the clipped edge of the narrow board; the columns now follow the panel width.
+- Results (release portable `60b382577371-f356dfb1eb14`, `--release --bundled`): default
+  PASSED (49 steps, 533 s), companion PASSED (49 steps, 593 s), composer PASSED (19 steps,
+  239 s), and a11y PASSED with 0 axe violations and 0 German label findings, Mission control
+  included (201 s). Desktop 977 unit tests pass; WebUI Kanban component tests 80 pass.
+  The first run of these scopes, overnight, stopped in companion at SAGE "Memory updated." and
+  then hung for seven hours taking a screenshot; that step passed in the sage scope and in both
+  later companion runs.
