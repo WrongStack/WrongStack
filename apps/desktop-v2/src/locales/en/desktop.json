@@ -7963,6 +7963,11 @@
     "results": "Execution results"
   },
   "projectKit": {
+    "historyStatus_failed": "Failed",
+    "historyStatus_passed": "Passed",
+    "historyStatus_running": "Running",
+    "historyAction_verify": "Verification",
+    "historyAction_run": "Run",
     "counts_one": "{{count}} kit · {{invalid}} invalid",
     "changedOnDisk": "The kit changed on disk. Select it again to review its new revision and parameters.",
     "needsVerify": "This revision needs verification before running. Prepare a verification request first.",

@@ -18,7 +18,7 @@ import {
 } from './dead-code-work';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record } from './engine-values';
+import { entries, record, sentenceStart } from './engine-values';
 import type { Session } from './model';
 import './project-dead-code.css';
 
@@ -37,7 +37,7 @@ export function ProjectDeadCode({
   onNewSession: () => void;
   onOpenFile: (path: string, line?: number, endLine?: number) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const label = useDeadCodeLabel();
   const work = useDeadCodeWork(projectId);
   const update = (changes: Parameters<typeof updateDeadCodeWork>[1]) =>
@@ -371,7 +371,12 @@ export function ProjectDeadCode({
                   />
                   <strong>{String(item['name'] ?? item['file'])}</strong>
                   <span>{label(item['category'], true)}</span>
-                  <small>{t('deadCode.confidence', { level: label(item['confidence']) })}</small>
+                  <small>
+                    {sentenceStart(
+                      t('deadCode.confidence', { level: label(item['confidence']) }),
+                      i18n.language,
+                    )}
+                  </small>
                 </label>
                 <button
                   type="button"

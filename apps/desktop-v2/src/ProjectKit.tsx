@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record } from './engine-values';
+import { dateTimeText, entries, record } from './engine-values';
 import { KitCreateRequest } from './KitCreateRequest';
 import { KitParameterDraftNotice, useKitParameterBinding } from './KitParameterDraftNotice';
 import { KitParameterForm, KitSchemaDetails, KitValue } from './KitParameterForm';
@@ -33,7 +33,7 @@ export function ProjectKit({
   onNewSession: () => void;
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const say: KitSay = (code, values) => t(`kitErrors.${code}`, values);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [invalid, setInvalid] = useState<Record<string, unknown>[]>([]);
@@ -389,9 +389,17 @@ export function ProjectKit({
                   entries(kit['history']).map((run, i) => (
                     <div className="kit-history-row" key={String(run['runId'] ?? i)}>
                       <strong>
-                        {String(run['action'])} · {String(run['status'])}
+                        {t(`projectKit.historyAction_${String(run['action'])}`, {
+                          defaultValue: String(run['action']),
+                        })}{' '}
+                        ·{' '}
+                        {t(`projectKit.historyStatus_${String(run['status'])}`, {
+                          defaultValue: String(run['status']),
+                        })}
                       </strong>
-                      <time>{String(run['startedAt'])}</time>
+                      <time dateTime={String(run['startedAt'] ?? '')}>
+                        {dateTimeText(run['startedAt'], i18n.language)}
+                      </time>
                       <small>
                         {t('projectKit.historyRevision', {
                           revision: String(run['revision']).slice(0, 12),

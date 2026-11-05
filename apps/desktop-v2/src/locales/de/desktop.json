@@ -7963,6 +7963,11 @@
     "results": "Ausführungsergebnisse"
   },
   "projectKit": {
+    "historyStatus_failed": "Fehlgeschlagen",
+    "historyStatus_passed": "Bestanden",
+    "historyStatus_running": "Läuft",
+    "historyAction_verify": "Verifizierung",
+    "historyAction_run": "Ausführung",
     "counts_one": "{{count}} Kit · {{invalid}} ungültig",
     "changedOnDisk": "Das Kit hat sich auf der Festplatte geändert. Wähle es erneut, um die neue Revision und die Parameter zu prüfen.",
     "needsVerify": "Diese Revision muss vor dem Ausführen verifiziert werden. Bereite zuerst eine Verifizierungsanfrage vor.",

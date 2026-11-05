@@ -166,6 +166,14 @@
 .kit-request-title {
   margin: 0;
 }
+/* The copy control sits in the same row as the conversation buttons; it takes their height. */
+.kit-request > .copy-button {
+  min-height: 36px;
+  padding: 0 12px;
+  margin-right: 8px;
+  font-size: 11px;
+  vertical-align: middle;
+}
 .kit-request textarea {
   width: 100%;
 }

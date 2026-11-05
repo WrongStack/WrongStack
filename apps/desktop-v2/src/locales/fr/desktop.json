@@ -7963,6 +7963,11 @@
     "results": "Résultats de l’exécution"
   },
   "projectKit": {
+    "historyStatus_failed": "Échouée",
+    "historyStatus_passed": "Réussie",
+    "historyStatus_running": "En cours",
+    "historyAction_verify": "Vérification",
+    "historyAction_run": "Exécution",
     "counts_one": "{{count}} kit · {{invalid}} invalides",
     "changedOnDisk": "Le kit a changé sur le disque. Sélectionne-le à nouveau pour examiner sa nouvelle révision et ses paramètres.",
     "needsVerify": "Cette révision doit être vérifiée avant l’exécution. Prépare d’abord une demande de vérification.",

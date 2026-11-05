@@ -7963,6 +7963,11 @@
     "results": "Yürütme sonuçları"
   },
   "projectKit": {
+    "historyStatus_failed": "Başarısız",
+    "historyStatus_passed": "Geçti",
+    "historyStatus_running": "Çalışıyor",
+    "historyAction_verify": "Doğrulama",
+    "historyAction_run": "Çalıştırma",
     "counts_one": "{{count}} kit · {{invalid}} geçersiz",
     "changedOnDisk": "Kit diskte değişti. Yeni sürümünü ve parametrelerini incelemek için yeniden seç.",
     "needsVerify": "Bu sürüm çalıştırılmadan önce doğrulanmalı. Önce bir doğrulama isteği hazırla.",
