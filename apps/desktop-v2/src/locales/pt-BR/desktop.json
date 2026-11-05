@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} referência interna",
+    "internalReferences": "{{count, number}} referências internas",
+    "nodes_one": "{{count, number}} nó",
+    "nodes": "{{count, number}} nós",
     "tasks_one": "{{count, number}} tarefa",
     "tasks": "{{count, number}} tarefas",
     "phases_one": "{{count, number}} fase",
@@ -8878,6 +8882,7 @@
     "noImpact": "Nenhuma referência é alcançável nesta direção, profundidade e escopo filtrado."
   },
   "atlasBoundary": {
+    "subsystem": "Subsistema",
     "label": "Mapa recolhível de subsistemas",
     "title": "Mapa de fronteiras",
     "intro": "Abra um subsistema para inspecionar o código. As setas seguem as referências salvas no escopo filtrado atual.",

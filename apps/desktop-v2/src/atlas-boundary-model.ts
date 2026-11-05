@@ -1,7 +1,23 @@
 import type { VisualGraph, VisualNode } from './graph-model';
 
+/** How a collapsed subsystem card is worded; the page supplies the display language. */
+export interface BoundaryWords {
+  group: string;
+  detail: (members: number, internal: number) => string;
+}
+
+const englishWords: BoundaryWords = {
+  group: 'Subsystem',
+  detail: (members, internal) =>
+    `${members} ${members === 1 ? 'node' : 'nodes'} · ${internal} internal ${internal === 1 ? 'reference' : 'references'}`,
+};
+
 /** Project only stored references; internal collapsed edges remain in group metrics. */
-export function atlasBoundaries(graph: VisualGraph, expanded: ReadonlySet<string>) {
+export function atlasBoundaries(
+  graph: VisualGraph,
+  expanded: ReadonlySet<string>,
+  words: BoundaryWords = englishWords,
+) {
   const members = new Map<string, VisualNode[]>();
   const groupOf = new Map<string, string>();
   for (const node of graph.nodes) {
@@ -35,8 +51,8 @@ export function atlasBoundaries(graph: VisualGraph, expanded: ReadonlySet<string
       nodes.push({
         id,
         label: name,
-        group: 'Subsystem',
-        detail: `${entries.length} nodes · ${internal} internal references`,
+        group: words.group,
+        detail: words.detail(entries.length, internal),
         weight: Math.max(0, ...entries.map((node) => node.weight)),
         data: { kind: 'subsystem', memberCount: entries.length },
       });

@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} interner Verweis",
+    "internalReferences": "{{count, number}} interne Verweise",
+    "nodes_one": "{{count, number}} Knoten",
+    "nodes": "{{count, number}} Knoten",
     "tasks_one": "{{count, number}} Aufgabe",
     "tasks": "{{count, number}} Aufgaben",
     "phases_one": "{{count, number}} Phase",
@@ -8878,6 +8882,7 @@
     "noImpact": "In dieser Richtung, Tiefe und gefilterten Bereich sind keine Referenzen erreichbar."
   },
   "atlasBoundary": {
+    "subsystem": "Subsystem",
     "label": "Einklappbare Subsystemkarte",
     "title": "Grenzkarte",
     "intro": "Öffne ein Subsystem, um seinen Code zu prüfen. Pfeile folgen gespeicherten Referenzen im aktuellen gefilterten Bereich.",

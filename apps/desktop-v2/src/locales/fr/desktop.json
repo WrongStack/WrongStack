@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} référence interne",
+    "internalReferences": "{{count, number}} références internes",
+    "nodes_one": "{{count, number}} nœud",
+    "nodes": "{{count, number}} nœuds",
     "tasks_one": "{{count, number}} tâche",
     "tasks": "{{count, number}} tâches",
     "phases_one": "{{count, number}} phase",
@@ -8878,6 +8882,7 @@
     "noImpact": "Aucune référence n’est atteignable dans cette direction, cette profondeur et cette portée filtrée."
   },
   "atlasBoundary": {
+    "subsystem": "Sous-système",
     "label": "Carte repliable des sous-systèmes",
     "title": "Carte des frontières",
     "intro": "Ouvre un sous-système pour examiner son code. Les flèches suivent les références enregistrées dans la portée filtrée actuelle.",

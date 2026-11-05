@@ -5,6 +5,9 @@ import { graphScope, placeGraph, type VisualGraph } from './graph-model';
 
 const emptyPath: string[] = [];
 
+/** Graphs up to this size are shown whole without a minimap. */
+const MINIMAP_MIN_NODES = 12;
+
 export function GraphCanvas({
   graph,
   selected,
@@ -38,6 +41,8 @@ export function GraphCanvas({
     [graph, selected, highlightPath, nodeLimit],
   );
   const nodes = useMemo(() => placeGraph(visible, layout), [visible, layout]);
+  // A handful of nodes is already an overview; the minimap would only take room from the fit.
+  const overview = minimap && nodes.length > MINIMAP_MIN_NODES;
   const positions = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 0.75 });
   const drag = useRef<{ x: number; y: number; originalX: number; originalY: number } | null>(null);
@@ -49,7 +54,7 @@ export function GraphCanvas({
     const top = Math.min(...nodes.map((node) => node.y)) - 60;
     const bottom = Math.max(...nodes.map((node) => node.y)) + 60;
     // The overview sits over the map's lower-left corner: fit the graph above it.
-    const height = box.height - (minimap ? 116 : 0);
+    const height = box.height - (overview ? 116 : 0);
     const zoom = Math.max(
       0.03,
       Math.min(1, Math.min((box.width - 60) / (right - left), (height - 80) / (bottom - top))),
@@ -59,7 +64,7 @@ export function GraphCanvas({
       y: height / 2 - ((top + bottom) / 2) * zoom,
       zoom,
     });
-  }, [nodes, minimap]);
+  }, [nodes, overview]);
   useEffect(() => {
     const observer = new ResizeObserver(fit);
     if (surface.current) observer.observe(surface.current);
@@ -221,7 +226,7 @@ export function GraphCanvas({
           <Focus size={15} />
         </button>
       </div>
-      {minimap && nodes.length > 0 && (
+      {overview && (
         <svg
           className="graph-minimap"
           role="img"

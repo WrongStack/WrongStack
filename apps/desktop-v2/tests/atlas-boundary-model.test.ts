@@ -31,7 +31,7 @@ describe('Atlas boundary exploration', () => {
     const projected = atlasBoundaries(graph, new Set());
     expect(projected.graph.nodes).toHaveLength(3);
     expect(projected.graph.nodes.find((n) => n.label === 'Client')?.detail).toBe(
-      '2 nodes · 1 internal references',
+      '2 nodes · 1 internal reference',
     );
     expect(projected.graph.edges).toHaveLength(3);
     const client = JSON.stringify(['group', 'Client']),

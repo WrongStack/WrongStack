@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} referencia interna",
+    "internalReferences": "{{count, number}} referencias internas",
+    "nodes_one": "{{count, number}} nodo",
+    "nodes": "{{count, number}} nodos",
     "tasks_one": "{{count, number}} tarea",
     "tasks": "{{count, number}} tareas",
     "phases_one": "{{count, number}} fase",
@@ -8878,6 +8882,7 @@
     "noImpact": "No hay referencias alcanzables con esta dirección, profundidad y ámbito filtrado."
   },
   "atlasBoundary": {
+    "subsystem": "Subsistema",
     "label": "Mapa plegable de subsistemas",
     "title": "Mapa de límites",
     "intro": "Abre un subsistema para inspeccionar su código. Las flechas siguen las referencias guardadas en el ámbito filtrado actual.",

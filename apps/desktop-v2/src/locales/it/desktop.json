@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} riferimento interno",
+    "internalReferences": "{{count, number}} riferimenti interni",
+    "nodes_one": "{{count, number}} nodo",
+    "nodes": "{{count, number}} nodi",
     "tasks_one": "{{count, number}} attività",
     "tasks": "{{count, number}} attività",
     "phases_one": "{{count, number}} fase",
@@ -8878,6 +8882,7 @@
     "noImpact": "Nessun riferimento è raggiungibile con questa direzione, profondità e ambito filtrato."
   },
   "atlasBoundary": {
+    "subsystem": "Sottosistema",
     "label": "Mappa comprimibile dei sottosistemi",
     "title": "Mappa dei confini",
     "intro": "Apri un sottosistema per esaminarne il codice. Le frecce seguono i riferimenti salvati nell’ambito filtrato attuale.",

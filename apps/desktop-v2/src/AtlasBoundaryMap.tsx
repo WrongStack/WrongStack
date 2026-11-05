@@ -19,7 +19,15 @@ export function AtlasBoundaryMap({
   const { t } = useDesktopText();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState('');
-  const projection = useMemo(() => atlasBoundaries(graph, expanded), [graph, expanded]);
+  const projection = useMemo(
+    () =>
+      atlasBoundaries(graph, expanded, {
+        group: t('atlasBoundary.subsystem'),
+        detail: (members, internal) =>
+          `${t('counts.nodes', { count: members })} · ${t('counts.internalReferences', { count: internal })}`,
+      }),
+    [graph, expanded, t],
+  );
   const active = projection.graph.nodes.find((node) => node.id === selected);
   const group = active ? projection.groups.get(active.id) : undefined;
   const original = active?.data['originalId'];

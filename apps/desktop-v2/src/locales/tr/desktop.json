@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} iç başvuru",
+    "internalReferences": "{{count, number}} iç başvuru",
+    "nodes_one": "{{count, number}} düğüm",
+    "nodes": "{{count, number}} düğüm",
     "tasks_one": "{{count, number}} görev",
     "tasks": "{{count, number}} görev",
     "phases_one": "{{count, number}} aşama",
@@ -8878,6 +8882,7 @@
     "noImpact": "Bu yön, derinlik ve filtrelenmiş kapsam içinde erişilebilir referans yok."
   },
   "atlasBoundary": {
+    "subsystem": "Alt sistem",
     "label": "Daraltılabilir alt sistem haritası",
     "title": "Sınır haritası",
     "intro": "Kodunu incelemek için bir alt sistem aç. Oklar geçerli filtrelenmiş kapsamdaki kayıtlı referansları izler.",

@@ -1,5 +1,9 @@
 {
   "counts": {
+    "internalReferences_one": "{{count, number}} internal reference",
+    "internalReferences": "{{count, number}} internal references",
+    "nodes_one": "{{count, number}} node",
+    "nodes": "{{count, number}} nodes",
     "tasks_one": "{{count, number}} task",
     "tasks": "{{count, number}} tasks",
     "phases_one": "{{count, number}} phase",
@@ -8878,6 +8882,7 @@
     "noImpact": "No references are reachable within this direction, depth, and filtered scope."
   },
   "atlasBoundary": {
+    "subsystem": "Subsystem",
     "label": "Collapsible subsystem map",
     "title": "Boundary map",
     "intro": "Open a subsystem to inspect its code. Arrows follow stored references in the current filtered scope.",
