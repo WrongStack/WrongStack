@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-11-05
+
+Desktop v2 catches up with the WebUI: it renders the WebUI's own project
+surfaces through a shared package, closes the remaining feature gaps and shows
+every screen in the seven display languages the WebUI ships. The TUI's slash
+commands now run on the engine, so the desktop composer and the WebUI chat can
+run `/git`, `/commit`, `/spawn`, `/acp`, `/tuneup` and the skill and prompt
+libraries. WrongMemory reaches Linux and macOS and binds a linked worktree to
+its own checkout.
+
+### Added
+
+- **Shared project surfaces.** `@wrongstack/project-surfaces` holds the WebUI's SAGE memory page, Kanban board, Code Atlas, agent office, Brain council cards, Session Story, context and analytics dashboards, engine diagnostics, plan quota and model test pages, first-run setup, collaboration bar and chimes. The WebUI and Desktop v2 render the same components, each through its own host adapter; desktop-only tools ride host slots on the Kanban board and the Code Atlas.
+- **Engine command bridge.** `command.list` and `command.run` (the `command.bridge` capability) serve the TUI's slash commands from `@wrongstack/runtime/commands` on both engine hosts: `/sandbox`, `/prune`, `/scout-stats`, `/init`, `/git`, `/commit`, `/gitcheck`, `/push`, `/gitid`, `/security`, `/spawn`, `/delegate`, `/director`, `/supervisor`, `/acp`, `/ensemble`, `/tuneup`, and the builtin plugins' skill library, prompt library, `/perf` and `/sync` commands. The CLI files re-export the moved commands, so the TUI runs the same code. A command that changes or deletes data says what it will do and runs only after confirmation; `--dry-run` runs at once. A command's follow-up turn reaches the agent, and on an engine `/acp` and `/ensemble` run as fleet subagents. `/coordinator` and `/shadow` stay in the TUI.
+- **Engine commands in the WebUI chat.** A slash command the WebUI does not route itself runs on the engine when the engine's catalog lists it, instead of going to the model. The slash picker and `/help` list the engine's commands after the WebUI's own.
+- **Desktop v2 in the display language.** Every desktop screen follows the profile's display language (`uiLocale`, shared with the WebUI and CLI): English, Turkish, German, French, Italian, Spanish or Brazilian Portuguese. English is bundled and the other languages load on demand.
+- **Desktop conversations.** Find in the conversation (Ctrl+F), message times with day separators, highlighted code, each turn's duration, one-click suggested next steps, copy, save and exit codes on tool output, image previews, each subagent's transcript in its own tab, a compact density, the YOLO level beside the continuation mode, the agent identity beside the model, the provider waiting room above the composer, Proof-Driven Hunts and the WebUI's slash commands and keyboard layer in the composer, and actions in the Ctrl+K palette. A failed run can be continued, and a stopped conversation reconnects on the same record and journal.
+- **Desktop status bar and appearance.** The status bar shows the repository's state, memories in context, context window use, cache share, iteration and cost. Appearance chooses which chips show, the interface and code fonts, a text size from 90 to 125 % and code ligatures, and a chime when a run finishes (approval requests always chime).
+- **Desktop project tools.** Pinned sessions in Mission control; worktrees as lanes or a branch graph, with their history; side-by-side image comparison and Monaco's editable diff in Changes, where applying binds to the version the diff showed; the jobs an agent scheduled; the SDD board's activity feed and running a saved task graph; the Brain's deterministic rules; a recorded session's summary; a file tree that reloads when files change on disk; kit creation from a conversation; deleting recorded sessions; and SAGE validity and companion reviews in the memory detail.
+- **Desktop settings.** Native cloud routing (Bedrock, Vertex, Azure) on saved connections, MCP connections from the recommended servers, the engine settings only the WebUI could change, HQ, WrongProxy and Telegram integration, terminal display, per-plugin switches and one restart for every running background service.
+- **WrongMemory on Linux and macOS.** `wstack sage service install` installs and verifies the Linux x64 and macOS arm64 builds as well as Windows, and finds WrongMemory under `$XDG_DATA_HOME/wrongmemory/bin` (else `~/.local/share/wrongmemory/bin`).
+- **Linked worktrees on WrongMemory.** With WrongMemory 0.1.4 a linked worktree's connection is bound to its own checkout, so anchored recall and `memory_verify` judge the worktree's files instead of the main checkout's and leave the shared records alone. An older daemon keeps the previous behaviour.
+
+### Removed
+
+- **Unreferenced scripts.** `apply-agent-learning-cli-patch`, `generate-subcommand-manifest`, `generate-webui-captured-tokens`, `repair-agent-learning`, `check-file-size`, `purge-stale-mailbox-entries`, `sage-maintenance` and the design-eval harness are gone; several of them no longer ran.
+
+### Fixed
+
+- **SAGE and WrongMemory.** A store WrongMemory adopted stays with WrongMemory while its daemon is down: a durable adoption marker keeps the local server and the inline store from opening it as a second writer. A rename in a linked worktree no longer rewrites anchors shared with the other checkouts. Vector memory mirrors memories written in `wrongmemory` and `auto` mode, not only the first-boot sync. Ranked memory and vector search answer in the WebUI and the desktop (no host passed the memory store to the HTTP server).
+- **WrongIndex.** Projects are registered with the session policy, so the service watches external editor edits exactly when the local server would (`indexing.watchExternal`).
+- **Project identity.** A `.git` file maps to its main checkout only when the worktree entry's `gitdir` names this checkout back, so a planted `.git` file or a symlink can no longer share another project's sessions, mail, presence and memory.
+- **Kanban journal volume.** A board's supervisor status is broadcast when its audit finds something new and otherwise at most every five minutes. On a project with 164 boards the unchanged snapshots had been 92 % of the project journal that every new desktop window replays.
+- **Model catalog overlay.** The curated overlay's `_removeProviders` and `_removeModels` directives no longer make the overlay look like an outage, so clients stop silently serving the base catalog only; `sync-models --validate` checks the shipped overlay in CI.
+- **Permissions and sandbox.** Directory permission rules resolve symlink and junction aliases (case-folded on Windows); leader deny rules are the union of exact, alias and wildcard entries; the Kanban boundary covers deleted hunks, `strip:0` patches and `filePath` arguments; `NODE_OPTIONS` sanitizing strips attached and quoted preload flags.
+- **Desktop v2.** A turn keeps every tool call, switching back to a conversation no longer replays its journal from the start, a session host started without an engine accepts one from a later launch, Monaco's language workers load from bundled files, and the focus shortcuts work in every display language. The serious WCAG 2.2 AA findings of the native accessibility pass (target size, accessible names, contrast, keyboard access to the Kanban board) are fixed, and the pass now fails on serious violations as well as critical ones.
+- **WebUI.** The 768 px breakpoint counts as desktop, and the Kanban Agent panel keeps its buttons in view on a narrow board.
+- **Evidence-audit rounds (F911–F976).** Fixes across session storage and the catalog, memory backends, mailbox and coordination, compaction, WebUI server file moves and collaboration replay, recovery and director-state locks, fallback and quota handling, model routing, performance measurement, OTLP shutdown, notifications, JSON-schema pattern safety, globs, Brain escalations, the task tracker, the extension registry, the ACP server and the HQ login lockout.
+
 ## [1.4.0] — 2026-11-02
 
 Desktop v2 reaches release depth: conversations, files, Git review, Kanban,

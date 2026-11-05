@@ -1,8 +1,14 @@
 # WrongStack Desktop v2
 
 Native Tauri application for multiple projects and persistent WrongStack sessions.
-All project/session interfaces belong to this application. It does not open, embed, or import
-the WebUI frontend.
+It does not open or embed the WebUI app. The shell, conversations and desktop-only tools belong
+to this application; the project surfaces it shares with the WebUI (SAGE memory, Kanban, Code
+Atlas, agent office, Session Story, context and analytics dashboards, engine diagnostics, setup)
+are compiled in from `@wrongstack/project-surfaces` and fed by desktop host adapters. Every screen
+follows the profile's display language (`uiLocale`): English, Turkish, German, French, Italian,
+Spanish or Brazilian Portuguese. The composer runs the engine's command catalog, so the TUI's
+slash commands (`/git`, `/commit`, `/spawn`, `/acp`, `/tuneup` and more) work here; a command
+that changes or deletes data runs only when the same draft is sent again.
 
 ## Run the portable application
 
@@ -17,7 +23,8 @@ Copy the whole folder to the target Windows machine. Bun, Node, repository files
 packages are not required there; WebView2 remains the OS webview dependency. The engine uses the
 canonical standalone bootstrap and daemon/script dispatch, with only backend runtime assets.
 WebUI frontend bundles are excluded. Static WrongStack logos and canonical color tokens are
-synchronized at build time; no WebUI components or runtime styles are loaded. Both executables
+synchronized at build time; the shared surfaces read theme tokens generated from the WebUI
+stylesheets inside their own frame, and no WebUI bundle or runtime stylesheet is loaded. Both executables
 are currently unsigned. The native icons are owned original assets in `src-tauri/icons`; brand
 synchronization does not require the legacy Electron application.
 New builds leave binaries used by open sessions in place. Existing sessions remain on their

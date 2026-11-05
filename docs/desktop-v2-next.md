@@ -1,8 +1,27 @@
 # Desktop v2: continuation and remaining delivery work
 
-Updated: 2026-11-02. This is the handoff for the next implementation agent.
+Updated: 2026-11-05. This is the handoff for the next implementation agent.
 
-## Release status (2026-11-03)
+## 1.5.0 status (2026-11-05)
+
+Desktop v2 is code-complete against the WebUI, TUI and CLI comparison in
+[`desktop-v2-vs-webui.md`](../desktop-v2-vs-webui.md):
+
+- The project surfaces the WebUI also shows (SAGE memory, Kanban, Code Atlas, agent office,
+  Brain council cards, Session Story, context and analytics dashboards, engine diagnostics, plan
+  quota and model tests, first-run setup, collaboration bar) render from
+  `@wrongstack/project-surfaces`; desktop-only tools ride host slots on Kanban and the Code Atlas.
+- Every desktop screen reads the `desktop` catalog in the seven WebUI languages.
+- The engine command bridge (`command.list` / `command.run`) runs the TUI's slash commands in the
+  composer. Only `/coordinator` and `/shadow` stay TUI-only by design.
+- The serious WCAG 2.2 AA findings of the native axe pass are fixed, and performance is recorded
+  on the release build.
+
+What remains: one batched native acceptance run for the 2026-11-05 additions (fonts and text
+size, Monaco's editable diff, the analytics page, engine commands in the composer), plus the owner
+items below, which are unchanged.
+
+## 1.4.0 release status (2026-11-03)
 
 Desktop v2 is feature-complete for its first release. The release build with the bundled engine
 ran the full native matrix, the default suite and all 35 scope flags: 33 of 36 passed first, the

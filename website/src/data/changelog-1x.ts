@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.2.1 → 1.0.0).
+// Changelog — 1.x era (1.5.0 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,26 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-11-05',
+    tagline: 'Shared project screens and the TUI’s commands on every engine',
+    latest: true,
+    highlights: [
+      'Desktop v2 renders the WebUI’s SAGE memory, Kanban board, Code Atlas, agent office, Session Story and analytics from the shared @wrongstack/project-surfaces package',
+      'The TUI’s slash commands run on the engine: /git, /commit, /push, /security, /spawn, /delegate, /acp, /tuneup and the skill and prompt libraries work from the desktop composer and the WebUI chat',
+      'Commands that change or delete data ask before running; /coordinator and /shadow stay in the TUI',
+      'Every desktop screen follows the display language: English, Turkish, German, French, Italian, Spanish or Brazilian Portuguese',
+      'Desktop conversations gain Ctrl+F find, message times, highlighted code, turn timings, subagent transcripts in tabs and reconnecting a stopped conversation',
+      'Pinned sessions, a configurable status bar, interface and code fonts, text size and Monaco’s editable diff in the desktop',
+      'WrongMemory installs on Linux and macOS, and a linked worktree binds to its own checkout',
+      'A planted .git file can no longer share another project’s identity, and permission rules resolve symlink and junction aliases',
+      'Unchanged Kanban audits no longer flood the project journal, and three evidence-audit rounds fix defects across the runtime',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-11-02',
     tagline: 'Desktop v2 at release depth and HQ for many machines',
-    latest: true,
     highlights: [
       'Desktop v2 covers conversations, files, Git review, Kanban, Goal and SDD runs, MCP, automation and memory from the native app',
       'Conversations gain continuation modes, steering, rewind with edit and redo, refinement reviews that survive restarts and an agent todo list',

@@ -455,7 +455,7 @@ export function HomePage() {
                       Find your surface.
                     </h3>
                     <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-400 transition-colors group-hover:text-white/75 group-focus-visible:text-white/75">
-                      Compare all six interfaces and choose the one that fits the work.
+                      Compare all five interfaces and choose the one that fits the work.
                     </p>
                   </div>
                   <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/15 text-brand transition-all group-hover:border-white group-hover:bg-white group-focus-visible:border-white group-focus-visible:bg-white">

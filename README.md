@@ -55,86 +55,30 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
-### What's new in 1.4.0
+### What's new in 1.5.0
 
-- **Desktop v2 at release depth:** conversations, files, Git review, Kanban,
-  Goal and SDD runs, MCP, automation and memory all work from the native app
+- **One set of project screens:** Desktop v2 renders the WebUI's SAGE memory,
+  Kanban board, Code Atlas, agent office, Session Story, analytics and setup
+  from a shared package, so both apps show the same surfaces
   (see [Surfaces](#surfaces)).
-- **A faster, steadier desktop:** every view of a project shares one journal
-  reader, and the full native test matrix passes on the release build.
-- **HQ for many machines:** a Next.js dashboard with machine health history,
-  alert limits, labels, spend per label and remote session start.
-- **Goal budgets:** Goal runs stop at token and USD cost limits priced from the
-  model catalog.
-- **Standalone engine parity:** worker delegation, model fallback chains and
-  Goal/SDD mirroring into Kanban in the standalone WebUI engine.
-- **Memory and index services (opt-in):** SAGE memory can run on WrongMemory
-  (`wstack sage service`) and the codebase index on WrongIndex.
-- **Tool contracts:** aliases that never widen access, confirmation for
-  fleet-ending and dispatch tools, and a gated tool catalog.
+- **The TUI's commands on every engine:** `/git`, `/commit`, `/push`,
+  `/security`, `/spawn`, `/delegate`, `/acp`, `/tuneup`, the skill and prompt
+  libraries and more run from the desktop composer and the WebUI chat;
+  commands that change data ask first.
+- **The desktop in your language:** every desktop screen follows the profile's
+  display language: English, Turkish, German, French, Italian, Spanish or
+  Brazilian Portuguese.
+- **A fuller desktop conversation:** find with Ctrl+F, message times,
+  highlighted code, turn timings, subagent transcripts in tabs, reconnecting a
+  stopped conversation, pinned sessions, and a status bar, fonts and text size
+  you choose.
+- **WrongMemory on Linux and macOS:** `wstack sage service install` covers
+  Linux x64 and macOS arm64, and a linked worktree binds to its own checkout.
+- **Hardening:** a planted `.git` file can no longer borrow another project's
+  identity, permission rules resolve symlink aliases, unchanged Kanban audits
+  stop flooding the journal, and three evidence-audit rounds landed.
 
-1.3.0 added durable Desktop v2 workspaces, reviewed file writes and resumable
-benchmarks; 1.2.2 replaced the Electron shell with the native Desktop v2 app
-and added automatic resume after transient provider errors; 1.2.1 replaced SimpleUI with VibeUI, made the WebUI activity bar customizable
-and cut irrelevant SAGE injections; 1.2.0 added live model-output activity in
-every workspace, calmer VibeUI views with a file shelf and practical companion
-budgets; 1.1.16 added six proof-driven hunt modes beside `/bughunt`; 1.1.15 fixed Git
-correctness, capability-gated media, SAGE verify-on-mutation and sealed
-companions; 1.1.14 added polyglot codebase intelligence, CodeMap 2.0 and durable
-mission continuity; 1.1.13 added durable MCP tasks, browser element selection,
-automation environments and refreshed runtimes; 1.1.11 added standalone-binary
-updates, smarter delegation and skills that follow the work; 1.1.10 added a
-measured design layer, DESIGN.md interchange and prompt detail levels; 1.1.9
-added the SAGE doctor, daemon-owned memory maintenance and AST security profiles
-for twelve more languages; 1.1.8 was a hardening release across the daemon, MCP,
-security gates, VibeUI and Desktop.
-
-Highlights from **1.1.7**:
-
-- **VibeUI, a seventh interface:** [`wstack vibeui`](packages/vibeui/README.md)
-  (`--vibeui`, port 3476) opens a focused coding workspace beside the full
-  WebUI: queued chat with Queue / Steer / BTW, provider and account
-  setup, files and diffs, live agents, quotas, SAGE memory with a relationship
-  graph, and next-step suggestions that can submit on their own under YOLO + Auto.
-- **Text selection in the TUI:** a Text mode beside Block copies only the
-  selected visible text; switch it in Settings or the composer footer.
-- **WebUI refresh and desktop focus:** a reworked workbench look with locally
-  served provider logos, and Tab moves between the desktop shell and its WebUI.
-- **Correctness fixes:** ACP turns survive a slow permission decision, an idle
-  project daemon shuts down again, a rejected intake suggestion stays rejected,
-  one corrupt SAGE row no longer breaks unrelated memory operations, and MCP
-  transports, the token store and the OAuth callback are hardened.
-
-Highlights from **1.1.6**:
-
-- **WrongForge leads with its tools:** a session started on the `wrongforge`
-  provider sends its turns to WrongForge with the session's tools, and the
-  calls it makes through them appear as tool cards.
-- **Confirmable tools behind the token-saving tier:** `tool_use` and `mcp_use`
-  ask for confirmation like a direct call, so `pwsh`, `exec`, `fetch`, `git`
-  and MCP tools work with YOLO off on the default tier.
-- **Plugins cannot pose as built-ins:** a plugin may change only the tools it
-  registered itself, and only official plugins may register as `core`.
-
-1.1.5 added [`wstack tools`](docs/subcommands/tools-skills.md) for built-in
-tools without MCP, WrongForge as leader or worker and the WebUI agent tree;
-1.1.4 pointed ACP agents at the project's index, memory, mailbox and board and
-added the mailbox `inbox` action over MCP;
-1.1.3 made an installed ACP agent such as Claude Code a session leader
-([`/model acp/claude-code`](docs/slash/model.md)), added delegated Claude
-workers and removed the Claude sign-in;
-1.1.2 made file edits lossless, kept stores from overwriting files they cannot
-parse, kept secrets out of history and sync and made safety refusals terminal;
-1.1.1 added [`/browser allow loopback`](docs/slash/browser.md) and ChatGPT
-quota readings; 1.1.0 added [request residency](docs/slash/context.md), last-request cache
-readouts and leaner tool-error context; 1.0.37 added Bun-first development, browser setup, `codebase-read-symbol` and the
-[Skill Companion](docs/skills-suggestion.md); 1.0.36 added phase-aware leader
-effort, per-worker effort routing and audit-driven hardening; 1.0.35 hardened
-command guards, secret redaction and dependency audits; 1.0.34 added [project goals](docs/architecture/project-goals.md),
-[explicit continuation](docs/slash/nextsteps.md), [YOLO+](docs/slash/yolo.md)
-and the [dead-code workflow](docs/tools/dead-code.md).
-
-See the [release history](CHANGELOG.md) for earlier releases.
+Earlier releases are in the [release history](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -228,7 +172,7 @@ irm https://wrongstack.com/install.ps1 | iex
 The installers download the build for your OS/CPU (musl is detected on
 Linux), verify it against the release `SHA256SUMS`, and install `wstack` plus a
 `wrongstack` alias into `~/.wrongstack/bin`. The musl builds need the C++
-runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.2.3` to pin a
+runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.5.0` to pin a
 release or `WSTACK_INSTALL_DIR` to install elsewhere. You can also download a
 `wstack-<os>-<arch>` file from the
 [releases page](https://github.com/WrongStack/WrongStack/releases) and put it on
@@ -236,13 +180,13 @@ your `PATH` yourself.
 
 On first run the binary unpacks its assets (prompts, skills, design kits,
 grammars, the WebUI/HQ/VibeUI frontends) once into
-`~/.wrongstack/runtime/<version>/`.
+`~/.wrongstack/runtime/<version>-<packId>/`.
 
-Not available in the binary: the WebUI terminal panel (needs the native
-`node-pty` addon) and the browser tool unless
-Playwright is installed separately. The HQ systemd installer (`wstack hq
-service install`) does not support the binary; run `wstack hq` under your own
-service manager instead.
+Not available in the binary: the WebUI terminal panel, which needs the native
+`node-pty` addon. The browser tool works: the binary installs Playwright on
+first use into `~/.wrongstack/runtime/playwright/`. The HQ systemd installer
+(`wstack hq service install`) does not support the binary; run `wstack hq`
+under your own service manager instead.
 
 The TUI is lazy-loaded behind `--tui`, so plain-REPL users pay no React/Ink cost
 at startup. The browser UI and HQ are available through their
@@ -298,16 +242,13 @@ wstack
 wstack auth
 
 # Skip the picker and pin a provider/model
-wstack --provider anthropic --model claude-sonnet-4
+wstack --provider anthropic --model claude-sonnet-5-5
 
 # TUI with an explicit YOLO override
 wstack --tui --yolo
 
-# Director fleet orchestration
-wstack --director
-
 # Single-shot query (non-interactive)
-wstack -p "explain packages/core/src/kernel"
+wstack "explain packages/contracts/src/kernel"
 
 # Resume a saved session
 wstack --resume
@@ -334,14 +275,19 @@ Full flag and subcommand reference: [`docs/cli-reference.md`](docs/cli-reference
 Plain `wstack` on a TTY opens a launch menu; add `--no-menu` to go straight to the
 REPL. See [WebUI](docs/webui.md) for the browser surface details.
 
-SimpleUI was retired and replaced by VibeUI; `wstack simpleui` / `--simpleui`
-now open VibeUI.
-
 **Desktop v2** is a native Tauri app for multiple projects and persistent
 sessions, built from source: `bun run desktop:v2` for development and
-`bun run desktop:v2:build` for a portable Windows build. It has its own
-interface and bundled engine and does not load the WebUI frontend. See
+`bun run desktop:v2:build` for a portable Windows build. It has its own shell
+and bundled engine and does not load or embed the WebUI app; its project pages
+(SAGE memory, Kanban, Code Atlas, office, Session Story and more) render the
+same components as the WebUI from `@wrongstack/project-surfaces`, and every
+screen follows the profile's display language. See
 [`apps/desktop-v2/README.md`](apps/desktop-v2/README.md).
+
+The WebUI chat and the desktop composer also run the TUI's own slash commands
+(`/git`, `/commit`, `/spawn`, `/acp`, `/tuneup`, the skill and prompt libraries
+and more) on the engine instead of sending them to the model; a command that
+changes or deletes data asks first. `/coordinator` and `/shadow` stay in the TUI.
 
 WebUI and VibeUI keep their host terminal compact: repeated warnings share
 one row, logs and finished workers disappear after 30 seconds, and live worker
@@ -358,7 +304,7 @@ The secondary sidebar pins Story at the top and switches it to **Back to
 session** when open. Chat sidebar sections collapse and reorder by dragging,
 with keyboard/touch arrow controls and saved browser layout preferences.
 
-**VibeUI** (new in 1.1.7) is a focused browser coding workspace beside the full
+**VibeUI** is a focused browser coding workspace beside the full
 WebUI, built with Next.js and Radix UI and served as prebuilt assets by the
 same host on port 3476. It adds a queued composer with Queue / Steer / BTW,
 provider and account setup, files and diff modals, a live Agents view, provider
@@ -445,8 +391,8 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- **v1.2.2** — current repository version (latest tagged release: v1.2.1); semver from 1.0.0 onward
-- Distribution: GitHub Releases only (standalone `wstack` binaries); npm publishing is retired and the existing npm versions are frozen
+- **v1.5.0** — current release; versions follow semver
+- Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements
 - Packages and apps use TypeScript strict + `noUncheckedIndexedAccess`

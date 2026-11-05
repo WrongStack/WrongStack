@@ -157,6 +157,18 @@ REPL input "/<command> <args>"
 
 `runText` is a special field: when a slash command returns it, the REPL injects that text into the next agent turn. `/goal set`, `/sdd`, `/autonomy`, `/fix`, `/skill-gen`, `/prompt-gen`, and `/prompt insert` use this to steer the AI conversation without the user typing the full prompt.
 
+## Engine command bridge (WebUI and Desktop v2)
+
+Since 1.5.0 the commands that need no terminal live in `@wrongstack/runtime/commands`, and both engine hosts (the CLI's WebUI host and the standalone engine Desktop v2 runs) serve them over the WebUI protocol: `command.list` answers with `command.catalog` (name, aliases, description, arguments, and whether the command changes or deletes data) and `command.run` with `command.result`. Hosts advertise this as the `command.bridge` capability. The CLI files re-export the moved commands, so the TUI runs the same code.
+
+The bridge serves `/sandbox`, `/prune`, `/scout-stats`, `/init`, `/git`, `/commit`, `/gitcheck`, `/push`, `/gitid`, `/security`, `/spawn`, `/delegate`, `/director`, `/supervisor`, `/acp`, `/ensemble` and `/tuneup`, then the builtin plugins' commands (the skill library, the prompt library, `/perf` and `/sync`); a portable command keeps a shared name. The plugins are set up only to collect their slash commands: none of their tools, hooks or event handlers start in the engine. Cloud config sync and specialist triggers stay with the TUI, as do `/coordinator` and `/shadow`.
+
+- **WebUI chat.** A slash command the WebUI does not route itself runs on the engine when the catalog lists it, instead of going to the model, and its output is written into the chat. The slash picker and `/help` list the engine's commands after the WebUI's own.
+- **Desktop composer.** Engine commands complete and run after the desktop's own commands; a desktop command of the same name wins.
+- **Confirmation.** A command that changes or deletes data (for example `/push`, `/commit`, skill install or `/sync`) says what it will do first: the WebUI asks through its confirm dialog, and the desktop runs it when the same draft is sent again. `--dry-run` runs at once.
+- **Follow-up turns.** A command's `runText` is sent as the next turn: through the desktop composer, or as the user's message in the WebUI.
+- **Engine differences.** On an engine `/acp` and `/ensemble` run the external agent as a fleet subagent, as `--bg` does, and the agents view shows its progress. The standalone engine's `/tuneup` reports without the CLI's version check, config doctor and config history, writes fixes to its profile config with the same backups, and refuses `--pick`.
+
 ## Adding a core slash command
 
 ### Checklist

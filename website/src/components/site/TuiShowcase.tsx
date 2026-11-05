@@ -409,7 +409,7 @@ export function TuiShowcase() {
             href="/interfaces"
             className="group inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-brand"
           >
-            Compare all six interfaces
+            Compare all five interfaces
             <ArrowUpRight className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
         </div>
