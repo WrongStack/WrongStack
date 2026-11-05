@@ -151,9 +151,7 @@
   color: var(--subtle);
 }
 .file-git-status {
-  font:
-    10px Consolas,
-    monospace;
+  font: 10px var(--user-font-code, Consolas, monospace);
   color: var(--accent);
   font-weight: 500;
   margin-left: auto;
@@ -293,7 +291,7 @@
 .file-folder-row > span:last-child,
 .file-folder-list-heading > span:last-child {
   text-align: right;
-  font-family: Consolas, monospace;
+  font-family: var(--user-font-code, Consolas, monospace);
   font-size: 10px;
 }
 .file-parent-row {
@@ -358,10 +356,7 @@
 .file-source-code {
   padding: 13px 0;
   margin: 0;
-  font:
-    12px / 1.8 Consolas,
-    "Cascadia Code",
-    monospace;
+  font: 12px / 1.8 var(--user-font-code, Consolas, "Cascadia Code", monospace);
   min-width: 100%;
   width: max-content;
 }
@@ -409,10 +404,7 @@
   padding: 15px 20px;
   background: var(--base);
   color: var(--text);
-  font:
-    12px / 1.8 Consolas,
-    "Cascadia Code",
-    monospace;
+  font: 12px / 1.8 var(--user-font-code, Consolas, "Cascadia Code", monospace);
   tab-size: 2;
   white-space: pre;
   overflow: auto;
@@ -578,9 +570,7 @@
   color: var(--subtle);
 }
 .file-structure pre {
-  font:
-    11px / 1.7 Consolas,
-    monospace;
+  font: 11px / 1.7 var(--user-font-code, Consolas, monospace);
   white-space: pre;
   overflow: auto;
   color: var(--muted);
@@ -756,9 +746,7 @@
   grid-template-columns: 36px 36px 17px minmax(300px, 1fr) 27px;
   align-items: stretch;
   min-height: 23px;
-  font:
-    11px / 23px Consolas,
-    monospace;
+  font: 11px / 23px var(--user-font-code, Consolas, monospace);
 }
 .diff-line-number {
   text-align: right;
@@ -862,9 +850,7 @@
   font-size: 11px;
 }
 .file-review-tray article > span {
-  font:
-    9px Consolas,
-    monospace;
+  font: 9px var(--user-font-code, Consolas, monospace);
   color: var(--subtle);
 }
 .file-review-tray article > p {
@@ -986,7 +972,7 @@
 }
 .file-action-path {
   overflow-wrap: anywhere;
-  font-family: Consolas, monospace;
+  font-family: var(--user-font-code, Consolas, monospace);
   font-size: 10px;
   color: var(--subtle);
 }
@@ -1127,7 +1113,7 @@
   overflow: auto;
   margin: 8px 0;
   padding-left: 18px;
-  font-family: var(--mono, monospace);
+  font-family: var(--user-font-code, var(--mono, monospace));
   font-size: 12px;
 }
 .file-bulk-dialog footer {

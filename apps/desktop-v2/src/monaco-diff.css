@@ -1,0 +1,27 @@
+/* The editable side-by-side diff (MonacoDiffEditor) inside a change's preview. */
+.monaco-diff-editor {
+  display: flex;
+  flex-direction: column;
+  height: min(72vh, 760px);
+  min-height: 320px;
+  border-top: 1px solid var(--border);
+}
+.monaco-diff-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.monaco-diff-toolbar > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.monaco-diff-editor > section {
+  flex: 1;
+  min-height: 0;
+}

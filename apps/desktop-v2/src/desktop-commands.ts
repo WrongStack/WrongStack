@@ -484,6 +484,13 @@ export const desktopCommands: readonly DesktopCommand[] = [
     opens: page('diagnostics'),
   },
   {
+    name: '/analytics',
+    category: 'Project',
+    description: 'Analytics: sessions, agents, tool calls, tokens and cost',
+    action: 'open',
+    opens: page('analytics'),
+  },
+  {
     name: '/working-dir',
     aliases: ['/cwd'],
     category: 'Project',

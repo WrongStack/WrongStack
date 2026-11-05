@@ -32,6 +32,8 @@ export interface SurfaceSendOptions {
 export interface SurfaceClient {
   on(type: string, handler: (message: SurfaceMessage) => void): () => void;
   findMemoriesForFile(payload: object, options?: SurfaceSendOptions): void;
+  /** Sends any request; its reply arrives through `on`. */
+  send?(message: { type: string; payload?: object }, options?: SurfaceSendOptions): void;
 }
 type Payload = object;
 /** The SAGE requests the memory surface sends, named as the WebUI's client names them. */

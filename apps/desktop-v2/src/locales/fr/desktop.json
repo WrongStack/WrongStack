@@ -21,7 +21,8 @@
     "worktrees": "Worktrees",
     "skills": "Compétences",
     "office": "Bureau des agents",
-    "automations": "Automatisations"
+    "automations": "Automatisations",
+    "analytics": "Analyses"
   },
   "rail": {
     "navigation": "Navigation principale",
@@ -677,6 +678,29 @@
       "connected": "Espace de travail local connecté",
       "connecting": "Connexion à votre espace de travail",
       "note": "Les sessions continuent quand vous fermez une fenêtre."
+    },
+    "fonts": {
+      "title": "Polices",
+      "body": "Les polices de l’interface et du code. « Police installée » utilise n’importe quelle police de cet ordinateur par son nom.",
+      "uiLabel": "Police de l’interface",
+      "codeLabel": "Police du code",
+      "geist": "Geist (par défaut)",
+      "system": "Système (Segoe UI)",
+      "cascadia": "Cascadia Code (par défaut)",
+      "custom": "Police installée…",
+      "familyLabel": "Nom de la police",
+      "familyPlaceholder": "p. ex. JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Taille du texte",
+      "body": "Met à l’échelle toute la fenêtre, éditeurs et terminaux compris.",
+      "percent": "{{n}} %"
+    },
+    "ligatures": {
+      "title": "Ligatures du code",
+      "body": "Fusionne des symboles comme => et !== en un seul glyphe dans les polices qui le permettent.",
+      "on": "Activées",
+      "off": "Désactivées"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Diff côte à côte",
     "matchesHead": "Ce fichier correspond à HEAD.",
     "unchanged": "Afficher les lignes inchangées",
-    "review": "Commenter la ligne {{line}}"
+    "review": "Commenter la ligne {{line}}",
+    "edit": "Modifier côte à côte",
+    "editLoading": "Ouverture de l’éditeur côte à côte…",
+    "editHint": "Modifiez la copie de travail à droite, puis appliquez-la au fichier.",
+    "editApply": "Appliquer au fichier",
+    "editApplying": "Application…",
+    "editApplied": "Appliqué au fichier.",
+    "editConflict": "Le fichier a changé sur le disque depuis ce diff. Rien n’a été écrit ; rouvrez la modification et appliquez-la de nouveau."
   },
   "btw": {
     "title": "Notes BTW · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Vérification de la tâche",
         "split": "Découpage de la tâche"
       }
-    }
+    },
+    "runsSavedGraph": "Exécute le graphe de tâches enregistré affiché ici, sans le replanifier."
   },
   "historyView": {
     "label": "Historique des sessions du projet",
@@ -5845,7 +5877,8 @@
       "kept": "Conservé d’un affichage précédent"
     },
     "recorded": "Session enregistrée {{id}}",
-    "lastFrame": "Dernière entrée à {{time}}"
+    "lastFrame": "Dernière entrée à {{time}}",
+    "restored": "{{count}} messages restaurés dans cette fenêtre"
   },
   "usageView": {
     "label": "Utilisation et coût de la conversation",
@@ -6655,7 +6688,8 @@
       "mcp": "Gérer les serveurs MCP, ou lister les outils d’un serveur",
       "doctor": "Vérifier la configuration du profil par rapport aux valeurs par défaut ; fix la répare",
       "browser": "Origines privées et localhost que les outils navigateur et fetch peuvent atteindre",
-      "help": "Afficher toutes les commandes du bureau"
+      "help": "Afficher toutes les commandes du bureau",
+      "analytics": "Analyses : sessions, agents, appels d’outils, tokens et coût"
     }
   },
   "paletteActions": {

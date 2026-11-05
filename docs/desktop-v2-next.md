@@ -492,12 +492,10 @@ Landed 2026-10-30: `autonomy.switch` with the next-steps auto-continue, `mode.sw
 `key.update` is the same upsert as `key.add`; `chronicle.facet` is covered by
 `chronicle.facets`.
 
-Deliberately not offered:
-
-- `collab.*`: multi-participant control, annotations and tool injection. They need a
-  participant/identity model, which a single-user desktop does not have.
-- `completion.request`: WebUI's inline code completion for its Monaco editor. The desktop file
-  editor is a plain text area; inline completion needs an editor with completion widgets first.
+Both earlier exclusions have since landed: `collab.*` through the shared collaboration panel
+(fd998fc6b) and `completion.request` in the desktop's Monaco file editor (1f9f56e83,
+d72d698a2). `goal.selectPhase` stays unsent: the WebUI exposes it from a hook that no
+component calls.
 
 ### P1: finish conversation parity while preserving simplicity
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { desktopSurfaceHost } from '../src/desktop-surface-host';
+import { emptyEngineState } from '../src/engine-state';
 import type { BackendStream } from '../src/engine-stream';
 import { JournalTail } from '../src/journal-tail';
 import { request } from '../src/platform';
@@ -70,6 +71,7 @@ describe('journal tail for the shared surfaces', () => {
     } as unknown as JournalTail;
     const sent: Record<string, unknown>[] = [];
     const stream = {
+      state: emptyEngineState,
       send: async (_type: string, payload: Record<string, unknown>) => {
         sent.push(payload);
       },

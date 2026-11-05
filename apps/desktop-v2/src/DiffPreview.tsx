@@ -1,6 +1,8 @@
-import { Columns2, MessageSquarePlus, Rows3 } from 'lucide-react';
+import { Columns2, FilePenLine, MessageSquarePlus, Rows3 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { DiffEditorSlot } from './CodeEditorSlot';
 import { useDesktopText } from './desktop-i18n';
+import type { EngineCommand } from './engine-operations';
 import { lineDiff } from './file-model';
 
 export function DiffPreview({
@@ -8,15 +10,19 @@ export function DiffPreview({
   after,
   path,
   onComment,
+  edit,
 }: {
   before: string;
   after: string;
   path: string;
   onComment?: (line: number) => void;
+  /** Offers the editable side-by-side diff, which applies the working-tree side to the file. */
+  edit?: { command: EngineCommand; onApplied: () => void } | undefined;
 }) {
   const { t } = useDesktopText();
   const [split, setSplit] = useState(false),
-    [all, setAll] = useState(false);
+    [all, setAll] = useState(false),
+    [editing, setEditing] = useState(false);
   const lines = useMemo(() => lineDiff(before, after), [before, after]);
   const keep = useMemo(() => {
     const indexes = new Set<number>();
@@ -42,22 +48,49 @@ export function DiffPreview({
           <button
             type="button"
             aria-label={t('diff.unified')}
-            aria-pressed={!split}
-            onClick={() => setSplit(false)}
+            aria-pressed={!split && !editing}
+            onClick={() => {
+              setSplit(false);
+              setEditing(false);
+            }}
           >
             <Rows3 size={14} />
           </button>
           <button
             type="button"
             aria-label={t('diff.split')}
-            aria-pressed={split}
-            onClick={() => setSplit(true)}
+            aria-pressed={split && !editing}
+            onClick={() => {
+              setSplit(true);
+              setEditing(false);
+            }}
           >
             <Columns2 size={14} />
           </button>
+          {edit && (
+            <button
+              type="button"
+              aria-label={t('diff.edit')}
+              title={t('diff.edit')}
+              aria-pressed={editing}
+              onClick={() => setEditing(true)}
+            >
+              <FilePenLine size={14} />
+            </button>
+          )}
         </div>
       </div>
-      {!added && !removed ? (
+      {editing && edit ? (
+        <DiffEditorSlot
+          path={path}
+          before={before}
+          after={after}
+          command={edit.command}
+          onApplied={edit.onApplied}
+          loading={t('diff.editLoading')}
+          onUnavailable={() => setEditing(false)}
+        />
+      ) : !added && !removed ? (
         <div className="file-quiet-state">{t('diff.matchesHead')}</div>
       ) : (
         <div className={`diff-code-lines ${split ? 'diff-split' : ''}`}>

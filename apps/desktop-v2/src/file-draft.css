@@ -33,7 +33,7 @@
   width: 100%;
   height: 30vh;
   resize: vertical;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
 }
 .draft-merge {
   margin: 12px 0;
@@ -73,7 +73,7 @@
 .draft-merge textarea {
   width: 100%;
   height: 16vh;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
 }
 .file-draft-comparison footer {
   flex-wrap: wrap;

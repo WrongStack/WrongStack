@@ -77,6 +77,10 @@ export function ConnectionDiagnostics({ sessions }: { sessions: readonly Session
                     {progress?.sessionId && (
                       <small>{t('connectionView.recorded', { id: progress.sessionId })}</small>
                     )}
+                    {progress && (
+                      // The WebUI's transcript check after F5: what this window rebuilt.
+                      <small>{t('connectionView.restored', { count: progress.messages })}</small>
+                    )}
                   </td>
                   <td>
                     {t(`status.${session.status}`)}

@@ -21,7 +21,8 @@
     "worktrees": "Çalışma Ağaçları",
     "skills": "Beceriler",
     "office": "Ajan ofisi",
-    "automations": "Otomasyonlar"
+    "automations": "Otomasyonlar",
+    "analytics": "Analitik"
   },
   "rail": {
     "navigation": "Ana gezinme",
@@ -677,6 +678,29 @@
       "connected": "Yerel çalışma alanı bağlı",
       "connecting": "Çalışma alanına bağlanılıyor",
       "note": "Bir pencereyi kapattığında oturumlar çalışmaya devam eder."
+    },
+    "fonts": {
+      "title": "Yazı tipleri",
+      "body": "Arayüz ve kod için yazı tipleri. Yüklü yazı tipi, bu bilgisayardaki herhangi bir yazı tipini adıyla kullanır.",
+      "uiLabel": "Arayüz yazı tipi",
+      "codeLabel": "Kod yazı tipi",
+      "geist": "Geist (varsayılan)",
+      "system": "Sistem (Segoe UI)",
+      "cascadia": "Cascadia Code (varsayılan)",
+      "custom": "Yüklü yazı tipi…",
+      "familyLabel": "Yazı tipi adı",
+      "familyPlaceholder": "örn. JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Metin boyutu",
+      "body": "Düzenleyiciler ve terminaller dahil tüm pencereyi ölçekler.",
+      "percent": "%{{n}}"
+    },
+    "ligatures": {
+      "title": "Kod ligatürleri",
+      "body": "Destekleyen yazı tiplerinde => ve !== gibi sembolleri tek bir glife birleştirir.",
+      "on": "Açık",
+      "off": "Kapalı"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Yan yana fark",
     "matchesHead": "Bu dosya HEAD ile aynı.",
     "unchanged": "Değişmeyen satırları göster",
-    "review": "{{line}}. satırı incele"
+    "review": "{{line}}. satırı incele",
+    "edit": "Yan yana düzenle",
+    "editLoading": "Yan yana düzenleyici açılıyor…",
+    "editHint": "Sağdaki çalışma ağacını düzenleyin, sonra dosyaya uygulayın.",
+    "editApply": "Dosyaya uygula",
+    "editApplying": "Uygulanıyor…",
+    "editApplied": "Dosyaya uygulandı.",
+    "editConflict": "Dosya bu diff'ten sonra diskte değişti. Hiçbir şey yazılmadı; değişikliği yeniden açıp tekrar uygulayın."
   },
   "btw": {
     "title": "BTW notları · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Görev doğrulaması",
         "split": "Görev bölme"
       }
-    }
+    },
+    "runsSavedGraph": "Burada görünen kayıtlı görev grafiğini yeniden planlamadan çalıştırır."
   },
   "historyView": {
     "label": "Proje oturum geçmişi",
@@ -5845,7 +5877,8 @@
       "kept": "Önceki bir görünümden tutuldu"
     },
     "recorded": "Kayıtlı oturum {{id}}",
-    "lastFrame": "Son kayıt: {{time}}"
+    "lastFrame": "Son kayıt: {{time}}",
+    "restored": "Bu pencerede {{count}} mesaj geri yüklendi"
   },
   "usageView": {
     "label": "Konuşma kullanımı ve maliyeti",
@@ -6655,7 +6688,8 @@
       "mcp": "MCP sunucularını yönet ya da bir sunucunun araçlarını listele",
       "doctor": "Profil yapılandırmasını varsayılanlara göre denetle; fix onarır",
       "browser": "Tarayıcı ve fetch araçlarının erişebileceği özel ve localhost kaynakları",
-      "help": "Tüm masaüstü komutlarını göster"
+      "help": "Tüm masaüstü komutlarını göster",
+      "analytics": "Analitik: oturumlar, ajanlar, araç çağrıları, token ve maliyet"
     }
   },
   "paletteActions": {

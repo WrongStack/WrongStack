@@ -160,7 +160,7 @@
 }
 .automation-environment-editor textarea {
   width: 100%;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
   resize: vertical;
 }
 .automation-environment-editor > footer {
@@ -324,7 +324,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--base);
-  font: 11px / 1.8 monospace;
+  font: 11px / 1.8 var(--user-font-code, monospace);
 }
 .automation-run-log {
   white-space: pre-wrap;

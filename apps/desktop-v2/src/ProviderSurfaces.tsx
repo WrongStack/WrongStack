@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { profileHttp } from './engine-http';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
-import { backendStream } from './engine-stream';
+import { backendStream, projectMemoryReviews } from './engine-stream';
 import {
   chooseSetupModel,
   prefList,
@@ -108,7 +108,13 @@ export function ProviderSurfaces({
   const choose = useRef({ command, onConfigured });
   choose.current = { command, onConfigured };
   const surface = useMemo(() => {
-    const base = profileSurfaceHost(backendStream('profile', ''), profileHttp(), confirm.confirm);
+    // Conversations run in project engines: their memory reviews, as far as this window read.
+    const base = profileSurfaceHost(
+      backendStream('profile', ''),
+      profileHttp(),
+      confirm.confirm,
+      projectMemoryReviews(),
+    );
     const providers = desktopProviderHost(base.client, (patch) => save.current(patch));
     const setup = desktopSetupHost(
       base.client,

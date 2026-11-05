@@ -18,7 +18,7 @@ import { ProjectRequirements } from './ProjectRequirements';
 import type { RequirementDraftStorage } from './requirement-draft';
 import type { RequirementRecordDraftStorageFactory } from './requirement-record-draft';
 import { SddBoardDetail } from './SddBoardDetail';
-import { SddDependencyGraph } from './SddDependencyGraph';
+import { SddDependencyGraph, SddTaskColumns } from './SddDependencyGraph';
 import { SddLifecycle } from './SddLifecycle';
 import { RunOptions, runModelPayload, type SddRunModel } from './SddRunOptions';
 import './project-sdd.css';
@@ -84,6 +84,11 @@ export function ProjectSdd({
     (row) => typeof row['id'] === 'string',
   );
   const detail = selectedSpec ? state.specDetails[selectedSpec] : undefined;
+  // A spec with a saved task graph runs that graph, as the WebUI does, instead of planning anew.
+  const graphId = text(
+    detail?.['graphId'] ?? specs.find((row) => row['id'] === selectedSpec)?.['graphId'],
+    '',
+  );
   const columns = entries(detail?.['columns']);
   const boards = entries(record(state.results['sdd.board.list'])['boards']);
   const board = record(state.results['sdd.board.snapshot']);
@@ -152,12 +157,13 @@ export function ProjectSdd({
       void request('sdd.spec.message', { text: reply.trim() }, t('sddView.action.answer'));
     }
   };
-  const beginRun = (type: 'sdd.run.start' | 'sdd.run.from_spec', id?: string) => {
+  type RunType = 'sdd.run.start' | 'sdd.run.from_spec' | 'sdd.run.from_graph';
+  const beginRun = (type: RunType, target: { specId?: string; graphId?: string } = {}) => {
     setConfirm('');
     void request(
       type,
       {
-        ...(id ? { specId: id } : {}),
+        ...target,
         parallelSlots: slots,
         worktrees: isolate,
         planDecompose: decompose,
@@ -557,35 +563,11 @@ export function ProjectSdd({
                 {specView === 'graph' ? (
                   <SddDependencyGraph columns={columns} />
                 ) : (
-                  <div className="sdd-task-columns">
-                    {columns.map((column, i) => (
-                      <section key={i}>
-                        <h3>{text(column['label'], t('sddView.phase'))}</h3>
-                        {entries(column['tasks']).map((item) => (
-                          <article key={String(item['id'])}>
-                            <strong>{text(item['title'], t('sddView.task'))}</strong>
-                            <p>{text(item['description'], '')}</p>
-                            <small>
-                              {named(item['displayStatus'] ?? item['status'])} ·{' '}
-                              {named(item['priority'])}
-                            </small>
-                            {Array.isArray(item['deps']) && item['deps'].length > 0 && (
-                              <small>
-                                {t('sddView.dependsOn', {
-                                  list: item['deps']
-                                    .filter((x) => typeof x === 'string')
-                                    .join(', '),
-                                })}
-                              </small>
-                            )}
-                          </article>
-                        ))}
-                      </section>
-                    ))}
-                  </div>
+                  <SddTaskColumns columns={columns} />
                 )}
                 <div className="sdd-run-config">
                   <h3>{t('sddView.runSpec')}</h3>
+                  {graphId && <p>{t('sddView.runsSavedGraph')}</p>}
                   <RunOptions
                     slots={slots}
                     setSlots={setSlots}
@@ -603,7 +585,11 @@ export function ProjectSdd({
                       <button
                         type="button"
                         className="button primary"
-                        onClick={() => beginRun('sdd.run.from_spec', selectedSpec)}
+                        onClick={() =>
+                          graphId
+                            ? beginRun('sdd.run.from_graph', { graphId })
+                            : beginRun('sdd.run.from_spec', { specId: selectedSpec })
+                        }
                       >
                         {t('sddView.confirmStart')}
                       </button>

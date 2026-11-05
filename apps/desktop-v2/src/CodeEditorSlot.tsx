@@ -2,6 +2,7 @@ import { Component, lazy, type ReactNode, Suspense } from 'react';
 import type { EngineCommand } from './engine-operations';
 
 const MonacoFileEditor = lazy(() => import('./MonacoFileEditor'));
+const MonacoDiffEditor = lazy(() => import('./MonacoDiffEditor'));
 
 const PLAIN_EDITOR_KEY = 'wrongstack.desktop.plainEditor';
 
@@ -68,6 +69,38 @@ export function CodeEditorSlot({
         }
       >
         <MonacoFileEditor {...editor} />
+      </Suspense>
+    </EditorBoundary>
+  );
+}
+
+/**
+ * The editable side-by-side diff, loaded the first time a change is edited. When it cannot
+ * load, `onUnavailable` returns to the read-only diff.
+ */
+export function DiffEditorSlot({
+  loading,
+  onUnavailable,
+  ...editor
+}: {
+  path: string;
+  before: string;
+  after: string;
+  command: EngineCommand;
+  onApplied: () => void;
+  loading: string;
+  onUnavailable: () => void;
+}) {
+  return (
+    <EditorBoundary onError={onUnavailable}>
+      <Suspense
+        fallback={
+          <p role="status" className="file-quiet-state">
+            {loading}
+          </p>
+        }
+      >
+        <MonacoDiffEditor {...editor} />
       </Suspense>
     </EditorBoundary>
   );

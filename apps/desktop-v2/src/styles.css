@@ -2,7 +2,7 @@
 
 :root {
   color-scheme: dark;
-  font-family: "Geist Variable", "Segoe UI", sans-serif;
+  font-family: var(--user-font-ui, "Geist Variable", "Segoe UI", sans-serif);
   font-synthesis: none;
   --base: oklch(0.18 0.003 150);
   --sidebar: oklch(0.16 0.003 150);
@@ -663,7 +663,7 @@ h1 {
   color: var(--subtle);
 }
 .mono {
-  font-family: "Cascadia Code", Consolas, monospace;
+  font-family: var(--user-font-code, "Cascadia Code", Consolas, monospace);
 }
 .card-footer-action {
   display: flex;
@@ -881,7 +881,7 @@ h1 {
 }
 .engine-version {
   margin-left: auto;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
   font-size: 9px;
 }
 .session-workspace {
@@ -1056,7 +1056,7 @@ h1 {
 }
 .engine-session-id {
   margin-left: auto;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
   font-size: 9px;
   color: var(--subtle);
 }
@@ -1277,9 +1277,7 @@ h1 {
 .native-document pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font:
-    11px / 1.8 Consolas,
-    monospace;
+  font: 11px / 1.8 var(--user-font-code, Consolas, monospace);
   max-height: 450px;
   overflow: auto;
   background: var(--base);
@@ -1492,7 +1490,7 @@ h1 {
   }
 }
 .change-status {
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
   color: var(--accent);
 }
 .statusbar {

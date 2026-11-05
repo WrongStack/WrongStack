@@ -260,9 +260,7 @@
 .history-reuse-preview {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font:
-    12px / 1.7 Consolas,
-    monospace;
+  font: 12px / 1.7 var(--user-font-code, Consolas, monospace);
   max-height: 400px;
   overflow: auto;
 }

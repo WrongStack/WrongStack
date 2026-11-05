@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { desktopSurfaceHost } from '../src/desktop-surface-host';
+import { emptyEngineState } from '../src/engine-state';
 
 vi.mock('../src/platform', () => ({ request: vi.fn() }));
 
@@ -33,6 +34,7 @@ describe('SAGE replies awaited by an ack reach it on the desktop', () => {
         sent.push({ type, payload });
       },
       operations: { request: async () => ({}) },
+      state: emptyEngineState,
     };
     const tail = { ready: async () => undefined, listen: () => () => undefined };
     const { send } = desktopSurfaceHost(

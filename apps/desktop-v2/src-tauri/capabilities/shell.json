@@ -5,6 +5,7 @@
   "windows": ["main", "project-*"],
   "permissions": [
     "core:default",
+    "core:webview:allow-set-webview-zoom",
     "allow-host-request",
     "allow-choose-project",
     "allow-open-preview",

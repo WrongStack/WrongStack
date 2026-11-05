@@ -21,7 +21,8 @@
     "worktrees": "Worktrees",
     "skills": "Skills",
     "office": "Agentenbüro",
-    "automations": "Automatisierungen"
+    "automations": "Automatisierungen",
+    "analytics": "Analysen"
   },
   "rail": {
     "navigation": "Hauptnavigation",
@@ -677,6 +678,29 @@
       "connected": "Lokaler Arbeitsbereich verbunden",
       "connecting": "Verbindung zu deinem Arbeitsbereich wird hergestellt",
       "note": "Sitzungen laufen weiter, wenn du ein Fenster schließt."
+    },
+    "fonts": {
+      "title": "Schriftarten",
+      "body": "Die Schriften für Oberfläche und Code. „Installierte Schrift“ verwendet jede Schrift auf diesem Computer über ihren Namen.",
+      "uiLabel": "Oberflächenschrift",
+      "codeLabel": "Codeschrift",
+      "geist": "Geist (Standard)",
+      "system": "System (Segoe UI)",
+      "cascadia": "Cascadia Code (Standard)",
+      "custom": "Installierte Schrift…",
+      "familyLabel": "Schriftname",
+      "familyPlaceholder": "z. B. JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Textgröße",
+      "body": "Skaliert das ganze Fenster, Editoren und Terminals eingeschlossen.",
+      "percent": "{{n}} %"
+    },
+    "ligatures": {
+      "title": "Code-Ligaturen",
+      "body": "Verbindet Zeichen wie => und !== zu einem Glyph, sofern die Schrift das kann.",
+      "on": "Ein",
+      "off": "Aus"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Diff nebeneinander",
     "matchesHead": "Diese Datei entspricht HEAD.",
     "unchanged": "Unveränderte Zeilen zeigen",
-    "review": "Zeile {{line}} kommentieren"
+    "review": "Zeile {{line}} kommentieren",
+    "edit": "Nebeneinander bearbeiten",
+    "editLoading": "Der Nebeneinander-Editor wird geöffnet…",
+    "editHint": "Bearbeiten Sie rechts den Arbeitsstand und übernehmen Sie ihn dann in die Datei.",
+    "editApply": "In Datei übernehmen",
+    "editApplying": "Wird übernommen…",
+    "editApplied": "In die Datei übernommen.",
+    "editConflict": "Die Datei hat sich seit diesem Diff auf dem Datenträger geändert. Nichts wurde geschrieben; öffnen Sie die Änderung erneut und übernehmen Sie sie noch einmal."
   },
   "btw": {
     "title": "BTW-Notizen · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Prüfung der Aufgabe",
         "split": "Aufteilung der Aufgabe"
       }
-    }
+    },
+    "runsSavedGraph": "Führt den hier gezeigten gespeicherten Aufgabengraphen aus, ohne ihn neu zu planen."
   },
   "historyView": {
     "label": "Sitzungsverlauf des Projekts",
@@ -5845,7 +5877,8 @@
       "kept": "Aus einer früheren Ansicht behalten"
     },
     "recorded": "Aufgezeichnete Sitzung {{id}}",
-    "lastFrame": "Letzter Eintrag um {{time}}"
+    "lastFrame": "Letzter Eintrag um {{time}}",
+    "restored": "{{count}} Nachrichten in diesem Fenster wiederhergestellt"
   },
   "usageView": {
     "label": "Nutzung und Kosten der Unterhaltung",
@@ -6655,7 +6688,8 @@
       "mcp": "MCP-Server verwalten oder die Werkzeuge eines Servers auflisten",
       "doctor": "Profilkonfiguration mit den Standards vergleichen; fix repariert sie",
       "browser": "Private und localhost-Ursprünge, die Browser- und Fetch-Werkzeuge erreichen dürfen",
-      "help": "Alle Desktop-Befehle anzeigen"
+      "help": "Alle Desktop-Befehle anzeigen",
+      "analytics": "Analysen: Sitzungen, Agenten, Tool-Aufrufe, Tokens und Kosten"
     }
   },
   "paletteActions": {

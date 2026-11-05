@@ -44,6 +44,7 @@ import {
   memoryContextSnapshot,
   memoryInjectorRun,
 } from './memory-injections.js';
+import { emptyMemoryReviews, foldMemoryReviews, type MemoryReviews } from './memory-reviews.js';
 import { reduceWaitingRoom, type WaitingRoom } from './provider-waiting.js';
 import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
 import { reduceWorktreeEvents } from './worktree-history.js';
@@ -124,6 +125,8 @@ export interface EngineState {
   /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
   memoryRuns: MemoryInjectorRun[];
   memoryContext: MemoryContext | null;
+  /** The latest validity check and companion review of each memory, from every conversation. */
+  memoryReviews: MemoryReviews;
   /** Engine reports about this conversation that need the user's attention, newest last. */
   notices: ConversationNotice[];
   /** Notices seen, so each gets a distinct id after older ones fall out of the list. */
@@ -185,6 +188,7 @@ export const emptyEngineState: EngineState = {
   runStartAt: null,
   memoryRuns: [],
   memoryContext: null,
+  memoryReviews: emptyMemoryReviews,
   notices: [],
   noticeCount: 0,
   delegations: [],
@@ -406,6 +410,11 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
         { id, role: 'assistant', text: councilDecisionText(fold.decision), council: fold.decision },
       ];
     }
+  }
+  // A memory's reviews are the project's, whichever conversation produced them.
+  if (event.type === 'memory.event') {
+    const reviews = foldMemoryReviews(state.memoryReviews, p);
+    if (reviews !== state.memoryReviews) next.memoryReviews = reviews;
   }
   // Memory frames are project-scoped; keep only this conversation's own.
   if (

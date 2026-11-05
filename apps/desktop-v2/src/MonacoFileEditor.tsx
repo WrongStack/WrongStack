@@ -7,6 +7,7 @@ import {
 } from '@wrongstack/project-surfaces/lib/completion';
 import * as monaco from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
+import { useCodeFont } from './appearance-fonts';
 import './monaco-workers';
 import {
   type CompletionSuggestion,
@@ -135,7 +136,7 @@ const themeOf = (root: HTMLElement) => {
 };
 
 /** Follows the desktop's light, dark and contrast choice. */
-function useEditorTheme(): string {
+export function useEditorTheme(): string {
   const [theme, setTheme] = useState(() => themeOf(document.documentElement));
   useEffect(() => {
     const root = document.documentElement;
@@ -145,6 +146,8 @@ function useEditorTheme(): string {
   }, []);
   return theme;
 }
+
+export const MONACO_FONT = 'Consolas, "Courier New", monospace';
 
 /**
  * The language-aware file editor: Monaco with the language of the file's extension, the
@@ -165,6 +168,7 @@ export default function MonacoFileEditor({
   onChange: (value: string) => void;
 }) {
   const theme = useEditorTheme();
+  const codeFont = useCodeFont();
   const holder = useRef<HTMLDivElement>(null);
   const latest = useRef<CompletionSource>({ path, command });
   latest.current = { path, command };
@@ -208,6 +212,9 @@ export default function MonacoFileEditor({
           ariaLabel: label,
           automaticLayout: true,
           fontSize: 13,
+          // Monaco's own Windows face until a code font is chosen in Appearance.
+          fontFamily: codeFont.family ?? MONACO_FONT,
+          fontLigatures: codeFont.ligatures,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           tabSize: 2,

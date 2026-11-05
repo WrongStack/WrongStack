@@ -8699,3 +8699,38 @@ copies, starting with SAGE memory.
   runs stopped at "Show N more files" not becoming stable while other tools held the CPU at
   57 %; a build without this change passed once and this change then passed twice, so the
   stop is load, not this change.
+
+### Remaining WebUI gaps closed (2026-11-05)
+
+A current comparison against the WebUI, the TUI and the CLI (counted by the 311 client
+operations, every WebUI view, settings tab and slash command, and the TUI's commands) left a
+short list of features the desktop did not have. Closed here:
+
+- **SAGE reviews.** The memory detail never showed the conversation's validity check or the
+  companion model's review: both desktop hosts returned nothing. `memory-reviews.ts` folds
+  them from `memory.event` frames (injector runs carry a validity check per memory,
+  `memory.companion_review` the companion's verdict); the project reader keeps them for every
+  conversation, the project SAGE page adds what arrives while it is open, and the profile page
+  reads the newest from the projects this window has read.
+- **Fonts and text size.** Appearance gains the interface font (Geist, System, or any installed
+  font by name), the code font (Cascadia Code, Cascadia Mono, Consolas or an installed font),
+  the text size (90 to 125 %, the window's zoom, so editors and terminals scale with it) and code
+  ligatures. Stylesheets read `var(--user-font-ui|code, <their own family>)`, so nothing
+  changes until a person chooses; the terminal and the Monaco editors follow the code font. The
+  window zoom needs `core:webview:allow-set-webview-zoom`.
+- **SDD from a saved graph.** A specification with a saved task graph runs that graph
+  (`sdd.run.from_graph`), as the WebUI does, instead of planning again.
+- **Analytics.** The WebUI's dashboard moved to `@wrongstack/project-surfaces/analytics` and
+  renders on a new project page (Project tools → Analytics, `/analytics`). Its event and category
+  breakdowns read `/api/analytics`, which no client feeds in either application; sessions,
+  agents, tool calls, tokens and cost carry the data.
+- **Editable side-by-side diff.** Changes offers Monaco's side-by-side diff with the working
+  tree editable; applying binds to the version the diff showed (`saveFileVersion`), so a file
+  that changed meanwhile is reported, not overwritten.
+- **F5 transcript check.** The reconnect diagnostics (the desktop's counterpart of the WebUI's
+  refresh view) also show how many messages each conversation rebuilt in this window.
+
+Verification: desktop 283 test files / 990 tests, desktop typecheck (699 files), project-surfaces
+(246) and WebUI (1,021) typechecks, the WebUI analytics dashboard test, biome on every changed
+file. Native acceptance of fonts, zoom and the diff editor is pending the end-of-work native
+run.

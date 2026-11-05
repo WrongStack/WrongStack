@@ -1,6 +1,7 @@
 import { decodeProtocolMessage } from '@wrongstack/webui-protocol';
 import { EngineOperations } from './engine-operations';
 import { emptyEngineState, engineEvent, replayEngineBatch } from './engine-state';
+import { type MemoryReviews, mergeMemoryReviews } from './memory-reviews';
 import { request } from './platform';
 
 export type BackendScope = 'engine' | 'project' | 'profile';
@@ -143,8 +144,16 @@ const streams = new Map<string, BackendStream>();
 export function journalReader(scope: BackendScope, id: string) {
   const stream = streams.get(`${scope}:${id}`);
   if (!stream) return null;
-  const { hydrating, replay, lastAt, sessionId } = stream.state;
-  return { open: stream.open, hydrating, replay, lastAt, sessionId };
+  const { hydrating, replay, lastAt, sessionId, messages } = stream.state;
+  return { open: stream.open, hydrating, replay, lastAt, sessionId, messages: messages.length };
+}
+/** The newest memory reviews every project reader of this window has read. */
+export function projectMemoryReviews(): MemoryReviews {
+  return mergeMemoryReviews(
+    [...streams].flatMap(([key, stream]) =>
+      key.startsWith('project:') ? [stream.state.memoryReviews] : [],
+    ),
+  );
 }
 export function backendStream(scope: BackendScope, id: string): BackendStream {
   const key = `${scope}:${id}`;

@@ -1178,9 +1178,7 @@
   margin-top: 12px;
 }
 .atlas-node-path {
-  font:
-    10px / 1.9 Consolas,
-    monospace;
+  font: 10px / 1.9 var(--user-font-code, Consolas, monospace);
   color: var(--subtle);
   overflow-wrap: anywhere;
 }
@@ -1353,9 +1351,7 @@
 .atlas-source pre {
   overflow: auto;
   max-height: 450px;
-  font:
-    12px / 1.8 Consolas,
-    monospace;
+  font: 12px / 1.8 var(--user-font-code, Consolas, monospace);
   padding: 20px;
   margin: 0;
 }

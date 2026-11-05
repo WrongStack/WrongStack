@@ -7,12 +7,13 @@ import type {
 import type { ProviderClient } from '@wrongstack/project-surfaces/providers/provider-host';
 import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
 import type { SetupModelResult } from '@wrongstack/project-surfaces/setup/setup-host';
-import { useRef } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import type { EngineHttp } from './engine-http';
 import { EngineHttpError } from './engine-http-error';
 import type { EngineCommand } from './engine-operations';
 import type { BackendStream } from './engine-stream';
 import { record } from './engine-values';
+import { emptyMemoryReviews, MemoryReviewStore, type MemoryReviews } from './memory-reviews';
 
 /** Strings of a list preference; anything else reads as empty. */
 export function prefList(value: unknown): string[] {
@@ -36,6 +37,8 @@ export function profileSurfaceHost(
   stream: BackendStream,
   http: EngineHttp,
   confirm: (options: ConfirmOptions) => Promise<boolean>,
+  /** Memory reviews from the project engines, where conversations run. */
+  memoryReviews: MemoryReviews = emptyMemoryReviews,
 ): { host: SurfaceHost; client: ProviderClient } {
   const on = (type: string, handler: (message: SurfaceMessage) => void) =>
     stream.listen((event) => {
@@ -48,16 +51,22 @@ export function profileSurfaceHost(
     on,
     findMemoriesForFile: (payload) =>
       send({ type: 'memory.sage.forFile', payload: { ...(payload as Record<string, unknown>) } }),
+    send: (message) => send({ type: message.type, payload: { ...message.payload } }),
   };
   const socket = createSageSocket(surfaceClient, send);
+  const reviews = new MemoryReviewStore(memoryReviews);
   const host: SurfaceHost = {
     useSageSocket: () => socket,
     getClient: () => surfaceClient,
     useConnected: () => true,
     useNavigateBack: () => undefined,
     useScrollRestore: <T extends HTMLElement>(_key: string) => useRef<T | null>(null),
-    useValidityReview: () => undefined,
-    useCompanionReview: () => undefined,
+    useValidityReview: (memoryId) =>
+      useSyncExternalStore(reviews.subscribe, () => reviews.reviews.validity[memoryId]),
+    useCompanionReview: (memoryId) =>
+      useSyncExternalStore(reviews.subscribe, () =>
+        memoryId ? reviews.reviews.companion[memoryId] : undefined,
+      ),
     confirm,
     fetch: async (path, init) => {
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;

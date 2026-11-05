@@ -23,6 +23,7 @@ import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
 import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
+import { ProjectAnalytics } from './ProjectAnalytics';
 import { ProjectAtlas } from './ProjectAtlas';
 import { ProjectChronicle } from './ProjectChronicle';
 import { ProjectDiagnostics } from './ProjectDiagnostics';
@@ -182,6 +183,8 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectOffice project={project} sessions={projectSessions} http={http} />
       ) : vm.projectPage === 'diagnostics' ? (
         <ProjectDiagnostics projectId={project.id} http={http} sessions={projectSessions} />
+      ) : vm.projectPage === 'analytics' ? (
+        <ProjectAnalytics projectId={project.id} http={http} />
       ) : vm.projectPage === 'live-fleet' ? (
         <Suspense
           fallback={

@@ -337,9 +337,7 @@
   margin-bottom: 12px;
 }
 .sage-check-samples > button {
-  font:
-    9px Consolas,
-    monospace;
+  font: 9px var(--user-font-code, Consolas, monospace);
   border: 1px solid var(--border);
   padding: 4px 6px;
   color: var(--subtle);
@@ -514,9 +512,7 @@
 }
 .sage-source-evidence > code {
   display: block;
-  font:
-    10px / 1.7 Consolas,
-    monospace;
+  font: 10px / 1.7 var(--user-font-code, Consolas, monospace);
   white-space: pre-wrap;
   background: var(--base);
   padding: 7px;
@@ -645,9 +641,7 @@
   margin-bottom: 5px;
 }
 .sage-search-hits dd {
-  font:
-    11px Consolas,
-    monospace;
+  font: 11px var(--user-font-code, Consolas, monospace);
   margin: 0;
   color: var(--muted);
 }

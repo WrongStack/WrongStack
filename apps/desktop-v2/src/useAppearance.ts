@@ -6,6 +6,7 @@ import {
   parseAppearance,
   resolvedMode,
 } from './appearance';
+import { textZoom } from './appearance-fonts';
 import { native, request } from './platform';
 
 const cacheKey = 'wrongstack.desktop.appearance';
@@ -58,17 +59,19 @@ export function useAppearance(
       /* Native storage remains authoritative. */
     }
   }, [appearance, systemDark, systemMore]);
+  const zoom = textZoom(appearance);
+  useEffect(() => {
+    // The text size is the window's zoom, so every surface, editor and terminal scales alike.
+    if (!native) return;
+    void import('@tauri-apps/api/webview')
+      .then(({ getCurrentWebview }) => getCurrentWebview().setZoom(zoom))
+      .catch(onError);
+  }, [zoom, onError]);
   const changeAppearance = useCallback(
     (patch: Partial<Appearance>) => {
       const next = { ...latest.current, ...patch };
-      if (
-        next.mode === latest.current.mode &&
-        next.accent === latest.current.accent &&
-        next.contrast === latest.current.contrast &&
-        next.density === latest.current.density &&
-        next.sound === latest.current.sound
-      )
-        return;
+      // Unset and undefined fields compare equal: both mean the default.
+      if (JSON.stringify(next) === JSON.stringify(latest.current)) return;
       latest.current = next;
       setAppearance(next);
       if (!native) return;

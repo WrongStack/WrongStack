@@ -39,9 +39,7 @@
   background: var(--raised);
   color: var(--text);
   padding: 18px;
-  font:
-    12px / 1.8 Consolas,
-    monospace;
+  font: 12px / 1.8 var(--user-font-code, Consolas, monospace);
   tab-size: 2;
 }
 .instruction-preview {

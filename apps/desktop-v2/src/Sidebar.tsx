@@ -1,5 +1,6 @@
 import {
   Activity,
+  BarChart3,
   Box,
   Boxes,
   Brain,
@@ -56,6 +57,7 @@ const TOOLS: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
   { id: 'design', Icon: Palette },
   { id: 'reviews', Icon: ShieldCheck },
   { id: 'diagnostics', Icon: Gauge },
+  { id: 'analytics', Icon: BarChart3 },
 ];
 
 function ToolsLauncher({

@@ -96,9 +96,7 @@
 }
 .policy-order {
   align-self: center;
-  font:
-    11px Consolas,
-    monospace;
+  font: 11px var(--user-font-code, Consolas, monospace);
   color: var(--muted);
   min-width: 18px;
 }

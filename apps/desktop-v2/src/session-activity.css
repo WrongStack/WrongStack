@@ -105,7 +105,7 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: 11px / 1.6 monospace;
+  font: 11px / 1.6 var(--user-font-code, monospace);
 }
 .activity-files {
   display: flex;

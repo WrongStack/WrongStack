@@ -1402,6 +1402,11 @@ export function FileWorkspace({
                           setAction({ kind: 'comment', path: active, line });
                           setValue('');
                         }}
+                        edit={
+                          change?.['status'] === 'D'
+                            ? undefined
+                            : { command, onApplied: () => void refresh().then(refreshDiff) }
+                        }
                       />
                     </>
                   ) : (

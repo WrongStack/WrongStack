@@ -85,6 +85,7 @@ export const PROJECT_PAGES = [
   'live-fleet',
   'office',
   'diagnostics',
+  'analytics',
   'skills',
   'files',
   'changes',
@@ -623,7 +624,6 @@ export function useDesktop() {
       });
       jumpToSession(opened);
     });
-
   return {
     projectPage,
     setProjectPage,

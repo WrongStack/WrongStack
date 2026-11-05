@@ -41,7 +41,7 @@
   gap: 10px;
 }
 .prompt-preset-editor textarea {
-  font-family: var(--mono, monospace);
+  font-family: var(--user-font-code, var(--mono, monospace));
   font-size: 12px;
 }
 .prompt-preset-editor pre,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T08:52:04.541Z",
+  "generatedAt": "2026-11-05T09:38:02.716Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6008,
-    "testFiles": 5021,
-    "sourceLines": 1249503,
+    "sourceFiles": 6014,
+    "testFiles": 5024,
+    "sourceLines": 1250252,
     "workspaceEdges": 240,
-    "moduleEdges": 17689,
+    "moduleEdges": 17721,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 280,
+    "testsWithoutTypecheck": 283,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 441,
-      "testFiles": 280,
+      "sourceFiles": 446,
+      "testFiles": 283,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -733,7 +733,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 246,
+      "sourceFiles": 247,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1330,6 +1330,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/appearance-fonts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance-palette.test.ts",
         "projects": [
           "root-node"
@@ -1721,6 +1727,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/diff-preview-edit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2201,6 +2213,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/memory-injections.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/memory-reviews.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31461,6 +31479,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/appearance-fonts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/appearance-palette.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31917,6 +31942,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-story-feed.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/diff-preview-edit.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32477,6 +32509,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/memory-injections.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/memory-reviews.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33591,6 +33630,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/appearance.ts",
+      "specifier": "./fonts.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/AtlasBoundaryMap.tsx",
       "specifier": "./atlas-boundaries.css",
       "syntax": "import"
@@ -33853,6 +33897,11 @@
     {
       "from": "apps/desktop-v2/src/ModelVisibilitySettings.tsx",
       "specifier": "./model-visibility.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/MonacoDiffEditor.tsx",
+      "specifier": "./monaco-diff.css",
       "syntax": "import"
     },
     {
@@ -34341,7 +34390,7 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2030,
+      "lines": 2035,
       "relativeImports": 31
     },
     {
@@ -34386,7 +34435,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 766,
+      "lines": 752,
       "relativeImports": 14
     },
     {
@@ -34413,7 +34462,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2030,
+      "lines": 2035,
       "relativeImports": 31
     },
     {
@@ -34507,11 +34556,6 @@
       "relativeImports": 5
     },
     {
-      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 766,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
@@ -34520,6 +34564,11 @@
       "file": "packages/client/src/client.ts",
       "lines": 754,
       "relativeImports": 4
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
+      "lines": 752,
+      "relativeImports": 14
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",

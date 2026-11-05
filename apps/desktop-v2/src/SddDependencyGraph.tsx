@@ -60,3 +60,40 @@ export function SddDependencyGraph({ columns }: { columns: Record<string, unknow
     </section>
   );
 }
+
+const text = (value: unknown, fallback: string) =>
+  typeof value === 'string' && value ? value : fallback;
+
+/** A specification's task graph as a list: one column per phase, in dependency order. */
+export function SddTaskColumns({ columns }: { columns: Record<string, unknown>[] }) {
+  const { t } = useDesktopText();
+  const named = (value: unknown) =>
+    typeof value === 'string' && value
+      ? t(`sddView.value.${value}`, { defaultValue: value.replaceAll('_', ' ') })
+      : t('sddView.notReported');
+  return (
+    <div className="sdd-task-columns">
+      {columns.map((column, i) => (
+        <section key={i}>
+          <h3>{text(column['label'], t('sddView.phase'))}</h3>
+          {entries(column['tasks']).map((item) => (
+            <article key={String(item['id'])}>
+              <strong>{text(item['title'], t('sddView.task'))}</strong>
+              <p>{text(item['description'], '')}</p>
+              <small>
+                {named(item['displayStatus'] ?? item['status'])} · {named(item['priority'])}
+              </small>
+              {Array.isArray(item['deps']) && item['deps'].length > 0 && (
+                <small>
+                  {t('sddView.dependsOn', {
+                    list: item['deps'].filter((x) => typeof x === 'string').join(', '),
+                  })}
+                </small>
+              )}
+            </article>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}

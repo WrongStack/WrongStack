@@ -124,7 +124,7 @@
   color: var(--muted);
 }
 .worktree-lane-stat {
-  font-family: var(--mono, monospace);
+  font-family: var(--user-font-code, var(--mono, monospace));
 }
 .worktree-lane-stat > span:first-child {
   color: hsl(var(--ws-success));
@@ -166,7 +166,7 @@
 }
 .worktree-graph-branch {
   fill: var(--text);
-  font-family: var(--mono, monospace);
+  font-family: var(--user-font-code, var(--mono, monospace));
   font-size: 12px;
 }
 .worktree-graph-muted {

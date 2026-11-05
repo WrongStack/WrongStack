@@ -237,9 +237,7 @@
   display: block;
   border: 0;
   padding: 17px;
-  font:
-    12px / 1.9 Consolas,
-    monospace;
+  font: 12px / 1.9 var(--user-font-code, Consolas, monospace);
   background: var(--base);
   color: var(--text);
   tab-size: 2;

@@ -21,7 +21,8 @@
     "worktrees": "Worktrees",
     "skills": "Habilidades",
     "office": "Oficina de agentes",
-    "automations": "Automatizaciones"
+    "automations": "Automatizaciones",
+    "analytics": "Analítica"
   },
   "rail": {
     "navigation": "Navegación principal",
@@ -677,6 +678,29 @@
       "connected": "Espacio de trabajo local conectado",
       "connecting": "Conectando con tu espacio de trabajo",
       "note": "Las sesiones siguen en marcha cuando cierras una ventana."
+    },
+    "fonts": {
+      "title": "Fuentes",
+      "body": "Las fuentes de la interfaz y del código. «Fuente instalada» usa cualquier fuente de este equipo por su nombre.",
+      "uiLabel": "Fuente de la interfaz",
+      "codeLabel": "Fuente del código",
+      "geist": "Geist (predeterminada)",
+      "system": "Sistema (Segoe UI)",
+      "cascadia": "Cascadia Code (predeterminada)",
+      "custom": "Fuente instalada…",
+      "familyLabel": "Nombre de la fuente",
+      "familyPlaceholder": "p. ej., JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Tamaño del texto",
+      "body": "Escala toda la ventana, incluidos editores y terminales.",
+      "percent": "{{n}} %"
+    },
+    "ligatures": {
+      "title": "Ligaduras del código",
+      "body": "Une símbolos como => y !== en un solo glifo en las fuentes que lo admiten.",
+      "on": "Activadas",
+      "off": "Desactivadas"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Diff lado a lado",
     "matchesHead": "Este archivo coincide con HEAD.",
     "unchanged": "Mostrar las líneas sin cambios",
-    "review": "Revisar la línea {{line}}"
+    "review": "Revisar la línea {{line}}",
+    "edit": "Editar en paralelo",
+    "editLoading": "Abriendo el editor en paralelo…",
+    "editHint": "Edite la copia de trabajo a la derecha y luego aplíquela al archivo.",
+    "editApply": "Aplicar al archivo",
+    "editApplying": "Aplicando…",
+    "editApplied": "Aplicado al archivo.",
+    "editConflict": "El archivo cambió en el disco desde este diff. No se escribió nada; vuelva a abrir el cambio y aplíquelo otra vez."
   },
   "btw": {
     "title": "Notas BTW · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Verificación de la tarea",
         "split": "División de la tarea"
       }
-    }
+    },
+    "runsSavedGraph": "Ejecuta el grafo de tareas guardado que se muestra aquí, sin volver a planificarlo."
   },
   "historyView": {
     "label": "Historial de sesiones del proyecto",
@@ -5845,7 +5877,8 @@
       "kept": "Conservado de una vista anterior"
     },
     "recorded": "Sesión registrada {{id}}",
-    "lastFrame": "Última entrada a las {{time}}"
+    "lastFrame": "Última entrada a las {{time}}",
+    "restored": "{{count}} mensajes restaurados en esta ventana"
   },
   "usageView": {
     "label": "Uso y coste de la conversación",
@@ -6655,7 +6688,8 @@
       "mcp": "Gestionar servidores MCP o listar las herramientas de un servidor",
       "doctor": "Comprobar la configuración del perfil frente a los valores predeterminados; fix la repara",
       "browser": "Orígenes privados y localhost a los que pueden llegar las herramientas de navegador y fetch",
-      "help": "Mostrar todos los comandos de escritorio"
+      "help": "Mostrar todos los comandos de escritorio",
+      "analytics": "Analítica: sesiones, agentes, llamadas a herramientas, tokens y coste"
     }
   },
   "paletteActions": {

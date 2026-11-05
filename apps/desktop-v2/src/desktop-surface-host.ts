@@ -6,10 +6,11 @@ import type {
   SurfaceSendOptions,
 } from '@wrongstack/project-surfaces/host';
 import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
-import { useRef } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import { type EngineHttp, EngineHttpError } from './engine-http';
 import type { BackendStream } from './engine-stream';
 import type { JournalTail } from './journal-tail';
+import { MemoryReviewStore } from './memory-reviews';
 
 /** Requests this host sent, newest last; replies carrying other ids belong to other views. */
 const OWN_REQUEST_LIMIT = 500;
@@ -26,6 +27,8 @@ export function desktopSurfaceHost(
   confirm: (options: ConfirmOptions) => Promise<boolean>,
 ): { host: SurfaceHost; attach: () => () => void; send: SurfaceSend } {
   const own = new Set<string>();
+  // What the project's reader has seen, then whatever the engine reports while it is open.
+  const reviews = new MemoryReviewStore(stream.state.memoryReviews);
   const handlers = new Map<string, Set<(message: SurfaceMessage) => void>>();
   const deliver = (message: SurfaceMessage) => {
     for (const handler of handlers.get(message.type) ?? []) handler(message);
@@ -33,6 +36,7 @@ export function desktopSurfaceHost(
   /** Follows the journal while the surface is mounted; returns the detach. */
   const attach = () =>
     tail.listen((event) => {
+      if (event.type === 'memory.event') reviews.apply(event.payload);
       if (!handlers.has(event.type)) return;
       const id = event.payload['requestId'];
       if (typeof id === 'string' && !own.has(id)) return;
@@ -68,6 +72,8 @@ export function desktopSurfaceHost(
     },
     findMemoriesForFile: (payload, options) =>
       send({ type: 'memory.sage.forFile', payload: { ...payload } }, options),
+    send: (message, options) =>
+      send({ type: message.type, payload: { ...message.payload } }, options),
   };
   const socket = createSageSocket(client, send);
   const host: SurfaceHost = {
@@ -76,8 +82,12 @@ export function desktopSurfaceHost(
     useConnected: () => true,
     useNavigateBack: () => undefined,
     useScrollRestore: <T extends HTMLElement>(_key: string) => useRef<T | null>(null),
-    useValidityReview: () => undefined,
-    useCompanionReview: () => undefined,
+    useValidityReview: (memoryId) =>
+      useSyncExternalStore(reviews.subscribe, () => reviews.reviews.validity[memoryId]),
+    useCompanionReview: (memoryId) =>
+      useSyncExternalStore(reviews.subscribe, () =>
+        memoryId ? reviews.reviews.companion[memoryId] : undefined,
+      ),
     confirm,
     fetch: async (path, init) => {
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;

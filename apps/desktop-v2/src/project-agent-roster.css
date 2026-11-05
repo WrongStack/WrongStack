@@ -524,7 +524,7 @@
 .roster-document textarea {
   width: 100%;
   min-height: 38vh;
-  font-family: monospace;
+  font-family: var(--user-font-code, monospace);
   resize: vertical;
   line-height: 1.7;
 }

@@ -172,6 +172,6 @@
 }
 .mcp-content-detail textarea {
   width: 100%;
-  font-family: Consolas, monospace;
+  font-family: var(--user-font-code, Consolas, monospace);
   font-size: 12px;
 }

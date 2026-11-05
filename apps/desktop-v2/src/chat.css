@@ -60,9 +60,7 @@
   background: var(--raised);
   padding: 2px 5px;
   border-radius: 4px;
-  font:
-    12px / 1.7 Consolas,
-    monospace;
+  font: 12px / 1.7 var(--user-font-code, Consolas, monospace);
 }
 .markdown-code-block {
   border: 1px solid var(--border);

@@ -21,7 +21,8 @@
     "worktrees": "Worktrees",
     "skills": "Skills",
     "office": "Agent office",
-    "automations": "Automations"
+    "automations": "Automations",
+    "analytics": "Analytics"
   },
   "rail": {
     "navigation": "Main navigation",
@@ -677,6 +678,29 @@
       "connected": "Local workspace connected",
       "connecting": "Connecting to your workspace",
       "note": "Sessions keep running when you close a window."
+    },
+    "fonts": {
+      "title": "Fonts",
+      "body": "The typefaces for the interface and for code. Installed font uses any font on this computer by its name.",
+      "uiLabel": "Interface font",
+      "codeLabel": "Code font",
+      "geist": "Geist (default)",
+      "system": "System (Segoe UI)",
+      "cascadia": "Cascadia Code (default)",
+      "custom": "Installed font…",
+      "familyLabel": "Font name",
+      "familyPlaceholder": "e.g. JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Text size",
+      "body": "Scales the whole window, editors and terminals included.",
+      "percent": "{{n}} %"
+    },
+    "ligatures": {
+      "title": "Code ligatures",
+      "body": "Joins symbols such as => and !== into one glyph in fonts that have them.",
+      "on": "On",
+      "off": "Off"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Side by side diff",
     "matchesHead": "This file matches HEAD.",
     "unchanged": "Show unchanged lines",
-    "review": "Review line {{line}}"
+    "review": "Review line {{line}}",
+    "edit": "Edit side by side",
+    "editLoading": "Opening the side-by-side editor…",
+    "editHint": "Edit the working tree on the right, then apply it to the file.",
+    "editApply": "Apply to file",
+    "editApplying": "Applying…",
+    "editApplied": "Applied to the file.",
+    "editConflict": "The file changed on disk since this diff. Nothing was written; reopen the change and apply again."
   },
   "btw": {
     "title": "BTW notes · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Task verification",
         "split": "Task split"
       }
-    }
+    },
+    "runsSavedGraph": "Runs the saved task graph shown here, without planning it again."
   },
   "historyView": {
     "label": "Project session history",
@@ -5845,7 +5877,8 @@
       "kept": "Kept from an earlier view"
     },
     "recorded": "Recorded session {{id}}",
-    "lastFrame": "Last entry at {{time}}"
+    "lastFrame": "Last entry at {{time}}",
+    "restored": "{{count}} messages restored in this window"
   },
   "usageView": {
     "label": "Conversation usage and cost",
@@ -6655,7 +6688,8 @@
       "mcp": "Manage MCP servers, or list one server’s tools",
       "doctor": "Check the profile configuration against the defaults; fix repairs it",
       "browser": "Private and localhost origins the browser and fetch tools may reach",
-      "help": "Show every desktop command"
+      "help": "Show every desktop command",
+      "analytics": "Analytics: sessions, agents, tool calls, tokens and cost"
     }
   },
   "paletteActions": {

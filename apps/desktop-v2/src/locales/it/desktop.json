@@ -21,7 +21,8 @@
     "worktrees": "Worktree",
     "skills": "Skill",
     "office": "Ufficio degli agenti",
-    "automations": "Automazioni"
+    "automations": "Automazioni",
+    "analytics": "Analisi"
   },
   "rail": {
     "navigation": "Navigazione principale",
@@ -677,6 +678,29 @@
       "connected": "Area di lavoro locale connessa",
       "connecting": "Connessione all'area di lavoro",
       "note": "Le sessioni continuano quando chiudi una finestra."
+    },
+    "fonts": {
+      "title": "Caratteri",
+      "body": "I caratteri dell’interfaccia e del codice. «Carattere installato» usa qualsiasi carattere di questo computer tramite il suo nome.",
+      "uiLabel": "Carattere dell’interfaccia",
+      "codeLabel": "Carattere del codice",
+      "geist": "Geist (predefinito)",
+      "system": "Sistema (Segoe UI)",
+      "cascadia": "Cascadia Code (predefinito)",
+      "custom": "Carattere installato…",
+      "familyLabel": "Nome del carattere",
+      "familyPlaceholder": "es. JetBrains Mono"
+    },
+    "textSize": {
+      "title": "Dimensione del testo",
+      "body": "Ridimensiona l’intera finestra, editor e terminali inclusi.",
+      "percent": "{{n}}%"
+    },
+    "ligatures": {
+      "title": "Legature del codice",
+      "body": "Unisce simboli come => e !== in un unico glifo nei caratteri che lo prevedono.",
+      "on": "Attive",
+      "off": "Disattivate"
     }
   },
   "approval": {
@@ -976,7 +1000,14 @@
     "split": "Diff affiancato",
     "matchesHead": "Questo file corrisponde a HEAD.",
     "unchanged": "Mostra le righe invariate",
-    "review": "Commenta la riga {{line}}"
+    "review": "Commenta la riga {{line}}",
+    "edit": "Modifica affiancata",
+    "editLoading": "Apertura dell’editor affiancato…",
+    "editHint": "Modifica a destra la copia di lavoro, poi applicala al file.",
+    "editApply": "Applica al file",
+    "editApplying": "Applicazione…",
+    "editApplied": "Applicato al file.",
+    "editConflict": "Il file è cambiato sul disco dopo questo diff. Non è stato scritto nulla; riapri la modifica e applicala di nuovo."
   },
   "btw": {
     "title": "Note BTW · {{count}}",
@@ -4737,7 +4768,8 @@
         "verification": "Verifica dell’attività",
         "split": "Suddivisione dell’attività"
       }
-    }
+    },
+    "runsSavedGraph": "Esegue il grafo delle attività salvato mostrato qui, senza ripianificarlo."
   },
   "historyView": {
     "label": "Cronologia delle sessioni del progetto",
@@ -5845,7 +5877,8 @@
       "kept": "Conservato da una vista precedente"
     },
     "recorded": "Sessione registrata {{id}}",
-    "lastFrame": "Ultima voce alle {{time}}"
+    "lastFrame": "Ultima voce alle {{time}}",
+    "restored": "{{count}} messaggi ripristinati in questa finestra"
   },
   "usageView": {
     "label": "Utilizzo e costo della conversazione",
@@ -6655,7 +6688,8 @@
       "mcp": "Gestisci i server MCP o elenca gli strumenti di un server",
       "doctor": "Confronta la configurazione del profilo con i valori predefiniti; fix la ripara",
       "browser": "Origini private e localhost raggiungibili dagli strumenti browser e fetch",
-      "help": "Mostra tutti i comandi desktop"
+      "help": "Mostra tutti i comandi desktop",
+      "analytics": "Analisi: sessioni, agenti, chiamate agli strumenti, token e costi"
     }
   },
   "paletteActions": {

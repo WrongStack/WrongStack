@@ -71,7 +71,7 @@
   max-height: 220px;
   overflow: auto;
   margin: 0;
-  font: 11px / 1.6 monospace;
+  font: 11px / 1.6 var(--user-font-code, monospace);
 }
 .approval-arguments dl {
   margin: 0;
