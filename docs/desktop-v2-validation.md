@@ -8747,3 +8747,24 @@ run.
   polls every two seconds where the WebUI subscribes; both show the same live list.
 - Verification: appearance and session-status tests (6 files, 15 tests), desktop typecheck
   (701 files), biome on the changed files.
+
+### Command bridge: the TUI's commands on the engine (2026-11-05)
+
+The desktop engine runs `@wrongstack/webui-server` without the CLI, so none of the TUI's own
+slash commands could run there (nor in the WebUI). The bridge closes that, first wave:
+
+- Protocol: `command.list` → `command.catalog` (name, aliases, description, arguments, whether
+  it changes or deletes data) and `command.run` → `command.result` (the command's message with
+  terminal colours removed, or `error`), advertised as the `command.bridge` capability.
+- `@wrongstack/runtime/commands` holds commands that need no terminal, each declaring the host
+  fields it reads. `/sandbox`, `/prune`, `/scout-stats` and `/init` moved there from the CLI,
+  whose files now re-export them, so the TUI runs the same code.
+- Both engine hosts serve them: the standalone one the desktop runs and the CLI's WebUI host.
+- The desktop composer completes and runs them after its own commands (a desktop command of
+  the same name wins). A command that changes or deletes data says what it will do first and
+  runs when the same draft is sent again; `--dry-run` runs at once. Output keeps its lines.
+
+Verification: desktop 285 files / 997 tests, webui-server bridge tests, the moved commands'
+CLI tests, webui-protocol (261), CLI source and test typechecks, architecture gate. Next wave:
+Git (`/push`, `/gitcheck`, `/gitid`), `/security`, `/tuneup`, plugin commands, then the fleet
+commands.

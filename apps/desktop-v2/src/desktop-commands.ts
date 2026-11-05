@@ -55,6 +55,8 @@ type CommandAction =
   | 'settings'
   | 'enhance'
   | 'open'
+  /** A command the engine runs (`command.run`), listed by its `command.catalog`. */
+  | 'engine'
   | 'review'
   | 'fix'
   | 'suggest'
@@ -538,17 +540,23 @@ export const desktopCommands: readonly DesktopCommand[] = [
 ];
 
 /** The command that `name` (with its slash, any case) names, through its aliases too. */
-function findCommand(name: string): DesktopCommand | undefined {
+function findCommand(
+  name: string,
+  extra: readonly DesktopCommand[] = [],
+): DesktopCommand | undefined {
   const wanted = name.toLowerCase();
-  return desktopCommands.find(
+  return [...desktopCommands, ...extra].find(
     (command) => command.name === wanted || (command.aliases?.includes(wanted) ?? false),
   );
 }
 
 /** The commands a typed prefix (`/co`) can complete to, by name or alias. */
-export function matchDesktopCommands(prefix: string): DesktopCommand[] {
+export function matchDesktopCommands(
+  prefix: string,
+  extra: readonly DesktopCommand[] = [],
+): DesktopCommand[] {
   const wanted = prefix.toLowerCase();
-  return desktopCommands.filter(
+  return [...desktopCommands, ...extra].filter(
     (command) =>
       command.name.startsWith(wanted) ||
       (command.aliases?.some((alias) => alias.startsWith(wanted)) ?? false),
@@ -561,9 +569,11 @@ export function matchDesktopCommands(prefix: string): DesktopCommand[] {
  */
 export function parseDesktopCommand(
   text: string,
+  /** Commands the engine runs, after the desktop's own. */
+  extra: readonly DesktopCommand[] = [],
 ): { command: DesktopCommand | undefined; name: string; argument: string } | null {
   const match = /^\/([a-z][\w!-]*)(?:\s+([\s\S]*))?$/i.exec(text.trim());
   if (!match) return null;
   const name = `/${match[1]!.toLowerCase()}`;
-  return { command: findCommand(name), name, argument: match[2]?.trim() ?? '' };
+  return { command: findCommand(name, extra), name, argument: match[2]?.trim() ?? '' };
 }

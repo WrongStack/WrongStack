@@ -46,6 +46,7 @@ import { handleKanbanRoute } from './kanban-routes.js';
 import { createKanbanRunStart } from './kanban-run-start.js';
 import { createKanbanSupervisor } from './kanban-supervisor.js';
 import type { PendingConfirm } from './pending-confirms.js';
+import { portableCommandRoute } from './portable-command-route.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import {
   handleProcessKill,
@@ -582,6 +583,12 @@ export function createMessageDispatcher(
       send,
       allowSessionMessage: (socket, message) => ensureCurrentSession(socket, message, message.type),
     },
+    commands: portableCommandRoute({
+      getSessionStore: state.getSessionStore,
+      getProjectRoot: state.getProjectRoot,
+      getContext: (sessionId) => deps.getAgent?.(sessionId)?.ctx ?? deps.context,
+      send,
+    }),
     getKanbanContext: kanbanContext,
     onUnknown: (ws, msg) => {
       send(ws, {

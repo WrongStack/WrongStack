@@ -41,6 +41,11 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
    * `eventEpoch` and is answered with the missed frames and `session.frames_resumed`.
    */
   'session.frame-resume',
+  /**
+   * `command.list` / `command.run`: the slash commands the engine itself runs (the TUI's
+   * commands that need no terminal), answered by `command.catalog` and `command.result`.
+   */
+  'command.bridge',
 ] as const;
 
 export type SurfaceProtocolCapability = (typeof SURFACE_PROTOCOL_CAPABILITIES)[number];

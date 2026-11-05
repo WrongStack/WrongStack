@@ -24,6 +24,7 @@ import {
   runWorkingDir,
 } from './desktop-command-engine';
 import { parseDesktopCommand } from './desktop-commands';
+import { engineCommands, runEngineCommand } from './desktop-engine-commands';
 import { runGoal } from './desktop-goal-command';
 import { huntLabel } from './desktop-hunt';
 
@@ -198,7 +199,7 @@ export function runDesktopCommand(
   draft: string,
   context: DesktopCommandContext,
 ): DesktopCommandOutcome | null {
-  const parsed = parseDesktopCommand(draft);
+  const parsed = parseDesktopCommand(draft, engineCommands(context.state));
   if (!parsed) return null;
   const { command, argument } = parsed;
   if (!command)
@@ -288,5 +289,7 @@ export function runDesktopCommand(
     case 'open':
       if (command.opens) context.navigate(command.opens);
       return HANDLED;
+    case 'engine':
+      return runEngineCommand(command, argument, context);
   }
 }

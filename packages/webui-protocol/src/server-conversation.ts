@@ -61,6 +61,8 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'sessions.list',
   'sessions.status_update',
   'stats.get',
+  'command.catalog',
+  'command.result',
   'token.cost_estimate_unavailable',
   'token.threshold',
   'tool.confirm_needed',

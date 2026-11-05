@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T09:43:50.936Z",
+  "generatedAt": "2026-11-05T10:02:20.550Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6016,
-    "testFiles": 5025,
-    "sourceLines": 1250355,
+    "sourceFiles": 6026,
+    "testFiles": 5027,
+    "sourceLines": 1250743,
     "workspaceEdges": 240,
-    "moduleEdges": 17726,
+    "moduleEdges": 17751,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 284,
+    "testsWithoutTypecheck": 285,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1037
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 448,
-      "testFiles": 284,
+      "sourceFiles": 449,
+      "testFiles": 285,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -818,7 +818,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 36,
+      "sourceFiles": 43,
       "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
@@ -1164,8 +1164,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 330,
-      "testFiles": 368,
+      "sourceFiles": 332,
+      "testFiles": 369,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1200,7 +1200,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 368
+          "testFiles": 369
         }
       ]
     },
@@ -1697,6 +1697,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-engine-commands.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26308,6 +26314,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/command-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/completion-handlers.test.ts",
         "projects": [
           "root-node"
@@ -31919,6 +31931,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/desktop-engine-commands.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/desktop-hunt.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34468,7 +34487,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1055,
+      "lines": 1056,
       "relativeImports": 37
     },
     {
@@ -34510,7 +34529,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1055,
+      "lines": 1056,
       "relativeImports": 37
     },
     {
@@ -35513,18 +35532,6 @@
     {
       "file": "packages/cli/src/slash-commands/nextsteps-mode.ts",
       "name": "parseNextStepsLimit"
-    },
-    {
-      "file": "packages/cli/src/slash-commands/scout-stats.ts",
-      "name": "formatVariantUsage"
-    },
-    {
-      "file": "packages/cli/src/slash-commands/scout-stats.ts",
-      "name": "SOLO_HEAVY_TOOL_CALLS"
-    },
-    {
-      "file": "packages/cli/src/slash-commands/scout-stats.ts",
-      "name": "summarizeVariantUsage"
     },
     {
       "file": "packages/cli/src/slash-commands/sdd-format.ts",

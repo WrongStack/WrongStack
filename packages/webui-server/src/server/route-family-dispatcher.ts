@@ -9,6 +9,7 @@ import {
   handleClientTransportRoute,
 } from './client-transport-routes.js';
 import { type CodeAssistRouteHandlers, handleCodeAssistRoute } from './code-assist-routes.js';
+import { type CommandRouteContext, handleCommandRoute } from './command-routes.js';
 import { type CompletionRouteHandlers, handleCompletionRoute } from './completion-routes.js';
 import { type ContentRouteContext, handleContentRoute } from './content-routes.js';
 import { type ConversationRouteHandlers, handleConversationRoute } from './conversation-routes.js';
@@ -74,6 +75,8 @@ export interface RouteFamilyDispatcherOptions {
   content: ContentRouteContext;
   chronicle: ChronicleRouteContext;
   introspection: IntrospectionRouteContext;
+  /** The slash commands the engine runs (`command.list` / `command.run`); hosts may omit it. */
+  commands?: CommandRouteContext | undefined;
   getKanbanContext: () => KanbanRouteContext;
   beforeDispatch?:
     | ((ws: WebSocket, message: WSClientMessage) => boolean | Promise<boolean>)
@@ -119,6 +122,7 @@ export function createRouteFamilyDispatcher(
     if (await handleContentRoute(options.content, ws, message)) return;
     if (await handleChronicleRoute(options.chronicle, ws, message)) return;
     if (await handleIntrospectionRoute(options.introspection, ws, message)) return;
+    if (options.commands && (await handleCommandRoute(options.commands, ws, message))) return;
     if (await handleKanbanRoute(ws, message, options.getKanbanContext())) return;
     await options.onUnknown(ws, message);
   };

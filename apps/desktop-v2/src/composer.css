@@ -139,6 +139,10 @@
 }
 .composer-notice {
   color: var(--muted);
+  /* Engine command output keeps its lines and scrolls past a few screens of text. */
+  max-height: 40vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
 }
 .composer-restore {
   display: flex;

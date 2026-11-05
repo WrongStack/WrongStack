@@ -43,6 +43,8 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'sessions.list',
   'side_effects.list',
   'stats.get',
+  'command.list',
+  'command.run',
   'todo.update',
   'todos.clear',
   'todos.get',

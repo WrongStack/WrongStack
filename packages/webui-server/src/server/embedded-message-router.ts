@@ -36,6 +36,7 @@ import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
 import type { HostRouteHandlers } from './host-routes.js';
 import { handleJevRoute } from './jev-routes.js';
 import { createModeRouteHandlers } from './mode-routes.js';
+import { portableCommandRoute } from './portable-command-route.js';
 import { createPrefsRouteHandlers } from './prefs-routes.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import {
@@ -500,6 +501,13 @@ export function createEmbeddedMessageRouter(
     },
     chronicle: { getProjectRoot: projectRoot, send },
     introspection: deps.introspectionCtx,
+    commands: portableCommandRoute({
+      getSessionStore: () => deps.sessionCtx.opts.sessionStore,
+      getProjectRoot: projectRoot,
+      getContext: (sessionId) =>
+        (sessionId ? deps.sessionCtx.getAgent?.(sessionId)?.ctx : undefined) ?? opts.agent.ctx,
+      send,
+    }),
     getKanbanContext: () => ({
       // Same root as shell, chronicle, and connections. An embedded host may
       // omit opts.projectRoot and carry the directory only on the agent.

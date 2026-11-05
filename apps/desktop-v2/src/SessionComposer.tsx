@@ -178,6 +178,7 @@ export function SessionComposer({
     })),
     projectId,
     textarea,
+    engine: { command, state },
   });
   const pasteHint = usePasteHint(draft, input.replace);
   const refineDraft = useRefinementDraft(refineDraftStorage);

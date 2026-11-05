@@ -5,8 +5,10 @@ import { ComposerMentionPicker } from './ComposerMentionPicker';
 import { type ComposerFileReference, fileMention, withReference } from './composer-resources-model';
 import { commandDescription } from './desktop-command-text';
 import { matchDesktopCommands } from './desktop-commands';
+import { useEngineCommands } from './desktop-engine-commands';
 import { useDesktopText } from './desktop-i18n';
-import type { ChatMessage } from './engine-state';
+import type { EngineCommand } from './engine-operations';
+import type { ChatMessage, EngineState } from './engine-state';
 import { recallHistory } from './journal-recall';
 
 export function useComposerInput({
@@ -18,6 +20,7 @@ export function useComposerInput({
   recall = [],
   projectId,
   textarea,
+  engine,
 }: {
   draft: string;
   onDraftChange: (text: string) => void;
@@ -28,8 +31,11 @@ export function useComposerInput({
   recall?: readonly string[];
   projectId: string;
   textarea: RefObject<HTMLTextAreaElement | null>;
+  /** The conversation's engine, whose own commands complete after the desktop's. */
+  engine?: { command: EngineCommand; state: EngineState } | undefined;
 }) {
   const { t } = useDesktopText();
+  const extraCommands = useEngineCommands(engine);
   const [cursor, setCursor] = useState(draft.length),
     [dismissed, setDismissed] = useState(''),
     [commandIndex, setCommandIndex] = useState(0);
@@ -41,7 +47,7 @@ export function useComposerInput({
   const file = dismissed === identity || skill ? null : fileMention(draft, cursor);
   const commandQuery =
     dismissed !== identity && /^\/[\w!-]*$/.test(draft) ? draft.toLowerCase() : null;
-  const commands = commandQuery === null ? [] : matchDesktopCommands(commandQuery);
+  const commands = commandQuery === null ? [] : matchDesktopCommands(commandQuery, extraCommands);
   const replace = (text: string, nextCursor = text.length) => {
     pending.current = { text, cursor: nextCursor };
     onDraftChange(text);
