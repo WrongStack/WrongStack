@@ -74,6 +74,7 @@ const policy = () =>
                 {
                   id: 'deny-rm',
                   when: { risk: 'high' },
+                  // biome-ignore lint/suspicious/noThenProperty: BrainRule's domain contract names this action field `then`.
                   then: { action: 'deny', reason: 'Destructive' },
                   maxHits: 2,
                   windowMs: 1000,

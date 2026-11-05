@@ -16,7 +16,9 @@ describe('Brain deterministic rules', () => {
   it('lists configured rules in order with their action and an off mark', () => {
     const host = mount({
       rules: [
+        // biome-ignore lint/suspicious/noThenProperty: BrainRule's domain contract names this action field `then`.
         { id: 'deny-force-push', then: { action: 'deny' } },
+        // biome-ignore lint/suspicious/noThenProperty: BrainRule's domain contract names this action field `then`.
         { id: 'allow-tests', enabled: false, then: { action: 'allow' } },
       ],
       ruleErrors: [],
