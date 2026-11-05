@@ -1,0 +1,148 @@
+/* A desktop baseline for every form, including lazy-loaded project surfaces. Component
+   and utility styles retain precedence over these defaults. */
+@layer base {
+  :where(input, select, textarea) {
+    font: inherit;
+    accent-color: var(--accent);
+  }
+  :where(
+    input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"],
+      [type="color"],
+      [type="hidden"],
+      [type="button"],
+      [type="submit"],
+      [type="reset"],
+      [type="image"]
+    ),
+    select,
+    textarea
+  ) {
+    min-width: 0;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--raised);
+    color: var(--text);
+    line-height: 1.4;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+  :where(textarea) {
+    resize: vertical;
+    min-height: 80px;
+  }
+  :where(input, textarea)::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+  :where(input, select, textarea):hover:not(:disabled, :focus) {
+    border-color: color-mix(in srgb, var(--text) 35%, var(--border));
+  }
+  :where(input, select, textarea):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  :where(input, select, textarea):disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  :where(input, select, textarea)[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+  :where(select) {
+    cursor: pointer;
+    text-overflow: ellipsis;
+  }
+  :where(select option, select optgroup) {
+    background: var(--raised);
+    color: var(--text);
+  }
+  /* These controls already live inside a bordered desktop control. */
+  .composer-chip select {
+    min-height: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .native-composer textarea {
+    box-shadow: none;
+  }
+  :where(input[type="checkbox"], input[type="radio"]) {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+}
+
+/* Chromium/WebView2 customizable selects keep native keyboard and form behavior while
+   allowing the opened menu to use the application's theme instead of an OS white list. */
+@supports (appearance: base-select) {
+  select:not([multiple], [size]),
+  select:not([multiple], [size])::picker(select) {
+    appearance: base-select;
+  }
+  select:not([multiple], [size]) {
+    align-items: center;
+    gap: 12px;
+  }
+  select:not([multiple], [size])::picker-icon {
+    color: var(--muted);
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+  select:not([multiple], [size])::picker(select) {
+    min-width: anchor-size(width);
+    max-width: min(36rem, calc(100vw - 24px));
+    max-height: min(360px, 60vh);
+    margin-block: 5px;
+    padding: 5px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--raised);
+    color: var(--text);
+    font: inherit;
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.18);
+  }
+  select:not([multiple], [size]) option {
+    min-height: 32px;
+    padding: 8px 10px;
+    gap: 10px;
+    border-radius: 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  select:not([multiple], [size]) option:checked {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-weight: 500;
+  }
+  select:not([multiple], [size]) option:is(:hover, :focus-visible):not(:disabled) {
+    background: var(--accent-soft);
+    outline: 1px solid var(--accent-border);
+    outline-offset: -1px;
+  }
+  select:not([multiple], [size]) option:disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  select:not([multiple], [size]) option::checkmark {
+    color: var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(input, select, textarea) {
+    transition: none;
+  }
+}
