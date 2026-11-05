@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
 import { type EngineState, entries, record } from './engine-state';
+import { countedPhrase } from './engine-values';
 import { GoalPhaseVerification } from './GoalPhaseVerification';
 import { GoalRevert } from './GoalRevert';
 import { matchingGoalAssessment } from './goal-assessment';
@@ -731,7 +732,7 @@ export function ProjectGoals({
                       <small>
                         {t('goals.taskCount', {
                           done: reportedCount(phase['completedTasks']),
-                          total: reportedCount(phase['taskCount']),
+                          total: countedPhrase(t, 'tasks', phase['taskCount']),
                         })}
                         {typeof phase['priority'] === 'string' &&
                           phase['priority'] &&
@@ -1038,9 +1039,9 @@ export function ProjectGoals({
                     <p>
                       {t('goals.catalogLine', {
                         doneTasks: reportedCount(item['completedTasks']),
-                        tasks: reportedCount(item['totalTasks']),
+                        tasks: countedPhrase(t, 'tasks', item['totalTasks']),
                         donePhases: reportedCount(item['completedPhases']),
-                        phases: reportedCount(item['totalPhases']),
+                        phases: countedPhrase(t, 'phases', item['totalPhases']),
                       })}
                     </p>
                   </div>

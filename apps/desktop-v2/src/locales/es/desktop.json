@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} tarea",
+    "tasks": "{{count, number}} tareas",
+    "phases_one": "{{count, number}} fase",
+    "phases": "{{count, number}} fases",
     "matchingMessages_one": "{{count, number}} mensaje coincidente",
     "matchingMessages": "{{count, number}} mensajes coincidentes",
     "retainedMessages_one": "{{count, number}} mensaje conservado",
@@ -2271,15 +2275,15 @@
   },
   "reqRes": {
     "kind": {
-      "file": "archivo",
-      "image": "imagen",
-      "document": "documento",
-      "link": "enlace",
-      "other": "otro",
-      "spec": "especificación",
-      "issue": "incidencia",
+      "file": "Archivo",
+      "image": "Imagen",
+      "document": "Documento",
+      "link": "Enlace",
+      "other": "Otro",
+      "spec": "Especificación",
+      "issue": "Incidencia",
       "pr": "Pull request",
-      "doc": "doc",
+      "doc": "Doc",
       "url": "URL"
     },
     "source": {
@@ -2370,16 +2374,16 @@
     "deletedRuns_one": "Se eliminaron {{name}} y {{count}} registro de ejecución.",
     "everyMinutes_one": "Cada minuto",
     "runStatus": {
-      "queued": "en cola",
-      "running": "en ejecución",
-      "completed": "completada",
-      "failed": "fallida",
-      "cancelled": "cancelada",
-      "interrupted": "interrumpida"
+      "queued": "En cola",
+      "running": "En ejecución",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "cancelled": "Cancelada",
+      "interrupted": "Interrumpida"
     },
     "trigger": {
-      "manual": "manual",
-      "schedule": "programación",
+      "manual": "Manual",
+      "schedule": "Programación",
       "github": "GitHub"
     },
     "recovered": "Se recuperó un borrador de automatización sin guardar.",
@@ -2548,6 +2552,8 @@
     "noGithub": "No hay ningún disparador de GitHub configurado. Las ejecuciones manuales y programadas siguen disponibles."
   },
   "autoRun": {
+    "envPhaseVerification": "Ejecución de verificación",
+    "envPhaseCandidate": "Ejecución candidata",
     "artifact": {
       "outputLog": "Registro de ejecución",
       "verificationLog": "Registro de verificación",
@@ -2563,11 +2569,11 @@
       "cancelled": "cancelada"
     },
     "envStatus": {
-      "preparing": "preparándose",
-      "ready": "listo",
-      "removed": "eliminado",
-      "retained": "conservado",
-      "unverified": "sin verificar"
+      "preparing": "Preparándose",
+      "ready": "Listo",
+      "removed": "Eliminado",
+      "retained": "Conservado",
+      "unverified": "Sin verificar"
     },
     "notRecordedEvidence": "Esta prueba no se registró para esta ejecución.",
     "title": "Ejecución de automatización {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} fases",
     "phase": "Fase",
     "phaseLower": "fase",
-    "taskCount": "{{done}} / {{total}} tareas",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "prioridad {{priority}}",
     "task": "Tarea",
     "newTaskFor": "Nueva tarea para {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Buscar objetivos…",
     "reading": "Leyendo el catálogo de objetivos del proyecto…",
     "untitled": "Objetivo sin título",
-    "catalogLine": "{{doneTasks}} / {{tasks}} tareas · {{donePhases}} / {{phases}} fases",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Verificación: {{status}}",
     "noMatch": "No hay objetivos que coincidan",
     "none": "Aún no hay objetivos",

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T20:21:57.226Z
+**Generated:** 2026-11-05T21:02:04.958Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6045 |
-| Production source lines | 1252392 |
+| Production source lines | 1252402 |
 | Test files | 5036 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17799 |
+| Relative module edges | 17800 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -95,7 +95,7 @@ None.
 | 1579 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1068 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1069 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1060 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 954 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |

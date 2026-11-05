@@ -425,9 +425,9 @@ export async function exerciseNativeAutomationManagement({
   );
   await inspector.getByRole('button', { name: 'Environment receipt', exact: true }).click();
   await inspector
-    .getByRole('heading', { name: 'native-presentation · candidate', exact: true })
+    .getByRole('heading', { name: 'native-presentation · Candidate run', exact: true })
     .waitFor();
-  await inspector.getByText('Environment: unverified', { exact: true }).waitFor();
+  await inspector.getByText('Environment: Unverified', { exact: true }).waitFor();
   await inspector
     .getByText('preview · container 3000 → loopback 43123 (http)', { exact: true })
     .waitFor();

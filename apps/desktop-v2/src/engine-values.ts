@@ -67,6 +67,21 @@ export function byteText(value: number, locale?: string): string {
 }
 
 /** A recorded time in the display language ("Nov 5, 2026, 3:21 PM"); unreadable values as-is. */
+/**
+ * A counted noun from the `counts` catalog ("1 task", "3 tasks"). Without a number the noun
+ * stays and the number reads "—" ("— tasks"): the plural phrase is rendered for 2, whose
+ * formatted digit is the only "2" in it, and that digit is replaced.
+ */
+export function countedPhrase(
+  t: (key: string, options: { count: number }) => string,
+  key: string,
+  value: unknown,
+): string {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? t(`counts.${key}`, { count: value })
+    : t(`counts.${key}`, { count: 2 }).replace('2', '—');
+}
+
 export function dateTimeText(value: unknown, locale?: string): string {
   const at = typeof value === 'string' || typeof value === 'number' ? new Date(value) : null;
   return at && !Number.isNaN(at.getTime())

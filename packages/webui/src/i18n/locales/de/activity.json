@@ -5125,7 +5125,7 @@
     "heading": "Cloud-Routing-Einstellungen"
   },
   "kanbanText": {
-    "supervisorIdle": "Nichts zu überwachen",
+    "supervisorIdle": "Keine wartende Arbeit beim letzten Audit",
     "supervisorPart": {
       "running_one": "{{count}} laufend",
       "running": "{{count}} laufend",

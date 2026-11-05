@@ -5125,7 +5125,7 @@
     "heading": "Ajustes de enrutado en la nube"
   },
   "kanbanText": {
-    "supervisorIdle": "Nada que supervisar",
+    "supervisorIdle": "Sin trabajo en cola en la última auditoría",
     "supervisorPart": {
       "running_one": "{{count}} en ejecución",
       "running": "{{count}} en ejecución",

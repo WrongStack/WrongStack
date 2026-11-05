@@ -5125,7 +5125,7 @@
     "heading": "Bulut yönlendirme ayarları"
   },
   "kanbanText": {
-    "supervisorIdle": "Denetlenecek iş yok",
+    "supervisorIdle": "Son denetimde bekleyen iş yok",
     "supervisorPart": {
       "running_one": "{{count}} çalışıyor",
       "running": "{{count}} çalışıyor",

@@ -158,9 +158,9 @@ export async function exerciseNativeTaskExecution({
   await kanban.getByRole('button', { name: 'Audit now', exact: true }).click();
   await waitFor(async () => {
     const line = (await supervisor.textContent()) ?? '';
-    // The bar lists only counters that are not zero, or says there is nothing to supervise.
+    // The bar lists only counters that are not zero, or that the last audit found no queued work.
     return (
-      /\d+ (running|ready|review|blocked|failed|stale|dependency-blocked|parked)\b|Nothing to supervise/.test(
+      /\d+ (running|ready|review|blocked|failed|stale|dependency-blocked|parked)\b|No queued work in the last audit/.test(
         line,
       ) && /checked \ds ago/.test(line)
     );

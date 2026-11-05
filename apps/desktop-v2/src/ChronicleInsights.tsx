@@ -2,20 +2,13 @@ import { BarChart3, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries, record } from './engine-values';
+import { countedPhrase as counted, entries, record } from './engine-values';
 import './chronicle-insights.css';
 
 type View = 'providers' | 'tasks' | 'files';
 const views: View[] = ['providers', 'tasks', 'files'];
 const number = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
-/** A counted noun ("1 retry", "3 retries"), or the missing mark when the row lacks the number. */
-const counted = (
-  t: (key: string, options: { count: number }) => string,
-  key: string,
-  value: unknown,
-) =>
-  typeof value === 'number' && Number.isFinite(value) ? t(`counts.${key}`, { count: value }) : '—';
 
 /** Project-wide derived metrics, independent of the timeline query and any selected session. */
 /** A field the record lacks; dropped from the owners line rather than shown as a placeholder. */

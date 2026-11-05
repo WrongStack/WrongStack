@@ -5125,7 +5125,7 @@
     "heading": "Paramètres de routage cloud"
   },
   "kanbanText": {
-    "supervisorIdle": "Rien à superviser",
+    "supervisorIdle": "Aucun travail en attente au dernier audit",
     "supervisorPart": {
       "running_one": "{{count}} en cours",
       "running": "{{count}} en cours",

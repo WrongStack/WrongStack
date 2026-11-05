@@ -5125,7 +5125,7 @@
     "heading": "Cloud routing settings"
   },
   "kanbanText": {
-    "supervisorIdle": "Nothing to supervise",
+    "supervisorIdle": "No queued work in the last audit",
     "supervisorPart": {
       "running_one": "{{count}} running",
       "running": "{{count}} running",

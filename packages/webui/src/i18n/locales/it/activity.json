@@ -5125,7 +5125,7 @@
     "heading": "Impostazioni di routing cloud"
   },
   "kanbanText": {
-    "supervisorIdle": "Niente da supervisionare",
+    "supervisorIdle": "Nessun lavoro in coda nell'ultimo audit",
     "supervisorPart": {
       "running_one": "{{count}} in esecuzione",
       "running": "{{count}} in esecuzione",

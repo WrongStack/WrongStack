@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} görev",
+    "tasks": "{{count, number}} görev",
+    "phases_one": "{{count, number}} aşama",
+    "phases": "{{count, number}} aşama",
     "matchingMessages_one": "{{count, number}} eşleşen ileti",
     "matchingMessages": "{{count, number}} eşleşen ileti",
     "retainedMessages_one": "{{count, number}} saklı ileti",
@@ -2271,15 +2275,15 @@
   },
   "reqRes": {
     "kind": {
-      "file": "dosya",
-      "image": "görsel",
-      "document": "belge",
-      "link": "bağlantı",
-      "other": "diğer",
-      "spec": "belirtim",
-      "issue": "kayıt (issue)",
+      "file": "Dosya",
+      "image": "Görsel",
+      "document": "Belge",
+      "link": "Bağlantı",
+      "other": "Diğer",
+      "spec": "Belirtim",
+      "issue": "Kayıt (issue)",
       "pr": "Pull request",
-      "doc": "doküman",
+      "doc": "Doküman",
       "url": "URL"
     },
     "source": {
@@ -2370,16 +2374,16 @@
     "deletedRuns_one": "{{name}} ve {{count}} çalıştırma kaydı silindi.",
     "everyMinutes_one": "Her dakika",
     "runStatus": {
-      "queued": "sırada",
-      "running": "çalışıyor",
-      "completed": "tamamlandı",
-      "failed": "başarısız",
-      "cancelled": "iptal edildi",
-      "interrupted": "kesildi"
+      "queued": "Sırada",
+      "running": "Çalışıyor",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi",
+      "interrupted": "Kesildi"
     },
     "trigger": {
-      "manual": "manuel",
-      "schedule": "zamanlama",
+      "manual": "Manuel",
+      "schedule": "Zamanlama",
       "github": "GitHub"
     },
     "recovered": "Kaydedilmemiş bir otomasyon taslağı kurtarıldı.",
@@ -2548,6 +2552,8 @@
     "noGithub": "Yapılandırılmış GitHub tetikleyicisi yok. Manuel ve zamanlanmış çalıştırmalar kullanılabilir kalır."
   },
   "autoRun": {
+    "envPhaseVerification": "Doğrulama çalıştırması",
+    "envPhaseCandidate": "Aday çalıştırma",
     "artifact": {
       "outputLog": "Yürütme günlüğü",
       "verificationLog": "Doğrulama günlüğü",
@@ -2563,11 +2569,11 @@
       "cancelled": "iptal edildi"
     },
     "envStatus": {
-      "preparing": "hazırlanıyor",
-      "ready": "hazır",
-      "removed": "kaldırıldı",
-      "retained": "tutuldu",
-      "unverified": "doğrulanmamış"
+      "preparing": "Hazırlanıyor",
+      "ready": "Hazır",
+      "removed": "Kaldırıldı",
+      "retained": "Tutuldu",
+      "unverified": "Doğrulanmamış"
     },
     "notRecordedEvidence": "Bu kanıt bu çalıştırma için kaydedilmedi.",
     "title": "Otomasyon çalıştırması {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} aşama",
     "phase": "Aşama",
     "phaseLower": "aşama",
-    "taskCount": "{{done}} / {{total}} görev",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "{{priority}} öncelik",
     "task": "Görev",
     "newTaskFor": "{{phase}} için yeni görev",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Hedeflerde ara…",
     "reading": "Proje hedef kataloğu okunuyor…",
     "untitled": "Adsız hedef",
-    "catalogLine": "{{doneTasks}} / {{tasks}} görev · {{donePhases}} / {{phases}} aşama",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Doğrulama: {{status}}",
     "noMatch": "Eşleşen hedef yok",
     "none": "Henüz hedef yok",

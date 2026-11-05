@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} tâche",
+    "tasks": "{{count, number}} tâches",
+    "phases_one": "{{count, number}} phase",
+    "phases": "{{count, number}} phases",
     "matchingMessages_one": "{{count, number}} message correspondant",
     "matchingMessages": "{{count, number}} messages correspondants",
     "retainedMessages_one": "{{count, number}} message conservé",
@@ -2271,15 +2275,15 @@
   },
   "reqRes": {
     "kind": {
-      "file": "fichier",
-      "image": "image",
-      "document": "document",
-      "link": "lien",
-      "other": "autre",
-      "spec": "spécification",
-      "issue": "ticket",
+      "file": "Fichier",
+      "image": "Image",
+      "document": "Document",
+      "link": "Lien",
+      "other": "Autre",
+      "spec": "Spécification",
+      "issue": "Ticket",
       "pr": "Pull request",
-      "doc": "doc",
+      "doc": "Doc",
       "url": "URL"
     },
     "source": {
@@ -2370,16 +2374,16 @@
     "deletedRuns_one": "{{name}} et {{count}} enregistrement d'exécution supprimés.",
     "everyMinutes_one": "Toutes les minutes",
     "runStatus": {
-      "queued": "en file",
-      "running": "en cours",
-      "completed": "terminée",
-      "failed": "échouée",
-      "cancelled": "annulée",
-      "interrupted": "interrompue"
+      "queued": "En file",
+      "running": "En cours",
+      "completed": "Terminée",
+      "failed": "Échouée",
+      "cancelled": "Annulée",
+      "interrupted": "Interrompue"
     },
     "trigger": {
-      "manual": "manuel",
-      "schedule": "planification",
+      "manual": "Manuel",
+      "schedule": "Planification",
       "github": "GitHub"
     },
     "recovered": "Un brouillon d'automatisation non enregistré a été récupéré.",
@@ -2548,6 +2552,8 @@
     "noGithub": "Aucun déclencheur GitHub configuré. Les exécutions manuelles et planifiées restent disponibles."
   },
   "autoRun": {
+    "envPhaseVerification": "Exécution de vérification",
+    "envPhaseCandidate": "Exécution candidate",
     "artifact": {
       "outputLog": "Journal d'exécution",
       "verificationLog": "Journal de vérification",
@@ -2563,11 +2569,11 @@
       "cancelled": "annulée"
     },
     "envStatus": {
-      "preparing": "en préparation",
-      "ready": "prêt",
-      "removed": "supprimé",
-      "retained": "conservé",
-      "unverified": "non vérifié"
+      "preparing": "En préparation",
+      "ready": "Prêt",
+      "removed": "Supprimé",
+      "retained": "Conservé",
+      "unverified": "Non vérifié"
     },
     "notRecordedEvidence": "Cette preuve n'a pas été enregistrée pour cette exécution.",
     "title": "Exécution d'automatisation {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} phases",
     "phase": "Phase",
     "phaseLower": "phase",
-    "taskCount": "{{done}} / {{total}} tâches",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "priorité {{priority}}",
     "task": "Tâche",
     "newTaskFor": "Nouvelle tâche pour {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Rechercher des objectifs…",
     "reading": "Lecture du catalogue des objectifs du projet…",
     "untitled": "Objectif sans titre",
-    "catalogLine": "{{doneTasks}} / {{tasks}} tâches · {{donePhases}} / {{phases}} phases",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Vérification : {{status}}",
     "noMatch": "Aucun objectif correspondant",
     "none": "Pas encore d'objectif",

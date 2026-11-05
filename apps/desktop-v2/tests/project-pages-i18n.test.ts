@@ -387,12 +387,12 @@ describe('the project pages in the display language', () => {
   it('show automation run evidence and comparison in English, then in Turkish', async () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(comparison());
-    for (const text of ['Compare runs', 'Run aaaaaaaa', 'Status', 'completed', 'Not recorded'])
+    for (const text of ['Compare runs', 'Run aaaaaaaa', 'Status', 'Completed', 'Not recorded'])
       expect(page.text).toContain(text);
     page = await mount(inspector());
     for (const text of [
       'Execution & evidence',
-      'queued',
+      'Queued',
       'Execution log',
       'Recorded evidence',
       'Pull request workflow',
@@ -407,14 +407,14 @@ describe('the project pages in the display language', () => {
       'Çalıştırmaları karşılaştır',
       'Çalıştırma aaaaaaaa',
       'Durum',
-      'tamamlandı',
+      'Tamamlandı',
       'Kaydedilmedi',
     ])
       expect(page.text).toContain(text);
     page = await mount(inspector());
     for (const text of [
       'Yürütme ve kanıt',
-      'sırada',
+      'Sırada',
       'Yürütme günlüğü',
       'Kaydedilen kanıt',
       'Pull request iş akışı',

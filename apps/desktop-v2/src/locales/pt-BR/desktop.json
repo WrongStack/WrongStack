@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} tarefa",
+    "tasks": "{{count, number}} tarefas",
+    "phases_one": "{{count, number}} fase",
+    "phases": "{{count, number}} fases",
     "matchingMessages_one": "{{count, number}} mensagem correspondente",
     "matchingMessages": "{{count, number}} mensagens correspondentes",
     "retainedMessages_one": "{{count, number}} mensagem retida",
@@ -2271,15 +2275,15 @@
   },
   "reqRes": {
     "kind": {
-      "file": "arquivo",
-      "image": "imagem",
-      "document": "documento",
-      "link": "link",
-      "other": "outro",
-      "spec": "especificação",
-      "issue": "issue",
+      "file": "Arquivo",
+      "image": "Imagem",
+      "document": "Documento",
+      "link": "Link",
+      "other": "Outro",
+      "spec": "Especificação",
+      "issue": "Issue",
       "pr": "Pull request",
-      "doc": "doc",
+      "doc": "Doc",
       "url": "URL"
     },
     "source": {
@@ -2370,16 +2374,16 @@
     "deletedRuns_one": "{{name}} e {{count}} registro de execução excluídos.",
     "everyMinutes_one": "A cada minuto",
     "runStatus": {
-      "queued": "na fila",
-      "running": "em execução",
-      "completed": "concluída",
-      "failed": "falhou",
-      "cancelled": "cancelada",
-      "interrupted": "interrompida"
+      "queued": "Na fila",
+      "running": "Em execução",
+      "completed": "Concluída",
+      "failed": "Falhou",
+      "cancelled": "Cancelada",
+      "interrupted": "Interrompida"
     },
     "trigger": {
-      "manual": "manual",
-      "schedule": "agendamento",
+      "manual": "Manual",
+      "schedule": "Agendamento",
       "github": "GitHub"
     },
     "recovered": "Um rascunho de automação não salvo foi recuperado.",
@@ -2548,6 +2552,8 @@
     "noGithub": "Nenhum gatilho do GitHub configurado. Execuções manuais e agendadas continuam disponíveis."
   },
   "autoRun": {
+    "envPhaseVerification": "Execução de verificação",
+    "envPhaseCandidate": "Execução candidata",
     "artifact": {
       "outputLog": "Log de execução",
       "verificationLog": "Log de verificação",
@@ -2563,11 +2569,11 @@
       "cancelled": "cancelada"
     },
     "envStatus": {
-      "preparing": "preparando",
-      "ready": "pronto",
-      "removed": "removido",
-      "retained": "mantido",
-      "unverified": "não verificado"
+      "preparing": "Preparando",
+      "ready": "Pronto",
+      "removed": "Removido",
+      "retained": "Mantido",
+      "unverified": "Não verificado"
     },
     "notRecordedEvidence": "Esta evidência não foi registrada para esta execução.",
     "title": "Execução da automação {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} fases",
     "phase": "Fase",
     "phaseLower": "fase",
-    "taskCount": "{{done}} / {{total}} tarefas",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "prioridade {{priority}}",
     "task": "Tarefa",
     "newTaskFor": "Nova tarefa para {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Pesquisar metas…",
     "reading": "Lendo o catálogo de metas do projeto…",
     "untitled": "Meta sem título",
-    "catalogLine": "{{doneTasks}} / {{tasks}} tarefas · {{donePhases}} / {{phases}} fases",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Verificação: {{status}}",
     "noMatch": "Nenhuma meta correspondente",
     "none": "Nenhuma meta ainda",

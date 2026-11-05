@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} task",
+    "tasks": "{{count, number}} tasks",
+    "phases_one": "{{count, number}} phase",
+    "phases": "{{count, number}} phases",
     "matchingMessages_one": "{{count, number}} matching message",
     "matchingMessages": "{{count, number}} matching messages",
     "retainedMessages_one": "{{count, number}} retained message",
@@ -2271,16 +2275,16 @@
   },
   "reqRes": {
     "kind": {
-      "file": "file",
-      "image": "image",
-      "document": "document",
-      "link": "link",
-      "other": "other",
-      "spec": "spec",
-      "issue": "issue",
+      "file": "File",
+      "image": "Image",
+      "document": "Document",
+      "link": "Link",
+      "other": "Other",
+      "spec": "Spec",
+      "issue": "Issue",
       "pr": "Pull request",
-      "doc": "doc",
-      "url": "url"
+      "doc": "Doc",
+      "url": "URL"
     },
     "source": {
       "user": "User input",
@@ -2370,17 +2374,17 @@
     "deletedRuns_one": "Deleted {{name}} and {{count}} run record.",
     "everyMinutes_one": "Every minute",
     "runStatus": {
-      "queued": "queued",
-      "running": "running",
-      "completed": "completed",
-      "failed": "failed",
-      "cancelled": "cancelled",
-      "interrupted": "interrupted"
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "interrupted": "Interrupted"
     },
     "trigger": {
-      "manual": "manual",
-      "schedule": "schedule",
-      "github": "github"
+      "manual": "Manual",
+      "schedule": "Schedule",
+      "github": "GitHub"
     },
     "recovered": "Recovered an unsaved automation draft.",
     "recoveredAt": "Recovered an unsaved automation draft saved {{time}}.",
@@ -2548,6 +2552,8 @@
     "noGithub": "No GitHub trigger configured. Manual and scheduled runs remain available."
   },
   "autoRun": {
+    "envPhaseVerification": "Verification run",
+    "envPhaseCandidate": "Candidate run",
     "artifact": {
       "outputLog": "Execution log",
       "verificationLog": "Verification log",
@@ -2563,11 +2569,11 @@
       "cancelled": "cancelled"
     },
     "envStatus": {
-      "preparing": "preparing",
-      "ready": "ready",
-      "removed": "removed",
-      "retained": "retained",
-      "unverified": "unverified"
+      "preparing": "Preparing",
+      "ready": "Ready",
+      "removed": "Removed",
+      "retained": "Retained",
+      "unverified": "Unverified"
     },
     "notRecordedEvidence": "This evidence has not been recorded for this run.",
     "title": "Automation run {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} phases",
     "phase": "Phase",
     "phaseLower": "phase",
-    "taskCount": "{{done}} / {{total}} tasks",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "{{priority}} priority",
     "task": "Task",
     "newTaskFor": "New task for {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Search goals…",
     "reading": "Reading the project goal catalog…",
     "untitled": "Untitled goal",
-    "catalogLine": "{{doneTasks}} / {{tasks}} tasks · {{donePhases}} / {{phases}} phases",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Verification: {{status}}",
     "noMatch": "No matching goals",
     "none": "No goals yet",

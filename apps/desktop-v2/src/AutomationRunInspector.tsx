@@ -313,17 +313,11 @@ function VerificationReport({ value }: { value: AutomationValidation }) {
           <summary>{t('autoRun.workspaceIdentity')}</summary>
           <dl>
             <dt>{t('autoRun.image')}</dt>
-            <dd>
-              <code>{value.imageId ?? t('autoRun.notRecorded')}</code>
-            </dd>
+            <dd>{codeOr(value.imageId, t('autoRun.notRecorded'))}</dd>
             <dt>{t('autoRun.tree')}</dt>
-            <dd>
-              <code>{value.workspaceTree ?? t('autoRun.notRecorded')}</code>
-            </dd>
+            <dd>{codeOr(value.workspaceTree, t('autoRun.notRecorded'))}</dd>
             <dt>{t('autoRun.planFingerprint')}</dt>
-            <dd>
-              <code>{value.planFingerprint ?? t('autoRun.notRecorded')}</code>
-            </dd>
+            <dd>{codeOr(value.planFingerprint, t('autoRun.notRecorded'))}</dd>
           </dl>
         </details>
       )}
@@ -331,12 +325,21 @@ function VerificationReport({ value }: { value: AutomationValidation }) {
   );
 }
 
+/** A recorded identifier in code type; a placeholder for a missing one stays plain text. */
+const codeOr = (value: string | null | undefined, missing: string) =>
+  value ? <code>{value}</code> : missing;
+
 function EnvironmentReport({ value }: { value: EnvironmentReceipt }) {
   const { t } = useDesktopText();
   return (
     <section className="automation-environment-report">
       <h3>
-        {value.name} · {value.phase}
+        {value.name} ·{' '}
+        {t(
+          value.phase === 'candidate'
+            ? 'autoRun.envPhaseCandidate'
+            : 'autoRun.envPhaseVerification',
+        )}
       </h3>
       <p>
         {t('autoRun.environmentStatus', {
@@ -346,9 +349,7 @@ function EnvironmentReport({ value }: { value: EnvironmentReceipt }) {
       </p>
       <dl>
         <dt>{t('autoRun.workspaceImage')}</dt>
-        <dd>
-          <code>{value.imageId ?? t('autoRun.notCaptured')}</code>
-        </dd>
+        <dd>{codeOr(value.imageId, t('autoRun.notCaptured'))}</dd>
         <dt>{t('autoRun.network')}</dt>
         <dd>{value.network ?? t('autoRun.noneRecorded')}</dd>
         <dt>{t('autoRun.fingerprint')}</dt>

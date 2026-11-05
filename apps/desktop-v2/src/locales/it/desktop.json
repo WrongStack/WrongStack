@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} attività",
+    "tasks": "{{count, number}} attività",
+    "phases_one": "{{count, number}} fase",
+    "phases": "{{count, number}} fasi",
     "matchingMessages_one": "{{count, number}} messaggio corrispondente",
     "matchingMessages": "{{count, number}} messaggi corrispondenti",
     "retainedMessages_one": "{{count, number}} messaggio conservato",
@@ -2271,15 +2275,15 @@
   },
   "reqRes": {
     "kind": {
-      "file": "file",
-      "image": "immagine",
-      "document": "documento",
-      "link": "link",
-      "other": "altro",
-      "spec": "specifica",
-      "issue": "issue",
+      "file": "File",
+      "image": "Immagine",
+      "document": "Documento",
+      "link": "Link",
+      "other": "Altro",
+      "spec": "Specifica",
+      "issue": "Issue",
       "pr": "Pull request",
-      "doc": "doc",
+      "doc": "Doc",
       "url": "URL"
     },
     "source": {
@@ -2370,16 +2374,16 @@
     "deletedRuns_one": "{{name}} e {{count}} record di esecuzione eliminati.",
     "everyMinutes_one": "Ogni minuto",
     "runStatus": {
-      "queued": "in coda",
-      "running": "in esecuzione",
-      "completed": "completata",
-      "failed": "non riuscita",
-      "cancelled": "annullata",
-      "interrupted": "interrotta"
+      "queued": "In coda",
+      "running": "In esecuzione",
+      "completed": "Completata",
+      "failed": "Non riuscita",
+      "cancelled": "Annullata",
+      "interrupted": "Interrotta"
     },
     "trigger": {
-      "manual": "manuale",
-      "schedule": "pianificazione",
+      "manual": "Manuale",
+      "schedule": "Pianificazione",
       "github": "GitHub"
     },
     "recovered": "È stata recuperata una bozza di automazione non salvata.",
@@ -2548,6 +2552,8 @@
     "noGithub": "Nessun trigger GitHub configurato. Le esecuzioni manuali e pianificate restano disponibili."
   },
   "autoRun": {
+    "envPhaseVerification": "Esecuzione di verifica",
+    "envPhaseCandidate": "Esecuzione candidata",
     "artifact": {
       "outputLog": "Log di esecuzione",
       "verificationLog": "Log di verifica",
@@ -2563,11 +2569,11 @@
       "cancelled": "annullata"
     },
     "envStatus": {
-      "preparing": "in preparazione",
-      "ready": "pronto",
-      "removed": "rimosso",
-      "retained": "conservato",
-      "unverified": "non verificato"
+      "preparing": "In preparazione",
+      "ready": "Pronto",
+      "removed": "Rimosso",
+      "retained": "Conservato",
+      "unverified": "Non verificato"
     },
     "notRecordedEvidence": "Questa prova non è stata registrata per questa esecuzione.",
     "title": "Esecuzione di automazione {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} fasi",
     "phase": "Fase",
     "phaseLower": "fase",
-    "taskCount": "{{done}} / {{total}} attività",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "priorità {{priority}}",
     "task": "Attività",
     "newTaskFor": "Nuova attività per {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Cerca obiettivi…",
     "reading": "Lettura del catalogo degli obiettivi del progetto…",
     "untitled": "Obiettivo senza titolo",
-    "catalogLine": "{{doneTasks}} / {{tasks}} attività · {{donePhases}} / {{phases}} fasi",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Verifica: {{status}}",
     "noMatch": "Nessun obiettivo corrispondente",
     "none": "Ancora nessun obiettivo",

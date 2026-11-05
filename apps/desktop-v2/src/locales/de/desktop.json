@@ -1,5 +1,9 @@
 {
   "counts": {
+    "tasks_one": "{{count, number}} Aufgabe",
+    "tasks": "{{count, number}} Aufgaben",
+    "phases_one": "{{count, number}} Phase",
+    "phases": "{{count, number}} Phasen",
     "matchingMessages_one": "{{count, number}} passende Nachricht",
     "matchingMessages": "{{count, number}} passende Nachrichten",
     "retainedMessages_one": "{{count, number}} gespeicherte Nachricht",
@@ -2370,15 +2374,15 @@
     "deletedRuns_one": "{{name}} und {{count}} Laufdatensatz gelöscht.",
     "everyMinutes_one": "Jede Minute",
     "runStatus": {
-      "queued": "in der Warteschlange",
-      "running": "läuft",
-      "completed": "abgeschlossen",
-      "failed": "fehlgeschlagen",
-      "cancelled": "abgebrochen",
-      "interrupted": "unterbrochen"
+      "queued": "In der Warteschlange",
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "interrupted": "Unterbrochen"
     },
     "trigger": {
-      "manual": "manuell",
+      "manual": "Manuell",
       "schedule": "Zeitplan",
       "github": "GitHub"
     },
@@ -2548,6 +2552,8 @@
     "noGithub": "Kein GitHub-Auslöser eingerichtet. Manuelle und geplante Läufe bleiben verfügbar."
   },
   "autoRun": {
+    "envPhaseVerification": "Verifizierungslauf",
+    "envPhaseCandidate": "Kandidatenlauf",
     "artifact": {
       "outputLog": "Ausführungsprotokoll",
       "verificationLog": "Prüfprotokoll",
@@ -2563,11 +2569,11 @@
       "cancelled": "abgebrochen"
     },
     "envStatus": {
-      "preparing": "wird vorbereitet",
-      "ready": "bereit",
-      "removed": "entfernt",
-      "retained": "beibehalten",
-      "unverified": "ungeprüft"
+      "preparing": "Wird vorbereitet",
+      "ready": "Bereit",
+      "removed": "Entfernt",
+      "retained": "Beibehalten",
+      "unverified": "Ungeprüft"
     },
     "notRecordedEvidence": "Dieser Beleg wurde für diesen Lauf nicht erfasst.",
     "title": "Automationslauf {{id}}",
@@ -2897,7 +2903,7 @@
     "phaseCount": "{{count}} Phasen",
     "phase": "Phase",
     "phaseLower": "Phase",
-    "taskCount": "{{done}} / {{total}} Aufgaben",
+    "taskCount": "{{done}} / {{total}}",
     "priorityLine": "Priorität {{priority}}",
     "task": "Aufgabe",
     "newTaskFor": "Neue Aufgabe für {{phase}}",
@@ -2934,7 +2940,7 @@
     "searchPlaceholder": "Ziele durchsuchen…",
     "reading": "Zielkatalog des Projekts wird gelesen…",
     "untitled": "Unbenanntes Ziel",
-    "catalogLine": "{{doneTasks}} / {{tasks}} Aufgaben · {{donePhases}} / {{phases}} Phasen",
+    "catalogLine": "{{doneTasks}} / {{tasks}} · {{donePhases}} / {{phases}}",
     "verification": "Prüfung: {{status}}",
     "noMatch": "Keine passenden Ziele",
     "none": "Noch keine Ziele",

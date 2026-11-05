@@ -260,6 +260,9 @@
   overflow-wrap: anywhere;
   min-width: 0;
 }
+.automation-run-inspector > .quiet-state {
+  padding: 4px 0 0;
+}
 .automation-run-inspector :where(summary) {
   cursor: pointer;
   font-size: 12px;

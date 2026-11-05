@@ -5125,7 +5125,7 @@
     "heading": "Configurações de roteamento na nuvem"
   },
   "kanbanText": {
-    "supervisorIdle": "Nada a supervisionar",
+    "supervisorIdle": "Nenhum trabalho na fila na última auditoria",
     "supervisorPart": {
       "running_one": "{{count}} em execução",
       "running": "{{count}} em execução",
