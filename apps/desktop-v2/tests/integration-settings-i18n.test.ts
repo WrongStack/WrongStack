@@ -66,7 +66,7 @@ describe('integration settings in the display language', () => {
       'Connected tools',
       'Add connection',
       'connected',
-      '1 tools available',
+      '1 tool available',
       'Available tools',
       'Server-reported hints: read-only. Execution permissions are evaluated separately.',
       'Edit connection',

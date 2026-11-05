@@ -4974,6 +4974,7 @@
     }
   },
   "repositoryHistory": {
+    "commitsCount_one": "{{count}} commit · ordre topologique",
     "commitTopology": "Topologie des commits",
     "statCommits": "Commits",
     "statBranches": "Branches",
@@ -5124,6 +5125,18 @@
     "heading": "Paramètres de routage cloud"
   },
   "kanbanText": {
+    "columnCount_one": "{{count}} colonne",
+    "columnCount": "{{count}} colonnes",
+    "boardsSummary_one": "{{total}} tableau · {{active}} actifs · {{orphaned}} orphelins",
+    "durationEvents_one": "{{duration}} · {{count}} événement",
+    "contractSetupGaps_one": "Contrat · lacunes de configuration : {{count}}",
+    "proposedSubtaskCount_one": "sous-tâches proposées : {{count}}",
+    "subtaskCount_one": "{{count}} sous-tâche",
+    "blockingNodes_one": "nœuds bloquants : {{count}}",
+    "tasksNeedAttention_one": "tâches à traiter : {{count}}",
+    "setupGaps_one": "lacunes de configuration : {{count}}",
+    "skillCount_one": "compétences : {{count}}",
+    "taskCount_one": "{{count}} tâche",
     "taskStatus": {
       "pending": "En attente",
       "ready": "Prête",
@@ -5149,7 +5162,7 @@
     "contractMap": "Carte de contrats",
     "noBoardSelected": "Aucun tableau sélectionné",
     "createOrSelectBoard": "Créez ou sélectionnez un tableau",
-    "boardShape": "{{columns}} colonnes / {{tasks}} tâches",
+    "boardShape": "{{columns}} · {{tasks}}",
     "taskActivityLoadFailed": "L'activité de la tâche n'a pas pu être chargée.",
     "boardsSummary": "{{total}} tableaux · {{active}} actifs · {{orphaned}} orphelins",
     "activeSessionCount": "Session active · {{count}}",
@@ -5436,6 +5449,16 @@
     "boundaryLineAccess": "La ligne de limite {{line}} a un accès inconnu."
   },
   "codeMapText": {
+    "symbolCount_one": "{{count}} symbole",
+    "symbolCount": "{{count}} symboles",
+    "fileCount_one": "{{count}} fichier",
+    "fileCount": "{{count}} fichiers",
+    "thrashCycles_one": "{{count}} cycle d’emballement",
+    "searchResults_one": "{{count}} résultat dans la carte chargée",
+    "roots_one": "{{count}} racine",
+    "moreFiles_one": "Afficher {{count}} fichier de plus",
+    "moreSymbols_one": "Afficher {{count}} symbole de plus",
+    "eventsNewest_one": "{{count}} événement · plus récents d’abord",
     "edgeKind": {
       "call": "Appel",
       "import": "Import",
@@ -5497,10 +5520,11 @@
     "thrashCycles": "{{count}} cycles d’emballement",
     "lockedBy": "Verrouillé par {{owner}}",
     "symbols": "{{count}} sym.",
-    "filesSymbols": "{{files}} fichiers · {{symbols}} symboles",
+    "filesSymbols": "{{files}} · {{symbols}}",
     "allLinks": "TOUS LES LIENS"
   },
   "sageText": {
+    "tags_one": "{{count}} étiquette",
     "anchorType": "Type de l’ancre {{n}}",
     "anchorValue": "Valeur de l’ancre {{n}}",
     "anchorSymbol": "Symbole de l’ancre {{n}}",
@@ -5583,6 +5607,10 @@
     "cacheCovers": "Le cache couvre {{covered}} jetons sur {{max}}"
   },
   "councilText": {
+    "voteShare_one": "{{count}} voix ({{pct}} %)",
+    "voteShare": "{{count}} voix ({{pct}} %)",
+    "votes_one": "{{name}} : {{count}} voix ({{pct}} %)",
+    "rounds_one": "{{count}} tour",
     "seatsQuorum": "Quorum des sièges",
     "valid": "{{valid}}/{{total}} valides",
     "diversity": "Diversité",
@@ -5618,6 +5646,7 @@
     }
   },
   "officeText": {
+    "mailSummary_one": "{{count}} message. Dernier : {{subject}}",
     "details": "Détails de {{name}}",
     "taskDetails": "Détails de la tâche de {{name}}",
     "briefing": "Briefing de {{name}}",

@@ -355,7 +355,7 @@ function TranscriptBlock({
           <strong>{String(block['name'] || t('historyView.block.pdf'))}</strong>
           <span>
             {block['pages']
-              ? t('historyView.block.pdfPages', { n: String(block['pages']) })
+              ? t('historyView.block.pdfPages', { count: Number(block['pages']) })
               : t('historyView.block.pdfText')}
           </span>
         </div>
@@ -495,7 +495,7 @@ function MoreMessageBlocks({
       ))}
       {next !== null && remaining > 0 && (
         <p className="field-help">
-          {t('historyView.block.more', { n: remaining })}{' '}
+          {t('historyView.block.more', { count: remaining })}{' '}
           <button
             type="button"
             className="button secondary small"
@@ -504,7 +504,7 @@ function MoreMessageBlocks({
           >
             {busy
               ? t('historyView.block.loading')
-              : t('historyView.block.loadMore', { n: Math.min(100, remaining) })}
+              : t('historyView.block.loadMore', { count: Math.min(100, remaining) })}
           </button>
         </p>
       )}

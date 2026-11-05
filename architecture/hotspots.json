@@ -147,7 +147,7 @@
       "relativeImports": 31
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
-      "lines": 933,
+      "lines": 935,
       "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
@@ -155,7 +155,7 @@
       "relativeImports": 17
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 779,
+      "lines": 781,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {

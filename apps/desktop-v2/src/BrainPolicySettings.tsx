@@ -239,6 +239,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                   i18n={surfaceI18n}
                   ns="desktop"
                   i18nKey={`brainPolicy.fact.${fact}`}
+                  {...(typeof value === 'number' ? { count: value } : {})}
                   values={{ n: String(value ?? '—') }}
                   components={{ strong: <strong /> }}
                 />

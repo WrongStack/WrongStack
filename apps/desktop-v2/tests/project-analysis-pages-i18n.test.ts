@@ -118,7 +118,7 @@ describe('the analysis pages in the display language', () => {
       'Mechanical action: remove declaration',
       '1 visible finding · 0 selected · 0 mechanically fixable',
       'Recovery backups (1)',
-      '2 files · 1 findings',
+      '2 files · 1 finding',
     ])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
@@ -131,7 +131,7 @@ describe('the analysis pages in the display language', () => {
       'Ölü Kod',
       'Ölü kodu yeniden tara',
       'Giriş noktaları',
-      'Gösterilen: projenin tamamı. 1.2 saniye · 10 ayrıştırıldı · 2 test dosyası',
+      'Gösterilen: projenin tamamı. 1,2 saniye · 10 ayrıştırıldı · 2 test dosyası',
       'Ölü dışa aktarım',
       '1 görünür bulgu · 0 seçili · 0 mekanik olarak düzeltilebilir',
       'yüksek güven',

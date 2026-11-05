@@ -95,7 +95,7 @@ describe('Project Kit in the display language', () => {
       expect(english).toContain(text);
     const englishPage = await page();
     for (const text of [
-      '1 kits · 1 invalid',
+      '1 kit · 1 invalid',
       'Reads project data',
       'Invalid kit definitions (1)',
       'Know exactly what your agent can run.',

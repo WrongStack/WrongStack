@@ -171,7 +171,7 @@ function ReferenceRangeEditor({
       const all = String(file['content'] ?? '').split('\n');
       if (first > all.length) {
         setPreview(null);
-        setMessage(t('referenceChips.pastEnd', { total: all.length }));
+        setMessage(t('referenceChips.pastEnd', { count: all.length }));
         return;
       }
       setPreview({

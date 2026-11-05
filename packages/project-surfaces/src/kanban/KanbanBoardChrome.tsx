@@ -96,8 +96,8 @@ export function BoardHeading({ board }: { board: KanbanBoard | null | undefined 
       <div className="truncate text-[11px] text-muted-foreground">
         {board
           ? t('activity:kanbanText.boardShape', {
-              columns: board.columns.length,
-              tasks: board.tasks.length,
+              columns: t('activity:kanbanText.columnCount', { count: board.columns.length }),
+              tasks: t('activity:kanbanText.taskCount', { count: board.tasks.length }),
             })
           : t('activity:kanbanText.createOrSelectBoard')}
       </div>

@@ -1,4 +1,42 @@
 {
+  "counts": {
+    "files_one": "{{count, number}} dosya",
+    "files": "{{count, number}} dosya",
+    "findings_one": "{{count, number}} bulgu",
+    "findings": "{{count, number}} bulgu",
+    "testFiles_one": "{{count, number}} test dosyası",
+    "testFiles": "{{count, number}} test dosyası",
+    "seconds_one": "{{count, number}} saniye",
+    "seconds": "{{count, number}} saniye",
+    "events_one": "{{count, number}} olay",
+    "events": "{{count, number}} olay",
+    "relationships_one": "{{count, number}} ilişki",
+    "relationships": "{{count, number}} ilişki",
+    "attempts_one": "{{count, number}} deneme",
+    "attempts": "{{count, number}} deneme",
+    "retries_one": "{{count, number}} yeniden deneme",
+    "retries": "{{count, number}} yeniden deneme",
+    "fallbacks_one": "{{count, number}} yedeğe geçiş",
+    "fallbacks": "{{count, number}} yedeğe geçiş",
+    "verificationFailures_one": "{{count, number}} doğrulama hatası",
+    "verificationFailures": "{{count, number}} doğrulama hatası",
+    "iterations_one": "{{count, number}} yineleme",
+    "iterations": "{{count, number}} yineleme",
+    "toolCalls_one": "{{count, number}} araç çağrısı",
+    "toolCalls": "{{count, number}} araç çağrısı",
+    "failures_one": "{{count, number}} başarısızlık",
+    "failures": "{{count, number}} başarısızlık",
+    "rateLimits_one": "{{count, number}} hız sınırı",
+    "rateLimits": "{{count, number}} hız sınırı",
+    "successes_one": "{{count, number}} başarı",
+    "successes": "{{count, number}} başarı",
+    "models_one": "{{count, number}} model",
+    "models": "{{count, number}} model",
+    "savedDefinitions_one": "{{count, number}} kayıtlı tanım",
+    "savedDefinitions": "{{count, number}} kayıtlı tanım",
+    "commits_one": "{{count, number}} commit",
+    "commits": "{{count, number}} commit"
+  },
   "pages": {
     "files": "Dosyalar",
     "changes": "Değişiklikler",
@@ -2312,6 +2350,9 @@
     "save": "Kaynağı kaydet"
   },
   "automation": {
+    "otherWindow_one": "Başka bir pencere bu proje için farklı kaydedilmemiş otomasyon taslakları kaydetti ({{count}} iş taslağı).",
+    "deletedRuns_one": "{{name}} ve {{count}} çalıştırma kaydı silindi.",
+    "everyMinutes_one": "Her dakika",
     "runStatus": {
       "queued": "sırada",
       "running": "çalışıyor",
@@ -2332,7 +2373,7 @@
     "imported": "Yerel inceleme için devre dışı bir otomasyon olarak içe aktarıldı.",
     "queuedNotice": "Motor bu çalıştırmayı sıraya aldı.",
     "deleted": "{{name}} silindi.",
-    "deletedRuns": "{{name}} ve {{runs}} çalıştırma kaydı silindi.",
+    "deletedRuns": "{{name}} ve {{count}} çalıştırma kaydı silindi.",
     "workerOnline": "Çalıştırıcı çevrimiçi",
     "workerOffline": "Çalıştırıcı çevrimdışı · işler düzenlenebilir",
     "refresh": "Yenile",
@@ -2347,7 +2388,7 @@
     "jobsLabel": "Otomasyon işleri",
     "enabled": "Etkin",
     "disabled": "Devre dışı",
-    "everyMinutes": "Her {{minutes}} dakikada",
+    "everyMinutes": "Her {{count}} dakikada",
     "manualOnly": "Yalnızca manuel",
     "noJobs": "Bu projede otomasyon yok.",
     "recentRuns": "Son çalıştırmalar",
@@ -2415,12 +2456,17 @@
     "reloadHelp": "Bu, geçerli işin kaydedilmemiş formunu atar. Diğer iş taslakları bu pencerede kalır.",
     "keepEditing": "Otomasyonu düzenlemeye devam et",
     "discardReloadConfirm": "At ve otomasyonu yeniden yükle",
-    "otherWindow": "Başka bir pencere bu proje için farklı kaydedilmemiş otomasyon taslakları kaydetti ({{drafts}} iş taslağı).",
+    "otherWindow": "Başka bir pencere bu proje için farklı kaydedilmemiş otomasyon taslakları kaydetti ({{count}} iş taslağı).",
     "keepWindow": "Bu penceredeki taslakları tut",
     "useSaved": "Kayıtlı taslakları kullan",
     "retryDrafts": "Kayıtlı taslakları yüklemeyi yeniden dene"
   },
   "autoConfig": {
+    "deadline_one": "Kurulum süresi sınırı: {{count}} saniye. Çalıştırıcı bu ortamı kopyalanan çalışma alanı için hazırlar.",
+    "ports_one": "{{count}} önizleme portu",
+    "caches_one": "{{count}} önbellek",
+    "services_one": "{{count}} servis",
+    "setupSteps_one": "{{count}} kurulum adımı",
     "templatesTitle": "Bir iş akışıyla başla",
     "templatesHelp": "İşin adı ve talimatları için bir başlangıç noktası. Çalışma seçimleri taslağında kalır.",
     "useTemplate": "Otomasyon şablonunu kullan",
@@ -2432,11 +2478,11 @@
     "environment": "Yeniden kullanılabilir ortam",
     "editEnvironment": "Ortamı düzenle",
     "configureEnvironment": "Ortamı yapılandır",
-    "setupSteps": "{{n}} kurulum adımı",
-    "services": "{{n}} servis",
-    "caches": "{{n}} önbellek",
-    "ports": "{{n}} önizleme portu",
-    "deadline": "Kurulum süresi sınırı: {{seconds}} saniye. Çalıştırıcı bu ortamı kopyalanan çalışma alanı için hazırlar.",
+    "setupSteps": "{{count}} kurulum adımı",
+    "services": "{{count}} servis",
+    "caches": "{{count}} önbellek",
+    "ports": "{{count}} önizleme portu",
+    "deadline": "Kurulum süresi sınırı: {{count}} saniye. Çalıştırıcı bu ortamı kopyalanan çalışma alanı için hazırlar.",
     "health": "sağlık:",
     "removeEnvironment": "Ortamı taslaktan kaldır",
     "noEnvironment": "Kurulum adımları, servis konteynerleri, paket önbellekleri ve yerel önizleme portları ekle. Ekli bir ortam yok.",
@@ -2716,6 +2762,8 @@
     "apply": "Ortamı taslağa uygula"
   },
   "goals": {
+    "recordedRuns_one": "{{count}} kayıtlı hedef çalıştırması",
+    "phaseCount_one": "{{count}} aşama",
     "status": {
       "planning": "Planlanıyor",
       "running": "Çalışıyor",
@@ -2753,7 +2801,8 @@
     "refused": "Motor bu isteği reddetti.",
     "submitted": "Hedef gönderildi. Motorun planlaması bekleniyor.",
     "budget": {
-      "tasks": "{{used}} / {{max}} görev",
+      "tasks_one": "{{used}} / {{count}} görev",
+      "tasks": "{{used}} / {{count}} görev",
       "minutes": "{{used}} / {{max}} dk",
       "tokens": "{{used}} / {{max}} token",
       "cost": "tahmini ~${{used}} / ${{max}}",
@@ -2829,7 +2878,7 @@
     "skipped": "Atlandı",
     "finalVerification": "Son doğrulama",
     "phasesAndTasks": "Aşamalar ve görevler",
-    "phaseCount": "{{n}} aşama",
+    "phaseCount": "{{count}} aşama",
     "phase": "Aşama",
     "phaseLower": "aşama",
     "taskCount": "{{done}} / {{total}} görev",
@@ -2864,7 +2913,7 @@
     "inspectTitle": "İşi incele",
     "inspectHelp": "Durumunu, atamasını ve kaydedilen ayrıntılarını görmek için bir görev seç.",
     "executionGoals": "Yürütme hedefleri",
-    "recordedRuns": "{{n}} kayıtlı hedef çalıştırması",
+    "recordedRuns": "{{count}} kayıtlı hedef çalıştırması",
     "search": "Hedeflerde ara",
     "searchPlaceholder": "Hedeflerde ara…",
     "reading": "Proje hedef kataloğu okunuyor…",
@@ -3030,7 +3079,7 @@
     "loading": "Model meta verileri yükleniyor…",
     "search": "Modellerde ara",
     "searchLabel": "Sağlayıcı modellerinde ara",
-    "counts": "{{models}} model · {{definitions}} kayıtlı tanım",
+    "counts": "{{models}} · {{definitions}}",
     "savedDefinition": "Kayıtlı tanım",
     "providerCatalog": "Sağlayıcı kataloğu",
     "noModels": "Model bildirilmedi. Bu uç noktanın sunduğu model kimliğiyle bir tanım ekleyebilirsin.",
@@ -3314,6 +3363,10 @@
     "discard": "Taslağı at"
   },
   "reviews": {
+    "matching_one": "En son {{limit}} kayıtta {{count}} eşleşen rapor. Kaynak oturumlar rapor meta verisidir; bu proje çalışma alanı açık bir konuşma gerektirmez.",
+    "unparseable_one": "{{count}} bildirilen öğe tek tek ayrıştırılamadı. Aşağıdaki tam raporu incele.",
+    "stillOpen_one": "{{count}} bulgu hâlâ açık. Raporu tamamlamak tek tek takip durumlarını değiştirmez.",
+    "findingsCount_one": "{{count}} bulgu",
     "value": {
       "open": "açık",
       "actioned": "işleme alındı",
@@ -3360,12 +3413,12 @@
     "sessionLabel": "İncelemenin kaynak oturumu",
     "allSessions": "Tüm kayıtlı oturumlar",
     "windowLabel": "Son Chimera raporu aralığı",
-    "matching": "En son {{limit}} kayıtta {{n}} eşleşen rapor. Kaynak oturumlar rapor meta verisidir; bu proje çalışma alanı açık bir konuşma gerektirmez.",
+    "matching": "En son {{limit}} kayıtta {{count}} eşleşen rapor. Kaynak oturumlar rapor meta verisidir; bu proje çalışma alanı açık bir konuşma gerektirmez.",
     "catalogLabel": "Chimera rapor kataloğu",
     "reading": "İnceleme raporları okunuyor…",
     "openReview": "{{id}} incelemesini aç",
     "noModel": "İnceleyen model bildirilmedi",
-    "findingsCount": "{{n}} bulgu",
+    "findingsCount": "{{count}} bulgu",
     "severityCount": "{{n}} {{severity}}",
     "executionFailed": "İnceleme yürütmesi başarısız oldu",
     "noReports": "Bu görünümde rapor yok.",
@@ -3382,7 +3435,7 @@
       "evidenceStatus": "Kanıt durumu",
       "durationSeconds": "İnceleme süresi (saniye)"
     },
-    "unparseable": "{{n}} bildirilen öğe tek tek ayrıştırılamadı. Aşağıdaki tam raporu incele.",
+    "unparseable": "{{count}} bildirilen öğe tek tek ayrıştırılamadı. Aşağıdaki tam raporu incele.",
     "reopenReport": "Raporu yeniden aç",
     "actionReport": "Raporu işleme alındı olarak işaretle",
     "completeReport": "Raporu tamamla",
@@ -3438,7 +3491,7 @@
     "decisionReport": "Rapor durumunu kaydet",
     "decisionFinding": "Bulgu durumunu kaydet",
     "closeDecision": "İnceleme kararını kapat",
-    "stillOpen": "{{n}} bulgu hâlâ açık. Raporu tamamlamak tek tek takip durumlarını değiştirmez.",
+    "stillOpen": "{{count}} bulgu hâlâ açık. Raporu tamamlamak tek tek takip durumlarını değiştirmez.",
     "outcome": "Çözüm sonucu",
     "outcomeLabel": "İnceleme çözüm sonucu",
     "chooseOutcome": "Gözlenen sonucu seç…",
@@ -3465,6 +3518,7 @@
     "findingId": "Bulgu {{id}}"
   },
   "skillLib": {
+    "exported_one": "{{count}} beceri dışa aktarıldı.",
     "source": {
       "project": "Bu proje",
       "user": "WrongStack profili",
@@ -3485,7 +3539,7 @@
     "uninstalled": "Kurulu beceri kaldırıldı.",
     "updateSummary": "{{updated}} güncellendi · {{unchanged}} değişmedi · {{failed}} başarısız.",
     "noArchive": "Motor bir beceri arşivi döndürmedi.",
-    "exported": "{{n}} beceri dışa aktarıldı.",
+    "exported": "{{count}} beceri dışa aktarıldı.",
     "labelProfile": "Profil beceri kütüphanesi",
     "labelProject": "Proje beceri kütüphanesi",
     "eyebrowProject": "PROJE YETENEKLERİ",
@@ -3583,6 +3637,9 @@
     }
   },
   "designStudio": {
+    "sourceLine_one": "Kaynak: {{source}} · {{count}} dosya · {{score}}",
+    "findings_one": "{{count}} bulgu · {{shown}} gösteriliyor",
+    "noSignal_one": "{{count}} dosyada eşleşen arayüz sinyali yoktu. Görsel kalitesi bu taramada ölçülmedi.",
     "label": "Proje Tasarım Stüdyosu",
     "title": "Tasarım Stüdyosu",
     "intro": "Gerçek açık ve koyu temaları keşfet, ayrıntılarını şekillendir ve temayı projene yaz.",
@@ -3705,13 +3762,13 @@
     "verifyTitle": "Proje tasarım doğrulaması",
     "scan": "Proje tasarımını tara",
     "verifyHint": "Proje arayüz sinyallerini sabitlenmiş kite ya da yakalanan token’lara göre denetler. Bildirilen puan renk uyumunu ölçer.",
-    "sourceLine": "Kaynak: {{source}} · {{files}} dosya · {{score}}",
+    "sourceLine": "Kaynak: {{source}} · {{count}} dosya · {{score}}",
     "sourceCaptured": "Yakalanan proje token’ları",
     "sourceKit": "Kit {{kit}}",
     "adherence": "bildirilen renk uyumu %{{percent}}",
     "noScore": "Renk puanı bildirilmedi",
-    "findings": "{{total}} bulgu · {{shown}} gösteriliyor",
-    "noSignal": "{{n}} dosyada eşleşen arayüz sinyali yoktu. Görsel kaliteleri bu taramada ölçülmedi.",
+    "findings": "{{count}} bulgu · {{shown}} gösteriliyor",
+    "noSignal": "{{count}} dosyada eşleşen arayüz sinyali yoktu. Görsel kaliteleri bu taramada ölçülmedi.",
     "capturedFrom": "Yakalandığı yer: {{list}}",
     "observation": "Gözlem",
     "themeSample": "{{label}} tema örneği",
@@ -3734,6 +3791,7 @@
     "restored": "Bu cihazda saklanan kaydedilmemiş tasarım düzenlemeleri geri yüklendi."
   },
   "mailboxPage": {
+    "receipts_one": "Bu görünümde {{count}} okundu alındısı",
     "conversationCount_one": "Bu konuşmada {{count}} yüklü mesaj",
     "messageCount_one": "{{count}} mesaj",
     "messageCount": "{{count}} mesaj",
@@ -3747,9 +3805,10 @@
     "resumeDraft": "Mesaj taslağına dön",
     "composeMessage": "Mesaj yaz",
     "older": {
+      "loaded_one": "{{count}} eski mesaj yüklendi.",
       "stuck": "En eski zaman damgasını paylaşan mesaj sayısı bir sayfanın alabileceğinden fazla; bu yüzden daha eskileri burada okunamaz.",
       "done": "Bu görünümde daha eski mesaj yok.",
-      "loaded": "{{n}} eski mesaj yüklendi."
+      "loaded": "{{count}} eski mesaj yüklendi."
     },
     "missingFields": "Bir alıcı, konu ve mesaj gir.",
     "unconfirmed": "Motor kaydedilmiş bir mesajı doğrulamadı. Yeniden denemeden önce posta kutusunu kontrol et; taslağın korunuyor.",
@@ -3800,7 +3859,7 @@
     "audience": "Hedef kitle: {{audience}}",
     "audienceAll": "Tüm uygun alıcılar",
     "audienceLeaders": "Yalnızca liderler",
-    "receipts": "Bu görünümde {{n}} okundu alındısı",
+    "receipts": "Bu görünümde {{count}} okundu alındısı",
     "completedBy": "{{actor}} tamamladı · {{time}}",
     "references": "Alındılar ve referanslar",
     "replyTo": "Yanıtlanan:",
@@ -3914,6 +3973,7 @@
     }
   },
   "deadCode": {
+    "showNext_one": "Sonraki bulguyu göster",
     "count": {
       "visible_one": "{{count}} görünür bulgu",
       "visible": "{{count}} görünür bulgu",
@@ -3989,7 +4049,7 @@
     "scopeLine": "Gösterilen: {{scope}}.",
     "scopeLinePublic": "Gösterilen: {{scope}}, kullanılmayan genel API dışa aktarımları dahil.",
     "entireProject": "projenin tamamı",
-    "scanFacts": "{{seconds}} saniye · {{parsed}} ayrıştırıldı · {{tests}} test dosyası",
+    "scanFacts": "{{seconds}} · {{parsed}} ayrıştırıldı · {{tests}}",
     "warnings": "Tarama sınırlamaları ({{n}})",
     "search": "Ölü kod bulgularında ara",
     "searchPlaceholder": "Bir dosya, sembol ya da paket bul…",
@@ -4011,7 +4071,7 @@
     "manual": "Elle inceleme: {{reason}}",
     "noMechanical": "mekanik düzeltme yok",
     "noMatch": "Bu görünüme uyan bulgu yok.",
-    "showNext": "Sonraki {{n}} bulguyu göster",
+    "showNext": "Sonraki {{count}} bulguyu göster",
     "previewFixes": "Seçili düzeltmeleri önizle",
     "verify": "Tür denetimini çalıştır ve başarısız değişiklikleri geri al",
     "reviewExecution": "Temizlik uygulamasını gözden geçir",
@@ -4032,7 +4092,7 @@
     "backupsLabel": "Ölü kod yedekleri",
     "backups": "Kurtarma yedekleri ({{n}})",
     "refreshBackups": "Temizlik yedeklerini yenile",
-    "backupFacts": "{{files}} dosya · {{findings}} bulgu",
+    "backupFacts": "{{files}} · {{findings}}",
     "reviewRestore": "Yedekten geri yüklemeyi incele",
     "noBackups": "Kayıtlı temizlik yedeği yok.",
     "conflictTitle": "Dosyalar temizlikten sonra değişti",
@@ -4066,6 +4126,7 @@
     }
   },
   "chronicleView": {
+    "seconds_one": "{{count}} saniye",
     "label": "Proje Kroniği",
     "title": "Kronik",
     "intro": "Ajanlar, dosyalar, araçlar ve konuşmalar boyunca işi takip et. Her sonucu bağlamıyla tut.",
@@ -4111,7 +4172,7 @@
     "timeline": "Proje zaman çizelgesi",
     "lineage": "Kanıt soy ağacı",
     "loaded": "{{total}} olaydan {{loaded}} tanesi yüklendi",
-    "graphCount": "{{events}} olay · {{relations}} ilişki",
+    "graphCount": "{{events}} · {{relations}}",
     "exportMarkdown": "Markdown olarak dışa aktar",
     "exportJsonl": "JSONL olarak dışa aktar",
     "exportLineageMarkdown": "Soy ağacını Markdown olarak dışa aktar",
@@ -4160,7 +4221,7 @@
       "watched": "İzlenen dosyalar",
       "uptime": "Çalışma süresi"
     },
-    "seconds": "{{n}} saniye",
+    "seconds": "{{count}} saniye",
     "notReported": "Bildirilmedi",
     "detail": {
       "label": "Kronik olay ayrıntıları",
@@ -4224,10 +4285,10 @@
       "invalid": "Motor geçersiz bir ölçüm yanıtı döndürdü.",
       "loading": "Proje içgörüleri yükleniyor…",
       "notRecorded": "Kaydedilmedi",
-      "attempts": "{{attempts}} deneme · {{completed}} tamamlandı · {{failed}} başarısız · {{retries}} yeniden deneme · {{fallbacks}} yedeğe geçiş",
+      "attempts": "{{attempts}} · {{completed}} tamamlandı · {{failed}} başarısız · {{retries}} · {{fallbacks}}",
       "tokens": "{{input}} girdi / {{output}} çıktı token · {{cacheRead}} önbellek okuma / {{cacheWrite}} önbellek yazma · ortalama {{avg}} ms / en fazla {{max}} ms",
       "taskOwners": "Pano {{board}} · Ajan {{agent}} · Oturum {{session}}",
-      "taskRun": "Çalıştırma {{run}} · {{retries}} yeniden deneme · {{verification}} doğrulama hatası · {{files}} dosya · {{ms}} ms",
+      "taskRun": "Çalıştırma {{run}} · {{retries}} · {{verification}} · {{files}} · {{ms}} ms",
       "taskTimes": "Başlangıç {{started}} · Bitiş {{ended}}",
       "fileOwners": "Görev {{task}} · Pano {{board}} · Çalıştırma {{run}} · Oturum {{session}} · Ajan {{agent}} · {{provider}} / {{model}}",
       "dailyRows": "Günlük sağlayıcı satırları",
@@ -4235,6 +4296,7 @@
       "footnote": "{{rows}} · yenileme sırasında {{partitions}} bölüm okundu · yenileme sırasında {{invalid}} geçersiz kayıt"
     },
     "manifest": {
+      "omitted_one": "{{count, number}} önceki mesaj tek tek listelenmedi; manifesto kimliği yine de onu kapsar.",
       "title": "İstem manifestosu",
       "notRecorded": "kaydedilmedi",
       "messages": "Mesajlar",
@@ -4252,7 +4314,7 @@
       "tools": "Araçlar · {{count}} · {{tokens}} tanım token’ı (motor tahmini) · {{mutating}} değiştiren · {{destructive}} yıkıcı",
       "noTools": "Hiç araç sunulmadı.",
       "toolsRef": "Araç adları aynı araç kümesine sahip önceki bir istekte kaydedildi (<code>{{hash}}</code>).",
-      "omitted": "{{n}} önceki mesaj tek tek listelenmedi; manifesto kimliği yine de onları kapsar.",
+      "omitted": "{{count, number}} önceki mesaj tek tek listelenmedi; manifesto kimliği yine de onları kapsar.",
       "messagesTable": "Manifesto mesajları",
       "role": "Rol",
       "tokens": "Token (tahmini)",
@@ -4260,6 +4322,9 @@
     }
   },
   "recovery": {
+    "confirmBody_one": "Bu isteme veya sonraki bir isteme ait {{count}} kayıtlı dosya anlık görüntüsü var. Motor kayıtlı içeriğini geri yükleyecek, sonraki konuşma olaylarını kaldıracak ve canlı bağlamı değiştirecek. Bu, o anlık görüntüden sonra yapılan düzenlemelerin üzerine yazabilir.",
+    "matching_one": "{{count}} eşleşen kayıtlı olay. Arama günlük etiketlerini ve kayıtlı önizlemeleri kapsar, tam mesaj dökümünü değil.",
+    "snapshots_one": "{{time}} · bu istem sırasında {{count}} dosya anlık görüntüsü",
     "changed": "Oturum bu incelemeden sonra değişti. Bu pencereyi kapat ve kontrol noktalarını yenile.",
     "noRewindResult": "Motor geri sarmayı ayrıntılı bir sonuç olmadan onayladı. Başka bir işlemden önce yenile ve günlüğü incele.",
     "noRedoResult": "Motor yinelemeyi ayrıntılı bir sonuç olmadan onayladı. Yenile ve günlüğü incele.",
@@ -4314,7 +4379,7 @@
     "checkpointError": "Kontrol noktaları okunamadı: {{error}}",
     "noCheckpoints": "Bu oturumda kayıtlı istem kontrol noktası yok.",
     "noPromptText": "İstem metni kaydedilmedi",
-    "snapshots": "{{time}} · bu istem sırasında {{n}} dosya anlık görüntüsü",
+    "snapshots": "{{time}} · bu istem sırasında {{count}} dosya anlık görüntüsü",
     "reviewLabel": "{{n}}. isteme geri sarmayı incele",
     "review": "Geri sarmayı incele",
     "snapshotHint": "Anlık görüntü sayıları kayıtlı girdilerdir, benzersiz dosya önizlemesi değildir. Kaydedilmemiş yazı taslakları ayrı tutulur. Geri sarma bir Git checkout’u ya da tam proje yedeği değildir.",
@@ -4324,7 +4389,7 @@
     "searchPlaceholder": "Kayıtlı bir olay bul…",
     "typeLabel": "Oturum olay türü",
     "allTypes": "Tüm olay türleri",
-    "matching": "{{n}} eşleşen kayıtlı olay. Arama günlük etiketlerini ve kayıtlı önizlemeleri kapsar, tam mesaj dökümünü değil.",
+    "matching": "{{count}} eşleşen kayıtlı olay. Arama günlük etiketlerini ve kayıtlı önizlemeleri kapsar, tam mesaj dökümünü değil.",
     "noMatch": "Eşleşen kayıtlı olay yok.",
     "older": "100 eski olay daha göster",
     "tools": "Araç ayak izi",
@@ -4337,7 +4402,7 @@
     "rewindEyebrow": "BU KONUŞMAYI GERİ SAR",
     "retryAsk": "{{n}}. istem geri alınıp yeniden gönderilsin mi?",
     "rewindAsk": "{{n}}. istem ve sonraki işler geri alınsın mı?",
-    "confirmBody": "Bu isteme ve sonraki istemlere ait {{n}} kayıtlı dosya anlık görüntüsü var. Motor kayıtlı içeriklerini geri yükleyecek, sonraki konuşma olaylarını kaldıracak ve canlı bağlamı değiştirecek. Bu, o anlık görüntülerden sonra yapılan düzenlemelerin üzerine yazabilir.",
+    "confirmBody": "Bu isteme ve sonraki istemlere ait {{count}} kayıtlı dosya anlık görüntüsü var. Motor kayıtlı içeriklerini geri yükleyecek, sonraki konuşma olaylarını kaldıracak ve canlı bağlamı değiştirecek. Bu, o anlık görüntülerden sonra yapılan düzenlemelerin üzerine yazabilir.",
     "draftKept": "Gönderilmemiş yazı taslağın kalır. Bu, tam bir dosya yedeği sağlamaz.",
     "keep": "Mevcut geçmişi koru",
     "rewinding": "Geri sarılıyor…",
@@ -4353,6 +4418,7 @@
       "copy": "İstemi kopyala"
     },
     "records": {
+      "more_one": "Bu kayıtta tutulmayan {{count}} dosya daha var.",
       "title": "Kurtarma işlemleri ({{n}})",
       "hint": "Bu masaüstünden başlatılan geri sarma, yeniden deneme ve yinelemeler, çalıştıkları anda gözlendiği gibi. Yeniden başlatmadan sonra da kalırlar; başka yerde yapılan işler listelenmez.",
       "label": "Kurtarma işlemleri",
@@ -4372,7 +4438,7 @@
       "restored": "Geri yüklenen dosyalar: {{n}}",
       "removed": "Kaldırılan günlük olayları: {{n}}",
       "fileErrors": "Dosya hataları",
-      "more": "Bu kayıtta tutulmayan {{n}} dosya daha var."
+      "more": "Bu kayıtta tutulmayan {{count}} dosya daha var."
     }
   },
   "providerSettings": {
@@ -4640,6 +4706,7 @@
     "confirmSingle": "Süreç sonlandırmayı onayla"
   },
   "sddView": {
+    "progress_one": "{{status}} · {{completed}} / {{count}} görev",
     "value": {
       "idle": "boşta",
       "questioning": "soru soruluyor",
@@ -4722,7 +4789,7 @@
     "tasks": "Görevler",
     "loadingSpecs": "Şartnameler yükleniyor…",
     "untitledSpec": "Başlıksız şartname",
-    "progress": "{{status}} · {{completed}} / {{total}} görev",
+    "progress": "{{status}} · {{completed}} / {{count}} görev",
     "noSpecs": "Bu proje için kaydedilmiş şartname yok.",
     "selectSpec": "Bir şartname seç",
     "selectSpecHint": "Görev grafiğini ve bağımlılıklarını keşfet.",
@@ -4789,6 +4856,8 @@
       "empty": "Çalıştırma ilerledikçe görev alımları, tamamlanmalar, hatalar ve yeniden denemeler burada görünür."
     },
     "lifecycle": {
+      "alsoRevert_one": "Bu çalıştırmanın {{count}} birleştirilmiş commit’ini de geri al",
+      "rollbackBody_one": "Bu çalıştırmanın kayıtlı {{count}} birleştirilmiş commit’i için geçmişi koruyan bir geri alma commit’i oluştur. Motor kayıtlı temel dalı ve temiz bir çalışma ağacını gerektirir.",
       "label": "SDD proje bakımı",
       "eyebrow": "YÜRÜTMEDEN SONRA",
       "title": "Proje bakımı",
@@ -4811,8 +4880,8 @@
       },
       "destroyBody": "Bu, projedeki tüm şartnameleri, görev grafiklerini, görüşme durumunu, SDD panolarını ve yansıtılan SDD Kanban panolarını temizler. Birleştirilmemiş değişiklikler dahil yönetilen çalışma ağaçları ve dallar kaldırılır.",
       "cleanupBody": "Birleştirilmemiş değişiklikler dahil bu projenin tüm yönetilen çalışma ağaçlarını ve dallarını kaldır.",
-      "rollbackBody": "Bu çalıştırmanın kayıtlı {{n}} birleştirilmiş commit’i için geçmişi koruyan geri alma commit’leri oluştur. Motor kayıtlı temel dalı ve temiz bir çalışma ağacını gerektirir.",
-      "alsoRevert": "Bu çalıştırmanın {{n}} birleştirilmiş commit’ini de geri al",
+      "rollbackBody": "Bu çalıştırmanın kayıtlı {{count}} birleştirilmiş commit’i için geçmişi koruyan geri alma commit’leri oluştur. Motor kayıtlı temel dalı ve temiz bir çalışma ağacını gerektirir.",
+      "alsoRevert": "Bu çalıştırmanın {{count}} birleştirilmiş commit’ini de geri al",
       "revertFallback": "Geri alma başarısız olursa motor yine de SDD kayıtlarını temizler ve nedenini bildirir.",
       "pending": "{{title}} istendi. Motor sonucu bekleniyor…",
       "refused": "İşlem reddedildi",
@@ -4823,6 +4892,7 @@
       "cleared": "Temizlenenler: {{list}}"
     },
     "taskDetail": {
+      "splitBody_one": "{{count}} alt görev oluştur ve üst görevi tamamlanmış bir kapsayıcı olarak işaretle. Alt görev engellerini devralır; bağımlı işler onu bekler.",
       "label": "SDD görev ayrıntıları",
       "eyebrow": "GÖREV {{id}}",
       "noDescription": "Açıklama kaydedilmedi.",
@@ -4863,7 +4933,7 @@
       "updateVerification": "Doğrulamayı güncelle",
       "split": "Alt görevlere böl",
       "splitPlaceholder": "Her satıra bir görev: Başlık :: açıklama",
-      "splitBody": "{{n}} alt görev oluştur ve üst görevi tamamlanmış bir kapsayıcı olarak işaretle. Alt görevler engellerini devralır; bağımlı işler tüm alt görevleri bekler.",
+      "splitBody": "{{count}} alt görev oluştur ve üst görevi tamamlanmış bir kapsayıcı olarak işaretle. Alt görevler engellerini devralır; bağımlı işler tüm alt görevleri bekler.",
       "confirmSplit": "Bölmeyi onayla",
       "reviewSplit": "Bölmeyi incele",
       "activity": "Görev etkinliği",
@@ -4988,6 +5058,8 @@
       "save": "Geçmiş görünümü değişiklikleri kaydedilmedi. Mevcut görünümün korunuyor. Yerel depo kullanılabilir olduğunda kaydetmeyi yeniden dene."
     },
     "contentSearch": {
+      "matching_one": "{{count}} eşleşen ileti · {{provider}} / {{model}}",
+      "unreadable_one": "{{count}} kayıt okunamadı; sonuçlar eksik.",
       "label": "Proje konuşmaları genelinde ara",
       "field": "Konuşma içeriğinde ara",
       "placeholder": "Kayıtlı konuşmaların içindeki sözcükleri bul…",
@@ -5020,8 +5092,8 @@
       },
       "progress": "{{status}} {{total}} kaydın {{scanned}} tanesi kontrol edildi · {{n}} eşleşen konuşma.",
       "progressLabel": "Konuşma araması ilerlemesi",
-      "unreadable": "{{n}} kayıt okunamadı; sonuçlar eksik.",
-      "matching": "{{n}} eşleşen ileti · {{provider}} / {{model}}",
+      "unreadable": "{{count}} kayıt okunamadı; sonuçlar eksik.",
+      "matching": "{{count}} eşleşen ileti · {{provider}} / {{model}}",
       "readMatch": "{{id}} arama eşleşmesinin {{n}}. iletisini oku",
       "message": "İleti {{n}}",
       "readMessage": "Eşleşen iletiyi oku →",
@@ -5029,6 +5101,7 @@
       "noMatches": "Bu aramayla eşleşen saklı konuşma metni yok."
     },
     "usage": {
+      "inProjects_one": " ({{count, number}} projede)",
       "notRecorded": "Kaydedilmedi",
       "title": "Kayıtlı kullanım",
       "help": "Her konuşmanın kaydettiği tokenlar, en son kullandığı sağlayıcı ve modele göre gruplanır. Fiyatlar burada hesaplanmaz.",
@@ -5043,7 +5116,7 @@
       "refresh": "Özeti yenile",
       "summarize": "Kayıtlı kullanımı özetle",
       "total": "{{sessions}} konuşmada{{projects}} {{tokens}} token{{missing}}{{capped}}.",
-      "inProjects": " ({{n}} projede)",
+      "inProjects": " ({{count, number}} projede)",
       "withoutTotal": " ({{n}} tanesinin kayıtlı toplamı yok)",
       "capped": "; yalnızca tarama sınırına kadarki en yeni konuşmalar okundu",
       "byProject": "Projeye göre kayıtlı tokenlar",
@@ -5058,6 +5131,7 @@
       "notRead": "Okunamadı: {{error}}"
     },
     "effects": {
+      "unreadable_one": "; {{count}} günlük okunamadı",
       "title": "Kayıtlı yan etkiler",
       "help": "Bu projenin konuşmalarında kaydedilen komutlar, dosya yazımları, paketler, ağ ve yapılandırma işlemleri; en yenisi önce.",
       "risk": "Risk",
@@ -5068,7 +5142,7 @@
       "unsupported": "Bu motor henüz proje yan etkilerini özetlemiyor.",
       "total": "{{scanned}} konuşmanın {{with}} tanesinde {{total}} kayıt{{capped}}{{unreadable}}.",
       "capped": " (tarama sınırına kadarki en yeni konuşmalar)",
-      "unreadable": "; {{n}} günlük okunamadı",
+      "unreadable": "; {{count}} günlük okunamadı",
       "column": {
         "when": "Ne zaman",
         "conversation": "Konuşma",
@@ -5096,10 +5170,13 @@
       "unreadable": "Bu motor okunabilir bir döküm döndürmedi. Yeniden denemeden önce proje çalışma zamanını güncelle."
     },
     "block": {
+      "loadMore_one": "Sonraki bloğu yükle",
+      "more_one": "Bu iletide {{count}} blok daha var.",
+      "pdfPages_one": "{{count}} sayfa · Çıkarılan metin; ikili PDF yüklenmedi.",
       "textUnreadable": "Kayıtlı metin okunamadı.",
       "pdf": "PDF eki",
       "pdfText": "Çıkarılan metin; ikili PDF yüklenmedi.",
-      "pdfPages": "{{n}} sayfa · Çıkarılan metin; ikili PDF yüklenmedi.",
+      "pdfPages": "{{count}} sayfa · Çıkarılan metin; ikili PDF yüklenmedi.",
       "copy": "Görünen kayıtlı metni kopyala",
       "reuse": "Görünen metni taslağa ekle",
       "fromStart": "Baştan oku",
@@ -5111,9 +5188,9 @@
       "toolResult": "Araç sonucu · {{name}}",
       "toolResultError": "Araç sonucu · {{name}} · hata",
       "moreUnreadable": "Bu motor kalan blokları döndürmedi.",
-      "more": "Bu iletide {{n}} blok daha var.",
+      "more": "Bu iletide {{count}} blok daha var.",
       "loading": "Yükleniyor…",
-      "loadMore": "Sonraki {{n}} bloğu yükle",
+      "loadMore": "Sonraki {{count}} bloğu yükle",
       "toolRequest": "Araç isteği · {{name}}",
       "inputUnreadable": "Bu motor girdinin tamamını döndürmedi.",
       "inputComplete": "Kayıtlı girdinin tamamı.",
@@ -5252,6 +5329,8 @@
     }
   },
   "liveFleet": {
+    "agents_one": "<strong>{{n}}</strong> kayıtlı ajan",
+    "runtimes_one": "<strong>{{n}}</strong> çalışma zamanı",
     "label": "Proje canlı filosu",
     "eyebrow": "PROJE YÜRÜTMESİ",
     "title": "Canlı filo",
@@ -5275,7 +5354,7 @@
     "agentCountOne": "{{status}} · {{n}} ajan",
     "agentCountMany": "{{status}} · {{n}} ajan",
     "statusPid": "{{status}} · PID {{pid}}",
-    "agentCounters": "{{iterations}} yineleme · {{tools}} araç çağrısı",
+    "agentCounters": "{{iterations}} · {{tools}}",
     "noAgents": "Bu çalışma zamanı için kayıtlı ajan yok.",
     "status": {
       "active": "etkin",
@@ -5357,6 +5436,8 @@
       "unconfirmed": "Teslim, yürütmeyi doğrulamaz."
     },
     "activity": {
+      "showing_one": "En son kayıt gösteriliyor · {{rest}}",
+      "total_one": "{{count, number}} kayıtlı giriş.",
       "label": "Son filo oturumu etkinliği",
       "title": "Son oturum etkinliği",
       "help": "Bir ajan seçili olsa bile seçilen oturumun tamamı için salt okunur günlük görünümü.",
@@ -5364,9 +5445,9 @@
       "refresh": "Oturum etkinliğini yenile",
       "read": "Son oturum etkinliğini oku",
       "invalid": "Motor tanınmayan oturum etkinliği döndürdü.",
-      "showing": "En son {{n}} kayıt gösteriliyor · {{rest}}",
+      "showing": "En son {{count}} kayıt gösteriliyor · {{rest}}",
       "upperBound": "Toplam, saklanan bu pencere için bir üst sınırdır.",
-      "total": "{{n}} kayıtlı giriş.",
+      "total": "{{count, number}} kayıtlı giriş.",
       "role": {
         "user": "kullanıcı",
         "assistant": "asistan",
@@ -5384,6 +5465,7 @@
     }
   },
   "integrations": {
+    "toolCount_one": "{{count}} araç kullanılabilir",
     "title": "Bağlı araçlar",
     "intro": "WrongStack’in okuyabildiklerini ve yapabildiklerini genişletmek için MCP sunucuları bağla. Bu bağlantılar profiline aittir.",
     "add": "Bağlantı ekle",
@@ -5402,7 +5484,7 @@
     "restartLabel": "{{name}} bağlantısını yeniden başlat",
     "restartTitle": "Sunucu bağlantısını yeniden başlat",
     "endpoint": "MCP bağlantısı",
-    "toolCount": "{{n}} araç kullanılabilir",
+    "toolCount": "{{count}} araç kullanılabilir",
     "tools": "Kullanılabilir araçlar",
     "hint": {
       "readOnlyHint": "salt okunur",
@@ -5567,6 +5649,9 @@
     "reading": "Brain politikası okunuyor…",
     "unavailable": "Brain yapılandırması kullanılamıyor. Yeniden denemek için yenile.",
     "fact": {
+      "size_one": "<strong>{{n}}</strong> önbellekteki karar",
+      "misses_one": "<strong>{{n}}</strong> önbellek ıskası",
+      "hits_one": "<strong>{{n}}</strong> önbellek isabeti",
       "hits": "<strong>{{n}}</strong> önbellek isabeti",
       "misses": "<strong>{{n}}</strong> önbellek ıskası",
       "size": "<strong>{{n}}</strong> önbellekteki karar",
@@ -6430,6 +6515,7 @@
     "contextTokens": "Bağlam {{tokens}} token · pencere bildirilmedi"
   },
   "referenceChips": {
+    "pastEnd_one": "Bu dosyada {{count}} satır var; aralık dosyanın sonundan sonra başlıyor.",
     "label": "Ekli proje dosyaları",
     "showQuote": "{{ref}} içinden alıntılanan metni göster",
     "setRange": "{{ref}} için satır aralığı belirle",
@@ -6449,7 +6535,7 @@
     "preview": "Satırları önizle",
     "invalid": "1’den başlayan tam satır numaraları kullan; son satır ilk satırdan önce olamaz.",
     "noPreview": "Bu dosya için metin önizlemesi yok. Aralık yine de eklenebilir.",
-    "pastEnd": "Bu dosyada {{total}} satır var; aralık dosyanın sonundan sonra başlıyor.",
+    "pastEnd": "Bu dosyada {{count}} satır var; aralık dosyanın sonundan sonra başlıyor.",
     "previewLabel": "Referans verilen satırların önizlemesi",
     "showing": "{{range}} referans satırın ilk {{shown}} tanesi gösteriliyor · dosyada {{total}} satır var.",
     "cancel": "İptal",
@@ -6598,14 +6684,16 @@
     "acknowledged": "Motor görev isteğini onayladı."
   },
   "composerQueue": {
+    "attachments_one": "{{count}} ek",
+    "referencedFiles_one": "{{count}} referans dosya",
     "one": "1 sıradaki istem",
     "many": "{{number}} sıradaki istem",
     "note": "Motorun sırası · bu turdan sonra çalışır",
     "pending": "Bekleyen istemler",
     "clear": "Sırayı temizle",
     "references": "Proje dosyası referansları",
-    "referencedFiles": "{{number}} referans dosya",
-    "attachments": "{{number}} ek",
+    "referencedFiles": "{{count}} referans dosya",
+    "attachments": "{{count}} ek",
     "copyTitle": "Sıradaki metni mesaj kutusuna kopyala; asıl istem sırada kalır",
     "copyTextOnly": "Yalnızca metni kopyala",
     "copyToDraft": "Taslağa kopyala",
@@ -6726,10 +6814,11 @@
     "notReported": "Bildirilmedi"
   },
   "refineCompare": {
+    "words_one": "{{count}} kelime eklendi · {{removed}} silindi",
     "tooLong": "Bu metinler kelime kelime karşılaştırmak için çok uzun. Bunun yerine tam sürümü incele.",
     "label": "Asıl taslağına göre değişiklikler",
     "oneWord": "1 kelime eklendi · {{removed}} silindi",
-    "words": "{{added}} kelime eklendi · {{removed}} silindi",
+    "words": "{{count}} kelime eklendi · {{removed}} silindi",
     "none": "Asıl taslağına göre değişiklik yok."
   },
   "terminalPane": {
@@ -7025,6 +7114,7 @@
     "noMatch": "Bu süzgeçlere uyan araç yok."
   },
   "userInstructions": {
+    "counts_one": "{{chars}} karakter · {{count}} satır",
     "changedElsewhere": "Dosya başka bir yerde değişti. Taslağın korunuyor; kaydederken sürümü denetlenecek.",
     "changedAgain": "Dosya yeniden okunmadan önce tekrar değişti. Taslağın korunuyor; yeniden denemeden önce kayıtlı talimatları yeniden yükle.",
     "saved": "Genel talimatlar kaydedildi ve doğrulandı. WrongStack bunları sonraki turda okur.",
@@ -7039,7 +7129,7 @@
     "view": "Talimat görünümü",
     "edit": "Düzenle",
     "preview": "Önizleme",
-    "counts": "{{chars}} karakter · {{lines}} satır",
+    "counts": "{{chars}} karakter · {{count}} satır",
     "unsaved": "kaydedilmedi",
     "previewLabel": "Genel talimat önizlemesi",
     "empty": "Henüz genel talimat yok.",
@@ -7079,6 +7169,8 @@
     "alwaysOn": "Her zaman açık"
   },
   "configDoctor": {
+    "differ_one": "{{count}} ayar varsayılanlardan farklı:",
+    "repaired_one": "{{count}} ayar onarıldı. Yedek:",
     "title": "Yapılandırma denetimi",
     "intro": "Etkin profil yapılandırmasını geçerli varsayılanlarla karşılaştırır. Eksik ayarlar eklenir, yanlış türdekiler değiştirilir; sağlayıcı ve model asla senin yerine seçilmez.",
     "checking": "Denetleniyor…",
@@ -7089,9 +7181,9 @@
     "profileConfig": "profil yapılandırması",
     "repairBackup": "Onar ve yedek tut",
     "keep": "Geçerli olanı koru",
-    "repaired": "{{number}} ayar onarıldı. Yedek:",
+    "repaired": "{{count}} ayar onarıldı. Yedek:",
     "notReported": "bildirilmedi",
-    "differ": "{{number}} ayar varsayılanlardan farklı:",
+    "differ": "{{count}} ayar varsayılanlardan farklı:",
     "matches": "Yapılandırma geçerli varsayılanlarla eşleşiyor.",
     "added": "eklendi",
     "replaced": "değiştirildi"
@@ -7163,9 +7255,10 @@
     }
   },
   "bgServices": {
+    "restarted_one": "{{count}} servisten {{done}} tanesi yeniden başlatıldı.",
     "title": "Arka plan servisleri",
     "actionDone": "{{label}}: {{action}} tamamlandı.",
-    "restarted": "{{total}} servisten {{done}} tanesi yeniden başlatıldı.",
+    "restarted": "{{count}} servisten {{done}} tanesi yeniden başlatıldı.",
     "overall": "Genel: {{status}}",
     "checked": "{{time}} denetlendi",
     "restartNote": "Durdurulan bir servis bir sonraki gerektiğinde yeniden başlar.",
@@ -7381,6 +7474,8 @@
     "activity": "Bu motordaki son etkinlik"
   },
   "modelVisibility": {
+    "providerRules_one": "{{count}} kayıtlı devre dışı sağlayıcı kuralı",
+    "modelRules_one": "{{count}} kayıtlı devre dışı model kuralı",
     "otherProvider": "Motor farklı bir sağlayıcı kataloğu döndürdü.",
     "label": "Model görünürlüğü ayarları",
     "savedProvider": "Kayıtlı sağlayıcı",
@@ -7409,11 +7504,11 @@
     "enableModel": "Modeli etkinleştir",
     "disableModel": "Modeli devre dışı bırak",
     "noMatch": "Eşleşen katalog modeli yok. Aşağıdaki kayıtlı kurallar düzenlenebilir kalır.",
-    "modelRules": "{{number}} kayıtlı devre dışı model kuralı",
+    "modelRules": "{{count}} kayıtlı devre dışı model kuralı",
     "modelRulesNote": "Yalın model kimlikleri tüm sağlayıcılarda geçerlidir. Nitelikli referanslar adlandırılmış sağlayıcılarına uygulanır. Kurallar bir katalog girdisinden uzun yaşayabilir.",
     "removeRuleLabel": "{{ref}} kuralını kaldır",
     "removeRule": "Kuralı kaldır",
-    "providerRules": "{{number}} kayıtlı devre dışı sağlayıcı kuralı",
+    "providerRules": "{{count}} kayıtlı devre dışı sağlayıcı kuralı",
     "providerRulesNote": "Sağlayıcı kuralları gelecekteki modellere de uygulanır. Kayıtlı bağlantı artık yoksa bile kuralı buradan kaldırabilirsin.",
     "removeProviderRuleLabel": "{{id}} sağlayıcı kuralını kaldır",
     "removeProviderRule": "Sağlayıcı kuralını kaldır",
@@ -7432,6 +7527,7 @@
     "apply": "Ayar taslağına uygula"
   },
   "modelPolicy": {
+    "chainCount_one": "{{count}} model · sırayla denenir",
     "field": {
       "model": "Model",
       "fallback": "Yedek profil",
@@ -7441,7 +7537,7 @@
     },
     "catalogError": "Bazı model katalogları yüklenemedi. Kayıtlı model referansları düzenlenebilir kalır.",
     "refPlaceholder": "sağlayıcı/model · ya da devral",
-    "chainCount": "{{number}} model · sırayla denenir",
+    "chainCount": "{{count}} model · sırayla denenir",
     "chainModel": "{{label}} model {{number}}",
     "moveUp": "{{label}} model {{number}} yukarı taşı",
     "moveDown": "{{label}} model {{number}} aşağı taşı",
@@ -7521,7 +7617,7 @@
     "counts": "{{blocked}} engelli · {{degraded}} kısıtlı · {{healthy}} sağlıklı",
     "noEntries": "Henüz model sağlığı kaydı izlenmedi.",
     "noError": "Kayıtlı hata yok",
-    "failures": "{{failures}} başarısızlık · {{consecutive}} art arda · {{rateLimits}} hız sınırı · {{successes}} başarı",
+    "failures": "{{failures}} · {{consecutive}} art arda · {{rateLimits}} · {{successes}}",
     "lastFailure": "Son başarısızlık: {{failure}} · Toparlanma: {{recovery}}",
     "release": "Sonraki yoklama için serbest bırak",
     "clear": "İzlenen durumu temizle",
@@ -7536,6 +7632,7 @@
     "released": "Sonraki yoklama için serbest bırakıldı"
   },
   "providerTests": {
+    "testing_one": "Sınanıyor: {{count}} modelden {{done}}",
     "noAck": "Motor bu test isteğini onaylamadı. Yeniden denemeden önce sağlayıcı durumunu denetle.",
     "invalid": "Kayıtlı bir sağlayıcı ve 1 ile 200 arasında model kimliği seç.",
     "title": "Model erişim testleri",
@@ -7557,7 +7654,7 @@
     "finishedShort": "bitti",
     "runningShort": "çalışıyor",
     "finished": "Bitti: {{passed}} geçti, {{failed}} başarısız, {{cancelled}} iptal edildi",
-    "testing": "Sınanıyor: {{total}} modelden {{done}}",
+    "testing": "Sınanıyor: {{count}} modelden {{done}}",
     "model": "Model",
     "status": "Durum",
     "latency": "Gecikme",
@@ -7751,11 +7848,14 @@
     "evidence": "Gözlenen kanıt"
   },
   "techTrends": {
+    "halfLife_one": "Ortanca güvenlik açığı çözümü: {{count}} gün.",
+    "days_one": "{{count}} gün",
+    "snapshots_one": "{{count}} kayıtlı anlık görüntü",
     "reading": "Bağımlılık geçmişi okunuyor…",
     "label": "Bağımlılık eğilimleri",
     "title": "Zaman içinde sağlık",
-    "snapshots": "{{number}} kayıtlı anlık görüntü",
-    "halfLife": "Ortanca güvenlik açığı çözümü: {{days}} gün.",
+    "snapshots": "{{count}} kayıtlı anlık görüntü",
+    "halfLife": "Ortanca güvenlik açığı çözümü: {{count}} gün.",
     "chart": "Anlık görüntüye göre eskimiş ve açıklı bağımlılık sayıları",
     "bar": "{{at}}: {{outdated}} eskimiş, {{vulnerable}} açıklı",
     "legend": "Vurgu: eskimiş · kırmızı: açıklı. Anlık görüntü numaraları eskiden yeniye sıralanır.",
@@ -7773,9 +7873,11 @@
     "none": "Henüz anlık görüntü kaydedilmedi.",
     "movement": "Sürüm hareketi",
     "notReported": "Bildirilmedi",
-    "days": "{{days}} gün"
+    "days": "{{count}} gün"
   },
   "techRemedy": {
+    "review_one": "Seçili {{count}} işlemi incele",
+    "confirmTitle_one": "Seçili {{count}} işlem yürütülsün mü?",
     "planChanged": "Plan değişti. Güncel hedeflerini incele ve öğeleri yeniden seç.",
     "label": "Bağımlılık iyileştirme",
     "title": "Sonraki değişiklikleri incele",
@@ -7789,16 +7891,17 @@
     "noTarget": "Açık sürüm hedefi yok",
     "command": "Bilgilendirici komut",
     "noActions": "Bu anlık görüntüde iyileştirme işlemi yok.",
-    "confirmTitle": "Seçili {{number}} işlem yürütülsün mü?",
+    "confirmTitle": "Seçili {{count}} işlem yürütülsün mü?",
     "confirmBody": "Bu işlemler proje manifestlerini ve kilit dosyalarını değiştirebilir. Yukarıdaki seçili sürümleri incele.",
     "keepReviewing": "Planı incelemeye devam et",
     "waiting": "Motor bekleniyor…",
     "execute": "Seçili işlemleri yürüt",
-    "review": "Seçili {{number}} işlemi incele",
+    "review": "Seçili {{count}} işlemi incele",
     "preview": "Plan önizlemesi",
     "results": "Yürütme sonuçları"
   },
   "projectKit": {
+    "counts_one": "{{count}} kit · {{invalid}} geçersiz",
     "changedOnDisk": "Kit diskte değişti. Yeni sürümünü ve parametrelerini incelemek için yeniden seç.",
     "needsVerify": "Bu sürüm çalıştırılmadan önce doğrulanmalı. Önce bir doğrulama isteği hazırla.",
     "label": "Project Kit çalışma alanı",
@@ -7807,7 +7910,7 @@
     "create": "Kit oluştur",
     "search": "Proje kitlerinde ara",
     "searchPlaceholder": "Bir yetenek bul…",
-    "counts": "{{kits}} kit · {{invalid}} geçersiz",
+    "counts": "{{count}} kit · {{invalid}} geçersiz",
     "reading": "Proje kitleri okunuyor…",
     "noMatch": "Eşleşen kit yok",
     "home": "Yeniden kullanılabilir proje işleri için bir yuva",
@@ -8415,6 +8518,7 @@
     "add": "Metrik ekle"
   },
   "kanbanBoard": {
+    "createWith_one": "{{count}} görevle pano oluştur",
     "noGraph": "Motor bir görev grafiği döndürmedi.",
     "tools": "Pano araçları",
     "contractMap": "Sözleşmeleri düzenle…",
@@ -8442,7 +8546,7 @@
     "taskMany": "{{number}} görev",
     "more": "…ve {{number}} tane daha.",
     "cancel": "İptal",
-    "createWith": "{{number}} görevle pano oluştur",
+    "createWith": "{{count}} görevle pano oluştur",
     "create": "Pano oluştur"
   },
   "contractMap": {
@@ -8523,11 +8627,12 @@
     }
   },
   "worktrees": {
+    "confirmCleanup_one": "Artakalan worktree ve dalı kaldırılsın mı? İçindeki commit edilmemiş iş kaybolur.",
     "viewChanges": "Değişiklikleri gör",
     "changesIn": "{{dir}} içindeki değişiklikler",
-    "diff": "{{commits}} commit önde · {{files}} dosyada commit edilmemiş +{{insertions}} −{{deletions}}",
+    "diff": "{{commits}} önde · {{files}}da commit edilmemiş +{{insertions}} −{{deletions}}",
     "noSummary": "Bu checkout için değişiklik özeti yok.",
-    "confirmCleanup": "Artakalan {{number}} worktree ve dalın tümü kaldırılsın mı? İçlerindeki commit edilmemiş iş kaybolur.",
+    "confirmCleanup": "Artakalan {{count}} worktree ve dalın tümü kaldırılsın mı? İçlerindeki commit edilmemiş iş kaybolur.",
     "confirmRemove": "{{name}} kaldırılsın mı? İçindeki commit edilmemiş iş kaybolur.",
     "confirmMerge": "{{branch}} proje checkout’ında temel dalına birleştirilsin mi? Çakışmalar birleştirmeyi durdurur ve listelenir.",
     "label": "Proje worktree’leri",
@@ -8538,7 +8643,7 @@
     "waiting": "Motor bekleniyor…",
     "inUse": "Çalıştırmalarca kullanılanlar",
     "noLive": "Bu motordaki hiçbir çalıştırma worktree kullanmıyor.",
-    "liveLine": "{{owner}} · {{status}} · temel {{base}} · {{files}} dosyada +{{insertions}} −{{deletions}}",
+    "liveLine": "{{owner}} · {{status}} · temel {{base}} · {{files}}da +{{insertions}} −{{deletions}}",
     "unknownBase": "bilinmiyor",
     "conflicts": "Çakışmalar: {{files}}",
     "history": "Geçmiş",
@@ -8592,13 +8697,14 @@
     }
   },
   "worktreeHistory": {
+    "files_one": "{{count}} dosya",
     "empty": "Henüz worktree etkinliği yok. Yalıtılmış git worktree’lerinde çalışan Goal aşamaları, SDD görevleri ve filo alt ajanları burada görünür.",
     "label": "Worktree zaman çizelgesi",
     "avgWait": "ort. birleştirme beklemesi {{duration}}",
     "chart": "{{base}} üzerinde worktree zaman çizelgesi",
     "lifecycle": "Worktree yaşam döngüsü",
     "close": "Ayrıntıları kapat",
-    "files": "{{number}} dosya",
+    "files": "{{count}} dosya",
     "onDisk": "checkout hâlâ diskte",
     "removed": "checkout kaldırıldı",
     "failed": "Başarısız",
@@ -8646,6 +8752,7 @@
     "impactHint": "Bağımlıları ve bağımlılıkları izle"
   },
   "atlasViews": {
+    "hops_one": "{{count}} adım",
     "subsystemsLabel": "Atlas alt sistemleri",
     "subsystemsTitle": "Alt sistem sınırları",
     "subsystemsIntro": "Kod sahipliğini, iç uyumu ve her sınırı geçen referansları karşılaştır.",
@@ -8686,7 +8793,7 @@
     "outgoing": "Bağımlılıklar · bu neyi kullanıyor",
     "depth": "Derinlik",
     "depthLabel": "Etki derinliği",
-    "hops": "{{number}} adım",
+    "hops": "{{count}} adım",
     "dependents": "erişilebilir bağımlı",
     "dependencies": "erişilebilir bağımlılık",
     "static": "Statik referans erişilebilirliği; çalışma zamanı davranışı farklı olabilir.",

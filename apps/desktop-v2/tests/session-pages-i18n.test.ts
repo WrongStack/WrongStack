@@ -124,7 +124,7 @@ describe('the session pages in the display language', () => {
       'Retry last prompt',
       '2 file snapshots at this prompt index',
       'Follow the journal',
-      '1 matching recorded events.',
+      '1 matching recorded event.',
       'Tool footprint',
       'No file activity recorded.',
     ])

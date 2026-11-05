@@ -1,4 +1,42 @@
 {
+  "counts": {
+    "files_one": "{{count, number}} Datei",
+    "files": "{{count, number}} Dateien",
+    "findings_one": "{{count, number}} Befund",
+    "findings": "{{count, number}} Befunde",
+    "testFiles_one": "{{count, number}} Testdatei",
+    "testFiles": "{{count, number}} Testdateien",
+    "seconds_one": "{{count, number}} Sekunde",
+    "seconds": "{{count, number}} Sekunden",
+    "events_one": "{{count, number}} Ereignis",
+    "events": "{{count, number}} Ereignisse",
+    "relationships_one": "{{count, number}} Beziehung",
+    "relationships": "{{count, number}} Beziehungen",
+    "attempts_one": "{{count, number}} Versuch",
+    "attempts": "{{count, number}} Versuche",
+    "retries_one": "{{count, number}} Wiederholung",
+    "retries": "{{count, number}} Wiederholungen",
+    "fallbacks_one": "{{count, number}} Ausweichmodell",
+    "fallbacks": "{{count, number}} Ausweichmodelle",
+    "verificationFailures_one": "{{count, number}} fehlgeschlagene Prüfung",
+    "verificationFailures": "{{count, number}} fehlgeschlagene Prüfungen",
+    "iterations_one": "{{count, number}} Iteration",
+    "iterations": "{{count, number}} Iterationen",
+    "toolCalls_one": "{{count, number}} Werkzeugaufruf",
+    "toolCalls": "{{count, number}} Werkzeugaufrufe",
+    "failures_one": "{{count, number}} Fehlschlag",
+    "failures": "{{count, number}} Fehlschläge",
+    "rateLimits_one": "{{count, number}} Ratenlimit",
+    "rateLimits": "{{count, number}} Ratenlimits",
+    "successes_one": "{{count, number}} Erfolg",
+    "successes": "{{count, number}} Erfolge",
+    "models_one": "{{count, number}} Modell",
+    "models": "{{count, number}} Modelle",
+    "savedDefinitions_one": "{{count, number}} gespeicherte Definition",
+    "savedDefinitions": "{{count, number}} gespeicherte Definitionen",
+    "commits_one": "{{count, number}} Commit",
+    "commits": "{{count, number}} Commits"
+  },
   "pages": {
     "files": "Dateien",
     "changes": "Änderungen",
@@ -2312,6 +2350,9 @@
     "save": "Ressource speichern"
   },
   "automation": {
+    "otherWindow_one": "Ein anderes Fenster hat für dieses Projekt andere ungespeicherte Automationsentwürfe gespeichert ({{count}} Jobentwurf).",
+    "deletedRuns_one": "{{name}} und {{count}} Laufdatensatz gelöscht.",
+    "everyMinutes_one": "Jede Minute",
     "runStatus": {
       "queued": "in der Warteschlange",
       "running": "läuft",
@@ -2332,7 +2373,7 @@
     "imported": "Als deaktivierte Automation zur lokalen Prüfung importiert.",
     "queuedNotice": "Die Engine hat diesen Lauf eingereiht.",
     "deleted": "{{name}} gelöscht.",
-    "deletedRuns": "{{name}} und {{runs}} Laufdatensätze gelöscht.",
+    "deletedRuns": "{{name}} und {{count}} Laufdatensätze gelöscht.",
     "workerOnline": "Worker online",
     "workerOffline": "Worker offline · Jobs bleiben bearbeitbar",
     "refresh": "Aktualisieren",
@@ -2347,7 +2388,7 @@
     "jobsLabel": "Automationsjobs",
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
-    "everyMinutes": "Alle {{minutes}} Minuten",
+    "everyMinutes": "Alle {{count}} Minuten",
     "manualOnly": "Nur manuell",
     "noJobs": "Keine Automationen in diesem Projekt.",
     "recentRuns": "Letzte Läufe",
@@ -2415,12 +2456,17 @@
     "reloadHelp": "Das verwirft das ungespeicherte Formular des aktuellen Jobs. Andere Jobentwürfe bleiben in diesem Fenster.",
     "keepEditing": "Automation weiter bearbeiten",
     "discardReloadConfirm": "Verwerfen und Automation neu laden",
-    "otherWindow": "Ein anderes Fenster hat für dieses Projekt andere ungespeicherte Automationsentwürfe gespeichert ({{drafts}} Jobentwürfe).",
+    "otherWindow": "Ein anderes Fenster hat für dieses Projekt andere ungespeicherte Automationsentwürfe gespeichert ({{count}} Jobentwürfe).",
     "keepWindow": "Entwürfe dieses Fensters behalten",
     "useSaved": "Gespeicherte Entwürfe verwenden",
     "retryDrafts": "Laden der gespeicherten Entwürfe wiederholen"
   },
   "autoConfig": {
+    "deadline_one": "Frist für die Einrichtung: {{count}} Sekunde. Der Worker bereitet diese Umgebung für den kopierten Arbeitsbereich vor.",
+    "ports_one": "{{count}} Vorschau-Port",
+    "caches_one": "{{count}} Cache",
+    "services_one": "{{count}} Dienst",
+    "setupSteps_one": "{{count}} Einrichtungsschritt",
     "templatesTitle": "Mit einem Workflow beginnen",
     "templatesHelp": "Ein Ausgangspunkt für Name und Anweisungen des Jobs. Laufzeitentscheidungen bleiben in deinem Entwurf.",
     "useTemplate": "Automationsvorlage verwenden",
@@ -2432,11 +2478,11 @@
     "environment": "Wiederverwendbare Umgebung",
     "editEnvironment": "Umgebung bearbeiten",
     "configureEnvironment": "Umgebung einrichten",
-    "setupSteps": "{{n}} Einrichtungsschritte",
-    "services": "{{n}} Dienste",
-    "caches": "{{n}} Caches",
-    "ports": "{{n}} Vorschau-Ports",
-    "deadline": "Frist für die Einrichtung: {{seconds}} Sekunden. Der Worker bereitet diese Umgebung für den kopierten Arbeitsbereich vor.",
+    "setupSteps": "{{count}} Einrichtungsschritte",
+    "services": "{{count}} Dienste",
+    "caches": "{{count}} Caches",
+    "ports": "{{count}} Vorschau-Ports",
+    "deadline": "Frist für die Einrichtung: {{count}} Sekunden. Der Worker bereitet diese Umgebung für den kopierten Arbeitsbereich vor.",
     "health": "Health:",
     "removeEnvironment": "Umgebung aus dem Entwurf entfernen",
     "noEnvironment": "Hänge Einrichtungsschritte, Service-Container, Paket-Caches und lokale Vorschau-Ports an. Es ist keine Umgebung angehängt.",
@@ -2716,6 +2762,8 @@
     "apply": "Umgebung auf den Entwurf anwenden"
   },
   "goals": {
+    "recordedRuns_one": "{{count}} erfasster Ziellauf",
+    "phaseCount_one": "{{count}} Phase",
     "status": {
       "planning": "In Planung",
       "running": "Läuft",
@@ -2753,7 +2801,8 @@
     "refused": "Die Engine hat diese Anfrage abgelehnt.",
     "submitted": "Ziel übermittelt. Warte, bis die Engine plant.",
     "budget": {
-      "tasks": "{{used}} von {{max}} Aufgaben",
+      "tasks_one": "{{used}} von {{count}} Aufgabe",
+      "tasks": "{{used}} von {{count}} Aufgaben",
       "minutes": "{{used}} von {{max}} Min.",
       "tokens": "{{used}} von {{max}} Tokens",
       "cost": "~${{used}} von ${{max}} geschätzt",
@@ -2829,7 +2878,7 @@
     "skipped": "Übersprungen",
     "finalVerification": "Abschließende Prüfung",
     "phasesAndTasks": "Phasen und Aufgaben",
-    "phaseCount": "{{n}} Phasen",
+    "phaseCount": "{{count}} Phasen",
     "phase": "Phase",
     "phaseLower": "Phase",
     "taskCount": "{{done}} / {{total}} Aufgaben",
@@ -2864,7 +2913,7 @@
     "inspectTitle": "Arbeit prüfen",
     "inspectHelp": "Wähle eine Aufgabe, um Status, Zuweisung und erfasste Details zu sehen.",
     "executionGoals": "Ausführungsziele",
-    "recordedRuns": "{{n}} erfasste Zielläufe",
+    "recordedRuns": "{{count}} erfasste Zielläufe",
     "search": "Ziele durchsuchen",
     "searchPlaceholder": "Ziele durchsuchen…",
     "reading": "Zielkatalog des Projekts wird gelesen…",
@@ -3030,7 +3079,7 @@
     "loading": "Modell-Metadaten werden geladen…",
     "search": "Modelle durchsuchen",
     "searchLabel": "Modelle des Providers durchsuchen",
-    "counts": "{{models}} Modelle · {{definitions}} gespeicherte Definitionen",
+    "counts": "{{models}} · {{definitions}}",
     "savedDefinition": "Gespeicherte Definition",
     "providerCatalog": "Provider-Katalog",
     "noModels": "Keine Modelle gemeldet. Du kannst eine Definition mit der Modell-ID hinzufügen, die dieser Endpunkt bereitstellt.",
@@ -3314,6 +3363,10 @@
     "discard": "Entwurf verwerfen"
   },
   "reviews": {
+    "matching_one": "{{count}} passender Bericht in den letzten {{limit}} Einträgen. Ursprungssitzungen sind Metadaten des Berichts; dieser Projektbereich braucht keine offene Unterhaltung.",
+    "unparseable_one": "{{count}} gemeldeter Eintrag wurde nicht einzeln ausgewertet. Prüfe den vollständigen Bericht unten.",
+    "stillOpen_one": "{{count}} Befund ist noch offen. Das Abschließen des Berichts lässt seinen Status unverändert.",
+    "findingsCount_one": "{{count}} Befund",
     "value": {
       "open": "offen",
       "actioned": "bearbeitet",
@@ -3360,12 +3413,12 @@
     "sessionLabel": "Ursprungssitzung der Prüfung",
     "allSessions": "Alle erfassten Sitzungen",
     "windowLabel": "Zeitraum der letzten Chimera-Berichte",
-    "matching": "{{n}} passende Berichte in den letzten {{limit}} Einträgen. Ursprungssitzungen sind Metadaten des Berichts; dieser Projektbereich braucht keine offene Unterhaltung.",
+    "matching": "{{count}} passende Berichte in den letzten {{limit}} Einträgen. Ursprungssitzungen sind Metadaten des Berichts; dieser Projektbereich braucht keine offene Unterhaltung.",
     "catalogLabel": "Katalog der Chimera-Berichte",
     "reading": "Prüfberichte werden gelesen…",
     "openReview": "Prüfung {{id}} öffnen",
     "noModel": "Prüfmodell nicht gemeldet",
-    "findingsCount": "{{n}} Befunde",
+    "findingsCount": "{{count}} Befunde",
     "severityCount": "{{n}} {{severity}}",
     "executionFailed": "Ausführung der Prüfung fehlgeschlagen",
     "noReports": "Keine Berichte in dieser Ansicht.",
@@ -3382,7 +3435,7 @@
       "evidenceStatus": "Belegstatus",
       "durationSeconds": "Dauer der Prüfung (Sekunden)"
     },
-    "unparseable": "{{n}} gemeldete Einträge wurden nicht einzeln ausgewertet. Prüfe den vollständigen Bericht unten.",
+    "unparseable": "{{count}} gemeldete Einträge wurden nicht einzeln ausgewertet. Prüfe den vollständigen Bericht unten.",
     "reopenReport": "Bericht wieder öffnen",
     "actionReport": "Bericht als bearbeitet markieren",
     "completeReport": "Bericht abschließen",
@@ -3438,7 +3491,7 @@
     "decisionReport": "Berichtsstatus erfassen",
     "decisionFinding": "Befundstatus erfassen",
     "closeDecision": "Prüfentscheidung schließen",
-    "stillOpen": "{{n}} Befunde sind noch offen. Das Abschließen des Berichts lässt ihre einzelnen Status unverändert.",
+    "stillOpen": "{{count}} Befunde sind noch offen. Das Abschließen des Berichts lässt ihre einzelnen Status unverändert.",
     "outcome": "Ergebnis der Lösung",
     "outcomeLabel": "Ergebnis der Prüfungslösung",
     "chooseOutcome": "Beobachtetes Ergebnis wählen…",
@@ -3465,6 +3518,7 @@
     "findingId": "Befund {{id}}"
   },
   "skillLib": {
+    "exported_one": "{{count}} Skills exportiert.",
     "source": {
       "project": "Dieses Projekt",
       "user": "WrongStack-Profil",
@@ -3485,7 +3539,7 @@
     "uninstalled": "Installierte Skill entfernt.",
     "updateSummary": "{{updated}} aktualisiert · {{unchanged}} unverändert · {{failed}} fehlgeschlagen.",
     "noArchive": "Die Engine hat kein Skill-Archiv geliefert.",
-    "exported": "{{n}} Skills exportiert.",
+    "exported": "{{count}} Skills exportiert.",
     "labelProfile": "Skill-Bibliothek des Profils",
     "labelProject": "Skill-Bibliothek des Projekts",
     "eyebrowProject": "PROJEKTFÄHIGKEITEN",
@@ -3583,6 +3637,9 @@
     }
   },
   "designStudio": {
+    "sourceLine_one": "Quelle: {{source}} · {{count}} Datei · {{score}}",
+    "findings_one": "{{count}} Befund · {{shown}} angezeigt",
+    "noSignal_one": "{{count}} Datei hatte keine passenden UI-Signale. Ihre visuelle Qualität wurde von diesem Scan nicht gemessen.",
     "label": "Projekt-Designstudio",
     "title": "Designstudio",
     "intro": "Erkunde echte helle und dunkle Themes, forme ihre Details und schreibe das Theme in dein Projekt.",
@@ -3705,13 +3762,13 @@
     "verifyTitle": "Designprüfung des Projekts",
     "scan": "Projektdesign scannen",
     "verifyHint": "Prüft UI-Signale des Projekts gegen das angeheftete Kit oder erfasste Tokens. Die gemeldete Punktzahl misst die Farbtreue.",
-    "sourceLine": "Quelle: {{source}} · {{files}} Dateien · {{score}}",
+    "sourceLine": "Quelle: {{source}} · {{count}} Dateien · {{score}}",
     "sourceCaptured": "Erfasste Projekt-Tokens",
     "sourceKit": "Kit {{kit}}",
     "adherence": "{{percent}} % gemeldete Farbtreue",
     "noScore": "Keine Farbpunktzahl gemeldet",
-    "findings": "{{total}} Befunde · {{shown}} angezeigt",
-    "noSignal": "{{n}} Dateien hatten keine passenden UI-Signale. Ihre visuelle Qualität wurde von diesem Scan nicht gemessen.",
+    "findings": "{{count}} Befunde · {{shown}} angezeigt",
+    "noSignal": "{{count}} Dateien hatten keine passenden UI-Signale. Ihre visuelle Qualität wurde von diesem Scan nicht gemessen.",
     "capturedFrom": "Erfasst aus: {{list}}",
     "observation": "Beobachtung",
     "themeSample": "Beispiel für das Theme {{label}}",
@@ -3734,6 +3791,7 @@
     "restored": "Auf diesem Gerät abgelegte, nicht gespeicherte Designänderungen wiederhergestellt."
   },
   "mailboxPage": {
+    "receipts_one": "{{count}} Lesebestätigung in dieser Ansicht",
     "conversationCount_one": "{{count}} geladene Nachricht in dieser Unterhaltung",
     "messageCount_one": "{{count}} Nachricht",
     "messageCount": "{{count}} Nachrichten",
@@ -3747,9 +3805,10 @@
     "resumeDraft": "Nachrichtenentwurf fortsetzen",
     "composeMessage": "Nachricht verfassen",
     "older": {
+      "loaded_one": "{{count}} ältere Nachricht geladen.",
       "stuck": "Mehr Nachrichten teilen den ältesten Zeitstempel, als eine Seite fasst; ältere können hier daher nicht gelesen werden.",
       "done": "Keine älteren Nachrichten in dieser Ansicht.",
-      "loaded": "{{n}} ältere Nachrichten geladen."
+      "loaded": "{{count}} ältere Nachrichten geladen."
     },
     "missingFields": "Gib Empfänger, Betreff und Nachricht ein.",
     "unconfirmed": "Die Engine hat keine gespeicherte Nachricht bestätigt. Prüfe das Postfach, bevor du es erneut versuchst; dein Entwurf bleibt erhalten.",
@@ -3800,7 +3859,7 @@
     "audience": "Zielgruppe: {{audience}}",
     "audienceAll": "Alle berechtigten Empfänger",
     "audienceLeaders": "Nur Leiter",
-    "receipts": "{{n}} Lesebestätigungen in dieser Ansicht",
+    "receipts": "{{count}} Lesebestätigungen in dieser Ansicht",
     "completedBy": "Erledigt von {{actor}} · {{time}}",
     "references": "Bestätigungen und Verweise",
     "replyTo": "Antwort auf:",
@@ -3914,6 +3973,7 @@
     }
   },
   "deadCode": {
+    "showNext_one": "Nächsten Befund anzeigen",
     "count": {
       "visible_one": "{{count}} sichtbarer Befund",
       "visible": "{{count}} sichtbare Befunde",
@@ -3989,7 +4049,7 @@
     "scopeLine": "Angezeigt: {{scope}}.",
     "scopeLinePublic": "Angezeigt: {{scope}}, einschließlich ungenutzter Exporte der öffentlichen API.",
     "entireProject": "das gesamte Projekt",
-    "scanFacts": "{{seconds}} Sekunden · {{parsed}} geparst · {{tests}} Testdateien",
+    "scanFacts": "{{seconds}} · {{parsed}} geparst · {{tests}}",
     "warnings": "Grenzen des Scans ({{n}})",
     "search": "Befunde zu totem Code durchsuchen",
     "searchPlaceholder": "Datei, Symbol oder Paket finden…",
@@ -4011,7 +4071,7 @@
     "manual": "Manuelle Prüfung: {{reason}}",
     "noMechanical": "keine mechanische Korrektur verfügbar",
     "noMatch": "Keine Befunde passen zu dieser Ansicht.",
-    "showNext": "Nächste {{n}} Befunde anzeigen",
+    "showNext": "Nächste {{count}} Befunde anzeigen",
     "previewFixes": "Ausgewählte Korrekturen ansehen",
     "verify": "Typprüfung ausführen und fehlgeschlagene Änderungen zurücknehmen",
     "reviewExecution": "Ausführung der Bereinigung prüfen",
@@ -4032,7 +4092,7 @@
     "backupsLabel": "Sicherungen für toten Code",
     "backups": "Wiederherstellungssicherungen ({{n}})",
     "refreshBackups": "Bereinigungssicherungen aktualisieren",
-    "backupFacts": "{{files}} Dateien · {{findings}} Befunde",
+    "backupFacts": "{{files}} · {{findings}}",
     "reviewRestore": "Wiederherstellung aus Sicherung prüfen",
     "noBackups": "Keine Bereinigungssicherungen erfasst.",
     "conflictTitle": "Dateien nach der Bereinigung geändert",
@@ -4066,6 +4126,7 @@
     }
   },
   "chronicleView": {
+    "seconds_one": "{{count}} Sekunde",
     "label": "Projektchronik",
     "title": "Chronik",
     "intro": "Verfolge die Arbeit über Agenten, Dateien, Werkzeuge und Unterhaltungen hinweg. Behalte jedes Ergebnis im Kontext.",
@@ -4111,7 +4172,7 @@
     "timeline": "Projektzeitleiste",
     "lineage": "Herkunft der Belege",
     "loaded": "{{loaded}} von {{total}} geladen",
-    "graphCount": "{{events}} Ereignisse · {{relations}} Beziehungen",
+    "graphCount": "{{events}} · {{relations}}",
     "exportMarkdown": "Als Markdown exportieren",
     "exportJsonl": "Als JSONL exportieren",
     "exportLineageMarkdown": "Herkunft als Markdown exportieren",
@@ -4160,7 +4221,7 @@
       "watched": "Beobachtete Dateien",
       "uptime": "Laufzeit"
     },
-    "seconds": "{{n}} Sekunden",
+    "seconds": "{{count}} Sekunden",
     "notReported": "Nicht gemeldet",
     "detail": {
       "label": "Details zum Chronik-Ereignis",
@@ -4224,10 +4285,10 @@
       "invalid": "Die Engine hat eine ungültige Kennzahlenantwort geliefert.",
       "loading": "Projekteinblicke werden geladen…",
       "notRecorded": "Nicht erfasst",
-      "attempts": "{{attempts}} Versuche · {{completed}} abgeschlossen · {{failed}} fehlgeschlagen · {{retries}} Wiederholungen · {{fallbacks}} Ausweichmodelle",
+      "attempts": "{{attempts}} · {{completed}} abgeschlossen · {{failed}} fehlgeschlagen · {{retries}} · {{fallbacks}}",
       "tokens": "{{input}} Eingabe- / {{output}} Ausgabe-Tokens · {{cacheRead}} Cache gelesen / {{cacheWrite}} Cache geschrieben · {{avg}} ms Mittel / {{max}} ms Maximum",
       "taskOwners": "Board {{board}} · Agent {{agent}} · Sitzung {{session}}",
-      "taskRun": "Lauf {{run}} · {{retries}} Wiederholungen · {{verification}} fehlgeschlagene Prüfungen · {{files}} Dateien · {{ms}} ms",
+      "taskRun": "Lauf {{run}} · {{retries}} · {{verification}} · {{files}} · {{ms}} ms",
       "taskTimes": "Gestartet {{started}} · Beendet {{ended}}",
       "fileOwners": "Aufgabe {{task}} · Board {{board}} · Lauf {{run}} · Sitzung {{session}} · Agent {{agent}} · {{provider}} / {{model}}",
       "dailyRows": "Tägliche Anbieterzeilen",
@@ -4235,6 +4296,7 @@
       "footnote": "{{rows}} · {{partitions}} Partitionen beim Aktualisieren gelesen · {{invalid}} ungültige Einträge beim Aktualisieren"
     },
     "manifest": {
+      "omitted_one": "{{count, number}} frühere Nachricht ist nicht einzeln aufgeführt; die Manifest-ID deckt sie trotzdem ab.",
       "title": "Prompt-Manifest",
       "notRecorded": "nicht erfasst",
       "messages": "Nachrichten",
@@ -4252,7 +4314,7 @@
       "tools": "Werkzeuge · {{count}} · {{tokens}} Definitions-Tokens (Schätzung der Engine) · {{mutating}} verändernd · {{destructive}} destruktiv",
       "noTools": "Keine Werkzeuge angeboten.",
       "toolsRef": "Die Werkzeugnamen wurden bei einer früheren Anfrage mit denselben Werkzeugen erfasst (<code>{{hash}}</code>).",
-      "omitted": "{{n}} frühere Nachrichten sind nicht einzeln aufgeführt; die Manifest-ID deckt sie trotzdem ab.",
+      "omitted": "{{count, number}} frühere Nachrichten sind nicht einzeln aufgeführt; die Manifest-ID deckt sie trotzdem ab.",
       "messagesTable": "Nachrichten des Manifests",
       "role": "Rolle",
       "tokens": "Tokens (Schätzung)",
@@ -4260,6 +4322,9 @@
     }
   },
   "recovery": {
+    "confirmBody_one": "{{count}} erfasster Datei-Snapshot gehört zu diesem oder einem späteren Prompt. Die Engine stellt seinen erfassten Inhalt wieder her, entfernt spätere Unterhaltungsereignisse und ersetzt den aktuellen Kontext. Seitdem vorgenommene Änderungen können überschrieben werden.",
+    "matching_one": "{{count}} passendes erfasstes Ereignis. Die Suche umfasst Journalbezeichnungen und erfasste Vorschauen, nicht das vollständige Nachrichtenprotokoll.",
+    "snapshots_one": "{{time}} · {{count}} Datei-Snapshot bei diesem Prompt-Index",
     "changed": "Die Sitzung hat sich nach dieser Prüfung geändert. Schließe diesen Dialog und aktualisiere die Checkpoints.",
     "noRewindResult": "Die Engine hat das Zurückspulen ohne detailliertes Ergebnis bestätigt. Aktualisiere und prüfe das Journal vor einer weiteren Aktion.",
     "noRedoResult": "Die Engine hat das Wiederholen ohne detailliertes Ergebnis bestätigt. Aktualisiere und prüfe das Journal.",
@@ -4314,7 +4379,7 @@
     "checkpointError": "Checkpoints konnten nicht gelesen werden: {{error}}",
     "noCheckpoints": "In dieser Sitzung wurden keine Prompt-Checkpoints erfasst.",
     "noPromptText": "Prompttext nicht erfasst",
-    "snapshots": "{{time}} · {{n}} Datei-Snapshots bei diesem Prompt-Index",
+    "snapshots": "{{time}} · {{count}} Datei-Snapshots bei diesem Prompt-Index",
     "reviewLabel": "Zurückspulen zu Prompt {{n}} prüfen",
     "review": "Zurückspulen prüfen",
     "snapshotHint": "Snapshot-Zahlen sind erfasste Einträge, keine Vorschau eindeutiger Dateien. Nicht gesendete Entwürfe im Eingabefeld werden getrennt aufbewahrt. Zurückspulen ist kein Git-Checkout und keine vollständige Projektsicherung.",
@@ -4324,7 +4389,7 @@
     "searchPlaceholder": "Erfasstes Ereignis finden…",
     "typeLabel": "Typ des Sitzungsereignisses",
     "allTypes": "Alle Ereignistypen",
-    "matching": "{{n}} passende erfasste Ereignisse. Die Suche umfasst Journalbezeichnungen und erfasste Vorschauen, nicht das vollständige Nachrichtenprotokoll.",
+    "matching": "{{count}} passende erfasste Ereignisse. Die Suche umfasst Journalbezeichnungen und erfasste Vorschauen, nicht das vollständige Nachrichtenprotokoll.",
     "noMatch": "Keine erfassten Ereignisse passen.",
     "older": "100 ältere Ereignisse anzeigen",
     "tools": "Werkzeugnutzung",
@@ -4337,7 +4402,7 @@
     "rewindEyebrow": "DIESE UNTERHALTUNG ZURÜCKSPULEN",
     "retryAsk": "Prompt {{n}} rückgängig machen und erneut senden?",
     "rewindAsk": "Prompt {{n}} und die spätere Arbeit rückgängig machen?",
-    "confirmBody": "{{n}} erfasste Datei-Snapshots gehören zu diesem und späteren Prompts. Die Engine stellt ihren erfassten Inhalt wieder her, entfernt spätere Unterhaltungsereignisse und ersetzt den aktuellen Kontext. Seitdem vorgenommene Änderungen können überschrieben werden.",
+    "confirmBody": "{{count}} erfasste Datei-Snapshots gehören zu diesem und späteren Prompts. Die Engine stellt ihren erfassten Inhalt wieder her, entfernt spätere Unterhaltungsereignisse und ersetzt den aktuellen Kontext. Seitdem vorgenommene Änderungen können überschrieben werden.",
     "draftKept": "Dein nicht gesendeter Entwurf bleibt erhalten. Dies ist keine vollständige Dateisicherung.",
     "keep": "Aktuellen Verlauf behalten",
     "rewinding": "Wird zurückgespult…",
@@ -4353,6 +4418,7 @@
       "copy": "Prompt kopieren"
     },
     "records": {
+      "more_one": "{{count}} weitere Datei ist in diesem Eintrag nicht enthalten.",
       "title": "Wiederherstellungsvorgänge ({{n}})",
       "hint": "Von diesem Desktop gestartete Zurückspul-, Wiederholungs- und Wiederherstellungsvorgänge, so wie sie beim Ausführen beobachtet wurden. Sie überstehen einen Neustart; anderswo erledigte Arbeit wird nicht aufgeführt.",
       "label": "Wiederherstellungsvorgänge",
@@ -4372,7 +4438,7 @@
       "restored": "Wiederhergestellte Dateien: {{n}}",
       "removed": "Entfernte Journalereignisse: {{n}}",
       "fileErrors": "Dateifehler",
-      "more": "{{n}} weitere Dateien sind in diesem Eintrag nicht enthalten."
+      "more": "{{count}} weitere Dateien sind in diesem Eintrag nicht enthalten."
     }
   },
   "providerSettings": {
@@ -4640,6 +4706,7 @@
     "confirmSingle": "Beenden des Prozesses bestätigen"
   },
   "sddView": {
+    "progress_one": "{{status}} · {{completed}} / {{count}} Aufgabe",
     "value": {
       "idle": "inaktiv",
       "questioning": "Befragung",
@@ -4722,7 +4789,7 @@
     "tasks": "Aufgaben",
     "loadingSpecs": "Spezifikationen werden geladen…",
     "untitledSpec": "Spezifikation ohne Titel",
-    "progress": "{{status}} · {{completed}} / {{total}} Aufgaben",
+    "progress": "{{status}} · {{completed}} / {{count}} Aufgaben",
     "noSpecs": "Für dieses Projekt wurden keine Spezifikationen erfasst.",
     "selectSpec": "Spezifikation auswählen",
     "selectSpecHint": "Erkunde ihren Aufgabengraphen und ihre Abhängigkeiten.",
@@ -4789,6 +4856,8 @@
       "empty": "Übernahmen, Abschlüsse, Fehler und Wiederholungen von Aufgaben erscheinen hier, während der Lauf arbeitet."
     },
     "lifecycle": {
+      "alsoRevert_one": "Auch den {{count}} gemergten Commit dieses Laufs zurücknehmen",
+      "rollbackBody_one": "Einen verlaufserhaltenden Revert-Commit für den {{count}} erfassten gemergten Commit dieses Laufs erstellen. Die Engine braucht den erfassten Basis-Branch und einen sauberen Arbeitsbaum.",
       "label": "SDD-Projektwartung",
       "eyebrow": "NACH DER AUSFÜHRUNG",
       "title": "Projektwartung",
@@ -4811,8 +4880,8 @@
       },
       "destroyBody": "Dies leert alle Spezifikationen, Aufgabengraphen, den Interviewstand, SDD-Boards und gespiegelte SDD-Kanban-Boards dieses Projekts. Verwaltete Worktrees und Branches werden samt nicht gemergter Änderungen entfernt.",
       "cleanupBody": "Alle verwalteten Worktrees und ihre Branches dieses Projekts entfernen, einschließlich nicht gemergter Änderungen.",
-      "rollbackBody": "Verlaufserhaltende Revert-Commits für die {{n}} erfassten gemergten Commits dieses Laufs erstellen. Die Engine braucht den erfassten Basis-Branch und einen sauberen Arbeitsbaum.",
-      "alsoRevert": "Auch die {{n}} gemergten Commits dieses Laufs zurücknehmen",
+      "rollbackBody": "Verlaufserhaltende Revert-Commits für die {{count}} erfassten gemergten Commits dieses Laufs erstellen. Die Engine braucht den erfassten Basis-Branch und einen sauberen Arbeitsbaum.",
+      "alsoRevert": "Auch die {{count}} gemergten Commits dieses Laufs zurücknehmen",
       "revertFallback": "Schlägt das Zurücknehmen fehl, leert die Engine trotzdem die SDD-Einträge und meldet den Grund.",
       "pending": "{{title}} angefordert. Warte auf das Ergebnis der Engine…",
       "refused": "Vorgang abgelehnt",
@@ -4823,6 +4892,7 @@
       "cleared": "Geleert: {{list}}"
     },
     "taskDetail": {
+      "splitBody_one": "{{count}} Unteraufgabe erstellen und die übergeordnete Aufgabe als erledigten Container markieren. Die Unteraufgabe erbt ihre Blocker; abhängige Arbeit wartet auf sie.",
       "label": "Details der SDD-Aufgabe",
       "eyebrow": "AUFGABE {{id}}",
       "noDescription": "Keine Beschreibung erfasst.",
@@ -4863,7 +4933,7 @@
       "updateVerification": "Prüfung aktualisieren",
       "split": "In Unteraufgaben aufteilen",
       "splitPlaceholder": "Eine Aufgabe pro Zeile: Titel :: Beschreibung",
-      "splitBody": "{{n}} Unteraufgaben erstellen und die übergeordnete Aufgabe als erledigten Container markieren. Unteraufgaben erben ihre Blocker; abhängige Arbeit wartet auf alle Unteraufgaben.",
+      "splitBody": "{{count}} Unteraufgaben erstellen und die übergeordnete Aufgabe als erledigten Container markieren. Unteraufgaben erben ihre Blocker; abhängige Arbeit wartet auf alle Unteraufgaben.",
       "confirmSplit": "Aufteilen bestätigen",
       "reviewSplit": "Aufteilung prüfen",
       "activity": "Aufgabenaktivität",
@@ -4988,6 +5058,8 @@
       "save": "Änderungen an der Verlaufsansicht sind nicht gespeichert. Deine aktuelle Ansicht bleibt erhalten. Versuche erneut zu speichern, sobald der native Speicher verfügbar ist."
     },
     "contentSearch": {
+      "matching_one": "{{count}} passende Nachricht · {{provider}} / {{model}}",
+      "unreadable_one": "{{count}} Eintrag konnte nicht gelesen werden; die Ergebnisse sind unvollständig.",
       "label": "Projektunterhaltungen übergreifend durchsuchen",
       "field": "Inhalt der Unterhaltungen durchsuchen",
       "placeholder": "Wörter in aufgezeichneten Unterhaltungen finden…",
@@ -5020,8 +5092,8 @@
       },
       "progress": "{{status}} {{scanned}} von {{total}} Einträgen geprüft · {{n}} passende Unterhaltungen.",
       "progressLabel": "Fortschritt der Suche",
-      "unreadable": "{{n}} Einträge konnten nicht gelesen werden; die Ergebnisse sind unvollständig.",
-      "matching": "{{n}} passende Nachrichten · {{provider}} / {{model}}",
+      "unreadable": "{{count}} Einträge konnten nicht gelesen werden; die Ergebnisse sind unvollständig.",
+      "matching": "{{count}} passende Nachrichten · {{provider}} / {{model}}",
       "readMatch": "Suchtreffer {{id}}, Nachricht {{n}} lesen",
       "message": "Nachricht {{n}}",
       "readMessage": "Passende Nachricht lesen →",
@@ -5029,6 +5101,7 @@
       "noMatches": "Kein gespeicherter Unterhaltungstext passt zu dieser Suche."
     },
     "usage": {
+      "inProjects_one": " in {{count, number}} Projekt",
       "notRecorded": "Nicht erfasst",
       "title": "Aufgezeichnete Nutzung",
       "help": "Von jeder Unterhaltung aufgezeichnete Tokens, gruppiert nach dem zuletzt genutzten Anbieter und Modell. Preise werden hier nicht abgeleitet.",
@@ -5043,7 +5116,7 @@
       "refresh": "Zusammenfassung aktualisieren",
       "summarize": "Aufgezeichnete Nutzung zusammenfassen",
       "total": "{{tokens}} Tokens in {{sessions}} Unterhaltungen{{projects}}{{missing}}{{capped}}.",
-      "inProjects": " in {{n}} Projekten",
+      "inProjects": " in {{count, number}} Projekten",
       "withoutTotal": " ({{n}} ohne aufgezeichnete Summe)",
       "capped": "; nur die neuesten Unterhaltungen bis zum Scanlimit wurden gelesen",
       "byProject": "Aufgezeichnete Tokens nach Projekt",
@@ -5058,6 +5131,7 @@
       "notRead": "Nicht gelesen: {{error}}"
     },
     "effects": {
+      "unreadable_one": "; {{count}} Journal konnte nicht gelesen werden",
       "title": "Aufgezeichnete Nebenwirkungen",
       "help": "In den Unterhaltungen dieses Projekts aufgezeichnete Befehle, Dateischreibvorgänge, Pakete, Netzwerk- und Konfigurationsvorgänge, neueste zuerst.",
       "risk": "Risiko",
@@ -5068,7 +5142,7 @@
       "unsupported": "Diese Engine fasst Nebenwirkungen des Projekts noch nicht zusammen.",
       "total": "{{total}} aufgezeichnet in {{with}} von {{scanned}} Unterhaltungen{{capped}}{{unreadable}}.",
       "capped": " (die neuesten Unterhaltungen bis zum Scanlimit)",
-      "unreadable": "; {{n}} Journale konnten nicht gelesen werden",
+      "unreadable": "; {{count}} Journale konnten nicht gelesen werden",
       "column": {
         "when": "Wann",
         "conversation": "Unterhaltung",
@@ -5096,10 +5170,13 @@
       "unreadable": "Diese Engine hat kein lesbares Transkript zurückgegeben. Aktualisiere die Projektlaufzeit, bevor du es erneut versuchst."
     },
     "block": {
+      "loadMore_one": "Nächsten Block laden",
+      "more_one": "{{count}} weiterer Block in dieser Nachricht.",
+      "pdfPages_one": "{{count}} Seite · Extrahierter Text; binäres PDF nicht geladen.",
       "textUnreadable": "Der aufgezeichnete Text konnte nicht gelesen werden.",
       "pdf": "PDF-Anhang",
       "pdfText": "Extrahierter Text; binäres PDF nicht geladen.",
-      "pdfPages": "{{n}} Seiten · Extrahierter Text; binäres PDF nicht geladen.",
+      "pdfPages": "{{count}} Seiten · Extrahierter Text; binäres PDF nicht geladen.",
       "copy": "Sichtbaren aufgezeichneten Text kopieren",
       "reuse": "Sichtbaren Text zum Entwurf hinzufügen",
       "fromStart": "Von Anfang an lesen",
@@ -5111,9 +5188,9 @@
       "toolResult": "Werkzeugergebnis · {{name}}",
       "toolResultError": "Werkzeugergebnis · {{name}} · Fehler",
       "moreUnreadable": "Diese Engine hat die übrigen Blöcke nicht zurückgegeben.",
-      "more": "{{n}} weitere Blöcke in dieser Nachricht.",
+      "more": "{{count}} weitere Blöcke in dieser Nachricht.",
       "loading": "Wird geladen…",
-      "loadMore": "Nächste {{n}} Blöcke laden",
+      "loadMore": "Nächste {{count}} Blöcke laden",
       "toolRequest": "Werkzeuganfrage · {{name}}",
       "inputUnreadable": "Diese Engine hat die vollständige Eingabe nicht zurückgegeben.",
       "inputComplete": "Vollständige aufgezeichnete Eingabe.",
@@ -5252,6 +5329,8 @@
     }
   },
   "liveFleet": {
+    "agents_one": "<strong>{{n}}</strong> registrierter Agent",
+    "runtimes_one": "<strong>{{n}}</strong> Laufzeit",
     "label": "Live-Flotte des Projekts",
     "eyebrow": "PROJEKTAUSFÜHRUNG",
     "title": "Live-Flotte",
@@ -5275,7 +5354,7 @@
     "agentCountOne": "{{status}} · {{n}} Agent",
     "agentCountMany": "{{status}} · {{n}} Agenten",
     "statusPid": "{{status}} · PID {{pid}}",
-    "agentCounters": "{{iterations}} Iterationen · {{tools}} Werkzeugaufrufe",
+    "agentCounters": "{{iterations}} · {{tools}}",
     "noAgents": "Für diese Laufzeit wurden keine Agenten erfasst.",
     "status": {
       "active": "aktiv",
@@ -5357,6 +5436,8 @@
       "unconfirmed": "Die Zustellung bestätigt nicht die Ausführung."
     },
     "activity": {
+      "showing_one": "Der letzte Eintrag wird angezeigt · {{rest}}",
+      "total_one": "{{count, number}} aufgezeichneter Eintrag.",
       "label": "Aktuelle Aktivität der Flottensitzung",
       "title": "Aktuelle Sitzungsaktivität",
       "help": "Schreibgeschützte Journalansicht der gesamten ausgewählten Sitzung, auch wenn ein Agent ausgewählt ist.",
@@ -5364,9 +5445,9 @@
       "refresh": "Sitzungsaktivität aktualisieren",
       "read": "Aktuelle Sitzungsaktivität lesen",
       "invalid": "Die Engine hat unbekannte Sitzungsaktivität zurückgegeben.",
-      "showing": "Die letzten {{n}} Einträge werden angezeigt · {{rest}}",
+      "showing": "Die letzten {{count}} Einträge werden angezeigt · {{rest}}",
       "upperBound": "Die Summe ist eine Obergrenze für dieses gespeicherte Fenster.",
-      "total": "{{n}} aufgezeichnete Einträge.",
+      "total": "{{count, number}} aufgezeichnete Einträge.",
       "role": {
         "user": "Benutzer",
         "assistant": "Assistent",
@@ -5384,6 +5465,7 @@
     }
   },
   "integrations": {
+    "toolCount_one": "{{count}} Werkzeug verfügbar",
     "title": "Verbundene Werkzeuge",
     "intro": "Verbinde MCP-Server, um zu erweitern, was WrongStack lesen und tun kann. Diese Verbindungen gehören zu deinem Profil.",
     "add": "Verbindung hinzufügen",
@@ -5402,7 +5484,7 @@
     "restartLabel": "{{name}} neu starten",
     "restartTitle": "Serververbindung neu starten",
     "endpoint": "MCP-Verbindung",
-    "toolCount": "{{n}} Werkzeuge verfügbar",
+    "toolCount": "{{count}} Werkzeuge verfügbar",
     "tools": "Verfügbare Werkzeuge",
     "hint": {
       "readOnlyHint": "schreibgeschützt",
@@ -5567,6 +5649,9 @@
     "reading": "Brain-Richtlinie wird gelesen…",
     "unavailable": "Die Brain-Konfiguration ist nicht verfügbar. Zum erneuten Versuch aktualisieren.",
     "fact": {
+      "size_one": "<strong>{{n}}</strong> zwischengespeicherte Entscheidung",
+      "misses_one": "<strong>{{n}}</strong> Cache-Fehlschlag",
+      "hits_one": "<strong>{{n}}</strong> Cache-Treffer",
       "hits": "<strong>{{n}}</strong> Cache-Treffer",
       "misses": "<strong>{{n}}</strong> Cache-Fehlschläge",
       "size": "<strong>{{n}}</strong> zwischengespeicherte Entscheidungen",
@@ -6430,6 +6515,7 @@
     "contextTokens": "Kontext {{tokens}} Tokens · Fenster nicht gemeldet"
   },
   "referenceChips": {
+    "pastEnd_one": "Diese Datei hat {{count}} Zeile; der Bereich beginnt nach ihrem Ende.",
     "label": "Angehängte Projektdateien",
     "showQuote": "Zitierten Text aus {{ref}} anzeigen",
     "setRange": "Zeilenbereich für {{ref}} festlegen",
@@ -6449,7 +6535,7 @@
     "preview": "Zeilen in der Vorschau zeigen",
     "invalid": "Verwende ganze Zeilennummern ab 1; die letzte Zeile darf nicht vor der ersten liegen.",
     "noPreview": "Für diese Datei ist keine Textvorschau verfügbar. Der Bereich kann trotzdem angehängt werden.",
-    "pastEnd": "Diese Datei hat {{total}} Zeilen; der Bereich beginnt nach ihrem Ende.",
+    "pastEnd": "Diese Datei hat {{count}} Zeilen; der Bereich beginnt nach ihrem Ende.",
     "previewLabel": "Vorschau der referenzierten Zeilen",
     "showing": "Die ersten {{shown}} von {{range}} referenzierten Zeilen werden angezeigt · die Datei hat {{total}} Zeilen.",
     "cancel": "Abbrechen",
@@ -6598,14 +6684,16 @@
     "acknowledged": "Die Engine hat die Aufgabenanfrage bestätigt."
   },
   "composerQueue": {
+    "attachments_one": "{{count}} Anhang",
+    "referencedFiles_one": "{{count}} referenzierte Datei",
     "one": "1 Prompt in der Warteschlange",
     "many": "{{number}} Prompts in der Warteschlange",
     "note": "Gehört der Engine · läuft nach diesem Zug",
     "pending": "Ausstehende Prompts",
     "clear": "Warteschlange leeren",
     "references": "Verweise auf Projektdateien",
-    "referencedFiles": "{{number}} referenzierte Dateien",
-    "attachments": "{{number}} Anhänge",
+    "referencedFiles": "{{count}} referenzierte Dateien",
+    "attachments": "{{count}} Anhänge",
     "copyTitle": "Text aus der Warteschlange ins Eingabefeld kopieren; das Original bleibt in der Warteschlange",
     "copyTextOnly": "Nur Text kopieren",
     "copyToDraft": "In den Entwurf kopieren",
@@ -6726,10 +6814,11 @@
     "notReported": "Nicht gemeldet"
   },
   "refineCompare": {
+    "words_one": "{{count}} Wort hinzugefügt · {{removed}} entfernt",
     "tooLong": "Diese Texte sind zu lang für einen Wort-für-Wort-Vergleich. Prüfe stattdessen die vollständige Fassung.",
     "label": "Änderungen gegenüber deinem ursprünglichen Entwurf",
     "oneWord": "1 Wort hinzugefügt · {{removed}} entfernt",
-    "words": "{{added}} Wörter hinzugefügt · {{removed}} entfernt",
+    "words": "{{count}} Wörter hinzugefügt · {{removed}} entfernt",
     "none": "Keine Änderungen gegenüber deinem ursprünglichen Entwurf."
   },
   "terminalPane": {
@@ -7025,6 +7114,7 @@
     "noMatch": "Keine Werkzeuge passen zu diesen Filtern."
   },
   "userInstructions": {
+    "counts_one": "{{chars}} Zeichen · {{count}} Zeile",
     "changedElsewhere": "Die Datei wurde anderswo geändert. Dein Entwurf bleibt; beim Speichern wird die Revision geprüft.",
     "changedAgain": "Die Datei wurde vor dem Zurücklesen erneut geändert. Dein Entwurf bleibt; lade die gespeicherten Anweisungen neu, bevor du es erneut versuchst.",
     "saved": "Globale Anweisungen gespeichert und bestätigt. WrongStack liest sie im nächsten Zug.",
@@ -7039,7 +7129,7 @@
     "view": "Ansicht der Anweisungen",
     "edit": "Bearbeiten",
     "preview": "Vorschau",
-    "counts": "{{chars}} Zeichen · {{lines}} Zeilen",
+    "counts": "{{chars}} Zeichen · {{count}} Zeilen",
     "unsaved": "nicht gespeichert",
     "previewLabel": "Vorschau der globalen Anweisungen",
     "empty": "Noch keine globalen Anweisungen.",
@@ -7079,6 +7169,8 @@
     "alwaysOn": "Immer an"
   },
   "configDoctor": {
+    "differ_one": "{{count}} Einstellung weicht von den Standards ab:",
+    "repaired_one": "{{count}} Einstellung repariert. Sicherung:",
     "title": "Konfigurationsprüfung",
     "intro": "Vergleicht die aktive Profilkonfiguration mit den aktuellen Standards. Fehlende Einstellungen werden ergänzt, Einstellungen mit falschem Typ ersetzt; Anbieter und Modell werden nie für dich gewählt.",
     "checking": "Wird geprüft…",
@@ -7089,9 +7181,9 @@
     "profileConfig": "die Profilkonfiguration",
     "repairBackup": "Reparieren und Sicherung behalten",
     "keep": "Aktuelle behalten",
-    "repaired": "{{number}} Einstellungen repariert. Sicherung:",
+    "repaired": "{{count}} Einstellungen repariert. Sicherung:",
     "notReported": "nicht gemeldet",
-    "differ": "{{number}} Einstellungen weichen von den Standards ab:",
+    "differ": "{{count}} Einstellungen weichen von den Standards ab:",
     "matches": "Die Konfiguration entspricht den aktuellen Standards.",
     "added": "ergänzt",
     "replaced": "ersetzt"
@@ -7163,9 +7255,10 @@
     }
   },
   "bgServices": {
+    "restarted_one": "{{done}} von {{count}} Dienst neu gestartet.",
     "title": "Hintergrunddienste",
     "actionDone": "{{label}}: {{action}} erledigt.",
-    "restarted": "{{done}} von {{total}} Diensten neu gestartet.",
+    "restarted": "{{done}} von {{count}} Diensten neu gestartet.",
     "overall": "Gesamt: {{status}}",
     "checked": "geprüft {{time}}",
     "restartNote": "Ein gestoppter Dienst startet beim nächsten Bedarf wieder.",
@@ -7381,6 +7474,8 @@
     "activity": "Letzte Aktivität in dieser Engine"
   },
   "modelVisibility": {
+    "providerRules_one": "{{count}} gespeicherte Regel für deaktivierte Anbieter",
+    "modelRules_one": "{{count}} gespeicherte Regel für deaktivierte Modelle",
     "otherProvider": "Die Engine hat einen anderen Anbieterkatalog geliefert.",
     "label": "Einstellungen zur Modellsichtbarkeit",
     "savedProvider": "Gespeicherter Anbieter",
@@ -7409,11 +7504,11 @@
     "enableModel": "Modell aktivieren",
     "disableModel": "Modell deaktivieren",
     "noMatch": "Keine Katalogmodelle passen. Die gespeicherten Regeln unten bleiben bearbeitbar.",
-    "modelRules": "{{number}} gespeicherte Regeln für deaktivierte Modelle",
+    "modelRules": "{{count}} gespeicherte Regeln für deaktivierte Modelle",
     "modelRulesNote": "Reine Modell-IDs gelten anbieterübergreifend. Qualifizierte Verweise gelten für ihren benannten Anbieter. Regeln können einen Katalogeintrag überdauern.",
     "removeRuleLabel": "Regel {{ref}} entfernen",
     "removeRule": "Regel entfernen",
-    "providerRules": "{{number}} gespeicherte Regeln für deaktivierte Anbieter",
+    "providerRules": "{{count}} gespeicherte Regeln für deaktivierte Anbieter",
     "providerRulesNote": "Anbieterregeln gelten auch für künftige Modelle. Entferne eine Regel hier, auch wenn die gespeicherte Verbindung nicht mehr existiert.",
     "removeProviderRuleLabel": "Anbieterregel {{id}} entfernen",
     "removeProviderRule": "Anbieterregel entfernen",
@@ -7432,6 +7527,7 @@
     "apply": "Auf den Einstellungsentwurf anwenden"
   },
   "modelPolicy": {
+    "chainCount_one": "{{count}} Modell · der Reihe nach versucht",
     "field": {
       "model": "Modell",
       "fallback": "Fallback-Profil",
@@ -7441,7 +7537,7 @@
     },
     "catalogError": "Einige Modellkataloge konnten nicht geladen werden. Gespeicherte Modellverweise bleiben bearbeitbar.",
     "refPlaceholder": "Anbieter/Modell · oder erben",
-    "chainCount": "{{number}} Modelle · der Reihe nach versucht",
+    "chainCount": "{{count}} Modelle · der Reihe nach versucht",
     "chainModel": "{{label}} Modell {{number}}",
     "moveUp": "{{label}} Modell {{number}} nach oben",
     "moveDown": "{{label}} Modell {{number}} nach unten",
@@ -7521,7 +7617,7 @@
     "counts": "{{blocked}} blockiert · {{degraded}} eingeschränkt · {{healthy}} gesund",
     "noEntries": "Bisher wurden keine Modellzustände erfasst.",
     "noError": "Kein aufgezeichneter Fehler",
-    "failures": "{{failures}} Fehlschläge · {{consecutive}} in Folge · {{rateLimits}} Ratenlimits · {{successes}} Erfolge",
+    "failures": "{{failures}} · {{consecutive}} in Folge · {{rateLimits}} · {{successes}}",
     "lastFailure": "Letzter Fehlschlag: {{failure}} · Erholung: {{recovery}}",
     "release": "Für die nächste Probe freigeben",
     "clear": "Erfassten Status löschen",
@@ -7536,6 +7632,7 @@
     "released": "Für die nächste Probe freigegeben"
   },
   "providerTests": {
+    "testing_one": "Test läuft: {{done}} von {{count}} Modell",
     "noAck": "Die Engine hat diese Testanfrage nicht bestätigt. Prüfe den Anbieterstatus, bevor du es erneut versuchst.",
     "invalid": "Wähle einen gespeicherten Anbieter und 1 bis 200 Modell-IDs.",
     "title": "Modellzugriffstests",
@@ -7557,7 +7654,7 @@
     "finishedShort": "beendet",
     "runningShort": "läuft",
     "finished": "Beendet: {{passed}} bestanden, {{failed}} fehlgeschlagen, {{cancelled}} abgebrochen",
-    "testing": "Test läuft: {{done}} von {{total}} Modellen",
+    "testing": "Test läuft: {{done}} von {{count}} Modellen",
     "model": "Modell",
     "status": "Status",
     "latency": "Latenz",
@@ -7751,11 +7848,14 @@
     "evidence": "Beobachtete Belege"
   },
   "techTrends": {
+    "halfLife_one": "Median der Behebung von Schwachstellen: {{count}} Tag.",
+    "days_one": "{{count}} Tag",
+    "snapshots_one": "{{count}} aufgezeichneter Snapshot",
     "reading": "Abhängigkeitsverlauf wird gelesen…",
     "label": "Trends der Abhängigkeiten",
     "title": "Zustand im Zeitverlauf",
-    "snapshots": "{{number}} aufgezeichnete Snapshots",
-    "halfLife": "Median der Behebung von Schwachstellen: {{days}} Tage.",
+    "snapshots": "{{count}} aufgezeichnete Snapshots",
+    "halfLife": "Median der Behebung von Schwachstellen: {{count}} Tage.",
     "chart": "Veraltete und verwundbare Abhängigkeiten je Snapshot",
     "bar": "{{at}}: {{outdated}} veraltet, {{vulnerable}} verwundbar",
     "legend": "Akzent: veraltet · rot: verwundbar. Die Snapshot-Nummern laufen vom ältesten zum neuesten.",
@@ -7773,9 +7873,11 @@
     "none": "Noch keine Snapshots aufgezeichnet.",
     "movement": "Versionsbewegung",
     "notReported": "Nicht gemeldet",
-    "days": "{{days}} Tage"
+    "days": "{{count}} Tage"
   },
   "techRemedy": {
+    "review_one": "{{count}} ausgewählten Vorgang prüfen",
+    "confirmTitle_one": "{{count}} ausgewählten Vorgang ausführen?",
     "planChanged": "Der Plan hat sich geändert. Prüfe die aktuellen Ziele und wähle die Einträge erneut.",
     "label": "Behebung von Abhängigkeiten",
     "title": "Die nächsten Änderungen prüfen",
@@ -7789,16 +7891,17 @@
     "noTarget": "Kein explizites Versionsziel",
     "command": "Informativer Befehl",
     "noActions": "Keine Behebungsschritte in diesem Snapshot.",
-    "confirmTitle": "{{number}} ausgewählte Vorgänge ausführen?",
+    "confirmTitle": "{{count}} ausgewählte Vorgänge ausführen?",
     "confirmBody": "Diese Vorgänge können Manifeste und Lockfiles des Projekts ändern. Prüfe die gewählten Versionen oben.",
     "keepReviewing": "Plan weiter prüfen",
     "waiting": "Warten auf die Engine…",
     "execute": "Ausgewählte Vorgänge ausführen",
-    "review": "{{number}} ausgewählte Vorgänge prüfen",
+    "review": "{{count}} ausgewählte Vorgänge prüfen",
     "preview": "Planvorschau",
     "results": "Ausführungsergebnisse"
   },
   "projectKit": {
+    "counts_one": "{{count}} Kit · {{invalid}} ungültig",
     "changedOnDisk": "Das Kit hat sich auf der Festplatte geändert. Wähle es erneut, um die neue Revision und die Parameter zu prüfen.",
     "needsVerify": "Diese Revision muss vor dem Ausführen verifiziert werden. Bereite zuerst eine Verifizierungsanfrage vor.",
     "label": "Project-Kit-Bereich",
@@ -7807,7 +7910,7 @@
     "create": "Kit erstellen",
     "search": "Projekt-Kits durchsuchen",
     "searchPlaceholder": "Fähigkeit finden…",
-    "counts": "{{kits}} Kits · {{invalid}} ungültig",
+    "counts": "{{count}} Kits · {{invalid}} ungültig",
     "reading": "Projekt-Kits werden gelesen…",
     "noMatch": "Keine passenden Kits",
     "home": "Ein Zuhause für wiederverwendbare Projektarbeit",
@@ -8415,6 +8518,7 @@
     "add": "Metrik hinzufügen"
   },
   "kanbanBoard": {
+    "createWith_one": "Board mit {{count}} Aufgabe erstellen",
     "noGraph": "Die Engine hat keinen Aufgabengraphen geliefert.",
     "tools": "Board-Werkzeuge",
     "contractMap": "Verträge bearbeiten…",
@@ -8442,7 +8546,7 @@
     "taskMany": "{{number}} Aufgaben",
     "more": "…und {{number}} weitere.",
     "cancel": "Abbrechen",
-    "createWith": "Board mit {{number}} Aufgaben erstellen",
+    "createWith": "Board mit {{count}} Aufgaben erstellen",
     "create": "Board erstellen"
   },
   "contractMap": {
@@ -8523,11 +8627,12 @@
     }
   },
   "worktrees": {
+    "confirmCleanup_one": "Den übrig gebliebenen Worktree und seinen Branch entfernen? Nicht committete Arbeit darin geht verloren.",
     "viewChanges": "Änderungen ansehen",
     "changesIn": "Änderungen in {{dir}}",
-    "diff": "{{commits}} Commits voraus · +{{insertions}} −{{deletions}} nicht committet in {{files}} Dateien",
+    "diff": "{{commits}} voraus · +{{insertions}} −{{deletions}} nicht committet in {{files}}",
     "noSummary": "Für diesen Checkout ist keine Änderungsübersicht verfügbar.",
-    "confirmCleanup": "Alle {{number}} übrig gebliebenen Worktrees und Branches entfernen? Nicht committete Arbeit darin geht verloren.",
+    "confirmCleanup": "Alle {{count}} übrig gebliebenen Worktrees und Branches entfernen? Nicht committete Arbeit darin geht verloren.",
     "confirmRemove": "{{name}} entfernen? Nicht committete Arbeit darin geht verloren.",
     "confirmMerge": "{{branch}} im Projekt-Checkout in seinen Basis-Branch mergen? Konflikte stoppen den Merge und werden aufgelistet.",
     "label": "Projekt-Worktrees",
@@ -8538,7 +8643,7 @@
     "waiting": "Warten auf die Engine…",
     "inUse": "Von Läufen genutzt",
     "noLive": "Kein Lauf in dieser Engine nutzt einen Worktree.",
-    "liveLine": "{{owner}} · {{status}} · Basis {{base}} · +{{insertions}} −{{deletions}} in {{files}} Dateien",
+    "liveLine": "{{owner}} · {{status}} · Basis {{base}} · +{{insertions}} −{{deletions}} in {{files}}",
     "unknownBase": "unbekannt",
     "conflicts": "Konflikte: {{files}}",
     "history": "Verlauf",
@@ -8592,13 +8697,14 @@
     }
   },
   "worktreeHistory": {
+    "files_one": "{{count}} Datei",
     "empty": "Noch keine Worktree-Aktivität. Goal-Phasen, SDD-Aufgaben und Fleet-Subagenten, die in isolierten Git-Worktrees laufen, erscheinen hier.",
     "label": "Worktree-Zeitachse",
     "avgWait": "Ø Merge-Wartezeit {{duration}}",
     "chart": "Worktree-Zeitachse auf {{base}}",
     "lifecycle": "Worktree-Lebenszyklus",
     "close": "Details schließen",
-    "files": "{{number}} Dateien",
+    "files": "{{count}} Dateien",
     "onDisk": "Checkout noch auf der Festplatte",
     "removed": "Checkout entfernt",
     "failed": "Fehlgeschlagen",
@@ -8646,6 +8752,7 @@
     "impactHint": "Abhängige und Abhängigkeiten verfolgen"
   },
   "atlasViews": {
+    "hops_one": "{{count}} Schritt",
     "subsystemsLabel": "Atlas-Subsysteme",
     "subsystemsTitle": "Subsystemgrenzen",
     "subsystemsIntro": "Vergleiche Code-Zuständigkeit, inneren Zusammenhalt und Referenzen über jede Grenze.",
@@ -8686,7 +8793,7 @@
     "outgoing": "Abhängigkeiten · was dies nutzt",
     "depth": "Tiefe",
     "depthLabel": "Tiefe der Auswirkung",
-    "hops": "{{number}} Schritte",
+    "hops": "{{count}} Schritte",
     "dependents": "erreichbare Abhängige",
     "dependencies": "erreichbare Abhängigkeiten",
     "static": "Statische Erreichbarkeit über Referenzen; das Laufzeitverhalten kann abweichen.",

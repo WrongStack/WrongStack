@@ -86,10 +86,10 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
       <section className="worktree-diff" aria-label={t('worktrees.changesIn', { dir })}>
         <p>
           {t('worktrees.diff', {
-            commits: diff.summary.commits,
+            commits: t('counts.commits', { count: diff.summary.commits }),
             insertions: diff.summary.insertions,
             deletions: diff.summary.deletions,
-            files: diff.summary.files.length,
+            files: t('counts.files', { count: diff.summary.files.length }),
           })}
         </p>
         <ul>
@@ -105,7 +105,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
     ));
   const confirmText = (pending: Pending) =>
     pending.kind === 'cleanup'
-      ? t('worktrees.confirmCleanup', { number: leftovers.orphans.length })
+      ? t('worktrees.confirmCleanup', { count: leftovers.orphans.length })
       : pending.kind === 'remove'
         ? t('worktrees.confirmRemove', { name: pending.orphan.branch || pending.orphan.dir })
         : t('worktrees.confirmMerge', { branch: pending.branch });
@@ -180,7 +180,7 @@ export function ProjectWorktrees({ state, send }: { state: EngineState; send: En
                     base: worktree.baseBranch || live.baseBranch || t('worktrees.unknownBase'),
                     insertions: worktree.insertions,
                     deletions: worktree.deletions,
-                    files: worktree.files,
+                    files: t('counts.files', { count: worktree.files }),
                   })}
                 </span>
                 {worktree.conflictFiles.length > 0 && (

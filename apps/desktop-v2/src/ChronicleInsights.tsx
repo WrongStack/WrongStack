@@ -9,6 +9,13 @@ type View = 'providers' | 'tasks' | 'files';
 const views: View[] = ['providers', 'tasks', 'files'];
 const number = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
+/** A counted noun ("1 retry", "3 retries"), or the missing mark when the row lacks the number. */
+const counted = (
+  t: (key: string, options: { count: number }) => string,
+  key: string,
+  value: unknown,
+) =>
+  typeof value === 'number' && Number.isFinite(value) ? t(`counts.${key}`, { count: value }) : '—';
 
 /** Project-wide derived metrics, independent of the timeline query and any selected session. */
 /** A field the record lacks; dropped from the owners line rather than shown as a placeholder. */
@@ -136,11 +143,11 @@ export function ChronicleInsights({
                     </header>
                     <p>
                       {t('chronicleView.insights.attempts', {
-                        attempts: number(row['attempts']),
+                        attempts: counted(t, 'attempts', row['attempts']),
                         completed: number(row['completed']),
                         failed: number(row['failed']),
-                        retries: number(row['retries']),
-                        fallbacks: number(row['fallbacks']),
+                        retries: counted(t, 'retries', row['retries']),
+                        fallbacks: counted(t, 'fallbacks', row['fallbacks']),
                       })}
                     </p>
                     <small>
@@ -170,9 +177,13 @@ export function ChronicleInsights({
                     <small>
                       {t('chronicleView.insights.taskRun', {
                         run: label(row['runId']),
-                        retries: number(row['retries']),
-                        verification: number(row['verificationFailures']),
-                        files: number(row['filesTouched']),
+                        retries: counted(t, 'retries', row['retries']),
+                        verification: counted(
+                          t,
+                          'verificationFailures',
+                          row['verificationFailures'],
+                        ),
+                        files: counted(t, 'files', row['filesTouched']),
                         ms: number(row['durationMs']),
                       })}
                     </small>

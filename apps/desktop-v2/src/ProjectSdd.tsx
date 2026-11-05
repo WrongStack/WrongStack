@@ -509,9 +509,9 @@ export function ProjectSdd({
                     <strong>{text(item['title'], t('sddView.untitledSpec'))}</strong>
                     <small>
                       {t('sddView.progress', {
+                        count: num(item['total']),
                         status: named(item['status']),
                         completed: num(item['completed']),
-                        total: num(item['total']),
                       })}
                     </small>
                   </span>
@@ -627,9 +627,9 @@ export function ProjectSdd({
                   <strong>{text(item['title'], t('sddView.sddRun'))}</strong>
                   <small>
                     {t('sddView.progress', {
+                      count: num(item['total']),
                       status: named(item['status']),
                       completed: num(item['completed']),
-                      total: num(item['total']),
                     })}
                   </small>
                   <small>

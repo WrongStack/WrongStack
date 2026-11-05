@@ -171,7 +171,12 @@ export function ProjectKit({
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
-          <small>{t('projectKit.counts', { kits: rows.length, invalid: invalid.length })}</small>
+          <small>
+            {t('projectKit.counts', {
+              count: rows.length,
+              invalid: invalid.length,
+            })}
+          </small>
           {loading ? (
             <p role="status">{t('projectKit.reading')}</p>
           ) : visible.length ? (

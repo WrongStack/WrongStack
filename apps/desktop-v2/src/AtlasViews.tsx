@@ -347,7 +347,7 @@ export function AtlasImpactView({ graph, selected, onSelect, onOpen }: Props) {
           >
             {[1, 2, 3, 5].map((d) => (
               <option key={d} value={d}>
-                {t('atlasViews.hops', { number: d })}
+                {t('atlasViews.hops', { count: d })}
               </option>
             ))}
           </select>

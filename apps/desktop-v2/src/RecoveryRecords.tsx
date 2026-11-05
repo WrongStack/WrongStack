@@ -76,7 +76,9 @@ export function RecoveryRecords({
               </button>
             ))}
             {item.fileCount > item.files.length && (
-              <small>{t('recovery.records.more', { n: item.fileCount - item.files.length })}</small>
+              <small>
+                {t('recovery.records.more', { count: item.fileCount - item.files.length })}
+              </small>
             )}
           </li>
         ))}

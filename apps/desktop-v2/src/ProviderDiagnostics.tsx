@@ -179,8 +179,8 @@ export function ProviderDiagnostics({ state, send }: { state: EngineState; send:
                   cancelled: run.complete['cancelled'] ?? 0,
                 })
               : t('providerTests.testing', {
+                  count: run.total,
                   done: Object.keys(run.results).length,
-                  total: run.total,
                 })}
           </p>
           {run.complete?.['error'] && (

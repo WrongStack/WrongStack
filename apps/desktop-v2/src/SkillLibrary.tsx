@@ -292,7 +292,7 @@ export function SkillLibrary({
         throw new Error(t('skillLib.noArchive'));
       const bytes = Uint8Array.from(atob(result['zipBase64']), (c) => c.charCodeAt(0));
       downloadSkillFile(bytes, 'wrongstack-skills.zip', 'application/zip');
-      setNotice(t('skillLib.exported', { n: String(result['skillCount'] ?? 0) }));
+      setNotice(t('skillLib.exported', { count: Number(result['skillCount'] ?? 0) }));
     });
   const link = (url: string) => {
     const target = markdownTarget(url);

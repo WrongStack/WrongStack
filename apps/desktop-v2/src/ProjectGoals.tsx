@@ -62,7 +62,7 @@ export function ProjectGoals({
     return raw === '—' ? raw : t(`goals.status.${raw}`, { defaultValue: statusText(raw) });
   };
   const budgetWords: GoalBudgetWords = {
-    tasks: (used, max) => t('goals.budget.tasks', { used, max }),
+    tasks: (used, max) => t('goals.budget.tasks', { count: used, max }),
     minutes: (used, max) => t('goals.budget.minutes', { used, max }),
     tokens: (used, max) => t('goals.budget.tokens', { used, max }),
     cost: (used, max, unpriced) =>
@@ -710,7 +710,7 @@ export function ProjectGoals({
                   <header>
                     <Flag size={15} />
                     <strong>{t('goals.phasesAndTasks')}</strong>
-                    <span>{t('goals.phaseCount', { n: phases.length })}</span>
+                    <span>{t('goals.phaseCount', { count: phases.length })}</span>
                   </header>
                   {phases.map((phase) => (
                     <article key={String(phase['id'])} className="goal-phase">
@@ -1004,7 +1004,7 @@ export function ProjectGoals({
           <div className="goal-catalog-header">
             <div>
               <h2>{t('goals.executionGoals')}</h2>
-              <p>{t('goals.recordedRuns', { n: goals.length })}</p>
+              <p>{t('goals.recordedRuns', { count: goals.length })}</p>
             </div>
             <label>
               <span className="sr-only">{t('goals.search')}</span>

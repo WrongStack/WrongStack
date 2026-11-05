@@ -193,7 +193,7 @@ export function ProjectHistorySearch({
       )}
       {!!errors.length && (
         <details>
-          <summary>{t('historyView.contentSearch.unreadable', { n: errors.length })}</summary>
+          <summary>{t('historyView.contentSearch.unreadable', { count: errors.length })}</summary>
           {errors.map((item) => (
             <p className="field-help" key={String(item['id'])}>
               {String(item['id'])}: {String(item['message'])}
@@ -208,7 +208,7 @@ export function ProjectHistorySearch({
               <strong>{String(result['title'])}</strong>
               <span>
                 {t('historyView.contentSearch.matching', {
-                  n: String(result['matching']),
+                  count: Number(result['matching']),
                   provider: String(result['provider']),
                   model: String(result['model']),
                 })}

@@ -58,7 +58,7 @@ describe('Jev and model visibility settings in the display language', () => {
       'Tool-call risk',
       'Check judgments',
       '1 matching models · 0 individually disabled for this provider',
-      '1 saved disabled-model rules',
+      '1 saved disabled-model rule',
       'Add favorite',
     ])
       expect(english).toContain(text);

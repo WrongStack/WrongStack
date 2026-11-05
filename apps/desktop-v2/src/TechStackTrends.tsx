@@ -35,7 +35,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
     <section className="tech-trends" aria-label={t('techTrends.label')}>
       <h2>{t('techTrends.title')}</h2>
       <p>
-        {t('techTrends.snapshots', { number: String(trend['snapshots'] ?? 0) })}
+        {t('techTrends.snapshots', { count: Number(trend['snapshots'] ?? 0) })}
         {trend['from']
           ? ` · ${dateTimeText(trend['from'], i18n.language)} → ${dateTimeText(trend['to'], i18n.language)}`
           : ''}
@@ -43,7 +43,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
       {typeof trend['vulnerabilityHalfLifeMs'] === 'number' && (
         <p>
           {t('techTrends.halfLife', {
-            days: (trend['vulnerabilityHalfLifeMs'] / 86400000).toFixed(1),
+            count: Number((trend['vulnerabilityHalfLifeMs'] / 86400000).toFixed(1)),
           })}
         </p>
       )}
@@ -122,7 +122,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
                 <td>{String(item['currentVersion'] ?? t('techTrends.notReported'))}</td>
                 <td>
                   {t('techTrends.days', {
-                    days: (Number(item['lockedVersionAgeMs']) / 86400000).toFixed(1),
+                    count: Number((Number(item['lockedVersionAgeMs']) / 86400000).toFixed(1)),
                   })}
                 </td>
                 <td>{String(item['versionChanges'])}</td>

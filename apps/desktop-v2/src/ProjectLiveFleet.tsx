@@ -137,6 +137,7 @@ export function ProjectLiveFleet({
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+  const agentCount = sessions.reduce((sum, session) => sum + session.agents.length, 0);
   const selectedSession = sessions.find((session) => session.sessionId === selection?.sessionId),
     selectedAgent = selectedSession?.agents.find((agent) => agent.id === selection?.agentId);
   const draftOwner = reviewTarget.current?.sessionId ?? selection?.sessionId ?? '';
@@ -300,6 +301,7 @@ export function ProjectLiveFleet({
             i18n={surfaceI18n}
             ns="desktop"
             i18nKey="liveFleet.runtimes"
+            count={sessions.length}
             values={{ n: sessions.length }}
             components={{ strong: <strong /> }}
           />
@@ -309,7 +311,8 @@ export function ProjectLiveFleet({
             i18n={surfaceI18n}
             ns="desktop"
             i18nKey="liveFleet.agents"
-            values={{ n: sessions.reduce((sum, session) => sum + session.agents.length, 0) }}
+            count={agentCount}
+            values={{ n: agentCount }}
             components={{ strong: <strong /> }}
           />
         </span>
@@ -437,8 +440,8 @@ export function ProjectLiveFleet({
                       </span>
                       <small>
                         {t('liveFleet.agentCounters', {
-                          iterations: agent.iterations,
-                          tools: agent.toolCalls,
+                          iterations: t('counts.iterations', { count: agent.iterations }),
+                          tools: t('counts.toolCalls', { count: agent.toolCalls }),
                         })}
                       </small>
                     </button>

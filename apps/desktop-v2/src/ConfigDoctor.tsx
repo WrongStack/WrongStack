@@ -118,11 +118,11 @@ export function ConfigDoctor({
         <div role="status">
           {report.applied ? (
             <p>
-              {t('configDoctor.repaired', { number: report.changes.length })}{' '}
+              {t('configDoctor.repaired', { count: report.changes.length })}{' '}
               <code>{report.backupPath || t('configDoctor.notReported')}</code>
             </p>
           ) : report.changed ? (
-            <p>{t('configDoctor.differ', { number: report.changes.length })}</p>
+            <p>{t('configDoctor.differ', { count: report.changes.length })}</p>
           ) : (
             <p>{t('configDoctor.matches')}</p>
           )}

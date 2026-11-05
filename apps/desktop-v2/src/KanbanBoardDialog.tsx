@@ -152,7 +152,7 @@ export function BoardDialog({
           >
             <Plus size={14} />
             {mode === 'list'
-              ? t('kanbanBoard.createWith', { number: tasks.length })
+              ? t('kanbanBoard.createWith', { count: tasks.length })
               : t('kanbanBoard.create')}
           </button>
         </footer>

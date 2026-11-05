@@ -726,11 +726,11 @@ export function ProjectDesignStudio({
                 <>
                   <p>
                     {t('designStudio.sourceLine', {
+                      count: Number(verification['filesScanned'] ?? 0),
                       source:
                         verification['source'] === 'captured'
                           ? t('designStudio.sourceCaptured')
                           : t('designStudio.sourceKit', { kit: verification['kit'] ?? '' }),
-                      files: String(verification['filesScanned'] ?? 0),
                       score:
                         typeof verification['score'] === 'number'
                           ? t('designStudio.adherence', {
@@ -741,7 +741,7 @@ export function ProjectDesignStudio({
                   </p>
                   <p>
                     {t('designStudio.findings', {
-                      total: String(
+                      count: Number(
                         verification['violationCount'] ??
                           entries(verification['violations']).length,
                       ),
@@ -749,7 +749,7 @@ export function ProjectDesignStudio({
                     })}
                   </p>
                   {typeof verification['filesWithNoSignal'] === 'number' && (
-                    <p>{t('designStudio.noSignal', { n: verification['filesWithNoSignal'] })}</p>
+                    <p>{t('designStudio.noSignal', { count: verification['filesWithNoSignal'] })}</p>
                   )}
                   {Array.isArray(verification['capturedFrom']) && (
                     <p>

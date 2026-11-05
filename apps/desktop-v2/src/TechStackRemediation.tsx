@@ -148,7 +148,7 @@ export function TechStackRemediation({
           )}
           {review ? (
             <div className="tech-plan-confirm">
-              <h3>{t('techRemedy.confirmTitle', { number: selected.length })}</h3>
+              <h3>{t('techRemedy.confirmTitle', { count: selected.length })}</h3>
               <p>{t('techRemedy.confirmBody')}</p>
               <button
                 type="button"
@@ -174,7 +174,7 @@ export function TechStackRemediation({
               disabled={busy || !selected.length}
               onClick={() => setReview(true)}
             >
-              {t('techRemedy.review', { number: selected.length })}
+              {t('techRemedy.review', { count: selected.length })}
             </button>
           )}
         </>

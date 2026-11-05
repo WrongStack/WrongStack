@@ -1,4 +1,42 @@
 {
+  "counts": {
+    "files_one": "{{count, number}} file",
+    "files": "{{count, number}} file",
+    "findings_one": "{{count, number}} risultato",
+    "findings": "{{count, number}} risultati",
+    "testFiles_one": "{{count, number}} file di test",
+    "testFiles": "{{count, number}} file di test",
+    "seconds_one": "{{count, number}} secondo",
+    "seconds": "{{count, number}} secondi",
+    "events_one": "{{count, number}} evento",
+    "events": "{{count, number}} eventi",
+    "relationships_one": "{{count, number}} relazione",
+    "relationships": "{{count, number}} relazioni",
+    "attempts_one": "{{count, number}} tentativo",
+    "attempts": "{{count, number}} tentativi",
+    "retries_one": "{{count, number}} ripetizione",
+    "retries": "{{count, number}} ripetizioni",
+    "fallbacks_one": "{{count, number}} fallback",
+    "fallbacks": "{{count, number}} fallback",
+    "verificationFailures_one": "{{count, number}} verifica non riuscita",
+    "verificationFailures": "{{count, number}} verifiche non riuscite",
+    "iterations_one": "{{count, number}} iterazione",
+    "iterations": "{{count, number}} iterazioni",
+    "toolCalls_one": "{{count, number}} chiamata a strumento",
+    "toolCalls": "{{count, number}} chiamate agli strumenti",
+    "failures_one": "{{count, number}} errore",
+    "failures": "{{count, number}} errori",
+    "rateLimits_one": "{{count, number}} limite di frequenza",
+    "rateLimits": "{{count, number}} limiti di frequenza",
+    "successes_one": "{{count, number}} successo",
+    "successes": "{{count, number}} successi",
+    "models_one": "{{count, number}} modello",
+    "models": "{{count, number}} modelli",
+    "savedDefinitions_one": "{{count, number}} definizione salvata",
+    "savedDefinitions": "{{count, number}} definizioni salvate",
+    "commits_one": "{{count, number}} commit",
+    "commits": "{{count, number}} commit"
+  },
   "pages": {
     "files": "File",
     "changes": "Modifiche",
@@ -2312,6 +2350,9 @@
     "save": "Salva risorsa"
   },
   "automation": {
+    "otherWindow_one": "Un'altra finestra ha salvato bozze di automazione non salvate diverse per questo progetto ({{count}} bozza di job).",
+    "deletedRuns_one": "{{name}} e {{count}} record di esecuzione eliminati.",
+    "everyMinutes_one": "Ogni minuto",
     "runStatus": {
       "queued": "in coda",
       "running": "in esecuzione",
@@ -2332,7 +2373,7 @@
     "imported": "Importata come automazione disattivata per la revisione locale.",
     "queuedNotice": "Il motore ha messo in coda questa esecuzione.",
     "deleted": "{{name}} eliminata.",
-    "deletedRuns": "{{name}} e {{runs}} record di esecuzione eliminati.",
+    "deletedRuns": "{{name}} e {{count}} record di esecuzione eliminati.",
     "workerOnline": "Worker online",
     "workerOffline": "Worker offline · i job restano modificabili",
     "refresh": "Aggiorna",
@@ -2347,7 +2388,7 @@
     "jobsLabel": "Job di automazione",
     "enabled": "Attiva",
     "disabled": "Disattivata",
-    "everyMinutes": "Ogni {{minutes}} minuti",
+    "everyMinutes": "Ogni {{count}} minuti",
     "manualOnly": "Solo manuale",
     "noJobs": "Nessuna automazione in questo progetto.",
     "recentRuns": "Esecuzioni recenti",
@@ -2415,12 +2456,17 @@
     "reloadHelp": "Questo scarta il modulo non salvato del job corrente. Le altre bozze di job restano in questa finestra.",
     "keepEditing": "Continua a modificare l'automazione",
     "discardReloadConfirm": "Scarta e ricarica l'automazione",
-    "otherWindow": "Un'altra finestra ha salvato bozze di automazione non salvate diverse per questo progetto ({{drafts}} bozze di job).",
+    "otherWindow": "Un'altra finestra ha salvato bozze di automazione non salvate diverse per questo progetto ({{count}} bozze di job).",
     "keepWindow": "Mantieni le bozze di questa finestra",
     "useSaved": "Usa le bozze salvate",
     "retryDrafts": "Riprova a caricare le bozze salvate"
   },
   "autoConfig": {
+    "deadline_one": "Scadenza della configurazione: {{count}} secondo. Il worker prepara questo ambiente per l'area di lavoro copiata.",
+    "ports_one": "{{count}} porta di anteprima",
+    "caches_one": "{{count}} cache",
+    "services_one": "{{count}} servizio",
+    "setupSteps_one": "{{count}} passaggio di configurazione",
     "templatesTitle": "Inizia con un workflow",
     "templatesHelp": "Un punto di partenza per il nome e le istruzioni del job. Le scelte di runtime restano nella tua bozza.",
     "useTemplate": "Usa il modello di automazione",
@@ -2432,11 +2478,11 @@
     "environment": "Ambiente riutilizzabile",
     "editEnvironment": "Modifica l'ambiente",
     "configureEnvironment": "Configura l'ambiente",
-    "setupSteps": "{{n}} passaggi di configurazione",
-    "services": "{{n}} servizi",
-    "caches": "{{n}} cache",
-    "ports": "{{n}} porte di anteprima",
-    "deadline": "Scadenza della configurazione: {{seconds}} secondi. Il worker prepara questo ambiente per l'area di lavoro copiata.",
+    "setupSteps": "{{count}} passaggi di configurazione",
+    "services": "{{count}} servizi",
+    "caches": "{{count}} cache",
+    "ports": "{{count}} porte di anteprima",
+    "deadline": "Scadenza della configurazione: {{count}} secondi. Il worker prepara questo ambiente per l'area di lavoro copiata.",
     "health": "salute:",
     "removeEnvironment": "Rimuovi l'ambiente dalla bozza",
     "noEnvironment": "Aggiungi passaggi di configurazione, container di servizi, cache dei pacchetti e porte di anteprima locali. Nessun ambiente è collegato.",
@@ -2716,6 +2762,8 @@
     "apply": "Applica l'ambiente alla bozza"
   },
   "goals": {
+    "recordedRuns_one": "{{count}} esecuzione di obiettivo registrata",
+    "phaseCount_one": "{{count}} fase",
     "status": {
       "planning": "In pianificazione",
       "running": "In esecuzione",
@@ -2753,7 +2801,8 @@
     "refused": "Il motore ha rifiutato questa richiesta.",
     "submitted": "Obiettivo inviato. In attesa che il motore pianifichi.",
     "budget": {
-      "tasks": "{{used}} di {{max}} attività",
+      "tasks_one": "{{used}} di {{count}} attività",
+      "tasks": "{{used}} di {{count}} attività",
       "minutes": "{{used}} di {{max}} min",
       "tokens": "{{used}} di {{max}} token",
       "cost": "~${{used}} di ${{max}} stimati",
@@ -2829,7 +2878,7 @@
     "skipped": "Saltata",
     "finalVerification": "Verifica finale",
     "phasesAndTasks": "Fasi e attività",
-    "phaseCount": "{{n}} fasi",
+    "phaseCount": "{{count}} fasi",
     "phase": "Fase",
     "phaseLower": "fase",
     "taskCount": "{{done}} / {{total}} attività",
@@ -2864,7 +2913,7 @@
     "inspectTitle": "Esamina il lavoro",
     "inspectHelp": "Seleziona un'attività per vederne stato, assegnazione e dettagli registrati.",
     "executionGoals": "Obiettivi di esecuzione",
-    "recordedRuns": "{{n}} esecuzioni di obiettivi registrate",
+    "recordedRuns": "{{count}} esecuzioni di obiettivi registrate",
     "search": "Cerca obiettivi",
     "searchPlaceholder": "Cerca obiettivi…",
     "reading": "Lettura del catalogo degli obiettivi del progetto…",
@@ -3030,7 +3079,7 @@
     "loading": "Caricamento dei metadati dei modelli…",
     "search": "Cerca modelli",
     "searchLabel": "Cerca i modelli del provider",
-    "counts": "{{models}} modelli · {{definitions}} definizioni salvate",
+    "counts": "{{models}} · {{definitions}}",
     "savedDefinition": "Definizione salvata",
     "providerCatalog": "Catalogo del provider",
     "noModels": "Nessun modello segnalato. Puoi aggiungere una definizione usando l'ID del modello servito da questo endpoint.",
@@ -3314,6 +3363,10 @@
     "discard": "Scarta la bozza"
   },
   "reviews": {
+    "matching_one": "{{count}} report corrispondente negli ultimi {{limit}} record. Le sessioni di origine sono metadati del report; quest'area del progetto non richiede una conversazione aperta.",
+    "unparseable_one": "{{count}} elemento segnalato non è stato analizzato singolarmente. Esamina il report completo qui sotto.",
+    "stillOpen_one": "{{count}} rilievo è ancora aperto. Completare il report lascia invariato il suo stato individuale.",
+    "findingsCount_one": "{{count}} rilievo",
     "value": {
       "open": "aperto",
       "actioned": "gestito",
@@ -3360,12 +3413,12 @@
     "sessionLabel": "Sessione di origine della revisione",
     "allSessions": "Tutte le sessioni registrate",
     "windowLabel": "Finestra dei report Chimera recenti",
-    "matching": "{{n}} report corrispondenti negli ultimi {{limit}} record. Le sessioni di origine sono metadati del report; quest'area del progetto non richiede una conversazione aperta.",
+    "matching": "{{count}} report corrispondenti negli ultimi {{limit}} record. Le sessioni di origine sono metadati del report; quest'area del progetto non richiede una conversazione aperta.",
     "catalogLabel": "Catalogo dei report Chimera",
     "reading": "Lettura dei report di revisione…",
     "openReview": "Apri la revisione {{id}}",
     "noModel": "Modello revisore non segnalato",
-    "findingsCount": "{{n}} rilievi",
+    "findingsCount": "{{count}} rilievi",
     "severityCount": "{{n}} {{severity}}",
     "executionFailed": "L'esecuzione della revisione non è riuscita",
     "noReports": "Nessun report in questa vista.",
@@ -3382,7 +3435,7 @@
       "evidenceStatus": "Stato delle prove",
       "durationSeconds": "Durata della revisione (secondi)"
     },
-    "unparseable": "{{n}} elementi segnalati non sono stati analizzati singolarmente. Esamina il report completo qui sotto.",
+    "unparseable": "{{count}} elementi segnalati non sono stati analizzati singolarmente. Esamina il report completo qui sotto.",
     "reopenReport": "Riapri il report",
     "actionReport": "Segna il report come gestito",
     "completeReport": "Completa il report",
@@ -3438,7 +3491,7 @@
     "decisionReport": "Registra lo stato del report",
     "decisionFinding": "Registra lo stato del rilievo",
     "closeDecision": "Chiudi la decisione di revisione",
-    "stillOpen": "{{n}} rilievi sono ancora aperti. Completare il report lascia invariati i loro stati individuali.",
+    "stillOpen": "{{count}} rilievi sono ancora aperti. Completare il report lascia invariati i loro stati individuali.",
     "outcome": "Esito della risoluzione",
     "outcomeLabel": "Esito della risoluzione della revisione",
     "chooseOutcome": "Scegli l'esito osservato…",
@@ -3465,6 +3518,7 @@
     "findingId": "Rilievo {{id}}"
   },
   "skillLib": {
+    "exported_one": "{{count}} skill esportata.",
     "source": {
       "project": "Questo progetto",
       "user": "Profilo WrongStack",
@@ -3485,7 +3539,7 @@
     "uninstalled": "Skill installata rimossa.",
     "updateSummary": "{{updated}} aggiornate · {{unchanged}} invariate · {{failed}} non riuscite.",
     "noArchive": "Il motore non ha restituito un archivio di skill.",
-    "exported": "{{n}} skill esportate.",
+    "exported": "{{count}} skill esportate.",
     "labelProfile": "Libreria di skill del profilo",
     "labelProject": "Libreria di skill del progetto",
     "eyebrowProject": "CAPACITÀ DEL PROGETTO",
@@ -3583,6 +3637,9 @@
     }
   },
   "designStudio": {
+    "sourceLine_one": "Origine: {{source}} · {{count}} file · {{score}}",
+    "findings_one": "{{count}} risultato · {{shown}} mostrato",
+    "noSignal_one": "{{count}} file non aveva segnali UI corrispondenti. La sua qualità visiva non è stata misurata da questa scansione.",
     "label": "Design Studio del progetto",
     "title": "Design Studio",
     "intro": "Esplora temi chiari e scuri reali, rifiniscine i dettagli e scrivi il tema nel progetto.",
@@ -3705,13 +3762,13 @@
     "verifyTitle": "Verifica del design del progetto",
     "scan": "Scansiona il design del progetto",
     "verifyHint": "Confronta i segnali UI del progetto con il kit fissato o i token acquisiti. Il punteggio riportato misura l’aderenza ai colori.",
-    "sourceLine": "Origine: {{source}} · {{files}} file · {{score}}",
+    "sourceLine": "Origine: {{source}} · {{count}} file · {{score}}",
     "sourceCaptured": "Token del progetto acquisiti",
     "sourceKit": "Kit {{kit}}",
     "adherence": "{{percent}}% di aderenza ai colori riportata",
     "noScore": "Punteggio colore non riportato",
-    "findings": "{{total}} risultati · {{shown}} mostrati",
-    "noSignal": "{{n}} file non avevano segnali UI corrispondenti. La loro qualità visiva non è stata misurata da questa scansione.",
+    "findings": "{{count}} risultati · {{shown}} mostrati",
+    "noSignal": "{{count}} file non avevano segnali UI corrispondenti. La loro qualità visiva non è stata misurata da questa scansione.",
     "capturedFrom": "Acquisito da: {{list}}",
     "observation": "Osservazione",
     "themeSample": "Esempio di tema {{label}}",
@@ -3734,6 +3791,7 @@
     "restored": "Ripristinate le modifiche al design non salvate conservate su questo dispositivo."
   },
   "mailboxPage": {
+    "receipts_one": "{{count}} conferma di lettura in questa vista",
     "conversationCount_one": "{{count}} messaggio caricato in questa conversazione",
     "messageCount_one": "{{count}} messaggio",
     "messageCount": "{{count}} messaggi",
@@ -3747,9 +3805,10 @@
     "resumeDraft": "Riprendi la bozza del messaggio",
     "composeMessage": "Scrivi un messaggio",
     "older": {
+      "loaded_one": "{{count}} messaggio più vecchio caricato.",
       "stuck": "Più messaggi condividono il timestamp più vecchio di quanti ne contenga una pagina, quindi quelli più vecchi non si possono leggere qui.",
       "done": "Nessun messaggio più vecchio in questa vista.",
-      "loaded": "{{n}} messaggi più vecchi caricati."
+      "loaded": "{{count}} messaggi più vecchi caricati."
     },
     "missingFields": "Inserisci destinatario, oggetto e messaggio.",
     "unconfirmed": "Il motore non ha confermato un messaggio salvato. Controlla la casella prima di riprovare; la bozza è conservata.",
@@ -3800,7 +3859,7 @@
     "audience": "Destinatari: {{audience}}",
     "audienceAll": "Tutti i destinatari idonei",
     "audienceLeaders": "Solo i leader",
-    "receipts": "{{n}} conferme di lettura in questa vista",
+    "receipts": "{{count}} conferme di lettura in questa vista",
     "completedBy": "Completato da {{actor}} · {{time}}",
     "references": "Ricevute e riferimenti",
     "replyTo": "Risposta a:",
@@ -3914,6 +3973,7 @@
     }
   },
   "deadCode": {
+    "showNext_one": "Mostra il risultato successivo",
     "count": {
       "visible_one": "{{count}} risultato visibile",
       "visible": "{{count}} risultati visibili",
@@ -3989,7 +4049,7 @@
     "scopeLine": "Mostrato: {{scope}}.",
     "scopeLinePublic": "Mostrato: {{scope}}, inclusi gli export dell’API pubblica inutilizzati.",
     "entireProject": "l’intero progetto",
-    "scanFacts": "{{seconds}} secondi · {{parsed}} analizzati · {{tests}} file di test",
+    "scanFacts": "{{seconds}} · {{parsed}} analizzati · {{tests}}",
     "warnings": "Limiti della scansione ({{n}})",
     "search": "Cerca nei risultati sul codice morto",
     "searchPlaceholder": "Trova un file, un simbolo o un pacchetto…",
@@ -4011,7 +4071,7 @@
     "manual": "Revisione manuale: {{reason}}",
     "noMechanical": "nessuna correzione meccanica disponibile",
     "noMatch": "Nessun risultato corrisponde a questa vista.",
-    "showNext": "Mostra i prossimi {{n}} risultati",
+    "showNext": "Mostra i prossimi {{count}} risultati",
     "previewFixes": "Anteprima delle correzioni selezionate",
     "verify": "Esegui il controllo dei tipi e annulla le modifiche non riuscite",
     "reviewExecution": "Rivedi l’esecuzione della pulizia",
@@ -4032,7 +4092,7 @@
     "backupsLabel": "Backup del codice morto",
     "backups": "Backup di ripristino ({{n}})",
     "refreshBackups": "Aggiorna i backup della pulizia",
-    "backupFacts": "{{files}} file · {{findings}} risultati",
+    "backupFacts": "{{files}} · {{findings}}",
     "reviewRestore": "Rivedi il ripristino del backup",
     "noBackups": "Nessun backup della pulizia registrato.",
     "conflictTitle": "File modificati dopo la pulizia",
@@ -4066,6 +4126,7 @@
     }
   },
   "chronicleView": {
+    "seconds_one": "{{count}} secondo",
     "label": "Cronaca del progetto",
     "title": "Cronaca",
     "intro": "Segui il lavoro tra agenti, file, strumenti e conversazioni. Mantieni ogni esito nel suo contesto.",
@@ -4111,7 +4172,7 @@
     "timeline": "Cronologia del progetto",
     "lineage": "Genealogia delle prove",
     "loaded": "{{loaded}} di {{total}} caricati",
-    "graphCount": "{{events}} eventi · {{relations}} relazioni",
+    "graphCount": "{{events}} · {{relations}}",
     "exportMarkdown": "Esporta in Markdown",
     "exportJsonl": "Esporta in JSONL",
     "exportLineageMarkdown": "Esporta la genealogia in Markdown",
@@ -4160,7 +4221,7 @@
       "watched": "File monitorati",
       "uptime": "Tempo di attività"
     },
-    "seconds": "{{n}} secondi",
+    "seconds": "{{count}} secondi",
     "notReported": "Non riportato",
     "detail": {
       "label": "Dettagli dell’evento della cronaca",
@@ -4224,10 +4285,10 @@
       "invalid": "Il motore ha restituito una risposta di metriche non valida.",
       "loading": "Caricamento degli approfondimenti del progetto…",
       "notRecorded": "Non registrato",
-      "attempts": "{{attempts}} tentativi · {{completed}} completati · {{failed}} non riusciti · {{retries}} ripetizioni · {{fallbacks}} fallback",
+      "attempts": "{{attempts}} · {{completed}} completati · {{failed}} non riusciti · {{retries}} · {{fallbacks}}",
       "tokens": "{{input}} token di input / {{output}} di output · {{cacheRead}} letti dalla cache / {{cacheWrite}} scritti in cache · {{avg}} ms in media / {{max}} ms al massimo",
       "taskOwners": "Bacheca {{board}} · Agente {{agent}} · Sessione {{session}}",
-      "taskRun": "Esecuzione {{run}} · {{retries}} ripetizioni · {{verification}} verifiche non riuscite · {{files}} file · {{ms}} ms",
+      "taskRun": "Esecuzione {{run}} · {{retries}} · {{verification}} · {{files}} · {{ms}} ms",
       "taskTimes": "Inizio {{started}} · Fine {{ended}}",
       "fileOwners": "Attività {{task}} · Bacheca {{board}} · Esecuzione {{run}} · Sessione {{session}} · Agente {{agent}} · {{provider}} / {{model}}",
       "dailyRows": "Righe giornaliere per provider",
@@ -4235,6 +4296,7 @@
       "footnote": "{{rows}} · {{partitions}} partizioni lette durante l’aggiornamento · {{invalid}} voci non valide durante l’aggiornamento"
     },
     "manifest": {
+      "omitted_one": "{{count, number}} messaggio precedente non è elencato; l’ID del manifesto lo copre comunque.",
       "title": "Manifesto del prompt",
       "notRecorded": "non registrato",
       "messages": "Messaggi",
@@ -4252,7 +4314,7 @@
       "tools": "Strumenti · {{count}} · {{tokens}} token di definizione (stima del motore) · {{mutating}} che modificano · {{destructive}} distruttivi",
       "noTools": "Nessuno strumento offerto.",
       "toolsRef": "I nomi degli strumenti sono stati registrati in una richiesta precedente con lo stesso insieme di strumenti (<code>{{hash}}</code>).",
-      "omitted": "{{n}} messaggi precedenti non sono elencati; l’ID del manifesto li copre comunque.",
+      "omitted": "{{count, number}} messaggi precedenti non sono elencati; l’ID del manifesto li copre comunque.",
       "messagesTable": "Messaggi del manifesto",
       "role": "Ruolo",
       "tokens": "Token (stima)",
@@ -4260,6 +4322,9 @@
     }
   },
   "recovery": {
+    "confirmBody_one": "{{count}} istantanea di file registrata appartiene a questo prompt o a uno successivo. Il motore ripristinerà il contenuto registrato, rimuoverà gli eventi successivi della conversazione e sostituirà il contesto attivo. Le modifiche fatte da allora possono essere sovrascritte.",
+    "matching_one": "{{count}} evento registrato corrispondente. La ricerca copre le etichette del diario e le anteprime registrate, non la trascrizione completa dei messaggi.",
+    "snapshots_one": "{{time}} · {{count}} istantanea di file a questo indice di prompt",
     "changed": "La sessione è cambiata dopo questa revisione. Chiudi questa finestra e aggiorna i checkpoint.",
     "noRewindResult": "Il motore ha confermato il riavvolgimento senza un risultato dettagliato. Aggiorna ed esamina il diario prima di un’altra azione.",
     "noRedoResult": "Il motore ha confermato il ripristino senza un risultato dettagliato. Aggiorna ed esamina il diario.",
@@ -4314,7 +4379,7 @@
     "checkpointError": "Impossibile leggere i checkpoint: {{error}}",
     "noCheckpoints": "Nessun checkpoint di prompt registrato in questa sessione.",
     "noPromptText": "Testo del prompt non registrato",
-    "snapshots": "{{time}} · {{n}} istantanee di file a questo indice di prompt",
+    "snapshots": "{{time}} · {{count}} istantanee di file a questo indice di prompt",
     "reviewLabel": "Rivedi il riavvolgimento al prompt {{n}}",
     "review": "Rivedi il riavvolgimento",
     "snapshotHint": "I conteggi delle istantanee sono voci registrate, non un’anteprima di file univoci. Le bozze non inviate sono conservate a parte. Il riavvolgimento non è un checkout Git né un backup completo del progetto.",
@@ -4324,7 +4389,7 @@
     "searchPlaceholder": "Trova un evento registrato…",
     "typeLabel": "Tipo di evento di sessione",
     "allTypes": "Tutti i tipi di evento",
-    "matching": "{{n}} eventi registrati corrispondenti. La ricerca copre le etichette del diario e le anteprime registrate, non la trascrizione completa dei messaggi.",
+    "matching": "{{count}} eventi registrati corrispondenti. La ricerca copre le etichette del diario e le anteprime registrate, non la trascrizione completa dei messaggi.",
     "noMatch": "Nessun evento registrato corrisponde.",
     "older": "Mostra 100 eventi più vecchi",
     "tools": "Impronta degli strumenti",
@@ -4337,7 +4402,7 @@
     "rewindEyebrow": "RIAVVOLGI QUESTA CONVERSAZIONE",
     "retryAsk": "Annullare il prompt {{n}} e reinviarlo?",
     "rewindAsk": "Annullare il prompt {{n}} e il lavoro successivo?",
-    "confirmBody": "{{n}} istantanee di file registrate appartengono a questo prompt e ai successivi. Il motore ripristinerà il contenuto registrato, rimuoverà gli eventi successivi della conversazione e sostituirà il contesto attivo. Le modifiche fatte da allora possono essere sovrascritte.",
+    "confirmBody": "{{count}} istantanee di file registrate appartengono a questo prompt e ai successivi. Il motore ripristinerà il contenuto registrato, rimuoverà gli eventi successivi della conversazione e sostituirà il contesto attivo. Le modifiche fatte da allora possono essere sovrascritte.",
     "draftKept": "La bozza non inviata resta. Questo non è un backup completo dei file.",
     "keep": "Mantieni la cronologia attuale",
     "rewinding": "Riavvolgimento…",
@@ -4353,6 +4418,7 @@
       "copy": "Copia il prompt"
     },
     "records": {
+      "more_one": "Un altro file ({{count}}) non è conservato in questo record.",
       "title": "Operazioni di ripristino ({{n}})",
       "hint": "Riavvolgimenti, ripetizioni e ripristini avviati da questo desktop, come osservati durante l’esecuzione. Restano dopo un riavvio; il lavoro fatto altrove non è elencato.",
       "label": "Operazioni di ripristino",
@@ -4372,7 +4438,7 @@
       "restored": "File ripristinati: {{n}}",
       "removed": "Eventi del diario rimossi: {{n}}",
       "fileErrors": "Errori sui file",
-      "more": "Altri {{n}} file non sono conservati in questo record."
+      "more": "Altri {{count}} file non sono conservati in questo record."
     }
   },
   "providerSettings": {
@@ -4640,6 +4706,7 @@
     "confirmSingle": "Conferma la terminazione del processo"
   },
   "sddView": {
+    "progress_one": "{{status}} · {{completed}} / {{count}} attività",
     "value": {
       "idle": "inattivo",
       "questioning": "domande",
@@ -4722,7 +4789,7 @@
     "tasks": "Attività",
     "loadingSpecs": "Caricamento delle specifiche…",
     "untitledSpec": "Specifica senza titolo",
-    "progress": "{{status}} · {{completed}} / {{total}} attività",
+    "progress": "{{status}} · {{completed}} / {{count}} attività",
     "noSpecs": "Nessuna specifica è stata registrata per questo progetto.",
     "selectSpec": "Seleziona una specifica",
     "selectSpecHint": "Esplora il suo grafo delle attività e le dipendenze.",
@@ -4789,6 +4856,8 @@
       "empty": "Prese in carico, completamenti, errori e nuovi tentativi delle attività compaiono qui mentre l’esecuzione procede."
     },
     "lifecycle": {
+      "alsoRevert_one": "Ripristina anche il {{count}} commit unito di questa esecuzione",
+      "rollbackBody_one": "Crea un commit di ripristino che preserva la cronologia per il {{count}} commit unito registrato di questa esecuzione. Il motore richiede il branch di base registrato e un albero di lavoro pulito.",
       "label": "Manutenzione SDD del progetto",
       "eyebrow": "DOPO L’ESECUZIONE",
       "title": "Manutenzione del progetto",
@@ -4811,8 +4880,8 @@
       },
       "destroyBody": "Questo cancella tutte le specifiche, i grafi delle attività, lo stato dell’intervista, le bacheche SDD e le bacheche Kanban SDD rispecchiate di questo progetto. I worktree e i branch gestiti, incluse le modifiche non unite, vengono rimossi.",
       "cleanupBody": "Rimuovi tutti i worktree gestiti e i loro branch per questo progetto, incluse le modifiche non unite.",
-      "rollbackBody": "Crea commit di ripristino che preservano la cronologia per i {{n}} commit uniti registrati di questa esecuzione. Il motore richiede il branch di base registrato e un albero di lavoro pulito.",
-      "alsoRevert": "Ripristina anche i {{n}} commit uniti di questa esecuzione",
+      "rollbackBody": "Crea commit di ripristino che preservano la cronologia per i {{count}} commit uniti registrati di questa esecuzione. Il motore richiede il branch di base registrato e un albero di lavoro pulito.",
+      "alsoRevert": "Ripristina anche i {{count}} commit uniti di questa esecuzione",
       "revertFallback": "Se il ripristino non riesce, il motore cancella comunque i record SDD e ne riporta il motivo.",
       "pending": "{{title}} richiesto. In attesa del risultato del motore…",
       "refused": "Operazione rifiutata",
@@ -4823,6 +4892,7 @@
       "cleared": "Cancellati: {{list}}"
     },
     "taskDetail": {
+      "splitBody_one": "Crea {{count}} sotto-attività e segna l’attività padre come contenitore completato. La sotto-attività eredita i suoi blocchi; il lavoro dipendente la attende.",
       "label": "Dettagli dell’attività SDD",
       "eyebrow": "ATTIVITÀ {{id}}",
       "noDescription": "Nessuna descrizione registrata.",
@@ -4863,7 +4933,7 @@
       "updateVerification": "Aggiorna la verifica",
       "split": "Suddividi in sotto-attività",
       "splitPlaceholder": "Un’attività per riga: Titolo :: descrizione",
-      "splitBody": "Crea {{n}} sotto-attività e segna l’attività padre come contenitore completato. Le sotto-attività ereditano i suoi blocchi; il lavoro dipendente attende tutte le sotto-attività.",
+      "splitBody": "Crea {{count}} sotto-attività e segna l’attività padre come contenitore completato. Le sotto-attività ereditano i suoi blocchi; il lavoro dipendente attende tutte le sotto-attività.",
       "confirmSplit": "Conferma la suddivisione",
       "reviewSplit": "Rivedi la suddivisione",
       "activity": "Attività del compito",
@@ -4988,6 +5058,8 @@
       "save": "Le modifiche alla vista della cronologia non sono salvate. La vista attuale viene mantenuta. Riprova a salvare quando l’archivio nativo è disponibile."
     },
     "contentSearch": {
+      "matching_one": "{{count}} messaggio corrispondente · {{provider}} / {{model}}",
+      "unreadable_one": "Impossibile leggere {{count}} record; i risultati sono incompleti.",
       "label": "Cerca nelle conversazioni del progetto",
       "field": "Cerca nel contenuto delle conversazioni",
       "placeholder": "Trova parole nelle conversazioni registrate…",
@@ -5020,8 +5092,8 @@
       },
       "progress": "{{status}} {{scanned}} di {{total}} record controllati · {{n}} conversazioni corrispondenti.",
       "progressLabel": "Avanzamento della ricerca",
-      "unreadable": "Impossibile leggere {{n}} record; i risultati sono incompleti.",
-      "matching": "{{n}} messaggi corrispondenti · {{provider}} / {{model}}",
+      "unreadable": "Impossibile leggere {{count}} record; i risultati sono incompleti.",
+      "matching": "{{count}} messaggi corrispondenti · {{provider}} / {{model}}",
       "readMatch": "Leggi il risultato {{id}}, messaggio {{n}}",
       "message": "Messaggio {{n}}",
       "readMessage": "Leggi il messaggio corrispondente →",
@@ -5029,6 +5101,7 @@
       "noMatches": "Nessun testo di conversazione conservato corrisponde a questa ricerca."
     },
     "usage": {
+      "inProjects_one": " in {{count, number}} progetto",
       "notRecorded": "Non registrato",
       "title": "Utilizzo registrato",
       "help": "Token registrati da ogni conversazione, raggruppati per l’ultimo provider e modello usati. I prezzi non vengono calcolati qui.",
@@ -5043,7 +5116,7 @@
       "refresh": "Aggiorna il riepilogo",
       "summarize": "Riepiloga l’utilizzo registrato",
       "total": "{{tokens}} token in {{sessions}} conversazioni{{projects}}{{missing}}{{capped}}.",
-      "inProjects": " in {{n}} progetti",
+      "inProjects": " in {{count, number}} progetti",
       "withoutTotal": " ({{n}} senza totale registrato)",
       "capped": "; sono state lette solo le conversazioni più recenti fino al limite di scansione",
       "byProject": "Token registrati per progetto",
@@ -5058,6 +5131,7 @@
       "notRead": "Non letto: {{error}}"
     },
     "effects": {
+      "unreadable_one": "; impossibile leggere {{count}} journal",
       "title": "Effetti collaterali registrati",
       "help": "Comandi, scritture di file, pacchetti, operazioni di rete e di configurazione registrati nelle conversazioni di questo progetto, dai più recenti.",
       "risk": "Rischio",
@@ -5068,7 +5142,7 @@
       "unsupported": "Questo motore non riepiloga ancora gli effetti collaterali del progetto.",
       "total": "{{total}} registrati in {{with}} conversazioni su {{scanned}}{{capped}}{{unreadable}}.",
       "capped": " (le conversazioni più recenti fino al limite di scansione)",
-      "unreadable": "; impossibile leggere {{n}} journal",
+      "unreadable": "; impossibile leggere {{count}} journal",
       "column": {
         "when": "Quando",
         "conversation": "Conversazione",
@@ -5096,10 +5170,13 @@
       "unreadable": "Questo motore non ha restituito una trascrizione leggibile. Aggiorna il runtime del progetto prima di riprovare."
     },
     "block": {
+      "loadMore_one": "Carica il blocco successivo",
+      "more_one": "Un altro blocco ({{count}}) in questo messaggio.",
+      "pdfPages_one": "{{count}} pagina · Testo estratto; PDF binario non caricato.",
       "textUnreadable": "Impossibile leggere il testo registrato.",
       "pdf": "Allegato PDF",
       "pdfText": "Testo estratto; PDF binario non caricato.",
-      "pdfPages": "{{n}} pagine · Testo estratto; PDF binario non caricato.",
+      "pdfPages": "{{count}} pagine · Testo estratto; PDF binario non caricato.",
       "copy": "Copia il testo registrato visibile",
       "reuse": "Aggiungi il testo visibile alla bozza",
       "fromStart": "Leggi dall’inizio",
@@ -5111,9 +5188,9 @@
       "toolResult": "Risultato dello strumento · {{name}}",
       "toolResultError": "Risultato dello strumento · {{name}} · errore",
       "moreUnreadable": "Questo motore non ha restituito i blocchi rimanenti.",
-      "more": "Altri {{n}} blocchi in questo messaggio.",
+      "more": "Altri {{count}} blocchi in questo messaggio.",
       "loading": "Caricamento…",
-      "loadMore": "Carica i {{n}} blocchi successivi",
+      "loadMore": "Carica i {{count}} blocchi successivi",
       "toolRequest": "Richiesta dello strumento · {{name}}",
       "inputUnreadable": "Questo motore non ha restituito l’input completo.",
       "inputComplete": "Input registrato completo.",
@@ -5252,6 +5329,8 @@
     }
   },
   "liveFleet": {
+    "agents_one": "<strong>{{n}}</strong> agente registrato",
+    "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Flotta live del progetto",
     "eyebrow": "ESECUZIONE DEL PROGETTO",
     "title": "Flotta live",
@@ -5275,7 +5354,7 @@
     "agentCountOne": "{{status}} · {{n}} agente",
     "agentCountMany": "{{status}} · {{n}} agenti",
     "statusPid": "{{status}} · PID {{pid}}",
-    "agentCounters": "{{iterations}} iterazioni · {{tools}} chiamate agli strumenti",
+    "agentCounters": "{{iterations}} · {{tools}}",
     "noAgents": "Nessun agente è stato registrato per questo runtime.",
     "status": {
       "active": "attivo",
@@ -5357,6 +5436,8 @@
       "unconfirmed": "La consegna non conferma l’esecuzione."
     },
     "activity": {
+      "showing_one": "Viene mostrata la voce più recente · {{rest}}",
+      "total_one": "{{count, number}} voce registrata.",
       "label": "Attività recente della sessione della flotta",
       "title": "Attività recente della sessione",
       "help": "Vista del journal di sola lettura per l’intera sessione selezionata, anche quando è selezionato un agente.",
@@ -5364,9 +5445,9 @@
       "refresh": "Aggiorna l’attività della sessione",
       "read": "Leggi l’attività recente della sessione",
       "invalid": "Il motore ha restituito un’attività di sessione non riconosciuta.",
-      "showing": "Vengono mostrate le {{n}} voci più recenti · {{rest}}",
+      "showing": "Vengono mostrate le {{count}} voci più recenti · {{rest}}",
       "upperBound": "Il totale è un limite superiore per questa finestra conservata.",
-      "total": "{{n}} voci registrate.",
+      "total": "{{count, number}} voci registrate.",
       "role": {
         "user": "utente",
         "assistant": "assistente",
@@ -5384,6 +5465,7 @@
     }
   },
   "integrations": {
+    "toolCount_one": "{{count}} strumento disponibile",
     "title": "Strumenti collegati",
     "intro": "Collega server MCP per ampliare ciò che WrongStack può leggere e fare. Queste connessioni appartengono al tuo profilo.",
     "add": "Aggiungi connessione",
@@ -5402,7 +5484,7 @@
     "restartLabel": "Riavvia {{name}}",
     "restartTitle": "Riavvia la connessione al server",
     "endpoint": "Connessione MCP",
-    "toolCount": "{{n}} strumenti disponibili",
+    "toolCount": "{{count}} strumenti disponibili",
     "tools": "Strumenti disponibili",
     "hint": {
       "readOnlyHint": "sola lettura",
@@ -5567,6 +5649,9 @@
     "reading": "Lettura della policy Brain…",
     "unavailable": "La configurazione Brain non è disponibile. Aggiorna per riprovare.",
     "fact": {
+      "size_one": "<strong>{{n}}</strong> decisione in cache",
+      "misses_one": "<strong>{{n}}</strong> miss della cache",
+      "hits_one": "<strong>{{n}}</strong> hit della cache",
       "hits": "<strong>{{n}}</strong> hit della cache",
       "misses": "<strong>{{n}}</strong> miss della cache",
       "size": "<strong>{{n}}</strong> decisioni in cache",
@@ -6430,6 +6515,7 @@
     "contextTokens": "Contesto {{tokens}} token · finestra non segnalata"
   },
   "referenceChips": {
+    "pastEnd_one": "Questo file ha {{count}} riga; l’intervallo inizia dopo la fine.",
     "label": "File di progetto allegati",
     "showQuote": "Mostra il testo citato da {{ref}}",
     "setRange": "Imposta l’intervallo di righe per {{ref}}",
@@ -6449,7 +6535,7 @@
     "preview": "Anteprima righe",
     "invalid": "Usa numeri di riga interi da 1, con l’ultima riga non prima della prima.",
     "noPreview": "Nessuna anteprima di testo disponibile per questo file. L’intervallo può comunque essere allegato.",
-    "pastEnd": "Questo file ha {{total}} righe; l’intervallo inizia dopo la fine.",
+    "pastEnd": "Questo file ha {{count}} righe; l’intervallo inizia dopo la fine.",
     "previewLabel": "Anteprima delle righe di riferimento",
     "showing": "Mostrate le prime {{shown}} di {{range}} righe di riferimento · il file ha {{total}} righe.",
     "cancel": "Annulla",
@@ -6598,14 +6684,16 @@
     "acknowledged": "Il motore ha confermato la richiesta."
   },
   "composerQueue": {
+    "attachments_one": "{{count}} allegato",
+    "referencedFiles_one": "{{count}} file di riferimento",
     "one": "1 prompt in coda",
     "many": "{{number}} prompt in coda",
     "note": "Gestita dal motore · viene eseguita dopo questo turno",
     "pending": "Prompt in attesa",
     "clear": "Svuota la coda",
     "references": "Riferimenti a file di progetto",
-    "referencedFiles": "{{number}} file di riferimento",
-    "attachments": "{{number}} allegati",
+    "referencedFiles": "{{count}} file di riferimento",
+    "attachments": "{{count}} allegati",
     "copyTitle": "Copia il testo in coda nell’area di scrittura; l’originale resta in coda",
     "copyTextOnly": "Copia solo il testo",
     "copyToDraft": "Copia nella bozza",
@@ -6726,10 +6814,11 @@
     "notReported": "Non segnalato"
   },
   "refineCompare": {
+    "words_one": "{{count}} parola aggiunta · {{removed}} rimosse",
     "tooLong": "Questi testi sono troppo lunghi per un confronto parola per parola. Rivedi invece la versione completa.",
     "label": "Modifiche rispetto alla tua bozza originale",
     "oneWord": "1 parola aggiunta · {{removed}} rimosse",
-    "words": "{{added}} parole aggiunte · {{removed}} rimosse",
+    "words": "{{count}} parole aggiunte · {{removed}} rimosse",
     "none": "Nessuna modifica rispetto alla tua bozza originale."
   },
   "terminalPane": {
@@ -7025,6 +7114,7 @@
     "noMatch": "Nessuno strumento corrisponde a questi filtri."
   },
   "userInstructions": {
+    "counts_one": "{{chars}} caratteri · {{count}} riga",
     "changedElsewhere": "Il file è cambiato altrove. La bozza resta; il salvataggio ne verificherà la revisione.",
     "changedAgain": "Il file è cambiato di nuovo prima della rilettura. La bozza resta; ricarica le istruzioni salvate prima di riprovare.",
     "saved": "Istruzioni globali salvate e verificate. WrongStack le legge al prossimo turno.",
@@ -7039,7 +7129,7 @@
     "view": "Vista delle istruzioni",
     "edit": "Modifica",
     "preview": "Anteprima",
-    "counts": "{{chars}} caratteri · {{lines}} righe",
+    "counts": "{{chars}} caratteri · {{count}} righe",
     "unsaved": "non salvato",
     "previewLabel": "Anteprima delle istruzioni globali",
     "empty": "Nessuna istruzione globale ancora.",
@@ -7079,6 +7169,8 @@
     "alwaysOn": "Sempre attivo"
   },
   "configDoctor": {
+    "differ_one": "{{count}} impostazione differisce dai valori predefiniti:",
+    "repaired_one": "{{count}} impostazione riparata. Backup:",
     "title": "Controllo della configurazione",
     "intro": "Confronta la configurazione del profilo attivo con i valori predefiniti attuali. Le impostazioni mancanti vengono aggiunte e quelle del tipo sbagliato sostituite; provider e modello non vengono mai scelti al posto tuo.",
     "checking": "Controllo…",
@@ -7089,9 +7181,9 @@
     "profileConfig": "la configurazione del profilo",
     "repairBackup": "Ripara e conserva un backup",
     "keep": "Mantieni l’attuale",
-    "repaired": "{{number}} impostazioni riparate. Backup:",
+    "repaired": "{{count}} impostazioni riparate. Backup:",
     "notReported": "non segnalato",
-    "differ": "{{number}} impostazioni differiscono dai valori predefiniti:",
+    "differ": "{{count}} impostazioni differiscono dai valori predefiniti:",
     "matches": "La configurazione corrisponde ai valori predefiniti attuali.",
     "added": "aggiunta",
     "replaced": "sostituita"
@@ -7163,9 +7255,10 @@
     }
   },
   "bgServices": {
+    "restarted_one": "Riavviati {{done}} servizio su {{count}}.",
     "title": "Servizi in background",
     "actionDone": "{{label}}: {{action}} completato.",
-    "restarted": "Riavviati {{done}} servizi su {{total}}.",
+    "restarted": "Riavviati {{done}} servizi su {{count}}.",
     "overall": "Complessivo: {{status}}",
     "checked": "controllato alle {{time}}",
     "restartNote": "Un servizio fermato riparte la prossima volta che serve.",
@@ -7381,6 +7474,8 @@
     "activity": "Attività recente in questo motore"
   },
   "modelVisibility": {
+    "providerRules_one": "{{count}} regola di provider disattivati salvata",
+    "modelRules_one": "{{count}} regola di modelli disattivati salvata",
     "otherProvider": "Il motore ha restituito il catalogo di un altro provider.",
     "label": "Impostazioni di visibilità dei modelli",
     "savedProvider": "Provider salvato",
@@ -7409,11 +7504,11 @@
     "enableModel": "Attiva il modello",
     "disableModel": "Disattiva il modello",
     "noMatch": "Nessun modello del catalogo corrisponde. Le regole salvate qui sotto restano modificabili.",
-    "modelRules": "{{number}} regole di modelli disattivati salvate",
+    "modelRules": "{{count}} regole di modelli disattivati salvate",
     "modelRulesNote": "Gli ID di modello semplici valgono per tutti i provider. I riferimenti qualificati valgono per il provider indicato. Le regole possono sopravvivere a una voce di catalogo.",
     "removeRuleLabel": "Rimuovi la regola {{ref}}",
     "removeRule": "Rimuovi la regola",
-    "providerRules": "{{number}} regole di provider disattivati salvate",
+    "providerRules": "{{count}} regole di provider disattivati salvate",
     "providerRulesNote": "Le regole dei provider valgono anche per i modelli futuri. Rimuovi una regola qui anche se la connessione salvata non esiste più.",
     "removeProviderRuleLabel": "Rimuovi la regola del provider {{id}}",
     "removeProviderRule": "Rimuovi la regola del provider",
@@ -7432,6 +7527,7 @@
     "apply": "Applica alla bozza delle impostazioni"
   },
   "modelPolicy": {
+    "chainCount_one": "{{count}} modello · provati in ordine",
     "field": {
       "model": "Modello",
       "fallback": "Profilo di riserva",
@@ -7441,7 +7537,7 @@
     },
     "catalogError": "Alcuni cataloghi di modelli non sono stati caricati. I riferimenti ai modelli salvati restano modificabili.",
     "refPlaceholder": "provider/modello · o eredita",
-    "chainCount": "{{number}} modelli · provati in ordine",
+    "chainCount": "{{count}} modelli · provati in ordine",
     "chainModel": "{{label}} modello {{number}}",
     "moveUp": "Sposta su {{label}} modello {{number}}",
     "moveDown": "Sposta giù {{label}} modello {{number}}",
@@ -7521,7 +7617,7 @@
     "counts": "{{blocked}} bloccati · {{degraded}} degradati · {{healthy}} integri",
     "noEntries": "Nessuna voce sullo stato dei modelli è ancora stata registrata.",
     "noError": "Nessun errore registrato",
-    "failures": "{{failures}} errori · {{consecutive}} consecutivi · {{rateLimits}} limiti di frequenza · {{successes}} successi",
+    "failures": "{{failures}} · {{consecutive}} consecutivi · {{rateLimits}} · {{successes}}",
     "lastFailure": "Ultimo errore: {{failure}} · Ripristino: {{recovery}}",
     "release": "Rilascia per il prossimo test",
     "clear": "Cancella lo stato registrato",
@@ -7536,6 +7632,7 @@
     "released": "Rilasciato per il prossimo test"
   },
   "providerTests": {
+    "testing_one": "Test in corso: {{done}} di {{count}} modello",
     "noAck": "Il motore non ha confermato questa richiesta di test. Controlla lo stato del provider prima di riprovare.",
     "invalid": "Scegli un provider salvato e da 1 a 200 ID di modello.",
     "title": "Test di accesso ai modelli",
@@ -7557,7 +7654,7 @@
     "finishedShort": "terminato",
     "runningShort": "in corso",
     "finished": "Terminato: {{passed}} superati, {{failed}} non riusciti, {{cancelled}} annullati",
-    "testing": "Test in corso: {{done}} di {{total}} modelli",
+    "testing": "Test in corso: {{done}} di {{count}} modelli",
     "model": "Modello",
     "status": "Stato",
     "latency": "Latenza",
@@ -7751,11 +7848,14 @@
     "evidence": "Prove osservate"
   },
   "techTrends": {
+    "halfLife_one": "Risoluzione mediana delle vulnerabilità: {{count}} giorno.",
+    "days_one": "{{count}} giorno",
+    "snapshots_one": "{{count}} istantanea registrata",
     "reading": "Lettura della cronologia delle dipendenze…",
     "label": "Tendenze delle dipendenze",
     "title": "Stato nel tempo",
-    "snapshots": "{{number}} istantanee registrate",
-    "halfLife": "Risoluzione mediana delle vulnerabilità: {{days}} giorni.",
+    "snapshots": "{{count}} istantanee registrate",
+    "halfLife": "Risoluzione mediana delle vulnerabilità: {{count}} giorni.",
     "chart": "Dipendenze obsolete e vulnerabili per istantanea",
     "bar": "{{at}}: {{outdated}} obsolete, {{vulnerable}} vulnerabili",
     "legend": "Accento: obsoleto · rosso: vulnerabile. I numeri delle istantanee vanno dalla più vecchia alla più recente.",
@@ -7773,9 +7873,11 @@
     "none": "Nessuna istantanea ancora registrata.",
     "movement": "Movimento delle versioni",
     "notReported": "Non segnalato",
-    "days": "{{days}} giorni"
+    "days": "{{count}} giorni"
   },
   "techRemedy": {
+    "review_one": "Rivedi {{count}} operazione selezionata",
+    "confirmTitle_one": "Eseguire {{count}} operazione selezionata?",
     "planChanged": "Il piano è cambiato. Rivedi gli obiettivi attuali e seleziona di nuovo le voci.",
     "label": "Correzione delle dipendenze",
     "title": "Rivedi le prossime modifiche",
@@ -7789,16 +7891,17 @@
     "noTarget": "Nessuna versione di destinazione esplicita",
     "command": "Comando informativo",
     "noActions": "Nessuna azione di correzione in questa istantanea.",
-    "confirmTitle": "Eseguire {{number}} operazioni selezionate?",
+    "confirmTitle": "Eseguire {{count}} operazioni selezionate?",
     "confirmBody": "Queste operazioni possono modificare manifest e lockfile del progetto. Rivedi le versioni selezionate sopra.",
     "keepReviewing": "Continua a rivedere il piano",
     "waiting": "In attesa del motore…",
     "execute": "Esegui le operazioni selezionate",
-    "review": "Rivedi {{number}} operazioni selezionate",
+    "review": "Rivedi {{count}} operazioni selezionate",
     "preview": "Anteprima del piano",
     "results": "Risultati dell’esecuzione"
   },
   "projectKit": {
+    "counts_one": "{{count}} kit · {{invalid}} non validi",
     "changedOnDisk": "Il kit è cambiato su disco. Selezionalo di nuovo per rivedere la nuova revisione e i parametri.",
     "needsVerify": "Questa revisione va verificata prima dell’esecuzione. Prepara prima una richiesta di verifica.",
     "label": "Area Project Kit",
@@ -7807,7 +7910,7 @@
     "create": "Crea un kit",
     "search": "Cerca kit del progetto",
     "searchPlaceholder": "Trova una capacità…",
-    "counts": "{{kits}} kit · {{invalid}} non validi",
+    "counts": "{{count}} kit · {{invalid}} non validi",
     "reading": "Lettura dei kit del progetto…",
     "noMatch": "Nessun kit corrispondente",
     "home": "Una casa per il lavoro di progetto riutilizzabile",
@@ -8415,6 +8518,7 @@
     "add": "Aggiungi metrica"
   },
   "kanbanBoard": {
+    "createWith_one": "Crea la bacheca con {{count}} attività",
     "noGraph": "Il motore non ha restituito un grafo delle attività.",
     "tools": "Strumenti della bacheca",
     "contractMap": "Modifica contratti…",
@@ -8442,7 +8546,7 @@
     "taskMany": "{{number}} attività",
     "more": "…e altre {{number}}.",
     "cancel": "Annulla",
-    "createWith": "Crea la bacheca con {{number}} attività",
+    "createWith": "Crea la bacheca con {{count}} attività",
     "create": "Crea la bacheca"
   },
   "contractMap": {
@@ -8523,11 +8627,12 @@
     }
   },
   "worktrees": {
+    "confirmCleanup_one": "Rimuovere il worktree rimasto e il suo branch? Il lavoro non committato al suo interno andrà perso.",
     "viewChanges": "Vedi le modifiche",
     "changesIn": "Modifiche in {{dir}}",
-    "diff": "{{commits}} commit avanti · +{{insertions}} −{{deletions}} non committati in {{files}} file",
+    "diff": "{{commits}} avanti · +{{insertions}} −{{deletions}} non committati in {{files}}",
     "noSummary": "Nessun riepilogo delle modifiche disponibile per questo checkout.",
-    "confirmCleanup": "Rimuovere tutti i {{number}} worktree e branch rimasti? Il lavoro non committato al loro interno andrà perso.",
+    "confirmCleanup": "Rimuovere tutti i {{count}} worktree e branch rimasti? Il lavoro non committato al loro interno andrà perso.",
     "confirmRemove": "Rimuovere {{name}}? Il lavoro non committato al suo interno andrà perso.",
     "confirmMerge": "Unire {{branch}} nel suo branch di base nel checkout del progetto? I conflitti fermano l’unione e vengono elencati.",
     "label": "Worktree del progetto",
@@ -8538,7 +8643,7 @@
     "waiting": "In attesa del motore…",
     "inUse": "In uso dalle esecuzioni",
     "noLive": "Nessuna esecuzione in questo motore usa un worktree.",
-    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}} file",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}}",
     "unknownBase": "sconosciuta",
     "conflicts": "Conflitti: {{files}}",
     "history": "Cronologia",
@@ -8592,13 +8697,14 @@
     }
   },
   "worktreeHistory": {
+    "files_one": "{{count}} file",
     "empty": "Ancora nessuna attività dei worktree. Qui compaiono le fasi Goal, le attività SDD e i subagenti della flotta eseguiti in worktree git isolati.",
     "label": "Cronologia dei worktree",
     "avgWait": "attesa media di unione {{duration}}",
     "chart": "Cronologia dei worktree su {{base}}",
     "lifecycle": "Ciclo di vita del worktree",
     "close": "Chiudi i dettagli",
-    "files": "{{number}} file",
+    "files": "{{count}} file",
     "onDisk": "checkout ancora su disco",
     "removed": "checkout rimosso",
     "failed": "Non riuscito",
@@ -8646,6 +8752,7 @@
     "impactHint": "Traccia dipendenti e dipendenze"
   },
   "atlasViews": {
+    "hops_one": "{{count}} salto",
     "subsystemsLabel": "Sottosistemi dell’atlante",
     "subsystemsTitle": "Confini dei sottosistemi",
     "subsystemsIntro": "Confronta la proprietà del codice, la coesione interna e i riferimenti che attraversano ogni confine.",
@@ -8686,7 +8793,7 @@
     "outgoing": "Dipendenze · cosa usa",
     "depth": "Profondità",
     "depthLabel": "Profondità dell’impatto",
-    "hops": "{{number}} salti",
+    "hops": "{{count}} salti",
     "dependents": "dipendenti raggiungibili",
     "dependencies": "dipendenze raggiungibili",
     "static": "Raggiungibilità statica tramite riferimenti; il comportamento in esecuzione può differire.",

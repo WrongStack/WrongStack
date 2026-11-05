@@ -128,8 +128,8 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
     }
     setNotice(
       t('bgServices.restarted', {
+        count: running.length,
         done: running.length - failed.length,
-        total: running.length,
       }),
     );
     if (failed.length) setError(failed.join(' · '));

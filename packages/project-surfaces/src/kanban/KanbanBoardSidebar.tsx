@@ -61,6 +61,7 @@ export function KanbanBoardSidebar({
           <div className="truncate text-sm font-semibold">{t('activity:kanban.kanban')}</div>
           <div className="truncate text-[11px] text-muted-foreground">
             {t('activity:kanbanText.boardsSummary', {
+              count: boardTotal,
               total: boardTotal,
               active: activeBoardTotal,
               orphaned: orphanedBoardTotal,

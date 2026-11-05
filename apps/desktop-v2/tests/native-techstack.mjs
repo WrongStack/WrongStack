@@ -234,9 +234,9 @@ export async function exerciseNativeTechStack({
       .getByRole('button', { name: 'Remediation', exact: true })
       .click();
     await screen.getByRole('checkbox').first().check();
-    await screen.getByRole('button', { name: 'Review 1 selected operations', exact: true }).click();
+    await screen.getByRole('button', { name: 'Review 1 selected operation', exact: true }).click();
     await screen
-      .getByRole('heading', { name: 'Execute 1 selected operations?', exact: true })
+      .getByRole('heading', { name: 'Execute 1 selected operation?', exact: true })
       .waitFor();
     await screen.getByRole('button', { name: 'Keep reviewing plan', exact: true }).click();
     assert.equal(

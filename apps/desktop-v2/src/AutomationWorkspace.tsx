@@ -281,7 +281,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                   {job.schedule
                     ? `${job.schedule.expression} · ${job.schedule.timezone}`
                     : job.intervalMs
-                      ? t('automation.everyMinutes', { minutes: job.intervalMs / 60000 })
+                      ? t('automation.everyMinutes', { count: job.intervalMs / 60000 })
                       : t('automation.manualOnly')}
                 </span>
               </button>
@@ -740,8 +740,8 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                     setNotice(
                       typeof result?.removedRuns === 'number'
                         ? t('automation.deletedRuns', {
+                            count: result.removedRuns,
                             name: target.name,
-                            runs: result.removedRuns,
                           })
                         : t('automation.deleted', { name: target.name }),
                     );

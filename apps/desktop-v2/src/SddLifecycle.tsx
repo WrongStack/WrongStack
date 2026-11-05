@@ -106,7 +106,7 @@ export function SddLifecycle({
               ? t('sddView.lifecycle.destroyBody')
               : operation === 'cleanup_worktrees'
                 ? t('sddView.lifecycle.cleanupBody')
-                : t('sddView.lifecycle.rollbackBody', { n: merged.length })}
+                : t('sddView.lifecycle.rollbackBody', { count: merged.length })}
           </p>
           {operation === 'destroy' && merged.length > 0 && (
             <label>
@@ -115,7 +115,7 @@ export function SddLifecycle({
                 checked={revertMerged}
                 onChange={(e) => setRevertMerged(e.target.checked)}
               />{' '}
-              {t('sddView.lifecycle.alsoRevert', { n: merged.length })}
+              {t('sddView.lifecycle.alsoRevert', { count: merged.length })}
             </label>
           )}
           {operation === 'destroy' && revertMerged && (

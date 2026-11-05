@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T18:15:17.007Z
+**Generated:** 2026-11-05T19:15:24.671Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6045 |
-| Production source lines | 1252350 |
+| Production source lines | 1252386 |
 | Test files | 5036 |
 | Workspace dependency edges | 243 |
 | Relative module edges | 17799 |
@@ -98,7 +98,7 @@ None.
 | 1068 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1060 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 950 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 933 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 851 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
@@ -106,7 +106,7 @@ None.
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 788 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
-| 779 | `apps/desktop-v2/src/ProjectChimera.tsx` |
+| 781 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 778 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |

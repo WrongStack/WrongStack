@@ -512,7 +512,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                     <span className={cn('h-2 w-2 rounded-full', item.color.bg)} />
                     <span className="font-semibold">{item.name}</span>
                     <span className="opacity-80 font-mono text-[11px]">
-                      {item.count} {item.count === 1 ? 'vote' : 'votes'} ({item.pct}%)
+                      {t('activity:councilText.voteShare', { count: item.count, pct: item.pct })}
                     </span>
                   </div>
                 ))}

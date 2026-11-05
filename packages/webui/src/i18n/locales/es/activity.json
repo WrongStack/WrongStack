@@ -4974,6 +4974,7 @@
     }
   },
   "repositoryHistory": {
+    "commitsCount_one": "{{count}} commit · orden topológico",
     "commitTopology": "Topología de commits",
     "statCommits": "Commits",
     "statBranches": "Ramas",
@@ -5124,6 +5125,18 @@
     "heading": "Ajustes de enrutado en la nube"
   },
   "kanbanText": {
+    "columnCount_one": "{{count}} columna",
+    "columnCount": "{{count}} columnas",
+    "boardsSummary_one": "{{total}} tablero · {{active}} activos · {{orphaned}} huérfanos",
+    "durationEvents_one": "{{duration}} · {{count}} evento",
+    "contractSetupGaps_one": "Contrato · carencias de configuración: {{count}}",
+    "proposedSubtaskCount_one": "subtareas propuestas: {{count}}",
+    "subtaskCount_one": "{{count}} subtarea",
+    "blockingNodes_one": "nodos bloqueantes: {{count}}",
+    "tasksNeedAttention_one": "tareas que requieren atención: {{count}}",
+    "setupGaps_one": "carencias de configuración: {{count}}",
+    "skillCount_one": "habilidades: {{count}}",
+    "taskCount_one": "{{count}} tarea",
     "taskStatus": {
       "pending": "Pendiente",
       "ready": "Lista",
@@ -5149,7 +5162,7 @@
     "contractMap": "Mapa de contratos",
     "noBoardSelected": "Ningún tablero seleccionado",
     "createOrSelectBoard": "Crea o selecciona un tablero",
-    "boardShape": "{{columns}} columnas / {{tasks}} tareas",
+    "boardShape": "{{columns}} · {{tasks}}",
     "taskActivityLoadFailed": "No se pudo cargar la actividad de la tarea.",
     "boardsSummary": "{{total}} tableros · {{active}} activos · {{orphaned}} huérfanos",
     "activeSessionCount": "Sesión activa · {{count}}",
@@ -5436,6 +5449,16 @@
     "boundaryLineAccess": "La línea de límite {{line}} tiene un acceso desconocido."
   },
   "codeMapText": {
+    "symbolCount_one": "{{count}} símbolo",
+    "symbolCount": "{{count}} símbolos",
+    "fileCount_one": "{{count}} archivo",
+    "fileCount": "{{count}} archivos",
+    "thrashCycles_one": "{{count}} ciclo de thrashing",
+    "searchResults_one": "{{count}} resultado en el mapa cargado",
+    "roots_one": "{{count}} raíz",
+    "moreFiles_one": "Mostrar {{count}} archivo más",
+    "moreSymbols_one": "Mostrar {{count}} símbolo más",
+    "eventsNewest_one": "{{count}} evento · los más recientes primero",
     "edgeKind": {
       "call": "Llamada",
       "import": "Importación",
@@ -5497,10 +5520,11 @@
     "thrashCycles": "{{count}} ciclos de thrashing",
     "lockedBy": "Bloqueado por {{owner}}",
     "symbols": "{{count}} símb.",
-    "filesSymbols": "{{files}} archivos · {{symbols}} símbolos",
+    "filesSymbols": "{{files}} · {{symbols}}",
     "allLinks": "TODOS LOS ENLACES"
   },
   "sageText": {
+    "tags_one": "{{count}} etiqueta",
     "anchorType": "Tipo del ancla {{n}}",
     "anchorValue": "Valor del ancla {{n}}",
     "anchorSymbol": "Símbolo del ancla {{n}}",
@@ -5583,6 +5607,10 @@
     "cacheCovers": "La caché cubre {{covered}} de {{max}} tokens"
   },
   "councilText": {
+    "voteShare_one": "{{count}} voto ({{pct}} %)",
+    "voteShare": "{{count}} votos ({{pct}} %)",
+    "votes_one": "{{name}}: {{count}} voto ({{pct}} %)",
+    "rounds_one": "{{count}} ronda",
     "seatsQuorum": "Quórum de asientos",
     "valid": "{{valid}}/{{total}} válidos",
     "diversity": "Diversidad",
@@ -5618,6 +5646,7 @@
     }
   },
   "officeText": {
+    "mailSummary_one": "{{count}} mensaje. Último: {{subject}}",
     "details": "Detalles de {{name}}",
     "taskDetails": "Detalles de la tarea de {{name}}",
     "briefing": "Resumen de {{name}}",

@@ -223,7 +223,7 @@ export async function exerciseNativeModelVisibility({
       .getByRole('button', { name: 'Apply to settings draft', exact: true })
       .click();
     await save();
-    await page.getByText('1 saved disabled-provider rules', { exact: true }).click();
+    await page.getByText('1 saved disabled-provider rule', { exact: true }).click();
     await page
       .getByRole('button', { name: 'Remove provider rule peer-provider', exact: true })
       .click();

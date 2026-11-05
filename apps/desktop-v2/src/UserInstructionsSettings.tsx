@@ -128,8 +128,8 @@ export function UserInstructionsSettings({
         </fieldset>
         <span>
           {t('userInstructions.counts', {
+            count: value.text ? value.text.split('\n').length : 0,
             chars: value.text.length.toLocaleString(),
-            lines: value.text ? value.text.split('\n').length : 0,
           })}
           {dirty ? ` · ${t('userInstructions.unsaved')}` : ''}
         </span>

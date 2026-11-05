@@ -438,7 +438,10 @@ export function SessionRecovery({
               <div>
                 <strong>{point.promptPreview || t('recovery.noPromptText')}</strong>
                 <small>
-                  {t('recovery.snapshots', { time: when(point.ts), n: point.fileCount })}
+                  {t('recovery.snapshots', {
+                    count: point.fileCount,
+                    time: when(point.ts),
+                  })}
                 </small>
               </div>
               <button
@@ -491,7 +494,7 @@ export function SessionRecovery({
                 ))}
               </select>
             </div>
-            <p className="field-help">{t('recovery.matching', { n: matching.length })}</p>
+            <p className="field-help">{t('recovery.matching', { count: matching.length })}</p>
             <ol>
               {matching
                 .slice(-limit)
@@ -584,7 +587,7 @@ export function SessionRecovery({
               {t(retrying ? 'recovery.retryAsk' : 'recovery.rewindAsk', { n: confirm.promptIndex })}
             </h2>
             <p>{confirm.promptPreview}</p>
-            <p>{t('recovery.confirmBody', { n: snapshotCount })}</p>
+            <p>{t('recovery.confirmBody', { count: snapshotCount })}</p>
             <p>{t('recovery.draftKept')}</p>
             {error && (
               <p role="alert" className="session-error">

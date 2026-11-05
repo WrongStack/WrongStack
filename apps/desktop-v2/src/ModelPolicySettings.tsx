@@ -117,7 +117,7 @@ export function OrderedModelChain({
     <section className="policy-chain" aria-label={label}>
       <header>
         <h3>{label}</h3>
-        <span>{t('modelPolicy.chainCount', { number: chain.length })}</span>
+        <span>{t('modelPolicy.chainCount', { count: chain.length })}</span>
       </header>
       {chain.map((model, i) => (
         <div className="policy-chain-row" key={i}>

@@ -1,4 +1,42 @@
 {
+  "counts": {
+    "files_one": "{{count, number}} file",
+    "files": "{{count, number}} files",
+    "findings_one": "{{count, number}} finding",
+    "findings": "{{count, number}} findings",
+    "testFiles_one": "{{count, number}} test file",
+    "testFiles": "{{count, number}} test files",
+    "seconds_one": "{{count, number}} second",
+    "seconds": "{{count, number}} seconds",
+    "events_one": "{{count, number}} event",
+    "events": "{{count, number}} events",
+    "relationships_one": "{{count, number}} relationship",
+    "relationships": "{{count, number}} relationships",
+    "attempts_one": "{{count, number}} attempt",
+    "attempts": "{{count, number}} attempts",
+    "retries_one": "{{count, number}} retry",
+    "retries": "{{count, number}} retries",
+    "fallbacks_one": "{{count, number}} fallback",
+    "fallbacks": "{{count, number}} fallbacks",
+    "verificationFailures_one": "{{count, number}} verification failure",
+    "verificationFailures": "{{count, number}} verification failures",
+    "iterations_one": "{{count, number}} iteration",
+    "iterations": "{{count, number}} iterations",
+    "toolCalls_one": "{{count, number}} tool call",
+    "toolCalls": "{{count, number}} tool calls",
+    "failures_one": "{{count, number}} failure",
+    "failures": "{{count, number}} failures",
+    "rateLimits_one": "{{count, number}} rate limit",
+    "rateLimits": "{{count, number}} rate limits",
+    "successes_one": "{{count, number}} success",
+    "successes": "{{count, number}} successes",
+    "models_one": "{{count, number}} model",
+    "models": "{{count, number}} models",
+    "savedDefinitions_one": "{{count, number}} saved definition",
+    "savedDefinitions": "{{count, number}} saved definitions",
+    "commits_one": "{{count, number}} commit",
+    "commits": "{{count, number}} commits"
+  },
   "pages": {
     "files": "Files",
     "changes": "Changes",
@@ -2312,6 +2350,9 @@
     "save": "Save resource"
   },
   "automation": {
+    "otherWindow_one": "Another window saved different unsaved automation drafts for this project ({{count}} job draft).",
+    "deletedRuns_one": "Deleted {{name}} and {{count}} run record.",
+    "everyMinutes_one": "Every minute",
     "runStatus": {
       "queued": "queued",
       "running": "running",
@@ -2332,7 +2373,7 @@
     "imported": "Imported as a disabled automation for local review.",
     "queuedNotice": "The engine queued this run.",
     "deleted": "Deleted {{name}}.",
-    "deletedRuns": "Deleted {{name}} and {{runs}} run records.",
+    "deletedRuns": "Deleted {{name}} and {{count}} run records.",
     "workerOnline": "Worker online",
     "workerOffline": "Worker offline · jobs remain editable",
     "refresh": "Refresh",
@@ -2347,7 +2388,7 @@
     "jobsLabel": "Automation jobs",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "everyMinutes": "Every {{minutes}} minutes",
+    "everyMinutes": "Every {{count}} minutes",
     "manualOnly": "Manual only",
     "noJobs": "No automations in this project.",
     "recentRuns": "Recent runs",
@@ -2415,12 +2456,17 @@
     "reloadHelp": "This discards the current job's unsaved form. Other job drafts remain in this window.",
     "keepEditing": "Keep editing automation",
     "discardReloadConfirm": "Discard and reload automation",
-    "otherWindow": "Another window saved different unsaved automation drafts for this project ({{drafts}} job drafts).",
+    "otherWindow": "Another window saved different unsaved automation drafts for this project ({{count}} job drafts).",
     "keepWindow": "Keep this window’s drafts",
     "useSaved": "Use saved drafts",
     "retryDrafts": "Retry loading saved drafts"
   },
   "autoConfig": {
+    "deadline_one": "Setup deadline: {{count}} second. The worker prepares this environment for the copied workspace.",
+    "ports_one": "{{count}} preview port",
+    "caches_one": "{{count}} cache",
+    "services_one": "{{count}} service",
+    "setupSteps_one": "{{count}} setup step",
     "templatesTitle": "Start with a workflow",
     "templatesHelp": "A starting point for the job's name and instructions. Runtime choices stay in your draft.",
     "useTemplate": "Use automation template",
@@ -2432,11 +2478,11 @@
     "environment": "Reusable environment",
     "editEnvironment": "Edit environment",
     "configureEnvironment": "Configure environment",
-    "setupSteps": "{{n}} setup steps",
-    "services": "{{n}} services",
-    "caches": "{{n}} caches",
-    "ports": "{{n}} preview ports",
-    "deadline": "Setup deadline: {{seconds}} seconds. The worker prepares this environment for the copied workspace.",
+    "setupSteps": "{{count}} setup steps",
+    "services": "{{count}} services",
+    "caches": "{{count}} caches",
+    "ports": "{{count}} preview ports",
+    "deadline": "Setup deadline: {{count}} seconds. The worker prepares this environment for the copied workspace.",
     "health": "health:",
     "removeEnvironment": "Remove environment from draft",
     "noEnvironment": "Attach setup steps, service containers, package caches and local preview ports. No environment is attached.",
@@ -2716,6 +2762,8 @@
     "apply": "Apply environment to draft"
   },
   "goals": {
+    "recordedRuns_one": "{{count}} recorded goal run",
+    "phaseCount_one": "{{count}} phase",
     "status": {
       "planning": "Planning",
       "running": "Running",
@@ -2753,7 +2801,8 @@
     "refused": "The engine refused this request.",
     "submitted": "Goal submitted. Waiting for the engine to plan.",
     "budget": {
-      "tasks": "{{used}} of {{max}} tasks",
+      "tasks_one": "{{used}} of {{count}} task",
+      "tasks": "{{used}} of {{count}} tasks",
       "minutes": "{{used}} of {{max}} min",
       "tokens": "{{used}} of {{max}} tokens",
       "cost": "~${{used}} of ${{max}} estimated",
@@ -2829,7 +2878,7 @@
     "skipped": "Skipped",
     "finalVerification": "Final verification",
     "phasesAndTasks": "Phases and tasks",
-    "phaseCount": "{{n}} phases",
+    "phaseCount": "{{count}} phases",
     "phase": "Phase",
     "phaseLower": "phase",
     "taskCount": "{{done}} / {{total}} tasks",
@@ -2864,7 +2913,7 @@
     "inspectTitle": "Inspect the work",
     "inspectHelp": "Select a task to see its status, assignment, and recorded details.",
     "executionGoals": "Execution goals",
-    "recordedRuns": "{{n}} recorded goal runs",
+    "recordedRuns": "{{count}} recorded goal runs",
     "search": "Search goals",
     "searchPlaceholder": "Search goals…",
     "reading": "Reading the project goal catalog…",
@@ -3030,7 +3079,7 @@
     "loading": "Loading model metadata…",
     "search": "Search models",
     "searchLabel": "Search provider models",
-    "counts": "{{models}} models · {{definitions}} saved definitions",
+    "counts": "{{models}} · {{definitions}}",
     "savedDefinition": "Saved definition",
     "providerCatalog": "Provider catalog",
     "noModels": "No models reported. You can add a definition using the model ID served by this endpoint.",
@@ -3314,6 +3363,10 @@
     "discard": "Discard draft"
   },
   "reviews": {
+    "matching_one": "{{count}} matching report in the most recent {{limit}} records. Origin sessions are report metadata; this project workspace needs no open conversation.",
+    "unparseable_one": "{{count}} reported item was not parsed individually. Review the full report below.",
+    "stillOpen_one": "{{count}} finding is still open. Completing the report leaves its individual tracking state intact.",
+    "findingsCount_one": "{{count}} finding",
     "value": {
       "open": "open",
       "actioned": "actioned",
@@ -3360,12 +3413,12 @@
     "sessionLabel": "Review origin session",
     "allSessions": "All recorded sessions",
     "windowLabel": "Recent Chimera report window",
-    "matching": "{{n}} matching reports in the most recent {{limit}} records. Origin sessions are report metadata; this project workspace needs no open conversation.",
+    "matching": "{{count}} matching reports in the most recent {{limit}} records. Origin sessions are report metadata; this project workspace needs no open conversation.",
     "catalogLabel": "Chimera report catalog",
     "reading": "Reading review reports…",
     "openReview": "Open review {{id}}",
     "noModel": "Reviewer model not reported",
-    "findingsCount": "{{n}} findings",
+    "findingsCount": "{{count}} findings",
     "severityCount": "{{n}} {{severity}}",
     "executionFailed": "Review execution failed",
     "noReports": "No reports in this view.",
@@ -3382,7 +3435,7 @@
       "evidenceStatus": "Evidence status",
       "durationSeconds": "Review duration (seconds)"
     },
-    "unparseable": "{{n}} reported items were not parsed individually. Review the full report below.",
+    "unparseable": "{{count}} reported items were not parsed individually. Review the full report below.",
     "reopenReport": "Reopen report",
     "actionReport": "Mark report actioned",
     "completeReport": "Complete report",
@@ -3438,7 +3491,7 @@
     "decisionReport": "Record report status",
     "decisionFinding": "Record finding status",
     "closeDecision": "Close review decision",
-    "stillOpen": "{{n}} findings are still open. Completing the report leaves their individual tracking states intact.",
+    "stillOpen": "{{count}} findings are still open. Completing the report leaves their individual tracking states intact.",
     "outcome": "Resolution outcome",
     "outcomeLabel": "Review resolution outcome",
     "chooseOutcome": "Choose the observed outcome…",
@@ -3465,6 +3518,7 @@
     "findingId": "Finding {{id}}"
   },
   "skillLib": {
+    "exported_one": "Exported {{count}} skill.",
     "source": {
       "project": "This project",
       "user": "WrongStack profile",
@@ -3485,7 +3539,7 @@
     "uninstalled": "Installed skill removed.",
     "updateSummary": "{{updated}} updated · {{unchanged}} unchanged · {{failed}} failed.",
     "noArchive": "The engine did not return a skill archive.",
-    "exported": "Exported {{n}} skills.",
+    "exported": "Exported {{count}} skills.",
     "labelProfile": "Profile skill library",
     "labelProject": "Project skill library",
     "eyebrowProject": "PROJECT CAPABILITIES",
@@ -3583,6 +3637,9 @@
     }
   },
   "designStudio": {
+    "sourceLine_one": "Source: {{source}} · {{count}} file · {{score}}",
+    "findings_one": "{{count}} finding · showing {{shown}}",
+    "noSignal_one": "{{count}} file had no matching UI signals. Its visual quality was not measured by this scan.",
     "label": "Project Design Studio",
     "title": "Design Studio",
     "intro": "Explore real light and dark themes, shape their details, and write the theme into your project.",
@@ -3705,13 +3762,13 @@
     "verifyTitle": "Project design verification",
     "scan": "Scan project design",
     "verifyHint": "Checks project UI signals against the pinned kit or captured tokens. The reported score measures color adherence.",
-    "sourceLine": "Source: {{source}} · {{files}} files · {{score}}",
+    "sourceLine": "Source: {{source}} · {{count}} files · {{score}}",
     "sourceCaptured": "Captured project tokens",
     "sourceKit": "Kit {{kit}}",
     "adherence": "{{percent}}% reported color adherence",
     "noScore": "Color score not reported",
-    "findings": "{{total}} findings · showing {{shown}}",
-    "noSignal": "{{n}} files had no matching UI signals. Their visual quality was not measured by this scan.",
+    "findings": "{{count}} findings · showing {{shown}}",
+    "noSignal": "{{count}} files had no matching UI signals. Their visual quality was not measured by this scan.",
     "capturedFrom": "Captured from: {{list}}",
     "observation": "Observation",
     "themeSample": "{{label}} theme sample",
@@ -3734,6 +3791,7 @@
     "restored": "Restored unsaved design edits kept on this device."
   },
   "mailboxPage": {
+    "receipts_one": "{{count}} read receipt in this view",
     "conversationCount_one": "{{count}} loaded message in this conversation",
     "messageCount_one": "{{count}} message",
     "messageCount": "{{count}} messages",
@@ -3747,9 +3805,10 @@
     "resumeDraft": "Resume message draft",
     "composeMessage": "Compose message",
     "older": {
+      "loaded_one": "{{count}} older message loaded.",
       "stuck": "More messages share the oldest timestamp than one page holds, so older ones cannot be read here.",
       "done": "No older messages in this view.",
-      "loaded": "{{n}} older messages loaded."
+      "loaded": "{{count}} older messages loaded."
     },
     "missingFields": "Enter a recipient, subject and message.",
     "unconfirmed": "The engine did not confirm a saved message. Check the mailbox before retrying; your draft is retained.",
@@ -3800,7 +3859,7 @@
     "audience": "Audience: {{audience}}",
     "audienceAll": "All eligible recipients",
     "audienceLeaders": "Leaders only",
-    "receipts": "{{n}} read receipts in this view",
+    "receipts": "{{count}} read receipts in this view",
     "completedBy": "Completed by {{actor}} · {{time}}",
     "references": "Receipts and references",
     "replyTo": "Reply to:",
@@ -3914,6 +3973,7 @@
     }
   },
   "deadCode": {
+    "showNext_one": "Show the next finding",
     "count": {
       "visible_one": "{{count}} visible finding",
       "visible": "{{count}} visible findings",
@@ -3989,7 +4049,7 @@
     "scopeLine": "Showing {{scope}}.",
     "scopeLinePublic": "Showing {{scope}} including unused public API exports.",
     "entireProject": "the entire project",
-    "scanFacts": "{{seconds}} seconds · {{parsed}} parsed · {{tests}} test files",
+    "scanFacts": "{{seconds}} · {{parsed}} parsed · {{tests}}",
     "warnings": "Scan limitations ({{n}})",
     "search": "Search dead-code findings",
     "searchPlaceholder": "Find a file, symbol or package…",
@@ -4011,7 +4071,7 @@
     "manual": "Manual review: {{reason}}",
     "noMechanical": "no mechanical fix available",
     "noMatch": "No findings match this view.",
-    "showNext": "Show next {{n}} findings",
+    "showNext": "Show next {{count}} findings",
     "previewFixes": "Preview selected fixes",
     "verify": "Run typecheck and roll back failed changes",
     "reviewExecution": "Review cleanup execution",
@@ -4032,7 +4092,7 @@
     "backupsLabel": "Dead-code backups",
     "backups": "Recovery backups ({{n}})",
     "refreshBackups": "Refresh cleanup backups",
-    "backupFacts": "{{files}} files · {{findings}} findings",
+    "backupFacts": "{{files}} · {{findings}}",
     "reviewRestore": "Review restore backup",
     "noBackups": "No cleanup backups recorded.",
     "conflictTitle": "Files changed after cleanup",
@@ -4066,6 +4126,7 @@
     }
   },
   "chronicleView": {
+    "seconds_one": "{{count}} second",
     "label": "Project Chronicle",
     "title": "Chronicle",
     "intro": "Follow work across agents, files, tools, and conversations. Keep every outcome in context.",
@@ -4111,7 +4172,7 @@
     "timeline": "Project timeline",
     "lineage": "Evidence lineage",
     "loaded": "{{loaded}} of {{total}} loaded",
-    "graphCount": "{{events}} events · {{relations}} relationships",
+    "graphCount": "{{events}} · {{relations}}",
     "exportMarkdown": "Export Markdown",
     "exportJsonl": "Export JSONL",
     "exportLineageMarkdown": "Export lineage Markdown",
@@ -4160,7 +4221,7 @@
       "watched": "Watched files",
       "uptime": "Uptime"
     },
-    "seconds": "{{n}} seconds",
+    "seconds": "{{count}} seconds",
     "notReported": "Not reported",
     "detail": {
       "label": "Chronicle event details",
@@ -4224,10 +4285,10 @@
       "invalid": "The engine returned an invalid metrics response.",
       "loading": "Loading project insights…",
       "notRecorded": "Not recorded",
-      "attempts": "{{attempts}} attempts · {{completed}} completed · {{failed}} failed · {{retries}} retries · {{fallbacks}} fallbacks",
+      "attempts": "{{attempts}} · {{completed}} completed · {{failed}} failed · {{retries}} · {{fallbacks}}",
       "tokens": "{{input}} input / {{output}} output tokens · {{cacheRead}} cache read / {{cacheWrite}} cache write · {{avg}} ms average / {{max}} ms maximum",
       "taskOwners": "Board {{board}} · Agent {{agent}} · Session {{session}}",
-      "taskRun": "Run {{run}} · {{retries}} retries · {{verification}} verification failures · {{files}} files · {{ms}} ms",
+      "taskRun": "Run {{run}} · {{retries}} · {{verification}} · {{files}} · {{ms}} ms",
       "taskTimes": "Started {{started}} · Ended {{ended}}",
       "fileOwners": "Task {{task}} · Board {{board}} · Run {{run}} · Session {{session}} · Agent {{agent}} · {{provider}} / {{model}}",
       "dailyRows": "Daily provider rows",
@@ -4235,6 +4296,7 @@
       "footnote": "{{rows}} · {{partitions}} partitions read during refresh · {{invalid}} invalid entries during refresh"
     },
     "manifest": {
+      "omitted_one": "{{count, number}} earlier message is not itemised; the manifest ID still covers it.",
       "title": "Prompt manifest",
       "notRecorded": "not recorded",
       "messages": "Messages",
@@ -4252,7 +4314,7 @@
       "tools": "Tools · {{count}} · {{tokens}} definition tokens (engine estimate) · {{mutating}} mutating · {{destructive}} destructive",
       "noTools": "No tools offered.",
       "toolsRef": "Tool names were recorded on an earlier request with the same tool set (<code>{{hash}}</code>).",
-      "omitted": "{{n}} earlier messages are not itemised; the manifest ID still covers them.",
+      "omitted": "{{count, number}} earlier messages are not itemised; the manifest ID still covers them.",
       "messagesTable": "Manifest messages",
       "role": "Role",
       "tokens": "Tokens (estimate)",
@@ -4260,6 +4322,9 @@
     }
   },
   "recovery": {
+    "confirmBody_one": "{{count}} recorded file snapshot belongs to this prompt or a later one. The engine will restore its recorded content, remove later conversation events and replace the live context. This can overwrite edits made since that snapshot.",
+    "matching_one": "{{count}} matching recorded event. Search covers journal labels and recorded previews, not the complete message transcript.",
+    "snapshots_one": "{{time}} · {{count}} file snapshot at this prompt index",
     "changed": "The session changed after this review. Close this dialog and refresh checkpoints.",
     "noRewindResult": "The engine acknowledged rewind without a detailed result. Refresh and inspect the journal before another action.",
     "noRedoResult": "The engine acknowledged the redo without a detailed result. Refresh and inspect the journal.",
@@ -4314,7 +4379,7 @@
     "checkpointError": "Checkpoints could not be read: {{error}}",
     "noCheckpoints": "No prompt checkpoints recorded in this session.",
     "noPromptText": "Prompt text not recorded",
-    "snapshots": "{{time}} · {{n}} file snapshots at this prompt index",
+    "snapshots": "{{time}} · {{count}} file snapshots at this prompt index",
     "reviewLabel": "Review rewind to prompt {{n}}",
     "review": "Review rewind",
     "snapshotHint": "Snapshot counts are recorded entries, not a unique-file preview. Unsaved composer drafts are kept separately. Rewind is not a Git checkout or a complete project backup.",
@@ -4324,7 +4389,7 @@
     "searchPlaceholder": "Find a recorded event…",
     "typeLabel": "Session event type",
     "allTypes": "All event types",
-    "matching": "{{n}} matching recorded events. Search covers journal labels and recorded previews, not the complete message transcript.",
+    "matching": "{{count}} matching recorded events. Search covers journal labels and recorded previews, not the complete message transcript.",
     "noMatch": "No recorded events match.",
     "older": "Show 100 older events",
     "tools": "Tool footprint",
@@ -4337,7 +4402,7 @@
     "rewindEyebrow": "REWIND THIS CONVERSATION",
     "retryAsk": "Undo prompt {{n}} and send it again?",
     "rewindAsk": "Undo prompt {{n}} and later work?",
-    "confirmBody": "{{n}} recorded file snapshots belong to this prompt and later prompts. The engine will restore their recorded content, remove later conversation events and replace the live context. This can overwrite edits made since those snapshots.",
+    "confirmBody": "{{count}} recorded file snapshots belong to this prompt and later prompts. The engine will restore their recorded content, remove later conversation events and replace the live context. This can overwrite edits made since those snapshots.",
     "draftKept": "Your unsent composer draft will remain. This does not provide a complete file backup.",
     "keep": "Keep current history",
     "rewinding": "Rewinding…",
@@ -4353,6 +4418,7 @@
       "copy": "Copy prompt"
     },
     "records": {
+      "more_one": "{{count}} more file is not kept in this record.",
       "title": "Recovery operations ({{n}})",
       "hint": "Rewinds, retries and redos started from this desktop, as observed when they ran. They survive a restart; work done elsewhere is not listed.",
       "label": "Recovery operations",
@@ -4372,7 +4438,7 @@
       "restored": "Restored files: {{n}}",
       "removed": "Removed journal events: {{n}}",
       "fileErrors": "File errors",
-      "more": "{{n}} more files not kept in this record."
+      "more": "{{count}} more files not kept in this record."
     }
   },
   "providerSettings": {
@@ -4640,6 +4706,7 @@
     "confirmSingle": "Confirm process termination"
   },
   "sddView": {
+    "progress_one": "{{status}} · {{completed}} / {{count}} task",
     "value": {
       "idle": "idle",
       "questioning": "questioning",
@@ -4722,7 +4789,7 @@
     "tasks": "Tasks",
     "loadingSpecs": "Loading specifications…",
     "untitledSpec": "Untitled specification",
-    "progress": "{{status}} · {{completed}} / {{total}} tasks",
+    "progress": "{{status}} · {{completed}} / {{count}} tasks",
     "noSpecs": "No specifications have been recorded for this project.",
     "selectSpec": "Select a specification",
     "selectSpecHint": "Explore its task graph and dependencies.",
@@ -4789,6 +4856,8 @@
       "empty": "Task pickups, completions, failures and retries appear here as the run works."
     },
     "lifecycle": {
+      "alsoRevert_one": "Also revert this run’s {{count}} merged commit",
+      "rollbackBody_one": "Create a history-preserving revert commit for this run’s {{count}} recorded merged commit. The engine requires the recorded base branch and a clean working tree.",
       "label": "SDD project maintenance",
       "eyebrow": "AFTER EXECUTION",
       "title": "Project maintenance",
@@ -4811,8 +4880,8 @@
       },
       "destroyBody": "This clears all specifications, task graphs, interview state, SDD boards and mirrored SDD Kanban boards in this project. Managed worktrees and branches, including unmerged changes, are removed.",
       "cleanupBody": "Remove all managed worktrees and their branches for this project, including unmerged changes.",
-      "rollbackBody": "Create history-preserving revert commits for this run’s {{n}} recorded merged commits. The engine requires the recorded base branch and a clean working tree.",
-      "alsoRevert": "Also revert this run’s {{n}} merged commits",
+      "rollbackBody": "Create history-preserving revert commits for this run’s {{count}} recorded merged commits. The engine requires the recorded base branch and a clean working tree.",
+      "alsoRevert": "Also revert this run’s {{count}} merged commits",
       "revertFallback": "If reverting fails, the engine still clears the SDD records and reports the reason.",
       "pending": "{{title}} requested. Waiting for the engine result…",
       "refused": "Operation refused",
@@ -4823,6 +4892,7 @@
       "cleared": "Cleared: {{list}}"
     },
     "taskDetail": {
+      "splitBody_one": "Create {{count}} subtask and mark the parent as a completed container. The subtask inherits its blockers; dependent work waits for it.",
       "label": "SDD task details",
       "eyebrow": "TASK {{id}}",
       "noDescription": "No description recorded.",
@@ -4863,7 +4933,7 @@
       "updateVerification": "Update verification",
       "split": "Split into subtasks",
       "splitPlaceholder": "One task per line: Title :: description",
-      "splitBody": "Create {{n}} subtasks and mark the parent as a completed container. Subtasks inherit its blockers; dependent work waits for all subtasks.",
+      "splitBody": "Create {{count}} subtasks and mark the parent as a completed container. Subtasks inherit its blockers; dependent work waits for all subtasks.",
       "confirmSplit": "Confirm split",
       "reviewSplit": "Review split",
       "activity": "Task activity",
@@ -4988,6 +5058,8 @@
       "save": "History view changes are not saved. Your current view is retained. Retry saving when the native store is available."
     },
     "contentSearch": {
+      "matching_one": "{{count}} matching message · {{provider}} / {{model}}",
+      "unreadable_one": "{{count}} record could not be read; results are incomplete.",
       "label": "Search across project conversations",
       "field": "Search conversation content",
       "placeholder": "Find words inside recorded conversations…",
@@ -5020,8 +5092,8 @@
       },
       "progress": "{{status}} {{scanned}} of {{total}} records checked · {{n}} matching conversations.",
       "progressLabel": "Conversation search progress",
-      "unreadable": "{{n}} records could not be read; results are incomplete.",
-      "matching": "{{n}} matching messages · {{provider}} / {{model}}",
+      "unreadable": "{{count}} records could not be read; results are incomplete.",
+      "matching": "{{count}} matching messages · {{provider}} / {{model}}",
       "readMatch": "Read search match {{id}} message {{n}}",
       "message": "Message {{n}}",
       "readMessage": "Read matching message →",
@@ -5029,6 +5101,7 @@
       "noMatches": "No retained conversation text matches this search."
     },
     "usage": {
+      "inProjects_one": " in {{count, number}} project",
       "notRecorded": "Not recorded",
       "title": "Recorded usage",
       "help": "Tokens recorded by each conversation, grouped by the provider and model it last used. Prices are not derived here.",
@@ -5043,7 +5116,7 @@
       "refresh": "Refresh summary",
       "summarize": "Summarize recorded usage",
       "total": "{{tokens}} tokens across {{sessions}} conversations{{projects}}{{missing}}{{capped}}.",
-      "inProjects": " in {{n}} projects",
+      "inProjects": " in {{count, number}} projects",
       "withoutTotal": " ({{n}} without a recorded total)",
       "capped": "; only the newest conversations up to the scan limit were read",
       "byProject": "Recorded tokens by project",
@@ -5058,6 +5131,7 @@
       "notRead": "Not read: {{error}}"
     },
     "effects": {
+      "unreadable_one": "; {{count}} journal could not be read",
       "title": "Recorded side effects",
       "help": "Commands, file writes, packages, network and configuration operations recorded in this project's conversations, newest first.",
       "risk": "Risk",
@@ -5068,7 +5142,7 @@
       "unsupported": "This engine does not summarize project side effects yet.",
       "total": "{{total}} recorded in {{with}} of {{scanned}} conversations{{capped}}{{unreadable}}.",
       "capped": " (the newest conversations up to the scan limit)",
-      "unreadable": "; {{n}} journals could not be read",
+      "unreadable": "; {{count}} journals could not be read",
       "column": {
         "when": "When",
         "conversation": "Conversation",
@@ -5096,10 +5170,13 @@
       "unreadable": "This engine did not return a readable transcript. Update the project runtime before retrying."
     },
     "block": {
+      "loadMore_one": "Load the next block",
+      "more_one": "{{count}} more block in this message.",
+      "pdfPages_one": "{{count}} page · Extracted text; binary PDF not loaded.",
       "textUnreadable": "The recorded text could not be read.",
       "pdf": "PDF attachment",
       "pdfText": "Extracted text; binary PDF not loaded.",
-      "pdfPages": "{{n}} pages · Extracted text; binary PDF not loaded.",
+      "pdfPages": "{{count}} pages · Extracted text; binary PDF not loaded.",
       "copy": "Copy visible recorded text",
       "reuse": "Add visible text to draft",
       "fromStart": "Read from start",
@@ -5111,9 +5188,9 @@
       "toolResult": "Tool result · {{name}}",
       "toolResultError": "Tool result · {{name}} · error",
       "moreUnreadable": "This engine did not return the remaining blocks.",
-      "more": "{{n}} more blocks in this message.",
+      "more": "{{count}} more blocks in this message.",
       "loading": "Loading…",
-      "loadMore": "Load next {{n}} blocks",
+      "loadMore": "Load next {{count}} blocks",
       "toolRequest": "Tool request · {{name}}",
       "inputUnreadable": "This engine did not return the complete input.",
       "inputComplete": "Complete recorded input.",
@@ -5252,6 +5329,8 @@
     }
   },
   "liveFleet": {
+    "agents_one": "<strong>{{n}}</strong> registered agent",
+    "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Project live fleet",
     "eyebrow": "PROJECT EXECUTION",
     "title": "Live fleet",
@@ -5275,7 +5354,7 @@
     "agentCountOne": "{{status}} · {{n}} agent",
     "agentCountMany": "{{status}} · {{n}} agents",
     "statusPid": "{{status}} · PID {{pid}}",
-    "agentCounters": "{{iterations}} iterations · {{tools}} tool calls",
+    "agentCounters": "{{iterations}} · {{tools}}",
     "noAgents": "No agents have been recorded for this runtime.",
     "status": {
       "active": "active",
@@ -5357,6 +5436,8 @@
       "unconfirmed": "Delivery does not confirm execution."
     },
     "activity": {
+      "showing_one": "Showing the most recent entry · {{rest}}",
+      "total_one": "{{count, number}} recorded entry.",
       "label": "Recent fleet session activity",
       "title": "Recent session activity",
       "help": "Read-only journal view for the whole selected session, including when an agent is selected.",
@@ -5364,9 +5445,9 @@
       "refresh": "Refresh session activity",
       "read": "Read recent session activity",
       "invalid": "The engine returned unrecognized session activity.",
-      "showing": "Showing the most recent {{n}} entries · {{rest}}",
+      "showing": "Showing the most recent {{count}} entries · {{rest}}",
       "upperBound": "The total is an upper bound for this retained window.",
-      "total": "{{n}} recorded entries.",
+      "total": "{{count, number}} recorded entries.",
       "role": {
         "user": "user",
         "assistant": "assistant",
@@ -5384,6 +5465,7 @@
     }
   },
   "integrations": {
+    "toolCount_one": "{{count}} tool available",
     "title": "Connected tools",
     "intro": "Connect MCP servers to extend what WrongStack can read and do. These connections belong to your profile.",
     "add": "Add connection",
@@ -5402,7 +5484,7 @@
     "restartLabel": "Restart {{name}}",
     "restartTitle": "Restart server connection",
     "endpoint": "MCP connection",
-    "toolCount": "{{n}} tools available",
+    "toolCount": "{{count}} tools available",
     "tools": "Available tools",
     "hint": {
       "readOnlyHint": "read-only",
@@ -5567,6 +5649,9 @@
     "reading": "Reading Brain policy…",
     "unavailable": "Brain configuration is unavailable. Refresh to retry.",
     "fact": {
+      "size_one": "<strong>{{n}}</strong> cached decision",
+      "misses_one": "<strong>{{n}}</strong> cache miss",
+      "hits_one": "<strong>{{n}}</strong> cache hit",
       "hits": "<strong>{{n}}</strong> cache hits",
       "misses": "<strong>{{n}}</strong> cache misses",
       "size": "<strong>{{n}}</strong> cached decisions",
@@ -6430,6 +6515,7 @@
     "contextTokens": "Context {{tokens}} tokens · window not reported"
   },
   "referenceChips": {
+    "pastEnd_one": "This file has {{count}} line; the range starts after its end.",
     "label": "Attached project files",
     "showQuote": "Show quoted text from {{ref}}",
     "setRange": "Set line range for {{ref}}",
@@ -6449,7 +6535,7 @@
     "preview": "Preview lines",
     "invalid": "Use whole line numbers from 1, with the last line not before the first.",
     "noPreview": "No text preview is available for this file. The range can still be attached.",
-    "pastEnd": "This file has {{total}} lines; the range starts after its end.",
+    "pastEnd": "This file has {{count}} lines; the range starts after its end.",
     "previewLabel": "Referenced lines preview",
     "showing": "Showing the first {{shown}} of {{range}} referenced lines · file has {{total}} lines.",
     "cancel": "Cancel",
@@ -6598,14 +6684,16 @@
     "acknowledged": "The engine acknowledged the task request."
   },
   "composerQueue": {
+    "attachments_one": "{{count}} attachment",
+    "referencedFiles_one": "{{count}} referenced file",
     "one": "1 queued prompt",
     "many": "{{number}} queued prompts",
     "note": "Engine-owned · runs after this turn",
     "pending": "Pending prompts",
     "clear": "Clear queue",
     "references": "Project file references",
-    "referencedFiles": "{{number}} referenced files",
-    "attachments": "{{number}} attachments",
+    "referencedFiles": "{{count}} referenced files",
+    "attachments": "{{count}} attachments",
     "copyTitle": "Copy queued text into the composer; the original stays queued",
     "copyTextOnly": "Copy text only",
     "copyToDraft": "Copy to draft",
@@ -6726,10 +6814,11 @@
     "notReported": "Not reported"
   },
   "refineCompare": {
+    "words_one": "{{count}} word added · {{removed}} removed",
     "tooLong": "These texts are too long to compare word by word. Review the full version instead.",
     "label": "Changes from your original draft",
     "oneWord": "1 word added · {{removed}} removed",
-    "words": "{{added}} words added · {{removed}} removed",
+    "words": "{{count}} words added · {{removed}} removed",
     "none": "No changes from your original draft."
   },
   "terminalPane": {
@@ -7025,6 +7114,7 @@
     "noMatch": "No tools match these filters."
   },
   "userInstructions": {
+    "counts_one": "{{chars}} characters · {{count}} line",
     "changedElsewhere": "The file changed elsewhere. Your draft is kept; saving will check its revision.",
     "changedAgain": "The file changed again before readback. Your draft is kept; reload saved instructions before retrying.",
     "saved": "Global instructions saved and verified. WrongStack reads them on the next turn.",
@@ -7039,7 +7129,7 @@
     "view": "Instructions view",
     "edit": "Edit",
     "preview": "Preview",
-    "counts": "{{chars}} characters · {{lines}} lines",
+    "counts": "{{chars}} characters · {{count}} lines",
     "unsaved": "unsaved",
     "previewLabel": "Global instructions preview",
     "empty": "No global instructions yet.",
@@ -7079,6 +7169,8 @@
     "alwaysOn": "Always on"
   },
   "configDoctor": {
+    "differ_one": "{{count}} setting differs from the defaults:",
+    "repaired_one": "Repaired {{count}} setting. Backup:",
     "title": "Configuration check",
     "intro": "Compares the active profile configuration with the current defaults. Missing settings are added and settings of the wrong type are replaced; provider and model are never chosen for you.",
     "checking": "Checking…",
@@ -7089,9 +7181,9 @@
     "profileConfig": "the profile configuration",
     "repairBackup": "Repair and keep a backup",
     "keep": "Keep current",
-    "repaired": "Repaired {{number}} settings. Backup:",
+    "repaired": "Repaired {{count}} settings. Backup:",
     "notReported": "not reported",
-    "differ": "{{number}} settings differ from the defaults:",
+    "differ": "{{count}} settings differ from the defaults:",
     "matches": "The configuration matches the current defaults.",
     "added": "added",
     "replaced": "replaced"
@@ -7163,9 +7255,10 @@
     }
   },
   "bgServices": {
+    "restarted_one": "Restarted {{done}} of {{count}} service.",
     "title": "Background services",
     "actionDone": "{{label}}: {{action}} done.",
-    "restarted": "Restarted {{done}} of {{total}} services.",
+    "restarted": "Restarted {{done}} of {{count}} services.",
     "overall": "Overall: {{status}}",
     "checked": "checked {{time}}",
     "restartNote": "A stopped service starts again the next time it is needed.",
@@ -7381,6 +7474,8 @@
     "activity": "Recent activity in this engine"
   },
   "modelVisibility": {
+    "providerRules_one": "{{count}} saved disabled-provider rule",
+    "modelRules_one": "{{count}} saved disabled-model rule",
     "otherProvider": "The engine returned a different provider catalog.",
     "label": "Model visibility settings",
     "savedProvider": "Saved provider",
@@ -7409,11 +7504,11 @@
     "enableModel": "Enable model",
     "disableModel": "Disable model",
     "noMatch": "No catalog models match. Saved rules below remain editable.",
-    "modelRules": "{{number}} saved disabled-model rules",
+    "modelRules": "{{count}} saved disabled-model rules",
     "modelRulesNote": "Bare model IDs apply across providers. Qualified references apply to their named provider. Rules can outlive a catalog entry.",
     "removeRuleLabel": "Remove rule {{ref}}",
     "removeRule": "Remove rule",
-    "providerRules": "{{number}} saved disabled-provider rules",
+    "providerRules": "{{count}} saved disabled-provider rules",
     "providerRulesNote": "Provider rules also apply to future models. Remove a rule here even when the saved connection is no longer present.",
     "removeProviderRuleLabel": "Remove provider rule {{id}}",
     "removeProviderRule": "Remove provider rule",
@@ -7432,6 +7527,7 @@
     "apply": "Apply to settings draft"
   },
   "modelPolicy": {
+    "chainCount_one": "{{count}} model · tried in order",
     "field": {
       "model": "Model",
       "fallback": "Fallback profile",
@@ -7441,7 +7537,7 @@
     },
     "catalogError": "Some model catalogs could not be loaded. Stored model references remain editable.",
     "refPlaceholder": "provider/model · or inherit",
-    "chainCount": "{{number}} models · tried in order",
+    "chainCount": "{{count}} models · tried in order",
     "chainModel": "{{label}} model {{number}}",
     "moveUp": "Move {{label}} model {{number}} up",
     "moveDown": "Move {{label}} model {{number}} down",
@@ -7521,7 +7617,7 @@
     "counts": "{{blocked}} blocked · {{degraded}} degraded · {{healthy}} healthy",
     "noEntries": "No model health entries have been tracked yet.",
     "noError": "No recorded error",
-    "failures": "{{failures}} failures · {{consecutive}} consecutive · {{rateLimits}} rate limits · {{successes}} successes",
+    "failures": "{{failures}} · {{consecutive}} consecutive · {{rateLimits}} · {{successes}}",
     "lastFailure": "Last failure: {{failure}} · Recovery: {{recovery}}",
     "release": "Release for next probe",
     "clear": "Clear tracked status",
@@ -7536,6 +7632,7 @@
     "released": "Released for next probe"
   },
   "providerTests": {
+    "testing_one": "Testing: {{done}} of {{count}} model",
     "noAck": "The engine did not acknowledge this test request. Check the provider status before retrying.",
     "invalid": "Choose a saved provider and between 1 and 200 model IDs.",
     "title": "Model access tests",
@@ -7557,7 +7654,7 @@
     "finishedShort": "finished",
     "runningShort": "running",
     "finished": "Finished: {{passed}} passed, {{failed}} failed, {{cancelled}} cancelled",
-    "testing": "Testing: {{done}} of {{total}} models",
+    "testing": "Testing: {{done}} of {{count}} models",
     "model": "Model",
     "status": "Status",
     "latency": "Latency",
@@ -7751,11 +7848,14 @@
     "evidence": "Observed evidence"
   },
   "techTrends": {
+    "halfLife_one": "Median vulnerability resolution: {{count}} day.",
+    "days_one": "{{count}} day",
+    "snapshots_one": "{{count}} recorded snapshot",
     "reading": "Reading dependency history…",
     "label": "Dependency trends",
     "title": "Health over time",
-    "snapshots": "{{number}} recorded snapshots",
-    "halfLife": "Median vulnerability resolution: {{days}} days.",
+    "snapshots": "{{count}} recorded snapshots",
+    "halfLife": "Median vulnerability resolution: {{count}} days.",
     "chart": "Outdated and vulnerable dependency counts by snapshot",
     "bar": "{{at}}: {{outdated}} outdated, {{vulnerable}} vulnerable",
     "legend": "Accent: outdated · red: vulnerable. Snapshot numbers follow oldest to newest.",
@@ -7773,9 +7873,11 @@
     "none": "No snapshots recorded yet.",
     "movement": "Version movement",
     "notReported": "Not reported",
-    "days": "{{days}} days"
+    "days": "{{count}} days"
   },
   "techRemedy": {
+    "review_one": "Review {{count}} selected operation",
+    "confirmTitle_one": "Execute {{count}} selected operation?",
     "planChanged": "The plan changed. Review its current targets and select items again.",
     "label": "Dependency remediation",
     "title": "Review the next changes",
@@ -7789,16 +7891,17 @@
     "noTarget": "No explicit version target",
     "command": "Informational command",
     "noActions": "No remediation actions in this snapshot.",
-    "confirmTitle": "Execute {{number}} selected operations?",
+    "confirmTitle": "Execute {{count}} selected operations?",
     "confirmBody": "These operations can change project manifests and lockfiles. Review the selected versions above.",
     "keepReviewing": "Keep reviewing plan",
     "waiting": "Waiting for the engine…",
     "execute": "Execute selected operations",
-    "review": "Review {{number}} selected operations",
+    "review": "Review {{count}} selected operations",
     "preview": "Plan preview",
     "results": "Execution results"
   },
   "projectKit": {
+    "counts_one": "{{count}} kit · {{invalid}} invalid",
     "changedOnDisk": "The kit changed on disk. Select it again to review its new revision and parameters.",
     "needsVerify": "This revision needs verification before running. Prepare a verification request first.",
     "label": "Project Kit workspace",
@@ -7807,7 +7910,7 @@
     "create": "Create a kit",
     "search": "Search project kits",
     "searchPlaceholder": "Find a capability…",
-    "counts": "{{kits}} kits · {{invalid}} invalid",
+    "counts": "{{count}} kits · {{invalid}} invalid",
     "reading": "Reading project kits…",
     "noMatch": "No matching kits",
     "home": "A home for reusable project work",
@@ -8415,6 +8518,7 @@
     "add": "Add metric"
   },
   "kanbanBoard": {
+    "createWith_one": "Create board with {{count}} task",
     "noGraph": "The engine did not return a task graph.",
     "tools": "Board tools",
     "contractMap": "Edit contracts…",
@@ -8442,7 +8546,7 @@
     "taskMany": "{{number}} tasks",
     "more": "…and {{number}} more.",
     "cancel": "Cancel",
-    "createWith": "Create board with {{number}} tasks",
+    "createWith": "Create board with {{count}} tasks",
     "create": "Create board"
   },
   "contractMap": {
@@ -8523,11 +8627,12 @@
     }
   },
   "worktrees": {
+    "confirmCleanup_one": "Remove the leftover worktree and its branch? Uncommitted work in it is lost.",
     "viewChanges": "View changes",
     "changesIn": "Changes in {{dir}}",
-    "diff": "{{commits}} commits ahead · +{{insertions}} −{{deletions}} uncommitted in {{files}} files",
+    "diff": "{{commits}} ahead · +{{insertions}} −{{deletions}} uncommitted in {{files}}",
     "noSummary": "No change summary is available for this checkout.",
-    "confirmCleanup": "Remove all {{number}} leftover worktrees and branches? Uncommitted work in them is lost.",
+    "confirmCleanup": "Remove all {{count}} leftover worktrees and branches? Uncommitted work in them is lost.",
     "confirmRemove": "Remove {{name}}? Uncommitted work in it is lost.",
     "confirmMerge": "Merge {{branch}} into its base branch in the project checkout? Conflicts stop the merge and are listed.",
     "label": "Project worktrees",
@@ -8538,7 +8643,7 @@
     "waiting": "Waiting for the engine…",
     "inUse": "In use by runs",
     "noLive": "No run in this engine is using a worktree.",
-    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}} files",
+    "liveLine": "{{owner}} · {{status}} · base {{base}} · +{{insertions}} −{{deletions}} in {{files}}",
     "unknownBase": "unknown",
     "conflicts": "Conflicts: {{files}}",
     "history": "History",
@@ -8592,13 +8697,14 @@
     }
   },
   "worktreeHistory": {
+    "files_one": "{{count}} file",
     "empty": "No worktree activity yet. Goal phases, SDD tasks and fleet subagents that run in isolated git worktrees appear here.",
     "label": "Worktree timeline",
     "avgWait": "avg merge wait {{duration}}",
     "chart": "Worktree timeline on {{base}}",
     "lifecycle": "Worktree lifecycle",
     "close": "Close details",
-    "files": "{{number}} files",
+    "files": "{{count}} files",
     "onDisk": "checkout still on disk",
     "removed": "checkout removed",
     "failed": "Failed",
@@ -8646,6 +8752,7 @@
     "impactHint": "Trace dependents and dependencies"
   },
   "atlasViews": {
+    "hops_one": "{{count}} hop",
     "subsystemsLabel": "Atlas subsystems",
     "subsystemsTitle": "Subsystem boundaries",
     "subsystemsIntro": "Compare code ownership, internal cohesion, and references crossing each boundary.",
@@ -8686,7 +8793,7 @@
     "outgoing": "Dependencies · what this uses",
     "depth": "Depth",
     "depthLabel": "Impact depth",
-    "hops": "{{number}} hops",
+    "hops": "{{count}} hops",
     "dependents": "reachable dependents",
     "dependencies": "reachable dependencies",
     "static": "Static reference reachability; runtime behavior may differ.",

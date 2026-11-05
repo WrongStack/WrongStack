@@ -141,7 +141,9 @@ export function IntegrationSettings({
               )}
               <div className="integration-tools-summary">
                 <Plug size={14} />
-                {t('integrations.toolCount', { n: Number(server['toolCount'] ?? tools.length) })}
+                {t('integrations.toolCount', {
+                  count: Number(server['toolCount'] ?? tools.length),
+                })}
               </div>
               {tools.length > 0 && (
                 <details>

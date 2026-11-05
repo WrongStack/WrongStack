@@ -78,12 +78,10 @@ export function FleetActivity({ http, sessionId }: { http: EngineHttp; sessionId
         <>
           <p className="live-fleet-caption">
             {t('liveFleet.activity.showing', {
-              n: entries(snapshot['entries']).length,
+              count: entries(snapshot['entries']).length,
               rest: snapshot['truncated']
                 ? t('liveFleet.activity.upperBound')
-                : t('liveFleet.activity.total', {
-                    n: Number(snapshot['total'] ?? 0).toLocaleString(),
-                  }),
+                : t('liveFleet.activity.total', { count: Number(snapshot['total'] ?? 0) }),
             })}
           </p>
           <div>

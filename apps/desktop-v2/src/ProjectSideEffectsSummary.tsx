@@ -141,7 +141,7 @@ export function ProjectSideEffectsSummary({
               scanned: summary.sessionsScanned,
               capped: summary.capped ? t('historyView.effects.capped') : '',
               unreadable: summary.unreadable
-                ? t('historyView.effects.unreadable', { n: summary.unreadable })
+                ? t('historyView.effects.unreadable', { count: summary.unreadable })
                 : '',
             })}
           </p>

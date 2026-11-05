@@ -130,7 +130,7 @@ export async function exerciseNativeDesignStudio({
   assert.equal(scan.source, 'kit');
   assert.ok(scan.filesScanned >= 2);
   assert.ok(scan.filesWithNoSignal >= 1);
-  await screen.getByText(/files had no matching UI signals/).waitFor();
+  await screen.getByText(/had no matching UI signals/).waitFor();
   await screen
     .getByRole('heading', { name: 'Design Studio', exact: true })
     .scrollIntoViewIfNeeded();

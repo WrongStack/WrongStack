@@ -102,7 +102,7 @@ export function AutomationDraftPersistenceStatus({
       <div className="automation-draft-review" role="alert">
         <p className="automation-draft-review-text">
           {t('automation.otherWindow', {
-            drafts: Object.keys(state.review.value?.drafts ?? {}).length,
+            count: Object.keys(state.review.value?.drafts ?? {}).length,
           })}
         </p>
         <button type="button" className="button secondary" onClick={() => void resolve('local')}>

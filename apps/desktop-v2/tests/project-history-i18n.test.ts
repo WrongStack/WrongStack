@@ -305,7 +305,7 @@ describe('project session history in the display language', () => {
       '900 tokens across 3 conversations (1 without a recorded total).',
       'Conversations',
       'Recorded side effects',
-      '4 recorded in 2 of 5 conversations; 1 journals could not be read.',
+      '4 recorded in 2 of 5 conversations; 1 journal could not be read.',
       'Input / outcome',
     ])
       expect(page.text).toContain(text);
@@ -315,7 +315,7 @@ describe('project session history in the display language', () => {
     page = await mount(search(), typeQuery('login'), submit);
     for (const text of [
       'Search complete. 3 of 3 records checked · 1 matching conversations.',
-      '1 matching messages · zai / glm',
+      '1 matching message · zai / glm',
       'USER · Message 2',
       'Read matching message →',
     ])

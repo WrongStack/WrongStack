@@ -226,7 +226,7 @@ export function ModelVisibilitySettings({
       </div>
       {!busy && !visible.length && <p className="quiet-state">{t('modelVisibility.noMatch')}</p>}
       <details>
-        <summary>{t('modelVisibility.modelRules', { number: hidden.length })}</summary>
+        <summary>{t('modelVisibility.modelRules', { count: hidden.length })}</summary>
         <p className="field-help">{t('modelVisibility.modelRulesNote')}</p>
         {hidden.map((ref, index) => (
           <div className="model-visibility-rule" key={`${index}:${ref}`}>
@@ -250,7 +250,7 @@ export function ModelVisibilitySettings({
       <details>
         <summary>
           {t('modelVisibility.providerRules', {
-            number: modelReferences(draft['disabledProviders']).length,
+            count: modelReferences(draft['disabledProviders']).length,
           })}
         </summary>
         <p className="field-help">{t('modelVisibility.providerRulesNote')}</p>

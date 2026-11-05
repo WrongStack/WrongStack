@@ -232,7 +232,7 @@ export async function exerciseNativeMcpContent({ page, rpc, waitFor, artifactDir
       .locator('.integration-status')
       .filter({ hasText: 'connected' })
       .waitFor({ timeout: 90000 });
-    await card.getByText('1 tools available', { exact: true }).waitFor();
+    await card.getByText('1 tool available', { exact: true }).waitFor();
     await update({
       env: { SECRET_UI_TOKEN: 'fixture-mcp-secret-kept-in-config' },
       headers: { Authorization: 'Bearer fixture-mcp-header' },

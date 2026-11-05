@@ -356,7 +356,7 @@ export async function exerciseNativeChimera({
   await screen.getByRole('button', { name: 'Complete report', exact: true }).click();
   await page
     .getByRole('dialog')
-    .getByText(/1 findings are still open/)
+    .getByText(/1 finding is still open/)
     .waitFor();
   await page
     .getByRole('dialog')

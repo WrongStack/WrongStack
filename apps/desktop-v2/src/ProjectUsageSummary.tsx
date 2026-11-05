@@ -159,9 +159,7 @@ export function ProjectUsageSummary({
                 tokens: usage.tokenTotal.toLocaleString(),
                 sessions: usage.sessions.toLocaleString(),
                 projects: usage.projects
-                  ? t('historyView.usage.inProjects', {
-                      n: usage.projects.length.toLocaleString(),
-                    })
+                  ? t('historyView.usage.inProjects', { count: usage.projects.length })
                   : '',
                 missing:
                   usage.sessionsWithTokens < usage.sessions

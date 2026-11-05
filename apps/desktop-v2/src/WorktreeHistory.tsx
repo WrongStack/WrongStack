@@ -42,9 +42,7 @@ function worktreeEventText(event: WorktreeTimelineEvent, base: string, t: Transl
               : t(`worktreeHistory.event.${kind}`, { defaultValue: kind });
   const detail =
     event.kind === 'committed' && event.committed !== false
-      ? `+${event.insertions ?? 0} −${event.deletions ?? 0} · ${t('worktreeHistory.files', {
-          number: event.files ?? 0,
-        })}${event.sha ? ` · ${event.sha.slice(0, 7)}` : ''}`
+      ? `+${event.insertions ?? 0} −${event.deletions ?? 0} · ${t('worktreeHistory.files', { count: event.files ?? 0 })}${event.sha ? ` · ${event.sha.slice(0, 7)}` : ''}`
       : event.kind === 'committed'
         ? t('worktreeHistory.event.nothing')
         : event.kind === 'conflict'
@@ -221,7 +219,7 @@ function WorktreeLaneDetail({
       </header>
       <p className="worktree-history-stats">
         {lane.commits.length > 0 &&
-          `+${lane.insertions} −${lane.deletions} · ${t('worktreeHistory.files', { number: lane.files })}${
+          `+${lane.insertions} −${lane.deletions} · ${t('worktreeHistory.files', { count: lane.files })}${
             lane.sha ? ` · ${lane.sha.slice(0, 7)}` : ''
           } · `}
         {[...totals]

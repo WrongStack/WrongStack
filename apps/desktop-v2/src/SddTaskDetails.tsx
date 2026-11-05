@@ -330,7 +330,9 @@ export function SddTaskDetails({
               {confirmSplit ? (
                 <>
                   <p>
-                    {t('sddView.taskDetail.splitBody', { n: parseSddSubtasks(splitText).length })}
+                    {t('sddView.taskDetail.splitBody', {
+                      count: parseSddSubtasks(splitText).length,
+                    })}
                   </p>
                   <button
                     type="button"

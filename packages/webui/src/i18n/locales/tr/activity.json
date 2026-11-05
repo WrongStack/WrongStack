@@ -4974,6 +4974,7 @@
     }
   },
   "repositoryHistory": {
+    "commitsCount_one": "{{count}} commit · topolojik sıra",
     "commitTopology": "Commit topolojisi",
     "statCommits": "Commit",
     "statBranches": "Dal",
@@ -5124,6 +5125,18 @@
     "heading": "Bulut yönlendirme ayarları"
   },
   "kanbanText": {
+    "columnCount_one": "{{count}} sütun",
+    "columnCount": "{{count}} sütun",
+    "boardsSummary_one": "{{total}} pano · {{active}} etkin · {{orphaned}} sahipsiz",
+    "durationEvents_one": "{{duration}} · {{count}} olay",
+    "contractSetupGaps_one": "Sözleşme · {{count}} kurulum eksiği",
+    "proposedSubtaskCount_one": "{{count}} önerilen alt görev",
+    "subtaskCount_one": "{{count}} alt görev",
+    "blockingNodes_one": "{{count}} engelleyici düğüm",
+    "tasksNeedAttention_one": "{{count}} görev ilgi bekliyor",
+    "setupGaps_one": "{{count}} kurulum eksiği",
+    "skillCount_one": "{{count}} beceri",
+    "taskCount_one": "{{count}} görev",
     "taskStatus": {
       "pending": "Bekliyor",
       "ready": "Hazır",
@@ -5149,7 +5162,7 @@
     "contractMap": "Sözleşme Haritası",
     "noBoardSelected": "Seçili pano yok",
     "createOrSelectBoard": "Bir pano oluşturun veya seçin",
-    "boardShape": "{{columns}} sütun / {{tasks}} görev",
+    "boardShape": "{{columns}} · {{tasks}}",
     "taskActivityLoadFailed": "Görev etkinliği yüklenemedi.",
     "boardsSummary": "{{total}} pano · {{active}} etkin · {{orphaned}} sahipsiz",
     "activeSessionCount": "Etkin oturum · {{count}}",
@@ -5436,6 +5449,16 @@
     "boundaryLineAccess": "Sınır satırı {{line}} bilinmeyen bir erişim içeriyor."
   },
   "codeMapText": {
+    "symbolCount_one": "{{count}} sembol",
+    "symbolCount": "{{count}} sembol",
+    "fileCount_one": "{{count}} dosya",
+    "fileCount": "{{count}} dosya",
+    "thrashCycles_one": "{{count}} çalkalanma döngüsü",
+    "searchResults_one": "yüklü haritada {{count}} sonuç",
+    "roots_one": "{{count}} kök",
+    "moreFiles_one": "{{count}} dosya daha göster",
+    "moreSymbols_one": "{{count}} sembol daha göster",
+    "eventsNewest_one": "{{count}} olay · en yenisi önce",
     "edgeKind": {
       "call": "Çağrı",
       "import": "İçe aktarma",
@@ -5497,10 +5520,11 @@
     "thrashCycles": "{{count}} çalkalanma döngüsü",
     "lockedBy": "{{owner}} tarafından kilitli",
     "symbols": "{{count}} sembol",
-    "filesSymbols": "{{files}} dosya · {{symbols}} sembol",
+    "filesSymbols": "{{files}} · {{symbols}}",
     "allLinks": "TÜM BAĞLANTILAR"
   },
   "sageText": {
+    "tags_one": "{{count}} etiket",
     "anchorType": "{{n}}. çapanın türü",
     "anchorValue": "{{n}}. çapanın değeri",
     "anchorSymbol": "{{n}}. çapanın sembolü",
@@ -5583,6 +5607,10 @@
     "cacheCovers": "Önbellek {{max}} tokenın {{covered}} kadarını kapsıyor"
   },
   "councilText": {
+    "voteShare_one": "{{count}} oy (%{{pct}})",
+    "voteShare": "{{count}} oy (%{{pct}})",
+    "votes_one": "{{name}}: {{count}} oy (%{{pct}})",
+    "rounds_one": "{{count}} tur",
     "seatsQuorum": "Koltuk yeter sayısı",
     "valid": "{{valid}}/{{total}} geçerli",
     "diversity": "Çeşitlilik",
@@ -5618,6 +5646,7 @@
     }
   },
   "officeText": {
+    "mailSummary_one": "{{count}} posta iletisi. En yenisi: {{subject}}",
     "details": "{{name}} ayrıntıları",
     "taskDetails": "{{name}} görev ayrıntıları",
     "briefing": "{{name}} brifingi",

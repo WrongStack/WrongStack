@@ -395,8 +395,8 @@ export function ProjectChronicle({
                     total: String(data['total'] ?? '…'),
                   })
                 : t('chronicleView.graphCount', {
-                    events: graph.nodes.length,
-                    relations: graph.edges.length,
+                    events: t('counts.events', { count: graph.nodes.length }),
+                    relations: t('counts.relationships', { count: graph.edges.length }),
                   })}
             </span>
             {view === 'timeline' && rows.length > 0 && (
@@ -580,7 +580,7 @@ export function ProjectChronicle({
               [
                 'uptime',
                 typeof health['uptimeMs'] === 'number'
-                  ? t('chronicleView.seconds', { n: Math.round(health['uptimeMs'] / 1000) })
+                  ? t('chronicleView.seconds', { count: Math.round(health['uptimeMs'] / 1000) })
                   : undefined,
               ],
             ].map(([label, value]) => (

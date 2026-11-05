@@ -396,8 +396,10 @@ function ProfileModelCatalogSettings({
               </label>
               <small>
                 {t('modelCatalog.counts', {
-                  models: rows.length,
-                  definitions: Object.keys(definitions).length,
+                  models: t('counts.models', { count: rows.length }),
+                  definitions: t('counts.savedDefinitions', {
+                    count: Object.keys(definitions).length,
+                  }),
                 })}
               </small>
               {rows

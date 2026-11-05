@@ -250,7 +250,7 @@ export async function exerciseNativeProjects({
     fullPage: true,
   });
   await closeInspector();
-  assert.match(await boardItem('Desktop roadmap').innerText(), /1 tasks/);
+  assert.match(await boardItem('Desktop roadmap').innerText(), /1 task\b/);
   await createBoard('Release checklist');
   await addTask('Split a bounded change');
   await cardButton('Split a bounded change').press('Enter');
@@ -301,7 +301,7 @@ export async function exerciseNativeProjects({
   await kanban.getByRole('button', { name: 'Refresh', exact: true }).click();
   await waitFor(
     async () =>
-      /1 tasks/.test(await boardItem(moveTarget).innerText()) &&
+      /1 task\b/.test(await boardItem(moveTarget).innerText()) &&
       /0 tasks/.test(await boardItem(copy).innerText()),
     'Card moved between boards',
   );
@@ -314,7 +314,7 @@ export async function exerciseNativeProjects({
     await boardItem(title).waitFor({ state: 'detached' });
   }
   await boardItem('Desktop roadmap').click();
-  assert.match(await boardItem('Desktop roadmap').innerText(), /1 tasks/);
+  assert.match(await boardItem('Desktop roadmap').innerText(), /1 task\b/);
   await cardButton(shared).waitFor();
   await page.screenshot({
     path: join(artifactDir, 'native-kanban-board-list.png'),

@@ -24,7 +24,7 @@ export function RefinementComparison({ original, text }: { original: string; tex
         {added || removed
           ? added === 1
             ? t('refineCompare.oneWord', { removed })
-            : t('refineCompare.words', { added, removed })
+            : t('refineCompare.words', { count: added, removed })
           : t('refineCompare.none')}
       </p>
       <p className="refine-comparison-text">

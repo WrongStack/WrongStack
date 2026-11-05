@@ -52,11 +52,11 @@ export function ComposerQueue({
                 {view.paths.length > 0 && (
                   <small>
                     {' '}
-                    · {t('composerQueue.referencedFiles', { number: view.paths.length })}
+                    · {t('composerQueue.referencedFiles', { count: view.paths.length })}
                   </small>
                 )}
                 {item.imageCount > 0 && (
-                  <small> · {t('composerQueue.attachments', { number: item.imageCount })}</small>
+                  <small> · {t('composerQueue.attachments', { count: item.imageCount })}</small>
                 )}
               </p>
               <div>

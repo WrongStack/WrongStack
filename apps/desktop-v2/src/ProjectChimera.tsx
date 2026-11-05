@@ -311,7 +311,7 @@ function ChimeraContent({
           ))}
         </select>
       </div>
-      <p className="field-help">{t('reviews.matching', { n: visible.length, limit })}</p>
+      <p className="field-help">{t('reviews.matching', { count: visible.length, limit })}</p>
       <div className="review-workspace-layout">
         <aside className="review-report-list" aria-label={t('reviews.catalogLabel')}>
           {loading && <p role="status">{t('reviews.reading')}</p>}
@@ -331,7 +331,9 @@ function ChimeraContent({
               <p>{String(item['reviewerModel'] ?? t('reviews.noModel'))}</p>
               <small>{dateTimeText(item['reviewedAt'], i18n.language)}</small>
               <div className="review-report-counts">
-                <strong>{t('reviews.findingsCount', { n: String(item['totalFindings']) })}</strong>
+                <strong>
+                  {t('reviews.findingsCount', { count: Number(item['totalFindings']) })}
+                </strong>
                 {['critical', 'high', 'medium', 'low']
                   .filter((key) => Number(record(item['counts'])[key]) > 0)
                   .map((key) => (
@@ -389,7 +391,7 @@ function ChimeraContent({
               </dl>
               {Number(report['unparseableCount']) > 0 && (
                 <p className="review-incomplete">
-                  {t('reviews.unparseable', { n: String(report['unparseableCount']) })}
+                  {t('reviews.unparseable', { count: Number(report['unparseableCount']) })}
                 </p>
               )}
               <div className="review-lifecycle-actions">
@@ -714,7 +716,7 @@ function ChimeraContent({
               {named(decision.from)} → {named(decision.to)}
             </p>
             {decision.kind === 'report' && decision.to === 'completed' && counts.open > 0 && (
-              <p>{t('reviews.stillOpen', { n: counts.open })}</p>
+              <p>{t('reviews.stillOpen', { count: counts.open })}</p>
             )}
             {decision.to === 'resolved' && (
               <label>

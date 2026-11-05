@@ -311,10 +311,12 @@ export function ProviderHealth({ state, command }: { state: EngineState; command
               {typeof entry['lastErrorMessage'] === 'string' && <p>{entry['lastErrorMessage']}</p>}
               <p>
                 {t('providerHealth.failures', {
-                  failures: String(entry['totalFailures'] ?? 0),
+                  failures: t('counts.failures', { count: Number(entry['totalFailures'] ?? 0) }),
                   consecutive: String(entry['consecutiveFailures'] ?? 0),
-                  rateLimits: String(entry['rateLimitHits'] ?? 0),
-                  successes: String(entry['totalSuccesses'] ?? 0),
+                  rateLimits: t('counts.rateLimits', {
+                    count: Number(entry['rateLimitHits'] ?? 0),
+                  }),
+                  successes: t('counts.successes', { count: Number(entry['totalSuccesses'] ?? 0) }),
                 })}
               </p>
               <small>

@@ -4974,6 +4974,7 @@
     }
   },
   "repositoryHistory": {
+    "commitsCount_one": "{{count}} Commit · topologische Ordnung",
     "commitTopology": "Commit-Topologie",
     "statCommits": "Commits",
     "statBranches": "Branches",
@@ -5124,6 +5125,18 @@
     "heading": "Cloud-Routing-Einstellungen"
   },
   "kanbanText": {
+    "columnCount_one": "{{count}} Spalte",
+    "columnCount": "{{count}} Spalten",
+    "boardsSummary_one": "{{total}} Board · {{active}} aktiv · {{orphaned}} verwaist",
+    "durationEvents_one": "{{duration}} · {{count}} Ereignis",
+    "contractSetupGaps_one": "Vertrag · Einrichtungslücken: {{count}}",
+    "proposedSubtaskCount_one": "vorgeschlagene Teilaufgaben: {{count}}",
+    "subtaskCount_one": "{{count}} Teilaufgabe",
+    "blockingNodes_one": "blockierende Knoten: {{count}}",
+    "tasksNeedAttention_one": "Tasks mit Handlungsbedarf: {{count}}",
+    "setupGaps_one": "Einrichtungslücken: {{count}}",
+    "skillCount_one": "Skills: {{count}}",
+    "taskCount_one": "{{count}} Task",
     "taskStatus": {
       "pending": "Ausstehend",
       "ready": "Bereit",
@@ -5149,7 +5162,7 @@
     "contractMap": "Vertragskarte",
     "noBoardSelected": "Kein Board ausgewählt",
     "createOrSelectBoard": "Board erstellen oder auswählen",
-    "boardShape": "{{columns}} Spalten / {{tasks}} Tasks",
+    "boardShape": "{{columns}} · {{tasks}}",
     "taskActivityLoadFailed": "Task-Aktivität konnte nicht geladen werden.",
     "boardsSummary": "{{total}} Boards · {{active}} aktiv · {{orphaned}} verwaist",
     "activeSessionCount": "Aktive Sitzung · {{count}}",
@@ -5436,6 +5449,16 @@
     "boundaryLineAccess": "Grenzzeile {{line}} hat einen unbekannten Zugriff."
   },
   "codeMapText": {
+    "symbolCount_one": "{{count}} Symbol",
+    "symbolCount": "{{count}} Symbole",
+    "fileCount_one": "{{count}} Datei",
+    "fileCount": "{{count}} Dateien",
+    "thrashCycles_one": "{{count}} Thrashing-Zyklus",
+    "searchResults_one": "{{count}} Treffer in der geladenen Karte",
+    "roots_one": "{{count}} Wurzel",
+    "moreFiles_one": "{{count}} weitere Datei zeigen",
+    "moreSymbols_one": "{{count}} weiteres Symbol zeigen",
+    "eventsNewest_one": "{{count}} Ereignis · neueste zuerst",
     "edgeKind": {
       "call": "Aufruf",
       "import": "Import",
@@ -5497,10 +5520,11 @@
     "thrashCycles": "{{count}} Thrashing-Zyklen",
     "lockedBy": "Gesperrt von {{owner}}",
     "symbols": "{{count}} Sym.",
-    "filesSymbols": "{{files}} Dateien · {{symbols}} Symbole",
+    "filesSymbols": "{{files}} · {{symbols}}",
     "allLinks": "ALLE VERBINDUNGEN"
   },
   "sageText": {
+    "tags_one": "{{count}} Tag",
     "anchorType": "Typ von Anker {{n}}",
     "anchorValue": "Wert von Anker {{n}}",
     "anchorSymbol": "Symbol von Anker {{n}}",
@@ -5583,6 +5607,10 @@
     "cacheCovers": "Der Cache deckt {{covered}} von {{max}} Token ab"
   },
   "councilText": {
+    "voteShare_one": "{{count}} Stimme ({{pct}} %)",
+    "voteShare": "{{count}} Stimmen ({{pct}} %)",
+    "votes_one": "{{name}}: {{count}} Stimme ({{pct}} %)",
+    "rounds_one": "{{count}} Runde",
     "seatsQuorum": "Sitz-Quorum",
     "valid": "{{valid}}/{{total}} gültig",
     "diversity": "Vielfalt",
@@ -5618,6 +5646,7 @@
     }
   },
   "officeText": {
+    "mailSummary_one": "{{count}} Nachricht. Neueste: {{subject}}",
     "details": "Details zu {{name}}",
     "taskDetails": "Aufgabendetails von {{name}}",
     "briefing": "Briefing von {{name}}",

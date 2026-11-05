@@ -115,13 +115,15 @@ export function AutomationConfiguration({
               </strong>
               <code>{environment.image}</code>
               <div>
-                <span>{t('autoConfig.setupSteps', { n: environment.setupCommands.length })}</span>
-                <span>{t('autoConfig.services', { n: environment.services.length })}</span>
-                <span>{t('autoConfig.caches', { n: environment.caches.length })}</span>
-                <span>{t('autoConfig.ports', { n: environment.ports.length })}</span>
+                <span>
+                  {t('autoConfig.setupSteps', { count: environment.setupCommands.length })}
+                </span>
+                <span>{t('autoConfig.services', { count: environment.services.length })}</span>
+                <span>{t('autoConfig.caches', { count: environment.caches.length })}</span>
+                <span>{t('autoConfig.ports', { count: environment.ports.length })}</span>
               </div>
             </div>
-            <p>{t('autoConfig.deadline', { seconds: environment.setupTimeoutMs / 1000 })}</p>
+            <p>{t('autoConfig.deadline', { count: environment.setupTimeoutMs / 1000 })}</p>
             {environment.services.length > 0 && (
               <ul>
                 {environment.services.map((service) => (

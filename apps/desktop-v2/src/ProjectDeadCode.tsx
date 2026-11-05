@@ -262,9 +262,11 @@ export function ProjectDeadCode({
               scope: work.scanScope || t('deadCode.entireProject'),
             })}{' '}
             {t('deadCode.scanFacts', {
-              seconds: (Number(stats['durationMs']) / 1000).toFixed(1),
+              seconds: t('counts.seconds', {
+                count: Number((Number(stats['durationMs']) / 1000).toFixed(1)),
+              }),
               parsed: String(stats['parsedFiles'] ?? 0),
-              tests: String(stats['testFiles'] ?? 0),
+              tests: t('counts.testFiles', { count: Number(stats['testFiles'] ?? 0) }),
             })}
           </p>
           {Array.isArray(work.report['warnings']) && work.report['warnings'].length > 0 && (
@@ -410,7 +412,7 @@ export function ProjectDeadCode({
                 className="button secondary"
                 onClick={() => setVisible((old) => old + 100)}
               >
-                {t('deadCode.showNext', { n: Math.min(100, filtered.length - visible) })}
+                {t('deadCode.showNext', { count: Math.min(100, filtered.length - visible) })}
               </button>
             )}
           </div>
@@ -534,8 +536,10 @@ export function ProjectDeadCode({
               <strong>{String(backup['createdAt'])}</strong>
               <p>
                 {t('deadCode.backupFacts', {
-                  files: String(backup['files']),
-                  findings: Array.isArray(backup['findingIds']) ? backup['findingIds'].length : 0,
+                  files: t('counts.files', { count: Number(backup['files']) }),
+                  findings: t('counts.findings', {
+                    count: Array.isArray(backup['findingIds']) ? backup['findingIds'].length : 0,
+                  }),
                 })}
               </p>
               <small>{String(backup['id'])}</small>

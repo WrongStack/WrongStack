@@ -148,7 +148,7 @@ export function ProjectMailbox({
           ? t('mailboxPage.older.stuck')
           : next.complete
             ? t('mailboxPage.older.done')
-            : t('mailboxPage.older.loaded', { n: next.added }),
+            : t('mailboxPage.older.loaded', { count: next.added }),
       });
     } catch (failure) {
       setOlder({ busy: false, done: false, note: String(failure) });
@@ -529,7 +529,7 @@ export function ProjectMailbox({
                       })}
                     </span>
                     <span>
-                      {t('mailboxPage.receipts', { n: String(mail['readByCount'] ?? 0) })}
+                      {t('mailboxPage.receipts', { count: Number(mail['readByCount'] ?? 0) })}
                     </span>
                     {typeof mail['completedBy'] === 'string' && (
                       <span>

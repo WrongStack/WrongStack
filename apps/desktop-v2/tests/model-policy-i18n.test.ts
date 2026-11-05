@@ -30,7 +30,7 @@ describe('model policy settings in the display language', () => {
     await surfaceI18n.changeLanguage('en');
     const english = html();
     for (const text of [
-      '1 models · tried in order',
+      '1 model · tried in order',
       'aria-label="Move Default fallback chain model 1 up"',
       'Used by refinement, review, routing or a cost tier.',
       'ALL AGENTS',

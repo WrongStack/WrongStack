@@ -101,7 +101,7 @@ export function ChronicleManifest({ manifest }: { manifest: ManifestView }) {
       </h4>
       {manifest.messagesOmitted > 0 && (
         <p className="field-help">
-          {t('chronicleView.manifest.omitted', { n: manifest.messagesOmitted.toLocaleString() })}
+          {t('chronicleView.manifest.omitted', { count: manifest.messagesOmitted })}
         </p>
       )}
       <table aria-label={t('chronicleView.manifest.messagesTable')}>

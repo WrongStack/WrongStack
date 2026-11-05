@@ -4974,6 +4974,7 @@
     }
   },
   "repositoryHistory": {
+    "commitsCount_one": "{{count}} commit · topological order",
     "commitTopology": "Commit topology",
     "statCommits": "Commits",
     "statBranches": "Branches",
@@ -5124,6 +5125,18 @@
     "heading": "Cloud routing settings"
   },
   "kanbanText": {
+    "columnCount_one": "{{count}} column",
+    "columnCount": "{{count}} columns",
+    "boardsSummary_one": "{{total}} board · {{active}} active · {{orphaned}} orphaned",
+    "durationEvents_one": "{{duration}} · {{count}} event",
+    "contractSetupGaps_one": "Contract · {{count}} setup gap",
+    "proposedSubtaskCount_one": "{{count}} proposed subtask",
+    "subtaskCount_one": "{{count}} subtask",
+    "blockingNodes_one": "{{count}} blocking node",
+    "tasksNeedAttention_one": "{{count}} task needs attention",
+    "setupGaps_one": "{{count}} setup gap",
+    "skillCount_one": "{{count}} skill",
+    "taskCount_one": "{{count}} task",
     "taskStatus": {
       "pending": "Pending",
       "ready": "Ready",
@@ -5149,7 +5162,7 @@
     "contractMap": "Contract Map",
     "noBoardSelected": "No board selected",
     "createOrSelectBoard": "Create or select a board",
-    "boardShape": "{{columns}} columns / {{tasks}} tasks",
+    "boardShape": "{{columns}} · {{tasks}}",
     "taskActivityLoadFailed": "Task activity could not be loaded.",
     "boardsSummary": "{{total}} boards · {{active}} active · {{orphaned}} orphaned",
     "activeSessionCount": "Active session · {{count}}",
@@ -5436,6 +5449,16 @@
     "boundaryLineAccess": "Boundary line {{line}} has unknown access."
   },
   "codeMapText": {
+    "symbolCount_one": "{{count}} symbol",
+    "symbolCount": "{{count}} symbols",
+    "fileCount_one": "{{count}} file",
+    "fileCount": "{{count}} files",
+    "thrashCycles_one": "{{count}} thrash cycle",
+    "searchResults_one": "{{count}} loaded-map result",
+    "roots_one": "{{count}} root",
+    "moreFiles_one": "Show {{count}} more file",
+    "moreSymbols_one": "Show {{count}} more symbol",
+    "eventsNewest_one": "{{count}} event · newest first",
     "edgeKind": {
       "call": "Call",
       "import": "Import",
@@ -5497,10 +5520,11 @@
     "thrashCycles": "{{count}} thrash cycles",
     "lockedBy": "Locked by {{owner}}",
     "symbols": "{{count}} sym",
-    "filesSymbols": "{{files}} files · {{symbols}} symbols",
+    "filesSymbols": "{{files}} · {{symbols}}",
     "allLinks": "ALL LINKS"
   },
   "sageText": {
+    "tags_one": "{{count}} tag",
     "anchorType": "Anchor {{n}} type",
     "anchorValue": "Anchor {{n}} value",
     "anchorSymbol": "Anchor {{n}} symbol",
@@ -5583,6 +5607,10 @@
     "cacheCovers": "Cache covers {{covered}} of {{max}} tokens"
   },
   "councilText": {
+    "voteShare_one": "{{count}} vote ({{pct}}%)",
+    "voteShare": "{{count}} votes ({{pct}}%)",
+    "votes_one": "{{name}}: {{count}} vote ({{pct}}%)",
+    "rounds_one": "{{count}} round",
     "seatsQuorum": "Seats Quorum",
     "valid": "{{valid}}/{{total}} Valid",
     "diversity": "Diversity",
@@ -5618,6 +5646,7 @@
     }
   },
   "officeText": {
+    "mailSummary_one": "{{count}} mail message. Latest: {{subject}}",
     "details": "{{name}} details",
     "taskDetails": "{{name}} task details",
     "briefing": "{{name}} briefing",
