@@ -8823,5 +8823,91 @@
       "tight": "Voraussichtlich {{percent}} % des Kontexts von {{max}} Token: Es wird eng.",
       "fits": "≈ {{tokens}} Token · voraussichtlich {{percent}} % des Kontexts von {{max}} Token."
     }
+  },
+  "fleetView": {
+    "sessionsLabel": "Sitzungen",
+    "activeOne": "aktive Sitzung",
+    "activeMany": "aktive Sitzungen",
+    "projectOne": "Projekt",
+    "projectMany": "Projekte",
+    "needAttention": "{{count}} brauchen Aufmerksamkeit",
+    "openTerminal": "Terminal öffnen",
+    "filterSessions": "Sitzungen filtern",
+    "tab": {
+      "all": "Alle Sitzungen",
+      "active": "Aktiv",
+      "attention": "Aufmerksamkeit",
+      "history": "Verlauf"
+    },
+    "searchSessions": "Sitzungen durchsuchen",
+    "findSession": "Sitzung finden…",
+    "groupSessions": "Sitzungen von {{name}}",
+    "sessionOne": "{{count}} Sitzung",
+    "sessionMany": "{{count}} Sitzungen",
+    "newSession": "Neue Sitzung",
+    "empty": {
+      "noMatch": "Keine passenden Sitzungen.",
+      "welcome": "Woran arbeiten wir?",
+      "noProjects": "Bringen Sie Ihre Projekte zusammen.",
+      "tryFilter": "Versuchen Sie einen anderen Filter oder erstellen Sie eine Sitzung für dieses Projekt.",
+      "start": "Beginnen Sie eine Unterhaltung oder öffnen Sie ein Terminal in einem Ihrer Projekte."
+    },
+    "createSession": "Sitzung erstellen",
+    "addFirstProject": "Erstes Projekt hinzufügen",
+    "card": {
+      "terminal": "Terminal"
+    },
+    "status": {
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "error": "Fehler",
+      "stopped": "Gestoppt"
+    },
+    "pinTitle": "Diese Sitzung oben anheften",
+    "unpinTitle": "Diese Sitzung lösen",
+    "pin": "Anheften",
+    "unpin": "Lösen",
+    "openWorkspace": "Arbeitsbereich öffnen",
+    "attachSession": "Sitzung verbinden",
+    "viewTranscript": "Protokoll ansehen",
+    "age": {
+      "now": "gerade eben",
+      "minutes": "vor {{n}} Min.",
+      "hours": "vor {{n}} Std.",
+      "days": "vor {{n}} T."
+    }
+  },
+  "workspaceDialog": {
+    "eyebrow": "WRONGSTACK-ARBEITSBEREICH",
+    "title": {
+      "session": "Eine neue Sitzung.",
+      "preview": "Vorschau Ihrer Arbeit.",
+      "palette": "Finden Sie Ihren nächsten Schritt."
+    },
+    "close": "Dialog schließen",
+    "project": "Projekt",
+    "agent": "Agent",
+    "agentBody": "Die vollständige WrongStack-Engine",
+    "terminal": "Terminal",
+    "terminalBody": "Eine dauerhafte native Shell",
+    "sessionName": "Sitzungsname",
+    "optional": "optional",
+    "placeholderAgent": "Was bauen wir?",
+    "placeholderTerminal": "Entwicklungsterminal",
+    "workdir": "Arbeitsverzeichnis",
+    "workdirHint": "relativ zum Projekt · optional",
+    "projectRoot": "Projektstamm",
+    "permissions": "Ihre bestehenden WrongStack-Berechtigungen gelten.",
+    "createAgent": "Agentensitzung erstellen",
+    "createTerminal": "Terminalsitzung erstellen",
+    "previewUrl": "Lokale Vorschau-URL",
+    "devtools": "Entwicklertools öffnen",
+    "previewNote": "Öffnet sich in einer separaten nativen Webansicht ohne Desktop-IPC-Rechte und mit privatem Profil: Cookies und Speicher werden beim Schließen der Vorschau verworfen.",
+    "openPreview": "Vorschau öffnen",
+    "searchLabel": "Projekte und Sitzungen durchsuchen",
+    "searchPlaceholder": "Projekte und Sitzungen durchsuchen…",
+    "projectTag": "PROJEKT",
+    "noProjects": "Verbinden Sie Ihr erstes Projekt, um zu beginnen.",
+    "footer": "Ctrl K zum Umschalten · Esc zum Schließen"
   }
 }

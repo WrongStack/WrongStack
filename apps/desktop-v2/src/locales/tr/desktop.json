@@ -8823,5 +8823,91 @@
       "tight": "{{max}} tokenlık bağlamın tahmini %{{percent}} kadarı: yer daralıyor.",
       "fits": "≈ {{tokens}} token · {{max}} tokenlık bağlamın tahmini %{{percent}} kadarı."
     }
+  },
+  "fleetView": {
+    "sessionsLabel": "Oturumlar",
+    "activeOne": "etkin oturum",
+    "activeMany": "etkin oturum",
+    "projectOne": "proje",
+    "projectMany": "proje",
+    "needAttention": "{{count}} ilgi bekliyor",
+    "openTerminal": "Terminal aç",
+    "filterSessions": "Oturumları süz",
+    "tab": {
+      "all": "Tüm oturumlar",
+      "active": "Etkin",
+      "attention": "İlgi bekleyen",
+      "history": "Geçmiş"
+    },
+    "searchSessions": "Oturumlarda ara",
+    "findSession": "Oturum bul…",
+    "groupSessions": "{{name}} oturumları",
+    "sessionOne": "{{count}} oturum",
+    "sessionMany": "{{count}} oturum",
+    "newSession": "Yeni oturum",
+    "empty": {
+      "noMatch": "Eşleşen oturum yok.",
+      "welcome": "Ne üzerinde çalışıyoruz?",
+      "noProjects": "Projelerinizi bir araya getirin.",
+      "tryFilter": "Başka bir filtre deneyin ya da bu proje için bir oturum oluşturun.",
+      "start": "Projelerinizden birinde bir konuşma başlatın ya da terminal açın."
+    },
+    "createSession": "Oturum oluştur",
+    "addFirstProject": "İlk projenizi ekleyin",
+    "card": {
+      "terminal": "Terminal"
+    },
+    "status": {
+      "active": "Etkin",
+      "paused": "Duraklatıldı",
+      "error": "Hata",
+      "stopped": "Durduruldu"
+    },
+    "pinTitle": "Bu oturumu en üste sabitle",
+    "unpinTitle": "Bu oturumun sabitlemesini kaldır",
+    "pin": "Sabitle",
+    "unpin": "Sabitlemeyi kaldır",
+    "openWorkspace": "Çalışma alanını aç",
+    "attachSession": "Oturuma bağlan",
+    "viewTranscript": "Dökümü görüntüle",
+    "age": {
+      "now": "az önce",
+      "minutes": "{{n}} dk önce",
+      "hours": "{{n}} sa önce",
+      "days": "{{n}} gün önce"
+    }
+  },
+  "workspaceDialog": {
+    "eyebrow": "WRONGSTACK ÇALIŞMA ALANI",
+    "title": {
+      "session": "Yeni bir oturum.",
+      "preview": "Çalışmanızı önizleyin.",
+      "palette": "Sıradaki adımınızı bulun."
+    },
+    "close": "İletişim kutusunu kapat",
+    "project": "Proje",
+    "agent": "Ajan",
+    "agentBody": "Tam WrongStack motoru",
+    "terminal": "Terminal",
+    "terminalBody": "Kalıcı yerel bir kabuk",
+    "sessionName": "Oturum adı",
+    "optional": "isteğe bağlı",
+    "placeholderAgent": "Ne inşa ediyoruz?",
+    "placeholderTerminal": "Geliştirme terminali",
+    "workdir": "Çalışma dizini",
+    "workdirHint": "projeye göre · isteğe bağlı",
+    "projectRoot": "Proje kökü",
+    "permissions": "Mevcut WrongStack izinleriniz geçerlidir.",
+    "createAgent": "Ajan oturumu oluştur",
+    "createTerminal": "Terminal oturumu oluştur",
+    "previewUrl": "Yerel önizleme URL’si",
+    "devtools": "Geliştirici araçlarını aç",
+    "previewNote": "Masaüstü IPC izni olmayan ve özel profil kullanan ayrı bir yerel web görünümünde açılır: önizleme kapanınca çerezler ve depolama silinir.",
+    "openPreview": "Önizlemeyi aç",
+    "searchLabel": "Projelerde ve oturumlarda ara",
+    "searchPlaceholder": "Projelerde ve oturumlarda ara…",
+    "projectTag": "PROJE",
+    "noProjects": "Başlamak için ilk projenizi bağlayın.",
+    "footer": "Aç/kapat için Ctrl K · kapatmak için Esc"
   }
 }

@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUpRight, Pin, PinOff, Terminal, Workflow } from 'lucide-react';
-import { age, isLive, type Session, statusLabel } from './model';
+import { useDesktopText } from './desktop-i18n';
+import { ageParts, isLive, type Session, sessionStatus } from './model';
 
 export function Metric({
   icon,
@@ -46,7 +47,9 @@ export function SessionCard({
   onLaunch: () => void;
   onTogglePin: () => void;
 }) {
+  const { t } = useDesktopText();
   const live = isLive(s);
+  const ago = ageParts(s.updatedAt);
   return (
     <article className={`session-card ${selected ? 'selected' : ''} ${pinned ? 'pinned' : ''}`}>
       {/* Cards sit under their project's heading; the folder stays in the tooltip. */}
@@ -57,10 +60,12 @@ export function SessionCard({
         onClick={onOpen}
       >
         <div className="card-top">
-          <span className="card-kind">{s.kind === 'agent' ? 'WrongStack' : 'Terminal'}</span>
+          <span className="card-kind">
+            {s.kind === 'agent' ? 'WrongStack' : t('fleetView.card.terminal')}
+          </span>
           <span className={`status-pill ${s.status}`}>
             <span className={`status-dot ${s.status}`} />
-            {statusLabel(s)}
+            {t(`fleetView.status.${sessionStatus(s)}`)}
           </span>
         </div>
         <div className="session-card-title">
@@ -75,21 +80,21 @@ export function SessionCard({
           type="button"
           className={`card-pin ${pinned ? 'is-pinned' : ''}`}
           aria-pressed={pinned}
-          title={pinned ? 'Unpin this session' : 'Pin this session to the top'}
+          title={pinned ? t('fleetView.unpinTitle') : t('fleetView.pinTitle')}
           onClick={onTogglePin}
         >
           {pinned ? <PinOff size={13} /> : <Pin size={13} />}
-          {pinned ? 'Unpin' : 'Pin'}
+          {pinned ? t('fleetView.unpin') : t('fleetView.pin')}
         </button>
-        <span className="card-age">{age(s.updatedAt)}</span>
+        <span className="card-age">{t(`fleetView.age.${ago.unit}`, { n: ago.n })}</span>
         {s.kind === 'agent' && live ? (
           <button type="button" className="card-footer-action" onClick={onLaunch}>
-            Open workspace
+            {t('fleetView.openWorkspace')}
             <ArrowUpRight size={14} />
           </button>
         ) : (
           <button type="button" className="card-footer-action" onClick={onOpen}>
-            {isLive(s) ? 'Attach session' : 'View transcript'}
+            {live ? t('fleetView.attachSession') : t('fleetView.viewTranscript')}
             <ArrowRight size={14} />
           </button>
         )}

@@ -25,18 +25,18 @@ export interface Snapshot {
 }
 export const initialSnapshot: Snapshot = { projects: [], sessions: [], hostPid: 0, layout: null };
 export const isLive = (s: Session): boolean => s.status === 'running' || s.status === 'starting';
-/** Operator-facing status wording: live sessions are active, everything else is paused/stopped. */
-export function statusLabel(s: Session): string {
+/** Operator-facing status: live sessions are active, everything else is paused, failed or stopped. */
+export function sessionStatus(s: Session): 'active' | 'paused' | 'error' | 'stopped' {
   switch (s.status) {
     case 'running':
     case 'starting':
-      return 'Active';
+      return 'active';
     case 'interrupted':
-      return 'Paused';
+      return 'paused';
     case 'error':
-      return 'Error';
+      return 'error';
     default:
-      return 'Stopped';
+      return 'stopped';
   }
 }
 export const PINNED_SESSIONS_KEY = 'wrongstack.desktop.pinned-sessions';
@@ -86,13 +86,14 @@ export function visibleSessions(
         `${s.title} ${s.workdir} ${names.get(s.projectId) ?? ''}`.toLowerCase().includes(term)),
   );
 }
-export function age(timestamp: number): string {
+/** How long ago, as a unit and count for the catalog's `fleetView.age.*` lines. */
+export function ageParts(timestamp: number): {
+  unit: 'now' | 'minutes' | 'hours' | 'days';
+  n: number;
+} {
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
-  return minutes < 1
-    ? 'just now'
-    : minutes < 60
-      ? `${minutes}m ago`
-      : minutes < 1440
-        ? `${Math.floor(minutes / 60)}h ago`
-        : `${Math.floor(minutes / 1440)}d ago`;
+  if (minutes < 1) return { unit: 'now', n: 0 };
+  if (minutes < 60) return { unit: 'minutes', n: minutes };
+  if (minutes < 1440) return { unit: 'hours', n: Math.floor(minutes / 60) };
+  return { unit: 'days', n: Math.floor(minutes / 1440) };
 }

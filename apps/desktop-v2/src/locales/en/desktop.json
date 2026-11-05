@@ -8823,5 +8823,91 @@
       "tight": "Projected {{percent}}% of the {{max}}-token context: getting tight.",
       "fits": "≈ {{tokens}} tokens · projected {{percent}}% of the {{max}}-token context."
     }
+  },
+  "fleetView": {
+    "sessionsLabel": "Sessions",
+    "activeOne": "active session",
+    "activeMany": "active sessions",
+    "projectOne": "project",
+    "projectMany": "projects",
+    "needAttention": "{{count}} need attention",
+    "openTerminal": "Open terminal",
+    "filterSessions": "Filter sessions",
+    "tab": {
+      "all": "All sessions",
+      "active": "Active",
+      "attention": "Attention",
+      "history": "History"
+    },
+    "searchSessions": "Search sessions",
+    "findSession": "Find a session…",
+    "groupSessions": "{{name}} sessions",
+    "sessionOne": "{{count}} session",
+    "sessionMany": "{{count}} sessions",
+    "newSession": "New session",
+    "empty": {
+      "noMatch": "No matching sessions.",
+      "welcome": "What are we working on?",
+      "noProjects": "Bring your projects together.",
+      "tryFilter": "Try another filter or create a session for this project.",
+      "start": "Start a conversation or open a terminal in one of your projects."
+    },
+    "createSession": "Create a session",
+    "addFirstProject": "Add your first project",
+    "card": {
+      "terminal": "Terminal"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "error": "Error",
+      "stopped": "Stopped"
+    },
+    "pinTitle": "Pin this session to the top",
+    "unpinTitle": "Unpin this session",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "openWorkspace": "Open workspace",
+    "attachSession": "Attach session",
+    "viewTranscript": "View transcript",
+    "age": {
+      "now": "just now",
+      "minutes": "{{n}}m ago",
+      "hours": "{{n}}h ago",
+      "days": "{{n}}d ago"
+    }
+  },
+  "workspaceDialog": {
+    "eyebrow": "WRONGSTACK WORKSPACE",
+    "title": {
+      "session": "A fresh session.",
+      "preview": "Preview your work.",
+      "palette": "Find your next move."
+    },
+    "close": "Close dialog",
+    "project": "Project",
+    "agent": "Agent",
+    "agentBody": "The full WrongStack engine",
+    "terminal": "Terminal",
+    "terminalBody": "A persistent native shell",
+    "sessionName": "Session name",
+    "optional": "optional",
+    "placeholderAgent": "What are we building?",
+    "placeholderTerminal": "Development terminal",
+    "workdir": "Working directory",
+    "workdirHint": "relative to project · optional",
+    "projectRoot": "Project root",
+    "permissions": "Your existing WrongStack permissions apply.",
+    "createAgent": "Create agent session",
+    "createTerminal": "Create terminal session",
+    "previewUrl": "Local preview URL",
+    "devtools": "Open developer tools",
+    "previewNote": "Opens in a separate native webview with no desktop IPC permissions and a private profile: cookies and storage are discarded when the preview closes.",
+    "openPreview": "Open preview",
+    "searchLabel": "Search projects and sessions",
+    "searchPlaceholder": "Search projects and sessions…",
+    "projectTag": "PROJECT",
+    "noProjects": "Connect your first project to get started.",
+    "footer": "Ctrl K to toggle · Esc to close"
   }
 }

@@ -8823,5 +8823,91 @@
       "tight": "Previsto il {{percent}}% del contesto da {{max}} token: lo spazio si riduce.",
       "fits": "≈ {{tokens}} token · previsto il {{percent}}% del contesto da {{max}} token."
     }
+  },
+  "fleetView": {
+    "sessionsLabel": "Sessioni",
+    "activeOne": "sessione attiva",
+    "activeMany": "sessioni attive",
+    "projectOne": "progetto",
+    "projectMany": "progetti",
+    "needAttention": "{{count}} richiedono attenzione",
+    "openTerminal": "Apri terminale",
+    "filterSessions": "Filtra le sessioni",
+    "tab": {
+      "all": "Tutte le sessioni",
+      "active": "Attive",
+      "attention": "Da gestire",
+      "history": "Cronologia"
+    },
+    "searchSessions": "Cerca nelle sessioni",
+    "findSession": "Trova una sessione…",
+    "groupSessions": "Sessioni di {{name}}",
+    "sessionOne": "{{count}} sessione",
+    "sessionMany": "{{count}} sessioni",
+    "newSession": "Nuova sessione",
+    "empty": {
+      "noMatch": "Nessuna sessione corrispondente.",
+      "welcome": "Su cosa stiamo lavorando?",
+      "noProjects": "Riunisci i tuoi progetti.",
+      "tryFilter": "Prova un altro filtro o crea una sessione per questo progetto.",
+      "start": "Avvia una conversazione o apri un terminale in uno dei tuoi progetti."
+    },
+    "createSession": "Crea una sessione",
+    "addFirstProject": "Aggiungi il tuo primo progetto",
+    "card": {
+      "terminal": "Terminale"
+    },
+    "status": {
+      "active": "Attiva",
+      "paused": "In pausa",
+      "error": "Errore",
+      "stopped": "Arrestata"
+    },
+    "pinTitle": "Fissa questa sessione in cima",
+    "unpinTitle": "Sblocca questa sessione",
+    "pin": "Fissa",
+    "unpin": "Sblocca",
+    "openWorkspace": "Apri l’area di lavoro",
+    "attachSession": "Collega la sessione",
+    "viewTranscript": "Visualizza la trascrizione",
+    "age": {
+      "now": "proprio ora",
+      "minutes": "{{n}} min fa",
+      "hours": "{{n}} h fa",
+      "days": "{{n}} g fa"
+    }
+  },
+  "workspaceDialog": {
+    "eyebrow": "AREA DI LAVORO WRONGSTACK",
+    "title": {
+      "session": "Una nuova sessione.",
+      "preview": "Anteprima del tuo lavoro.",
+      "palette": "Trova la tua prossima mossa."
+    },
+    "close": "Chiudi la finestra",
+    "project": "Progetto",
+    "agent": "Agente",
+    "agentBody": "Il motore WrongStack completo",
+    "terminal": "Terminale",
+    "terminalBody": "Una shell nativa persistente",
+    "sessionName": "Nome della sessione",
+    "optional": "facoltativo",
+    "placeholderAgent": "Cosa stiamo costruendo?",
+    "placeholderTerminal": "Terminale di sviluppo",
+    "workdir": "Directory di lavoro",
+    "workdirHint": "relativa al progetto · facoltativa",
+    "projectRoot": "Radice del progetto",
+    "permissions": "Si applicano le tue autorizzazioni WrongStack esistenti.",
+    "createAgent": "Crea sessione agente",
+    "createTerminal": "Crea sessione terminale",
+    "previewUrl": "URL di anteprima locale",
+    "devtools": "Apri gli strumenti per sviluppatori",
+    "previewNote": "Si apre in una webview nativa separata, senza permessi IPC del desktop e con un profilo privato: cookie e archiviazione vengono eliminati alla chiusura dell’anteprima.",
+    "openPreview": "Apri l’anteprima",
+    "searchLabel": "Cerca progetti e sessioni",
+    "searchPlaceholder": "Cerca progetti e sessioni…",
+    "projectTag": "PROGETTO",
+    "noProjects": "Collega il tuo primo progetto per iniziare.",
+    "footer": "Ctrl K per attivare/disattivare · Esc per chiudere"
   }
 }
