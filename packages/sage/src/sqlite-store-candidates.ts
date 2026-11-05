@@ -353,7 +353,17 @@ export function rejectSqliteCandidate(
     reason: normalizeText(reason),
     updatedAt: ctx.nowIso(),
   };
-  ctx.upsertCandidate(updated);
+  // Claim-guarded CAS, matching the pending predicate accept's claim and
+  // resolve's claim both use. This write used to be a plain INSERT OR REPLACE
+  // upsert: a reject whose SELECT predates a concurrent accept's claim
+  // overwrote the accepted candidate (with its memoryId link) as 'rejected'.
+  // With the CAS, the loser of the race changes nothing and reports false.
+  const claimed = ctx
+    .stmt(
+      "UPDATE candidates SET data = ?, status = 'rejected', updated_at = ? WHERE id = ? AND status = 'pending'",
+    )
+    .run(JSON.stringify(updated), updated.updatedAt, candidateId);
+  if (claimed.changes === 0) return false;
   ctx.audit('memory.candidate_rejected', { reason, details: { candidateId } });
   return true;
 }
