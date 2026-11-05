@@ -387,7 +387,7 @@ describe('ToolExecutor scoped inline approval', () => {
         onEnd();
         return 'ok';
       };
-      const gatewayTool = createMockTool({ name: 'tool_use', mutating: false });
+      const gatewayTool = { ...createMockTool({ name: 'tool_use' }), mutating: false };
       gatewayTool.execute = async (input, c, opts) => {
         return writeTool.execute((input as any).input, c, opts);
       };

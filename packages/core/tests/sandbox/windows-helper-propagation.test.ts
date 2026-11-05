@@ -82,17 +82,20 @@ describeWin('helper exit-code/stdio propagation (plan 28 T5.2)', () => {
       const gatedBrowser = createSandboxBrowserTierGate()({
         name: 'browser_open',
         description: 'open browser',
-        parameters: { type: 'object', properties: {} },
+        inputSchema: { type: 'object', properties: {} },
+        permission: 'auto',
+        mutating: false,
         capabilities: ['network.http'],
         execute: async () => ({ content: 'ok' }),
         executeStream: async function* () {
-          yield 'chunk';
+          yield { type: 'partial_output' as const, text: 'chunk' };
         },
       });
       await expect(async () => {
         for await (const _ of gatedBrowser.executeStream!(
           { url: 'https://example.com' },
           {} as never,
+          { signal: new AbortController().signal },
         )) {
           // consume
         }
@@ -113,17 +116,21 @@ describeWin('helper exit-code/stdio propagation (plan 28 T5.2)', () => {
         platform: 'win32',
         helperRunner: defaultWindowsHelperRunner(),
       });
-      const wrappedBash = createSandboxExecWrapper(backend)({
+      const wrappedBash = createSandboxExecWrapper({ backend })({
         name: 'bash',
         description: 'shell',
-        parameters: { type: 'object', properties: {} },
+        inputSchema: { type: 'object', properties: {} },
+        permission: 'auto',
+        mutating: true,
         capabilities: ['shell.exec'],
         execute: async (input: { command: string }) => {
           capturedCmd = input.command;
           return { content: 'ok' };
         },
       });
-      await wrappedBash.execute({ command: 'echo test' }, { agentId: 'sub-narrow' } as never);
+      await wrappedBash.execute({ command: 'echo test' }, { agentId: 'sub-narrow' } as never, {
+        signal: new AbortController().signal,
+      });
       expect(capturedCmd).not.toContain('D:\\global-root');
     } finally {
       clearSandboxAgentOverrides();

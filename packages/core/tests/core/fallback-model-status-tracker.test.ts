@@ -339,7 +339,7 @@ describe('fallback-model → ProviderModelStatusTracker (subagent path)', () => 
     await ext.wrapProviderRunner?.(ctx, req, async () => okResponse);
     expect(ctx.provider.id).toBe('openai');
 
-    await ext.beforeRun?.(ctx);
+    await ext.beforeRun?.(ctx, { content: [], text: '', ctx });
     expect(ctx.provider.id).toBe('openai');
     expect(ctx.model).toBe('gpt-4o');
   });

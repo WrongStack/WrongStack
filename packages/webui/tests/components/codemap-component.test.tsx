@@ -160,7 +160,11 @@ describe('CodeMap component', () => {
 
   it('renders the persistent atlas shell and package graph', async () => {
     mockAllGraphs();
-    render(<CodeMap />);
+    // Flush the initial fetch and graph effects before checking the shell.
+    // A cold React Flow render can otherwise outlast waitFor's one-second poll.
+    await act(async () => {
+      render(<CodeMap />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Code Atlas')).toBeDefined();

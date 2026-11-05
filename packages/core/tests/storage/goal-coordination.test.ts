@@ -291,14 +291,16 @@ describe('goal coordination', () => {
             journal: [
               ...curr.journal,
               {
-                ts: new Date().toISOString(),
-                summary: 'concurrent subagent journal entry',
+                at: new Date().toISOString(),
+                iteration: 1,
+                task: 'concurrent subagent journal entry',
+                status: 'success',
                 source: 'manual',
               },
             ],
           };
         });
-        return { type: 'complete', reason: 'All deliverables complete' };
+        return { type: 'answer', optionId: 'goal_reached', text: 'All deliverables complete' };
       },
     };
 
@@ -310,8 +312,6 @@ describe('goal coordination', () => {
       brain,
     });
     const after = await loadGoal(goalPath);
-    expect(after?.journal.some((j) => j.summary === 'concurrent subagent journal entry')).toBe(
-      true,
-    );
+    expect(after?.journal.some((j) => j.task === 'concurrent subagent journal entry')).toBe(true);
   });
 });

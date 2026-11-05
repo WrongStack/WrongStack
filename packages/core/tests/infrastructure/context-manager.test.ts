@@ -280,7 +280,9 @@ describe('createContextManagerTool', () => {
       { role: 'user', content: 'turn 1' },
       { role: 'assistant', content: 'turn 2' },
     ]);
-    const res = await tool.execute({ action: 'summary', from: 0, to: 1 }, ctx);
+    const res = await tool.execute({ action: 'summary', from: 0, to: 1 }, ctx, {
+      signal: new AbortController().signal,
+    });
     expect(res.summary).toBe('Summarized 2 turns');
   });
 });

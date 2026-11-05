@@ -632,7 +632,15 @@ describe('Brain architecture regressions', () => {
 
   it('marks prior steer as failure on suppressed re-trigger, blocks untagged human answers on session-scoped escalations, and marks terminal tier', async () => {
     const events = new EventBus();
-    const ledger = new BrainDecisionLedger({ events, interventionRetryWindowMs: 60_000 });
+    const { mkdtemp, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = await mkdtemp(join(tmpdir(), 'brain-retrigger-ledger-'));
+    const ledger = new BrainDecisionLedger({
+      events,
+      filePath: join(dir, 'ledger.jsonl'),
+      interventionRetryWindowMs: 60_000,
+    });
     await ledger.start();
 
     events.emit('brain.intervention', {
@@ -667,6 +675,7 @@ describe('Brain architecture regressions', () => {
       .find((e) => e.kind === 'outcome' && e.requestId === 'steer-1');
     expect(outcomeEntry?.outcome).toBe('failure');
     await ledger.stop();
+    await rm(dir, { recursive: true, force: true });
 
     const queue = new BrainDecisionQueue(events, { timeoutMs: 50 });
     const scopedPromise = queue.requestHumanDecision(

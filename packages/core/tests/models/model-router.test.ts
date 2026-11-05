@@ -161,8 +161,8 @@ describe('ModelRouter.suggestMatrix', () => {
         provider: 'openai',
         model: 'gpt-4o-mini',
         providers: {
-          openai: { apiKey: 'sk-oai', models: ['gpt-4o-mini'] },
-          anthropic: { apiKey: 'sk-ant', models: ['claude-sonnet-4-20250514'] },
+          openai: { type: 'openai', apiKey: 'sk-oai', models: ['gpt-4o-mini'] },
+          anthropic: { type: 'anthropic', apiKey: 'sk-ant', models: ['claude-sonnet-4-20250514'] },
         },
       },
     });

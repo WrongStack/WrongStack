@@ -400,7 +400,7 @@ describe('ExtensionRegistry — tool execution hooks', () => {
     reg.registerOrReplace(extC);
 
     disposeB();
-    await reg.runBeforeRun({} as never);
+    await reg.runBeforeRun({} as never, {} as never);
     expect(calls).toEqual(['A']);
     reg.unregister('ext');
     expect(reg.list()).toEqual([]);
