@@ -31,6 +31,7 @@
     "projects": "Projets",
     "activity": "Activité",
     "appearance": "Apparence",
+    "quota": "Quota des fournisseurs",
     "settings": "Paramètres WrongStack",
     "projectTools": "Outils du projet"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "Nouvelle session dans {{name}}",
     "newSession": "Nouvelle session",
     "terminal": "terminal",
-    "empty": "Ajoutez un dossier de projet pour démarrer une session."
+    "empty": "Ajoutez un dossier de projet pour démarrer une session.",
+    "stop": "Arrêter {{title}}",
+    "remove": "Retirer {{title}}",
+    "removeTitle": "Retirer {{title}} ?",
+    "removeBody": "Elle quitte cette liste, et sa transcription de bureau ainsi que ses brouillons sont supprimés. Une session en cours est d’abord arrêtée. Une conversation d’agent reste dans l’historique du projet, d’où elle peut être reprise.",
+    "removeConfirm": "Retirer",
+    "cancel": "Annuler",
+    "olderHost": "L’hôte de sessions en cours est plus ancien que ce bureau. Arrêtez ses sessions et redémarrez le bureau pour retirer des sessions."
   },
   "topbar": {
     "project": "Projet",
@@ -6708,6 +6716,7 @@
     "newAgent": "Démarrer une nouvelle session d’agent",
     "newTerminal": "Ouvrir un nouveau terminal",
     "settings": "Ouvrir les réglages de WrongStack",
+    "quota": "Afficher le quota des fournisseurs",
     "light": "Passer en mode clair",
     "dark": "Passer en mode sombre",
     "comfortable": "Utiliser une densité de conversation confortable",

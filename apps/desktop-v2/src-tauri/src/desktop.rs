@@ -160,6 +160,7 @@ async fn host_request(
         "session.write",
         "session.resize",
         "session.kill",
+        "session.remove",
         "engine.send",
         "engine.http",
         "engine.events",
@@ -349,17 +350,47 @@ async fn open_external(window: WebviewWindow, url: String) -> Result<()> {
     {
         return Err("External links must use HTTP(S) without credentials".into());
     }
-    // A single URL argument, never a shell command; the privileged webview stays local.
-    #[cfg(target_os = "windows")]
-    let mut command = std::process::Command::new(
-        std::path::PathBuf::from(std::env::var_os("SystemRoot").ok_or("Missing SystemRoot")?)
-            .join("explorer.exe"),
-    );
+    // The default browser opens it; the privileged webview stays local.
+    open_in_browser(url.as_str())
+}
+/// Windows: `explorer.exe <url>` silently drops any URL with a query string, so the
+/// subscription sign-in page (and most links) never opened. ShellExecute hands the URL to the
+/// default browser as it is.
+#[cfg(target_os = "windows")]
+fn open_in_browser(url: &str) -> Result<()> {
+    use windows::core::{w, HSTRING, PCWSTR};
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let target = HSTRING::from(url);
+    // SAFETY: every string argument is a NUL-terminated wide string that outlives the call.
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            &target,
+            PCWSTR::null(),
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    // ShellExecute reports success with a value above 32.
+    if result.0 as isize <= 32 {
+        return Err(format!(
+            "Could not open the browser (ShellExecute {})",
+            result.0 as isize
+        )
+        .into());
+    }
+    Ok(())
+}
+/// A single URL argument, never a shell command.
+#[cfg(not(target_os = "windows"))]
+fn open_in_browser(url: &str) -> Result<()> {
     #[cfg(target_os = "macos")]
     let mut command = std::process::Command::new("open");
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    #[cfg(not(target_os = "macos"))]
     let mut command = std::process::Command::new("xdg-open");
-    let mut child = command.arg(url.as_str()).spawn().map_err(err)?;
+    let mut child = command.arg(url).spawn().map_err(err)?;
     thread::spawn(move || {
         let _ = child.wait();
     });

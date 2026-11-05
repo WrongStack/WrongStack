@@ -1,4 +1,23 @@
-import type { Session } from './model';
+import { isLive, type Session } from './model';
+
+/**
+ * The sessions the sidebar lists under a project: the running and open ones, then the most
+ * recently used stopped ones, which open where they left off. Older ones stay in the history.
+ */
+export function sidebarSessions(
+  sessions: readonly Session[],
+  projectId: string,
+  open: readonly string[],
+  recent = 5,
+): Session[] {
+  const mine = sessions.filter((session) => session.projectId === projectId);
+  const shown = mine.filter((session) => isLive(session) || open.includes(session.id));
+  const idle = mine
+    .filter((session) => !shown.includes(session))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, recent);
+  return [...shown, ...idle];
+}
 
 export function restoreSessionTabs(saved: Record<string, unknown>, sessions: Session[]): string[] {
   const known = new Set(sessions.map((s) => s.id));

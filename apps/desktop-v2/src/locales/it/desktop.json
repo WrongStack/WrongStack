@@ -31,6 +31,7 @@
     "projects": "Progetti",
     "activity": "Attività",
     "appearance": "Aspetto",
+    "quota": "Quota dei provider",
     "settings": "Impostazioni di WrongStack",
     "projectTools": "Strumenti del progetto"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "Nuova sessione in {{name}}",
     "newSession": "Nuova sessione",
     "terminal": "terminale",
-    "empty": "Aggiungi una cartella di progetto per avviare una sessione."
+    "empty": "Aggiungi una cartella di progetto per avviare una sessione.",
+    "stop": "Arresta {{title}}",
+    "remove": "Rimuovi {{title}}",
+    "removeTitle": "Rimuovere {{title}}?",
+    "removeBody": "Esce da questo elenco e la sua trascrizione desktop e le bozze vengono eliminate. Una sessione in esecuzione viene prima arrestata. Una conversazione dell’agente resta nella cronologia del progetto, da cui può essere ripresa.",
+    "removeConfirm": "Rimuovi",
+    "cancel": "Annulla",
+    "olderHost": "L’host delle sessioni in esecuzione è più vecchio di questo desktop. Arresta le sue sessioni e riavvia il desktop per rimuovere le sessioni."
   },
   "topbar": {
     "project": "Progetto",
@@ -6708,6 +6716,7 @@
     "newAgent": "Avvia una nuova sessione agente",
     "newTerminal": "Apri un nuovo terminale",
     "settings": "Apri le impostazioni di WrongStack",
+    "quota": "Mostra la quota dei provider",
     "light": "Passa alla modalità chiara",
     "dark": "Passa alla modalità scura",
     "comfortable": "Usa una densità di conversazione comoda",

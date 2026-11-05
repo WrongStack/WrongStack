@@ -2,6 +2,7 @@ import { ArrowRight, Zap } from 'lucide-react';
 import { commandDescription } from './desktop-command-text';
 import { desktopCommands } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
+import { requestSettingsSection } from './settings-section-request';
 import type { DesktopController } from './useDesktop';
 
 interface PaletteAction {
@@ -61,6 +62,14 @@ function paletteActions(
       label: t('paletteActions.settings'),
       hint: '/settings',
       run: () => vm.openWrongStackSettings(),
+    },
+    {
+      id: 'quota',
+      label: t('paletteActions.quota'),
+      run: () => {
+        requestSettingsSection('quota');
+        vm.openWrongStackSettings();
+      },
     },
     {
       id: 'mode',

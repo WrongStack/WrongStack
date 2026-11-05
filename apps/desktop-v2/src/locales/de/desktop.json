@@ -31,6 +31,7 @@
     "projects": "Projekte",
     "activity": "Aktivität",
     "appearance": "Darstellung",
+    "quota": "Anbieter-Kontingent",
     "settings": "WrongStack-Einstellungen",
     "projectTools": "Projektwerkzeuge"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "Neue Sitzung in {{name}}",
     "newSession": "Neue Sitzung",
     "terminal": "Terminal",
-    "empty": "Füge einen Projektordner hinzu, um eine Sitzung zu starten."
+    "empty": "Füge einen Projektordner hinzu, um eine Sitzung zu starten.",
+    "stop": "{{title}} stoppen",
+    "remove": "{{title}} entfernen",
+    "removeTitle": "{{title}} entfernen?",
+    "removeBody": "Die Sitzung verschwindet aus dieser Liste; ihr Desktop-Protokoll und ihre Entwürfe werden gelöscht. Eine laufende Sitzung wird zuerst gestoppt. Eine Agent-Unterhaltung bleibt im Verlauf des Projekts und kann dort fortgesetzt werden.",
+    "removeConfirm": "Entfernen",
+    "cancel": "Abbrechen",
+    "olderHost": "Der laufende Sitzungs-Host ist älter als dieser Desktop. Stoppe seine Sitzungen und starte den Desktop neu, um Sitzungen zu entfernen."
   },
   "topbar": {
     "project": "Projekt",
@@ -6708,6 +6716,7 @@
     "newAgent": "Neue Agentensitzung starten",
     "newTerminal": "Neues Terminal öffnen",
     "settings": "WrongStack-Einstellungen öffnen",
+    "quota": "Anbieter-Kontingent anzeigen",
     "light": "Zum hellen Modus wechseln",
     "dark": "Zum dunklen Modus wechseln",
     "comfortable": "Komfortable Unterhaltungsdichte verwenden",

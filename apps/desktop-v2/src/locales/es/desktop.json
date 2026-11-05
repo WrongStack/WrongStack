@@ -31,6 +31,7 @@
     "projects": "Proyectos",
     "activity": "Actividad",
     "appearance": "Apariencia",
+    "quota": "Cuota de proveedores",
     "settings": "Ajustes de WrongStack",
     "projectTools": "Herramientas del proyecto"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "Nueva sesión en {{name}}",
     "newSession": "Nueva sesión",
     "terminal": "terminal",
-    "empty": "Añade una carpeta de proyecto para iniciar una sesión."
+    "empty": "Añade una carpeta de proyecto para iniciar una sesión.",
+    "stop": "Detener {{title}}",
+    "remove": "Quitar {{title}}",
+    "removeTitle": "¿Quitar {{title}}?",
+    "removeBody": "Sale de esta lista y se borran su transcripción de escritorio y sus borradores. Una sesión en ejecución se detiene primero. Una conversación de agente sigue en el historial del proyecto, desde donde se puede reanudar.",
+    "removeConfirm": "Quitar",
+    "cancel": "Cancelar",
+    "olderHost": "El host de sesiones en ejecución es más antiguo que este escritorio. Detén sus sesiones y reinicia el escritorio para quitar sesiones."
   },
   "topbar": {
     "project": "Proyecto",
@@ -6708,6 +6716,7 @@
     "newAgent": "Iniciar una nueva sesión de agente",
     "newTerminal": "Abrir un nuevo terminal",
     "settings": "Abrir los ajustes de WrongStack",
+    "quota": "Mostrar la cuota de proveedores",
     "light": "Cambiar a modo claro",
     "dark": "Cambiar a modo oscuro",
     "comfortable": "Usar una densidad de conversación cómoda",

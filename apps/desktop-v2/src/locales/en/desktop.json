@@ -31,6 +31,7 @@
     "projects": "Projects",
     "activity": "Activity",
     "appearance": "Appearance",
+    "quota": "Provider quota",
     "settings": "WrongStack settings",
     "projectTools": "Project tools"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "New session in {{name}}",
     "newSession": "New session",
     "terminal": "terminal",
-    "empty": "Add a project folder to start a session."
+    "empty": "Add a project folder to start a session.",
+    "stop": "Stop {{title}}",
+    "remove": "Remove {{title}}",
+    "removeTitle": "Remove {{title}}?",
+    "removeBody": "It leaves this list, and its desktop transcript and drafts are deleted. A running session is stopped first. An agent conversation stays in the project’s history, where it can be resumed.",
+    "removeConfirm": "Remove",
+    "cancel": "Cancel",
+    "olderHost": "The running session host is older than this desktop. Stop its sessions and restart the desktop to remove sessions."
   },
   "topbar": {
     "project": "Project",
@@ -6708,6 +6716,7 @@
     "newAgent": "Start a new agent session",
     "newTerminal": "Open a new terminal",
     "settings": "Open WrongStack settings",
+    "quota": "Show provider quota",
     "light": "Switch to light mode",
     "dark": "Switch to dark mode",
     "comfortable": "Use comfortable conversation density",

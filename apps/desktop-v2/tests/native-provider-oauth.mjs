@@ -1,5 +1,36 @@
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
 import { join } from 'node:path';
+
+/** Opens `path` on a local echo server through the desktop's own link opener and returns what
+ * the default browser asked that server for. */
+async function openedInBrowser(page, path) {
+  let server;
+  const seen = new Promise((resolve, reject) => {
+    server = createServer((request, response) => {
+      response.setHeader('connection', 'close');
+      response.end('<p>WrongStack native test: you can close this tab.</p>');
+      if (request.url !== '/favicon.ico') resolve(request.url);
+    });
+    server.on('error', reject);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const url = `http://127.0.0.1:${server.address().port}${path}`;
+    await page.evaluate(
+      (target) => window.__TAURI_INTERNALS__.invoke('open_external', { url: target }),
+      url,
+    );
+    return await Promise.race([
+      seen,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(Error('The browser never asked for the opened link')), 30000),
+      ),
+    ]);
+  } finally {
+    server.close();
+  }
+}
 
 export async function exerciseNativeProviderOAuth({
   page,
@@ -98,6 +129,37 @@ export async function exerciseNativeProviderOAuth({
       (await call('providers.saved')).providers.some((item) => item.id === alias),
       false,
     );
+
+    // The browser half, with no account: the sign-in page's whole query reaches the browser
+    // (Windows used to drop any link with a query string), and the browser reaches the engine's
+    // loopback through the registered redirect, answered with `error=` so nothing signs in.
+    await begin();
+    const started = (await events())
+      .reverse()
+      .find(
+        (event) =>
+          event.type === 'auth.oauth.status' && typeof event.payload.authorizeUrl === 'string',
+      );
+    const authorize = new URL(started.payload.authorizeUrl);
+    const signInPage = `${authorize.pathname}${authorize.search}`;
+    assert.equal(
+      await openedInBrowser(page, signInPage),
+      signInPage,
+      'The browser receives the sign-in link with its whole query',
+    );
+    await page.evaluate(
+      (url) => window.__TAURI_INTERNALS__.invoke('open_external', { url }),
+      `${authorize.searchParams.get('redirect_uri')}?error=wrongstack_native_probe&state=${authorize.searchParams.get('state')}`,
+    );
+    await panel
+      .getByRole('alert')
+      .filter({ hasText: 'Sign-in cancelled or timed out.' })
+      .waitFor({ timeout: 30000 });
+    assert.equal(
+      (await call('providers.saved')).providers.some((item) => item.id === alias),
+      false,
+    );
+
     const beforeCancel = (await events()).filter(
       (event) =>
         event.type === 'auth.oauth.status' && event.payload.message === 'Sign-in cancelled.',
@@ -121,6 +183,6 @@ export async function exerciseNativeProviderOAuth({
     await call('auth.oauth.cancel', { kind: 'chatgpt' });
   }
   console.log(
-    'PASS: native registry-driven OAuth metadata, alias collision/review, loopback-only browser startup, stale cancellation refusal, transient paste clearing and unmount cancellation without external authentication',
+    'PASS: native registry-driven OAuth metadata, alias collision/review, loopback-only browser startup, the browser receiving the whole sign-in link and reaching the loopback, stale cancellation refusal, transient paste clearing and unmount cancellation without external authentication',
   );
 }

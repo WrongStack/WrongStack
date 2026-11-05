@@ -8869,3 +8869,26 @@ commands.
   models before the editor; the component now owns them), and the reload after applying an
   edit rejected unhandled when the workspace detached (it now reports the error).
 - Result: `--gaps --release --bundled` PASS, no renderer errors.
+
+### Sidebar session actions, provider quota on the rail, links that open (2026-11-05)
+
+- A session row in the project tree stops a running agent or terminal (`session.kill`) and
+  removes a session after asking (`session.remove`: a running session is stopped first, then its
+  registry row, drafts and desktop transcript files go; an agent conversation stays in the
+  project's history). The tree lists the running sessions and those open in tabs, then the five most
+  recently used stopped ones.
+- Provider quota has its own button on the main rail and a palette action: it opens the plan
+  quota page directly, also when settings are already open on another section, and the rail
+  marks it while that page shows.
+- Bug fixed: on Windows the desktop opened links with `explorer.exe <url>`, which silently drops
+  any URL with a query string, so the subscription sign-in page (and most external links) never
+  reached the browser. Links now go through `ShellExecuteW`. A probe against a local echo
+  server showed the old path losing both a plain query and a full OAuth authorize URL and the
+  shell path delivering both intact; through it the browser reached the engine's ChatGPT
+  loopback (`localhost:1455/auth/callback`).
+- Native coverage: `--models` now opens the sign-in link through `open_external` against an echo
+  server (the whole query must arrive) and the redirect with `error=` (the attempt must end with
+  "Sign-in cancelled or timed out."); `--gaps` drives the rail quota button and the sidebar
+  stop and remove on a terminal session.
+- Verification: desktop suite (288 files, 1009 tests), desktop typecheck, Biome on the changed
+  files, `cargo fmt --check`, `cargo test` (33 tests, including the registry removal).

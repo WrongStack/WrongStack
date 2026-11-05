@@ -1,0 +1,40 @@
+/* A session row in the sidebar: the session, then its stop and remove actions (SidebarSessionRow). */
+.tree-session-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.tree-session-row > .tree-session {
+  flex: 1;
+  min-width: 0;
+}
+.tree-session-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  gap: 2px;
+}
+.tree-session-row:hover .tree-session-actions,
+.tree-session-row:focus-within .tree-session-actions {
+  display: flex;
+}
+.tree-session-row:hover > .tree-session small,
+.tree-session-row:focus-within > .tree-session small {
+  visibility: hidden;
+}
+.tree-session-actions .icon-button {
+  width: 22px;
+  height: 22px;
+}
+.session-remove-body {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.session-remove-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -189,6 +189,22 @@ impl Registry {
             .map_err(err)?;
         Ok(())
     }
+    /// Forgets a session: its drafts, their revisions and its row. False when it is unknown.
+    pub fn remove(&self, id: &str) -> Result<bool> {
+        let keys =
+            ["draft", "draftrefs", "draftmedia", "draftmode"].map(|part| format!("{part}:{id}"));
+        self.db
+            .execute(
+                "DELETE FROM settings WHERE key IN (?1,?2,?3,?4)",
+                params![keys[0], keys[1], keys[2], keys[3]],
+            )
+            .map_err(err)?;
+        let removed = self
+            .db
+            .execute("DELETE FROM sessions WHERE id=?1", [id])
+            .map_err(err)?;
+        Ok(removed > 0)
+    }
     pub fn recover(&self) -> Result<()> {
         self.db.execute("UPDATE sessions SET status='interrupted',error='Session host stopped. The transcript is kept; reconnect an agent conversation to continue it.' WHERE status IN ('running','starting')", []).map_err(err)?;
         Ok(())
@@ -1175,6 +1191,20 @@ mod tests {
         db.save_draft(&a.id, "first project draft").unwrap();
         db.save_draft(&b.id, "second project draft").unwrap();
         db.save_draft_mode(&a.id, "queue").unwrap();
+        // Removing a session forgets its row and drafts and leaves the others alone.
+        let gone = Session {
+            id: Uuid::new_v4().to_string(),
+            kind: "agent".into(),
+            ..s.clone()
+        };
+        db.insert(&gone).unwrap();
+        db.save_draft(&gone.id, "a draft that goes with its session")
+            .unwrap();
+        assert!(db.remove(&gone.id).unwrap());
+        assert!(!db.remove(&gone.id).unwrap());
+        assert!(db.sessions().unwrap().iter().all(|row| row.id != gone.id));
+        assert_eq!(db.setting(&format!("draft:{}", gone.id)).unwrap(), None);
+        assert_eq!(db.draft(&b.id).unwrap(), "second project draft");
         assert!(db.save_draft_mode(&a.id, "unsupported").is_err());
         let refs = r#"[{"path":"src/app.ts"}]"#;
         let media = r#"[{"id":"one","name":"image.png","mediaType":"image/png","data":"AA+/==","bytes":3}]"#;

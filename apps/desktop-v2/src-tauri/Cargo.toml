@@ -23,9 +23,10 @@ uuid = { version = "=1.29.0", features = ["v4"] }
 tungstenite = { version = "=0.30.0", default-features = false, features = ["handshake"] }
 reqwest = { version = "=0.13.5", default-features = false, features = ["blocking", "json"] }
 
-# Dictation (`speech.rs`). The same windows crate WebView2 already pulls in, with the speech API.
+# Dictation (`speech.rs`) and opening links (`desktop.rs`, ShellExecute). The same windows crate
+# WebView2 already pulls in, with the speech and shell APIs.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "=0.62.2", optional = true, features = ["Foundation", "Globalization", "Media_SpeechRecognition", "Win32_System_WinRT"] }
+windows = { version = "=0.62.2", optional = true, features = ["Foundation", "Globalization", "Media_SpeechRecognition", "Win32_System_WinRT", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [[bin]]
 name = "wrongstack-desktop-native"

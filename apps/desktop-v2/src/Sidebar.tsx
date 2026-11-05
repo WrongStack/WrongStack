@@ -27,8 +27,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { isLive } from './model';
 import { addProject, native } from './platform';
+import { requestSettingsSection, useShownSettingsSection } from './settings-section-request';
+import { SidebarSessionRow } from './SidebarSessionRow';
+import { sidebarSessions } from './session-layout';
 import type { DesktopController, ProjectPage } from './useDesktop';
 
 /**
@@ -137,6 +139,8 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
     currentProject,
   } = vm;
   const page = section === 'project' ? vm.projectPage : undefined;
+  const shownSettings = useShownSettingsSection();
+  const quotaShown = section === 'wrongstack' && shownSettings === 'quota';
   const goTo = (id: 'fleet' | 'projects' | 'activity' | 'engine' | 'wrongstack') => {
     if (id === 'wrongstack') vm.openWrongStackSettings();
     setSection(id);
@@ -180,6 +184,18 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         <div className="rail-spacer" />
         <button
           type="button"
+          className={`rail-button ${quotaShown ? 'active' : ''}`}
+          aria-label={t('rail.quota')}
+          title={t('rail.quota')}
+          onClick={() => {
+            requestSettingsSection('quota');
+            goTo('wrongstack');
+          }}
+        >
+          <Gauge size={17} />
+        </button>
+        <button
+          type="button"
           className={`rail-button ${section === 'engine' ? 'active' : ''}`}
           aria-label={t('rail.appearance')}
           title={t('rail.appearance')}
@@ -189,7 +205,7 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         </button>
         <button
           type="button"
-          className={`rail-button ${section === 'wrongstack' ? 'active' : ''}`}
+          className={`rail-button ${section === 'wrongstack' && !quotaShown ? 'active' : ''}`}
           aria-label={t('rail.settings')}
           title={t('rail.settings')}
           onClick={() => goTo('wrongstack')}
@@ -243,9 +259,7 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
         </div>
         <div className="project-tree">
           {snapshot.projects.map((p, i) => {
-            const sessions = snapshot.sessions.filter(
-              (s) => s.projectId === p.id && (isLive(s) || vm.openSessionIds.includes(s.id)),
-            );
+            const sessions = sidebarSessions(snapshot.sessions, p.id, vm.openSessionIds);
             return (
               <div key={p.id} className="project-branch">
                 <div className="project-branch-heading">
@@ -271,16 +285,15 @@ export function Sidebar({ vm }: { vm: DesktopController }) {
                   </button>
                 </div>
                 {sessions.map((s) => (
-                  <button
-                    type="button"
+                  <SidebarSessionRow
                     key={s.id}
-                    className={`tree-session ${selected === s.id ? 'chosen' : ''}`}
-                    onClick={() => jumpToSession(s)}
-                  >
-                    <span className={`status-dot ${s.status}`} />
-                    <span>{s.title}</span>
-                    {s.kind === 'terminal' && <small>{t('explorer.terminal')}</small>}
-                  </button>
+                    session={s}
+                    chosen={selected === s.id}
+                    disabled={!native || pending}
+                    onOpen={jumpToSession}
+                    run={run}
+                    onRemoved={vm.closeSessionTab}
+                  />
                 ))}
               </div>
             );

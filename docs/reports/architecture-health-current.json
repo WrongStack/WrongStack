@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T12:00:31.344Z",
+  "generatedAt": "2026-11-05T13:03:54.538Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6042,
-    "testFiles": 5032,
-    "sourceLines": 1251594,
+    "sourceFiles": 6043,
+    "testFiles": 5034,
+    "sourceLines": 1251774,
     "workspaceEdges": 243,
-    "moduleEdges": 17784,
+    "moduleEdges": 17791,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 285,
+    "testsWithoutTypecheck": 287,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1037
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 449,
-      "testFiles": 285,
+      "sourceFiles": 450,
+      "testFiles": 287,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2869,6 +2869,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/settings-section-request.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/settings-section-select.test.ts",
         "projects": [
           "root-node"
@@ -2888,6 +2894,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/side-effects-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/sidebar-session-row.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33322,6 +33334,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/settings-section-request.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/settings-section-select.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33344,6 +33363,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/side-effects-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/sidebar-session-row.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -34212,6 +34238,11 @@
     {
       "from": "apps/desktop-v2/src/ShortcutsOverlay.tsx",
       "specifier": "./shortcuts.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SidebarSessionRow.tsx",
+      "specifier": "./sidebar-sessions.css",
       "syntax": "import"
     },
     {

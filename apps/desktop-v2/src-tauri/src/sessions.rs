@@ -130,6 +130,7 @@ impl HostState {
                 Ok(Value::Null)
             }
             "session.kill" => self.kill(field(p, "id")?),
+            "session.remove" => self.remove(field(p, "id")?),
             "engine.send" => {
                 let live = self.live.lock().map_err(err)?;
                 live.get(field(p, "id")?)
@@ -640,6 +641,34 @@ impl HostState {
         let n = file.read(&mut bytes).map_err(err)?;
         bytes.truncate(n);
         Ok(json!({"offset":offset+n as u64,"bytes":bytes,"end":end}))
+    }
+    /// Forgets a session: a running one is stopped first, then its row, drafts and desktop
+    /// transcript go. The WrongStack conversation an agent recorded stays in the project history.
+    fn remove(&self, id: &str) -> Result<Value> {
+        if self.live.lock().map_err(err)?.contains_key(id) {
+            self.kill(id)?;
+            // The exit watcher drops the live entry and records the exit; waiting for it means
+            // nothing writes to the transcript after it is deleted.
+            let deadline = std::time::Instant::now() + Duration::from_secs(10);
+            while self.live.lock().map_err(err)?.contains_key(id) {
+                if std::time::Instant::now() > deadline {
+                    return Err("The session did not stop; try again".into());
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+        }
+        if !self.registry.lock().map_err(err)?.remove(id)? {
+            return Err("Unknown session".into());
+        }
+        for extension in ["bin", "jsonl", "events.jsonl"] {
+            // Best effort: a file still held open is left behind rather than failing the removal.
+            let _ = std::fs::remove_file(
+                self.dir
+                    .join("transcripts")
+                    .join(format!("{id}.{extension}")),
+            );
+        }
+        Ok(Value::Null)
     }
     fn kill(&self, id: &str) -> Result<Value> {
         let mut live = self.live.lock().map_err(err)?;

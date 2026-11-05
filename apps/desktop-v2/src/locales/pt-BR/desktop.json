@@ -31,6 +31,7 @@
     "projects": "Projetos",
     "activity": "Atividade",
     "appearance": "Aparência",
+    "quota": "Cota dos provedores",
     "settings": "Configurações do WrongStack",
     "projectTools": "Ferramentas do projeto"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "Nova sessão em {{name}}",
     "newSession": "Nova sessão",
     "terminal": "terminal",
-    "empty": "Adicione uma pasta de projeto para iniciar uma sessão."
+    "empty": "Adicione uma pasta de projeto para iniciar uma sessão.",
+    "stop": "Parar {{title}}",
+    "remove": "Remover {{title}}",
+    "removeTitle": "Remover {{title}}?",
+    "removeBody": "Ela sai desta lista, e a transcrição da área de trabalho e os rascunhos são excluídos. Uma sessão em execução é parada primeiro. Uma conversa de agente continua no histórico do projeto, de onde pode ser retomada.",
+    "removeConfirm": "Remover",
+    "cancel": "Cancelar",
+    "olderHost": "O host de sessões em execução é mais antigo que este desktop. Pare as sessões dele e reinicie o desktop para remover sessões."
   },
   "topbar": {
     "project": "Projeto",
@@ -6708,6 +6716,7 @@
     "newAgent": "Iniciar uma nova sessão de agente",
     "newTerminal": "Abrir um novo terminal",
     "settings": "Abrir as configurações do WrongStack",
+    "quota": "Mostrar a cota dos provedores",
     "light": "Mudar para o modo claro",
     "dark": "Mudar para o modo escuro",
     "comfortable": "Usar densidade de conversa confortável",

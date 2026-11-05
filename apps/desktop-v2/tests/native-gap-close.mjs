@@ -6,7 +6,8 @@ import { join } from 'node:path';
  * The 2026-11-05 round that closed the desktop's last WebUI and TUI gaps, through the real
  * controls and the project engine: the TUI's commands the engine runs (`command.list` /
  * `command.run`) from the composer, the analytics page, the side-by-side diff editor, the fonts
- * and text size, and the status bar chips. None of it may reach the model.
+ * and text size, the status bar chips, provider quota on the main rail and the sidebar's session
+ * actions. None of it may reach the model.
  */
 export async function exerciseNativeGapClose({
   page,
@@ -144,5 +145,49 @@ export async function exerciseNativeGapClose({
     'Every chip shows again',
   );
   console.log('PASS: fonts, window text size and status bar chips apply and persist');
+
+  // Provider quota sits on the main rail: it opens the plan quota page directly, also when
+  // settings are already open on another section.
+  const rail = page.getByRole('navigation', { name: 'Main navigation' });
+  const quota = rail.getByRole('button', { name: 'Provider quota', exact: true });
+  await rail.getByRole('button', { name: 'WrongStack settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'WrongStack settings sections' }).waitFor();
+  assert.equal(await quota.evaluate((button) => button.classList.contains('active')), false);
+  await quota.click();
+  await page.getByRole('heading', { name: 'Plan Quota', exact: true }).waitFor({ timeout: 60000 });
+  await waitFor(
+    () => quota.evaluate((button) => button.classList.contains('active')),
+    'The rail marks the quota shortcut',
+  );
+  await shot('native-rail-quota.png');
+  console.log('PASS: the main rail opens provider quota directly');
+
+  // A session keeps running after its tab closes; its sidebar row stops it, keeps the stopped
+  // session listed, and removes it after asking.
+  const title = 'Native sidebar terminal';
+  const terminal = await rpc('session.open', { projectId: project.id, kind: 'terminal', title });
+  const listed = async () => (await rpc('snapshot')).sessions.find((s) => s.id === terminal.id);
+  await page.locator('.project-item').filter({ hasText: project.name }).click();
+  const row = page.locator('.tree-session-row').filter({ hasText: title });
+  await row.waitFor();
+  await row.hover();
+  await row.getByRole('button', { name: `Stop ${title}`, exact: true }).click();
+  await waitFor(
+    async () => (await listed())?.status === 'stopped',
+    'The sidebar stops the session',
+  );
+  await row.locator('.status-dot.stopped').waitFor();
+  await row.hover();
+  await row.getByRole('button', { name: `Remove ${title}`, exact: true }).click();
+  await page
+    .getByRole('dialog', { name: `Remove ${title}?`, exact: true })
+    .getByRole('button', { name: 'Remove', exact: true })
+    .click();
+  await row.waitFor({ state: 'detached' });
+  assert.equal(await listed(), undefined, 'The removed session is gone from the workspace');
+  await shot('native-sidebar-sessions.png');
+  console.log(
+    'PASS: the sidebar stops a running session, keeps it listed and removes it after asking',
+  );
   assert.equal(modelCalls(), before, 'Nothing in this round reached the model');
 }

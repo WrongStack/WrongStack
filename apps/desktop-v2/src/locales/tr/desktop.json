@@ -31,6 +31,7 @@
     "projects": "Projeler",
     "activity": "Etkinlik",
     "appearance": "Görünüm",
+    "quota": "Sağlayıcı kotası",
     "settings": "WrongStack ayarları",
     "projectTools": "Proje araçları"
   },
@@ -42,7 +43,14 @@
     "newSessionIn": "{{name}} içinde yeni oturum",
     "newSession": "Yeni oturum",
     "terminal": "terminal",
-    "empty": "Oturum başlatmak için bir proje klasörü ekle."
+    "empty": "Oturum başlatmak için bir proje klasörü ekle.",
+    "stop": "{{title}} oturumunu durdur",
+    "remove": "{{title}} oturumunu kaldır",
+    "removeTitle": "{{title}} kaldırılsın mı?",
+    "removeBody": "Bu listeden çıkar; masaüstü dökümü ve taslakları silinir. Çalışan bir oturum önce durdurulur. Agent konuşması projenin geçmişinde kalır ve oradan sürdürülebilir.",
+    "removeConfirm": "Kaldır",
+    "cancel": "Vazgeç",
+    "olderHost": "Çalışan oturum sunucusu bu masaüstünden eski. Oturum kaldırmak için oturumlarını durdurup masaüstünü yeniden başlat."
   },
   "topbar": {
     "project": "Proje",
@@ -6708,6 +6716,7 @@
     "newAgent": "Yeni ajan oturumu başlat",
     "newTerminal": "Yeni terminal aç",
     "settings": "WrongStack ayarlarını aç",
+    "quota": "Sağlayıcı kotasını göster",
     "light": "Açık moda geç",
     "dark": "Koyu moda geç",
     "comfortable": "Rahat konuşma yoğunluğunu kullan",
