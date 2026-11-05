@@ -8,13 +8,23 @@ import { errMessage, messageSessionId, withRequestId } from './ws-utils.js';
  * Commands that change or delete something. A client asks before it runs one; `--dry-run`
  * variants still count, so the question names what the command would do.
  */
-const DESTRUCTIVE = new Set(['prune', 'push', 'commit', 'init']);
+const DESTRUCTIVE = new Set([
+  'prune',
+  'push',
+  'commit',
+  'init',
+  'skill-install',
+  'skill-import',
+  'skill-update',
+  'skill-uninstall',
+  'sync',
+]);
 /** The longest message a result carries; the rest is cut with a note. */
 const MESSAGE_LIMIT = 64_000;
 
 export interface CommandRouteContext {
   /** The slash commands this engine runs, built once for its host. */
-  getCommands: () => readonly SlashCommand[];
+  getCommands: () => readonly SlashCommand[] | Promise<readonly SlashCommand[]>;
   /** The asking conversation's agent context, for commands that read the active project. */
   getContext?: ((sessionId?: string) => Parameters<SlashCommand['run']>[1]) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
@@ -54,7 +64,7 @@ export async function handleCommandRoute(
     ctx.send(ws, {
       type: 'command.catalog',
       payload: withRequestId(message.payload, {
-        commands: ctx.getCommands().map(catalogEntry),
+        commands: (await ctx.getCommands()).map(catalogEntry),
       }),
     });
     return true;
@@ -68,7 +78,7 @@ export async function handleCommandRoute(
       type: 'command.result',
       payload: withRequestId(message.payload, { name, ...fields }),
     });
-  const command = find(ctx.getCommands(), name);
+  const command = find(await ctx.getCommands(), name);
   if (!command) {
     reply({ error: `/${name.replace(/^\//, '')} is not a command this engine runs.` });
     return true;

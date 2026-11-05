@@ -19,6 +19,7 @@
 
 import path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
@@ -588,6 +589,9 @@ export function createMessageDispatcher(
       getProjectRoot: state.getProjectRoot,
       getContext: (sessionId) => deps.getAgent?.(sessionId)?.ctx ?? deps.context,
       getConfigStore: () => deps.configStore,
+      getPaths: () => resolveWstackPaths({ projectRoot: state.getProjectRoot() }),
+      skillLoader: deps.skillLoader,
+      vault: deps.vault,
       patchProfileConfig: opts.updateGlobalConfig
         ? (mutate) => opts.updateGlobalConfig!(mutate, 'gitid')
         : undefined,

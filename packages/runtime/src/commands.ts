@@ -35,6 +35,10 @@ export type {
 } from './portable-commands/host.js';
 export { buildInitCommand } from './portable-commands/init.js';
 export {
+  buildPluginCommands,
+  type PluginCommandHost,
+} from './portable-commands/plugin-commands.js';
+export {
   detectProjectFacts,
   type ProjectFacts,
   renderAgentsTemplate,

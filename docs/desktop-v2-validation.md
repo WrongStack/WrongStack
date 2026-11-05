@@ -8781,3 +8781,15 @@ commands.
   does not set those plugins up; each command needs its own wiring) and the fleet commands.
 - Verification: CLI slash suites (103 files, 1,609 tests), resource-menu tests, the bridge test,
   CLI source and test typechecks, runtime and webui-server typechecks, architecture gate.
+
+### Command bridge: builtin plugin commands (2026-11-05)
+
+- The engine now also serves the builtin plugins' commands: the skill library (`/skill`,
+  `/skill-gen`, `/skill-search`, `/skill-install`, `/skill-import`, `/skill-update`,
+  `/skill-uninstall`), the prompt library (`/prompts`, `/prompt-gen`, `/perf` and the hunts the
+  desktop does not already own) and `/sync`. Each plugin is set up against an API that only
+  collects its commands, so its tools, hooks and event handlers never start in the engine.
+- Kept in the TUI: cloud config sync (its setup starts a background sync timer) and specialist
+  triggers (the agent loop's events drive them).
+- Verification: webui-server and runtime suites (407 of 408 files; the Windows handle-timing
+  test in file-batch-mutations passes alone), runtime plugin-command tests, architecture gate.

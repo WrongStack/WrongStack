@@ -91,7 +91,8 @@ describe('command bridge', () => {
       getConfigStore: () => undefined,
       send: (_ws, message) => sent.push(message as never),
     });
-    expect(ctx.getCommands().map((command) => command.name)).toEqual([
+    const names = (await ctx.getCommands()).map((command) => command.name);
+    expect(names.slice(0, 10)).toEqual([
       'sandbox',
       'prune',
       'scout-stats',
@@ -103,6 +104,11 @@ describe('command bridge', () => {
       'gitid',
       'security',
     ]);
+    // The builtin plugins' commands follow, without starting the plugins' tools or timers.
+    expect(names).toEqual(
+      expect.arrayContaining(['skill-search', 'skill-import', 'prompt-gen', 'perf']),
+    );
+    expect(names).not.toContain('cloudsync');
     await handleCommandRoute(ctx, ws, { type: 'command.run', payload: { name: 'prune' } });
     expect(sent[0]?.payload['message']).toBe('No session store configured.');
     store = { list: async () => [], prune: async () => 3 };
