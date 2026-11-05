@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
-import { entries, markdownExcerpt, record } from './engine-values';
+import { entries, markdownExcerpt, record, sentenceStart } from './engine-values';
 import { MailboxComposer } from './MailboxComposer';
 import { MailboxDraftStatus } from './MailboxDraftStatus';
 import { MarkdownContent } from './MarkdownContent';
@@ -32,7 +32,7 @@ export function ProjectMailbox({
   projectId: string;
   state: EngineState;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const when = (value: unknown) => {
     const date = new Date(typeof value === 'number' ? value : String(value));
     return Number.isNaN(date.getTime()) ? t('mailboxPage.timeMissing') : date.toLocaleString();
@@ -306,10 +306,9 @@ export function ProjectMailbox({
     });
   return (
     <section className="project-mailbox" aria-label={t('mailboxPage.label')}>
-      <header className="mailbox-heading">
+      <header className="studio-heading">
         <div>
-          <span className="eyebrow">{t('mailboxPage.eyebrow')}</span>
-          <h2>{t('mailboxPage.title')}</h2>
+          <h1>{t('mailboxPage.title')}</h1>
           <p>{t('mailboxPage.intro')}</p>
         </div>
         <div className="sdd-actions">
@@ -672,8 +671,15 @@ export function ProjectMailbox({
               <code>{String(agent['agentId'])}</code>
               <span>
                 {agent['online'] === true ? t('mailboxPage.online') : t('mailboxPage.offline')} ·{' '}
-                {String(agent['role'] ?? t('mailboxPage.roleMissing'))} ·{' '}
-                {String(agent['status'] ?? t('mailboxPage.statusMissing'))}
+                {typeof agent['role'] === 'string' && agent['role']
+                  ? sentenceStart(agent['role'], i18n.language)
+                  : t('mailboxPage.roleMissing')}{' '}
+                ·{' '}
+                {typeof agent['status'] === 'string' && agent['status']
+                  ? t(`mailboxPage.agentStatus_${agent['status']}`, {
+                      defaultValue: agent['status'],
+                    })
+                  : t('mailboxPage.statusMissing')}
               </span>
               {typeof agent['currentTask'] === 'string' && <p>{agent['currentTask']}</p>}
               {typeof agent['currentTool'] === 'string' && (

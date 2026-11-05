@@ -21,19 +21,6 @@
   resize: vertical;
   line-height: 1.6;
 }
-.mailbox-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.mailbox-heading h2 {
-  font-size: 30px;
-  margin: 7px 0;
-}
-.mailbox-heading p,
 .mailbox-scope {
   color: var(--muted);
   font-size: 12px;

@@ -7,7 +7,12 @@ describe('engine values in words', () => {
       markdownExcerpt(
         '## Plan\n\n**Ship** the _fix_ now. See [docs](https://x.y/z) and `npm test`.\n\n- one\n- [x] two\n1. three',
       ),
-    ).toBe('Plan Ship the fix now. See docs and npm test. one two three');
+    ).toBe('Plan · Ship the fix now. See docs and npm test. one two three');
+    expect(markdownExcerpt('# Investigation\nPlease review.')).toBe(
+      'Investigation · Please review.',
+    );
+    expect(markdownExcerpt('# Done.\nShipped.')).toBe('Done. Shipped.');
+    expect(markdownExcerpt('Text\n\n## Trailing')).toBe('Text Trailing');
     expect(markdownExcerpt('```ts\nconst a = 1;\n```\nDone.')).toBe('const a = 1; Done.');
     expect(markdownExcerpt('| a | b |\n|---|:-:|\n| 1 | 2 |')).toBe('a b 1 2');
     expect(markdownExcerpt('snake_case_name and 2*3*4 stay')).toBe(

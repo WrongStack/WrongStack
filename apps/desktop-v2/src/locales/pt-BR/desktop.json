@@ -3833,6 +3833,12 @@
     "restored": "Edições de design não salvas guardadas neste dispositivo restauradas."
   },
   "mailboxPage": {
+    "agentStatus_offline": "Offline",
+    "agentStatus_error": "Erro",
+    "agentStatus_waiting_user": "Aguardando entrada",
+    "agentStatus_streaming": "Respondendo",
+    "agentStatus_running": "Em execução",
+    "agentStatus_idle": "Ocioso",
     "receipts_one": "{{count}} confirmação de leitura nesta visualização",
     "conversationCount_one": "{{count}} mensagem carregada nesta conversa",
     "messageCount_one": "{{count}} mensagem",

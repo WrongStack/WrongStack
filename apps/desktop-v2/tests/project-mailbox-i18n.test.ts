@@ -86,7 +86,6 @@ describe('the project mailbox in the display language', () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(mailbox(), '.mailbox-thread');
     for (const text of [
-      'KEEP THE TEAM IN CONTEXT',
       'Refresh mailbox',
       'All recent messages',
       '1 message · 1 conversation',
@@ -106,7 +105,6 @@ describe('the project mailbox in the display language', () => {
     await surfaceI18n.changeLanguage('tr');
     page = await mount(mailbox(), '.mailbox-thread');
     for (const text of [
-      'EKİBİ BAĞLAMDA TUT',
       'Posta kutusunu yenile',
       'Tüm son mesajlar',
       '1 mesaj · 1 konuşma',

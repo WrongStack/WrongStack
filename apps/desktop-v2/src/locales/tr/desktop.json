@@ -3833,6 +3833,12 @@
     "restored": "Bu cihazda saklanan kaydedilmemiş tasarım düzenlemeleri geri yüklendi."
   },
   "mailboxPage": {
+    "agentStatus_offline": "Çevrim dışı",
+    "agentStatus_error": "Hata",
+    "agentStatus_waiting_user": "Girdi bekliyor",
+    "agentStatus_streaming": "Yanıt veriyor",
+    "agentStatus_running": "Çalışıyor",
+    "agentStatus_idle": "Boşta",
     "receipts_one": "Bu görünümde {{count}} okundu alındısı",
     "conversationCount_one": "Bu konuşmada {{count}} yüklü mesaj",
     "messageCount_one": "{{count}} mesaj",

@@ -43,6 +43,10 @@ export function durationText(value: unknown, locale?: string): string {
  */
 export function markdownExcerpt(markdown: string, max = 100): string {
   const plain = markdown
+    // A heading reads as a lead-in to the text after it: "Plan · Ship the fix".
+    .replace(/^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$(?=\s*\S)/gm, (_, title: string) =>
+      /[.:!?]$/.test(title) ? title : `${title} ·`,
+    )
     .replace(/^\s*(```|~~~).*$/gm, ' ')
     .replace(/^\s*\|?[\s:|-]*-{3,}[\s:|-]*\|?\s*$/gm, ' ')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
