@@ -441,6 +441,14 @@ export function EngineWorkspace({
                 })}
               </button>
             )}
+            {state.synced && hiddenMessages === 0 && (!state.inputs.length || showConversation) && (
+              <LiveRunActivity
+                events={state.leadingActivity}
+                live={state.running && !state.messages.length}
+                command={command}
+                onOpenFile={openFile}
+              />
+            )}
             {state.synced &&
               (!state.inputs.length || showConversation) &&
               state.messages
@@ -450,6 +458,7 @@ export function EngineWorkspace({
                     key={message.id}
                     message={message}
                     state={state}
+                    activityLive={state.running && index === shown.length - 1}
                     onLink={openLink}
                     onOpenFile={openFile}
                     command={command}
@@ -481,9 +490,6 @@ export function EngineWorkspace({
                 connected={state.connected}
               />
             ))}
-            {state.running && !state.inputs.length && (
-              <LiveRunActivity events={state.runTimeline} command={command} onOpenFile={openFile} />
-            )}
             {state.running && (
               <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
             )}

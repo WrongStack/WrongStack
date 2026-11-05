@@ -10,7 +10,7 @@ import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { HuntRoundCard } from './HuntRounds';
 import { MarkdownContent } from './MarkdownContent';
-import { TurnTools } from './TurnTools';
+import { LiveRunActivity, TurnTools } from './TurnTools';
 import './transcript-message.css';
 
 const CouncilCard = lazy(() => import('./CouncilCard'));
@@ -34,6 +34,7 @@ export function TranscriptMessage({
   askAgain,
   mark,
   day,
+  activityLive = false,
 }: {
   message: Message;
   state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
@@ -49,6 +50,7 @@ export function TranscriptMessage({
   mark?: 'current' | 'match' | undefined;
   /** A day separator to show before the message. */
   day?: string | undefined;
+  activityLive?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
   const [source, setSource] = useState(false);
@@ -124,15 +126,23 @@ export function TranscriptMessage({
           )}
           {!!message.attachments?.length && <AttachmentPreview items={message.attachments} />}
         </div>
-        {(state.turnActivity[message.id] || state.turnStats[message.id]) && (
+        {state.turnStats[message.id] && (
           <TurnTools
-            events={state.turnActivity[message.id] ?? []}
+            events={[]}
             stats={state.turnStats[message.id]}
             onOpenFile={onOpenFile}
             command={command}
           />
         )}
       </article>
+      {!!message.activityAfter?.length && (
+        <LiveRunActivity
+          events={message.activityAfter}
+          live={activityLive}
+          onOpenFile={onOpenFile}
+          command={command}
+        />
+      )}
     </>
   );
 }

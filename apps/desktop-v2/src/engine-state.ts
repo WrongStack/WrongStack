@@ -64,6 +64,8 @@ export interface ChatMessage {
   at?: number;
   attachments?: ComposerAttachment[];
   streamId?: string;
+  /** Work that happened after this message, before the next message began. */
+  activityAfter?: EngineEvent[];
   /** A Brain council's decision, drawn as the WebUI's council card. */
   council?: CouncilDecisionData;
 }
@@ -101,6 +103,10 @@ export interface EngineState {
   running: boolean;
   needsSetup: boolean;
   messages: ChatMessage[];
+  /** Work before the first visible message (e.g. a resumed engine-only run). */
+  leadingActivity: EngineEvent[];
+  /** Only this message may still receive text deltas from the current response. */
+  activeTextMessageId: string | null;
   approvals: Record<string, unknown>[];
   inputs: UserInputRequest[];
   providerTests: Record<string, ProviderTestRun>;
@@ -171,6 +177,8 @@ export const emptyEngineState: EngineState = {
   running: false,
   needsSetup: true,
   messages: [],
+  leadingActivity: [],
+  activeTextMessageId: null,
   approvals: [],
   inputs: [],
   providerTests: {},
@@ -349,6 +357,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
           : !p['provider'] || p['provider'] === 'unconfigured' || !p['model'],
     };
     if (p['reset'] === true) {
+      next.leadingActivity = [];
+      next.activeTextMessageId = null;
       next.nextSteps = [];
       next.runTimeline = [];
       next.turnActivity = {};
@@ -526,7 +536,10 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     // A wire stream ID can be reused after a completed turn. Only append to
     // the active trailing assistant, never to a historical message with that ID.
     next.messages =
-      state.running && previous?.role === 'assistant' && previous.streamId === streamId
+      state.running &&
+      previous?.role === 'assistant' &&
+      previous.streamId === streamId &&
+      state.activeTextMessageId === previous.id
         ? [...state.messages.slice(0, -1), { ...previous, text: previous.text + text }]
         : [
             ...state.messages,
@@ -537,6 +550,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
               text,
             },
           ];
+    next.activeTextMessageId = next.messages.at(-1)!.id;
     next.running = true;
   }
   if (event.type === 'tool.confirm_needed')
@@ -552,6 +566,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     next.inputs = state.inputs.filter((item) => item.id !== p['requestId']);
   if (event.type === 'run.result') {
     next.running = false;
+    next.activeTextMessageId = null;
     const answer = next.messages.findLast((message) => message.role === 'assistant');
     // Every tool call of the turn stays with its answer, not only those still in the
     // Activity view's recent window.
@@ -626,7 +641,18 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
         ? activity.slice(activity.length - ACTIVITY_LIMIT)
         : activity;
   }
-  if (isRunTimelineEvent(event.type)) next.runTimeline = appendRunEvent(state.runTimeline, event);
+  if (isRunTimelineEvent(event.type)) {
+    next.runTimeline = appendRunEvent(state.runTimeline, event);
+    next.activeTextMessageId = null;
+    const previous = next.messages.at(-1);
+    if (previous) {
+      next.messages = [
+        ...next.messages.slice(0, -1),
+        { ...previous, activityAfter: appendRunEvent(previous.activityAfter ?? [], event) },
+      ];
+    } else next.leadingActivity = appendRunEvent(state.leadingActivity, event);
+  }
+  if (event.type === 'provider.response') next.activeTextMessageId = null;
   next.agents = reduceAgentTranscripts(next.agents, event.type, p);
   if (event.type === 'subagent.event') {
     const options = {

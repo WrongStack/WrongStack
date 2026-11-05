@@ -104,10 +104,12 @@ export function LiveRunActivity({
   events,
   onOpenFile,
   command,
+  live = true,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
+  live?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
   if (!events.length) return null;
@@ -119,7 +121,7 @@ export function LiveRunActivity({
       .filter((id) => typeof id === 'string'),
   ).size;
   return (
-    <details className="chat-run-activity" open>
+    <details className="chat-run-activity" open={live}>
       <summary>
         <Wrench size={12} /> {t('turn.activity')}
         {calls ? ` · ${toolCalls(calls, t)}` : ''}
