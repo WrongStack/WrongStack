@@ -9,9 +9,9 @@ export async function exerciseNativeChronicleInsights({ page, rpc, project, arti
   await insights
     .getByText('fixture-provider / fixture-model', { exact: true })
     .waitFor({ timeout: 60000 });
-  await insights.getByRole('button', { name: 'tasks', exact: true }).click();
+  await insights.getByRole('button', { name: 'Tasks', exact: true }).click();
   await insights.getByText('fixture-task', { exact: true }).waitFor({ timeout: 60000 });
-  await insights.getByRole('button', { name: 'files', exact: true }).click();
+  await insights.getByRole('button', { name: 'Files', exact: true }).click();
   await insights
     .getByText('review-fixture.ts', { exact: true })
     .first()

@@ -73,9 +73,9 @@ describe('Project Chimera review contracts', () => {
         onOpenFile() {},
       }),
     );
-    expect(markup).toContain('Disk citation: verified');
+    expect(markup).toContain('Disk citation: Verified');
     expect(markup).toContain('Record resolution');
-    expect(markup).toContain('medium');
+    expect(markup).toContain('Medium reviewer confidence');
     expect(markup).not.toContain('Recorded outcome:');
     expect(markup).not.toContain('[object Object]');
   });

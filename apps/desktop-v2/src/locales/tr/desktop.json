@@ -2307,19 +2307,19 @@
       "related_resources": "İlgili kaynaklar"
     },
     "suggestionKind": {
-      "title": "başlık",
-      "summary": "özet",
-      "request_type": "istek türü",
-      "priority": "öncelik",
-      "question": "soru",
-      "constraint": "kısıt",
-      "target_user": "hedef kullanıcı",
-      "outcome": "sonuç"
+      "title": "Başlık",
+      "summary": "Özet",
+      "request_type": "İstek türü",
+      "priority": "Öncelik",
+      "question": "Soru",
+      "constraint": "Kısıt",
+      "target_user": "Hedef kullanıcı",
+      "outcome": "Sonuç"
     },
     "status": {
-      "pending": "bekliyor",
-      "accepted": "kabul edildi",
-      "rejected": "reddedildi"
+      "pending": "Bekliyor",
+      "accepted": "Kabul edildi",
+      "rejected": "Reddedildi"
     },
     "label": "Gereksinimin destekleyici kaynakları",
     "heading": "Destekleyici kaynaklar",
@@ -2784,6 +2784,20 @@
     "apply": "Ortamı taslağa uygula"
   },
   "goals": {
+    "taskType": {
+      "feature": "Özellik",
+      "bugfix": "Hata düzeltme",
+      "refactor": "Yeniden düzenleme",
+      "docs": "Belgeler",
+      "test": "Test",
+      "chore": "Bakım"
+    },
+    "priorityName": {
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük"
+    },
     "recordedRuns_one": "{{count}} kayıtlı hedef çalıştırması",
     "phaseCount_one": "{{count}} aşama",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "etkin",
-      "paused": "duraklatıldı",
-      "completed": "tamamlandı",
-      "failed": "başarısız",
-      "abandoned": "bırakıldı"
+      "active": "Etkin",
+      "paused": "Duraklatıldı",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "abandoned": "Bırakıldı"
     },
     "requested": {
       "update": "Görev güncellemesi istendi; proje motoru bekleniyor.",
@@ -4294,9 +4308,9 @@
       "intro": "Oturumlar boyunca proje günlüğünden çıkarılır. Zaman çizelgesi filtreleri burada geçerli değildir.",
       "views": "Kronik içgörü görünümleri",
       "view": {
-        "providers": "sağlayıcılar",
-        "tasks": "görevler",
-        "files": "dosyalar"
+        "providers": "Sağlayıcılar",
+        "tasks": "Görevler",
+        "files": "Dosyalar"
       },
       "empty": {
         "providers": "Kaydedilmiş sağlayıcı ölçümü yok.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Bu görünümü açmak bir komut çalıştırmaz.",
     "selectPid": "PID {{pid}} seç",
     "status": {
-      "running": "çalışıyor",
-      "killed": "sonlandırıldı",
-      "exited": "çıktı"
+      "running": "Çalışıyor",
+      "killed": "Sonlandırıldı",
+      "exited": "Çıktı"
     },
     "background": "Arka plan",
     "foreground": "Ön plan",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} görev",
     "value": {
-      "idle": "boşta",
-      "questioning": "soru soruluyor",
-      "spec_review": "şartname incelemesi",
-      "task_review": "görev incelemesi",
-      "implementation": "uygulama",
-      "executing": "yürütülüyor",
-      "completed": "tamamlandı",
-      "pending": "bekliyor",
-      "queued": "sırada",
-      "in_progress": "sürüyor",
-      "running": "çalışıyor",
-      "paused": "duraklatıldı",
-      "stopped": "durduruldu",
-      "failed": "başarısız",
-      "blocked": "engellendi",
-      "cancelled": "iptal edildi",
-      "done": "bitti",
-      "draft": "taslak",
-      "approved": "onaylandı",
-      "high": "yüksek",
-      "medium": "orta",
-      "low": "düşük",
-      "critical": "kritik"
+      "idle": "Boşta",
+      "questioning": "Soru soruluyor",
+      "spec_review": "Şartname incelemesi",
+      "task_review": "Görev incelemesi",
+      "implementation": "Uygulama",
+      "executing": "Yürütülüyor",
+      "completed": "Tamamlandı",
+      "pending": "Bekliyor",
+      "queued": "Sırada",
+      "in_progress": "Sürüyor",
+      "running": "Çalışıyor",
+      "paused": "Duraklatıldı",
+      "stopped": "Durduruldu",
+      "failed": "Başarısız",
+      "blocked": "Engellendi",
+      "cancelled": "İptal edildi",
+      "done": "Bitti",
+      "draft": "Taslak",
+      "approved": "Onaylandı",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük",
+      "critical": "Kritik"
     },
     "notReported": "Bildirilmedi",
     "requested": "{{what}} istendi. Motor bekleniyor.",

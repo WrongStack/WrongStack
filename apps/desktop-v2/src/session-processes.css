@@ -83,7 +83,6 @@
   border-radius: 4px;
   background: var(--accent-soft);
   color: var(--accent-ink);
-  text-transform: capitalize;
 }
 .process-status.killed,
 .process-status.exited {

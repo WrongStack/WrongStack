@@ -83,12 +83,12 @@ describe('project SDD in the display language', () => {
     page = await mount(sdd(), runs);
     for (const text of [
       'Project runs',
-      'running · 1 / 3 tasks',
+      'Running · 1 / 3 tasks',
       'Current board shown',
       'CURRENT BOARD',
       'Pause',
       'tasks completed',
-      'in progress',
+      'In progress',
       'Started',
       '2m ago',
       'Project maintenance',
@@ -116,12 +116,12 @@ describe('project SDD in the display language', () => {
     page = await mount(sdd(), runs);
     for (const text of [
       'Proje çalıştırmaları',
-      'çalışıyor · 1 / 3 görev',
+      'Çalışıyor · 1 / 3 görev',
       'Geçerli pano gösteriliyor',
       'GEÇERLİ PANO',
       'Duraklat',
       'görev tamamlandı',
-      'sürüyor',
+      'Sürüyor',
       'Başladı',
       '2 dk önce',
       'Proje bakımı',
@@ -148,7 +148,7 @@ describe('project SDD in the display language', () => {
     for (const text of [
       'TASK T1',
       'Status',
-      'in progress',
+      'In progress',
       'Not reported',
       'Cancel task',
       'Assigned agent',
@@ -164,7 +164,7 @@ describe('project SDD in the display language', () => {
     for (const text of [
       'GÖREV T1',
       'Durum',
-      'sürüyor',
+      'Sürüyor',
       'Görevi iptal et',
       'Atanan ajan',
       'Modeli güncelle',

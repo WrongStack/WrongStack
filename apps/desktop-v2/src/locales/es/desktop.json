@@ -2307,19 +2307,19 @@
       "related_resources": "Recursos relacionados"
     },
     "suggestionKind": {
-      "title": "título",
-      "summary": "resumen",
-      "request_type": "tipo de solicitud",
-      "priority": "prioridad",
-      "question": "pregunta",
-      "constraint": "restricción",
-      "target_user": "usuario objetivo",
-      "outcome": "resultado"
+      "title": "Título",
+      "summary": "Resumen",
+      "request_type": "Tipo de solicitud",
+      "priority": "Prioridad",
+      "question": "Pregunta",
+      "constraint": "Restricción",
+      "target_user": "Usuario objetivo",
+      "outcome": "Resultado"
     },
     "status": {
-      "pending": "pendiente",
-      "accepted": "aceptada",
-      "rejected": "rechazada"
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "rejected": "Rechazada"
     },
     "label": "Recursos de apoyo del requisito",
     "heading": "Recursos de apoyo",
@@ -2784,6 +2784,20 @@
     "apply": "Aplicar el entorno al borrador"
   },
   "goals": {
+    "taskType": {
+      "feature": "Funcionalidad",
+      "bugfix": "Corrección de errores",
+      "refactor": "Refactorización",
+      "docs": "Documentación",
+      "test": "Prueba",
+      "chore": "Mantenimiento"
+    },
+    "priorityName": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    },
     "recordedRuns_one": "{{count}} ejecución de objetivo registrada",
     "phaseCount_one": "{{count}} fase",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "activa",
-      "paused": "en pausa",
-      "completed": "completada",
-      "failed": "fallida",
-      "abandoned": "abandonada"
+      "active": "Activa",
+      "paused": "En pausa",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "abandoned": "Abandonada"
     },
     "requested": {
       "update": "Actualización de la misión solicitada; esperando al motor del proyecto.",
@@ -4294,9 +4308,9 @@
       "intro": "Derivado del diario del proyecto en todas las sesiones. Los filtros de la cronología no se aplican aquí.",
       "views": "Vistas de información de la crónica",
       "view": {
-        "providers": "proveedores",
-        "tasks": "tareas",
-        "files": "archivos"
+        "providers": "Proveedores",
+        "tasks": "Tareas",
+        "files": "Archivos"
       },
       "empty": {
         "providers": "No se registraron métricas de proveedores.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Abrir esta vista no ejecuta ningún comando.",
     "selectPid": "Seleccionar el PID {{pid}}",
     "status": {
-      "running": "en ejecución",
-      "killed": "terminado",
-      "exited": "finalizado"
+      "running": "En ejecución",
+      "killed": "Terminado",
+      "exited": "Finalizado"
     },
     "background": "Segundo plano",
     "foreground": "Primer plano",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} tarea",
     "value": {
-      "idle": "inactivo",
-      "questioning": "preguntas",
-      "spec_review": "revisión de la especificación",
-      "task_review": "revisión de tareas",
-      "implementation": "implementación",
-      "executing": "en ejecución",
-      "completed": "completado",
-      "pending": "pendiente",
-      "queued": "en cola",
-      "in_progress": "en curso",
-      "running": "en ejecución",
-      "paused": "en pausa",
-      "stopped": "detenido",
-      "failed": "fallido",
-      "blocked": "bloqueado",
-      "cancelled": "cancelado",
-      "done": "hecho",
-      "draft": "borrador",
-      "approved": "aprobado",
-      "high": "alta",
-      "medium": "media",
-      "low": "baja",
-      "critical": "crítica"
+      "idle": "Inactivo",
+      "questioning": "Preguntas",
+      "spec_review": "Revisión de la especificación",
+      "task_review": "Revisión de tareas",
+      "implementation": "Implementación",
+      "executing": "En ejecución",
+      "completed": "Completado",
+      "pending": "Pendiente",
+      "queued": "En cola",
+      "in_progress": "En curso",
+      "running": "En ejecución",
+      "paused": "En pausa",
+      "stopped": "Detenido",
+      "failed": "Fallido",
+      "blocked": "Bloqueado",
+      "cancelled": "Cancelado",
+      "done": "Hecho",
+      "draft": "Borrador",
+      "approved": "Aprobado",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja",
+      "critical": "Crítica"
     },
     "notReported": "No informado",
     "requested": "{{what}} solicitado. Esperando al motor.",

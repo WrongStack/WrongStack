@@ -35,6 +35,16 @@ import { entries, record } from './engine-values';
 import { GraphCanvas } from './GraphCanvas';
 
 const facetFields = ['eventType', 'outcome', 'providerId', 'modelId', 'agentId'] as const;
+
+/** An evidence attribute key as a label ("toolName" → "Tool name"). */
+const attributeLabel = (key: string) => {
+  const words = key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replaceAll('_', ' ')
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 export function ProjectChronicle({
   command,
   onOpenFile,
@@ -694,7 +704,7 @@ function ChronicleDetail({
         <h3>{t('chronicleView.detail.evidence')}</h3>
         {Object.entries(withoutManifest(event['attributes'])).map(([key, value]) => (
           <div key={key}>
-            <h4>{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</h4>
+            <h4>{attributeLabel(key)}</h4>
             <p>{evidenceText(value)}</p>
           </div>
         ))}

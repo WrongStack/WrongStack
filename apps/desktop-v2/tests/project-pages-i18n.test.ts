@@ -303,7 +303,7 @@ describe('the project pages in the display language', () => {
       'Pull request',
       'Recorded suggestions',
       'Priority',
-      'pending',
+      'Pending',
       'Accept suggestion',
       'Model proposal',
     ])
@@ -325,7 +325,7 @@ describe('the project pages in the display language', () => {
       'Destekleyici kaynaklar',
       'Kaydedilen öneriler',
       'Öncelik',
-      'bekliyor',
+      'Bekliyor',
       'Öneriyi kabul et',
       'Model önerisi',
     ])
@@ -570,9 +570,9 @@ describe('the project pages in the display language', () => {
       'Chimera Reviews',
       'Reading review reports…',
       'Inspect the evidence behind a review.',
-      'high',
-      'in progress',
-      'Disk citation: verified',
+      'High',
+      'In progress',
+      'Disk citation: Verified',
       'Record resolution',
     ])
       expect(page.text).toContain(text);
@@ -586,9 +586,9 @@ describe('the project pages in the display language', () => {
       'Chimera İncelemeleri',
       'İnceleme raporları okunuyor…',
       'Bir incelemenin arkasındaki kanıtı incele.',
-      'yüksek',
-      'sürüyor',
-      'Disk alıntısı: doğrulandı',
+      'Yüksek',
+      'Sürüyor',
+      'Disk alıntısı: Doğrulandı',
       'Çözümü kaydet',
     ])
       expect(page.text).toContain(text);

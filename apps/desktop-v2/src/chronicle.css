@@ -44,7 +44,6 @@
   color: var(--subtle);
   flex: 1 1 115px;
   min-width: 0;
-  text-transform: capitalize;
 }
 .chronicle-filters input,
 .chronicle-filters select {
@@ -322,7 +321,6 @@
   margin: 22px 0 14px;
 }
 .chronicle-attributes h4 {
-  text-transform: capitalize;
   font-weight: 400;
   font-size: 9px;
   color: var(--subtle);

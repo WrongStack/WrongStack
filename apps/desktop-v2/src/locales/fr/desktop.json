@@ -2307,19 +2307,19 @@
       "related_resources": "Ressources associées"
     },
     "suggestionKind": {
-      "title": "titre",
-      "summary": "résumé",
-      "request_type": "type de demande",
-      "priority": "priorité",
-      "question": "question",
-      "constraint": "contrainte",
-      "target_user": "utilisateur cible",
-      "outcome": "résultat"
+      "title": "Titre",
+      "summary": "Résumé",
+      "request_type": "Type de demande",
+      "priority": "Priorité",
+      "question": "Question",
+      "constraint": "Contrainte",
+      "target_user": "Utilisateur cible",
+      "outcome": "Résultat"
     },
     "status": {
-      "pending": "en attente",
-      "accepted": "acceptée",
-      "rejected": "refusée"
+      "pending": "En attente",
+      "accepted": "Acceptée",
+      "rejected": "Refusée"
     },
     "label": "Ressources d'appui de l'exigence",
     "heading": "Ressources d'appui",
@@ -2784,6 +2784,20 @@
     "apply": "Appliquer l'environnement au brouillon"
   },
   "goals": {
+    "taskType": {
+      "feature": "Fonctionnalité",
+      "bugfix": "Correction de bug",
+      "refactor": "Refactorisation",
+      "docs": "Documentation",
+      "test": "Test",
+      "chore": "Maintenance"
+    },
+    "priorityName": {
+      "critical": "Critique",
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
     "recordedRuns_one": "{{count}} exécution d'objectif enregistrée",
     "phaseCount_one": "{{count}} phase",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "active",
-      "paused": "en pause",
-      "completed": "terminée",
-      "failed": "échouée",
-      "abandoned": "abandonnée"
+      "active": "Active",
+      "paused": "En pause",
+      "completed": "Terminée",
+      "failed": "Échouée",
+      "abandoned": "Abandonnée"
     },
     "requested": {
       "update": "Mise à jour de la mission demandée ; en attente du moteur du projet.",
@@ -4294,9 +4308,9 @@
       "intro": "Dérivé du journal du projet sur toutes les sessions. Les filtres de la chronologie ne s’appliquent pas ici.",
       "views": "Vues des aperçus de la chronique",
       "view": {
-        "providers": "fournisseurs",
-        "tasks": "tâches",
-        "files": "fichiers"
+        "providers": "Fournisseurs",
+        "tasks": "Tâches",
+        "files": "Fichiers"
       },
       "empty": {
         "providers": "Aucune métrique de fournisseur n’a été enregistrée.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Ouvrir cette vue n’exécute aucune commande.",
     "selectPid": "Sélectionner le PID {{pid}}",
     "status": {
-      "running": "en cours",
-      "killed": "arrêté",
-      "exited": "terminé"
+      "running": "En cours",
+      "killed": "Arrêté",
+      "exited": "Terminé"
     },
     "background": "Arrière-plan",
     "foreground": "Premier plan",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} tâche",
     "value": {
-      "idle": "inactif",
-      "questioning": "questions",
-      "spec_review": "revue de la spécification",
-      "task_review": "revue des tâches",
-      "implementation": "implémentation",
-      "executing": "en exécution",
-      "completed": "terminé",
-      "pending": "en attente",
-      "queued": "en file",
-      "in_progress": "en cours",
-      "running": "en cours",
-      "paused": "en pause",
-      "stopped": "arrêté",
-      "failed": "échec",
-      "blocked": "bloqué",
-      "cancelled": "annulé",
-      "done": "fait",
-      "draft": "brouillon",
-      "approved": "approuvé",
-      "high": "haute",
-      "medium": "moyenne",
-      "low": "basse",
-      "critical": "critique"
+      "idle": "Inactif",
+      "questioning": "Questions",
+      "spec_review": "Revue de la spécification",
+      "task_review": "Revue des tâches",
+      "implementation": "Implémentation",
+      "executing": "En exécution",
+      "completed": "Terminé",
+      "pending": "En attente",
+      "queued": "En file",
+      "in_progress": "En cours",
+      "running": "En cours",
+      "paused": "En pause",
+      "stopped": "Arrêté",
+      "failed": "Échec",
+      "blocked": "Bloqué",
+      "cancelled": "Annulé",
+      "done": "Fait",
+      "draft": "Brouillon",
+      "approved": "Approuvé",
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse",
+      "critical": "Critique"
     },
     "notReported": "Non signalé",
     "requested": "{{what}} demandé. En attente du moteur.",

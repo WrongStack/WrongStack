@@ -12,7 +12,7 @@ import {
 } from './chimera-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { dateTimeText, entries, record } from './engine-values';
+import { dateTimeText, entries, record, sentenceStart } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import type { Session } from './model';
@@ -77,7 +77,10 @@ function ChimeraContent({
   // Engine values are named per language; unknown ones read as reviewLabel shows them.
   const named = (value: unknown) =>
     typeof value === 'string' && value
-      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      ? sentenceStart(
+          t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) }),
+          i18n.language,
+        )
       : t('reviews.notReported');
   const [reports, setReports] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState('');
@@ -340,7 +343,7 @@ function ChimeraContent({
                     <span key={key}>
                       {t('reviews.severityCount', {
                         n: String(record(item['counts'])[key]),
-                        severity: named(key),
+                        severity: t(`reviews.value.${key}`),
                       })}
                     </span>
                   ))}
@@ -385,7 +388,11 @@ function ChimeraContent({
                 ].map((key) => (
                   <div key={key}>
                     <dt>{t(`reviews.fact.${key}`)}</dt>
-                    <dd>{String(report[key] ?? t('reviews.notReported'))}</dd>
+                    <dd>
+                      {key === 'evidenceStatus' && typeof report[key] === 'string'
+                        ? named(report[key])
+                        : String(report[key] ?? t('reviews.notReported'))}
+                    </dd>
                   </div>
                 ))}
               </dl>

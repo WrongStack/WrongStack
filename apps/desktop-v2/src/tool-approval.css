@@ -86,7 +86,6 @@
 .approval-arguments dt {
   color: var(--muted);
   font-size: 11px;
-  text-transform: capitalize;
   overflow-wrap: anywhere;
 }
 .approval-arguments dd {

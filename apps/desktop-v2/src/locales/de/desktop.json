@@ -2317,9 +2317,9 @@
       "outcome": "Ergebnis"
     },
     "status": {
-      "pending": "ausstehend",
-      "accepted": "angenommen",
-      "rejected": "abgelehnt"
+      "pending": "Ausstehend",
+      "accepted": "Angenommen",
+      "rejected": "Abgelehnt"
     },
     "label": "Unterstützende Ressourcen der Anforderung",
     "heading": "Unterstützende Ressourcen",
@@ -2784,6 +2784,20 @@
     "apply": "Umgebung auf den Entwurf anwenden"
   },
   "goals": {
+    "taskType": {
+      "feature": "Funktion",
+      "bugfix": "Fehlerbehebung",
+      "refactor": "Refactoring",
+      "docs": "Dokumentation",
+      "test": "Test",
+      "chore": "Wartung"
+    },
+    "priorityName": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
     "recordedRuns_one": "{{count}} erfasster Ziellauf",
     "phaseCount_one": "{{count}} Phase",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "aktiv",
-      "paused": "pausiert",
-      "completed": "abgeschlossen",
-      "failed": "fehlgeschlagen",
-      "abandoned": "aufgegeben"
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "abandoned": "Aufgegeben"
     },
     "requested": {
       "update": "Aktualisierung der Mission angefordert; warte auf die Projekt-Engine.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Das Öffnen dieser Ansicht führt keinen Befehl aus.",
     "selectPid": "PID {{pid}} auswählen",
     "status": {
-      "running": "läuft",
-      "killed": "beendet",
-      "exited": "beendet"
+      "running": "Läuft",
+      "killed": "Beendet",
+      "exited": "Beendet"
     },
     "background": "Hintergrund",
     "foreground": "Vordergrund",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} Aufgabe",
     "value": {
-      "idle": "inaktiv",
+      "idle": "Inaktiv",
       "questioning": "Befragung",
       "spec_review": "Spezifikationsprüfung",
       "task_review": "Aufgabenprüfung",
       "implementation": "Umsetzung",
-      "executing": "wird ausgeführt",
-      "completed": "abgeschlossen",
-      "pending": "ausstehend",
-      "queued": "eingereiht",
-      "in_progress": "in Arbeit",
-      "running": "läuft",
-      "paused": "pausiert",
-      "stopped": "gestoppt",
-      "failed": "fehlgeschlagen",
-      "blocked": "blockiert",
-      "cancelled": "abgebrochen",
-      "done": "erledigt",
+      "executing": "Wird ausgeführt",
+      "completed": "Abgeschlossen",
+      "pending": "Ausstehend",
+      "queued": "Eingereiht",
+      "in_progress": "In Arbeit",
+      "running": "Läuft",
+      "paused": "Pausiert",
+      "stopped": "Gestoppt",
+      "failed": "Fehlgeschlagen",
+      "blocked": "Blockiert",
+      "cancelled": "Abgebrochen",
+      "done": "Erledigt",
       "draft": "Entwurf",
-      "approved": "freigegeben",
-      "high": "hoch",
-      "medium": "mittel",
-      "low": "niedrig",
-      "critical": "kritisch"
+      "approved": "Freigegeben",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig",
+      "critical": "Kritisch"
     },
     "notReported": "Nicht gemeldet",
     "requested": "{{what}} angefordert. Warte auf die Engine.",

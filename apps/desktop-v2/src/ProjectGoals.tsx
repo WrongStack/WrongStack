@@ -28,7 +28,11 @@ const label = (value: unknown, fallback = '—') =>
 const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 const reportedCount = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
-const statusText = (value: unknown) => label(value).replaceAll('_', ' ');
+/** An engine value without a catalog label, readable as one ("not_run" → "Not run"). */
+const statusText = (value: unknown) => {
+  const text = label(value).replaceAll('_', ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
 let assessmentSequence = Date.now();
 /** Engine requests the page sends, each with its own waiting notice. */
 type RequestKind =
@@ -823,9 +827,14 @@ export function ProjectGoals({
                                 ? value
                                 : name === 'status'
                                   ? named(value)
-                                  : name === 'priority' && typeof value === 'string' && value
-                                    ? t(`goals.priority.${value}`, { defaultValue: value })
-                                    : statusText(value)}
+                                  : (name === 'priority' || name === 'type') &&
+                                      typeof value === 'string' &&
+                                      value
+                                    ? t(
+                                        `goals.${name === 'priority' ? 'priorityName' : 'taskType'}.${value}`,
+                                        { defaultValue: statusText(value) },
+                                      )
+                                    : label(value)}
                             </dd>
                           </div>
                         ))}

@@ -383,7 +383,13 @@ export function RequirementEvidence({
                     </span>
                   </header>
                   {typeof value === 'string' ? (
-                    <p>{value}</p>
+                    <p>
+                      {item['field'] === 'priority' || item['field'] === 'request_type'
+                        ? t(`req.${item['field'] === 'priority' ? 'priority' : 'type'}.${value}`, {
+                            defaultValue: value,
+                          })
+                        : value}
+                    </p>
                   ) : typeof question['question'] === 'string' ? (
                     <p>{question['question']}</p>
                   ) : Array.isArray(value) && value.every((entry) => typeof entry === 'string') ? (

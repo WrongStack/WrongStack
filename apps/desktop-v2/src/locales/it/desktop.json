@@ -2307,19 +2307,19 @@
       "related_resources": "Risorse correlate"
     },
     "suggestionKind": {
-      "title": "titolo",
-      "summary": "riepilogo",
-      "request_type": "tipo di richiesta",
-      "priority": "priorità",
-      "question": "domanda",
-      "constraint": "vincolo",
-      "target_user": "utente target",
-      "outcome": "risultato"
+      "title": "Titolo",
+      "summary": "Riepilogo",
+      "request_type": "Tipo di richiesta",
+      "priority": "Priorità",
+      "question": "Domanda",
+      "constraint": "Vincolo",
+      "target_user": "Utente target",
+      "outcome": "Risultato"
     },
     "status": {
-      "pending": "in attesa",
-      "accepted": "accettata",
-      "rejected": "rifiutata"
+      "pending": "In attesa",
+      "accepted": "Accettata",
+      "rejected": "Rifiutata"
     },
     "label": "Risorse di supporto del requisito",
     "heading": "Risorse di supporto",
@@ -2784,6 +2784,20 @@
     "apply": "Applica l'ambiente alla bozza"
   },
   "goals": {
+    "taskType": {
+      "feature": "Funzionalità",
+      "bugfix": "Correzione di bug",
+      "refactor": "Refactoring",
+      "docs": "Documentazione",
+      "test": "Test",
+      "chore": "Manutenzione"
+    },
+    "priorityName": {
+      "critical": "Critica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Bassa"
+    },
     "recordedRuns_one": "{{count}} esecuzione di obiettivo registrata",
     "phaseCount_one": "{{count}} fase",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "attiva",
-      "paused": "in pausa",
-      "completed": "completata",
-      "failed": "non riuscita",
-      "abandoned": "abbandonata"
+      "active": "Attiva",
+      "paused": "In pausa",
+      "completed": "Completata",
+      "failed": "Non riuscita",
+      "abandoned": "Abbandonata"
     },
     "requested": {
       "update": "Aggiornamento della missione richiesto; in attesa del motore del progetto.",
@@ -4294,9 +4308,9 @@
       "intro": "Derivato dal diario del progetto attraverso le sessioni. I filtri della cronologia non si applicano qui.",
       "views": "Viste degli approfondimenti della cronaca",
       "view": {
-        "providers": "provider",
-        "tasks": "attività",
-        "files": "file"
+        "providers": "Provider",
+        "tasks": "Attività",
+        "files": "File"
       },
       "empty": {
         "providers": "Non sono state registrate metriche dei provider.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Aprire questa vista non esegue alcun comando.",
     "selectPid": "Seleziona il PID {{pid}}",
     "status": {
-      "running": "in esecuzione",
-      "killed": "terminato",
-      "exited": "uscito"
+      "running": "In esecuzione",
+      "killed": "Terminato",
+      "exited": "Uscito"
     },
     "background": "Background",
     "foreground": "Primo piano",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} attività",
     "value": {
-      "idle": "inattivo",
-      "questioning": "domande",
-      "spec_review": "revisione della specifica",
-      "task_review": "revisione delle attività",
-      "implementation": "implementazione",
-      "executing": "in esecuzione",
-      "completed": "completato",
-      "pending": "in attesa",
-      "queued": "in coda",
-      "in_progress": "in corso",
-      "running": "in esecuzione",
-      "paused": "in pausa",
-      "stopped": "fermato",
-      "failed": "non riuscito",
-      "blocked": "bloccato",
-      "cancelled": "annullato",
-      "done": "fatto",
-      "draft": "bozza",
-      "approved": "approvato",
-      "high": "alta",
-      "medium": "media",
-      "low": "bassa",
-      "critical": "critica"
+      "idle": "Inattivo",
+      "questioning": "Domande",
+      "spec_review": "Revisione della specifica",
+      "task_review": "Revisione delle attività",
+      "implementation": "Implementazione",
+      "executing": "In esecuzione",
+      "completed": "Completato",
+      "pending": "In attesa",
+      "queued": "In coda",
+      "in_progress": "In corso",
+      "running": "In esecuzione",
+      "paused": "In pausa",
+      "stopped": "Fermato",
+      "failed": "Non riuscito",
+      "blocked": "Bloccato",
+      "cancelled": "Annullato",
+      "done": "Fatto",
+      "draft": "Bozza",
+      "approved": "Approvato",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Bassa",
+      "critical": "Critica"
     },
     "notReported": "Non riportato",
     "requested": "{{what}} richiesto. In attesa del motore.",

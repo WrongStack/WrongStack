@@ -176,7 +176,6 @@
 }
 .fallback-suggestion h4 {
   margin: 0 0 4px;
-  text-transform: capitalize;
 }
 .fallback-suggestion h4 small {
   color: var(--muted);

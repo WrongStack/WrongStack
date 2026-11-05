@@ -2307,19 +2307,19 @@
       "related_resources": "Related resources"
     },
     "suggestionKind": {
-      "title": "title",
-      "summary": "summary",
-      "request_type": "request type",
-      "priority": "priority",
-      "question": "question",
-      "constraint": "constraint",
-      "target_user": "target user",
-      "outcome": "outcome"
+      "title": "Title",
+      "summary": "Summary",
+      "request_type": "Request type",
+      "priority": "Priority",
+      "question": "Question",
+      "constraint": "Constraint",
+      "target_user": "Target user",
+      "outcome": "Outcome"
     },
     "status": {
-      "pending": "pending",
-      "accepted": "accepted",
-      "rejected": "rejected"
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
     },
     "label": "Requirement supporting resources",
     "heading": "Supporting resources",
@@ -2784,6 +2784,20 @@
     "apply": "Apply environment to draft"
   },
   "goals": {
+    "taskType": {
+      "feature": "Feature",
+      "bugfix": "Bug fix",
+      "refactor": "Refactor",
+      "docs": "Docs",
+      "test": "Test",
+      "chore": "Chore"
+    },
+    "priorityName": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
     "recordedRuns_one": "{{count}} recorded goal run",
     "phaseCount_one": "{{count}} phase",
     "status": {
@@ -2949,11 +2963,11 @@
   },
   "mission": {
     "state": {
-      "active": "active",
-      "paused": "paused",
-      "completed": "completed",
-      "failed": "failed",
-      "abandoned": "abandoned"
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed",
+      "failed": "Failed",
+      "abandoned": "Abandoned"
     },
     "requested": {
       "update": "Mission update requested; waiting for the project engine.",
@@ -4294,9 +4308,9 @@
       "intro": "Derived from the project journal across sessions. Timeline filters do not apply here.",
       "views": "Chronicle insights views",
       "view": {
-        "providers": "providers",
-        "tasks": "tasks",
-        "files": "files"
+        "providers": "Providers",
+        "tasks": "Tasks",
+        "files": "Files"
       },
       "empty": {
         "providers": "No providers metrics have been recorded.",
@@ -4685,9 +4699,9 @@
     "noExecute": "Opening this view does not execute a command.",
     "selectPid": "Select PID {{pid}}",
     "status": {
-      "running": "running",
-      "killed": "killed",
-      "exited": "exited"
+      "running": "Running",
+      "killed": "Killed",
+      "exited": "Exited"
     },
     "background": "Background",
     "foreground": "Foreground",
@@ -4730,29 +4744,29 @@
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} task",
     "value": {
-      "idle": "idle",
-      "questioning": "questioning",
-      "spec_review": "spec review",
-      "task_review": "task review",
-      "implementation": "implementation",
-      "executing": "executing",
-      "completed": "completed",
-      "pending": "pending",
-      "queued": "queued",
-      "in_progress": "in progress",
-      "running": "running",
-      "paused": "paused",
-      "stopped": "stopped",
-      "failed": "failed",
-      "blocked": "blocked",
-      "cancelled": "cancelled",
-      "done": "done",
-      "draft": "draft",
-      "approved": "approved",
-      "high": "high",
-      "medium": "medium",
-      "low": "low",
-      "critical": "critical"
+      "idle": "Idle",
+      "questioning": "Questioning",
+      "spec_review": "Spec review",
+      "task_review": "Task review",
+      "implementation": "Implementation",
+      "executing": "Executing",
+      "completed": "Completed",
+      "pending": "Pending",
+      "queued": "Queued",
+      "in_progress": "In progress",
+      "running": "Running",
+      "paused": "Paused",
+      "stopped": "Stopped",
+      "failed": "Failed",
+      "blocked": "Blocked",
+      "cancelled": "Cancelled",
+      "done": "Done",
+      "draft": "Draft",
+      "approved": "Approved",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "critical": "Critical"
     },
     "notReported": "Not reported",
     "requested": "{{what}} requested. Waiting for the engine.",

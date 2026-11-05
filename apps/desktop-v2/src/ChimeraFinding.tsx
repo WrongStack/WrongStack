@@ -2,15 +2,18 @@ import { FileCode2 } from 'lucide-react';
 import { useState } from 'react';
 import { reviewFindingTransitions, reviewLabel } from './chimera-model';
 import { useDesktopText } from './desktop-i18n';
-import { entries, record } from './engine-values';
+import { entries, record, sentenceStart } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 
 export function ReviewTimeline({ events }: { events: Record<string, unknown>[] }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   // Engine values are named per language; unknown ones read as reviewLabel shows them.
   const named = (value: unknown) =>
     typeof value === 'string' && value
-      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      ? sentenceStart(
+          t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) }),
+          i18n.language,
+        )
       : t('reviews.notReported');
   const [visible, setVisible] = useState(40);
   const ordered = [...events].reverse();
@@ -60,11 +63,14 @@ export function ChimeraFinding({
   onTransition: (finding: Record<string, unknown>, to: string) => void;
   onOpenFile: (path: string, line?: number) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   // Engine values are named per language; unknown ones read as reviewLabel shows them.
   const named = (value: unknown) =>
     typeof value === 'string' && value
-      ? t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) })
+      ? sentenceStart(
+          t(`reviews.value.${value}`, { defaultValue: reviewLabel(value) }),
+          i18n.language,
+        )
       : t('reviews.notReported');
   const finding = record(row['finding']),
     location = record(finding['location']),

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T21:02:04.958Z",
+  "generatedAt": "2026-11-05T21:22:28.603Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6045,
     "testFiles": 5036,
-    "sourceLines": 1252402,
+    "sourceLines": 1252445,
     "workspaceEdges": 243,
     "moduleEdges": 17800,
     "nonCommandSlashImports": 0,
@@ -34567,12 +34567,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 781,
+      "lines": 788,
       "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 733,
+      "lines": 743,
       "relativeImports": 9
     },
     {
@@ -34582,7 +34582,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1069,
+      "lines": 1078,
       "relativeImports": 11
     },
     {
@@ -34649,7 +34649,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1069,
+      "lines": 1078,
       "relativeImports": 11
     },
     {
@@ -34698,14 +34698,14 @@
       "relativeImports": 12
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
+      "lines": 788,
+      "relativeImports": 11
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
       "lines": 788,
       "relativeImports": 9
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 781,
-      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
@@ -34743,6 +34743,11 @@
       "relativeImports": 14
     },
     {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 743,
+      "relativeImports": 9
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 740,
       "relativeImports": 16
@@ -34751,11 +34756,6 @@
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 733,
-      "relativeImports": 9
     },
     {
       "file": "packages/vibeui/src/components/provider-manager.tsx",

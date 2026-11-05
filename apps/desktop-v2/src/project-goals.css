@@ -190,7 +190,6 @@
   border-radius: 20px;
   padding: 5px 9px;
   font-size: 10px;
-  text-transform: capitalize;
 }
 .goal-metrics {
   display: grid;
@@ -206,7 +205,6 @@
 .goal-metrics strong {
   font-size: 20px;
   font-weight: 500;
-  text-transform: capitalize;
 }
 .goal-metrics span {
   color: var(--muted);
@@ -226,7 +224,6 @@
 }
 .goal-phase-head span {
   font-size: 11px;
-  text-transform: capitalize;
 }
 .goal-phase-progress span {
   display: block;
@@ -301,7 +298,6 @@
 }
 .goal-tasks button small {
   color: var(--muted);
-  text-transform: capitalize;
 }
 .goal-phase form {
   display: flex;
@@ -340,7 +336,6 @@
   margin: 0;
   text-align: right;
   overflow-wrap: anywhere;
-  text-transform: capitalize;
 }
 .goal-task-actions {
   margin-top: 16px;
@@ -424,7 +419,6 @@
   border-radius: 20px;
   padding: 5px 9px;
   font-size: 10px;
-  text-transform: capitalize;
 }
 .project-mission-goal,
 .project-mission-refined p {

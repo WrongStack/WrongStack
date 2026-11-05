@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T21:02:04.958Z
+**Generated:** 2026-11-05T21:22:28.603Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6045 |
-| Production source lines | 1252402 |
+| Production source lines | 1252445 |
 | Test files | 5036 |
 | Workspace dependency edges | 243 |
 | Relative module edges | 17800 |
@@ -95,7 +95,7 @@ None.
 | 1579 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1069 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1078 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1060 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 954 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
@@ -105,8 +105,8 @@ None.
 | 815 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
+| 788 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 788 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
-| 781 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 778 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
@@ -114,9 +114,9 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
+| 743 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 740 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
-| 733 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |

@@ -67,6 +67,11 @@ export function byteText(value: number, locale?: string): string {
 }
 
 /** A recorded time in the display language ("Nov 5, 2026, 3:21 PM"); unreadable values as-is. */
+/** A label that stands alone: its first letter upper case in the display language. */
+export function sentenceStart(text: string, language: string): string {
+  return text ? text.charAt(0).toLocaleUpperCase(language) + text.slice(1) : text;
+}
+
 /**
  * A counted noun from the `counts` catalog ("1 task", "3 tasks"). Without a number the noun
  * stays and the number reads "—" ("— tasks"): the plural phrase is rendered for 2, whose
