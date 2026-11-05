@@ -42,13 +42,23 @@ export function durationText(value: unknown, locale?: string): string {
  * emphasis, inline code, links and table rules give way to their words; long text ends in "…".
  */
 export function markdownExcerpt(markdown: string, max = 100): string {
-  const plain = markdown
-    // A heading reads as a lead-in to the text after it: "Plan · Ship the fix".
-    .replace(/^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$(?=\s*\S)/gm, (_, title: string) =>
-      /[.:!?]$/.test(title) ? title : `${title} ·`,
-    )
-    .replace(/^\s*(```|~~~).*$/gm, ' ')
-    .replace(/^\s*\|?[\s:|-]*-{3,}[\s:|-]*\|?\s*$/gm, ' ')
+  const lines = markdown.slice(0, EXCERPT_SOURCE_LIMIT).split('\n');
+  let textFollows = false;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i] ?? '';
+    const start = line.trimStart();
+    if (start.startsWith('```') || start.startsWith('~~~')) lines[i] = ' ';
+    // A table separator row ("|---|:-:|") carries no text.
+    else if (line.includes('---') && /^[\s:|-]+$/.test(line)) lines[i] = ' ';
+    else if (textFollows && /^ {0,3}#{1,6}[ \t]/.test(line)) {
+      // A heading reads as a lead-in to the text after it: "Plan · Ship the fix".
+      const title = trimHeadingEnd(start.replace(/^#+/, '').trim());
+      lines[i] = /[.:!?]$/.test(title) ? title : `${title} ·`;
+    }
+    if (line.trim()) textFollows = true;
+  }
+  const plain = lines
+    .join('\n')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/gm, '')
     .replace(/(\*\*|__|~~|`)/g, '')
@@ -57,6 +67,17 @@ export function markdownExcerpt(markdown: string, max = 100): string {
     .replace(/\s+/g, ' ')
     .trim();
   return plain.length > max ? `${plain.slice(0, max - 1).trimEnd()}…` : plain;
+}
+
+/** A preview reads only the start of a long message. */
+const EXCERPT_SOURCE_LIMIT = 4000;
+
+/** A closing ATX sequence ("## Title ##") is not part of the title. */
+function trimHeadingEnd(title: string): string {
+  let end = title.length;
+  while (end > 0 && (title[end - 1] === '#' || title[end - 1] === ' ' || title[end - 1] === '\t'))
+    end--;
+  return title.slice(0, end);
 }
 
 /** A byte count in binary units with the display language's digits ("64 MiB", "1.5 KiB", "512 B"). */

@@ -657,7 +657,13 @@ export function ProjectAgentRoster({
                             : t('roster.notReported')}
                       </dd>
                       <dt>{t('roster.runtimeConfig')}</dt>
-                      <dd>{String(customization['configState'] ?? t('roster.loadingValue'))}</dd>
+                      <dd>
+                        {typeof customization['configState'] === 'string'
+                          ? t(`roster.configState_${customization['configState']}`, {
+                              defaultValue: customization['configState'],
+                            })
+                          : t('roster.loadingValue')}
+                      </dd>
                       <dt>{t('roster.knowledgeChecklist')}</dt>
                       <dd>
                         {stats['hasKnowledge'] === true

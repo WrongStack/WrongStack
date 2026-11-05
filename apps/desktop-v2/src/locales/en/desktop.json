@@ -1662,6 +1662,9 @@
     "noActivity": "No recorded activity for this file."
   },
   "roster": {
+    "configState_inherited": "Inherited",
+    "configState_unreadable": "Unreadable",
+    "configState_valid": "Valid",
     "notRecorded": "Not recorded",
     "notReported": "Not reported",
     "yes": "Yes",
@@ -5504,11 +5507,11 @@
       "upperBound": "The total is an upper bound for this retained window.",
       "total": "{{count, number}} recorded entries.",
       "role": {
-        "user": "user",
-        "assistant": "assistant",
-        "tool": "tool",
-        "system": "system",
-        "error": "error"
+        "user": "User",
+        "assistant": "Assistant",
+        "tool": "Tool",
+        "system": "System",
+        "error": "Error"
       },
       "noTime": "Time unavailable",
       "failure": "Reported failure",

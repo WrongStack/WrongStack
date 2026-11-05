@@ -13,6 +13,9 @@ describe('engine values in words', () => {
     );
     expect(markdownExcerpt('# Done.\nShipped.')).toBe('Done. Shipped.');
     expect(markdownExcerpt('Text\n\n## Trailing')).toBe('Text Trailing');
+    expect(markdownExcerpt('## Closed ##\nBody')).toBe('Closed · Body');
+    // Long blank runs stay linear and outside the preview window.
+    expect(markdownExcerpt(`#${' '.repeat(20_000)}x\n${'\t'.repeat(20_000)}`)).toBe('');
     expect(markdownExcerpt('```ts\nconst a = 1;\n```\nDone.')).toBe('const a = 1; Done.');
     expect(markdownExcerpt('| a | b |\n|---|:-:|\n| 1 | 2 |')).toBe('a b 1 2');
     expect(markdownExcerpt('snake_case_name and 2*3*4 stay')).toBe(

@@ -1662,6 +1662,9 @@
     "noActivity": "Bu dosya için kayıtlı etkinlik yok."
   },
   "roster": {
+    "configState_inherited": "Devralınmış",
+    "configState_unreadable": "Okunamıyor",
+    "configState_valid": "Geçerli",
     "notRecorded": "Kaydedilmedi",
     "notReported": "Bildirilmedi",
     "yes": "Evet",
@@ -5504,11 +5507,11 @@
       "upperBound": "Toplam, saklanan bu pencere için bir üst sınırdır.",
       "total": "{{count, number}} kayıtlı giriş.",
       "role": {
-        "user": "kullanıcı",
-        "assistant": "asistan",
-        "tool": "araç",
-        "system": "sistem",
-        "error": "hata"
+        "user": "Kullanıcı",
+        "assistant": "Asistan",
+        "tool": "Araç",
+        "system": "Sistem",
+        "error": "Hata"
       },
       "noTime": "Zaman yok",
       "failure": "Bildirilen hata",

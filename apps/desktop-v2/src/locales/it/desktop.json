@@ -1662,6 +1662,9 @@
     "noActivity": "Nessuna attività registrata per questo file."
   },
   "roster": {
+    "configState_inherited": "Ereditata",
+    "configState_unreadable": "Illeggibile",
+    "configState_valid": "Valida",
     "notRecorded": "Non registrato",
     "notReported": "Non indicato",
     "yes": "Sì",
@@ -5504,11 +5507,11 @@
       "upperBound": "Il totale è un limite superiore per questa finestra conservata.",
       "total": "{{count, number}} voci registrate.",
       "role": {
-        "user": "utente",
-        "assistant": "assistente",
-        "tool": "strumento",
-        "system": "sistema",
-        "error": "errore"
+        "user": "Utente",
+        "assistant": "Assistente",
+        "tool": "Strumento",
+        "system": "Sistema",
+        "error": "Errore"
       },
       "noTime": "Ora non disponibile",
       "failure": "Errore segnalato",

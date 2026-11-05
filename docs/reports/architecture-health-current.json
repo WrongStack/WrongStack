@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T22:49:52.251Z",
+  "generatedAt": "2026-11-05T23:00:01.842Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6048,
     "testFiles": 5041,
-    "sourceLines": 1252911,
+    "sourceLines": 1252938,
     "workspaceEdges": 243,
     "moduleEdges": 17815,
     "nonCommandSlashImports": 0,
@@ -34616,7 +34616,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1579,
+      "lines": 1585,
       "relativeImports": 17
     },
     {
@@ -34688,7 +34688,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1579,
+      "lines": 1585,
       "relativeImports": 17
     },
     {
