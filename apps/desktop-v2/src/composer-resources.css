@@ -578,9 +578,13 @@
 .compaction-outcome {
   display: grid;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+/* The grid gap spaces the lines; paragraph margins doubled it into a tall empty box. */
+.compaction-outcome > :is(p, ul) {
+  margin: 0;
 }
 .compaction-outcome pre {
   max-height: 240px;
