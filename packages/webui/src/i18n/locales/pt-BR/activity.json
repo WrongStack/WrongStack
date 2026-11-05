@@ -5124,6 +5124,22 @@
     "heading": "Configurações de roteamento na nuvem"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "Pendente",
+      "ready": "Pronta",
+      "in_progress": "Em andamento",
+      "blocked": "Bloqueada",
+      "review": "Em revisão",
+      "completed": "Concluída",
+      "failed": "Falhou",
+      "archived": "Arquivada"
+    },
+    "taskPriority": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    },
     "view": {
       "focus": "Foco",
       "board": "Quadro",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Tarefa atômica (verificação da subárvore obrigatória)",
     "splitMe": "dividir",
     "verdict": {
-      "atomic": "atômica",
-      "borderline": "limítrofe",
-      "needsDecomposition": "precisa de decomposição",
-      "composite": "composta"
+      "atomic": "Atômica",
+      "borderline": "Limítrofe",
+      "needsDecomposition": "Precisa de decomposição",
+      "composite": "Composta"
     },
     "attemptBadge": "tentativa {{attempts}}",
     "fallbackCount": "{{count}} fallback",

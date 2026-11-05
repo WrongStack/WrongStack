@@ -5124,6 +5124,22 @@
     "heading": "Bulut yönlendirme ayarları"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "Bekliyor",
+      "ready": "Hazır",
+      "in_progress": "Sürüyor",
+      "blocked": "Engelli",
+      "review": "İncelemede",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "archived": "Arşivlendi"
+    },
+    "taskPriority": {
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük"
+    },
     "view": {
       "focus": "Odak",
       "board": "Pano",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Atomik görev (alt ağaç doğrulaması gerekli)",
     "splitMe": "böl",
     "verdict": {
-      "atomic": "atomik",
-      "borderline": "sınırda",
-      "needsDecomposition": "ayrıştırılmalı",
-      "composite": "bileşik"
+      "atomic": "Atomik",
+      "borderline": "Sınırda",
+      "needsDecomposition": "Ayrıştırılmalı",
+      "composite": "Bileşik"
     },
     "attemptBadge": "deneme {{attempts}}",
     "fallbackCount": "{{count}} yedek",

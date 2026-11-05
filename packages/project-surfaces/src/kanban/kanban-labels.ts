@@ -25,6 +25,24 @@ export const ATOMICITY_VERDICT_KEYS: Record<string, string> = {
   composite: 'activity:kanbanText.verdict.composite',
 };
 
+export const TASK_STATUS_KEYS: Record<string, string> = {
+  pending: 'activity:kanbanText.taskStatus.pending',
+  ready: 'activity:kanbanText.taskStatus.ready',
+  in_progress: 'activity:kanbanText.taskStatus.in_progress',
+  blocked: 'activity:kanbanText.taskStatus.blocked',
+  review: 'activity:kanbanText.taskStatus.review',
+  completed: 'activity:kanbanText.taskStatus.completed',
+  failed: 'activity:kanbanText.taskStatus.failed',
+  archived: 'activity:kanbanText.taskStatus.archived',
+};
+
+export const TASK_PRIORITY_KEYS: Record<string, string> = {
+  critical: 'activity:kanbanText.taskPriority.critical',
+  high: 'activity:kanbanText.taskPriority.high',
+  medium: 'activity:kanbanText.taskPriority.medium',
+  low: 'activity:kanbanText.taskPriority.low',
+};
+
 /** Card badge text for a `TaskVerificationState` (`unverified` shows no badge). */
 export const VERIFICATION_STATE_KEYS: Record<string, string> = {
   running: 'activity:kanban.statusRunning',

@@ -40,6 +40,23 @@
     display: none;
   }
 }
+/* With a task open, the board list, the board and the task panel share the room beside the
+   desktop sidebar: at 1480 px the board kept about 450 px and its title read "Des…". The list
+   and the panel narrow, and below a 1400 px window the list steps aside while a task is open
+   (closing the task brings it back). */
+@media (min-width: 1101px) {
+  .kanban-surface > div:has(> aside[data-expanded="false"]) > aside:first-child {
+    width: 220px;
+  }
+  .kanban-surface > div > aside[data-expanded="false"] {
+    width: 400px;
+  }
+}
+@media (min-width: 1101px) and (max-width: 1400px) {
+  .kanban-surface > div:has(> aside[data-expanded="false"]) > aside:first-child {
+    display: none;
+  }
+}
 
 /* Desktop board and task tools inside the shared board. */
 .kanban-desktop-tools {

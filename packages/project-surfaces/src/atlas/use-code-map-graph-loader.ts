@@ -46,13 +46,15 @@ export function useCodeMapGraphLoader({
   const [reloadGeneration, setReloadGeneration] = useState(0);
   const lastReloadGeneration = useRef(0);
   const cache = useRef(new Map<string, CodeMapGraphResponse>());
+  // Scopes cached before the last index update: still shown, refetched on their next request.
+  const stale = useRef(new Set<string>());
   const symbolResolveInflight = useRef(new Set<string>());
 
   const fetchGraph = useCallback(
     async (targetScope: CodeMapScope, force = false): Promise<CodeMapGraphResponse> => {
       const key = scopeKey(targetScope);
       const existing = cache.current.get(key);
-      if (existing && !force) {
+      if (existing && !force && !stale.current.has(key)) {
         // LRU touch on hit so hot scopes survive eviction.
         touchClientGraphCache(cache.current, key, existing, MAX_CLIENT_GRAPH_CACHE);
         return existing;
@@ -79,10 +81,29 @@ export function useCodeMapGraphLoader({
         );
       })) as CodeMapGraphResponse;
       touchClientGraphCache(cache.current, key, nextGraph, MAX_CLIENT_GRAPH_CACHE);
+      stale.current.delete(key);
       setCacheRevision((revision) => revision + 1);
       return nextGraph;
     },
     [t],
+  );
+
+  /** Refresh the loaded packages' file lists in place; a package that is gone drops out. */
+  const refreshStalePackages = useCallback(
+    async (cancelled: () => boolean): Promise<void> => {
+      for (const key of [...stale.current]) {
+        if (cancelled()) return;
+        if (!key.startsWith('files:')) continue;
+        await fetchGraph({ level: 'files', package: key.slice('files:'.length) }, true).catch(
+          () => {
+            cache.current.delete(key);
+            stale.current.delete(key);
+            setCacheRevision((revision) => revision + 1);
+          },
+        );
+      }
+    },
+    [fetchGraph],
   );
 
   const indexGeneration = useCodemapIndexStore((state) => state.generation);
@@ -97,7 +118,12 @@ export function useCodeMapGraphLoader({
     const forceRefresh = reloadRequested || indexGeneration > lastSeenIndexGeneration.current;
     if (forceRefresh) {
       lastSeenIndexGeneration.current = indexGeneration;
-      cache.current.clear();
+      // An explicit reload starts over; an index update keeps what the tree shows (expanded
+      // packages read their file lists from this cache) and refreshes it below.
+      if (reloadRequested) {
+        cache.current.clear();
+        stale.current.clear();
+      } else for (const key of cache.current.keys()) stale.current.add(key);
       setCacheRevision((revision) => revision + 1);
     }
     // An index update refreshes in the background: the map the user is
@@ -114,6 +140,7 @@ export function useCodeMapGraphLoader({
       .then((nextGraph) => {
         if (cancelled) return;
         setGraph(nextGraph);
+        if (forceRefresh && !reloadRequested) void refreshStalePackages(() => cancelled);
         if (background) {
           setSelectedId((current) =>
             current && nextGraph.nodes.some((node) => node.id === current) ? current : null,
@@ -138,7 +165,7 @@ export function useCodeMapGraphLoader({
     return () => {
       cancelled = true;
     };
-  }, [currentScopeKey, fetchGraph, indexGeneration, reloadGeneration, scope]);
+  }, [currentScopeKey, fetchGraph, indexGeneration, refreshStalePackages, reloadGeneration, scope]);
 
   /** Clear the cache and reload the current scope (error-retry button). */
   const retry = useCallback((): void => {
@@ -148,7 +175,7 @@ export function useCodeMapGraphLoader({
   const ensureBranch = useCallback(
     async (targetScope: CodeMapScope): Promise<void> => {
       const key = scopeKey(targetScope);
-      if (cache.current.has(key) || loadingBranches.has(key)) return;
+      if ((cache.current.has(key) && !stale.current.has(key)) || loadingBranches.has(key)) return;
       setLoadingBranches((current) => new Set(current).add(key));
       try {
         await fetchGraph(targetScope);

@@ -8,6 +8,8 @@ import {
   ATOMICITY_VERDICT_KEYS,
   enumLabel,
   routeLabel,
+  TASK_PRIORITY_KEYS,
+  TASK_STATUS_KEYS,
   VERIFICATION_STATE_KEYS,
 } from './kanban-labels';
 import { kanbanMetadataText } from './kanban-metadata';
@@ -455,9 +457,11 @@ export function KanbanColumnView({
                     ))}
                   </select>
                 )}
-                <span className={priorityClass(task.priority)}>{task.priority}</span>
+                <span className={priorityClass(task.priority)}>
+                  {enumLabel(t, TASK_PRIORITY_KEYS, task.priority)}
+                </span>
                 <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                  {task.status}
+                  {enumLabel(t, TASK_STATUS_KEYS, task.status)}
                 </span>
                 {intelligence.owner !== 'Unassigned' && (
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">

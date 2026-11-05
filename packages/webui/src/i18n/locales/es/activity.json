@@ -5124,6 +5124,22 @@
     "heading": "Ajustes de enrutado en la nube"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "Pendiente",
+      "ready": "Lista",
+      "in_progress": "En curso",
+      "blocked": "Bloqueada",
+      "review": "En revisión",
+      "completed": "Hecha",
+      "failed": "Fallida",
+      "archived": "Archivada"
+    },
+    "taskPriority": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja"
+    },
     "view": {
       "focus": "Enfoque",
       "board": "Tablero",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Tarea atómica (se requiere verificar el subárbol)",
     "splitMe": "dividir",
     "verdict": {
-      "atomic": "atómica",
-      "borderline": "límite",
-      "needsDecomposition": "requiere descomposición",
-      "composite": "compuesta"
+      "atomic": "Atómica",
+      "borderline": "Límite",
+      "needsDecomposition": "Requiere descomposición",
+      "composite": "Compuesta"
     },
     "attemptBadge": "intento {{attempts}}",
     "fallbackCount": "respaldos: {{count}}",

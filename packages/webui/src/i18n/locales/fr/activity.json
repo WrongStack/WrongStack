@@ -5124,6 +5124,22 @@
     "heading": "Paramètres de routage cloud"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "En attente",
+      "ready": "Prête",
+      "in_progress": "En cours",
+      "blocked": "Bloquée",
+      "review": "En revue",
+      "completed": "Terminée",
+      "failed": "Échouée",
+      "archived": "Archivée"
+    },
+    "taskPriority": {
+      "critical": "Critique",
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
     "view": {
       "focus": "Priorités",
       "board": "Tableau",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Tâche atomique (vérification de la sous-arborescence requise)",
     "splitMe": "à découper",
     "verdict": {
-      "atomic": "atomique",
-      "borderline": "limite",
-      "needsDecomposition": "à décomposer",
-      "composite": "composite"
+      "atomic": "Atomique",
+      "borderline": "Limite",
+      "needsDecomposition": "À décomposer",
+      "composite": "Composite"
     },
     "attemptBadge": "tentative {{attempts}}",
     "fallbackCount": "replis : {{count}}",

@@ -68,7 +68,7 @@ describe('KanbanTaskTree', () => {
     expect(screen.getByText('Task child')).toBeTruthy();
     expect(screen.getByText('verified')).toBeTruthy();
     expect(screen.getAllByText('unverified')).toHaveLength(1);
-    expect(screen.getByText('atomic')).toBeTruthy();
+    expect(screen.getByText('Atomic')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Task child'));
     expect(onSelectTask).toHaveBeenCalledWith('child');

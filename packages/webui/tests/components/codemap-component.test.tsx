@@ -263,6 +263,26 @@ describe('CodeMap component', () => {
     expect(graphNode('@wrongstack/core')).toBeDefined();
   });
 
+  it('keeps an expanded package branch in the code tree through an index update', async () => {
+    mockAllGraphs();
+    render(<CodeMap />);
+    await waitFor(() => expect(graphNode('@wrongstack/core')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Expand @wrongstack/core' }));
+    const treeFile = () => document.querySelector(`[title="${toolFile}"]`);
+    await waitFor(() => expect(treeFile()).not.toBeNull());
+    const fileFetches = () =>
+      mockFetch.mock.calls.filter(([url]) => String(url).includes('/api/codemap/files')).length;
+    const before = fileFetches();
+
+    act(() => useCodemapIndexStore.getState().notifyIndexUpdated());
+
+    // The branch stays while its file list refreshes in place (it used to vanish until reopened).
+    expect(treeFile()).not.toBeNull();
+    await waitFor(() => expect(fileFetches()).toBe(before + 1));
+    expect(treeFile()).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Collapse @wrongstack/core' })).toBeDefined();
+  });
+
   it('opens a package explicitly while keeping the code tree visible', async () => {
     mockAllGraphs();
     render(<CodeMap />);

@@ -5124,6 +5124,22 @@
     "heading": "Cloud-Routing-Einstellungen"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "Ausstehend",
+      "ready": "Bereit",
+      "in_progress": "In Arbeit",
+      "blocked": "Blockiert",
+      "review": "Review",
+      "completed": "Erledigt",
+      "failed": "Fehlgeschlagen",
+      "archived": "Archiviert"
+    },
+    "taskPriority": {
+      "critical": "Kritisch",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
     "view": {
       "focus": "Fokus",
       "board": "Board",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Atomarer Task (Verifizierung des Teilbaums erforderlich)",
     "splitMe": "aufteilen",
     "verdict": {
-      "atomic": "atomar",
-      "borderline": "grenzwertig",
+      "atomic": "Atomar",
+      "borderline": "Grenzwertig",
       "needsDecomposition": "Zerlegung nötig",
-      "composite": "zusammengesetzt"
+      "composite": "Zusammengesetzt"
     },
     "attemptBadge": "Versuch {{attempts}}",
     "fallbackCount": "{{count}} Fallback",

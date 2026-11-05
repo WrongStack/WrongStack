@@ -5124,6 +5124,22 @@
     "heading": "Impostazioni di routing cloud"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "In attesa",
+      "ready": "Pronta",
+      "in_progress": "In corso",
+      "blocked": "Bloccata",
+      "review": "In revisione",
+      "completed": "Completata",
+      "failed": "Fallita",
+      "archived": "Archiviata"
+    },
+    "taskPriority": {
+      "critical": "Critica",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Bassa"
+    },
     "view": {
       "focus": "Priorità",
       "board": "Board",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Task atomico (verifica del sottoalbero richiesta)",
     "splitMe": "da suddividere",
     "verdict": {
-      "atomic": "atomico",
-      "borderline": "al limite",
-      "needsDecomposition": "da scomporre",
-      "composite": "composito"
+      "atomic": "Atomico",
+      "borderline": "Al limite",
+      "needsDecomposition": "Da scomporre",
+      "composite": "Composito"
     },
     "attemptBadge": "tentativo {{attempts}}",
     "fallbackCount": "{{count}} fallback",

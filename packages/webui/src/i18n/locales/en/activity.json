@@ -5124,6 +5124,22 @@
     "heading": "Cloud routing settings"
   },
   "kanbanText": {
+    "taskStatus": {
+      "pending": "Pending",
+      "ready": "Ready",
+      "in_progress": "In progress",
+      "blocked": "Blocked",
+      "review": "Review",
+      "completed": "Done",
+      "failed": "Failed",
+      "archived": "Archived"
+    },
+    "taskPriority": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
     "view": {
       "focus": "Focus",
       "board": "Board",
@@ -5206,10 +5222,10 @@
     "atomicTaskTitle": "Atomic task (subtree verification required)",
     "splitMe": "split me",
     "verdict": {
-      "atomic": "atomic",
-      "borderline": "borderline",
-      "needsDecomposition": "needs_decomposition",
-      "composite": "composite"
+      "atomic": "Atomic",
+      "borderline": "Borderline",
+      "needsDecomposition": "Needs splitting",
+      "composite": "Composite"
     },
     "attemptBadge": "attempt {{attempts}}",
     "fallbackCount": "{{count}} fallback",
