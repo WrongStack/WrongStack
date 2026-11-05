@@ -260,7 +260,10 @@ export function ProjectGoals({
           <button
             type="button"
             className="button secondary"
-            onClick={() => void sendRequest('goal.list', {}, 'refresh')}
+            onClick={() => {
+              void sendRequest('goal.list', {}, 'refresh');
+              void send('goal-state.get').catch((e) => setError(String(e)));
+            }}
           >
             <RefreshCw size={14} /> {t('goals.refresh')}
           </button>

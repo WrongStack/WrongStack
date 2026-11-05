@@ -25,6 +25,7 @@ import {
   modelFlags,
   modelNumberFields,
   modelTextFields,
+  modelTextInputType,
   savedModelProvider,
 } from './model-catalog-editor';
 import type { ModelEditorState } from './model-editor-draft';
@@ -757,6 +758,7 @@ function ProfileModelCatalogSettings({
                         defaultValue: `Model ${label.toLowerCase()}`,
                       })}
                       required={key === 'name'}
+                      type={modelTextInputType(key, editor.draft.text[key] ?? '')}
                       value={editor.draft.text[key] ?? ''}
                       onChange={(event) =>
                         setEditor({

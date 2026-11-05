@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardList, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
@@ -82,8 +82,11 @@ export function ProjectRequirements({
   draftStorage,
   recordDraftStorage,
   resourceInputStorage,
+  refreshKey = 0,
 }: {
   http: EngineHttp;
+  /** Bumped by the page's Refresh, which reloads the requirements with everything else. */
+  refreshKey?: number;
   onStartSdd: (goal: string) => void;
   draftStorage?: RequirementDraftStorage;
   recordDraftStorage?: RequirementRecordDraftStorageFactory;
@@ -161,7 +164,7 @@ export function ProjectRequirements({
       listSequence.current++;
       detailSequence.current++;
     };
-  }, [load]);
+  }, [load, refreshKey]);
   const select = async (id: string) => {
     if (busyRef.current || creating) return;
     const seq = ++detailSequence.current;
@@ -344,14 +347,6 @@ export function ProjectRequirements({
           <p>{t('req.intro')}</p>
         </div>
         <div className="sdd-actions">
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={() => void load().catch((e) => setError(String(e)))}
-          >
-            <RefreshCw size={14} /> {t('req.refresh')}
-          </button>
           <button
             type="button"
             className="button primary"

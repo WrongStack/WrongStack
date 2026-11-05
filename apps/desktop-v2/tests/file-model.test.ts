@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fileErrorText,
   fileTree,
   flattenFiles,
   lineDiff,
@@ -89,5 +90,23 @@ describe('desktop file and review models', () => {
     ).toBe('packages/src/index.ts');
     expect(projectRelativePath('/repo/../outside/secret.ts', '/repo')).toBe('/outside/secret.ts');
     expect(projectRelativePath('c:\\src\\app.ts', 'C:\\')).toBe('src/app.ts');
+  });
+});
+
+describe('file failures in words', () => {
+  const t = (key: string, values: { name: string }) => `${key}:${values.name}`;
+  it('names the file for OS failures and keeps worded errors as they are', () => {
+    expect(
+      fileErrorText("ENOENT: no such file or directory, stat 'D:\\p\\native-theirs.txt'", t),
+    ).toBe('fileView.missingOnDisk:native-theirs.txt');
+    expect(fileErrorText("files.read failed: EACCES: permission denied, open '/p/a.txt'", t)).toBe(
+      'fileView.deniedOnDisk:a.txt',
+    );
+    expect(fileErrorText("EBUSY: resource busy or locked, unlink 'C:/p/b.log'", t)).toBe(
+      'fileView.busyOnDisk:b.log',
+    );
+    expect(fileErrorText('The file changed on disk. Reload it first.', t)).toBe(
+      'The file changed on disk. Reload it first.',
+    );
   });
 });

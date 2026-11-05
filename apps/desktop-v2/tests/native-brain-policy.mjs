@@ -50,7 +50,7 @@ export async function exerciseNativeBrainPolicy({
   await panel.getByLabel('Automatic risk ceiling', { exact: true }).selectOption('medium');
   await panel.getByLabel('Model decision timeout', { exact: true }).fill('');
   await panel.getByLabel('Reuse cached decisions', { exact: true }).setChecked(true);
-  await panel.getByLabel('Decision cache lifetime', { exact: true }).fill('600000');
+  await panel.getByLabel('Decision cache lifetime', { exact: true }).fill('600');
   await panel.getByLabel('Decision cache capacity', { exact: true }).fill('512');
   await panel.getByLabel('Low-risk fast path', { exact: true }).setChecked(false);
   await panel.getByLabel('Minimum reported confidence', { exact: true }).fill('0.7');

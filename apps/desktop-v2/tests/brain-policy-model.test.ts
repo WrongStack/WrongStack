@@ -32,10 +32,19 @@ it('refuses stale edited values and validates numeric bounds before any write', 
   expect(
     brainPatch(base, { ...base, maxAutoRisk: 'high' }, { ...base, maxAutoRisk: 'high' }),
   ).toEqual({ maxAutoRisk: 'high' });
-  for (const value of ['0', '-1', '1.5', 'Infinity', 'bad'])
+  // Durations are edited in seconds and written in milliseconds.
+  expect(base['decisionTimeoutMs']).toBe('45');
+  expect(base['cache.ttlMs']).toBe('300');
+  expect(brainPatch(base, { ...base, decisionTimeoutMs: '1.5' }, base)).toEqual({
+    decisionTimeoutMs: 1500,
+  });
+  for (const value of ['0', '-1', '0.0001', 'Infinity', 'bad'])
     expect(() => brainPatch(base, { ...base, decisionTimeoutMs: value }, base)).toThrow(
-      /whole number/,
+      /valid number/,
     );
+  expect(() => brainPatch(base, { ...base, decisionLogMaxEntries: '1.5' }, base)).toThrow(
+    /whole number/,
+  );
   expect(() => brainPatch(base, { ...base, 'council.maxConcurrency': '9' }, base)).toThrow(
     /allowed range/,
   );

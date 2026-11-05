@@ -53,9 +53,20 @@
 .mcp-connection-review > button {
   margin: 8px 8px 0 0;
 }
+/* Environment variables and headers save on their own (write-only values with their own
+   conflict check), so each is a bordered group with its own save: the next group's title sat
+   against the previous group's buttons. */
 .mcp-secret-map {
   display: grid;
   gap: 8px;
+  margin: 14px 0 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.mcp-secret-map > legend {
+  padding: 0 6px;
+  font-weight: 600;
 }
 .mcp-secret-map ul {
   display: grid;

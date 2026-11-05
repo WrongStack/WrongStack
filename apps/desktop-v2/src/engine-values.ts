@@ -37,6 +37,35 @@ export function durationText(value: unknown, locale?: string): string {
   }).format(value / size);
 }
 
+/**
+ * Markdown as one line of plain text for a list preview: fences, headings, quotes, list marks,
+ * emphasis, inline code, links and table rules give way to their words; long text ends in "…".
+ */
+export function markdownExcerpt(markdown: string, max = 100): string {
+  const plain = markdown
+    .replace(/^\s*(```|~~~).*$/gm, ' ')
+    .replace(/^\s*\|?[\s:|-]*-{3,}[\s:|-]*\|?\s*$/gm, ' ')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/gm, '')
+    .replace(/(\*\*|__|~~|`)/g, '')
+    .replace(/(^|[\s(])[*_]([^*_\s][^*_]*?)[*_](?=[\s).,;:!?]|$)/g, '$1$2')
+    .replace(/\|/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain.length > max ? `${plain.slice(0, max - 1).trimEnd()}…` : plain;
+}
+
+/** A byte count in binary units with the display language's digits ("64 MiB", "1.5 KiB", "512 B"). */
+export function byteText(value: number, locale?: string): string {
+  const units: Array<[unit: string, size: number]> = [
+    ['GiB', 1024 ** 3],
+    ['MiB', 1024 ** 2],
+    ['KiB', 1024],
+  ];
+  const [unit, size] = units.find(([, size]) => value >= size) ?? ['B', 1];
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / size)} ${unit}`;
+}
+
 /** A recorded time in the display language ("Nov 5, 2026, 3:21 PM"); unreadable values as-is. */
 export function dateTimeText(value: unknown, locale?: string): string {
   const at = typeof value === 'string' || typeof value === 'number' ? new Date(value) : null;

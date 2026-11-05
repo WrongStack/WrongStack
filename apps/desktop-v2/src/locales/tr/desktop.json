@@ -1112,6 +1112,9 @@
     "attachTitle": "Görsel ya da PDF ekle · yapıştırmak ya da bırakmak da olur"
   },
   "fileView": {
+    "missingOnDisk": "“{{name}}” artık diskte yok. WrongStack dışında taşınmış ya da silinmiş olabilir.",
+    "deniedOnDisk": "WrongStack’in “{{name}}” dosyasını açma izni yok. Dosyanın izinlerini denetleyin.",
+    "busyOnDisk": "“{{name}}” başka bir program tarafından kullanılıyor. Orada kapatıp yeniden deneyin.",
     "sourceGone": "Kaynak dosyaya ulaşılamıyor. Kurtarılan taslağın korunuyor; dosyayı yeniden oluşturmadan önce onu kopyala.",
     "draftNotSaved": "Yerel taslak kaydedilmedi: {{error}}. Düzenleyicideki metnin hâlâ duruyor.",
     "saved": "{{name}} kaydedildi.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Model kararı zaman aşımı",
-        "help": "Model çağrısı başına milisaniye. Boş bırakılırsa motor varsayılanı devralınır."
+        "help": "Model çağrısı başına saniye. Boş bırakılırsa motor varsayılanı devralınır."
       },
       "humanTimeoutMs": {
         "label": "Operatör yanıtı zaman aşımı",
-        "help": "Beklenecek milisaniye; sıfır süresiz bekler. Boş bırakılırsa motor varsayılanı devralınır."
+        "help": "Beklenecek saniye; sıfır süresiz bekler. Boş bırakılırsa motor varsayılanı devralınır."
       },
       "decisionLogMaxEntries": {
         "label": "Son karar kapasitesi",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Karar önbelleği ömrü",
-          "help": "Saklanan bir kararın süresi dolmadan önceki milisaniye."
+          "help": "Saklanan bir kararın süresi dolmadan önceki saniye."
         },
         "maxEntries": {
           "label": "Karar önbelleği kapasitesi",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Konsey koltuğu zaman aşımı",
-          "help": "Koltuk başına milisaniye; boş bırakılırsa karar zaman aşımı devralınır."
+          "help": "Koltuk başına saniye; boş bırakılırsa karar zaman aşımı devralınır."
         },
         "maxConcurrency": {
           "label": "Eşzamanlı konsey koltukları",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Müdahale yeniden deneme penceresi",
-          "help": "Tekrarlanan müdahalenin önceki yönlendirmeyi başarısız saydığı milisaniye süresi."
+          "help": "Tekrarlanan müdahalenin önceki yönlendirmeyi başarısız saydığı saniye süresi."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Hata fırtınası penceresi",
-          "help": "Milisaniye cinsinden kayan pencere."
+          "help": "Saniye cinsinden kayan pencere."
         },
         "stallMs": {
           "label": "Duraklama zaman aşımı",
-          "help": "İlerleme olmadan geçen milisaniye; sıfır duraklama eşiğini devre dışı bırakır."
+          "help": "İlerleme olmadan geçen saniye; sıfır duraklama eşiğini devre dışı bırakır."
         },
         "stallCheckIntervalMs": {
           "label": "Duraklama denetim aralığı",
-          "help": "Bekçi denetimleri arasındaki milisaniye."
+          "help": "Bekçi denetimleri arasındaki saniye."
         },
         "fileChurnThreshold": {
           "label": "Dosya çalkantısı eşiği",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Dosya çalkantısı penceresi",
-          "help": "Milisaniye cinsinden kayan düzenleme sayım penceresi."
+          "help": "Saniye cinsinden kayan düzenleme sayım penceresi."
         },
         "cooldownMs": {
           "label": "Monitör sinyali bekleme süresi",
-          "help": "Aynı sinyal için yeniden devreye girmeler arasındaki milisaniye."
+          "help": "Aynı sinyal için yeniden devreye girmeler arasındaki saniye."
         },
         "fileEditTools": {
           "label": "Dosya düzenleme aracı adları",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Alt ajan sonucu karakterleri",
       "maxIterations": "İşçi yinelemeleri",
       "maxToolCalls": "İşçi araç çağrıları",
-      "timeoutMs": "İşçi zaman aşımı (ms)"
+      "timeoutMs": "İşçi zaman aşımı (saniye)"
     },
     "engineDefault": "Motor varsayılanı",
     "intro": "Boş, motorun, kadronun ya da modelin varsayılanını devral demektir. Bir sınır yalnızca girersen uygulanır. O geçersiz kılmayı kaldırmak için alanı temizle.",
     "contextLabel": "Bağlam ve çıktı sınırları",
     "contextTitle": "Bağlam ve çıktı",
     "workerTitle": "Varsayılan işçi bütçeleri",
-    "workerHelp": "Bir işçinin açık bütçesi olmadığında kullanılır. Kademe ve görev bütçeleri ayrı kalır."
+    "workerHelp": "Bir işçinin açık bütçesi olmadığında kullanılır. Kademe ve görev bütçeleri ayrı kalır.",
+    "why": {
+      "responseOutputTokens": "Bunun altında, önce araç çağıran veya düşünen bir yanıt kesik ya da boş döner.",
+      "toolOutputPreviewBytes": "Önizleme bir baş ve bir sondan oluşur; 1 KiB altında ikisi de okunmaz. Araçlar en fazla 64 MiB tutar.",
+      "fetchBytes": "1 KiB altında bir sayfa yalnızca işaretleme başlığından ibarettir. Araçlar en fazla 64 MiB tutar.",
+      "projectInstructionsChars": "Bunun altında bir talimat dosyasının yalnızca başlığı kalır.",
+      "memoryInjectChars": "Bunun altında tek bir bellek kaydı bile sığmaz.",
+      "historyMessages": "Daha azı, süren turun kendi araç çağrılarını ve sonuçlarını dışarıda bırakır.",
+      "subagentResultChars": "Bunun altında bir alt ajanın özet satırı sığmaz.",
+      "maxIterations": "Bir alt ajanın araç çağırmak için bir, rapor vermek için bir yinelemeye ihtiyacı vardır.",
+      "maxToolCalls": "Araç çağrısı olmayan bir alt ajan iş yapamaz.",
+      "timeoutMs": "10 sn altında bir alt ajan ilk model yanıtından önce zaman aşımına uğrar; ~24,8 günün üzerinde Node zamanlayıcısı taşar ve hemen tetiklenir."
+    },
+    "maxNote": {
+      "responseOutputTokens": "modelin kendi çıktı tavanı",
+      "projectInstructionsChars": "dosyanın tamamı",
+      "memoryInjectChars": "belleğin tamamı",
+      "historyMessages": "modelin penceresi (sıkıştırma)",
+      "subagentResultChars": "sonucun tamamı"
+    },
+    "unit": {
+      "tokens": "{{value}} token",
+      "chars": "{{value}} karakter",
+      "messages": "{{value}} mesaj",
+      "iterations": "{{value}} yineleme",
+      "calls": "{{value}} çağrı"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "En az {{min}}",
+    "rangeOpenNote": "En az {{min}}; en fazla {{note}}"
   },
   "tierPolicy": {
     "inherit": "Devral",
@@ -7208,13 +7240,18 @@
     "description": "{{id}} açıklaması",
     "primary": "{{id}} birincil modeli",
     "fallback": "{{id}} kademesi yedek profili",
+    "field": {
+      "description": "Açıklama",
+      "primary": "Birincil model",
+      "fallback": "Yedek profil"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Harcama tavanı (USD)",
       "maxIterations": "Yinelemeler",
       "maxToolCalls": "Araç çağrıları",
       "maxTokens": "Tokenlar",
-      "timeoutMs": "Zaman aşımı (ms)"
+      "timeoutMs": "Zaman aşımı (saniye)"
     },
     "routingEyebrow": "YÖNLENDİRME",
     "routingTitle": "Rol ve aşama kademeleri",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Liderin kendi kademesini değiştirip değiştiremeyeceğini denetler. Öner, bir karar ister; otomatik değiştirme bu korumalarla sınırlı kalır.",
     "leaderMode": "Lider kademe değiştirme",
     "leaderModeOption": {
-      "off": "kapalı",
-      "propose": "öner",
-      "auto": "otomatik"
+      "off": "Kapalı",
+      "propose": "Öner",
+      "auto": "Otomatik"
     },
     "leaderMax": "Lider en yüksek kademe",
     "dwell": "Değiştirmeden önce en az tur",

@@ -14,6 +14,8 @@ export interface BrainField {
   step?: number | 'any';
   read?: string;
   fallback?: string;
+  /** Stored in milliseconds, edited in seconds; `min`, `max` and `fallback` stay in milliseconds. */
+  seconds?: boolean;
 }
 /** Each group's `id` names it in the display catalog; `title` and `description` are the English source. */
 export const brainGroups: {
@@ -52,16 +54,18 @@ export const brainGroups: {
       {
         key: 'decisionTimeoutMs',
         label: 'Model decision timeout',
-        help: 'Milliseconds per model call. Empty inherits the engine default.',
+        help: 'Seconds per model call. Empty inherits the engine default.',
         kind: 'number',
+        seconds: true,
         optional: true,
         min: 1,
       },
       {
         key: 'humanTimeoutMs',
         label: 'Operator response timeout',
-        help: 'Milliseconds to wait; zero waits indefinitely. Empty inherits the engine default.',
+        help: 'Seconds to wait; zero waits indefinitely. Empty inherits the engine default.',
         kind: 'number',
+        seconds: true,
         optional: true,
         min: 0,
       },
@@ -164,8 +168,9 @@ export const brainGroups: {
       {
         key: 'cache.ttlMs',
         label: 'Decision cache lifetime',
-        help: 'Milliseconds before a stored decision expires.',
+        help: 'Seconds before a stored decision expires.',
         kind: 'number',
+        seconds: true,
         min: 1,
       },
       {
@@ -235,8 +240,9 @@ export const brainGroups: {
       {
         key: 'council.perCallTimeoutMs',
         label: 'Council seat timeout',
-        help: 'Milliseconds per seat; empty inherits the decision timeout.',
+        help: 'Seconds per seat; empty inherits the decision timeout.',
         kind: 'number',
+        seconds: true,
         min: 1,
         optional: true,
       },
@@ -306,8 +312,9 @@ export const brainGroups: {
       {
         key: 'ledger.interventionRetryWindowMs',
         label: 'Intervention retry window',
-        help: 'Milliseconds during which repeated intervention marks the earlier steer as failed.',
+        help: 'Seconds during which repeated intervention marks the earlier steer as failed.',
         kind: 'number',
+        seconds: true,
         min: 1,
         optional: true,
       },
@@ -384,7 +391,9 @@ export function brainDraft(config: Record<string, unknown>): BrainDraft {
               ? ''
               : field.kind === 'lines' && Array.isArray(value)
                 ? value.join('\n')
-                : String(value),
+                : field.seconds && Number.isFinite(Number(value))
+                  ? String(Number(value) / 1000)
+                  : String(value),
         ];
       }),
   );
@@ -415,15 +424,15 @@ export function brainPatch(
     let converted: unknown = value;
     if (value === '' && field.optional) converted = null;
     else if (field.kind === 'number') {
-      converted = Number(value);
+      converted = field.seconds ? Math.round(Number(value) * 1000) : Number(value);
       if (
         value === '' ||
         !Number.isFinite(converted) ||
-        (field.step === undefined && !Number.isSafeInteger(converted)) ||
+        ((field.step === undefined || field.seconds) && !Number.isSafeInteger(converted)) ||
         Number(converted) < (field.min ?? 0) ||
         Number(converted) > (field.max ?? Infinity)
       )
-        throw Error(words.number(words.label(field), field.step === undefined));
+        throw Error(words.number(words.label(field), field.step === undefined && !field.seconds));
     } else if (field.kind === 'select') {
       if (!field.options?.includes(String(value))) throw Error(words.choice(words.label(field)));
       if (value === 'true' || value === 'false') converted = value === 'true';

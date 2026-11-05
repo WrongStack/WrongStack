@@ -60,6 +60,7 @@ export function ProjectSdd({
   const [view, setView] = useState<'requirements' | 'interview' | 'specs' | 'runs'>('interview');
   const [transfer, setTransfer] = useState<string | null>(null);
   const [goal, setGoal] = useState('');
+  const [requirementsRefresh, setRequirementsRefresh] = useState(0);
   const [reply, setReply] = useState('');
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState('');
@@ -185,6 +186,7 @@ export function ProjectSdd({
           onClick={() => {
             for (const type of ['sdd.spec.get', 'specs.list', 'sdd.board.list', 'sdd.board.get'])
               void send(type).catch((e) => setError(String(e)));
+            setRequirementsRefresh((value) => value + 1);
           }}
         >
           <RefreshCw size={14} /> {t('sddView.refresh')}
@@ -247,6 +249,7 @@ export function ProjectSdd({
       <div hidden={view !== 'requirements'}>
         <ProjectRequirements
           http={http}
+          refreshKey={requirementsRefresh}
           {...(draftStorage ? { draftStorage } : {})}
           {...(recordDraftStorage ? { recordDraftStorage } : {})}
           {...(resourceInputStorage ? { resourceInputStorage } : {})}

@@ -1112,6 +1112,9 @@
     "attachTitle": "Bilder oder PDFs anhängen · Einfügen oder Ablegen geht auch"
   },
   "fileView": {
+    "missingOnDisk": "„{{name}}“ ist nicht mehr auf dem Datenträger. Es wurde möglicherweise außerhalb von WrongStack verschoben oder gelöscht.",
+    "deniedOnDisk": "WrongStack darf „{{name}}“ nicht öffnen. Prüfen Sie die Berechtigungen der Datei.",
+    "busyOnDisk": "„{{name}}“ wird von einem anderen Programm verwendet. Schließen Sie es dort und versuchen Sie es erneut.",
     "sourceGone": "Die Quelldatei ist nicht verfügbar. Dein wiederhergestellter Entwurf bleibt erhalten; kopiere ihn, bevor du die Datei neu anlegst.",
     "draftNotSaved": "Der lokale Entwurf wurde nicht gespeichert: {{error}}. Dein Editortext ist weiterhin vorhanden.",
     "saved": "{{name}} gespeichert.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Zeitlimit für Modellentscheidungen",
-        "help": "Millisekunden pro Modellaufruf. Leer übernimmt den Engine-Standard."
+        "help": "Sekunden pro Modellaufruf. Leer übernimmt den Engine-Standard."
       },
       "humanTimeoutMs": {
         "label": "Zeitlimit für Operator-Antworten",
-        "help": "Wartezeit in Millisekunden; null wartet unbegrenzt. Leer übernimmt den Engine-Standard."
+        "help": "Wartezeit in Sekunden; null wartet unbegrenzt. Leer übernimmt den Engine-Standard."
       },
       "decisionLogMaxEntries": {
         "label": "Kapazität für letzte Entscheidungen",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Lebensdauer des Entscheidungs-Caches",
-          "help": "Millisekunden, bis eine gespeicherte Entscheidung abläuft."
+          "help": "Sekunden, bis eine gespeicherte Entscheidung abläuft."
         },
         "maxEntries": {
           "label": "Kapazität des Entscheidungs-Caches",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Zeitlimit pro Ratssitz",
-          "help": "Millisekunden pro Sitz; leer übernimmt das Entscheidungszeitlimit."
+          "help": "Sekunden pro Sitz; leer übernimmt das Entscheidungszeitlimit."
         },
         "maxConcurrency": {
           "label": "Gleichzeitige Ratssitze",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Wiederholungsfenster für Eingriffe",
-          "help": "Millisekunden, in denen ein wiederholter Eingriff die frühere Steuerung als fehlgeschlagen markiert."
+          "help": "Sekunden, in denen ein wiederholter Eingriff die frühere Steuerung als fehlgeschlagen markiert."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Fenster für Fehlerhäufung",
-          "help": "Gleitendes Fenster in Millisekunden."
+          "help": "Gleitendes Fenster in Sekunden."
         },
         "stallMs": {
           "label": "Zeitlimit für Stillstand",
-          "help": "Millisekunden ohne Fortschritt; null deaktiviert die Stillstandsschwelle."
+          "help": "Sekunden ohne Fortschritt; null deaktiviert die Stillstandsschwelle."
         },
         "stallCheckIntervalMs": {
           "label": "Prüfintervall für Stillstand",
-          "help": "Millisekunden zwischen Watchdog-Prüfungen."
+          "help": "Sekunden zwischen Watchdog-Prüfungen."
         },
         "fileChurnThreshold": {
           "label": "Schwelle für Dateiumwälzung",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Fenster für Dateiumwälzung",
-          "help": "Gleitendes Zählfenster für Bearbeitungen in Millisekunden."
+          "help": "Gleitendes Zählfenster für Bearbeitungen in Sekunden."
         },
         "cooldownMs": {
           "label": "Abklingzeit für Monitor-Signale",
-          "help": "Millisekunden zwischen erneuten Eingriffen für dasselbe Signal."
+          "help": "Sekunden zwischen erneuten Eingriffen für dasselbe Signal."
         },
         "fileEditTools": {
           "label": "Namen der Dateibearbeitungswerkzeuge",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Zeichen der Subagent-Ergebnisse",
       "maxIterations": "Iterationen des Workers",
       "maxToolCalls": "Werkzeugaufrufe des Workers",
-      "timeoutMs": "Timeout des Workers (ms)"
+      "timeoutMs": "Timeout des Workers (Sekunden)"
     },
     "engineDefault": "Engine-Standard",
     "intro": "Leer bedeutet: Standard von Engine, Roster oder Modell erben. Ein Limit gilt nur, wenn du eines einträgst. Leere ein Feld, um die Überschreibung zu entfernen.",
     "contextLabel": "Kontext- und Ausgabelimits",
     "contextTitle": "Kontext & Ausgabe",
     "workerTitle": "Standardbudgets der Worker",
-    "workerHelp": "Gilt, wenn ein Worker kein explizites Budget hat. Stufen- und Aufgabenbudgets bleiben getrennt."
+    "workerHelp": "Gilt, wenn ein Worker kein explizites Budget hat. Stufen- und Aufgabenbudgets bleiben getrennt.",
+    "why": {
+      "responseOutputTokens": "Darunter kommt eine Antwort, die zuerst ein Werkzeug aufruft oder nachdenkt, abgeschnitten oder leer zurück.",
+      "toolOutputPreviewBytes": "Die Vorschau besteht aus Anfang und Ende; unter 1 KiB ist keines davon lesbar. Werkzeuge halten höchstens 64 MiB.",
+      "fetchBytes": "Unter 1 KiB ist eine Seite nur ihr Markup-Kopf. Werkzeuge halten höchstens 64 MiB.",
+      "projectInstructionsChars": "Darunter bleibt von einer Anweisungsdatei nur die Überschrift.",
+      "memoryInjectChars": "Darunter passt nicht einmal ein Speichereintrag.",
+      "historyMessages": "Weniger würde die eigenen Werkzeugaufrufe und Ergebnisse des laufenden Durchgangs verdrängen.",
+      "subagentResultChars": "Darunter passt die Zusammenfassungszeile eines Subagenten nicht.",
+      "maxIterations": "Ein Subagent braucht eine Iteration für einen Werkzeugaufruf und eine für den Bericht.",
+      "maxToolCalls": "Ein Subagent ohne Werkzeugaufrufe kann nicht handeln.",
+      "timeoutMs": "Unter 10 s läuft ein Subagent vor der ersten Modellantwort ab; über ~24,8 Tage läuft der Node-Timer über und feuert sofort."
+    },
+    "maxNote": {
+      "responseOutputTokens": "die eigene Ausgabegrenze des Modells",
+      "projectInstructionsChars": "die ganze Datei",
+      "memoryInjectChars": "der ganze Speicher",
+      "historyMessages": "das Fenster des Modells (Verdichtung)",
+      "subagentResultChars": "das ganze Ergebnis"
+    },
+    "unit": {
+      "tokens": "{{value}} Tokens",
+      "chars": "{{value}} Zeichen",
+      "messages": "{{value}} Nachrichten",
+      "iterations": "{{value}} Iterationen",
+      "calls": "{{value}} Aufrufe"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "Mindestens {{min}}",
+    "rangeOpenNote": "Mindestens {{min}}; höchstens {{note}}"
   },
   "tierPolicy": {
     "inherit": "Erben",
@@ -7208,13 +7240,18 @@
     "description": "{{id}} Beschreibung",
     "primary": "{{id}} Hauptmodell",
     "fallback": "Fallback-Profil der Stufe {{id}}",
+    "field": {
+      "description": "Beschreibung",
+      "primary": "Hauptmodell",
+      "fallback": "Fallback-Profil"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Ausgabenobergrenze (USD)",
       "maxIterations": "Iterationen",
       "maxToolCalls": "Werkzeugaufrufe",
       "maxTokens": "Tokens",
-      "timeoutMs": "Timeout (ms)"
+      "timeoutMs": "Timeout (Sekunden)"
     },
     "routingEyebrow": "ROUTING",
     "routingTitle": "Stufen für Rollen & Phasen",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Legt fest, ob der Leiter seine eigene Stufe ändern darf. Vorschlagen fragt nach einer Entscheidung; automatischer Wechsel bleibt durch diese Schranken begrenzt.",
     "leaderMode": "Stufenwechsel des Leiters",
     "leaderModeOption": {
-      "off": "aus",
-      "propose": "vorschlagen",
-      "auto": "automatisch"
+      "off": "Aus",
+      "propose": "Vorschlagen",
+      "auto": "Automatisch"
     },
     "leaderMax": "Höchste Stufe des Leiters",
     "dwell": "Mindestzahl an Zügen vor einem Wechsel",

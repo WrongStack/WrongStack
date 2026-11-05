@@ -5,6 +5,7 @@ import {
   containsModelDefinition,
   modelDefinition,
   modelEditorDraft,
+  modelTextInputType,
 } from '../src/model-catalog-editor';
 
 describe('native model definitions', () => {
@@ -134,5 +135,17 @@ describe('native model definitions', () => {
       ),
     ).toBe(false);
     expect(containsModelDefinition({ modelsDev: { reasoning_options: [] } }, expected)).toBe(false);
+  });
+});
+
+describe('model date fields', () => {
+  it('edit each recorded shape in its own picker and keep other text as text', () => {
+    expect(modelTextInputType('knowledge', '2024-10')).toBe('month');
+    expect(modelTextInputType('knowledge', '2024-10-01')).toBe('date');
+    expect(modelTextInputType('knowledge', '')).toBe('month');
+    expect(modelTextInputType('release_date', '2025-02')).toBe('month');
+    expect(modelTextInputType('release_date', '')).toBe('date');
+    expect(modelTextInputType('last_updated', 'early 2025')).toBe('text');
+    expect(modelTextInputType('family', '2025-02-19')).toBe('text');
   });
 });

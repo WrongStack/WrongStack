@@ -35,7 +35,7 @@ describe('refinement, limits and tier settings in the display language', () => {
       'Conversation history messages',
       'aria-label="Remove tier fast"',
       'fast Spend ceiling (USD)',
-      '<option value="propose" selected="">propose</option>',
+      '<option value="propose" selected="">Propose</option>',
     ])
       expect(english).toContain(text);
 
@@ -47,8 +47,42 @@ describe('refinement, limits and tier settings in the display language', () => {
       'Konuşma geçmişi mesajları',
       'aria-label="fast kademesini kaldır"',
       'fast Harcama tavanı (USD)',
-      '<option value="propose" selected="">öner</option>',
+      '<option value="propose" selected="">Öner</option>',
     ])
       expect(turkish).toContain(text);
+  });
+
+  it('states each limit reason and range in the display language and edits the timeout in seconds', async () => {
+    const limits = (lang: string) =>
+      surfaceI18n.changeLanguage(lang).then(() =>
+        renderToStaticMarkup(
+          createElement(LimitsPolicySettings, {
+            draft: {
+              limits: { fetchBytes: 262144, subagentDefaultBudget: { timeoutMs: 600000 } },
+            },
+            change,
+          }),
+        ).replaceAll('<!-- -->', ''),
+      );
+    const english = await limits('en');
+    for (const text of [
+      'At least 20 messages; at most the model’s window (compaction)',
+      '1 KiB – 64 MiB',
+      'At least 2 iterations<',
+      'Worker timeout (seconds)',
+      'value="600"',
+      '10 min',
+      '256 KiB',
+    ])
+      expect(english).toContain(text);
+    expect(english).not.toContain('(max: none)');
+    const turkish = await limits('tr');
+    for (const text of [
+      'En az 20 mesaj; en fazla modelin penceresi (sıkıştırma)',
+      'Bunun altında tek bir bellek kaydı bile sığmaz.',
+      'İşçi zaman aşımı (saniye)',
+    ])
+      expect(turkish).toContain(text);
+    expect(turkish).not.toContain('Below this');
   });
 });

@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Compass, LoaderCircle, Pause, Play, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Circle, Compass, LoaderCircle, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineSend } from './engine-operations';
@@ -104,13 +104,6 @@ export function ProjectMission({ state, send }: { state: EngineState; send: Engi
           </div>
         </div>
         <div className="project-mission-actions">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => void request('goal-state.get', {}, 'refresh')}
-          >
-            <RefreshCw size={13} /> {t('mission.refresh')}
-          </button>
           {!editing && (
             <button type="button" className="button secondary" onClick={beginEdit}>
               {exists ? t('mission.replace') : t('mission.set')}

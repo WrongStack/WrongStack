@@ -66,10 +66,13 @@ export function ModelCatalog({ command }: { command: EngineCommand }) {
 }
 export function ModelReference({
   label,
+  name,
   value,
   onChange,
 }: {
   label: string;
+  /** Accessible name when the visible label leans on a heading (a tier card's field). */
+  name?: string;
   value: string;
   onChange: (v: string) => void;
 }) {
@@ -85,7 +88,7 @@ export function ModelReference({
     <label>
       {label}
       <input
-        aria-label={label}
+        aria-label={name ?? label}
         list={catalog}
         value={value}
         placeholder={t('modelPolicy.refPlaceholder')}
@@ -281,11 +284,13 @@ export function modelRefPatch(entry: Row, value: string): Row {
 }
 export function ProfileSelect({
   label,
+  name,
   value,
   profiles,
   onChange,
 }: {
   label: string;
+  name?: string;
   value: unknown;
   profiles: Row;
   onChange: (v: string) => void;
@@ -295,7 +300,11 @@ export function ProfileSelect({
   return (
     <label>
       {label}
-      <select aria-label={label} value={selected} onChange={(e) => onChange(e.target.value)}>
+      <select
+        aria-label={name ?? label}
+        value={selected}
+        onChange={(e) => onChange(e.target.value)}
+      >
         <option value="">{t('modelPolicy.inherit')}</option>
         {[...new Set([...Object.keys(profiles), ...(selected ? [selected] : [])])].map((id) => (
           <option key={id} value={id}>

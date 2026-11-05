@@ -15,6 +15,7 @@ import {
   rosterDocumentKey,
 } from './roster-model';
 import { sameSetting } from './settings-save-model';
+import { TimeZoneInput } from './TimeZoneInput';
 
 const drafts = new Map<string, { base: RosterRecord; draft: RosterRecord }>();
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
@@ -472,17 +473,15 @@ export function RosterRuntimeEditor({
               {draft['availability'] !== undefined && (
                 <>
                   <div className="roster-form-grid">
-                    <label>
-                      {t('rosterEdit.timezone')}
-                      <input
-                        aria-label={t('rosterEdit.timezoneLabel')}
-                        value={text(available['timezone'])}
-                        onChange={(event) =>
-                          field('availability', { ...available, timezone: event.target.value })
-                        }
-                        placeholder="Europe/Kyiv"
-                      />
-                    </label>
+                    <TimeZoneInput
+                      label={t('rosterEdit.timezone')}
+                      aria-label={t('rosterEdit.timezoneLabel')}
+                      value={text(available['timezone'])}
+                      onChange={(event) =>
+                        field('availability', { ...available, timezone: event.target.value })
+                      }
+                      placeholder="Europe/Kyiv"
+                    />
                     <label>
                       {t('rosterEdit.policyLabel')}
                       <select

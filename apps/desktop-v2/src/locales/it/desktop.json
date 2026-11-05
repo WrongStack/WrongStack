@@ -1112,6 +1112,9 @@
     "attachTitle": "Allega immagini o PDF · funziona anche incollare o trascinare"
   },
   "fileView": {
+    "missingOnDisk": "«{{name}}» non è più sul disco. Potrebbe essere stato spostato o eliminato fuori da WrongStack.",
+    "deniedOnDisk": "WrongStack non ha il permesso di aprire «{{name}}». Controlla i permessi del file.",
+    "busyOnDisk": "«{{name}}» è in uso da un altro programma. Chiudilo lì e riprova.",
     "sourceGone": "Il file di origine non è disponibile. La bozza recuperata è conservata; copiala prima di ricreare il file.",
     "draftNotSaved": "La bozza locale non è stata salvata: {{error}}. Il testo dell'editor è ancora disponibile.",
     "saved": "{{name}} salvato.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Timeout della decisione del modello",
-        "help": "Millisecondi per chiamata al modello. Vuoto eredita il predefinito del motore."
+        "help": "Secondi per chiamata al modello. Vuoto eredita il predefinito del motore."
       },
       "humanTimeoutMs": {
         "label": "Timeout della risposta dell’operatore",
-        "help": "Millisecondi di attesa; zero attende all’infinito. Vuoto eredita il predefinito del motore."
+        "help": "Secondi di attesa; zero attende all’infinito. Vuoto eredita il predefinito del motore."
       },
       "decisionLogMaxEntries": {
         "label": "Capacità delle decisioni recenti",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Durata della cache delle decisioni",
-          "help": "Millisecondi prima che una decisione memorizzata scada."
+          "help": "Secondi prima che una decisione memorizzata scada."
         },
         "maxEntries": {
           "label": "Capacità della cache delle decisioni",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Timeout per seggio del consiglio",
-          "help": "Millisecondi per seggio; vuoto eredita il timeout della decisione."
+          "help": "Secondi per seggio; vuoto eredita il timeout della decisione."
         },
         "maxConcurrency": {
           "label": "Seggi del consiglio simultanei",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Finestra di ripetizione degli interventi",
-          "help": "Millisecondi durante i quali un intervento ripetuto segna come fallito l’indirizzo precedente."
+          "help": "Secondi durante i quali un intervento ripetuto segna come fallito l’indirizzo precedente."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Finestra di tempesta di errori",
-          "help": "Finestra mobile in millisecondi."
+          "help": "Finestra mobile in secondi."
         },
         "stallMs": {
           "label": "Timeout di stallo",
-          "help": "Millisecondi senza avanzamento; zero disattiva la soglia di stallo."
+          "help": "Secondi senza avanzamento; zero disattiva la soglia di stallo."
         },
         "stallCheckIntervalMs": {
           "label": "Intervallo di controllo dello stallo",
-          "help": "Millisecondi tra i controlli del watchdog."
+          "help": "Secondi tra i controlli del watchdog."
         },
         "fileChurnThreshold": {
           "label": "Soglia di modifiche ripetute ai file",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Finestra di modifiche ripetute ai file",
-          "help": "Finestra mobile di conteggio delle modifiche in millisecondi."
+          "help": "Finestra mobile di conteggio delle modifiche in secondi."
         },
         "cooldownMs": {
           "label": "Pausa tra i segnali del monitor",
-          "help": "Millisecondi tra due interventi per lo stesso segnale."
+          "help": "Secondi tra due interventi per lo stesso segnale."
         },
         "fileEditTools": {
           "label": "Nomi degli strumenti di modifica dei file",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Caratteri dei risultati dei subagenti",
       "maxIterations": "Iterazioni del worker",
       "maxToolCalls": "Chiamate agli strumenti del worker",
-      "timeoutMs": "Timeout del worker (ms)"
+      "timeoutMs": "Timeout del worker (secondi)"
     },
     "engineDefault": "Predefinito del motore",
     "intro": "Vuoto significa ereditare il predefinito del motore, del roster o del modello. Un limite si applica solo se lo inserisci. Svuota un campo per rimuovere la sostituzione.",
     "contextLabel": "Limiti di contesto e di output",
     "contextTitle": "Contesto e output",
     "workerTitle": "Budget predefiniti dei worker",
-    "workerHelp": "Usato quando un worker non ha un budget esplicito. I budget di livello e di attività restano separati."
+    "workerHelp": "Usato quando un worker non ha un budget esplicito. I budget di livello e di attività restano separati.",
+    "why": {
+      "responseOutputTokens": "Sotto questo valore una risposta che prima chiama uno strumento o ragiona torna troncata o vuota.",
+      "toolOutputPreviewBytes": "L’anteprima è un inizio e una fine; sotto 1 KiB nessuno dei due è leggibile. Gli strumenti conservano al massimo 64 MiB.",
+      "fetchBytes": "Sotto 1 KiB una pagina è solo la sua intestazione di markup. Gli strumenti conservano al massimo 64 MiB.",
+      "projectInstructionsChars": "Sotto questo valore di un file di istruzioni resta solo l’intestazione.",
+      "memoryInjectChars": "Sotto questo valore non entra nemmeno una voce di memoria.",
+      "historyMessages": "Meno escluderebbe le chiamate agli strumenti e i risultati del turno in corso.",
+      "subagentResultChars": "Sotto questo valore la riga di riepilogo di un subagente non entra.",
+      "maxIterations": "Un subagente ha bisogno di un’iterazione per chiamare uno strumento e di una per riferire.",
+      "maxToolCalls": "Un subagente senza chiamate agli strumenti non può agire.",
+      "timeoutMs": "Sotto 10 s un subagente scade prima della prima risposta del modello; oltre ~24,8 giorni il timer di Node va in overflow e scatta subito."
+    },
+    "maxNote": {
+      "responseOutputTokens": "il limite di output del modello",
+      "projectInstructionsChars": "l’intero file",
+      "memoryInjectChars": "l’intera memoria",
+      "historyMessages": "la finestra del modello (compattazione)",
+      "subagentResultChars": "l’intero risultato"
+    },
+    "unit": {
+      "tokens": "{{value}} token",
+      "chars": "{{value}} caratteri",
+      "messages": "{{value}} messaggi",
+      "iterations": "{{value}} iterazioni",
+      "calls": "{{value}} chiamate"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "Almeno {{min}}",
+    "rangeOpenNote": "Almeno {{min}}; al massimo {{note}}"
   },
   "tierPolicy": {
     "inherit": "Eredita",
@@ -7208,13 +7240,18 @@
     "description": "Descrizione di {{id}}",
     "primary": "Modello principale di {{id}}",
     "fallback": "Profilo di riserva del livello {{id}}",
+    "field": {
+      "description": "Descrizione",
+      "primary": "Modello principale",
+      "fallback": "Profilo di riserva"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Tetto di spesa (USD)",
       "maxIterations": "Iterazioni",
       "maxToolCalls": "Chiamate agli strumenti",
       "maxTokens": "Token",
-      "timeoutMs": "Timeout (ms)"
+      "timeoutMs": "Timeout (secondi)"
     },
     "routingEyebrow": "INSTRADAMENTO",
     "routingTitle": "Livelli per ruolo e fase",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Stabilisce se il leader può cambiare il proprio livello. Proponi chiede una decisione; il cambio automatico resta limitato da questi vincoli.",
     "leaderMode": "Cambio di livello del leader",
     "leaderModeOption": {
-      "off": "disattivato",
-      "propose": "proponi",
-      "auto": "automatico"
+      "off": "Disattivato",
+      "propose": "Proponi",
+      "auto": "Automatico"
     },
     "leaderMax": "Livello massimo del leader",
     "dwell": "Turni minimi prima del cambio",

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T14:35:37.860Z
+**Generated:** 2026-11-05T15:18:47.579Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6044 |
-| Production source lines | 1251946 |
-| Test files | 5035 |
+| Production source files | 6045 |
+| Production source lines | 1252140 |
+| Test files | 5036 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17795 |
+| Relative module edges | 17798 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
-| Tests without TypeScript test-project coverage | 288 |
+| Tests without TypeScript test-project coverage | 289 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 698 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 451 | 288 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 452 | 289 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -90,28 +90,28 @@ None.
 
 | Lines | File |
 |---:|---|
-| 2044 | `apps/desktop-v2/src/FileWorkspace.tsx` |
+| 2045 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1733 | `packages/sage/src/wrongmemory-port.ts` |
 | 1579 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
-| 1065 | `apps/desktop-v2/src/ProjectGoals.tsx` |
+| 1068 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1060 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 955 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 931 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 950 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 933 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 850 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 849 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 812 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 788 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 779 | `apps/desktop-v2/src/ProjectChimera.tsx` |
-| 779 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
+| 778 | `apps/desktop-v2/src/RosterRuntimeEditor.tsx` |
 | 777 | `packages/webui-server/src/server/memory-handlers.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
+| 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 754 | `packages/client/src/client.ts` |
-| 752 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 740 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
@@ -149,7 +149,7 @@ None.
 
 ## TypeScript test coverage debt
 
-- 288 test files are not included in a package TypeScript test project.
+- 289 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

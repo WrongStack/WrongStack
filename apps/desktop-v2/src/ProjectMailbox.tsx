@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
-import { entries, record } from './engine-values';
+import { entries, markdownExcerpt, record } from './engine-values';
 import { MailboxComposer } from './MailboxComposer';
 import { MailboxDraftStatus } from './MailboxDraftStatus';
 import { MarkdownContent } from './MarkdownContent';
@@ -466,7 +466,7 @@ export function ProjectMailbox({
                     />
                   )}
                 </div>
-                <p>{text(thread.latest['body']).slice(0, 100)}</p>
+                <p>{markdownExcerpt(text(thread.latest['body']), 140)}</p>
                 <small>
                   {String(thread.latest['from'])} → {String(thread.latest['to'])}
                 </small>

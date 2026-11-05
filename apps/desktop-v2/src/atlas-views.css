@@ -285,14 +285,14 @@
 }
 .atlas-matrix-key :where(button) {
   text-align: left;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 .atlas-matrix-key :where(small) {
   display: block;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 10px;
   margin-top: 3px;
 }
 .atlas-impact-controls {

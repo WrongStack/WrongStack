@@ -54,6 +54,7 @@ import { type FileDraftSnapshot, FileDraftStore } from './file-draft';
 import {
   byteSize,
   type FileNode,
+  fileErrorText,
   fileKind,
   fileName,
   fileRowName,
@@ -911,7 +912,7 @@ export function FileWorkspace({
       )}
       {error && (
         <p className="file-workspace-error" role="alert">
-          {error}
+          {fileErrorText(error, t)}
         </p>
       )}
       {notice && (
@@ -1020,7 +1021,7 @@ export function FileWorkspace({
             )}
             {error && (
               <p role="alert" className="file-workspace-error">
-                {error}
+                {fileErrorText(error, t)}
               </p>
             )}
             <footer>

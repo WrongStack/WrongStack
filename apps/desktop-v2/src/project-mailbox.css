@@ -101,6 +101,12 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
+  /* The preview is two lines at most; the thread opens to the whole message. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .mailbox-thread small {
   display: block;

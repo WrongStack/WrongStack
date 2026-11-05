@@ -25,6 +25,7 @@ import { Modal } from './Modal';
 import { ProfileModelPicker } from './ProfileModelPicker';
 import { sameSetting } from './settings-save-model';
 import { surfaceI18n } from './surface-i18n';
+import { TimeZoneInput } from './TimeZoneInput';
 import {
   AutomationDraftPersistenceStatus,
   useAutomationDraftPersistence,
@@ -537,16 +538,14 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                     }
                   />
                 </label>
-                <label>
-                  {t('automation.timezone')}
-                  <input
-                    aria-label={t('automation.timezoneLabel')}
-                    value={draft.schedule.timezone}
-                    onChange={(event) =>
-                      update('schedule', { ...draft.schedule!, timezone: event.target.value })
-                    }
-                  />
-                </label>
+                <TimeZoneInput
+                  label={t('automation.timezone')}
+                  aria-label={t('automation.timezoneLabel')}
+                  value={draft.schedule.timezone}
+                  onChange={(event) =>
+                    update('schedule', { ...draft.schedule!, timezone: event.target.value })
+                  }
+                />
               </div>
             )}
             <label>

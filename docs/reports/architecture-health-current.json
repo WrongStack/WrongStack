@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T14:35:37.860Z",
+  "generatedAt": "2026-11-05T15:18:47.579Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6044,
-    "testFiles": 5035,
-    "sourceLines": 1251946,
+    "sourceFiles": 6045,
+    "testFiles": 5036,
+    "sourceLines": 1252140,
     "workspaceEdges": 243,
-    "moduleEdges": 17795,
+    "moduleEdges": 17798,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 288,
+    "testsWithoutTypecheck": 289,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1037
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 451,
-      "testFiles": 288,
+      "sourceFiles": 452,
+      "testFiles": 289,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1844,6 +1844,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-stream.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-values.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32150,6 +32156,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/engine-values.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/execution-policy-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34529,8 +34542,8 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 850,
-      "relativeImports": 15
+      "lines": 849,
+      "relativeImports": 16
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
@@ -34539,12 +34552,12 @@
     },
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2044,
+      "lines": 2045,
       "relativeImports": 31
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
-      "lines": 931,
+      "lines": 933,
       "relativeImports": 18
     },
     {
@@ -34569,7 +34582,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1065,
+      "lines": 1068,
       "relativeImports": 10
     },
     {
@@ -34579,12 +34592,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 955,
+      "lines": 950,
       "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 752,
+      "lines": 755,
       "relativeImports": 14
     },
     {
@@ -34594,8 +34607,8 @@
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
-      "lines": 779,
-      "relativeImports": 9
+      "lines": 778,
+      "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
@@ -34611,7 +34624,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2044,
+      "lines": 2045,
       "relativeImports": 31
     },
     {
@@ -34636,7 +34649,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1065,
+      "lines": 1068,
       "relativeImports": 10
     },
     {
@@ -34646,12 +34659,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 955,
+      "lines": 950,
       "relativeImports": 13
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
-      "lines": 931,
+      "lines": 933,
       "relativeImports": 18
     },
     {
@@ -34666,8 +34679,8 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 850,
-      "relativeImports": 15
+      "lines": 849,
+      "relativeImports": 16
     },
     {
       "file": "packages/vibeui/src/lib/session.ts",
@@ -34696,8 +34709,8 @@
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
-      "lines": 779,
-      "relativeImports": 9
+      "lines": 778,
+      "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
@@ -34710,14 +34723,14 @@
       "relativeImports": 3
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
+      "lines": 755,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/client/src/client.ts",
       "lines": 754,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectSdd.tsx",
-      "lines": 752,
-      "relativeImports": 14
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",

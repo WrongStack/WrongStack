@@ -226,7 +226,7 @@ export function AtlasMatrixView({ graph, selected, onSelect }: Props) {
                 <th scope="col" key={n.id}>
                   <button
                     type="button"
-                    title={`${n.label} · ${n.group}`}
+                    title={n.group && n.group !== n.label ? `${n.label} · ${n.group}` : n.label}
                     onClick={() => onSelect(n.id)}
                   >
                     {safeCol * size + i + 1}
@@ -280,7 +280,7 @@ export function AtlasMatrixView({ graph, selected, onSelect }: Props) {
           <li key={n.id}>
             <button type="button" onClick={() => onSelect(n.id)}>
               {n.label}
-              <small>{n.group}</small>
+              {n.group && n.group !== n.label && <small>{n.group}</small>}
             </button>
           </li>
         ))}
@@ -383,9 +383,9 @@ export function AtlasImpactView({ graph, selected, onSelect, onOpen }: Props) {
                   <FileCode2 size={15} />
                   <span>
                     <strong>{n.label}</strong>
-                    <small>{n.detail}</small>
+                    {n.detail !== n.label && <small>{n.detail}</small>}
                   </span>
-                  <em>{n.group}</em>
+                  {n.group !== n.label && <em>{n.group}</em>}
                 </button>
               ))}
           </section>

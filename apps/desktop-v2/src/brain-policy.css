@@ -111,6 +111,11 @@
   color: var(--text);
   font: inherit;
 }
+/* A duration edited in seconds, in words under its input ("5 min"). */
+.brain-field .brain-duration {
+  margin: -2px 0 0;
+  color: var(--muted);
+}
 .brain-toggle {
   flex-direction: row;
   justify-content: space-between;

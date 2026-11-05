@@ -6,6 +6,7 @@ import { availabilityWords } from './availability-words';
 import { useDesktopText } from './desktop-i18n';
 import { entries } from './engine-values';
 import type { PolicyProps } from './ModelPolicySettings';
+import { TimeZoneInput } from './TimeZoneInput';
 
 export function AvailabilitySettings({ draft, change, command }: PolicyProps) {
   const { t } = useDesktopText();
@@ -194,15 +195,13 @@ export function AvailabilitySettings({ draft, change, command }: PolicyProps) {
                   onChange={(e) => patch(rule.id, { end: e.target.value })}
                 />
               </label>
-              <label>
-                {t('availability.timezone')}
-                <input
-                  aria-label={t('availability.timezoneLabel', { name })}
-                  value={rule.timezone ?? ''}
-                  placeholder={t('availability.hostTimezone')}
-                  onChange={(e) => patch(rule.id, { timezone: e.target.value || undefined })}
-                />
-              </label>
+              <TimeZoneInput
+                label={t('availability.timezone')}
+                aria-label={t('availability.timezoneLabel', { name })}
+                value={rule.timezone ?? ''}
+                placeholder={t('availability.hostTimezone')}
+                onChange={(e) => patch(rule.id, { timezone: e.target.value || undefined })}
+              />
             </div>
             <label className="policy-toggle">
               <input

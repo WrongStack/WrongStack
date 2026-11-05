@@ -1,5 +1,4 @@
 import {
-  formatLimitRange,
   LIMIT_BOUNDS,
   LIMITS_BUDGET_KEYS,
   LIMITS_SCALAR_KEYS,
@@ -7,7 +6,7 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { record } from './engine-values';
+import { byteText, durationText, record } from './engine-values';
 import {
   ModelCatalog,
   ModelReference,
@@ -19,41 +18,69 @@ import {
 import { removeModelTier, validSettingsName, withoutSetting } from './settings-save-model';
 
 type Row = Record<string, unknown>;
+type LimitKey = (typeof LIMITS_SCALAR_KEYS)[number] | (typeof LIMITS_BUDGET_KEYS)[number];
 export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft' | 'change'>) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const limits = record(draft['limits']),
     budget = record(limits['subagentDefaultBudget']);
-  const input = (
-    key: (typeof LIMITS_SCALAR_KEYS)[number] | (typeof LIMITS_BUDGET_KEYS)[number],
-    worker: boolean,
-  ) => {
+  // Sizes in KiB/MiB and spans in words; counted units in the display language.
+  const amount = (unit: string, value: number) =>
+    unit === 'bytes'
+      ? byteText(value, i18n.language)
+      : unit === 'ms'
+        ? durationText(value, i18n.language)
+        : t(`limitsPolicy.unit.${unit}`, { value: value.toLocaleString(i18n.language) });
+  const range = (key: LimitKey) => {
+    const { min, max, unit, maxNote } = LIMIT_BOUNDS[key];
+    if (max !== undefined)
+      return t('limitsPolicy.range', { min: amount(unit, min), max: amount(unit, max) });
+    return maxNote && maxNote !== 'none'
+      ? t('limitsPolicy.rangeOpenNote', {
+          min: amount(unit, min),
+          note: t(`limitsPolicy.maxNote.${key}`),
+        })
+      : t('limitsPolicy.rangeOpen', { min: amount(unit, min) });
+  };
+  const input = (key: LimitKey, worker: boolean) => {
     const values = worker ? budget : limits,
       value = values[key],
-      bound = LIMIT_BOUNDS[key];
+      bound = LIMIT_BOUNDS[key],
+      // Stored in milliseconds, edited in seconds.
+      scale = bound.unit === 'ms' ? 1000 : 1;
     return (
       <div className="setting-row setting-number" key={key}>
         <div>
           <label htmlFor={'limit-' + key}>{t(`limitsPolicy.field.${key}`)}</label>
-          <p>{bound.why}</p>
-          <small>{formatLimitRange(key)}</small>
+          <p>{t(`limitsPolicy.why.${key}`)}</p>
+          <small>{range(key)}</small>
         </div>
         <div className="setting-control">
           <input
             id={'limit-' + key}
             type="number"
-            min={bound.min}
-            max={bound.max}
-            step="1"
-            value={typeof value === 'number' ? value : ''}
+            min={bound.min / scale}
+            max={bound.max === undefined ? undefined : bound.max / scale}
+            step={scale === 1 ? '1' : 'any'}
+            value={typeof value === 'number' ? value / scale : ''}
             placeholder={t('limitsPolicy.engineDefault')}
             onChange={(e) => {
               const next =
                 e.target.value === ''
                   ? withoutSetting(values, key)
-                  : { ...values, [key]: Number(e.target.value) };
+                  : {
+                      ...values,
+                      [key]:
+                        scale === 1
+                          ? Number(e.target.value)
+                          : Math.round(Number(e.target.value) * scale),
+                    };
               change('limits', worker ? { ...limits, subagentDefaultBudget: next } : next);
             }}
           />
+          {typeof value === 'number' &&
+            (bound.unit === 'bytes' || (scale > 1 && value >= 60_000)) && (
+              <small>{amount(bound.unit, value)}</small>
+            )}
         </div>
       </div>
     );
@@ -75,17 +102,23 @@ export function LimitsPolicySettings({ draft, change }: Pick<PolicyProps, 'draft
 }
 function OptionalNumber({
   label,
+  name,
   value,
   min = 0,
   max,
   step = 'any',
+  scale = 1,
   onChange,
 }: {
   label: string;
+  /** Accessible name when the visible label leans on a heading. */
+  name?: string;
   value: unknown;
   min?: number;
   max?: number;
   step?: string;
+  /** Stored value per edited unit: 1000 edits milliseconds in seconds. */
+  scale?: number;
   onChange: (v: number | undefined) => void;
 }) {
   const { t } = useDesktopText();
@@ -94,12 +127,21 @@ function OptionalNumber({
       {label}
       <input
         type="number"
+        aria-label={name}
         min={min}
         max={max}
         step={step}
-        value={typeof value === 'number' ? value : ''}
+        value={typeof value === 'number' ? value / scale : ''}
         placeholder={t('tierPolicy.inherit')}
-        onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+        onChange={(e) =>
+          onChange(
+            e.target.value === ''
+              ? undefined
+              : scale === 1
+                ? Number(e.target.value)
+                : Math.round(Number(e.target.value) * scale),
+          )
+        }
       />
     </label>
   );
@@ -202,20 +244,23 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
               </button>
             </header>
             <label>
-              {t('tierPolicy.description', { id })}
+              {t('tierPolicy.field.description')}
               <input
+                aria-label={t('tierPolicy.description', { id })}
                 value={String(row['description'] ?? '')}
                 onChange={(e) => level(id, optional(row, 'description', e.target.value))}
               />
             </label>
             <div className="policy-field-grid">
               <ModelReference
-                label={t('tierPolicy.primary', { id })}
+                label={t('tierPolicy.field.primary')}
+                name={t('tierPolicy.primary', { id })}
                 value={modelRef(row)}
                 onChange={(v) => level(id, modelRefPatch(row, v))}
               />
               <ProfileSelect
-                label={t('tierPolicy.fallback', { id })}
+                label={t('tierPolicy.field.fallback')}
+                name={t('tierPolicy.fallback', { id })}
                 value={row['fallbackProfile']}
                 profiles={profiles}
                 onChange={(v) => level(id, optional(row, 'fallbackProfile', v))}
@@ -228,18 +273,20 @@ export function TierPolicySettings({ draft, change, command }: PolicyProps) {
                   ['maxIterations', 1, '1'],
                   ['maxToolCalls', 1, '1'],
                   ['maxTokens', 1, '1'],
-                  ['timeoutMs', 1, '1'],
+                  ['timeoutMs', 0.001, 'any'],
                 ] as const
               ).map(([key, min, step]) => (
                 <OptionalNumber
                   key={key}
-                  label={t('tierPolicy.budget', {
+                  label={t(`tierPolicy.budgetField.${key}`)}
+                  name={t('tierPolicy.budget', {
                     id,
                     label: t(`tierPolicy.budgetField.${key}`),
                   })}
                   value={row[key]}
                   min={min}
                   step={step}
+                  scale={key === 'timeoutMs' ? 1000 : 1}
                   onChange={(v) => level(id, optional(row, key, v))}
                 />
               ))}

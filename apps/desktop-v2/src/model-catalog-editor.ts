@@ -18,6 +18,16 @@ export const modelTextFields = [
   ['release_date', 'Release date'],
   ['last_updated', 'Last updated'],
 ] as const;
+/**
+ * The catalog writes dates as `YYYY-MM` or `YYYY-MM-DD` (both occur for every date field):
+ * each edits in the picker of its own shape, anything else as the text it is.
+ */
+export function modelTextInputType(key: string, value: string): 'text' | 'month' | 'date' {
+  if (key !== 'knowledge' && key !== 'release_date' && key !== 'last_updated') return 'text';
+  if (/^\d{4}-\d{2}$/.test(value)) return 'month';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'date';
+  return value ? 'text' : key === 'knowledge' ? 'month' : 'date';
+}
 export const modelNumberFields = [
   ['limit', 'context', 'Context tokens'],
   ['limit', 'input', 'Maximum input tokens'],

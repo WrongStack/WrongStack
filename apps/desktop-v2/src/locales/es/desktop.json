@@ -1112,6 +1112,9 @@
     "attachTitle": "Adjuntar imágenes o PDF · también puedes pegar o soltar"
   },
   "fileView": {
+    "missingOnDisk": "«{{name}}» ya no está en el disco. Puede que se haya movido o eliminado fuera de WrongStack.",
+    "deniedOnDisk": "WrongStack no tiene permiso para abrir «{{name}}». Revisa los permisos del archivo.",
+    "busyOnDisk": "«{{name}}» está en uso por otro programa. Ciérralo allí e inténtalo de nuevo.",
     "sourceGone": "El archivo de origen no está disponible. Tu borrador recuperado se conserva; cópialo antes de volver a crear el archivo.",
     "draftNotSaved": "No se guardó el borrador local: {{error}}. El texto de tu editor sigue disponible.",
     "saved": "{{name}} guardado.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Tiempo límite de decisión del modelo",
-        "help": "Milisegundos por llamada al modelo. Vacío hereda el valor del motor."
+        "help": "Segundos por llamada al modelo. Vacío hereda el valor del motor."
       },
       "humanTimeoutMs": {
         "label": "Tiempo límite de respuesta del operador",
-        "help": "Milisegundos de espera; cero espera indefinidamente. Vacío hereda el valor del motor."
+        "help": "Segundos de espera; cero espera indefinidamente. Vacío hereda el valor del motor."
       },
       "decisionLogMaxEntries": {
         "label": "Capacidad de decisiones recientes",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Vida de la caché de decisiones",
-          "help": "Milisegundos antes de que caduque una decisión guardada."
+          "help": "Segundos antes de que caduque una decisión guardada."
         },
         "maxEntries": {
           "label": "Capacidad de la caché de decisiones",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Tiempo límite por puesto del consejo",
-          "help": "Milisegundos por puesto; vacío hereda el tiempo límite de decisión."
+          "help": "Segundos por puesto; vacío hereda el tiempo límite de decisión."
         },
         "maxConcurrency": {
           "label": "Puestos del consejo simultáneos",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Ventana de reintento de intervenciones",
-          "help": "Milisegundos durante los que una intervención repetida marca como fallida la indicación anterior."
+          "help": "Segundos durante los que una intervención repetida marca como fallida la indicación anterior."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Ventana de tormenta de errores",
-          "help": "Ventana deslizante en milisegundos."
+          "help": "Ventana deslizante en segundos."
         },
         "stallMs": {
           "label": "Tiempo límite de detención",
-          "help": "Milisegundos sin avance; cero desactiva el umbral de detención."
+          "help": "Segundos sin avance; cero desactiva el umbral de detención."
         },
         "stallCheckIntervalMs": {
           "label": "Intervalo de comprobación de detención",
-          "help": "Milisegundos entre comprobaciones del vigilante."
+          "help": "Segundos entre comprobaciones del vigilante."
         },
         "fileChurnThreshold": {
           "label": "Umbral de cambios repetidos en archivos",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Ventana de cambios repetidos en archivos",
-          "help": "Ventana deslizante de recuento de ediciones en milisegundos."
+          "help": "Ventana deslizante de recuento de ediciones en segundos."
         },
         "cooldownMs": {
           "label": "Enfriamiento de señales del monitor",
-          "help": "Milisegundos entre intervenciones para la misma señal."
+          "help": "Segundos entre intervenciones para la misma señal."
         },
         "fileEditTools": {
           "label": "Nombres de herramientas de edición de archivos",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Caracteres del resultado del subagente",
       "maxIterations": "Iteraciones del worker",
       "maxToolCalls": "Llamadas a herramientas del worker",
-      "timeoutMs": "Tiempo de espera del worker (ms)"
+      "timeoutMs": "Tiempo de espera del worker (segundos)"
     },
     "engineDefault": "Predeterminado del motor",
     "intro": "Vacío significa heredar el valor predeterminado del motor, la plantilla o el modelo. Un límite solo se aplica si lo introduces. Vacía un campo para quitar esa anulación.",
     "contextLabel": "Límites de contexto y salida",
     "contextTitle": "Contexto y salida",
     "workerTitle": "Presupuestos predeterminados de workers",
-    "workerHelp": "Se usa cuando un worker no tiene presupuesto explícito. Los presupuestos de nivel y de tarea siguen aparte."
+    "workerHelp": "Se usa cuando un worker no tiene presupuesto explícito. Los presupuestos de nivel y de tarea siguen aparte.",
+    "why": {
+      "responseOutputTokens": "Por debajo de esto, una respuesta que primero llama a una herramienta o razona vuelve cortada o vacía.",
+      "toolOutputPreviewBytes": "La vista previa es un inicio y un final; por debajo de 1 KiB ninguno es legible. Las herramientas guardan como máximo 64 MiB.",
+      "fetchBytes": "Por debajo de 1 KiB una página es solo su cabecera de marcado. Las herramientas guardan como máximo 64 MiB.",
+      "projectInstructionsChars": "Por debajo de esto solo sobrevive el encabezado de un archivo de instrucciones.",
+      "memoryInjectChars": "Por debajo de esto no cabe ni una entrada de memoria.",
+      "historyMessages": "Menos expulsaría las propias llamadas a herramientas y resultados del turno en curso.",
+      "subagentResultChars": "Por debajo de esto no cabe la línea de resumen de un subagente.",
+      "maxIterations": "Un subagente necesita una iteración para llamar a una herramienta y otra para informar.",
+      "maxToolCalls": "Un subagente sin llamadas a herramientas no puede actuar.",
+      "timeoutMs": "Por debajo de 10 s un subagente agota el tiempo antes de la primera respuesta del modelo; por encima de ~24,8 días el temporizador de Node se desborda y se dispara de inmediato."
+    },
+    "maxNote": {
+      "responseOutputTokens": "el límite de salida del propio modelo",
+      "projectInstructionsChars": "el archivo completo",
+      "memoryInjectChars": "la memoria completa",
+      "historyMessages": "la ventana del modelo (compactación)",
+      "subagentResultChars": "el resultado completo"
+    },
+    "unit": {
+      "tokens": "{{value}} tokens",
+      "chars": "{{value}} caracteres",
+      "messages": "{{value}} mensajes",
+      "iterations": "{{value}} iteraciones",
+      "calls": "{{value}} llamadas"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "Al menos {{min}}",
+    "rangeOpenNote": "Al menos {{min}}; como máximo {{note}}"
   },
   "tierPolicy": {
     "inherit": "Heredar",
@@ -7208,13 +7240,18 @@
     "description": "Descripción de {{id}}",
     "primary": "Modelo principal de {{id}}",
     "fallback": "Perfil de respaldo del nivel {{id}}",
+    "field": {
+      "description": "Descripción",
+      "primary": "Modelo principal",
+      "fallback": "Perfil de respaldo"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Techo de gasto (USD)",
       "maxIterations": "Iteraciones",
       "maxToolCalls": "Llamadas a herramientas",
       "maxTokens": "Tokens",
-      "timeoutMs": "Tiempo de espera (ms)"
+      "timeoutMs": "Tiempo de espera (segundos)"
     },
     "routingEyebrow": "ENRUTAMIENTO",
     "routingTitle": "Niveles por rol y fase",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Controla si el líder puede cambiar su propio nivel. Proponer pide una decisión; el cambio automático sigue limitado por estas protecciones.",
     "leaderMode": "Cambio de nivel del líder",
     "leaderModeOption": {
-      "off": "desactivado",
-      "propose": "proponer",
-      "auto": "automático"
+      "off": "Desactivado",
+      "propose": "Proponer",
+      "auto": "Automático"
     },
     "leaderMax": "Nivel máximo del líder",
     "dwell": "Turnos mínimos antes de cambiar",

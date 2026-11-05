@@ -1112,6 +1112,9 @@
     "attachTitle": "Attach images or PDFs · paste or drop also works"
   },
   "fileView": {
+    "missingOnDisk": "“{{name}}” is no longer on disk. It may have been moved or deleted outside WrongStack.",
+    "deniedOnDisk": "WrongStack is not allowed to open “{{name}}”. Check the file’s permissions.",
+    "busyOnDisk": "“{{name}}” is in use by another program. Close it there and try again.",
     "sourceGone": "The source file is unavailable. Your recovered draft is preserved; copy it before recreating the file.",
     "draftNotSaved": "Local draft was not saved: {{error}}. Your editor text is still available.",
     "saved": "Saved {{name}}.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Model decision timeout",
-        "help": "Milliseconds per model call. Empty inherits the engine default."
+        "help": "Seconds per model call. Empty inherits the engine default."
       },
       "humanTimeoutMs": {
         "label": "Operator response timeout",
-        "help": "Milliseconds to wait; zero waits indefinitely. Empty inherits the engine default."
+        "help": "Seconds to wait; zero waits indefinitely. Empty inherits the engine default."
       },
       "decisionLogMaxEntries": {
         "label": "Recent decision capacity",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Decision cache lifetime",
-          "help": "Milliseconds before a stored decision expires."
+          "help": "Seconds before a stored decision expires."
         },
         "maxEntries": {
           "label": "Decision cache capacity",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Council seat timeout",
-          "help": "Milliseconds per seat; empty inherits the decision timeout."
+          "help": "Seconds per seat; empty inherits the decision timeout."
         },
         "maxConcurrency": {
           "label": "Concurrent council seats",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Intervention retry window",
-          "help": "Milliseconds during which repeated intervention marks the earlier steer as failed."
+          "help": "Seconds during which repeated intervention marks the earlier steer as failed."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Error-storm window",
-          "help": "Sliding window in milliseconds."
+          "help": "Sliding window in seconds."
         },
         "stallMs": {
           "label": "Stall timeout",
-          "help": "Milliseconds without progress; zero disables the stall threshold."
+          "help": "Seconds without progress; zero disables the stall threshold."
         },
         "stallCheckIntervalMs": {
           "label": "Stall check interval",
-          "help": "Milliseconds between watchdog checks."
+          "help": "Seconds between watchdog checks."
         },
         "fileChurnThreshold": {
           "label": "File-churn threshold",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "File-churn window",
-          "help": "Sliding edit-count window in milliseconds."
+          "help": "Sliding edit-count window in seconds."
         },
         "cooldownMs": {
           "label": "Monitor signal cooldown",
-          "help": "Milliseconds between re-engagements for the same signal."
+          "help": "Seconds between re-engagements for the same signal."
         },
         "fileEditTools": {
           "label": "File-edit tool names",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Subagent result characters",
       "maxIterations": "Worker iterations",
       "maxToolCalls": "Worker tool calls",
-      "timeoutMs": "Worker timeout (ms)"
+      "timeoutMs": "Worker timeout (seconds)"
     },
     "engineDefault": "Engine default",
     "intro": "Blank means inherit the engine, roster or model default. A limit is applied only when you enter one. Clear a field to remove that override.",
     "contextLabel": "Context and output limits",
     "contextTitle": "Context & output",
     "workerTitle": "Default worker budgets",
-    "workerHelp": "Used when a worker has no explicit budget. Tier and task budgets remain separate."
+    "workerHelp": "Used when a worker has no explicit budget. Tier and task budgets remain separate.",
+    "why": {
+      "responseOutputTokens": "Below this a reply that calls a tool or reasons first comes back cut off or empty.",
+      "toolOutputPreviewBytes": "The preview is a head and a tail; below 1 KiB neither is readable. Tools hold at most 64 MiB.",
+      "fetchBytes": "Below 1 KiB a page is only its markup header. Tools hold at most 64 MiB.",
+      "projectInstructionsChars": "Below this only the heading of an instructions file survives.",
+      "memoryInjectChars": "Below this not even one memory entry fits.",
+      "historyMessages": "Fewer would evict the running turn’s own tool calls and results.",
+      "subagentResultChars": "Below this a subagent’s summary line does not fit.",
+      "maxIterations": "A subagent needs one iteration to call a tool and one to report.",
+      "maxToolCalls": "A subagent with no tool calls cannot act.",
+      "timeoutMs": "Below 10 s a subagent times out before its first model reply; above ~24.8 days Node’s timer overflows and fires at once."
+    },
+    "maxNote": {
+      "responseOutputTokens": "the model’s own output ceiling",
+      "projectInstructionsChars": "the whole file",
+      "memoryInjectChars": "the whole memory",
+      "historyMessages": "the model’s window (compaction)",
+      "subagentResultChars": "the whole result"
+    },
+    "unit": {
+      "tokens": "{{value}} tokens",
+      "chars": "{{value}} characters",
+      "messages": "{{value}} messages",
+      "iterations": "{{value}} iterations",
+      "calls": "{{value}} calls"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "At least {{min}}",
+    "rangeOpenNote": "At least {{min}}; at most {{note}}"
   },
   "tierPolicy": {
     "inherit": "Inherit",
@@ -7208,13 +7240,18 @@
     "description": "{{id}} description",
     "primary": "{{id}} primary model",
     "fallback": "{{id}} tier fallback profile",
+    "field": {
+      "description": "Description",
+      "primary": "Primary model",
+      "fallback": "Fallback profile"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Spend ceiling (USD)",
       "maxIterations": "Iterations",
       "maxToolCalls": "Tool calls",
       "maxTokens": "Tokens",
-      "timeoutMs": "Timeout (ms)"
+      "timeoutMs": "Timeout (seconds)"
     },
     "routingEyebrow": "ROUTING",
     "routingTitle": "Role & phase tiers",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Controls whether the leader may change its own tier. Propose asks for a decision; automatic switching remains bounded by these guards.",
     "leaderMode": "Leader tier switching",
     "leaderModeOption": {
-      "off": "off",
-      "propose": "propose",
-      "auto": "auto"
+      "off": "Off",
+      "propose": "Propose",
+      "auto": "Automatic"
     },
     "leaderMax": "Leader maximum tier",
     "dwell": "Minimum turns before switching",

@@ -1112,6 +1112,9 @@
     "attachTitle": "Joindre des images ou des PDF · coller ou déposer fonctionne aussi"
   },
   "fileView": {
+    "missingOnDisk": "« {{name}} » n’est plus sur le disque. Il a peut-être été déplacé ou supprimé hors de WrongStack.",
+    "deniedOnDisk": "WrongStack n’est pas autorisé à ouvrir « {{name}} ». Vérifiez les autorisations du fichier.",
+    "busyOnDisk": "« {{name}} » est utilisé par un autre programme. Fermez-le et réessayez.",
     "sourceGone": "Le fichier source est indisponible. Votre brouillon récupéré est conservé ; copiez-le avant de recréer le fichier.",
     "draftNotSaved": "Le brouillon local n'a pas été enregistré : {{error}}. Le texte de votre éditeur est toujours disponible.",
     "saved": "{{name}} enregistré.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Délai de décision du modèle",
-        "help": "Millisecondes par appel au modèle. Vide hérite de la valeur du moteur."
+        "help": "Secondes par appel au modèle. Vide hérite de la valeur du moteur."
       },
       "humanTimeoutMs": {
         "label": "Délai de réponse de l’opérateur",
-        "help": "Millisecondes d’attente ; zéro attend indéfiniment. Vide hérite de la valeur du moteur."
+        "help": "Secondes d’attente ; zéro attend indéfiniment. Vide hérite de la valeur du moteur."
       },
       "decisionLogMaxEntries": {
         "label": "Capacité des décisions récentes",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Durée de vie du cache des décisions",
-          "help": "Millisecondes avant qu’une décision stockée n’expire."
+          "help": "Secondes avant qu’une décision stockée n’expire."
         },
         "maxEntries": {
           "label": "Capacité du cache des décisions",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Délai par siège du conseil",
-          "help": "Millisecondes par siège ; vide hérite du délai de décision."
+          "help": "Secondes par siège ; vide hérite du délai de décision."
         },
         "maxConcurrency": {
           "label": "Sièges du conseil simultanés",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Fenêtre de relance des interventions",
-          "help": "Millisecondes pendant lesquelles une intervention répétée marque l’orientation précédente comme échouée."
+          "help": "Secondes pendant lesquelles une intervention répétée marque l’orientation précédente comme échouée."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Fenêtre de tempête d’erreurs",
-          "help": "Fenêtre glissante en millisecondes."
+          "help": "Fenêtre glissante en secondes."
         },
         "stallMs": {
           "label": "Délai de blocage",
-          "help": "Millisecondes sans progrès ; zéro désactive le seuil de blocage."
+          "help": "Secondes sans progrès ; zéro désactive le seuil de blocage."
         },
         "stallCheckIntervalMs": {
           "label": "Intervalle de vérification du blocage",
-          "help": "Millisecondes entre deux vérifications du chien de garde."
+          "help": "Secondes entre deux vérifications du chien de garde."
         },
         "fileChurnThreshold": {
           "label": "Seuil de remaniement de fichier",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Fenêtre de remaniement de fichier",
-          "help": "Fenêtre glissante de comptage des modifications en millisecondes."
+          "help": "Fenêtre glissante de comptage des modifications en secondes."
         },
         "cooldownMs": {
           "label": "Délai de récupération des signaux du moniteur",
-          "help": "Millisecondes entre deux interventions pour le même signal."
+          "help": "Secondes entre deux interventions pour le même signal."
         },
         "fileEditTools": {
           "label": "Noms des outils de modification de fichiers",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Caractères des résultats de sous-agent",
       "maxIterations": "Itérations du worker",
       "maxToolCalls": "Appels d’outils du worker",
-      "timeoutMs": "Délai du worker (ms)"
+      "timeoutMs": "Délai du worker (secondes)"
     },
     "engineDefault": "Valeur par défaut du moteur",
     "intro": "Vide signifie hériter de la valeur par défaut du moteur, de l’effectif ou du modèle. Une limite ne s’applique que si tu en saisis une. Vide un champ pour retirer la surcharge.",
     "contextLabel": "Limites de contexte et de sortie",
     "contextTitle": "Contexte et sortie",
     "workerTitle": "Budgets par défaut des workers",
-    "workerHelp": "Utilisé quand un worker n’a pas de budget explicite. Les budgets de palier et de tâche restent distincts."
+    "workerHelp": "Utilisé quand un worker n’a pas de budget explicite. Les budgets de palier et de tâche restent distincts.",
+    "why": {
+      "responseOutputTokens": "En dessous, une réponse qui appelle d’abord un outil ou raisonne revient tronquée ou vide.",
+      "toolOutputPreviewBytes": "L’aperçu est un début et une fin ; sous 1 KiB, aucun n’est lisible. Les outils conservent au plus 64 MiB.",
+      "fetchBytes": "Sous 1 KiB, une page n’est que son en-tête de balisage. Les outils conservent au plus 64 MiB.",
+      "projectInstructionsChars": "En dessous, seul le titre d’un fichier d’instructions subsiste.",
+      "memoryInjectChars": "En dessous, pas même une entrée de mémoire ne tient.",
+      "historyMessages": "Moins évincerait les propres appels d’outils et résultats du tour en cours.",
+      "subagentResultChars": "En dessous, la ligne de résumé d’un sous-agent ne tient pas.",
+      "maxIterations": "Un sous-agent a besoin d’une itération pour appeler un outil et d’une pour rendre compte.",
+      "maxToolCalls": "Un sous-agent sans appel d’outil ne peut pas agir.",
+      "timeoutMs": "Sous 10 s, un sous-agent expire avant la première réponse du modèle ; au-delà d’environ 24,8 jours, le minuteur de Node déborde et se déclenche aussitôt."
+    },
+    "maxNote": {
+      "responseOutputTokens": "le plafond de sortie du modèle",
+      "projectInstructionsChars": "le fichier entier",
+      "memoryInjectChars": "la mémoire entière",
+      "historyMessages": "la fenêtre du modèle (compaction)",
+      "subagentResultChars": "le résultat entier"
+    },
+    "unit": {
+      "tokens": "{{value}} tokens",
+      "chars": "{{value}} caractères",
+      "messages": "{{value}} messages",
+      "iterations": "{{value}} itérations",
+      "calls": "{{value}} appels"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "Au moins {{min}}",
+    "rangeOpenNote": "Au moins {{min}} ; au plus {{note}}"
   },
   "tierPolicy": {
     "inherit": "Hériter",
@@ -7208,13 +7240,18 @@
     "description": "Description de {{id}}",
     "primary": "Modèle principal de {{id}}",
     "fallback": "Profil de repli du palier {{id}}",
+    "field": {
+      "description": "Description",
+      "primary": "Modèle principal",
+      "fallback": "Profil de repli"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Plafond de dépenses (USD)",
       "maxIterations": "Itérations",
       "maxToolCalls": "Appels d’outils",
       "maxTokens": "Tokens",
-      "timeoutMs": "Délai (ms)"
+      "timeoutMs": "Délai (secondes)"
     },
     "routingEyebrow": "ROUTAGE",
     "routingTitle": "Paliers par rôle et phase",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Indique si le meneur peut changer son propre palier. Proposer demande une décision ; le changement automatique reste borné par ces garde-fous.",
     "leaderMode": "Changement de palier du meneur",
     "leaderModeOption": {
-      "off": "désactivé",
-      "propose": "proposer",
-      "auto": "automatique"
+      "off": "Désactivé",
+      "propose": "Proposer",
+      "auto": "Automatique"
     },
     "leaderMax": "Palier maximal du meneur",
     "dwell": "Tours minimum avant changement",

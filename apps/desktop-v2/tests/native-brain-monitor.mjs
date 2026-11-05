@@ -20,12 +20,12 @@ export async function exerciseNativeBrainMonitor({
   const values = {
     'Consecutive tool failures': '5',
     'Error-storm threshold': '7',
-    'Error-storm window': '90000',
+    'Error-storm window': '90',
     'Stall timeout': '0',
-    'Stall check interval': '45000',
+    'Stall check interval': '45',
     'File-churn threshold': '30',
-    'File-churn window': '900000',
-    'Monitor signal cooldown': '1234',
+    'File-churn window': '900',
+    'Monitor signal cooldown': '1.234',
   };
   for (const [label, value] of Object.entries(values))
     await panel.getByLabel(label, { exact: true }).fill(value);
@@ -172,7 +172,7 @@ export async function exerciseNativeBrainMonitor({
     .click();
   await waitFor(
     async () =>
-      (await panel.getByLabel('Monitor signal cooldown', { exact: true }).inputValue()) === '555',
+      (await panel.getByLabel('Monitor signal cooldown', { exact: true }).inputValue()) === '0.555',
     'Monitor reset conflict reload',
   );
   const beforeReset = (await call('brain.config.get')).config;

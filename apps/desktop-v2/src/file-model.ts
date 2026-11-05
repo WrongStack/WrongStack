@@ -82,6 +82,25 @@ export function parentPath(path: string) {
 export function fileName(path: string) {
   return path.replaceAll('\\', '/').split('/').at(-1) ?? path;
 }
+/**
+ * A file operation's failure in the display language. The engine passes OS failures through
+ * as Node words them ("ENOENT: no such file or directory, stat 'D:\\p\\a.txt'"); those name
+ * the file and what happened instead. Anything else is already worded for people.
+ */
+export function fileErrorText(
+  error: string,
+  t: (key: string, values: { name: string }) => string,
+): string {
+  const failure = /\b(ENOENT|EACCES|EPERM|EBUSY)\b[^']*'([^']+)'/.exec(error);
+  if (!failure) return error;
+  const key =
+    failure[1] === 'ENOENT'
+      ? 'missingOnDisk'
+      : failure[1] === 'EBUSY'
+        ? 'busyOnDisk'
+        : 'deniedOnDisk';
+  return t(`fileView.${key}`, { name: fileName(failure[2]!) });
+}
 export function byteSize(bytes: number) {
   return bytes < 1024
     ? `${bytes} B`

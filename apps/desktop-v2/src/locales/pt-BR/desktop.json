@@ -1112,6 +1112,9 @@
     "attachTitle": "Anexar imagens ou PDFs · colar ou soltar também funciona"
   },
   "fileView": {
+    "missingOnDisk": "“{{name}}” não está mais no disco. Pode ter sido movido ou excluído fora do WrongStack.",
+    "deniedOnDisk": "O WrongStack não tem permissão para abrir “{{name}}”. Verifique as permissões do arquivo.",
+    "busyOnDisk": "“{{name}}” está em uso por outro programa. Feche-o lá e tente novamente.",
     "sourceGone": "O arquivo de origem não está disponível. Seu rascunho recuperado está preservado; copie-o antes de recriar o arquivo.",
     "draftNotSaved": "O rascunho local não foi salvo: {{error}}. O texto do seu editor continua disponível.",
     "saved": "{{name}} salvo.",
@@ -5623,11 +5626,11 @@
       },
       "decisionTimeoutMs": {
         "label": "Tempo limite da decisão do modelo",
-        "help": "Milissegundos por chamada ao modelo. Vazio herda o padrão do mecanismo."
+        "help": "Segundos por chamada ao modelo. Vazio herda o padrão do mecanismo."
       },
       "humanTimeoutMs": {
         "label": "Tempo limite de resposta do operador",
-        "help": "Milissegundos de espera; zero espera indefinidamente. Vazio herda o padrão do mecanismo."
+        "help": "Segundos de espera; zero espera indefinidamente. Vazio herda o padrão do mecanismo."
       },
       "decisionLogMaxEntries": {
         "label": "Capacidade de decisões recentes",
@@ -5680,7 +5683,7 @@
         },
         "ttlMs": {
           "label": "Vida útil do cache de decisões",
-          "help": "Milissegundos até uma decisão armazenada expirar."
+          "help": "Segundos até uma decisão armazenada expirar."
         },
         "maxEntries": {
           "label": "Capacidade do cache de decisões",
@@ -5710,7 +5713,7 @@
         },
         "perCallTimeoutMs": {
           "label": "Tempo limite por assento do conselho",
-          "help": "Milissegundos por assento; vazio herda o tempo limite da decisão."
+          "help": "Segundos por assento; vazio herda o tempo limite da decisão."
         },
         "maxConcurrency": {
           "label": "Assentos do conselho simultâneos",
@@ -5744,7 +5747,7 @@
         },
         "interventionRetryWindowMs": {
           "label": "Janela de nova tentativa de intervenções",
-          "help": "Milissegundos durante os quais uma intervenção repetida marca o direcionamento anterior como falho."
+          "help": "Segundos durante os quais uma intervenção repetida marca o direcionamento anterior como falho."
         }
       },
       "trace": {
@@ -5802,15 +5805,15 @@
         },
         "errorStormWindowMs": {
           "label": "Janela de tempestade de erros",
-          "help": "Janela deslizante em milissegundos."
+          "help": "Janela deslizante em segundos."
         },
         "stallMs": {
           "label": "Tempo limite de travamento",
-          "help": "Milissegundos sem progresso; zero desativa o limite de travamento."
+          "help": "Segundos sem progresso; zero desativa o limite de travamento."
         },
         "stallCheckIntervalMs": {
           "label": "Intervalo de verificação de travamento",
-          "help": "Milissegundos entre verificações do watchdog."
+          "help": "Segundos entre verificações do watchdog."
         },
         "fileChurnThreshold": {
           "label": "Limite de alterações repetidas em arquivos",
@@ -5818,11 +5821,11 @@
         },
         "fileChurnWindowMs": {
           "label": "Janela de alterações repetidas em arquivos",
-          "help": "Janela deslizante de contagem de edições em milissegundos."
+          "help": "Janela deslizante de contagem de edições em segundos."
         },
         "cooldownMs": {
           "label": "Intervalo de espera dos sinais do monitor",
-          "help": "Milissegundos entre novas ações para o mesmo sinal."
+          "help": "Segundos entre novas ações para o mesmo sinal."
         },
         "fileEditTools": {
           "label": "Nomes das ferramentas de edição de arquivos",
@@ -7185,14 +7188,43 @@
       "subagentResultChars": "Caracteres do resultado do subagente",
       "maxIterations": "Iterações do worker",
       "maxToolCalls": "Chamadas de ferramentas do worker",
-      "timeoutMs": "Tempo limite do worker (ms)"
+      "timeoutMs": "Tempo limite do worker (segundos)"
     },
     "engineDefault": "Padrão do motor",
     "intro": "Vazio significa herdar o padrão do motor, do elenco ou do modelo. Um limite só vale quando você informa um. Limpe um campo para remover a substituição.",
     "contextLabel": "Limites de contexto e saída",
     "contextTitle": "Contexto e saída",
     "workerTitle": "Orçamentos padrão dos workers",
-    "workerHelp": "Usado quando um worker não tem orçamento explícito. Orçamentos de nível e de tarefa continuam separados."
+    "workerHelp": "Usado quando um worker não tem orçamento explícito. Orçamentos de nível e de tarefa continuam separados.",
+    "why": {
+      "responseOutputTokens": "Abaixo disso, uma resposta que primeiro chama uma ferramenta ou raciocina volta cortada ou vazia.",
+      "toolOutputPreviewBytes": "A pré-visualização é um início e um fim; abaixo de 1 KiB nenhum dos dois é legível. As ferramentas guardam no máximo 64 MiB.",
+      "fetchBytes": "Abaixo de 1 KiB uma página é só o cabeçalho de marcação. As ferramentas guardam no máximo 64 MiB.",
+      "projectInstructionsChars": "Abaixo disso só o título de um arquivo de instruções sobrevive.",
+      "memoryInjectChars": "Abaixo disso nem uma entrada de memória cabe.",
+      "historyMessages": "Menos removeria as próprias chamadas de ferramentas e resultados do turno em andamento.",
+      "subagentResultChars": "Abaixo disso a linha de resumo de um subagente não cabe.",
+      "maxIterations": "Um subagente precisa de uma iteração para chamar uma ferramenta e outra para relatar.",
+      "maxToolCalls": "Um subagente sem chamadas de ferramentas não consegue agir.",
+      "timeoutMs": "Abaixo de 10 s um subagente expira antes da primeira resposta do modelo; acima de ~24,8 dias o timer do Node estoura e dispara na hora."
+    },
+    "maxNote": {
+      "responseOutputTokens": "o teto de saída do próprio modelo",
+      "projectInstructionsChars": "o arquivo inteiro",
+      "memoryInjectChars": "a memória inteira",
+      "historyMessages": "a janela do modelo (compactação)",
+      "subagentResultChars": "o resultado inteiro"
+    },
+    "unit": {
+      "tokens": "{{value}} tokens",
+      "chars": "{{value}} caracteres",
+      "messages": "{{value}} mensagens",
+      "iterations": "{{value}} iterações",
+      "calls": "{{value}} chamadas"
+    },
+    "range": "{{min}} – {{max}}",
+    "rangeOpen": "Pelo menos {{min}}",
+    "rangeOpenNote": "Pelo menos {{min}}; no máximo {{note}}"
   },
   "tierPolicy": {
     "inherit": "Herdar",
@@ -7208,13 +7240,18 @@
     "description": "Descrição de {{id}}",
     "primary": "Modelo principal de {{id}}",
     "fallback": "Perfil de fallback do nível {{id}}",
+    "field": {
+      "description": "Descrição",
+      "primary": "Modelo principal",
+      "fallback": "Perfil de fallback"
+    },
     "budget": "{{id}} {{label}}",
     "budgetField": {
       "maxCostUsd": "Teto de gastos (USD)",
       "maxIterations": "Iterações",
       "maxToolCalls": "Chamadas de ferramentas",
       "maxTokens": "Tokens",
-      "timeoutMs": "Tempo limite (ms)"
+      "timeoutMs": "Tempo limite (segundos)"
     },
     "routingEyebrow": "ROTEAMENTO",
     "routingTitle": "Níveis por função e fase",
@@ -7229,9 +7266,9 @@
     "leaderIntro": "Controla se o líder pode mudar o próprio nível. Propor pede uma decisão; a troca automática continua limitada por estas proteções.",
     "leaderMode": "Troca de nível do líder",
     "leaderModeOption": {
-      "off": "desligado",
-      "propose": "propor",
-      "auto": "automático"
+      "off": "Desligado",
+      "propose": "Propor",
+      "auto": "Automático"
     },
     "leaderMax": "Nível máximo do líder",
     "dwell": "Turnos mínimos antes da troca",

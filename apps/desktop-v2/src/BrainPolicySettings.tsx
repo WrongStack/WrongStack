@@ -24,13 +24,13 @@ import {
 } from './brain-targets-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { record } from './engine-values';
+import { durationText, record } from './engine-values';
 import { sameSetting } from './settings-save-model';
 import { surfaceI18n } from './surface-i18n';
 import './brain-policy.css';
 
 export function BrainPolicySettings({ command }: { command: EngineCommand }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   // Read through a ref so a language change does not reread the Brain configuration.
   const words = useRef(t);
   words.current = t;
@@ -412,14 +412,19 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
                             type={field.kind === 'text' ? 'text' : 'number'}
                             aria-label={label(field)}
                             disabled={resetMonitor && field.key.startsWith('monitor.')}
-                            min={field.min}
-                            max={field.max}
-                            step={field.step ?? 1}
+                            min={field.seconds ? (field.min ?? 0) / 1000 : field.min}
+                            max={field.seconds && field.max ? field.max / 1000 : field.max}
+                            step={field.seconds ? 'any' : (field.step ?? 1)}
                             required={field.kind === 'number' && !field.optional}
                             value={String(draft[field.key] ?? '')}
                             placeholder={field.optional ? t('brainPolicy.inherit') : undefined}
                             onChange={(event) => change(field.key, event.target.value)}
                           />
+                        )}
+                        {field.seconds && Number(draft[field.key]) >= 60 && (
+                          <small className="brain-duration">
+                            {durationText(Number(draft[field.key]) * 1000, i18n.language)}
+                          </small>
                         )}
                       </label>
                     ))}
