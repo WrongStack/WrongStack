@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries } from './engine-values';
+import { entries, sentenceStart } from './engine-values';
 import './session-usage.css';
 import './session-plan-templates.css';
 
@@ -51,7 +51,9 @@ export function SessionPlanTemplates({
   running: boolean;
   onBack: () => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
+  // Template names and categories are engine ids ("new-feature"); they read as titles.
+  const title = (id: string) => sentenceStart(id.replace(/[-_]+/g, ' ').trim(), i18n.language);
   const [templates, setTemplates] = useState<PlanTemplate[] | null>(null),
     [selected, setSelected] = useState(''),
     [busy, setBusy] = useState(false),
@@ -83,7 +85,10 @@ export function SessionPlanTemplates({
       await command('plan.template_use', { template: template.name }, ['key.operation_result']);
       // The engine's reply is English prose; the page words the result in the display language.
       setNotice(
-        t('planTemplates.addedSteps', { name: template.name, count: template.items.length }),
+        t('planTemplates.addedSteps', {
+          name: title(template.name),
+          count: template.items.length,
+        }),
       );
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -114,8 +119,8 @@ export function SessionPlanTemplates({
             <select value={selected} disabled={busy} onChange={(e) => setSelected(e.target.value)}>
               {templates.map((row) => (
                 <option key={row.name} value={row.name}>
-                  {row.name}
-                  {row.category ? ` · ${row.category}` : ''}
+                  {title(row.name)}
+                  {row.category ? ` · ${title(row.category)}` : ''}
                 </option>
               ))}
             </select>
@@ -123,7 +128,7 @@ export function SessionPlanTemplates({
           {template && (
             <>
               <p>{template.description}</p>
-              <ol aria-label={t('planTemplates.steps', { name: template.name })}>
+              <ol aria-label={t('planTemplates.steps', { name: title(template.name) })}>
                 {template.items.map((item, index) => (
                   <li key={index}>
                     {item.title}
@@ -135,7 +140,7 @@ export function SessionPlanTemplates({
           )}
           <button
             type="button"
-            className="button primary small"
+            className="button primary"
             disabled={busy || running || !template}
             title={running ? t('planTemplates.waitTurn') : undefined}
             onClick={() => void apply()}

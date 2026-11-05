@@ -5228,6 +5228,7 @@
     "cleanerCardsOne": "{{count}} kart ilgi bekliyor",
     "cleanerCardsMany": "{{count}} kart ilgi bekliyor",
     "countCritical": "{{count}} kritik",
+    "countWarning_one": "{{count}} uyarı",
     "countWarning": "{{count}} uyarı",
     "cleanerCollapse": "Kanban Temizleyici sorunlarını daralt",
     "cleanerExpand": "Kanban Temizleyici sorunlarını genişlet",

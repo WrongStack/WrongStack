@@ -49,6 +49,7 @@ export function SddDependencyGraph({ columns }: { columns: Record<string, unknow
         nodes={nodes}
         edges={edges}
         fitView
+        fitViewOptions={{ maxZoom: 1 }}
         nodesConnectable={false}
         nodesDraggable={false}
         elementsSelectable={false}

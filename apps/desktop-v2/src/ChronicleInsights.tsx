@@ -200,7 +200,15 @@ export function ChronicleInsights({
                       )}
                     </header>
                     <p>
-                      {[when(row['occurredAt']), row['toolName'], row['source']]
+                      {[
+                        when(row['occurredAt']),
+                        row['toolName'],
+                        typeof row['source'] === 'string' && row['source']
+                          ? t(`chronicleView.insights.fileSource_${row['source']}`, {
+                              defaultValue: row['source'],
+                            })
+                          : '',
+                      ]
                         .filter((part) => typeof part === 'string' && part)
                         .join(' · ')}
                     </p>

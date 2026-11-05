@@ -93,7 +93,7 @@ describe('session panels in the display language', () => {
     expect(plan.labels).toEqual(
       expect.arrayContaining([
         'Plan templates',
-        'Steps of new-feature',
+        'Steps of New feature',
         'Wait until the current turn ends.',
       ]),
     );
@@ -116,7 +116,7 @@ describe('session panels in the display language', () => {
     expect(turkishPlan.labels).toEqual(
       expect.arrayContaining([
         'Plan şablonları',
-        'new-feature adımları',
+        'New feature adımları',
         'Geçerli tur bitene kadar bekle.',
       ]),
     );

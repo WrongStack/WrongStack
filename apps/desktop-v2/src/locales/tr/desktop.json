@@ -4296,6 +4296,11 @@
       "previousHash": "Önceki özet"
     },
     "insights": {
+      "fileSource_external": "Dış değişiklik",
+      "fileSource_watcher": "Dosya izleyici",
+      "fileSource_deterministic": "Deterministik adım",
+      "fileSource_editor": "Düzenleyici",
+      "fileSource_tool": "Ajan aracı",
       "operation": {
         "write": "Yazıldı",
         "edit": "Düzenlendi",

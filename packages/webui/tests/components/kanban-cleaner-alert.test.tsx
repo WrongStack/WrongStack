@@ -40,7 +40,7 @@ describe('KanbanCleanerAlert', () => {
 
     expect(screen.getByText('Kanban Cleaner found 3 issues')).toBeTruthy();
     expect(screen.getByText('1 critical')).toBeTruthy();
-    expect(screen.getByText('2 warning')).toBeTruthy();
+    expect(screen.getByText('2 warnings')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Open Repair lease/ })).toHaveLength(1);
     expect(screen.getByText(/Assignment lease is expired · Add labels or tags/)).toBeTruthy();
   });

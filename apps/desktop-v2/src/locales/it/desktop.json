@@ -4296,6 +4296,11 @@
       "previousHash": "Hash precedente"
     },
     "insights": {
+      "fileSource_external": "Modifica esterna",
+      "fileSource_watcher": "Osservatore dei file",
+      "fileSource_deterministic": "Passo deterministico",
+      "fileSource_editor": "Editor",
+      "fileSource_tool": "Strumento dell’agente",
       "operation": {
         "write": "Scritto",
         "edit": "Modificato",
