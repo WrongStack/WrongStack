@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T10:02:20.550Z",
+  "generatedAt": "2026-11-05T10:13:11.710Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6026,
+    "sourceFiles": 6031,
     "testFiles": 5027,
-    "sourceLines": 1250743,
-    "workspaceEdges": 240,
-    "moduleEdges": 17751,
+    "sourceLines": 1250864,
+    "workspaceEdges": 241,
+    "moduleEdges": 17759,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -818,7 +818,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 43,
+      "sourceFiles": 48,
       "testFiles": 39,
       "workspaceDependencies": [
         "@wrongstack/builtin-plugins",
@@ -831,6 +831,7 @@
         "@wrongstack/kanban",
         "@wrongstack/primitives",
         "@wrongstack/sage",
+        "@wrongstack/security-scanner",
         "@wrongstack/tools",
         "@wrongstack/vector-memory",
         "@wrongstack/webui-protocol"

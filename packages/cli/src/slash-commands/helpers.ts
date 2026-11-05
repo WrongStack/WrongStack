@@ -1,6 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
 import { color, estimateMessageTokens } from '@wrongstack/core/utils';
 
+export { unknownSubcommand } from '@wrongstack/runtime/commands';
 export type { ProjectFacts } from '../services/project-facts.js';
 export { detectProjectFacts, renderAgentsTemplate } from '../services/project-facts.js';
 
@@ -17,20 +18,6 @@ export { detectProjectFacts, renderAgentsTemplate } from '../services/project-fa
 export function parseSubcommand(args: string): { cmd: string; rest: string[] } {
   const parts = args.trim().split(/\s+/);
   return { cmd: (parts[0] ?? '').toLowerCase(), rest: parts.slice(1) };
-}
-
-/**
- * Generate a consistent "unknown subcommand" message for the `default` branch
- * of a subcommand switch.
- *
- *   unknownSubcommand('frobulate', ['status', 'kill', 'usage'], 'fleet')
- *   // -> 'Unknown subcommand "frobulate" for /fleet. Valid: status, kill, usage.'
- */
-export function unknownSubcommand(cmd: string, valid: string[], name?: string): string {
-  const list = valid.join(', ');
-  return name
-    ? `Unknown subcommand "${cmd}" for /${name}. Valid: ${list}.`
-    : `Unknown subcommand "${cmd}". Valid: ${list}.`;
 }
 
 export function countTurnPairs(messages: Context['messages']): number {

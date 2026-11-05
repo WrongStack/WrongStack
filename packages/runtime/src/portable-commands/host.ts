@@ -1,4 +1,4 @@
-import type { SessionStore } from '@wrongstack/contracts/types';
+import type { ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
 
 /**
  * What the portable slash commands need from the process running them. The TUI passes its
@@ -20,4 +20,27 @@ export interface InitCommandHost {
   renderer: CommandNotices;
 }
 
-export interface PortableCommandHost extends SessionCommandHost, InitCommandHost {}
+/** The Git commands: the repository, and the model that drafts a commit message. */
+export interface GitCommandHost {
+  cwd: string;
+  projectRoot: string;
+  /** The conversation whose id a commit-safety check records. */
+  context?: { session?: { id?: string | undefined } | undefined } | undefined;
+  llmProvider?: Provider | undefined;
+  llmModel?: string | undefined;
+}
+
+/** /gitid: the live config, and how the active profile's config file is written. */
+export interface GitIdCommandHost {
+  configStore?: ConfigStore | undefined;
+  /** Changes the active profile's config file; undefined when this host cannot write it. */
+  patchProfileConfig?:
+    | ((mutate: (config: Record<string, unknown>) => void) => Promise<unknown>)
+    | undefined;
+}
+
+export interface PortableCommandHost
+  extends SessionCommandHost,
+    InitCommandHost,
+    GitCommandHost,
+    GitIdCommandHost {}

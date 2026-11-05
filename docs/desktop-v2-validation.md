@@ -8768,3 +8768,16 @@ Verification: desktop 285 files / 997 tests, webui-server bridge tests, the move
 CLI tests, webui-protocol (261), CLI source and test typechecks, architecture gate. Next wave:
 Git (`/push`, `/gitcheck`, `/gitid`), `/security`, `/tuneup`, plugin commands, then the fleet
 commands.
+
+### Command bridge: Git and security (2026-11-05)
+
+- `/git`, `/commit`, `/gitcheck`, `/push` and `/gitid` moved to `@wrongstack/runtime/commands`
+  with `runGit`; `/security` too, which brings `@wrongstack/security-scanner` into runtime
+  (one `bun.lock` line). `/gitid` writes the active profile through a host function: the CLI
+  keeps its config-history backup, the engines use their own profile writer
+  (`updateGlobalConfig`). `/push`, `/commit` and `/prune` ask before they run on the desktop.
+- Engines now serve 10 commands. Still TUI-only: `/tuneup` (it needs the CLI's config doctor,
+  config history and update check, about 2,000 lines), the builtin plugins' commands (the engine
+  does not set those plugins up; each command needs its own wiring) and the fleet commands.
+- Verification: CLI slash suites (103 files, 1,609 tests), resource-menu tests, the bridge test,
+  CLI source and test typechecks, runtime and webui-server typechecks, architecture gate.

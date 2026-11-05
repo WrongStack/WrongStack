@@ -587,6 +587,10 @@ export function createMessageDispatcher(
       getSessionStore: state.getSessionStore,
       getProjectRoot: state.getProjectRoot,
       getContext: (sessionId) => deps.getAgent?.(sessionId)?.ctx ?? deps.context,
+      getConfigStore: () => deps.configStore,
+      patchProfileConfig: opts.updateGlobalConfig
+        ? (mutate) => opts.updateGlobalConfig!(mutate, 'gitid')
+        : undefined,
       send,
     }),
     getKanbanContext: kanbanContext,

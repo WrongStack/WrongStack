@@ -506,6 +506,10 @@ export function createEmbeddedMessageRouter(
       getProjectRoot: projectRoot,
       getContext: (sessionId) =>
         (sessionId ? deps.sessionCtx.getAgent?.(sessionId)?.ctx : undefined) ?? opts.agent.ctx,
+      getConfigStore: () => deps.introspectionCtx.configStore,
+      patchProfileConfig: deps.introspectionCtx.updateGlobalConfig
+        ? (mutate) => deps.introspectionCtx.updateGlobalConfig!(mutate, 'gitid')
+        : undefined,
       send,
     }),
     getKanbanContext: () => ({

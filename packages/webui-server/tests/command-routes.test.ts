@@ -88,6 +88,7 @@ describe('command bridge', () => {
       getSessionStore: () => store as never,
       getProjectRoot: () => process.cwd(),
       getContext: () => undefined,
+      getConfigStore: () => undefined,
       send: (_ws, message) => sent.push(message as never),
     });
     expect(ctx.getCommands().map((command) => command.name)).toEqual([
@@ -95,6 +96,12 @@ describe('command bridge', () => {
       'prune',
       'scout-stats',
       'init',
+      'git',
+      'commit',
+      'gitcheck',
+      'push',
+      'gitid',
+      'security',
     ]);
     await handleCommandRoute(ctx, ws, { type: 'command.run', payload: { name: 'prune' } });
     expect(sent[0]?.payload['message']).toBe('No session store configured.');
