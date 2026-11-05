@@ -4,6 +4,8 @@
 @import "./interactions.css";
 @import "./components-layer.css";
 @import "../../project-surfaces/src/kanban/kanban.css";
+/* Shared components live outside this app’s automatic Tailwind scan root. */
+@source "../../project-surfaces/src";
 @source "../../providers/src/provider-definitions.ts";
 @source "../../providers/src/trusted-presets.ts";
 

@@ -2,6 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "paths": {
+      "@wrongstack/project-surfaces/host": ["../project-surfaces/src/host.tsx"],
+      "@wrongstack/project-surfaces/sage": ["../project-surfaces/src/sage/index.ts"],
+      "@wrongstack/project-surfaces/*": ["../project-surfaces/src/*"]
+    },
     "allowImportingTsExtensions": true,
     "rootDir": "../..",
     "types": ["node", "vitest"],

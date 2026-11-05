@@ -70,7 +70,10 @@ function clientHandledTypes(): Set<string> {
   // Also scan sub-handler modules extracted from ws-handlers.ts
   const subHandlerDir = path.join(webui, 'src/hooks/ws-handlers');
   const subHandlers = fs.existsSync(subHandlerDir) ? read(srcFiles(subHandlerDir)) : '';
-  const all = read(srcFiles(path.join(webui, 'src')));
+  const all = read([
+    ...srcFiles(path.join(webui, 'src')),
+    ...srcFiles(path.join(repoRoot, 'packages/project-surfaces/src')),
+  ]);
   const types = new Set<string>([
     // Consumed inside ws-client.handleMessage / heartbeat, not via .on().
     'session.frames_resumed',
@@ -87,7 +90,9 @@ function clientHandledTypes(): Set<string> {
     types.add(m[1] as string);
   }
   for (const m of subHandlers.matchAll(/^\s*'([A-Za-z0-9_.-]+)'\s*:/gm)) types.add(m[1] as string);
-  for (const m of subHandlers.matchAll(/^\s*([a-z][A-Za-z0-9_]*)\s*:\s*\(/gm)) {
+  for (const m of subHandlers.matchAll(
+    /^\s*([a-z][A-Za-z0-9_]*)\s*:\s*(?:\(|[A-Za-z_$][\w$]*\s*,)/gm,
+  )) {
     types.add(m[1] as string);
   }
   for (const m of all.matchAll(/\.on\??\.?\(\s*'([^']+)'/g)) types.add(m[1] as string);

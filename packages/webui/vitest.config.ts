@@ -120,6 +120,8 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
+      // Shared surfaces live beside this package, outside its Vite root.
+      allowExternal: true,
       // Package-local dir — never share root monorepo coverage/.tmp.
       reportsDirectory: './coverage',
       reporter: ['text', 'json', 'json-summary', 'html'],
@@ -137,7 +139,7 @@ export default defineConfig({
       //
       // This mirrors the root vitest.config.ts, which excludes
       // `packages/webui/src/**` for exactly the same reason in reverse.
-      include: ['src/**/*.{ts,tsx}'],
+      include: ['src/**/*.{ts,tsx}', '../project-surfaces/src/**/*.{ts,tsx}'],
       exclude: [
         '**/*.test.*',
         '**/dist/**',

@@ -24,7 +24,7 @@ function read(relativePath: string): string {
 /** Files that render queue health to a human. */
 const DISPLAY_SURFACES = [
   'packages/tui/src/kanban-reports.ts',
-  'packages/webui/src/components/KanbanQueueHealthBar.tsx',
+  'packages/project-surfaces/src/kanban/KanbanQueueHealthBar.tsx',
   'packages/hq-next/src/hq/domain/kanban-queue-health.ts',
   'packages/hq-next/src/features/kanban/kanban-view.tsx',
   'packages/webui-server/src/server/kanban-board-routes.ts',
@@ -80,7 +80,7 @@ describe('queue health display authority', () => {
   it('renders the startable count on every surface that shows claimable work', () => {
     // Assembled so the literal is not itself a template placeholder.
     expect(read('packages/tui/src/kanban-reports.ts')).toContain(`startable $\{c.startable}`);
-    expect(read('packages/webui/src/components/KanbanQueueHealthBar.tsx')).toContain(
+    expect(read('packages/project-surfaces/src/kanban/KanbanQueueHealthBar.tsx')).toContain(
       'queueHealth.counts.startable',
     );
     expect(read('packages/webui-server/src/server/kanban-supervisor.ts')).toContain(
@@ -100,7 +100,7 @@ describe('queue health display authority', () => {
     ]) {
       expect(read(file)).toContain('kanbanQueueAnomalyCount');
     }
-    expect(read('packages/webui/src/components/KanbanQueueHealthBar.tsx')).toContain(
+    expect(read('packages/project-surfaces/src/kanban/KanbanQueueHealthBar.tsx')).toContain(
       'hasKanbanQueueAnomalies',
     );
   });

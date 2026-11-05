@@ -303,6 +303,9 @@ export default defineConfig({
         // WebUI has a dedicated jsdom coverage run in packages/webui. Excluding
         // it here prevents the Node run from reporting the same files as 0%.
         'packages/webui/src/**',
+        // These components moved out of webui/src; their jsdom tests still
+        // live in WebUI, whose coverage run owns the shared source as well.
+        'packages/project-surfaces/src/**',
         'packages/hq-next/src/**',
         // WebUI server entry points require process/WebSocket binding.
         'packages/webui-server/src/server/index.ts',

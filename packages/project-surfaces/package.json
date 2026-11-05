@@ -6,6 +6,10 @@
   "description": "Project surfaces shared by the WebUI and the desktop app (SAGE memory first). Each app renders the same components and feeds them through its own SurfaceHost; the components never import an app.",
   "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
+  "files": [
+    "src",
+    "!dist/**/*.map"
+  ],
   "sideEffects": [
     "*.css"
   ],
