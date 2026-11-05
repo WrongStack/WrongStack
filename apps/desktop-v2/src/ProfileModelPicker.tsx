@@ -385,20 +385,23 @@ function LiveProfileModelPicker({
         </div>
       )}
       <footer>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={switching || !ready}
-          aria-pressed={comparing}
-          onClick={() => {
-            setComparing((value) => !value);
-            setCompared([]);
-            setComparisonOpen(false);
-          }}
-        >
-          <Columns3 size={14} />
-          {comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
-        </button>
+        {/* The open comparison has its own way back; one exit, not two. */}
+        {!comparisonOpen && (
+          <button
+            type="button"
+            className="button secondary"
+            disabled={switching || !ready}
+            aria-pressed={comparing}
+            onClick={() => {
+              setComparing((value) => !value);
+              setCompared([]);
+              setComparisonOpen(false);
+            }}
+          >
+            <Columns3 size={14} />
+            {comparing ? t('modelPicker.doneComparing') : t('modelPicker.compare')}
+          </button>
+        )}
         <button
           type="button"
           className="button secondary"

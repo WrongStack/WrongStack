@@ -11,6 +11,18 @@ const number = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
 
 /** Project-wide derived metrics, independent of the timeline query and any selected session. */
+/** A field the record lacks; dropped from the owners line rather than shown as a placeholder. */
+const MISSING = '\u0000';
+const present = (value: unknown) => (typeof value === 'string' && value ? value : MISSING);
+/** The owners a file change recorded, as `<small>`; the localized template lists every field. */
+function recordedOwners(text: string) {
+  const parts = text
+    .split(' · ')
+    .map((part) => part.replace(` / ${MISSING}`, '').replace(`${MISSING} / `, ''))
+    .filter((part) => !part.includes(MISSING));
+  return parts.length ? <small>{parts.join(' · ')}</small> : null;
+}
+
 export function ChronicleInsights({
   command,
   onOpenFile,
@@ -18,9 +30,15 @@ export function ChronicleInsights({
   command: EngineCommand;
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const label = (value: unknown) =>
     typeof value === 'string' && value ? value : t('chronicleView.insights.notRecorded');
+  const when = (value: unknown) => {
+    const at = typeof value === 'string' && value ? new Date(value) : null;
+    return at && !Number.isNaN(at.getTime())
+      ? at.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' })
+      : label(value);
+  };
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('providers');
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -160,8 +178,8 @@ export function ChronicleInsights({
                     </small>
                     <small>
                       {t('chronicleView.insights.taskTimes', {
-                        started: label(row['startedAt']),
-                        ended: label(row['endedAt']),
+                        started: when(row['startedAt']),
+                        ended: when(row['endedAt']),
                       })}
                     </small>
                   </article>
@@ -169,22 +187,26 @@ export function ChronicleInsights({
                   <article key={index}>
                     <header>
                       <strong>{label(row['path'])}</strong>
-                      <span>{label(row['operation'])}</span>
+                      {typeof row['operation'] === 'string' && (
+                        <span className="insights-operation">{row['operation']}</span>
+                      )}
                     </header>
                     <p>
-                      {label(row['occurredAt'])} · {label(row['toolName'])} · {label(row['source'])}
+                      {[when(row['occurredAt']), row['toolName'], row['source']]
+                        .filter((part) => typeof part === 'string' && part)
+                        .join(' · ')}
                     </p>
-                    <small>
-                      {t('chronicleView.insights.fileOwners', {
-                        task: label(row['taskId']),
-                        board: label(row['boardId']),
-                        run: label(row['runId']),
-                        session: label(row['sessionId']),
-                        agent: label(row['agentId']),
-                        provider: label(row['providerId']),
-                        model: label(row['modelId']),
-                      })}
-                    </small>
+                    {recordedOwners(
+                      t('chronicleView.insights.fileOwners', {
+                        task: present(row['taskId']),
+                        board: present(row['boardId']),
+                        run: present(row['runId']),
+                        session: present(row['sessionId']),
+                        agent: present(row['agentId']),
+                        provider: present(row['providerId']),
+                        model: present(row['modelId']),
+                      }),
+                    ) || null}
                     {typeof row['path'] === 'string' && row['path'] && (
                       <button type="button" onClick={() => onOpenFile(row['path'] as string)}>
                         {t('chronicleView.openFile')}

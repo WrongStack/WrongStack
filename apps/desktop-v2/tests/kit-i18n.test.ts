@@ -80,7 +80,7 @@ describe('Project Kit in the display language', () => {
     const english = parts();
     for (const text of [
       'Include sort',
-      'Add Input.names item',
+      'Add Names item',
       'Add items in the order they should be supplied.',
       'Yes',
       'Empty value',
@@ -106,7 +106,7 @@ describe('Project Kit in the display language', () => {
     const turkish = parts();
     for (const text of [
       'sort dahil et',
-      'Girdi.names öğesi ekle',
+      'Names öğesi ekle',
       'Öğeleri verilmeleri gereken sırayla ekle.',
       'Evet',
       'Boş değer',

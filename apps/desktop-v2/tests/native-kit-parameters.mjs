@@ -33,10 +33,10 @@ export async function exerciseNativeKitParameters({ page, project, open, directo
 
   await open(project);
   await select();
-  await workspace.getByRole('button', { name: 'Add Input.names item', exact: true }).click();
-  await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).fill('durable');
+  await workspace.getByRole('button', { name: 'Add Names item', exact: true }).click();
+  await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).fill('durable');
   await workspace.getByRole('checkbox', { name: 'Include options', exact: true }).check();
-  await workspace.getByRole('spinbutton', { name: 'Input.options.limit', exact: true }).fill('');
+  await workspace.getByRole('spinbutton', { name: 'Options › Limit', exact: true }).fill('');
   const saved = await until(async () => {
     const draft = await stored();
     return draft.value?.input?.names?.[0] === 'durable' && draft.value.special.length
@@ -50,13 +50,11 @@ export async function exerciseNativeKitParameters({ page, project, open, directo
   await select();
   await workspace.getByRole('status').filter({ hasText: 'Restored unsent parameters' }).waitFor();
   assert.equal(
-    await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).inputValue(),
+    await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).inputValue(),
     'durable',
   );
   assert.equal(
-    await workspace
-      .getByRole('spinbutton', { name: 'Input.options.limit', exact: true })
-      .inputValue(),
+    await workspace.getByRole('spinbutton', { name: 'Options › Limit', exact: true }).inputValue(),
     '',
     'An unfinished number stays unfinished instead of becoming a value',
   );
@@ -71,7 +69,7 @@ export async function exerciseNativeKitParameters({ page, project, open, directo
     value: peer,
     expectedRevision: current.revision,
   });
-  await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).fill('local');
+  await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).fill('local');
   const conflict = workspace.getByRole('region', { name: 'Kit parameter conflict', exact: true });
   await conflict.waitFor();
   await conflict.getByText('Not entered', { exact: true }).first().waitFor();
@@ -87,7 +85,7 @@ export async function exerciseNativeKitParameters({ page, project, open, directo
   await conflict.getByRole('button', { name: 'Use saved values', exact: true }).click();
   await conflict.waitFor({ state: 'hidden' });
   assert.equal(
-    await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).inputValue(),
+    await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).inputValue(),
     'peer',
   );
 
@@ -102,7 +100,7 @@ export async function exerciseNativeKitParameters({ page, project, open, directo
   const stale = workspace.getByRole('region', { name: 'Saved kit parameters', exact: true });
   await stale.waitFor();
   assert.equal(
-    await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).count(),
+    await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).count(),
     0,
     'Defaults are shown until the person chooses to use older values',
   );

@@ -47,6 +47,10 @@
   font-size: 12px;
   color: var(--muted);
 }
+/* Job states and phases are engine words ("completed", "inventory"); start them like labels. */
+.tech-job :is(strong, span, small)::first-letter {
+  text-transform: uppercase;
+}
 .tech-job progress {
   max-width: 140px;
   accent-color: var(--accent);
@@ -182,6 +186,16 @@
 .tech-dependency-detail h2 {
   margin: 10px 0;
   overflow-wrap: anywhere;
+}
+/* A grid item sizes to its longest unbreakable line by default; a long path, version range or
+   advisory in the detail widened the column past the page (a horizontal page scrollbar). */
+.tech-dependency-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tech-dependency-detail :is(pre, code) {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .tech-dependency-detail p,
 .tech-remediation p {
@@ -360,7 +374,7 @@
   border-radius: 10px;
 }
 .tech-trend-chart > div {
-  min-width: 25px;
+  min-width: 44px;
   text-align: center;
 }
 .tech-trend-chart > div > div {
@@ -370,7 +384,7 @@
   min-height: 150px;
 }
 .tech-trend-chart i {
-  width: 12px;
+  width: 18px;
   border-radius: 3px 3px 0 0;
   min-height: 1px;
 }

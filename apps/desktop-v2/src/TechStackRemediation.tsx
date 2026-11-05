@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record } from './engine-values';
+import { dateTimeText, entries, record } from './engine-values';
 import { techPlanKey, techPlanSelectionIsCurrent } from './techstack-model';
 import { techWord } from './techstack-text';
 
@@ -14,7 +14,7 @@ export function TechStackRemediation({
   snapshotId: string;
   onChanged: () => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const [plan, setPlan] = useState<Record<string, unknown> | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [review, setReview] = useState(false);
@@ -95,7 +95,7 @@ export function TechStackRemediation({
       ) : (
         <>
           <p className="field-help">
-            {t('techRemedy.generated', { at: String(plan['generatedAt']) })}
+            {t('techRemedy.generated', { at: dateTimeText(plan['generatedAt'], i18n.language) })}
           </p>
           {items.length ? (
             items.map((item, index) => {

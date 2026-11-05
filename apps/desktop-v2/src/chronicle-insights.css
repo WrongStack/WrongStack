@@ -14,3 +14,4 @@
 .insights-list small { display: block; color: var(--muted); line-height: 1.6; }
 .insights-list article button { margin-top: 8px; color: var(--accent); background: transparent; border: 0; padding: 0; cursor: pointer; }
 .insights-footnote { display: block; margin-top: 12px; }
+.insights-list .insights-operation { align-self: flex-start; padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 10px; text-transform: capitalize; }

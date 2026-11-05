@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CopyButton } from './CopyButton';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record } from './engine-values';
+import { dateTimeText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import { downloadSkillFile } from './skill-model';
 import { TechDependencyDetail, TechFinding } from './TechStackEvidence';
@@ -26,7 +26,7 @@ export function ProjectTechStack({
   events: Record<string, Record<string, unknown>>;
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const word = (value: unknown) => techWord(value, t);
   const vm = useTechStack(http, projectId);
   const [view, setView] = useState<View>('dependencies');
@@ -264,7 +264,7 @@ export function ProjectTechStack({
           <div className="tech-snapshot-meta">
             <span>
               {t('techStack.observed', {
-                at: String(snapshot['createdAt']),
+                at: dateTimeText(snapshot['createdAt'], i18n.language),
                 coverage: word(snapshot['coverage']),
                 adapter: String(snapshot['adapterVersion']),
               })}

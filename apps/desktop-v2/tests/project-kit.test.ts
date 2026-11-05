@@ -87,7 +87,9 @@ describe('Project Kit parameter contract', () => {
       }),
     );
     expect(form).toContain('type="checkbox"');
-    expect(form).toContain('Input.names[1]');
+    // Fields read their own names, not schema paths; nested ones keep the branch for assistive tech.
+    expect(form).toContain('aria-label="Names 1"');
+    expect(form).not.toContain('Input.names[1]');
     const details = renderToStaticMarkup(createElement(KitSchemaDetails, { schema }));
     expect(details).toContain('Minimum items 1');
     expect(details).toContain('Maximum 5');

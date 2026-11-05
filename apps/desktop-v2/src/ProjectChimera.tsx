@@ -12,7 +12,7 @@ import {
 } from './chimera-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries, record } from './engine-values';
+import { dateTimeText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import type { Session } from './model';
@@ -73,7 +73,7 @@ function ChimeraContent({
   onNewSession: () => void;
   onOpenFile: (path: string, line?: number) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   // Engine values are named per language; unknown ones read as reviewLabel shows them.
   const named = (value: unknown) =>
     typeof value === 'string' && value
@@ -329,7 +329,7 @@ function ChimeraContent({
                 <span>{named(item['lifecycleStatus'])}</span>
               </header>
               <p>{String(item['reviewerModel'] ?? t('reviews.noModel'))}</p>
-              <small>{String(item['reviewedAt'])}</small>
+              <small>{dateTimeText(item['reviewedAt'], i18n.language)}</small>
               <div className="review-report-counts">
                 <strong>{t('reviews.findingsCount', { n: String(item['totalFindings']) })}</strong>
                 {['critical', 'high', 'medium', 'low']
@@ -368,7 +368,7 @@ function ChimeraContent({
                 </span>
                 <h2>{t('reviews.reviewTitle', { id: String(report['id']).slice(0, 16) })}</h2>
                 <p>
-                  {String(report['reviewedAt'])} · {named(report['lifecycle'])}
+                  {dateTimeText(report['reviewedAt'], i18n.language)} · {named(report['lifecycle'])}
                 </p>
                 <CopyButton text={String(report['id'])} label={t('reviews.copyId')} />
               </header>

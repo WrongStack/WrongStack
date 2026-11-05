@@ -109,16 +109,16 @@ export async function exerciseNativeProjectKit({
   await workspace.getByRole('button', { name: 'Refresh kits', exact: true }).click();
   await workspace.getByRole('button', { name: /native-kit/ }).click();
   await workspace.getByText('Revision verified', { exact: true }).waitFor();
-  await workspace.getByRole('button', { name: 'Add Input.names item', exact: true }).click();
-  await workspace.getByRole('textbox', { name: 'Input.names[1]', exact: true }).fill('native');
-  await workspace.getByRole('checkbox', { name: 'Input.sort', exact: true }).check();
+  await workspace.getByRole('button', { name: 'Add Names item', exact: true }).click();
+  await workspace.getByRole('textbox', { name: 'Names 1', exact: true }).fill('native');
+  await workspace.getByRole('checkbox', { name: 'Sort', exact: true }).check();
   await workspace.getByRole('checkbox', { name: 'Include options', exact: true }).check();
-  await workspace.getByRole('spinbutton', { name: 'Input.options.limit', exact: true }).fill('11');
+  await workspace.getByRole('spinbutton', { name: 'Options › Limit', exact: true }).fill('11');
   assert.equal(
     await workspace.getByRole('button', { name: 'Prepare run request', exact: true }).isDisabled(),
     true,
   );
-  await workspace.getByRole('spinbutton', { name: 'Input.options.limit', exact: true }).fill('4');
+  await workspace.getByRole('spinbutton', { name: 'Options › Limit', exact: true }).fill('4');
   await workspace.getByRole('button', { name: 'Prepare run request', exact: true }).click();
   await workspace.getByRole('heading', { name: 'Ready for review in chat' }).waitFor();
   for (const summary of [

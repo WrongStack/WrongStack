@@ -12,6 +12,35 @@
   min-width: 0;
 }
 
+/* The board sits beside the desktop sidebar (238 px), so it is narrow in a window the shared
+   view treats as wide: at 800 px the board kept 325 px, its title cut to one letter under the
+   new-task field. Below a 860 px board the board list goes on top, the title takes its own
+   line with the actions wrapping below it, and the decorative drawing no longer sits behind
+   the buttons. A window query, not a container query: containment would trap the task
+   inspector's full-window mode (`position: fixed`) inside the board. */
+@media (max-width: 1100px) {
+  .kanban-surface > div {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .kanban-surface > div > aside {
+    width: 100%;
+    max-height: 40%;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .kanban-surface > div > main {
+    flex: none;
+  }
+  .kanban-surface .ws-page-header > div:has(> h1) {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .kanban-surface .ws-page-header > .ws-page-motif {
+    display: none;
+  }
+}
+
 /* Desktop board and task tools inside the shared board. */
 .kanban-desktop-tools {
   display: flex;

@@ -668,3 +668,21 @@
   font-size: 10px;
   color: var(--muted);
 }
+/* The map's zoom controls and attribution follow the theme, as on the live fleet map: in dark
+   mode they were white boxes with invisible icons. */
+.roster-inheritance .react-flow__controls-button {
+  background: var(--raised);
+  color: var(--text);
+  fill: var(--text);
+  border-color: var(--border);
+}
+.roster-inheritance .react-flow__controls-button svg {
+  fill: currentColor;
+}
+.roster-inheritance .react-flow__attribution {
+  background: var(--raised);
+  color: var(--muted);
+}
+.roster-inheritance .react-flow__attribution a {
+  color: inherit;
+}

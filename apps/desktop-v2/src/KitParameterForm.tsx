@@ -16,14 +16,15 @@ export function KitParameterForm({
 }) {
   const { t } = useDesktopText();
   const path = given ?? t('projectKit.input');
+  const { label, name } = kitFieldLabels(path);
   if (schema.enum?.length)
     return (
       <div className="kit-field">
         <label>
-          {path}
+          {label}
           <small>{schema.description}</small>
           <select
-            aria-label={path}
+            aria-label={name}
             value={schema.enum.findIndex((v) => kitValuesEqual(v, value))}
             onChange={(e) => onChange(structuredClone(schema.enum?.[Number(e.target.value)]))}
           >
@@ -41,7 +42,7 @@ export function KitParameterForm({
     const object = record(value);
     return (
       <fieldset className="kit-parameters">
-        <legend>{path}</legend>
+        <legend>{label}</legend>
         {schema.description && <p>{schema.description}</p>}
         {Object.entries(schema.properties ?? {}).map(([name, child]) => {
           const required = schema.required?.includes(name) ?? false;
@@ -82,7 +83,7 @@ export function KitParameterForm({
     const items = Array.isArray(value) ? value : [];
     return (
       <fieldset className="kit-parameters">
-        <legend>{path}</legend>
+        <legend>{label}</legend>
         <p>{schema.description ?? t('kitForm.itemsHelp')}</p>
         {items.map((item, i) => (
           <div className="kit-array-item" key={i}>
@@ -95,7 +96,7 @@ export function KitParameterForm({
             <button
               type="button"
               className="icon-button"
-              aria-label={t('kitForm.remove', { path: `${path}[${i + 1}]` })}
+              aria-label={t('kitForm.remove', { path: kitFieldLabels(`${path}[${i + 1}]`).name })}
               onClick={() => onChange(items.filter((_, index) => index !== i))}
             >
               <X size={14} />
@@ -109,7 +110,7 @@ export function KitParameterForm({
           onClick={() => onChange([...items, kitInitialValue(schema.items as KitSchema)])}
         >
           <Plus size={13} />
-          {t('kitForm.addItem', { path })}
+          {t('kitForm.addItem', { path: label })}
         </button>
       </fieldset>
     );
@@ -118,13 +119,13 @@ export function KitParameterForm({
     return (
       <label className="kit-check">
         <input
-          aria-label={path}
+          aria-label={name}
           type="checkbox"
           checked={value === true}
           onChange={(e) => onChange(e.target.checked)}
         />
         <span>
-          {path}
+          {label}
           <small>{schema.description}</small>
         </span>
       </label>
@@ -132,16 +133,16 @@ export function KitParameterForm({
   if (schema.type === 'null')
     return (
       <p>
-        {t('kitForm.emptyField', { path })} <small>{schema.description}</small>
+        {t('kitForm.emptyField', { path: label })} <small>{schema.description}</small>
       </p>
     );
   const numeric = schema.type === 'number' || schema.type === 'integer';
   return (
     <label className="kit-field">
-      {path}
+      {label}
       <small>{schema.description}</small>
       <input
-        aria-label={path}
+        aria-label={name}
         type={numeric ? 'number' : 'text'}
         step={schema.type === 'integer' ? 1 : 'any'}
         min={schema.minimum}
@@ -255,4 +256,28 @@ export function KitSchemaDetails({ schema, name }: { schema: KitSchema; name?: s
       )}
     </div>
   );
+}
+
+/**
+ * A field's labels from its parameter path: `Input.options.limit` reads "Limit" (accessible
+ * name "Options › Limit"), the array item `Input.names[2]` reads "Names 2".
+ */
+export function kitFieldLabels(path: string): { label: string; name: string } {
+  const parts = path.split('.').flatMap((part) => {
+    const item = /^(.*?)\[(\d+)\]$/.exec(part);
+    return item ? [item[1]!, item[2]!] : [part];
+  });
+  const words = (part: string) =>
+    part
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .replace(/^./, (first) => first.toUpperCase());
+  const named: string[] = [];
+  // The root ("Input") names the whole form; fields below it go without it.
+  for (const part of parts.length > 1 ? parts.slice(1) : parts) {
+    if (/^\d+$/.test(part) && named.length) named[named.length - 1] += ` ${part}`;
+    else named.push(words(part));
+  }
+  return { label: named.at(-1) ?? path, name: named.join(' › ') || path };
 }

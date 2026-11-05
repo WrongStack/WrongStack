@@ -49,3 +49,27 @@
   min-height: 100%;
   padding: 16px;
 }
+
+/* The map sits between the code tree and the inspector, so it is narrow even in a wide window.
+   Its toolbars wrap by the map's own width (the shared rules key on the window's), and the
+   live controls move below them instead of covering the link filters. */
+.atlas-surface .ws-code-canvas {
+  container-type: inline-size;
+}
+@container (max-width: 980px) {
+  .atlas-surface .ws-code-toolbar {
+    flex-wrap: wrap;
+  }
+  .atlas-surface .ws-code-toolbar > div {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .atlas-surface .ws-code-toolbar > div:last-child {
+    margin-left: 0;
+  }
+  .atlas-surface .ws-code-live-controls {
+    top: 96px;
+    max-width: calc(100% - 24px);
+  }
+}

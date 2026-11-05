@@ -3,6 +3,7 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterAll, describe, expect, it } from 'vitest';
+import { dateTimeText } from '../src/engine-values';
 import { ProjectTechStack } from '../src/ProjectTechStack';
 import { surfaceI18n } from '../src/surface-i18n';
 
@@ -59,7 +60,8 @@ describe('the TechStack page in the display language', () => {
     const english = await render();
     for (const text of [
       'Refresh TechStack',
-      'Observed 2026-11-04 · partial coverage · adapter 1',
+      // The snapshot time reads in the display language, not as an ISO string.
+      `Observed ${dateTimeText('2026-11-04', 'en')} · partial coverage · adapter 1`,
       'npm · direct · runtime',
       'update available safe',
       '1 of 1 observations',
@@ -70,7 +72,7 @@ describe('the TechStack page in the display language', () => {
     const turkish = await render();
     for (const text of [
       'TechStack’i yenile',
-      'Gözlendi 2026-11-04 · kısmi kapsam · bağdaştırıcı 1',
+      `Gözlendi ${dateTimeText('2026-11-04', 'tr')} · kısmi kapsam · bağdaştırıcı 1`,
       'npm · doğrudan · çalışma zamanı',
       'güvenli güncelleme var',
       '1 gözlemden 1',

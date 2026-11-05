@@ -66,7 +66,7 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
           })}
         </p>
       )}
-      {usage.compaction && (
+      {usage.compaction && usage.compaction.saved > 0 && (
         <p>
           {t('contextLive.compaction', {
             before: usage.compaction.before.toLocaleString(),

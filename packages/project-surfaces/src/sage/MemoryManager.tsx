@@ -70,7 +70,7 @@ export function MemoryManager({
           <div className="h-3 w-28 animate-pulse bg-muted" />
           <div className="mt-3 h-7 w-56 animate-pulse bg-muted" />
         </div>
-        <div className="grid flex-1 gap-px bg-border/60 md:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.35fr)]">
+        <div className="ws-sage-columns grid flex-1 gap-px bg-border/60 md:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.35fr)]">
           <div className="space-y-px bg-background p-4">
             {Array.from({ length: 7 }, (_, index) => (
               <div key={index} className="h-24 animate-pulse border border-border/60 bg-card/45" />
@@ -154,10 +154,13 @@ export function MemoryManager({
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.35fr)]">
+      <div
+        className="ws-sage-columns grid min-h-0 flex-1 md:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.35fr)]"
+        data-detail-open={state.detailOpen ? 'true' : 'false'}
+      >
         <section
           className={cn(
-            'min-h-0 border-r border-border/70 bg-card/25',
+            'ws-sage-library min-h-0 border-r border-border/70 bg-card/25',
             state.detailOpen ? 'hidden md:flex md:flex-col' : 'flex flex-col',
           )}
           aria-label={t('activity:memoryManager.libraryAria')}
@@ -324,7 +327,7 @@ export function MemoryManager({
 
         <section
           className={cn(
-            'min-h-0 bg-background',
+            'ws-sage-detail min-h-0 bg-background',
             state.detailOpen ? 'flex flex-col' : 'hidden md:flex md:flex-col',
           )}
           aria-label={t('activity:memoryManager.detailAria')}

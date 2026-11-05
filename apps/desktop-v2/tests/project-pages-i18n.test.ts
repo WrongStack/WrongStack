@@ -295,7 +295,7 @@ describe('the project pages in the display language', () => {
       expect.arrayContaining(['Project requirements', 'Search requirements']),
     );
     page = await mount(summary());
-    for (const text of ['Original request', 'Business goal', 'Not recorded', 'high', 'Standard'])
+    for (const text of ['Original request', 'Business goal', 'Not recorded', 'High', 'Standard'])
       expect(page.text).toContain(text);
     page = await mount(evidence());
     for (const text of [
@@ -318,7 +318,7 @@ describe('the project pages in the display language', () => {
       expect.arrayContaining(['Proje gereksinimleri', 'Gereksinimlerde ara']),
     );
     page = await mount(summary());
-    for (const text of ['Özgün istek', 'İş hedefi', 'Kaydedilmedi', 'yüksek', 'Standart'])
+    for (const text of ['Özgün istek', 'İş hedefi', 'Kaydedilmedi', 'Yüksek', 'Standart'])
       expect(page.text).toContain(text);
     page = await mount(evidence());
     for (const text of [

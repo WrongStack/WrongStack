@@ -1,4 +1,12 @@
-import { Background, Controls, type Edge, MiniMap, type Node, ReactFlow } from '@xyflow/react';
+import {
+  Background,
+  Controls,
+  type Edge,
+  MiniMap,
+  type Node,
+  Position,
+  ReactFlow,
+} from '@xyflow/react';
 import { useMemo } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { RosterRecord } from './roster-model';
@@ -46,6 +54,10 @@ export function RosterInheritance({
         return {
           id: role,
           position: { x: depth * 270, y: row * 108 },
+          // Parents sit left of their children: edges leave right and enter left, instead of
+          // looping from the bottom of one card over the top of the next.
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
           selected: role === selected,
           data: {
             label: (

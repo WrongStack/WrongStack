@@ -79,7 +79,7 @@ export function MemoryDetail({
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="ws-sage-back md:hidden"
           onClick={onClose}
           aria-label={t('activity:memoryManager.backToList')}
         >

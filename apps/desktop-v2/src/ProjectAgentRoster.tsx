@@ -27,7 +27,7 @@ import {
 } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries, record } from './engine-values';
+import { durationText, entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import { markdownTarget } from './markdown-target';
@@ -846,8 +846,8 @@ export function ProjectAgentRoster({
                     <dl>
                       <dt>{t('roster.lastCapture')}</dt>
                       <dd>
-                        {date(stats['lastCapture']) || t('roster.notRecorded')} ·{' '}
-                        {String(stats['lastCaptureSource'] ?? t('roster.notRecorded'))}
+                        {date(stats['lastCapture']) || t('roster.notRecorded')}
+                        {string(stats['lastCaptureSource']) && ` · ${stats['lastCaptureSource']}`}
                       </dd>
                       <dt>{t('roster.captureWindow')}</dt>
                       <dd>
@@ -1553,7 +1553,7 @@ const AUTO_REASONS = new Set([
   'pending-skills',
 ]);
 function AutoOptimizeStatus({ data }: { data: RosterRecord }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const entry = entries(data['roles'])[0],
     policy = record(data['policy']);
   return entry ? (
@@ -1570,7 +1570,7 @@ function AutoOptimizeStatus({ data }: { data: RosterRecord }) {
         {t('roster.auto.policy', {
           entries: count(policy['minEntries']),
           bytes: count(policy['thresholdBytes']),
-          interval: count(policy['minIntervalMs']),
+          interval: durationText(policy['minIntervalMs'], i18n.language),
         })}
       </small>
     </section>

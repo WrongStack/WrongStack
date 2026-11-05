@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record } from './engine-values';
+import { dateTimeText, entries, record } from './engine-values';
 
 export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapshotId: string }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   const [trend, setTrend] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -36,7 +36,9 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
       <h2>{t('techTrends.title')}</h2>
       <p>
         {t('techTrends.snapshots', { number: String(trend['snapshots'] ?? 0) })}
-        {trend['from'] ? ` · ${trend['from']} → ${trend['to']}` : ''}
+        {trend['from']
+          ? ` · ${dateTimeText(trend['from'], i18n.language)} → ${dateTimeText(trend['to'], i18n.language)}`
+          : ''}
       </p>
       {typeof trend['vulnerabilityHalfLifeMs'] === 'number' && (
         <p>
@@ -52,7 +54,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
               <div
                 key={String(point['snapshotId'])}
                 title={t('techTrends.bar', {
-                  at: String(point['createdAt']),
+                  at: dateTimeText(point['createdAt'], i18n.language),
                   outdated: String(point['outdated']),
                   vulnerable: String(point['vulnerable']),
                 })}
@@ -85,7 +87,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
               <tbody>
                 {points.map((point) => (
                   <tr key={String(point['snapshotId'])}>
-                    <td>{String(point['createdAt'])}</td>
+                    <td>{dateTimeText(point['createdAt'], i18n.language)}</td>
                     <td>{String(point['dependencies'])}</td>
                     <td>{String(point['outdated'])}</td>
                     <td>{String(point['vulnerable'])}</td>

@@ -77,15 +77,9 @@ export function SessionContextPanel({
         );
         const outcome = compacting ? compactionOutcome(result) : null;
         setCompaction(outcome);
-        setNotice(
-          outcome
-            ? t('contextPanel.compacted', {
-                before: outcome.before.toLocaleString(),
-                after: outcome.after.toLocaleString(),
-                saved: outcome.saved.toLocaleString(),
-              })
-            : String(result['message'] ?? t('contextPanel.done')),
-        );
+        // A compaction's result section and the live summary already state what it saved; a
+        // notice repeating it made the dialog say the same thing three times.
+        setNotice(outcome ? '' : String(result['message'] ?? t('contextPanel.done')));
         setConfirmClear(false);
         await refresh();
       } catch (e) {
