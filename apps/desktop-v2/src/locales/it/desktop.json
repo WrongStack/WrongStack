@@ -7127,6 +7127,9 @@
     "savedNote": "Le impostazioni di revisione salvate si applicano quando una nuova sessione del motore carica i plugin. Le esecuzioni in corso mantengono la configurazione caricata."
   },
   "toolAccess": {
+    "permission_deny": "Negato",
+    "permission_confirm": "Chiedi prima",
+    "permission_auto": "Automatico",
     "label": "Impostazioni di disponibilità degli strumenti",
     "eyebrow": "CATALOGO DEGLI STRUMENTI REGISTRATI",
     "title": "Disponibilità degli strumenti",

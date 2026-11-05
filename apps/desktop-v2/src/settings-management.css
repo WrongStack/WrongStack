@@ -94,11 +94,16 @@
   background: transparent;
   min-width: 0;
   width: 100%;
+  min-height: 0;
+  padding: 0;
+  box-shadow: none;
   color: var(--text);
   font: inherit;
+  font-size: 13px;
 }
 .tool-access-filters select {
   padding: 9px;
+  font-size: 13px;
   background: var(--raised);
   color: var(--text);
   border: 1px solid var(--border);

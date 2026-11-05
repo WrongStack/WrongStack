@@ -7127,6 +7127,9 @@
     "savedNote": "Les réglages de revue enregistrés s’appliquent quand une nouvelle session du moteur charge ses plugins. Les exécutions en cours gardent leur configuration chargée."
   },
   "toolAccess": {
+    "permission_deny": "Refusé",
+    "permission_confirm": "Demander d’abord",
+    "permission_auto": "Automatique",
     "label": "Réglages de disponibilité des outils",
     "eyebrow": "CATALOGUE DES OUTILS ENREGISTRÉS",
     "title": "Disponibilité des outils",

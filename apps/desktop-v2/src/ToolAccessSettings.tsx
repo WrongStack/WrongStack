@@ -196,7 +196,11 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
                   {tool['mutating'] === true ? t('toolAccess.mutating') : t('toolAccess.readOnly')}
                 </span>
                 <span>
-                  {t('toolAccess.permission', { permission: String(tool['permission'] ?? 'auto') })}
+                  {t('toolAccess.permission', {
+                    permission: t(`toolAccess.permission_${String(tool['permission'] ?? 'auto')}`, {
+                      defaultValue: String(tool['permission'] ?? 'auto'),
+                    }),
+                  })}
                 </span>
               </div>
               <details>

@@ -7127,6 +7127,9 @@
     "savedNote": "Saved review settings apply when a new engine session loads its plugins. Existing runs keep their loaded review configuration."
   },
   "toolAccess": {
+    "permission_deny": "Denied",
+    "permission_confirm": "Ask first",
+    "permission_auto": "Automatic",
     "label": "Tool availability settings",
     "eyebrow": "REGISTERED TOOL CATALOG",
     "title": "Tool availability",

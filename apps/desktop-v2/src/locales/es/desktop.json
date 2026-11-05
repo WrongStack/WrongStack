@@ -7127,6 +7127,9 @@
     "savedNote": "Los ajustes de revisión guardados se aplican cuando una nueva sesión del motor carga sus plugins. Las ejecuciones en curso conservan su configuración cargada."
   },
   "toolAccess": {
+    "permission_deny": "Denegado",
+    "permission_confirm": "Preguntar primero",
+    "permission_auto": "Automático",
     "label": "Ajustes de disponibilidad de herramientas",
     "eyebrow": "CATÁLOGO DE HERRAMIENTAS REGISTRADAS",
     "title": "Disponibilidad de herramientas",

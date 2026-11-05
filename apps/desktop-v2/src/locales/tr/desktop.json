@@ -7127,6 +7127,9 @@
     "savedNote": "Kayıtlı inceleme ayarları, yeni bir motor oturumu eklentilerini yüklediğinde uygulanır. Mevcut çalışmalar yüklenmiş inceleme yapılandırmasını korur."
   },
   "toolAccess": {
+    "permission_deny": "Reddedilir",
+    "permission_confirm": "Önce sor",
+    "permission_auto": "Otomatik",
     "label": "Araç kullanılabilirliği ayarları",
     "eyebrow": "KAYITLI ARAÇ KATALOĞU",
     "title": "Araç kullanılabilirliği",

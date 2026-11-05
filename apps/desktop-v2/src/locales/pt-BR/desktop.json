@@ -7127,6 +7127,9 @@
     "savedNote": "As configurações de revisão salvas valem quando uma nova sessão do motor carrega seus plugins. As execuções em andamento mantêm a configuração carregada."
   },
   "toolAccess": {
+    "permission_deny": "Negado",
+    "permission_confirm": "Perguntar antes",
+    "permission_auto": "Automático",
     "label": "Configurações de disponibilidade de ferramentas",
     "eyebrow": "CATÁLOGO DE FERRAMENTAS REGISTRADAS",
     "title": "Disponibilidade de ferramentas",

@@ -90,7 +90,7 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
       </h3>
       <p className="field-help">{t('networkPolicy.intro')}</p>
       {state && (
-        <p>
+        <p className="field-help">
           {setup === 'ready'
             ? t('networkPolicy.ready')
             : setup === 'missing'

@@ -7127,6 +7127,9 @@
     "savedNote": "Gespeicherte Review-Einstellungen gelten, wenn eine neue Engine-Sitzung ihre Plugins lädt. Laufende Läufe behalten ihre geladene Konfiguration."
   },
   "toolAccess": {
+    "permission_deny": "Verweigert",
+    "permission_confirm": "Erst fragen",
+    "permission_auto": "Automatisch",
     "label": "Einstellungen zur Werkzeugverfügbarkeit",
     "eyebrow": "REGISTRIERTER WERKZEUGKATALOG",
     "title": "Werkzeugverfügbarkeit",
