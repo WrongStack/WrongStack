@@ -87,10 +87,6 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'cli/src/wiring/session-command-handlers.ts': REASON_AGENT_CHILD,
   'cli/src/wiring/sdd-handlers.ts': REASON_AGENT_CHILD,
   'cli/src/chimera-cascade-evidence.ts': REASON_AGENT_CHILD,
-  'coordination/src/collab-director-host.ts': REASON_AGENT_CHILD,
-  'coordination/src/director-host-contracts.ts': REASON_AGENT_CHILD,
-  'coordination/src/icoordinator.ts': REASON_AGENT_CHILD,
-  'contracts/src/types/multi-agent.ts': REASON_AGENT_CHILD,
   'sdd/src/verify-task.ts': REASON_AGENT_CHILD,
   // ── CLI self-relaunch / bundled UI ──
   'cli/src/boot-provider-selection.ts': REASON_SELF_RELAUNCH,
@@ -105,7 +101,7 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   // ── Operator-facing helpers ──
   'cli/src/auth-menu/loopback-server.ts': REASON_OPERATOR_TOOL,
   'cli/src/pre-launch/project-check.ts': REASON_OPERATOR_TOOL,
-  'cli/src/services/run-git.ts': REASON_OPERATOR_TOOL,
+  'runtime/src/portable-commands/run-git.ts': REASON_OPERATOR_TOOL,
   'cli/src/slash-commands/review.ts': REASON_OPERATOR_TOOL,
   'cli/src/slash-commands/suggest.ts': REASON_OPERATOR_TOOL,
   'primitives/src/git-isolation.ts': REASON_GIT_ISOLATION_PROBE,
@@ -158,7 +154,6 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   'techstack/src/advisory/native-audit-command.ts': REASON_PLUGIN_RUNNER,
   // ── Interactive user terminals ──
   'acp/src/client/terminal-server.ts': REASON_USER_TERMINAL,
-  'webui-server/src/server/terminal-ws-handler.ts': REASON_USER_TERMINAL,
   'webui-server/src/server/shell-open.ts': REASON_USER_TERMINAL,
   // ── Offline benchmark harness ──
   'bench/src/exec-command.ts': REASON_BENCH,
@@ -454,7 +449,20 @@ export function scanChildCallLines(
       // String/comment contents are inert: strip them BEFORE any compliance
       // test so prose in an argument cannot impersonate a buildChildEnv call
       // or an env-key assignment (Chimera review).
-      const span = stripStringsAndComments(callSpanText(lines, i, match.index));
+      const callText = callSpanText(lines, i, match.index);
+      // A typed interface method ends its signature with a return annotation;
+      // it declares a host capability without launching a child process.
+      const rest = lines
+        .slice(i, i + 40)
+        .join('\n')
+        .slice(match.index + callText.length);
+      if (
+        /^\s*$/.test(text.slice(0, match.index)) &&
+        /[(,]\s*[A-Za-z_$][\w$]*\??:\s/.test(callText) &&
+        /^\s*:/.test(rest)
+      )
+        continue;
+      const span = stripStringsAndComments(callText);
       // Shape 2: `env,` shorthand names `env`; `env: someVar` names someVar.
       // The name must be a buildChildEnv-derived identifier in THIS file.
       const envIdentifier = /[{,]\s*env\s*,/.test(span)
@@ -624,6 +632,23 @@ describe('child-process environment convention (buildChildEnv)', () => {
 });
 
 describe('childCallSites scanner (regression fixtures)', () => {
+  it('ignores multiline typed host methods while retaining real calls', () => {
+    const lines = [
+      'interface Host {',
+      '  spawn(',
+      '    description: string,',
+      '    options?: Options,',
+      '  ): Promise<Result>;',
+      '}',
+      'const child = spawn(command, args, { env: process.env });',
+      'const selected = condition ? spawn(command, args) : fallback;',
+    ];
+    expect(scanChildCallLines(lines, new Set<string>())).toEqual([
+      { line: 7, compliant: false },
+      { line: 8, compliant: false },
+    ]);
+  });
+
   it('a compliant neighbor never masks an adjacent unsafe call', () => {
     const lines = [
       "import { spawn } from 'node:child_process';",
