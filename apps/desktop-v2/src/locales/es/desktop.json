@@ -667,13 +667,19 @@
       "worktrees": "Inspecciona, fusiona o elimina las copias aisladas que dejan las ejecuciones.",
       "goals": "Planifica, sigue y controla las misiones del proyecto.",
       "skills": "Descubre, escribe y mantén las capacidades de tu proyecto.",
-      "liveFleetLabel": "Abrir la flota en vivo del proyecto",
-      "live-fleet": "Sesiones registradas, agentes, actividad reciente y controles revisados.",
       "office": "Los agentes de cada sesión en sus mesas: herramientas, correo, tareas y la topología.",
       "diagnostics": "Memoria, CPU, servidor del índice de código, procesos y vigilante de archivos del motor.",
       "chronicle": "Cronología del proyecto, evidencias de eventos y relaciones.",
       "automations": "Flujos de trabajo repetibles, programaciones y evidencias de ejecución.",
-      "settings": "Modelos, capacidades y valores de ejecución predeterminados."
+      "settings": "Modelos, capacidades y valores de ejecución predeterminados.",
+      "sdd": "Especificación, grafo de tareas y ejecuciones paralelas aprobadas.",
+      "atlas": "Paquetes, símbolos y cómo dependen unos de otros.",
+      "history": "Conversaciones anteriores, sus puntos de control y sus cambios.",
+      "roster": "Identidades de los agentes, sus reglas de ejecución y directrices aprendidas.",
+      "reviews": "Informes de Chimera y revisión continua, hallazgos y seguimiento.",
+      "design": "Kits de diseño, la galería y el tema propio del proyecto.",
+      "deadcode": "Código sin usar, qué lo alcanza aún y qué rompe su eliminación.",
+      "analytics": "Sesiones, agentes, llamadas a herramientas, tokens y coste a lo largo del tiempo."
     },
     "sessions": {
       "title": "Sesiones",
@@ -9293,5 +9299,18 @@
     "projectTag": "PROYECTO",
     "noProjects": "Conecta tu primer proyecto para empezar.",
     "footer": "Ctrl K para alternar · Esc para cerrar"
+  },
+  "projectTools": {
+    "groups": {
+      "work": "Trabajo",
+      "knowledge": "Conocimiento",
+      "agents": "Agentes",
+      "quality": "Calidad",
+      "system": "Sistema"
+    }
+  },
+  "agentWorkspace": {
+    "label": "Agentes del proyecto",
+    "tabsLabel": "Vistas de agentes"
   }
 }

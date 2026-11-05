@@ -667,13 +667,19 @@
       "worktrees": "Çalışmaların geride bıraktığı yalıtılmış kopyaları incele, birleştir ya da kaldır.",
       "goals": "Proje görevlerini planla, izle ve yönet.",
       "skills": "Proje yeteneklerini keşfet, yaz ve sürdür.",
-      "liveFleetLabel": "Projenin canlı filosunu aç",
-      "live-fleet": "Kayıtlı oturumlar, ajanlar, son etkinlik ve onaylı denetimler.",
       "office": "Her oturumun ajanları masalarında: araçlar, posta, yapılacaklar ve topoloji.",
       "diagnostics": "Motorun belleği, CPU kullanımı, kod indeksi sunucusu, süreçleri ve dosya izleyicisi.",
       "chronicle": "Proje zaman çizelgesi, olay kanıtları ve ilişkiler.",
       "automations": "Tekrarlanabilir iş akışları, zamanlamalar ve çalışma kanıtları.",
-      "settings": "Modeller, yetenekler ve yürütme varsayılanları."
+      "settings": "Modeller, yetenekler ve yürütme varsayılanları.",
+      "sdd": "Şartname, görev grafiği ve onaylanan paralel çalıştırmalar.",
+      "atlas": "Paketler, semboller ve birbirine bağımlılıkları.",
+      "history": "Geçmiş oturumlar, kontrol noktaları ve değiştirdikleri.",
+      "roster": "Ajan kimlikleri, çalışma zamanı ilkeleri ve öğrenilen yönergeler.",
+      "reviews": "Chimera ve sürekli inceleme raporları, bulgular ve takip işleri.",
+      "design": "Tasarım kitleri, galeri ve bu projenin kendi teması.",
+      "deadcode": "Kullanılmayan kod, ona hâlâ ulaşanlar ve kaldırmanın bozacağı şeyler.",
+      "analytics": "Zaman içinde oturumlar, ajanlar, araç çağrıları, jetonlar ve maliyet."
     },
     "sessions": {
       "title": "Oturumlar",
@@ -9293,5 +9299,18 @@
     "projectTag": "PROJE",
     "noProjects": "Başlamak için ilk projenizi bağlayın.",
     "footer": "Aç/kapat için Ctrl K · kapatmak için Esc"
+  },
+  "projectTools": {
+    "groups": {
+      "work": "Çalışma",
+      "knowledge": "Bilgi",
+      "agents": "Ajanlar",
+      "quality": "Kalite",
+      "system": "Sistem"
+    }
+  },
+  "agentWorkspace": {
+    "label": "Proje ajanları",
+    "tabsLabel": "Ajan görünümleri"
   }
 }

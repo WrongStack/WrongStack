@@ -6,7 +6,7 @@ import { exerciseNativeSkillDrafts } from './native-skill-drafts.mjs';
 export async function exerciseNativeSkills({ page, rpc, project, waitFor, artifactDir }) {
   const openLibrary = async () => {
     await page.locator('.project-home-button').click();
-    await page.locator('.project-secondary-links button').filter({ hasText: 'Skills' }).click();
+    await page.locator('.project-tools-menu.overview button').filter({ hasText: 'Skills' }).click();
     await page.getByRole('heading', { name: 'Skills', exact: true }).waitFor();
   };
   await openLibrary();

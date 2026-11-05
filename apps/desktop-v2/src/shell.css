@@ -129,34 +129,17 @@
 .rail-tools {
   position: relative;
 }
+/* The popover is the frame; the tools menu inside it carries the layout. */
 .rail-popover {
   position: absolute;
   z-index: 20;
   left: calc(100% + 6px);
   top: -6px;
-  width: 210px;
-  padding: 6px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
   box-shadow: 0 10px 30px color-mix(in srgb, var(--text) 14%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.rail-popover button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 12px;
-  text-align: left;
-}
-.rail-popover button:hover,
-.rail-popover button[aria-current="page"] {
-  background: var(--accent-soft);
 }
 
 .explorer-caption {

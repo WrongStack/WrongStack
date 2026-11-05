@@ -1,19 +1,4 @@
-import {
-  Activity,
-  ArrowRight,
-  BookOpen,
-  Box,
-  Brain,
-  Building2,
-  CalendarClock,
-  Gauge,
-  GitBranch,
-  Mail,
-  Network,
-  Target,
-  Terminal,
-  Workflow,
-} from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Network, Settings, Terminal, Workflow } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { projectHttp } from './engine-http';
@@ -21,6 +6,7 @@ import { entries, record } from './engine-values';
 import { FileWorkspace } from './FileWorkspace';
 import { MailboxUnread } from './MailboxUnread';
 import { isLive, type Project } from './model';
+import { ProjectAgentWorkspace } from './ProjectAgentWorkspace';
 import { ProjectAnalytics } from './ProjectAnalytics';
 import { ProjectAtlas } from './ProjectAtlas';
 import { ProjectBreadcrumb } from './ProjectBreadcrumb';
@@ -32,6 +18,7 @@ import { ProjectMailbox } from './ProjectMailbox';
 import { ProjectOffice } from './ProjectOffice';
 import { ProjectSage } from './ProjectSage';
 import { ProjectSdd } from './ProjectSdd';
+import { ProjectToolsMenu } from './ProjectToolsMenu';
 import { ProjectWorktrees } from './ProjectWorktrees';
 import { PromptWorkspace } from './PromptWorkspace';
 import {
@@ -49,12 +36,6 @@ const AutomationWorkspace = lazy(() =>
 );
 const ProjectKit = lazy(() =>
   import('./ProjectKit').then((module) => ({ default: module.ProjectKit })),
-);
-const ProjectAgentRoster = lazy(() =>
-  import('./ProjectAgentRoster').then((module) => ({ default: module.ProjectAgentRoster })),
-);
-const ProjectLiveFleet = lazy(() =>
-  import('./ProjectLiveFleet').then((module) => ({ default: module.ProjectLiveFleet })),
 );
 const ProjectDeadCode = lazy(() =>
   import('./ProjectDeadCode').then((module) => ({ default: module.ProjectDeadCode })),
@@ -175,39 +156,22 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         <ProjectDiagnostics projectId={project.id} http={http} sessions={projectSessions} />
       ) : vm.projectPage === 'analytics' ? (
         <ProjectAnalytics projectId={project.id} http={http} />
-      ) : vm.projectPage === 'live-fleet' ? (
-        <Suspense
-          fallback={
-            <p role="status">{t('project.openingPage', { page: t('pages.live-fleet') })}</p>
-          }
-        >
-          <ProjectLiveFleet
-            key={project.id}
-            http={http}
-            projectRoot={project.root}
-            carrierId={state.sessionId}
-            nativeSessions={projectSessions}
-          />
-        </Suspense>
-      ) : vm.projectPage === 'roster' ? (
-        <Suspense
-          fallback={<p role="status">{t('project.openingPage', { page: t('pages.roster') })}</p>}
-        >
-          <ProjectAgentRoster
-            key={project.id}
-            command={command}
-            projectId={project.id}
-            projectName={project.name}
-            events={state.results}
-            sessions={projectSessions}
-            onPrepare={(id, text) => vm.prepareProjectRequest(project.id, id, text)}
-            onNewSession={() => vm.newSession(project.id)}
-            onOpenFile={(path) => {
-              setFileTarget(path);
-              vm.setProjectPage('files');
-            }}
-          />
-        </Suspense>
+      ) : vm.projectPage === 'roster' || vm.projectPage === 'live-fleet' ? (
+        <ProjectAgentWorkspace
+          project={project}
+          vm={vm}
+          command={command}
+          http={http}
+          events={state.results}
+          nativeSessions={projectSessions}
+          carrierId={state.sessionId}
+          tab={vm.projectPage === 'live-fleet' ? 'live' : 'roster'}
+          onTab={(tab) => vm.setProjectPage(tab === 'live' ? 'live-fleet' : 'roster')}
+          onOpenFile={(path) => {
+            setFileTarget(path);
+            vm.setProjectPage('files');
+          }}
+        />
       ) : vm.projectPage === 'techstack' ? (
         <Suspense
           fallback={<p role="status">{t('project.openingPage', { page: t('pages.techstack') })}</p>}
@@ -542,109 +506,32 @@ function ProjectOverview({
           </div>
         </button>
       </div>
-      <div className="project-secondary-links">
-        <button type="button" onClick={() => vm.setProjectPage('techstack')}>
-          <Workflow size={21} />
-          <div>
-            <strong>{t('pages.techstack')}</strong>
-            <span>{t('overview.links.techstack')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('kit')}>
-          <Box size={21} />
-          <div>
-            <strong>{t('pages.kit')}</strong>
-            <span>{t('overview.links.kit')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('mailbox')}>
-          <Mail size={21} />
-          <div>
-            <strong>{t('pages.mailbox')}</strong>
-            <span>{t('overview.links.mailbox')}</span>
-            <MailboxUnread command={command} trigger={mailboxActivity} />
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('worktrees')}>
-          <GitBranch size={21} />
-          <div>
-            <strong>{t('pages.worktrees')}</strong>
-            <span>{t('overview.links.worktrees')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('goals')}>
-          <Target size={21} />
-          <div>
-            <strong>{t('pages.goals')}</strong>
-            <span>{t('overview.links.goals')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('skills')}>
-          <BookOpen size={21} />
-          <div>
-            <strong>{t('pages.skills')}</strong>
-            <span>{t('overview.links.skills')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button
-          type="button"
-          aria-label={t('overview.links.liveFleetLabel')}
-          onClick={() => vm.setProjectPage('live-fleet')}
-        >
-          <Network size={21} />
-          <div>
-            <strong>{t('pages.live-fleet')}</strong>
-            <span>{t('overview.links.live-fleet')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('office')}>
-          <Building2 size={21} />
-          <div>
-            <strong>{t('pages.office')}</strong>
-            <span>{t('overview.links.office')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('diagnostics')}>
-          <Gauge size={21} />
-          <div>
-            <strong>{t('pages.diagnostics')}</strong>
-            <span>{t('overview.links.diagnostics')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('chronicle')}>
-          <Activity size={21} />
-          <div>
-            <strong>{t('pages.chronicle')}</strong>
-            <span>{t('overview.links.chronicle')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.setProjectPage('automations')}>
-          <CalendarClock size={21} />
-          <div>
-            <strong>{t('pages.automations')}</strong>
-            <span>{t('overview.links.automations')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-        <button type="button" onClick={() => vm.openWrongStackSettings()}>
-          <Workflow size={21} />
-          <div>
-            <strong>{t('rail.settings')}</strong>
-            <span>{t('overview.links.settings')}</span>
-          </div>
-          <ArrowRight size={16} />
-        </button>
-      </div>
+      <ProjectToolsMenu
+        page={vm.projectPage}
+        onOpen={(id) => vm.setProjectPage(id)}
+        variant="overview"
+        badges={{
+          mailbox: <MailboxUnread command={command} trigger={mailboxActivity} />,
+        }}
+        after={
+          <section className="project-tools-group">
+            <div className="project-tools-items">
+              <button
+                type="button"
+                className="project-tool"
+                onClick={() => vm.openWrongStackSettings()}
+              >
+                <Settings size={21} />
+                <div className="project-tool-copy">
+                  <strong>{t('rail.settings')}</strong>
+                  <span>{t('overview.links.settings')}</span>
+                </div>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
+        }
+      />
       <section className="project-session-summary">
         <header>
           <div>

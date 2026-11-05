@@ -1,8 +1,5 @@
 import {
   Activity,
-  BarChart3,
-  Box,
-  Boxes,
   Brain,
   Columns3,
   FileCode2,
@@ -10,27 +7,21 @@ import {
   FolderPlus,
   Gauge,
   GitCompareArrows,
-  History,
   LayoutGrid,
-  Mail,
-  Network,
   Palette,
   Plus,
-  ScanSearch,
   Search,
   Settings,
   Shapes,
-  ShieldCheck,
-  Target,
-  Users,
-  Workflow,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { ProjectToolsMenu } from './ProjectToolsMenu';
 import { addProject, native } from './platform';
-import { requestSettingsSection, useShownSettingsSection } from './settings-section-request';
+import { owningTool, projectTools } from './project-tools';
 import { SidebarSessionRow } from './SidebarSessionRow';
 import { sidebarSessions } from './session-layout';
+import { requestSettingsSection, useShownSettingsSection } from './settings-section-request';
 import type { DesktopController, ProjectPage } from './useDesktop';
 
 /**
@@ -43,23 +34,6 @@ const PINNED: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
   { id: 'changes', Icon: GitCompareArrows },
   { id: 'memory', Icon: Brain },
   { id: 'kanban', Icon: Columns3 },
-];
-const TOOLS: Array<{ id: ProjectPage; Icon: typeof Brain }> = [
-  { id: 'atlas', Icon: Network },
-  { id: 'goals', Icon: Target },
-  { id: 'sdd', Icon: Workflow },
-  { id: 'mailbox', Icon: Mail },
-  { id: 'chronicle', Icon: Activity },
-  { id: 'roster', Icon: Users },
-  { id: 'live-fleet', Icon: Network },
-  { id: 'history', Icon: History },
-  { id: 'kit', Icon: Box },
-  { id: 'techstack', Icon: Boxes },
-  { id: 'deadcode', Icon: ScanSearch },
-  { id: 'design', Icon: Palette },
-  { id: 'reviews', Icon: ShieldCheck },
-  { id: 'diagnostics', Icon: Gauge },
-  { id: 'analytics', Icon: BarChart3 },
 ];
 
 function ToolsLauncher({
@@ -86,7 +60,7 @@ function ToolsLauncher({
       window.removeEventListener('keydown', close);
     };
   }, [open]);
-  const active = TOOLS.some((tool) => tool.id === page);
+  const active = projectTools.some((tool) => tool.id === owningTool(page));
   return (
     <div className="rail-tools" ref={root}>
       <button
@@ -101,20 +75,14 @@ function ToolsLauncher({
       </button>
       {open && (
         <div className="rail-popover">
-          {TOOLS.map(({ id, Icon }) => (
-            <button
-              type="button"
-              key={id}
-              aria-current={page === id ? 'page' : undefined}
-              onClick={() => {
-                setOpen(false);
-                onOpen(id);
-              }}
-            >
-              <Icon size={14} />
-              <span>{t(`pages.${id}`)}</span>
-            </button>
-          ))}
+          <ProjectToolsMenu
+            page={owningTool(page)}
+            onOpen={(id) => {
+              setOpen(false);
+              onOpen(id);
+            }}
+            variant="launcher"
+          />
         </div>
       )}
     </div>

@@ -667,13 +667,19 @@
       "worktrees": "Inspect, merge or remove the isolated checkouts runs leave behind.",
       "goals": "Plan, follow and control project missions.",
       "skills": "Discover, author, and maintain your project capabilities.",
-      "liveFleetLabel": "Open project live fleet",
-      "live-fleet": "Registered sessions, agents, recent activity and reviewed controls.",
       "office": "Every session's agents at their desks: tools, mail, todos and the topology.",
       "diagnostics": "The engine's memory, CPU, code index server, processes and file watcher.",
       "chronicle": "Project timeline, event evidence, and relationships.",
       "automations": "Repeatable workflows, schedules, and run evidence.",
-      "settings": "Models, capabilities, and execution defaults."
+      "settings": "Models, capabilities, and execution defaults.",
+      "sdd": "Specification, task graph and approved parallel runs.",
+      "atlas": "Packages, symbols and how they depend on each other.",
+      "history": "Past conversations, their checkpoints and what they changed.",
+      "roster": "Agent identities, their runtime policy and learned directives.",
+      "reviews": "Chimera and continuous review reports, findings and follow-up.",
+      "design": "Design kits, the gallery and this project’s own theme.",
+      "deadcode": "Unused code, what still reaches it and what removing it breaks.",
+      "analytics": "Sessions, agents, tool calls, tokens and cost over time."
     },
     "sessions": {
       "title": "Sessions",
@@ -9293,5 +9299,18 @@
     "projectTag": "PROJECT",
     "noProjects": "Connect your first project to get started.",
     "footer": "Ctrl K to toggle · Esc to close"
+  },
+  "projectTools": {
+    "groups": {
+      "work": "Work",
+      "knowledge": "Knowledge",
+      "agents": "Agents",
+      "quality": "Quality",
+      "system": "System"
+    }
+  },
+  "agentWorkspace": {
+    "label": "Project agents",
+    "tabsLabel": "Agent views"
   }
 }

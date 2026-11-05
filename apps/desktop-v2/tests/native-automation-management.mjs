@@ -21,7 +21,7 @@ export async function exerciseNativeAutomationManagement({
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await page.locator('.project-home-button').click();
     await page
-      .locator('.project-secondary-links button')
+      .locator('.project-tools-menu.overview button')
       .filter({ hasText: 'Automations' })
       .click();
     await workspace().getByRole('button', { name: 'New automation', exact: true }).waitFor();

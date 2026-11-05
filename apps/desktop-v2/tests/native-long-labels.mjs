@@ -4,9 +4,12 @@
  * text cut off by a clipping box without an ellipsis, or spilling out of its own box onto its
  * neighbours, is reported with the screen and the element. A truncation with an ellipsis is
  * reported when the full text is offered nowhere else (no `title`, no accessible name with it).
+ *
+ * `scope` narrows the measurement to one part of the page — a menu that floats over the rest —
+ * so a screen's own labels are not reported twice.
  */
-export async function measureLabelFit(page) {
-  return page.evaluate(() => {
+export async function measureLabelFit(page, scope = 'body') {
+  return page.evaluate((scopeSelector) => {
     const LABELS =
       'button, a, [role="tab"], [role="menuitem"], [role="option"], label, legend, summary, th, h1, h2, h3, h4';
     // Content areas whose text is the user's own, not a label.
@@ -21,13 +24,16 @@ export async function measureLabelFit(page) {
     const SLACK = 2;
     const findings = [];
     const reported = new Set();
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    // A scope that is not on the page is a broken audit, not a screen without labels.
+    const root = scopeSelector === 'body' ? document.body : document.querySelector(scopeSelector);
+    if (!root) throw new Error(`No element matches the audit scope ${scopeSelector}`);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent?.trim() ?? '';
       const host = node.parentElement;
       if (!text || !host || host.closest(SKIP)) continue;
       const label = host.closest(LABELS);
-      if (!label || reported.has(label)) continue;
+      if (!label || !root.contains(label) || reported.has(label)) continue;
       if (!label.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
       const range = document.createRange();
       range.selectNodeContents(node);
@@ -103,5 +109,5 @@ export async function measureLabelFit(page) {
       });
     }
     return findings;
-  });
+  }, scope);
 }

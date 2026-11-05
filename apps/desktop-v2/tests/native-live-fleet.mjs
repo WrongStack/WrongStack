@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { openProjectView } from './native-project-navigation.mjs';
 
 export async function exerciseNativeLiveFleet({
   page,
@@ -28,7 +29,12 @@ export async function exerciseNativeLiveFleet({
   );
   const openProject = async (target) => {
     await page.locator('.project-item').filter({ hasText: target.name }).click();
-    await page.getByRole('button', { name: 'Open project live fleet', exact: true }).click();
+    // The live fleet belongs to the agent workspace, as the roster's live tab.
+    await openProjectView(page, target, 'Agent Roster');
+    await page
+      .getByRole('navigation', { name: 'Agent views', exact: true })
+      .getByRole('button', { name: 'Live fleet', exact: true })
+      .click();
     await page.getByRole('region', { name: 'Project live fleet', exact: true }).waitFor();
   };
   const panel = () => page.getByRole('region', { name: 'Project live fleet', exact: true });

@@ -76,7 +76,7 @@ Ownership is explicit:
 
 | Scope | Desktop surface | Required independence |
 |---|---|---|
-| Project | Overview, Agent Roster, Live fleet, Session history, SAGE/Vector Memory, Kanban, Goals/mission, SDD/requirements, Code Atlas, Files/Changes/History, Chronicle, Mailbox, Project Kit, TechStack, Dead Code, Design Studio, Chimera Reviews, Skills, Automations, Prompt library/journal | Opens without creating or selecting a conversation |
+| Project | Overview, Agent Roster (its live fleet tab), Session history, SAGE/Vector Memory, Kanban, Goals/mission, SDD/requirements, Code Atlas, Files/Changes/History, Chronicle, Mailbox, Project Kit, TechStack, Dead Code, Design Studio, Chimera Reviews, Skills, Automations, Prompt library/journal | Opens without creating or selecting a conversation |
 | WrongStack profile | Providers, execution, context, capabilities, profile Skills, agents/fallbacks, MCP, diagnostics/logs | Opens with zero projects and sessions |
 | Desktop | Appearance, local registry and layout | Does not rewrite engine preferences |
 | Session | Conversation, terminal, context/instructions inspector, run activity, approvals, questions, results | Remains attached to its own persistent session |

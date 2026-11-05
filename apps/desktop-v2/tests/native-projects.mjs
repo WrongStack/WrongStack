@@ -391,7 +391,10 @@ export async function exerciseNativeProjects({
     /relative|resource|path/i,
   );
   await page.locator('.project-home-button').click();
-  await page.locator('.project-secondary-links button').filter({ hasText: 'Automations' }).click();
+  await page
+    .locator('.project-tools-menu.overview button')
+    .filter({ hasText: 'Automations' })
+    .click();
   await page.getByLabel('Automation name', { exact: true }).fill('Native project check');
   await page.getByLabel('Automation image', { exact: true }).fill('wrongstack:latest');
   await page

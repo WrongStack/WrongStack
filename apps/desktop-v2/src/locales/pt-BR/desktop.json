@@ -667,13 +667,19 @@
       "worktrees": "Inspecione, mescle ou remova as cópias isoladas deixadas pelas execuções.",
       "goals": "Planeje, acompanhe e controle as missões do projeto.",
       "skills": "Descubra, escreva e mantenha as capacidades do seu projeto.",
-      "liveFleetLabel": "Abrir a frota ao vivo do projeto",
-      "live-fleet": "Sessões registradas, agentes, atividade recente e controles revisados.",
       "office": "Os agentes de cada sessão em suas mesas: ferramentas, correio, tarefas e a topologia.",
       "diagnostics": "Memória, CPU, servidor do índice de código, processos e observador de arquivos do motor.",
       "chronicle": "Linha do tempo do projeto, evidências de eventos e relações.",
       "automations": "Fluxos de trabalho repetíveis, agendamentos e evidências de execução.",
-      "settings": "Modelos, capacidades e padrões de execução."
+      "settings": "Modelos, capacidades e padrões de execução.",
+      "sdd": "Especificação, grafo de tarefas e execuções paralelas aprovadas.",
+      "atlas": "Pacotes, símbolos e como eles dependem uns dos outros.",
+      "history": "Conversas anteriores, seus checkpoints e o que mudaram.",
+      "roster": "Identidades dos agentes, suas regras de execução e diretrizes aprendidas.",
+      "reviews": "Relatórios do Chimera e da revisão contínua, achados e acompanhamento.",
+      "design": "Kits de design, a galeria e o tema próprio do projeto.",
+      "deadcode": "Código não usado, o que ainda o alcança e o que sua remoção quebra.",
+      "analytics": "Sessões, agentes, chamadas de ferramenta, tokens e custo ao longo do tempo."
     },
     "sessions": {
       "title": "Sessões",
@@ -9293,5 +9299,18 @@
     "projectTag": "PROJETO",
     "noProjects": "Conecte seu primeiro projeto para começar.",
     "footer": "Ctrl K para alternar · Esc para fechar"
+  },
+  "projectTools": {
+    "groups": {
+      "work": "Trabalho",
+      "knowledge": "Conhecimento",
+      "agents": "Agentes",
+      "quality": "Qualidade",
+      "system": "Sistema"
+    }
+  },
+  "agentWorkspace": {
+    "label": "Agentes do projeto",
+    "tabsLabel": "Views de agentes"
   }
 }

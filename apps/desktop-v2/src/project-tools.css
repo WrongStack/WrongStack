@@ -1,0 +1,142 @@
+/* The project's tool menus: the sidebar's launcher and the overview's cards. Both render the
+   same catalog, so both carry the same anatomy — an icon, the tool's name, and (in the overview)
+   its one-line summary. Group headings come from the WebUI's tools launcher. */
+
+.project-tools-group h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Launcher: one column, the open tool marked with a dot, as the WebUI's launcher does. */
+.project-tools-menu.launcher {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 236px;
+  max-height: min(520px, calc(100vh - 120px));
+  overflow-y: auto;
+}
+.project-tools-menu.launcher .project-tools-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.project-tools-menu.launcher .project-tool {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+.project-tools-menu.launcher .project-tool:hover {
+  background: var(--accent-soft);
+}
+.project-tools-menu.launcher .project-tool[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.project-tools-menu.launcher .project-tool > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.project-tools-menu.launcher .project-tool[aria-current="page"] > svg {
+  color: var(--accent);
+}
+.project-tools-menu.launcher .project-tool-copy {
+  flex: 1;
+  min-width: 0;
+}
+.project-tools-menu.launcher .project-tool-copy strong {
+  display: block;
+  font-weight: 450;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-tool-dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Overview: cards in pairs, each with the tool's icon, name and summary. */
+.project-tools-menu.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin: 24px 0 38px;
+}
+.project-tools-menu.overview .project-tools-items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.project-tools-menu.overview .project-tool {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 19px 22px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  text-align: left;
+}
+.project-tools-menu.overview .project-tool:hover {
+  border-color: var(--accent);
+}
+.project-tools-menu.overview .project-tool > svg:first-child {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.project-tools-menu.overview .project-tool > svg:last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--subtle);
+}
+.project-tools-menu.overview .project-tool-copy {
+  flex: 1;
+  min-width: 0;
+}
+.project-tools-menu.overview .project-tool-copy strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.project-tools-menu.overview .project-tool-copy span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* The agent workspace: the roster and the live fleet that runs beside it. */
+.agent-workspace-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.agent-workspace-tabs button {
+  padding: 9px 13px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.agent-workspace-tabs button:hover {
+  color: var(--text);
+}
+.agent-workspace-tabs button[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}

@@ -667,13 +667,19 @@
       "worktrees": "Prüfe, merge oder entferne die isolierten Checkouts, die Läufe zurücklassen.",
       "goals": "Plane, verfolge und steuere Projektmissionen.",
       "skills": "Entdecke, verfasse und pflege die Fähigkeiten deines Projekts.",
-      "liveFleetLabel": "Live-Fleet des Projekts öffnen",
-      "live-fleet": "Registrierte Sitzungen, Agenten, letzte Aktivität und geprüfte Steuerung.",
       "office": "Die Agenten jeder Sitzung an ihren Schreibtischen: Werkzeuge, Post, Todos und Topologie.",
       "diagnostics": "Speicher, CPU, Code-Index-Server, Prozesse und Dateiüberwachung der Engine.",
       "chronicle": "Projektzeitleiste, Ereignisnachweise und Beziehungen.",
       "automations": "Wiederholbare Workflows, Zeitpläne und Laufnachweise.",
-      "settings": "Modelle, Fähigkeiten und Ausführungsstandards."
+      "settings": "Modelle, Fähigkeiten und Ausführungsstandards.",
+      "sdd": "Spezifikation, Aufgabengraph und freigegebene parallele Läufe.",
+      "atlas": "Pakete, Symbole und ihre Abhängigkeiten voneinander.",
+      "history": "Frühere Unterhaltungen, ihre Prüfpunkte und ihre Änderungen.",
+      "roster": "Agentenidentitäten, ihre Laufzeitregeln und gelernte Anweisungen.",
+      "reviews": "Chimera- und laufende Prüfberichte, Befunde und Nacharbeiten.",
+      "design": "Design-Kits, die Galerie und das eigene Thema des Projekts.",
+      "deadcode": "Ungenutzter Code, was ihn noch erreicht und was sein Entfernen bricht.",
+      "analytics": "Sitzungen, Agenten, Werkzeugaufrufe, Tokens und Kosten im Zeitverlauf."
     },
     "sessions": {
       "title": "Sitzungen",
@@ -9293,5 +9299,18 @@
     "projectTag": "PROJEKT",
     "noProjects": "Verbinden Sie Ihr erstes Projekt, um zu beginnen.",
     "footer": "Ctrl K zum Umschalten · Esc zum Schließen"
+  },
+  "projectTools": {
+    "groups": {
+      "work": "Arbeit",
+      "knowledge": "Wissen",
+      "agents": "Agenten",
+      "quality": "Qualität",
+      "system": "System"
+    }
+  },
+  "agentWorkspace": {
+    "label": "Projektagenten",
+    "tabsLabel": "Agentenansichten"
   }
 }
