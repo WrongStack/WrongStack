@@ -553,7 +553,10 @@ export function SessionRecovery({
                       {String(file['filePath'])}
                     </button>
                     <small>
-                      {String(file['operation'])} · {String(file['toolName'])} · {when(file['ts'])}
+                      {t(`chronicleView.insights.operation.${String(file['operation'])}`, {
+                        defaultValue: String(file['operation']),
+                      })}{' '}
+                      · {String(file['toolName'])} · {when(file['ts'])}
                     </small>
                   </article>
                 ))}

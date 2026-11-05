@@ -16,9 +16,14 @@
   gap: 14px;
   color: var(--accent);
 }
+/* The header colour is for its icon; the title and eyebrow read like other settings cards. */
 .execution-policy h3 {
   font-size: 17px;
   margin: 6px 0;
+  color: var(--text);
+}
+.execution-policy header .eyebrow {
+  color: var(--muted);
 }
 .execution-policy p,
 .execution-policy small {
