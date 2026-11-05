@@ -74,6 +74,12 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* Loading and empty lines inside a list sat against its border. */
+.resource-list > p {
+  margin: 0;
+  padding: 25px 15px;
+  color: var(--muted);
+}
 .resource-list strong {
   display: flex;
   align-items: center;

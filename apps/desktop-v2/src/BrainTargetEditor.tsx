@@ -64,46 +64,56 @@ export function BrainTargetEditor({
       active = false;
     };
   }, [command]);
-  const fields = (row: BrainTarget, label: string, update: (target: BrainTarget) => void) => (
-    <div className="brain-target-fields">
-      <label>
-        {t('brainTargets.field.saved')}
-        <select
-          aria-label={t('brainTargets.field.savedLabel', { target: label })}
-          value=""
-          onChange={(event) => {
-            const choice = catalog[Number(event.target.value)];
-            if (choice) update(choice);
-          }}
-        >
-          <option value="">{t('brainTargets.field.choose')}</option>
-          {catalog.map((entry, index) => (
-            <option value={index} key={index}>
-              {entry.provider}/{entry.model}
+  const fields = (row: BrainTarget, label: string, update: (target: BrainTarget) => void) => {
+    // The select names the saved entry the fields hold, or says they hold a custom model.
+    const saved = catalog.findIndex(
+      (entry) => entry.provider === row.provider && entry.model === row.model,
+    );
+    return (
+      <div className="brain-target-fields">
+        <label>
+          {t('brainTargets.field.saved')}
+          <select
+            aria-label={t('brainTargets.field.savedLabel', { target: label })}
+            value={saved < 0 ? '' : saved}
+            onChange={(event) => {
+              const choice = catalog[Number(event.target.value)];
+              if (event.target.value !== '' && choice) update(choice);
+            }}
+          >
+            <option value="">
+              {saved < 0 && row.model.trim()
+                ? t('brainTargets.field.custom')
+                : t('brainTargets.field.choose')}
             </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {t('brainTargets.field.provider')}
-        <input
-          aria-label={t('brainTargets.field.providerLabel', { target: label })}
-          value={row.provider}
-          placeholder={t('brainTargets.field.providerPlaceholder')}
-          onChange={(event) => update({ ...row, provider: event.target.value })}
-        />
-      </label>
-      <label>
-        {t('brainTargets.field.model')}
-        <input
-          aria-label={t('brainTargets.field.modelLabel', { target: label })}
-          value={row.model}
-          placeholder={t('brainTargets.field.modelPlaceholder')}
-          onChange={(event) => update({ ...row, model: event.target.value })}
-        />
-      </label>
-    </div>
-  );
+            {catalog.map((entry, index) => (
+              <option value={index} key={index}>
+                {entry.provider}/{entry.model}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('brainTargets.field.provider')}
+          <input
+            aria-label={t('brainTargets.field.providerLabel', { target: label })}
+            value={row.provider}
+            placeholder={t('brainTargets.field.providerPlaceholder')}
+            onChange={(event) => update({ ...row, provider: event.target.value })}
+          />
+        </label>
+        <label>
+          {t('brainTargets.field.model')}
+          <input
+            aria-label={t('brainTargets.field.modelLabel', { target: label })}
+            value={row.model}
+            placeholder={t('brainTargets.field.modelPlaceholder')}
+            onChange={(event) => update({ ...row, model: event.target.value })}
+          />
+        </label>
+      </div>
+    );
+  };
   const move = <T,>(items: T[], index: number, delta: number): T[] => {
     const next = [...items];
     [next[index], next[index + delta]] = [next[index + delta]!, next[index]!];

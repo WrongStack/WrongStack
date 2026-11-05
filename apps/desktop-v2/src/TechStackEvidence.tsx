@@ -1,6 +1,6 @@
 import { FileCode2, Sparkles } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
-import { entries } from './engine-values';
+import { dateTimeText, entries } from './engine-values';
 import { techInterpretation, techVersion } from './techstack-model';
 import { techWord } from './techstack-text';
 
@@ -11,14 +11,16 @@ export function TechEvidence({
   items: Record<string, unknown>[];
   onOpenFile: (path: string) => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   return items.length ? (
     <ul className="tech-evidence">
       {items.map((item, index) => (
         <li key={index}>
           <header>
             <strong>{techWord(item['kind'], t)}</strong>
-            <time>{String(item['retrievedAt'] ?? '')}</time>
+            <time dateTime={String(item['retrievedAt'] ?? '')}>
+              {dateTimeText(item['retrievedAt'], i18n.language)}
+            </time>
           </header>
           {['manifest', 'lockfile'].includes(String(item['kind'])) ? (
             <button

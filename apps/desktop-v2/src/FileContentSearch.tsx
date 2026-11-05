@@ -138,7 +138,7 @@ export function FileContentSearch({
             <p role="status">
               <strong>{t('contentSearch.lines', { count: hits.length })}</strong> ·{' '}
               {t('contentSearch.filesRead', {
-                count: Number(result['scannedFiles'] ?? 0).toLocaleString(),
+                count: Number(result['scannedFiles'] ?? 0),
               })}
               {result['partial'] === true
                 ? ` · ${t('contentSearch.partial')}`

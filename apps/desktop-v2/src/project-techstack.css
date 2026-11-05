@@ -51,6 +51,25 @@
 .tech-job :is(strong, span, small)::first-letter {
   text-transform: uppercase;
 }
+/* A finished job is one quiet line under the controls; a failed one reads as an error. */
+.tech-job:not([data-state="running"]) {
+  padding: 10px 14px;
+  border-color: var(--border);
+  background: var(--raised);
+}
+.tech-job:not([data-state="running"]) > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.tech-job:is([data-state="failed"], [data-state="cancelled"]) {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.tech-job small:empty {
+  display: none;
+}
 .tech-job progress {
   max-width: 140px;
   accent-color: var(--accent);
@@ -278,7 +297,17 @@
   font-size: 11px;
   overflow-wrap: anywhere;
   display: grid;
+  /* One column no wider than the card: a long manifest path wraps instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+}
+.tech-evidence li > .button {
+  justify-self: start;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 .tech-evidence time {
   color: var(--muted);

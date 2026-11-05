@@ -1,4 +1,4 @@
-import { Square, Trash2 } from 'lucide-react';
+import { Square, SquareTerminal, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
@@ -55,7 +55,12 @@ export function SidebarSessionRow({
       >
         <span className={`status-dot ${session.status}`} />
         <span>{title}</span>
-        {session.kind === 'terminal' && <small>{t('explorer.terminal')}</small>}
+        {session.kind === 'terminal' && (
+          <small className="tree-session-kind" title={t('explorer.terminal')}>
+            <SquareTerminal size={12} aria-hidden="true" />
+            <span className="tree-session-kind-name">{t('explorer.terminal')}</span>
+          </small>
+        )}
       </button>
       <span className="tree-session-actions">
         {isLive(session) && (

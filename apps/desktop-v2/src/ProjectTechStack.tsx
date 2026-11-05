@@ -203,7 +203,12 @@ export function ProjectTechStack({
         </p>
       )}
       {vm.job && (
-        <section className="tech-job" aria-label={t('techStack.jobLabel')} role="status">
+        <section
+          className="tech-job"
+          aria-label={t('techStack.jobLabel')}
+          role="status"
+          data-state={techRunning(vm.job) ? 'running' : String(vm.job['status'])}
+        >
           <div>
             <strong>{word(vm.job['status'])}</strong>
             <span>
@@ -211,17 +216,22 @@ export function ProjectTechStack({
               {vm.job['model'] ? ` · ${vm.job['model']}` : ''}
             </span>
             <small>
-              {word(progress['phase'])}
-              {typeof progress['completed'] === 'number' && typeof progress['total'] === 'number'
-                ? ` · ${progress['completed']} / ${progress['total']}`
-                : ''}
+              {[
+                // A finished job's phase repeats its status ("Completed · Completed").
+                progress['phase'] !== vm.job['status'] ? word(progress['phase']) : '',
+                typeof progress['completed'] === 'number' && typeof progress['total'] === 'number'
+                  ? `${progress['completed']} / ${progress['total']}`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </small>
             {typeof vm.job['error'] === 'string' && <p>{vm.job['error']}</p>}
             {failure &&
               failure['jobId'] === vm.job['id'] &&
               typeof failure['error'] === 'string' && <p>{failure['error']}</p>}
           </div>
-          {Number(progress['total']) > 0 && (
+          {techRunning(vm.job) && Number(progress['total']) > 0 && (
             <progress
               aria-label={t('techStack.progress')}
               max={Number(progress['total'])}

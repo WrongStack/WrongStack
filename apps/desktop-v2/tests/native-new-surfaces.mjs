@@ -109,9 +109,9 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
 
   await kanban
     .getByRole('toolbar', { name: 'Board tools', exact: true })
-    .getByRole('button', { name: 'Contract map…', exact: true })
+    .getByRole('button', { name: 'Edit contracts…', exact: true })
     .click();
-  const map = page.getByRole('dialog', { name: 'Contract map', exact: true });
+  const map = page.getByRole('dialog', { name: 'Edit contracts', exact: true });
   await map.getByRole('combobox', { name: /^Board enforcement/ }).waitFor();
   await map.getByLabel('Contract', { exact: true }).fill('Keep the test suite green');
   await map.getByRole('button', { name: 'Add contract', exact: true }).click();

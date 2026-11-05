@@ -178,7 +178,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.keyboard.press('Control+f');
   const finder = page.getByRole('region', { name: 'Find and replace', exact: true });
   await finder.getByLabel('Find in file', { exact: true }).fill('desktop');
-  await finder.getByText('1 matches', { exact: true }).waitFor();
+  await finder.getByText('1 match', { exact: true }).waitFor();
   await finder.getByLabel('Replace with', { exact: true }).fill('native');
   await finder.getByRole('button', { name: 'Replace all', exact: true }).click();
   await finder.getByText('Replaced 1 match.', { exact: true }).waitFor();
@@ -261,7 +261,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   );
   await page.reload();
   await tool('Files').click();
-  await page.getByText('1 local file drafts · saved on this device', { exact: true }).click();
+  await page.getByText('1 local file draft · saved on this device', { exact: true }).click();
   await page.getByRole('button', { name: 'desktop-notes/native.ts', exact: true }).click();
   await editor().waitFor();
   assert.equal(await editor().inputValue(), 'export const unsaved = true;\n');
@@ -547,7 +547,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await tray.getByRole('button', { name: 'Delete reply 2 to review note 1', exact: true }).click();
   await tray.getByText('Edited temporary reply', { exact: true }).waitFor({ state: 'detached' });
   await tray.getByRole('button', { name: 'Resolve review note 1', exact: true }).click();
-  await tray.getByText('1 open review notes · 1 resolved', { exact: true }).waitFor();
+  await tray.getByText('1 open review note · 1 resolved', { exact: true }).waitFor();
   assert.equal(await tray.getByText(reviewText, { exact: true }).count(), 0);
   const discussed = await invokeForm('form-draft.get', {
     projectId: project.id,
@@ -568,7 +568,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.reload();
   await page.locator('.project-item').filter({ hasText: project.name }).click();
   await tool('Changes').click();
-  await tray.getByText('1 open review notes · 1 resolved', { exact: true }).waitFor();
+  await tray.getByText('1 open review note · 1 resolved', { exact: true }).waitFor();
   await tray.getByLabel('Show resolved', { exact: true }).check();
   await firstNote.getByText('Checked against the requirement.', { exact: true }).waitFor();
   await page.screenshot({
@@ -651,7 +651,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     .getByRole('combobox', { name: 'Hunk review layer', exact: true })
     .selectOption('unstaged');
   await hunks.getByRole('checkbox', { name: 'Select line 3 of hunk 1', exact: true }).check();
-  await hunks.getByRole('button', { name: 'Stage 1 selected lines', exact: true }).click();
+  await hunks.getByRole('button', { name: 'Stage 1 selected line', exact: true }).click();
   await waitFor(
     () => git('show', ':native-hunks.txt') === original.replace('line 3\n', ''),
     'Only the selected line enters the real index',

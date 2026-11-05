@@ -76,10 +76,13 @@ export function ViewerFindBar({
       />
       <span role="status" className="editor-find-count">
         {query
-          ? `${t(lines.length === 1 ? `find.${scope}.countOne` : `find.${scope}.countMany`, {
-              count,
-              lines: lines.length,
-            })}${index >= 0 ? ` · ${t(`find.${scope}.at`, { line: lines[index] })}` : ''}`
+          ? `${t(
+              `find.${scope}.${matches.length === 1 ? 'countSingle' : lines.length === 1 ? 'countOne' : 'countMany'}`,
+              {
+                count,
+                lines: lines.length,
+              },
+            )}${index >= 0 ? ` · ${t(`find.${scope}.at`, { line: lines[index] })}` : ''}`
           : ''}
       </span>
       <button

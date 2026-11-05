@@ -172,6 +172,23 @@ export async function exerciseNativeTechStack({
       path: join(artifactDir, 'native-techstack-dependency.png'),
       fullPage: true,
     });
+    // The page scrolls vertically only: name whatever reaches past its scroll box.
+    const overflow = await page.evaluate(() => {
+      let box = document.querySelector('.project-techstack')?.parentElement ?? null;
+      while (box && getComputedStyle(box).overflowX === 'visible') box = box.parentElement;
+      if (!box || box.scrollWidth <= box.clientWidth + 1) return [];
+      const edge = box.getBoundingClientRect().left + box.clientWidth;
+      return [...box.querySelectorAll('*')]
+        .map((element) => ({ element, right: element.getBoundingClientRect().right }))
+        .filter(({ right }) => right > edge + 1)
+        .sort((a, b) => b.right - a.right)
+        .slice(0, 6)
+        .map(
+          ({ element, right }) =>
+            `${element.tagName.toLowerCase()}.${[...element.classList].join('.')} +${Math.round(right - edge)}px`,
+        );
+    });
+    assert.deepEqual(overflow, [], 'The TechStack page does not scroll sideways');
     await screen
       .getByRole('textbox', { name: 'Search dependencies', exact: true })
       .fill('no-matching-native-package');

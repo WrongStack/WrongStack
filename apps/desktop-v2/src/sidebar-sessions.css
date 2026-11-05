@@ -8,6 +8,24 @@
   flex: 1;
   min-width: 0;
 }
+/* A terminal's kind is an icon; its name stays for assistive tech (row accessible name). */
+.tree-session .tree-session-kind {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.tree-session-kind-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 800px) {
+  .explorer .tree-session-row > .tree-session {
+    padding-left: 18px;
+  }
+}
 .tree-session-actions {
   position: absolute;
   right: 4px;

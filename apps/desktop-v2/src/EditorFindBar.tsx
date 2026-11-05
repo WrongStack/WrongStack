@@ -74,7 +74,8 @@ export function EditorFindBar({
     );
   };
   const count =
-    matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : String(matches.length);
+    // A number picks the singular ("1 match"); the capped count reads as text.
+    matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : matches.length;
   return (
     <section className="editor-find-bar" aria-label={t('find.replaceLabel')}>
       <input

@@ -152,7 +152,7 @@ export function MergeConflictReview({
                             </strong>
                             <p>
                               {t('conflict.bytes', {
-                                count: Number(info['bytes']).toLocaleString(),
+                                count: Number(info['bytes']),
                               })}
                             </p>
                             <code>{String(info['oid']).slice(0, 12)}</code>

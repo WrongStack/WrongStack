@@ -62,7 +62,7 @@ describe('the file tools in the display language', () => {
       text: '2 matches on 2 lines',
       label: 'Find in read-only source',
     });
-    expect((await findCount('conversation', 'bar')).text).toBe('1 matches in 1 message');
+    expect((await findCount('conversation', 'bar')).text).toBe('1 match in 1 message');
     let html = bars();
     for (const text of [
       'aria-label="Find and replace"',

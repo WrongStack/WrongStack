@@ -6,6 +6,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+}
+/* A narrow window keeps the status on one line: the meter's bar goes, its words stay. */
+@media (max-width: 900px) {
+  .session-status .context-meter-bar {
+    display: none;
+  }
 }
 .session-status > button:last-of-type {
   margin-left: auto;
