@@ -176,6 +176,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  margin: 10px 0 6px;
+}
+.activity-entry-body .activity-output-heading > h4 {
+  margin: 0;
 }
 .tool-output-actions {
   display: inline-flex;
