@@ -614,6 +614,11 @@ describe('persistence 100% coverage suite', () => {
           `${flippedCommonDir}\n`,
           'utf8',
         );
+        await fsPromises.writeFile(
+          path.join(wtGitDir, 'gitdir'),
+          `${path.join(linkedWt, '.git')}\n`,
+          'utf8',
+        );
 
         const mainCanonical = canonicalProjectRoot(mainRepo);
         expect(canonicalProjectRoot(linkedWt)).toBe(mainCanonical);

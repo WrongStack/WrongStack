@@ -8,6 +8,10 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const BODY: Record<string, string> = {
   'wrongmemory-windows-x64.exe': 'cli-bytes',
   'wrongmemoryd-windows-x64.exe': 'daemon-bytes',
+  'wrongmemory-linux-x64': 'linux-cli-bytes',
+  'wrongmemoryd-linux-x64': 'linux-daemon-bytes',
+  'wrongmemory-darwin-arm64': 'mac-cli-bytes',
+  'wrongmemoryd-darwin-arm64': 'mac-daemon-bytes',
 };
 
 function fakeIo(options: {
@@ -45,7 +49,10 @@ function fakeIo(options: {
       ran.push({
         exe,
         args,
-        staged: ['wrongmemory.exe', 'wrongmemoryd.exe'].map((f) =>
+        staged: (exe.endsWith('.exe')
+          ? ['wrongmemory.exe', 'wrongmemoryd.exe']
+          : ['wrongmemory', 'wrongmemoryd']
+        ).map((f) =>
           existsSync(path.join(dir, f)) ? readFileSync(path.join(dir, f), 'utf8') : '',
         ),
       });
@@ -102,9 +109,36 @@ describe('installWrongMemory', () => {
     expect(io.ran[0]!.args).toEqual(['install', '--json', '--stop-daemon']);
   });
 
-  it('is Windows x64 only', async () => {
+  it('installs the Linux x64 and macOS arm64 assets under their Unix names', async () => {
+    for (const [platform, arch, cli, daemon] of [
+      ['linux', 'x64', 'linux-cli-bytes', 'linux-daemon-bytes'],
+      ['darwin', 'arm64', 'mac-cli-bytes', 'mac-daemon-bytes'],
+    ] as const) {
+      const io = fakeIo({ digest: (n) => `sha256:${sha(BODY[n]!)}` });
+      await installWrongMemory({ platform, arch, stopDaemon: false, io });
+      expect(io.ran).toHaveLength(1);
+      expect(path.basename(io.ran[0]!.exe)).toBe('wrongmemory');
+      expect(io.ran[0]!.staged).toEqual([cli, daemon]);
+    }
+  });
+
+  it('checks the Unix assets against SHA256SUMS too', async () => {
+    const io = fakeIo({ sums: `${'0'.repeat(64)}  wrongmemory-linux-x64` });
     await expect(
-      installWrongMemory({ platform: 'linux', arch: 'x64', stopDaemon: false, io: fakeIo({}) }),
-    ).rejects.toThrow(/Windows x64 only/);
+      installWrongMemory({ platform: 'linux', arch: 'x64', stopDaemon: false, io }),
+    ).rejects.toThrow(/checksum does not match the release SHA256SUMS/);
+    expect(io.ran).toHaveLength(0);
+  });
+
+  it('refuses platforms WrongMemory does not ship for', async () => {
+    for (const [platform, arch] of [
+      ['linux', 'arm64'],
+      ['darwin', 'x64'],
+      ['win32', 'arm64'],
+    ] as const) {
+      await expect(
+        installWrongMemory({ platform, arch, stopDaemon: false, io: fakeIo({}) }),
+      ).rejects.toThrow(/Windows x64, Linux x64 and macOS arm64/);
+    }
   });
 });

@@ -164,9 +164,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 951,
+      "files": 952,
       "typeOnly": 69,
-      "runtimeOrMixed": 917
+      "runtimeOrMixed": 918
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -14334,6 +14334,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/src/middleware/evidence-refresh.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/src/middleware/path-remap.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

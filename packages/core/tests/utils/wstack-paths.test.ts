@@ -50,6 +50,7 @@ describe('wstack-paths', () => {
       await fs.mkdir(linked, { recursive: true });
       await fs.writeFile(path.join(linked, '.git'), `gitdir: ${linkedGitDir}\n`);
       await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(linked, '.git')}\n`);
 
       expect(canonicalProjectRoot(linked)).toBe(path.resolve(main));
       expect(projectHash(linked)).toBe(projectHash(main));
@@ -70,6 +71,62 @@ describe('wstack-paths', () => {
     }
   });
 
+  it('keeps its own identity when a .git file or symlink borrows another worktree entry', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-worktree-backlink-'));
+    const main = path.join(tmp, 'main-repo');
+    const linked = path.join(tmp, 'task-checkout');
+    const linkedGitDir = path.join(main, '.git', 'worktrees', 'task-checkout');
+    try {
+      await fs.mkdir(linkedGitDir, { recursive: true });
+      await fs.mkdir(linked, { recursive: true });
+      await fs.writeFile(path.join(linked, '.git'), `gitdir: ${linkedGitDir}\n`);
+      await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(linked, '.git')}\n`);
+      expect(canonicalProjectRoot(linked)).toBe(path.resolve(main));
+
+      // The same `.git` file in an unrelated directory: Git's back-link
+      // (`worktrees/task-checkout/gitdir`) names the real worktree only.
+      const planted = path.join(tmp, 'planted');
+      await fs.mkdir(planted, { recursive: true });
+      await fs.copyFile(path.join(linked, '.git'), path.join(planted, '.git'));
+      expect(canonicalProjectRoot(planted)).toBe(path.resolve(planted));
+      expect(projectHash(planted)).not.toBe(projectHash(main));
+
+      // A symlink to the real worktree's `.git` file is not this checkout's own.
+      const symlinked = path.join(tmp, 'symlinked');
+      await fs.mkdir(symlinked, { recursive: true });
+      const made = await fs
+        .symlink(path.join(linked, '.git'), path.join(symlinked, '.git'), 'file')
+        .then(() => true)
+        .catch(() => false); // Windows without the symlink privilege
+      if (made) expect(canonicalProjectRoot(symlinked)).toBe(path.resolve(symlinked));
+
+      // A worktree entry that records another checkout (a moved worktree that
+      // was not repaired) no longer shares the identity either.
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(tmp, 'elsewhere', '.git')}\n`);
+      expect(canonicalProjectRoot(linked)).toBe(path.resolve(linked));
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts a relative worktree back-link (worktree.useRelativePaths)', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-worktree-relative-'));
+    const main = path.join(tmp, 'main-repo');
+    const linked = path.join(tmp, 'task-checkout');
+    const linkedGitDir = path.join(main, '.git', 'worktrees', 'task-checkout');
+    try {
+      await fs.mkdir(linkedGitDir, { recursive: true });
+      await fs.mkdir(linked, { recursive: true });
+      await fs.writeFile(path.join(linked, '.git'), 'gitdir: ../main-repo/.git/worktrees/task-checkout\n');
+      await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
+      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), '../../../../task-checkout/.git\n');
+      expect(canonicalProjectRoot(linked)).toBe(path.resolve(main));
+    } finally {
+      await fs.rm(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('keys the path-bearing codebase index by checkout, not by shared project identity (#414)', async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-worktree-index-'));
     const main = path.join(tmp, 'main-repo');
@@ -82,6 +139,7 @@ describe('wstack-paths', () => {
         await fs.mkdir(checkout, { recursive: true });
         await fs.writeFile(path.join(checkout, '.git'), `gitdir: ${gitDir}\n`);
         await fs.writeFile(path.join(gitDir, 'commondir'), '../..\n');
+        await fs.writeFile(path.join(gitDir, 'gitdir'), `${path.join(checkout, '.git')}\n`);
         return checkout;
       };
       const featureX = await linkWorktree('repo-feature-x');

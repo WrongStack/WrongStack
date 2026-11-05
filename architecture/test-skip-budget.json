@@ -512,6 +512,11 @@
       "fingerprint": "b0ee50ec6afa48ea"
     },
     {
+      "file": "packages/sage/tests/wrongmemory-worktree.integration.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b11e85f7b762b24b"
+    },
+    {
       "file": "packages/sdd/tests/verify-task.test.ts",
       "kind": "skipIf",
       "fingerprint": "8e08561629b784b4"

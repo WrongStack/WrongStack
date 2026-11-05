@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T08:07:55.164Z",
+  "generatedAt": "2026-11-05T08:27:17.226Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6008,
-    "testFiles": 5017,
-    "sourceLines": 1249350,
+    "testFiles": 5021,
+    "sourceLines": 1249478,
     "workspaceEdges": 240,
     "moduleEdges": 17689,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 280,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1039
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 628,
-      "testFiles": 685,
+      "testFiles": 686,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 685
+          "testFiles": 686
         }
       ]
     },
@@ -852,7 +852,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 170,
-      "testFiles": 173,
+      "testFiles": 175,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -871,7 +871,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 173
+          "testFiles": 175
         }
       ]
     },
@@ -1063,7 +1063,7 @@
       "name": "@wrongstack/vector-memory",
       "dir": "packages/vector-memory",
       "sourceFiles": 18,
-      "testFiles": 28,
+      "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1079,7 +1079,7 @@
         {
           "path": "packages/vector-memory/tsconfig.test.json",
           "error": null,
-          "testFiles": 28
+          "testFiles": 29
         }
       ]
     },
@@ -8069,6 +8069,12 @@
       },
       {
         "file": "packages/cli/tests/webui-server/empty-session-sweep.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/webui-server/http-bridge-memory-search.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18940,6 +18946,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/middleware/path-remap-linked-worktree.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/middleware/path-remap-repeat-rename.test.ts",
         "projects": [
           "root-node"
@@ -19667,6 +19679,12 @@
       },
       {
         "file": "packages/sage/tests/wrongmemory-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/wrongmemory-worktree.integration.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25667,6 +25685,12 @@
       },
       {
         "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vector-memory/tests/sage-event-mirror-wrongmemory.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34222,7 +34246,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1696,
+      "lines": 1733,
       "relativeImports": 14
     },
     {
@@ -34394,7 +34418,7 @@
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
-      "lines": 1696,
+      "lines": 1733,
       "relativeImports": 14
     },
     {
@@ -37114,6 +37138,10 @@
     {
       "file": "packages/sage/src/middleware/memory-injector-agent.ts",
       "name": "memoryInjectorAgentCoverage"
+    },
+    {
+      "file": "packages/sage/src/middleware/path-remap.ts",
+      "name": "isLinkedWorktreeRoot"
     },
     {
       "file": "packages/sage/src/middleware/path-remap.ts",

@@ -304,6 +304,8 @@ export class WrongMemoryPort implements MemoryPort {
   private project: ProjectInfo | undefined;
   /** Session bound on the current connection; `undefined` = none. */
   private boundSession: string | undefined;
+  /** Connection on which the checkout binding was attempted. */
+  private checkoutClient: WrongMemoryClientLike | undefined;
   private lock: Promise<unknown> = Promise.resolve();
   private traceId: string | undefined;
   private disposed = false;
@@ -314,6 +316,11 @@ export class WrongMemoryPort implements MemoryPort {
   private relaying = false;
 
   constructor(private readonly options: WrongMemoryPortOptions) {}
+
+  /** The host bus it emits on, read by the vector-memory mirror as on the local ports. */
+  get events(): WrongMemoryPortOptions['events'] {
+    return this.options.events;
+  }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────
 
@@ -1331,6 +1338,7 @@ export class WrongMemoryPort implements MemoryPort {
       try {
         const project = await this.ensureProject();
         const client = await this.ensureClient();
+        await this.bindCheckout(client, project);
         await this.bindSession(client, session.sessionId);
         return await client.call<T>(method, params, { ...opts, projectId: project.projectId });
       } catch (error) {
@@ -1340,6 +1348,34 @@ export class WrongMemoryPort implements MemoryPort {
     const next = this.lock.then(run, run);
     this.lock = next.catch(() => undefined);
     return next;
+  }
+
+  /**
+   * A linked worktree shares its main checkout's project, but not its files.
+   * Bind this connection to the worktree once, so the daemon resolves this
+   * host's absolute paths and verifies anchors against the worktree, without
+   * reconciling the shared records (WrongMemory 0.1.4+). The main checkout
+   * needs no binding. A daemon that predates the method, or refuses the
+   * directory, keeps the main checkout's evidence, as before.
+   */
+  private async bindCheckout(client: WrongMemoryClientLike, project: ProjectInfo): Promise<void> {
+    if (this.checkoutClient === client) return;
+    this.checkoutClient = client;
+    if (!project.root || normalizeRoot(project.root) === normalizeRoot(this.options.projectRoot)) {
+      return;
+    }
+    try {
+      await client.call(
+        METHODS.PROJECT_BIND_CHECKOUT,
+        { root: this.options.projectRoot },
+        { projectId: project.projectId },
+      );
+    } catch (error) {
+      if (isTransportFailure(error)) {
+        this.checkoutClient = undefined;
+        throw error;
+      }
+    }
   }
 
   private async bindSession(
@@ -1369,6 +1405,7 @@ export class WrongMemoryPort implements MemoryPort {
     this.client = undefined;
     this.connecting = undefined;
     this.boundSession = undefined;
+    this.checkoutClient = undefined;
     client?.close();
   }
 

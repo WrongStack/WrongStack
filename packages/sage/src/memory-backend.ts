@@ -28,6 +28,7 @@ import { createProjectSageMemoryPort } from './memory-port.js';
 import { recordSageServiceBackend } from './memory-service-registry.js';
 import { resolveProjectSageStorageRoot } from './project-server-endpoint.js';
 import type { ProjectSageMemoryPortOptions } from './remote-memory-port.js';
+import { readWrongMemoryAdoptionMarker } from './wrongmemory-owner-guard.js';
 import {
   probeWrongMemoryProject,
   type WrongMemoryClientLike,
@@ -35,7 +36,6 @@ import {
   WrongMemoryPort,
   type WrongMemoryPortOptions,
 } from './wrongmemory-port.js';
-import { readWrongMemoryAdoptionMarker } from './wrongmemory-owner-guard.js';
 
 export type SageServiceMode = 'local' | 'wrongmemory' | 'auto';
 
@@ -126,6 +126,14 @@ export class AutoSageMemoryPort implements MemoryPort {
     private readonly options: SageMemoryPortForServiceOptions,
     private readonly createLocal: () => MemoryPort,
   ) {}
+
+  /**
+   * The host event bus, which either backend emits on, exposed so listeners
+   * that subscribe through the memory port (the vector-memory mirror) find it.
+   */
+  get events(): SageMemoryPortForServiceOptions['events'] {
+    return this.options.events;
+  }
 
   /** `undefined` until `initialize()` resolved. */
   getSelectedBackend(): 'wrongmemory' | 'local' | undefined {

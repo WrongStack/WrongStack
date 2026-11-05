@@ -846,3 +846,56 @@ describe('Sage.service backend selection', () => {
     expect(client.closed).toBe(true);
   });
 });
+
+describe('WrongMemoryPort checkout binding', () => {
+  const WORKTREE = process.platform === 'win32' ? 'C:workproj-wt' : '/work/proj-wt';
+  /** The worktree's root is not a registered root; the daemon maps it to the project. */
+  const fromWorktree =
+    (bind: (params: Record<string, unknown>) => unknown = () => undefined) =>
+    (m: string, p: Record<string, unknown>) => {
+      if (m === 'project.register') return { project: PROJECT, created: false };
+      if (m === 'project.bindCheckout') return bind(p) ?? { checkout: { kind: 'linkedWorktree' } };
+      if (m === 'memory.forPath') return { hits: [] };
+      return undefined;
+    };
+  const binds = (client: FakeClient) =>
+    client.calls.filter((c) => c.method === 'project.bindCheckout');
+
+  it('binds a linked worktree once per connection, before the first scoped call', async () => {
+    const { client, port } = setup(fromWorktree(), { projectRoot: WORKTREE });
+    await port.retrieveForPath({ path: 'src/a.ts' });
+    await port.retrieveForPath({ path: 'src/b.ts' });
+    expect(binds(client)).toEqual([
+      { method: 'project.bindCheckout', params: { root: WORKTREE }, projectId: 'p_1' },
+    ]);
+    expect(client.methods().indexOf('project.bindCheckout')).toBeLessThan(
+      client.methods().indexOf('memory.forPath'),
+    );
+  });
+
+  it('does not bind the main checkout', async () => {
+    const { client, port } = setup((m) => (m === 'memory.forPath' ? { hits: [] } : undefined));
+    await port.retrieveForPath({ path: 'src/a.ts' });
+    expect(binds(client)).toEqual([]);
+  });
+
+  it('keeps working with a daemon that predates the binding', async () => {
+    const { client, port } = setup(
+      fromWorktree(() => new WrongMemoryError('METHOD_NOT_FOUND', 'unknown method')),
+      { projectRoot: WORKTREE },
+    );
+    await expect(port.retrieveForPath({ path: 'src/a.ts' })).resolves.toEqual([]);
+    await port.retrieveForPath({ path: 'src/b.ts' });
+    expect(binds(client)).toHaveLength(1);
+  });
+
+  it('surfaces a transport failure while binding as unavailable', async () => {
+    const { port } = setup(
+      fromWorktree(() => new WrongMemoryError('TRANSPORT', 'pipe closed')),
+      { projectRoot: WORKTREE },
+    );
+    await expect(port.retrieveForPath({ path: 'src/a.ts' })).rejects.toBeInstanceOf(
+      WrongMemoryUnavailableError,
+    );
+  });
+});
