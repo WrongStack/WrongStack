@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T21:54:59.176Z",
+  "generatedAt": "2026-11-05T22:05:17.426Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6045,
-    "testFiles": 5036,
-    "sourceLines": 1252496,
+    "sourceFiles": 6048,
+    "testFiles": 5041,
+    "sourceLines": 1252888,
     "workspaceEdges": 243,
-    "moduleEdges": 17801,
+    "moduleEdges": 17815,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 289,
+    "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1038
   },
   "errors": [],
   "packageCycles": [],
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 639,
-      "testFiles": 698,
+      "testFiles": 699,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,15 +379,15 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 698
+          "testFiles": 699
         }
       ]
     },
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 452,
-      "testFiles": 289,
+      "sourceFiles": 455,
+      "testFiles": 291,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -855,7 +855,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 170,
-      "testFiles": 175,
+      "testFiles": 176,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -874,7 +874,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 175
+          "testFiles": 176
         }
       ]
     },
@@ -1111,7 +1111,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 782,
-      "testFiles": 517,
+      "testFiles": 518,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1137,7 +1137,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 517
+          "testFiles": 518
         }
       ]
     },
@@ -1520,6 +1520,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/btw-receipts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/chat-order.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2480,6 +2486,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/project-side-effects-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/project-tools-menu.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10706,6 +10718,12 @@
       },
       {
         "file": "packages/core/tests/execution/compaction-core.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/execution/compaction-elision-path-hints.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19418,6 +19436,12 @@
       },
       {
         "file": "packages/sage/tests/sqlite-candidate-reconciliation.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/sqlite-candidate-reject-claim-race.test.ts",
         "projects": [
           "root-node"
         ]
@@ -30811,6 +30835,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/shared-surface-css.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/stream-coalescer.test.ts",
         "projects": [
           "webui-jsdom"
@@ -31772,6 +31802,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/btw-receipts.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/chat-order.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32898,6 +32935,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/project-tools-menu.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/project-usage-summary.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33982,6 +34026,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/main.tsx",
+      "specifier": "./controls.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/MarkdownContent.tsx",
       "specifier": "./syntax-highlight.css",
       "syntax": "import"
@@ -34129,6 +34178,11 @@
     {
       "from": "apps/desktop-v2/src/ProjectTechStack.tsx",
       "specifier": "./project-techstack.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ProjectToolsMenu.tsx",
+      "specifier": "./project-tools.css",
       "syntax": "import"
     },
     {
@@ -34547,7 +34601,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 703,
+      "lines": 709,
       "relativeImports": 45
     },
     {
@@ -34803,6 +34857,11 @@
       "relativeImports": 3
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 709,
+      "relativeImports": 45
+    },
+    {
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 709,
       "relativeImports": 12
@@ -34841,11 +34900,6 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 705,
       "relativeImports": 5
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 703,
-      "relativeImports": 45
     },
     {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
@@ -35193,6 +35247,10 @@
     {
       "file": "apps/desktop-v2/src/tool-input-view.ts",
       "name": "WRITE_PREVIEW_LINES"
+    },
+    {
+      "file": "apps/desktop-v2/src/useDesktop.ts",
+      "name": "PROJECT_PAGES"
     },
     {
       "file": "apps/desktop-v2/src/usePersistedFields.tsx",

@@ -271,6 +271,21 @@ const BEARER_WORD = /bearer/i;
 const JSON_CREDENTIAL_WORD = /(?:key|token|secret|password|authorization|bearer)"/i;
 
 /**
+ * The `basic_auth` pattern matches the header name in ANY casing — its
+ * regex spells the letters out (`[Aa][Uu][Tt]…`) because the combined scrub
+ * regex cannot take the `i` flag — and the scheme word with it. Its declared
+ * anchors cover only two spellings (`uthorization`, `AUTHORIZATION`), so a
+ * mixed-case header name (`aUtHoRiZaTiOn: Basic …`) cleared the pre-scan,
+ * every regex pass was skipped, and the base64 credential went out verbatim.
+ *
+ * This guard admits every casing of the header+scheme pair, the way
+ * {@link BEARER_WORD} admits every casing of the bearer scheme. It is
+ * deliberately narrow (the scheme word is required), so ordinary prose
+ * mentioning an "Authorization" header does not run the whole regex suite.
+ */
+const BASIC_AUTH_HEADER = /authorization\s*:\s*basic\s/i;
+
+/**
  * Quick pre-scan: does the text contain any substring that MUST be present for
  * some credential pattern to match? If not, the text is guaranteed clean and
  * every regex pass is skipped.
@@ -291,7 +306,12 @@ const JSON_CREDENTIAL_WORD = /(?:key|token|secret|password|authorization|bearer)
  * more alternative in a single scan.
  */
 function hasCredentialAnchors(text: string): boolean {
-  return BEARER_WORD.test(text) || ANCHOR_PRESCAN.test(text) || JSON_CREDENTIAL_WORD.test(text);
+  return (
+    BEARER_WORD.test(text) ||
+    BASIC_AUTH_HEADER.test(text) ||
+    ANCHOR_PRESCAN.test(text) ||
+    JSON_CREDENTIAL_WORD.test(text)
+  );
 }
 
 export class DefaultSecretScrubber implements SecretScrubber {

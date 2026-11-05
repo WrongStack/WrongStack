@@ -199,6 +199,9 @@
     "apps/desktop-v2/src/tool-input-view.ts": [
       "WRITE_PREVIEW_LINES"
     ],
+    "apps/desktop-v2/src/useDesktop.ts": [
+      "PROJECT_PAGES"
+    ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],

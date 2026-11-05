@@ -356,6 +356,30 @@ describe('SecretScrubber', () => {
       expect(s.scrub(clean)).toBe(clean);
     });
 
+    // The anchor scan gates EVERY regex pass, and it is a case-SENSITIVE
+    // literal scan. The `basic_auth` pattern matches the header name in any
+    // casing (its regex spells the letters out, because the combined scrub
+    // regex cannot take the `i` flag), so a mixed-case header name matched
+    // no anchor, the pre-scan short-circuited, and the base64 credential
+    // went out verbatim — to the session JSONL, chronicle, HQ broadcast and
+    // the model's own context.
+    it('redacts a Basic-auth credential under a mixed-case header name', () => {
+      // Assembled at runtime: no credential-shaped literal in the source.
+      const header = ['aUtHoRi', 'ZaTiOn'].join('');
+      const scheme = ['Ba', 'sic'].join('');
+      const credential = Buffer.from('user:pass').toString('base64');
+      const scrubbed = s.scrub(`${header}: ${scheme} ${credential}`);
+      expect(scrubbed).toContain('[REDACTED:basic_auth]');
+      expect(scrubbed).not.toContain(credential);
+    });
+
+    it('leaves a mixed-case header without a credential untouched', () => {
+      const header = ['aUtHoRi', 'ZaTiOn'].join('');
+      const scheme = ['Ba', 'sic'].join('');
+      const benign = `${header}: ${scheme} plain text`;
+      expect(s.scrub(benign)).toBe(benign);
+    });
+
     it('keeps redacting every previously-anchored family', () => {
       const cases: Array<[string, string]> = [
         [`ghp_${'a'.repeat(36)}`, 'github_pat'],
