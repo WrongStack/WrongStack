@@ -39,6 +39,7 @@ export class DefaultAttachmentStore implements AttachmentStore {
   private readonly items = new Map<string, Attachment>();
   private readonly refs: AttachmentRef[] = [];
   private nextSeq: Record<AttachmentKind, number> = { text: 0, image: 0, file: 0, document: 0 };
+  private clearEpoch = 0;
   private readonly spoolDir: string | undefined;
   private readonly spoolThreshold: number;
 
@@ -48,6 +49,7 @@ export class DefaultAttachmentStore implements AttachmentStore {
   }
 
   async add(input: AddAttachmentInput): Promise<AttachmentRef> {
+    const epoch = this.clearEpoch;
     const seq = ++this.nextSeq[input.kind];
     const id = `${kindPrefix(input.kind)}-${seq}-${randomBytes(3).toString('hex')}`;
     const encoding = input.kind === 'image' || input.kind === 'document' ? 'base64' : 'utf8';
@@ -61,6 +63,10 @@ export class DefaultAttachmentStore implements AttachmentStore {
       // the user would see garbled output the next time it's expanded.
       await atomicWrite(spooledPath, input.data, { encoding });
       data = undefined;
+      if (epoch !== this.clearEpoch) {
+        await fsp.unlink(spooledPath).catch(() => undefined);
+        return { id, kind: input.kind, seq, meta: input.meta ?? {} };
+      }
     }
     const att: Attachment = {
       id,
@@ -124,6 +130,7 @@ export class DefaultAttachmentStore implements AttachmentStore {
   }
 
   async clear(): Promise<void> {
+    this.clearEpoch++;
     // Unlink any spooled files so we don't leak disk space.
     if (this.spoolDir) {
       const toDelete: string[] = [];
@@ -163,8 +170,9 @@ export class DefaultAttachmentStore implements AttachmentStore {
       };
     }
     const raw = att.data ?? (att.path ? await fsp.readFile(att.path, 'utf8') : '');
-    const label = att.meta.filename ? `<file path="${att.meta.filename}">` : '<pasted>';
-    const close = att.meta.filename ? '</file>' : '</pasted>';
+    const filePath = att.meta.filename ?? (att.kind === 'file' ? att.meta.label : undefined);
+    const label = filePath ? `<file path="${filePath}">` : '<pasted>';
+    const close = filePath ? '</file>' : '</pasted>';
     return { type: 'text', text: `${label}\n${raw}\n${close}` };
   }
 }

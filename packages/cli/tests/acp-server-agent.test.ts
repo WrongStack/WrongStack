@@ -228,6 +228,47 @@ describe('buildAcpServerAgentFactory', () => {
     expect(bashOut.exit_code).toBe(0);
   });
 
+  it('writes dollar replacement patterns as exact text (F946)', async () => {
+    mockSetupProvider.mockResolvedValue({
+      provider: makeStubProvider(),
+      providerRegistry: { has: () => true } as never as ProviderRegistry,
+      resolvedProvider: {} as ResolvedProvider,
+    });
+    const files = new Map<string, string>();
+    const api: RunTurnApi = {
+      clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
+      requestPermission: async () => ({ outcome: 'selected', optionId: 'allow_once' }),
+      readTextFile: async (p) => files.get(p.path) ?? '',
+      writeTextFile: async (p) => {
+        files.set(p.path, p.content);
+      },
+      runTerminal: async () => ({ output: '', exitCode: 0 }),
+    };
+    const agent = await buildAcpServerAgentFactory(makeDeps())('sess-dollar', '/tmp', api);
+    const edit = agent.tools.get('edit');
+    files.set('a.ts', 'HELLO');
+    await edit!.execute(
+      { path: 'a.ts', old_string: 'HELLO', new_string: 'cost $$' },
+      agent.ctx,
+      {} as never,
+    );
+    expect(files.get('a.ts')).toBe('cost $$');
+    files.set('b.ts', 'HELLO');
+    await edit!.execute(
+      { path: 'b.ts', old_string: 'HELLO', new_string: 'prefix $& suffix' },
+      agent.ctx,
+      {} as never,
+    );
+    expect(files.get('b.ts')).toBe('prefix $& suffix');
+    files.set('c.ts', 'HELLO');
+    await edit!.execute(
+      { path: 'c.ts', old_string: 'HELLO', new_string: 'cost $$', replace_all: true },
+      agent.ctx,
+      {} as never,
+    );
+    expect(files.get('c.ts')).toBe('cost $$');
+  });
+
   it('keeps local builtin tools when the client advertises no fs/terminal', async () => {
     const provider = makeStubProvider();
     mockSetupProvider.mockResolvedValue({

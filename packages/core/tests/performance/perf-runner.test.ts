@@ -228,4 +228,24 @@ describe('detectPerfStacks', () => {
     expect(text).toContain('cargo flamegraph');
     expect(text).toContain('Profiling commands for this repository');
   });
+
+  it('rejects measure() when AbortSignal aborts after >= 3 samples have been collected (F961)', async () => {
+    const controller = new AbortController();
+    let runs = 0;
+    await expect(
+      measure({
+        command: `${JSON.stringify(process.execPath)} -e "process.exit(0)"`,
+        cwd: process.cwd(),
+        metric: 'wall-ms',
+        warmup: 0,
+        runs: 5,
+        signal: controller.signal,
+        extract: () => {
+          runs += 1;
+          if (runs === 3) controller.abort(new Error('benchmark cancelled at run 3'));
+          return 10;
+        },
+      }),
+    ).rejects.toThrow();
+  });
 });

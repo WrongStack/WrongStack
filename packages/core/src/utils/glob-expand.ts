@@ -41,7 +41,14 @@ function globToRegex(pat: string): RegExp {
       re += '[^/\\\\]';
       i++;
     } else if (c === '[') {
-      const closeIndex = pat.indexOf(']', i + 1);
+      let closeSearchStart = i + 1;
+      if (pat[closeSearchStart] === '!' || pat[closeSearchStart] === '^') {
+        closeSearchStart++;
+      }
+      if (pat[closeSearchStart] === ']') {
+        closeSearchStart++;
+      }
+      const closeIndex = pat.indexOf(']', closeSearchStart);
       if (closeIndex === -1) {
         re += '\\[';
         i++;

@@ -656,7 +656,9 @@ and `SessionUsage.tsx`.
     Fixed by the measurement: it is linear now, 14 ms and 31 ms with identical coordinates
     (`graph-model.ts`, regression test in `tests/graph-model.test.ts`). Drawing 20,000 nodes in
     all-nodes mode is still that many DOM elements.
-  - Not measured yet: a release build.
+  - Release build (2026-11-05, validation entry "Performance on the release build"): turns,
+    transcript, terminals and picker match the numbers above; the 20,000-file tree refreshes
+    in 10.9 s, and the frontend is 22.4 MB with the Monaco editor and its language workers.
 - Fixed by the measurement: the workspace checkpoint taken before every prompt (it reads and stores
   every changed and untracked file for rewind and fork) ran on the turn's critical path. It now
   captures in the background. The `checkpoint` marker keeps its place in the journal, the manifest

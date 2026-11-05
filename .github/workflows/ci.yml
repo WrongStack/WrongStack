@@ -309,6 +309,19 @@ jobs:
       - name: Provider catalog snapshot check
         run: bun run providers:catalog:check
 
+      # Curated models.dev overlay: `sync-models.mjs --validate` checks the
+      # shipped file against the registry's OWN payload shape gate
+      # (looksLikeModelsPayload, the predicate loadOverlayFromUrl runs on the
+      # GitHub-raw overlay). Local structural checks alone can say "valid"
+      # about an overlay the runtime discards: a rejected payload reads as an
+      # overlay outage, so every client silently keeps serving the models.dev
+      # base alone until the next release. This step makes that state red
+      # here instead of silent on every user's machine.
+      # Offline by design (validate mode never fetches upstream) and the gate
+      # module has type-only imports, so the source tree is all it needs.
+      - name: Curated overlay registry shape-gate check
+        run: bun run sync:models -- --validate
+
       - name: Plugin projection snapshot check
         run: bun run plugins:manifest:check
 

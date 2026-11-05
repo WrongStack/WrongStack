@@ -106,22 +106,37 @@ export function KanbanVerificationDashboard({
         <div>
           <div className="text-sm font-semibold">{t('activity:kanban.definitionOfDone')}</div>
           <div className="text-xs text-muted-foreground">
-            {summary.passed} of {summary.gradedTasks} graded tasks verified passed ·{' '}
-            {summary.totalTasks} tasks total
+            {t('activity:kanbanText.dodSummary', {
+              passed: summary.passed,
+              graded: summary.gradedTasks,
+              total: summary.totalTasks,
+            })}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-        <Stat label="verified" value={summary.passed} tone="success" />
-        <Stat label="failed" value={summary.failed} tone="destructive" />
+        <Stat label={t('activity:kanbanText.statVerified')} value={summary.passed} tone="success" />
+        <Stat
+          label={t('activity:kanbanText.statFailed')}
+          value={summary.failed}
+          tone="destructive"
+        />
         <Stat
           label={t('activity:verifyReport.verdictNeedsHuman')}
           value={summary.needsHuman}
           tone="warning"
         />
-        <Stat label="incomplete" value={summary.incomplete} tone="warning" />
-        <Stat label="unverified" value={summary.unverified} tone="muted" />
+        <Stat
+          label={t('activity:kanbanText.statIncomplete')}
+          value={summary.incomplete}
+          tone="warning"
+        />
+        <Stat
+          label={t('activity:kanbanText.statUnverified')}
+          value={summary.unverified}
+          tone="muted"
+        />
       </div>
 
       <TaskRowList
@@ -159,7 +174,9 @@ export function KanbanVerificationDashboard({
           id: task.id,
           taskId: task.id,
           primary: task.title,
-          secondary: `atomicity score ${task.atomicityAssessment?.score ?? '?'} — split before dispatch`,
+          secondary: t('activity:kanbanText.atomicityScoreSplit', {
+            score: task.atomicityAssessment?.score ?? '?',
+          }),
         }))}
       />
 
@@ -172,7 +189,9 @@ export function KanbanVerificationDashboard({
           id: task.id,
           taskId: task.id,
           primary: task.title,
-          secondary: `${task.decomposition?.proposedSubtasks.length ?? 0} proposed subtasks`,
+          secondary: t('activity:kanbanText.proposedSubtaskCount', {
+            count: task.decomposition?.proposedSubtasks.length ?? 0,
+          }),
         }))}
       />
 

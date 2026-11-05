@@ -690,5 +690,71 @@ describe('tool Kanban boundary integration', () => {
       // → lease check is skipped → boundary layers govern
       expect(result.decision).toBe('allow');
     });
+
+    it('enforces kanban boundary on deleted patch hunks, strip:0 patches, and filePath arguments', async () => {
+      const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-boundary-patch-keys-'));
+      roots.push(projectRoot);
+      const board = await createBoard(projectRoot, {
+        title: 'Patch and filePath scope',
+        boundary: {
+          enabled: true,
+          enforcement: 'block',
+          shellAccess: 'block',
+          allow: [{ kind: 'directory', path: 'src/allowed', access: 'write' }],
+        },
+      });
+      const task = (await addTask(projectRoot, board.id, { title: 'Scoped patch' }))!.task;
+      const ctx = {
+        projectRoot,
+        workingDir: projectRoot,
+        currentKanbanBoardId: board.id,
+        currentKanbanTaskId: task.id,
+        meta: {},
+      } as unknown as Context;
+      const patchTool = {
+        name: 'patch',
+        mutating: true,
+        capabilities: ['fs.write'],
+      } as unknown as Tool;
+      const customWriteTool = {
+        name: 'custom_write',
+        mutating: true,
+        capabilities: ['fs.write'],
+      } as unknown as Tool;
+
+      const deleteForbiddenPatch = [
+        '--- a/src/allowed/ok.ts',
+        '+++ b/src/allowed/ok.ts',
+        '@@ -1 +1 @@',
+        '-a',
+        '+b',
+        '--- a/src/forbidden/secret.ts',
+        '+++ /dev/null',
+        '@@ -1 +0,0 @@',
+        '-x',
+      ].join('\n');
+      await expect(
+        evaluateToolKanbanBoundary(patchTool, { patch: deleteForbiddenPatch }, ctx),
+      ).resolves.toMatchObject({ decision: 'block' });
+
+      const stripZeroAllowedPatch = [
+        '--- src/allowed/ok.ts',
+        '+++ src/allowed/ok.ts',
+        '@@ -1 +1 @@',
+        '-a',
+        '+b',
+      ].join('\n');
+      await expect(
+        evaluateToolKanbanBoundary(patchTool, { patch: stripZeroAllowedPatch, strip: 0 }, ctx),
+      ).resolves.toMatchObject({ decision: 'allow' });
+
+      await expect(
+        evaluateToolKanbanBoundary(
+          customWriteTool,
+          { cwd: 'src/allowed', filePath: 'src/forbidden/secret.ts' },
+          ctx,
+        ),
+      ).resolves.toMatchObject({ decision: 'block' });
+    });
   });
 });

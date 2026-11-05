@@ -133,9 +133,14 @@ export const DirectoryBranch = memo(function DirectoryBranch(
             >
               <button
                 type="button"
-                className="flex h-6 w-4 shrink-0 items-center justify-center text-muted-foreground"
+                className="flex h-[24px] w-[24px] shrink-0 items-center justify-center text-muted-foreground"
                 onClick={() => onToggleFile(file)}
-                aria-label={`${expanded ? 'Collapse' : 'Expand'} ${file.label}`}
+                aria-label={t(
+                  expanded
+                    ? 'activity:codeMapText.collapseNamed'
+                    : 'activity:codeMapText.expandNamed',
+                  { name: file.label },
+                )}
               >
                 {loadingBranches.has(branchKey) ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -167,10 +172,10 @@ export const DirectoryBranch = memo(function DirectoryBranch(
               </button>
               <button
                 type="button"
-                className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
+                className="ml-1 hidden h-[24px] w-[24px] items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                 onClick={() => onOpenFile(file)}
                 title={t('activity:codeMap.openSymbolMap')}
-                aria-label={`Open ${file.label} map`}
+                aria-label={t('activity:codeMapText.openMap', { name: file.label })}
               >
                 <ExternalLink className="h-3 w-3" />
               </button>
@@ -206,7 +211,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
                 style={{ paddingLeft: 38 + depth * 12 }}
                 onClick={() => onRevealAll(symbolsRevealKey)}
               >
-                Show {hiddenSymbolCount} more symbols
+                {t('activity:codeMapText.moreSymbols', { count: hiddenSymbolCount })}
               </button>
             )}
           </div>
@@ -219,7 +224,7 @@ export const DirectoryBranch = memo(function DirectoryBranch(
           style={{ paddingLeft: 8 + depth * 12 }}
           onClick={() => onRevealAll(filesRevealKey)}
         >
-          Show {hiddenFileCount} more files
+          {t('activity:codeMapText.moreFiles', { count: hiddenFileCount })}
         </button>
       )}
     </>

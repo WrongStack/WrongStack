@@ -454,7 +454,7 @@ export function ReviewQueue({
                     {c.tags?.includes('triage') && (
                       <>
                         <span>·</span>
-                        <span className="text-info">triage</span>
+                        <span className="text-info">{t('activity:sageText.triage')}</span>
                       </>
                     )}
                   </div>

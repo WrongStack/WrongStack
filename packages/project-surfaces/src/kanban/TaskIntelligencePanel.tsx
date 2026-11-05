@@ -1,4 +1,5 @@
 import type { KanbanBoard, KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
+import type { TFunction } from 'i18next';
 import {
   Activity,
   Bot,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAppTranslation } from '../lib/i18n';
+import { enumLabel, RETRY_POLICY_KEYS, ROUTING_MODE_KEYS } from './kanban-labels';
 import { kanbanMetadataText } from './kanban-metadata';
 import { activityCategory, buildTaskActivity } from './TaskActivityTimeline';
 
@@ -70,6 +72,10 @@ function related(board: KanbanBoard, ids: string[] | undefined): RelatedTask[] {
   });
 }
 
+/**
+ * `t` renders the derived sentences (reason, owner and route fallbacks,
+ * presence) in the display language; without it they are English.
+ */
 export function deriveTaskIntelligence(
   board: KanbanBoard,
   task: KanbanTask,
@@ -78,7 +84,10 @@ export function deriveTaskIntelligence(
   sessionProvider?: string,
   sessionModel?: string,
   presence?: KanbanBoardPresence[],
+  t?: TFunction,
 ): TaskIntelligence {
+  const say = (key: string, english: string, values?: Record<string, unknown>): string =>
+    t ? t(`activity:kanbanText.${key}`, values ?? {}) : english;
   const activity = buildTaskActivity(task, events, sessionId);
   const dependencies = related(board, task.dependsOn);
   const blockers = dependencies.filter(
@@ -125,22 +134,33 @@ export function deriveTaskIntelligence(
     stringValue(assignment?.role) ??
     stringValue(task.assignee) ??
     stringValue(task.assignedAgent) ??
-    'Unassigned';
+    say('unassigned', 'Unassigned');
 
   const lastTransition = task.lifecycle?.history.at(-1);
   const latestReason = activity.find(
     (event) => event.note && event.type !== 'task.note.added',
   )?.note;
-  let reason = `Placed in ${board.columns.find((column) => column.id === task.columnId)?.title ?? task.columnId}.`;
-  if (assignment?.error) reason = `Agent run failed: ${assignment.error}`;
-  else if (blockers.length) reason = `Blocked by ${blockers.map((item) => item.title).join(', ')}.`;
-  else if (lastTransition?.comment) reason = lastTransition.comment;
+  const column =
+    board.columns.find((candidate) => candidate.id === task.columnId)?.title ?? task.columnId;
+  let reason = say('reasonPlacedIn', `Placed in ${column}.`, { column });
+  if (assignment?.error) {
+    reason = say('reasonRunFailed', `Agent run failed: ${assignment.error}`, {
+      error: assignment.error,
+    });
+  } else if (blockers.length) {
+    const titles = blockers.map((item) => item.title).join(', ');
+    reason = say('reasonBlockedBy', `Blocked by ${titles}.`, { titles });
+  } else if (lastTransition?.comment) reason = lastTransition.comment;
   else if (latestReason) reason = latestReason;
   else if (task.status === 'review')
-    reason = 'Implementation is waiting for review evidence or approval.';
-  else if (task.status === 'in_progress') reason = `${owner} is currently working on this task.`;
+    reason = say(
+      'reasonAwaitingReview',
+      'Implementation is waiting for review evidence or approval.',
+    );
+  else if (task.status === 'in_progress')
+    reason = say('reasonInProgress', `${owner} is currently working on this task.`, { owner });
   else if (task.status === 'completed')
-    reason = 'The task and its current assignment are complete.';
+    reason = say('reasonComplete', 'The task and its current assignment are complete.');
 
   const attemptValues = activity
     .map((event) => Number(eventRecord(event.after)['attempt']))
@@ -152,7 +172,7 @@ export function deriveTaskIntelligence(
   const latestCompletion = activity.find((event) => event.type.includes('completed'));
 
   return {
-    column: board.columns.find((column) => column.id === task.columnId)?.title ?? task.columnId,
+    column,
     reason,
     owner,
     routingMode,
@@ -161,11 +181,11 @@ export function deriveTaskIntelligence(
     primaryModel:
       provider || model
         ? `${provider ? `${provider}/` : ''}${model ?? 'default'}`
-        : 'Session default',
+        : say('sessionDefault', 'Session default'),
     fallbackRoute:
       [fallbackProfile ? `profile:${fallbackProfile}` : '', ...fallbackModels]
         .filter(Boolean)
-        .join(' → ') || 'None configured',
+        .join(' → ') || say('noneConfigured', 'None configured'),
     blockers,
     dependencies,
     actors: [
@@ -182,10 +202,12 @@ export function deriveTaskIntelligence(
         ].filter((value): value is string => !!value),
       ),
     ],
-    presence: taskPresence.map(
-      (entry) =>
-        `${entry.agentName ?? entry.agentId} · ${entry.active ? 'active' : `last seen ${displayDate(entry.lastSeenAt)}`}`,
-    ),
+    presence: taskPresence.map((entry) => {
+      const name = entry.agentName ?? entry.agentId;
+      if (entry.active) return say('presenceActiveLine', `${name} · active`, { name });
+      const date = displayDate(entry.lastSeenAt);
+      return say('presenceLastSeenLine', `${name} · last seen ${date}`, { name, date });
+    }),
     activePresence: taskPresence.filter((entry) => entry.active).length,
     attempts: Math.max(assignment?.attempt ?? 0, ...attemptValues, inferredAttempts),
     failures: activity.filter((event) => event.type.includes('failed')).length,
@@ -254,7 +276,9 @@ function RelationList({ items }: { items: RelatedTask[] }) {
           <span className="truncate" title={item.title}>
             {item.title}
           </span>
-          <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px]">{item.status}</span>
+          <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px]">
+            {item.status === 'missing' ? t('activity:kanbanText.relationMissing') : item.status}
+          </span>
         </span>
       ))}
     </span>
@@ -279,6 +303,7 @@ export function TaskIntelligencePanel({
     sessionProvider,
     sessionModel,
     presence,
+    t,
   );
   const assignment = task.assignment;
   const checkCount = task.successCriteria?.length ?? 0;
@@ -361,7 +386,7 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.runStatus')}
-              value={stringValue(assignment?.status) ?? 'unassigned'}
+              value={stringValue(assignment?.status) ?? t('activity:kanbanText.unassignedLower')}
             />
             <InfoRow
               label={t('activity:taskIntel.subagent')}
@@ -375,7 +400,7 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.sessionS')}
-              value={intelligence.sessions.join(', ') || 'Unknown'}
+              value={intelligence.sessions.join(', ') || t('activity:kanbanText.unknown')}
               mono
             />
             <InfoRow
@@ -383,7 +408,7 @@ export function TaskIntelligencePanel({
               value={
                 intelligence.presence.length
                   ? intelligence.presence.join(', ')
-                  : 'No task-scoped presence recorded'
+                  : t('activity:kanbanText.noTaskPresence')
               }
             />
           </Group>
@@ -392,7 +417,10 @@ export function TaskIntelligencePanel({
             icon={<Route className="size-3" />}
             title={t('activity:taskIntel.modelRouteFallback')}
           >
-            <InfoRow label={t('activity:taskIntel.routingMode')} value={intelligence.routingMode} />
+            <InfoRow
+              label={t('activity:taskIntel.routingMode')}
+              value={enumLabel(t, ROUTING_MODE_KEYS, intelligence.routingMode)}
+            />
             <InfoRow
               label={t('activity:taskIntel.primary')}
               value={intelligence.primaryModel}
@@ -411,19 +439,23 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.skills')}
-              value={assignment?.skills?.map(stringValue).filter(Boolean).join(', ') || 'Default'}
+              value={
+                assignment?.skills?.map(stringValue).filter(Boolean).join(', ') ||
+                t('activity:kanbanText.defaultSkills')
+              }
             />
             <InfoRow
               label={t('activity:taskIntel.tools')}
               value={
-                assignment?.tools?.map(stringValue).filter(Boolean).join(', ') || 'Default toolset'
+                assignment?.tools?.map(stringValue).filter(Boolean).join(', ') ||
+                t('activity:kanbanText.defaultToolset')
               }
             />
             <InfoRow
               label={t('activity:taskIntel.capabilities')}
               value={
                 assignment?.allowedCapabilities?.map(stringValue).filter(Boolean).join(', ') ||
-                'Safe defaults'
+                t('activity:kanbanText.safeDefaults')
               }
               mono
             />
@@ -439,14 +471,18 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.retryPolicy')}
-              value={assignment?.retryPolicy ?? task.retryPolicy ?? 'off'}
+              value={enumLabel(
+                t,
+                RETRY_POLICY_KEYS,
+                assignment?.retryPolicy ?? task.retryPolicy ?? 'off',
+              )}
             />
             <InfoRow
               label={t('activity:taskIntel.costCeiling')}
               value={
                 (assignment?.costCeilingUsd ?? task.costCeilingUsd) != null
                   ? `$${(assignment?.costCeilingUsd ?? task.costCeilingUsd)!.toFixed(2)}`
-                  : 'Unbounded'
+                  : t('activity:kanbanText.unbounded')
               }
             />
             <InfoRow
@@ -455,7 +491,10 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.checks')}
-              value={`${passedChecks} / ${checkCount} passed`}
+              value={t('activity:kanbanText.checksPassed', {
+                passed: passedChecks,
+                total: checkCount,
+              })}
             />
             <InfoRow
               label={t('activity:taskIntel.lastFailure')}
@@ -463,7 +502,7 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.result')}
-              value={intelligence.lastResult ?? 'No result recorded'}
+              value={intelligence.lastResult ?? t('activity:kanbanText.noResult')}
             />
           </Group>
 
@@ -499,7 +538,7 @@ export function TaskIntelligencePanel({
             />
             <InfoRow
               label={t('activity:taskIntel.actors')}
-              value={intelligence.actors.join(', ') || 'Unknown'}
+              value={intelligence.actors.join(', ') || t('activity:kanbanText.unknown')}
               mono
             />
           </Group>
@@ -519,12 +558,19 @@ export function TaskIntelligencePanel({
           />
           <InfoRow
             label={t('activity:taskIntel.chain')}
-            value={task.chain ? `${task.chain.chainId} · position ${task.chain.order}` : 'None'}
+            value={
+              task.chain
+                ? t('activity:kanbanText.chainPositionDetail', {
+                    chainId: task.chain.chainId,
+                    order: task.chain.order,
+                  })
+                : t('activity:taskIntel.none')
+            }
             mono
           />
           <InfoRow
             label={t('activity:taskIntel.originSystem')}
-            value={task.origin?.system ?? 'manual'}
+            value={task.origin?.system ?? t('activity:kanbanText.originManual')}
           />
           <InfoRow
             label={t('activity:taskIntel.originIds')}

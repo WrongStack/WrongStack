@@ -372,10 +372,10 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                  Seats Quorum
+                  {t('activity:councilText.seatsQuorum')}
                 </div>
                 <div className="font-semibold text-foreground truncate">
-                  {validSeats}/{totalSeats} Valid
+                  {t('activity:councilText.valid', { valid: validSeats, total: totalSeats })}
                 </div>
               </div>
             </div>
@@ -386,10 +386,14 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                  Diversity
+                  {t('activity:councilText.diversity')}
                 </div>
                 <div className="font-semibold text-foreground truncate flex items-center gap-1">
-                  <span>{distinctTargetCount ?? distinctModelsList.length} Models</span>
+                  <span>
+                    {t('activity:councilText.models', {
+                      count: distinctTargetCount ?? distinctModelsList.length,
+                    })}
+                  </span>
                   {!isCorrelated && (distinctTargetCount ?? 0) > 1 ? (
                     <Sparkles className="h-3 w-3 text-success shrink-0" />
                   ) : null}
@@ -409,13 +413,15 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                    Deliberation
+                    {t('activity:councilText.deliberation')}
                   </div>
                   <div className="font-semibold text-foreground truncate">
-                    {rounds} rounds ·{' '}
+                    {t('activity:councilText.rounds', { count: rounds })} ·{' '}
                     {/* 0 is the honest signal that the extra rounds bought
                         cost and nothing else. */}
-                    {movedSeats === 0 ? 'none moved' : `${movedSeats} moved`}
+                    {movedSeats === 0
+                      ? t('activity:councilText.noneMoved')
+                      : t('activity:councilText.moved', { count: movedSeats })}
                   </div>
                 </div>
               </div>
@@ -428,7 +434,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                    Latency
+                    {t('activity:councilText.latency')}
                   </div>
                   <div className="font-semibold text-foreground truncate">
                     {(durationMs / 1000).toFixed(1)}s
@@ -444,10 +450,10 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                    Tokens
+                    {t('activity:councilText.tokens')}
                   </div>
                   <div className="font-semibold text-foreground truncate font-mono">
-                    {totalTokens.toLocaleString()} tok
+                    {t('activity:councilText.tok', { count: totalTokens.toLocaleString() })}
                   </div>
                 </div>
               </div>
@@ -484,7 +490,11 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                       'h-full transition-all duration-500 relative first:rounded-l-full last:rounded-r-full',
                       item.color.bg,
                     )}
-                    title={`${item.name}: ${item.count} votes (${item.pct}%)`}
+                    title={t('activity:councilText.votes', {
+                      name: item.name,
+                      count: item.count,
+                      pct: item.pct,
+                    })}
                   />
                 ))}
               </div>
@@ -532,7 +542,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                       onClick={toggleAllRationales}
                       className="text-[11px] text-muted-foreground hover:underline font-medium cursor-pointer"
                     >
-                      Toggle All Details
+                      {t('activity:councilText.toggleAll')}
                     </button>
                   ) : null}
                 </div>
@@ -601,7 +611,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
             <div className="rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground flex items-start gap-2 border border-border/50">
               <ShieldCheck className="h-4 w-4 shrink-0 text-primary mt-0.5" />
               <div>
-                <span className="font-semibold text-foreground">Verdict Context: </span>
+                <span className="font-semibold text-foreground">
+                  {t('activity:councilText.verdictContext')}{' '}
+                </span>
                 <span>{reason}</span>
               </div>
             </div>

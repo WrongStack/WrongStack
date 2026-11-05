@@ -371,4 +371,18 @@ describe('repairSessionSummaries', () => {
     expect(result.repaired).toEqual(['2026-08-29/sess_kept']);
     expect(result.failed.map((f) => f.id)).toEqual(['2026-08-29/sess_gone']);
   });
+
+  it('flags truncated trailing JSON line and skips non-session subdirectories (F967)', async () => {
+    const dir = await tempSessions();
+    await writeJournal(
+      dir,
+      '2026-08-29/sess_trunc',
+      `${ev('session_start', { id: 'sess_trunc' })}{"type":"user_input","ts":"2026-08-29T00:00:01Z","content":"unterminated`,
+    );
+    await writeJournal(dir, 'shared/sess_bak', ev('session_start', { id: 'sess_bak' }));
+
+    const report = await diagnoseSessions({ sessionsDir: dir });
+    expect(report.sessions.map((s) => s.id)).toEqual(['2026-08-29/sess_trunc']);
+    expect(codes(report.sessions[0]?.findings ?? [])).toContain('unparsable_lines');
+  });
 });

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { unreadMail } from './mailbox-model';
@@ -47,6 +48,7 @@ export function MailboxUnread({
   /** Changes whenever the engine reports mailbox activity. */
   trigger: unknown;
 }) {
+  const { t } = useDesktopText();
   const [summary, setSummary] = useState<ReturnType<typeof mailboxUnreadSummary> | null>(null);
   const sequence = useRef(0);
   useEffect(() => {
@@ -70,11 +72,15 @@ export function MailboxUnread({
   if (!summary || summary.count === '0') return null;
   return (
     <span className="mailbox-unread" role="status">
-      <strong>{summary.count} unread</strong>
+      <strong>{t('shellText.unread', { count: summary.count })}</strong>
       {summary.latest && (
         <>
           {' '}
-          · newest from {summary.latest.from}: {summary.latest.subject}
+          ·{' '}
+          {t('shellText.newestFrom', {
+            from: summary.latest.from,
+            subject: summary.latest.subject,
+          })}
         </>
       )}
     </span>

@@ -7,8 +7,20 @@ import type {
 } from '@wrongstack/contracts/types/models-registry';
 
 // Magic keys in the overlay payload that signal deletions rather than additions.
-const REMOVE_PROVIDERS_KEY = '_removeProviders';
-const REMOVE_MODELS_KEY = '_removeModels';
+export const REMOVE_PROVIDERS_KEY = '_removeProviders';
+export const REMOVE_MODELS_KEY = '_removeModels';
+
+/**
+ * The overlay directive keys as a set, for every consumer that has to tell an
+ * instruction apart from a provider entry — the payload shape gate
+ * (`looksLikeModelsPayload`) and the provenance pass (`annotatePayload`) both
+ * need it and must agree with the merge below. Keep this in sync with the two
+ * constants above; they are the same keys.
+ */
+export const OVERLAY_DIRECTIVE_KEYS: ReadonlySet<string> = new Set([
+  REMOVE_PROVIDERS_KEY,
+  REMOVE_MODELS_KEY,
+]);
 
 /**
  * Keys that must never be copied with `map[key] = …`: a JSON-parsed catalog

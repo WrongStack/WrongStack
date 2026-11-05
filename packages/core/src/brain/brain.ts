@@ -126,11 +126,7 @@ export class BrainDecisionQueue {
     this.offAnswer = this.events.on('brain.human_answered', (answer) => {
       const pending = this.pending.get(answer.id);
       if (!pending) return;
-      if (
-        answer.sessionId !== undefined &&
-        pending.request.sessionId !== undefined &&
-        answer.sessionId !== pending.request.sessionId
-      )
+      if (pending.request.sessionId !== undefined && answer.sessionId !== pending.request.sessionId)
         return;
       if (
         !answer.deny &&
@@ -268,7 +264,23 @@ export class BrainDecisionQueue {
         .then((response) => {
           if (!response || this.pending.get(request.id) !== entry) return;
           const answer = response.answers.find((item) => item.questionId === 'decision');
-          if (answer?.delegated) return;
+          if (answer?.delegated) {
+            this.pending.delete(request.id);
+            if (entry.timer) clearTimeout(entry.timer);
+            markDecisionTier(request, 'terminal');
+            const delegated = terminalPolicyDecision(request);
+            emitBrainTierTransition(
+              this.events,
+              request,
+              'terminal',
+              delegated.type,
+              true,
+              entry.askedAt,
+              'human delegated to terminal policy',
+            );
+            entry.resolve(delegated);
+            return;
+          }
           this.events.emit('brain.human_answered', {
             id: request.id,
             sessionId: request.sessionId,
@@ -423,7 +435,10 @@ export class HumanEscalatingBrainArbiter implements BrainArbiter {
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
     const decision = await this.inner.decide(request);
     if (decision.type !== 'ask_human') return decision;
-    if (request.allowHumanEscalation === false) return terminalPolicyDecision(request);
+    if (request.allowHumanEscalation === false) {
+      markDecisionTier(request, 'terminal');
+      return terminalPolicyDecision(request);
+    }
     return this.queue.requestHumanDecision(request);
   }
 }
@@ -523,6 +538,7 @@ export class DefaultBrainArbiter implements BrainArbiter {
             rationale: 'No safe Brain decision was available; request fallback is continue.',
           };
         case 'ask_human':
+        case undefined:
           return {
             type: 'ask_human',
             prompt: formatHumanPrompt(request),

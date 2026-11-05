@@ -91,12 +91,9 @@ export function KanbanContractGraphPanel({
     return (
       <section className="mt-4 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-medium">
-          <Network size={14} /> Contract graph not configured
+          <Network size={14} /> {t('activity:kanbanText.contractGraphNotConfigured')}
         </div>
-        <p className="mt-1">
-          Objectives, affected components, guardrails, risks, and verification evidence are not yet
-          mapped for this board.
-        </p>
+        <p className="mt-1">{t('activity:kanbanText.contractGraphNotMapped')}</p>
         {sendKanban && (
           <button
             type="button"
@@ -108,7 +105,7 @@ export function KanbanContractGraphPanel({
             }
             className="mt-2 rounded-md bg-primary/10 px-2.5 py-1.5 font-medium text-primary hover:bg-primary/20"
           >
-            Start contract map
+            {t('activity:kanbanText.startContractMap')}
           </button>
         )}
       </section>
@@ -120,20 +117,24 @@ export function KanbanContractGraphPanel({
     <section className="mt-4 overflow-hidden rounded-md border bg-background">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <div className="flex items-center gap-2 text-xs font-semibold">
-          <Network size={14} /> Contract graph
+          <Network size={14} /> {t('activity:kanbanText.contractGraph')}
           <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {board.contractGraph.enforcement}
           </span>
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-[11px]">
           <span className={readiness.ready ? 'text-primary' : 'text-warning'}>
-            {readiness.ready ? 'Start ready' : `${readiness.issues.length} setup gaps`}
+            {readiness.ready
+              ? t('activity:kanbanText.startReady')
+              : t('activity:kanbanText.setupGaps', { count: readiness.issues.length })}
           </span>
           <span
             className={`inline-flex items-center gap-1 ${closed ? 'text-success' : 'text-warning'}`}
           >
             {closed ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-            {closed ? 'Closed' : `${evaluation.issues.length} completion open`}
+            {closed
+              ? t('activity:kanbanText.closed')
+              : t('activity:kanbanText.completionOpen', { count: evaluation.issues.length })}
           </span>
           {graph.nodes.length > 1 && (
             <button
@@ -142,7 +143,7 @@ export function KanbanContractGraphPanel({
               className="inline-flex items-center gap-1.5 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 font-semibold text-primary transition-colors hover:bg-primary/20"
               aria-label={t('activity:kanban.contractGraph.expandAria')}
             >
-              <Maximize2 size={12} /> Expand
+              <Maximize2 size={12} /> {t('activity:kanbanText.expand')}
             </button>
           )}
         </div>
@@ -152,7 +153,7 @@ export function KanbanContractGraphPanel({
         <ContractTaskCanvas graph={graph} expanded={false} />
       ) : (
         <div className="p-3 text-xs text-muted-foreground">
-          No contract nodes belong to this task.
+          {t('activity:kanbanText.noTaskContractNodes')}
         </div>
       )}
 
@@ -172,7 +173,7 @@ export function KanbanContractGraphPanel({
       {readiness.issues.length > 0 && (
         <div className="space-y-1 border-t px-3 py-2">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Before implementation
+            {t('activity:kanbanText.beforeImplementation')}
           </div>
           {readiness.issues.map((issue, index) => (
             <div
@@ -193,13 +194,14 @@ export function KanbanContractGraphPanel({
         >
           <div className="shrink-0 border-b border-border bg-background/90 px-5 py-4 pr-14 text-foreground">
             <DialogTitle className="flex items-center gap-2 text-base">
-              <Network size={17} className="text-primary" /> Contract Map · {task.title}
+              <Network size={17} className="text-primary" />{' '}
+              {t('activity:kanbanText.contractMapTitle', { title: task.title })}
             </DialogTitle>
             <DialogDescription
               id="contract-map-modal-description"
               className="mt-1 text-xs text-muted-foreground"
             >
-              Full dependency field · drag to pan, scroll or controls to zoom, Escape to close.
+              {t('activity:kanbanText.taskMapDescription')}
             </DialogDescription>
           </div>
           <div className="min-h-0 flex-1">

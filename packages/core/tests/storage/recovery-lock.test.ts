@@ -256,6 +256,52 @@ describe('RecoveryLock', () => {
       const out = await checker.checkAbandoned();
       expect(out?.sessionId).toBe(session.id);
     });
+
+    it('does not delete a lock another process acquired while a stale lock was checked (F970)', async () => {
+      const fileName = path.join(dir, 'active.json');
+      const deadOwner = new RecoveryLock({
+        dir,
+        pid: 40_001,
+        hostname: 'h',
+        isPidAlive: () => false,
+      });
+      await deadOwner.write('dead-session');
+
+      // Process B clears the same stale lock and claims it while process A is
+      // still awaiting its session load.
+      const processB = new RecoveryLock({
+        dir,
+        pid: 40_002,
+        hostname: 'h',
+        isPidAlive: () => false,
+        sessionStore: {
+          load: async () => {
+            throw new Error('B session missing');
+          },
+        } as never,
+      });
+      const processA = new RecoveryLock({
+        dir,
+        pid: 40_003,
+        hostname: 'h',
+        isPidAlive: () => false,
+        sessionStore: {
+          load: async () => {
+            await processB.checkAbandoned();
+            await processB.write('fresh-b-session');
+            throw new Error('A session missing');
+          },
+        } as never,
+      });
+
+      await processA.checkAbandoned();
+
+      // A's cleanup must notice the file changed and leave B's lock alone.
+      const owner = JSON.parse(await fsp.readFile(fileName, 'utf8'));
+      expect(owner.sessionId).toBe('fresh-b-session');
+      const third = new RecoveryLock({ dir, pid: 40_004, hostname: 'h' });
+      await expect(third.write('third-session')).rejects.toThrow(/already held/);
+    });
   });
 
   describe('defaultIsPidAlive (live probe)', () => {
@@ -301,6 +347,24 @@ describe('RecoveryLock', () => {
       const checker = new RecoveryLock({ dir, sessionStore });
       const out = await checker.checkAbandoned();
       expect(out?.sessionId).toBe(session.id);
+    });
+
+    it('clears stale active.json when checkAbandoned finds a cleanly closed or missing session (F964)', async () => {
+      await fsp.writeFile(
+        path.join(dir, 'active.json'),
+        JSON.stringify({
+          v: 1,
+          sessionId: 'missing-session-id',
+          pid: 999_999_999,
+          hostname: os.hostname(),
+          startedAt: new Date().toISOString(),
+        }),
+      );
+      const sessionStore = new DefaultSessionStore({ dir });
+      const checker = new RecoveryLock({ dir, sessionStore, isPidAlive: () => false });
+      expect(await checker.checkAbandoned()).toBeNull();
+      const next = new RecoveryLock({ dir, sessionStore });
+      await expect(next.write('fresh-session')).resolves.toBeUndefined();
     });
   });
 });

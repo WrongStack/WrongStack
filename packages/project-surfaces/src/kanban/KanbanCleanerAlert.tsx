@@ -1,8 +1,15 @@
+import type { TFunction } from 'i18next';
 import { AlertTriangle, ChevronDown, CircleAlert, Sparkles } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type { KanbanAuditIssue, KanbanAuditSummary } from './kanban-cleaner';
 import { isMobileViewport } from './viewport';
+
+/** The issue in the display language; issues built without a key keep their English text. */
+function issueText(issue: KanbanAuditIssue, t: TFunction): string {
+  return issue.messageKey ? t(issue.messageKey, issue.messageParams ?? {}) : issue.message;
+}
 
 export function KanbanCleanerAlert({
   audit,
@@ -11,6 +18,7 @@ export function KanbanCleanerAlert({
   audit: KanbanAuditSummary;
   onSelectTask: (taskId: string) => void;
 }) {
+  const { t } = useAppTranslation();
   const [expanded, setExpanded] = useState(() => !isMobileViewport() || audit.counts.error > 0);
   const contentId = useId();
   // Issue ids seen on the previous audit pass. Auto-expanding on a count
@@ -41,30 +49,44 @@ export function KanbanCleanerAlert({
           </span>
           <div className="min-w-0">
             <h2 id={`${contentId}-title`} className="text-xs font-semibold text-foreground">
-              Kanban Cleaner found {audit.issues.length}{' '}
-              {audit.issues.length === 1 ? 'issue' : 'issues'}
+              {t(
+                audit.issues.length === 1
+                  ? 'activity:kanbanText.cleanerFoundOne'
+                  : 'activity:kanbanText.cleanerFoundMany',
+                { count: audit.issues.length },
+              )}
             </h2>
             <p className="truncate text-[10px] text-muted-foreground">
-              {audit.affectedTaskCount}{' '}
-              {audit.affectedTaskCount === 1 ? 'card needs' : 'cards need'} attention
+              {t(
+                audit.affectedTaskCount === 1
+                  ? 'activity:kanbanText.cleanerCardsOne'
+                  : 'activity:kanbanText.cleanerCardsMany',
+                { count: audit.affectedTaskCount },
+              )}
             </p>
           </div>
         </div>
         {audit.counts.error > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full border border-destructive/25 bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
-            <CircleAlert size={11} aria-hidden="true" /> {audit.counts.error} critical
+            <CircleAlert size={11} aria-hidden="true" />{' '}
+            {t('activity:kanbanText.countCritical', { count: audit.counts.error })}
           </span>
         )}
         {audit.counts.warning > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full border border-warning/25 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
-            <AlertTriangle size={11} aria-hidden="true" /> {audit.counts.warning} warning
+            <AlertTriangle size={11} aria-hidden="true" />{' '}
+            {t('activity:kanbanText.countWarning', { count: audit.counts.warning })}
           </span>
         )}
         <button
           type="button"
           aria-expanded={expanded}
           aria-controls={contentId}
-          aria-label={expanded ? 'Collapse Kanban Cleaner issues' : 'Expand Kanban Cleaner issues'}
+          aria-label={
+            expanded
+              ? t('activity:kanbanText.cleanerCollapse')
+              : t('activity:kanbanText.cleanerExpand')
+          }
           onClick={() => setExpanded((value) => !value)}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
@@ -86,7 +108,10 @@ export function KanbanCleanerAlert({
               <button
                 type="button"
                 onClick={() => onSelectTask(taskId)}
-                aria-label={`Open ${taskTitle}: ${issues.map((issue) => issue.message).join(', ')}`}
+                aria-label={t('activity:kanbanText.cleanerOpenTask', {
+                  title: taskTitle,
+                  issues: issues.map((issue) => issueText(issue, t)).join(', '),
+                })}
                 className="group flex w-full items-start gap-2 rounded-md border border-border/70 bg-background/70 px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <span
@@ -103,7 +128,7 @@ export function KanbanCleanerAlert({
                     {taskTitle}
                   </span>
                   <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">
-                    {issues.map((issue) => issue.message).join(' · ')}
+                    {issues.map((issue) => issueText(issue, t)).join(' · ')}
                   </span>
                 </span>
               </button>

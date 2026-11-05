@@ -11,6 +11,7 @@ import { AgentRunPanel } from './KanbanAgentRunPanel';
 import { RunTaskControls } from './KanbanRunControls';
 import { Field, SelectField } from './KanbanTaskFields';
 import { KNOWN_CAPABILITIES, KNOWN_ROLES } from './KanbanTaskOptions';
+import { enumLabel, RETRY_POLICY_KEYS, ROUTING_MODE_KEYS } from './kanban-labels';
 
 import { TaskExecutionAttempts } from './TaskExecutionAttempts';
 
@@ -155,7 +156,10 @@ export function KanbanTaskExecution({
                   {t('activity:kanban.kanbanAgentTransition')}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {currentManagedStage} → {nextManagedStage}; no stages can be skipped.
+                  {t('activity:kanbanText.stageTransition', {
+                    from: currentManagedStage ?? '',
+                    to: nextManagedStage,
+                  })}
                 </div>
               </div>
               <ShieldCheck size={16} className="text-primary" />
@@ -181,7 +185,8 @@ export function KanbanTaskExecution({
               onClick={advanceManagedTask}
               className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <MoveRight size={15} /> Advance to {nextManagedStage}
+              <MoveRight size={15} />{' '}
+              {t('activity:kanbanText.advanceTo', { stage: nextManagedStage })}
             </button>
           </section>
         )}
@@ -226,12 +231,16 @@ export function KanbanTaskExecution({
                 label={t('activity:kanban.primaryModelSource')}
                 value={routingMode}
                 options={['session', 'fixed', 'fallback_profile']}
+                optionLabel={(option) => enumLabel(t, ROUTING_MODE_KEYS, option)}
                 onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
               />
               {routingMode === 'session' && (
                 <div className="rounded-md border bg-info/5 px-2 py-1.5 text-[11px] text-muted-foreground">
-                  Uses the live session model: {sessionProvider ? `${sessionProvider}/` : ''}
-                  {sessionModel || 'not available'}.
+                  {t('activity:kanbanText.usesLiveSessionModel', {
+                    model: `${sessionProvider ? `${sessionProvider}/` : ''}${
+                      sessionModel || t('activity:kanbanText.notAvailable')
+                    }`,
+                  })}
                 </div>
               )}
               {routingMode === 'fixed' && (
@@ -276,7 +285,7 @@ export function KanbanTaskExecution({
                   selected={fallbackModels}
                   onChange={setFallbackModels}
                   placeholder={t('activity:kanban.addFallbackModel')}
-                  emptyLabel="No models — add a provider in Settings"
+                  emptyLabel={t('activity:kanbanText.noModels')}
                 />
               </div>
 
@@ -290,7 +299,7 @@ export function KanbanTaskExecution({
 
               <div>
                 <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Agentic skills{' '}
+                  {t('activity:kanbanText.agenticSkills')}{' '}
                   <span className="text-muted-foreground/70">
                     {t('activity:kanbanInspector.forceLoadedIntoTheWorker')}
                   </span>
@@ -305,14 +314,14 @@ export function KanbanTaskExecution({
                   selected={skills}
                   onChange={setSkills}
                   placeholder={t('activity:kanban.assignSkills')}
-                  emptyLabel="No skills registered"
+                  emptyLabel={t('activity:kanbanText.noSkills')}
                 />
               </div>
 
               {/* Tools — real registered tools from the running agent. */}
               <div>
                 <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Tools{' '}
+                  {t('activity:kanbanText.tools')}{' '}
                   <span className="text-muted-foreground/70">
                     {t('activity:kanbanInspector.blankFullDefaultToolset')}
                   </span>
@@ -326,7 +335,7 @@ export function KanbanTaskExecution({
                   selected={tools}
                   onChange={setTools}
                   placeholder={t('activity:kanban.restrictTools')}
-                  emptyLabel="Tool list unavailable on this server"
+                  emptyLabel={t('activity:kanbanText.toolsUnavailable')}
                 />
               </div>
 
@@ -355,6 +364,7 @@ export function KanbanTaskExecution({
                         label={t('activity:kanban.retryPolicy')}
                         value={retryPolicy}
                         options={['off', 'incremental', 'exponential']}
+                        optionLabel={(option) => enumLabel(t, RETRY_POLICY_KEYS, option)}
                         onChange={(value) =>
                           setRetryPolicy(value as NonNullable<KanbanTask['retryPolicy']>)
                         }
@@ -372,13 +382,16 @@ export function KanbanTaskExecution({
                     </div>
                     <div>
                       <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                        Capabilities{' '}
+                        {t('activity:kanbanText.capabilities')}{' '}
                         <span className="text-muted-foreground/70">
                           {t('activity:kanbanInspector.blankSafeDefaults')}
                         </span>
                       </span>
                       <ChipMultiSelect
-                        options={KNOWN_CAPABILITIES}
+                        options={KNOWN_CAPABILITIES.map(({ labelKey, ...option }) => ({
+                          ...option,
+                          label: t(labelKey),
+                        }))}
                         selected={allowedCapabilities}
                         onChange={setAllowedCapabilities}
                         placeholder={t('activity:kanban.grantCapability')}

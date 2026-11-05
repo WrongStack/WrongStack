@@ -92,6 +92,10 @@ export class ReplayLogStore {
   private readonly cache = new Map<string, Map<string, ReplayEntryLocation>>();
   /** Per-session entry count on disk, to detect when compaction is needed. */
   private readonly diskCount = new Map<string, number>();
+  /** Per-session byte size on disk when cache was populated/updated. */
+  private readonly diskSize = new Map<string, number>();
+  /** Whether the on-disk file ends with a newline (or is empty). */
+  private readonly diskEndsWithNewline = new Map<string, boolean>();
   private readonly maxEntries: number;
   private static readonly MAX_CACHED_SESSIONS = 32;
 
@@ -145,6 +149,7 @@ export class ReplayLogStore {
             // was quadratic in session length — a 1000-call session rewrote
             // a multi-MB file 1000 times.
             const line = JSON.stringify(entry) + '\n';
+            const lineBytes = Buffer.byteLength(line, 'utf8');
             let offset = 0;
             try {
               const stat = await fs.stat(fp);
@@ -152,10 +157,16 @@ export class ReplayLogStore {
             } catch (err) {
               if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
             }
+            const needsLeadingNewline =
+              offset > 0 && this.diskEndsWithNewline.get(input.sessionId) === false;
+            const payload = needsLeadingNewline ? `\n${line}` : line;
+            if (needsLeadingNewline) offset += 1;
             await fs.mkdir(path.dirname(fp), { recursive: true });
-            await fs.appendFile(fp, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
-            cache.set(hash, { entry, offset, length: Buffer.byteLength(line, 'utf8') });
+            await fs.appendFile(fp, payload, { encoding: 'utf8', mode: SECRET_FILE_MODE });
+            cache.set(hash, { entry, offset, length: lineBytes });
             this.diskCount.set(input.sessionId, currentCount + 1);
+            this.diskSize.set(input.sessionId, offset + lineBytes);
+            this.diskEndsWithNewline.set(input.sessionId, true);
             this.events?.emit('storage.write', {
               sessionId: input.sessionId,
               store: 'replay',
@@ -183,6 +194,8 @@ export class ReplayLogStore {
           }
           this.cache.set(input.sessionId, refreshed);
           this.diskCount.set(input.sessionId, keep.length);
+          this.diskSize.set(input.sessionId, offset);
+          this.diskEndsWithNewline.set(input.sessionId, true);
           await this.writeAll(input.sessionId, keep, 'compact');
         });
       });
@@ -210,13 +223,14 @@ export class ReplayLogStore {
    * not been recorded for this session. O(1) after the first call
    * per session (in-memory cache).
    */
-  async lookup(sessionId: string, hash: string): Promise<ReplayEntry | null> {
+  async lookup(sessionId: string, hash: string | Request): Promise<ReplayEntry | null> {
+    const resolvedHash = typeof hash === 'string' ? hash : hashRequest(hash);
     const fp = this.filePath(sessionId);
     const t0 = Date.now();
     try {
       const cache = await this.ensureCache(sessionId);
-      const location = cache.get(hash);
-      const entry = location ? await this.hydrateEntry(sessionId, hash, location) : null;
+      const location = cache.get(resolvedHash);
+      const entry = location ? await this.hydrateEntry(sessionId, resolvedHash, location) : null;
       this.events?.emit('storage.read', {
         sessionId,
         store: 'replay',
@@ -429,15 +443,22 @@ export class ReplayLogStore {
   }
 
   private async ensureCache(sessionId: string): Promise<Map<string, ReplayEntryLocation>> {
+    const fp = this.filePath(sessionId);
+    let currentSize = 0;
+    try {
+      currentSize = (await fs.stat(fp)).size;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
     let cache = this.cache.get(sessionId);
-    if (cache) {
+    if (cache && this.diskSize.get(sessionId) === currentSize) {
       this.cache.delete(sessionId);
       this.cache.set(sessionId, cache);
       return cache;
     }
 
-    const fp = this.filePath(sessionId);
     cache = new Map();
+    let endsWithNewline = true;
     try {
       const handle = await fs.open(fp, 'r');
       const CHUNK = 64 * 1024;
@@ -479,6 +500,8 @@ export class ReplayLogStore {
           leftoverOffset = lineStart;
           fileOffset += bytesRead;
         }
+        leftover += decoder.end();
+        if (leftover.length > 0) endsWithNewline = false;
         if (leftover.trim()) {
           const entry = this.parseReplayLine(leftover);
           if (entry) {
@@ -500,9 +523,13 @@ export class ReplayLogStore {
       if (oldest === undefined) break;
       this.cache.delete(oldest);
       this.diskCount.delete(oldest);
+      this.diskSize.delete(oldest);
+      this.diskEndsWithNewline.delete(oldest);
     }
     this.cache.set(sessionId, cache);
     this.diskCount.set(sessionId, cache.size);
+    this.diskSize.set(sessionId, currentSize);
+    this.diskEndsWithNewline.set(sessionId, endsWithNewline);
     return cache;
   }
 

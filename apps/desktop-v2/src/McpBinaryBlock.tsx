@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { mcpBinary, mcpBinaryFileName } from './mcp-binary';
 import { PdfFrame } from './PdfFrame';
 
@@ -8,6 +9,7 @@ import { PdfFrame } from './PdfFrame';
  * as a file. Nothing is executed or rendered as markup, and text copies still omit it.
  */
 export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
+  const { t } = useDesktopText();
   const binary = useMemo(() => mcpBinary(value), [value]);
   const [notice, setNotice] = useState('');
   if (!binary) return null;
@@ -20,14 +22,14 @@ export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
     link.download = name;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice(`Save requested for ${name}.`);
+    setNotice(t('shellText.mcp.saveRequested', { name }));
   };
   return (
     <div className="mcp-binary">
       {binary.preview === 'image' ? (
         <img
           src={`data:${binary.mimeType};base64,${binary.base64}`}
-          alt={`MCP content preview, ${binary.mimeType}`}
+          alt={t('shellText.mcp.imagePreview', { mime: binary.mimeType })}
         />
       ) : binary.preview === 'audio' ? (
         // biome-ignore lint/a11y/useMediaCaption: MCP audio carries no caption track to show.
@@ -35,21 +37,23 @@ export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
           controls
           preload="metadata"
           src={`data:${binary.mimeType};base64,${binary.base64}`}
-          aria-label={`MCP audio preview, ${binary.mimeType}`}
+          aria-label={t('shellText.mcp.audioPreview', { mime: binary.mimeType })}
         />
       ) : binary.preview === 'pdf' ? (
-        <PdfFrame bytes={binary.bytes} title={`MCP PDF preview, ${name}`} />
+        <PdfFrame bytes={binary.bytes} title={t('shellText.mcp.pdfPreview', { name })} />
       ) : (
-        <p className="quiet-state">No preview for {binary.mimeType}.</p>
+        <p className="quiet-state">{t('shellText.mcp.noPreview', { mime: binary.mimeType })}</p>
       )}
       <div className="feature-actions">
         <small>
-          {binary.mimeType} · {binary.bytes.length.toLocaleString()} bytes · text copy omits this
-          block
+          {t('shellText.mcp.details', {
+            mime: binary.mimeType,
+            bytes: binary.bytes.length.toLocaleString(),
+          })}
         </small>
         <button type="button" className="button secondary small" onClick={save}>
           <Download size={12} />
-          Save {name}
+          {t('shellText.mcp.save', { name })}
         </button>
       </div>
       {notice && <p role="status">{notice}</p>}

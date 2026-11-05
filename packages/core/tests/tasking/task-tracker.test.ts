@@ -663,4 +663,40 @@ describe('TaskTracker — transition identity and filtering (BIZ-005)', () => {
     expect(all).toHaveLength(3); // unfiltered returns everything
     expect(t.getTransitions('unknown-id')).toHaveLength(0);
   });
+
+  it('notifies primary transition before cascade transitions and wires inline dependencies', async () => {
+    const t = await withGraph();
+    const a = t.addNode(makeNode({ title: 'A' }));
+    const b = t.addNode({
+      ...makeNode({ title: 'B', status: 'blocked' }),
+      dependencies: [a.id],
+    } as never);
+    t.updateNodeStatus(a.id, 'in_progress');
+    const order: string[] = [];
+    const unsub = t.subscribe((ev) => {
+      if (ev.transition) {
+        order.push(`${ev.nodeId}:${ev.transition.from}->${ev.transition.to}`);
+      }
+    });
+    t.updateNodeStatus(a.id, 'completed');
+    unsub();
+    expect(order).toEqual([`${a.id}:in_progress->completed`, `${b.id}:blocked->pending`]);
+  });
+
+  it('populates parent.children on addNode, promotes orphans on removeNode, and clears completedAt on reopen (F968)', async () => {
+    const t = makeTracker();
+    const graph = await t.createGraph('spec-f968', 'Test');
+    const parent = t.addNode(makeNode({ title: 'Parent' }));
+    const child = t.addNode(makeNode({ title: 'Child', parentId: parent.id }));
+    expect(parent.children).toContain(child.id);
+
+    t.updateNodeStatus(child.id, 'completed');
+    expect(child.completedAt).toBeDefined();
+    t.updateNodeStatus(child.id, 'in_progress');
+    expect(child.completedAt).toBeUndefined();
+
+    t.removeNode(parent.id);
+    expect(child.parentId).toBeUndefined();
+    expect(graph.rootNodes).toContain(child.id);
+  });
 });

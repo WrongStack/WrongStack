@@ -164,8 +164,11 @@ export function RankedSearchResults({
             >
               <span className="block truncate text-xs">{hit.text}</span>
               <span className="text-[10px] text-muted-foreground">
-                SAGE · {hit.status} · {hit.kind} · {hit.matchReason} · rank {hit.score.toFixed(3)}
-                {hit.bm25 != null ? ` · lexical BM25 ${hit.bm25.toFixed(3)}` : ''}
+                SAGE · {hit.status} · {hit.kind} · {hit.matchReason} ·{' '}
+                {t('activity:sageText.rank', { score: hit.score.toFixed(3) })}
+                {hit.bm25 != null
+                  ? ` · ${t('activity:sageText.lexical', { score: hit.bm25.toFixed(3) })}`
+                  : ''}
               </span>
             </button>
           </li>

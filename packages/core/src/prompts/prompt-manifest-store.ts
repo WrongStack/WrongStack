@@ -4,7 +4,7 @@ import type {
   InstalledPromptEntry,
   PromptManifestData,
 } from '@wrongstack/contracts/types/prompt-registry';
-import { atomicWrite, ensureDir } from '../utils/atomic-write.js';
+import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 
 /**
  * Tracks prompts pulled from a remote registry, persisted to
@@ -17,7 +17,9 @@ export class PromptManifestStore {
 
   async load(): Promise<PromptManifestData> {
     try {
-      const raw = JSON.parse(await fs.readFile(this.manifestPath, 'utf8'));
+      // Same BOM rule as readForUpdate(): an editor-written UTF-8 BOM must not
+      // make a valid manifest list as empty while record()/remove() still read it.
+      const raw = JSON.parse((await fs.readFile(this.manifestPath, 'utf8')).replace(/^\uFEFF/, ''));
       if (raw && typeof raw === 'object' && Array.isArray(raw.entries)) {
         return { version: 1, entries: raw.entries as InstalledPromptEntry[] };
       }
@@ -27,6 +29,23 @@ export class PromptManifestStore {
     return { version: 1, entries: [] };
   }
 
+  private async readForUpdate(): Promise<PromptManifestData> {
+    let raw: string;
+    try {
+      raw = await fs.readFile(this.manifestPath, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { version: 1, entries: [] };
+      }
+      throw error;
+    }
+    const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as PromptManifestData;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.entries)) {
+      throw new Error(`${this.manifestPath} has no entries list; refusing to overwrite it`);
+    }
+    return { version: 1, entries: parsed.entries as InstalledPromptEntry[] };
+  }
+
   async save(data: PromptManifestData): Promise<void> {
     await ensureDir(path.dirname(this.manifestPath));
     await atomicWrite(this.manifestPath, JSON.stringify(data, null, 2));
@@ -34,19 +53,23 @@ export class PromptManifestStore {
 
   /** Upsert one entry keyed by slug. */
   async record(entry: InstalledPromptEntry): Promise<void> {
-    const data = await this.load();
-    const idx = data.entries.findIndex((e) => e.slug === entry.slug);
-    if (idx === -1) data.entries.push(entry);
-    else data.entries[idx] = entry;
-    await this.save(data);
+    return withFileLock(this.manifestPath, async () => {
+      const data = await this.readForUpdate();
+      const idx = data.entries.findIndex((e) => e.slug === entry.slug);
+      if (idx === -1) data.entries.push(entry);
+      else data.entries[idx] = entry;
+      await this.save(data);
+    });
   }
 
   async remove(slug: string): Promise<boolean> {
-    const data = await this.load();
-    const next = data.entries.filter((e) => e.slug !== slug);
-    if (next.length === data.entries.length) return false;
-    await this.save({ version: 1, entries: next });
-    return true;
+    return withFileLock(this.manifestPath, async () => {
+      const data = await this.readForUpdate();
+      const next = data.entries.filter((e) => e.slug !== slug);
+      if (next.length === data.entries.length) return false;
+      await this.save({ version: 1, entries: next });
+      return true;
+    });
   }
 
   async list(): Promise<InstalledPromptEntry[]> {

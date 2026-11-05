@@ -74,7 +74,7 @@ export function ChipMultiSelect({
                 type="button"
                 onClick={() => toggle(value)}
                 className="text-muted-foreground hover:text-destructive"
-                aria-label={`Remove ${labelFor(value)}`}
+                aria-label={t('activity:uiText.removeChip', { label: labelFor(value) })}
               >
                 <X size={11} />
               </button>
@@ -150,7 +150,9 @@ export function ChipMultiSelect({
             })}
             {filtered.length === 0 && (
               <div className="px-2 py-3 text-center text-[11px] text-muted-foreground">
-                {options.length === 0 ? (emptyLabel ?? 'Nothing available') : 'No match'}
+                {options.length === 0
+                  ? (emptyLabel ?? t('activity:uiText.nothingAvailable'))
+                  : t('activity:uiText.noMatch')}
               </div>
             )}
           </div>

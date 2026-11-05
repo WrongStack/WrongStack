@@ -354,7 +354,7 @@ export async function exerciseNativeProjects({
     .click();
   await atlas
     .locator('.ws-code-canvas')
-    .getByRole('button', { name: 'symbol feature', exact: true })
+    .getByRole('button', { name: /^symbol\b.*\bfeature\b/ })
     .waitFor();
   await atlas
     .locator('.ws-code-inspector')

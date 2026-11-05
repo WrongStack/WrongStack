@@ -8,11 +8,6 @@
       "typeOnly": 369,
       "runtimeOrMixed": 156
     },
-    "@wrongstack/core/agent-catalog": {
-      "files": 1,
-      "typeOnly": 0,
-      "runtimeOrMixed": 2
-    },
     "@wrongstack/core/boot": {
       "files": 5,
       "typeOnly": 0,
@@ -3193,12 +3188,6 @@
       "file": "packages/webui/src/stores/auto-submit-streak.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent-catalog",
-      "file": "scripts/apply-agent-learning-cli-patch.mjs",
-      "typeOnly": 0,
-      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/boot",

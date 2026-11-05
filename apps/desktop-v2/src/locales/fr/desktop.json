@@ -1193,7 +1193,8 @@
     "working": "Traitement…",
     "plainEditor": "Éditeur de texte brut",
     "loadingEditor": "Chargement de l’éditeur de code…",
-    "editorUnavailable": "L’éditeur de code n’a pas pu se charger ; ce fichier s’ouvre donc dans l’éditeur de texte brut."
+    "editorUnavailable": "L’éditeur de code n’a pas pu se charger ; ce fichier s’ouvre donc dans l’éditeur de texte brut.",
+    "plainText": "Texte brut"
   },
   "find": {
     "placeholder": "Rechercher",
@@ -8739,5 +8740,88 @@
     "execMode": "Choisissez un mode de confirmation des outils valide.",
     "execYoloPlus": "YOLO+ nécessite YOLO. Choisissez un mode de confirmation avant d’enregistrer.",
     "execChanged": "Le mode de confirmation des outils a changé ailleurs. Rechargez les valeurs enregistrées avant d’appliquer cette modification."
+  },
+  "chatView": {
+    "providerNeeded": "Connectez un fournisseur pour commencer à travailler avec WrongStack.",
+    "configureProvider": "Configurer le fournisseur",
+    "pendingOne": "{{count}} demande en attente",
+    "pendingMany": "{{count}} demandes en attente",
+    "focusQuestions": "Se concentrer sur les questions",
+    "reviewConversation": "Revoir la conversation",
+    "loading": "Chargement de cette conversation…",
+    "welcome": "Sur quoi travaillons-nous ?",
+    "showEarlier": "Afficher {{count}} messages précédents ({{hidden}} masqués)",
+    "jumpToLatest": "Aller au plus récent",
+    "newMessages": "{{count}} nouveaux",
+    "answerForm": "Répondez au formulaire pour continuer.",
+    "stopRun": "Arrêter l’exécution",
+    "opening": {
+      "sideEffects": "Ouverture de l’historique des effets de bord…",
+      "planTemplates": "Ouverture des modèles de plan…",
+      "usage": "Ouverture de l’utilisation de la conversation…",
+      "story": "Ouverture de l’histoire de la session…",
+      "context": "Ouverture du tableau de bord du contexte…",
+      "processes": "Ouverture des processus de la session…",
+      "mcpTasks": "Ouverture des tâches MCP de la session…",
+      "mcpContent": "Ouverture du contenu MCP…"
+    },
+    "reason": {
+      "editDraft": "Envoyez ou effacez d’abord le brouillon ; la modification le remplacerait",
+      "running": "Attendez la fin du tour en cours",
+      "offline": "Le moteur n’est pas connecté"
+    }
+  },
+  "worklist": {
+    "plan": "Plan",
+    "planTitled": "Plan : {{title}}",
+    "tasks": "Tâches",
+    "status": {
+      "open": "ouvert",
+      "in_progress": "en cours",
+      "done": "terminé",
+      "pending": "en attente",
+      "blocked": "bloqué",
+      "review": "en revue",
+      "failed": "échoué",
+      "completed": "achevé"
+    }
+  },
+  "shellText": {
+    "continuingIn": "Suite dans {{seconds}} s avec :",
+    "cancel": "Annuler",
+    "draftTokens": "≈{{count}} jetons",
+    "git": {
+      "branch": "Branche {{name}}",
+      "ahead": "{{count}} commits d’avance",
+      "behind": "{{count}} commits de retard",
+      "added": "{{count}} lignes ajoutées",
+      "deleted": "{{count}} lignes supprimées",
+      "untracked": "{{count}} fichiers non suivis"
+    },
+    "readingHunks": "Lecture des sections Git…",
+    "readingChanges": "Lecture des modifications du dépôt…",
+    "visibleFiles": "{{count}} fichiers visibles",
+    "unread": "{{count}} non lus",
+    "newestFrom": "le plus récent de {{from}} : {{subject}}",
+    "image": "Image",
+    "openImage": "Ouvrir l’image",
+    "mcp": {
+      "imagePreview": "Aperçu du contenu MCP, {{mime}}",
+      "audioPreview": "Aperçu audio MCP, {{mime}}",
+      "pdfPreview": "Aperçu PDF MCP, {{name}}",
+      "noPreview": "Pas d’aperçu pour {{mime}}.",
+      "details": "{{mime}} · {{bytes}} octets · la copie texte omet ce bloc",
+      "save": "Enregistrer {{name}}",
+      "saveRequested": "Enregistrement de {{name}} demandé."
+    },
+    "rosterImprove": "Préparez une instruction pour que le meneur d’une conversation existante améliore les fichiers de rôles de ce projet.",
+    "rosterOverlap": "{{count}} candidats impliquant {{role}} ; {{total}} dans le projet.",
+    "reqDraftCounts": "{{attachments}} références de pièces jointes · {{resources}} ressources liées",
+    "draft": {
+      "estimate": "≈ {{tokens}} jetons (4 caractères par jeton)",
+      "over": "{{percent}} % prévus du contexte de {{max}} jetons : la requête échouera ou sera compactée.",
+      "tight": "{{percent}} % prévus du contexte de {{max}} jetons : la marge se réduit.",
+      "fits": "≈ {{tokens}} jetons · {{percent}} % prévus du contexte de {{max}} jetons."
+    }
   }
 }

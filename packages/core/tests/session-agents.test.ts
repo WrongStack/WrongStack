@@ -333,4 +333,52 @@ describe('SessionCatalogStore.listSessionAgents', () => {
       store.close();
     }
   });
+
+  it('preserves closing status across SessionRegistry.updateAgents and cleans session_agents on delete', async () => {
+    const { SessionRegistry } = await import('../src/session-catalog/session-registry.js');
+    const { readSessionAgentRows } = await import('../src/session-catalog/store-agents.js');
+    const root = makeTempProject();
+    const registry = new SessionRegistry(root);
+    await registry.register({
+      sessionId: 'sess-closing',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      projectDir: root,
+      projectSlug: 'demo',
+      title: 'closing test',
+      status: 'active',
+      agentCount: 1,
+      agents: [
+        {
+          agentId: 'a1',
+          name: 'leader',
+          role: 'leader',
+          status: 'running',
+          startedAt: new Date().toISOString(),
+        },
+      ],
+    });
+    await registry.markClosing();
+    await new Promise((r) => setTimeout(r, 260));
+    await registry.updateAgents([]);
+    expect((await registry.get('sess-closing'))?.status).toBe('closing');
+    await registry.unregister();
+
+    const sessionId = '2026-08-26/sess_DEL';
+    seedSession(root, sessionId, [
+      { type: 'session_start', ts: ts(0), id: sessionId, model: 'm', provider: 'p' },
+      { type: 'agent_spawned', ts: ts(1), agentId: 'helper', role: 'reviewer' },
+    ] as SessionEvent[]);
+    const store = new SessionCatalogStore(root);
+    try {
+      store.rebuildCatalog();
+      expect(store.listSessionAgents(sessionId)).toHaveLength(1);
+      const lease = store.acquireMaintenance(sessionId, 'delete', 'test-holder', 10_000);
+      store.delete(sessionId, lease);
+      const db = (store as unknown as { db: Parameters<typeof readSessionAgentRows>[0] }).db;
+      expect(readSessionAgentRows(db, sessionId)).toEqual([]);
+    } finally {
+      store.close();
+    }
+  });
 });

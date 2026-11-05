@@ -286,4 +286,61 @@ describe('fallback-model → ProviderModelStatusTracker (subagent path)', () => 
     expect(typeof evt?.timestamp).toBe('number');
     expect(evt?.timestamp ?? 0).toBeGreaterThan(0);
   });
+
+  it('keeps primary in cooldown when pre-call skip rotates to fallback so beforeRun does not ping-pong back to primary (F963)', async () => {
+    const { bindProviderCatalogId } = await import('../../src/utils/provider-catalog-binding.js');
+    const cfg = {
+      provider: 'my-claude',
+      model: 'claude-sonnet',
+      fallbackModels: ['openai/gpt-4o'],
+      fallbackStickyTurns: 1,
+      modelAvailabilitySchedule: [
+        {
+          provider: 'anthropic',
+          model: 'claude-sonnet',
+          start: '00:00',
+          end: '24:00',
+          timezone: 'UTC',
+          mode: 'deny',
+          label: 'Block Anthropic peak',
+        },
+      ],
+      providers: {
+        'my-claude': { apiKey: 'k1', models: ['claude-sonnet'] },
+        openai: { apiKey: 'k2', models: ['gpt-4o'] },
+      },
+    } as unknown as Config;
+
+    const primaryProvider = makeProvider('my-claude');
+    bindProviderCatalogId(primaryProvider, 'anthropic');
+    const fallbackProvider = makeProvider('openai');
+    bindProviderCatalogId(fallbackProvider, 'openai');
+
+    const ext = createFallbackModelExtension({
+      getConfig: () => cfg,
+      buildProvider: async (providerId: string) =>
+        providerId === 'my-claude' ? primaryProvider : fallbackProvider,
+      events: new EventBus(),
+    });
+    const ctx = {
+      provider: primaryProvider,
+      model: 'claude-sonnet',
+      activeRunSessionId: 's-pingpong',
+      session: { id: 's-pingpong' },
+      meta: { sessionId: 's-pingpong' },
+    } as never as Context;
+    const req = { model: 'claude-sonnet', messages: [], maxTokens: 100 } as never as Request;
+    const okResponse = {
+      content: [{ type: 'text', text: 'ok' }],
+      stopReason: 'end_turn',
+      usage: { inputTokens: 1, outputTokens: 1 },
+    } as never as Response;
+
+    await ext.wrapProviderRunner?.(ctx, req, async () => okResponse);
+    expect(ctx.provider.id).toBe('openai');
+
+    await ext.beforeRun?.(ctx);
+    expect(ctx.provider.id).toBe('openai');
+    expect(ctx.model).toBe('gpt-4o');
+  });
 });

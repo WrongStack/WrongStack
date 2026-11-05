@@ -110,7 +110,7 @@ export function CodeMapCanvasToolbar({
             )}
             onClick={onToggleBlastOverlay}
             aria-pressed={Boolean(blastOverlayMode)}
-            title="Highlight modified nodes and their 1-hop / 2-hop incoming blast radius"
+            title={t('activity:codeMapText.blastTitle')}
           >
             <Flame className="h-3 w-3" /> BLAST
           </button>

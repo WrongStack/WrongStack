@@ -771,6 +771,12 @@
     "packages/core/src/security/totp.ts": [
       "hotp"
     ],
+    "packages/core/src/session-catalog/store-agents.ts": [
+      "readSessionAgentRows"
+    ],
+    "packages/core/src/session-catalog/store-rebuild.ts": [
+      "summarizeTranscriptFile"
+    ],
     "packages/core/src/skills/github-fetcher.ts": [
       "githubFetcherCoverage",
       "resolveGitHubToken",

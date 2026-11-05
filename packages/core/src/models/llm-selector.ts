@@ -251,6 +251,9 @@ export class LLMSelector implements MessageSelector {
       return this.fallbackSelect(messages, budget);
     }
 
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return this.fallbackSelect(messages, budget);
+    }
     const obj = parsed as Record<string, unknown>;
     // A selector emitting `kept`/`collapsed` as anything but an ARRAY (a bare
     // range object, a number, a string) is malformed output. `?? []` only
@@ -265,12 +268,14 @@ export class LLMSelector implements MessageSelector {
       return this.fallbackSelect(messages, budget);
     }
 
-    // Validate kept ranges — must be within [0, messageCount), from <= to
+    // Validate kept ranges — must be within [0, messageCount), integer bounds, from <= to
     const kept: SelectorResult['kept'] = [];
     for (const k of keptRaw) {
       if (
-        typeof k.from !== 'number' ||
-        typeof k.to !== 'number' ||
+        !k ||
+        typeof k !== 'object' ||
+        !Number.isInteger(k.from) ||
+        !Number.isInteger(k.to) ||
         k.from < 0 ||
         k.to >= messageCount ||
         k.from > k.to
@@ -288,8 +293,10 @@ export class LLMSelector implements MessageSelector {
     const collapsed: SelectorResult['collapsed'] = [];
     for (const c of collapsedRaw) {
       if (
-        typeof c.from !== 'number' ||
-        typeof c.to !== 'number' ||
+        !c ||
+        typeof c !== 'object' ||
+        !Number.isInteger(c.from) ||
+        !Number.isInteger(c.to) ||
         c.from < 0 ||
         c.to >= messageCount ||
         c.from > c.to

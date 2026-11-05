@@ -204,7 +204,7 @@ export function FileEvidenceDrawer({
               <dl>
                 <div>
                   <dt>{t('evidence.language')}</dt>
-                  <dd>{fileLanguage(path)}</dd>
+                  <dd>{fileLanguage(path, t('fileView.plainText'))}</dd>
                 </div>
                 <div>
                   <dt>{t('evidence.size')}</dt>
@@ -235,7 +235,9 @@ export function FileEvidenceDrawer({
           ) : tab === 'structure' ? (
             <div className="file-structure">
               <span>
-                {t('evidence.extracted', { lang: String(data['lang'] ?? fileLanguage(path)) })}
+                {t('evidence.extracted', {
+                  lang: String(data['lang'] ?? fileLanguage(path, t('fileView.plainText'))),
+                })}
               </span>
               <pre>{String(data['skeleton'] ?? t('evidence.noOutline'))}</pre>
             </div>

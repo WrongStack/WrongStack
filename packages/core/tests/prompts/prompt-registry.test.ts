@@ -194,4 +194,60 @@ describe('PromptManifestStore', () => {
     const bad = new PromptManifestStore(path.join(tmp, 'nope.json'));
     expect(await bad.load()).toEqual({ version: 1, entries: [] });
   });
+
+  it('serializes concurrent record() calls, refuses to overwrite corrupt JSON, and escapes daily-summary cells', async () => {
+    await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        store.record({
+          slug: `c-${i}`,
+          source: 's',
+          ref: 'v1',
+          checksum: 'a'.repeat(64),
+          synced: true,
+          installedAt: '2026-01-01T00:00:00.000Z',
+        }),
+      ),
+    );
+    expect(await store.list()).toHaveLength(6);
+
+    const corruptPath = path.join(tmp, 'corrupt.json');
+    await fsp.writeFile(corruptPath, '{corrupt', 'utf8');
+    const corruptStore = new PromptManifestStore(corruptPath);
+    await expect(
+      corruptStore.record({
+        slug: 'x',
+        source: 's',
+        ref: 'v1',
+        checksum: 'a'.repeat(64),
+        synced: true,
+        installedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ).rejects.toThrow();
+
+    const { recordPromptJournalEntry } = await import('../../src/prompts/prompt-journal.js');
+    const projRoot = path.join(tmp, 'proj');
+    await fsp.mkdir(projRoot, { recursive: true });
+    const entry = await recordPromptJournalEntry({
+      projectRoot: projRoot,
+      sessionId: 'sess-1',
+      category: 'raw_user',
+      content: 'hi',
+      decisionReason: 'rate limit | fallback\nnext line',
+    });
+    const summaryPath = path.join(
+      projRoot,
+      '.wrongstack',
+      'prompts',
+      entry.timestamp.slice(0, 7),
+      entry.timestamp.slice(0, 10),
+      'daily-summary.md',
+    );
+    const summaryText = await fsp.readFile(summaryPath, 'utf8');
+    const tableLines = summaryText
+      .trim()
+      .split('\n')
+      .filter((line) => !line.startsWith('#') && line.trim().length > 0);
+    expect(tableLines).toHaveLength(3);
+    expect(tableLines[2]).toContain('rate limit \\| fallback next line');
+  });
 });

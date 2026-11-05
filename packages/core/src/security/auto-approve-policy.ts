@@ -336,19 +336,29 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
       };
     }
     const policy = validation.policy;
-    const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
-    if (!subject) return undefined;
-    // Deny is the union of the exact-name entry and every matching wildcard
-    // entry — a narrow grant must never drop a broad guardrail. The leader
-    // matches the deny patterns with the broad glob matcher (`matchesTrust`),
-    // so the identical matcher is used here: narrowing a deny pattern would
-    // un-block whatever falls outside it.
-    const denyPatterns = [...(policy[tool.name]?.deny ?? [])];
-    for (const [key, value] of Object.entries(policy)) {
-      if (!key.includes('*') || !value.deny) continue;
-      if (matchGlob(key, tool.name)) denyPatterns.push(...value.deny);
+    // Deny is the union of the exact-name entry, every alias entry, and every
+    // matching wildcard entry — a narrow grant or tool rename must never drop
+    // a leader guardrail.
+    const names = [tool.name, ...(tool.aliases ?? [])];
+    const denyPatterns: string[] = [];
+    for (const name of names) {
+      const exactDeny = policy[name]?.deny;
+      if (exactDeny) denyPatterns.push(...exactDeny);
+      for (const [key, value] of Object.entries(policy)) {
+        if (!key.includes('*') || !value.deny) continue;
+        if (matchGlob(key, name)) denyPatterns.push(...value.deny);
+      }
     }
-    if (denyPatterns.length > 0 && matchesTrust(denyPatterns, subject)) {
+    if (denyPatterns.length === 0) return undefined;
+    const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
+    if (!subject) {
+      return {
+        permission: 'deny',
+        source: 'subagent_guard',
+        reason: `a leader deny rule for ${tool.name} could not be evaluated for this call`,
+      };
+    }
+    if (matchesTrust(denyPatterns, subject)) {
       return {
         permission: 'deny',
         source: 'subagent_guard',

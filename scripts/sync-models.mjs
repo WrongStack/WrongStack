@@ -1,6 +1,6 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * Helper for maintaining the curated model-catalog overlay
@@ -9,12 +9,20 @@ import { fileURLToPath } from 'node:url';
  * script does NOT regenerate it from upstream. It helps you author and audit
  * entries against the live catalog:
  *
- *   node scripts/sync-models.mjs --validate                 (default)
- *   node scripts/sync-models.mjs --diff
- *   node scripts/sync-models.mjs --extract deepseek
- *   node scripts/sync-models.mjs --extract deepseek:deepseek-v4-pro
+ *   bun scripts/sync-models.mjs --validate                 (default)
+ *   bun scripts/sync-models.mjs --diff
+ *   bun scripts/sync-models.mjs --extract deepseek
+ *   bun scripts/sync-models.mjs --extract deepseek:deepseek-v4-pro
  *
- * Run via: pnpm run sync:models -- <flags>
+ * Run via: bun run sync:models -- <flags>
+ *
+ * `--validate` also asserts the SHIPPED file passes the registry's own payload
+ * shape gate (`looksLikeModelsPayload(payload, false)`, the exact check
+ * `DefaultModelsRegistry.loadOverlayFromUrl` applies to the GitHub-raw overlay).
+ * A file that passes the local structural checks but fails that gate is served
+ * as base-only, silently: the gate is what decides whether the curated data
+ * ever reaches a client, so the local checks alone can say "valid" about an
+ * overlay the runtime will throw away.
  */
 
 const MODELS_DEV_URL = 'https://models.dev/api.json';
@@ -55,7 +63,90 @@ async function fetchUpstream() {
   return res.json();
 }
 
-function validate(overlay) {
+/**
+ * The registry's own payload shape gate — `looksLikeModelsPayload`, the exact
+ * predicate `DefaultModelsRegistry.loadOverlayFromUrl` runs on the GitHub-raw
+ * overlay before it is cached or merged. Loaded from source so this check can
+ * never drift from the runtime rule it is guarding.
+ */
+async function loadShapeGate() {
+  const gatePath = resolve(repoRoot, 'packages/core/src/models/models-registry-normalization.ts');
+  const mod = await import(pathToFileURL(gatePath).href);
+  if (typeof mod.looksLikeModelsPayload !== 'function') {
+    throw new Error(`${gatePath} does not export looksLikeModelsPayload`);
+  }
+  return mod.looksLikeModelsPayload;
+}
+
+function jsonType(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+/**
+ * Which entries make the gate reject the payload. Asked one entry at a time so
+ * the diagnosis follows the gate's own rules instead of restating them here —
+ * if the predicate changes, the culprit list changes with it.
+ */
+function findGateRejections(looksLikeModelsPayload, overlay) {
+  return Object.entries(overlay)
+    .filter(([id, entry]) => !looksLikeModelsPayload({ [id]: entry }, false))
+    .map(([id, entry]) => ({ id, type: jsonType(entry) }));
+}
+
+/**
+ * Fail loudly if the runtime would throw this overlay away.
+ *
+ * The local checks below only assert the file is well-formed JSON of roughly
+ * the right shape. The registry decides a payload's fate with
+ * `looksLikeModelsPayload`, and a rejected overlay is dropped without a
+ * client-visible error: `loadOverlayFromUrl` treats the invalid shape as an
+ * overlay outage, so every client keeps serving the models.dev base alone and
+ * curated providers/models silently stop arriving until the next release.
+ */
+async function assertPassesRegistryShapeGate(overlay) {
+  let looksLikeModelsPayload;
+  try {
+    looksLikeModelsPayload = await loadShapeGate();
+  } catch (err) {
+    console.error(
+      `✗ cannot load the registry shape gate: ${err.message}\n` +
+        '  Run this script with the repo runtime: bun run sync:models -- --validate',
+    );
+    process.exit(1);
+  }
+
+  // The gate rejects an empty payload, but an empty overlay is a documented
+  // no-op (`hasEntries` keeps the base catalog in charge), so it is a warning.
+  if (Object.keys(overlay).length === 0) {
+    console.warn('⚠ overlay is empty — the runtime merges nothing (base catalog only).');
+    return;
+  }
+
+  // `requireModels = false`, exactly as the overlay fetch calls it: overlays
+  // may be partial diffs, so the gate does not demand a `models` map.
+  if (looksLikeModelsPayload(overlay, false)) return;
+
+  const rejected = findGateRejections(looksLikeModelsPayload, overlay);
+  console.error('✗ the registry REJECTS this overlay — clients would be served base-only.');
+  console.error('  Gate: looksLikeModelsPayload(payload, false) in');
+  console.error('        packages/core/src/models/models-registry-normalization.ts');
+  console.error(
+    `  Rejected entry/entries (${rejected.length}): ` +
+      rejected.map((r) => `"${r.id}" (${r.type})`).join(', '),
+  );
+  console.error(
+    '  Every top-level entry must be a non-array object; a top-level array or\n' +
+      '  scalar (e.g. the `_removeProviders` directive) fails the whole payload.\n' +
+      '  `loadOverlayFromUrl` reads that rejection as an overlay outage and falls\n' +
+      '  back to the stale cache, then the bundled file — so this file never\n' +
+      '  reaches a client as a live overlay.',
+  );
+  process.exit(1);
+}
+
+async function validate(overlay) {
   let problems = 0;
   for (const [pid, p] of Object.entries(overlay)) {
     if (typeof p !== 'object' || p === null) {
@@ -72,14 +163,25 @@ function validate(overlay) {
       }
     }
   }
-  const providers = Object.keys(overlay).length;
-  const models = Object.values(overlay).reduce((n, p) => n + Object.keys(p.models ?? {}).length, 0);
-  if (problems === 0) {
-    console.log(`✓ overlay valid — ${providers} provider(s), ${models} model override(s)`);
-  } else {
+  if (problems !== 0) {
     console.error(`✗ ${problems} problem(s) found`);
     process.exit(1);
   }
+
+  // The local checks above say the file is well-formed; this one says the
+  // runtime will actually accept it. Order matters: the registry gate is the
+  // check that decides whether curated data reaches a client.
+  await assertPassesRegistryShapeGate(overlay);
+
+  const providers = Object.keys(overlay).filter((id) => !id.startsWith('_')).length;
+  const models = Object.values(overlay).reduce(
+    (n, p) => n + Object.keys(p?.models ?? {}).length,
+    0,
+  );
+  console.log(
+    `✓ overlay valid — ${providers} provider(s), ${models} model override(s), ` +
+      'accepted by the registry shape gate',
+  );
 }
 
 function diff(overlay, upstream) {
@@ -153,7 +255,7 @@ async function main() {
   const { mode, target } = parseArgs(process.argv.slice(2));
   const overlay = mode === 'extract' ? {} : readOverlay();
   if (mode === 'validate') {
-    validate(overlay);
+    await validate(overlay);
     return;
   }
   const upstream = await fetchUpstream();

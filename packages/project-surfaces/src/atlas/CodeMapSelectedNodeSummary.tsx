@@ -68,19 +68,23 @@ export function CodeMapSelectedNodeSummary({
       {(node.isFragile || node.lockOwner || (node.thrashingCount ?? 0) > 0) && (
         <div className="mt-3 space-y-1 border border-destructive/40 bg-destructive/5 p-2">
           <div className="font-mono text-[8px] font-bold uppercase tracking-wider text-destructive">
-            WrongTrace Telemetry Alert
+            {t('activity:codeMapText.telemetryAlert')}
           </div>
           {node.isFragile && (
             <div className="text-[10px] leading-snug text-foreground">
-              <span className="font-mono font-semibold text-destructive">[FRAGILE]</span> Health
-              score: {node.healthScore ?? 'low'}
-              {node.thrashingCount ? ` · ${node.thrashingCount} thrashing cycle(s)` : ''}
+              <span className="font-mono font-semibold text-destructive">[FRAGILE]</span>{' '}
+              {t('activity:codeMapText.healthScore', {
+                score: node.healthScore ?? t('activity:codeMapText.scoreLow'),
+              })}
+              {node.thrashingCount
+                ? ` · ${t('activity:codeMapText.thrashing', { count: node.thrashingCount })}`
+                : ''}
             </div>
           )}
           {node.lockOwner && (
             <div className="text-[10px] leading-snug text-foreground">
-              <span className="font-mono font-semibold text-warning">[LOCKED]</span> Held by{' '}
-              {node.lockOwner}
+              <span className="font-mono font-semibold text-warning">[LOCKED]</span>{' '}
+              {t('activity:codeMapText.heldBy', { owner: node.lockOwner })}
             </div>
           )}
         </div>
@@ -88,7 +92,7 @@ export function CodeMapSelectedNodeSummary({
       {node.memories && node.memories.length > 0 && (
         <div className="mt-3 space-y-1 border border-success/40 bg-success/5 p-2">
           <div className="font-mono text-[8px] font-bold uppercase tracking-wider text-success">
-            SAGE Institutional Memories ({node.memories.length})
+            {t('activity:codeMapText.sageMemories', { count: node.memories.length })}
           </div>
           {node.memories.map((mem) => (
             <div key={mem.id} className="text-[10px] leading-snug text-foreground">
@@ -127,8 +131,10 @@ export function CodeMapSelectedNodeSummary({
             className="flex h-7 flex-1 items-center justify-center gap-1.5 border bg-foreground text-[9px] font-semibold uppercase tracking-wider text-background hover:opacity-90"
             onClick={() => onOpenNode(node)}
           >
-            <ExternalLink className="h-3 w-3" /> Open{' '}
-            {node.kind === 'package' ? 'files' : 'symbols'}
+            <ExternalLink className="h-3 w-3" />{' '}
+            {node.kind === 'package'
+              ? t('activity:codeMapText.openFiles')
+              : t('activity:codeMapText.openSymbols')}
           </button>
         )}
         {node.file && (

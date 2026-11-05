@@ -70,7 +70,13 @@ export async function exerciseNativeConflictVariants({ page, project, artifactDi
   const dialog = () => page.getByRole('dialog', { name: 'Resolve merge conflict', exact: true });
   const open = async (path) => {
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
-    await page.getByRole('button', { name: 'Review ' + path, exact: true }).click();
+    // A change row is named by its visible text: the file name, then its folder.
+    const esc = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const name = path.split('/').at(-1);
+    const folder = path.slice(0, -name.length - 1);
+    await page
+      .getByRole('button', { name: new RegExp(`^${esc(name)} ${folder ? `${esc(folder)} ` : ''}`) })
+      .click();
     await page.getByRole('button', { name: 'Resolve merge conflict', exact: true }).click();
     await dialog()
       .getByRole('region', { name: 'Common base content', exact: true })

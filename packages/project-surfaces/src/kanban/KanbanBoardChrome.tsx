@@ -4,6 +4,7 @@ import type {
   KanbanModelRoutingMode,
   KanbanSupervisorSnapshot,
 } from '@wrongstack/kanban';
+import type { TFunction } from 'i18next';
 import { Activity, ChevronDown, CircleUserRound, Clock3, Save, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
@@ -11,27 +12,97 @@ import { cn } from '../lib/utils';
 import { ChipMultiSelect } from '../ui/ChipMultiSelect';
 import { ModelPicker } from '../ui/ModelPicker';
 import { useModelCandidates as useProviderModels } from './feed';
+import { enumLabel, ROUTING_MODE_KEYS } from './kanban-labels';
 import { useKanbanMeta } from './useKanbanMeta';
 
-function relativeLastSeen(lastSeenAt: string): string {
+function relativeLastSeen(lastSeenAt: string, t: TFunction): string {
   const elapsed = Math.max(0, Date.now() - Date.parse(lastSeenAt));
-  if (elapsed < 60_000) return 'just now';
-  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
-  return `${Math.floor(elapsed / 3_600_000)}h ago`;
+  if (elapsed < 60_000) return t('activity:kanbanText.justNow');
+  if (elapsed < 3_600_000) {
+    return t('activity:kanbanText.minutesAgo', { count: Math.floor(elapsed / 60_000) });
+  }
+  return t('activity:kanbanText.hoursAgo', { count: Math.floor(elapsed / 3_600_000) });
 }
 
-function fmtElapsed(fromIso?: string, toIso?: string): string | null {
+function fmtElapsed(t: TFunction, fromIso?: string, toIso?: string): string | null {
   if (!fromIso) return null;
   const from = Date.parse(fromIso);
   const to = toIso ? Date.parse(toIso) : Date.now();
   if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
   const seconds = Math.max(0, Math.floor((to - from) / 1000));
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 60) return t('activity:kanbanText.duration.seconds', { count: seconds });
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return t('activity:kanbanText.duration.minutes', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
+  if (hours < 24) return t('activity:kanbanText.duration.hours', { count: hours });
+  return t('activity:kanbanText.duration.days', { count: Math.floor(hours / 24) });
+}
+
+const SUPERVISOR_STATUS_KEYS: Record<string, string> = {
+  starting: 'activity:kanbanText.supervisorStatus.starting',
+  disabled: 'activity:kanbanText.supervisorStatus.disabled',
+  healthy: 'activity:kanban.healthy',
+  attention: 'activity:kanbanText.supervisorStatus.attention',
+  running: 'activity:kanban.statusRunning',
+  error: 'activity:kanbanText.supervisorStatus.error',
+};
+
+const SUPERVISOR_MODE_KEYS: Record<string, string> = {
+  deterministic: 'activity:kanbanText.supervisorMode.deterministic',
+  agentic: 'activity:kanbanText.supervisorMode.agentic',
+};
+
+const SUPERVISOR_HEALTH_LINE =
+  /^(\d+) running · (\d+) ready · (\d+) review · (\d+) blocked · (\d+) failed · (\d+) stale · (\d+) dependency-blocked · (\d+) parked( · task management pending| · task management unavailable: host has no agent dispatcher)?$/;
+
+/**
+ * The supervisor summary is composed server-side in English
+ * (`healthSummary` in webui-server's kanban-supervisor). Its first line has a
+ * fixed shape, so it is re-rendered from its numbers in the display language;
+ * anything else (the board's free-text management summary, an unknown shape)
+ * is shown as sent.
+ */
+export function localizeSupervisorSummary(summary: string, t: TFunction): string {
+  const [first = '', ...rest] = summary.split('\n');
+  const match = SUPERVISOR_HEALTH_LINE.exec(first);
+  if (!match) return summary;
+  const [, running, ready, review, blocked, failed, stale, dependencyBlocked, parked, suffix] =
+    match;
+  let line = t('activity:kanbanText.supervisorHealth', {
+    running,
+    ready,
+    review,
+    blocked,
+    failed,
+    stale,
+    dependencyBlocked,
+    parked,
+  });
+  if (suffix) {
+    line += ` · ${t(
+      suffix.includes('unavailable')
+        ? 'activity:kanbanText.managementUnavailable'
+        : 'activity:kanbanText.managementPending',
+    )}`;
+  }
+  return [line, ...rest].join('\n');
+}
+
+export function BoardHeading({ board }: { board: KanbanBoard | null | undefined }) {
+  const { t } = useAppTranslation();
+  return (
+    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+      <h1 className="truncate">{board?.title ?? t('activity:kanbanText.noBoardSelected')}</h1>
+      <div className="truncate text-[11px] text-muted-foreground">
+        {board
+          ? t('activity:kanbanText.boardShape', {
+              columns: board.columns.length,
+              tasks: board.tasks.length,
+            })
+          : t('activity:kanbanText.createOrSelectBoard')}
+      </div>
+    </div>
+  );
 }
 
 /** Inactive presence entries shown before the rest fold behind "+N earlier". */
@@ -84,11 +155,18 @@ export function BoardPresence({ presence = [] }: { presence?: KanbanBoardPresenc
         <span
           key={entry.id}
           className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs shadow-sm"
-          title={`Session ${entry.sessionId} · last seen ${entry.lastSeenAt}`}
+          title={t('activity:kanbanText.presenceTitle', {
+            sessionId: entry.sessionId,
+            lastSeenAt: entry.lastSeenAt,
+          })}
         >
           <span
             role="img"
-            aria-label={entry.active ? 'active' : 'inactive'}
+            aria-label={
+              entry.active
+                ? t('activity:kanbanText.presenceActive')
+                : t('activity:kanbanText.presenceInactive')
+            }
             className={cn(
               'h-2 w-2 shrink-0 rounded-full',
               entry.active ? 'bg-success' : 'bg-muted-foreground/50',
@@ -99,7 +177,7 @@ export function BoardPresence({ presence = [] }: { presence?: KanbanBoardPresenc
           <span className="max-w-32 truncate text-muted-foreground">{entry.sessionId}</span>
           <Clock3 size={12} className="text-muted-foreground" aria-hidden="true" />
           <time dateTime={entry.lastSeenAt} className="tabular-nums text-muted-foreground">
-            {relativeLastSeen(entry.lastSeenAt)}
+            {relativeLastSeen(entry.lastSeenAt, t)}
           </time>
         </span>
       ))}
@@ -168,6 +246,7 @@ export function SupervisorBar({
   };
 
   const status = enabled ? (snapshot?.status ?? 'starting') : 'disabled';
+  const summary = snapshot?.summary ? localizeSupervisorSummary(snapshot.summary, t) : '';
   return (
     <div className="shrink-0 border-b bg-background/80">
       <button
@@ -178,14 +257,18 @@ export function SupervisorBar({
         <ShieldCheck size={13} className={status === 'healthy' ? 'text-success' : 'text-warning'} />
         <span className="font-semibold">{t('activity:kanban.kanbanAgent')}</span>
         <span className="rounded bg-muted px-1.5 py-0.5 capitalize text-muted-foreground">
-          {mode} · {status}
+          {enumLabel(t, SUPERVISOR_MODE_KEYS, mode)} ·{' '}
+          {enumLabel(t, SUPERVISOR_STATUS_KEYS, status)}
         </span>
-        {snapshot?.summary && (
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">{snapshot.summary}</span>
+        {summary && (
+          // Truncated in a narrow bar (and longer in most languages): the full line is its title.
+          <span className="min-w-0 flex-1 truncate text-muted-foreground" title={summary}>
+            {summary}
+          </span>
         )}
         <span className="ml-auto text-muted-foreground">
           {snapshot?.lastAuditAt
-            ? t('activity:kanban.checkedAgo', { ago: fmtElapsed(snapshot.lastAuditAt) })
+            ? t('activity:kanban.checkedAgo', { ago: fmtElapsed(t, snapshot.lastAuditAt) })
             : t('activity:kanban.notChecked')}
         </span>
         <ChevronDown size={13} className={cn('transition-transform', expanded && 'rotate-180')} />
@@ -204,6 +287,7 @@ export function SupervisorBar({
             label={t('activity:kanban.supervisorEngine')}
             value={mode}
             options={['deterministic', 'agentic']}
+            optionLabel={(option) => enumLabel(t, SUPERVISOR_MODE_KEYS, option)}
             onChange={(value) => setMode(value as 'deterministic' | 'agentic')}
           />
           <label className="block">
@@ -244,6 +328,7 @@ export function SupervisorBar({
                 label={t('activity:kanban.kanbanAgentModelSource')}
                 value={routingMode}
                 options={['session', 'fixed', 'fallback_profile']}
+                optionLabel={(option) => enumLabel(t, ROUTING_MODE_KEYS, option)}
                 onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
               />
               {routingMode === 'fixed' && (
@@ -317,12 +402,15 @@ function SelectField({
   options,
   onChange,
   placeholder,
+  optionLabel,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
   placeholder?: string | undefined;
+  /** Display text for an option; the option value itself is what is saved. */
+  optionLabel?: ((option: string) => string) | undefined;
 }) {
   return (
     <label className="block">
@@ -335,7 +423,7 @@ function SelectField({
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {optionLabel ? optionLabel(option) : option}
           </option>
         ))}
       </select>

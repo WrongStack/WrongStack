@@ -387,4 +387,22 @@ describe('ExtensionRegistry — tool execution hooks', () => {
     });
     await expect(reg.runAfterToolExecution({} as never, [] as never)).resolves.toBeUndefined();
   });
+
+  it('preserves replacement when registerOrReplaceScoped is overwritten by registerOrReplace and disposed (F968)', async () => {
+    const reg = new ExtensionRegistry();
+    const calls: string[] = [];
+    const extA = { name: 'ext', beforeRun: () => void calls.push('A') };
+    const extB = { name: 'ext', beforeRun: () => void calls.push('B') };
+    const extC = { name: 'ext', beforeRun: () => void calls.push('C') };
+
+    reg.register(extA);
+    const disposeB = reg.registerOrReplaceScoped(extB);
+    reg.registerOrReplace(extC);
+
+    disposeB();
+    await reg.runBeforeRun({} as never);
+    expect(calls).toEqual(['A']);
+    reg.unregister('ext');
+    expect(reg.list()).toEqual([]);
+  });
 });

@@ -145,6 +145,7 @@ export function recordProviderQuota(
     const previous = byMeter.get(snapshot.meterId);
     byMeter.set(snapshot.meterId, {
       ...snapshot,
+      providerId,
       // A reading that omits a field restates nothing: the last known value
       // survives. Windows/credits/reachedWindowId/note are carried forward so a
       // note-only or reached-only snapshot stores its information WITHOUT
@@ -155,15 +156,18 @@ export function recordProviderQuota(
       ...(snapshot.credits === undefined && previous?.credits !== undefined
         ? { credits: previous.credits }
         : {}),
-      // …except the cut-off flag across a fresh window reading: that reading
-      // is the provider restating the meter, and its silence means "not cut
-      // off". Carrying it forward kept the chip red after the window reset.
+      // …except the cut-off flag and transient note across a fresh window
+      // reading: that reading is the provider restating the meter, and its
+      // silence means "not cut off / no note". Carrying them forward kept the
+      // chip red or warning-annotated after the window reset.
       ...(snapshot.reachedWindowId === undefined &&
       snapshot.windows.length === 0 &&
       previous?.reachedWindowId !== undefined
         ? { reachedWindowId: previous.reachedWindowId }
         : {}),
-      ...(snapshot.note === undefined && previous?.note !== undefined
+      ...(snapshot.note === undefined &&
+      snapshot.windows.length === 0 &&
+      previous?.note !== undefined
         ? { note: previous.note }
         : {}),
       ...(snapshot.planLabel === undefined && previous?.planLabel !== undefined

@@ -134,8 +134,35 @@ export class TaskTracker {
 
     this.graph.nodes.set(newNode.id, newNode);
 
+    const inlineDeps = (node as { dependencies?: readonly string[] }).dependencies;
+    if (Array.isArray(inlineDeps)) {
+      for (const depId of inlineDeps) {
+        if (
+          typeof depId === 'string' &&
+          depId !== newNode.id &&
+          this.graph.nodes.has(depId) &&
+          !this.getBlockers(newNode.id).includes(depId) &&
+          !this.dependsOnTransitively(depId, newNode.id, new Set())
+        ) {
+          this.graph.edges.push({
+            id: crypto.randomUUID(),
+            from: depId,
+            to: newNode.id,
+            type: 'depends_on',
+          });
+        }
+      }
+    }
+
     if (!node.parentId) {
       this.graph.rootNodes.push(newNode.id);
+    } else {
+      const parent = this.graph.nodes.get(node.parentId);
+      if (parent) {
+        parent.children = parent.children ? [...parent.children, newNode.id] : [newNode.id];
+      } else {
+        this.graph.rootNodes.push(newNode.id);
+      }
     }
 
     this.graph.updatedAt = now;
@@ -266,9 +293,15 @@ export class TaskTracker {
     this.graph.nodes.delete(id);
     this.graph.edges = this.graph.edges.filter((e) => e.from !== id && e.to !== id);
     this.graph.rootNodes = this.graph.rootNodes.filter((r) => r !== id);
-    // Detach from any parent's children list.
+    // Detach from any parent's children list and promote orphaned children to rootNodes.
     for (const n of this.graph.nodes.values()) {
       if (n.children?.includes(id)) n.children = n.children.filter((c) => c !== id);
+      if (n.parentId === id) {
+        n.parentId = undefined;
+        if (!this.graph.rootNodes.includes(n.id)) {
+          this.graph.rootNodes.push(n.id);
+        }
+      }
     }
     this.unblockNodesIfReady(dependents, `auto-unblocked: blocker ${id} removed`);
     this.graph.updatedAt = Date.now();
@@ -300,15 +333,28 @@ export class TaskTracker {
     if (status === 'completed') {
       node.completedAt = now;
       node.startedAt = node.startedAt ?? now; // ensure startedAt is set
+    } else {
+      node.completedAt = undefined;
     }
     if (status === 'in_progress') {
       node.startedAt = now;
+    } else if (status === 'pending') {
+      node.startedAt = undefined;
     }
 
     this.transitions.push({ nodeId: id, from, to: status, timestamp: now, reason });
     if (this.transitions.length > TaskTracker.MAX_TRANSITIONS) {
       this.transitions.splice(0, this.transitions.length - TaskTracker.MAX_TRANSITIONS);
     }
+
+    this.graph.updatedAt = now;
+    this.persist();
+    this.notifyChange({
+      type: 'status_changed',
+      nodeId: id,
+      node,
+      transition: { nodeId: id, from, to: status, timestamp: now, reason },
+    });
 
     // Auto-unblock / auto-block cascades. Re-entrancy is guarded inside the
     // helpers (flag set around their work): a listener notified mid-cascade
@@ -320,15 +366,6 @@ export class TaskTracker {
     if (status === 'in_progress') {
       this.checkAndBlockIfNeeded(id);
     }
-
-    this.graph.updatedAt = now;
-    this.persist();
-    this.notifyChange({
-      type: 'status_changed',
-      nodeId: id,
-      node,
-      transition: { nodeId: id, from, to: status, timestamp: now, reason },
-    });
   }
 
   updateNode(

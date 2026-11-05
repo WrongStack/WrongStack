@@ -295,7 +295,7 @@ export function MemoryEditor({
                     className="grid gap-2 border border-border/65 bg-background/40 p-2 sm:grid-cols-[9rem_minmax(0,1fr)_auto]"
                   >
                     <label className="sr-only" htmlFor={`anchor-type-${index}`}>
-                      Anchor {index + 1} type
+                      {t('activity:sageText.anchorType', { n: index + 1 })}
                     </label>
                     <select
                       id={`anchor-type-${index}`}
@@ -328,7 +328,7 @@ export function MemoryEditor({
                       )}
                     >
                       <label className="sr-only" htmlFor={`anchor-value-${index}`}>
-                        Anchor {index + 1} value
+                        {t('activity:sageText.anchorValue', { n: index + 1 })}
                       </label>
                       <Input
                         id={`anchor-value-${index}`}
@@ -354,7 +354,7 @@ export function MemoryEditor({
                       {anchor.type === 'symbol' && (
                         <>
                           <label className="sr-only" htmlFor={`anchor-symbol-${index}`}>
-                            Anchor {index + 1} symbol
+                            {t('activity:sageText.anchorSymbol', { n: index + 1 })}
                           </label>
                           <Input
                             id={`anchor-symbol-${index}`}
@@ -377,7 +377,7 @@ export function MemoryEditor({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label={`Remove anchor ${index + 1}`}
+                      aria-label={t('activity:sageText.removeAnchor', { n: index + 1 })}
                       onClick={() =>
                         set(
                           'anchors',

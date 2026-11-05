@@ -11,6 +11,7 @@
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
   --color-info: hsl(var(--info));
   --color-running: hsl(var(--running));
@@ -86,6 +87,7 @@
   --input: 40 14.3% 75.3%;
   --ring: 344.8 74.6% 47.8%;
   --success: 150 58% 30%;
+  --success-foreground: 0 0% 100%;
   --warning: 32 92% 31%;
   --info: 200 80% 33%;
   --running: 344.8 74.6% 47.8%;
@@ -127,6 +129,7 @@
   --input: 66.7 5.8% 30.4%;
   --ring: 345.9 99% 58.8%;
   --success: 150 64% 46%;
+  --success-foreground: 60 7% 8.4%;
   --warning: 38 94% 58%;
   --info: 198 82% 56%;
   --running: 345.9 99% 58.8%;

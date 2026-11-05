@@ -31,6 +31,7 @@
 
 import type { Config } from '@wrongstack/contracts/types/config/root';
 import type { TypeSafeConfig } from '@wrongstack/contracts/types/config/typesafe';
+import { isLoopbackHost } from '../utils/ip-guard.js';
 import { observeJevClient } from './activity.js';
 import { createTypeSafeBreaker, type TypeSafeBreaker, TypeSafeDisabledError } from './breaker.js';
 import { createTypeSafeClient, type TypeSafeUsage } from './client.js';
@@ -173,13 +174,21 @@ export function resolveTypeSafeAccount(deps: ResolveTypeSafeClientDeps): TypeSaf
   }
   try {
     const url = new URL(endpoint);
-    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.hash) {
+    if (
+      !['https:', 'http:'].includes(url.protocol) ||
+      (url.protocol === 'http:' && !isLoopbackHost(url.hostname)) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
       throw new Error('invalid endpoint');
     }
   } catch {
     return {
       status: 'unusable',
-      reason: 'typesafe.endpoint must be an HTTP(S) URL without embedded credentials or a fragment',
+      reason:
+        'typesafe.endpoint must be an HTTPS (or loopback HTTP) URL without embedded credentials, query string, or fragment',
     };
   }
 

@@ -24,9 +24,14 @@ const PATH_KEYS = new Set([
   'paths',
   'file',
   'files',
+  'filePath',
+  'file_path',
+  'filepath',
+  'filename',
   'directory',
   'dir',
   'cwd',
+  'workdir',
   'root',
   'baseDir',
   'out',
@@ -301,7 +306,7 @@ async function extractCandidatePaths(
     const directory = path.isAbsolute(directoryInput)
       ? directoryInput
       : path.resolve(ctx.workingDir, directoryInput);
-    const strip = Math.max(1, numericValue(input['strip']) ?? 1);
+    const strip = Math.max(0, Math.trunc(numericValue(input['strip']) ?? 1));
     const targets = extractPatchTargets(input['patch'], strip).map((target) =>
       relativeToProject(path.resolve(directory, target), ctx.projectRoot),
     );
@@ -378,12 +383,14 @@ function resolveInputPath(value: string, ctx: AgentContext): string {
 
 function relativeToProject(absolute: string, projectRoot: string): string {
   const relative = path.relative(projectRoot, absolute).replace(/\\/g, '/');
-  return relative.startsWith('../') || path.isAbsolute(relative) ? absolute : relative || '.';
+  return relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)
+    ? absolute
+    : relative || '.';
 }
 
 function extractPatchTargets(patchText: string, strip: number): string[] {
   const targets: string[] = [];
-  for (const match of patchText.matchAll(/^\+\+\+\s+([^\t\r\n]+)/gm)) {
+  for (const match of patchText.matchAll(/^(?:\+\+\+|---)\s+([^\t\r\n]+)/gm)) {
     const raw = match[1]?.trim();
     if (!raw || raw === '/dev/null') continue;
     const parts = raw
@@ -392,7 +399,7 @@ function extractPatchTargets(patchText: string, strip: number): string[] {
       .filter((part) => part && part !== '.');
     if (parts.length > strip) targets.push(parts.slice(strip).join('/'));
   }
-  return targets;
+  return [...new Set(targets)];
 }
 
 function stringValue(value: unknown): string | undefined {

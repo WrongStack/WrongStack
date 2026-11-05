@@ -51,7 +51,14 @@ export function RelationSection(props: RelationSectionProps): React.ReactElement
                   type="button"
                   className="flex h-6 w-5 shrink-0 items-center justify-center text-muted-foreground"
                   onClick={() => nested.length > 0 && onToggle(key)}
-                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} relation ${item.node.label}`}
+                  aria-label={t(
+                    isExpanded
+                      ? 'activity:codeMapText.collapseRelation'
+                      : 'activity:codeMapText.expandRelation',
+                    {
+                      name: item.node.label,
+                    },
+                  )}
                 >
                   {nested.length > 0 ? (
                     isExpanded ? (

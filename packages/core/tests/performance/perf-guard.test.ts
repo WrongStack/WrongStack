@@ -358,4 +358,10 @@ describe('formatGuardReport', () => {
     expect(ratcheted.recorded).toEqual([]);
     expect(ratcheted.adopted).toEqual([]);
   });
+
+  it('rejects top-level arrays, non-array entries, and negative thresholdPct in parseBaselineFile (F969)', () => {
+    expect(() => parseBaselineFile('[]')).toThrow();
+    expect(() => parseBaselineFile('{"schemaVersion":1,"entries":{}}')).toThrow();
+    expect(() => parseBaselineFile('{"schemaVersion":1,"thresholdPct":-5,"entries":[]}')).toThrow();
+  });
 });

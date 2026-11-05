@@ -426,8 +426,10 @@ export function ProjectRequirements({
                     value={draft.value.original}
                   />
                   <small>
-                    {draft.value.attachments.length} attachment references ·{' '}
-                    {draft.value.resources.length} related resources
+                    {t('shellText.reqDraftCounts', {
+                      attachments: draft.value.attachments.length,
+                      resources: draft.value.resources.length,
+                    })}
                   </small>
                 </div>
                 <div>
@@ -439,8 +441,10 @@ export function ProjectRequirements({
                     value={draft.review.draft.original}
                   />
                   <small>
-                    {draft.review.draft.attachments.length} attachment references ·{' '}
-                    {draft.review.draft.resources.length} related resources
+                    {t('shellText.reqDraftCounts', {
+                      attachments: draft.review.draft.attachments.length,
+                      resources: draft.review.draft.resources.length,
+                    })}
                   </small>
                 </div>
               </div>

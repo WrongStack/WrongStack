@@ -496,4 +496,17 @@ describe('LLMSelector with OneShotOrchestrator', () => {
     expect(result.collapsed[0]!.from).toBe(2);
     expect(result.reasoning).toBe('compact older turns');
   });
+
+  it('falls back to recency selection when kept/collapsed contain null elements or fractional indices', async () => {
+    for (const badJson of [
+      '{"kept":[null],"collapsed":[]}',
+      '{"kept":[{"from":0.5,"to":0.5}],"collapsed":[]}',
+    ]) {
+      const selector = new LLMSelector({
+        provider: mockProvider([badJson]),
+      });
+      const res = await selector.select(makeMessages(), 1000);
+      expect(res.kept.every((k) => Number.isInteger(k.from) && Number.isInteger(k.to))).toBe(true);
+    }
+  });
 });

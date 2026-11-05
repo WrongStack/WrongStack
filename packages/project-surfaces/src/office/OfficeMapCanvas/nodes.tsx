@@ -405,21 +405,21 @@ function AgentNode({ data }: { data: OfficeNodeData }) {
 
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] mb-1.5">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">iter</span>
+          <span className="text-muted-foreground">{t('activity:officeText.iter')}</span>
           <span className="font-mono text-foreground">{data.iteration || 0}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">tools</span>
+          <span className="text-muted-foreground">{t('activity:officeText.tools')}</span>
           <span className="font-mono text-warning">{data.toolCalls || 0}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">tok</span>
+          <span className="text-muted-foreground">{t('activity:officeText.tok')}</span>
           <span className="font-mono text-foreground">
             {fmtCompact((data.tokensIn || 0) + (data.tokensOut || 0))}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">cost</span>
+          <span className="text-muted-foreground">{t('activity:officeText.cost')}</span>
           <span className="font-mono text-success">${(data.costUsd || 0).toFixed(3)}</span>
         </div>
       </div>
@@ -427,7 +427,7 @@ function AgentNode({ data }: { data: OfficeNodeData }) {
       {ctxPct > 0 && (
         <div className="mb-1">
           <div className="mb-0.5 flex justify-between text-[10px] text-muted-foreground">
-            <span>ctx</span>
+            <span>{t('activity:officeText.ctx')}</span>
             <span
               className={cn(
                 'font-mono',

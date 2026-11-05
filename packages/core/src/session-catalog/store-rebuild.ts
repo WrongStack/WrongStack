@@ -63,13 +63,15 @@ export function summarizeTranscriptFile(transcriptFilePath: string, id: string):
     lastActivityAt = event.ts;
     if (event.type === 'session_start') start = event;
     if (event.type === 'session_end') endedAt = event.ts;
-    if (
-      event.type === 'message_appended' &&
-      (event.message.role === 'user' || event.message.role === 'assistant')
-    )
-      messageCount++;
+    // Counters mirror `summarizeSessionEventSequence` in
+    // storage/session-store/summary-builder.ts exactly: the same transcript
+    // must report the same counts whether the file-backed store scanned it or
+    // the SQLite catalog rebuilt it. Legacy journals use user_input/
+    // llm_response; modern journals use message_appended.
+    if (event.type === 'user_input') messageCount++;
+    if (event.type === 'message_appended' && event.version === 1 && event.message) messageCount++;
     if (event.type === 'llm_response') {
-      iterationCount++;
+      messageCount++;
       tokenTotal += totalUsageTokens(event.usage);
       // session_start pins the model the session OPENED with; a mid-session
       // switch or fallback rotation only shows up on the response that used
@@ -78,7 +80,9 @@ export function summarizeTranscriptFile(transcriptFilePath: string, id: string):
       if (event.model) routedModel = event.model;
       if (event.provider) routedProvider = event.provider;
     }
-    if (event.type === 'tool_call_end') toolCallCount++;
+    if (event.type === 'enhance_usage') tokenTotal += totalUsageTokens(event.usage);
+    if (event.type === 'in_flight_start') iterationCount++;
+    if (event.type === 'tool_call_start') toolCallCount++;
     if (event.type === 'compaction') compactionCount++;
   }
   if (!start) throw new Error('missing session_start');
@@ -209,6 +213,12 @@ export function rebuildCatalogIndex(
         damaged++;
       }
     }
+    db.prepare(
+      'DELETE FROM session_agents WHERE session_id NOT IN (SELECT session_id FROM sessions)',
+    ).run();
+    db.prepare(
+      'DELETE FROM session_agent_index WHERE session_id NOT IN (SELECT session_id FROM sessions)',
+    ).run();
     db.prepare(
       "INSERT INTO catalog_meta(key,value) VALUES ('last_reconciliation',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
     ).run(new Date().toISOString());

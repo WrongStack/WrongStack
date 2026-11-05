@@ -47,7 +47,7 @@ export class NotifierImpl implements Notifier {
   // -----------------------------------------------------------------------
 
   notify(channels: string | string[], message: NotificationMessage): Promise<NotificationResult[]> {
-    const names = typeof channels === 'string' ? [channels] : channels;
+    const names = typeof channels === 'string' ? [channels] : [...new Set(channels)];
     if (names.length === 0) return Promise.resolve([]);
 
     const results: Promise<NotificationResult>[] = [];
@@ -95,11 +95,14 @@ export class NotifierImpl implements Notifier {
   registerChannel(channel: NotificationChannel): void {
     this.#channels.set(channel.name, channel);
     if (!this.#counters.has(channel.name)) {
-      // Evict oldest entry when at capacity to prevent unbounded growth.
+      // Evict an unregistered channel's counters when at capacity. Never fall
+      // back to a registered channel: deleting its counters makes diagnostics
+      // under-report live deliveries. When every slot belongs to a registered
+      // channel the soft cap yields and the map grows with the live registry.
       if (this.#counters.size >= NotifierImpl.#MAX_COUNTERS) {
-        const oldest = this.#counters.keys().next();
-        if (!oldest.done && oldest.value !== undefined) {
-          this.#counters.delete(oldest.value);
+        const victim = [...this.#counters.keys()].find((k) => !this.#channels.has(k));
+        if (victim !== undefined) {
+          this.#counters.delete(victim);
         }
       }
       this.#counters.set(channel.name, emptyCounters());

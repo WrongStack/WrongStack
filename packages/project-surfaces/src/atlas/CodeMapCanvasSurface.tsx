@@ -61,7 +61,7 @@ export function CodeMapCanvasSurface({
           <p className="font-mono text-sm text-destructive">{error}</p>
           {!isAuthError(error) && (
             <p className="max-w-md text-xs text-muted-foreground">
-              The map needs a codebase index. Run{' '}
+              {t('activity:codeMapText.needsIndex')}{' '}
               <code className="border bg-muted px-1.5 py-0.5">codebase-index</code>{' '}
               {t('activity:codeMap.onceThenReopenThisView')}
             </p>
@@ -141,7 +141,8 @@ export function CodeMapCanvasSurface({
         ))}
         <span className="flex items-center gap-1 text-primary" data-testid="agent-trail-count">
           <span className="w-4 border-t-2 border-dashed border-primary" />
-          agent trail{agentTrailCount > 0 ? ` ×${agentTrailCount}` : ''}
+          {t('activity:codeMapText.agentTrail')}
+          {agentTrailCount > 0 ? ` ×${agentTrailCount}` : ''}
         </span>
       </div>
     </>

@@ -8546,3 +8546,114 @@ copies, starting with SAGE memory.
     "Session name" field, and the portable is built from the working tree. The composer
     scope stops at the same step. These three scopes, and the Kanban task-execution step
     after it, need a rerun once that change lands with its scenario update.
+
+### Accessibility pass: serious WCAG 2.2 AA findings fixed (2026-11-05)
+
+- Why: the native `--a11y` scope (axe, WCAG 2.2 A/AA, light and dark) reported 0 critical and
+  25 serious findings on the release build.
+- Fixes:
+  - Target size (2.5.8): the project row's new-session button and the Code Atlas tree's
+    expand and open-map buttons are at least 24 by 24 px. Surfaces use a 13px root, so the
+    sizes are explicit pixels, not `h-6`.
+  - Visible text in the accessible name (2.5.3): file-manager folder rows are named by
+    their action, path and every column they show (`fileRowName`), and change rows by their
+    own text, so speech input can say what is on screen. Code Atlas cards are named by their
+    own text; their open-map button says "Open file map: <name>".
+  - Contrast (1.4.3): new `success-foreground` theme token for text on a success fill
+    (5.4:1 light, 7.6:1 dark), the active Kanban view tab uses the accent foreground, and
+    the selected settings section and the review tray's header button use the accent ink.
+  - Keyboard access to scrolling content (2.1.1): the Kanban board's scroll area is a
+    focusable region named after the board.
+- Gate: `native-accessibility.mjs` now fails on serious as well as critical violations.
+  Target size is checked outside the Code Atlas canvas, whose cards scale with the canvas
+  zoom; every card action is also offered at full size in the code tree and the inspector
+  (the "equivalent" exception of 2.5.8).
+- Scenario lookups that used the old names (folder rows, change rows, Atlas cards) match the
+  new names by their leading text.
+- Results (release portable, `--release --bundled`): a11y PASSED with 0 violations of any
+  impact on all 14 audited screens (39 s); files PASSED (89 s). Desktop 975 unit tests,
+  WebUI codemap, Kanban and memory component tests (184), and the desktop, WebUI and
+  project-surfaces typechecks pass. `FileWorkspace.tsx` hotspot ratchet lowered to 2032.
+
+### Performance on the release build (2026-11-05)
+
+- `--perf` on the release portable `4f983934f096-f356dfb1eb14` (`--release --bundled`), one
+  machine, other sessions' work running; report
+  `.temp_files/desktop-v2-native/performance/native-performance.json`. PASSED (70 s).
+- Startup: first window to engine connected 1.6 s; profile runtime ready 7.8 s; reopening the
+  window against the running host 1.1 s.
+- Turns: a new conversation reaches the provider in 0.24 s and finishes in 0.47 s; a later
+  turn 0.14 s and 0.36 s; the first turn in a project with 20,000 untracked files 0.20 s.
+- A 3,000-line (188k character) answer is on screen 0.67 s after send; one frame of 200 ms
+  while it streams, scrolling never drops a frame (longest 17 ms).
+- File tree with 20,000 files: refresh 10.9 s, expanding a 1,000-file folder 65 ms, 38 rows
+  mounted, scrolling without a dropped frame.
+- Three terminals each printing 30,000 lines: 5.8 s, 15.5k lines/s combined; the visible
+  terminal's longest frame 33 ms.
+- Model picker opens in 58 ms; OpenRouter's 377 models list in 0.65 s and filter in 15 ms.
+- Memory: 2.1 GB working set and 3.1 GB private at idle with two projects (UI 30 MB, WebView2
+  385 MB, host and 12 engine processes 1.7 GB); 3.5 GB working set after the workloads.
+- Package: native executable 17.8 MB, bundled engine 140.7 MB, frontend assets 22.4 MB. The
+  frontend grew from 2.7 MB with the Monaco editor (about 4 MB) and its language workers
+  (TypeScript 6.6 MB, CSS 1.0 MB, HTML 0.7 MB, d72d698a2); each worker loads only when a file
+  of its language is opened.
+
+### Long German labels and the English left on the main screens (2026-11-05)
+
+- Why: the release status lists long localized labels as a manual pass. The accessibility
+  scope now checks them: after the light and dark axe audits it sets the profile's display
+  language to German, reloads the window into it, walks the same screens by the catalog's own
+  labels and measures every label-like text (`native-long-labels.mjs`). Text cut off without
+  an ellipsis, text spilling out of its box, or an ellipsis whose full text is offered nowhere
+  else fails the scope.
+- Found and fixed:
+  - In the desktop the shared page header's title took the desktop's own page `h1` (39 px;
+    unlayered, so it beats the components layer whatever the specificity) and the Kanban
+    board title's truncation cut off descenders. `surfaces.css` restores the WebUI's header
+    title for the shared surfaces.
+  - The screenshots showed English on the most used surfaces. Moved into the catalog (66 keys,
+    7 languages): the conversation view (provider banner, welcome, loading, "Jump to latest",
+    pending requests, form wait bar, side page loading lines, the message actions' disabled
+    reasons), plan and task lists with their statuses, auto-continue, the draft counter and
+    its title, the branch chip, the unread-mail badge, binary MCP content, the Markdown image
+    placeholder, file type "Plain text" (`fileKind`), and lines in the roster, requirements,
+    hunk review, file manager and settings. The project tools button showed "More tools" from
+    CSS `content`; it now shows its accessible name, "Project tools".
+- Still English, recorded:
+  - Mission control (`FleetPanel.tsx`), the session cards and the new-session, preview and
+    palette dialogs: these files hold another session's uncommitted work and were left alone.
+  - The surfaces shared with the WebUI (Kanban, SAGE, Code Atlas, Office, story, context,
+    diagnostics) still render about 300 English literals of their own ("5 columns / 0 tasks",
+    the board view tabs, task activity lines); the same text shows in the WebUI.
+- Results (release portable `9f847dbc0117-f356dfb1eb14`, `--release --bundled`): a11y PASSED
+  with 0 axe violations and 0 German label findings (189 s); files PASSED on the portable with
+  the catalog changes (85 s). Desktop 976 unit tests pass, including the new
+  `shell-gaps-i18n.test.ts`; desktop typecheck and Biome clean. `FileWorkspace.tsx` hotspot
+  ratchet lowered to 2030.
+
+### Shared surfaces in the display language (2026-11-05)
+
+- Why: the German walk showed the surfaces the desktop shares with the WebUI rendering English
+  of their own: lines a component builds itself ("5 columns / 0 tasks", the board view tabs,
+  the Kanban Agent status line, card badges, Code Atlas header and tree, SAGE paging and
+  dialogs, story tables, context thresholds, council tiles, Agent Office details, pagination).
+- Change: those lines come from the WebUI `activity` catalog in all seven languages: 264 keys
+  under `kanbanText` and 164 under `codeMapText`, `sageText`, `storyText`, `contextText`,
+  `councilText`, `officeText` and `uiText`. Enum labels on the board go through
+  `kanban-labels.ts`; .ts helpers that build text (task activity, intelligence, contract
+  graph) take an optional translator and stay English without one; Kanban Cleaner issues
+  carry an optional message key. The Kanban Agent's server-built status line is re-rendered
+  from its numbers. English is unchanged except "1 line" for a one-line file event.
+- Left as data, on purpose: board column titles, task status and priority values, lifecycle
+  stage and graph node kinds, `key:value` payload chips, ids, notes written to the board,
+  issue text from `@wrongstack/kanban`, and the WebUI-only callers of the pager.
+- The German label gate found one more: the Kanban Agent line is longer in German and its
+  truncation offered the full text nowhere; it is now the line's title.
+- Results: WebUI 6,239 of 6,241 tests pass; the 2 failures are locale-dependent number
+  formats in context timeline tests ("25.000" for "25,000" on this machine), in files this
+  change does not touch. `kanban-cleaner-parity` keeps its 2 earlier failures (it reads
+  source text from a file that is now a re-export). Typecheck clean in project-surfaces,
+  webui and desktop-v2; Biome clean.
+- Native (release portable `8c47a2b63100-f356dfb1eb14`, `--release --bundled`): a11y PASSED
+  with 0 axe violations and 0 German label findings (186 s); files (72 s), atlas (22 s) and
+  sage (28 s) PASSED, and surfaces PASSED on the build before the last fix (23 s).

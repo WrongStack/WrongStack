@@ -78,12 +78,24 @@ export function diagnoseFallbackConfig(
     statusTracker: tracker,
     ignoreAvailability: true,
   });
+  const runtimeMgr = new FallbackProfileManager(config, {
+    statusTracker: tracker,
+    ignoreAvailability: false,
+  });
   const primary = { providerId: config.provider, model: config.model };
   const activeProfile = mgr.activeProfileName();
   const explicitChain = Object.freeze([...(config.fallbackModels ?? [])]);
-  const effectiveCandidates = mgr.resolveCandidates(primary, {
+  const configuredCandidates = mgr.resolveCandidates(primary, {
     fallbackProfile: activeProfile,
   });
+  const runtimeFallthroughCandidates = runtimeMgr.resolveCandidates(primary, {
+    fallbackProfile: activeProfile,
+  });
+  const seenKeys = new Set(configuredCandidates.map((c) => `${c.providerId}/${c.model}`));
+  const effectiveCandidates = [
+    ...configuredCandidates,
+    ...runtimeFallthroughCandidates.filter((c) => !seenKeys.has(`${c.providerId}/${c.model}`)),
+  ];
   const effectiveOrder = Object.freeze(
     effectiveCandidates.map((c) => `${c.providerId}/${c.model}`),
   );
@@ -268,7 +280,17 @@ export function simulateFallbackFailover(
     statusTracker: opts.statusTracker,
     ignoreAvailability: true,
   });
-  const candidates = mgr.resolveCandidates(primary);
+  const runtimeMgr = new FallbackProfileManager(config, {
+    statusTracker: opts.statusTracker,
+    ignoreAvailability: false,
+  });
+  const configuredCandidates = mgr.resolveCandidates(primary);
+  const runtimeCandidates = runtimeMgr.resolveCandidates(primary);
+  const seenCandidateKeys = new Set(configuredCandidates.map((c) => `${c.providerId}/${c.model}`));
+  const candidates = [
+    ...configuredCandidates,
+    ...runtimeCandidates.filter((c) => !seenCandidateKeys.has(`${c.providerId}/${c.model}`)),
+  ];
   const steps: FallbackSimulationStep[] = [];
   let finalTarget: { providerId: string; model: string } | null = null;
 
@@ -309,7 +331,8 @@ export function simulateFallbackFailover(
     }
 
     // Check context window if limits provided and currentTokens specified
-    const contextLimit = opts.modelContextLimitMap?.[key];
+    const contextLimit =
+      opts.modelContextLimitMap?.[key] ?? opts.modelContextLimitMap?.[entry.model];
     if (
       typeof opts.currentTokens === 'number' &&
       opts.currentTokens > 0 &&

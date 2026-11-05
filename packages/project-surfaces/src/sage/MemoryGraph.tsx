@@ -342,8 +342,8 @@ export function MemoryGraph({
               const other = (edge.from === centerNode ? edge.to : edge.from).slice(4);
               return (
                 <p key={edge.id} className="truncate font-mono text-[9px] text-muted-foreground">
-                  <span className="text-info">{edge.relation}</span> {compactId(other)} · why:{' '}
-                  {edge.evidence?.join(', ')}
+                  <span className="text-info">{edge.relation}</span> {compactId(other)} ·{' '}
+                  {t('activity:sageText.why')} {edge.evidence?.join(', ')}
                 </p>
               );
             })}

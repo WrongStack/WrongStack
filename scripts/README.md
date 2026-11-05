@@ -4,48 +4,41 @@ Repo-level tooling: build, release, CI gates, generators, profiling and maintena
 Everything here is run with **Bun** from the repository root (`bun scripts/<name>`), usually
 through a root `package.json` script.
 
-Status legend (audited 2026-10-10, by searching `package.json` files, `.github/workflows`,
+Status legend (audited 2026-11-05, by searching `package.json` files, `.github/workflows`,
 `.githooks`, other scripts, `packages/**`, `docs/**` outside `docs/archive` and `docs/reports`):
 
 | Status | Meaning |
 | --- | --- |
 | **Wired** | Called by a `package.json` script, a CI workflow, a git hook, or another script. Part of the normal flow. |
 | **Manual** | Not wired into anything automatic, but a real tool somebody runs by hand (documented, or has live consumers). |
-| **Orphan** | Nothing runs it and nothing points at it. Candidate for deletion or for being wired in. See [Unused / orphaned scripts](#unused--orphaned-scripts). |
 
 A reference from `packages/core/tests/architecture/script-entrypoints.test.ts` does **not** count as use:
 that test only checks that each script starts and prints usage; it exists to keep scripts from rotting.
 
 ---
 
-## Unused / orphaned scripts
+## Removed 2026-11-05
 
-### Not referenced from anywhere
+Scripts that no code referenced (only docs, `CHANGELOG.md` or the entrypoints test) were deleted;
+they remain in git history: `apply-agent-learning-cli-patch.mjs`, `generate-subcommand-manifest.mjs`,
+`generate-webui-captured-tokens.mjs`, `repair-agent-learning.mjs`, `check-file-size.mjs`,
+`purge-stale-mailbox-entries.mjs`, `sage-maintenance.mjs` and `design-eval/`.
 
-| Script | What it is | Verdict |
-| --- | --- | --- |
-| `generate-webui-captured-tokens.mjs` | Maps `packages/webui/src/index.css` HSL tokens into `.design/captured-tokens.json` for the external design tool's capture/verify. | **Orphan, but legitimate.** Only its own header mentions it. It is the manual companion of `.design/` (the file it writes exists and is committed to the working tree). Keep, but add a `design:tokens` npm script or delete together with `.design/`. |
-| `generate-subcommand-manifest.mjs` | Cross-checks CLI subcommand loaders against the help table and writes `architecture/subcommands-manifest.json`. | **Orphan.** No npm script, CI job or hook calls it, and the file it writes (`architecture/subcommands-manifest.json`) does not exist — it has never been committed. Either wire into `docs:check` or delete. |
-| `repair-agent-learning.mjs` | One-shot migration that heals `.wrongstack/agents/<role>/learned.md` buffers written by the pre-fix renderer (nested `*How:*` labels, `.json` anchors truncated to `.js`). | **Orphan, one-shot.** Mentioned only in `CHANGELOG.md`. Safe to delete once no old `learned.md` buffers remain. |
-| `apply-agent-learning-cli-patch.mjs` | Idempotently re-applies the CLI-side agent-learning wiring (`packages/cli/src/**`) because an external editor kept reverting it. | **Orphan, workaround.** Nothing references it. It patches source files by string anchors, so it will break (hard error) as soon as those files change. Delete once the wiring is stable in git. |
-
-### Referenced only by docs, tests or by hand
+## Manual-only scripts
 
 | Script | Where it is mentioned | Verdict |
 | --- | --- | --- |
-| `sage-maintenance.mjs` | `docs/sage/SYSTEM-REPORT.md` | **Manual, one-time.** Recover-then-purge for the 2026-07 SAGE mass-deletion fallout. Dry-run by default. Archive/delete once every store has been cleaned. |
-| `purge-stale-mailbox-entries.mjs` | `docs/mailbox-architecture.md` | **Manual** maintenance command (documented). |
-| `check-file-size.mjs` | only the entrypoints test | **Effectively orphan.** An advisory (never fails CI) 350-line soft cap report; no script, hook or workflow runs it. The real file-size rule is enforced elsewhere (hotspot baseline in `check-architecture-health.mjs`). |
 | `acp-smoke-test.mts` | `packages/acp` (`bun run smoke`), `docs/acp-ensemble.md` | **Manual** per-package smoke test; not in CI. |
 | `wrongstack-skill-engine.ts` | root `skill:route` / `skill:list` | **Manual** developer tool (skill router CLI); not part of build or CI. |
-| `analyze-cpuprofile.mjs`, `analyze-memory-log.mjs`, `memory-profile.mjs`, `tui-heap-soak.mjs`, `brain-workload-report.mjs`, `bench.mjs`, `perf-chronicle-append.mts` | root `package.json` only | **Manual** profiling/benchmark tools (never in CI). Fine to keep. |
-| `check-browser-runtime.mjs`, `check-node-pty.mjs`, `rebuild-reviewed-native.mjs`, `setup-bun-typecheck.mjs` | root `package.json` only | **Manual** environment doctors/setup. |
+| `analyze-cpuprofile.mjs`, `analyze-memory-log.mjs`, `memory-profile.mjs`, `brain-workload-report.mjs`, `bench.mjs`, `perf-chronicle-append.mts`, `tool-usage-report.ts` | root `package.json` only | **Manual** profiling/benchmark/report tools (never in CI). Fine to keep. |
+| `check-browser-runtime.mjs`, `check-node-pty.mjs`, `setup-bun-typecheck.mjs` | root `package.json` only | **Manual** environment doctors/setup. |
+| `check-bun-migration.mjs` | root `migration:check` | **Manual, currently failing.** Nothing runs it, and it rejects the `npm audit` step of `ci.yml`'s `audit` job as a legacy executable. Allow that step or delete the check. |
 
 ### Duplicates
 
 | Files | Note |
 | --- | --- |
-| `install.sh` ≡ `install/install.sh`<br>`install.ps1` ≡ `install/install.ps1` | Byte-identical (same git blob). CI/release workflows publish the **`install/`** copies. The root copies are only read by `packages/cli/tests/standalone-update.test.ts`. Pick one location (the `install/` one) and point that test at it. |
+| `install.sh` ≡ `install/install.sh`<br>`install.ps1` ≡ `install/install.ps1` | Byte-identical (same git blob). CI/release workflows publish the **`install/`** copies. The root copies are embedded in the CLI by `packages/cli/src/standalone-migration.ts` (text imports), and `packages/cli/tests/standalone-update.test.ts` asserts both pairs stay identical. To keep one location, point those imports at `install/`, then drop the root copies and the equality assertion. |
 
 ### Everything else
 
@@ -66,8 +59,9 @@ All remaining scripts are **Wired** — see the tables below.
 | `smoke-bun-runtime.mjs` | Wired | Runtime smoke under Bun: SAGE SQLite write/search round-trip, heap watchdog, and a link-time import of `webui-server` (catches unsupported `node:module` exports). | `smoke:bun` |
 | `bun-typecheck.mjs` | Wired | Runs the pinned Bun-based TypeScript checker (no `tsc` fallback) in the current package. | `typecheck` of nearly every package, `ci.yml` |
 | `setup-bun-typecheck.mjs` | Manual | Pre-downloads/caches the Bun typechecker into `.bun/typecheck/`. | `setup:bun` |
-| `rebuild-reviewed-native.mjs` | Manual | Rebuilds only the reviewed native addons (`esbuild`, `node-pty`) independent of branch-controlled `trustedDependencies`. | `setup:native` |
+| `rebuild-reviewed-native.mjs` | Wired | Rebuilds only the reviewed native addons (`esbuild`, `node-pty`) independent of branch-controlled `trustedDependencies`. | `setup:native`, `ci.yml`, `binaries.yml`, `pages.yml` |
 | `lib/build-output-cleanup.mjs` | Wired (lib) | Removes a package `dist/` without failing on Windows `EBUSY`/`ENOTEMPTY`/`EPERM`. | `build-package.mjs`, `build-portable.mjs` |
+| `lib/bun-executable.mjs` | Wired (lib) | Resolves a real Bun binary for spawning `run`/`install`/`pm pack` (on Windows `process.execPath` can be Bun's Node shim). | `build.mjs`, `generate-plugin-projections.mjs`, `lib/deploy-bun-workspace.mjs`, `snapshot-core-public-api.mjs`, `test-coverage.mjs` |
 | `lib/deploy-bun-workspace.mjs` | Wired (lib) | Materialises a production workspace closure from Bun tarballs with a hoisted install. | `build-portable.mjs` |
 
 ## Release & versioning
@@ -83,7 +77,7 @@ All remaining scripts are **Wired** — see the tables below.
 | `lib/build-lineage.mjs` | Wired (lib) | Manifest creation/validation used by the above. | `check-build-lineage.mjs` |
 | `check-dist-hidden-files.mjs` | Wired | Fails if a `dist/` contains dotfiles (CI uploads `dist` with `include-hidden-files`). | `check:dist-hidden` |
 | `install/install.sh`, `install/install.ps1` | Wired | End-user standalone installers (`curl … \| sh`, `irm … \| iex`): download, SHA256-verify, install `wstack`. Published as release assets. | `binaries.yml`, `release.yml` |
-| `install.sh`, `install.ps1` | **Duplicate** | Identical copies of the above (see [Duplicates](#duplicates)). | tests only |
+| `install.sh`, `install.ps1` | **Duplicate** | Identical copies of the above (see [Duplicates](#duplicates)). | `packages/cli/src/standalone-migration.ts` (embedded), tests |
 
 ## CI gates & static checks
 
@@ -93,15 +87,15 @@ All remaining scripts are **Wired** — see the tables below.
 | `check-audit-suppressions.mjs` | Wired | Refuses advisory suppressions a PR adds to its own audit gate (diffs base vs head). | `audit.yml`, `audit-dependencies.mjs` |
 | `ci-security-scan.mjs` | Wired | Runs the repo's own security analyzer over first-party source; exit 1 on critical findings. | `ci.yml` |
 | `ci-reuse-success.mjs` | Wired | Reports which expensive CI jobs already passed for this exact SHA so re-runs can skip them. | `ci.yml` |
-| `check-action-pins.mjs` | Manual | Fails if any GitHub Actions `uses:` is not pinned to a commit SHA. | `check:action-pins` |
+| `check-action-pins.mjs` | Wired | Fails if any GitHub Actions `uses:` is not pinned to a commit SHA. | `check:action-pins`, `ci.yml` |
 | `check-dep-path-separators.mjs` | Wired | Fails if a dependency spec contains a Windows `\` (breaks `--frozen-lockfile` on POSIX). | `check:dep-paths`, `ci.yml` |
 | `check-tree-sitter-wasm.mjs` | Wired | Verifies vendored Tree-sitter `.wasm` grammars against a committed sha256 manifest (`--write` after an intentional bump). | `ci.yml` |
-| `check-rulebook.mjs` | Manual | Validates the optional `.wrongstack/techstack.rulebook.json` against its schema. | `check:rulebook` |
-| `check-bun-migration.mjs` | Manual | Asserts Bun migration invariants (`packageManager`, overrides, patches vs `bun.lock`). | `migration:check` |
+| `check-rulebook.mjs` | Wired | Validates the optional `.wrongstack/techstack.rulebook.json` against its schema. | `check:rulebook`, `ci.yml` |
+| `check-bun-migration.mjs` | Manual | Asserts Bun migration invariants (`packageManager`, overrides, patches vs `bun.lock`). Currently fails on `ci.yml`'s `npm audit` step. | `migration:check` |
 | `check-lint-warnings.mjs` | Wired | Biome production-warning ratchet vs `architecture/lint-warning-baseline.json` (both directions fail). | `check:lint-warnings`, release matrix |
 | `lint-console-logging.mjs` | Wired | Flags ad-hoc `console.warn/error` string literals (structured JSON logging convention). | pre-commit, `lint:console` |
 | `lint-distributive-types.mjs` | Manual | Review nudge: flags `Omit`/`Pick` that collapse on discriminated unions. Never fails. | `lint:distributive` |
-| `check-relative-imports.mjs` | Manual | Catches leftover `../same-dir/…` imports after a file move. | `lint:imports` |
+| `check-relative-imports.mjs` | Wired | Catches leftover `../same-dir/…` imports after a file move. | `lint:imports`, `ci.yml` |
 | `check-i18n-completeness.mjs` | Wired | Every WebUI locale must have all keys of `en`. | `lint:i18n` |
 | `check-docs.mjs` | Wired | Markdown link and heading-anchor checker for `docs/` (skips `archive/`), plus `README.md`, `SECURITY.md`, `CHANGELOG.md`. | `docs:check` |
 | `check-command-docs.mjs` | Wired | Slash/subcommand docs vs source declarations. | `docs:check` |
@@ -109,6 +103,7 @@ All remaining scripts are **Wired** — see the tables below.
 | `documentation-catalog.mjs` | Wired | Checks/writes `docs/current-catalog.md` from source declarations (`--write`). | `docs:check`, `docs:catalog:write` |
 | `check-architecture-health.mjs` | Wired | Architecture gate: package registry, layer rules, cycles, hotspot baseline; writes the health report. | pre-commit, `check:architecture*`, `report:architecture` |
 | `lib/architecture-health.mjs` | Wired (lib) | The analysis engine behind the architecture/test-inventory/skip checks. | several `check-*` scripts |
+| `check-core-layers.mjs` | Wired | Ratchets import direction between the top-level areas of `packages/core/src` against `architecture/core-layers.json` (`--write` to refresh). | `check:core-layers`, `check:architecture` |
 | `snapshot-core-public-api.mjs` | Wired | Snapshots `@wrongstack/core`'s public API and its usage by other packages; fails on drift (`--write` to refresh). | `check:architecture` |
 | `sync-core-public-api-snapshot.mjs` | Wired | Pre-commit helper: refreshes and stages the two Core API artifacts when no unrelated edits would leak in. | `.githooks/pre-commit` |
 | `check-test-inventory.mjs` + `lib/test-inventory.mjs` | Wired | Cross-checks Vitest's discovered test files against the architecture registry. | `check:test-inventory` |
@@ -130,6 +125,7 @@ All remaining scripts are **Wired** — see the tables below.
 | `vitest-affected-recorder.mjs` | Wired | Vitest reporter that records each test file's actual imports for `test-affected`. | `test-affected.mjs` (passes it to Vitest) |
 | `lib/affected-cache.mjs` | Wired (lib) | Shared cache location/fingerprint format for the two above. | both |
 | `vitest-core-aliases.mjs` | Wired | Vitest `resolve.alias` entries for `@wrongstack/core` sub-path exports whose dist/source layout diverges. | most `vitest.config.ts` |
+| `vitest-test-order.ts` | Wired | Keeps Vitest's file order but moves subprocess-integration tests with short deadlines out of the initial load. | root `vitest.config.ts`, `test-affected.mjs` |
 | `test-coverage.mjs` | Wired | Orchestrates the full coverage run (root + scripts + per-area suites). | `test:coverage` |
 | `run-vitest-coverage.mjs` | Wired | Runs Vitest with the `coverage/.tmp` write guard preloaded. | coverage scripts |
 | `coverage-lock.mjs` | Wired | Serialises concurrent coverage runs so they cannot corrupt `coverage/.tmp`. | all coverage commands |
@@ -144,10 +140,9 @@ All remaining scripts are **Wired** — see the tables below.
 | `generate-provider-catalog.mjs` | Wired | Regenerates `packages/webui/public/providers.json` from provider definitions (`--write`). | `providers:catalog:*` |
 | `generate-protocol-schema.mjs` | Wired | Emits JSON Schema (`ws-core.schema.json`) and OpenAPI 3.1 for `webui-protocol` from its TS types (`--check`). | `webui-protocol` `schema` |
 | `generate-website-tool-catalog.ts` | Wired | Regenerates the website tool catalog/details from the built-in tool registry (`--write`). | `website:tools:*` |
+| `generate-tool-catalog.ts` | Wired | Checks/writes `architecture/tool-catalog.json` and `docs/tool-reference.md` from the built-in tool registry, within `architecture/tool-schema-budget.json` (`--write`, `--adopt-budget`). | `tools:catalog:*`, `perf:guard`, `ci.yml` |
 | `sync-models.mjs` | Manual | Authors/audits entries of the curated model overlay `packages/cli/data/providers.json` against models.dev (`--validate`, `--diff`, `--extract`). | `sync:models` |
 | `sync-chatgpt-overlay.mjs` | Manual | Regenerates the ChatGPT account entries of that overlay from the live account catalog. | `sync:chatgpt-overlay` |
-| `generate-subcommand-manifest.mjs` | **Orphan** | See [above](#not-referenced-from-anywhere). | — |
-| `generate-webui-captured-tokens.mjs` | **Orphan** | See [above](#not-referenced-from-anywhere). | — |
 
 ## Profiling, benchmarks & performance
 
@@ -156,24 +151,19 @@ All remaining scripts are **Wired** — see the tables below.
 | `perf-guard.mjs` | Wired | Performance ratchet: re-measures probes in `architecture/perf-baseline.json`, fails on regression, `--write` ratchets improvements down. | `perf:guard*` |
 | `bench.mjs` | Manual | Micro-benchmark suite for hot-path optimisations (token-estimate cache, `parseInline` LRU, compaction, tool executor…). | `bench:perf` |
 | `perf-chronicle-append.mts` | Manual | Measures Chronicle SQLite disk cost (transaction granularity, `PRAGMA synchronous`). | `perf:chronicle` |
-| `tui-heap-soak.mjs` | Manual | Retained-heap benchmark of the Ink history renderer, one fresh `--expose-gc` process per terminal width. | `bench:tui-heap` |
+| `tui-heap-soak.mjs` | Wired | Retained-heap benchmark of the Ink history renderer, one fresh `--expose-gc` process per terminal width. | `bench:tui-heap`, `ci.yml` |
 | `analyze-cpuprofile.mjs` | Manual | Ranks a V8 `.cpuprofile` by self time per function. | `analyze:cpuprofile` |
 | `memory-profile.mjs` | Manual | Launches the CLI with heap profiling/snapshots enabled. | `profile:memory` |
 | `analyze-memory-log.mjs` | Manual | Summarises `~/.wrongstack/logs/heap.jsonl` (per PID, tail, `--json`). | `analyze:memory` |
 | `brain-workload-report.mjs` | Manual | Replays real brain call sites through an unreachable-model tier chain to count provider calls attempted per tier. | `brain:workload` |
-| `design-eval/run.ts` | Manual | Design-layer evaluation: fixed briefs generated per model with and without Design Studio, scored by rendered inspect + DNA diversity, with a ratchet. Paid model runs; see `docs/design-quality-workflow.md`. | by hand |
+| `tool-usage-report.ts` | Manual | Summarises tool usage from session journals against a tool catalog (`--catalog`, `--journal`, `--from`/`--to`). | `tools:usage:report` |
 
-## Maintenance, one-shots & dev tools
+## Dev tools
 
 | Script | Status | What it does | Used by |
 | --- | --- | --- | --- |
 | `acp-smoke-test.mts` | Manual | End-to-end ACP v1 JSON-RPC smoke test against the built stdio server. | `packages/acp` `smoke` |
 | `wrongstack-skill-engine.ts` | Manual | Skill router: scores a prompt against bundled skills and prints a single skill or pipeline (`--list`). | `skill:route`, `skill:list` |
-| `purge-stale-mailbox-entries.mjs` | Manual | Purges stale mailbox client/agent registry entries through the IPC mailbox API. | docs only |
-| `sage-maintenance.mjs` | Manual | One-time SAGE memory recover-then-purge (dry-run default, `--apply` writes with backup). | docs only |
-| `repair-agent-learning.mjs` | **Orphan** | One-shot `learned.md` repair. | — |
-| `apply-agent-learning-cli-patch.mjs` | **Orphan** | Re-applies agent-learning CLI wiring. | — |
-| `check-file-size.mjs` | **Orphan** | Advisory file-size report. | tests only |
 
 ## Type shims (`*.d.mts`)
 

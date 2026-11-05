@@ -14,11 +14,11 @@
  * schema author to restructure.
  */
 export function patternIsLikelyCatastrophic(source: string): boolean {
+  type FrameToken = { kind: 'literal'; ch: string } | { kind: 'quant'; set: CharSet };
   interface Frame {
     hasAlt: boolean;
     hasQuant: boolean;
-    literals: string[];
-    quantSets: CharSet[];
+    tokens: FrameToken[];
   }
   const stack: Frame[] = [];
   let pendingLiteral: string | null = null;
@@ -26,19 +26,63 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
 
   const flushPending = (): void => {
     const frame = stack[stack.length - 1];
-    if (frame !== undefined && pendingLiteral !== null) frame.literals.push(pendingLiteral);
+    if (frame !== undefined && pendingLiteral !== null) {
+      frame.tokens.push({ kind: 'literal', ch: pendingLiteral });
+    }
     pendingLiteral = null;
     pendingSet = null;
+  };
+
+  const isDisambiguatedFrame = (frame: Frame): boolean => {
+    if (frame.hasAlt) return false;
+    if (!frame.hasQuant) return true;
+    const quantIndices: number[] = [];
+    for (let idx = 0; idx < frame.tokens.length; idx++) {
+      if (frame.tokens[idx]?.kind === 'quant') quantIndices.push(idx);
+    }
+    if (quantIndices.length === 0) return false;
+    for (let m = 0; m < quantIndices.length - 1; m++) {
+      const qLeft = quantIndices[m]!;
+      const qRight = quantIndices[m + 1]!;
+      const leftSet = (frame.tokens[qLeft] as { kind: 'quant'; set: CharSet }).set;
+      const rightSet = (frame.tokens[qRight] as { kind: 'quant'; set: CharSet }).set;
+      let separated = false;
+      for (let k = qLeft + 1; k < qRight; k++) {
+        const tok = frame.tokens[k];
+        if (tok?.kind === 'literal' && leftSet(tok.ch) && rightSet(tok.ch)) {
+          separated = true;
+          break;
+        }
+      }
+      if (!separated) return false;
+    }
+    const firstIdx = quantIndices[0]!;
+    const lastIdx = quantIndices[quantIndices.length - 1]!;
+    const firstSet = (frame.tokens[firstIdx] as { kind: 'quant'; set: CharSet }).set;
+    const lastSet = (frame.tokens[lastIdx] as { kind: 'quant'; set: CharSet }).set;
+    for (let k = lastIdx + 1; k < frame.tokens.length; k++) {
+      const tok = frame.tokens[k];
+      if (tok?.kind === 'literal' && lastSet(tok.ch) && firstSet(tok.ch)) return true;
+    }
+    for (let k = 0; k < firstIdx; k++) {
+      const tok = frame.tokens[k];
+      if (tok?.kind === 'literal' && lastSet(tok.ch) && firstSet(tok.ch)) return true;
+    }
+    return false;
   };
 
   for (let i = 0; i < source.length; i++) {
     const ch = source[i];
     if (ch === '[') {
-      // Character-class atom: find the closing bracket (escaped `]` stays).
+      // Character-class atom: find the closing bracket (escaped chars stay).
       let j = i + 1;
       if (source[j] === '^') j++;
       const start = j;
-      while (j < source.length && (source[j] !== ']' || source[j - 1] === '\\')) j++;
+      if (source[j] === ']') j++;
+      while (j < source.length && source[j] !== ']') {
+        if (source[j] === '\\') j += 2;
+        else j++;
+      }
       const inner = source.slice(start, j);
       const negated = source[i + 1] === '^';
       flushPending();
@@ -48,7 +92,7 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
     }
     if (ch === '(') {
       flushPending();
-      stack.push({ hasAlt: false, hasQuant: false, literals: [], quantSets: [] });
+      stack.push({ hasAlt: false, hasQuant: false, tokens: [] });
       // Skip group markers so `?` in `(?:`/`(?=` is not read as a quantifier.
       if (source[i + 1] === '?') {
         if (source[i + 2] === ':' || source[i + 2] === '=' || source[i + 2] === '!') i += 2;
@@ -74,20 +118,20 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
       if (frame !== undefined && parent !== undefined) {
         if (frame.hasAlt) parent.hasAlt = true;
         if (frame.hasQuant) parent.hasQuant = true;
-        parent.quantSets.push(...frame.quantSets);
         // Its literals stay mandatory unless the group itself is optional.
         const next = source[i + 1];
-        if (!frame.hasAlt && next !== '?' && next !== '*' && next !== '{') {
-          parent.literals.push(...frame.literals);
+        const optionalGroup = frame.hasAlt || next === '?' || next === '*' || next === '{';
+        for (const tok of frame.tokens) {
+          if (tok.kind === 'quant' || !optionalGroup) {
+            parent.tokens.push(tok);
+          }
         }
       }
       if (frame !== undefined && isUnboundedQuantifier(source, i + 1)) {
-        // Disambiguated iterations: the body carries a mandatory literal that
-        // every quantified atom provably cannot match, so each repetition is
-        // pinned and no re-segmentation is possible.
-        const disambiguated =
-          !frame.hasAlt && frame.literals.some((sep) => frame.quantSets.every((S) => S(sep)));
-        if (!disambiguated) return true;
+        // Disambiguated iterations: every pair of consecutive quantified atoms
+        // (including wrap-around across iterations) carries a mandatory literal
+        // that neither adjacent quantified atom can match.
+        if (!isDisambiguatedFrame(frame)) return true;
       }
       continue;
     }
@@ -100,7 +144,7 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
     if (ch === '+' || ch === '*') {
       const frame = stack[stack.length - 1];
       if (frame !== undefined) {
-        if (pendingSet !== null) frame.quantSets.push(pendingSet);
+        frame.tokens.push({ kind: 'quant', set: pendingSet ?? (() => false) });
         frame.hasQuant = true;
       }
       pendingLiteral = null;
@@ -119,7 +163,7 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
       if (close !== -1 && /^\{\d+(,\d*)?\}$/.test(source.slice(i, close + 1))) {
         const frame = stack[stack.length - 1];
         if (frame !== undefined) {
-          if (pendingSet !== null) frame.quantSets.push(pendingSet);
+          frame.tokens.push({ kind: 'quant', set: pendingSet ?? (() => false) });
           frame.hasQuant = true;
         }
         pendingLiteral = null;
@@ -133,6 +177,7 @@ export function patternIsLikelyCatastrophic(source: string): boolean {
       flushPending();
       continue;
     }
+    flushPending();
     const atom = charSetAtom(source, i);
     if (atom.literal !== null) pendingLiteral = atom.literal;
     pendingSet = atom.set;
@@ -161,6 +206,58 @@ function charSetAtom(
     if (e === 'D') return { set: (ch) => /\d/.test(ch), literal: null, consumed: 2 };
     if (e === 'W') return { set: (ch) => /\w/.test(ch), literal: null, consumed: 2 };
     if (e === 'S') return { set: (ch) => /\s/.test(ch), literal: null, consumed: 2 };
+    // Zero-width assertions consume nothing, so they can never serve as the
+    // mandatory literal separator between two quantified atoms.
+    if (e === 'b' || e === 'B') return { set: () => false, literal: null, consumed: 2 };
+    // Multi-character escapes must consume their WHOLE source width. Reading
+    // only `\u`/`\x` left the hex digits to be parsed as literal atoms, which
+    // fabricated separators (`\u0061+a?` really is `a+a?`).
+    if (e === 'u') {
+      if (source[i + 2] === '{') {
+        const close = source.indexOf('}', i + 3);
+        if (close !== -1) {
+          const codePoint = Number.parseInt(source.slice(i + 3, close), 16);
+          const consumed = close - i + 1;
+          if (Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff) {
+            const decoded = String.fromCodePoint(codePoint);
+            return { set: (ch) => ch !== decoded, literal: decoded, consumed };
+          }
+          return { set: () => false, literal: null, consumed };
+        }
+      } else {
+        const hex = source.slice(i + 2, i + 6);
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          const decoded = String.fromCharCode(Number.parseInt(hex, 16));
+          return { set: (ch) => ch !== decoded, literal: decoded, consumed: 6 };
+        }
+      }
+      return { set: () => false, literal: null, consumed: 2 };
+    }
+    if (e === 'x') {
+      const hex = source.slice(i + 2, i + 4);
+      if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+        const decoded = String.fromCharCode(Number.parseInt(hex, 16));
+        return { set: (ch) => ch !== decoded, literal: decoded, consumed: 4 };
+      }
+      return { set: () => false, literal: null, consumed: 2 };
+    }
+    if (e === 'c' && /[A-Za-z]/.test(source[i + 2] ?? ''))
+      return { set: () => false, literal: null, consumed: 3 };
+    if (e === 'p' || e === 'P' || e === 'k') {
+      // Unicode property classes and named backreferences: opaque atom, and
+      // skip the whole `{...}`/`<...>` payload so its contents are not read as
+      // separators either.
+      const open = source.indexOf(e === 'k' ? '<' : '{', i + 2);
+      const close = open === -1 ? -1 : source.indexOf(e === 'k' ? '>' : '}', open + 1);
+      return { set: () => false, literal: null, consumed: close === -1 ? 2 : close - i + 1 };
+    }
+    if (/[0-9]/.test(e)) {
+      // Backreference / octal escape: not a literal separator, and consume
+      // every following digit so none of them becomes a fabricated literal.
+      let end = i + 2;
+      while (/[0-9]/.test(source[end] ?? '')) end++;
+      return { set: () => false, literal: null, consumed: end - i };
+    }
     return { set: (ch) => ch !== e, literal: e, consumed: 2 };
   }
   return { set: (ch) => ch !== c, literal: c, consumed: 1 };

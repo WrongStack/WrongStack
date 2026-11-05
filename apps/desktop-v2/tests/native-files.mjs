@@ -456,7 +456,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await page.getByRole('dialog', { name: 'Delete item', exact: true }).waitFor({ state: 'hidden' });
   await assert.rejects(access(join(project.root, 'renamed.ts')));
   await tool('Changes').click();
-  await page.getByRole('button', { name: 'Review review-fixture.ts', exact: true }).click();
+  await page.getByRole('button', { name: /^review-fixture\.ts / }).click();
   await page.locator('.diff-line-remove').filter({ hasText: 'reviewed = 1' }).waitFor();
   await page.locator('.diff-line-add').filter({ hasText: 'reviewed = 2' }).waitFor();
   await page.getByRole('button', { name: 'Side by side diff', exact: true }).click();
@@ -603,7 +603,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
   await tool('Files').click();
   await tool('Changes').click();
   await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
-  await page.getByRole('button', { name: 'Review native-hunks.txt', exact: true }).click();
+  await page.getByRole('button', { name: /^native-hunks\.txt / }).click();
   await page.getByRole('button', { name: 'Review & stage hunks', exact: true }).click();
   const hunks = page.getByRole('dialog', { name: 'Stage individual hunks', exact: true });
   await hunks.getByRole('button', { name: 'Stage hunk 2', exact: true }).waitFor();
@@ -722,7 +722,7 @@ export async function exerciseNativeFiles({ page, waitFor, artifactDir, project,
     ),
   );
   await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
-  await page.getByRole('button', { name: 'Review native-merge.txt', exact: true }).click();
+  await page.getByRole('button', { name: /^native-merge\.txt / }).click();
   await page.getByRole('button', { name: 'Resolve merge conflict', exact: true }).click();
   const merge = page.getByRole('dialog', { name: 'Resolve merge conflict', exact: true });
   await merge

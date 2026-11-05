@@ -1,6 +1,7 @@
 import { Timer } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AUTO_CONTINUE_SECONDS } from './autonomy-model';
+import { useDesktopText } from './desktop-i18n';
 import './next-steps.css';
 
 /**
@@ -18,6 +19,7 @@ export function AutoContinue({
   text: string;
   onSubmit: (text: string) => void;
 }) {
+  const { t } = useDesktopText();
   const [remaining, setRemaining] = useState(AUTO_CONTINUE_SECONDS),
     [cancelled, setCancelled] = useState('');
   const submitted = useRef('');
@@ -44,14 +46,14 @@ export function AutoContinue({
     <div className="auto-continue" role="status">
       <Timer size={14} />
       <span>
-        Continuing in {remaining} s with: <strong>{text}</strong>
+        {t('shellText.continuingIn', { seconds: remaining })} <strong>{text}</strong>
       </span>
       <button
         type="button"
         className="button secondary small"
         onClick={() => setCancelled(stepKey)}
       >
-        Cancel
+        {t('shellText.cancel')}
       </button>
     </div>
   );

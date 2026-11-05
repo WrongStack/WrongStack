@@ -165,4 +165,31 @@ describe('WrongProxy deactivation → retry settle', () => {
     expect(Date.now() - start).toBeLessThan(50);
     __resetProxyConfigForTests();
   });
+
+  it('does not invoke queued rebuildProvider callbacks after dispose()', async () => {
+    __resetProxyConfigForTests();
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    let releaseFirst!: () => void;
+    let calls = 0;
+    const handle = createProxyInstantApply({
+      getActiveProviderId: () => 'openai',
+      getRawBaseUrl: () => 'https://api.openai.com/v1',
+      rebuildProvider: async () => {
+        if (++calls === 1) {
+          await new Promise<void>((r) => {
+            releaseFirst = r;
+          });
+        }
+      },
+      logger: { info: vi.fn(), warn: vi.fn() },
+    });
+    applyProxyConfig({ active: false });
+    await flush();
+    applyProxyConfig({ active: true });
+    handle.dispose();
+    releaseFirst();
+    await flush();
+    expect(calls).toBe(1);
+    __resetProxyConfigForTests();
+  });
 });

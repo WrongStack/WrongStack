@@ -271,4 +271,32 @@ describe('ReplayLogStore — chunked scan across a 64KiB UTF-8 boundary', () => 
 
     expect(await store.lookup('straddle', 'sha256:missing')).toBeNull();
   });
+
+  it('recovers from an unterminated trailing line when appending and supports Request objects in lookup (F967)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-replay-f967-'));
+    try {
+      const store1 = new ReplayLogStore({ dir });
+      const req1 = { model: 'm1', messages: [{ role: 'user', content: 'hi' }] } as never;
+      const req2 = { model: 'm2', messages: [{ role: 'user', content: 'bye' }] } as never;
+      const resp1 = { content: 'first' } as never;
+      const resp2 = { content: 'second' } as never;
+      await store1.record({ sessionId: 'sess1', request: req1, response: resp1 });
+
+      const files = await fs.readdir(dir, { recursive: true });
+      const relReplay = files.find((f) => String(f).endsWith('.replay.jsonl'));
+      const replayFile = path.join(dir, String(relReplay));
+      const rawContent = await fs.readFile(replayFile, 'utf8');
+      await fs.writeFile(replayFile, rawContent.trimEnd(), 'utf8');
+
+      const store2 = new ReplayLogStore({ dir });
+      await store2.record({ sessionId: 'sess1', request: req2, response: resp2 });
+
+      const entries = await new ReplayLogStore({ dir }).load('sess1');
+      expect(entries).toHaveLength(2);
+      const lookedUp = await store1.lookup('sess1', req2);
+      expect(lookedUp).not.toBeNull();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -114,6 +114,7 @@ export function MailParcel({
   compact?: boolean | undefined;
   onSelect: () => void;
 }) {
+  const { t } = useAppTranslation();
   const incoming = mail.direction === 'incoming';
   return (
     <button
@@ -125,7 +126,10 @@ export function MailParcel({
         mail.unread && 'is-unread',
       )}
       onClick={onSelect}
-      aria-label={`${incoming ? 'Incoming' : 'Outgoing'} mail: ${mail.subject}`}
+      aria-label={t(
+        incoming ? 'activity:officeText.incomingMail' : 'activity:officeText.outgoingMail',
+        { subject: mail.subject },
+      )}
     >
       <span className="agent-office__mail-icon">
         {incoming ? <Inbox aria-hidden="true" /> : <Send aria-hidden="true" />}

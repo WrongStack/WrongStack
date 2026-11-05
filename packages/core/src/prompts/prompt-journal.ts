@@ -315,14 +315,22 @@ async function updateDailySummary(
     let content = '';
     try {
       content = await fs.readFile(summaryFile, 'utf8');
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return;
       content = `# 📅 Daily Prompt Summary — ${dateStr}\n\n| Time | ID | Session | Category | Model | Tokens | Rationale |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n`;
     }
 
+    const sanitizeCell = (val: string): string =>
+      val
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\|/g, '\\|')
+        .trim();
     const time = entry.timestamp.slice(11, 19);
-    const model = entry.metadata.model ?? '-';
-    const reason = entry.metadata.decisionReason ? entry.metadata.decisionReason.slice(0, 40) : '-';
-    const row = `| ${time} | [\`${entry.id}\`](session-${sessionFileId(entry.sessionId)}.md) | \`${entry.sessionId}\` | \`${entry.category}\` | ${model} | ~${entry.metadata.tokenEstimate} | ${reason} |\n`;
+    const model = entry.metadata.model ? sanitizeCell(entry.metadata.model) : '-';
+    const reason = entry.metadata.decisionReason
+      ? sanitizeCell(entry.metadata.decisionReason.slice(0, 40))
+      : '-';
+    const row = `| ${time} | [\`${entry.id}\`](session-${sessionFileId(entry.sessionId)}.md) | \`${sanitizeCell(entry.sessionId)}\` | \`${entry.category}\` | ${model} | ~${entry.metadata.tokenEstimate} | ${reason} |\n`;
 
     await fs.writeFile(summaryFile, content + row, 'utf8');
   } catch {
@@ -499,8 +507,16 @@ export async function getPromptJournalEntries(
   // Sort chronologically
   results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-  if (filter.limit && results.length > filter.limit) {
-    return results.slice(-filter.limit);
+  if (filter.limit !== undefined) {
+    // `limit` is a maximum count. A non-positive or non-finite request must
+    // not turn into `slice(-limit)`: limit=-1 used `slice(1)` and returned
+    // every entry except the first; limit=0 fell through and returned all.
+    const requested = Number(filter.limit);
+    if (Number.isFinite(requested)) {
+      const limit = Math.max(0, Math.floor(requested));
+      if (limit === 0) return [];
+      if (results.length > limit) return results.slice(-limit);
+    }
   }
 
   return results;

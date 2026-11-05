@@ -28,9 +28,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildChildEnv } from '../utils/child-env.js';
 import { getResolvedSandboxConfig } from './manager.js';
-import type { SandboxRoute } from './types.js';
+import type { SandboxConfig, SandboxRoute } from './types.js';
 
-export type SandboxHelperRunner = (route: SandboxRoute) => Promise<SandboxRoute | void>;
+export type SandboxHelperRunner = (
+  route: SandboxRoute,
+  config?: SandboxConfig,
+) => Promise<SandboxRoute | void>;
 
 function markLowIntegrity(dirs: string[]): void {
   for (const dir of dirs) {
@@ -143,11 +146,13 @@ function materializeHelperScript(): string {
 }
 
 export function defaultWindowsHelperRunner(): SandboxHelperRunner {
-  return async (route) => {
+  return async (route, callerConfig) => {
     const payload = route.command ?? route.argv?.join(' ');
     if (!payload) return;
-    const config = getResolvedSandboxConfig();
-    markLowIntegrity(config.writableRoots.filter(Boolean));
+    const config = callerConfig ?? getResolvedSandboxConfig();
+    const writableRoots =
+      config.tier === 'workspace-write' ? config.writableRoots.filter(Boolean) : [];
+    markLowIntegrity(writableRoots);
     const scriptPath2 = materializeHelperScript();
     // The payload travels base64(UTF-16LE) so no quoting layer can mangle it.
     // Child working directory = first writable root (inside the sandbox — a
@@ -164,7 +169,7 @@ export function defaultWindowsHelperRunner(): SandboxHelperRunner {
         '-EncodedPayload',
         Buffer.from(payload, 'utf16le').toString('base64'),
         '-WorkDir',
-        config.writableRoots[0] ?? process.cwd(),
+        writableRoots[0] ?? process.cwd(),
       ],
     };
   };

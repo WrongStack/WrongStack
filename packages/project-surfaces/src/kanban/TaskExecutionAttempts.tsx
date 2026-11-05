@@ -1,8 +1,10 @@
 import type { KanbanEvent, KanbanTask } from '@wrongstack/kanban';
+import type { TFunction } from 'i18next';
 import { Bot, ChevronDown, History, Route, Timer } from 'lucide-react';
 import { useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { Pagination } from '../ui/pagination';
+import { enumLabel, ROUTING_MODE_KEYS } from './kanban-labels';
 import { buildTaskActivity } from './TaskActivityTimeline';
 
 interface TaskExecutionAttempt {
@@ -151,8 +153,8 @@ export function buildTaskExecutionAttempts(
     .sort((left, right) => right.attempt - left.attempt);
 }
 
-function duration(value?: number): string {
-  if (value === undefined) return 'running';
+function duration(t: TFunction, value?: number): string {
+  if (value === undefined) return t('activity:kanban.statusRunning');
   if (value < 1_000) return `${value}ms`;
   const seconds = Math.round(value / 1_000);
   if (seconds < 60) return `${seconds}s`;
@@ -188,10 +190,10 @@ export function TaskExecutionAttempts({
           {t('activity:taskExecutionAttempts.executionAttempts')}
         </span>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
-          {attempts.length} total
+          {t('activity:kanbanText.attemptsTotal', { count: attempts.length })}
         </span>
         <span className={`rounded px-1.5 py-0.5 text-[9px] ${statusTone(attempts[0]!.status)}`}>
-          latest:{attempts[0]!.status}
+          {t('activity:kanbanText.latestStatus', { status: attempts[0]!.status })}
         </span>
         <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
       </summary>
@@ -199,24 +201,31 @@ export function TaskExecutionAttempts({
         {attemptPage.pageItems.map((attempt) => (
           <section key={attempt.attempt} className="rounded-md border bg-background/70 p-2.5">
             <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-              <strong className="text-xs">Attempt #{attempt.attempt}</strong>
+              <strong className="text-xs">
+                {t('activity:kanbanText.attemptNumber', { number: attempt.attempt })}
+              </strong>
               <span className={`rounded px-1.5 py-0.5 ${statusTone(attempt.status)}`}>
                 {attempt.status}
               </span>
               <span className="ml-auto inline-flex items-center gap-1 text-muted-foreground">
-                <Timer className="size-3" /> {duration(attempt.durationMs)} · {attempt.eventCount}{' '}
-                events
+                <Timer className="size-3" />{' '}
+                {t('activity:kanbanText.durationEvents', {
+                  duration: duration(t, attempt.durationMs),
+                  count: attempt.eventCount,
+                })}
               </span>
             </div>
             <div className="mt-2 grid gap-1 text-[10px] text-muted-foreground sm:grid-cols-2">
               <span className="inline-flex items-center gap-1">
-                <Bot className="size-3" /> {attempt.owner ?? 'Unknown agent'}
+                <Bot className="size-3" /> {attempt.owner ?? t('activity:kanbanText.unknownAgent')}
               </span>
               <span className="inline-flex items-center gap-1 font-mono">
                 <Route className="size-3" />
                 {attempt.provider || attempt.model
                   ? `${attempt.provider ? `${attempt.provider}/` : ''}${attempt.model ?? 'default'}`
-                  : (attempt.routingMode ?? 'default route')}
+                  : attempt.routingMode
+                    ? enumLabel(t, ROUTING_MODE_KEYS, attempt.routingMode)
+                    : t('activity:kanbanText.routeDefault')}
               </span>
               <span className="font-mono">
                 session:{attempt.sessionIds.join(', ') || 'unknown'}
@@ -254,7 +263,7 @@ export function TaskExecutionAttempts({
           totalItems={attemptPage.totalItems}
           onPageChange={attemptPage.setPage}
           compact
-          itemLabel="execution attempts"
+          itemLabel={t('activity:uiText.item.executionAttempts')}
         />
       </div>
     </details>

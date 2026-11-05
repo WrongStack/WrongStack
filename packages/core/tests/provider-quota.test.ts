@@ -467,4 +467,20 @@ describe('groupQuotaSnapshots', () => {
     ]);
     expect(worst?.snapshot.providerId).toBe('finite-reset');
   });
+
+  it('clears stale note on a fresh window reading and normalizes snapshot.providerId (F969)', () => {
+    resetProviderQuota();
+    recordProviderQuota('openai-codex', [
+      snapshot({ windows: [{ id: 'primary', usedPercent: 10 }] }),
+    ]);
+    recordProviderQuota('openai-codex', [snapshot({ windows: [], note: 'Temporarily throttled' })]);
+    expect(getProviderQuota('openai-codex')[0]?.note).toBe('Temporarily throttled');
+
+    recordProviderQuota('openai-codex', [
+      snapshot({ providerId: 'custom-alias', windows: [{ id: 'primary', usedPercent: 25 }] }),
+    ]);
+    const latest = getProviderQuota('openai-codex')[0];
+    expect(latest?.note).toBeUndefined();
+    expect(latest?.providerId).toBe('openai-codex');
+  });
 });

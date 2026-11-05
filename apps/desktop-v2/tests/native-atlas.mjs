@@ -201,7 +201,7 @@ export async function exerciseNativeAtlas({
     .getByRole('button')
     .filter({ hasText: /^feature/ })
     .click();
-  await canvas.getByRole('button', { name: 'symbol feature', exact: true }).waitFor();
+  await canvas.getByRole('button', { name: /^symbol\b.*\bfeature\b/ }).waitFor();
   await inspector.getByTitle('feature', { exact: true }).first().waitFor();
   await inspector
     .getByLabel('Trace shortest path to target node', { exact: true })

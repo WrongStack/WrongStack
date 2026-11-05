@@ -115,9 +115,9 @@ export function PressureSection({
         </div>
         <div className="absolute top-3 flex w-full justify-between gap-1 text-[10px] text-muted-foreground">
           <span>0%</span>
-          <span>soft</span>
-          <span>hard</span>
-          <span>max</span>
+          <span>{t('activity:contextText.soft')}</span>
+          <span>{t('activity:contextText.hard')}</span>
+          <span>{t('activity:contextText.max')}</span>
           <span>100%</span>
         </div>
       </div>
@@ -327,7 +327,7 @@ export function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: 
         <div className="space-y-0.5">
           <div className="flex justify-between text-[9px] text-muted-foreground">
             <span>{t('activity:ctxDash.current')}</span>
-            <span>Trigger ({fmtCap(triggerAt)})</span>
+            <span>{t('activity:contextText.trigger', { at: fmtCap(triggerAt) })}</span>
           </div>
           <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted/50 ring-1 ring-inset ring-border/20">
             <span
@@ -366,7 +366,10 @@ export function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: 
         />
         {needsCompact && (
           <div className="bg-warning/5 border border-warning/20 rounded p-2 text-[10px] text-warning/90 mt-1">
-            Context at {pct.toFixed(1)}% — compacting recovers ~{fmtCap(recoveryEst)} tokens.
+            {t('activity:contextText.compactHint', {
+              pct: pct.toFixed(1),
+              tokens: fmtCap(recoveryEst),
+            })}
           </div>
         )}
       </div>

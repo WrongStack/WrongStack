@@ -509,7 +509,7 @@ export function AudienceMemoryPanel() {
               totalItems={memoryPage.totalItems}
               onPageChange={memoryPage.setPage}
               compact
-              itemLabel="memories"
+              itemLabel={t('activity:uiText.item.memories')}
             />
           </div>
         </div>
@@ -544,11 +544,11 @@ export function AudienceMemoryPanel() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingId(null)} disabled={deleting}>
-              Cancel
+              {t('common:action.cancel')}
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               <Trash2 className="size-4" />
-              {deleting ? 'Deleting…' : 'Delete memory'}
+              {deleting ? t('activity:sageText.deleting') : t('activity:sageText.deleteMemory')}
             </Button>
           </DialogFooter>
         </DialogContent>

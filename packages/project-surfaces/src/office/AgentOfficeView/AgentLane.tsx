@@ -105,8 +105,8 @@ export function AgentLane({
             className="agent-office__agent-verified"
             title={
               agent.presenceSource === 'registry'
-                ? 'Verified by live session registry'
-                : 'Verified by local fleet state'
+                ? t('activity:officeText.verifiedRegistry')
+                : t('activity:officeText.verifiedFleet')
             }
           >
             <Check aria-hidden="true" />
@@ -212,7 +212,10 @@ export function AgentLane({
             type="button"
             className={cn('agent-office__identity-mail', latestMail.unread && 'is-unread')}
             onClick={() => onSelect({ kind: 'mail', mail: latestMail, agentName: agent.name })}
-            aria-label={`${mail.length} mail messages. Latest: ${latestMail.subject}`}
+            aria-label={t('activity:officeText.mailSummary', {
+              count: mail.length,
+              subject: latestMail.subject,
+            })}
           >
             <Mail aria-hidden="true" />
             <span>
@@ -330,7 +333,7 @@ export function AgentLane({
       <div className="agent-office__desk-metrics">
         <span
           className="agent-office__metric"
-          title={`${t('activity:agentOffice.tokens')}: in ${fmtTok(agent.tokensIn)} / out ${fmtTok(agent.tokensOut)}`}
+          title={`${t('activity:agentOffice.tokens')}: ${t('activity:officeText.inOut', { in: fmtTok(agent.tokensIn), out: fmtTok(agent.tokensOut) })}`}
         >
           <strong>{fmtTok(agent.tokensIn + agent.tokensOut)}</strong>
           <small>TOK</small>

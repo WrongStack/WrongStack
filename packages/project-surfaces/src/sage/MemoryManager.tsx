@@ -137,8 +137,8 @@ export function MemoryManager({
           )}
           {state.loadError && (
             <div role="alert" className="flex items-center gap-2 text-xs text-warning">
-              <AlertTriangle className="size-3.5" /> {state.loadError} Existing content remains
-              available.
+              <AlertTriangle className="size-3.5" /> {state.loadError}{' '}
+              {t('activity:sageText.contentRemains')}
             </div>
           )}
           {state.mutationError && !state.editing && !state.creating && (
@@ -314,7 +314,7 @@ export function MemoryManager({
                   >
                     {state.loadingMore
                       ? t('common:action.loading')
-                      : `Load more (${state.memories.length} loaded)`}
+                      : t('activity:sageText.loadMore', { count: state.memories.length })}
                   </Button>
                 </div>
               ) : null}
@@ -395,8 +395,10 @@ export function MemoryManager({
                         return;
                       }
                       state.setNotice(
-                        `Accepted hygiene review for ${memoryId.slice(0, 12)}… ` +
-                          `(candidate ${candidateId.slice(0, 12)}…).`,
+                        t('activity:sageText.hygieneAccepted', {
+                          memory: memoryId.slice(0, 12),
+                          candidate: candidateId.slice(0, 12),
+                        }),
                       );
                       state.loadMemories();
                     },
@@ -430,9 +432,7 @@ export function MemoryManager({
                       state.updateSage(memoryId, { persistence: 'permanent', requestId }),
                     (payload) => {
                       if (payload.error || !payload.memory) {
-                        state.setMutationError(
-                          payload.error ?? 'The server returned no memory record.',
-                        );
+                        state.setMutationError(payload.error ?? t('activity:sageText.noRecord'));
                         return;
                       }
                       state.setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);
@@ -452,7 +452,7 @@ export function MemoryManager({
                     className="self-start"
                     onClick={onReturnToVector}
                   >
-                    <ArrowLeft className="size-4" /> Back to vector results
+                    <ArrowLeft className="size-4" /> {t('activity:sageText.backToVector')}
                   </Button>
                 )}
                 <MemoryDetail

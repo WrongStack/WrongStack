@@ -40,7 +40,7 @@ export function LiveOperationRow({
       type="button"
       className="group flex w-full items-start gap-2 border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted/70"
       onClick={() => !activity.filePath.startsWith('(') && onLocate(activity)}
-      title={`Locate ${activity.filePath}`}
+      title={t('activity:codeMapText.locate', { path: activity.filePath })}
     >
       {showAgent && (
         <span
@@ -77,7 +77,7 @@ export function LiveOperationRow({
           )}
           {activity.attribution === 'external' && (
             <span className="ml-auto font-mono text-[7px] uppercase text-destructive">
-              external
+              {t('activity:codeMapText.external')}
             </span>
           )}
         </div>
@@ -154,11 +154,14 @@ export function LiveAgentsHud({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[9px] font-bold">{presence.agentName}</div>
                 <div className="truncate font-mono text-[7px] text-muted-foreground">
-                  session {presence.sessionId.slice(0, 12)} · agent {presence.agentId.slice(0, 12)}
+                  {t('activity:codeMapText.presenceIds', {
+                    session: presence.sessionId.slice(0, 12),
+                    agent: presence.agentId.slice(0, 12),
+                  })}
                 </div>
               </div>
               <span className="font-mono text-[8px] text-success">
-                {presence.operations.length} op
+                {t('activity:codeMapText.ops', { count: presence.operations.length })}
               </span>
             </div>
             {presence.operations.map((activity) => (
@@ -215,7 +218,9 @@ export function LiveControlBar({
           paused ? 'bg-warning text-warning-foreground' : 'text-success hover:bg-success/10',
         )}
         onClick={onTogglePaused}
-        title={paused ? 'Resume the live telemetry stream' : 'Freeze the current telemetry frame'}
+        title={
+          paused ? t('activity:codeMapText.resumeStream') : t('activity:codeMapText.freezeFrame')
+        }
       >
         {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
         {paused ? 'Resume' : 'Live'}

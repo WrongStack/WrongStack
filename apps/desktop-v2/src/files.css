@@ -837,7 +837,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--accent);
+  /* Small accent text: the ink tone keeps 4.5:1 on the card in dark mode. */
+  color: var(--accent-ink);
   font-size: 10px;
 }
 .file-review-tray > div {

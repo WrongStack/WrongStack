@@ -128,4 +128,8 @@ describe('expandGlob', () => {
     expect((await expandGlob('**')).map(base).sort()).toEqual(['a.ts', 'b.ts', 'c.js', 'd.ts']);
     expect((await expandGlob('sub/*')).map(base)).toEqual(['d.ts']);
   });
+
+  it('does not throw Invalid regular expression on unclosed [!]a* pattern (F959)', async () => {
+    await expect(expandGlob('[!]a*')).resolves.toEqual([]);
+  });
 });

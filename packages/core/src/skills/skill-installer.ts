@@ -271,11 +271,14 @@ export class SkillInstaller {
       if (byName.length > 0) {
         targets = byName;
       } else {
-        // Treat as a new ref — find matching source
+        // Treat as a new ref — find matching source (and optional #skillName selector)
         try {
-          const parsed = parseSkillRef(nameOrRef);
+          const resolved = this.resolveRef(nameOrRef);
+          const parsed = parseSkillRef(resolved.installRef);
           const source = `github:${parsed.owner}/${parsed.repo}`;
-          targets = scopedEntries.filter((e) => e.source === source);
+          targets = scopedEntries.filter(
+            (e) => e.source === source && (!parsed.skillName || e.name === parsed.skillName),
+          );
           if (targets.length === 0) {
             result.errors.push({
               name: nameOrRef,
@@ -318,10 +321,13 @@ export class SkillInstaller {
         let refToInstall = first.ref;
 
         // If nameOrRef looks like a new ref, use it
+        let parsedRefSkillName: string | undefined;
         if (nameOrRef && !allEntries.find((e) => e.name === nameOrRef)) {
           try {
-            const parsed = parseSkillRef(nameOrRef);
+            const resolved = this.resolveRef(nameOrRef);
+            const parsed = parseSkillRef(resolved.installRef);
             refToInstall = parsed.ref;
+            parsedRefSkillName = parsed.skillName;
           } catch {
             // keep original ref
           }
@@ -329,7 +335,11 @@ export class SkillInstaller {
 
         this.opts.log?.(`Updating ${first.source}@${refToInstall}...`);
         const selectedName =
-          nameOrRef && entries.some((entry) => entry.name === nameOrRef) ? nameOrRef : undefined;
+          nameOrRef && entries.some((entry) => entry.name === nameOrRef)
+            ? nameOrRef
+            : parsedRefSkillName && entries.some((entry) => entry.name === parsedRefSkillName)
+              ? parsedRefSkillName
+              : undefined;
         const results = await this.install(
           `${sourceRepo}@${refToInstall}${selectedName ? `#${selectedName}` : ''}`,
           // Only the skills installed from this source: a repo reinstall without

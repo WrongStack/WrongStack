@@ -114,7 +114,7 @@ export function CodeMapTreeSidebar({
             {t('activity:codeMapTree.codeTree')}
           </h2>
           <span className="font-mono text-[9px] text-muted-foreground">
-            {rootGraph.nodes.length} roots
+            {t('activity:codeMapText.roots', { count: rootGraph.nodes.length })}
           </span>
         </div>
         <label className="flex h-9 items-center gap-2 rounded-lg border bg-background px-3 focus-within:border-primary">
@@ -143,7 +143,7 @@ export function CodeMapTreeSidebar({
         {search.trim() ? (
           <div>
             <div className="px-3 pb-2 text-[9px] text-muted-foreground">
-              {searchResults.length} loaded-map results
+              {t('activity:codeMapText.searchResults', { count: searchResults.length })}
             </div>
             {searchResults.length === 0 ? (
               <p className="px-3 py-8 text-center text-[10px] text-muted-foreground">
@@ -246,9 +246,14 @@ export function CodeMapTreeSidebar({
                 >
                   <button
                     type="button"
-                    className="flex h-6 w-5 items-center justify-center text-muted-foreground"
+                    className="flex h-[24px] w-[24px] shrink-0 items-center justify-center text-muted-foreground"
                     onClick={() => togglePackage(packageNode)}
-                    aria-label={`${expanded ? 'Collapse' : 'Expand'} ${packageName}`}
+                    aria-label={t(
+                      expanded
+                        ? 'activity:codeMapText.collapseNamed'
+                        : 'activity:codeMapText.expandNamed',
+                      { name: packageName },
+                    )}
                   >
                     {loadingBranches.has(branchKey) ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -274,10 +279,10 @@ export function CodeMapTreeSidebar({
                   </button>
                   <button
                     type="button"
-                    className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
+                    className="ml-1 hidden h-[24px] w-[24px] items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
                     onClick={() => navigate({ level: 'files', package: packageName })}
                     title={t('activity:codeMapTree.openFileMap')}
-                    aria-label={`Open ${packageName} map`}
+                    aria-label={t('activity:codeMapText.openMap', { name: packageName })}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </button>

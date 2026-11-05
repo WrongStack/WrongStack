@@ -31,7 +31,7 @@ export function Pagination({
 
   return (
     <nav
-      aria-label={`${itemLabel} pagination`}
+      aria-label={t('activity:uiText.pagination', { label: itemLabel })}
       className={cn(
         'flex shrink-0 items-center justify-between gap-2 border-t border-border/75 bg-card/80 px-2 py-2',
         className,
@@ -48,7 +48,9 @@ export function Pagination({
         {!compact && <span>{t('activity:pagination.previous')}</span>}
       </button>
       <span className="min-w-0 truncate text-center font-mono text-[10px] tabular-nums text-muted-foreground">
-        {compact ? `${safePage} / ${totalPages}` : `${first}–${last} of ${totalItems} ${itemLabel}`}
+        {compact
+          ? `${safePage} / ${totalPages}`
+          : t('activity:uiText.range', { first, last, total: totalItems, label: itemLabel })}
       </span>
       <button
         type="button"

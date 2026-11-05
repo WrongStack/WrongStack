@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T21:23:05.709Z",
+  "generatedAt": "2026-11-05T07:46:43.634Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6007,
-    "testFiles": 5015,
-    "sourceLines": 1247909,
+    "sourceFiles": 6008,
+    "testFiles": 5019,
+    "sourceLines": 1249372,
     "workspaceEdges": 240,
-    "moduleEdges": 17664,
+    "moduleEdges": 17685,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 276,
+    "testsWithoutTypecheck": 278,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1038
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -362,7 +362,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 639,
-      "testFiles": 696,
+      "testFiles": 698,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 696
+          "testFiles": 698
         }
       ]
     },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 441,
-      "testFiles": 276,
+      "testFiles": 278,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -733,7 +733,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 245,
+      "sourceFiles": 246,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -1882,6 +1882,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/file-row-name.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/file-save.test.ts",
         "projects": [
           "root-node"
@@ -2825,6 +2831,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/settings-tools-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/shell-gaps-i18n.test.ts",
         "projects": [
           "root-node"
         ]
@@ -11542,6 +11554,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/prompts/prompt-manifest-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/prompts/prompt-registry.test.ts",
         "projects": [
           "root-node"
@@ -12605,6 +12623,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-analyzer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-catalog-rebuild-summary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32069,6 +32093,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/file-row-name.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/file-save.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33175,6 +33206,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/shell-gaps-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/side-effects-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -34271,8 +34309,13 @@
       "relativeImports": 15
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 703,
+      "relativeImports": 45
+    },
+    {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2034,
+      "lines": 2030,
       "relativeImports": 31
     },
     {
@@ -34282,7 +34325,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1581,
+      "lines": 1579,
       "relativeImports": 17
     },
     {
@@ -34312,7 +34355,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 951,
+      "lines": 955,
       "relativeImports": 13
     },
     {
@@ -34344,7 +34387,7 @@
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2034,
+      "lines": 2030,
       "relativeImports": 31
     },
     {
@@ -34354,7 +34397,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1581,
+      "lines": 1579,
       "relativeImports": 17
     },
     {
@@ -34379,7 +34422,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
-      "lines": 951,
+      "lines": 955,
       "relativeImports": 13
     },
     {
@@ -34563,6 +34606,11 @@
       "relativeImports": 5
     },
     {
+      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
+      "lines": 703,
+      "relativeImports": 45
+    },
+    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 703,
       "relativeImports": 18
@@ -34581,11 +34629,6 @@
       "file": "packages/coordination/src/provider-status-tracker.ts",
       "lines": 701,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 700,
-      "relativeImports": 45
     },
     {
       "file": "apps/desktop-v2/src/useDesktop.ts",
@@ -35993,6 +36036,14 @@
     {
       "file": "packages/core/src/security/totp.ts",
       "name": "hotp"
+    },
+    {
+      "file": "packages/core/src/session-catalog/store-agents.ts",
+      "name": "readSessionAgentRows"
+    },
+    {
+      "file": "packages/core/src/session-catalog/store-rebuild.ts",
+      "name": "summarizeTranscriptFile"
     },
     {
       "file": "packages/core/src/skills/github-fetcher.ts",

@@ -629,4 +629,70 @@ describe('Brain architecture regressions', () => {
   expect(brainCacheKey(request({ question: 'Accept value "a  b"?' }))).not.toBe(
     brainCacheKey(request({ question: 'Accept value "a b"?' })),
   );
+
+  it('marks prior steer as failure on suppressed re-trigger, blocks untagged human answers on session-scoped escalations, and marks terminal tier', async () => {
+    const events = new EventBus();
+    const ledger = new BrainDecisionLedger({ events, interventionRetryWindowMs: 60_000 });
+    await ledger.start();
+
+    events.emit('brain.intervention', {
+      at: 1000,
+      sessionId: 'sess-retrigger',
+      kind: 'tool_failure_streak',
+      intervened: true,
+      request: request({ id: 'steer-1', sessionId: 'sess-retrigger' }),
+      decision: {
+        type: 'steer',
+        guidance: 'retry differently',
+        reason: 'streak',
+        decidedBy: 'rule',
+        confidence: 0.8,
+      },
+    } as never);
+    events.emit('brain.intervention', {
+      at: 2000,
+      sessionId: 'sess-retrigger',
+      kind: 'tool_failure_streak',
+      intervened: false,
+      request: request({ id: 'steer-2', sessionId: 'sess-retrigger' }),
+      decision: {
+        type: 'continue',
+        reason: 'suppressed',
+        decidedBy: 'policy',
+        confidence: 0.5,
+      },
+    } as never);
+    const outcomeEntry = ledger
+      .tail(10)
+      .find((e) => e.kind === 'outcome' && e.requestId === 'steer-1');
+    expect(outcomeEntry?.outcome).toBe('failure');
+    await ledger.stop();
+
+    const queue = new BrainDecisionQueue(events, { timeoutMs: 50 });
+    const scopedPromise = queue.requestHumanDecision(
+      request({ id: 'scoped-1', sessionId: 'sess-A', options: undefined }),
+    );
+    events.emit('brain.human_answered', {
+      id: 'scoped-1',
+      sessionId: undefined,
+      deny: false,
+      text: 'untagged answer',
+      at: Date.now(),
+    });
+    const scopedRes = await scopedPromise;
+    expect(scopedRes.type).toBe('deny');
+
+    const { HumanEscalatingBrainArbiter } = await import('../../src/brain/brain.js');
+    const { readDecisionTier } = await import('../../src/brain/brain-telemetry.js');
+    const escArbiter = new HumanEscalatingBrainArbiter(new DefaultBrainArbiter(), queue);
+    const termReq = request({
+      id: 'term-req',
+      risk: 'critical',
+      fallback: 'ask_human',
+      allowHumanEscalation: false,
+    });
+    await escArbiter.decide(termReq);
+    expect(readDecisionTier(termReq)).toBe('terminal');
+    queue.dispose();
+  });
 });

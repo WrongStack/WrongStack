@@ -83,7 +83,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
           <h3>{t('appearance.contrast.title')}</h3>
           <p>{t('appearance.contrast.body')}</p>
         </div>
-        <fieldset className="appearance-modes" aria-label="Contrast">
+        <fieldset className="appearance-modes" aria-label={t('appearance.contrast.title')}>
           {(
             [
               { id: 'system', label: t('appearance.contrast.system') },

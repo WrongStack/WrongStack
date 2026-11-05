@@ -7,6 +7,8 @@ const exists = (path) =>
     () => true,
     () => false,
   );
+/** A folder-listing row: its name starts with the action and path, then the columns it shows. */
+const row = (action, path) => new RegExp(`^${action} ${path.replaceAll('.', '\\.')}( |$)`);
 
 /** Picked folder-listing items are moved and deleted on disk, one engine operation each. */
 export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
@@ -29,11 +31,11 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
     const tree = page.getByRole('tree', { name: 'Project directory tree', exact: true });
     await tree.getByRole('treeitem', { name: 'bulk-ops', exact: true }).click();
-    await page.getByRole('button', { name: 'Open bulk-ops/a.txt', exact: true }).waitFor();
+    await page.getByRole('button', { name: row('Open', 'bulk-ops/a.txt') }).waitFor();
 
     await page.getByRole('button', { name: 'Select items', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-ops/a.txt', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-ops/b.txt', exact: true }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-ops/a.txt') }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-ops/b.txt') }).click();
     const bar = page.getByRole('toolbar', { name: 'Selected items', exact: true });
     await bar.getByText('2 selected', { exact: true }).waitFor();
     // Closing a dialog with Escape returns focus to the control that opened it.
@@ -70,8 +72,8 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     await writeFile(join(source, 'b.txt'), 'existing b\n');
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
     await tree.getByRole('treeitem', { name: 'bulk-dest', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-dest/a.txt', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-dest/b.txt', exact: true }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-dest/a.txt') }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-dest/b.txt') }).click();
     await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
     const batchCopy = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
     await batchCopy.getByText(/or none is/).waitFor();
@@ -85,8 +87,8 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     // Without the conflict both items copy, with no hidden copy left beside them.
     await rm(join(source, 'b.txt'));
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-dest/a.txt', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-dest/b.txt', exact: true }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-dest/a.txt') }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-dest/b.txt') }).click();
     await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
     const copyAll = page.getByRole('dialog', { name: 'Copy 2 selected items', exact: true });
     await copyAll.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
@@ -105,7 +107,7 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     await writeFile(join(target, 'tree', 'one.txt'), 'one\n');
     await writeFile(join(target, 'tree', 'inner', 'two.txt'), 'two\n');
     await page.getByRole('button', { name: 'Refresh file manager', exact: true }).click();
-    await page.getByRole('button', { name: 'Select bulk-dest/tree', exact: true }).click();
+    await page.getByRole('button', { name: row('Select', 'bulk-dest/tree') }).click();
     await bar.getByRole('button', { name: 'Copy selected…', exact: true }).click();
     const folderCopy = page.getByRole('dialog', { name: 'Copy 1 selected item', exact: true });
     await folderCopy.getByLabel('Bulk copy destination', { exact: true }).fill('bulk-ops');
@@ -117,7 +119,7 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
 
     // Bulk rename: literal text in names; an existing target is refused, never overwritten.
     for (const name of ['d-old.txt', 'e-old.txt', 'f-old.txt'])
-      await page.getByRole('button', { name: `Select bulk-ops/${name}`, exact: true }).click();
+      await page.getByRole('button', { name: row('Select', `bulk-ops/${name}`) }).click();
     await bar.getByRole('button', { name: 'Rename selected…', exact: true }).click();
     const rename = page.getByRole('dialog', { name: 'Rename 3 selected items', exact: true });
     await rename.getByLabel('Find in names', { exact: true }).fill('-old');
@@ -151,7 +153,7 @@ export async function exerciseNativeFileBulk({ page, project, tool, waitFor }) {
     // Ctrl-click picks an item outside selection mode.
     await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
     await page
-      .getByRole('button', { name: 'Open bulk-ops/c.txt', exact: true })
+      .getByRole('button', { name: row('Open', 'bulk-ops/c.txt') })
       .click({ modifiers: ['Control'] });
     await bar.getByText('1 selected', { exact: true }).waitFor();
     await bar.getByRole('button', { name: 'Delete selected…', exact: true }).click();

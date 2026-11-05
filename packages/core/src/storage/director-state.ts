@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import { hostname } from 'node:os';
-import { atomicWrite } from '../utils/atomic-write.js';
+import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import { isPidAlive } from '../utils/pid.js';
 
@@ -113,36 +113,35 @@ export async function acquireDirectorStateLock(
   lockPath: string,
   processId = process.pid,
 ): Promise<boolean> {
-  let existing: string | undefined;
-  try {
-    existing = await fsp.readFile(lockPath, 'utf8');
-  } catch {
-    // No lock file — we're safe to claim
-  }
-
-  if (existing) {
+  return withFileLock(lockPath, async () => {
+    let existing: string | undefined;
     try {
-      const lock = JSON.parse(existing) as DirectorStateLock;
-      // A live owner still holds this checkpoint — refuse. Only a genuinely
-      // dead pid makes the lock stale and overwritable.
-      //
-      // This used to inline `process.kill(lock.pid, 0)` with a bare catch,
-      // which treated EPERM ("alive, but you may not signal it" — another
-      // user, or an elevated process) as dead and stole the lock from a
-      // running director. isPidAlive reports EPERM as alive.
-      if (isPidAlive(lock.pid)) return false;
+      existing = await fsp.readFile(lockPath, 'utf8');
     } catch {
-      // Malformed lock — treat as stale.
+      // No lock file — we're safe to claim
     }
-  }
 
-  const lock: DirectorStateLock = {
-    pid: processId,
-    hostname: hostname(),
-    startedAt: new Date().toISOString(),
-  };
-  await atomicWrite(lockPath, JSON.stringify(lock), { mode: 0o600 });
-  return true;
+    if (existing) {
+      try {
+        const lock = JSON.parse(existing) as DirectorStateLock;
+        // A live owner still holds this checkpoint — refuse. Only a genuinely
+        // dead pid makes the lock stale and overwritable.
+        if (typeof lock.pid === 'number' && isPidAlive(lock.pid)) {
+          return false;
+        }
+      } catch {
+        // Malformed lock — treat as stale.
+      }
+    }
+
+    const lock: DirectorStateLock = {
+      pid: processId,
+      hostname: hostname(),
+      startedAt: new Date().toISOString(),
+    };
+    await atomicWrite(lockPath, JSON.stringify(lock), { mode: 0o600 });
+    return true;
+  });
 }
 
 /**

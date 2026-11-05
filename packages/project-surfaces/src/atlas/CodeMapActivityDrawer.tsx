@@ -60,7 +60,11 @@ export function CodeMapActivityDrawer({
                 <div className="font-mono text-[9px] text-muted-foreground">
                   {new Date(activity.timestamp).toLocaleTimeString()}
                 </div>
-                {activity.toolName && <div className="mt-1">via {activity.toolName}</div>}
+                {activity.toolName && (
+                  <div className="mt-1">
+                    {t('activity:codeMapText.via', { tool: activity.toolName })}
+                  </div>
+                )}
                 {activity.agent && <div className="text-muted-foreground">{activity.agent}</div>}
                 {activity.summary && (
                   <div className="mt-1 text-muted-foreground">{activity.summary}</div>
@@ -102,7 +106,7 @@ export function CodeMapActivityDrawer({
         )}
       </div>
       <div className="border-t px-4 py-2 font-mono text-[9px] text-muted-foreground">
-        {fileHistory.length} events · newest first
+        {t('activity:codeMapText.eventsNewest', { count: fileHistory.length })}
       </div>
     </div>
   );

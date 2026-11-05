@@ -1388,7 +1388,8 @@
 }
 .settings-navigation > [aria-current] {
   background: var(--accent-soft);
-  color: var(--accent);
+  /* The accent fill's own text colour: the plain accent misses 4.5:1 on it in dark mode. */
+  color: var(--accent-ink);
 }
 .settings-detail {
   min-width: 0;

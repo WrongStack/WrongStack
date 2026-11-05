@@ -207,4 +207,20 @@ describe('DefaultAttachmentStore', () => {
     expect(text).toContain('<file path="src/windows.ts">');
     expect(text).toContain('const win = true;');
   });
+
+  it('uses meta.label as fallback path in toBlock and discards spooled adds that raced with clear() (F966)', async () => {
+    const store = new DefaultAttachmentStore({ spoolThresholdBytes: 4 });
+    await store.add({ kind: 'file', data: 'hi', meta: { label: 'docs/readme.md' } });
+    const blocks = await store.expand('see [file:docs/readme.md]');
+    expect((blocks[0] as { text: string }).text).toContain('<file path="docs/readme.md">');
+
+    const pendingAdd = store.add({
+      kind: 'file',
+      data: 'LARGE_ENOUGH_TO_SPOOL',
+      meta: { filename: 'race.txt' },
+    });
+    store.clear();
+    await pendingAdd;
+    expect(store.list()).toEqual([]);
+  });
 });
