@@ -380,6 +380,7 @@ export function ProjectLiveFleet({
                   edges={graph.edges}
                   fitView
                   fitViewOptions={{ maxZoom: 1 }}
+                  proOptions={{ hideAttribution: true }}
                   minZoom={0.1}
                   nodesDraggable={false}
                   nodesConnectable={false}

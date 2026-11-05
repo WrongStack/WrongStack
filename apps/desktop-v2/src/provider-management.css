@@ -34,9 +34,12 @@
   font-size: 12px;
   line-height: 1.6;
 }
-.saved-provider-list .provider-management-confirm button {
+.saved-provider-list .provider-management-confirm button,
+.saved-provider-list .provider-probe button {
   width: auto;
   display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .provider-probe {
   display: flex;

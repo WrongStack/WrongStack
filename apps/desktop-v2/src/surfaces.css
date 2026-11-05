@@ -24,6 +24,16 @@
 .ws-surfaces ::after {
   border-color: hsl(var(--border));
 }
+/* Tailwind's preflight (not loaded here) clears list markers; the shared surfaces' lists are
+   layouts (SAGE results, Kanban cleaner cards), which showed disc bullets. In the base layer,
+   so a surface's own `list-disc ml-4` still wins. */
+@layer base {
+  .ws-surfaces :where(ul, ol) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
 .ws-surfaces :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
@@ -63,7 +73,7 @@
    empty state ran over the file drawer. Switch by the surface's own width instead. Only
    around SAGE: a size container is also the containing block of fixed-position parts, and
    other surfaces have full-window modes. */
-.ws-surface-frame.is-fill:has(.ws-sage-columns) {
+.ws-surface-frame.is-fill:has([data-workbench-view="memory"]) {
   container-type: inline-size;
 }
 @container (max-width: 820px) {
@@ -77,6 +87,10 @@
   }
   .ws-surfaces .ws-sage-columns .ws-sage-back {
     display: inline-flex;
+  }
+  /* The tabs keep their names; the hints beside them cut off the last tab. */
+  .ws-surfaces [data-workbench-view="memory"] [role="tab"] > span + span {
+    display: none;
   }
 }
 

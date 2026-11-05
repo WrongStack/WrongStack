@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 import { Button } from '../ui/button';
 import { fetchRankedSagePage, type RankedSageHit, type RankedSagePage } from './rankedSearch.js';
+import { KIND_LABELS } from './shared';
 import type { SharedMemorySearch } from './sharedSearch.js';
 
 interface RankedSearchResultsProps {
@@ -163,12 +164,18 @@ export function RankedSearchResults({
               className="w-full px-3 py-2 text-left hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
               <span className="block truncate text-xs">{hit.text}</span>
-              <span className="text-[10px] text-muted-foreground">
-                SAGE · {hit.status} · {hit.kind} · {hit.matchReason} ·{' '}
-                {t('activity:sageText.rank', { score: hit.score.toFixed(3) })}
-                {hit.bm25 != null
-                  ? ` · ${t('activity:sageText.lexical', { score: hit.bm25.toFixed(3) })}`
-                  : ''}
+              <span
+                className="text-[10px] text-muted-foreground"
+                title={[
+                  hit.matchReason,
+                  t('activity:sageText.rank', { score: hit.score.toFixed(3) }),
+                  ...(hit.bm25 != null
+                    ? [t('activity:sageText.lexical', { score: hit.bm25.toFixed(3) })]
+                    : []),
+                ].join(' · ')}
+              >
+                {KIND_LABELS[hit.kind] ?? hit.kind} ·{' '}
+                <span className="capitalize">{hit.status}</span>
               </span>
             </button>
           </li>

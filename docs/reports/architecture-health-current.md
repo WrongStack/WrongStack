@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-05T15:40:40.230Z
+**Generated:** 2026-11-05T16:31:30.033Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6045 |
-| Production source lines | 1252171 |
+| Production source lines | 1252252 |
 | Test files | 5036 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17798 |
+| Relative module edges | 17799 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -101,9 +101,9 @@ None.
 | 933 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 849 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 851 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 815 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
-| 812 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 788 | `apps/desktop-v2/src/ProjectDesignStudio.tsx` |
 | 779 | `apps/desktop-v2/src/ProjectChimera.tsx` |

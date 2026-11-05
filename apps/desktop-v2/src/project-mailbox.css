@@ -155,14 +155,18 @@
 }
 .mailbox-message-tags {
   display: flex;
+  align-items: center;
+  align-self: start;
   gap: 6px;
   flex-wrap: wrap;
 }
 .mailbox-message-tags span {
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
   background: var(--sidebar);
 }
 .mailbox-message-meta {

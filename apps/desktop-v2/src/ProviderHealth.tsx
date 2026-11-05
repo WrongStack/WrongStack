@@ -384,7 +384,9 @@ export function ProviderHealth({ state, command }: { state: EngineState; command
           <article key={index}>
             <strong>
               {item['from'] && item['to']
-                ? `${words(item['from'])} → ${words(item['to'])}`
+                ? item['from'] === item['to']
+                  ? words(item['to'])
+                  : `${words(item['from'])} → ${words(item['to'])}`
                 : t('providerHealth.event')}
             </strong>
             <small>{date(item['ts'], false, missing)}</small>

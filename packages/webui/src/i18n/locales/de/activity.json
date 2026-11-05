@@ -5420,6 +5420,13 @@
     "boundaryLineAccess": "Grenzzeile {{line}} hat einen unbekannten Zugriff."
   },
   "codeMapText": {
+    "edgeKind": {
+      "call": "Aufruf",
+      "import": "Import",
+      "type_ref": "Typverweis",
+      "inherit": "Erbt",
+      "implement": "Implementiert"
+    },
     "via": "über {{tool}}",
     "eventsNewest": "{{count}} Ereignisse · neueste zuerst",
     "total": "{{count}} gesamt",

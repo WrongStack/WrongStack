@@ -30,7 +30,7 @@ export function ProviderOAuth({
     invalid: t('providerSettings.oauth.aliasInvalid'),
     exists: t('providerSettings.oauth.aliasExists'),
   };
-  const [strategies, setStrategies] = useState<Record<string, unknown>[]>([]),
+  const [strategies, setStrategies] = useState<Record<string, unknown>[] | null>(null),
     [saved, setSaved] = useState<Record<string, unknown>[]>([]);
   const [kind, setKind] = useState(''),
     [mode, setMode] = useState('default'),
@@ -61,7 +61,9 @@ export function ProviderOAuth({
         setSaved(entries(accounts['providers']));
       })
       .catch((error) => {
-        if (mounted.current) setError(String(error));
+        if (!mounted.current) return;
+        setStrategies([]);
+        setError(String(error));
       });
     return () => {
       mounted.current = false;
@@ -94,7 +96,7 @@ export function ProviderOAuth({
         if (mounted.current && live.current?.attemptId === id) setError(String(error));
       });
   }, [attempt, command, send, t]);
-  const strategy = strategies.find((item) => item['id'] === kind),
+  const strategy = strategies?.find((item) => item['id'] === kind),
     active = oauthActive(attempt);
   const target = mode === 'default' ? String(strategy?.['providerId'] ?? '') : alias.trim();
   const start = async () => {
@@ -202,7 +204,14 @@ export function ProviderOAuth({
               setError('');
             }}
           >
-            {strategies.map((item) => (
+            {!strategies?.length && (
+              <option value="">
+                {strategies
+                  ? t('providerSettings.oauth.noServices')
+                  : t('providerSettings.oauth.loadingServices')}
+              </option>
+            )}
+            {strategies?.map((item) => (
               <option key={String(item['id'])} value={String(item['id'])}>
                 {String(item['label'])}
               </option>

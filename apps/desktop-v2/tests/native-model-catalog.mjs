@@ -112,7 +112,7 @@ export async function exerciseNativeModelCatalog({ page, rpc, waitFor, artifactD
     await editor
       .getByLabel('Model reasoning replay field', { exact: true })
       .fill('reasoning_content');
-    await editor.getByLabel('Model catalog status', { exact: true }).fill('beta');
+    await editor.getByLabel('Model catalog status', { exact: true }).selectOption('beta');
     await editor.getByLabel('Model experimental status', { exact: true }).selectOption('false');
     await editor.getByLabel('Model SDK package', { exact: true }).fill('@ai-sdk/openai-compatible');
     await editor.getByLabel('Model API endpoint', { exact: true }).fill('http://127.0.0.1:9/v1');

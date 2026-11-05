@@ -108,5 +108,11 @@ describe('file failures in words', () => {
     expect(fileErrorText('The file changed on disk. Reload it first.', t)).toBe(
       'The file changed on disk. Reload it first.',
     );
+    expect(
+      fileErrorText('Local draft was not saved: Error: DRAFT_CONFLICT: Another window…', t),
+    ).toBe('fileView.draftConflict:');
+    expect(fileErrorText('Local draft was not saved: Error: Disk full.', t)).toBe(
+      'Local draft was not saved: Disk full.',
+    );
   });
 });

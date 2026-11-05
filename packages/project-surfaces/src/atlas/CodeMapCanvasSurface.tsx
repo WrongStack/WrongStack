@@ -132,11 +132,12 @@ export function CodeMapCanvasSurface({
           )}
         </ReactFlow>
       )}
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 flex max-w-[calc(100%-24px)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border bg-card/90 px-3 py-1.5 font-mono text-[8px] text-muted-foreground shadow backdrop-blur">
+      {/* Between the zoom controls (bottom left) and the minimap (bottom right). */}
+      <div className="pointer-events-none absolute bottom-3 left-14 right-[204px] z-10 mx-auto flex w-fit flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border bg-card/90 px-3 py-1.5 text-[10px] text-muted-foreground shadow backdrop-blur">
         {(Object.entries(EDGE_COLOR) as [GraphRefType, string][]).map(([kind, color]) => (
           <span key={kind} className="flex items-center gap-1">
             <span className="h-0.5 w-3" style={{ backgroundColor: color }} />
-            {kind.replace('_', ' ')}
+            {t(`activity:codeMapText.edgeKind.${kind}`, { defaultValue: kind.replace('_', ' ') })}
           </span>
         ))}
         <span className="flex items-center gap-1 text-primary" data-testid="agent-trail-count">

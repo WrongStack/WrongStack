@@ -5420,6 +5420,13 @@
     "boundaryLineAccess": "Sınır satırı {{line}} bilinmeyen bir erişim içeriyor."
   },
   "codeMapText": {
+    "edgeKind": {
+      "call": "Çağrı",
+      "import": "İçe aktarma",
+      "type_ref": "Tür başvurusu",
+      "inherit": "Kalıtım",
+      "implement": "Uygulama"
+    },
     "via": "{{tool}} ile",
     "eventsNewest": "{{count}} olay · en yenisi önce",
     "total": "toplam {{count}}",

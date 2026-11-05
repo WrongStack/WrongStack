@@ -48,16 +48,18 @@ export function GraphCanvas({
     const right = Math.max(...nodes.map((node) => node.x)) + 115;
     const top = Math.min(...nodes.map((node) => node.y)) - 60;
     const bottom = Math.max(...nodes.map((node) => node.y)) + 60;
+    // The overview sits over the map's lower-left corner: fit the graph above it.
+    const height = box.height - (minimap ? 116 : 0);
     const zoom = Math.max(
       0.03,
-      Math.min(1, Math.min((box.width - 60) / (right - left), (box.height - 80) / (bottom - top))),
+      Math.min(1, Math.min((box.width - 60) / (right - left), (height - 80) / (bottom - top))),
     );
     setCamera({
       x: box.width / 2 - ((left + right) / 2) * zoom,
-      y: box.height / 2 - ((top + bottom) / 2) * zoom,
+      y: height / 2 - ((top + bottom) / 2) * zoom,
       zoom,
     });
-  }, [nodes]);
+  }, [nodes, minimap]);
   useEffect(() => {
     const observer = new ResizeObserver(fit);
     if (surface.current) observer.observe(surface.current);

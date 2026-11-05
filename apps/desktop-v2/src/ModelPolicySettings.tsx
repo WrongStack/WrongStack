@@ -407,12 +407,14 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
             </header>
             <div className="policy-field-grid">
               <ModelReference
-                label={t('modelPolicy.routeModel', { id })}
+                label={t('modelPolicy.field.model')}
+                name={t('modelPolicy.routeModel', { id })}
                 value={modelRef(entry)}
                 onChange={(v) => update(id, modelRefPatch(entry, v))}
               />
               <ProfileSelect
-                label={t('modelPolicy.routeFallback', { id })}
+                label={t('modelPolicy.field.fallback')}
+                name={t('modelPolicy.routeFallback', { id })}
                 value={entry['fallbackProfile']}
                 profiles={profiles}
                 onChange={(v) => update(id, optional(entry, 'fallbackProfile', v))}
@@ -420,7 +422,7 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
             </div>
             <div className="policy-field-grid">
               <label>
-                {t('modelPolicy.reasoning', { id })}
+                {t('modelPolicy.field.reasoning')}
                 <select
                   aria-label={t('modelPolicy.reasoning', { id })}
                   value={String(r['mode'] ?? '')}
@@ -428,13 +430,13 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
                 >
                   {['', 'auto', 'on', 'off'].map((v) => (
                     <option key={v} value={v}>
-                      {v || t('modelPolicy.inherit')}
+                      {v ? t(`options.${v}`) : t('modelPolicy.inherit')}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                {t('modelPolicy.effort', { id })}
+                {t('modelPolicy.field.effort')}
                 <select
                   aria-label={t('modelPolicy.effort', { id })}
                   value={String(r['effort'] ?? '')}
@@ -442,13 +444,13 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
                 >
                   {['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].map((v) => (
                     <option key={v} value={v}>
-                      {v || t('modelPolicy.inherit')}
+                      {v ? t(`options.${v}`) : t('modelPolicy.inherit')}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                {t('modelPolicy.preserve', { id })}
+                {t('modelPolicy.field.preserve')}
                 <select
                   aria-label={t('modelPolicy.preserve', { id })}
                   value={r['preserve'] === undefined ? '' : String(r['preserve'])}

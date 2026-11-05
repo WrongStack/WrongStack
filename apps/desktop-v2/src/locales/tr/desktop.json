@@ -1112,6 +1112,7 @@
     "attachTitle": "Görsel ya da PDF ekle · yapıştırmak ya da bırakmak da olur"
   },
   "fileView": {
+    "draftConflict": "Bu dosya taslağı başka bir pencerede değişti. Devam etmeden önce iki sürümü karşılaştırın; düzenleyicinizdeki metin korunur.",
     "missingOnDisk": "“{{name}}” artık diskte yok. WrongStack dışında taşınmış ya da silinmiş olabilir.",
     "deniedOnDisk": "WrongStack’in “{{name}}” dosyasını açma izni yok. Dosyanın izinlerini denetleyin.",
     "busyOnDisk": "“{{name}}” başka bir program tarafından kullanılıyor. Orada kapatıp yeniden deneyin.",
@@ -1617,7 +1618,7 @@
     "instructionCopied": "Talimat kopyalandı.",
     "createMissing": "Bir ad, amaç ve en az bir görev türü gir.",
     "label": "Proje ajan kadrosu",
-    "title": "Ajan kadrosu",
+    "title": "Ajan Kadrosu",
     "intro": "Rol kimlikleri, proje çalışma politikası ve biriken öğrenme. Bu katalog motorun kullanabildiği ajanları tanımlar.",
     "refresh": "Kadroyu yenile",
     "create": "Proje rolü oluştur",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "planlanıyor",
-      "running": "çalışıyor",
-      "paused": "duraklatıldı",
-      "stopped": "durduruldu",
-      "completed": "tamamlandı",
-      "failed": "başarısız",
-      "pending": "bekliyor",
-      "ready": "hazır",
-      "skipped": "atlandı",
-      "in_progress": "sürüyor",
-      "blocked": "engellendi",
-      "review": "incelemede",
-      "passed": "geçti",
-      "not_run": "çalıştırılmadı",
-      "unknown": "bilinmiyor"
+      "planning": "Planlanıyor",
+      "running": "Çalışıyor",
+      "paused": "Duraklatıldı",
+      "stopped": "Durduruldu",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "pending": "Bekliyor",
+      "ready": "Hazır",
+      "skipped": "Atlandı",
+      "in_progress": "Sürüyor",
+      "blocked": "Engellendi",
+      "review": "İncelemede",
+      "passed": "Geçti",
+      "not_run": "Çalıştırılmadı",
+      "unknown": "Bilinmiyor"
     },
     "priority": {
       "critical": "kritik",
@@ -3075,7 +3076,7 @@
     "modelId": "Model kimliği",
     "modelIdLabel": "Model tanımı kimliği",
     "limitsPricing": "Sınırlar ve fiyatlandırma",
-    "structured": "Yapılandırılmış tarife aşağıda korunuyor",
+    "structured": "Aşağıdaki kademelerde",
     "inheritUnspecified": "Devral / belirtilmemiş",
     "modalities": "Türler",
     "modalitiesHelp": "Virgülle ayrılmış değerler, örneğin text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Model tanımını kaydet"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Devral",
+      "alpha": "Alfa",
+      "beta": "Beta",
+      "deprecated": "Kullanımdan kaldırıldı"
+    },
     "mode": {
-      "enabled": "açık",
-      "disabled": "kapalı",
-      "adaptive": "uyarlanabilir",
-      "always_on": "her zaman açık",
-      "unsupported": "desteklenmiyor",
-      "optional": "isteğe bağlı"
+      "enabled": "Açık",
+      "disabled": "Kapalı",
+      "adaptive": "Uyarlanabilir",
+      "always_on": "Her zaman açık",
+      "unsupported": "Desteklenmiyor",
+      "optional": "İsteğe bağlı"
     },
     "title": "Gelişmiş model davranışı",
     "intro": "Bu modelin katalog yeteneklerini tanımla. Bu ayarlar süren bir konuşmanın çabasını değiştirmez. Düzenlenmeyen şema alanları korunur.",
@@ -3719,6 +3726,11 @@
     "restored": "Bu cihazda saklanan kaydedilmemiş tasarım düzenlemeleri geri yüklendi."
   },
   "mailboxPage": {
+    "conversationCount_one": "Bu konuşmada {{count}} yüklü mesaj",
+    "messageCount_one": "{{count}} mesaj",
+    "messageCount": "{{count}} mesaj",
+    "threadCount_one": "{{count}} konuşma",
+    "threadCount": "{{count}} konuşma",
     "label": "Proje posta kutusu",
     "eyebrow": "EKİBİ BAĞLAMDA TUT",
     "title": "Posta kutusu",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "Arama ve konuşma gruplama yüklenen son pencereyi kapsar.",
     "search": "Yüklenen mesajlarda ara",
     "searchLabel": "Posta kutusu mesajlarında ara",
-    "loadedCount": "{{messages}} mesaj · {{threads}} konuşma",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Yükleniyor…",
     "loadOlder": "Daha eski mesajları yükle",
     "loading": "Yazışmalar yükleniyor…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "Hiçbir okuyucu okumadı",
     "threadOne": "{{n}} mesaj · {{time}}",
     "threadMany": "{{n}} mesaj · {{time}}",
-    "conversationCount": "Bu konuşmada {{n}} yüklü mesaj",
+    "conversationCount": "Bu konuşmada {{count}} yüklü mesaj",
     "missingParent": "Önceki üst mesaj yüklenen pencerenin dışında.",
     "audience": "Hedef kitle: {{audience}}",
     "audienceAll": "Tüm uygun alıcılar",
@@ -3836,20 +3848,20 @@
     "reviewMaintenance": "Posta kutusu bakımını gözden geçir",
     "maintenanceWarning": "Bu, yalnızca seçili konuşmaya değil, tüm proje posta kutusuna uygulanır.",
     "type": {
-      "note": "not",
-      "ask": "soru",
-      "assign": "görev ata",
-      "steer": "yönlendir",
-      "btw": "ara not",
-      "broadcast": "yayın",
-      "status": "durum",
-      "result": "sonuç",
-      "review": "inceleme"
+      "note": "Not",
+      "ask": "Soru",
+      "assign": "Görev ata",
+      "steer": "Yönlendir",
+      "btw": "Ara not",
+      "broadcast": "Yayın",
+      "status": "Durum",
+      "result": "Sonuç",
+      "review": "İnceleme"
     },
     "priority": {
-      "low": "düşük",
-      "normal": "normal",
-      "high": "yüksek"
+      "low": "Düşük",
+      "normal": "Normal",
+      "high": "Yüksek"
     },
     "compose": {
       "eyebrow": "PROJE POSTA KUTUSU",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Sağlayıcıyı kaydet ve kullan",
     "saveKey": "API anahtarını kaydet",
     "oauth": {
+      "noServices": "Kullanılabilir oturum açma hizmeti yok",
+      "loadingServices": "Oturum açma hizmetleri yükleniyor…",
       "unverified": "Giriş tamamlandı ama kayıtlı abonelik kimlik bilgisi doğrulanamadı. Yeniden denemeden önce bağlantıları yenile.",
       "signedIn": "Giriş yapıldı ve doğrulandı: {{account}}. Hazır olduğunda modelini seç.",
       "cancelledNotice": "Giriş iptal edildi. Kayıtlı bağlantılar korundu.",
@@ -4982,6 +4996,7 @@
       "noMatches": "Bu aramayla eşleşen saklı konuşma metni yok."
     },
     "usage": {
+      "notRecorded": "Kaydedilmedi",
       "title": "Kayıtlı kullanım",
       "help": "Her konuşmanın kaydettiği tokenlar, en son kullandığı sağlayıcı ve modele göre gruplanır. Fiyatlar burada hesaplanmaz.",
       "scopeLegend": "Sayılacak konuşmalar",
@@ -5289,7 +5304,7 @@
     "confirm": "Oturum isteğini onayla",
     "changed": "Seçilen çalışma zamanı değişti veya kapandı. İstek gönderilmedi.",
     "badReceipt": "Motor tanınmayan bir teslim makbuzu döndürdü. Yeniden denemeden önce yenile.",
-    "delivered": "İstek oturum posta kutusuna teslim edildi · makbuz {{id}}. Yürütme veya kesme yalnızca teslimle doğrulanmaz.",
+    "delivered": "İstek oturum posta kutusuna teslim edildi. Yürütme veya kesme yalnızca teslimle doğrulanmaz.",
     "invalid": {
       "catalog": "Motor canlı oturum kataloğu döndürmedi.",
       "records": "Motor bozuk oturum kayıtları döndürdü.",
@@ -7006,6 +7021,10 @@
     "save": "Genel talimatları kaydet"
   },
   "networkPolicy": {
+    "saved": "İzin verilen kaynaklar bu proje için kaydedildi.",
+    "installed": "Chromium kuruldu ve hazır.",
+    "missing": "Chromium henüz kurulu değil. Ajanın tarayıcısı ilk kullanımda kurar; şimdi de kurabilirsiniz.",
+    "ready": "Ajanın tarayıcısı için Chromium kurulu.",
     "title": "Tarayıcı ve ağ erişimi",
     "intro": "Ajanın tarayıcısının, fetch ve URL okumalarının bu projede erişebileceği özel kaynaklar (yerel geliştirme sunucusu, loopback portları). Herkese açık siteler etkilenmez.",
     "none": "Hiçbir özel kaynağa izin verilmiyor.",
@@ -7378,6 +7397,13 @@
     "apply": "Ayar taslağına uygula"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Model",
+      "fallback": "Yedek profil",
+      "reasoning": "Akıl yürütme",
+      "effort": "Çaba",
+      "preserve": "Akıl yürütmeyi koru"
+    },
     "catalogError": "Bazı model katalogları yüklenemedi. Kayıtlı model referansları düzenlenebilir kalır.",
     "refPlaceholder": "sağlayıcı/model · ya da devral",
     "chainCount": "{{number}} model · sırayla denenir",

@@ -170,7 +170,7 @@ export function MergeConflictReview({
               <div className="merge-delete-choice">
                 <button
                   type="button"
-                  className="button danger"
+                  className="button secondary danger"
                   aria-pressed={choice === 'delete'}
                   disabled={busy}
                   onClick={() => setChoice('delete')}

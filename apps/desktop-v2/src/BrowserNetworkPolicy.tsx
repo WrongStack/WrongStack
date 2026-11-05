@@ -5,11 +5,23 @@ import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import './brain-policy.css';
 
+type BrowserPolicyState = {
+  setup: string;
+  /** Chromium ready, missing, or another line to show as it is. */
+  kind: 'ready' | 'missing' | 'other';
+  origins: string[];
+};
 /** Allowed private origins and the setup line from a `browser.policy.result` message. */
-export function browserPolicyState(message: string): { setup: string; origins: string[] } {
+export function browserPolicyState(message: string): BrowserPolicyState {
   const line = /Allowed private origins: (.*?)\.?$/m.exec(message)?.[1] ?? '';
+  const setup = message.split('\n')[0] ?? '';
   return {
-    setup: message.split('\n')[0] ?? '',
+    setup,
+    kind: /^Playwright Chromium is available/.test(setup)
+      ? 'ready'
+      : /^Chromium is missing/.test(setup)
+        ? 'missing'
+        : 'other',
     origins: line === '(none)' ? [] : line.split(', ').filter(Boolean),
   };
 }
@@ -21,7 +33,7 @@ export function browserPolicyState(message: string): { setup: string; origins: s
  */
 export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
   const { t } = useDesktopText();
-  const [state, setState] = useState<{ setup: string; origins: string[] } | null>(null),
+  const [state, setState] = useState<BrowserPolicyState | null>(null),
     [origin, setOrigin] = useState(''),
     [busy, setBusy] = useState(''),
     [notice, setNotice] = useState(''),
@@ -41,10 +53,20 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
         );
         if (!args) setState(browserPolicyState(message));
         else {
-          setNotice(message);
+          setNotice(
+            message.startsWith('Chromium installed and ready')
+              ? t('networkPolicy.installed')
+              : message.startsWith('Network project policy saved')
+                ? t('networkPolicy.saved')
+                : message,
+          );
           if (message.includes('Allowed private origins')) {
             const { origins } = browserPolicyState(message);
-            setState((current) => ({ setup: current?.setup ?? '', origins }));
+            setState((current) => ({
+              setup: current?.setup ?? '',
+              kind: current?.kind ?? 'other',
+              origins,
+            }));
           }
         }
         return true;
@@ -55,8 +77,9 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
         setBusy('');
       }
     },
-    [command],
+    [command, t],
   );
+  const setup = state?.kind ?? null;
   useEffect(() => {
     void run('', 'status');
   }, [run]);
@@ -66,7 +89,15 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
         <Globe size={14} /> {t('networkPolicy.title')}
       </h3>
       <p className="field-help">{t('networkPolicy.intro')}</p>
-      {state && <p>{state.setup}</p>}
+      {state && (
+        <p>
+          {setup === 'ready'
+            ? t('networkPolicy.ready')
+            : setup === 'missing'
+              ? t('networkPolicy.missing')
+              : state.setup}
+        </p>
+      )}
       {state && state.origins.length === 0 && <p>{t('networkPolicy.none')}</p>}
       {state && state.origins.length > 0 && (
         <ol className="brain-decision-log">
@@ -123,18 +154,20 @@ export function BrowserNetworkPolicy({ command }: { command: EngineCommand }) {
           >
             {t('networkPolicy.loopback')}
           </button>
-          <button
-            type="button"
-            className="button secondary small"
-            disabled={Boolean(busy)}
-            onClick={() =>
-              void run('install', 'install').then((ok) => {
-                if (ok) void run('', 'status');
-              })
-            }
-          >
-            {busy === 'install' ? t('networkPolicy.installing') : t('networkPolicy.install')}
-          </button>
+          {setup && setup !== 'ready' && (
+            <button
+              type="button"
+              className="button secondary small"
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void run('install', 'install').then((ok) => {
+                  if (ok) void run('', 'status');
+                })
+              }
+            >
+              {busy === 'install' ? t('networkPolicy.installing') : t('networkPolicy.install')}
+            </button>
+          )}
         </span>
       </form>
       {notice && <p role="status">{notice}</p>}

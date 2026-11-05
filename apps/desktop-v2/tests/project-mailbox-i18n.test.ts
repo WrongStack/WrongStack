@@ -89,10 +89,10 @@ describe('the project mailbox in the display language', () => {
       'KEEP THE TEAM IN CONTEXT',
       'Refresh mailbox',
       'All recent messages',
-      '1 messages · 1 conversations',
-      '1 loaded messages in this conversation',
-      'note',
-      'high',
+      '1 message · 1 conversation',
+      '1 loaded message in this conversation',
+      'Note',
+      'High',
       'Audience: Leaders only',
       'Mark read',
       'Registered agents (1)',
@@ -111,7 +111,7 @@ describe('the project mailbox in the display language', () => {
       'Tüm son mesajlar',
       '1 mesaj · 1 konuşma',
       'Bu konuşmada 1 yüklü mesaj',
-      'yüksek',
+      'Yüksek',
       'Hedef kitle: Yalnızca liderler',
       'Okundu işaretle',
       'Kayıtlı ajanlar (1)',
@@ -130,7 +130,7 @@ describe('the project mailbox in the display language', () => {
   it('shows the composer in English, then in Turkish', async () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(composer());
-    for (const text of ['PROJECT MAILBOX', 'Reply to message', 'Reply reference: m1', 'ask'])
+    for (const text of ['PROJECT MAILBOX', 'Reply to message', 'Reply reference: m1', 'Ask'])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
       expect.arrayContaining(['Mailbox recipient', 'Mailbox message type', 'Mailbox subject']),
@@ -138,7 +138,7 @@ describe('the project mailbox in the display language', () => {
 
     await surfaceI18n.changeLanguage('tr');
     page = await mount(composer());
-    for (const text of ['PROJE POSTA KUTUSU', 'Mesajı yanıtla', 'Yanıt referansı: m1', 'soru'])
+    for (const text of ['PROJE POSTA KUTUSU', 'Mesajı yanıtla', 'Yanıt referansı: m1', 'Soru'])
       expect(page.text).toContain(text);
     expect(page.labels).toEqual(
       expect.arrayContaining(['Posta kutusu alıcısı', 'Posta kutusu mesaj türü']),

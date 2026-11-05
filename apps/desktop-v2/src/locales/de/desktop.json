@@ -1112,6 +1112,7 @@
     "attachTitle": "Bilder oder PDFs anhängen · Einfügen oder Ablegen geht auch"
   },
   "fileView": {
+    "draftConflict": "Ein anderes Fenster hat diesen Dateientwurf geändert. Vergleichen Sie beide Versionen, bevor Sie fortfahren; Ihr Editortext bleibt erhalten.",
     "missingOnDisk": "„{{name}}“ ist nicht mehr auf dem Datenträger. Es wurde möglicherweise außerhalb von WrongStack verschoben oder gelöscht.",
     "deniedOnDisk": "WrongStack darf „{{name}}“ nicht öffnen. Prüfen Sie die Berechtigungen der Datei.",
     "busyOnDisk": "„{{name}}“ wird von einem anderen Programm verwendet. Schließen Sie es dort und versuchen Sie es erneut.",
@@ -1617,7 +1618,7 @@
     "instructionCopied": "Anweisung kopiert.",
     "createMissing": "Gib einen Namen, einen Zweck und mindestens einen Aufgabentyp ein.",
     "label": "Agentenbesetzung des Projekts",
-    "title": "Agentenbesetzung",
+    "title": "Agenten-Roster",
     "intro": "Rollenidentitäten, Laufzeitrichtlinie des Projekts und gesammeltes Lernen. Dieser Katalog beschreibt die Agenten, die der Engine zur Verfügung stehen.",
     "refresh": "Besetzung aktualisieren",
     "create": "Projektrolle anlegen",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "in Planung",
-      "running": "läuft",
-      "paused": "pausiert",
-      "stopped": "gestoppt",
-      "completed": "abgeschlossen",
-      "failed": "fehlgeschlagen",
-      "pending": "ausstehend",
-      "ready": "bereit",
-      "skipped": "übersprungen",
-      "in_progress": "in Arbeit",
-      "blocked": "blockiert",
-      "review": "in Prüfung",
-      "passed": "bestanden",
-      "not_run": "nicht ausgeführt",
-      "unknown": "unbekannt"
+      "planning": "In Planung",
+      "running": "Läuft",
+      "paused": "Pausiert",
+      "stopped": "Gestoppt",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "pending": "Ausstehend",
+      "ready": "Bereit",
+      "skipped": "Übersprungen",
+      "in_progress": "In Arbeit",
+      "blocked": "Blockiert",
+      "review": "In Prüfung",
+      "passed": "Bestanden",
+      "not_run": "Nicht ausgeführt",
+      "unknown": "Unbekannt"
     },
     "priority": {
       "critical": "kritisch",
@@ -3075,7 +3076,7 @@
     "modelId": "Modell-ID",
     "modelIdLabel": "ID der Modelldefinition",
     "limitsPricing": "Limits und Preise",
-    "structured": "Strukturierter Tarif bleibt unten erhalten",
+    "structured": "Siehe Preisstufen unten",
     "inheritUnspecified": "Übernehmen / nicht angegeben",
     "modalities": "Modalitäten",
     "modalitiesHelp": "Durch Kommas getrennte Werte, zum Beispiel text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Modelldefinition speichern"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Übernehmen",
+      "alpha": "Alpha",
+      "beta": "Beta",
+      "deprecated": "Veraltet"
+    },
     "mode": {
-      "enabled": "aktiviert",
-      "disabled": "deaktiviert",
-      "adaptive": "adaptiv",
-      "always_on": "immer an",
-      "unsupported": "nicht unterstützt",
-      "optional": "optional"
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert",
+      "adaptive": "Adaptiv",
+      "always_on": "Immer an",
+      "unsupported": "Nicht unterstützt",
+      "optional": "Optional"
     },
     "title": "Erweitertes Modellverhalten",
     "intro": "Beschreibe die Katalogfähigkeiten dieses Modells. Diese Einstellungen ändern den Aufwand einer bereits laufenden Unterhaltung nicht. Nicht bearbeitete Schemafelder bleiben erhalten.",
@@ -3719,6 +3726,11 @@
     "restored": "Auf diesem Gerät abgelegte, nicht gespeicherte Designänderungen wiederhergestellt."
   },
   "mailboxPage": {
+    "conversationCount_one": "{{count}} geladene Nachricht in dieser Unterhaltung",
+    "messageCount_one": "{{count}} Nachricht",
+    "messageCount": "{{count}} Nachrichten",
+    "threadCount_one": "{{count}} Unterhaltung",
+    "threadCount": "{{count}} Unterhaltungen",
     "label": "Projektpostfach",
     "eyebrow": "HALTE DAS TEAM AUF DEM LAUFENDEN",
     "title": "Postfach",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "Suche und Gruppierung nach Unterhaltungen umfassen das geladene aktuelle Fenster.",
     "search": "Geladene Nachrichten durchsuchen",
     "searchLabel": "Postfachnachrichten durchsuchen",
-    "loadedCount": "{{messages}} Nachrichten · {{threads}} Unterhaltungen",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Wird geladen…",
     "loadOlder": "Ältere Nachrichten laden",
     "loading": "Korrespondenz wird geladen…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "Für alle Leser ungelesen",
     "threadOne": "{{n}} Nachricht · {{time}}",
     "threadMany": "{{n}} Nachrichten · {{time}}",
-    "conversationCount": "{{n}} geladene Nachrichten in dieser Unterhaltung",
+    "conversationCount": "{{count}} geladene Nachrichten in dieser Unterhaltung",
     "missingParent": "Die frühere übergeordnete Nachricht liegt außerhalb des geladenen Fensters.",
     "audience": "Zielgruppe: {{audience}}",
     "audienceAll": "Alle berechtigten Empfänger",
@@ -3838,18 +3850,18 @@
     "type": {
       "note": "Notiz",
       "ask": "Frage",
-      "assign": "zuweisen",
-      "steer": "steuern",
-      "btw": "übrigens",
+      "assign": "Zuweisen",
+      "steer": "Steuern",
+      "btw": "Übrigens",
       "broadcast": "Rundruf",
       "status": "Status",
       "result": "Ergebnis",
       "review": "Review"
     },
     "priority": {
-      "low": "niedrig",
-      "normal": "normal",
-      "high": "hoch"
+      "low": "Niedrig",
+      "normal": "Normal",
+      "high": "Hoch"
     },
     "compose": {
       "eyebrow": "PROJEKTPOSTFACH",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Anbieter speichern und verwenden",
     "saveKey": "API-Schlüssel speichern",
     "oauth": {
+      "noServices": "Keine Anmeldedienste verfügbar",
+      "loadingServices": "Anmeldedienste werden geladen…",
       "unverified": "Die Anmeldung ist abgeschlossen, aber die gespeicherten Abo-Zugangsdaten konnten nicht geprüft werden. Aktualisiere die Verbindungen, bevor du es erneut versuchst.",
       "signedIn": "Angemeldet und geprüft: {{account}}. Wähle sein Modell, wenn du bereit bist.",
       "cancelledNotice": "Anmeldung abgebrochen. Gespeicherte Verbindungen bleiben erhalten.",
@@ -4982,6 +4996,7 @@
       "noMatches": "Kein gespeicherter Unterhaltungstext passt zu dieser Suche."
     },
     "usage": {
+      "notRecorded": "Nicht erfasst",
       "title": "Aufgezeichnete Nutzung",
       "help": "Von jeder Unterhaltung aufgezeichnete Tokens, gruppiert nach dem zuletzt genutzten Anbieter und Modell. Preise werden hier nicht abgeleitet.",
       "scopeLegend": "Zu zählende Unterhaltungen",
@@ -5289,7 +5304,7 @@
     "confirm": "Sitzungsanfrage bestätigen",
     "changed": "Die ausgewählte Laufzeit hat sich geändert oder wurde beendet. Es wurde keine Anfrage gesendet.",
     "badReceipt": "Die Engine hat eine unbekannte Zustellbestätigung zurückgegeben. Aktualisiere vor einem neuen Versuch.",
-    "delivered": "Anfrage an das Sitzungspostfach zugestellt · Beleg {{id}}. Ausführung oder Unterbrechung ist durch die Zustellung allein nicht bestätigt.",
+    "delivered": "Anfrage an das Sitzungspostfach zugestellt. Ausführung oder Unterbrechung ist durch die Zustellung allein nicht bestätigt.",
     "invalid": {
       "catalog": "Die Engine hat keinen Live-Sitzungskatalog zurückgegeben.",
       "records": "Die Engine hat fehlerhafte Sitzungseinträge zurückgegeben.",
@@ -7006,6 +7021,10 @@
     "save": "Globale Anweisungen speichern"
   },
   "networkPolicy": {
+    "saved": "Erlaubte Ursprünge für dieses Projekt gespeichert.",
+    "installed": "Chromium ist installiert und bereit.",
+    "missing": "Chromium ist noch nicht installiert. Der Browser des Agenten installiert es bei der ersten Nutzung, oder installieren Sie es jetzt.",
+    "ready": "Chromium ist für den Browser des Agenten installiert.",
     "title": "Browser- und Netzwerkzugriff",
     "intro": "Private Ursprünge (ein lokaler Entwicklungsserver, Loopback-Ports), die Browser, Fetch und URL-Lesezugriffe des Agenten in diesem Projekt erreichen dürfen. Öffentliche Websites sind nicht betroffen.",
     "none": "Keine privaten Ursprünge erlaubt.",
@@ -7378,6 +7397,13 @@
     "apply": "Auf den Einstellungsentwurf anwenden"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Modell",
+      "fallback": "Fallback-Profil",
+      "reasoning": "Schlussfolgern",
+      "effort": "Aufwand",
+      "preserve": "Schlussfolgern behalten"
+    },
     "catalogError": "Einige Modellkataloge konnten nicht geladen werden. Gespeicherte Modellverweise bleiben bearbeitbar.",
     "refPlaceholder": "Anbieter/Modell · oder erben",
     "chainCount": "{{number}} Modelle · der Reihe nach versucht",

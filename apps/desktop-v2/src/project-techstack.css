@@ -403,11 +403,16 @@
   border-radius: 10px;
 }
 .tech-trend-chart > div {
+  /* A few snapshots share the chart's width instead of crowding its left edge. */
+  flex: 1 1 44px;
   min-width: 44px;
+  max-width: 140px;
+  margin: 0 auto;
   text-align: center;
 }
 .tech-trend-chart > div > div {
   display: flex;
+  justify-content: center;
   gap: 3px;
   align-items: end;
   min-height: 150px;

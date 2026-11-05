@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T15:40:40.230Z",
+  "generatedAt": "2026-11-05T16:31:30.033Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 6045,
     "testFiles": 5036,
-    "sourceLines": 1252171,
+    "sourceLines": 1252252,
     "workspaceEdges": 243,
-    "moduleEdges": 17798,
+    "moduleEdges": 17799,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -34542,7 +34542,7 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 849,
+      "lines": 851,
       "relativeImports": 16
     },
     {
@@ -34587,7 +34587,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
-      "lines": 812,
+      "lines": 815,
       "relativeImports": 11
     },
     {
@@ -34679,18 +34679,18 @@
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
-      "lines": 849,
+      "lines": 851,
       "relativeImports": 16
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
+      "lines": 815,
+      "relativeImports": 11
     },
     {
       "file": "packages/vibeui/src/lib/session.ts",
       "lines": 815,
       "relativeImports": 5
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
-      "lines": 812,
-      "relativeImports": 11
     },
     {
       "file": "packages/vibeui/src/components/resource-hub.tsx",

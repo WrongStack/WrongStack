@@ -1112,6 +1112,7 @@
     "attachTitle": "Allega immagini o PDF · funziona anche incollare o trascinare"
   },
   "fileView": {
+    "draftConflict": "Un’altra finestra ha modificato questa bozza di file. Confronta le due versioni prima di continuare; il testo del tuo editor resta.",
     "missingOnDisk": "«{{name}}» non è più sul disco. Potrebbe essere stato spostato o eliminato fuori da WrongStack.",
     "deniedOnDisk": "WrongStack non ha il permesso di aprire «{{name}}». Controlla i permessi del file.",
     "busyOnDisk": "«{{name}}» è in uso da un altro programma. Chiudilo lì e riprova.",
@@ -1617,7 +1618,7 @@
     "instructionCopied": "Istruzione copiata.",
     "createMissing": "Inserisci un nome, uno scopo e almeno un tipo di attività.",
     "label": "Organico degli agenti del progetto",
-    "title": "Organico degli agenti",
+    "title": "Roster agenti",
     "intro": "Identità dei ruoli, policy di runtime del progetto e apprendimento accumulato. Questo catalogo descrive gli agenti disponibili per il motore.",
     "refresh": "Aggiorna l'organico",
     "create": "Crea un ruolo di progetto",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "in pianificazione",
-      "running": "in esecuzione",
-      "paused": "in pausa",
-      "stopped": "fermato",
-      "completed": "completato",
-      "failed": "non riuscito",
-      "pending": "in attesa",
-      "ready": "pronto",
-      "skipped": "saltato",
-      "in_progress": "in corso",
-      "blocked": "bloccato",
-      "review": "in revisione",
-      "passed": "superato",
-      "not_run": "non eseguito",
-      "unknown": "sconosciuto"
+      "planning": "In pianificazione",
+      "running": "In esecuzione",
+      "paused": "In pausa",
+      "stopped": "Fermato",
+      "completed": "Completato",
+      "failed": "Non riuscito",
+      "pending": "In attesa",
+      "ready": "Pronto",
+      "skipped": "Saltato",
+      "in_progress": "In corso",
+      "blocked": "Bloccato",
+      "review": "In revisione",
+      "passed": "Superato",
+      "not_run": "Non eseguito",
+      "unknown": "Sconosciuto"
     },
     "priority": {
       "critical": "critica",
@@ -3075,7 +3076,7 @@
     "modelId": "ID del modello",
     "modelIdLabel": "ID della definizione del modello",
     "limitsPricing": "Limiti e prezzi",
-    "structured": "Tariffa strutturata conservata qui sotto",
+    "structured": "Vedi livelli sotto",
     "inheritUnspecified": "Eredita / non specificato",
     "modalities": "Modalità",
     "modalitiesHelp": "Valori separati da virgole, ad esempio text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Salva la definizione del modello"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Eredita",
+      "alpha": "Alpha",
+      "beta": "Beta",
+      "deprecated": "Deprecato"
+    },
     "mode": {
-      "enabled": "attivo",
-      "disabled": "disattivo",
-      "adaptive": "adattivo",
-      "always_on": "sempre attivo",
-      "unsupported": "non supportato",
-      "optional": "facoltativo"
+      "enabled": "Attivo",
+      "disabled": "Disattivo",
+      "adaptive": "Adattivo",
+      "always_on": "Sempre attivo",
+      "unsupported": "Non supportato",
+      "optional": "Facoltativo"
     },
     "title": "Comportamento avanzato del modello",
     "intro": "Descrivi le capacità di catalogo di questo modello. Queste impostazioni non cambiano l'impegno di una conversazione già in corso. I campi di schema non modificati vengono conservati.",
@@ -3719,6 +3726,11 @@
     "restored": "Ripristinate le modifiche al design non salvate conservate su questo dispositivo."
   },
   "mailboxPage": {
+    "conversationCount_one": "{{count}} messaggio caricato in questa conversazione",
+    "messageCount_one": "{{count}} messaggio",
+    "messageCount": "{{count}} messaggi",
+    "threadCount_one": "{{count}} conversazione",
+    "threadCount": "{{count}} conversazioni",
     "label": "Casella di posta del progetto",
     "eyebrow": "TIENI IL TEAM NEL CONTESTO",
     "title": "Casella di posta",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "La ricerca e il raggruppamento per conversazione coprono la finestra recente caricata.",
     "search": "Cerca nei messaggi caricati",
     "searchLabel": "Cerca nei messaggi della casella",
-    "loadedCount": "{{messages}} messaggi · {{threads}} conversazioni",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Caricamento…",
     "loadOlder": "Carica messaggi più vecchi",
     "loading": "Caricamento della corrispondenza…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "Non letto da tutti i lettori",
     "threadOne": "{{n}} messaggio · {{time}}",
     "threadMany": "{{n}} messaggi · {{time}}",
-    "conversationCount": "{{n}} messaggi caricati in questa conversazione",
+    "conversationCount": "{{count}} messaggi caricati in questa conversazione",
     "missingParent": "Il messaggio padre precedente è fuori dalla finestra caricata.",
     "audience": "Destinatari: {{audience}}",
     "audienceAll": "Tutti i destinatari idonei",
@@ -3836,20 +3848,20 @@
     "reviewMaintenance": "Rivedi la manutenzione della casella",
     "maintenanceWarning": "Questo si applicherà all’intera casella del progetto, non solo alla conversazione selezionata.",
     "type": {
-      "note": "nota",
-      "ask": "domanda",
-      "assign": "assegna",
-      "steer": "indirizza",
-      "btw": "a proposito",
-      "broadcast": "trasmissione",
-      "status": "stato",
-      "result": "risultato",
-      "review": "revisione"
+      "note": "Nota",
+      "ask": "Domanda",
+      "assign": "Assegna",
+      "steer": "Indirizza",
+      "btw": "A proposito",
+      "broadcast": "Trasmissione",
+      "status": "Stato",
+      "result": "Risultato",
+      "review": "Revisione"
     },
     "priority": {
-      "low": "bassa",
-      "normal": "normale",
-      "high": "alta"
+      "low": "Bassa",
+      "normal": "Normale",
+      "high": "Alta"
     },
     "compose": {
       "eyebrow": "CASELLA DEL PROGETTO",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Salva e usa il provider",
     "saveKey": "Salva la chiave API",
     "oauth": {
+      "noServices": "Nessun servizio di accesso disponibile",
+      "loadingServices": "Caricamento dei servizi di accesso…",
       "unverified": "L’accesso è completato, ma la credenziale dell’abbonamento salvata non è stata verificata. Aggiorna le connessioni prima di riprovare.",
       "signedIn": "Accesso eseguito e verificato: {{account}}. Scegli il modello quando sei pronto.",
       "cancelledNotice": "Accesso annullato. Le connessioni salvate sono state mantenute.",
@@ -4982,6 +4996,7 @@
       "noMatches": "Nessun testo di conversazione conservato corrisponde a questa ricerca."
     },
     "usage": {
+      "notRecorded": "Non registrato",
       "title": "Utilizzo registrato",
       "help": "Token registrati da ogni conversazione, raggruppati per l’ultimo provider e modello usati. I prezzi non vengono calcolati qui.",
       "scopeLegend": "Conversazioni da contare",
@@ -5289,7 +5304,7 @@
     "confirm": "Conferma la richiesta della sessione",
     "changed": "Il runtime selezionato è cambiato o è terminato. Nessuna richiesta è stata inviata.",
     "badReceipt": "Il motore ha restituito una ricevuta di consegna non riconosciuta. Aggiorna prima di riprovare.",
-    "delivered": "Richiesta consegnata alla casella della sessione · ricevuta {{id}}. La sola consegna non conferma l’esecuzione o l’interruzione.",
+    "delivered": "Richiesta consegnata alla casella della sessione. La sola consegna non conferma l’esecuzione o l’interruzione.",
     "invalid": {
       "catalog": "Il motore non ha restituito alcun catalogo di sessioni live.",
       "records": "Il motore ha restituito record di sessione non validi.",
@@ -7006,6 +7021,10 @@
     "save": "Salva le istruzioni globali"
   },
   "networkPolicy": {
+    "saved": "Origini consentite salvate per questo progetto.",
+    "installed": "Chromium è installato e pronto.",
+    "missing": "Chromium non è ancora installato. Il browser dell’agente lo installa al primo uso, oppure installalo ora.",
+    "ready": "Chromium è installato per il browser dell’agente.",
     "title": "Accesso a browser e rete",
     "intro": "Origini private (un server di sviluppo locale, porte di loopback) che browser, fetch e letture di URL dell’agente possono raggiungere in questo progetto. I siti pubblici non sono interessati.",
     "none": "Nessuna origine privata è consentita.",
@@ -7378,6 +7397,13 @@
     "apply": "Applica alla bozza delle impostazioni"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Modello",
+      "fallback": "Profilo di riserva",
+      "reasoning": "Ragionamento",
+      "effort": "Impegno",
+      "preserve": "Conserva il ragionamento"
+    },
     "catalogError": "Alcuni cataloghi di modelli non sono stati caricati. I riferimenti ai modelli salvati restano modificabili.",
     "refPlaceholder": "provider/modello · o eredita",
     "chainCount": "{{number}} modelli · provati in ordine",

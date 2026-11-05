@@ -5420,6 +5420,13 @@
     "boundaryLineAccess": "Boundary line {{line}} has unknown access."
   },
   "codeMapText": {
+    "edgeKind": {
+      "call": "Call",
+      "import": "Import",
+      "type_ref": "Type reference",
+      "inherit": "Inherits",
+      "implement": "Implements"
+    },
     "via": "via {{tool}}",
     "eventsNewest": "{{count}} events · newest first",
     "total": "{{count}} total",

@@ -63,9 +63,10 @@ describe('ranked SAGE discovery', () => {
       />,
     );
     await screen.findByText('Alpha decision');
-    expect(
-      screen.getByText(/SAGE · active · decision · lexical · rank 0.810 · lexical BM25 -3.200/),
-    ).toBeTruthy();
+    // The result names its kind and status; the scores stay in the tooltip.
+    expect(screen.getByTitle('lexical · rank 0.810 · lexical BM25 -3.200').textContent).toBe(
+      'Decision · active',
+    );
     fireEvent.click(screen.getByRole('button', { name: /Alpha decision/ }));
     expect(onOpen).toHaveBeenCalledWith('sage-1');
     fireEvent.click(screen.getByRole('button', { name: 'Load more ranked results' }));

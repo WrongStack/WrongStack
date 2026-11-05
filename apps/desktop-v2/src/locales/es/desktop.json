@@ -1112,6 +1112,7 @@
     "attachTitle": "Adjuntar imágenes o PDF · también puedes pegar o soltar"
   },
   "fileView": {
+    "draftConflict": "Otra ventana cambió este borrador de archivo. Compara las dos versiones antes de continuar; el texto de tu editor se conserva.",
     "missingOnDisk": "«{{name}}» ya no está en el disco. Puede que se haya movido o eliminado fuera de WrongStack.",
     "deniedOnDisk": "WrongStack no tiene permiso para abrir «{{name}}». Revisa los permisos del archivo.",
     "busyOnDisk": "«{{name}}» está en uso por otro programa. Ciérralo allí e inténtalo de nuevo.",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "planificando",
-      "running": "en ejecución",
-      "paused": "en pausa",
-      "stopped": "detenido",
-      "completed": "completado",
-      "failed": "fallido",
-      "pending": "pendiente",
-      "ready": "listo",
-      "skipped": "omitido",
-      "in_progress": "en curso",
-      "blocked": "bloqueado",
-      "review": "en revisión",
-      "passed": "superado",
-      "not_run": "no ejecutado",
-      "unknown": "desconocido"
+      "planning": "Planificando",
+      "running": "En ejecución",
+      "paused": "En pausa",
+      "stopped": "Detenido",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "pending": "Pendiente",
+      "ready": "Listo",
+      "skipped": "Omitido",
+      "in_progress": "En curso",
+      "blocked": "Bloqueado",
+      "review": "En revisión",
+      "passed": "Superado",
+      "not_run": "No ejecutado",
+      "unknown": "Desconocido"
     },
     "priority": {
       "critical": "crítica",
@@ -3075,7 +3076,7 @@
     "modelId": "ID del modelo",
     "modelIdLabel": "ID de la definición del modelo",
     "limitsPricing": "Límites y precios",
-    "structured": "Tarifa estructurada conservada abajo",
+    "structured": "Ver tramos abajo",
     "inheritUnspecified": "Heredar / sin especificar",
     "modalities": "Modalidades",
     "modalitiesHelp": "Valores separados por comas, por ejemplo text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Guardar la definición del modelo"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Heredar",
+      "alpha": "Alfa",
+      "beta": "Beta",
+      "deprecated": "Obsoleto"
+    },
     "mode": {
-      "enabled": "activado",
-      "disabled": "desactivado",
-      "adaptive": "adaptativo",
-      "always_on": "siempre activo",
-      "unsupported": "no compatible",
-      "optional": "opcional"
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "adaptive": "Adaptativo",
+      "always_on": "Siempre activo",
+      "unsupported": "No compatible",
+      "optional": "Opcional"
     },
     "title": "Comportamiento avanzado del modelo",
     "intro": "Describe las capacidades de catálogo de este modelo. Estos ajustes no cambian el esfuerzo de una conversación ya en curso. Se conservan los campos de esquema no editados.",
@@ -3719,6 +3726,11 @@
     "restored": "Se restauraron las ediciones de diseño sin guardar conservadas en este dispositivo."
   },
   "mailboxPage": {
+    "conversationCount_one": "{{count}} mensaje cargado en esta conversación",
+    "messageCount_one": "{{count}} mensaje",
+    "messageCount": "{{count}} mensajes",
+    "threadCount_one": "{{count}} conversación",
+    "threadCount": "{{count}} conversaciones",
     "label": "Buzón del proyecto",
     "eyebrow": "MANTÉN AL EQUIPO EN CONTEXTO",
     "title": "Buzón",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "La búsqueda y la agrupación por conversación abarcan la ventana reciente cargada.",
     "search": "Buscar en los mensajes cargados",
     "searchLabel": "Buscar mensajes del buzón",
-    "loadedCount": "{{messages}} mensajes · {{threads}} conversaciones",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Cargando…",
     "loadOlder": "Cargar mensajes más antiguos",
     "loading": "Cargando la correspondencia…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "No leído por ningún lector",
     "threadOne": "{{n}} mensaje · {{time}}",
     "threadMany": "{{n}} mensajes · {{time}}",
-    "conversationCount": "{{n}} mensajes cargados en esta conversación",
+    "conversationCount": "{{count}} mensajes cargados en esta conversación",
     "missingParent": "El mensaje padre anterior está fuera de la ventana cargada.",
     "audience": "Audiencia: {{audience}}",
     "audienceAll": "Todos los destinatarios aptos",
@@ -3836,20 +3848,20 @@
     "reviewMaintenance": "Revisar el mantenimiento del buzón",
     "maintenanceWarning": "Esto se aplicará a todo el buzón del proyecto, no solo a la conversación elegida.",
     "type": {
-      "note": "nota",
-      "ask": "pregunta",
-      "assign": "asignar",
-      "steer": "orientar",
-      "btw": "por cierto",
-      "broadcast": "difusión",
-      "status": "estado",
-      "result": "resultado",
-      "review": "revisión"
+      "note": "Nota",
+      "ask": "Pregunta",
+      "assign": "Asignar",
+      "steer": "Orientar",
+      "btw": "Por cierto",
+      "broadcast": "Difusión",
+      "status": "Estado",
+      "result": "Resultado",
+      "review": "Revisión"
     },
     "priority": {
-      "low": "baja",
-      "normal": "normal",
-      "high": "alta"
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta"
     },
     "compose": {
       "eyebrow": "BUZÓN DEL PROYECTO",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Guardar y usar el proveedor",
     "saveKey": "Guardar la clave de API",
     "oauth": {
+      "noServices": "No hay servicios de inicio de sesión",
+      "loadingServices": "Cargando servicios de inicio de sesión…",
       "unverified": "El inicio de sesión terminó, pero no se pudo verificar la credencial de suscripción guardada. Actualiza las conexiones antes de reintentar.",
       "signedIn": "Sesión iniciada y verificada: {{account}}. Elige su modelo cuando quieras.",
       "cancelledNotice": "Inicio de sesión cancelado. Se conservaron las conexiones guardadas.",
@@ -4982,6 +4996,7 @@
       "noMatches": "Ningún texto de conversación conservado coincide con esta búsqueda."
     },
     "usage": {
+      "notRecorded": "No registrado",
       "title": "Uso registrado",
       "help": "Tokens registrados por cada conversación, agrupados por el proveedor y el modelo que usó por última vez. Aquí no se calculan precios.",
       "scopeLegend": "Conversaciones que contar",
@@ -5289,7 +5304,7 @@
     "confirm": "Confirmar la solicitud de sesión",
     "changed": "El entorno de ejecución seleccionado cambió o terminó. No se envió ninguna solicitud.",
     "badReceipt": "El motor devolvió un comprobante de entrega no reconocido. Actualiza antes de reintentar.",
-    "delivered": "Solicitud entregada al buzón de la sesión · comprobante {{id}}. La entrega por sí sola no confirma la ejecución ni la interrupción.",
+    "delivered": "Solicitud entregada al buzón de la sesión. La entrega por sí sola no confirma la ejecución ni la interrupción.",
     "invalid": {
       "catalog": "El motor no devolvió ningún catálogo de sesiones en vivo.",
       "records": "El motor devolvió registros de sesión mal formados.",
@@ -7006,6 +7021,10 @@
     "save": "Guardar las instrucciones globales"
   },
   "networkPolicy": {
+    "saved": "Orígenes permitidos guardados para este proyecto.",
+    "installed": "Chromium está instalado y listo.",
+    "missing": "Chromium aún no está instalado. El navegador del agente lo instala en el primer uso, o puedes instalarlo ahora.",
+    "ready": "Chromium está instalado para el navegador del agente.",
     "title": "Acceso al navegador y a la red",
     "intro": "Orígenes privados (un servidor de desarrollo local, puertos de loopback) a los que pueden llegar el navegador, fetch y las lecturas de URL del agente en este proyecto. Los sitios públicos no se ven afectados.",
     "none": "No se permite ningún origen privado.",
@@ -7378,6 +7397,13 @@
     "apply": "Aplicar al borrador de ajustes"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Modelo",
+      "fallback": "Perfil de respaldo",
+      "reasoning": "Razonamiento",
+      "effort": "Esfuerzo",
+      "preserve": "Conservar el razonamiento"
+    },
     "catalogError": "Algunos catálogos de modelos no se pudieron cargar. Las referencias de modelos guardadas siguen siendo editables.",
     "refPlaceholder": "proveedor/modelo · o heredar",
     "chainCount": "{{number}} modelos · se prueban en orden",

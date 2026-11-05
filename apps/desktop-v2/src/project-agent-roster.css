@@ -78,6 +78,10 @@
   max-height: calc(100vh - 300px);
   overflow-y: auto;
   padding-right: 8px;
+  /* The role list stays in view while a long role page scrolls beside it. */
+  position: sticky;
+  top: 12px;
+  align-self: start;
 }
 .roster-catalog > label {
   display: grid;
@@ -628,11 +632,13 @@
     gap: 14px;
   }
 }
-@media (max-width: 700px) {
+/* The window less the sidebar: 900 px leaves about 650 px for the roster. */
+@media (max-width: 900px) {
   .roster-workbench {
     grid-template-columns: minmax(0, 1fr);
   }
   .roster-catalog {
+    position: static;
     max-height: 330px;
   }
   .roster-form-grid,

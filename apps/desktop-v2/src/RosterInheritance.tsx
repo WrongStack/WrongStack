@@ -110,6 +110,7 @@ export function RosterInheritance({
           minZoom={0.15}
           maxZoom={1.5}
           fitViewOptions={{ maxZoom: 1 }}
+          proOptions={{ hideAttribution: true }}
           nodesDraggable={false}
           nodesConnectable={false}
           onNodeClick={(_, node) => onSelect(node.id)}

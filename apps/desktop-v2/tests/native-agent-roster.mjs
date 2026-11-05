@@ -88,7 +88,7 @@ export async function exerciseNativeAgentRoster({
     await page.locator('.project-item').filter({ hasText: owner.name }).click();
     await revealProjectTools(page, owner);
     await openProjectView(page, owner, 'Agent Roster');
-    await page.getByRole('heading', { name: 'Agent roster', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Agent Roster', exact: true }).waitFor();
     await catalog().getByLabel('Search project agent roles', { exact: true }).fill('');
     await catalog().getByLabel('Agent role filter', { exact: true }).selectOption('all');
     await waitFor(

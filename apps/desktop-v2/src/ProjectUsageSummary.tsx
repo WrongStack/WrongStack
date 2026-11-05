@@ -206,8 +206,11 @@ export function ProjectUsageSummary({
               <tbody>
                 {usage.byModel.map((row) => (
                   <tr key={`${row.provider}/${row.model}`}>
-                    <td>{row.provider}</td>
-                    <td>{row.model}</td>
+                    {[row.provider, row.model].map((name, cell) => (
+                      <td key={cell}>
+                        {name === 'unknown' ? t('historyView.usage.notRecorded') : name}
+                      </td>
+                    ))}
                     <td>{row.sessions.toLocaleString()}</td>
                     <td>{row.tokenTotal.toLocaleString()}</td>
                   </tr>

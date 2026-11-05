@@ -1112,6 +1112,7 @@
     "attachTitle": "Joindre des images ou des PDF · coller ou déposer fonctionne aussi"
   },
   "fileView": {
+    "draftConflict": "Une autre fenêtre a modifié ce brouillon de fichier. Comparez les deux versions avant de continuer ; le texte de votre éditeur est conservé.",
     "missingOnDisk": "« {{name}} » n’est plus sur le disque. Il a peut-être été déplacé ou supprimé hors de WrongStack.",
     "deniedOnDisk": "WrongStack n’est pas autorisé à ouvrir « {{name}} ». Vérifiez les autorisations du fichier.",
     "busyOnDisk": "« {{name}} » est utilisé par un autre programme. Fermez-le et réessayez.",
@@ -1617,7 +1618,7 @@
     "instructionCopied": "Instruction copiée.",
     "createMissing": "Saisissez un nom, un objectif et au moins un type de tâche.",
     "label": "Équipe d'agents du projet",
-    "title": "Équipe d'agents",
+    "title": "Effectif d'agents",
     "intro": "Identités des rôles, politique d'exécution du projet et apprentissage accumulé. Ce catalogue décrit les agents disponibles pour le moteur.",
     "refresh": "Actualiser l'équipe",
     "create": "Créer un rôle de projet",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "en planification",
-      "running": "en cours",
-      "paused": "en pause",
-      "stopped": "arrêté",
-      "completed": "terminé",
-      "failed": "échoué",
-      "pending": "en attente",
-      "ready": "prêt",
-      "skipped": "ignoré",
-      "in_progress": "en cours",
-      "blocked": "bloqué",
-      "review": "en revue",
-      "passed": "réussi",
-      "not_run": "non exécuté",
-      "unknown": "inconnu"
+      "planning": "En planification",
+      "running": "En cours",
+      "paused": "En pause",
+      "stopped": "Arrêté",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "pending": "En attente",
+      "ready": "Prêt",
+      "skipped": "Ignoré",
+      "in_progress": "En cours",
+      "blocked": "Bloqué",
+      "review": "En revue",
+      "passed": "Réussi",
+      "not_run": "Non exécuté",
+      "unknown": "Inconnu"
     },
     "priority": {
       "critical": "critique",
@@ -3075,7 +3076,7 @@
     "modelId": "ID du modèle",
     "modelIdLabel": "ID de la définition du modèle",
     "limitsPricing": "Limites et tarifs",
-    "structured": "Barème structuré conservé ci-dessous",
+    "structured": "Voir paliers ci-dessous",
     "inheritUnspecified": "Hériter / non précisé",
     "modalities": "Modalités",
     "modalitiesHelp": "Valeurs séparées par des virgules, par exemple text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Enregistrer la définition du modèle"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Hériter",
+      "alpha": "Alpha",
+      "beta": "Bêta",
+      "deprecated": "Obsolète"
+    },
     "mode": {
-      "enabled": "activé",
-      "disabled": "désactivé",
-      "adaptive": "adaptatif",
-      "always_on": "toujours actif",
-      "unsupported": "non pris en charge",
-      "optional": "facultatif"
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "adaptive": "Adaptatif",
+      "always_on": "Toujours actif",
+      "unsupported": "Non pris en charge",
+      "optional": "Facultatif"
     },
     "title": "Comportement avancé du modèle",
     "intro": "Décrivez les capacités de ce modèle dans le catalogue. Ces paramètres ne changent pas l'effort d'une conversation déjà en cours. Les champs de schéma non modifiés sont conservés.",
@@ -3719,6 +3726,11 @@
     "restored": "Modifications de design non enregistrées conservées sur cet appareil restaurées."
   },
   "mailboxPage": {
+    "conversationCount_one": "{{count}} message chargé dans cette conversation",
+    "messageCount_one": "{{count}} message",
+    "messageCount": "{{count}} messages",
+    "threadCount_one": "{{count}} conversation",
+    "threadCount": "{{count}} conversations",
     "label": "Boîte aux lettres du projet",
     "eyebrow": "GARDEZ L’ÉQUIPE DANS LE CONTEXTE",
     "title": "Boîte aux lettres",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "La recherche et le regroupement par conversation portent sur la fenêtre récente chargée.",
     "search": "Rechercher dans les messages chargés",
     "searchLabel": "Rechercher dans les messages de la boîte",
-    "loadedCount": "{{messages}} messages · {{threads}} conversations",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Chargement…",
     "loadOlder": "Charger les messages plus anciens",
     "loading": "Chargement de la correspondance…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "Non lu par tous les lecteurs",
     "threadOne": "{{n}} message · {{time}}",
     "threadMany": "{{n}} messages · {{time}}",
-    "conversationCount": "{{n}} messages chargés dans cette conversation",
+    "conversationCount": "{{count}} messages chargés dans cette conversation",
     "missingParent": "Le message parent précédent est hors de la fenêtre chargée.",
     "audience": "Public : {{audience}}",
     "audienceAll": "Tous les destinataires admissibles",
@@ -3836,20 +3848,20 @@
     "reviewMaintenance": "Examiner la maintenance de la boîte aux lettres",
     "maintenanceWarning": "Cela s’appliquera à toute la boîte aux lettres du projet, pas seulement à la conversation choisie.",
     "type": {
-      "note": "note",
-      "ask": "question",
-      "assign": "assigner",
-      "steer": "orienter",
-      "btw": "au fait",
-      "broadcast": "diffusion",
-      "status": "état",
-      "result": "résultat",
-      "review": "revue"
+      "note": "Note",
+      "ask": "Question",
+      "assign": "Assigner",
+      "steer": "Orienter",
+      "btw": "Au fait",
+      "broadcast": "Diffusion",
+      "status": "État",
+      "result": "Résultat",
+      "review": "Revue"
     },
     "priority": {
-      "low": "basse",
-      "normal": "normale",
-      "high": "haute"
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute"
     },
     "compose": {
       "eyebrow": "BOÎTE AUX LETTRES DU PROJET",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Enregistrer et utiliser le fournisseur",
     "saveKey": "Enregistrer la clé d’API",
     "oauth": {
+      "noServices": "Aucun service de connexion disponible",
+      "loadingServices": "Chargement des services de connexion…",
       "unverified": "La connexion est terminée, mais l’identifiant d’abonnement enregistré n’a pas pu être vérifié. Actualisez les connexions avant de réessayer.",
       "signedIn": "Connecté et vérifié : {{account}}. Choisissez son modèle quand vous êtes prêt.",
       "cancelledNotice": "Connexion annulée. Les connexions enregistrées sont conservées.",
@@ -4982,6 +4996,7 @@
       "noMatches": "Aucun texte de conversation conservé ne correspond à cette recherche."
     },
     "usage": {
+      "notRecorded": "Non enregistré",
       "title": "Utilisation enregistrée",
       "help": "Jetons enregistrés par chaque conversation, regroupés selon le fournisseur et le modèle utilisés en dernier. Les prix ne sont pas calculés ici.",
       "scopeLegend": "Conversations à compter",
@@ -5289,7 +5304,7 @@
     "confirm": "Confirmer la demande de session",
     "changed": "Le runtime sélectionné a changé ou s’est arrêté. Aucune demande n’a été envoyée.",
     "badReceipt": "Le moteur a renvoyé un accusé de remise non reconnu. Actualisez avant de réessayer.",
-    "delivered": "Demande remise à la boîte aux lettres de la session · accusé {{id}}. La remise seule ne confirme ni l’exécution ni l’interruption.",
+    "delivered": "Demande remise à la boîte aux lettres de la session. La remise seule ne confirme ni l’exécution ni l’interruption.",
     "invalid": {
       "catalog": "Le moteur n’a renvoyé aucun catalogue de sessions en direct.",
       "records": "Le moteur a renvoyé des enregistrements de session mal formés.",
@@ -7006,6 +7021,10 @@
     "save": "Enregistrer les instructions globales"
   },
   "networkPolicy": {
+    "saved": "Origines autorisées enregistrées pour ce projet.",
+    "installed": "Chromium est installé et prêt.",
+    "missing": "Chromium n’est pas encore installé. Le navigateur de l’agent l’installe à la première utilisation, ou installez-le maintenant.",
+    "ready": "Chromium est installé pour le navigateur de l’agent.",
     "title": "Accès au navigateur et au réseau",
     "intro": "Origines privées (un serveur de développement local, des ports de bouclage) que le navigateur, fetch et les lectures d’URL de l’agent peuvent atteindre dans ce projet. Les sites publics ne sont pas concernés.",
     "none": "Aucune origine privée n’est autorisée.",
@@ -7378,6 +7397,13 @@
     "apply": "Appliquer au brouillon de réglages"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Modèle",
+      "fallback": "Profil de repli",
+      "reasoning": "Raisonnement",
+      "effort": "Effort",
+      "preserve": "Conserver le raisonnement"
+    },
     "catalogError": "Certains catalogues de modèles n’ont pas pu être chargés. Les références de modèles enregistrées restent modifiables.",
     "refPlaceholder": "fournisseur/modèle · ou hériter",
     "chainCount": "{{number}} modèles · essayés dans l’ordre",

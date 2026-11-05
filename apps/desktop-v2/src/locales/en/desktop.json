@@ -1112,6 +1112,7 @@
     "attachTitle": "Attach images or PDFs · paste or drop also works"
   },
   "fileView": {
+    "draftConflict": "Another window changed this file draft. Compare the two versions before continuing; your editor text is kept.",
     "missingOnDisk": "“{{name}}” is no longer on disk. It may have been moved or deleted outside WrongStack.",
     "deniedOnDisk": "WrongStack is not allowed to open “{{name}}”. Check the file’s permissions.",
     "busyOnDisk": "“{{name}}” is in use by another program. Close it there and try again.",
@@ -1617,7 +1618,7 @@
     "instructionCopied": "Instruction copied.",
     "createMissing": "Enter a name, purpose and at least one task type.",
     "label": "Project agent roster",
-    "title": "Agent roster",
+    "title": "Agent Roster",
     "intro": "Role identities, project runtime policy and accumulated learning. This catalog describes agents available to the engine.",
     "refresh": "Refresh roster",
     "create": "Create project role",
@@ -2708,21 +2709,21 @@
   },
   "goals": {
     "status": {
-      "planning": "planning",
-      "running": "running",
-      "paused": "paused",
-      "stopped": "stopped",
-      "completed": "completed",
-      "failed": "failed",
-      "pending": "pending",
-      "ready": "ready",
-      "skipped": "skipped",
-      "in_progress": "in progress",
-      "blocked": "blocked",
-      "review": "review",
-      "passed": "passed",
-      "not_run": "not run",
-      "unknown": "unknown"
+      "planning": "Planning",
+      "running": "Running",
+      "paused": "Paused",
+      "stopped": "Stopped",
+      "completed": "Completed",
+      "failed": "Failed",
+      "pending": "Pending",
+      "ready": "Ready",
+      "skipped": "Skipped",
+      "in_progress": "In progress",
+      "blocked": "Blocked",
+      "review": "Review",
+      "passed": "Passed",
+      "not_run": "Not run",
+      "unknown": "Unknown"
     },
     "priority": {
       "critical": "critical",
@@ -3075,7 +3076,7 @@
     "modelId": "Model ID",
     "modelIdLabel": "Model definition ID",
     "limitsPricing": "Limits and pricing",
-    "structured": "Structured schedule preserved below",
+    "structured": "See price tiers below",
     "inheritUnspecified": "Inherit / unspecified",
     "modalities": "Modalities",
     "modalitiesHelp": "Comma-separated values, for example text, image, audio, video, pdf.",
@@ -3087,13 +3088,19 @@
     "save": "Save model definition"
   },
   "modelAdvanced": {
+    "statusOption": {
+      "inherit": "Inherit",
+      "alpha": "Alpha",
+      "beta": "Beta",
+      "deprecated": "Deprecated"
+    },
     "mode": {
-      "enabled": "enabled",
-      "disabled": "disabled",
-      "adaptive": "adaptive",
-      "always_on": "always on",
-      "unsupported": "unsupported",
-      "optional": "optional"
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "adaptive": "Adaptive",
+      "always_on": "Always on",
+      "unsupported": "Unsupported",
+      "optional": "Optional"
     },
     "title": "Advanced model behavior",
     "intro": "Describe this model's catalog capabilities. These settings do not change the effort of an already running conversation. Unedited schema fields are preserved.",
@@ -3719,6 +3726,11 @@
     "restored": "Restored unsaved design edits kept on this device."
   },
   "mailboxPage": {
+    "conversationCount_one": "{{count}} loaded message in this conversation",
+    "messageCount_one": "{{count}} message",
+    "messageCount": "{{count}} messages",
+    "threadCount_one": "{{count}} conversation",
+    "threadCount": "{{count}} conversations",
     "label": "Project mailbox",
     "eyebrow": "KEEP THE TEAM IN CONTEXT",
     "title": "Mailbox",
@@ -3765,7 +3777,7 @@
     "scopeSearch": "Search and thread grouping cover the loaded recent window.",
     "search": "Search loaded messages",
     "searchLabel": "Search mailbox messages",
-    "loadedCount": "{{messages}} messages · {{threads}} conversations",
+    "loadedCount": "{{messages}} · {{threads}}",
     "loadingOlder": "Loading…",
     "loadOlder": "Load older messages",
     "loading": "Loading correspondence…",
@@ -3775,7 +3787,7 @@
     "unreadAll": "Unread to all readers",
     "threadOne": "{{n}} message · {{time}}",
     "threadMany": "{{n}} messages · {{time}}",
-    "conversationCount": "{{n}} loaded messages in this conversation",
+    "conversationCount": "{{count}} loaded messages in this conversation",
     "missingParent": "The earlier parent message is outside the loaded window.",
     "audience": "Audience: {{audience}}",
     "audienceAll": "All eligible recipients",
@@ -3836,20 +3848,20 @@
     "reviewMaintenance": "Review mailbox maintenance",
     "maintenanceWarning": "This will apply to the complete project mailbox, not only the selected conversation.",
     "type": {
-      "note": "note",
-      "ask": "ask",
-      "assign": "assign",
-      "steer": "steer",
-      "btw": "btw",
-      "broadcast": "broadcast",
-      "status": "status",
-      "result": "result",
-      "review": "review"
+      "note": "Note",
+      "ask": "Ask",
+      "assign": "Assign",
+      "steer": "Steer",
+      "btw": "BTW",
+      "broadcast": "Broadcast",
+      "status": "Status",
+      "result": "Result",
+      "review": "Review"
     },
     "priority": {
-      "low": "low",
-      "normal": "normal",
-      "high": "high"
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
     },
     "compose": {
       "eyebrow": "PROJECT MAILBOX",
@@ -4401,6 +4413,8 @@
     "saveAndUse": "Save and use provider",
     "saveKey": "Save API key",
     "oauth": {
+      "noServices": "No sign-in services available",
+      "loadingServices": "Loading sign-in services…",
       "unverified": "Sign-in completed, but its saved subscription credential could not be verified. Refresh connections before retrying.",
       "signedIn": "Signed in and verified: {{account}}. Choose its model when you are ready.",
       "cancelledNotice": "Sign-in cancelled. Saved connections were kept.",
@@ -4982,6 +4996,7 @@
       "noMatches": "No retained conversation text matches this search."
     },
     "usage": {
+      "notRecorded": "Not recorded",
       "title": "Recorded usage",
       "help": "Tokens recorded by each conversation, grouped by the provider and model it last used. Prices are not derived here.",
       "scopeLegend": "Conversations to count",
@@ -5289,7 +5304,7 @@
     "confirm": "Confirm session request",
     "changed": "The selected runtime changed or exited. No request was sent.",
     "badReceipt": "The engine returned an unrecognized delivery receipt. Refresh before retrying.",
-    "delivered": "Request delivered to session mailbox · receipt {{id}}. Execution or interruption is not confirmed by delivery alone.",
+    "delivered": "Request delivered to session mailbox. Execution or interruption is not confirmed by delivery alone.",
     "invalid": {
       "catalog": "The engine returned no live session catalog.",
       "records": "The engine returned malformed session records.",
@@ -7006,6 +7021,10 @@
     "save": "Save global instructions"
   },
   "networkPolicy": {
+    "saved": "Allowed origins saved for this project.",
+    "installed": "Chromium is installed and ready.",
+    "missing": "Chromium is not installed yet. The agent’s browser installs it on first use, or install it now.",
+    "ready": "Chromium is installed for the agent’s browser.",
     "title": "Browser and network access",
     "intro": "Private origins (a local dev server, loopback ports) the agent's browser, fetch and URL reads may reach in this project. Public sites are not affected.",
     "none": "No private origins are allowed.",
@@ -7378,6 +7397,13 @@
     "apply": "Apply to settings draft"
   },
   "modelPolicy": {
+    "field": {
+      "model": "Model",
+      "fallback": "Fallback profile",
+      "reasoning": "Reasoning",
+      "effort": "Effort",
+      "preserve": "Preserve reasoning"
+    },
     "catalogError": "Some model catalogs could not be loaded. Stored model references remain editable.",
     "refPlaceholder": "provider/model · or inherit",
     "chainCount": "{{number}} models · tried in order",

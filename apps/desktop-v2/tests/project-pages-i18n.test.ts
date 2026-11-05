@@ -260,7 +260,7 @@ describe('the project pages in the display language', () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount(roster('roster-en'));
     for (const text of [
-      'Agent roster',
+      'Agent Roster',
       'Refresh roster',
       'Loading actual roster…',
       'Choose a role',
@@ -274,7 +274,7 @@ describe('the project pages in the display language', () => {
     await surfaceI18n.changeLanguage('tr');
     page = await mount(roster('roster-tr'));
     for (const text of [
-      'Ajan kadrosu',
+      'Ajan Kadrosu',
       'Kadroyu yenile',
       'Gerçek kadro yükleniyor…',
       'bir rol seç',

@@ -103,7 +103,7 @@ describe('project goals', () => {
     expect(html).toContain('Ship desktop');
     expect(html).toContain('2 / 5 tasks');
     expect(html).toContain('40%');
-    expect(html).toContain('Verification: passed');
+    expect(html).toContain('Verification: Passed');
     expect(html).toContain('Legacy goal');
     expect(html).toContain('— / — tasks');
     expect(html).toContain('Verification: —');

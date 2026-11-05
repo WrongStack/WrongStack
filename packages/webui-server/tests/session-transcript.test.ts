@@ -1,6 +1,7 @@
 import type { Message } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
 import {
+  findTranscriptMatches,
   projectSessionTranscript,
   readSessionTranscriptBlock,
   readSessionTranscriptBlocks,
@@ -9,6 +10,18 @@ import {
 } from '../src/server/session-transcript.js';
 
 describe('bounded retained session transcript', () => {
+  it('starts a cut excerpt at a word and marks both cuts', () => {
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
+    const text = `${words(40)} needle ${words(80)}`;
+    const { hits } = findTranscriptMatches([{ role: 'user', content: text }], 'needle', '');
+    const excerpt = hits[0]!.excerpt;
+    expect(excerpt.startsWith('…word')).toBe(true);
+    expect(excerpt.endsWith('…')).toBe(true);
+    expect(excerpt).toContain('needle');
+    expect(excerpt.length).toBeLessThanOrEqual(360);
+    const short = findTranscriptMatches([{ role: 'user', content: 'a needle here' }], 'needle', '');
+    expect(short.hits[0]!.excerpt).toBe('a needle here');
+  });
   it('searches beyond excerpts and excludes opaque media payloads and thinking signatures', () => {
     const text = 'x'.repeat(40000) + 'find-this-late-needle';
     const messages: Message[] = [

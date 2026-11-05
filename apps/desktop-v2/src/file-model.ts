@@ -91,8 +91,10 @@ export function fileErrorText(
   error: string,
   t: (key: string, values: { name: string }) => string,
 ): string {
+  if (error.includes('DRAFT_CONFLICT')) return t('fileView.draftConflict', { name: '' });
   const failure = /\b(ENOENT|EACCES|EPERM|EBUSY)\b[^']*'([^']+)'/.exec(error);
-  if (!failure) return error;
+  // `String(error)` adds JavaScript's "Error: " to a message already worded for people.
+  if (!failure) return error.replace(/(^|: )Error: /g, '$1');
   const key =
     failure[1] === 'ENOENT'
       ? 'missingOnDisk'

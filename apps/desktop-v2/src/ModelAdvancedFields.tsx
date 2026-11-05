@@ -259,12 +259,20 @@ export function ModelAdvancedFields({
       <div className="model-editor-grid">
         <label>
           {t('modelAdvanced.status')}
-          <input
+          <select
             aria-label={t('modelAdvanced.statusLabel')}
             value={value.status}
-            placeholder={t('modelAdvanced.statusPlaceholder')}
             onChange={(event) => change({ status: event.target.value })}
-          />
+          >
+            <option value="">{t('modelAdvanced.statusOption.inherit')}</option>
+            {[
+              ...new Set(['alpha', 'beta', 'deprecated', ...(value.status ? [value.status] : [])]),
+            ].map((status) => (
+              <option key={status} value={status}>
+                {t(`modelAdvanced.statusOption.${status}`, { defaultValue: status })}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           {t('modelAdvanced.experimental')}

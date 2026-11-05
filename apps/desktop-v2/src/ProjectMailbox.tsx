@@ -421,7 +421,10 @@ export function ProjectMailbox({
             />
           </label>
           <small>
-            {t('mailboxPage.loadedCount', { messages: messages.length, threads: threads.length })}
+            {t('mailboxPage.loadedCount', {
+              messages: t('mailboxPage.messageCount', { count: messages.length }),
+              threads: t('mailboxPage.threadCount', { count: threads.length }),
+            })}
           </small>
           {loaded && messages.length >= limit && !older.done && (
             <button
@@ -488,7 +491,7 @@ export function ProjectMailbox({
             <>
               <header>
                 <h3>{text(current.first['subject'])}</h3>
-                <small>{t('mailboxPage.conversationCount', { n: current.items.length })}</small>
+                <small>{t('mailboxPage.conversationCount', { count: current.items.length })}</small>
               </header>
               {current.missingParent && <p>{t('mailboxPage.missingParent')}</p>}
               {current.items.map((mail) => (

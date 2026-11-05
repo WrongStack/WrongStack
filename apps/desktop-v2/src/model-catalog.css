@@ -264,6 +264,13 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+/* The remove button sat in the type select's grid cell and grew to fill it (≈185×95). */
+.model-reasoning-option .model-editor-grid > .button {
+  align-self: end;
+  justify-self: start;
+  height: auto;
+  margin: 10px 0;
+}
 .model-editor .model-effort-choices {
   display: flex;
   flex-wrap: wrap;

@@ -578,14 +578,16 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 }
               />
             </label>
-            <label className="feature-checkbox">
-              <input
-                type="checkbox"
-                checked={draft.enabled}
-                onChange={(event) => update('enabled', event.target.checked)}
-              />
-              {t('automation.enable')}
-            </label>
+            {!selected && (
+              <label className="feature-checkbox">
+                <input
+                  type="checkbox"
+                  checked={draft.enabled}
+                  onChange={(event) => update('enabled', event.target.checked)}
+                />
+                {t('automation.enable')}
+              </label>
+            )}
             <label className="feature-checkbox">
               <input
                 type="checkbox"
@@ -673,7 +675,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                     })
                   }
                 >
-                  <Pause size={13} />
+                  {selected.enabled ? <Pause size={13} /> : <Play size={13} />}
                   {selected.enabled ? t('automation.disable') : t('automation.enableButton')}
                 </button>
                 <button

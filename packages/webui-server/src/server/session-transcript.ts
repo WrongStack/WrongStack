@@ -59,12 +59,17 @@ export function findTranscriptMatches(messages: readonly Message[], query: strin
       const match = text.toLowerCase().indexOf(query);
       if (match < 0) continue;
       matching++;
-      if (hits.length < 3)
+      if (hits.length < 3) {
+        const start = Math.max(0, match - 100);
+        const window = textWindow(text, start, 358).text;
+        // A cut start drops its partial word; either cut reads as "…" (360 characters at most).
+        const lead = start > 0 ? `…${window.replace(/^\S{0,24}\s+/, '')}` : window;
         hits.push({
           messageIndex,
           role: message.role,
-          excerpt: textWindow(text, Math.max(0, match - 100), 360).text,
+          excerpt: start + window.length < text.length ? `${lead}…` : lead,
         });
+      }
       break;
     }
   });

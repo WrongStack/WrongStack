@@ -5420,6 +5420,13 @@
     "boundaryLineAccess": "La riga di limite {{line}} ha un tipo di accesso sconosciuto."
   },
   "codeMapText": {
+    "edgeKind": {
+      "call": "Chiamata",
+      "import": "Importazione",
+      "type_ref": "Riferimento di tipo",
+      "inherit": "Eredita",
+      "implement": "Implementa"
+    },
     "via": "tramite {{tool}}",
     "eventsNewest": "{{count}} eventi · più recenti prima",
     "total": "{{count}} in totale",
