@@ -19,6 +19,7 @@ import {
   retryPlan,
 } from './session-recovery-model';
 import './session-recovery.css';
+import { displayLocale } from './display-dates';
 
 export function SessionRecovery({
   sessionId,
@@ -373,7 +374,7 @@ export function SessionRecovery({
                 <span>{t(`recovery.metric.${key}`)}</span>
                 <strong>
                   {typeof inspect[key] === 'number'
-                    ? Number(inspect[key]).toLocaleString()
+                    ? Number(inspect[key]).toLocaleString(displayLocale())
                     : t('recovery.notReported')}
                 </strong>
               </article>

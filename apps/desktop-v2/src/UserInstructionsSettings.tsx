@@ -1,6 +1,7 @@
 import { Check, Eye, FilePenLine, RefreshCw, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { MarkdownContent } from './MarkdownContent';
 
@@ -128,7 +129,7 @@ export function UserInstructionsSettings({
         <span>
           {t('userInstructions.counts', {
             count: value.text ? value.text.split('\n').length : 0,
-            chars: value.text.length.toLocaleString(),
+            chars: value.text.length.toLocaleString(displayLocale()),
           })}
           {dirty ? ` · ${t('userInstructions.unsaved')}` : ''}
         </span>

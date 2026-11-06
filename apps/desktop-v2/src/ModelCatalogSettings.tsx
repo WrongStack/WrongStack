@@ -33,6 +33,7 @@ import { sameSetting } from './settings-save-model';
 import { surfaceI18n } from './surface-i18n';
 import { useModelEditorDraft } from './useModelEditorDraft';
 import './model-catalog.css';
+import { displayLocale } from './display-dates';
 
 type Editor = ModelEditorState;
 function makeEditor(id: string, initial?: Record<string, unknown>, name = ''): Editor {
@@ -168,8 +169,8 @@ function ProfileModelCatalogSettings({
   const metric = (value: unknown, price = false) =>
     typeof value === 'number'
       ? price
-        ? `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
-        : value.toLocaleString()
+        ? `$${value.toLocaleString(displayLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
+        : value.toLocaleString(displayLocale())
       : t('modelCatalog.notReported');
   const closeEditor = () => {
     if (busyRef.current) return;

@@ -8,6 +8,7 @@ import { McpBinaryBlock } from './McpBinaryBlock';
 import { Modal } from './Modal';
 import { mcpContentText } from './mcp-content-text';
 import './mcp-content.css';
+import { displayLocale } from './display-dates';
 
 type Item = {
   key: string;
@@ -320,7 +321,7 @@ export function McpContentBrowser({
                         <h3>{t('mcpContent.selected')}</h3>
                         <p>
                           {t('mcpContent.size', {
-                            bytes: Number(content['byteSize'] ?? 0).toLocaleString(),
+                            bytes: Number(content['byteSize'] ?? 0).toLocaleString(displayLocale()),
                             name,
                             kind: String(content['kind']),
                           })}

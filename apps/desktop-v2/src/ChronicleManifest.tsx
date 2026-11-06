@@ -1,6 +1,7 @@
 import { Trans } from 'react-i18next';
 import type { ManifestView } from './chronicle-manifest';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { surfaceI18n } from './surface-i18n';
 
 const short = (hash: string) => (hash ? hash.slice(0, 12) : '—');
@@ -10,7 +11,8 @@ export function ChronicleManifest({ manifest }: { manifest: ManifestView }) {
   const { system, tools } = manifest;
   const { t } = useDesktopText();
   const missing = t('chronicleView.manifest.notRecorded');
-  const shown = (value: number | null) => (value === null ? missing : value.toLocaleString());
+  const shown = (value: number | null) =>
+    value === null ? missing : value.toLocaleString(displayLocale());
   return (
     <section className="chronicle-manifest" aria-label={t('chronicleView.manifest.title')}>
       <h3>{t('chronicleView.manifest.title')}</h3>

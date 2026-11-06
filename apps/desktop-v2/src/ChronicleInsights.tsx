@@ -4,11 +4,12 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { countedPhrase as counted, entries, record } from './engine-values';
 import './chronicle-insights.css';
+import { displayLocale } from './display-dates';
 
 type View = 'providers' | 'tasks' | 'files';
 const views: View[] = ['providers', 'tasks', 'files'];
 const number = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
+  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(displayLocale()) : '—';
 
 /** Project-wide derived metrics, independent of the timeline query and any selected session. */
 /** A field the record lacks; dropped from the owners line rather than shown as a placeholder. */

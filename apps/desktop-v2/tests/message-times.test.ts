@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { displayLocale } from '../src/display-dates';
 import { emptyEngineState, reduceEngine, replayEngineBatch } from '../src/engine-state';
 import { TranscriptMessage } from '../src/TranscriptMessage';
 import { dayLabel } from '../src/transcript-window';
@@ -49,7 +50,7 @@ describe('message times', () => {
     expect(dayLabel({ at: yesterday }, undefined, now)).toBe('Yesterday');
     expect(dayLabel({}, undefined, now)).toBeUndefined();
     expect(dayLabel({ at: new Date(2026, 9, 1).getTime() }, undefined, now)).toBe(
-      new Date(2026, 9, 1).toLocaleDateString(undefined, {
+      new Date(2026, 9, 1).toLocaleDateString(displayLocale(), {
         weekday: 'long',
         day: 'numeric',
         month: 'long',

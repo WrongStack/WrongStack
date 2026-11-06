@@ -12,12 +12,13 @@ import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import './worktree-history.css';
+import { displayLocale } from './display-dates';
 
 const OUTCOME_ORDER: WorktreeLaneOutcome[] = ['live', 'merged', 'conflict', 'failed', 'kept'];
 type Translate = ReturnType<typeof useDesktopText>['t'];
 
 const clock = (at: number, seconds: boolean) =>
-  new Date(at).toLocaleTimeString([], {
+  new Date(at).toLocaleTimeString(displayLocale(), {
     hour: '2-digit',
     minute: '2-digit',
     ...(seconds ? { second: '2-digit' } : {}),

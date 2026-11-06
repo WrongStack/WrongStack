@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { record } from './engine-values';
 import {
   type ModelPriceTiersDraft,
@@ -159,7 +160,9 @@ export function SavedModelPriceTiers({ cost }: { cost: Record<string, unknown> }
             <li key={index}>
               <strong>
                 {row.editable
-                  ? t('modelTiers.savedThreshold', { tokens: Number(row.size).toLocaleString() })
+                  ? t('modelTiers.savedThreshold', {
+                      tokens: Number(row.size).toLocaleString(displayLocale()),
+                    })
                   : t('modelTiers.savedProviderTier')}
               </strong>
               <dl className="model-info">
@@ -170,7 +173,7 @@ export function SavedModelPriceTiers({ cost }: { cost: Record<string, unknown> }
                         <dt>{t(`modelTiers.price.${key}`, { defaultValue: label })}</dt>
                         <dd>
                           $
-                          {Number(record(row.source)[key]).toLocaleString(undefined, {
+                          {Number(record(row.source)[key]).toLocaleString(displayLocale(), {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 8,
                           })}
@@ -209,7 +212,7 @@ function LegacyContextPrices({ value }: { value: unknown }) {
                 </dt>
                 <dd>
                   $
-                  {Number(prices[key]).toLocaleString(undefined, {
+                  {Number(prices[key]).toLocaleString(displayLocale(), {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 8,
                   })}

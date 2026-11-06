@@ -1,3 +1,4 @@
+import { displayLocale } from './display-dates';
 import { entries, record } from './engine-values';
 
 /** One job the engine's cron scheduler runs, as `cron.snapshot` reports it. */
@@ -71,7 +72,7 @@ export function whenText(iso: string | null, now: number, words: ScheduleWords =
           ? `${Math.round(span / 3_600_000)}h`
           : '';
   if (!amount)
-    return new Date(at).toLocaleString(undefined, {
+    return new Date(at).toLocaleString(displayLocale(), {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

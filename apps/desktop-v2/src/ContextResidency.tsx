@@ -13,6 +13,7 @@ import {
   retentionRows,
 } from './context-residency-model';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 
 /**
  * How the last request was laid out for the provider cache, and what the next compaction
@@ -46,13 +47,13 @@ export function ContextResidency({
             <p className="field-help">
               {t('residency.summary', {
                 route: `${residency.providerId}/${residency.model}`,
-                tokens: residency.total.toLocaleString(),
+                tokens: residency.total.toLocaleString(displayLocale()),
                 percent: percent(residency.expectedCacheRatio, 1),
               })}
               {residency.actual
                 ? t('residency.actual', {
-                    read: residency.actual.cacheRead.toLocaleString(),
-                    total: residency.actual.total.toLocaleString(),
+                    read: residency.actual.cacheRead.toLocaleString(displayLocale()),
+                    total: residency.actual.total.toLocaleString(displayLocale()),
                     percent: percent(residency.actual.cacheRatio, 1),
                   })
                 : t('residency.notReported')}
@@ -72,7 +73,7 @@ export function ContextResidency({
                     lane: word('lane', lane, CACHE_LANE_LABELS),
                   })}
                 />
-                <strong>~{(residency.lanes[lane] ?? 0).toLocaleString()}</strong>
+                <strong>~{(residency.lanes[lane] ?? 0).toLocaleString(displayLocale())}</strong>
               </div>
             ))}
             <section className="context-entries" aria-label={t('residency.segments')}>
@@ -82,7 +83,7 @@ export function ContextResidency({
                     {word('segment', segment.kind, RESIDENCY_SEGMENT_LABELS)} ·{' '}
                     {word('lane', segment.lane, CACHE_LANE_LABELS)} · {segment.count}
                   </span>
-                  <strong>~{segment.tokens.toLocaleString()}</strong>
+                  <strong>~{segment.tokens.toLocaleString(displayLocale())}</strong>
                 </div>
               ))}
             </section>
@@ -104,7 +105,7 @@ export function ContextResidency({
               {residency.next.pendingMessages > 0
                 ? t('residency.pending', {
                     count: residency.next.pendingMessages,
-                    tokens: residency.next.pendingTokens.toLocaleString(),
+                    tokens: residency.next.pendingTokens.toLocaleString(displayLocale()),
                   })
                 : ''}
               .
@@ -116,7 +117,9 @@ export function ContextResidency({
         <summary>
           {t('residency.keeps')}
           {retention
-            ? t('residency.keepsTokens', { tokens: retention.total.toLocaleString() })
+            ? t('residency.keepsTokens', {
+                tokens: retention.total.toLocaleString(displayLocale()),
+              })
             : t('residency.keepsNone')}
         </summary>
         {!retention ? (
@@ -126,7 +129,7 @@ export function ContextResidency({
             <p className="field-help">
               {t('residency.protectedNote', {
                 keep: retention.preserveK,
-                threshold: retention.eliseThreshold.toLocaleString(),
+                threshold: retention.eliseThreshold.toLocaleString(displayLocale()),
               })}
             </p>
             {retentionRows(retention).map((row) => (
@@ -142,7 +145,7 @@ export function ContextResidency({
                     label: word('retention', row.name, RETENTION_LABELS),
                   })}
                 />
-                <strong>~{row.tokens.toLocaleString()}</strong>
+                <strong>~{row.tokens.toLocaleString(displayLocale())}</strong>
               </div>
             ))}
           </section>

@@ -1,7 +1,7 @@
 import { ChevronDown, Download, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime } from './display-dates';
+import { displayDateTime, displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { journalFileName, journalJsonl, journalMarkdown } from './journal-export';
@@ -276,7 +276,7 @@ export function PromptJournal({
                     <span>
                       {typeof meta['tokenEstimate'] === 'number'
                         ? t('promptJournal.tokens', {
-                            tokens: meta['tokenEstimate'].toLocaleString(),
+                            tokens: meta['tokenEstimate'].toLocaleString(displayLocale()),
                           })
                         : ''}
                     </span>

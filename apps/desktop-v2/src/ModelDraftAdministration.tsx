@@ -1,7 +1,7 @@
 import { Archive, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime } from './display-dates';
+import { displayDateTime, displayLocale } from './display-dates';
 import { Modal } from './Modal';
 import type { ModelProfileIdentity } from './ModelCatalogProfile';
 import {
@@ -23,7 +23,8 @@ const nativeStorage: ModelDraftAdminStorage = {
   save: (formKey, value, expectedRevision) =>
     request<{ revision: number }>('profile-draft.save', { formKey, value, expectedRevision }),
 };
-const kib = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024)).toLocaleString()} KiB`;
+const kib = (bytes: number) =>
+  `${Math.max(1, Math.round(bytes / 1024)).toLocaleString(displayLocale())} KiB`;
 
 /** Review parked model-editor drafts that the provider editor cannot reach on its own. */
 export function ModelDraftAdministration({

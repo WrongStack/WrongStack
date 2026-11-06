@@ -18,8 +18,8 @@ describe('draft counter', () => {
 
   it('projects the context use and warns when it gets tight or overflows', () => {
     const draft = 'x'.repeat(800);
-    // Numbers follow the runtime locale (tr-TR prints 2.000).
-    const max = (2_000).toLocaleString();
+    // Numbers follow the display language, not the operating system's locale.
+    const max = (2_000).toLocaleString('en');
     expect(render(draft, 1_000, 2_000)).toContain(`projected 63% of the ${max}-token context`);
     expect(render(draft, 1_700, 2_000)).toMatch(/class="draft-counter tight" title="Projected 98%/);
     expect(render(draft, 1_900, 2_000)).toContain(

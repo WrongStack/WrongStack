@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-06T14:46:44.061Z
+**Generated:** 2026-11-06T15:06:34.524Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6050 |
-| Production source lines | 1253120 |
+| Production source lines | 1253180 |
 | Test files | 5042 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17848 |
+| Relative module edges | 17877 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -92,17 +92,17 @@ None.
 |---:|---|
 | 2053 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1733 | `packages/sage/src/wrongmemory-port.ts` |
-| 1585 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 1586 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1078 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1063 | `apps/desktop-v2/src/SessionComposer.tsx` |
 | 953 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
-| 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 936 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
-| 821 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
+| 824 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
 | 788 | `apps/desktop-v2/src/ProjectChimera.tsx` |

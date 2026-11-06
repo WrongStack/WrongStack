@@ -1,4 +1,5 @@
 import { type ComposerFileReference, MAX_SNIPPET_CHARS } from './composer-resources-model';
+import { displayLocale } from './display-dates';
 import { selectionLineRange, sourcePointOffset } from './file-model';
 
 interface ViewedDocument {
@@ -70,7 +71,7 @@ export function selectionReference(
   if (!snippet.trim()) return { error: 'Select the text to quote first.' };
   if (snippet.length > MAX_SNIPPET_CHARS)
     return {
-      error: `The selection has ${snippet.length.toLocaleString()} characters; quotes are limited to ${MAX_SNIPPET_CHARS.toLocaleString()}. Reference the lines instead.`,
+      error: `The selection has ${snippet.length.toLocaleString(displayLocale())} characters; quotes are limited to ${MAX_SNIPPET_CHARS.toLocaleString(displayLocale())}. Reference the lines instead.`,
     };
   return { reference: { path, ...(lines && !unsaved ? { lines } : {}), snippet } };
 }

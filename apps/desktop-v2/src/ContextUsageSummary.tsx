@@ -1,6 +1,7 @@
 import { type ContextUsage, cacheHitPercent, contextPercent, contextZone } from './context-usage';
 import { useDesktopText } from './desktop-i18n';
 import './session-status.css';
+import { displayLocale } from './display-dates';
 
 /** The live figures the engine reported, shown above the estimated section breakdown. */
 export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
@@ -13,7 +14,9 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
       <div className="context-summary">
         <div>
           <strong className={`context-${zone}`}>
-            {usage.tokens ? usage.tokens.toLocaleString() : t('contextLive.notReported')}
+            {usage.tokens
+              ? usage.tokens.toLocaleString(displayLocale())
+              : t('contextLive.notReported')}
             {percent !== null ? ` (${percent}%)` : ''}
           </strong>
           <span>{t('contextLive.latest')}</span>
@@ -24,20 +27,18 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
             {t('contextLive.fromCache')}
             {hit !== null
               ? ` · ${t('contextLive.cacheDetail', {
-                  read: usage.cacheRead.toLocaleString(),
-                  written: usage.cacheWrite.toLocaleString(),
+                  read: usage.cacheRead.toLocaleString(displayLocale()),
+                  written: usage.cacheWrite.toLocaleString(displayLocale()),
                 })}`
               : ''}
           </span>
         </div>
         <div>
           <strong>
-            {(
-              usage.totals.input +
-              usage.totals.cacheRead +
-              usage.totals.cacheWrite
-            ).toLocaleString()}{' '}
-            / {usage.totals.output.toLocaleString()}
+            {(usage.totals.input + usage.totals.cacheRead + usage.totals.cacheWrite).toLocaleString(
+              displayLocale(),
+            )}{' '}
+            / {usage.totals.output.toLocaleString(displayLocale())}
           </strong>
           <span>
             {usage.responses === 1
@@ -61,17 +62,17 @@ export function ContextUsageSummary({ usage }: { usage: ContextUsage }) {
       {usage.decreasedFrom > 0 && (
         <p role="status">
           {t('contextLive.limit', {
-            max: usage.max.toLocaleString(),
-            configured: usage.decreasedFrom.toLocaleString(),
+            max: usage.max.toLocaleString(displayLocale()),
+            configured: usage.decreasedFrom.toLocaleString(displayLocale()),
           })}
         </p>
       )}
       {usage.compaction && usage.compaction.saved > 0 && (
         <p>
           {t('contextLive.compaction', {
-            before: usage.compaction.before.toLocaleString(),
-            after: usage.compaction.after.toLocaleString(),
-            saved: usage.compaction.saved.toLocaleString(),
+            before: usage.compaction.before.toLocaleString(displayLocale()),
+            after: usage.compaction.after.toLocaleString(displayLocale()),
+            saved: usage.compaction.saved.toLocaleString(displayLocale()),
           })}
         </p>
       )}

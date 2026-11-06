@@ -1,6 +1,7 @@
 import type { ContextUsage } from './context-usage';
 import { useDesktopText } from './desktop-i18n';
 import './draft-counter.css';
+import { displayLocale } from './display-dates';
 
 /**
  * The WebUI's draft counter: characters, and for a long draft its rough token count (4
@@ -20,9 +21,9 @@ function draftEstimate(
       : undefined;
   const tone = percent === undefined ? '' : percent >= 100 ? 'over' : percent >= 85 ? 'tight' : '';
   const values = {
-    tokens: tokens.toLocaleString(),
+    tokens: tokens.toLocaleString(displayLocale()),
     percent: String(percent),
-    max: context.max.toLocaleString(),
+    max: context.max.toLocaleString(displayLocale()),
   };
   const title =
     percent === undefined
@@ -57,7 +58,7 @@ export function DraftCounter({
   const estimate = draftEstimate(draft, context, t);
   return (
     <span className={`draft-counter ${estimate.tone}`.trim()} title={estimate.title}>
-      {estimate.chars.toLocaleString()}
+      {estimate.chars.toLocaleString(displayLocale())}
       {estimate.tokens && <span> · {t('shellText.draftTokens', { count: estimate.tokens })}</span>}
     </span>
   );

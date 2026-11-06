@@ -13,6 +13,7 @@ import {
   withTextRange,
 } from './context-editor-model';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { type EngineCommand, EngineReplyError } from './engine-operations';
 import { entries, record } from './engine-values';
 import { Modal } from './Modal';
@@ -199,7 +200,7 @@ export function ContextEditorDialog({
             <p className="field-help">
               {t('contextEdit.summary', {
                 count: snapshot.rows.length,
-                tokens: snapshot.totalTokens.toLocaleString(),
+                tokens: snapshot.totalTokens.toLocaleString(displayLocale()),
                 removed: removed.size,
               })}
               {activeRanges.length > 0 &&
@@ -210,7 +211,7 @@ export function ContextEditorDialog({
                     snapshot,
                     removalSet(snapshot, chosen),
                     ranges,
-                  ).toLocaleString(),
+                  ).toLocaleString(displayLocale()),
                 })}`}
             </p>
             <ol className="context-editor-rows" aria-label={t('contextEdit.messages')}>
@@ -235,7 +236,7 @@ export function ContextEditorDialog({
                       <span className="context-editor-preview">
                         {row.preview || t('contextEdit.noText')}
                       </span>
-                      <strong>~{row.tokens.toLocaleString()}</strong>
+                      <strong>~{row.tokens.toLocaleString(displayLocale())}</strong>
                     </label>
                     {!removed.has(row.index) &&
                       messageTexts(snapshot.messages[row.index] ?? {}).length > 0 && (

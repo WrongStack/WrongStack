@@ -14,6 +14,7 @@ import { record } from './engine-values';
 import { SessionContextPanel } from './SessionContextPanel';
 import { inlineUsageEstimate } from './session-usage-model';
 import './session-status.css';
+import { displayLocale } from './display-dates';
 import { GitChip } from './GitChip';
 
 const number = (value: unknown) => (typeof value === 'number' ? value : null);
@@ -76,8 +77,8 @@ export function SessionStatusBar({
         <span
           data-chip="cache"
           title={t('statusBar.cacheTitle', {
-            read: usage.cacheRead.toLocaleString(),
-            written: usage.cacheWrite.toLocaleString(),
+            read: usage.cacheRead.toLocaleString(displayLocale()),
+            written: usage.cacheWrite.toLocaleString(displayLocale()),
           })}
         >
           <Database size={11} /> {t('statusBar.cache', { percent: hit })}

@@ -5,12 +5,13 @@ import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
 import './provider-health.css';
+import { displayLocale } from './display-dates';
 
 const words = (value: unknown) => (typeof value === 'string' ? value.replaceAll('_', ' ') : '');
 export function quotaPercent(value: unknown, missing = 'Not reported') {
   if (typeof value !== 'number' || !Number.isFinite(value)) return missing;
   if (value > 99 && value < 100) return '99%';
-  return `${Math.min(100, Math.max(0, value)).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+  return `${Math.min(100, Math.max(0, value)).toLocaleString(displayLocale(), { maximumFractionDigits: 1 })}%`;
 }
 export function mergeQuotaSnapshots(
   previous: Record<string, unknown>[],
@@ -23,7 +24,7 @@ export function mergeQuotaSnapshots(
 function date(value: unknown, seconds = false, missing = 'Not reported') {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return missing;
   const parsed = new Date(value * (seconds ? 1000 : 1));
-  return Number.isNaN(parsed.getTime()) ? missing : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? missing : parsed.toLocaleString(displayLocale());
 }
 export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }) {
   const { t } = useDesktopText();

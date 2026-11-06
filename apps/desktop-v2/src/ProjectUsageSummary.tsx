@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { ProjectSideEffectsSummary } from './ProjectSideEffectsSummary';
@@ -156,15 +157,17 @@ export function ProjectUsageSummary({
           <>
             <p role="status">
               {t('historyView.usage.total', {
-                tokens: usage.tokenTotal.toLocaleString(),
-                sessions: usage.sessions.toLocaleString(),
+                tokens: usage.tokenTotal.toLocaleString(displayLocale()),
+                sessions: usage.sessions.toLocaleString(displayLocale()),
                 projects: usage.projects
                   ? t('historyView.usage.inProjects', { count: usage.projects.length })
                   : '',
                 missing:
                   usage.sessionsWithTokens < usage.sessions
                     ? t('historyView.usage.withoutTotal', {
-                        n: (usage.sessions - usage.sessionsWithTokens).toLocaleString(),
+                        n: (usage.sessions - usage.sessionsWithTokens).toLocaleString(
+                          displayLocale(),
+                        ),
                       })
                     : '',
                 capped: usage.capped ? t('historyView.usage.capped') : '',
@@ -185,7 +188,7 @@ export function ProjectUsageSummary({
                       <td>
                         {row.error
                           ? t('historyView.usage.notRead', { error: row.error })
-                          : (row.tokenTotal ?? 0).toLocaleString()}
+                          : (row.tokenTotal ?? 0).toLocaleString(displayLocale())}
                       </td>
                     </tr>
                   ))}
@@ -209,8 +212,8 @@ export function ProjectUsageSummary({
                         {name === 'unknown' ? t('historyView.usage.notRecorded') : name}
                       </td>
                     ))}
-                    <td>{row.sessions.toLocaleString()}</td>
-                    <td>{row.tokenTotal.toLocaleString()}</td>
+                    <td>{row.sessions.toLocaleString(displayLocale())}</td>
+                    <td>{row.tokenTotal.toLocaleString(displayLocale())}</td>
                   </tr>
                 ))}
               </tbody>

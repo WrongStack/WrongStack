@@ -47,7 +47,7 @@ describe('recorded session summary', () => {
   it('shows the totals, tools by use, file changes and the events', async () => {
     const { host } = await open();
     const stats = [...host.querySelectorAll('.inspect-stats > div')].map((row) => row.textContent);
-    expect(stats).toContain(`Tokens${(12_000).toLocaleString()}`);
+    expect(stats).toContain(`Tokens${(12_000).toLocaleString('en')}`);
     expect(stats).toContain('Tool calls9 · 1 failed');
     expect(host.textContent).toContain('Outcome: completed');
     const tools = [...host.querySelectorAll('[aria-label="Tool breakdown"] li')].map(

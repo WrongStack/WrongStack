@@ -147,12 +147,12 @@
       "relativeImports": 31
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
-      "lines": 935,
-      "relativeImports": 18
+      "lines": 936,
+      "relativeImports": 19
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
-      "lines": 1585,
-      "relativeImports": 17
+      "lines": 1586,
+      "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
       "lines": 788,
@@ -171,8 +171,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
-      "lines": 821,
-      "relativeImports": 11
+      "lines": 824,
+      "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
       "lines": 953,

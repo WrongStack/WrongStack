@@ -2,6 +2,7 @@ import { Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { surfaceI18n } from './surface-i18n';
@@ -144,7 +145,7 @@ export function CatalogModelSearch({
                   provider: String(match['providerName']),
                   context:
                     typeof match['contextWindow'] === 'number'
-                      ? match['contextWindow'].toLocaleString()
+                      ? match['contextWindow'].toLocaleString(displayLocale())
                       : t('registrySearch.notReported'),
                 })}
               </small>

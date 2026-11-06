@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime } from './display-dates';
+import { displayDateTime, displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -137,7 +137,7 @@ export function ProjectSideEffectsSummary({
         <>
           <p role="status">
             {t('historyView.effects.total', {
-              total: summary.total.toLocaleString(),
+              total: summary.total.toLocaleString(displayLocale()),
               with: summary.sessionsWithEffects,
               scanned: summary.sessionsScanned,
               capped: summary.capped ? t('historyView.effects.capped') : '',

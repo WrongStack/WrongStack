@@ -1,4 +1,5 @@
 import { splitReferenceMessage } from './composer-resources-model';
+import { displayLocale } from './display-dates';
 import type { EngineState } from './engine-state';
 
 /** Messages rendered at once in a conversation; each "Show earlier" adds this many. */
@@ -39,7 +40,7 @@ export function dayLabel(
   if (previous?.at && dayKey(previous.at) === dayKey(message.at)) return undefined;
   if (dayKey(message.at) === dayKey(now)) return 'Today';
   if (dayKey(message.at) === dayKey(now - 86_400_000)) return 'Yesterday';
-  return new Date(message.at).toLocaleDateString(undefined, {
+  return new Date(message.at).toLocaleDateString(displayLocale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

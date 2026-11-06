@@ -40,6 +40,7 @@ import { rosterInputsToKeep } from './roster-input-draft';
 import { type RosterRecord, rosterBudgetFields, rosterCatalog } from './roster-model';
 import { usePersistedFields } from './usePersistedFields';
 import './project-agent-roster.css';
+import { displayLocale } from './display-dates';
 
 const RosterRuntimeEditor = lazy(() =>
   import('./RosterRuntimeEditor').then((module) => ({ default: module.RosterRuntimeEditor })),
@@ -49,10 +50,10 @@ const RosterInheritance = lazy(() =>
 );
 const string = (value: unknown) => (typeof value === 'string' ? value : '');
 const count = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
+  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(displayLocale()) : '—';
 const date = (value: unknown) => {
   const parsed = new Date(typeof value === 'number' ? value : String(value));
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString(displayLocale());
 };
 type Section = 'overview' | 'learning' | 'skills';
 const chrome = new Map<
@@ -408,7 +409,7 @@ export function ProjectAgentRoster({
           <strong>
             {catalog
               .reduce((sum, entry) => sum + Number(record(entry['stats'])['entryCount'] ?? 0), 0)
-              .toLocaleString()}
+              .toLocaleString(displayLocale())}
           </strong>
           {t('roster.recordedDirectives')}
         </span>

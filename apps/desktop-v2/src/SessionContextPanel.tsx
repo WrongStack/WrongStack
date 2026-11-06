@@ -14,6 +14,7 @@ import { Modal } from './Modal';
 import type { MemoryContext, MemoryInjectorRun } from './memory-injections';
 import { SessionMemoryInjections } from './SessionMemoryInjections';
 import './composer-dialog.css';
+import { displayLocale } from './display-dates';
 
 export function SessionContextPanel({
   command,
@@ -143,8 +144,8 @@ export function SessionContextPanel({
             {compaction.request && (
               <p>
                 {t('contextPanel.fullRequest', {
-                  before: compaction.request.before.toLocaleString(),
-                  after: compaction.request.after.toLocaleString(),
+                  before: compaction.request.before.toLocaleString(displayLocale()),
+                  after: compaction.request.after.toLocaleString(displayLocale()),
                 })}
               </p>
             )}
@@ -156,7 +157,7 @@ export function SessionContextPanel({
                       label: t(`contextPanel.phase.${reduction.phase}`, {
                         defaultValue: reductionLabels[reduction.phase] ?? reduction.phase,
                       }),
-                      saved: reduction.saved.toLocaleString(),
+                      saved: reduction.saved.toLocaleString(displayLocale()),
                     })}
                   </li>
                 ))}
@@ -194,12 +195,14 @@ export function SessionContextPanel({
           <>
             <div className="context-summary">
               <div>
-                <strong>{total.toLocaleString()}</strong>
+                <strong>{total.toLocaleString(displayLocale())}</strong>
                 <span>{t('contextPanel.currentTokens')}</span>
               </div>
               <div>
                 <strong>
-                  {maxContext > 0 ? maxContext.toLocaleString() : t('contextPanel.notReported')}
+                  {maxContext > 0
+                    ? maxContext.toLocaleString(displayLocale())
+                    : t('contextPanel.notReported')}
                 </strong>
                 <span>{t('contextPanel.window')}</span>
               </div>
@@ -222,7 +225,7 @@ export function SessionContextPanel({
                     value={Number(count)}
                     aria-label={String(label)}
                   />
-                  <strong>~{Number(count).toLocaleString()}</strong>
+                  <strong>~{Number(count).toLocaleString(displayLocale())}</strong>
                 </div>
               ))}
             </section>
@@ -235,7 +238,8 @@ export function SessionContextPanel({
                   <div key={i}>
                     <span>{String(tool['name'] ?? t('contextPanel.toolFallback'))}</span>
                     <strong>
-                      ~{Number(tool['tokens'] ?? tool['total'] ?? 0).toLocaleString()}
+                      ~
+                      {Number(tool['tokens'] ?? tool['total'] ?? 0).toLocaleString(displayLocale())}
                     </strong>
                   </div>
                 ))}
@@ -252,7 +256,9 @@ export function SessionContextPanel({
                       <small>{String(message['role'] ?? t('contextPanel.messageFallback'))}</small>{' '}
                       {String(message['preview'] ?? '')}
                     </span>
-                    <strong>~{Number(message['tokens'] ?? 0).toLocaleString()}</strong>
+                    <strong>
+                      ~{Number(message['tokens'] ?? 0).toLocaleString(displayLocale())}
+                    </strong>
                   </div>
                 ))}
               </div>

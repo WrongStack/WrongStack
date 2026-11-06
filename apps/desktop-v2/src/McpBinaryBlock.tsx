@@ -1,6 +1,7 @@
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { mcpBinary, mcpBinaryFileName } from './mcp-binary';
 import { PdfFrame } from './PdfFrame';
 
@@ -48,7 +49,7 @@ export function McpBinaryBlock({ value }: { value: Record<string, unknown> }) {
         <small>
           {t('shellText.mcp.details', {
             mime: binary.mimeType,
-            bytes: binary.bytes.length.toLocaleString(),
+            bytes: binary.bytes.length.toLocaleString(displayLocale()),
           })}
         </small>
         <button type="button" className="button secondary small" onClick={save}>

@@ -20,6 +20,7 @@ import {
 } from './mailbox-model';
 import { openExternal, projectFormDraftStorage } from './platform';
 import './project-mailbox.css';
+import { displayLocale } from './display-dates';
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 type Maintenance = 'clear' | 'purge' | 'compact';
@@ -35,7 +36,9 @@ export function ProjectMailbox({
   const { t, i18n } = useDesktopText();
   const when = (value: unknown) => {
     const date = new Date(typeof value === 'number' ? value : String(value));
-    return Number.isNaN(date.getTime()) ? t('mailboxPage.timeMissing') : date.toLocaleString();
+    return Number.isNaN(date.getTime())
+      ? t('mailboxPage.timeMissing')
+      : date.toLocaleString(displayLocale());
   };
   // Engine values: named per language, shown as sent when the catalog has no name for them.
   const named = (group: 'type' | 'priority', value: unknown) =>

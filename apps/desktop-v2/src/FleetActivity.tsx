@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime } from './display-dates';
+import { displayDateTime, displayLocale } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -101,7 +101,7 @@ export function FleetActivity({ http, sessionId }: { http: EngineHttp; sessionId
                       : t('liveFleet.activity.noTime')}
                   </time>
                   {typeof entry['durationMs'] === 'number' && (
-                    <small>{entry['durationMs'].toLocaleString()} ms</small>
+                    <small>{entry['durationMs'].toLocaleString(displayLocale())} ms</small>
                   )}
                 </header>
                 {entry['role'] === 'tool' || entry['role'] === 'error' ? (

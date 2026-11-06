@@ -35,3 +35,9 @@ export const displayTime = (value: unknown) => format(value, { timeStyle: 'mediu
 
 /** A calendar date: "Nov 6, 2026". */
 export const displayDate = (value: unknown) => format(value, { dateStyle: 'medium' });
+
+/**
+ * The display language as a locale argument, for numbers and other values formatted in
+ * place (`count.toLocaleString(displayLocale())`); undefined before the catalog loads.
+ */
+export const displayLocale = (): string | undefined => surfaceI18n.language || undefined;

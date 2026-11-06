@@ -152,7 +152,7 @@ describe('context dialogs in the display language', () => {
     const englishEditor = await render(dialog(), choose);
     for (const text of [
       'Edit provider context',
-      `2 messages · ~${(1200).toLocaleString()} tokens in the full request · 2 selected for removal`,
+      `2 messages · ~${(1200).toLocaleString('en')} tokens in the full request · 2 selected for removal`,
       'Removed with the user message it answers.',
       'Remove 2 messages',
       'Check removal',
@@ -182,7 +182,7 @@ describe('context dialogs in the display language', () => {
     const turkishEditor = await render(dialog(), choose);
     for (const text of [
       'Sağlayıcı bağlamını düzenle',
-      `2 mesaj · tam istekte ~${(1200).toLocaleString()} token · çıkarılmak üzere 2 seçili`,
+      `2 mesaj · tam istekte ~${(1200).toLocaleString('tr')} token · çıkarılmak üzere 2 seçili`,
       'Yanıtladığı kullanıcı mesajıyla birlikte çıkarıldı.',
       '2 mesajı çıkar',
       'Çıkarmayı denetle',

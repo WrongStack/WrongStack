@@ -1,3 +1,4 @@
+import { displayLocale } from './display-dates';
 import { entries, record } from './engine-values';
 
 export const usageKinds = ['input', 'output', 'cache-read', 'cache-write'] as const;
@@ -177,7 +178,7 @@ export function usageSnapshot(value: Record<string, unknown>, sessionId: string)
   };
 }
 export const usageNumber = (value: number | null | undefined, missing = 'Not reported') =>
-  value == null ? missing : value.toLocaleString();
+  value == null ? missing : value.toLocaleString(displayLocale());
 export const usageMoney = (value: number | null | undefined, missing = 'Unavailable') =>
   value == null
     ? missing
@@ -190,7 +191,7 @@ export const usageMoney = (value: number | null | undefined, missing = 'Unavaila
 export const usageRatio = (value: number | null | undefined, missing = 'Not reported') =>
   value == null
     ? missing
-    : `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    : `${(value * 100).toLocaleString(displayLocale(), { maximumFractionDigits: 1 })}%`;
 export function inlineUsageEstimate(
   stats: Record<string, unknown> | undefined,
 ): number | undefined {

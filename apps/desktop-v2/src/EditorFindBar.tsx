@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { findMatches, MAX_MATCHES, nextMatchIndex, replaceAllMatches } from './editor-find';
 
 /**
@@ -62,7 +63,7 @@ export function EditorFindBar({
     if (!result.count) {
       setMessage(
         matches.length >= MAX_MATCHES
-          ? t('find.tooMany', { max: MAX_MATCHES.toLocaleString() })
+          ? t('find.tooMany', { max: MAX_MATCHES.toLocaleString(displayLocale()) })
           : t('find.none'),
       );
       return;
@@ -75,7 +76,9 @@ export function EditorFindBar({
   };
   const count =
     // A number picks the singular ("1 match"); the capped count reads as text.
-    matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : matches.length;
+    matches.length >= MAX_MATCHES
+      ? `${MAX_MATCHES.toLocaleString(displayLocale())}+`
+      : matches.length;
   return (
     <section className="editor-find-bar" aria-label={t('find.replaceLabel')}>
       <input

@@ -8,6 +8,7 @@ import {
   validReferenceLines,
 } from './composer-resources-model';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 
 const PREVIEW_LINES = 40;
@@ -87,11 +88,11 @@ export function ComposerReferenceChips({
             <figcaption>
               {target.lines
                 ? t('referenceChips.quotedFrom', {
-                    chars: target.snippet.length.toLocaleString(),
+                    chars: target.snippet.length.toLocaleString(displayLocale()),
                     ref: referenceLabel({ path: target.path, lines: target.lines }),
                   })
                 : t('referenceChips.quotedUnsaved', {
-                    chars: target.snippet.length.toLocaleString(),
+                    chars: target.snippet.length.toLocaleString(displayLocale()),
                   })}
             </figcaption>
           </figure>

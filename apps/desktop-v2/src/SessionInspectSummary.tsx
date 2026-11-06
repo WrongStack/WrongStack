@@ -3,10 +3,10 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './session-inspect-summary.css';
-import { displayTime } from './display-dates';
+import { displayLocale, displayTime } from './display-dates';
 
 const count = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
+  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(displayLocale()) : '—';
 /**
  * What a recorded session did, as the WebUI's session inspector summarizes it: token, message,
  * iteration, tool, file and compaction totals, the tool breakdown, the file changes and a
@@ -79,7 +79,10 @@ export function SessionInspectSummary({ id, command }: { id: string; command: En
                   {stat === 'toolCalls' && toolErrors > 0 && (
                     <small>
                       {' '}
-                      · {t('historyView.inspect.failed', { n: toolErrors.toLocaleString() })}
+                      ·{' '}
+                      {t('historyView.inspect.failed', {
+                        n: toolErrors.toLocaleString(displayLocale()),
+                      })}
                     </small>
                   )}
                 </dd>
@@ -144,7 +147,7 @@ export function SessionInspectSummary({ id, command }: { id: string; command: En
                     {tools.map(([name, calls]) => (
                       <li key={name}>
                         <span>{name}</span>
-                        <strong>{calls.toLocaleString()}</strong>
+                        <strong>{calls.toLocaleString(displayLocale())}</strong>
                       </li>
                     ))}
                   </ol>

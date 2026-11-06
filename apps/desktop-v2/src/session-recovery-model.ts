@@ -1,3 +1,4 @@
+import { displayLocale } from './display-dates';
 import { entries, record } from './engine-values';
 
 export interface RecoveryCheckpoint {
@@ -24,7 +25,10 @@ export function recoveryCheckpoints(value: unknown): RecoveryCheckpoint[] {
 }
 export function recoveryDate(value: unknown, missing = 'Time not recorded') {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) return missing;
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(value).toLocaleString(displayLocale(), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 }
 /** Rewind cuts at the first recorded checkpoint with an index, even after index reuse. */
 export function checkpointBoundaries(checkpoints: RecoveryCheckpoint[]) {

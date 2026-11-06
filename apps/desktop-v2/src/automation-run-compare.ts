@@ -1,4 +1,5 @@
 import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
+import { displayLocale } from './display-dates';
 
 /** The recorded facts, in display order, with their English labels. */
 const FACTS = {
@@ -46,7 +47,7 @@ export function runFacts(
 ): RunFact[] {
   const unknown = words.notRecorded;
   const tokens = (value: number | null | undefined) =>
-    value === null || value === undefined ? unknown : value.toLocaleString();
+    value === null || value === undefined ? unknown : value.toLocaleString(displayLocale());
   const read = (run: AutomationRunRecord): Record<RunFactId, string> => {
     const result = run.result;
     return {

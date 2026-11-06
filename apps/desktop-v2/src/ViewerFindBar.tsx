@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayLocale } from './display-dates';
 import { findMatches, MAX_MATCHES, matchLines } from './editor-find';
 
 export interface ViewerFind {
@@ -52,7 +53,9 @@ export function ViewerFindBar({
     );
   };
   const count =
-    matches.length >= MAX_MATCHES ? `${MAX_MATCHES.toLocaleString()}+` : String(matches.length);
+    matches.length >= MAX_MATCHES
+      ? `${MAX_MATCHES.toLocaleString(displayLocale())}+`
+      : String(matches.length);
   return (
     <section className="editor-find-bar" aria-label={t(`find.${scope}.region`)}>
       <input
