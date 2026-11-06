@@ -2,7 +2,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries, record } from './engine-values';
+import { entries, record, sentenceStart } from './engine-values';
 import { Modal } from './Modal';
 import './kanban-contract-map.css';
 
@@ -123,11 +123,15 @@ export function KanbanContractMap({
   board: Record<string, unknown>;
   onClose: () => void;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   /** Engine enum values worded in the display language; unknown values stay as sent. */
   const word = (group: 'kind' | 'state' | 'enforcement' | 'edge', value: string) =>
     t(`contractMap.${group}.${value}`, { defaultValue: value.replaceAll('_', ' ') });
   const kind = (value: string) => word('kind', value);
+  // The catalog words also run inside sentences ("Card: … targets objective: …"); a select
+  // option stands alone, so it starts like a sentence.
+  const option = (group: 'kind' | 'state' | 'enforcement' | 'edge', value: string) =>
+    sentenceStart(word(group, value), i18n.language);
   const card = (title: string) => t('contractMap.card', { title });
   const boardId = String(board['id'] ?? '');
   const tasks = entries(board['tasks']).filter((task) => typeof task['id'] === 'string');
@@ -252,7 +256,7 @@ export function KanbanContractMap({
                             >
                               {NODE_STATES.map((state) => (
                                 <option key={state} value={state}>
-                                  {word('state', state)}
+                                  {option('state', state)}
                                 </option>
                               ))}
                             </select>
@@ -363,7 +367,7 @@ export function KanbanContractMap({
                     >
                       {NODE_KINDS.map((value) => (
                         <option key={value} value={value}>
-                          {kind(value)}
+                          {option('kind', value)}
                         </option>
                       ))}
                     </select>
@@ -378,7 +382,7 @@ export function KanbanContractMap({
                     >
                       {ENFORCEMENTS.map((value) => (
                         <option key={value} value={value}>
-                          {word('enforcement', value)}
+                          {option('enforcement', value)}
                         </option>
                       ))}
                     </select>
@@ -472,7 +476,7 @@ export function KanbanContractMap({
                     >
                       {EDGE_TYPES.map((type) => (
                         <option key={type} value={type}>
-                          {word('edge', type)}
+                          {option('edge', type)}
                         </option>
                       ))}
                     </select>

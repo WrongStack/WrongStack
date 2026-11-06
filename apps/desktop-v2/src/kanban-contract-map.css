@@ -59,6 +59,21 @@
   display: grid;
   gap: 4px;
 }
+/* The map is written for a wide dialog: the default 490 px one squeezed its forms and
+   scrolled sideways. */
+.modal:has(.kanban-contract-map) {
+  width: min(780px, calc(100vw - 32px));
+}
+/* The form's grid gap spaces its fields; the dialog's 18 px label margins and the 9 px field
+   offset doubled every gap. */
+.modal .kanban-contract-form label {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.modal .kanban-contract-form label > :is(input, select) {
+  margin-top: 0;
+}
 .kanban-contract-form > strong,
 .kanban-contract-form > div,
 .kanban-contract-wide {
@@ -73,10 +88,13 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.kanban-contract-task li > select {
+/* Scoped to the dialog so it outranks the dialog's full-width field rule, which pushed the
+   state picker past the dialog edge. */
+.modal .kanban-contract-task li > select {
   flex: 0 0 auto;
   width: auto;
   min-width: 110px;
+  margin-top: 0;
 }
 .kanban-contract-task li > span:nth-child(2) {
   min-width: 160px;
