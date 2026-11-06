@@ -27,6 +27,11 @@ const SELECTOR_ERROR_KEYS = {
   access: 'activity:kanbanText.boundaryLineAccess',
 } as const;
 
+/** The summary stands alone at the end of the row, so it starts like a sentence in its language. */
+function sentenceStart(text: string, language: string): string {
+  return text ? text.charAt(0).toLocaleUpperCase(language) + text.slice(1) : text;
+}
+
 /** A selector line the parser rejected; `message` stays English, `line`/`reason` drive the UI text. */
 export class BoundarySelectorError extends Error {
   readonly line: number;
@@ -51,7 +56,7 @@ export function KanbanBoundaryEditor({
   inherited?: KanbanBoundaryPolicy | undefined;
   onSave: (policy: KanbanBoundaryPolicy | null) => void;
 }) {
-  const { t } = useAppTranslation();
+  const { t, i18n } = useAppTranslation();
   const [policy, setPolicy] = useState<KanbanBoundaryPolicy>(value ?? DEFAULT_POLICY);
   const [allowText, setAllowText] = useState(formatBoundarySelectors(value?.allow ?? []));
   const [denyText, setDenyText] = useState(formatBoundarySelectors(value?.deny ?? []));
@@ -91,15 +96,18 @@ export function KanbanBoundaryEditor({
         <ShieldCheck size={14} className="text-primary" />
         <span>{title}</span>
         <span className="ml-auto font-normal text-muted-foreground">
-          {value?.enabled
-            ? t('activity:kanbanText.boundarySummary', {
-                enforcement: modeLabel(value.enforcement),
-                count: value.allow.length,
-                shell: modeLabel(value.shellAccess),
-              })
-            : inherited?.enabled
-              ? t('activity:kanbanText.inheritsBoardBoundary')
-              : t('activity:kanbanText.unrestricted')}
+          {sentenceStart(
+            value?.enabled
+              ? t('activity:kanbanText.boundarySummary', {
+                  enforcement: modeLabel(value.enforcement),
+                  count: value.allow.length,
+                  shell: modeLabel(value.shellAccess),
+                })
+              : inherited?.enabled
+                ? t('activity:kanbanText.inheritsBoardBoundary')
+                : t('activity:kanbanText.unrestricted'),
+            i18n.language,
+          )}
         </span>
       </summary>
       <div className="space-y-2 border-t p-3 text-xs">
