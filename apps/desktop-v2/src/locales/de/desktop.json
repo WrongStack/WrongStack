@@ -1056,9 +1056,9 @@
   "jobs": {
     "title": "Geplante Aufgaben",
     "status": {
-      "paused": "pausiert",
-      "overdue": "überfällig",
-      "active": "aktiv"
+      "paused": "Pausiert",
+      "overdue": "Überfällig",
+      "active": "Aktiv"
     },
     "every": "alle {{interval}}",
     "run": "{{count}} Lauf",
@@ -1089,8 +1089,8 @@
     "title": "Verfügbarkeit von Anbieter/Modell",
     "summary": "{{blocked}} gesperrt · {{degraded}} eingeschränkt · {{scheduled}} geplant",
     "state": {
-      "blocked": "gesperrt",
-      "degraded": "eingeschränkt"
+      "blocked": "Gesperrt",
+      "degraded": "Eingeschränkt"
     },
     "hide": "Ausblenden",
     "details": "Details",
@@ -7736,10 +7736,10 @@
     "latency": "Latenz",
     "details": "Details",
     "result": {
-      "passed": "bestanden",
-      "failed": "fehlgeschlagen",
-      "cancelled": "abgebrochen",
-      "running": "läuft",
+      "passed": "Bestanden",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "running": "Läuft",
       "timeout": "Zeitüberschreitung"
     }
   },
@@ -9192,14 +9192,14 @@
     "planTitled": "Plan: {{title}}",
     "tasks": "Aufgaben",
     "status": {
-      "open": "offen",
-      "in_progress": "in Arbeit",
-      "done": "erledigt",
-      "pending": "ausstehend",
-      "blocked": "blockiert",
-      "review": "in Prüfung",
-      "failed": "fehlgeschlagen",
-      "completed": "abgeschlossen"
+      "open": "Offen",
+      "in_progress": "In Arbeit",
+      "done": "Erledigt",
+      "pending": "Ausstehend",
+      "blocked": "Blockiert",
+      "review": "In Prüfung",
+      "failed": "Fehlgeschlagen",
+      "completed": "Abgeschlossen"
     }
   },
   "shellText": {

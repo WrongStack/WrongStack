@@ -1056,9 +1056,9 @@
   "jobs": {
     "title": "Scheduled jobs",
     "status": {
-      "paused": "paused",
-      "overdue": "overdue",
-      "active": "active"
+      "paused": "Paused",
+      "overdue": "Overdue",
+      "active": "Active"
     },
     "every": "every {{interval}}",
     "run": "{{count}} run",
@@ -1089,8 +1089,8 @@
     "title": "Provider/model availability",
     "summary": "{{blocked}} blocked · {{degraded}} degraded · {{scheduled}} scheduled",
     "state": {
-      "blocked": "blocked",
-      "degraded": "degraded"
+      "blocked": "Blocked",
+      "degraded": "Degraded"
     },
     "hide": "Hide",
     "details": "Details",
@@ -2576,7 +2576,7 @@
       "environmentJson": "Environment receipt"
     },
     "verify": {
-      "not-verified": "not-verified",
+      "not-verified": "not verified",
       "passed": "passed",
       "failed": "failed",
       "stale": "stale",
@@ -7736,11 +7736,11 @@
     "latency": "Latency",
     "details": "Details",
     "result": {
-      "passed": "passed",
-      "failed": "failed",
-      "cancelled": "cancelled",
-      "running": "running",
-      "timeout": "timeout"
+      "passed": "Passed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "running": "Running",
+      "timeout": "Timeout"
     }
   },
   "techStack": {
@@ -8773,7 +8773,7 @@
       "committing": "committing",
       "merging": "merging",
       "merged": "merged",
-      "needs-review": "needs-review",
+      "needs-review": "needs review",
       "failed": "failed"
     }
   },
@@ -9192,14 +9192,14 @@
     "planTitled": "Plan: {{title}}",
     "tasks": "Tasks",
     "status": {
-      "open": "open",
-      "in_progress": "in progress",
-      "done": "done",
-      "pending": "pending",
-      "blocked": "blocked",
-      "review": "review",
-      "failed": "failed",
-      "completed": "completed"
+      "open": "Open",
+      "in_progress": "In progress",
+      "done": "Done",
+      "pending": "Pending",
+      "blocked": "Blocked",
+      "review": "Review",
+      "failed": "Failed",
+      "completed": "Completed"
     }
   },
   "shellText": {

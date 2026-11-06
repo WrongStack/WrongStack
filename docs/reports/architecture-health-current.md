@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-06T09:49:07.505Z
+**Generated:** 2026-11-06T10:07:10.390Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6048 |
-| Production source lines | 1252982 |
+| Production source lines | 1252987 |
 | Test files | 5041 |
 | Workspace dependency edges | 243 |
 | Relative module edges | 17815 |
@@ -114,8 +114,8 @@ None.
 | 754 | `packages/client/src/client.ts` |
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
+| 745 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 743 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
-| 740 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |

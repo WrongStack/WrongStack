@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T09:49:07.505Z",
+  "generatedAt": "2026-11-06T10:07:10.390Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6048,
     "testFiles": 5041,
-    "sourceLines": 1252982,
+    "sourceLines": 1252987,
     "workspaceEdges": 243,
     "moduleEdges": 17815,
     "nonCommandSlashImports": 0,
@@ -34656,7 +34656,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 740,
+      "lines": 745,
       "relativeImports": 16
     },
     {
@@ -34797,14 +34797,14 @@
       "relativeImports": 14
     },
     {
+      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
+      "lines": 745,
+      "relativeImports": 16
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
       "lines": 743,
       "relativeImports": 9
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 740,
-      "relativeImports": 16
     },
     {
       "file": "packages/webui-server/src/server/completion-handlers.ts",

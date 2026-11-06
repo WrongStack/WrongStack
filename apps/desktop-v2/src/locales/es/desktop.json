@@ -1056,9 +1056,9 @@
   "jobs": {
     "title": "Tareas programadas",
     "status": {
-      "paused": "en pausa",
-      "overdue": "atrasada",
-      "active": "activa"
+      "paused": "En pausa",
+      "overdue": "Atrasada",
+      "active": "Activa"
     },
     "every": "cada {{interval}}",
     "run": "{{count}} ejecución",
@@ -1089,8 +1089,8 @@
     "title": "Disponibilidad de proveedor/modelo",
     "summary": "{{blocked}} bloqueados · {{degraded}} degradados · {{scheduled}} programados",
     "state": {
-      "blocked": "bloqueado",
-      "degraded": "degradado"
+      "blocked": "Bloqueado",
+      "degraded": "Degradado"
     },
     "hide": "Ocultar",
     "details": "Detalles",
@@ -7736,11 +7736,11 @@
     "latency": "Latencia",
     "details": "Detalles",
     "result": {
-      "passed": "superada",
-      "failed": "fallida",
-      "cancelled": "cancelada",
-      "running": "en curso",
-      "timeout": "tiempo agotado"
+      "passed": "Superada",
+      "failed": "Fallida",
+      "cancelled": "Cancelada",
+      "running": "En curso",
+      "timeout": "Tiempo agotado"
     }
   },
   "techStack": {
@@ -9192,14 +9192,14 @@
     "planTitled": "Plan: {{title}}",
     "tasks": "Tareas",
     "status": {
-      "open": "abierto",
-      "in_progress": "en curso",
-      "done": "hecho",
-      "pending": "pendiente",
-      "blocked": "bloqueado",
-      "review": "en revisión",
-      "failed": "fallido",
-      "completed": "completado"
+      "open": "Abierto",
+      "in_progress": "En curso",
+      "done": "Hecho",
+      "pending": "Pendiente",
+      "blocked": "Bloqueado",
+      "review": "En revisión",
+      "failed": "Fallido",
+      "completed": "Completado"
     }
   },
   "shellText": {

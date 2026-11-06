@@ -2,7 +2,7 @@ import { Copy, History, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
-import { entries } from './engine-values';
+import { entries, sentenceStart } from './engine-values';
 import { HistoryEmptyCleanup, HistorySelection } from './HistorySelection';
 import { type HistoryCatalogPage, readHistoryPage } from './history-page-model';
 import { Modal } from './Modal';
@@ -45,7 +45,7 @@ export function ProjectSessionHistory({
   /** A core session to select when the page opens, e.g. from a Chronicle event. */
   focusSessionId?: string | undefined;
 }) {
-  const { t } = useDesktopText();
+  const { t, i18n } = useDesktopText();
   // Read through a ref so a language change does not reload the catalog.
   const words = useRef(t);
   words.current = t;
@@ -530,9 +530,14 @@ export function ProjectSessionHistory({
                   {live
                     ? t('historyView.openInDesktop')
                     : item['outcome']
-                      ? t(`historyView.rowOutcome.${String(item['outcome'])}`, {
-                          defaultValue: String(item['outcome']),
-                        })
+                      ? // The outcome stands alone at the end of the row; the catalog keeps it
+                        // lowercase for the inspect sentence.
+                        sentenceStart(
+                          t(`historyView.rowOutcome.${String(item['outcome'])}`, {
+                            defaultValue: String(item['outcome']),
+                          }),
+                          i18n.language,
+                        )
                       : t('historyView.recorded')}
                 </span>
               </button>

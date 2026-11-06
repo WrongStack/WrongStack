@@ -1056,9 +1056,9 @@
   "jobs": {
     "title": "Tâches planifiées",
     "status": {
-      "paused": "en pause",
-      "overdue": "en retard",
-      "active": "active"
+      "paused": "En pause",
+      "overdue": "En retard",
+      "active": "Active"
     },
     "every": "toutes les {{interval}}",
     "run": "{{count}} exécution",
@@ -1089,8 +1089,8 @@
     "title": "Disponibilité fournisseur/modèle",
     "summary": "{{blocked}} bloqués · {{degraded}} dégradés · {{scheduled}} planifiés",
     "state": {
-      "blocked": "bloqué",
-      "degraded": "dégradé"
+      "blocked": "Bloqué",
+      "degraded": "Dégradé"
     },
     "hide": "Masquer",
     "details": "Détails",
@@ -7736,11 +7736,11 @@
     "latency": "Latence",
     "details": "Détails",
     "result": {
-      "passed": "réussi",
-      "failed": "échoué",
-      "cancelled": "annulé",
-      "running": "en cours",
-      "timeout": "délai dépassé"
+      "passed": "Réussi",
+      "failed": "Échoué",
+      "cancelled": "Annulé",
+      "running": "En cours",
+      "timeout": "Délai dépassé"
     }
   },
   "techStack": {
@@ -9192,14 +9192,14 @@
     "planTitled": "Plan : {{title}}",
     "tasks": "Tâches",
     "status": {
-      "open": "ouvert",
-      "in_progress": "en cours",
-      "done": "terminé",
-      "pending": "en attente",
-      "blocked": "bloqué",
-      "review": "en revue",
-      "failed": "échoué",
-      "completed": "achevé"
+      "open": "Ouvert",
+      "in_progress": "En cours",
+      "done": "Terminé",
+      "pending": "En attente",
+      "blocked": "Bloqué",
+      "review": "En revue",
+      "failed": "Échoué",
+      "completed": "Achevé"
     }
   },
   "shellText": {

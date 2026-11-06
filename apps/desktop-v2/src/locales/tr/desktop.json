@@ -1056,9 +1056,9 @@
   "jobs": {
     "title": "Zamanlanmış işler",
     "status": {
-      "paused": "duraklatıldı",
-      "overdue": "gecikti",
-      "active": "etkin"
+      "paused": "Duraklatıldı",
+      "overdue": "Gecikti",
+      "active": "Etkin"
     },
     "every": "her {{interval}}",
     "run": "{{count}} çalışma",
@@ -1089,8 +1089,8 @@
     "title": "Sağlayıcı/model kullanılabilirliği",
     "summary": "{{blocked}} engelli · {{degraded}} zayıflamış · {{scheduled}} zamanlanmış",
     "state": {
-      "blocked": "engelli",
-      "degraded": "zayıflamış"
+      "blocked": "Engelli",
+      "degraded": "Zayıflamış"
     },
     "hide": "Gizle",
     "details": "Ayrıntılar",
@@ -7736,11 +7736,11 @@
     "latency": "Gecikme",
     "details": "Ayrıntılar",
     "result": {
-      "passed": "geçti",
-      "failed": "başarısız",
-      "cancelled": "iptal edildi",
-      "running": "çalışıyor",
-      "timeout": "zaman aşımı"
+      "passed": "Geçti",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi",
+      "running": "Çalışıyor",
+      "timeout": "Zaman aşımı"
     }
   },
   "techStack": {
@@ -9192,14 +9192,14 @@
     "planTitled": "Plan: {{title}}",
     "tasks": "Görevler",
     "status": {
-      "open": "açık",
-      "in_progress": "sürüyor",
-      "done": "tamamlandı",
-      "pending": "bekliyor",
-      "blocked": "engelli",
-      "review": "incelemede",
-      "failed": "başarısız",
-      "completed": "tamamlandı"
+      "open": "Açık",
+      "in_progress": "Sürüyor",
+      "done": "Tamamlandı",
+      "pending": "Bekliyor",
+      "blocked": "Engelli",
+      "review": "İncelemede",
+      "failed": "Başarısız",
+      "completed": "Tamamlandı"
     }
   },
   "shellText": {

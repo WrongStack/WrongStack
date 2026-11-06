@@ -236,7 +236,7 @@ describe('project session history in the display language', () => {
       'Search across conversations',
       'Fix login',
       'Untitled conversation',
-      'completed',
+      'Completed',
       'Recorded',
       'Return to the work.',
     ])
@@ -274,7 +274,7 @@ describe('project session history in the display language', () => {
       'Bu sayfada 2 eşleşen özet · 2 kaydın 1–2 arası.',
       'Boş günlükleri dahil et',
       'Adsız konuşma',
-      'tamamlandı',
+      'Tamamlandı',
       'Kaydedildi',
       'İşe geri dön.',
     ])
