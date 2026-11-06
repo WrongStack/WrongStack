@@ -39,6 +39,11 @@
 .recovery-identity h3 {
   margin: 0 0 5px;
 }
+/* Centred against the title block it floated mid-row; it sits on the title line at the end. */
+.recovery-identity > .copy-button {
+  align-self: flex-start;
+  margin-left: auto;
+}
 .recovery-identity p {
   font-size: 12px;
   color: var(--muted);
