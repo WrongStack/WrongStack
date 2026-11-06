@@ -5393,6 +5393,8 @@
       "drop": "Verwerfen"
     },
     "draft": {
+      "unsaved": "Dein ungespeicherter Modellplan-Entwurf wurde wiederhergestellt.",
+      "unsavedAt": "Dein ungespeicherter Modellplan-Entwurf vom {{time}} wurde wiederhergestellt.",
       "restored": "Dein älterer Entwurf wurde über den aktuellen Sitzungsplan wiederhergestellt. Prüfe ihn vor dem Speichern.",
       "fromOther": "Der von einem anderen Fenster gespeicherte Entwurf wird verwendet.",
       "stale": "Ein gespeicherter Entwurf dieses Plans wurde auf Basis einer älteren Version bearbeitet; der Sitzungsplan hat sich seitdem geändert.",

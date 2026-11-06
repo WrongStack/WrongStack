@@ -50,11 +50,13 @@ export function useAgentPlanDraft({
     if (saved && sameSetting(saved.base ?? null, base ?? null))
       apply(
         saved.plan,
-        `Restored your unsaved model plan draft${state.updatedAt ? ` from ${displayDateTime(state.updatedAt)}` : ''}.`,
+        state.updatedAt
+          ? t('agentPlan.draft.unsavedAt', { time: displayDateTime(state.updatedAt) })
+          : t('agentPlan.draft.unsaved'),
       );
     else if (saved) setStale(saved);
     setHydrated(true);
-  }, [store, hydrated, loaded, state, base, apply]);
+  }, [store, hydrated, loaded, state, base, apply, t]);
   useEffect(() => {
     if (!store || !hydrated || stale || !state?.ready || state.review) return;
     const next = dirty && plan ? { base: base ?? null, plan } : null;

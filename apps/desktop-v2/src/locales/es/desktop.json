@@ -5393,6 +5393,8 @@
       "drop": "Descartar"
     },
     "draft": {
+      "unsaved": "Se restauró tu borrador sin guardar del plan de modelos.",
+      "unsavedAt": "Se restauró tu borrador sin guardar del plan de modelos del {{time}}.",
       "restored": "Se restauró tu borrador anterior sobre el plan de sesión actual. Revísalo antes de guardar.",
       "fromOther": "Se usa el borrador guardado por otra ventana.",
       "stale": "Un borrador guardado de este plan se editó a partir de una versión anterior; el plan de sesión ha cambiado desde entonces.",

@@ -5393,6 +5393,8 @@
       "drop": "Descartar"
     },
     "draft": {
+      "unsaved": "Seu rascunho não salvo do plano de modelos foi restaurado.",
+      "unsavedAt": "Seu rascunho não salvo do plano de modelos de {{time}} foi restaurado.",
       "restored": "Seu rascunho anterior foi restaurado sobre o plano de sessão atual. Revise antes de salvar.",
       "fromOther": "Usando o rascunho salvo por outra janela.",
       "stale": "Um rascunho salvo deste plano foi editado a partir de uma versão anterior; o plano de sessão mudou desde então.",

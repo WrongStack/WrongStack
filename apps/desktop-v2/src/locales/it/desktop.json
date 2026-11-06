@@ -5393,6 +5393,8 @@
       "drop": "Scarta"
     },
     "draft": {
+      "unsaved": "È stata ripristinata la bozza non salvata del piano dei modelli.",
+      "unsavedAt": "È stata ripristinata la bozza non salvata del piano dei modelli del {{time}}.",
       "restored": "La bozza precedente è stata ripristinata sopra il piano di sessione attuale. Controllala prima di salvare.",
       "fromOther": "Viene usata la bozza salvata da un’altra finestra.",
       "stale": "Una bozza salvata di questo piano è stata modificata da una versione precedente; da allora il piano di sessione è cambiato.",
