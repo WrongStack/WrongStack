@@ -141,19 +141,22 @@ export function ProjectKit({
           <h1>Project Kit</h1>
           <p>{t('projectKit.intro')}</p>
         </div>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={loading || busy}
-          onClick={() => void load()}
-        >
-          <RefreshCw size={14} />
-          {t('projectKit.refresh')}
-        </button>
-        <button type="button" className="button primary" onClick={() => setCreating(true)}>
-          <Plus size={14} />
-          {t('projectKit.create')}
-        </button>
+        {/* One action group: the heading spreads its children, so loose buttons drifted apart. */}
+        <div className="sdd-actions">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading || busy}
+            onClick={() => void load()}
+          >
+            <RefreshCw size={14} />
+            {t('projectKit.refresh')}
+          </button>
+          <button type="button" className="button primary" onClick={() => setCreating(true)}>
+            <Plus size={14} />
+            {t('projectKit.create')}
+          </button>
+        </div>
       </header>
       {error && (
         <p className="composer-error" role="alert">

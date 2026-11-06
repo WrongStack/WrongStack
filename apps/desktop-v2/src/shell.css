@@ -347,6 +347,25 @@
   font-size: 12px;
   line-height: 1.6;
 }
+/* The heading's action group: buttons side by side on the title row, whatever class the page
+   reused for the group (some carry a form's top margin). */
+.workspace-shell
+  :is(
+    .studio-heading,
+    .roster-hero,
+    .history-heading,
+    .sage-page-heading,
+    .wrongstack-settings-heading,
+    .settings-section-heading
+  )
+  > div
+  + div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+}
 .project-context-bar {
   min-height: 40px;
   padding-block: 4px;
