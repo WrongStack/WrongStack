@@ -5537,12 +5537,12 @@
     "status": {
       "configured": "Configurada",
       "disabled": "Desativada",
-      "stopped": "parada",
-      "connecting": "conectando",
-      "connected": "conectada",
-      "sleeping": "em pausa",
-      "discovering": "descobrindo",
-      "error": "erro"
+      "stopped": "Parada",
+      "connecting": "Conectando",
+      "connected": "Conectada",
+      "sleeping": "Em pausa",
+      "discovering": "Descobrindo",
+      "error": "Erro"
     },
     "restartLabel": "Reiniciar {{name}}",
     "restartTitle": "Reiniciar a conexão com o servidor",
@@ -6830,12 +6830,12 @@
     "completed": "Concluído",
     "thinking": "Raciocínio",
     "status": {
-      "running": "executando",
-      "completed": "concluído",
-      "failed": "falhou",
-      "timeout": "tempo esgotado",
-      "stopped": "parado",
-      "cancelled": "cancelado"
+      "running": "Executando",
+      "completed": "Concluído",
+      "failed": "Falhou",
+      "timeout": "Tempo esgotado",
+      "stopped": "Parado",
+      "cancelled": "Cancelado"
     }
   },
   "shortcutsView": {

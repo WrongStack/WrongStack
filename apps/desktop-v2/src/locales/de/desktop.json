@@ -5537,11 +5537,11 @@
     "status": {
       "configured": "Konfiguriert",
       "disabled": "Deaktiviert",
-      "stopped": "gestoppt",
-      "connecting": "verbindet",
-      "connected": "verbunden",
-      "sleeping": "pausiert",
-      "discovering": "erkundet",
+      "stopped": "Gestoppt",
+      "connecting": "Verbindet",
+      "connected": "Verbunden",
+      "sleeping": "Pausiert",
+      "discovering": "Erkundet",
       "error": "Fehler"
     },
     "restartLabel": "{{name}} neu starten",
@@ -6830,12 +6830,12 @@
     "completed": "Abgeschlossen",
     "thinking": "Denken",
     "status": {
-      "running": "läuft",
-      "completed": "abgeschlossen",
-      "failed": "fehlgeschlagen",
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen",
       "timeout": "Zeitüberschreitung",
-      "stopped": "gestoppt",
-      "cancelled": "abgebrochen"
+      "stopped": "Gestoppt",
+      "cancelled": "Abgebrochen"
     }
   },
   "shortcutsView": {

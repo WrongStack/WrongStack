@@ -5537,12 +5537,12 @@
     "status": {
       "configured": "Yapılandırıldı",
       "disabled": "Devre dışı",
-      "stopped": "durduruldu",
-      "connecting": "bağlanıyor",
-      "connected": "bağlı",
-      "sleeping": "uykuda",
-      "discovering": "keşfediliyor",
-      "error": "hata"
+      "stopped": "Durduruldu",
+      "connecting": "Bağlanıyor",
+      "connected": "Bağlı",
+      "sleeping": "Uykuda",
+      "discovering": "Keşfediliyor",
+      "error": "Hata"
     },
     "restartLabel": "{{name}} bağlantısını yeniden başlat",
     "restartTitle": "Sunucu bağlantısını yeniden başlat",
@@ -6830,12 +6830,12 @@
     "completed": "Tamamlandı",
     "thinking": "Düşünme",
     "status": {
-      "running": "çalışıyor",
-      "completed": "tamamlandı",
-      "failed": "başarısız",
-      "timeout": "zaman aşımı",
-      "stopped": "durduruldu",
-      "cancelled": "iptal edildi"
+      "running": "Çalışıyor",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "timeout": "Zaman aşımı",
+      "stopped": "Durduruldu",
+      "cancelled": "İptal edildi"
     }
   },
   "shortcutsView": {

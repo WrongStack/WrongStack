@@ -65,7 +65,7 @@ describe('integration settings in the display language', () => {
     for (const text of [
       'Connected tools',
       'Add connection',
-      'connected',
+      'Connected',
       '1 tool available',
       'Available tools',
       'Server-reported hints: read-only. Execution permissions are evaluated separately.',
@@ -104,7 +104,7 @@ describe('integration settings in the display language', () => {
     for (const text of [
       'Bağlı araçlar',
       'Bağlantı ekle',
-      'bağlı',
+      'Bağlı',
       '1 araç kullanılabilir',
       'Kullanılabilir araçlar',
       'Sunucunun bildirdiği ipuçları: salt okunur.',

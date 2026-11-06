@@ -83,7 +83,7 @@ describe('subagent transcripts', () => {
     expect(html).toContain('aria-pressed="true">Conversation</button>');
     expect(html).toContain('title="Ada: Audit"');
     expect(html).toContain(
-      '<span class="agent-led running" aria-hidden="true"></span>Ada<small>running</small>',
+      '<span class="agent-led running" aria-hidden="true"></span>Ada<small>Running</small>',
     );
   });
 });
