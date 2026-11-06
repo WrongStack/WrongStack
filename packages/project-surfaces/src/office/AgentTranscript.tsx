@@ -10,7 +10,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type { AgentTranscriptEntry, AgentTranscriptKind } from './types';
 
@@ -80,7 +80,7 @@ const KIND_META: Record<
 function formatTime(ts: string): string {
   const time = Date.parse(ts);
   if (!Number.isFinite(time)) return '';
-  return new Date(time).toLocaleTimeString([], {
+  return new Date(time).toLocaleTimeString(displayLocale(), {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

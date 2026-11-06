@@ -1,6 +1,6 @@
 import { Check, Loader2, Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -193,7 +193,9 @@ export function ModelEditor({
                       {match.contextWindow
                         ? ` · ${(match.contextWindow / 1000).toFixed(0)}K ctx`
                         : ''}
-                      {match.maxOutput ? ` · ${match.maxOutput.toLocaleString()} out` : ''}
+                      {match.maxOutput
+                        ? ` · ${match.maxOutput.toLocaleString(displayLocale())} out`
+                        : ''}
                     </span>
                   </div>
                 </button>

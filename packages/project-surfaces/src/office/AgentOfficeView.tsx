@@ -1,6 +1,6 @@
 import { Activity, Bot, Building2, Clock3, Coffee, HardDrive, Mail, Wifi, Zap } from 'lucide-react';
 import { type CSSProperties, useMemo, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { ActionDetail, type SelectedAction } from './AgentOfficeDetails.js';
 import { AgentLane } from './AgentOfficeView/AgentLane.js';
 import { BreakRoom, isDeskAgent } from './AgentOfficeView/BreakRoom.js';
@@ -143,7 +143,7 @@ export function AgentOfficeView() {
           </div>
           <div>
             <Activity />
-            <strong>{aggregate.toolCalls.toLocaleString()}</strong>
+            <strong>{aggregate.toolCalls.toLocaleString(displayLocale())}</strong>
             <span>{t('activity:agentOffice.toolCalls')}</span>
           </div>
         </div>

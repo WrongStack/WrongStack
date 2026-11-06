@@ -19,7 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import { useAppTranslation } from '../../lib/i18n';
+import { displayLocale, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { agentModelLabel } from './model-label.js';
 import type { ClientStatus } from './utils.js';
@@ -328,7 +328,9 @@ function CoordinatorNode({ data }: { data: OfficeNodeData }) {
           <div className="text-muted-foreground">{t('activity:officeMap.agents')}</div>
         </div>
         <div className="rounded bg-muted/40 p-1.5 text-center">
-          <div className="font-mono text-warning">{(data.toolCalls || 0).toLocaleString()}</div>
+          <div className="font-mono text-warning">
+            {(data.toolCalls || 0).toLocaleString(displayLocale())}
+          </div>
           <div className="text-muted-foreground">{t('activity:office.toolCallsLabel')}</div>
         </div>
         <div className="rounded bg-muted/40 p-1.5 text-center">

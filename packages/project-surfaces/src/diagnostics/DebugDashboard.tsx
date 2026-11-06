@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { surfaceFetch, useSurfaceHost } from '../host';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { PageMotif } from '../ui/PageMotif';
 import type { DebugData, FileWatcherMetrics, SystemMetrics } from './DebugDashboardParts.js';
 import { formatByteRate, formatBytes, formatUptime, MetricCard } from './DebugDashboardParts.js';
@@ -148,7 +148,9 @@ export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
         {data.lastUpdated && (
           <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/55 px-3 py-2 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
-            {t('activity:debug.lastUpdated', { time: data.lastUpdated.toLocaleTimeString() })}
+            {t('activity:debug.lastUpdated', {
+              time: data.lastUpdated.toLocaleTimeString(displayLocale()),
+            })}
           </div>
         )}
 
@@ -306,7 +308,7 @@ export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
                       ? `${processSample.workload.messages} msgs`
                       : undefined,
                     processSample.workload.messageEstimatedTokens !== undefined
-                      ? `${processSample.workload.messageEstimatedTokens.toLocaleString()} ctx tokens`
+                      ? `${processSample.workload.messageEstimatedTokens.toLocaleString(displayLocale())} ctx tokens`
                       : undefined,
                     processSample.workload.historyEntries !== undefined
                       ? `${processSample.workload.historyMountedEntries ?? 0}/${processSample.workload.historyEntries} history mounted`
@@ -348,7 +350,7 @@ export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
                         <div className="font-medium text-foreground">{processSample.surface}</div>
                         <div className="mt-1 text-muted-foreground">PID {processSample.pid}</div>
                         <div className="text-muted-foreground">
-                          {new Date(processSample.ts).toLocaleTimeString()}
+                          {new Date(processSample.ts).toLocaleTimeString(displayLocale())}
                         </div>
                       </td>
                       <td className="px-3 py-3 tabular-nums">

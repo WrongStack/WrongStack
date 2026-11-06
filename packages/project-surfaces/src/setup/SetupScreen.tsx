@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
@@ -372,7 +372,7 @@ export function SetupScreen() {
                     {lastUpdatedAt && !isLoadingPopular && (
                       <span
                         className="text-[11px] text-muted-foreground"
-                        title={lastUpdatedAt.toLocaleString()}
+                        title={lastUpdatedAt.toLocaleString(displayLocale())}
                       >
                         {formatRelativeTime(lastUpdatedAt)}
                       </span>

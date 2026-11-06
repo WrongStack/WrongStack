@@ -10,7 +10,7 @@ import type {
 import { CACHE_LANE_ORDER, RETENTION_CLASSES } from '@wrongstack/core/utils/residency-labels';
 import { Archive, Database } from 'lucide-react';
 import { fmtTok } from '../lib/dashboard-primitives';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { SectionCard } from './context-dashboard-primitives';
 
@@ -191,7 +191,7 @@ function RetentionView({ retention: h }: { retention: HistoryRetention }) {
       <div className="text-[11px] text-muted-foreground">
         {t('activity:ctxDash.retentionPolicy', {
           k: h.preserveK,
-          threshold: h.eliseThreshold.toLocaleString(),
+          threshold: h.eliseThreshold.toLocaleString(displayLocale()),
         })}
       </div>
       {present.length === 0 ? (

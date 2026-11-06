@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 
 export interface ZoneConfig {
@@ -274,7 +274,7 @@ export function AnimatedCounter({
 
   return (
     <>
-      {display.toLocaleString()}
+      {display.toLocaleString(displayLocale())}
       {suffix}
     </>
   );

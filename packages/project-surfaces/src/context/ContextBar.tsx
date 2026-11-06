@@ -1,5 +1,5 @@
 import { AlertTriangle, Gauge, Zap } from 'lucide-react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 
 /** A token count as the chat header shows it: whole thousands from 10k up. */
@@ -227,8 +227,8 @@ export function ContextBar({
       title={
         (tokens !== undefined && maxTokens !== undefined
           ? t('activity:context.barWithTokens', {
-              tokens: tokens.toLocaleString(),
-              max: maxTokens.toLocaleString(),
+              tokens: tokens.toLocaleString(displayLocale()),
+              max: maxTokens.toLocaleString(displayLocale()),
               pct: pctText,
             })
           : t('activity:context.barPct', { pct: pctText })) +
@@ -278,8 +278,8 @@ export function ContextBar({
           title={
             cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
               ? t('activity:contextText.cacheCovers', {
-                  covered: cache.coverageTokens.toLocaleString(),
-                  max: maxTokens.toLocaleString(),
+                  covered: cache.coverageTokens.toLocaleString(displayLocale()),
+                  max: maxTokens.toLocaleString(displayLocale()),
                 })
               : cacheTitle(cache)
           }
@@ -337,8 +337,8 @@ export function ContextFillBar({
       title={
         (tokens !== undefined && maxTokens !== undefined
           ? t('activity:context.barWithTokens', {
-              tokens: tokens.toLocaleString(),
-              max: maxTokens.toLocaleString(),
+              tokens: tokens.toLocaleString(displayLocale()),
+              max: maxTokens.toLocaleString(displayLocale()),
               pct: pctText,
             })
           : t('activity:context.barPct', { pct: pctText })) +
@@ -402,8 +402,8 @@ export function ContextFillBar({
           title={
             cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
               ? t('activity:contextText.cacheCovers', {
-                  covered: cache.coverageTokens.toLocaleString(),
-                  max: maxTokens.toLocaleString(),
+                  covered: cache.coverageTokens.toLocaleString(displayLocale()),
+                  max: maxTokens.toLocaleString(displayLocale()),
                 })
               : cacheTitle(cache)
           }

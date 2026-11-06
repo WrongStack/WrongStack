@@ -1,5 +1,5 @@
 import { Activity as ActivityIcon, X } from 'lucide-react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type { FileActivity } from './codemap-activity-store';
 
@@ -58,7 +58,7 @@ export function CodeMapActivityDrawer({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="font-mono text-[9px] text-muted-foreground">
-                  {new Date(activity.timestamp).toLocaleTimeString()}
+                  {new Date(activity.timestamp).toLocaleTimeString(displayLocale())}
                 </div>
                 {activity.toolName && (
                   <div className="mt-1">

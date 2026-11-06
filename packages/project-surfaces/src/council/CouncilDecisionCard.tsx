@@ -19,7 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { CouncilSeatCard } from './CouncilSeatCard';
 import { OPTION_THEME_CLASSES, parseCouncilMarkdown } from './council-decision-format';
@@ -453,7 +453,9 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                     {t('activity:councilText.tokens')}
                   </div>
                   <div className="font-semibold text-foreground truncate font-mono">
-                    {t('activity:councilText.tok', { count: totalTokens.toLocaleString() })}
+                    {t('activity:councilText.tok', {
+                      count: totalTokens.toLocaleString(displayLocale()),
+                    })}
                   </div>
                 </div>
               </div>

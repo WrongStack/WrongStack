@@ -1,6 +1,6 @@
 import type { KanbanTask } from '@wrongstack/kanban';
 import type { ReactNode } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { kanbanMetadataText } from './kanban-metadata';
 
@@ -99,7 +99,7 @@ export function AgentRunPanel({
   if (assignment.leaseExpiresAt) {
     rows.push({
       label: t('activity:kanbanRun.leaseExpires'),
-      value: new Date(assignment.leaseExpiresAt).toLocaleString(),
+      value: new Date(assignment.leaseExpiresAt).toLocaleString(displayLocale()),
     });
   }
 

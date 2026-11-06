@@ -1,3 +1,4 @@
+import { displayLocale } from '../lib/i18n';
 import type { ChronicleEventView } from './chronicle-types';
 
 /**
@@ -152,7 +153,7 @@ function toMark(event: ChronicleEventView): ContextMark | undefined {
       const facts = list(report.reductions)
         .map(record)
         .filter((r) => num(r.saved) > 0)
-        .map((r) => `${str(r.phase, 'phase')} −${num(r.saved).toLocaleString()}`);
+        .map((r) => `${str(r.phase, 'phase')} −${num(r.saved).toLocaleString(displayLocale())}`);
       return {
         ...base,
         kind: 'compaction',

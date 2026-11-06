@@ -1,5 +1,5 @@
 import { useSurfaceHost, type ValidityReview } from '../host';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import type { SageEntry } from './model-types';
 
 export function MemoryValidity({
@@ -37,7 +37,7 @@ export function MemoryValidity({
           <p>
             {t('activity:memoryValidity.observed', {
               revision,
-              at: new Date(companion.at).toLocaleString(),
+              at: new Date(companion.at).toLocaleString(displayLocale()),
             })}
           </p>
           <p>{companion.summary}</p>
@@ -53,7 +53,7 @@ export function MemoryValidity({
         <p className="text-muted-foreground">
           {t('activity:memoryValidity.observed', {
             revision: matching.observedRevision,
-            at: new Date(matching.checkedAt).toLocaleString(),
+            at: new Date(matching.checkedAt).toLocaleString(displayLocale()),
           })}
         </p>
       ) : (

@@ -1,7 +1,7 @@
 import type { KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Activity, Check, Copy, Download, RefreshCw, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { cn } from '../lib/utils';
 import { Pagination } from '../ui/pagination';
@@ -315,7 +315,7 @@ export function TaskActivityTimeline({
                     </div>
                     <time
                       dateTime={event.ts}
-                      title={new Date(event.ts).toLocaleString()}
+                      title={new Date(event.ts).toLocaleString(displayLocale())}
                       className="shrink-0 text-[9px] text-muted-foreground"
                     >
                       {formatTimestamp(event.ts)}

@@ -8,7 +8,7 @@
 
 import { AlertCircle, Bot, Clock, Terminal, User } from 'lucide-react';
 import { useSurfaceHost } from '../host';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { CopyButton } from './message/CopyButton.js';
 import { ErrorBodyWithStack } from './message/ErrorBody.js';
@@ -212,7 +212,7 @@ export function WatchMessageBubble({ entry, isContinuation = false }: WatchMessa
               {entry.role === 'tool' && entry.tool ? entry.tool : t(cfg.labelKey)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {new Date(entry.ts).toLocaleTimeString([], {
+              {new Date(entry.ts).toLocaleTimeString(displayLocale(), {
                 hour: '2-digit',
                 minute: '2-digit',
               })}

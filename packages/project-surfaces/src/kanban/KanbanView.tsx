@@ -1,7 +1,7 @@
 import type { KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Columns3, Copy, History, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { useHorizontalScroll } from '../lib/useHorizontalScroll';
 import { cn } from '../lib/utils';
 import { EmptyState } from '../ui/empty-state';
@@ -578,7 +578,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                             {entry.type.replace(/^board\./, '')}
                           </span>
                           <time className="text-xs text-muted-foreground">
-                            {new Date(entry.ts).toLocaleString()}
+                            {new Date(entry.ts).toLocaleString(displayLocale())}
                           </time>
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">

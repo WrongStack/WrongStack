@@ -13,7 +13,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { PageMotif } from '../ui/PageMotif';
 import { ContextTimeline } from './ContextTimeline';
 import { useStoryFeed } from './feed';
@@ -309,8 +309,8 @@ export function SessionStoryView() {
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs">
               <span>
                 {t('activity:story.partialWindow', {
-                  loaded: history.events.length.toLocaleString(),
-                  total: history.total.toLocaleString(),
+                  loaded: history.events.length.toLocaleString(displayLocale()),
+                  total: history.total.toLocaleString(displayLocale()),
                 })}
               </span>
               {history.cursor && (
@@ -528,7 +528,7 @@ export function SessionStoryView() {
                     <div className="mt-4 space-y-3">
                       <p className="break-words text-sm font-medium">{selected.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(selected.at).toLocaleString()} · {selected.kind}
+                        {new Date(selected.at).toLocaleString(displayLocale())} · {selected.kind}
                       </p>
                       <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-muted/40 p-3 text-xs">
                         {selected.detail}

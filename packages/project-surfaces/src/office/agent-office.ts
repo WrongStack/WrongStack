@@ -1,3 +1,4 @@
+import { displayLocale } from '../lib/i18n';
 import type { VizEvent } from './types';
 
 export type OfficeToolKind =
@@ -237,7 +238,7 @@ function describeTool(
       target: path,
       summary:
         outputLines !== undefined
-          ? `${outputLines.toLocaleString()} lines read`
+          ? `${outputLines.toLocaleString(displayLocale())} lines read`
           : range.label
             ? `${range.label} queued to read`
             : 'Reading file',
@@ -253,7 +254,7 @@ function describeTool(
       target: path,
       summary:
         writtenLines !== undefined
-          ? `${writtenLines.toLocaleString()} lines written`
+          ? `${writtenLines.toLocaleString(displayLocale())} lines written`
           : 'Writing file',
       lineLabel: range.label,
     };

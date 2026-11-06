@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type {
   CollabRole,
@@ -399,7 +399,7 @@ export function CollabPanel({
           <span
             key={p.participantId}
             title={t('activity:collab.joinedTitle', {
-              time: new Date(p.joinedAt).toLocaleTimeString(),
+              time: new Date(p.joinedAt).toLocaleTimeString(displayLocale()),
             })}
             className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success"
           >

@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type { OfficeMailActivity, OfficeToolCall, OfficeToolKind } from './agent-office';
 import type { LiveTodoItem } from './types';
@@ -125,7 +125,7 @@ function ToolActionDetail({
         <DetailRow label={t('activity:agentOffice.agent')} value={agentName} />
         <DetailRow
           label={t('activity:agentOffice.started')}
-          value={new Date(call.startedAt).toLocaleTimeString()}
+          value={new Date(call.startedAt).toLocaleTimeString(displayLocale())}
         />
         <DetailRow
           label={t('activity:agentOffice.duration')}
@@ -166,19 +166,19 @@ function ToolActionDetail({
           <div className="agent-office__metric-grid">
             {call.outputLines !== undefined && (
               <div>
-                <strong>{call.outputLines.toLocaleString()}</strong>
+                <strong>{call.outputLines.toLocaleString(displayLocale())}</strong>
                 <span>{t('activity:agentOffice.lines')}</span>
               </div>
             )}
             {call.outputBytes !== undefined && (
               <div>
-                <strong>{call.outputBytes.toLocaleString()}</strong>
+                <strong>{call.outputBytes.toLocaleString(displayLocale())}</strong>
                 <span>{t('activity:agentOffice.bytes')}</span>
               </div>
             )}
             {call.outputTokens !== undefined && (
               <div>
-                <strong>≈{call.outputTokens.toLocaleString()}</strong>
+                <strong>≈{call.outputTokens.toLocaleString(displayLocale())}</strong>
                 <span>{t('activity:agentOffice.tokens')}</span>
               </div>
             )}
@@ -256,7 +256,7 @@ function MailActionDetail({
         <DetailRow label={t('activity:agentOffice.agent')} value={agentName} />
         <DetailRow
           label={t('activity:agentOffice.started')}
-          value={new Date(mail.timestampMs).toLocaleTimeString()}
+          value={new Date(mail.timestampMs).toLocaleTimeString(displayLocale())}
         />
         <DetailRow label={t('activity:agentOffice.priority')} value={mail.priority} />
         <DetailRow label={t('activity:agentOffice.route')} value={`${mail.from} → ${mail.to}`} />
@@ -368,7 +368,7 @@ function OfficeBriefingDetail({
         {selected.promptAt !== undefined && (
           <DetailRow
             label={t('activity:agentOffice.promptReceived')}
-            value={new Date(selected.promptAt).toLocaleString()}
+            value={new Date(selected.promptAt).toLocaleString(displayLocale())}
           />
         )}
         <div className="agent-office__task-body">

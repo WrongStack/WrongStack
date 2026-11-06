@@ -1,5 +1,5 @@
 import { Activity, Bot, Cpu, DollarSign, Hash, Monitor, Terminal, Users, Zap } from 'lucide-react';
-import { useAppTranslation } from '../../lib/i18n';
+import { displayLocale, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { useMonitorStats, useOfficeFeed } from '../feed';
 import type { VizEvent } from '../types';
@@ -10,7 +10,7 @@ export function StatsHUD() {
   const { clientCounts, totalAgents, activeAgents, aggregate } = useMonitorStats();
   const currentSession = useOfficeFeed().useCurrentSession();
   const totalClients = clientCounts.tui + clientCounts.webui + clientCounts.repl;
-  const fmtNum = (n?: number) => n?.toLocaleString() ?? '0';
+  const fmtNum = (n?: number) => n?.toLocaleString(displayLocale()) ?? '0';
   const fmtCost = (n?: number) => (n != null ? `$${n.toFixed(4)}` : '$0.0000');
 
   return (

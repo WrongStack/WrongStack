@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { distribution, type SessionModelStats } from './session-model-stats';
 import type { StoryEvent } from './session-story';
 
@@ -9,7 +9,7 @@ const ms = (value: number | undefined) =>
     : value < 1000
       ? `${Math.round(value)} ms`
       : `${(value / 1000).toFixed(2)} s`;
-const count = (value: number) => value.toLocaleString();
+const count = (value: number) => value.toLocaleString(displayLocale());
 const usd = (value: number | undefined) =>
   value === undefined ? '—' : value > 0 && value < 0.000001 ? '<$0.000001' : `$${value.toFixed(6)}`;
 const ratio = (n: number, total: number) => (total ? `${((n / total) * 100).toFixed(1)}%` : '—');
@@ -390,7 +390,7 @@ export function ModelDashboard({
                   className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-3 py-2 text-left text-xs hover:bg-muted/30"
                 >
                   <span className="text-muted-foreground">
-                    {new Date(event.at).toLocaleTimeString()}
+                    {new Date(event.at).toLocaleTimeString(displayLocale())}
                   </span>
                   <span className="font-medium">{event.raw?.eventType}</span>
                   <span className="ml-auto font-mono text-muted-foreground">

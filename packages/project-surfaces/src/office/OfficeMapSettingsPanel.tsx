@@ -9,7 +9,7 @@
 
 import { Activity, Bot, Clock3, Cpu, Users, Zap } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { useMonitorStats, useOfficeFeed } from './feed';
 import {
@@ -99,7 +99,7 @@ export function OfficeMapSettingsPanel() {
   const { clientCounts, totalAgents, activeAgents } = useMonitorStats();
   const currentSession = useOfficeFeed().useCurrentSession();
   const totalClients = clientCounts.tui + clientCounts.webui + clientCounts.repl;
-  const fmtNum = (n?: number) => n?.toLocaleString() ?? '0';
+  const fmtNum = (n?: number) => n?.toLocaleString(displayLocale()) ?? '0';
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain p-3">

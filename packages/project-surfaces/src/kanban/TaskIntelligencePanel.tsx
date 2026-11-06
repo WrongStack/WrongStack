@@ -10,7 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import {
   enumLabel,
   RETRY_POLICY_KEYS,
@@ -227,7 +227,7 @@ export function deriveTaskIntelligence(
 function displayDate(value?: string): string {
   if (!value) return '—';
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : value;
+  return Number.isFinite(parsed) ? new Date(parsed).toLocaleString(displayLocale()) : value;
 }
 
 function displayDuration(from?: string, to?: string): string {

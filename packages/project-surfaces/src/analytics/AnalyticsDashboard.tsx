@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { surfaceClient, surfaceFetch, useSurfaceHost } from '../host';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { PageMotif } from '../ui/PageMotif';
 import { Pagination } from '../ui/pagination';
@@ -120,7 +120,11 @@ function fmtCost(n: number): string {
 
 function fmtTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return d.toLocaleTimeString(displayLocale(), {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function eventColor(event: string): string {

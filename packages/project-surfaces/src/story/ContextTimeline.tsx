@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { fmtTok } from '../lib/dashboard-primitives';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import type { ChronicleEventView } from './chronicle-types';
 import {
   buildContextTimeline,
@@ -89,7 +89,7 @@ const TOP = 22;
 const BOTTOM = 26;
 
 function clock(at: number): string {
-  return new Date(at).toLocaleTimeString([], {
+  return new Date(at).toLocaleTimeString(displayLocale(), {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -201,7 +201,7 @@ export function ContextTimeline({ events }: { events: readonly ChronicleEventVie
 
       <dl className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
         {[
-          [t('activity:story.contextRequests'), points.length.toLocaleString()],
+          [t('activity:story.contextRequests'), points.length.toLocaleString(displayLocale())],
           [t('activity:story.contextPeak'), fmtTok(timeline.peak)],
           [
             t('activity:story.contextWindow'),

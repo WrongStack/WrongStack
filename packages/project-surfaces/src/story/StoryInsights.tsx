@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { storyTime } from './StoryChart';
 import { type buildSessionStory, STORY_COLORS, type StoryKind } from './session-story';
 
@@ -128,7 +128,7 @@ export function StoryInsights({
               fontSize="28"
               fontWeight="600"
             >
-              {total.toLocaleString()}
+              {total.toLocaleString(displayLocale())}
             </text>
             <text
               x="90"

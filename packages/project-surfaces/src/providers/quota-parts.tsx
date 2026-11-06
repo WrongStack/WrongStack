@@ -4,7 +4,7 @@
  * body, and the card around them.
  */
 
-import { useAppTranslation } from '../lib/i18n';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import {
   formatQuotaResetIn,
@@ -41,7 +41,7 @@ function resetClock(resetsAt: number, language: string): string {
       minute: '2-digit',
     });
   } catch {
-    return new Date(resetsAt * 1000).toLocaleString();
+    return new Date(resetsAt * 1000).toLocaleString(displayLocale());
   }
 }
 
