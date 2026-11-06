@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T18:58:09.255Z",
+  "generatedAt": "2026-11-06T19:05:36.047Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6050,
-    "testFiles": 5042,
-    "sourceLines": 1253413,
+    "testFiles": 5043,
+    "sourceLines": 1253406,
     "workspaceEdges": 243,
     "moduleEdges": 17896,
     "nonCommandSlashImports": 0,
@@ -1111,7 +1111,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 782,
-      "testFiles": 518,
+      "testFiles": 519,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1137,7 +1137,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 518
+          "testFiles": 519
         }
       ]
     },
@@ -29582,6 +29582,12 @@
       },
       {
         "file": "packages/webui/tests/components/sage-health-panel.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/sage-kind-labels.test.ts",
         "projects": [
           "webui-jsdom"
         ]

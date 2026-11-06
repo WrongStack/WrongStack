@@ -2,7 +2,7 @@ import { Plus, ShieldOff, Tag, Trash2 } from 'lucide-react';
 import { useAppTranslation } from '../../lib/i18n';
 import { Button } from '../../ui/button';
 import type { SageEntry } from '../model-types';
-import { KIND_LABELS, memoryPreview } from '../shared';
+import { memoryKindLabel, memoryPreview } from '../shared';
 
 export type MemoryAudience = NonNullable<SageEntry['audience']>;
 
@@ -33,7 +33,7 @@ export function AudienceMemoryCard({
       {memory.audience && <AudienceBadges audience={memory.audience} onFilter={onFilter} />}
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/45 pt-2">
         <div className="flex min-w-0 items-center gap-1.5 text-[9px] uppercase tracking-wide text-muted-foreground">
-          <span className="truncate">{KIND_LABELS[memory.kind] ?? memory.kind}</span>
+          <span className="truncate">{memoryKindLabel(memory.kind, t)}</span>
           <span aria-hidden="true">·</span>
           <span>{memory.status}</span>
         </div>

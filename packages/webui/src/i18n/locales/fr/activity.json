@@ -5553,6 +5553,36 @@
     "allLinks": "TOUS LES LIENS"
   },
   "sageText": {
+    "kind": {
+      "fact": "Fait",
+      "decision": "Décision",
+      "convention": "Convention",
+      "preference": "Préférence",
+      "warning": "Avertissement",
+      "anti_pattern": "Anti-pattern",
+      "workflow": "Flux de travail",
+      "bug_root_cause": "Cause première",
+      "file_note": "Note de fichier",
+      "symbol_note": "Note de symbole",
+      "command_note": "Note de commande",
+      "summary": "Résumé",
+      "memory_review": "Revue de mémoire",
+      "tool_outcome": "Résultat d'outil",
+      "error_pattern": "Motif d'erreur",
+      "session_digest": "Synthèse de session",
+      "role_operational": "Consignes de rôle",
+      "task_outcome": "Résultat de tâche",
+      "security_signal": "Signal de sécurité",
+      "fleet_convention": "Convention de flotte"
+    },
+    "matchedVia": {
+      "scope_file": "portée : fichier",
+      "scope_symbol": "portée : symbole",
+      "anchor_file": "ancre : fichier",
+      "anchor_symbol": "ancre : symbole",
+      "anchor_directory": "ancre : dossier",
+      "mention": "mention dans le texte"
+    },
     "tags_one": "{{count}} étiquette",
     "anchorType": "Type de l’ancre {{n}}",
     "anchorValue": "Valeur de l’ancre {{n}}",

@@ -5553,6 +5553,36 @@
     "allLinks": "TUTTI I COLLEGAMENTI"
   },
   "sageText": {
+    "kind": {
+      "fact": "Fatto",
+      "decision": "Decisione",
+      "convention": "Convenzione",
+      "preference": "Preferenza",
+      "warning": "Avviso",
+      "anti_pattern": "Anti-pattern",
+      "workflow": "Flusso di lavoro",
+      "bug_root_cause": "Causa principale",
+      "file_note": "Nota su file",
+      "symbol_note": "Nota su simbolo",
+      "command_note": "Nota su comando",
+      "summary": "Riepilogo",
+      "memory_review": "Revisione della memoria",
+      "tool_outcome": "Esito strumento",
+      "error_pattern": "Schema di errore",
+      "session_digest": "Sintesi della sessione",
+      "role_operational": "Linee guida del ruolo",
+      "task_outcome": "Esito attività",
+      "security_signal": "Segnale di sicurezza",
+      "fleet_convention": "Convenzione della flotta"
+    },
+    "matchedVia": {
+      "scope_file": "ambito: file",
+      "scope_symbol": "ambito: simbolo",
+      "anchor_file": "ancora: file",
+      "anchor_symbol": "ancora: simbolo",
+      "anchor_directory": "ancora: cartella",
+      "mention": "menzione nel testo"
+    },
     "tags_one": "{{count}} tag",
     "anchorType": "Tipo dell’ancora {{n}}",
     "anchorValue": "Valore dell’ancora {{n}}",

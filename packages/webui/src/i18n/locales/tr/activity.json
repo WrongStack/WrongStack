@@ -5553,6 +5553,36 @@
     "allLinks": "TÜM BAĞLANTILAR"
   },
   "sageText": {
+    "kind": {
+      "fact": "Bilgi",
+      "decision": "Karar",
+      "convention": "Kural",
+      "preference": "Tercih",
+      "warning": "Uyarı",
+      "anti_pattern": "Kaçınılacak desen",
+      "workflow": "İş akışı",
+      "bug_root_cause": "Kök neden",
+      "file_note": "Dosya notu",
+      "symbol_note": "Sembol notu",
+      "command_note": "Komut notu",
+      "summary": "Özet",
+      "memory_review": "Bellek incelemesi",
+      "tool_outcome": "Araç sonucu",
+      "error_pattern": "Hata deseni",
+      "session_digest": "Oturum özeti",
+      "role_operational": "Rol rehberi",
+      "task_outcome": "Görev sonucu",
+      "security_signal": "Güvenlik sinyali",
+      "fleet_convention": "Filo kuralı"
+    },
+    "matchedVia": {
+      "scope_file": "kapsam: dosya",
+      "scope_symbol": "kapsam: sembol",
+      "anchor_file": "çapa: dosya",
+      "anchor_symbol": "çapa: sembol",
+      "anchor_directory": "çapa: dizin",
+      "mention": "metinde geçiyor"
+    },
     "tags_one": "{{count}} etiket",
     "anchorType": "{{n}}. çapanın türü",
     "anchorValue": "{{n}}. çapanın değeri",

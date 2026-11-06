@@ -22,9 +22,9 @@ import {
   ANCHOR_TYPES,
   anchorValue,
   EDITABLE_STATUSES,
-  KIND_LABELS,
   MEMORY_KINDS,
   MEMORY_SCOPES,
+  memoryKindLabel,
   RangeField,
   updateAnchorValue,
 } from './shared';
@@ -179,7 +179,7 @@ export function MemoryEditor({
               >
                 {MEMORY_KINDS.map((kind) => (
                   <option key={kind} value={kind}>
-                    {KIND_LABELS[kind]}
+                    {memoryKindLabel(kind, t)}
                   </option>
                 ))}
               </select>

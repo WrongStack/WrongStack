@@ -5553,6 +5553,36 @@
     "allLinks": "ALL LINKS"
   },
   "sageText": {
+    "kind": {
+      "fact": "Fact",
+      "decision": "Decision",
+      "convention": "Convention",
+      "preference": "Preference",
+      "warning": "Warning",
+      "anti_pattern": "Anti-pattern",
+      "workflow": "Workflow",
+      "bug_root_cause": "Root cause",
+      "file_note": "File note",
+      "symbol_note": "Symbol note",
+      "command_note": "Command note",
+      "summary": "Summary",
+      "memory_review": "Memory review",
+      "tool_outcome": "Tool outcome",
+      "error_pattern": "Error pattern",
+      "session_digest": "Session digest",
+      "role_operational": "Role guidance",
+      "task_outcome": "Task outcome",
+      "security_signal": "Security signal",
+      "fleet_convention": "Fleet convention"
+    },
+    "matchedVia": {
+      "scope_file": "scope: file",
+      "scope_symbol": "scope: symbol",
+      "anchor_file": "anchor: file",
+      "anchor_symbol": "anchor: symbol",
+      "anchor_directory": "anchor: directory",
+      "mention": "text mention"
+    },
     "tags_one": "{{count}} tag",
     "anchorType": "Anchor {{n}} type",
     "anchorValue": "Anchor {{n}} value",

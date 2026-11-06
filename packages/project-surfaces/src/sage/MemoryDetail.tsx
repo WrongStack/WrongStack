@@ -30,8 +30,8 @@ import type { SageEntry, SageGraphEdge } from './model-types';
 import {
   formatAudienceText,
   formatDate,
-  KIND_LABELS,
   kindClasses,
+  memoryKindLabel,
   memoryPreview,
   StatusBadge,
 } from './shared';
@@ -91,7 +91,7 @@ export function MemoryDetail({
             kindClasses(memory.kind),
           )}
         >
-          {KIND_LABELS[memory.kind] ?? memory.kind}
+          {memoryKindLabel(memory.kind, t)}
         </span>
         <StatusBadge status={memory.status} />
         <StaleReasonBadge status={memory.status} staleReason={memory.staleReason} />

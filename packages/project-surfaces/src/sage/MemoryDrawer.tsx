@@ -21,6 +21,7 @@
  * real tool calls.
  */
 
+import type { TFunction } from 'i18next';
 import {
   AlertTriangle,
   Check,
@@ -42,7 +43,7 @@ import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { Pagination } from '../ui/pagination';
 import type { MemoryForFileMatch, MemoryForFileResponse, MemoryMatchVia } from './model-types';
-import { KIND_LABELS, kindClasses, memoryPreview, relativeDate, StatusBadge } from './shared';
+import { kindClasses, memoryKindLabel, memoryPreview, relativeDate, StatusBadge } from './shared';
 import { useMemoryForFile } from './useMemoryForFile';
 
 export interface MemoryDrawerProps {
@@ -96,21 +97,8 @@ function matchStrengthClass(strength: number): string {
   return 'bg-muted/30 border-border/40';
 }
 
-function matchedViaLabel(via: MemoryMatchVia): string {
-  switch (via) {
-    case 'scope_file':
-      return 'scope: file';
-    case 'scope_symbol':
-      return 'scope: symbol';
-    case 'anchor_file':
-      return 'anchor: file';
-    case 'anchor_symbol':
-      return 'anchor: symbol';
-    case 'anchor_directory':
-      return 'anchor: directory';
-    case 'mention':
-      return 'text mention';
-  }
+function matchedViaLabel(via: MemoryMatchVia, t: TFunction): string {
+  return t(`activity:sageText.matchedVia.${via}`, { defaultValue: via });
 }
 
 function MemoryCard({
@@ -157,11 +145,11 @@ function MemoryCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide">
             <span className={cn('font-mono', kindClasses(match.memory.kind))}>
-              {KIND_LABELS[match.memory.kind] ?? match.memory.kind}
+              {memoryKindLabel(match.memory.kind, t)}
             </span>
             <span className="text-muted-foreground">·</span>
             <span className="font-mono text-muted-foreground">
-              {matchedViaLabel(match.matchedVia)}
+              {matchedViaLabel(match.matchedVia, t)}
             </span>
             {isCursorMatch && (
               <span

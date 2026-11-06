@@ -62,6 +62,11 @@ export const KIND_LABELS: Record<string, string> = {
   fleet_convention: 'Fleet convention',
 };
 
+/** A memory kind in the display language; unknown kinds keep their English label or raw name. */
+export function memoryKindLabel(kind: string, t: TFunction): string {
+  return t(`activity:sageText.kind.${kind}`, { defaultValue: KIND_LABELS[kind] ?? kind });
+}
+
 export function formatAudienceText(audience: NonNullable<SageEntry['audience']>): string {
   const parts: string[] = [];
   if (audience.roles?.length) parts.push(`roles: ${audience.roles.join(', ')}`);

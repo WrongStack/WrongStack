@@ -5553,6 +5553,36 @@
     "allLinks": "ALLE VERBINDUNGEN"
   },
   "sageText": {
+    "kind": {
+      "fact": "Fakt",
+      "decision": "Entscheidung",
+      "convention": "Konvention",
+      "preference": "Präferenz",
+      "warning": "Warnung",
+      "anti_pattern": "Anti-Pattern",
+      "workflow": "Arbeitsablauf",
+      "bug_root_cause": "Grundursache",
+      "file_note": "Dateinotiz",
+      "symbol_note": "Symbolnotiz",
+      "command_note": "Befehlsnotiz",
+      "summary": "Zusammenfassung",
+      "memory_review": "Gedächtnisprüfung",
+      "tool_outcome": "Werkzeugergebnis",
+      "error_pattern": "Fehlermuster",
+      "session_digest": "Sitzungsübersicht",
+      "role_operational": "Rollenleitfaden",
+      "task_outcome": "Aufgabenergebnis",
+      "security_signal": "Sicherheitssignal",
+      "fleet_convention": "Flottenkonvention"
+    },
+    "matchedVia": {
+      "scope_file": "Bereich: Datei",
+      "scope_symbol": "Bereich: Symbol",
+      "anchor_file": "Anker: Datei",
+      "anchor_symbol": "Anker: Symbol",
+      "anchor_directory": "Anker: Verzeichnis",
+      "mention": "Erwähnung im Text"
+    },
     "tags_one": "{{count}} Tag",
     "anchorType": "Typ von Anker {{n}}",
     "anchorValue": "Wert von Anker {{n}}",

@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '../../ui/dialog';
 import { Input } from '../../ui/input';
-import { KIND_LABELS, MEMORY_KINDS, splitList } from '../shared';
+import { MEMORY_KINDS, memoryKindLabel, splitList } from '../shared';
 
 export interface CreateEntry {
   text: string;
@@ -89,7 +89,7 @@ export function CreateAudienceMemoryDialog({
             >
               {MEMORY_KINDS.map((value) => (
                 <option key={value} value={value}>
-                  {KIND_LABELS[value] ?? value}
+                  {memoryKindLabel(value, t)}
                 </option>
               ))}
             </select>
