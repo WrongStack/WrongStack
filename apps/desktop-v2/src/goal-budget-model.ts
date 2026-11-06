@@ -1,4 +1,5 @@
 import { record } from './engine-values';
+import { displayDecimal } from './display-dates';
 
 export type GoalLimit = 'tasks' | 'minutes' | 'tokens' | 'cost';
 
@@ -92,7 +93,7 @@ export function goalBudgetText(
       : '',
     typeof limits['maxCostUsd'] === 'number'
       ? words.cost(
-          (typeof used['costUsd'] === 'number' ? used['costUsd'] : 0).toFixed(2),
+          displayDecimal(typeof used['costUsd'] === 'number' ? used['costUsd'] : 0, 2),
           limits['maxCostUsd'],
           typeof used['unpricedResponses'] === 'number' ? used['unpricedResponses'] : 0,
         )

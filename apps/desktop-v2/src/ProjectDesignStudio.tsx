@@ -16,6 +16,7 @@ import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
 import './project-design-studio.css';
+import { displayDecimal } from './display-dates';
 
 export function ProjectDesignStudio({
   projectId,
@@ -686,7 +687,7 @@ export function ProjectDesignStudio({
                       contrast.map((issue, i) => (
                         <p key={i}>
                           {String(issue['theme'])} · {String(issue['pair'])} ·{' '}
-                          {Number(issue['ratio']).toFixed(2)}:1
+                          {displayDecimal(Number(issue['ratio']), 2)}:1
                         </p>
                       ))
                     ) : (
@@ -749,7 +750,9 @@ export function ProjectDesignStudio({
                     })}
                   </p>
                   {typeof verification['filesWithNoSignal'] === 'number' && (
-                    <p>{t('designStudio.noSignal', { count: verification['filesWithNoSignal'] })}</p>
+                    <p>
+                      {t('designStudio.noSignal', { count: verification['filesWithNoSignal'] })}
+                    </p>
                   )}
                   {Array.isArray(verification['capturedFrom']) && (
                     <p>

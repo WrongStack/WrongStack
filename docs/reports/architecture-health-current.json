@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T16:43:23.248Z",
+  "generatedAt": "2026-11-06T16:53:47.093Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 48,
     "sourceFiles": 6050,
     "testFiles": 5042,
-    "sourceLines": 1253238,
+    "sourceLines": 1253273,
     "workspaceEdges": 243,
-    "moduleEdges": 17879,
+    "moduleEdges": 17891,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -34637,8 +34637,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 788,
-      "relativeImports": 9
+      "lines": 791,
+      "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
@@ -34758,14 +34758,14 @@
       "relativeImports": 12
     },
     {
+      "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
+      "lines": 791,
+      "relativeImports": 10
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
       "lines": 788,
       "relativeImports": 11
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
-      "lines": 788,
-      "relativeImports": 9
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",

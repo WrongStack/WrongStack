@@ -1,5 +1,5 @@
 import type { AutomationRunRecord } from '@wrongstack/webui-protocol';
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 
 /** The recorded facts, in display order, with their English labels. */
 const FACTS = {
@@ -54,7 +54,7 @@ export function runFacts(
       status: run.status,
       trigger: run.trigger,
       created: new Date(run.createdAt).toISOString(),
-      duration: result ? `${(result.durationMs / 1000).toFixed(1)} s` : unknown,
+      duration: result ? `${displayDecimal(result.durationMs / 1000, 1)} s` : unknown,
       agentStatus: result?.agentStatus ?? unknown,
       verification: result?.validation.status ?? unknown,
       inputTokens: tokens(result?.usage.inputTokens),
@@ -63,7 +63,7 @@ export function runFacts(
       cost:
         result?.usage.costUsd === null || result?.usage.costUsd === undefined
           ? unknown
-          : `$${result.usage.costUsd.toFixed(4)}`,
+          : `$${displayDecimal(result.usage.costUsd, 4)}`,
       exitCode: run.exitCode === undefined ? unknown : String(run.exitCode),
       changedFiles: result
         ? `${result.changedFiles.length}${result.changedFilesTruncated ? words.truncated : ''}`

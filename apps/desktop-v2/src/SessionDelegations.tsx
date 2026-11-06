@@ -1,8 +1,10 @@
 import { Users } from 'lucide-react';
 import { type DelegationRecord, delegationTotals } from './delegations';
 import { useDesktopText } from './desktop-i18n';
+import { displayDecimal } from './display-dates';
 
-const usd = (value: number) => `$${value < 0.01 ? value.toFixed(4) : value.toFixed(2)}`;
+const usd = (value: number) =>
+  `$${value < 0.01 ? displayDecimal(value, 4) : displayDecimal(value, 2)}`;
 
 /**
  * Worker agents this conversation delegated to, as the engine reported each one when it

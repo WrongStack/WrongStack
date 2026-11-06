@@ -1,5 +1,5 @@
 import { splitReferenceMessage } from './composer-resources-model';
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 import type { EngineState } from './engine-state';
 
 /** Messages rendered at once in a conversation; each "Show earlier" adds this many. */
@@ -49,7 +49,7 @@ export function dayLabel(
   });
 }
 
-const megabytes = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+const megabytes = (bytes: number) => `${displayDecimal(bytes / (1024 * 1024), 1)} MB`;
 
 /** How far a first read of a long conversation got, as the WebUI's restore progress says it. */
 export function replayProgress(replay: { read: number; total: number }): string {

@@ -1,4 +1,5 @@
 import english from './locales/en/desktop.json';
+import { displayDecimal } from './display-dates';
 
 /**
  * Notice wording kept apart from the display language: engine text shown as it came, a catalog
@@ -296,7 +297,7 @@ export function conversationNotice(
       ...notice('info', line('tierProposed', { tier, route: `${provider}/${model}` }), [
         str(payload['reason']),
         savings !== null && savings > 0
-          ? line('projectedSaving', { amount: savings.toFixed(4) })
+          ? line('projectedSaving', { amount: displayDecimal(savings, 4) })
           : '',
       ]),
       action: {

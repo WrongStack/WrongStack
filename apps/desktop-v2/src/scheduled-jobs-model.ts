@@ -1,4 +1,4 @@
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 import { entries, record } from './engine-values';
 
 /** One job the engine's cron scheduler runs, as `cron.snapshot` reports it. */
@@ -50,7 +50,7 @@ const ENGLISH: ScheduleWords = {
 };
 
 export function intervalText(ms: number): string {
-  const trim = (value: number) => String(Number(value.toFixed(1)));
+  const trim = (value: number) => displayDecimal(value, 1, true);
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${trim(ms / 1000)}s`;
   if (ms < 3_600_000) return `${trim(ms / 60_000)}m`;

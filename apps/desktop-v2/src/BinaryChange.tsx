@@ -3,6 +3,7 @@ import { type SyntheticEvent, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { record } from './engine-values';
 import './image-diff.css';
+import { displayDecimal } from './display-dates';
 
 const IMAGE_URL = /^data:image\/(png|jpeg|gif|webp|avif|bmp);base64,/;
 const image = (value: unknown) =>
@@ -11,8 +12,8 @@ const image = (value: unknown) =>
 function bytes(value: unknown) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '';
   if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value < 1024 * 1024) return `${displayDecimal(value / 1024, 1)} KB`;
+  return `${displayDecimal(value / (1024 * 1024), 1)} MB`;
 }
 
 function useNaturalSize(): [string, (event: SyntheticEvent<HTMLImageElement>) => void] {

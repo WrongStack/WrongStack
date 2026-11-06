@@ -1,7 +1,7 @@
 import type { ContextUsage } from './context-usage';
 import { useDesktopText } from './desktop-i18n';
 import './draft-counter.css';
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 
 /**
  * The WebUI's draft counter: characters, and for a long draft its rough token count (4
@@ -40,7 +40,7 @@ function draftEstimate(
         );
   return {
     chars: draft.length,
-    tokens: long ? (tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens)) : '',
+    tokens: long ? (tokens >= 1000 ? `${displayDecimal(tokens / 1000, 1)}k` : String(tokens)) : '',
     tone,
     title,
   };

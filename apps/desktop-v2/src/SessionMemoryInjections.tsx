@@ -2,6 +2,7 @@ import { Brain } from 'lucide-react';
 import { useDesktopText } from './desktop-i18n';
 import type { MemoryContext, MemoryInjectorRun } from './memory-injections';
 import { recoveryDate } from './session-recovery-model';
+import { displayDecimal } from './display-dates';
 
 /**
  * What SAGE put into this conversation's model context, as the engine reported it: the
@@ -89,7 +90,7 @@ export function SessionMemoryInjections({
                           {memory.kind}
                           {memory.score === null
                             ? ''
-                            : ` · ${t('memoryInjections.score', { score: memory.score.toFixed(2) })}`}
+                            : ` · ${t('memoryInjections.score', { score: displayDecimal(memory.score, 2) })}`}
                         </small>
                         <span>{memory.text}</span>
                       </li>

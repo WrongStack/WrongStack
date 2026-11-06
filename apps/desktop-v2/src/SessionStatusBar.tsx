@@ -14,7 +14,7 @@ import { record } from './engine-values';
 import { SessionContextPanel } from './SessionContextPanel';
 import { inlineUsageEstimate } from './session-usage-model';
 import './session-status.css';
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 import { GitChip } from './GitChip';
 
 const number = (value: unknown) => (typeof value === 'number' ? value : null);
@@ -118,7 +118,9 @@ export function SessionStatusBar({
         <span data-chip="tokens">{t('statusBar.out', { tokens: formatTokens(output) })}</span>
       )}
       {typeof estimate === 'number' && (
-        <span data-chip="cost">{t('statusBar.estimated', { value: estimate.toFixed(4) })}</span>
+        <span data-chip="cost">
+          {t('statusBar.estimated', { value: displayDecimal(estimate, 4) })}
+        </span>
       )}
       <button
         type="button"

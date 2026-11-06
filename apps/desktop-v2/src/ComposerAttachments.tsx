@@ -13,6 +13,7 @@ import { localizedText, useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 import { PdfFrame } from './PdfFrame';
 import './composer-attachments.css';
+import { displayDecimal } from './display-dates';
 
 /** Writes an attachment's bytes through the window's download flow. */
 function saveAttachment(item: ComposerAttachment): void {
@@ -48,7 +49,7 @@ export function AttachmentPreview({
               <FileText size={19} />
               <span>
                 {item.name}
-                <small>PDF · {(item.bytes / 1024).toFixed(0)} KB</small>
+                <small>PDF · {displayDecimal(item.bytes / 1024, 0)} KB</small>
               </span>
               {interactive && item.data && (
                 <>
@@ -207,7 +208,8 @@ export function ComposerAttachments({
               <span title={item.name}>
                 {item.name}
                 <small>
-                  {isPdf(item) ? 'PDF' : t('attach.image')} · {(item.bytes / 1024).toFixed(0)} KB
+                  {isPdf(item) ? 'PDF' : t('attach.image')} · {displayDecimal(item.bytes / 1024, 0)}{' '}
+                  KB
                 </small>
               </span>
               <button

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
 import { dateTimeText, entries, record } from './engine-values';
+import { displayDecimal } from './display-dates';
 
 export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapshotId: string }) {
   const { t, i18n } = useDesktopText();
@@ -126,7 +127,7 @@ export function TechStackTrends({ http, snapshotId }: { http: EngineHttp; snapsh
                   })}
                 </td>
                 <td>{String(item['versionChanges'])}</td>
-                <td>{Number(item['upgradeVelocityPerDay']).toFixed(3)}</td>
+                <td>{displayDecimal(Number(item['upgradeVelocityPerDay']), 3)}</td>
               </tr>
             ))}
           </tbody>

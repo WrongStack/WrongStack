@@ -13,7 +13,7 @@ import {
   parseAutomationVerification,
 } from './automation-evidence';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime } from './display-dates';
+import { displayDateTime, displayDecimal } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -98,7 +98,7 @@ export function AutomationRunInspector({
             <div className="automation-run-metrics">
               <div>
                 <small>{t('autoRun.duration')}</small>
-                <strong>{(result.durationMs / 1000).toFixed(1)} s</strong>
+                <strong>{displayDecimal(result.durationMs / 1000, 1)} s</strong>
               </div>
               <div>
                 <small>{t('autoRun.tokens')}</small>
@@ -120,7 +120,7 @@ export function AutomationRunInspector({
                 <strong>
                   {result.usage.costUsd === null
                     ? t('autoRun.unknown')
-                    : `$${result.usage.costUsd.toFixed(4)}`}
+                    : `$${displayDecimal(result.usage.costUsd, 4)}`}
                 </strong>
               </div>
             </div>

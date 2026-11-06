@@ -251,7 +251,7 @@ describe('conversation notices in the display language', () => {
       'MCP sunucusu "github" bağlı değil (bilinmiyor); araçları kullanılamıyor.',
     );
     expect(html).toContain('Ayarlar > Bağlı araçlar bölümünden yeniden bağlanabilir.');
-    expect(html).toContain('Simple turns. Öngörülen tasarruf yaklaşık $0.5000.');
+    expect(html).toContain('Simple turns. Öngörülen tasarruf yaklaşık $0,5000.');
     expect(html).toContain('budget katmanına geç');
     expect(html).not.toContain('iteration limit');
     expect(html).not.toContain('Switch to');

@@ -40,7 +40,7 @@ import { rosterInputsToKeep } from './roster-input-draft';
 import { type RosterRecord, rosterBudgetFields, rosterCatalog } from './roster-model';
 import { usePersistedFields } from './usePersistedFields';
 import './project-agent-roster.css';
-import { displayLocale } from './display-dates';
+import { displayDecimal, displayLocale } from './display-dates';
 
 const RosterRuntimeEditor = lazy(() =>
   import('./RosterRuntimeEditor').then((module) => ({ default: module.RosterRuntimeEditor })),
@@ -741,11 +741,11 @@ export function ProjectAgentRoster({
                     {t('roster.lift', {
                       lift:
                         typeof stats['directiveLift'] === 'number'
-                          ? stats['directiveLift'].toFixed(3)
+                          ? displayDecimal(stats['directiveLift'], 3)
                           : t('roster.notEnoughEvidence'),
                       rate:
                         typeof stats['directiveHitRate'] === 'number'
-                          ? `${(stats['directiveHitRate'] * 100).toFixed(1)}%`
+                          ? `${displayDecimal(stats['directiveHitRate'] * 100, 1)}%`
                           : t('roster.notMeasured'),
                     })}
                   </p>
@@ -994,7 +994,7 @@ export function ProjectAgentRoster({
                                 <small>
                                   {typeof item['similarity'] === 'number'
                                     ? t('roster.textOverlap', {
-                                        percent: (item['similarity'] * 100).toFixed(0),
+                                        percent: displayDecimal(item['similarity'] * 100, 0),
                                       })
                                     : t('roster.notMeasured')}
                                 </small>
@@ -1101,7 +1101,7 @@ export function ProjectAgentRoster({
                               {t('roster.score', {
                                 score:
                                   typeof entry['score'] === 'number'
-                                    ? entry['score'].toFixed(2)
+                                    ? displayDecimal(entry['score'], 2)
                                     : t('roster.notReported'),
                               })}
                             </small>

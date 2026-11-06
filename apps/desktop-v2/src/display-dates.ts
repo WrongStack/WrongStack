@@ -41,3 +41,20 @@ export const displayDate = (value: unknown) => format(value, { dateStyle: 'mediu
  * place (`count.toLocaleString(displayLocale())`); undefined before the catalog loads.
  */
 export const displayLocale = (): string | undefined => surfaceI18n.language || undefined;
+
+/**
+ * A number with a fixed count of decimals in the display language's separators: `toFixed`
+ * always wrote a dot, so a Turkish interface showed "1.5 MB" for "1,5 MB". `trim` drops
+ * trailing zeros ("2" rather than "2.0"). No digit grouping, as with `toFixed`.
+ */
+export function displayDecimal(value: number, digits: number, trim = false): string {
+  try {
+    return value.toLocaleString(surfaceI18n.language || undefined, {
+      minimumFractionDigits: trim ? 0 : digits,
+      maximumFractionDigits: digits,
+      useGrouping: false,
+    });
+  } catch {
+    return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
+  }
+}

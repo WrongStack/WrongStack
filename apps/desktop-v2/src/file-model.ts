@@ -1,4 +1,5 @@
 import { entries } from './engine-values';
+import { displayDecimal } from './display-dates';
 
 export function projectRelativePath(value: string, projectRoot: string): string {
   const normalize = (rawPath: string) => {
@@ -107,8 +108,8 @@ export function byteSize(bytes: number) {
   return bytes < 1024
     ? `${bytes} B`
     : bytes < 1048576
-      ? `${(bytes / 1024).toFixed(1)} KB`
-      : `${(bytes / 1048576).toFixed(1)} MB`;
+      ? `${displayDecimal(bytes / 1024, 1)} KB`
+      : `${displayDecimal(bytes / 1048576, 1)} MB`;
 }
 /**
  * A file manager row's accessible name: its action and path, then every column the row shows

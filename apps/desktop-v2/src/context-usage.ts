@@ -1,4 +1,5 @@
 import { record } from './engine-values.js';
+import { displayDecimal } from './display-dates';
 
 /** An engine frame as the reducer sees it (structurally `EngineEvent`). */
 type EngineEvent = { type: string; payload: Record<string, unknown> };
@@ -140,9 +141,9 @@ export function cacheHitPercent(usage: ContextUsage): number | null {
   return Math.round((usage.cacheRead / usage.tokens) * 100);
 }
 export function formatTokens(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000_000) return `${displayDecimal(value / 1_000_000, 1)}M`;
   if (value >= 10_000) return `${Math.round(value / 1000)}k`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  if (value >= 1000) return `${displayDecimal(value / 1000, 1)}k`;
   return String(value);
 }
 

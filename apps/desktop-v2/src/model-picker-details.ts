@@ -1,3 +1,4 @@
+import { displayDecimal } from './display-dates';
 /** Catalog facts the engine returns for one model; any of them may be unknown. */
 export interface PickerModel {
   id: string;
@@ -35,8 +36,8 @@ export function pickerModel(raw: Record<string, unknown>): PickerModel {
 
 /** 1,000,000 → "1M", 200,000 → "200K", 8,192 → "8.2K". */
 export function compactCount(value: number): string {
-  if (value >= 1_000_000) return `${+(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${+(value / 1_000).toFixed(1)}K`;
+  if (value >= 1_000_000) return `${displayDecimal(value / 1_000_000, 1, true)}M`;
+  if (value >= 1_000) return `${displayDecimal(value / 1_000, 1, true)}K`;
   return String(value);
 }
 

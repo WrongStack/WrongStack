@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import './generated-images.css';
+import { displayDecimal } from './display-dates';
 
 type Picture =
   | { path: string; status: 'loading' }
@@ -27,8 +28,8 @@ const size = (bytes: number | undefined) =>
     : bytes < 1024
       ? ` · ${bytes} B`
       : bytes < 1024 * 1024
-        ? ` · ${(bytes / 1024).toFixed(1)} KiB`
-        : ` · ${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+        ? ` · ${displayDecimal(bytes / 1024, 1)} KiB`
+        : ` · ${displayDecimal(bytes / (1024 * 1024), 1)} MiB`;
 
 /**
  * The pictures an `image_generate` call saved, shown with its result as the WebUI's tool card

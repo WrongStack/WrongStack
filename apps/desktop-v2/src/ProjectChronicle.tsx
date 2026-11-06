@@ -30,7 +30,7 @@ import {
   initialChronicleFilters,
 } from './chronicle-model';
 import { useDesktopText } from './desktop-i18n';
-import { displayDate, displayTime } from './display-dates';
+import { displayDate, displayDecimal, displayTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { GraphCanvas } from './GraphCanvas';
@@ -275,7 +275,7 @@ export function ProjectChronicle({
           [
             'cost',
             typeof summary['estimatedCostUsd'] === 'number'
-              ? `$${summary['estimatedCostUsd'].toFixed(4)}`
+              ? `$${displayDecimal(summary['estimatedCostUsd'], 4)}`
               : undefined,
           ],
         ].map(([label, value]) => (
@@ -676,7 +676,7 @@ function ChronicleDetail({
           [
             'duration',
             typeof event['durationNs'] === 'string'
-              ? `${(Number(event['durationNs']) / 1000000).toFixed(2)} ms`
+              ? `${displayDecimal(Number(event['durationNs']) / 1000000, 2)} ms`
               : undefined,
           ],
           ['agent', scope['agentId']],
