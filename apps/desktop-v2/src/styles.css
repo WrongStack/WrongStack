@@ -1082,6 +1082,11 @@ h1 {
 .native-chat-welcome > svg {
   color: var(--accent);
 }
+/* A composer report (an engine command's output, a status line) is what the empty conversation
+   shows now; the "What should we work on?" greeting would sit above it. */
+.engine-workspace:has(.composer-notice) .native-chat-welcome:not([role="status"]) {
+  display: none;
+}
 .native-chat-welcome h2 {
   font-size: 25px;
   font-weight: 480;
