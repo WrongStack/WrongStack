@@ -3,6 +3,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './brain-policy.css';
+import { displayTime } from './display-dates';
 
 export const JEV_FEATURE_NAMES: Record<string, string> = {
   tool: 'Tool-call risk',
@@ -325,8 +326,8 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           <ul>
             {state.activity.map((item, index) => (
               <li key={`${item.at}:${index}`}>
-                {item.at ? new Date(item.at).toLocaleTimeString() : ''} · {feature(item.feature)} ·{' '}
-                {item.outcome} · {item.durationMs} ms{item.reason ? ` · ${item.reason}` : ''}
+                {item.at ? displayTime(item.at) : ''} · {feature(item.feature)} · {item.outcome} ·{' '}
+                {item.durationMs} ms{item.reason ? ` · ${item.reason}` : ''}
               </li>
             ))}
           </ul>

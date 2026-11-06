@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -96,7 +97,7 @@ export function FleetActivity({ http, sessionId }: { http: EngineHttp; sessionId
                   </span>
                   <time>
                     {Number.isFinite(Date.parse(String(entry['ts'])))
-                      ? new Date(String(entry['ts'])).toLocaleString()
+                      ? displayDateTime(String(entry['ts']))
                       : t('liveFleet.activity.noTime')}
                   </time>
                   {typeof entry['durationMs'] === 'number' && (

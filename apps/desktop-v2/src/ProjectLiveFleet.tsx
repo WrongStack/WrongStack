@@ -15,6 +15,7 @@ import { request } from './platform';
 import { surfaceI18n } from './surface-i18n';
 import '@xyflow/react/dist/style.css';
 import './project-live-fleet.css';
+import { displayDateTime } from './display-dates';
 
 export function ProjectLiveFleet({
   http,
@@ -481,9 +482,9 @@ export function ProjectLiveFleet({
                 <dt>{t('liveFleet.field.process')}</dt>
                 <dd>{t('liveFleet.pid', { pid: selectedSession.pid })}</dd>
                 <dt>{t('liveFleet.field.started')}</dt>
-                <dd>{new Date(selectedSession.startedAt).toLocaleString()}</dd>
+                <dd>{displayDateTime(selectedSession.startedAt)}</dd>
                 <dt>{t('liveFleet.field.heartbeat')}</dt>
-                <dd>{new Date(selectedSession.lastHeartbeatAt).toLocaleString()}</dd>
+                <dd>{displayDateTime(selectedSession.lastHeartbeatAt)}</dd>
                 {selectedAgent && (
                   <>
                     <dt>{t('liveFleet.field.agent')}</dt>

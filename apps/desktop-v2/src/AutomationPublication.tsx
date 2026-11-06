@@ -1,6 +1,7 @@
 import type { AutomationPullRequestView, AutomationRunRecord } from '@wrongstack/webui-protocol';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { MarkdownContent } from './MarkdownContent';
 import { openExternal } from './platform';
@@ -208,7 +209,7 @@ export function AutomationPublication({
                 </h4>
                 <p>
                   <code>{view.ci.commit}</code> ·{' '}
-                  {t('autoPr.checked', { time: new Date(view.ci.checkedAt).toLocaleString() })}
+                  {t('autoPr.checked', { time: displayDateTime(view.ci.checkedAt) })}
                 </p>
                 {view.ci.checks.map((check, index) => (
                   <article key={index}>

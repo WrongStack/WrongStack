@@ -1,5 +1,6 @@
 import { DraftMergeChoices } from './DraftMergeChoices';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { DurableFormState } from './durable-form-draft';
 import type { MailDraft } from './mailbox-model';
 
@@ -71,7 +72,7 @@ export function MailboxDraftStatus({
   if (restoredAt)
     return (
       <p className="studio-notice" role="status">
-        {t('mailboxPage.draft.restored', { time: new Date(restoredAt).toLocaleString() })}
+        {t('mailboxPage.draft.restored', { time: displayDateTime(restoredAt) })}
       </p>
     );
   return null;

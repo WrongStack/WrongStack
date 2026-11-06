@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { DurableFormDraft, type FormDraftStorage } from './durable-form-draft';
 import type { AgentModelPlan } from './session-agent-plan';
 import { type AgentPlanDraft, agentPlanDraftCodec } from './session-agent-plan-draft';
@@ -49,7 +50,7 @@ export function useAgentPlanDraft({
     if (saved && sameSetting(saved.base ?? null, base ?? null))
       apply(
         saved.plan,
-        `Restored your unsaved model plan draft${state.updatedAt ? ` from ${new Date(state.updatedAt).toLocaleString()}` : ''}.`,
+        `Restored your unsaved model plan draft${state.updatedAt ? ` from ${displayDateTime(state.updatedAt)}` : ''}.`,
       );
     else if (saved) setStale(saved);
     setHydrated(true);

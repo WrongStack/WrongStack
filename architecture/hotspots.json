@@ -135,8 +135,8 @@
       "relativeImports": 3
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
-      "lines": 854,
-      "relativeImports": 16
+      "lines": 853,
+      "relativeImports": 17
     },
     "apps/desktop-v2/src/EngineWorkspace.tsx": {
       "lines": 709,
@@ -159,8 +159,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
-      "lines": 743,
-      "relativeImports": 9
+      "lines": 744,
+      "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
       "lines": 788,
@@ -175,8 +175,8 @@
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
-      "lines": 954,
-      "relativeImports": 13
+      "lines": 953,
+      "relativeImports": 14
     },
     "apps/desktop-v2/src/ProjectSdd.tsx": {
       "lines": 755,

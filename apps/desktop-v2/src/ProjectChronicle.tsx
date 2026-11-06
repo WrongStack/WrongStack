@@ -30,6 +30,7 @@ import {
   initialChronicleFilters,
 } from './chronicle-model';
 import { useDesktopText } from './desktop-i18n';
+import { displayDate, displayTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { GraphCanvas } from './GraphCanvas';
@@ -501,8 +502,8 @@ export function ProjectChronicle({
                         className={`chronicle-outcome outcome-${String(event['outcome'] ?? 'unknown')}`}
                       />
                       <time dateTime={String(event['occurredAt'])}>
-                        {new Date(String(event['occurredAt'])).toLocaleTimeString()}
-                        <small>{new Date(String(event['occurredAt'])).toLocaleDateString()}</small>
+                        {displayTime(String(event['occurredAt']))}
+                        <small>{displayDate(String(event['occurredAt']))}</small>
                       </time>
                       <div>
                         <span>{String(event['eventType'])}</span>

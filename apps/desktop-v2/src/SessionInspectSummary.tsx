@@ -3,6 +3,7 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import './session-inspect-summary.css';
+import { displayTime } from './display-dates';
 
 const count = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
@@ -126,9 +127,7 @@ export function SessionInspectSummary({ id, command }: { id: string; command: En
                         )}
                       </span>
                       <time dateTime={String(event['ts'] ?? '')}>
-                        {typeof event['ts'] === 'string'
-                          ? new Date(event['ts']).toLocaleTimeString()
-                          : ''}
+                        {typeof event['ts'] === 'string' ? displayTime(event['ts']) : ''}
                       </time>
                     </li>
                   ))}

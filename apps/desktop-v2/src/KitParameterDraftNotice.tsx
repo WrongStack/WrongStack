@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { KitValue } from './KitParameterForm';
 import { type KitParameterDraft, kitSchemaFingerprint } from './kit-parameter-draft';
 import type { KitSchema } from './project-kit-model';
@@ -157,7 +158,7 @@ export function KitParameterDraftNotice({
       {restored !== null && !stale && !review && draft.state.value && (
         <p className="kit-draft-status" role="status">
           {restored
-            ? t('kitDraft.restoredAt', { at: new Date(restored).toLocaleString() })
+            ? t('kitDraft.restoredAt', { at: displayDateTime(restored) })
             : t('kitDraft.restored')}
           .{' '}
           <button

@@ -18,6 +18,7 @@ import {
 import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import './session-side-effects.css';
+import { displayDateTime } from './display-dates';
 
 export function SessionSideEffects({
   sessionId,
@@ -386,7 +387,7 @@ export function SessionSideEffects({
             >
               <span className="effect-kind">{kindLabel(entry.risk)}</span>
               <strong>{entry.toolName}</strong>
-              <time>{new Date(entry.ts).toLocaleString()}</time>
+              <time>{displayDateTime(entry.ts)}</time>
               <p>{effectSummary(entry)}</p>
               <small>
                 {entry.outcome ? outcomeText(entry.outcome, t) : t('effectsView.noOutcome')}
@@ -416,7 +417,7 @@ export function SessionSideEffects({
             <dt>{t('effectsView.field.toolCall')}</dt>
             <dd>{selected.toolUseId}</dd>
             <dt>{t('effectsView.field.recordedAt')}</dt>
-            <dd>{new Date(selected.ts).toLocaleString()}</dd>
+            <dd>{displayDateTime(selected.ts)}</dd>
             <dt>{t('effectsView.field.kind')}</dt>
             <dd>{kindLabel(selected.risk)}</dd>
             <dt>{t('effectsView.field.outcome')}</dt>

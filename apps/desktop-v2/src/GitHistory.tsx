@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DiffPreview } from './DiffPreview';
 import { useDesktopText } from './desktop-i18n';
+import { displayDate, displayDateTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { GitGraphCell } from './GitGraphCell';
@@ -227,8 +228,7 @@ export function GitHistory({
                     commit['refs'].map((name: unknown) => <b key={String(name)}>{String(name)}</b>)}
                 </span>
                 <small>
-                  {String(commit['author'])} ·{' '}
-                  {new Date(String(commit['authoredAt'])).toLocaleDateString()}
+                  {String(commit['author'])} · {displayDate(String(commit['authoredAt']))}
                   <code>{String(commit['hash']).slice(0, 8)}</code>
                 </small>
               </div>
@@ -255,7 +255,7 @@ export function GitHistory({
                 <h1>{String(detail['body'] ?? '').split('\n')[0]}</h1>
                 <p>
                   {String(detail['author'])} <span>{String(detail['email'])}</span> ·{' '}
-                  {new Date(String(detail['authoredAt'])).toLocaleString()}
+                  {displayDateTime(String(detail['authoredAt']))}
                 </p>
                 <button
                   type="button"

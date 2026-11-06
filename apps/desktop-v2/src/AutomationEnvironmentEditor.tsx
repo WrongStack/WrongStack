@@ -7,6 +7,7 @@ import { Download, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { environmentDraft, environmentProfile } from './automation-environment-model';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { Modal } from './Modal';
 import { useEnvironmentDraft } from './useEnvironmentDraft';
 
@@ -46,7 +47,7 @@ export function AutomationEnvironmentEditor({
       setDraft(next);
       setRestored(
         savedAt
-          ? t('autoEnv.restoredAt', { time: new Date(savedAt).toLocaleString() })
+          ? t('autoEnv.restoredAt', { time: displayDateTime(savedAt) })
           : t('autoEnv.restored'),
       );
     },

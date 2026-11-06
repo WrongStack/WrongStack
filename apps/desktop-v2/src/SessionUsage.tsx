@@ -16,6 +16,7 @@ import {
 } from './session-usage-model';
 import { surfaceI18n } from './surface-i18n';
 import './session-usage.css';
+import { displayTime } from './display-dates';
 
 /** The usage formatters with the display language's words for a missing value. */
 function useUsageFormat() {
@@ -138,7 +139,7 @@ export function SessionUsage({
       );
       if (alive.current && generation.current === version) {
         setSnapshot(next);
-        setUpdatedAt(new Date().toLocaleTimeString());
+        setUpdatedAt(displayTime(Date.now()));
         setError('');
       }
     } catch (error) {

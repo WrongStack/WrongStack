@@ -1,6 +1,7 @@
 import { ArrowRight, Folder, FolderPlus, Plus } from 'lucide-react';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { isLive } from './model';
 import { addProject, native } from './platform';
 import type { DesktopController } from './useDesktop';
@@ -81,7 +82,7 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
                   {s.exitCode !== null ? ` · ${t('activity.exit', { code: s.exitCode })}` : ''}
                 </p>
               </div>
-              <time>{new Date(s.updatedAt).toLocaleString()}</time>
+              <time>{displayDateTime(s.updatedAt)}</time>
               <ArrowRight size={16} />
             </button>
           ))}

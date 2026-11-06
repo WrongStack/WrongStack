@@ -1,6 +1,7 @@
 import { ChevronDown, Download, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { record } from './engine-values';
 import { journalFileName, journalJsonl, journalMarkdown } from './journal-export';
@@ -241,7 +242,7 @@ export function PromptJournal({
                       {String(row['category']) === 'raw_user'
                         ? t('promptJournal.original')
                         : t('promptJournal.refined')}{' '}
-                      · {new Date(String(row['timestamp'])).toLocaleString()} ·{' '}
+                      · {displayDateTime(String(row['timestamp']))} ·{' '}
                       {String(meta['provider'] ?? '')} {String(meta['model'] ?? '')}
                     </small>
                   </div>

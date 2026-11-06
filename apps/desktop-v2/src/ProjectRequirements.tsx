@@ -12,6 +12,7 @@ import {
   RequirementResourceEditor,
 } from './RequirementResources';
 import './project-requirements.css';
+import { displayDateTime } from './display-dates';
 import { RequirementRecordDraftNotice } from './RequirementRecordDraftNotice';
 import { RequirementSummary } from './RequirementSummary';
 import {
@@ -841,9 +842,7 @@ export function ProjectRequirements({
                       <strong>{named('action', item['action'])}</strong>
                       <span>
                         {text(item['actor']) || t('req.unknownActor')}
-                        {typeof item['at'] === 'number'
-                          ? ` · ${new Date(item['at']).toLocaleString()}`
-                          : ''}
+                        {typeof item['at'] === 'number' ? ` · ${displayDateTime(item['at'])}` : ''}
                       </span>
                       {Array.isArray(item['fields']) && (
                         <small>{strings(item['fields']).join(', ')}</small>

@@ -13,6 +13,7 @@ import {
   parseAutomationVerification,
 } from './automation-evidence';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -88,7 +89,7 @@ export function AutomationRunInspector({
         <div className="automation-run-status">
           <strong>{t(`automation.runStatus.${run.status}`, { defaultValue: run.status })}</strong>
           <span>{t(`automation.trigger.${run.trigger}`, { defaultValue: run.trigger })}</span>
-          <span>{new Date(run.createdAt).toLocaleString()}</span>
+          <span>{displayDateTime(run.createdAt)}</span>
         </div>
         {run.error && <p className="session-error">{run.error}</p>}
         {run.exitCode !== undefined && <p>{t('autoRun.exitCode', { code: run.exitCode })}</p>}

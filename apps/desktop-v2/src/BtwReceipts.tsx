@@ -2,6 +2,7 @@ import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { btwReceipts, btwStatus } from './btw-receipts';
 import { useDesktopText } from './desktop-i18n';
+import { displayTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -69,7 +70,7 @@ export function BtwReceipts({
               <li key={note.messageId}>
                 <span>{note.text.length > 120 ? `${note.text.slice(0, 119)}…` : note.text}</span>
                 <small>
-                  {new Date(note.sentAt).toLocaleTimeString()} ·{' '}
+                  {displayTime(note.sentAt)} ·{' '}
                   {mail ? t(`btw.status.${btwStatus(found)}`) : t('btw.checking')}
                   {readers.length ? ` · ${readers.join(', ')}` : ''}
                 </small>

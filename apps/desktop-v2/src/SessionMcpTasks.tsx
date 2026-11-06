@@ -6,6 +6,7 @@ import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
 import { mcpTaskSnapshot, mcpTaskStatuses, mcpTaskTerminal } from './mcp-tasks-model';
 import './session-mcp-tasks.css';
+import { displayDateTime } from './display-dates';
 
 export function SessionMcpTasks({
   sessionId,
@@ -241,9 +242,9 @@ export function SessionMcpTasks({
               )}
               <dl>
                 <dt>{t('mcpTasks.created')}</dt>
-                <dd>{new Date(task.createdAt).toLocaleString()}</dd>
+                <dd>{displayDateTime(task.createdAt)}</dd>
                 <dt>{t('mcpTasks.updated')}</dt>
-                <dd>{new Date(task.lastUpdatedAt).toLocaleString()}</dd>
+                <dd>{displayDateTime(task.lastUpdatedAt)}</dd>
               </dl>
               {!task.delivered && (
                 <footer>

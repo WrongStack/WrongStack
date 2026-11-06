@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Trans } from 'react-i18next';
 import './brain-policy.css';
 import { useDesktopText } from './desktop-i18n';
+import { displayTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { surfaceI18n } from './surface-i18n';
@@ -126,7 +127,7 @@ export function BrainDecisions({ command }: { command: EngineCommand }) {
           {status.log.slice(0, 50).map((entry, index) => (
             <li key={`${entry.at}:${index}`}>
               <span>
-                {entry.at ? new Date(entry.at).toLocaleTimeString() : ''} · {entry.kind}
+                {entry.at ? displayTime(entry.at) : ''} · {entry.kind}
                 {entry.tier ? ` · ${entry.tier}` : ''}
               </span>
               <strong>{entry.question}</strong>

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { DesktopCodeAssist } from './DesktopCodeAssist';
 import { DiffPreview } from './DiffPreview';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
@@ -284,9 +285,7 @@ export function FileEvidenceDrawer({
                         · {String(resource['path'] ?? path)}
                       </p>
                     </div>
-                    {typeof event['at'] === 'string' && (
-                      <time>{new Date(event['at']).toLocaleString()}</time>
-                    )}
+                    {typeof event['at'] === 'string' && <time>{displayDateTime(event['at'])}</time>}
                   </article>
                 );
               })}

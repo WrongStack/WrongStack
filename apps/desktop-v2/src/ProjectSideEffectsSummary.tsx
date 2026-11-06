@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
@@ -168,7 +169,7 @@ export function ProjectSideEffectsSummary({
               <tbody>
                 {summary.records.map((row, index) => (
                   <tr key={`${row.sessionId}:${row.ts}:${index}`}>
-                    <td>{new Date(row.ts).toLocaleString()}</td>
+                    <td>{displayDateTime(row.ts)}</td>
                     <td>
                       {onOpenSession ? (
                         <button

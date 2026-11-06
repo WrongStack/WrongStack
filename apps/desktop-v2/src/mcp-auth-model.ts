@@ -1,3 +1,4 @@
+import { displayDateTime } from './display-dates';
 import { record } from './engine-values';
 
 export interface McpAuthStatus {
@@ -51,7 +52,7 @@ export function mcpAuthSummary(
       : [
           status.expiresAt <= now
             ? say('tokenExpired')
-            : say('tokenExpires', { at: new Date(status.expiresAt).toLocaleString() }),
+            : say('tokenExpires', { at: displayDateTime(status.expiresAt) }),
         ];
   const refresh = status.canRefresh ? [say('refreshable')] : [];
   switch (status.state) {

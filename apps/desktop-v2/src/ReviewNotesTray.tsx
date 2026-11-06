@@ -1,6 +1,7 @@
 import { Check, Copy, MessageSquare, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { type ReviewNote, withReply, withReplyChange, withResolved } from './review-notes-store';
 
 /**
@@ -130,7 +131,7 @@ export function ReviewNotesTray({
                       ) : (
                         <>
                           <p className="file-review-reply-text">{item.text}</p>
-                          <time dateTime={item.at}>{new Date(item.at).toLocaleString()}</time>
+                          <time dateTime={item.at}>{displayDateTime(item.at)}</time>
                           <span className="file-review-reply-actions">
                             <button
                               type="button"

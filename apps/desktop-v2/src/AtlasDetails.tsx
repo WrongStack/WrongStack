@@ -1,6 +1,7 @@
 import { Activity, ArrowRight, Brain, FileCode2, ShieldCheck, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record, sentenceStart } from './engine-values';
 import { fileName } from './file-model';
@@ -109,7 +110,7 @@ export function AtlasNodeEvidence({
           [
             t('atlasDetails.lastModified'),
             typeof node.data['lastModifiedMs'] === 'number'
-              ? new Date(node.data['lastModifiedMs']).toLocaleString()
+              ? displayDateTime(node.data['lastModifiedMs'])
               : undefined,
           ],
         ].map(([label, value]) =>
@@ -208,9 +209,7 @@ export function AtlasNodeEvidence({
                           t('atlasDetails.journal'),
                       )}
                     </span>
-                    {typeof event['at'] === 'string' && (
-                      <time>{new Date(event['at']).toLocaleString()}</time>
-                    )}
+                    {typeof event['at'] === 'string' && <time>{displayDateTime(event['at'])}</time>}
                   </article>
                 ))}
                 {!events.length && <p>{t('atlasDetails.noActivity', { file: fileName(file) })}</p>}

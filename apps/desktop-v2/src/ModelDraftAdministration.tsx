@@ -1,6 +1,7 @@
 import { Archive, RefreshCw, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { displayDateTime } from './display-dates';
 import { Modal } from './Modal';
 import type { ModelProfileIdentity } from './ModelCatalogProfile';
 import {
@@ -201,7 +202,7 @@ function ModelDraftAdministrationDialog({
                               : t('draftAdmin.noOwner')}{' '}
                         ·{' '}
                         {draft.updatedAt
-                          ? new Date(draft.updatedAt).toLocaleString()
+                          ? displayDateTime(draft.updatedAt)
                           : t('draftAdmin.timeUnknown')}{' '}
                         · {kib(draft.bytes)}
                       </span>

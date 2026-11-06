@@ -31,6 +31,7 @@ import {
   useAutomationDraftPersistence,
 } from './useAutomationDraftPersistence';
 import './automation-workspace.css';
+import { displayDateTime } from './display-dates';
 
 const fresh = () => ({ ...createAutomationJobInput(), enabled: false });
 export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; projectId: string }) {
@@ -84,7 +85,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
       setPreview(null);
       setNotice(
         updatedAt
-          ? t('automation.recoveredAt', { time: new Date(updatedAt).toLocaleString() })
+          ? t('automation.recoveredAt', { time: displayDateTime(updatedAt) })
           : t('automation.recovered'),
       );
     },
@@ -604,9 +605,7 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
                 <h4>{t('automation.launchPreview')}</h4>
                 <p>
                   {preview.nextRunTimes.length
-                    ? preview.nextRunTimes
-                        .map((time) => new Date(time).toLocaleString())
-                        .join(' · ')
+                    ? preview.nextRunTimes.map((time) => displayDateTime(time)).join(' · ')
                     : t('automation.manualExecution')}
                 </p>
                 {preview.missingReferences.length > 0 && (

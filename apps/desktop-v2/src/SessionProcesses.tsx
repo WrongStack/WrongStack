@@ -22,6 +22,7 @@ import {
 } from './session-process-model';
 import { surfaceI18n } from './surface-i18n';
 import './session-processes.css';
+import { displayDateTime, displayTime } from './display-dates';
 
 /** Ended runs seen by this window, per session; kept while the window stays open. */
 const endedBySession = new Map<
@@ -373,7 +374,7 @@ export function SessionProcesses({
               <pre>{proc.command}</pre>
               <footer>
                 <time dateTime={new Date(proc.startedAt).toISOString()}>
-                  {t('processes.started', { time: new Date(proc.startedAt).toLocaleString() })}
+                  {t('processes.started', { time: displayDateTime(proc.startedAt) })}
                 </time>
                 <div className="feature-actions">
                   <button
@@ -427,8 +428,8 @@ export function SessionProcesses({
                   <pre>{item.command}</pre>
                   <small>
                     {t('processes.reportedTimes', {
-                      started: new Date(item.startedAt).toLocaleString(),
-                      ended: new Date(item.endedAt).toLocaleTimeString(),
+                      started: displayDateTime(item.startedAt),
+                      ended: displayTime(item.endedAt),
                       duration: observedDuration(item.startedAt, item.endedAt),
                     })}
                   </small>
@@ -450,9 +451,9 @@ export function SessionProcesses({
                 <pre>{item.proc.command}</pre>
                 <small>
                   {t('processes.observedTimes', {
-                    started: new Date(item.proc.startedAt).toLocaleString(),
-                    seen: new Date(item.lastSeenAt).toLocaleTimeString(),
-                    gone: new Date(item.goneBy).toLocaleTimeString(),
+                    started: displayDateTime(item.proc.startedAt),
+                    seen: displayTime(item.lastSeenAt),
+                    gone: displayTime(item.goneBy),
                     duration: observedDuration(item.proc.startedAt, item.lastSeenAt),
                   })}
                 </small>

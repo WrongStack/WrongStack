@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-06T14:03:00.187Z
+**Generated:** 2026-11-06T14:46:44.061Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6049 |
-| Production source lines | 1253065 |
+| Production source files | 6050 |
+| Production source lines | 1253120 |
 | Test files | 5042 |
 | Workspace dependency edges | 243 |
-| Relative module edges | 17819 |
+| Relative module edges | 17848 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -38,7 +38,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
 | @wrongstack/coordination | 190 | 184 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 639 | 699 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 455 | 291 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 456 | 291 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 59 | 2 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -97,11 +97,11 @@ None.
 | 1098 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1078 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1063 | `apps/desktop-v2/src/SessionComposer.tsx` |
-| 954 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
+| 953 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 854 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 821 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |
@@ -115,7 +115,7 @@ None.
 | 750 | `packages/vibeui/src/lib/use-session.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 745 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
-| 743 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
+| 744 | `apps/desktop-v2/src/ProjectChronicle.tsx` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 729 | `packages/tools/src/process-registry.ts` |
