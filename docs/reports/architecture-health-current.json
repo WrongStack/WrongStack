@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T12:14:32.364Z",
+  "generatedAt": "2026-11-06T12:26:03.836Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6048,
-    "testFiles": 5041,
-    "sourceLines": 1253016,
+    "sourceFiles": 6049,
+    "testFiles": 5042,
+    "sourceLines": 1253039,
     "workspaceEdges": 243,
-    "moduleEdges": 17818,
+    "moduleEdges": 17819,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -1167,8 +1167,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 332,
-      "testFiles": 369,
+      "sourceFiles": 333,
+      "testFiles": 370,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1203,7 +1203,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 369
+          "testFiles": 370
         }
       ]
     },
@@ -27650,6 +27650,12 @@
       },
       {
         "file": "packages/webui-server/tests/resolve-webui-dist-dir.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/roster-summary.test.ts",
         "projects": [
           "root-node"
         ]

@@ -278,21 +278,22 @@ export function ProjectLiveFleet({
   };
   return (
     <section className="project-live-fleet" aria-label={t('liveFleet.label')}>
-      <header>
+      <header className="studio-heading">
         <div>
-          <span className="eyebrow">{t('liveFleet.eyebrow')}</span>
-          <h2>{t('liveFleet.title')}</h2>
+          <h1>{t('liveFleet.title')}</h1>
           <p>{t('liveFleet.intro')}</p>
         </div>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={loading || pending}
-          onClick={() => void load()}
-        >
-          <RefreshCw size={14} />
-          {t('liveFleet.refresh')}
-        </button>
+        <div>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading || pending}
+            onClick={() => void load()}
+          >
+            <RefreshCw size={14} />
+            {t('liveFleet.refresh')}
+          </button>
+        </div>
       </header>
       {sessions.length > 0 && <FleetBroadcast http={http} read={read} onSent={() => void load()} />}
       <div className="live-fleet-metrics">

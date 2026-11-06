@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> agente registrado",
     "runtimes_one": "<strong>{{n}}</strong> entorno de ejecución",
     "label": "Flota en vivo del proyecto",
-    "eyebrow": "EJECUCIÓN DEL PROYECTO",
     "title": "Flota en vivo",
     "intro": "Entornos de ejecución y agentes realmente registrados en este proyecto. El catálogo de roles sigue en el Roster de agentes.",
     "refresh": "Actualizar la flota en vivo",

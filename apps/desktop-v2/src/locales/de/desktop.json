@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> registrierter Agent",
     "runtimes_one": "<strong>{{n}}</strong> Laufzeit",
     "label": "Live-Flotte des Projekts",
-    "eyebrow": "PROJEKTAUSFÜHRUNG",
     "title": "Live-Flotte",
     "intro": "Tatsächlich registrierte Laufzeiten und Agenten in diesem Projekt. Der Rollenkatalog bleibt im Agenten-Roster.",
     "refresh": "Live-Flotte aktualisieren",

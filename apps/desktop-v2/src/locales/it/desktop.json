@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> agente registrato",
     "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Flotta live del progetto",
-    "eyebrow": "ESECUZIONE DEL PROGETTO",
     "title": "Flotta live",
     "intro": "Runtime e agenti effettivamente registrati in questo progetto. Il catalogo dei ruoli resta nel Roster degli agenti.",
     "refresh": "Aggiorna la flotta live",

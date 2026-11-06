@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> agente registrado",
     "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Frota ao vivo do projeto",
-    "eyebrow": "EXECUÇÃO DO PROJETO",
     "title": "Frota ao vivo",
     "intro": "Runtimes e agentes realmente registrados neste projeto. O catálogo de papéis permanece no Roster de agentes.",
     "refresh": "Atualizar a frota ao vivo",

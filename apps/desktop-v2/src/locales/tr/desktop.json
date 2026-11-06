@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> kayıtlı ajan",
     "runtimes_one": "<strong>{{n}}</strong> çalışma zamanı",
     "label": "Proje canlı filosu",
-    "eyebrow": "PROJE YÜRÜTMESİ",
     "title": "Canlı filo",
     "intro": "Bu projede gerçekten kayıtlı çalışma zamanları ve ajanlar. Rol kataloğu Ajan Kadrosu’nda kalır.",
     "refresh": "Canlı filoyu yenile",

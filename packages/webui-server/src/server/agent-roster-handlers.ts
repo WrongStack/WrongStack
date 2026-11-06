@@ -63,6 +63,7 @@ import {
   updateProjectAgentLearningPolicy,
 } from '@wrongstack/coordination';
 import type { WebSocket } from 'ws';
+import { rosterPromptSummary } from './roster-summary.js';
 import type { WSServerMessage } from './types.js';
 import { errMessage } from './ws-utils.js';
 
@@ -141,13 +142,7 @@ export class AgentRosterWSHandler {
           return {
             role: catalogRole,
             name: profile?.name ?? config?.name ?? catalogRole,
-            summary:
-              profile?.purpose ??
-              config?.prompt
-                ?.split('\n')
-                .find((line) => line.trim().length > 20)
-                ?.trim() ??
-              '',
+            summary: profile?.purpose ?? rosterPromptSummary(config?.prompt),
             tools: config?.tools?.length ?? 0,
             custom: Boolean(profile),
             systemProtected: !profile && Boolean(FLEET_ROSTER[catalogRole]),

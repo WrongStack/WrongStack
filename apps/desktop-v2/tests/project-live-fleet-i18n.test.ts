@@ -103,7 +103,6 @@ describe('project live fleet in the display language', () => {
     await surfaceI18n.changeLanguage('en');
     let page = await mount();
     for (const text of [
-      'PROJECT EXECUTION',
       'Refresh live fleet',
       '1 runtime',
       '1 registered agent',
@@ -144,7 +143,6 @@ describe('project live fleet in the display language', () => {
     await surfaceI18n.changeLanguage('tr');
     page = await mount();
     for (const text of [
-      'PROJE YÜRÜTMESİ',
       'Canlı filoyu yenile',
       '1 çalışma zamanı',
       '1 kayıtlı ajan',

@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> agent enregistré",
     "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Flotte en direct du projet",
-    "eyebrow": "EXÉCUTION DU PROJET",
     "title": "Flotte en direct",
     "intro": "Runtimes et agents réellement enregistrés dans ce projet. Le catalogue des rôles reste dans le Roster des agents.",
     "refresh": "Actualiser la flotte en direct",

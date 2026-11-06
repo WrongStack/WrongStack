@@ -5395,7 +5395,6 @@
     "agents_one": "<strong>{{n}}</strong> registered agent",
     "runtimes_one": "<strong>{{n}}</strong> runtime",
     "label": "Project live fleet",
-    "eyebrow": "PROJECT EXECUTION",
     "title": "Live fleet",
     "intro": "Actual registered runtimes and agents in this project. The role catalog remains in Agent Roster.",
     "refresh": "Refresh live fleet",

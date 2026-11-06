@@ -1,7 +1,6 @@
 .project-live-fleet {
   padding: 28px;
 }
-.project-live-fleet > header,
 .live-fleet-toolbar,
 .live-fleet-list :where(article) > header,
 .live-fleet-inspector > header {
@@ -11,7 +10,7 @@
   gap: 16px;
   flex-wrap: wrap;
 }
-.project-live-fleet h2 {
+.project-live-fleet .live-fleet-review h2 {
   margin: 8px 0;
   font-size: 28px;
 }
