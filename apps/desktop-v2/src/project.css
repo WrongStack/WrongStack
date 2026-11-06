@@ -756,6 +756,21 @@
 :is(.memory-inspector, .task-inspector, .modal) textarea {
   resize: vertical;
 }
+/* The field rule above outranks a dialog's own `.editor textarea` rule, so the code and
+   document editors opened in dialogs fell back to the interface font. They keep the code font
+   their own rules give them. */
+.modal
+  :is(
+    .automation-environment-editor,
+    .file-draft-versions,
+    .mcp-content-detail,
+    .merge-result-label,
+    .roster-document,
+    .skill-document-editor
+  )
+  textarea {
+  font-family: var(--user-font-code, Consolas, monospace);
+}
 .inspector-two-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
