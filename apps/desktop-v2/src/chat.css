@@ -56,6 +56,12 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* A link-styled button with an icon keeps the icon on the text's centre line, a step apart. */
+button.text-link:has(> svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .markdown-content code {
   background: var(--raised);
   padding: 2px 5px;

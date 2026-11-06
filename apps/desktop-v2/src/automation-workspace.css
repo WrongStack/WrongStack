@@ -260,7 +260,12 @@
   overflow-wrap: anywhere;
   min-width: 0;
 }
-.automation-run-inspector > .quiet-state {
+/* Values line up with their terms; the browser indents a description by 40 px. */
+.automation-run-inspector :where(dd) {
+  margin: 0;
+}
+/* An empty list's note sits under its heading, not a block away from it. */
+:is(.automation-run-inspector, .automation-runs) > .quiet-state {
   padding: 4px 0 0;
 }
 .automation-run-inspector :where(summary) {
