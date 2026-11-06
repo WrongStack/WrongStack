@@ -348,6 +348,9 @@
   color: var(--text);
   border: 0;
   font-size: 13px;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .tools-activity {
   display: flex;

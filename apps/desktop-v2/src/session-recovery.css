@@ -152,6 +152,9 @@
   color: var(--text);
   min-width: 0;
   width: 100%;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .recovery-event-filters select {
   background: var(--base);

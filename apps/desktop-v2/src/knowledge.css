@@ -578,6 +578,8 @@
   padding: 6px 0;
   font-size: 12px;
   outline: 0;
+  min-height: 0;
+  box-shadow: none;
 }
 .sage-retrieval-search > label {
   font-size: 10px;

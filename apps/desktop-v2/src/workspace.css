@@ -59,6 +59,9 @@
   border: 0;
   color: var(--text);
   font-size: 10px;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .feature-main {
   overflow: auto;

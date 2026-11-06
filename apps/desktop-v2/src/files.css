@@ -51,6 +51,8 @@
   font-size: 11px;
   padding: 0;
   min-width: 0;
+  min-height: 0;
+  box-shadow: none;
 }
 .file-workspace-error,
 .file-workspace-notice {

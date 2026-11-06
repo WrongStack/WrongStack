@@ -77,6 +77,9 @@
   border: 0;
   outline: 0;
   font-size: 12px;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .skill-library-search > select {
   padding: 7px;

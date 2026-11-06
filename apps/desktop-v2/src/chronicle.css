@@ -71,6 +71,8 @@
   background: transparent;
   padding: 10px 0;
   outline: none;
+  min-height: 0;
+  box-shadow: none;
 }
 .chronicle-extra-filters {
   width: 100%;

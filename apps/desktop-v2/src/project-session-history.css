@@ -46,6 +46,9 @@
   width: 100%;
   min-width: 0;
   font-size: 12px;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .history-filters select,
 .history-transcript-search select {

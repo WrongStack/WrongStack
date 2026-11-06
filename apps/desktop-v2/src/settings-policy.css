@@ -147,6 +147,8 @@
   padding: 0;
   font-size: 11px;
   color: var(--text);
+  min-height: 0;
+  box-shadow: none;
 }
 .fallback-suggestions {
   display: grid;

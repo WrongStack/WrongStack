@@ -566,6 +566,8 @@ h1 {
   width: 110px;
   font-size: 10px;
   color: var(--text);
+  min-height: 0;
+  box-shadow: none;
 }
 .session-grid {
   display: grid;

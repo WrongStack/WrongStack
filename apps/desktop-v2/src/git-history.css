@@ -41,6 +41,9 @@
   min-width: 80px;
   width: 160px;
   font-size: 11px;
+  min-height: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .git-history-toolbar select {
   background: var(--base);
