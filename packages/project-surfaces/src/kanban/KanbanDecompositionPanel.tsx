@@ -198,7 +198,7 @@ export function KanbanDecompositionPanel({
       </div>
 
       {/* Stage strip */}
-      <div className="mb-2 flex items-center gap-1 text-[11px]">
+      <div className="mb-2 flex flex-wrap items-center gap-1 text-[11px]">
         {STAGES.map((stage, index) => (
           <div key={stage} className="flex items-center gap-1">
             {index > 0 && <span className="text-muted-foreground/50">→</span>}
@@ -217,7 +217,7 @@ export function KanbanDecompositionPanel({
           </div>
         ))}
         {task.atomicityAssessment && (
-          <span className="ml-auto text-muted-foreground">
+          <span className="ml-auto whitespace-nowrap text-muted-foreground">
             {t('activity:kanbanText.verdictScore', {
               verdict: enumLabel(t, ATOMICITY_VERDICT_KEYS, task.atomicityAssessment.verdict),
               score: task.atomicityAssessment.score,
