@@ -126,6 +126,16 @@ export async function exerciseNativeGapClose({
     'The window zooms to 125 %',
   );
   await shot('native-text-size-125.png');
+  // A larger text size reflows the settings; nothing runs past the window's right edge.
+  const overflow = await page.evaluate(() => {
+    const view = document.documentElement.clientWidth;
+    const wide = [...document.querySelectorAll('.appearance-settings *')]
+      .map((element) => element.getBoundingClientRect().right)
+      .filter((right) => right > view + 1);
+    return { view, scroll: document.documentElement.scrollWidth, wide: wide.length };
+  });
+  console.log(`text size 125%: ${JSON.stringify(overflow)}`);
+  assert.equal(overflow.wide, 0, 'Appearance controls stay inside the window at 125 %');
   await sizes.getByRole('button', { name: '100%', exact: true }).click();
   await waitFor(
     async () => Math.abs((await page.evaluate(() => window.devicePixelRatio)) - baseRatio) < 0.01,
