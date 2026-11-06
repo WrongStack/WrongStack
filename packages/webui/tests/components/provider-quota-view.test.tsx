@@ -324,7 +324,7 @@ describe('Plan Quota page', () => {
     });
     const inUse = section('In use now');
     expect(within(inUse).getByText('Claude · work')).toBeTruthy();
-    expect(within(inUse).getByText('in use')).toBeTruthy();
+    expect(within(inUse).getByText('In use')).toBeTruthy();
     // Each entry lives in exactly one section.
     expect(within(section('OmniRoute pool')).queryByText('Claude · work')).toBeNull();
     expect(within(section('OmniRoute pool')).getByText('Copilot')).toBeTruthy();
