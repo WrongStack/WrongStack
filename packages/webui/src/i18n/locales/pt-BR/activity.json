@@ -5201,8 +5201,8 @@
       "days": "{{count}} d"
     },
     "supervisorMode": {
-      "deterministic": "determinístico",
-      "agentic": "agêntico"
+      "deterministic": "Determinístico",
+      "agentic": "Agêntico"
     },
     "supervisorStatus": {
       "starting": "iniciando",
@@ -5214,14 +5214,14 @@
     "managementPending": "gestão de tarefas pendente",
     "managementUnavailable": "gestão de tarefas indisponível: o host não tem despachante de agentes",
     "routingMode": {
-      "session": "sessão",
-      "fixed": "fixo",
-      "fallbackProfile": "perfil de fallback"
+      "session": "Sessão",
+      "fixed": "Fixo",
+      "fallbackProfile": "Perfil de fallback"
     },
     "retryPolicy": {
-      "off": "desativado",
-      "incremental": "incremental",
-      "exponential": "exponencial"
+      "off": "Desativado",
+      "incremental": "Incremental",
+      "exponential": "Exponencial"
     },
     "cleanerFoundOne": "O limpador Kanban encontrou {{count}} problema",
     "cleanerFoundMany": "O limpador Kanban encontrou {{count}} problemas",

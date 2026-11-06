@@ -5201,8 +5201,8 @@
       "days": "{{count}} T."
     },
     "supervisorMode": {
-      "deterministic": "deterministisch",
-      "agentic": "agentisch"
+      "deterministic": "Deterministisch",
+      "agentic": "Agentisch"
     },
     "supervisorStatus": {
       "starting": "startet",
@@ -5215,13 +5215,13 @@
     "managementUnavailable": "Task-Verwaltung nicht verfügbar: Host hat keinen Agenten-Verteiler",
     "routingMode": {
       "session": "Sitzung",
-      "fixed": "fest",
+      "fixed": "Fest",
       "fallbackProfile": "Fallback-Profil"
     },
     "retryPolicy": {
-      "off": "aus",
-      "incremental": "inkrementell",
-      "exponential": "exponentiell"
+      "off": "Aus",
+      "incremental": "Inkrementell",
+      "exponential": "Exponentiell"
     },
     "cleanerFoundOne": "Kanban-Bereinigung hat {{count}} Problem gefunden",
     "cleanerFoundMany": "Kanban-Bereinigung hat {{count}} Probleme gefunden",

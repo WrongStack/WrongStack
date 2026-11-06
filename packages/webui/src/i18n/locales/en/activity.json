@@ -5201,8 +5201,8 @@
       "days": "{{count}}d"
     },
     "supervisorMode": {
-      "deterministic": "deterministic",
-      "agentic": "agentic"
+      "deterministic": "Deterministic",
+      "agentic": "Agentic"
     },
     "supervisorStatus": {
       "starting": "starting",
@@ -5214,14 +5214,14 @@
     "managementPending": "task management pending",
     "managementUnavailable": "task management unavailable: host has no agent dispatcher",
     "routingMode": {
-      "session": "session",
-      "fixed": "fixed",
-      "fallbackProfile": "fallback_profile"
+      "session": "Session",
+      "fixed": "Fixed",
+      "fallbackProfile": "Fallback profile"
     },
     "retryPolicy": {
-      "off": "off",
-      "incremental": "incremental",
-      "exponential": "exponential"
+      "off": "Off",
+      "incremental": "Incremental",
+      "exponential": "Exponential"
     },
     "cleanerFoundOne": "Kanban Cleaner found {{count}} issue",
     "cleanerFoundMany": "Kanban Cleaner found {{count}} issues",

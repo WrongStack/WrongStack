@@ -5201,8 +5201,8 @@
       "days": "{{count}} g"
     },
     "supervisorMode": {
-      "deterministic": "deterministik",
-      "agentic": "ajan tabanlı"
+      "deterministic": "Deterministik",
+      "agentic": "Ajan tabanlı"
     },
     "supervisorStatus": {
       "starting": "başlatılıyor",
@@ -5214,14 +5214,14 @@
     "managementPending": "görev yönetimi bekliyor",
     "managementUnavailable": "görev yönetimi kullanılamıyor: ana makinede ajan dağıtıcısı yok",
     "routingMode": {
-      "session": "oturum",
-      "fixed": "sabit",
-      "fallbackProfile": "yedek profil"
+      "session": "Oturum",
+      "fixed": "Sabit",
+      "fallbackProfile": "Yedek profil"
     },
     "retryPolicy": {
-      "off": "kapalı",
-      "incremental": "artımlı",
-      "exponential": "üstel"
+      "off": "Kapalı",
+      "incremental": "Artımlı",
+      "exponential": "Üstel"
     },
     "cleanerFoundOne": "Kanban Temizleyici {{count}} sorun buldu",
     "cleanerFoundMany": "Kanban Temizleyici {{count}} sorun buldu",
