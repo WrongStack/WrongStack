@@ -200,7 +200,9 @@ kbd {
   color: var(--muted);
   text-align: left;
 }
-.project-item > span:nth-last-child(2) {
+/* The project name, not its letter badge, keeps one line and ends with an ellipsis. */
+.project-item > span:not(.project-symbol) {
+  min-width: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
