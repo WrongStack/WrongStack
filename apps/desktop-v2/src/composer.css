@@ -28,8 +28,11 @@
   min-width: 0;
   flex-wrap: wrap;
 }
+/* Controls pack from the left; the actions keep the right edge through their auto margin.
+   The generic composer footer spreads its children apart, which left wide, uneven holes
+   between the controls once the toolbar wrapped. */
 .native-composer footer.composer-toolbar {
-  justify-content: space-between;
+  justify-content: flex-start;
   padding-top: 10px;
   gap: 10px;
 }

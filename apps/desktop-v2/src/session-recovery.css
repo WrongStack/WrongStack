@@ -307,18 +307,30 @@
 }
 .recovery-rewound-prompt {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 14px;
+}
+/* The grid gap spaces the title, the prompt and the hint; browser margins doubled it. */
+.recovery-rewound-prompt > :is(h4, pre, p) {
+  margin: 0;
 }
 .recovery-rewound-prompt pre {
   max-height: 180px;
   overflow: auto;
   white-space: pre-wrap;
   font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--raised);
 }
 .recovery-prompt-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+/* Copy sits beside a small button and takes its height. */
+.recovery-prompt-actions > .copy-button {
+  align-self: stretch;
 }
