@@ -7534,6 +7534,12 @@
     "intro": "Fast typed judgments from TypeSafe System One for risk, memory, compaction and routing decisions. Requests go to the chosen account route; turn off any judgment below.",
     "use": "Use Jev",
     "account": "Account: {{status}}",
+    "status": {
+      "disabled": "Jev disabled",
+      "ready": "Account configured",
+      "unconfigured": "Account required",
+      "unusable": "Account settings invalid"
+    },
     "key": {
       "none": "key not set",
       "env": "key from the environment",
@@ -7581,7 +7587,8 @@
     "refresh": "Refresh visibility catalog",
     "draftNote": "Changes stay in this settings draft until you save. Disabling hides models from catalogs and fallback suggestions. Running sessions and explicit role overrides keep their model.",
     "reading": "Reading all provider models, including disabled entries…",
-    "counts": "{{matching}} matching models · {{disabled}} individually disabled for this provider",
+    "counts_one": "{{count}} matching model · {{disabled}} individually disabled for this provider",
+    "counts": "{{count}} matching models · {{disabled}} individually disabled for this provider",
     "item": "Model visibility {{id}}",
     "state": {
       "disabled": "Disabled",

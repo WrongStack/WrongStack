@@ -175,7 +175,9 @@ export function JevSettings({ command }: { command: EngineCommand }) {
         {t('jevSettings.use')}
       </label>
       <p>
-        {t('jevSettings.account', { status: state.status })}
+        {t(`jevSettings.status.${state.status}`, {
+          defaultValue: t('jevSettings.account', { status: state.status }),
+        })}
         {state.reason ? ` · ${state.reason}` : ''} · {t(`jevSettings.key.${state.keySource}`)}
       </p>
       <div className="jev-grid">

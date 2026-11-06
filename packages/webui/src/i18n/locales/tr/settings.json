@@ -1303,6 +1303,11 @@
     "actual": "Gelen",
     "includeChecks": "Tanılama isteklerini göster",
     "selfTest": "Tanılama",
+    "keySource": {
+      "none": "anahtar ayarlanmadı",
+      "env": "anahtar ortamdan",
+      "config": "anahtar kayıtlı"
+    },
     "account": {
       "disabled": "Jev kapalı",
       "ready": "Hesap yapılandırılmış",

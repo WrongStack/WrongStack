@@ -54,10 +54,10 @@ describe('Jev and model visibility settings in the display language', () => {
     await surfaceI18n.changeLanguage('en');
     const english = await both();
     for (const text of [
-      'Account: ready · key not set',
+      'Account configured · key not set',
       'Tool-call risk',
       'Check judgments',
-      '1 matching models · 0 individually disabled for this provider',
+      '1 matching model · 0 individually disabled for this provider',
       '1 saved disabled-model rule',
       'Add favorite',
     ])
@@ -66,7 +66,7 @@ describe('Jev and model visibility settings in the display language', () => {
     await surfaceI18n.changeLanguage('tr');
     const turkish = await both();
     for (const text of [
-      'Hesap: ready · anahtar ayarlanmadı',
+      'Hesap yapılandırılmış · anahtar ayarlanmadı',
       'Araç çağrısı riski',
       'Yargıları denetle',
       '1 eşleşen model · bu sağlayıcı için tek tek devre dışı bırakılan 0',

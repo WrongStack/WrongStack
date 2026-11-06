@@ -171,7 +171,7 @@ export function ModelVisibilitySettings({
       {busy && <p role="status">{t('modelVisibility.reading')}</p>}
       <p>
         {t('modelVisibility.counts', {
-          matching: visible.length,
+          count: visible.length,
           disabled: models.filter((model) => modelListed(hidden, provider, String(model['id'])))
             .length,
         })}

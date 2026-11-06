@@ -122,7 +122,10 @@ export function JevSection({
       </div>
       <p role="status" className="text-sm break-words">
         {state.settings
-          ? `${t(`settings:jev.account.${state.settings.status}`)} · ${state.settings.keySource}`
+          ? `${t(`settings:jev.account.${state.settings.status}`)} · ${t(
+              `settings:jev.keySource.${state.settings.keySource}`,
+              { defaultValue: state.settings.keySource },
+            )}`
           : t('settings:jev.loading')}{' '}
         {state.settings?.reason}
       </p>

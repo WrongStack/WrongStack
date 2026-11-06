@@ -10,15 +10,6 @@
   font-size: 12px;
   line-height: 1.6;
 }
-/* Paragraph margins and the dialog's 1.9 line height left a tall empty band under one line. */
-.modal .model-draft-notice p,
-.model-draft-notice p {
-  margin: 0;
-  line-height: 1.6;
-}
-.model-draft-notice > * + * {
-  margin-top: 10px;
-}
 .model-draft-comparison {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
@@ -29,6 +20,10 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px;
+}
+.model-draft-comparison h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
 }
 :where(.model-draft-notice) .model-tier-actions {
   flex-wrap: wrap;
@@ -384,4 +379,13 @@
 }
 .model-draft-admin .model-tier-actions {
   flex-wrap: wrap;
+}
+/* Paragraph margins and the dialog's 1.9 line height left a tall empty band under one line.
+   Last in the file so the more specific paragraph rule follows the generic ones. */
+:is(.modal, .model-catalog-settings) .model-draft-notice p {
+  margin: 0;
+  line-height: 1.6;
+}
+.model-draft-notice > * + * {
+  margin-top: 10px;
 }

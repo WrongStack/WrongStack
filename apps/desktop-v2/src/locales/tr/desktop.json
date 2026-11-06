@@ -7534,6 +7534,12 @@
     "intro": "Risk, bellek, sıkıştırma ve yönlendirme kararları için TypeSafe System One’dan hızlı, tipli yargılar. İstekler seçilen hesap rotasına gider; aşağıdaki herhangi bir yargıyı kapatabilirsin.",
     "use": "Jev’i kullan",
     "account": "Hesap: {{status}}",
+    "status": {
+      "disabled": "Jev kapalı",
+      "ready": "Hesap yapılandırılmış",
+      "unconfigured": "Hesap gerekli",
+      "unusable": "Hesap ayarları geçersiz"
+    },
     "key": {
       "none": "anahtar ayarlanmadı",
       "env": "anahtar ortamdan",
@@ -7581,7 +7587,8 @@
     "refresh": "Görünürlük kataloğunu yenile",
     "draftNote": "Değişiklikler kaydedene kadar bu ayar taslağında kalır. Devre dışı bırakmak modelleri kataloglardan ve yedek önerilerinden gizler. Çalışan oturumlar ve açık rol geçersiz kılmaları modellerini korur.",
     "reading": "Devre dışı olanlar dahil tüm sağlayıcı modelleri okunuyor…",
-    "counts": "{{matching}} eşleşen model · bu sağlayıcı için tek tek devre dışı bırakılan {{disabled}}",
+    "counts_one": "{{count}} eşleşen model · bu sağlayıcı için tek tek devre dışı bırakılan {{disabled}}",
+    "counts": "{{count}} eşleşen model · bu sağlayıcı için tek tek devre dışı bırakılan {{disabled}}",
     "item": "Model görünürlüğü {{id}}",
     "state": {
       "disabled": "Devre dışı",

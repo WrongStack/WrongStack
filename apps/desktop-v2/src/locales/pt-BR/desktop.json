@@ -7534,6 +7534,12 @@
     "intro": "Julgamentos tipados rápidos do TypeSafe System One para decisões de risco, memória, compactação e roteamento. As solicitações vão para a rota de conta escolhida; desative qualquer julgamento abaixo.",
     "use": "Usar o Jev",
     "account": "Conta: {{status}}",
+    "status": {
+      "disabled": "Jev desativado",
+      "ready": "Conta configurada",
+      "unconfigured": "Conta necessária",
+      "unusable": "Configurações da conta inválidas"
+    },
     "key": {
       "none": "chave não definida",
       "env": "chave do ambiente",
@@ -7581,7 +7587,8 @@
     "refresh": "Atualizar o catálogo de visibilidade",
     "draftNote": "As mudanças ficam neste rascunho de configurações até você salvar. Desativar oculta os modelos dos catálogos e das sugestões de fallback. Sessões em andamento e substituições de função explícitas mantêm seu modelo.",
     "reading": "Lendo todos os modelos do provedor, inclusive os desativados…",
-    "counts": "{{matching}} modelos correspondentes · {{disabled}} desativados individualmente para este provedor",
+    "counts_one": "{{count}} modelo correspondente · {{disabled}} desativados individualmente para este provedor",
+    "counts": "{{count}} modelos correspondentes · {{disabled}} desativados individualmente para este provedor",
     "item": "Visibilidade do modelo {{id}}",
     "state": {
       "disabled": "Desativado",

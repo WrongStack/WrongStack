@@ -7534,6 +7534,12 @@
     "intro": "Giudizi tipizzati rapidi di TypeSafe System One per decisioni su rischio, memoria, compattazione e instradamento. Le richieste vanno al percorso dell’account scelto; disattiva qualsiasi giudizio qui sotto.",
     "use": "Usa Jev",
     "account": "Account: {{status}}",
+    "status": {
+      "disabled": "Jev disabilitato",
+      "ready": "Account configurato",
+      "unconfigured": "Account richiesto",
+      "unusable": "Impostazioni dell'account non valide"
+    },
     "key": {
       "none": "chiave non impostata",
       "env": "chiave dall’ambiente",
@@ -7581,7 +7587,8 @@
     "refresh": "Aggiorna il catalogo di visibilità",
     "draftNote": "Le modifiche restano in questa bozza delle impostazioni finché non salvi. Disattivare nasconde i modelli dai cataloghi e dai suggerimenti di riserva. Le sessioni in corso e le sostituzioni di ruolo esplicite mantengono il loro modello.",
     "reading": "Lettura di tutti i modelli del provider, compresi quelli disattivati…",
-    "counts": "{{matching}} modelli corrispondenti · {{disabled}} disattivati singolarmente per questo provider",
+    "counts_one": "{{count}} modello corrispondente · {{disabled}} disattivati singolarmente per questo provider",
+    "counts": "{{count}} modelli corrispondenti · {{disabled}} disattivati singolarmente per questo provider",
     "item": "Visibilità del modello {{id}}",
     "state": {
       "disabled": "Disattivato",

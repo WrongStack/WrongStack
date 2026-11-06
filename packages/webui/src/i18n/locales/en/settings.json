@@ -1303,6 +1303,11 @@
     "actual": "Actual",
     "includeChecks": "Include diagnostic requests",
     "selfTest": "Diagnostic",
+    "keySource": {
+      "none": "key not set",
+      "env": "key from the environment",
+      "config": "key stored"
+    },
     "account": {
       "disabled": "Jev disabled",
       "ready": "Account configured",

@@ -7534,6 +7534,12 @@
     "intro": "Schnelle typisierte Urteile von TypeSafe System One für Risiko-, Gedächtnis-, Verdichtungs- und Routing-Entscheidungen. Anfragen gehen an die gewählte Kontoroute; einzelne Urteile kannst du unten abschalten.",
     "use": "Jev verwenden",
     "account": "Konto: {{status}}",
+    "status": {
+      "disabled": "Jev deaktiviert",
+      "ready": "Konto eingerichtet",
+      "unconfigured": "Konto erforderlich",
+      "unusable": "Kontoeinstellungen ungültig"
+    },
     "key": {
       "none": "Schlüssel nicht gesetzt",
       "env": "Schlüssel aus der Umgebung",
@@ -7581,7 +7587,8 @@
     "refresh": "Sichtbarkeitskatalog aktualisieren",
     "draftNote": "Änderungen bleiben bis zum Speichern in diesem Einstellungsentwurf. Deaktivieren blendet Modelle in Katalogen und Fallback-Vorschlägen aus. Laufende Sitzungen und explizite Rollenüberschreibungen behalten ihr Modell.",
     "reading": "Alle Modelle des Anbieters werden gelesen, auch deaktivierte…",
-    "counts": "{{matching}} passende Modelle · {{disabled}} einzeln deaktiviert für diesen Anbieter",
+    "counts_one": "{{count}} passendes Modell · {{disabled}} einzeln deaktiviert für diesen Anbieter",
+    "counts": "{{count}} passende Modelle · {{disabled}} einzeln deaktiviert für diesen Anbieter",
     "item": "Modellsichtbarkeit {{id}}",
     "state": {
       "disabled": "Deaktiviert",

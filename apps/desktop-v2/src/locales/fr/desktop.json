@@ -7534,6 +7534,12 @@
     "intro": "Jugements typés rapides de TypeSafe System One pour les décisions de risque, de mémoire, de compactage et de routage. Les requêtes vont à la route de compte choisie ; désactive n’importe quel jugement ci-dessous.",
     "use": "Utiliser Jev",
     "account": "Compte : {{status}}",
+    "status": {
+      "disabled": "Jev désactivé",
+      "ready": "Compte configuré",
+      "unconfigured": "Compte requis",
+      "unusable": "Paramètres du compte non valides"
+    },
     "key": {
       "none": "clé non définie",
       "env": "clé issue de l’environnement",
@@ -7581,7 +7587,8 @@
     "refresh": "Actualiser le catalogue de visibilité",
     "draftNote": "Les changements restent dans ce brouillon de réglages jusqu’à l’enregistrement. Désactiver masque les modèles des catalogues et des suggestions de repli. Les sessions en cours et les surcharges de rôle explicites gardent leur modèle.",
     "reading": "Lecture de tous les modèles du fournisseur, y compris désactivés…",
-    "counts": "{{matching}} modèles correspondants · {{disabled}} désactivés individuellement pour ce fournisseur",
+    "counts_one": "{{count}} modèle correspondant · {{disabled}} désactivés individuellement pour ce fournisseur",
+    "counts": "{{count}} modèles correspondants · {{disabled}} désactivés individuellement pour ce fournisseur",
     "item": "Visibilité du modèle {{id}}",
     "state": {
       "disabled": "Désactivé",

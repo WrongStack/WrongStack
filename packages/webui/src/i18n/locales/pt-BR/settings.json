@@ -1303,11 +1303,16 @@
     "actual": "Actual",
     "includeChecks": "Include diagnostic requests",
     "selfTest": "Diagnostic",
+    "keySource": {
+      "none": "chave não definida",
+      "env": "chave do ambiente",
+      "config": "chave salva"
+    },
     "account": {
       "disabled": "Jev desativado",
-      "ready": "Account configured",
-      "unconfigured": "Account required",
-      "unusable": "Account settings invalid"
+      "ready": "Conta configurada",
+      "unconfigured": "Conta necessária",
+      "unusable": "Configurações da conta inválidas"
     },
     "readiness": {
       "disabled": "Disabled",
