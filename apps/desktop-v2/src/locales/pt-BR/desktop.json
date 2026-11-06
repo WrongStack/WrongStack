@@ -2091,6 +2091,7 @@
     "save": "Salvar o checklist"
   },
   "inheritance": {
+    "baseRole": "papel base",
     "label": "Grafo de herança das funções do projeto",
     "help": "Herança de funções base salva para a função selecionada, seus ancestrais e filhos diretos.",
     "omitted": "Mais {{count}} filhos continuam no catálogo."

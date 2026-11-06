@@ -2091,6 +2091,7 @@
     "save": "Checkliste speichern"
   },
   "inheritance": {
+    "baseRole": "Basisrolle",
     "label": "Vererbungsgraph der Projektrollen",
     "help": "Gespeicherte Basisrollen-Vererbung für die ausgewählte Rolle, ihre Vorfahren und direkten Kinder.",
     "omitted": "{{count}} weitere Kinder bleiben im Katalog."

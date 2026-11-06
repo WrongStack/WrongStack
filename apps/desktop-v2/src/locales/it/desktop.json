@@ -2091,6 +2091,7 @@
     "save": "Salva la checklist"
   },
   "inheritance": {
+    "baseRole": "ruolo base",
     "label": "Grafo dell'ereditarietà dei ruoli del progetto",
     "help": "Ereditarietà dei ruoli di base salvata per il ruolo selezionato, i suoi antenati e i figli diretti.",
     "omitted": "Altri {{count}} figli restano nel catalogo."

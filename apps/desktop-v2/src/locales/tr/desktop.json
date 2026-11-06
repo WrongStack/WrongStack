@@ -2091,6 +2091,7 @@
     "save": "Kontrol listesini kaydet"
   },
   "inheritance": {
+    "baseRole": "temel rol",
     "label": "Proje rolü kalıtım grafiği",
     "help": "Seçili rol, ataları ve doğrudan alt rolleri için saklanan temel rol kalıtımı.",
     "omitted": "{{count}} alt rol daha katalogda duruyor."

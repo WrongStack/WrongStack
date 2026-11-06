@@ -53,7 +53,7 @@ export function RosterInheritance({
         const entry = byRole.get(role)!;
         return {
           id: role,
-          position: { x: depth * 270, y: row * 108 },
+          position: { x: depth * 330, y: row * 108 },
           // Parents sit left of their children: edges leave right and enter left, instead of
           // looping from the bottom of one card over the top of the next.
           sourcePosition: Position.Right,
@@ -85,7 +85,7 @@ export function RosterInheritance({
               source: parent,
               target: node.id,
               type: 'smoothstep',
-              label: 'base role',
+              label: t('inheritance.baseRole'),
               style: { stroke: 'var(--accent)' },
               labelStyle: { fill: 'var(--text)' },
               labelBgStyle: { fill: 'var(--raised)' },
@@ -94,7 +94,7 @@ export function RosterInheritance({
         : [];
     });
     return { nodes, edges, omitted: Math.max(0, children.length - 60) };
-  }, [catalog, selected]);
+  }, [catalog, selected, t]);
   return (
     <section className="roster-inheritance" aria-label={t('inheritance.label')}>
       <p>

@@ -2091,6 +2091,7 @@
     "save": "Guardar la lista"
   },
   "inheritance": {
+    "baseRole": "rol base",
     "label": "Grafo de herencia de los roles del proyecto",
     "help": "Herencia de roles base guardada para el rol seleccionado, sus antecesores y sus hijos directos.",
     "omitted": "Quedan {{count}} hijos más en el catálogo."

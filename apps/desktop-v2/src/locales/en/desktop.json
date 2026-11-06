@@ -2091,6 +2091,7 @@
     "save": "Save checklist"
   },
   "inheritance": {
+    "baseRole": "base role",
     "label": "Project role inheritance graph",
     "help": "Stored base-role inheritance for the selected role, its ancestors and direct children.",
     "omitted": "{{count}} additional children remain in the catalog."

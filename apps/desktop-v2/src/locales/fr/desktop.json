@@ -2091,6 +2091,7 @@
     "save": "Enregistrer la liste"
   },
   "inheritance": {
+    "baseRole": "rôle de base",
     "label": "Graphe d'héritage des rôles du projet",
     "help": "Héritage des rôles de base enregistré pour le rôle sélectionné, ses ancêtres et ses enfants directs.",
     "omitted": "{{count}} enfants supplémentaires restent dans le catalogue."
