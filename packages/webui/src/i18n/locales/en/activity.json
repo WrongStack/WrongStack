@@ -5270,7 +5270,7 @@
     "verification": {
       "passed": "passed",
       "failed": "failed",
-      "needsHuman": "needs_human",
+      "needsHuman": "needs human review",
       "incomplete": "incomplete"
     },
     "subtaskProgress": "{{done}}/{{total}} subtasks",
