@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T11:17:45.785Z",
+  "generatedAt": "2026-11-06T11:37:21.770Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6048,
     "testFiles": 5041,
-    "sourceLines": 1253005,
+    "sourceLines": 1253008,
     "workspaceEdges": 243,
     "moduleEdges": 17818,
     "nonCommandSlashImports": 0,
@@ -34666,7 +34666,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1060,
+      "lines": 1063,
       "relativeImports": 37
     },
     {
@@ -34708,7 +34708,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1060,
+      "lines": 1063,
       "relativeImports": 37
     },
     {

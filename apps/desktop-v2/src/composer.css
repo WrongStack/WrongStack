@@ -31,6 +31,15 @@
 /* Controls pack from the left; the actions keep the right edge through their auto margin.
    The generic composer footer spreads its children apart, which left wide, uneven holes
    between the controls once the toolbar wrapped. */
+/* The composer box shows keyboard focus; its borderless textarea would otherwise draw the
+   baseline focus outline as a second frame inside it. */
+.native-composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.native-composer textarea:focus-visible {
+  outline: none;
+}
 .native-composer footer.composer-toolbar {
   justify-content: flex-start;
   padding-top: 10px;
@@ -154,6 +163,18 @@
   max-height: 40vh;
   overflow-y: auto;
   white-space: pre-wrap;
+}
+/* A multi-line engine command report (/tuneup, /delegate list) reads as a block of terminal
+   output: boxed, in the code font so its indented lines stay aligned. */
+.composer-notice.composer-output {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--text);
+  font-family: var(--user-font-code, Consolas, "Cascadia Code", monospace);
+  font-size: 11px;
+  line-height: 1.6;
 }
 .composer-restore {
   display: flex;

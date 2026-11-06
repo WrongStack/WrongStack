@@ -625,7 +625,10 @@ export function SessionComposer({
         </p>
       )}
       {notice && (
-        <p className="composer-notice" role="status">
+        <p
+          className={`composer-notice${notice.includes('\n') ? ' composer-output' : ''}`}
+          role="status"
+        >
           {localizedText(notice, 'composerMessage', t)}
         </p>
       )}
