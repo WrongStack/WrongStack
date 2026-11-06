@@ -1171,3 +1171,8 @@
   min-height: 240px;
   overflow: hidden;
 }
+/* The hunk review entry sits above the diff with the panel's inset, not against its edge. */
+.file-hunk-review {
+  align-self: flex-start;
+  margin: 10px 14px 0;
+}

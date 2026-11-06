@@ -115,6 +115,11 @@ type Action = {
   /** Disk version shown in a conflict review; overwrite replaces only this version. */
   sha256?: string;
 };
+/** A source-control row's path without the trailing slash Git puts on an untracked folder. */
+function gitRowPath(path: unknown): string {
+  return String(path).replace(/\/+$/, '');
+}
+
 export function FileWorkspace({
   command,
   scopeKey,
@@ -1173,7 +1178,9 @@ export function FileWorkspace({
                           >
                             <FileDiff size={14} />
                             <span>
-                              <strong>{fileName(String(file['path']))}</strong>
+                              {/* Git lists an untracked folder with a trailing slash; its name is
+                                  the last segment before it. */}
+                              <strong>{fileName(gitRowPath(file['path']))}</strong>
                               <small>
                                 {typeof file['origPath'] === 'string' && file['origPath']
                                   ? t(
@@ -1182,7 +1189,8 @@ export function FileWorkspace({
                                         : 'fileView.renamedFrom',
                                       { path: file['origPath'] },
                                     )
-                                  : parentPath(String(file['path'])) || t('fileView.projectRoot')}
+                                  : parentPath(gitRowPath(file['path'])) ||
+                                    t('fileView.projectRoot')}
                               </small>
                             </span>
                             <b
@@ -1388,7 +1396,7 @@ export function FileWorkspace({
                       {change?.['status'] !== 'U' && (
                         <button
                           type="button"
-                          className="button secondary"
+                          className="button secondary small file-hunk-review"
                           disabled={busy}
                           onClick={() => setHunkReview(true)}
                         >
