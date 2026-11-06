@@ -85,7 +85,9 @@ function WaitingPairRow({
               <ul className="waiting-history">
                 {pair.recentErrors.map((error, index) => (
                   <li key={index}>
-                    <span>{error.kind}</span>
+                    <span>
+                      {t(`waiting.errorKind.${error.kind}`, { defaultValue: error.kind })}
+                    </span>
                     <span>HTTP {error.status}</span>
                     <span className="waiting-message">{error.message.slice(0, 200)}</span>
                     <span>{ago(error.timestamp, now, t)}</span>

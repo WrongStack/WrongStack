@@ -5,6 +5,8 @@ import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 
 export const SIDE_EFFECT_RISKS = ['shell', 'fs.write', 'package', 'network', 'config'] as const;
+/** Catalog key for a risk class; `fs.write` cannot be a key under i18next's dot separator. */
+const riskKey = (risk: string) => (risk === 'fs.write' ? 'fsWrite' : risk);
 
 export interface SideEffectsSummary {
   sessionsScanned: number;
@@ -110,7 +112,7 @@ export function ProjectSideEffectsSummary({
             <option value="">{t('historyView.effects.all')}</option>
             {SIDE_EFFECT_RISKS.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {t(`historyView.effects.riskName.${riskKey(value)}`)}
               </option>
             ))}
           </select>
@@ -184,7 +186,11 @@ export function ProjectSideEffectsSummary({
                       )}
                     </td>
                     <td>{row.toolName}</td>
-                    <td>{row.risk}</td>
+                    <td>
+                      {t(`historyView.effects.riskName.${riskKey(row.risk)}`, {
+                        defaultValue: row.risk,
+                      })}
+                    </td>
                     <td>
                       <code>{row.input}</code>
                       {row.outcome && <small> · {row.outcome}</small>}

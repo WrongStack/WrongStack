@@ -334,7 +334,8 @@ export function ProjectKit({
                           <option value="">{t('projectKit.chooseConversation')}</option>
                           {agents.map((item) => (
                             <option key={item.id} value={item.id}>
-                              {item.title} · {item.status}
+                              {item.title} ·{' '}
+                              {t(`status.${item.status}`, { defaultValue: item.status })}
                             </option>
                           ))}
                         </select>
