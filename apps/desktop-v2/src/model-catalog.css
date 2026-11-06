@@ -10,6 +10,15 @@
   font-size: 12px;
   line-height: 1.6;
 }
+/* Paragraph margins and the dialog's 1.9 line height left a tall empty band under one line. */
+.modal .model-draft-notice p,
+.model-draft-notice p {
+  margin: 0;
+  line-height: 1.6;
+}
+.model-draft-notice > * + * {
+  margin-top: 10px;
+}
 .model-draft-comparison {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
@@ -213,9 +222,12 @@
   padding: 5px 9px;
   font-size: 11px;
 }
+/* The form scrolled inside the already scrolling dialog: two scrollbars, and the focus ring of
+   the first visible field was clipped. The dialog scrolls; the two-column form gets room. */
+.modal:has(.model-editor) {
+  width: min(640px, calc(100vw - 32px));
+}
 .model-editor {
-  max-height: 72vh;
-  overflow-y: auto;
   padding: 2px;
 }
 .model-editor fieldset {
@@ -228,6 +240,10 @@
   gap: 7px;
   margin: 10px 0;
   font-size: 12px;
+}
+/* The generic dialog field rule stacked a 9 px top margin on top of the label gap. */
+.modal .model-editor :is(input, select, textarea) {
+  margin-top: 0;
 }
 .model-editor-grid {
   display: grid;
