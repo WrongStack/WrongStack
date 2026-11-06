@@ -39,7 +39,7 @@ describe('Kanban task tools in the display language', () => {
     for (const text of [
       'Goal metrics · 1',
       ' · target 200 ms',
-      '<option value="met" selected="">met</option>',
+      '<option value="met" selected="">Met</option>',
       'Chain with other cards',
       'Merge with other cards',
       'Merge  cards',
@@ -53,7 +53,7 @@ describe('Kanban task tools in the display language', () => {
     for (const text of [
       'Hedef metrikleri · 1',
       ' · hedef 200 ms',
-      '<option value="met" selected="">karşılandı</option>',
+      '<option value="met" selected="">Karşılandı</option>',
       'Diğer kartlarla zincirle',
       'Diğer kartlarla birleştir',
       'Başka bir pano',

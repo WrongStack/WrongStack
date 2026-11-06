@@ -8581,10 +8581,10 @@
     "current": "{{name}} güncel değeri",
     "statusOf": "{{name}} durumu",
     "status": {
-      "pending": "bekliyor",
-      "met": "karşılandı",
-      "missed": "kaçırıldı",
-      "waived": "muaf tutuldu"
+      "pending": "Bekliyor",
+      "met": "Karşılandı",
+      "missed": "Kaçırıldı",
+      "waived": "Muaf tutuldu"
     },
     "updated": "{{name}} güncellendi.",
     "save": "Kaydet",

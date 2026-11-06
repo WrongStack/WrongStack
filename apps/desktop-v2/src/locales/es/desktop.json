@@ -8581,10 +8581,10 @@
     "current": "Valor actual de {{name}}",
     "statusOf": "Estado de {{name}}",
     "status": {
-      "pending": "pendiente",
-      "met": "cumplido",
-      "missed": "no cumplido",
-      "waived": "dispensado"
+      "pending": "Pendiente",
+      "met": "Cumplido",
+      "missed": "No cumplido",
+      "waived": "Dispensado"
     },
     "updated": "{{name}} actualizado.",
     "save": "Guardar",

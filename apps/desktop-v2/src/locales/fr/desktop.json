@@ -8581,10 +8581,10 @@
     "current": "Valeur actuelle de {{name}}",
     "statusOf": "État de {{name}}",
     "status": {
-      "pending": "en attente",
-      "met": "atteint",
-      "missed": "manqué",
-      "waived": "levé"
+      "pending": "En attente",
+      "met": "Atteint",
+      "missed": "Manqué",
+      "waived": "Levé"
     },
     "updated": "{{name}} mis à jour.",
     "save": "Enregistrer",
