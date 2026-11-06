@@ -1,6 +1,7 @@
 import { Check, Loader2, Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
+import { fmtContextWindow } from '../lib/dashboard-primitives';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -191,10 +192,10 @@ export function ModelEditor({
                     <span className="text-muted-foreground block">
                       {match.providerName} · {match.modelId}
                       {match.contextWindow
-                        ? ` · ${displayDecimal(match.contextWindow / 1000, 0)}K ctx`
+                        ? ` · ${t('setup:screen.contextWindow', { size: fmtContextWindow(match.contextWindow) })}`
                         : ''}
                       {match.maxOutput
-                        ? ` · ${match.maxOutput.toLocaleString(displayLocale())} out`
+                        ? ` · ${t('setup:screen.maxOutput', { count: match.maxOutput.toLocaleString(displayLocale()) })}`
                         : ''}
                     </span>
                   </div>

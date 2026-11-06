@@ -2083,6 +2083,15 @@
     "broadcastPlaceholder": "Message every live agent in this project…",
     "broadcastSendHint": "⌘/Ctrl+Enter to send",
     "openFullView": "Open full operation view",
+    "statusName": {
+      "idle": "Idle",
+      "active": "Active",
+      "streaming": "Streaming",
+      "completed": "Completed",
+      "error": "Error",
+      "offline": "Offline"
+    },
+    "never": "never",
     "rowStatus": "Status",
     "rowModel": "Model",
     "rowTool": "Tool",

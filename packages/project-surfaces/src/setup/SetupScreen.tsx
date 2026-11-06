@@ -11,7 +11,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
+import { fmtContextWindow } from '../lib/dashboard-primitives';
+import { displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
@@ -490,7 +491,7 @@ export function SetupScreen() {
                 <div className="grid grid-cols-1 gap-2">
                   {modelPage.pageItems.map((m) => {
                     const ctx = m.contextWindow
-                      ? `${displayDecimal(m.contextWindow / 1_000_000, 0)}M ctx`
+                      ? t('setup:screen.contextWindow', { size: fmtContextWindow(m.contextWindow) })
                       : null;
                     return (
                       <button

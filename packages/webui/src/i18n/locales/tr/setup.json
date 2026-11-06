@@ -145,6 +145,8 @@
       "facebook": "Facebook'ta paylaş",
       "email": "E-posta ile paylaş"
     },
+    "contextWindow": "{{size}} bağlam",
+    "maxOutput": "{{count}} çıktı",
     "custom": {
       "title": "Özel / Kendi Sunucunuzda Sağlayıcı",
       "description": "Herhangi bir OpenAI uyumlu uç nokta ekleyin (Ollama, vLLM, Together vb.)",

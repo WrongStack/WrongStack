@@ -75,6 +75,8 @@ export function SelectedNodeDetailPanel({
           <button
             type="button"
             onClick={onClose}
+            aria-label={t('activity:agentOffice.closeDetails')}
+            title={t('activity:agentOffice.closeDetails')}
             className="text-muted-foreground hover:text-foreground text-lg leading-none"
           >
             ×
@@ -84,8 +86,8 @@ export function SelectedNodeDetailPanel({
 
       <div className="space-y-1.5 text-xs">
         <DetailRow
-          k="Status"
-          v={String(d.status).toUpperCase()}
+          k={t('activity:office.rowStatus')}
+          v={t(`activity:office.statusName.${d.status}`, { defaultValue: String(d.status) })}
           accent={cn(
             d.status === 'active' && 'text-success',
             d.status === 'streaming' && 'text-primary',
@@ -117,14 +119,22 @@ export function SelectedNodeDetailPanel({
                 </div>
               </div>
             )}
-            <DetailRow k="Iterations" v={d.iteration || 0} accent="text-primary" />
-            <DetailRow k="Tool calls" v={d.toolCalls || 0} accent="text-warning" />
-            <DetailRow k="Tokens in" v={fmtCompact(d.tokensIn)} />
-            <DetailRow k="Tokens out" v={fmtCompact(d.tokensOut)} />
-            <DetailRow k="Tokens total" v={fmtCompact(tokTotal)} />
+            <DetailRow
+              k={t('activity:office.rowIterations')}
+              v={d.iteration || 0}
+              accent="text-primary"
+            />
+            <DetailRow
+              k={t('activity:office.rowToolCalls')}
+              v={d.toolCalls || 0}
+              accent="text-warning"
+            />
+            <DetailRow k={t('activity:office.rowTokensIn')} v={fmtCompact(d.tokensIn)} />
+            <DetailRow k={t('activity:office.rowTokensOut')} v={fmtCompact(d.tokensOut)} />
+            <DetailRow k={t('activity:office.rowTokensTotal')} v={fmtCompact(tokTotal)} />
             {ctxPct > 0 && (
               <DetailRow
-                k="Context"
+                k={t('activity:office.rowContext')}
                 v={`${ctxPct}%`}
                 accent={
                   ctxPct >= 90
@@ -135,11 +145,15 @@ export function SelectedNodeDetailPanel({
                 }
               />
             )}
-            <DetailRow k="Cost" v={`$${displayDecimal(d.costUsd || 0, 4)}`} accent="text-success" />
+            <DetailRow
+              k={t('activity:office.rowCost')}
+              v={`$${displayDecimal(d.costUsd || 0, 4)}`}
+              accent="text-success"
+            />
             {d.lastActivityAt && (
               <DetailRow
-                k="Last seen"
-                v={fmtAgo(d.lastActivityAt, now)}
+                k={t('activity:office.rowLastSeen')}
+                v={fmtAgo(d.lastActivityAt, now, t('activity:office.never'))}
                 accent="text-muted-foreground"
               />
             )}
@@ -157,24 +171,52 @@ export function SelectedNodeDetailPanel({
         {isClient && (
           <>
             <DetailRow
-              k="Surface"
+              k={t('activity:office.rowSurface')}
               v={surfaceLabel(d.kind as 'tui' | 'webui' | 'repl')}
               accent="text-foreground/80"
             />
-            {d.branch && <DetailRow k="Branch" v={`⎇ ${d.branch}`} accent="text-foreground/70" />}
-            {d.pid != null && <DetailRow k="PID" v={d.pid} />}
-            {d.workingDir && <DetailRow k="Dir" v={d.workingDir} accent="text-muted-foreground" />}
-            <DetailRow k="Agents" v={d.agentCount ?? 0} accent="text-primary" />
+            {d.branch && (
+              <DetailRow
+                k={t('activity:office.rowBranch')}
+                v={`⎇ ${d.branch}`}
+                accent="text-foreground/70"
+              />
+            )}
+            {d.pid != null && <DetailRow k={t('activity:office.rowPid')} v={d.pid} />}
+            {d.workingDir && (
+              <DetailRow
+                k={t('activity:office.rowDir')}
+                v={d.workingDir}
+                accent="text-muted-foreground"
+              />
+            )}
+            <DetailRow
+              k={t('activity:office.rowAgents')}
+              v={d.agentCount ?? 0}
+              accent="text-primary"
+            />
             {d.startedAt && (
-              <DetailRow k="Uptime" v={fmtUptime(d.startedAt, now)} accent="text-foreground/70" />
+              <DetailRow
+                k={t('activity:office.rowUptime')}
+                v={fmtUptime(d.startedAt, now)}
+                accent="text-foreground/70"
+              />
             )}
           </>
         )}
 
         {d.kind === 'mailbox' && (
           <>
-            <DetailRow k="Total messages" v={d.messageCount || 0} accent="text-warning" />
-            <DetailRow k="Unread" v={d.unreadCount || 0} accent="text-warning" />
+            <DetailRow
+              k={t('activity:office.rowTotalMessages')}
+              v={d.messageCount || 0}
+              accent="text-warning"
+            />
+            <DetailRow
+              k={t('activity:office.rowUnread')}
+              v={d.unreadCount || 0}
+              accent="text-warning"
+            />
             {mailboxMessages.length > 0 && (
               <div className="mt-1 space-y-1 border-t border-border pt-2">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -198,7 +240,8 @@ export function SelectedNodeDetailPanel({
                             {m.subject || t('activity:office.noSubject')}
                           </div>
                           <div className="truncate font-mono text-[9px] text-muted-foreground">
-                            {m.from} → {m.to} · {fmtAgo(m.timestamp, now)}
+                            {m.from} → {m.to} ·{' '}
+                            {fmtAgo(m.timestamp, now, t('activity:office.never'))}
                             {m.audience === 'leaders'
                               ? ` · ${t('activity:mailbox.audienceLeaders')}`
                               : ''}
@@ -214,8 +257,16 @@ export function SelectedNodeDetailPanel({
 
         {d.kind === 'coordinator' && (
           <>
-            <DetailRow k="Connections" v={d.connections || 0} accent="text-primary" />
-            <DetailRow k="Iterations" v={d.iteration || 0} accent="text-primary" />
+            <DetailRow
+              k={t('activity:office.rowConnections')}
+              v={d.connections || 0}
+              accent="text-primary"
+            />
+            <DetailRow
+              k={t('activity:office.rowIterations')}
+              v={d.iteration || 0}
+              accent="text-primary"
+            />
           </>
         )}
 

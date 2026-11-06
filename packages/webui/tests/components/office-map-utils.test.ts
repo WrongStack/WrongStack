@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { setI18n } from 'react-i18next';
+import { afterEach, describe, expect, it } from 'vitest';
 import { agentModelLabel } from '../../src/components/OfficeMapCanvas/model-label.js';
 import {
   agentFanPos,
@@ -105,6 +106,24 @@ describe('OfficeMapCanvas utils', () => {
 
     it('formats hours', () => {
       expect(fmtUptime('2026-06-21T07:00:00Z', now)).toBe('3h');
+    });
+  });
+
+  describe('in a registered display language', () => {
+    const now = Date.parse('2026-06-21T10:00:00Z');
+    afterEach(() => setI18n(undefined as never));
+
+    it('writes relative times and durations in that language', () => {
+      setI18n({ language: 'tr' } as never);
+      expect(fmtAgo('2026-06-21T09:57:00Z', now)).toBe(
+        new Intl.RelativeTimeFormat('tr', { style: 'short' }).format(-3, 'minute'),
+      );
+      expect(fmtUptime('2026-06-21T07:00:00Z', now)).toBe(
+        new Intl.NumberFormat('tr', { style: 'unit', unit: 'hour', unitDisplay: 'short' }).format(
+          3,
+        ),
+      );
+      expect(fmtAgo(undefined, now, 'hiç')).toBe('hiç');
     });
   });
 

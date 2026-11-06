@@ -21,6 +21,12 @@ export function fmtTok(n?: number): string {
   return `${displayDecimal(n / 1_000_000, 1)}M`;
 }
 
+/** A context window size: 200_000 → "200k", 1_048_576 → "1M", 2_000_000 → "2M". */
+export function fmtContextWindow(n: number): string {
+  if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1, true)}M`;
+  return `${displayDecimal(n / 1000, 0)}k`;
+}
+
 /** Format elapsed milliseconds as a compact "Xs/Xm/Xh" string. */
 export function fmtElapsed(ms?: number): string {
   if (ms == null || !Number.isFinite(ms) || ms < 0) return '—';

@@ -145,6 +145,8 @@
       "facebook": "Auf Facebook teilen",
       "email": "Per E-Mail teilen"
     },
+    "contextWindow": "{{size}} Kontext",
+    "maxOutput": "{{count}} Ausgabe",
     "custom": {
       "title": "Benutzerdefinierter / selbst gehosteter Anbieter",
       "description": "Beliebigen OpenAI-kompatiblen Endpunkt hinzufügen (Ollama, vLLM, Together usw.)",

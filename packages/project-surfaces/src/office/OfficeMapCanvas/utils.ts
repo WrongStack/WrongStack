@@ -1,6 +1,6 @@
 // Types, formatting helpers, and layout constants extracted from OfficeMapCanvas.
 
-import { displayDecimal } from '../../lib/i18n';
+import { displayDecimal, displayLocale } from '../../lib/i18n';
 
 type ClientKind = 'webui' | 'tui' | 'repl' | 'coordinator' | 'agent' | 'mailbox';
 export type ClientStatus = 'idle' | 'active' | 'streaming' | 'completed' | 'error' | 'offline';
@@ -45,25 +45,57 @@ export function fmtCompact(n?: number): string {
   return `${displayDecimal(n / 1_000_000, 1)}M`;
 }
 
-export function fmtAgo(iso: string | undefined, now: number): string {
-  if (!iso) return 'never';
+type TimeUnit = 'second' | 'minute' | 'hour' | 'day';
+
+/** Whole seconds between `iso` and `now`, or undefined when `iso` is missing or unparseable. */
+function secondsSince(iso: string | undefined, now: number): number | undefined {
+  if (!iso) return undefined;
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return 'never';
-  const s = Math.max(0, Math.round((now - t) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86_400) return `${Math.round(s / 3600)}h ago`;
-  return `${Math.round(s / 86_400)}d ago`;
+  return Number.isFinite(t) ? Math.max(0, Math.round((now - t) / 1000)) : undefined;
 }
 
+function largestUnit(s: number, withDays: boolean): [number, TimeUnit] {
+  if (s < 60) return [s, 'second'];
+  if (s < 3600) return [Math.round(s / 60), 'minute'];
+  if (!withDays || s < 86_400) return [Math.round(s / 3600), 'hour'];
+  return [Math.round(s / 86_400), 'day'];
+}
+
+const COMPACT_SUFFIX: Record<TimeUnit, string> = { second: 's', minute: 'm', hour: 'h', day: 'd' };
+
+/**
+ * "3 dk. önce" in the display language ("3m ago" before one is registered). `never` labels a
+ * missing time; callers pass the translated word.
+ */
+export function fmtAgo(iso: string | undefined, now: number, never = 'never'): string {
+  const s = secondsSince(iso, now);
+  if (s === undefined) return never;
+  const [n, unit] = largestUnit(s, true);
+  const locale = displayLocale();
+  if (locale) {
+    try {
+      return new Intl.RelativeTimeFormat(locale, { style: 'short' }).format(-n, unit);
+    } catch {
+      // Unknown tag: the compact English form below.
+    }
+  }
+  return `${n}${COMPACT_SUFFIX[unit]} ago`;
+}
+
+/** A bare duration since `iso` ("2 sa."), for "up …" labels; "2h" before a language is registered. */
 export function fmtUptime(iso: string | undefined, now: number): string {
-  if (!iso) return '';
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return '';
-  const s = Math.max(0, Math.round((now - t) / 1000));
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.round(s / 60)}m`;
-  return `${Math.round(s / 3600)}h`;
+  const s = secondsSince(iso, now);
+  if (s === undefined) return '';
+  const [n, unit] = largestUnit(s, false);
+  const locale = displayLocale();
+  if (locale) {
+    try {
+      return new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short' }).format(n);
+    } catch {
+      // Unknown tag: the compact form below.
+    }
+  }
+  return `${n}${COMPACT_SUFFIX[unit]}`;
 }
 
 export function shortModel(model: string | undefined): string | undefined {

@@ -465,7 +465,9 @@ function AgentNode({ data }: { data: OfficeNodeData }) {
           {isCompleted && <span className="text-success">{t('activity:office.donePrefix')}</span>}
           {isError && <span className="text-destructive">{t('activity:office.failedPrefix')}</span>}
           <span>
-            {t('activity:office.seenPrefix', { time: fmtAgo(data.lastActivityAt, Date.now()) })}
+            {t('activity:office.seenPrefix', {
+              time: fmtAgo(data.lastActivityAt, Date.now(), t('activity:office.never')),
+            })}
           </span>
         </div>
       )}

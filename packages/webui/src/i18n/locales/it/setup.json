@@ -145,6 +145,8 @@
       "facebook": "Condividi su Facebook",
       "email": "Condividi via email"
     },
+    "contextWindow": "{{size}} di contesto",
+    "maxOutput": "{{count}} in uscita",
     "custom": {
       "title": "Provider personalizzato / self-hosted",
       "description": "Aggiungi qualsiasi endpoint compatibile con OpenAI (Ollama, vLLM, Together, ecc.)",

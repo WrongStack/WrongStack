@@ -145,6 +145,8 @@
       "facebook": "Partager sur Facebook",
       "email": "Partager par e-mail"
     },
+    "contextWindow": "{{size}} de contexte",
+    "maxOutput": "{{count}} en sortie",
     "custom": {
       "title": "Fournisseur personnalisé / auto-hébergé",
       "description": "Ajoutez n'importe quel point de terminaison compatible OpenAI (Ollama, vLLM, Together, etc.)",
