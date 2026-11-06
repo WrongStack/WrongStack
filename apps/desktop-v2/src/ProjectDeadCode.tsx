@@ -18,7 +18,7 @@ import {
 } from './dead-code-work';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineHttp } from './engine-http';
-import { entries, record, sentenceStart } from './engine-values';
+import { dateTimeText, entries, record, sentenceStart } from './engine-values';
 import type { Session } from './model';
 import './project-dead-code.css';
 
@@ -206,7 +206,6 @@ export function ProjectDeadCode({
           <h1>{t('deadCode.title')}</h1>
           <p>{t('deadCode.intro')}</p>
         </div>
-        <ScanSearch size={30} />
       </header>
       <fieldset className="dead-code-scan-controls" disabled={!!work.busy}>
         <label>
@@ -538,7 +537,9 @@ export function ProjectDeadCode({
         {backups.map((backup) => (
           <article key={String(backup['id'])}>
             <div>
-              <strong>{String(backup['createdAt'])}</strong>
+              <strong title={String(backup['createdAt'])}>
+                {dateTimeText(backup['createdAt'], i18n.language)}
+              </strong>
               <p>
                 {t('deadCode.backupFacts', {
                   files: t('counts.files', { count: Number(backup['files']) }),

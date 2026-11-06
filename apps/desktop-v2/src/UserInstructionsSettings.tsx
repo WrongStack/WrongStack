@@ -1,4 +1,4 @@
-import { BookOpen, Check, Eye, FilePenLine, RefreshCw, Save } from 'lucide-react';
+import { Check, Eye, FilePenLine, RefreshCw, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
@@ -92,7 +92,6 @@ export function UserInstructionsSettings({
           <h2>{t('userInstructions.title')}</h2>
           <p>{t('userInstructions.intro')}</p>
         </div>
-        <BookOpen size={25} />
       </header>
       <div className="instruction-file-meta">
         <code>{String(value.document?.['displayPath'] ?? t('userInstructions.fileName'))}</code>
