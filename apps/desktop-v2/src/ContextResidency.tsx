@@ -93,7 +93,7 @@ export function ContextResidency({
                 <ul>
                   {residency.breakers.map((breaker, index) => (
                     <li key={index}>
-                      {breaker.kind}: {breaker.detail}
+                      {word('breaker', breaker.kind, {})}: {breaker.detail}
                     </li>
                   ))}
                 </ul>

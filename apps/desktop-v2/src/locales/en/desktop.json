@@ -6517,6 +6517,14 @@
     "notReported": " · provider usage not reported yet",
     "laneLabel": "Cache lane {{lane}}",
     "segments": "Request segments",
+    "breaker": {
+      "route": "Route change",
+      "tools": "Tool change",
+      "system": "System prompt change",
+      "history": "History rewrite",
+      "idle": "Idle gap",
+      "provider": "Provider report"
+    },
     "breakers": "Cache breakers",
     "why": "Why cached bytes were not reused:",
     "next": "Next request: ",
@@ -7555,6 +7563,11 @@
     "intro": "Fast typed judgments from TypeSafe System One for risk, memory, compaction and routing decisions. Requests go to the chosen account route; turn off any judgment below.",
     "use": "Use Jev",
     "account": "Account: {{status}}",
+    "outcome": {
+      "answered": "Answered",
+      "incomplete": "Incomplete",
+      "fallback": "Fallback used"
+    },
     "status": {
       "disabled": "Jev disabled",
       "ready": "Account configured",

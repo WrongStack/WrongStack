@@ -6517,6 +6517,14 @@
     "notReported": " · utilizzo del provider non ancora segnalato",
     "laneLabel": "Corsia della cache {{lane}}",
     "segments": "Segmenti della richiesta",
+    "breaker": {
+      "route": "Cambio di instradamento",
+      "tools": "Cambio degli strumenti",
+      "system": "Cambio del prompt di sistema",
+      "history": "Cronologia riscritta",
+      "idle": "Inattività",
+      "provider": "Rapporto del provider"
+    },
     "breakers": "Interruzioni della cache",
     "why": "Perché i byte in cache non sono stati riutilizzati:",
     "next": "Prossima richiesta: ",
@@ -7555,6 +7563,11 @@
     "intro": "Giudizi tipizzati rapidi di TypeSafe System One per decisioni su rischio, memoria, compattazione e instradamento. Le richieste vanno al percorso dell’account scelto; disattiva qualsiasi giudizio qui sotto.",
     "use": "Usa Jev",
     "account": "Account: {{status}}",
+    "outcome": {
+      "answered": "Risposto",
+      "incomplete": "Incompleto",
+      "fallback": "Ripiego usato"
+    },
     "status": {
       "disabled": "Jev disabilitato",
       "ready": "Account configurato",

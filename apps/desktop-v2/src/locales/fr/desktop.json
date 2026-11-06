@@ -6517,6 +6517,14 @@
     "notReported": " · utilisation du fournisseur pas encore signalée",
     "laneLabel": "Voie de cache {{lane}}",
     "segments": "Segments de la requête",
+    "breaker": {
+      "route": "Changement de route",
+      "tools": "Changement d'outils",
+      "system": "Changement du prompt système",
+      "history": "Historique réécrit",
+      "idle": "Inactivité",
+      "provider": "Rapport du fournisseur"
+    },
     "breakers": "Ruptures de cache",
     "why": "Pourquoi les octets en cache n’ont pas été réutilisés :",
     "next": "Prochaine requête : ",
@@ -7555,6 +7563,11 @@
     "intro": "Jugements typés rapides de TypeSafe System One pour les décisions de risque, de mémoire, de compactage et de routage. Les requêtes vont à la route de compte choisie ; désactive n’importe quel jugement ci-dessous.",
     "use": "Utiliser Jev",
     "account": "Compte : {{status}}",
+    "outcome": {
+      "answered": "Répondu",
+      "incomplete": "Incomplet",
+      "fallback": "Repli utilisé"
+    },
     "status": {
       "disabled": "Jev désactivé",
       "ready": "Compte configuré",

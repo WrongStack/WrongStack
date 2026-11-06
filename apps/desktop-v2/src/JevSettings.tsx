@@ -328,7 +328,8 @@ export function JevSettings({ command }: { command: EngineCommand }) {
           <ul>
             {state.activity.map((item, index) => (
               <li key={`${item.at}:${index}`}>
-                {item.at ? displayTime(item.at) : ''} · {feature(item.feature)} · {item.outcome} ·{' '}
+                {item.at ? displayTime(item.at) : ''} · {feature(item.feature)} ·{' '}
+                {t(`jevSettings.outcome.${item.outcome}`, { defaultValue: item.outcome })} ·{' '}
                 {item.durationMs} ms{item.reason ? ` · ${item.reason}` : ''}
               </li>
             ))}

@@ -6517,6 +6517,14 @@
     "notReported": " · sağlayıcı kullanımı henüz bildirilmedi",
     "laneLabel": "Önbellek şeridi {{lane}}",
     "segments": "İstek bölümleri",
+    "breaker": {
+      "route": "Rota değişti",
+      "tools": "Araçlar değişti",
+      "system": "Sistem istemi değişti",
+      "history": "Geçmiş yeniden yazıldı",
+      "idle": "Boşta kalma",
+      "provider": "Sağlayıcı raporu"
+    },
     "breakers": "Önbellek kırıcıları",
     "why": "Önbellekteki baytlar neden yeniden kullanılmadı:",
     "next": "Sonraki istek: ",
@@ -7555,6 +7563,11 @@
     "intro": "Risk, bellek, sıkıştırma ve yönlendirme kararları için TypeSafe System One’dan hızlı, tipli yargılar. İstekler seçilen hesap rotasına gider; aşağıdaki herhangi bir yargıyı kapatabilirsin.",
     "use": "Jev’i kullan",
     "account": "Hesap: {{status}}",
+    "outcome": {
+      "answered": "Yanıtlandı",
+      "incomplete": "Eksik",
+      "fallback": "Yedeğe geçildi"
+    },
     "status": {
       "disabled": "Jev kapalı",
       "ready": "Hesap yapılandırılmış",

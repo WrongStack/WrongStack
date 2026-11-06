@@ -6517,6 +6517,14 @@
     "notReported": " · uso do provedor ainda não informado",
     "laneLabel": "Faixa de cache {{lane}}",
     "segments": "Segmentos da solicitação",
+    "breaker": {
+      "route": "Mudança de rota",
+      "tools": "Mudança de ferramentas",
+      "system": "Mudança do prompt do sistema",
+      "history": "Histórico reescrito",
+      "idle": "Inatividade",
+      "provider": "Relatório do provedor"
+    },
     "breakers": "Quebras de cache",
     "why": "Por que os bytes em cache não foram reutilizados:",
     "next": "Próxima solicitação: ",
@@ -7555,6 +7563,11 @@
     "intro": "Julgamentos tipados rápidos do TypeSafe System One para decisões de risco, memória, compactação e roteamento. As solicitações vão para a rota de conta escolhida; desative qualquer julgamento abaixo.",
     "use": "Usar o Jev",
     "account": "Conta: {{status}}",
+    "outcome": {
+      "answered": "Respondido",
+      "incomplete": "Incompleto",
+      "fallback": "Alternativa usada"
+    },
     "status": {
       "disabled": "Jev desativado",
       "ready": "Conta configurada",

@@ -6517,6 +6517,14 @@
     "notReported": " · Anbieternutzung noch nicht gemeldet",
     "laneLabel": "Cache-Spur {{lane}}",
     "segments": "Anfrageabschnitte",
+    "breaker": {
+      "route": "Routenwechsel",
+      "tools": "Werkzeugänderung",
+      "system": "Systemprompt-Änderung",
+      "history": "Verlauf neu geschrieben",
+      "idle": "Leerlauf",
+      "provider": "Anbieterbericht"
+    },
     "breakers": "Cache-Brecher",
     "why": "Warum zwischengespeicherte Bytes nicht wiederverwendet wurden:",
     "next": "Nächste Anfrage: ",
@@ -7555,6 +7563,11 @@
     "intro": "Schnelle typisierte Urteile von TypeSafe System One für Risiko-, Gedächtnis-, Verdichtungs- und Routing-Entscheidungen. Anfragen gehen an die gewählte Kontoroute; einzelne Urteile kannst du unten abschalten.",
     "use": "Jev verwenden",
     "account": "Konto: {{status}}",
+    "outcome": {
+      "answered": "Beantwortet",
+      "incomplete": "Unvollständig",
+      "fallback": "Ersatz verwendet"
+    },
     "status": {
       "disabled": "Jev deaktiviert",
       "ready": "Konto eingerichtet",
