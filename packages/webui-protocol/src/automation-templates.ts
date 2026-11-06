@@ -25,7 +25,7 @@ export const VERSIONED_AUTOMATION_TEMPLATES: readonly AutomationTemplate[] = [
   {
     id: 'pr-followup',
     version: 1,
-    name: 'PR followup',
+    name: 'PR follow-up',
     prompt:
       'Investigate the PR or CI feedback in the event context. Preserve existing work, use the existing project instructions and skills, prepare a narrow patch and verify the change.',
     requirements: [

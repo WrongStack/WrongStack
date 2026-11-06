@@ -2496,6 +2496,18 @@
     "retryDrafts": "Kayıtlı taslakları yüklemeyi yeniden dene"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Bağımlılık incelemesi",
+      "test-triage": "Test triyajı",
+      "pr-followup": "PR takibi"
+    },
+    "requirement": {
+      "trustedImage": "Güvenilir çalışma imajı",
+      "providerCredentials": "Sağlayıcı kimlik bilgileri",
+      "dependencyManifest": "Proje bağımlılık manifesti",
+      "testCommand": "Proje test komutu",
+      "githubEvents": "GitHub deposu ve imzalı olay kurulumu"
+    },
     "deadline_one": "Kurulum süresi sınırı: {{count}} saniye. Çalıştırıcı bu ortamı kopyalanan çalışma alanı için hazırlar.",
     "ports_one": "{{count}} önizleme portu",
     "caches_one": "{{count}} önbellek",

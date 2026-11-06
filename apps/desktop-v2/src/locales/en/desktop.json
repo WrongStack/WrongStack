@@ -2496,6 +2496,18 @@
     "retryDrafts": "Retry loading saved drafts"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Dependency review",
+      "test-triage": "Test triage",
+      "pr-followup": "PR follow-up"
+    },
+    "requirement": {
+      "trustedImage": "Trusted runtime image",
+      "providerCredentials": "Provider credentials",
+      "dependencyManifest": "Project dependency manifest",
+      "testCommand": "Project test command",
+      "githubEvents": "GitHub repository and signed event setup"
+    },
     "deadline_one": "Setup deadline: {{count}} second. The worker prepares this environment for the copied workspace.",
     "ports_one": "{{count}} preview port",
     "caches_one": "{{count}} cache",

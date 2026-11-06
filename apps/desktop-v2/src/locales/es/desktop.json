@@ -2496,6 +2496,18 @@
     "retryDrafts": "Reintentar cargar los borradores guardados"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Revisión de dependencias",
+      "test-triage": "Triaje de pruebas",
+      "pr-followup": "Seguimiento de PR"
+    },
+    "requirement": {
+      "trustedImage": "Imagen de ejecución de confianza",
+      "providerCredentials": "Credenciales del proveedor",
+      "dependencyManifest": "Manifiesto de dependencias del proyecto",
+      "testCommand": "Comando de pruebas del proyecto",
+      "githubEvents": "Repositorio de GitHub y eventos firmados configurados"
+    },
     "deadline_one": "Plazo de configuración: {{count}} segundo. El worker prepara este entorno para el espacio de trabajo copiado.",
     "ports_one": "{{count}} puerto de vista previa",
     "caches_one": "{{count}} caché",

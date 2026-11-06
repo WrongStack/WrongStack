@@ -2496,6 +2496,18 @@
     "retryDrafts": "Réessayer de charger les brouillons enregistrés"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Revue des dépendances",
+      "test-triage": "Tri des tests",
+      "pr-followup": "Suivi de PR"
+    },
+    "requirement": {
+      "trustedImage": "Image d’exécution de confiance",
+      "providerCredentials": "Identifiants du fournisseur",
+      "dependencyManifest": "Manifeste des dépendances du projet",
+      "testCommand": "Commande de test du projet",
+      "githubEvents": "Dépôt GitHub et événements signés configurés"
+    },
     "deadline_one": "Délai d'installation : {{count}} seconde. Le worker prépare cet environnement pour l'espace de travail copié.",
     "ports_one": "{{count}} port d'aperçu",
     "caches_one": "{{count}} cache",

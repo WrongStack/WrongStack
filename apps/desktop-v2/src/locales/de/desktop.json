@@ -2496,6 +2496,18 @@
     "retryDrafts": "Laden der gespeicherten Entwürfe wiederholen"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Abhängigkeitsprüfung",
+      "test-triage": "Test-Triage",
+      "pr-followup": "PR-Nachverfolgung"
+    },
+    "requirement": {
+      "trustedImage": "Vertrauenswürdiges Runtime-Image",
+      "providerCredentials": "Anbieter-Zugangsdaten",
+      "dependencyManifest": "Abhängigkeitsmanifest des Projekts",
+      "testCommand": "Testbefehl des Projekts",
+      "githubEvents": "GitHub-Repository und signierte Ereigniseinrichtung"
+    },
     "deadline_one": "Frist für die Einrichtung: {{count}} Sekunde. Der Worker bereitet diese Umgebung für den kopierten Arbeitsbereich vor.",
     "ports_one": "{{count}} Vorschau-Port",
     "caches_one": "{{count}} Cache",

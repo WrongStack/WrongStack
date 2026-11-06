@@ -7,6 +7,15 @@ import { useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import { Modal } from './Modal';
 
+/** Display keys for the setup requirements the shared templates list in English. */
+const REQUIREMENT_KEYS: Record<string, string> = {
+  'Trusted runtime image': 'trustedImage',
+  'Provider credentials': 'providerCredentials',
+  'Project dependency manifest': 'dependencyManifest',
+  'Project test command': 'testCommand',
+  'GitHub repository and signed event setup': 'githubEvents',
+};
+
 export function AutomationTemplates({
   onApply,
   disabled,
@@ -17,6 +26,13 @@ export function AutomationTemplates({
   const { t } = useDesktopText();
   const [chosen, setChosen] = useState<string | null>(null);
   const template = VERSIONED_AUTOMATION_TEMPLATES.find((item) => item.id === chosen);
+  // Names and requirements are display text; the instructions a template applies stay as written.
+  const name = (item: { id: string; name: string }) =>
+    t(`autoConfig.templateName.${item.id}`, { defaultValue: item.name });
+  const requirement = (text: string) =>
+    REQUIREMENT_KEYS[text]
+      ? t(`autoConfig.requirement.${REQUIREMENT_KEYS[text]}`, { defaultValue: text })
+      : text;
   return (
     <section className="automation-templates">
       <header>
@@ -31,22 +47,22 @@ export function AutomationTemplates({
             key={item.id}
             onClick={() => setChosen(item.id)}
           >
-            <strong>{item.name}</strong>
+            <strong>{name(item)}</strong>
             <p>{item.prompt}</p>
-            <small>{item.requirements.join(' · ')}</small>
+            <small>{item.requirements.map(requirement).join(' · ')}</small>
           </button>
         ))}
       </div>
       {template && (
         <Modal title={t('autoConfig.useTemplate')} onClose={() => setChosen(null)}>
           <div className="automation-template-review">
-            <h2>{template.name}</h2>
+            <h2>{name(template)}</h2>
             <p>{t('autoConfig.templateReplaces')}</p>
             <blockquote>{template.prompt}</blockquote>
             <h3>{t('autoConfig.requiredSetup')}</h3>
             <ul>
               {template.requirements.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item}>{requirement(item)}</li>
               ))}
             </ul>
             <button type="button" className="button secondary" onClick={() => setChosen(null)}>

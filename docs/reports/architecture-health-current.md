@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-06T12:52:36.713Z
+**Generated:** 2026-11-06T12:57:47.396Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6049 |
-| Production source lines | 1253042 |
+| Production source lines | 1253061 |
 | Test files | 5042 |
 | Workspace dependency edges | 243 |
 | Relative module edges | 17819 |
@@ -101,7 +101,7 @@ None.
 | 935 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
 | 903 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
-| 851 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
+| 854 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
 | 821 | `apps/desktop-v2/src/ProjectMailbox.tsx` |
 | 815 | `packages/vibeui/src/lib/session.ts` |
 | 800 | `packages/vibeui/src/components/resource-hub.tsx` |

@@ -2496,6 +2496,18 @@
     "retryDrafts": "Riprova a caricare le bozze salvate"
   },
   "autoConfig": {
+    "templateName": {
+      "dependency-review": "Revisione delle dipendenze",
+      "test-triage": "Triage dei test",
+      "pr-followup": "Follow-up della PR"
+    },
+    "requirement": {
+      "trustedImage": "Immagine di runtime attendibile",
+      "providerCredentials": "Credenziali del provider",
+      "dependencyManifest": "Manifest delle dipendenze del progetto",
+      "testCommand": "Comando di test del progetto",
+      "githubEvents": "Repository GitHub ed eventi firmati configurati"
+    },
     "deadline_one": "Scadenza della configurazione: {{count}} secondo. Il worker prepara questo ambiente per l'area di lavoro copiata.",
     "ports_one": "{{count}} porta di anteprima",
     "caches_one": "{{count}} cache",

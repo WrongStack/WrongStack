@@ -364,8 +364,11 @@ export function AutomationWorkspace({ http, projectId }: { http: EngineHttp; pro
           <h3>{selected ? t('automation.editTitle') : t('automation.createTitle')}</h3>
           {draft.template && (
             <p className="automation-template-label">
-              {VERSIONED_AUTOMATION_TEMPLATES.find((item) => item.id === draft.template?.id)
-                ?.name ?? draft.template.id}{' '}
+              {t(`autoConfig.templateName.${draft.template.id}`, {
+                defaultValue:
+                  VERSIONED_AUTOMATION_TEMPLATES.find((item) => item.id === draft.template?.id)
+                    ?.name ?? draft.template.id,
+              })}{' '}
               · v{draft.template.version}
             </p>
           )}
