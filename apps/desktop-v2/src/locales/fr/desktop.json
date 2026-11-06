@@ -3783,13 +3783,13 @@
     "fontField": "Famille de police du design",
     "keepCurrent": "Garder l’actuel",
     "choice": {
-      "none": "aucun",
-      "full": "complet",
-      "compact": "compact",
-      "cozy": "confortable",
-      "comfortable": "aéré",
-      "snappy": "vif",
-      "smooth": "fluide"
+      "none": "Aucun",
+      "full": "Complet",
+      "compact": "Compact",
+      "cozy": "Confortable",
+      "comfortable": "Aéré",
+      "snappy": "Vif",
+      "smooth": "Fluide"
     },
     "saveTune": "Enregistrer l’ajustement du projet",
     "writeTitle": "Écrire le thème dans votre projet",
@@ -5457,18 +5457,18 @@
     "kind": "Type de remise",
     "kindLabel": "Type d’instruction de flotte",
     "kindOption": {
-      "note": "note",
-      "steer": "orienter",
-      "btw": "au fait",
-      "ask": "demander",
-      "assign": "assigner"
+      "note": "Note",
+      "steer": "Orienter",
+      "btw": "Au fait",
+      "ask": "Demander",
+      "assign": "Assigner"
     },
     "priority": "Priorité",
     "priorityLabel": "Priorité de l’instruction de flotte",
     "priorityOption": {
-      "low": "basse",
-      "normal": "normale",
-      "high": "haute"
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute"
     },
     "subject": "Objet (facultatif)",
     "subjectLabel": "Objet de l’instruction de flotte",

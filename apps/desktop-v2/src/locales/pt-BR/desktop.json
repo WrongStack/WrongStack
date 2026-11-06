@@ -3783,13 +3783,13 @@
     "fontField": "Família da fonte do design",
     "keepCurrent": "Manter o atual",
     "choice": {
-      "none": "nenhum",
-      "full": "completo",
-      "compact": "compacto",
-      "cozy": "aconchegante",
-      "comfortable": "amplo",
-      "snappy": "ágil",
-      "smooth": "suave"
+      "none": "Nenhum",
+      "full": "Completo",
+      "compact": "Compacto",
+      "cozy": "Aconchegante",
+      "comfortable": "Amplo",
+      "snappy": "Ágil",
+      "smooth": "Suave"
     },
     "saveTune": "Salvar o ajuste do projeto",
     "writeTitle": "Gravar o tema no seu projeto",
@@ -5457,18 +5457,18 @@
     "kind": "Tipo de entrega",
     "kindLabel": "Tipo de instrução da frota",
     "kindOption": {
-      "note": "nota",
-      "steer": "direcionar",
-      "btw": "a propósito",
-      "ask": "perguntar",
-      "assign": "atribuir"
+      "note": "Nota",
+      "steer": "Direcionar",
+      "btw": "A propósito",
+      "ask": "Perguntar",
+      "assign": "Atribuir"
     },
     "priority": "Prioridade",
     "priorityLabel": "Prioridade da instrução da frota",
     "priorityOption": {
-      "low": "baixa",
-      "normal": "normal",
-      "high": "alta"
+      "low": "Baixa",
+      "normal": "Normal",
+      "high": "Alta"
     },
     "subject": "Assunto (opcional)",
     "subjectLabel": "Assunto da instrução da frota",

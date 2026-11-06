@@ -3783,13 +3783,13 @@
     "fontField": "Familia tipográfica del diseño",
     "keepCurrent": "Mantener el actual",
     "choice": {
-      "none": "ninguno",
-      "full": "completo",
-      "compact": "compacto",
-      "cozy": "cómodo",
-      "comfortable": "amplio",
-      "snappy": "ágil",
-      "smooth": "suave"
+      "none": "Ninguno",
+      "full": "Completo",
+      "compact": "Compacto",
+      "cozy": "Cómodo",
+      "comfortable": "Amplio",
+      "snappy": "Ágil",
+      "smooth": "Suave"
     },
     "saveTune": "Guardar el ajuste del proyecto",
     "writeTitle": "Escribir el tema en tu proyecto",
@@ -5457,18 +5457,18 @@
     "kind": "Tipo de entrega",
     "kindLabel": "Tipo de instrucción de flota",
     "kindOption": {
-      "note": "nota",
-      "steer": "dirigir",
-      "btw": "por cierto",
-      "ask": "preguntar",
-      "assign": "asignar"
+      "note": "Nota",
+      "steer": "Dirigir",
+      "btw": "Por cierto",
+      "ask": "Preguntar",
+      "assign": "Asignar"
     },
     "priority": "Prioridad",
     "priorityLabel": "Prioridad de la instrucción de flota",
     "priorityOption": {
-      "low": "baja",
-      "normal": "normal",
-      "high": "alta"
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta"
     },
     "subject": "Asunto (opcional)",
     "subjectLabel": "Asunto de la instrucción de flota",

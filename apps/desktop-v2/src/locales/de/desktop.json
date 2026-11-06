@@ -3783,13 +3783,13 @@
     "fontField": "Schriftfamilie des Designs",
     "keepCurrent": "Aktuell beibehalten",
     "choice": {
-      "none": "keine",
-      "full": "voll",
-      "compact": "kompakt",
-      "cozy": "gemütlich",
-      "comfortable": "großzügig",
-      "snappy": "zackig",
-      "smooth": "sanft"
+      "none": "Keine",
+      "full": "Voll",
+      "compact": "Kompakt",
+      "cozy": "Gemütlich",
+      "comfortable": "Großzügig",
+      "snappy": "Zackig",
+      "smooth": "Sanft"
     },
     "saveTune": "Projektabstimmung speichern",
     "writeTitle": "Theme in dein Projekt schreiben",
@@ -5458,17 +5458,17 @@
     "kindLabel": "Art der Flottenanweisung",
     "kindOption": {
       "note": "Notiz",
-      "steer": "steuern",
-      "btw": "übrigens",
-      "ask": "fragen",
-      "assign": "zuweisen"
+      "steer": "Steuern",
+      "btw": "Übrigens",
+      "ask": "Fragen",
+      "assign": "Zuweisen"
     },
     "priority": "Priorität",
     "priorityLabel": "Priorität der Flottenanweisung",
     "priorityOption": {
-      "low": "niedrig",
-      "normal": "normal",
-      "high": "hoch"
+      "low": "Niedrig",
+      "normal": "Normal",
+      "high": "Hoch"
     },
     "subject": "Betreff (optional)",
     "subjectLabel": "Betreff der Flottenanweisung",

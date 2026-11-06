@@ -3783,13 +3783,13 @@
     "fontField": "Tasarım yazı tipi ailesi",
     "keepCurrent": "Mevcudu koru",
     "choice": {
-      "none": "yok",
-      "full": "tam",
-      "compact": "sıkı",
-      "cozy": "rahat",
-      "comfortable": "geniş",
-      "snappy": "çevik",
-      "smooth": "yumuşak"
+      "none": "Yok",
+      "full": "Tam",
+      "compact": "Sıkı",
+      "cozy": "Rahat",
+      "comfortable": "Geniş",
+      "snappy": "Çevik",
+      "smooth": "Yumuşak"
     },
     "saveTune": "Proje ayarlarını kaydet",
     "writeTitle": "Temayı projene yaz",
@@ -5457,18 +5457,18 @@
     "kind": "Teslim türü",
     "kindLabel": "Filo talimatı türü",
     "kindOption": {
-      "note": "not",
-      "steer": "yönlendir",
-      "btw": "bu arada",
-      "ask": "sor",
-      "assign": "ata"
+      "note": "Not",
+      "steer": "Yönlendir",
+      "btw": "Bu arada",
+      "ask": "Sor",
+      "assign": "Ata"
     },
     "priority": "Öncelik",
     "priorityLabel": "Filo talimatı önceliği",
     "priorityOption": {
-      "low": "düşük",
-      "normal": "normal",
-      "high": "yüksek"
+      "low": "Düşük",
+      "normal": "Normal",
+      "high": "Yüksek"
     },
     "subject": "Konu (isteğe bağlı)",
     "subjectLabel": "Filo talimatı konusu",

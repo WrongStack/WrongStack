@@ -3783,13 +3783,13 @@
     "fontField": "Famiglia di caratteri del design",
     "keepCurrent": "Mantieni l’attuale",
     "choice": {
-      "none": "nessuno",
-      "full": "pieno",
-      "compact": "compatto",
-      "cozy": "accogliente",
-      "comfortable": "ampio",
-      "snappy": "scattante",
-      "smooth": "fluido"
+      "none": "Nessuno",
+      "full": "Pieno",
+      "compact": "Compatto",
+      "cozy": "Accogliente",
+      "comfortable": "Ampio",
+      "snappy": "Scattante",
+      "smooth": "Fluido"
     },
     "saveTune": "Salva la regolazione del progetto",
     "writeTitle": "Scrivi il tema nel progetto",
@@ -5457,18 +5457,18 @@
     "kind": "Tipo di consegna",
     "kindLabel": "Tipo di istruzione della flotta",
     "kindOption": {
-      "note": "nota",
-      "steer": "indirizza",
-      "btw": "a proposito",
-      "ask": "chiedi",
-      "assign": "assegna"
+      "note": "Nota",
+      "steer": "Indirizza",
+      "btw": "A proposito",
+      "ask": "Chiedi",
+      "assign": "Assegna"
     },
     "priority": "Priorità",
     "priorityLabel": "Priorità dell’istruzione della flotta",
     "priorityOption": {
-      "low": "bassa",
-      "normal": "normale",
-      "high": "alta"
+      "low": "Bassa",
+      "normal": "Normale",
+      "high": "Alta"
     },
     "subject": "Oggetto (facoltativo)",
     "subjectLabel": "Oggetto dell’istruzione della flotta",

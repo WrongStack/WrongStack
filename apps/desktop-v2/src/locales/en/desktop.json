@@ -3783,13 +3783,13 @@
     "fontField": "Design font family",
     "keepCurrent": "Keep current",
     "choice": {
-      "none": "none",
-      "full": "full",
-      "compact": "compact",
-      "cozy": "cozy",
-      "comfortable": "comfortable",
-      "snappy": "snappy",
-      "smooth": "smooth"
+      "none": "None",
+      "full": "Full",
+      "compact": "Compact",
+      "cozy": "Cozy",
+      "comfortable": "Comfortable",
+      "snappy": "Snappy",
+      "smooth": "Smooth"
     },
     "saveTune": "Save project tuning",
     "writeTitle": "Write the theme to your project",
@@ -5457,18 +5457,18 @@
     "kind": "Delivery kind",
     "kindLabel": "Fleet instruction kind",
     "kindOption": {
-      "note": "note",
-      "steer": "steer",
-      "btw": "btw",
-      "ask": "ask",
-      "assign": "assign"
+      "note": "Note",
+      "steer": "Steer",
+      "btw": "By the way",
+      "ask": "Ask",
+      "assign": "Assign"
     },
     "priority": "Priority",
     "priorityLabel": "Fleet instruction priority",
     "priorityOption": {
-      "low": "low",
-      "normal": "normal",
-      "high": "high"
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
     },
     "subject": "Subject (optional)",
     "subjectLabel": "Fleet instruction subject",
