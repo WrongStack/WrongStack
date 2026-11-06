@@ -553,11 +553,15 @@ export function AnalyticsDashboard() {
                           >
                             <span className="text-foreground">{provider.provider}</span>
                             <span className="tabular-nums text-success">
-                              {displayDecimal(provider.hitRatio * 100, 1)}% hit
+                              {t('activity:contextText.cacheHit', {
+                                pct: displayDecimal(provider.hitRatio * 100, 1),
+                              })}
                             </span>
                             <span className="tabular-nums text-muted-foreground">
-                              {fmtTokens(provider.cacheRead)} read ·{' '}
-                              {fmtTokens(provider.cacheWrite)} write
+                              {t('activity:contextText.cacheReadWrite', {
+                                read: fmtTokens(provider.cacheRead),
+                                write: fmtTokens(provider.cacheWrite),
+                              })}
                             </span>
                           </div>
                         ))}

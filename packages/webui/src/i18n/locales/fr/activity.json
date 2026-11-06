@@ -5624,6 +5624,12 @@
     "max": "max.",
     "trigger": "Déclencheur ({{at}})",
     "compactHint": "Contexte à {{pct}} % — le compactage récupère environ {{tokens}} jetons.",
+    "cacheHit": "{{pct}} % de succès",
+    "cacheHitLast": "dernier : {{pct}} % de succès",
+    "cacheTitle": "Cache de prompt : {{session}} % sur la session (cumulé)",
+    "cacheTitleLast": "Cache de prompt : {{last}} % sur la dernière requête · {{session}} % sur la session (cumulé)",
+    "cacheCoversShort": "couvre {{tokens}}",
+    "cacheReadWrite": "{{read}} lus · {{write}} écrits",
     "cacheCovers": "Le cache couvre {{covered}} jetons sur {{max}}"
   },
   "councilText": {

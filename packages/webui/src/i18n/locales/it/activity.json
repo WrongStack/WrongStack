@@ -5624,6 +5624,12 @@
     "max": "max",
     "trigger": "Soglia ({{at}})",
     "compactHint": "Contesto al {{pct}}% — la compattazione recupera circa {{tokens}} token.",
+    "cacheHit": "{{pct}}% di hit",
+    "cacheHitLast": "ultimo {{pct}}% di hit",
+    "cacheTitle": "Cache dei prompt: {{session}}% nella sessione (cumulativo)",
+    "cacheTitleLast": "Cache dei prompt: {{last}}% nell'ultima richiesta · {{session}}% nella sessione (cumulativo)",
+    "cacheCoversShort": "copre {{tokens}}",
+    "cacheReadWrite": "{{read}} letti · {{write}} scritti",
     "cacheCovers": "La cache copre {{covered}} di {{max}} token"
   },
   "councilText": {

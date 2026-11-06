@@ -150,18 +150,23 @@ function iridescentColor(positionPct: number, lightness = 55, saturation = 75): 
 
 type CacheReadout = { hitRatio: number; last?: { hitRatio: number } | undefined };
 
+type Translate = ReturnType<typeof useAppTranslation>['t'];
+const ratio = (value: number) => displayDecimal(value * 100, 1);
+
 /** The bar leads with the last request: the session ratio lags every change. */
-function cacheHitText(cache: CacheReadout): string {
+function cacheHitText(cache: CacheReadout, t: Translate): string {
   return cache.last
-    ? `last ${displayDecimal(cache.last.hitRatio * 100, 1)}% hit`
-    : `${displayDecimal(cache.hitRatio * 100, 1)}% hit`;
+    ? t('activity:contextText.cacheHitLast', { pct: ratio(cache.last.hitRatio) })
+    : t('activity:contextText.cacheHit', { pct: ratio(cache.hitRatio) });
 }
 
-function cacheTitle(cache: CacheReadout): string {
-  const session = `${displayDecimal(cache.hitRatio * 100, 1)}% session (cumulative)`;
+function cacheTitle(cache: CacheReadout, t: Translate): string {
   return cache.last
-    ? `Prompt cache: ${displayDecimal(cache.last.hitRatio * 100, 1)}% last request · ${session}`
-    : `Prompt cache: ${session}`;
+    ? t('activity:contextText.cacheTitleLast', {
+        last: ratio(cache.last.hitRatio),
+        session: ratio(cache.hitRatio),
+      })
+    : t('activity:contextText.cacheTitle', { session: ratio(cache.hitRatio) });
 }
 
 function clampPct(pct: number): number {
@@ -281,12 +286,12 @@ export function ContextBar({
                   covered: cache.coverageTokens.toLocaleString(displayLocale()),
                   max: maxTokens.toLocaleString(displayLocale()),
                 })
-              : cacheTitle(cache)
+              : cacheTitle(cache, t)
           }
         >
-          · {cacheHitText(cache)}
+          · {cacheHitText(cache, t)}
           {cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
-            ? ` · covers ${fmtTok(cache.coverageTokens)}`
+            ? ` · ${t('activity:contextText.cacheCoversShort', { tokens: fmtTok(cache.coverageTokens) })}`
             : ''}
         </span>
       ) : null}
@@ -405,12 +410,12 @@ export function ContextFillBar({
                   covered: cache.coverageTokens.toLocaleString(displayLocale()),
                   max: maxTokens.toLocaleString(displayLocale()),
                 })
-              : cacheTitle(cache)
+              : cacheTitle(cache, t)
           }
         >
-          · {cacheHitText(cache)}
+          · {cacheHitText(cache, t)}
           {cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
-            ? ` · covers ${fmtTok(cache.coverageTokens)}`
+            ? ` · ${t('activity:contextText.cacheCoversShort', { tokens: fmtTok(cache.coverageTokens) })}`
             : ''}
         </span>
       ) : null}

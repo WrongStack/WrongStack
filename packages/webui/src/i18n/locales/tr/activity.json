@@ -5624,6 +5624,12 @@
     "max": "en çok",
     "trigger": "Tetikleyici ({{at}})",
     "compactHint": "Bağlam %{{pct}} dolu — sıkıştırma yaklaşık {{tokens}} token kazandırır.",
+    "cacheHit": "%{{pct}} isabet",
+    "cacheHitLast": "son %{{pct}} isabet",
+    "cacheTitle": "İstem önbelleği: oturum %{{session}} (birikimli)",
+    "cacheTitleLast": "İstem önbelleği: son istek %{{last}} · oturum %{{session}} (birikimli)",
+    "cacheCoversShort": "{{tokens}} kapsıyor",
+    "cacheReadWrite": "{{read}} okuma · {{write}} yazma",
     "cacheCovers": "Önbellek {{max}} tokenın {{covered}} kadarını kapsıyor"
   },
   "councilText": {

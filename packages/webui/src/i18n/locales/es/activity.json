@@ -5624,6 +5624,12 @@
     "max": "máx.",
     "trigger": "Disparador ({{at}})",
     "compactHint": "Contexto al {{pct}} %: compactar recupera unos {{tokens}} tokens.",
+    "cacheHit": "{{pct}} % de aciertos",
+    "cacheHitLast": "último: {{pct}} % de aciertos",
+    "cacheTitle": "Caché de prompts: {{session}} % en la sesión (acumulado)",
+    "cacheTitleLast": "Caché de prompts: {{last}} % en la última solicitud · {{session}} % en la sesión (acumulado)",
+    "cacheCoversShort": "cubre {{tokens}}",
+    "cacheReadWrite": "{{read}} leídos · {{write}} escritos",
     "cacheCovers": "La caché cubre {{covered}} de {{max}} tokens"
   },
   "councilText": {

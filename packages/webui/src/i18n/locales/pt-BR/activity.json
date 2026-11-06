@@ -5624,6 +5624,12 @@
     "max": "máx.",
     "trigger": "Gatilho ({{at}})",
     "compactHint": "Contexto em {{pct}}% — compactar recupera cerca de {{tokens}} tokens.",
+    "cacheHit": "{{pct}}% de acertos",
+    "cacheHitLast": "último {{pct}}% de acertos",
+    "cacheTitle": "Cache de prompt: {{session}}% na sessão (acumulado)",
+    "cacheTitleLast": "Cache de prompt: {{last}}% na última solicitação · {{session}}% na sessão (acumulado)",
+    "cacheCoversShort": "cobre {{tokens}}",
+    "cacheReadWrite": "{{read}} lidos · {{write}} gravados",
     "cacheCovers": "O cache cobre {{covered}} de {{max}} tokens"
   },
   "councilText": {

@@ -5624,6 +5624,12 @@
     "max": "max",
     "trigger": "Trigger ({{at}})",
     "compactHint": "Context at {{pct}}% — compacting recovers ~{{tokens}} tokens.",
+    "cacheHit": "{{pct}}% hit",
+    "cacheHitLast": "last {{pct}}% hit",
+    "cacheTitle": "Prompt cache: {{session}}% session (cumulative)",
+    "cacheTitleLast": "Prompt cache: {{last}}% last request · {{session}}% session (cumulative)",
+    "cacheCoversShort": "covers {{tokens}}",
+    "cacheReadWrite": "{{read}} read · {{write}} write",
     "cacheCovers": "Cache covers {{covered}} of {{max}} tokens"
   },
   "councilText": {

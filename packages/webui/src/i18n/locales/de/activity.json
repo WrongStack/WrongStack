@@ -5624,6 +5624,12 @@
     "max": "max.",
     "trigger": "Auslöser ({{at}})",
     "compactHint": "Kontext bei {{pct}} % — Verdichten gewinnt etwa {{tokens}} Token zurück.",
+    "cacheHit": "{{pct}} % Treffer",
+    "cacheHitLast": "zuletzt {{pct}} % Treffer",
+    "cacheTitle": "Prompt-Cache: {{session}} % Sitzung (kumuliert)",
+    "cacheTitleLast": "Prompt-Cache: {{last}} % letzte Anfrage · {{session}} % Sitzung (kumuliert)",
+    "cacheCoversShort": "deckt {{tokens}} ab",
+    "cacheReadWrite": "{{read}} gelesen · {{write}} geschrieben",
     "cacheCovers": "Der Cache deckt {{covered}} von {{max}} Token ab"
   },
   "councilText": {
