@@ -47,7 +47,7 @@ export function KanbanTaskCompletionChecks({
                   status: event.target.value,
                 })
               }
-              className="h-7 rounded border bg-background px-1 text-[11px]"
+              className="h-7 min-h-0 rounded border bg-background px-1 py-0 text-[11px] shadow-none"
             >
               {['pending', 'passed', 'failed', 'skipped'].map((value) => (
                 <option key={value} value={value}>

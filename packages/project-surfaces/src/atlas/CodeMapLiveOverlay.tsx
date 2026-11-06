@@ -229,7 +229,7 @@ export function LiveControlBar({
         {t('activity:codeMap.agent')}
         <select
           aria-label={t('activity:codeMap.filterCodemapByAgentAndSession')}
-          className="h-6 max-w-[170px] border bg-background px-1.5 font-mono text-[8px] text-foreground outline-none focus:border-primary"
+          className="h-6 min-h-0 max-w-[170px] border bg-background px-1.5 py-0 font-mono text-[8px] text-foreground shadow-none outline-none focus:border-primary"
           value={agentFilter}
           onChange={(event) => onAgentFilter(event.target.value)}
         >

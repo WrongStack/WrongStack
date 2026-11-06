@@ -173,7 +173,7 @@ export function CodeMapRelationInspector({
                 value={tourPersona}
                 onChange={(e) => setTourPersona(e.target.value as CanvasTourPersona)}
                 aria-label={t('activity:codeMapText.tourPersona')}
-                className="rounded border bg-background px-1 py-0.5 text-[9px] text-muted-foreground"
+                className="min-h-0 rounded border bg-background px-1 py-0.5 text-[9px] text-muted-foreground shadow-none"
               >
                 <option value="experienced">{t('activity:codeMapText.persona.experienced')}</option>
                 <option value="junior">{t('activity:codeMapText.persona.junior')}</option>

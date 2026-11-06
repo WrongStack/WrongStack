@@ -385,7 +385,7 @@ export function SessionWatchPanel({
             value={msgType}
             onChange={(ev) => setMsgType(ev.target.value as MsgType)}
             title={t(`activity:sessionWatch.msgType.${msgType}Hint`)}
-            className="rounded bg-muted border border-border px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="min-h-0 rounded bg-muted border border-border px-1.5 py-0.5 text-[10px] text-foreground shadow-none focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {MSG_TYPES.map((mt) => (
               <option key={mt} value={mt}>
@@ -397,7 +397,7 @@ export function SessionWatchPanel({
             value={priority}
             onChange={(ev) => setPriority(ev.target.value as 'low' | 'normal' | 'high')}
             title={t('activity:sessionWatch.priority')}
-            className="rounded bg-muted border border-border px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="min-h-0 rounded bg-muted border border-border px-1.5 py-0.5 text-[10px] text-foreground shadow-none focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="high">{t('activity:officeText.priority.high')}</option>
             <option value="normal">{t('activity:officeText.priority.normal')}</option>

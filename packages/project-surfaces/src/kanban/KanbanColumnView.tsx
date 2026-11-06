@@ -448,7 +448,7 @@ export function KanbanColumnView({
                       if (event.target.value !== task.columnId)
                         onMoveTask(task.id, event.target.value);
                     }}
-                    className="pointer-events-auto relative max-w-28 cursor-pointer rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                    className="pointer-events-auto relative min-h-0 max-w-28 cursor-pointer rounded border-0 bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground shadow-none outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     {board.columns.map((columnOption) => (
                       <option key={columnOption.id} value={columnOption.id}>
