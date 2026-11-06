@@ -2659,7 +2659,7 @@
     "failedTasks": "Tarefas com falha",
     "blockedByDeps": "Tarefas prontas/pendentes bloqueadas por dependências",
     "expiredLeases": "Atribuições com concessão expirada",
-    "healthy": "saudável",
+    "healthy": "Saudável",
     "costCeilingSum": "Soma de costCeilingUsd para tarefas em execução/na fila",
     "liveRunSteer": "Execução ao vivo — conduza a partir daqui",
     "openLiveRun": "Abrir a visualização da execução ao vivo (SDD Hub)",

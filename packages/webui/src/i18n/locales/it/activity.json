@@ -2659,7 +2659,7 @@
     "failedTasks": "Task falliti",
     "blockedByDeps": "Task pronti/in attesa bloccati da dipendenze",
     "expiredLeases": "Assegnazioni con lease scaduto",
-    "healthy": "sano",
+    "healthy": "Sano",
     "costCeilingSum": "Somma di costCeilingUsd per task in esecuzione/in coda",
     "liveRunSteer": "Esecuzione live — guidala da qui",
     "openLiveRun": "Apri la vista dell'esecuzione live (SDD Hub)",

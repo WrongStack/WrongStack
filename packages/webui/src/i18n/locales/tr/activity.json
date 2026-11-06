@@ -2721,7 +2721,7 @@
     "failedTasks": "Başarısız görevler",
     "blockedByDeps": "Bağımlılıklar nedeniyle engellenen hazır/bekleyen görevler",
     "expiredLeases": "Süresi dolmuş kira atamaları",
-    "healthy": "sağlıklı",
+    "healthy": "Sağlıklı",
     "costCeilingSum": "Çalışan/kuyruktaki görevler için costCeilingUsd toplamı",
     "liveRunSteer": "Canlı çalışma — buradan yönlendirin",
     "openLiveRun": "Canlı çalışma görünümünü aç (SDD Hub)",

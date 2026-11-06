@@ -2659,7 +2659,7 @@
     "failedTasks": "Tâches échouées",
     "blockedByDeps": "Tâches prêtes/en attente bloquées par des dépendances",
     "expiredLeases": "Affectations de bail expirées",
-    "healthy": "sain",
+    "healthy": "Sain",
     "costCeilingSum": "Somme des costCeilingUsd pour les tâches en cours/en file",
     "liveRunSteer": "Exécution en direct — pilotez-la d'ici",
     "openLiveRun": "Ouvrir la vue d'exécution en direct (SDD Hub)",
