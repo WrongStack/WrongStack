@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import { Button } from '../ui/button';
 import { fetchRankedSagePage, type RankedSageHit, type RankedSagePage } from './rankedSearch.js';
 import { KIND_LABELS } from './shared';
@@ -168,9 +168,9 @@ export function RankedSearchResults({
                 className="text-[10px] text-muted-foreground"
                 title={[
                   hit.matchReason,
-                  t('activity:sageText.rank', { score: hit.score.toFixed(3) }),
+                  t('activity:sageText.rank', { score: displayDecimal(hit.score, 3) }),
                   ...(hit.bm25 != null
-                    ? [t('activity:sageText.lexical', { score: hit.bm25.toFixed(3) })]
+                    ? [t('activity:sageText.lexical', { score: displayDecimal(hit.bm25, 3) })]
                     : []),
                 ].join(' · ')}
               >

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { distribution, type SessionModelStats } from './session-model-stats';
 import type { StoryEvent } from './session-story';
 
@@ -8,11 +8,18 @@ const ms = (value: number | undefined) =>
     ? '—'
     : value < 1000
       ? `${Math.round(value)} ms`
-      : `${(value / 1000).toFixed(2)} s`;
+      : `${displayDecimal(value / 1000, 2)} s`;
 const count = (value: number) => value.toLocaleString(displayLocale());
 const usd = (value: number | undefined) =>
-  value === undefined ? '—' : value > 0 && value < 0.000001 ? '<$0.000001' : `$${value.toFixed(6)}`;
-const ratio = (n: number, total: number) => (total ? `${((n / total) * 100).toFixed(1)}%` : '—');
+  value === undefined
+    ? '—'
+    : value > 0 && value < 0.000001
+      ? '<$0.000001'
+      : `$${displayDecimal(value, 6)}`;
+const avgText = (value: number | undefined, digits: number) =>
+  value === undefined ? '—' : displayDecimal(value, digits);
+const ratio = (n: number, total: number) =>
+  total ? `${displayDecimal((n / total) * 100, 1)}%` : '—';
 const samples = (n: number, total: number) => `${n}/${total}`;
 type Mode = 'reliability' | 'speed' | 'work';
 
@@ -111,7 +118,9 @@ export function ModelDashboard({
             samples(timing.n, row.attempts),
             `${ms(first.avg)} / ${ms(first.p95)}`,
             first.n,
-            row.timedOutputMs ? (row.timedOutput / (row.timedOutputMs / 1000)).toFixed(1) : '—',
+            row.timedOutputMs
+              ? displayDecimal(row.timedOutput / (row.timedOutputMs / 1000), 1)
+              : '—',
             row.usageSamples ? `${count(row.input)} / ${count(row.output)}` : '—',
             row.usageSamples ? `${count(row.cacheRead)} / ${count(row.cacheWrite)}` : '—',
             ratio(row.cacheRead, row.input + row.cacheRead + row.cacheWrite),
@@ -330,17 +339,17 @@ export function ModelDashboard({
             {[
               [
                 t('activity:story.statPrompt'),
-                `${distribution(picked.promptTokens).avg?.toFixed(0) ?? '—'} / ${distribution(picked.promptTokens).max ?? '—'}`,
+                `${avgText(distribution(picked.promptTokens).avg, 0)} / ${distribution(picked.promptTokens).max ?? '—'}`,
                 t('activity:story.notePromptTokens', { count: picked.promptTokens.length }),
               ],
               [
                 t('activity:story.statResponse'),
-                `${distribution(picked.responseTokens).avg?.toFixed(0) ?? '—'} / ${distribution(picked.responseTokens).p95 ?? '—'}`,
+                `${avgText(distribution(picked.responseTokens).avg, 0)} / ${distribution(picked.responseTokens).p95 ?? '—'}`,
                 t('activity:story.noteSamples', { count: picked.responseTokens.length }),
               ],
               [
                 t('activity:story.statMessages'),
-                `${distribution(picked.messageCounts).avg?.toFixed(1) ?? '—'} / ${distribution(picked.offeredTools).avg?.toFixed(1) ?? '—'}`,
+                `${avgText(distribution(picked.messageCounts).avg, 1)} / ${avgText(distribution(picked.offeredTools).avg, 1)}`,
                 t('activity:story.noteSamplePairs', {
                   messages: picked.messageCounts.length,
                   tools: picked.offeredTools.length,

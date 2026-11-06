@@ -1,6 +1,6 @@
 import type { KanbanTask } from '@wrongstack/kanban';
 import type { ReactNode } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { kanbanMetadataText } from './kanban-metadata';
 
@@ -77,7 +77,7 @@ export function AgentRunPanel({
   if (assignment.costCeilingUsd) {
     rows.push({
       label: t('activity:kanbanRun.costCeiling'),
-      value: `$${assignment.costCeilingUsd.toFixed(2)}`,
+      value: `$${displayDecimal(assignment.costCeilingUsd, 2)}`,
     });
   }
   if (assignment.fallbackProfile) {

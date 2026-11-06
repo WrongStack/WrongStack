@@ -1,5 +1,7 @@
 // Types, formatting helpers, and layout constants extracted from OfficeMapCanvas.
 
+import { displayDecimal } from '../../lib/i18n';
+
 type ClientKind = 'webui' | 'tui' | 'repl' | 'coordinator' | 'agent' | 'mailbox';
 export type ClientStatus = 'idle' | 'active' | 'streaming' | 'completed' | 'error' | 'offline';
 
@@ -39,8 +41,8 @@ export interface OfficeNodeData extends Record<string, unknown> {
 export function fmtCompact(n?: number): string {
   if (n == null || !Number.isFinite(n)) return '0';
   if (n < 1000) return String(Math.round(n));
-  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n < 1_000_000) return `${displayDecimal(n / 1000, 1)}k`;
+  return `${displayDecimal(n / 1_000_000, 1)}M`;
 }
 
 export function fmtAgo(iso: string | undefined, now: number): string {

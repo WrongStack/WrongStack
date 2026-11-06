@@ -9,7 +9,7 @@ import {
   Position,
   ReactFlow,
 } from '@xyflow/react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import '@xyflow/react/dist/style.css';
 import { Expand } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -257,7 +257,9 @@ export function MemoryGraph({
         type: 'smoothstep',
         animated: !danger,
         label:
-          item.weight === undefined ? item.relation : `${item.relation} ${item.weight.toFixed(2)}`,
+          item.weight === undefined
+            ? item.relation
+            : `${item.relation} ${displayDecimal(item.weight, 2)}`,
         data: { evidence: item.evidence ?? [] },
         style: {
           stroke: danger ? 'hsl(var(--destructive))' : 'hsl(var(--primary))',

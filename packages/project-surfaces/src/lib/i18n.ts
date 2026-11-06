@@ -19,3 +19,23 @@ export function displayLocale(): string | undefined {
     return undefined;
   }
 }
+
+/**
+ * A number with a fixed count of decimals in the display language's separators: `toFixed`
+ * always writes a dot ("1.5 MB" in a Turkish interface that writes "1,5"). `trim` drops
+ * trailing zeros. No digit grouping, as with `toFixed`.
+ */
+export function displayDecimal(value: number, digits: number, trim = false): string {
+  const locale = displayLocale();
+  // No display language yet (nothing registered): keep the toFixed dot, not the OS locale.
+  if (!locale) return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
+  try {
+    return value.toLocaleString(locale, {
+      minimumFractionDigits: trim ? 0 : digits,
+      maximumFractionDigits: digits,
+      useGrouping: false,
+    });
+  } catch {
+    return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
+  }
+}

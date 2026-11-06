@@ -19,7 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { CouncilSeatCard } from './CouncilSeatCard';
 import { OPTION_THEME_CLASSES, parseCouncilMarkdown } from './council-decision-format';
@@ -437,7 +437,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                     {t('activity:councilText.latency')}
                   </div>
                   <div className="font-semibold text-foreground truncate">
-                    {(durationMs / 1000).toFixed(1)}s
+                    {displayDecimal(durationMs / 1000, 1)}s
                   </div>
                 </div>
               </div>
@@ -477,7 +477,7 @@ export const CouncilDecisionCard = memo(function CouncilDecisionCard({
                 <span className="text-[11px] text-muted-foreground font-mono">
                   {t('activity:councilDecision.quorumWeight', {
                     defaultValue: 'Total Weight: {{weight}}',
-                    weight: voteDistribution.totalWeight.toFixed(1),
+                    weight: displayDecimal(voteDistribution.totalWeight, 1),
                   })}
                 </span>
               </div>

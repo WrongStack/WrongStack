@@ -2,7 +2,7 @@ import type { KanbanQueueHealth } from '@wrongstack/kanban';
 // Browser-safe subpath: the package barrel reaches the IPC client (node:net),
 // which must never enter the browser bundle. Mirrors KanbanContractGraphView.
 import { hasKanbanQueueAnomalies } from '@wrongstack/kanban/queue-anomalies';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 
 type KanbanQueueHealthBarProps = {
   queueHealth: KanbanQueueHealth;
@@ -97,7 +97,7 @@ export function KanbanQueueHealthBar({ queueHealth, runningCostTotal }: KanbanQu
           title={t('activity:kanban.costCeilingSum')}
           className="inline-flex items-center gap-1 text-info"
         >
-          {t('activity:kanban.runningCost', { cost: runningCostTotal.toFixed(2) })}
+          {t('activity:kanban.runningCost', { cost: displayDecimal(runningCostTotal, 2) })}
         </span>
       )}
     </div>

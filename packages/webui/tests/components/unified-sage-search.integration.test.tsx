@@ -51,6 +51,7 @@ vi.mock('@/i18n', () => {
           'activity:memoryManager.tabVectorMemory': 'Vector memory',
         })[key] ?? resolve(key),
     }),
+    displayDecimal: (value: number, digits: number) => value.toFixed(digits),
   };
 });
 vi.mock('@wrongstack/project-surfaces/lib/i18n', () => {
@@ -72,6 +73,7 @@ vi.mock('@wrongstack/project-surfaces/lib/i18n', () => {
           'activity:memoryManager.tabVectorMemory': 'Vector memory',
         })[key] ?? resolve(key),
     }),
+    displayDecimal: (value: number, digits: number) => value.toFixed(digits),
   };
 });
 

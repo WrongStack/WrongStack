@@ -1,11 +1,11 @@
 import { AlertTriangle, Gauge, Zap } from 'lucide-react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 
 /** A token count as the chat header shows it: whole thousands from 10k up. */
 function fmtTok(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`;
+  if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1)}M`;
+  if (n >= 1000) return `${displayDecimal(n / 1000, n >= 10_000 ? 0 : 1)}k`;
   return String(n);
 }
 
@@ -153,14 +153,14 @@ type CacheReadout = { hitRatio: number; last?: { hitRatio: number } | undefined 
 /** The bar leads with the last request: the session ratio lags every change. */
 function cacheHitText(cache: CacheReadout): string {
   return cache.last
-    ? `last ${(cache.last.hitRatio * 100).toFixed(1)}% hit`
-    : `${(cache.hitRatio * 100).toFixed(1)}% hit`;
+    ? `last ${displayDecimal(cache.last.hitRatio * 100, 1)}% hit`
+    : `${displayDecimal(cache.hitRatio * 100, 1)}% hit`;
 }
 
 function cacheTitle(cache: CacheReadout): string {
-  const session = `${(cache.hitRatio * 100).toFixed(1)}% session (cumulative)`;
+  const session = `${displayDecimal(cache.hitRatio * 100, 1)}% session (cumulative)`;
   return cache.last
-    ? `Prompt cache: ${(cache.last.hitRatio * 100).toFixed(1)}% last request · ${session}`
+    ? `Prompt cache: ${displayDecimal(cache.last.hitRatio * 100, 1)}% last request · ${session}`
     : `Prompt cache: ${session}`;
 }
 

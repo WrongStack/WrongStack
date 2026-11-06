@@ -1,6 +1,6 @@
 import { Download } from 'lucide-react';
 import { useMemo, useRef } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import { type buildSessionStory, STORY_COLORS, type StoryEvent } from './session-story';
 
 export function storyTime(ms: number): string {
@@ -199,7 +199,7 @@ export function StoryChart({
                       <title>
                         {event.title} · +{storyTime(event.at - story.start)}
                         {event.durationMs !== undefined
-                          ? ` · ${event.durationMs.toFixed(0)}ms`
+                          ? ` · ${displayDecimal(event.durationMs, 0)}ms`
                           : ''}
                       </title>
                     </g>

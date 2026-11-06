@@ -8,7 +8,7 @@
 
 import { AlertCircle, Bot, Clock, Terminal, User } from 'lucide-react';
 import { useSurfaceHost } from '../host';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { CopyButton } from './message/CopyButton.js';
 import { ErrorBodyWithStack } from './message/ErrorBody.js';
@@ -39,7 +39,7 @@ interface WatchMessageBubbleProps {
 function fmtDuration(durationMs: number): string {
   if (durationMs < 1000) return `${durationMs}ms`;
   const s = Math.round(durationMs / 100);
-  if (s < 600) return `${(s / 10).toFixed(1)}s`;
+  if (s < 600) return `${displayDecimal(s / 10, 1)}s`;
   const m = Math.floor(s / 600);
   const sec = Math.round((s % 600) / 10);
   return `${m}m ${sec}s`;

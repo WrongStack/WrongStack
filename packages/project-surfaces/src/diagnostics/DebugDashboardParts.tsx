@@ -1,5 +1,5 @@
 import { TrendingUp } from 'lucide-react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 
 export interface FileWatcherMetrics {
   fileChangesDetected: number;
@@ -191,7 +191,7 @@ export function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
+  return `${displayDecimal(bytes / k ** i, 1)} ${sizes[i]}`;
 }
 
 export function formatByteRate(bytesPerHour: number | undefined): string {
@@ -201,7 +201,7 @@ export function formatByteRate(bytesPerHour: number | undefined): string {
 }
 
 export function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${seconds.toFixed(0)}s`;
-  if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
-  return `${(seconds / 3600).toFixed(1)}h`;
+  if (seconds < 60) return `${displayDecimal(seconds, 0)}s`;
+  if (seconds < 3600) return `${displayDecimal(seconds / 60, 1)}m`;
+  return `${displayDecimal(seconds / 3600, 1)}h`;
 }

@@ -1,3 +1,4 @@
+import { displayDecimal } from './i18n';
 /**
  * Shared formatting and rendering primitives for agent/fleet/session
  * dashboard components. Extracted from the duplicated helpers that
@@ -7,17 +8,17 @@
 /** Format a USD cost with up to 4 decimal places. */
 export function fmtCost(n?: number): string {
   if (n == null || !Number.isFinite(n) || n < 0) return '$0.0000';
-  if (n < 0.01) return `$${n.toFixed(4)}`;
-  if (n < 1) return `$${n.toFixed(3)}`;
-  return `$${n.toFixed(2)}`;
+  if (n < 0.01) return `$${displayDecimal(n, 4)}`;
+  if (n < 1) return `$${displayDecimal(n, 3)}`;
+  return `$${displayDecimal(n, 2)}`;
 }
 
 /** Format a token count compactly: 1234 → "1.2k", 1_500_000 → "1.5M". */
 export function fmtTok(n?: number): string {
   if (n == null || !Number.isFinite(n)) return '0';
   if (n < 1000) return String(Math.round(n));
-  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n < 1_000_000) return `${displayDecimal(n / 1000, 1)}k`;
+  return `${displayDecimal(n / 1_000_000, 1)}M`;
 }
 
 /** Format elapsed milliseconds as a compact "Xs/Xm/Xh" string. */

@@ -9,7 +9,7 @@
 import { ChevronRight } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { useAppTranslation } from '../../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../../lib/i18n';
 import type { SharedMemorySearch } from '../sharedSearch.js';
 import { ForgetVectorMemoryDialog } from './ForgetVectorMemoryDialog.js';
 import {
@@ -460,7 +460,7 @@ export function VectorMemoryPanel({
                       : 'vector-memory-panel__hit-chevron'
                   }
                 />
-                <span className="vector-memory-panel__hit-score">{h.score.toFixed(3)}</span>
+                <span className="vector-memory-panel__hit-score">{displayDecimal(h.score, 3)}</span>
                 {h.summary ? (
                   <span className="vector-memory-panel__hit-summary">{h.summary}</span>
                 ) : null}
@@ -521,7 +521,7 @@ export function VectorMemoryPanel({
                     <dt>{t('activity:memoryManager.vector.fieldRank')}</dt>
                     <dd>#{rank}</dd>
                     <dt>{t('activity:memoryManager.vector.fieldScore')}</dt>
-                    <dd>{h.score.toFixed(3)}</dd>
+                    <dd>{displayDecimal(h.score, 3)}</dd>
                     {h.kind !== undefined ? (
                       <>
                         <dt>{t('activity:memoryManager.vector.fieldKind')}</dt>
@@ -662,15 +662,15 @@ function SimilarityRow({ row, index }: { row: readonly number[]; index: number }
             aria-label={t('activity:memoryManager.vector.cellAria', {
               i: index + 1,
               j: j + 1,
-              score: clamped.toFixed(2),
+              score: displayDecimal(clamped, 2),
             })}
             title={t('activity:memoryManager.vector.cellTitle', {
               i: index + 1,
               j: j + 1,
-              score: clamped.toFixed(3),
+              score: displayDecimal(clamped, 3),
             })}
           >
-            {clamped >= 0.5 ? clamped.toFixed(2) : ''}
+            {clamped >= 0.5 ? displayDecimal(clamped, 2) : ''}
           </div>
         );
       })}

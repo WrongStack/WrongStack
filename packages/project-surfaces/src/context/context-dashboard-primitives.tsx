@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 
 export interface ZoneConfig {
@@ -181,7 +181,7 @@ export function AnimatedDonutGauge({
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-lg">
-      <title>{t('activity:contextText.usageTitle', { pct: clamped.toFixed(0) })}</title>
+      <title>{t('activity:contextText.usageTitle', { pct: displayDecimal(clamped, 0) })}</title>
       {/* Background track */}
       <circle
         cx={size / 2}
@@ -223,7 +223,7 @@ export function AnimatedDonutGauge({
         className="text-lg font-bold font-mono tabular-nums"
         style={{ fontSize: size * 0.16 }}
       >
-        {clamped.toFixed(0)}%
+        {displayDecimal(clamped, 0)}%
       </text>
     </svg>
   );

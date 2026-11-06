@@ -19,7 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import { displayLocale, useAppTranslation } from '../../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { agentModelLabel } from './model-label.js';
 import type { ClientStatus } from './utils.js';
@@ -338,7 +338,7 @@ function CoordinatorNode({ data }: { data: OfficeNodeData }) {
           <div className="text-muted-foreground">{t('activity:office.tokensLabel')}</div>
         </div>
         <div className="rounded bg-muted/40 p-1.5 text-center">
-          <div className="font-mono text-success">${(data.costUsd || 0).toFixed(3)}</div>
+          <div className="font-mono text-success">${displayDecimal(data.costUsd || 0, 3)}</div>
           <div className="text-muted-foreground">{t('activity:office.cost')}</div>
         </div>
       </div>
@@ -422,7 +422,7 @@ function AgentNode({ data }: { data: OfficeNodeData }) {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t('activity:officeText.cost')}</span>
-          <span className="font-mono text-success">${(data.costUsd || 0).toFixed(3)}</span>
+          <span className="font-mono text-success">${displayDecimal(data.costUsd || 0, 3)}</span>
         </div>
       </div>
 

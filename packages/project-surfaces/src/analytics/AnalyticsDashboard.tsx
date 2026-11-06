@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { surfaceClient, surfaceFetch, useSurfaceHost } from '../host';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { usePagination } from '../lib/usePagination';
 import { PageMotif } from '../ui/PageMotif';
 import { Pagination } from '../ui/pagination';
@@ -107,15 +107,15 @@ function fmtDuration(ms: number): string {
 }
 
 function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000_000) return `${displayDecimal(n / 1_000_000, 1)}M`;
+  if (n >= 1_000) return `${displayDecimal(n / 1_000, 1)}K`;
   return String(n);
 }
 
 function fmtCost(n: number): string {
-  if (n < 0.01) return `$${n.toFixed(4)}`;
-  if (n < 1) return `$${n.toFixed(2)}`;
-  return `$${n.toFixed(2)}`;
+  if (n < 0.01) return `$${displayDecimal(n, 4)}`;
+  if (n < 1) return `$${displayDecimal(n, 2)}`;
+  return `$${displayDecimal(n, 2)}`;
 }
 
 function fmtTime(iso: string): string {
@@ -531,7 +531,7 @@ export function AnalyticsDashboard() {
                       {t('activity:analytics.cacheRatio')}
                     </span>
                     <p className="mt-0.5 tabular-nums text-foreground">
-                      {(stats.cache.hitRatio * 100).toFixed(1)}%
+                      {displayDecimal(stats.cache.hitRatio * 100, 1)}%
                     </p>
                   </div>
                   <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
@@ -553,7 +553,7 @@ export function AnalyticsDashboard() {
                           >
                             <span className="text-foreground">{provider.provider}</span>
                             <span className="tabular-nums text-success">
-                              {(provider.hitRatio * 100).toFixed(1)}% hit
+                              {displayDecimal(provider.hitRatio * 100, 1)}% hit
                             </span>
                             <span className="tabular-nums text-muted-foreground">
                               {fmtTokens(provider.cacheRead)} read ·{' '}
@@ -596,7 +596,7 @@ export function AnalyticsDashboard() {
                         {t('activity:analytics.cacheHitRate')}
                       </span>
                       <span className="tabular-nums text-success">
-                        {stats ? `${(stats.cache.hitRatio * 100).toFixed(1)}%` : '—'}
+                        {stats ? `${displayDecimal(stats.cache.hitRatio * 100, 1)}%` : '—'}
                       </span>
                     </div>
                     <div className="flex justify-between">

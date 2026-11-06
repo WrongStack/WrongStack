@@ -10,7 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import {
   enumLabel,
   RETRY_POLICY_KEYS,
@@ -486,7 +486,7 @@ export function TaskIntelligencePanel({
               label={t('activity:taskIntel.costCeiling')}
               value={
                 (assignment?.costCeilingUsd ?? task.costCeilingUsd) != null
-                  ? `$${(assignment?.costCeilingUsd ?? task.costCeilingUsd)!.toFixed(2)}`
+                  ? `$${displayDecimal((assignment?.costCeilingUsd ?? task.costCeilingUsd)!, 2)}`
                   : t('activity:kanbanText.unbounded')
               }
             />

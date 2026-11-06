@@ -12,7 +12,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { fmtTok } from '../lib/dashboard-primitives';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { ContextBar, ContextFillBar } from './ContextBar';
 import {
@@ -136,7 +136,7 @@ export function PressureSection({
               'border-current/30',
             )}
           >
-            ◀ {pct.toFixed(0)}%
+            ◀ {displayDecimal(pct, 0)}%
           </span>
         </div>
       </div>
@@ -216,7 +216,7 @@ export function CompositionSection({
       {/* Legend */}
       <div className="space-y-1">
         {items.map((item) => {
-          const pct = ((item.value / data.total) * 100).toFixed(1);
+          const pct = displayDecimal((item.value / data.total) * 100, 1);
           return (
             <MetricRow
               key={item.label}
@@ -290,7 +290,7 @@ export function ThresholdSection({ pct }: { pct: number }) {
 
       <MetricRow
         label={t('activity:ctxDash.currentPosition')}
-        value={`${pct.toFixed(1)}% → ${zoneFor(pct).emoji} ${t(zoneFor(pct).labelKey)}`}
+        value={`${displayDecimal(pct, 1)}% → ${zoneFor(pct).emoji} ${t(zoneFor(pct).labelKey)}`}
         color={zoneFor(pct).color}
       />
       <MetricRow label={t('activity:ctxDash.compactTrigger')} value="85%" />
@@ -367,7 +367,7 @@ export function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: 
         {needsCompact && (
           <div className="bg-warning/5 border border-warning/20 rounded p-2 text-[10px] text-warning/90 mt-1">
             {t('activity:contextText.compactHint', {
-              pct: pct.toFixed(1),
+              pct: displayDecimal(pct, 1),
               tokens: fmtCap(recoveryEst),
             })}
           </div>
@@ -438,7 +438,7 @@ export function MetricsSection({
 }) {
   const { t } = useAppTranslation();
   const free = maxTokens > 0 ? maxTokens - tokens : 0;
-  const freePct = maxTokens > 0 ? ((free / maxTokens) * 100).toFixed(1) : '0.0';
+  const freePct = maxTokens > 0 ? displayDecimal((free / maxTokens) * 100, 1) : '0.0';
 
   return (
     <SectionCard title={t('activity:ctxDash.tokenMetrics')} icon={BarChart3}>

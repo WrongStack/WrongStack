@@ -2,7 +2,7 @@ import { isMailboxMessageUnread } from '@wrongstack/contracts/types/mailbox';
 import type { Node } from '@xyflow/react';
 import { Bot, Cpu, Mail, Maximize2, Monitor, Terminal } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useAppTranslation } from '../../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { AgentTranscript } from '../AgentTranscript';
 import { SessionWatchPanel } from '../SessionWatchPanel';
@@ -135,7 +135,7 @@ export function SelectedNodeDetailPanel({
                 }
               />
             )}
-            <DetailRow k="Cost" v={`$${(d.costUsd || 0).toFixed(4)}`} accent="text-success" />
+            <DetailRow k="Cost" v={`$${displayDecimal(d.costUsd || 0, 4)}`} accent="text-success" />
             {d.lastActivityAt && (
               <DetailRow
                 k="Last seen"

@@ -48,8 +48,11 @@ export const displayLocale = (): string | undefined => surfaceI18n.language || u
  * trailing zeros ("2" rather than "2.0"). No digit grouping, as with `toFixed`.
  */
 export function displayDecimal(value: number, digits: number, trim = false): string {
+  const locale = surfaceI18n.language || undefined;
+  // No display language yet (nothing registered): keep the toFixed dot, not the OS locale.
+  if (!locale) return trim ? String(Number(value.toFixed(digits))) : value.toFixed(digits);
   try {
-    return value.toLocaleString(surfaceI18n.language || undefined, {
+    return value.toLocaleString(locale, {
       minimumFractionDigits: trim ? 0 : digits,
       maximumFractionDigits: digits,
       useGrouping: false,

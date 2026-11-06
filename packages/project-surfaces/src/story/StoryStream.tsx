@@ -10,7 +10,7 @@ import {
   Terminal,
   TriangleAlert,
 } from 'lucide-react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import { storyTime } from './StoryChart';
 import {
   type buildSessionStory,
@@ -158,7 +158,7 @@ export function StoryStream({
                 <span className="shrink-0 text-right font-mono text-[10px] text-muted-foreground">
                   +{storyTime(event.at - story.start)}
                   {event.durationMs !== undefined && (
-                    <span className="mt-1 block">{event.durationMs.toFixed(0)}ms</span>
+                    <span className="mt-1 block">{displayDecimal(event.durationMs, 0)}ms</span>
                   )}
                 </span>
               </button>

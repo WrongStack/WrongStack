@@ -6,7 +6,7 @@
 import { AlertTriangle, Check, Loader2, RefreshCw, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceClient } from '../host';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { Button } from '../ui/button';
 import type { SageDoctorFixId, SageDoctorReport, SageDoctorSeverity } from './model-types';
@@ -41,7 +41,7 @@ function formatBytes(bytes: number | undefined): string {
     value /= 1024;
     unit += 1;
   }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+  return `${displayDecimal(value, value >= 10 ? 0 : 1)} ${units[unit]}`;
 }
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {

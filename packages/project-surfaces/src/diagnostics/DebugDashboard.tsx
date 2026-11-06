@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { surfaceFetch, useSurfaceHost } from '../host';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { PageMotif } from '../ui/PageMotif';
 import type { DebugData, FileWatcherMetrics, SystemMetrics } from './DebugDashboardParts.js';
 import { formatByteRate, formatBytes, formatUptime, MetricCard } from './DebugDashboardParts.js';
@@ -219,14 +219,14 @@ export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
             />
             <MetricCard
               title={t('activity:debug.avgDebounce')}
-              value={`${(data.fileWatcher?.averageDebounceDelayMs ?? 0).toFixed(1)}ms`}
+              value={`${displayDecimal(data.fileWatcher?.averageDebounceDelayMs ?? 0, 1)}ms`}
               subtitle={t('activity:debug.actualDelay')}
               icon={Clock}
               color="text-warning"
             />
             <MetricCard
               title={t('activity:debug.totalDelay')}
-              value={`${(data.fileWatcher?.totalDebounceDelayMs ?? 0).toFixed(0)}ms`}
+              value={`${displayDecimal(data.fileWatcher?.totalDebounceDelayMs ?? 0, 0)}ms`}
               subtitle={t('activity:debug.sumDelays')}
               icon={BarChart3}
               color="text-primary"

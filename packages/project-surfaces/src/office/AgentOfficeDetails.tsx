@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { displayLocale, useAppTranslation } from '../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import type { OfficeMailActivity, OfficeToolCall, OfficeToolKind } from './agent-office';
 import type { LiveTodoItem } from './types';
@@ -55,7 +55,7 @@ function shortPath(value: string | undefined, max = 46): string | undefined {
 function formatDuration(durationMs: number | undefined): string {
   if (durationMs === undefined) return '—';
   if (durationMs < 1000) return `${Math.round(durationMs)} ms`;
-  return `${(durationMs / 1000).toFixed(durationMs < 10_000 ? 1 : 0)} s`;
+  return `${displayDecimal(durationMs / 1000, durationMs < 10_000 ? 1 : 0)} s`;
 }
 
 function stringify(value: unknown): string {

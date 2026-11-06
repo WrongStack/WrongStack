@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppTranslation } from '../lib/i18n';
+import { displayDecimal, useAppTranslation } from '../lib/i18n';
 import type { storyStats } from './session-story-stats';
 
 type Stats = ReturnType<typeof storyStats>;
@@ -8,7 +8,7 @@ const ms = (value: number | undefined) =>
     ? '—'
     : value < 1000
       ? `${Math.round(value)} ms`
-      : `${(value / 1000).toFixed(2)} s`;
+      : `${displayDecimal(value / 1000, 2)} s`;
 
 export function StoryTables({
   stats,

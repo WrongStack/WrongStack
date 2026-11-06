@@ -1,5 +1,5 @@
 import { Activity, Bot, Cpu, DollarSign, Hash, Monitor, Terminal, Users, Zap } from 'lucide-react';
-import { displayLocale, useAppTranslation } from '../../lib/i18n';
+import { displayDecimal, displayLocale, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
 import { useMonitorStats, useOfficeFeed } from '../feed';
 import type { VizEvent } from '../types';
@@ -11,7 +11,7 @@ export function StatsHUD() {
   const currentSession = useOfficeFeed().useCurrentSession();
   const totalClients = clientCounts.tui + clientCounts.webui + clientCounts.repl;
   const fmtNum = (n?: number) => n?.toLocaleString(displayLocale()) ?? '0';
-  const fmtCost = (n?: number) => (n != null ? `$${n.toFixed(4)}` : '$0.0000');
+  const fmtCost = (n?: number) => `$${displayDecimal(n ?? 0, 4)}`;
 
   return (
     <div className="absolute left-4 top-20 z-10 rounded-xl border border-border/70 bg-card/90 p-3 text-foreground ws-dialog backdrop-blur">
