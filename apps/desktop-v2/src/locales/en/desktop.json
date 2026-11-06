@@ -9050,6 +9050,18 @@
     "title": "Decisions",
     "summary": "Decides without asking up to <strong>{{risk}}</strong> risk{{mode}}. Shown: this conversation's decisions and ones that named no conversation.",
     "mode": " · {{mode}} mode",
+    "risk": {
+      "off": "zero",
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "critical": "critical",
+      "all": "maximum"
+    },
+    "modeName": {
+      "interactive": "interactive",
+      "headless": "headless"
+    },
     "none": "No decisions recorded yet.",
     "ask": "Ask the Brain",
     "placeholder": "Should this project allow automatic dependency upgrades?",

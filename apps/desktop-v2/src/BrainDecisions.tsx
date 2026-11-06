@@ -114,8 +114,16 @@ export function BrainDecisions({ command }: { command: EngineCommand }) {
             ns="desktop"
             i18nKey="brainDecisions.summary"
             values={{
-              risk: status.maxAutoRisk,
-              mode: status.mode ? t('brainDecisions.mode', { mode: status.mode }) : '',
+              risk: t(`brainDecisions.risk.${status.maxAutoRisk}`, {
+                defaultValue: status.maxAutoRisk,
+              }),
+              mode: status.mode
+                ? t('brainDecisions.mode', {
+                    mode: t(`brainDecisions.modeName.${status.mode}`, {
+                      defaultValue: status.mode,
+                    }),
+                  })
+                : '',
             }}
             components={{ strong: <strong /> }}
           />
@@ -127,8 +135,11 @@ export function BrainDecisions({ command }: { command: EngineCommand }) {
           {status.log.slice(0, 50).map((entry, index) => (
             <li key={`${entry.at}:${index}`}>
               <span>
-                {entry.at ? displayTime(entry.at) : ''} · {entry.kind}
-                {entry.tier ? ` · ${entry.tier}` : ''}
+                {entry.at ? displayTime(entry.at) : ''} ·{' '}
+                {t(`brainMessage.kind.${entry.kind}`, { defaultValue: entry.kind })}
+                {entry.tier
+                  ? ` · ${t(`brainMessage.value.tier.${entry.tier}`, { defaultValue: entry.tier })}`
+                  : ''}
               </span>
               <strong>{entry.question}</strong>
               <span>{entry.outcome}</span>
