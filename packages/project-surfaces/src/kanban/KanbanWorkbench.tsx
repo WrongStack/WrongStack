@@ -14,6 +14,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useAppTranslation } from '../lib/i18n';
+import { enumLabel, TASK_PRIORITY_KEYS } from './kanban-labels';
 
 const LANE_COPY: Record<
   KanbanWorkbenchLane,
@@ -239,7 +240,9 @@ function WorkbenchCard({
       </div>
       <div className="mt-1 truncate text-[10px] text-muted-foreground">{item.boardTitle}</div>
       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-        <span className="rounded border px-1 py-0.5">{item.priority}</span>
+        <span className="rounded border px-1 py-0.5">
+          {enumLabel(t, TASK_PRIORITY_KEYS, item.priority)}
+        </span>
         {item.childProgress ? (
           <span className="flex items-center gap-1">
             <GitBranch size={10} />{' '}

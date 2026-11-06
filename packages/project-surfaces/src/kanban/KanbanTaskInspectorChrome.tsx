@@ -1,7 +1,14 @@
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { CircleSlash, FileText, GitBranch, History, Play, ShieldCheck } from 'lucide-react';
 import { useRef } from 'react';
+import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
+import {
+  ATOMICITY_VERDICT_KEYS,
+  enumLabel,
+  TASK_PRIORITY_KEYS,
+  TASK_STATUS_KEYS,
+} from './kanban-labels';
 
 /**
  * The inspector's tabs follow the card's own lifecycle: what the work is, who
@@ -89,11 +96,12 @@ export function TaskStatusSpine({
   blockedLabel: string;
   regionLabel: string;
 }) {
+  const { t } = useAppTranslation();
   const chips: string[] = [
     columnLabel,
-    task.priority,
+    enumLabel(t, TASK_PRIORITY_KEYS, task.priority),
     ...(task.assignment?.agentId ? [task.assignment.agentId] : []),
-    ...(task.atomic ? ['atomic'] : []),
+    ...(task.atomic ? [enumLabel(t, ATOMICITY_VERDICT_KEYS, 'atomic')] : []),
   ];
 
   return (
@@ -108,7 +116,7 @@ export function TaskStatusSpine({
             STATUS_TONE[task.status] ?? 'bg-muted text-muted-foreground',
           )}
         >
-          {task.status}
+          {enumLabel(t, TASK_STATUS_KEYS, task.status)}
         </span>
         {chips.map((chip) => (
           <span key={chip} className="text-[11px] text-muted-foreground">

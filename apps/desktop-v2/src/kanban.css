@@ -45,6 +45,12 @@
   display: grid;
   gap: 4px;
 }
+/* The icon and its words share the label's first row; the select sits below them. */
+.kanban-task-transfer label > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .kanban-task-transfer > div {
   display: flex;
   gap: 6px;

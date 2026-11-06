@@ -11,7 +11,12 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useAppTranslation } from '../lib/i18n';
-import { enumLabel, RETRY_POLICY_KEYS, ROUTING_MODE_KEYS } from './kanban-labels';
+import {
+  enumLabel,
+  RETRY_POLICY_KEYS,
+  ROUTING_MODE_KEYS,
+  TASK_PRIORITY_KEYS,
+} from './kanban-labels';
 import { kanbanMetadataText } from './kanban-metadata';
 import { activityCategory, buildTaskActivity } from './TaskActivityTimeline';
 
@@ -345,7 +350,7 @@ export function TaskIntelligencePanel({
             </span>
             <span className="rounded bg-muted px-1.5 py-0.5">
               {t('activity:taskIntel.priorityPrefix')}
-              {task.priority}
+              {enumLabel(t, TASK_PRIORITY_KEYS, task.priority)}
             </span>
             <span className="rounded bg-muted px-1.5 py-0.5">
               {t('activity:taskIntel.typePrefix')}

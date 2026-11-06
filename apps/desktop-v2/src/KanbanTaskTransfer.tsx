@@ -96,7 +96,9 @@ export function KanbanTaskTransfer({
       {merge}
       <section className="kanban-task-transfer" aria-label={t('kanbanTask.transfer')}>
         <label>
-          <ArrowRightLeft size={13} /> {t('kanbanTask.anotherBoard')}
+          <span>
+            <ArrowRightLeft size={13} aria-hidden="true" /> {t('kanbanTask.anotherBoard')}
+          </span>
           <select
             value={chosen}
             disabled={disabled || busy}

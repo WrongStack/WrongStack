@@ -243,7 +243,7 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
       fireEvent.click(screen.getByRole('tab', { name: new RegExp(tab) }));
       const spine = screen.getByRole('region', { name: 'Task status' });
       expect(within(spine).getByText(/Migrate schema/)).toBeTruthy();
-      expect(within(spine).getByText('pending')).toBeTruthy();
+      expect(within(spine).getByText('Pending')).toBeTruthy();
     }
   });
 
