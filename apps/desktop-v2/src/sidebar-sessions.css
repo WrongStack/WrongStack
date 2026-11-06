@@ -42,6 +42,18 @@
 .tree-session-row:focus-within > .tree-session small {
   visibility: hidden;
 }
+/* The rename/remove icons sit over the row's right edge; while they show, the title stops short
+   of them and ends with an ellipsis instead of running underneath. */
+.tree-session-row:hover > .tree-session,
+.tree-session-row:focus-within > .tree-session {
+  padding-right: 54px;
+}
+.tree-session-row > .tree-session > span:not(.status-dot) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .tree-session-actions .icon-button {
   width: 22px;
   height: 22px;
