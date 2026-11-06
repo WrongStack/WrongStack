@@ -9050,6 +9050,39 @@
     "title": "Entscheidungen",
     "summary": "Entscheidet ohne Nachfrage bis zu <strong>{{risk}}</strong> Risiko{{mode}}. Angezeigt: Entscheidungen dieser Unterhaltung und solche ohne Unterhaltung.",
     "mode": " · Modus {{mode}}",
+    "risk": {
+      "off": "keinem",
+      "low": "niedrigem",
+      "medium": "mittlerem",
+      "high": "hohem",
+      "critical": "kritischem",
+      "all": "jedem"
+    },
+    "modeName": {
+      "interactive": "interaktiv",
+      "headless": "unbeaufsichtigt"
+    },
+    "kind": {
+      "answered": "Beantwortet",
+      "denied": "Abgelehnt",
+      "ask_human": "Menschliche Beurteilung",
+      "intervention": "Eingriff",
+      "check": "Prüfung",
+      "outcome": "Ergebnis",
+      "council_warn": "Ratswarnung"
+    },
+    "tier": {
+      "ledger_guard": "Ledger-Schutz",
+      "cache": "Cache",
+      "rule": "Regel",
+      "heuristic": "Heuristik",
+      "policy": "Richtlinie",
+      "system-one": "System One",
+      "llm": "Modell",
+      "risk_gate": "Risikoschranke",
+      "terminal": "Unbeaufsichtigte Richtlinie",
+      "council": "Rat"
+    },
     "none": "Noch keine Entscheidungen aufgezeichnet.",
     "ask": "Den Brain fragen",
     "placeholder": "Soll dieses Projekt automatische Abhängigkeits-Upgrades erlauben?",

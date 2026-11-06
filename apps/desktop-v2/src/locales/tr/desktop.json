@@ -9050,6 +9050,39 @@
     "title": "Kararlar",
     "summary": "Sormadan <strong>{{risk}}</strong> riske kadar karar verir{{mode}}. Gösterilen: bu konuşmanın kararları ve konuşma belirtmeyenler.",
     "mode": " · {{mode}} modu",
+    "risk": {
+      "off": "sıfır",
+      "low": "düşük",
+      "medium": "orta",
+      "high": "yüksek",
+      "critical": "kritik",
+      "all": "en yüksek"
+    },
+    "modeName": {
+      "interactive": "etkileşimli",
+      "headless": "gözetimsiz"
+    },
+    "kind": {
+      "answered": "Yanıtlandı",
+      "denied": "Reddedildi",
+      "ask_human": "İnsan değerlendirmesi",
+      "intervention": "Müdahale",
+      "check": "Kontrol",
+      "outcome": "Sonuç",
+      "council_warn": "Konsey uyarısı"
+    },
+    "tier": {
+      "ledger_guard": "Defter koruması",
+      "cache": "Önbellek",
+      "rule": "Kural",
+      "heuristic": "Sezgisel",
+      "policy": "Politika",
+      "system-one": "System One",
+      "llm": "Model",
+      "risk_gate": "Risk kapısı",
+      "terminal": "Gözetimsiz politika",
+      "council": "Konsey"
+    },
     "none": "Henüz karar kaydedilmedi.",
     "ask": "Brain’e sor",
     "placeholder": "Bu proje otomatik bağımlılık yükseltmelerine izin vermeli mi?",

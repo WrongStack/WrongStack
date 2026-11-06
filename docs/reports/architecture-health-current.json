@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T16:25:59.239Z",
+  "generatedAt": "2026-11-06T16:32:02.229Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6051,
+    "sourceFiles": 6050,
     "testFiles": 5042,
-    "sourceLines": 1253282,
+    "sourceLines": 1253228,
     "workspaceEdges": 243,
-    "moduleEdges": 17880,
+    "moduleEdges": 17879,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -386,7 +386,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 457,
+      "sourceFiles": 456,
       "testFiles": 291,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -33834,11 +33834,6 @@
     {
       "from": "apps/desktop-v2/src/BrainDecisions.tsx",
       "specifier": "./brain-policy.css",
-      "syntax": "import"
-    },
-    {
-      "from": "apps/desktop-v2/src/BrainMessageCard.tsx",
-      "specifier": "./brain-message",
       "syntax": "import"
     },
     {

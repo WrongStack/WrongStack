@@ -9050,6 +9050,39 @@
     "title": "Décisions",
     "summary": "Décide sans demander jusqu’à un risque <strong>{{risk}}</strong>{{mode}}. Affichées : les décisions de cette conversation et celles sans conversation.",
     "mode": " · mode {{mode}}",
+    "risk": {
+      "off": "nul",
+      "low": "faible",
+      "medium": "moyen",
+      "high": "élevé",
+      "critical": "critique",
+      "all": "maximal"
+    },
+    "modeName": {
+      "interactive": "interactif",
+      "headless": "sans surveillance"
+    },
+    "kind": {
+      "answered": "Répondu",
+      "denied": "Refusé",
+      "ask_human": "Jugement humain",
+      "intervention": "Intervention",
+      "check": "Contrôle",
+      "outcome": "Résultat",
+      "council_warn": "Avertissement du conseil"
+    },
+    "tier": {
+      "ledger_guard": "Garde du registre",
+      "cache": "Cache",
+      "rule": "Règle",
+      "heuristic": "Heuristique",
+      "policy": "Politique",
+      "system-one": "System One",
+      "llm": "Modèle",
+      "risk_gate": "Seuil de risque",
+      "terminal": "Politique sans surveillance",
+      "council": "Conseil"
+    },
     "none": "Aucune décision enregistrée pour l’instant.",
     "ask": "Demander au Brain",
     "placeholder": "Ce projet doit-il autoriser les mises à jour automatiques des dépendances ?",

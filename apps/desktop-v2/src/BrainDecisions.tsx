@@ -136,9 +136,9 @@ export function BrainDecisions({ command }: { command: EngineCommand }) {
             <li key={`${entry.at}:${index}`}>
               <span>
                 {entry.at ? displayTime(entry.at) : ''} ·{' '}
-                {t(`brainMessage.kind.${entry.kind}`, { defaultValue: entry.kind })}
+                {t(`brainDecisions.kind.${entry.kind}`, { defaultValue: entry.kind })}
                 {entry.tier
-                  ? ` · ${t(`brainMessage.value.tier.${entry.tier}`, { defaultValue: entry.tier })}`
+                  ? ` · ${t(`brainDecisions.tier.${entry.tier}`, { defaultValue: entry.tier })}`
                   : ''}
               </span>
               <strong>{entry.question}</strong>

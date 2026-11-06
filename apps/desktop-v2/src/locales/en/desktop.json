@@ -9062,6 +9062,27 @@
       "interactive": "interactive",
       "headless": "headless"
     },
+    "kind": {
+      "answered": "Answered",
+      "denied": "Denied",
+      "ask_human": "Human judgement",
+      "intervention": "Intervention",
+      "check": "Check",
+      "outcome": "Outcome",
+      "council_warn": "Council warning"
+    },
+    "tier": {
+      "ledger_guard": "Ledger guard",
+      "cache": "Cache",
+      "rule": "Rule",
+      "heuristic": "Heuristic",
+      "policy": "Policy",
+      "system-one": "System One",
+      "llm": "Model",
+      "risk_gate": "Risk gate",
+      "terminal": "Headless policy",
+      "council": "Council"
+    },
     "none": "No decisions recorded yet.",
     "ask": "Ask the Brain",
     "placeholder": "Should this project allow automatic dependency upgrades?",

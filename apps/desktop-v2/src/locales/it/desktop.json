@@ -9050,6 +9050,39 @@
     "title": "Decisioni",
     "summary": "Decide senza chiedere fino a un rischio <strong>{{risk}}</strong>{{mode}}. Mostrate: le decisioni di questa conversazione e quelle senza conversazione.",
     "mode": " · modalità {{mode}}",
+    "risk": {
+      "off": "nullo",
+      "low": "basso",
+      "medium": "medio",
+      "high": "alto",
+      "critical": "critico",
+      "all": "massimo"
+    },
+    "modeName": {
+      "interactive": "interattiva",
+      "headless": "non presidiata"
+    },
+    "kind": {
+      "answered": "Risposto",
+      "denied": "Negato",
+      "ask_human": "Valutazione umana",
+      "intervention": "Intervento",
+      "check": "Controllo",
+      "outcome": "Esito",
+      "council_warn": "Avviso del consiglio"
+    },
+    "tier": {
+      "ledger_guard": "Protezione del registro",
+      "cache": "Cache",
+      "rule": "Regola",
+      "heuristic": "Euristica",
+      "policy": "Criterio",
+      "system-one": "System One",
+      "llm": "Modello",
+      "risk_gate": "Soglia di rischio",
+      "terminal": "Criterio non presidiato",
+      "council": "Consiglio"
+    },
     "none": "Ancora nessuna decisione registrata.",
     "ask": "Chiedi al Brain",
     "placeholder": "Questo progetto dovrebbe consentire aggiornamenti automatici delle dipendenze?",
