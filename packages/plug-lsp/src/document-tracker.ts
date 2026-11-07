@@ -188,6 +188,8 @@ export class DocumentTracker {
     for (const doc of this.docs.values()) {
       /* v8 ignore next -- mixed-language registries are covered elsewhere. */
       if (!server.config.languages.includes(doc.languageId)) continue;
+      if (doc.serverNames.has(server.name) && (server.hasOpenDocument?.(doc.uri) ?? false))
+        continue;
       server.notifyDidOpen(toTextDocumentItem(doc));
       doc.serverNames.add(server.name);
     }

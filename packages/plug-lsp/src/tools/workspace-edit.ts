@@ -19,15 +19,23 @@ export async function applyWorkspaceEdit(
   projectRoot: string,
 ): Promise<ApplyWorkspaceEditResult> {
   const entries = editsByPath(edit);
-  const targets: Array<[string, TextEdit[]]> = [];
+  const targetsByKey = new Map<string, [string, TextEdit[]]>();
   for (const [file, edits] of entries) {
     // `editsByPath` keys custom-scheme targets (`jdt:`, `vscode-remote:`) by
     // their URI, which is not a writable filesystem path. Only `file:` targets
     // resolve to an absolute path, so skip anything else rather than failing
     // the whole edit on read.
     if (!path.isAbsolute(file)) continue;
-    targets.push([file, edits]);
+    const resolved = path.resolve(file);
+    const key = process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    const existing = targetsByKey.get(key);
+    if (existing) {
+      existing[1].push(...edits);
+    } else {
+      targetsByKey.set(key, [file, [...edits]]);
+    }
   }
+  const targets = [...targetsByKey.values()];
 
   // Reads may leave the project (definitions jump into dependencies), but
   // writes may not: the server-provided edit was written to any absolute
@@ -113,17 +121,33 @@ function isWithin(root: string, target: string): boolean {
 export function applyTextEdits(original: string, edits: TextEdit[]): string {
   const lineStarts = buildLineStarts(original);
   const ordered = edits
-    .map((edit) => ({
-      newText: edit.newText,
-      start: offsetOf(edit.range.start, original, lineStarts),
-      end: offsetOf(edit.range.end, original, lineStarts),
-    }))
-    .sort((a, b) => a.start - b.start);
+    .map((edit) => {
+      const start = offsetOf(edit.range.start, original, lineStarts);
+      const end = offsetOf(edit.range.end, original, lineStarts);
+      if (end < start) {
+        throw new LSPError(
+          LSPErrorCode.ApplyEditFailed,
+          'Refusing to apply workspace edit with inverted text edit range',
+        );
+      }
+      return {
+        newText: edit.newText,
+        start,
+        end,
+      };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
   let out = '';
   let cursor = 0;
   for (const edit of ordered) {
+    if (edit.start < cursor) {
+      throw new LSPError(
+        LSPErrorCode.ApplyEditFailed,
+        'Refusing to apply workspace edit with overlapping text edit ranges',
+      );
+    }
     out += original.slice(cursor, edit.start) + edit.newText;
-    cursor = Math.max(cursor, edit.end);
+    cursor = edit.end;
   }
   return out + original.slice(cursor);
 }

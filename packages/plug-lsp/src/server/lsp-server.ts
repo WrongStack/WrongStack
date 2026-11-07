@@ -65,6 +65,7 @@ export class LSPServer {
   private readonly documentRevisions = new Map<string, { version: number }>();
   private child: ChildProcessWithoutNullStreams | null = null;
   private connection: Connection | null = null;
+  private startPromise: Promise<void> | null = null;
   private processReachedReady = false;
   private lifecycleGeneration = 0;
   private stderrRing: string[] = [];
@@ -89,17 +90,25 @@ export class LSPServer {
     // `shutting_down` is terminal for this call: a concurrent
     // start would spawn a replacement that the in-flight shutdown then closes
     // and kills through `this.connection`/`this.child`.
-    if (
-      this.state === 'ready' ||
-      this.state === 'starting' ||
-      this.state === 'initializing' ||
-      this.state === 'shutting_down'
-    )
+    if (this.state === 'ready' || this.state === 'shutting_down') return;
+    if (this.state === 'starting' || this.state === 'initializing') {
+      if (this.startPromise) await this.startPromise;
       return;
+    }
     if (this.config.enabled === false) {
       this.state = 'disabled';
       return;
     }
+    const inflight = this.startOnce(signal);
+    this.startPromise = inflight;
+    try {
+      await inflight;
+    } finally {
+      if (this.startPromise === inflight) this.startPromise = null;
+    }
+  }
+
+  private async startOnce(signal: AbortSignal): Promise<void> {
     this.state = 'starting';
     const generation = ++this.lifecycleGeneration;
     this.clearDiagnostics();

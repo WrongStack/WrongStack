@@ -54,4 +54,41 @@ describe('LSPServer.start during shutdown', () => {
     expect(server.state).toBe('shutting_down');
     expect((server as unknown as { child: unknown }).child).toBeNull();
   });
+
+  it('coalesces concurrent start() calls onto the in-flight startup promise', async () => {
+    const events = new EventBus();
+    const server = new LSPServer(
+      'probe',
+      { command: process.execPath, languages: ['typescript'] },
+      { cwd: process.cwd(), rootPath: process.cwd(), log, events },
+    );
+
+    let releaseDoStart!: () => void;
+    const doStartGate = new Promise<void>((resolve) => {
+      releaseDoStart = resolve;
+    });
+    const doStartSpy = vi
+      .spyOn(server as unknown as { startOnce: () => Promise<void> }, 'startOnce')
+      .mockImplementation(async () => {
+        server.state = 'starting';
+        await doStartGate;
+        server.state = 'ready';
+      });
+
+    const first = server.start();
+    const second = server.start();
+    let secondSettled = false;
+    void second.then(() => {
+      secondSettled = true;
+    });
+
+    await Promise.resolve();
+    expect(secondSettled).toBe(false);
+    expect(doStartSpy).toHaveBeenCalledTimes(1);
+
+    releaseDoStart();
+    await Promise.all([first, second]);
+    expect(secondSettled).toBe(true);
+    expect(server.state).toBe('ready');
+  });
 });

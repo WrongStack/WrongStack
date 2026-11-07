@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DocumentTracker } from '../../src/document-tracker.js';
 import { LSPRegistry, registryCoverage } from '../../src/registry.js';
 
 const directories: string[] = [];
@@ -434,5 +435,77 @@ describe('runtime server mutation', () => {
     const resolved = await value.findForPath('index.ts');
     expect(resolved?.name).toBe('b');
     expect(value.get('python')).not.toBeNull();
+  });
+
+  it('does not resurrect a server stopped while a scheduled reconnect start() is in flight', async () => {
+    vi.useFakeTimers();
+    const { value, tracker } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const server = value.get('a')!;
+    server.state = 'failed';
+
+    let rejectStart!: (error: Error) => void;
+    server.start = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          server.state = 'initializing';
+          rejectStart = reject;
+        }),
+    );
+
+    const state = value as unknown as {
+      scheduleReconnect: (s: typeof server) => void;
+      reconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+    };
+    state.scheduleReconnect(server);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(server.start).toHaveBeenCalledTimes(1);
+
+    await value.stop('a');
+    expect(server.state).toBe('exited');
+
+    rejectStart(new Error('Server "a" stopped during startup'));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(server.state).toBe('exited');
+    expect(state.reconnectTimers.has('a')).toBe(false);
+    expect(tracker.reopenForServer).not.toHaveBeenCalled();
+  });
+
+  it('DocumentTracker.reopenForServer skips documents already open on the server', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'f25-reopen-'));
+    directories.push(root);
+    const filePath = path.join(root, 'f25-reopen-idempotent.ts');
+    await fs.writeFile(filePath, 'const x = 1;\n');
+
+    let didOpenCount = 0;
+    const openUris = new Set<string>();
+    const fakeServer = {
+      name: 'ts',
+      state: 'ready' as const,
+      config: { languages: ['typescript'], command: 'ts' },
+      hasOpenDocument: (uri: string) => openUris.has(uri),
+      notifyDidOpen: (doc: { uri: string }) => {
+        didOpenCount++;
+        openUris.add(doc.uri);
+      },
+      notifyDidChange: () => {},
+      notifyDidClose: (uri: string) => openUris.delete(uri),
+    };
+    const docTracker = new DocumentTracker(
+      () => ({ list: () => [fakeServer as never] }),
+      log as never,
+      root,
+    );
+    await docTracker.open(filePath, 'const x = 1;\n');
+    expect(didOpenCount).toBe(1);
+
+    await docTracker.reopenForServer(fakeServer as never);
+    expect(didOpenCount).toBe(1);
+
+    openUris.clear();
+    await docTracker.reopenForServer(fakeServer as never);
+    expect(didOpenCount).toBe(2);
   });
 });

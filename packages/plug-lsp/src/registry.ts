@@ -76,9 +76,10 @@ export class LSPRegistry {
     if (!name) return null;
     const server = this.servers.get(name);
     if (!server) return null;
-    if (server.state !== 'ready' && this.autoStart === 'lazy') {
+    const wasReady = server.state === 'ready';
+    if (!wasReady && this.autoStart === 'lazy') {
       await server.start(signal);
-      await this.tracker.reopenForServer(server);
+      if (server.state === 'ready') await this.tracker.reopenForServer(server);
     }
     return server.state === 'ready' ? server : null;
   }
@@ -263,6 +264,14 @@ export class LSPRegistry {
   }
 
   private scheduleReconnect(server: LSPServer): void {
+    const mounted = this.servers.get(server.name);
+    if (
+      (mounted && mounted !== server) ||
+      server.state === 'exited' ||
+      server.state === 'shutting_down' ||
+      server.state === 'disabled'
+    )
+      return;
     if (this.reconnectTimers.has(server.name)) return;
     const attempt = this.reconnectAttempts.get(server.name) ?? 0;
     if (attempt >= 3) {
@@ -273,14 +282,27 @@ export class LSPRegistry {
     server.state = 'reconnecting';
     const timer = setTimeout(() => {
       this.reconnectTimers.delete(server.name);
+      const current = this.servers.get(server.name);
+      if ((current && current !== server) || server.state !== 'reconnecting') return;
       void server
         .start()
         .then(() => {
+          const active = this.servers.get(server.name);
+          if ((active && active !== server) || server.state !== 'ready') return;
           this.reconnectAttempts.delete(server.name);
           return this.tracker.reopenForServer(server);
         })
         /* v8 ignore start -- reconnect failure exhaustion is timing-dependent; startup failure is covered separately. */
         .catch((err) => {
+          const active = this.servers.get(server.name);
+          if (
+            (active && active !== server) ||
+            server.state === 'exited' ||
+            server.state === 'shutting_down' ||
+            server.state === 'disabled'
+          ) {
+            return;
+          }
           this.ctx.log.warn(`LSP ${server.name} reconnect attempt ${attempt + 1} failed`, err);
           server.state = 'failed';
           this.scheduleReconnect(server);
