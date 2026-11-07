@@ -180,6 +180,21 @@ describe('CodeMap component', () => {
     expect(screen.getByText('Mapping relationships')).toBeDefined();
   });
 
+  it('finishes the first load when index updates arrive while it is still running', async () => {
+    // While agents edit the project, index updates can arrive faster than the first graph read
+    // answers. Each one used to cancel that read and start another, so the map never loaded.
+    let answer: (response: Response) => void = () => {};
+    mockFetch.mockReturnValueOnce(new Promise<Response>((resolve) => (answer = resolve)));
+    mockFetch.mockReturnValue(new Promise(() => {}));
+    render(<CodeMap />);
+    act(() => useCodemapIndexStore.getState().notifyIndexUpdated());
+    act(() => useCodemapIndexStore.getState().notifyIndexUpdated());
+    await act(async () => {
+      answer({ ok: true, statusText: 'OK', json: async () => mockPackageGraph } as Response);
+    });
+    await waitFor(() => expect(graphNode('@wrongstack/core')).toBeDefined());
+  });
+
   it('shows index guidance when the backend reports an unavailable map', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
@@ -191,6 +206,42 @@ describe('CodeMap component', () => {
 
     await waitFor(() => expect(screen.getByText('CodeMap index unavailable')).toBeDefined());
     expect(screen.getByText(/codebase-index/)).toBeDefined();
+  });
+
+  it('says the index is being refreshed instead of asking for a new index', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      json: async () => ({ error: 'CodeMap index refresh in progress', refreshing: true }),
+    } as Response);
+    render(<CodeMap />);
+
+    // The canvas and the code tree both say so; neither asks for a new index.
+    await waitFor(() =>
+      expect(screen.getAllByText('The code index is being refreshed.')).toHaveLength(2),
+    );
+    expect(screen.queryByText('The code tree could not load.')).toBeNull();
+    expect(screen.queryByText(/codebase-index/)).toBeNull();
+  });
+
+  it('names the setting when the WrongIndex service owns the index', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      json: async () => ({
+        error: 'CodeMap index is owned by the WrongIndex service',
+        ownedExternally: true,
+      }),
+    } as Response);
+    render(<CodeMap />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/managed by the WrongIndex service/)).toBeDefined(),
+    );
+    expect(screen.getByText('indexing.service: "auto"')).toBeDefined();
+    expect(screen.queryByText(/codebase-index/)).toBeNull();
   });
 
   it('shows the friendly unavailable message when a 200 returns the SPA fallback HTML', async () => {

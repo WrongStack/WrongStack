@@ -108,11 +108,19 @@ export function useCodeMapGraphLoader({
 
   const indexGeneration = useCodemapIndexStore((state) => state.generation);
   const lastSeenIndexGeneration = useRef(0);
+  /** The load whose answer the map is waiting for; a newer load or unmount supersedes it. */
+  const loadToken = useRef(0);
+  const firstLoad = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      loadToken.current += 1;
+    },
+    [],
+  );
 
   // Single load path for scope changes and index invalidation — avoids racing
   // two parallel fetches that both call setGraph when an index run finishes.
   useEffect(() => {
-    let cancelled = false;
     const reloadRequested = reloadGeneration > lastReloadGeneration.current;
     if (reloadRequested) lastReloadGeneration.current = reloadGeneration;
     const forceRefresh = reloadRequested || indexGeneration > lastSeenIndexGeneration.current;
@@ -132,15 +140,24 @@ export function useCodeMapGraphLoader({
     // agent edit publishes a generation, so collapsing the tree and flashing
     // the loading state here made the map unusable while an agent worked.
     const background = forceRefresh && graphRef.current !== EMPTY_GRAPH;
+    // Nothing is on screen yet and that first read is still running: let it finish. Restarting it
+    // on every index update meant a busy project (an agent editing, a rebuild answering 503 for a
+    // while) never showed a map at all.
+    if (!reloadRequested && forceRefresh && !background && firstLoad.current === currentScopeKey)
+      return;
+    const token = ++loadToken.current;
+    const cancelled = () => loadToken.current !== token;
+    firstLoad.current = background ? null : currentScopeKey;
     if (!background) {
       setLoading(true);
       setError(null);
     }
     void fetchGraph(scope, forceRefresh)
       .then((nextGraph) => {
-        if (cancelled) return;
+        if (cancelled()) return;
+        firstLoad.current = null;
         setGraph(nextGraph);
-        if (forceRefresh && !reloadRequested) void refreshStalePackages(() => cancelled);
+        if (forceRefresh && !reloadRequested) void refreshStalePackages(cancelled);
         if (background) {
           setSelectedId((current) =>
             current && nextGraph.nodes.some((node) => node.id === current) ? current : null,
@@ -156,15 +173,13 @@ export function useCodeMapGraphLoader({
         setLoading(false);
       })
       .catch((cause: unknown) => {
-        if (cancelled) return;
+        if (cancelled()) return;
+        firstLoad.current = null;
         setError(toErrorMessage(cause));
         // A failed background refresh keeps the last good map on screen.
         if (!background) setGraph(EMPTY_GRAPH);
         setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [currentScopeKey, fetchGraph, indexGeneration, refreshStalePackages, reloadGeneration, scope]);
 
   /** Clear the cache and reload the current scope (error-retry button). */

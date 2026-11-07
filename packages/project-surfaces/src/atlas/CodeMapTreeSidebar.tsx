@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { registerArrowPane } from '../lib/arrow-pane-registry';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
+import { isRefreshing } from './CodeMapCanvasSurface';
 import { DirectoryBranch } from './CodeMapDirectoryTree';
 import { CodeMapSearchResultRow } from './CodeMapSearchResults';
 import {
@@ -199,6 +200,11 @@ export function CodeMapTreeSidebar({
                 />
               </div>
             ))}
+          </div>
+        ) : error && rootGraph.nodes.length === 0 && isRefreshing(error) ? (
+          <div className="flex flex-col items-center gap-2 px-3 py-8 text-center text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <p className="text-xs">{t('activity:codeMapText.refreshing')}</p>
           </div>
         ) : error && rootGraph.nodes.length === 0 ? (
           <div

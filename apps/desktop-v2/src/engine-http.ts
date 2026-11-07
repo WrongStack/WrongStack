@@ -2,6 +2,7 @@ import { EngineHttpError } from './engine-http-error';
 
 export { EngineHttpError, engineHttpError } from './engine-http-error';
 
+import { record } from './engine-values';
 import { request } from './platform';
 
 export type EngineHttp = (resource: string, method?: string, body?: unknown) => Promise<unknown>;
@@ -44,7 +45,9 @@ export function retryWhileUnavailable(
         return await http(resource, method, body);
       } catch (error) {
         const unavailable = error instanceof EngineHttpError && error.status === 503;
-        if (!unavailable || method !== 'GET' || attempt >= delays.length) throw error;
+        // An index the WrongIndex service owns stays unreadable until the setting changes.
+        const lasting = unavailable && record(error.data)['ownedExternally'] === true;
+        if (!unavailable || lasting || method !== 'GET' || attempt >= delays.length) throw error;
         await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
       }
     }

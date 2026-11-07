@@ -27,6 +27,13 @@ describe('retryWhileUnavailable', () => {
     await expect(retryWhileUnavailable(missing, [1])('/x')).rejects.toBeInstanceOf(EngineHttpError);
     expect(missing).toHaveBeenCalledTimes(1);
 
+    const owned = new EngineHttpError(503, { error: 'owned', ownedExternally: true });
+    const external = vi.fn().mockRejectedValue(owned);
+    await expect(retryWhileUnavailable(external, [1, 1])('/api/codemap/packages')).rejects.toBe(
+      owned,
+    );
+    expect(external).toHaveBeenCalledTimes(1);
+
     const post = vi.fn().mockRejectedValue(unavailable);
     await expect(retryWhileUnavailable(post, [1])('/api/codemap/index', 'POST', {})).rejects.toBe(
       unavailable,

@@ -20,6 +20,14 @@ import type { CodeMapGraphResponse, GraphRefType } from './codemap-model';
 function isAuthError(message: string): boolean {
   return /Authentication required|Unauthorized/i.test(message);
 }
+/** The engine is publishing a refreshed index: it exists, it is not readable for a moment. */
+export function isRefreshing(message: string): boolean {
+  return message === 'CodeMap index refresh in progress';
+}
+/** The WrongIndex service owns the index and this engine is not set to use it. */
+function isOwnedExternally(message: string): boolean {
+  return message === 'CodeMap index is owned by the WrongIndex service';
+}
 
 export function CodeMapCanvasSurface({
   loading,
@@ -55,7 +63,26 @@ export function CodeMapCanvasSurface({
           </span>
         </div>
       )}
-      {error && !loading && (
+      {error && !loading && isRefreshing(error) && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-8 text-center">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          <p className="text-sm text-foreground">{t('activity:codeMapText.refreshing')}</p>
+          <p className="max-w-md text-xs text-muted-foreground">
+            {t('activity:codeMapText.refreshingHint')}
+          </p>
+        </div>
+      )}
+      {error && !loading && isOwnedExternally(error) && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-8 text-center">
+          <Network className="h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-foreground">{t('activity:codeMapText.ownedExternally')}</p>
+          <p className="max-w-md text-xs text-muted-foreground">
+            {t('activity:codeMapText.ownedExternallyHint')}{' '}
+            <code className="border bg-muted px-1.5 py-0.5">indexing.service: "auto"</code>
+          </p>
+        </div>
+      )}
+      {error && !loading && !isRefreshing(error) && !isOwnedExternally(error) && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-8 text-center">
           <Network className="h-10 w-10 text-destructive" />
           <p className="font-mono text-sm text-destructive">{error}</p>

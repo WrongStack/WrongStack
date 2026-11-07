@@ -29,6 +29,11 @@ import {
 } from './codemap-cache.js';
 import { errMessage } from './ws-utils.js';
 
+/** The 503 error text while a full index refresh runs; the Code Atlas surface matches it. */
+export const CODEMAP_REFRESHING = 'CodeMap index refresh in progress';
+/** The 503 error text while the WrongIndex service owns the index this engine would read. */
+export const CODEMAP_OWNED_EXTERNALLY = 'CodeMap index is owned by the WrongIndex service';
+
 interface CodemapHandlerDeps {
   projectRoot: string;
   /** Optional index directory override (tests, custom wiring). */
@@ -131,6 +136,18 @@ async function serveCachedGraph(
         timestamp: new Date().toISOString(),
       }),
     );
+    // A full refresh is publishing a new generation: the index exists, it is just not
+    // readable yet. Saying "unavailable" sent people off to build an index they already had.
+    if ((err as { name?: unknown }).name === 'IndexRefreshInProgressError') {
+      sendJson(res, 503, { error: CODEMAP_REFRESHING, refreshing: true }, 'BYPASS');
+      return;
+    }
+    // The WrongIndex service owns this project's index and `indexing.service` does not use it:
+    // building another index here cannot help, so the reply names the setting instead.
+    if ((err as { name?: unknown }).name === 'IndexOwnedExternallyError') {
+      sendJson(res, 503, { error: CODEMAP_OWNED_EXTERNALLY, ownedExternally: true }, 'BYPASS');
+      return;
+    }
     // 503 when the index is not yet built (node:sqlite missing or empty DB)
     sendJson(
       res,

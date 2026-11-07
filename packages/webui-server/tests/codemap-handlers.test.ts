@@ -85,6 +85,35 @@ describe('Code Atlas graph handlers', () => {
     });
   });
 
+  it('tells a refreshing index apart from a missing one', async () => {
+    const refreshing = Object.assign(new Error('refresh in progress (10/20 files)'), {
+      name: 'IndexRefreshInProgressError',
+    });
+    packageGraphService.mockRejectedValueOnce(refreshing);
+    const during = responseCapture();
+    await handleCodemapPackages(during.response, { projectRoot: 'D:/repo' });
+    expect(during.status()).toBe(503);
+    expect(during.body()).toEqual({ error: 'CodeMap index refresh in progress', refreshing: true });
+
+    const owned = Object.assign(new Error('owned by the WrongIndex service (pid 1)'), {
+      name: 'IndexOwnedExternallyError',
+    });
+    packageGraphService.mockRejectedValueOnce(owned);
+    const external = responseCapture();
+    await handleCodemapPackages(external.response, { projectRoot: 'D:/repo' });
+    expect(external.status()).toBe(503);
+    expect(external.body()).toEqual({
+      error: 'CodeMap index is owned by the WrongIndex service',
+      ownedExternally: true,
+    });
+
+    packageGraphService.mockRejectedValueOnce(new Error('no such table: symbols'));
+    const missing = responseCapture();
+    await handleCodemapPackages(missing.response, { projectRoot: 'D:/repo' });
+    expect(missing.status()).toBe(503);
+    expect(missing.body()).toMatchObject({ error: 'CodeMap index unavailable' });
+  });
+
   it('returns 400 before touching the index when drill-down scope is missing', async () => {
     const files = responseCapture();
     await handleCodemapFiles(files.response, { projectRoot: 'D:/repo' }, '');
