@@ -95,9 +95,15 @@ export function appendQuarantine(
     // Trim from the front at an entry boundary; the newest retirements are the
     // ones worth keeping.
     const marker = '<!-- quarantined:';
-    const overflow = Buffer.byteLength(next, 'utf8') - QUARANTINE_MAX_BYTES;
-    const cut = next.indexOf(marker, overflow);
-    next = cut === -1 ? block : next.slice(cut);
+    while (Buffer.byteLength(next, 'utf8') > QUARANTINE_MAX_BYTES) {
+      const firstMarker = next.indexOf(marker);
+      const nextMarker = next.indexOf(marker, firstMarker === -1 ? 0 : firstMarker + marker.length);
+      if (nextMarker === -1) {
+        if (firstMarker > 0) next = next.slice(firstMarker);
+        break;
+      }
+      next = next.slice(nextMarker);
+    }
   }
   writeTextAtomically(filePath, next);
 }
@@ -160,8 +166,16 @@ export function scrubRetiredLines(text: string, retired: readonly string[]): str
   const kept: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] as string;
+    const trimmed = line.trimStart();
+    const isStructure =
+      !trimmed ||
+      trimmed.startsWith('#') ||
+      trimmed.startsWith('>') ||
+      /^-{3,}\s*$/.test(trimmed) ||
+      /^(?:\*[^*].*\*|_[^_].*_)$/.test(trimmed.trimEnd());
     const claim = bareClaim(line);
     if (
+      !isStructure &&
       claim.length >= MIN_INSTRUCTIVE_LENGTH &&
       keys.some(
         (key) => tokenOverlap(key, normalizeForComparison(claim)) >= RETIRED_MATCH_THRESHOLD,

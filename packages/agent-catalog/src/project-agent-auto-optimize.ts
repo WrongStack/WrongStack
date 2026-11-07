@@ -186,6 +186,7 @@ export class LearningOptimizationScheduler {
   private readonly queued = new Set<string>();
   private running: Promise<void> = Promise.resolve();
   private inFlight: string | null = null;
+  private inFlightAbort: AbortController | null = null;
   private disposed = false;
 
   constructor(private readonly opts: LearningOptimizationSchedulerOptions) {}
@@ -251,17 +252,34 @@ export class LearningOptimizationScheduler {
   }
 
   private async runIfEligible(role: string, trigger?: 'manual-sweep'): Promise<void> {
-    if (this.disposed || this.queued.has(role)) return;
-    const backoff = this.failures.get(role);
+    if (this.disposed) return;
+    let normalizedRole: string;
+    try {
+      normalizedRole = assertProjectAgentRole(role);
+    } catch {
+      return;
+    }
+    const existingTimer = this.pending.get(normalizedRole);
+    if (existingTimer) {
+      (this.opts.cancelTimer ?? clearTimeout)(existingTimer);
+      this.pending.delete(normalizedRole);
+    }
+    if (this.queued.has(normalizedRole)) return;
+    const backoff = this.failures.get(normalizedRole);
     if (backoff && this.now < backoff.until) return;
     let decision: AutoOptimizeDecision;
     try {
-      decision = evaluateAutoOptimize(role, this.opts.projectRoot, this.opts.getPolicy(), this.now);
+      decision = evaluateAutoOptimize(
+        normalizedRole,
+        this.opts.projectRoot,
+        this.opts.getPolicy(),
+        this.now,
+      );
     } catch {
       return;
     }
     if (!decision.eligible) return;
-    await this.enqueue(role, trigger ?? decision.reason);
+    await this.enqueue(normalizedRole, trigger ?? decision.reason);
   }
 
   /** Serialize passes: one optimization at a time, process-wide. */
@@ -278,13 +296,18 @@ export class LearningOptimizationScheduler {
 
   private async execute(role: string, trigger: AutoOptimizeEvent['trigger']): Promise<void> {
     if (this.disposed) return;
+    const controller = new AbortController();
     this.inFlight = role;
+    this.inFlightAbort = controller;
     try {
       const llm = await this.opts.getLlm();
+      if (this.disposed || controller.signal.aborted) return;
       const result = await optimizeProjectAgentLearning(role, this.opts.projectRoot, {
         ...(llm ? { llm } : {}),
         trigger: 'automatic',
+        signal: controller.signal,
       });
+      if (this.disposed || controller.signal.aborted) return;
       if (result.status === 'failed') {
         this.recordFailure(role);
         this.opts.onEvent?.({ role, trigger, result, error: result.error });
@@ -293,6 +316,7 @@ export class LearningOptimizationScheduler {
       this.failures.delete(role);
       this.opts.onEvent?.({ role, trigger, result });
     } catch (error) {
+      if (this.disposed || controller.signal.aborted) return;
       this.recordFailure(role);
       this.opts.onEvent?.({
         role,
@@ -301,6 +325,9 @@ export class LearningOptimizationScheduler {
       });
     } finally {
       this.inFlight = null;
+      if (this.inFlightAbort === controller) {
+        this.inFlightAbort = null;
+      }
     }
   }
 
@@ -321,6 +348,8 @@ export class LearningOptimizationScheduler {
   /** Cancel pending debounces. Safe to call more than once. */
   dispose(): void {
     this.disposed = true;
+    this.inFlightAbort?.abort(new Error('optimization scheduler disposed'));
+    this.inFlightAbort = null;
     for (const handle of this.pending.values()) {
       (this.opts.cancelTimer ?? clearTimeout)(handle);
     }

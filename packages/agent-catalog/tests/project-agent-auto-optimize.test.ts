@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import type { Provider, Request, Response } from '@wrongstack/contracts/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  appendQuarantine,
   captureLearnedFromAgentOutputDetailed,
   DEFAULT_AUTO_OPTIMIZE_POLICY,
   evaluateAutoOptimize,
@@ -11,9 +12,11 @@ import {
   LearningOptimizationScheduler,
   listProjectSkillAugmentations,
   loadConsolidationMetadata,
+  readQuarantinedDirectives,
   resetCaptureWindows,
   resolveAutoOptimizePolicy,
   saveProjectAgentConsolidated,
+  scrubRetiredLines,
   updateProjectAgentLearningPolicy,
 } from '../src/index.js';
 
@@ -301,5 +304,106 @@ describe('scheduler', () => {
     scheduler.notifyCaptured('verifier');
     await scheduler.idle();
     expect(events).toEqual([]);
+  });
+
+  it('aborts in-flight optimization on dispose, deduplicates padded sweep roles, and preserves UTF-8 quarantine entries & headings (F53, F54)', async () => {
+    learn(
+      'verifier',
+      'Always run `pnpm vitest run` from the repository root, never per package.',
+      'testing',
+    );
+    let enteredGetLlm!: () => void;
+    let releaseGetLlm!: () => void;
+    const getLlmEntered = new Promise<void>((r) => {
+      enteredGetLlm = r;
+    });
+    const getLlmGate = new Promise<void>((r) => {
+      releaseGetLlm = r;
+    });
+    let providerCalls = 0;
+    const { scheduler, events } = makeScheduler({
+      getLlm: async () => {
+        enteredGetLlm();
+        await getLlmGate;
+        return stubLlm('# Consolidated\n\n- Never reached.', () => {
+          providerCalls++;
+        });
+      },
+    });
+    scheduler.notifyCaptured('verifier');
+    scheduler.sweep([' verifier ', 'verifier']);
+    await getLlmEntered;
+    scheduler.dispose();
+    releaseGetLlm();
+    await scheduler.idle();
+    expect(providerCalls).toBe(0);
+    expect(events).toEqual([]);
+    expect(loadConsolidationMetadata('verifier', projectRoot)).toBeUndefined();
+
+    const headingDoc = [
+      '## Database migration rollback verification rules for staging deploys',
+      '  - Keep this valid indented checklist item under the section heading.',
+      '- Always run database migration rollback verification rules for staging deploys.',
+    ].join('\n');
+    const scrubbed = scrubRetiredLines(headingDoc, [
+      'Always run database migration rollback verification rules for staging deploys.',
+    ]);
+    expect(scrubbed).toContain(
+      '## Database migration rollback verification rules for staging deploys',
+    );
+    expect(scrubbed).toContain(
+      'Keep this valid indented checklist item under the section heading.',
+    );
+    expect(scrubbed).not.toContain(
+      '- Always run database migration rollback verification rules for staging deploys.',
+    );
+
+    appendQuarantine(
+      'verifier',
+      [
+        {
+          key: 'e1',
+          category: 'warning',
+          what: `Entry-1 ${'—'.repeat(650)} end-1`,
+          why: 'why',
+          how: '',
+          capturedAt: '2026-01-01T00:00:00Z',
+          applied: 10,
+          wins: 1,
+        },
+        {
+          key: 'e2',
+          category: 'warning',
+          what: `Entry-2 ${'—'.repeat(19800)} end-2`,
+          why: 'why',
+          how: '',
+          capturedAt: '2026-01-01T00:00:00Z',
+          applied: 10,
+          wins: 1,
+        },
+      ],
+      '2026-01-01T00:00:00Z',
+      projectRoot,
+    );
+    appendQuarantine(
+      'verifier',
+      [
+        {
+          key: 'e3',
+          category: 'warning',
+          what: `Entry-3 ${'—'.repeat(1600)} end-3`,
+          why: 'why',
+          how: '',
+          capturedAt: '2026-01-02T00:00:00Z',
+          applied: 10,
+          wins: 1,
+        },
+      ],
+      '2026-01-02T00:00:00Z',
+      projectRoot,
+    );
+    expect(
+      readQuarantinedDirectives('verifier', projectRoot).map((d) => d.what.slice(0, 7)),
+    ).toEqual(['Entry-2', 'Entry-3']);
   });
 });
