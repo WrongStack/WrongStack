@@ -257,8 +257,8 @@ describe('estimateContextBreakdown', () => {
     });
     expect(result.tools.count).toBe(1);
     expect(result.tools.total).toBeGreaterThan(0);
-    expect(result.tools.breakdown[0].name).toBe('read_file');
-    expect(result.tools.breakdown[0].tokens).toBeGreaterThan(0);
+    expect(result.tools.breakdown[0]!.name).toBe('read_file');
+    expect(result.tools.breakdown[0]!.tokens).toBeGreaterThan(0);
   });
 
   it('handles tools with empty schema and description', () => {
@@ -282,8 +282,8 @@ describe('estimateContextBreakdown', () => {
     });
     expect(result.messages.count).toBe(2);
     expect(result.messages.total).toBeGreaterThan(0);
-    expect(result.messages.breakdown[0].role).toBe('user');
-    expect(result.messages.breakdown[1].role).toBe('assistant');
+    expect(result.messages.breakdown[0]!.role).toBe('user');
+    expect(result.messages.breakdown[1]!.role).toBe('assistant');
   });
 
   it('computes total as sum of all parts', () => {
@@ -326,7 +326,7 @@ describe('estimateContextBreakdown', () => {
       tools: [],
       messages: [{ role: 'system', content: 42 }],
     });
-    expect(result.messages.breakdown[0].tokens).toBe(0);
+    expect(result.messages.breakdown[0]!.tokens).toBe(0);
   });
 
   it('WebUI estimate matches the canonical core basis (~14% divergence gone)', () => {

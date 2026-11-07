@@ -69,11 +69,11 @@
     "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/worktree": "workspace:*",
     "@wrongstack/wrongtrace": "workspace:*",
-    "ws": "^8.22.0"
+    "ws": "^8.22.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "@types/ws": "^8.18.1",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

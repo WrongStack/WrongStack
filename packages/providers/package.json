@@ -41,24 +41,24 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "5.0.121",
-    "@ai-sdk/anthropic": "4.0.85",
-    "@ai-sdk/azure": "4.0.107",
-    "@ai-sdk/cohere": "4.0.66",
-    "@ai-sdk/google": "4.0.102",
-    "@ai-sdk/google-vertex": "5.0.119",
-    "@ai-sdk/openai": "4.0.99",
-    "@ai-sdk/openai-compatible": "3.0.75",
-    "@ai-sdk/provider": "4.0.31",
+    "@ai-sdk/amazon-bedrock": "5.0.133",
+    "@ai-sdk/anthropic": "4.0.97",
+    "@ai-sdk/azure": "4.0.117",
+    "@ai-sdk/cohere": "4.0.76",
+    "@ai-sdk/google": "4.0.112",
+    "@ai-sdk/google-vertex": "5.0.132",
+    "@ai-sdk/openai": "4.0.109",
+    "@ai-sdk/openai-compatible": "3.0.85",
+    "@ai-sdk/provider": "4.0.36",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
-    "ai": "7.0.148",
-    "ws": "^8.22.0",
+    "ai": "7.0.163",
+    "ws": "^8.22.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "@types/ws": "^8.18.1",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

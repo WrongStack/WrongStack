@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockProjectSlug = vi.hoisted(() => vi.fn());
 vi.mock('@wrongstack/core/utils', () => ({
@@ -9,11 +9,11 @@ vi.mock('@wrongstack/core/utils', () => ({
 }));
 
 import {
-  projectsJsonPath,
-  loadManifest,
-  saveManifest,
-  generateProjectSlug,
   ensureProjectDataDir,
+  generateProjectSlug,
+  loadManifest,
+  projectsJsonPath,
+  saveManifest,
 } from '../src/server/projects-manifest.js';
 
 describe('projects-manifest', () => {
@@ -66,7 +66,7 @@ describe('projects-manifest', () => {
       );
       const manifest = await loadManifest(configPath);
       expect(manifest.projects).toHaveLength(1);
-      expect(manifest.projects[0].name).toBe('test');
+      expect(manifest.projects[0]!.name).toBe('test');
     });
 
     it('defaults to empty array when projects field is missing', async () => {

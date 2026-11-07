@@ -901,7 +901,7 @@ describe('DefaultConfigLoader', () => {
     await fs.writeFile(paths.syncConfig, JSON.stringify({ githubToken: 'ghp_abc' }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockFs = (globalThis as any).__mockFs as typeof fs;
-    mockFs.readFile.mockRejectedValueOnce(
+    vi.mocked(mockFs.readFile).mockRejectedValueOnce(
       Object.assign(new Error('Permission denied'), { code: 'EACCES' }),
     );
     try {
@@ -918,7 +918,7 @@ describe('DefaultConfigLoader', () => {
         }),
       );
     } finally {
-      mockFs.readFile.mockReset();
+      vi.mocked(mockFs.readFile).mockReset();
     }
   });
 

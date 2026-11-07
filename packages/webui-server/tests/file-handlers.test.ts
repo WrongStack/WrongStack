@@ -46,13 +46,14 @@ describe('file handlers integration', () => {
 
   // Helper to create a mock WebSocket
   function createMockWs() {
+    const sent: unknown[] = [];
     const ws = {
       readyState: 1,
-      sent: [] as unknown[],
+      sent,
       send(data: string) {
-        this.sent.push(JSON.parse(data));
+        sent.push(JSON.parse(data));
       },
-    } as never as WebSocket & { sent: unknown[] };
+    } as unknown as WebSocket & { sent: unknown[] };
     return ws;
   }
 

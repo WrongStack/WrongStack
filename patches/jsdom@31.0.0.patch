@@ -1,0 +1,20 @@
+diff --git a/lib/jsdom/browser/Window.js b/lib/jsdom/browser/Window.js
+index 51b23acc2cbcc5d0972c2d0a320ab0b86d0cdf0a..1ba515344dbe4ca7c30076241439e4e0559488ea 100644
+--- a/lib/jsdom/browser/Window.js
++++ b/lib/jsdom/browser/Window.js
+@@ -120,6 +120,15 @@ exports.createWindow = (options) => {
+ 
+   // Now that the prototype chain is fully set up, call the superclass setup.
+   EventTarget.setup(window, window);
++  // A VM host can expose a distinct global proxy without the Window's private brand.
++  // Register only that legitimate proxy with the same EventTarget implementation.
++  if (window._globalProxy !== window && !EventTarget.is(window._globalProxy)) {
++    idlUtils.registerWrapper(
++      window._globalProxy,
++      idlUtils.implForWrapper(window),
++      EventTarget.interfaceDescriptor,
++    );
++  }
+ 
+   installOwnProperties(window, options);
+   installEventHandlers(window);

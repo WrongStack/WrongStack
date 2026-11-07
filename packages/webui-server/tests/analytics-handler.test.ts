@@ -13,7 +13,6 @@ import {
 } from '../src/server/http-server/analytics-handler.js';
 
 function createMockReq(body: unknown, method = 'POST'): IncomingMessage {
-  const _chunks: Buffer[] = [];
   const req = {
     method,
     headers: { 'user-agent': 'test-agent' },
@@ -45,7 +44,10 @@ function createMockRes(): ServerResponse & { body?: string | undefined } {
       return res;
     },
     body: undefined as string | undefined,
-  } as unknown as ServerResponse & { body?: string };
+  } as unknown as ServerResponse & {
+    body?: string | undefined;
+    headers: Record<string, string | number | string[]>;
+  };
   return res;
 }
 
@@ -121,7 +123,7 @@ describe('handleApiAnalyticsPost', () => {
     await handleApiAnalyticsPost(res, req);
 
     const buffer = getAnalyticsBuffer();
-    expect(buffer[0].userAgent).toBe('test-agent');
+    expect(buffer[0]?.userAgent).toBe('test-agent');
   });
 
   it('returns 400 for invalid JSON', async () => {
@@ -296,7 +298,7 @@ describe('buffer eviction', () => {
     expect(getAnalyticsBuffer()).toHaveLength(1000);
     // First 5 should have been evicted
     const buffer = getAnalyticsBuffer();
-    expect(buffer[0].event).toBe('event_5');
-    expect(buffer[buffer.length - 1].event).toBe('event_1004');
+    expect(buffer[0]?.event).toBe('event_5');
+    expect(buffer[buffer.length - 1]?.event).toBe('event_1004');
   });
 });

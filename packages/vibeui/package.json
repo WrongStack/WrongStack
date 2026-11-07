@@ -31,8 +31,8 @@
   },
   "dependencies": {
     "@wrongstack/webui-protocol": "workspace:*",
-    "@xyflow/react": "12.12.0",
-    "lucide-react": "1.61.0",
+    "@xyflow/react": "12.12.1",
+    "lucide-react": "1.69.0",
     "lowlight": "3.3.0",
     "radix-ui": "1.8.1",
     "react": "19.3.1",
@@ -41,12 +41,15 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
-    "next": "16.4.2",
-    "@tailwindcss/postcss": "4.3.3",
+    "next": "16.4.5",
+    "@tailwindcss/postcss": "4.3.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.4",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }
 }
+
+
+

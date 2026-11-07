@@ -20,13 +20,14 @@ import type { WebSocket } from 'ws';
 
 /** Minimal ws mock that records parsed JSON sends. */
 function createMockWs() {
+  const sent: unknown[] = [];
   const ws = {
     readyState: 1,
-    sent: [] as Array<{ type: string; payload: Record<string, unknown> }>,
+    sent,
     send(data: string) {
-      this.sent.push(JSON.parse(data));
+      sent.push(JSON.parse(data));
     },
-  } as never as WebSocket & { sent: Array<{ type: string; payload: Record<string, unknown> }> };
+  } as unknown as WebSocket & { sent: Array<{ type: string; payload: Record<string, unknown> }> };
   return ws;
 }
 

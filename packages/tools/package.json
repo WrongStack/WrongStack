@@ -270,13 +270,13 @@
     "@wrongstack/primitives": "workspace:*",
     "quickjs-emscripten-core": "^0.32.0",
     "tree-sitter-wasm": "2.0.4",
-    "turndown": "^7.2.4",
-    "undici": "^8.12.3",
-    "unpdf": "1.9.1",
+    "turndown": "^7.2.5",
+    "undici": "^8.12.4",
+    "unpdf": "2.1.0",
     "web-tree-sitter": "0.27.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

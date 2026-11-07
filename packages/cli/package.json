@@ -89,13 +89,13 @@
     "@wrongstack/webui-server": "workspace:*",
     "@wrongstack/worktree": "workspace:*",
     "@wrongstack/wrongtrace": "workspace:*",
-    "ws": "^8.22.0"
+    "ws": "^8.22.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "@types/ws": "^8.18.1",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "@wrongstack/governance": "workspace:*",
-    "jsdom": "30.0.1",
+    "jsdom": "31.0.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

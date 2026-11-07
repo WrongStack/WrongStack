@@ -50,13 +50,16 @@
     "@wrongstack/webui-protocol": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "@types/ws": "^8.18.1",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5",
-    "ws": "^8.21.3"
+    "ws": "^8.22.1"
   },
   "publishConfig": {
     "access": "public"
   }
 }
+
+
+

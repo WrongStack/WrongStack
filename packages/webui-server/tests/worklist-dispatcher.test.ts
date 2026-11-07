@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 
 function createMockWs() {
+  const sent: unknown[] = [];
   const ws = {
     readyState: 1,
-    sent: [] as Array<{ type: string; payload?: Record<string, unknown>; message?: string }>,
+    sent,
     send(data: string) {
-      this.sent.push(JSON.parse(data));
+      sent.push(JSON.parse(data));
     },
   } as never as WebSocket & {
     sent: Array<{ type: string; payload?: Record<string, unknown>; message?: string }>;
@@ -16,7 +17,6 @@ function createMockWs() {
 }
 
 function makeCtx(): WorklistContext {
-  const _ws = createMockWs();
   return {
     context: {
       todos: [{ id: 't1', content: 'do thing', status: 'pending' } as never],

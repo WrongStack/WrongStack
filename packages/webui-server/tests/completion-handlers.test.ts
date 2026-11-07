@@ -592,11 +592,12 @@ describe('completion WebSocket handler', { timeout: 30_000 }, () => {
 });
 
 function createMockWs() {
+  const sent: unknown[] = [];
   return {
     readyState: 1,
-    sent: [] as unknown[],
+    sent,
     send(data: string) {
-      this.sent.push(JSON.parse(data));
+      sent.push(JSON.parse(data));
     },
   } as never as WebSocket & { sent: unknown[] };
 }

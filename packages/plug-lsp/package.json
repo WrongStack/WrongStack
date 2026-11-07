@@ -40,13 +40,13 @@
   "dependencies": {
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/tools": "workspace:*",
-    "vscode-languageserver-protocol": "^3.18.4"
+    "vscode-languageserver-protocol": "^3.18.5"
   },
   "peerDependencies": {
     "@wrongstack/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@wrongstack/core": "workspace:*",
     "typescript": "^7.0.2"
   },

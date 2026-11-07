@@ -47,6 +47,8 @@ function snapshot(over: Partial<SddBoardSnapshot> = {}): SddBoardSnapshot {
       blocked: 0,
       review: 0,
       percentComplete: 100,
+      estimatedHours: 0,
+      actualHours: 0,
     },
     wave: 0,
     tasks: [],

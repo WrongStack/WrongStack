@@ -112,7 +112,7 @@ describe('instance-registry', () => {
       const parsed = JSON.parse(content);
       expect(parsed.version).toBe(1);
       expect(parsed.instances).toHaveLength(1);
-      expect(parsed.instances[0].pid).toBe(99999);
+      expect(parsed.instances[0]!.pid).toBe(99999);
     });
   });
 
@@ -178,7 +178,7 @@ describe('instance-registry', () => {
       const instances = await listInstances('/tmp/base');
 
       expect(instances).toHaveLength(1);
-      expect(instances[0].pid).toBe(99999);
+      expect(instances[0]!.pid).toBe(99999);
       killSpy.mockRestore();
     });
 

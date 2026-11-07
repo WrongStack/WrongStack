@@ -494,7 +494,7 @@ function makeHarness(input: {
     getSessionStore: () => store as never,
     sessionsDir: input.sessionsDir,
     setSession: (next) => {
-      current = next as typeof current;
+      current = next as unknown as typeof current;
     },
     setSessionStartedAt: vi.fn(),
     claimSession,

@@ -4,10 +4,7 @@ import { WebSocket } from '../src/ws-runtime.js';
 
 // Mock ws module
 vi.mock('ws/native', async (importOriginal) => {
-  const MockWebSocket = vi.fn();
-  MockWebSocket.OPEN = 1;
-  MockWebSocket.CLOSING = 2;
-  MockWebSocket.CLOSED = 3;
+  const MockWebSocket = Object.assign(vi.fn(), { OPEN: 1, CLOSING: 2, CLOSED: 3 });
   return { ...(await importOriginal<Record<string, unknown>>()), WebSocket: MockWebSocket };
 });
 

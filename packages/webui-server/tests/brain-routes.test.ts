@@ -24,6 +24,8 @@ function handlers(): BrainRouteHandlers {
     status: vi.fn(),
     risk: vi.fn(),
     ask: vi.fn(),
+    configGet: vi.fn(),
+    configSet: vi.fn(),
   };
 }
 

@@ -4,10 +4,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoamingMascot } from '../src/components/roaming-mascot';
 import { WorkspacePreferencesProvider } from '../src/components/workspace-preferences';
-import { MASCOT_HOME, MASCOT_REACTION_MS } from '../src/lib/mascot';
+import { MASCOT_REACTION_MS } from '../src/lib/mascot';
 import { WORKSPACE_PREFERENCES_KEY } from '../src/lib/workspace-preferences';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// jsdom 31 normalizes `translate(0px, 0px)` to `translate(0px)` when the style
+// round-trips through getComputedStyle, so the home transform compares in its
+// normalized serialization.
+const JSDOM_MASCOT_HOME = 'translate(0px) scale(0.5)';
 
 let reducedMotion = false;
 const motionListeners = new Set<() => void>();
@@ -156,7 +161,7 @@ describe('Stacky, the roaming mascot', () => {
     const { host } = mount();
     expect(home(host)?.dataset.playful).toBe('false');
     expect(home(host)?.dataset.roaming).toBe('false');
-    expect(actor().style.transform).toBe(MASCOT_HOME);
+    expect(actor().style.transform).toBe(JSDOM_MASCOT_HOME);
     openMenu();
     expect(reactionText()).toBe('Tap me for a high five.');
     act(() => byLabel('Give Stacky a high five').click());
@@ -224,7 +229,7 @@ describe('Stacky, the roaming mascot', () => {
     vi.useFakeTimers();
     const { host } = mount();
     expect(home(host)?.dataset.roaming).toBe('true');
-    expect(actor().style.transform).toBe(MASCOT_HOME);
+    expect(actor().style.transform).toBe(JSDOM_MASCOT_HOME);
     act(() => vi.advanceTimersByTime(10_000));
     expect(players).toHaveLength(1);
     expect(home(host)?.dataset.moving).toBe('true');
@@ -260,7 +265,7 @@ describe('Stacky, the roaming mascot', () => {
     expect(players[0]!.cancel).toHaveBeenCalled();
     expect(home(host)?.dataset.roaming).toBe('false');
     expect(home(host)?.dataset.playful).toBe('false');
-    expect(actor().style.transform).toBe(MASCOT_HOME);
+    expect(actor().style.transform).toBe(JSDOM_MASCOT_HOME);
   });
 
   it('hides from overlays and a hidden tab', async () => {

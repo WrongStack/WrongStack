@@ -1,13 +1,14 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 // ── Fake node-pty ────────────────────────────────────────────────────────────
 interface FakePty {
   pid?: number | undefined;
-  write: ReturnType<typeof vi.fn>;
-  resize: ReturnType<typeof vi.fn>;
-  kill: ReturnType<typeof vi.fn>;
+  write: Mock<(data: string) => void>;
+  resize: Mock<(cols: number, rows: number) => void>;
+  kill: Mock<() => void>;
   emitData: (d: string) => void;
   emitExit: (code: number, signal?: number) => void;
 }
@@ -15,9 +16,9 @@ interface FakePty {
 // Hoisted so the vi.mock factory (also hoisted) can reference them safely.
 const { spawned, spawnMock } = vi.hoisted(() => {
   const spawnedArr: FakePty[] = [];
-  const mock = vi.fn(() => {
+  const mock = vi.fn((..._args: unknown[]) => {
     let dataCb: ((d: string) => void) | null = null;
-    let exitCb: ((e: { exitCode: number; signal?: number }) => void) | null = null;
+    let exitCb: ((e: { exitCode: number; signal?: number | undefined }) => void) | null = null;
     const pty: FakePty = {
       pid: undefined,
       write: vi.fn(),
@@ -33,7 +34,7 @@ const { spawned, spawnMock } = vi.hoisted(() => {
       onData: (cb: (d: string) => void) => {
         dataCb = cb;
       },
-      onExit: (cb: (e: { exitCode: number; signal?: number }) => void) => {
+      onExit: (cb: (e: { exitCode: number; signal?: number | undefined }) => void) => {
         exitCb = cb;
       },
       write: pty.write,
@@ -68,7 +69,15 @@ function makeWs() {
   return ws as any;
 }
 
-const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+const logger = {
+  level: 'warn' as const,
+  trace: vi.fn(),
+  child: (): Logger => logger,
+  warn: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+};
 const loadFakeNodePty = () => ({ spawn: spawnMock });
 // Explicit boundary for test isolation. The default compat boundary denies
 // critical risk from remote-client actors; terminal.create (high) is still

@@ -1,4 +1,3 @@
-diff --git a/node_modules/ws/.bun-tag-24dff0a81a750fea b/.bun-tag-24dff0a81a750fea
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/ws/native.d.mts b/native.d.mts

@@ -27,7 +27,7 @@ import {
 } from '@wrongstack/webui-server';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import type { WSServerMessage } from '../../src/types.js';
+import type { WSServerMessage } from '../src/server/types.js';
 
 /** Build a SkillsContext with stubbed loader/installer (undefined by default). */
 function makeCtx(over: Partial<SkillsContext> = {}): SkillsContext {

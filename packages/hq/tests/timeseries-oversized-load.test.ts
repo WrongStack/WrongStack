@@ -80,7 +80,10 @@ describe('HqTimeseriesStore oversized load', () => {
     expect(size).toBeGreaterThan(536_870_888); // Node's MAX_STRING_LENGTH
     // Require streaming on every runtime, independently of its string ceiling.
     const readWholeFile = fs.readFile;
-    const readSpy = vi.spyOn(fs, 'readFile').mockImplementation((async (target, ...options) => {
+    const readSpy = vi.spyOn(fs, 'readFile').mockImplementation((async (
+      target: Parameters<typeof fs.readFile>[0],
+      ...options: unknown[]
+    ) => {
       if (String(target) === filePath()) throw new Error('whole-file timeseries read is forbidden');
       return Reflect.apply(readWholeFile, fs, [target, ...options]);
     }) as typeof fs.readFile);

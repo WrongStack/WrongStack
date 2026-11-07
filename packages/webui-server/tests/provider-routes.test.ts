@@ -625,9 +625,14 @@ describe('resolveProviderModelMetadata', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderModelMetadata({ getModel }, 'omniroute', 'omni/large', {
-      type: 'openai-compatible',
-    });
+    const resolved = await resolveProviderModelMetadata(
+      { getModel, getProvider: async () => undefined },
+      'omniroute',
+      'omni/large',
+      {
+        type: 'openai-compatible',
+      },
+    );
 
     expect(resolved?.providerId).toBe('omniroute');
     expect(resolved?.capabilities.maxContext).toBe(262144);
@@ -647,9 +652,14 @@ describe('resolveProviderModelMetadata', () => {
       return undefined;
     });
 
-    const resolved = await resolveProviderModelMetadata({ getModel }, 'custom-gateway', 'generic', {
-      type: 'openai-compatible',
-    });
+    const resolved = await resolveProviderModelMetadata(
+      { getModel, getProvider: async () => undefined },
+      'custom-gateway',
+      'generic',
+      {
+        type: 'openai-compatible',
+      },
+    );
 
     expect(resolved?.providerId).toBe('openai-compatible');
     expect(resolved?.capabilities.maxContext).toBe(8192);

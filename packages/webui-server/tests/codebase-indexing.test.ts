@@ -68,9 +68,7 @@ describe('WebUI codebase indexing', () => {
     warn: vi.fn(),
     error: vi.fn(),
     trace: vi.fn(),
-    child: vi.fn(function child() {
-      return this;
-    }),
+    child: vi.fn(() => logger),
   };
 
   beforeEach(() => {

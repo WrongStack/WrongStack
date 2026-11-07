@@ -130,7 +130,7 @@ describe('custom-context-modes', () => {
         store.modes.set('my-mode', makeMode({ id: 'my-mode', name: 'My Mode' }));
         await store.save();
         expect(mockAtomicWrite).toHaveBeenCalledTimes(1);
-        const [path, json] = mockAtomicWrite.mock.calls[0];
+        const [path, json] = mockAtomicWrite.mock.calls[0]!;
         expect(path).toContain('custom-context-modes.json');
         const parsed = JSON.parse(json);
         expect(parsed.modes).toHaveLength(1);
@@ -302,10 +302,10 @@ describe('custom-context-modes', () => {
         store.create(makeMode({ id: 'custom-mode', name: 'Custom' }));
         const all = store.list();
         expect(all).toHaveLength(2);
-        expect(all[0].id).toBe('balanced');
-        expect(all[0].custom).toBe(false);
-        expect(all[1].id).toBe('custom-mode');
-        expect(all[1].custom).toBe(true);
+        expect(all[0]!.id).toBe('balanced');
+        expect(all[0]!.custom).toBe(false);
+        expect(all[1]!.id).toBe('custom-mode');
+        expect(all[1]!.custom).toBe(true);
       });
 
       it('returns only built-ins when no custom modes', () => {

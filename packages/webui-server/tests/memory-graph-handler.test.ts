@@ -35,11 +35,12 @@ afterEach(async () => {
 });
 
 function mockSocket(): WebSocket & { sent: unknown[] } {
+  const sent: unknown[] = [];
   return {
     readyState: 1,
-    sent: [],
+    sent,
     send(data: string) {
-      this.sent.push(JSON.parse(data));
+      sent.push(JSON.parse(data));
     },
   } as never;
 }

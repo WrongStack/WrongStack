@@ -15,7 +15,7 @@ describe('WebUI preference persistence helpers', () => {
   let dir: string;
   let rootConfigPath: string;
   let configPath: string;
-  let warn: ReturnType<typeof vi.fn>;
+  let warn: ReturnType<typeof vi.fn<(msg: string) => void>>;
   let deps: PrefHelperDeps;
   let holder: ConfigWriteLockHolder;
 
@@ -29,7 +29,7 @@ describe('WebUI preference persistence helpers', () => {
       JSON.stringify({ version: 1, activeProfile: 'default' }),
       'utf8',
     );
-    warn = vi.fn();
+    warn = vi.fn<(msg: string) => void>();
     deps = {
       profileConfigPath: configPath,
       vault: noOpVault,

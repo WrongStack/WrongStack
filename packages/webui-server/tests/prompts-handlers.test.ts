@@ -27,7 +27,7 @@ import {
 } from '@wrongstack/webui-server';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import type { WSServerMessage } from '../../src/types.js';
+import type { WSServerMessage } from '../src/server/types.js';
 
 function entry(slug: string, over: Partial<PromptEntry> = {}): PromptEntry {
   const now = new Date(0).toISOString();
