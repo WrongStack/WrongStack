@@ -205,6 +205,21 @@ mod tests {
         let next = Engine::events(&path, end).unwrap();
         assert_eq!(next["events"].as_array().unwrap().len(), 1);
         assert_eq!(next["events"][0]["type"], "new");
+
+        let large_partial = format!("{{\"type\":\"large\",\"payload\":\"{}", "x".repeat(70_000));
+        fs::write(&path, format!("{line}{large_partial}")).unwrap();
+        let large_end = Engine::journal_end(&path).unwrap()["offset"]
+            .as_u64()
+            .unwrap();
+        assert_eq!(
+            large_end,
+            line.len() as u64,
+            "A half-written line exceeding 64 KiB must still rewind to the previous newline"
+        );
+        fs::write(&path, format!("{line}{large_partial}\"}}\n")).unwrap();
+        let replayed = Engine::events(&path, large_end).unwrap();
+        assert_eq!(replayed["events"].as_array().unwrap().len(), 1);
+        assert_eq!(replayed["events"][0]["type"], "large");
         fs::remove_file(path).unwrap();
     }
 }
@@ -362,17 +377,24 @@ impl Engine {
             }
             Err(e) => return Err(err(e)),
         };
-        let len = file.metadata().map_err(err)?.len();
-        let start = len.saturating_sub(65536);
-        file.seek(SeekFrom::Start(start)).map_err(err)?;
+        let mut cursor = file.metadata().map_err(err)?.len();
+        let mut end = 0;
         let mut tail = Vec::new();
-        file.read_to_end(&mut tail).map_err(err)?;
-        // A line still being written is left for the next read.
-        let end = tail
-            .iter()
-            .take((len - start) as usize)
-            .rposition(|byte| *byte == b'\n')
-            .map_or(start, |at| start + at as u64 + 1);
+        while cursor > 0 {
+            let start = cursor.saturating_sub(65536);
+            file.seek(SeekFrom::Start(start)).map_err(err)?;
+            tail.clear();
+            (&mut file)
+                .take(cursor - start)
+                .read_to_end(&mut tail)
+                .map_err(err)?;
+            // A line still being written is left for the next read.
+            if let Some(at) = tail.iter().rposition(|byte| *byte == b'\n') {
+                end = start + at as u64 + 1;
+                break;
+            }
+            cursor = start;
+        }
         Ok(json!({"offset":end,"events":[],"hasMore":false,"tail":true}))
     }
     pub fn events(path: &Path, offset: u64) -> Result<Value> {

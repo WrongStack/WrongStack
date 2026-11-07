@@ -681,12 +681,7 @@ impl HostState {
         if let Some(pid) = session.agent_pid {
             #[cfg(windows)]
             {
-                let mut cmd = Command::new("taskkill");
-                cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
-                hide(&mut cmd);
-                if !cmd.status().map_err(err)?.success() {
-                    return Err("Could not stop engine process tree".into());
-                }
+                crate::windows_process::stop_tree(pid)?;
             }
             #[cfg(not(windows))]
             {

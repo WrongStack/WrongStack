@@ -58,7 +58,8 @@ impl EngineHttp {
             .filter(|(key, _)| key != "sessionId" && key != "token")
             .map(|(k, v)| (k.into_owned(), v.into_owned()))
             .collect();
-        let sessionless = SESSIONLESS_PATHS.contains(&url.path());
+        let path = url.path().to_owned();
+        let sessionless = SESSIONLESS_PATHS.contains(&path.as_str());
         url.set_query(None);
         let mut pairs = url.query_pairs_mut();
         pairs.extend_pairs(query);
@@ -71,8 +72,7 @@ impl EngineHttp {
             .request(Method::from_bytes(method.as_bytes()).map_err(err)?, url)
             .header("x-ws-token", &self.token)
             .header("accept", "application/json");
-        let path = resource.split('?').next().unwrap_or_default();
-        if let Some(deadline) = server_deadline(method, path) {
+        if let Some(deadline) = server_deadline(method, &path) {
             request = request.timeout(deadline);
         }
         if !body.is_null() {
@@ -332,6 +332,8 @@ mod tests {
         for (path, allowed) in [
             ("/api/techstack/reports/fixture?format=md", true),
             ("/api/other", false),
+            ("/api/techstack/reports/../../other", false),
+            ("/api/techstack/reports/../deps", false),
         ] {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let port = listener.local_addr().unwrap().port();

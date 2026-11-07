@@ -11,6 +11,8 @@ pub mod sessions;
 mod speech;
 pub mod transcript;
 pub mod window_geometry;
+#[cfg(windows)]
+mod windows_process;
 
 pub type Result<T> = std::result::Result<T, String>;
 pub fn err(e: impl std::fmt::Display) -> String {
