@@ -167,8 +167,20 @@ jobs:
               codesign --verify --deep "$app"
               ;;
             Linux)
-              dpkg-deb -c desktop-dist/wrongstack-desktop-*.deb | grep -Fq './usr/bin/wrongstack-engine'
-              rpm -qlp desktop-dist/wrongstack-desktop-*.rpm | grep -Fqx '/usr/bin/wrongstack-engine'
+              # Read each listing whole before matching: `grep -q` in a pipe
+              # exits at the first hit and pipefail then fails on the
+              # listing tool's broken pipe. The app looks for the engine
+              # beside its own executable (/usr/bin); the listing prints both.
+              deb_listing="$(dpkg-deb -c desktop-dist/wrongstack-desktop-*.deb)"
+              grep -E 'usr/bin/|wrongstack-engine' <<<"$deb_listing" || true
+              grep -Eq '[[:space:]]\./usr/bin/wrongstack-engine$' <<<"$deb_listing"
+              if command -v rpm >/dev/null 2>&1; then
+                rpm_listing="$(rpm -qlp desktop-dist/wrongstack-desktop-*.rpm)"
+                grep -E 'usr/bin/|wrongstack-engine' <<<"$rpm_listing" || true
+                grep -Fqx '/usr/bin/wrongstack-engine' <<<"$rpm_listing"
+              else
+                echo "::warning::rpm is not installed on this runner; the .rpm listing was not checked."
+              fi
               ;;
           esac
           echo "Engine bundled."
