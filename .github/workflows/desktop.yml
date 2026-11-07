@@ -173,7 +173,9 @@ jobs:
               # beside its own executable (/usr/bin); the listing prints both.
               deb_listing="$(dpkg-deb -c desktop-dist/wrongstack-desktop-*.deb)"
               grep -E 'usr/bin/|wrongstack-engine' <<<"$deb_listing" || true
-              grep -Eq '[[:space:]]\./usr/bin/wrongstack-engine$' <<<"$deb_listing"
+              # dpkg-deb prints member paths as `usr/bin/...` or `./usr/bin/...`
+              # depending on how the archive was written; accept both.
+              grep -Eq '[[:space:]](\./)?usr/bin/wrongstack-engine$' <<<"$deb_listing"
               if command -v rpm >/dev/null 2>&1; then
                 rpm_listing="$(rpm -qlp desktop-dist/wrongstack-desktop-*.rpm)"
                 grep -E 'usr/bin/|wrongstack-engine' <<<"$rpm_listing" || true
