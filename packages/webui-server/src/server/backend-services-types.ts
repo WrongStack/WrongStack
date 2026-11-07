@@ -135,6 +135,8 @@ export interface AgentServices {
   flushSessionJournalsSync?: () => void;
   /** End + close the journals of every tab that is not the leader's. */
   closeSessionJournals?: () => Promise<void>;
+  /** Join review producers and workers before journals/fleet close. */
+  closeChimera?: () => Promise<void>;
   permissionPolicy: PermissionPolicy;
   pipelines: AgentPipelines;
   brain: ObservableBrainArbiter;
@@ -160,6 +162,13 @@ export interface AgentServices {
   subagentFactory: AgentFactory;
   /** Worker delegation (`delegate`); undefined when disabled or unavailable. */
   delegation: import('./standalone-delegation.js').StandaloneDelegation | undefined;
+  /**
+   * The engine's auto-wake (delegation results and runtime notices). Present whenever the
+   * engine can run turns, with or without `delegate`.
+   */
+  autoWake?:
+    | Pick<import('./standalone-delegation.js').StandaloneAutoWake, 'attachAutoWake'>
+    | undefined;
   goalHandler: GoalWebSocketHandler;
   /** Goal/SDD run projection onto boards; null without a project root or broadcast. */
   kanbanRunMirror: KanbanRunMirror | null;

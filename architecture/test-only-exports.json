@@ -377,10 +377,6 @@
       "containedJsonlPath",
       "enrichStubSummaries"
     ],
-    "packages/cli/src/chimera-reviewer-policy.ts": [
-      "MAX_MUTATING_ATTEMPTS",
-      "MAX_REVIEWER_ATTEMPTS"
-    ],
     "packages/cli/src/cli-entry-point.ts": [
       "scheduleForcedExit"
     ],
@@ -391,9 +387,6 @@
     ],
     "packages/cli/src/config-history.ts": [
       "MAX_CONFIG_HISTORY_ENTRIES"
-    ],
-    "packages/cli/src/execution-chimera-review.ts": [
-      "normalizeFileKeyForCitation"
     ],
     "packages/cli/src/fleet-statusline.ts": [
       "renderFleetLine"
@@ -1301,6 +1294,13 @@
     "packages/runtime/src/automation/github.ts": [
       "verifyGitHubSignature"
     ],
+    "packages/runtime/src/chimera/chimera-reviewer-policy.ts": [
+      "MAX_MUTATING_ATTEMPTS",
+      "MAX_REVIEWER_ATTEMPTS"
+    ],
+    "packages/runtime/src/chimera/execution-chimera-review.ts": [
+      "normalizeFileKeyForCitation"
+    ],
     "packages/runtime/src/governance-bootstrap.ts": [
       "bootstrapGovernanceRuntimeWithFactory",
       "MAX_PENDING_GOVERNANCE_OBSERVATIONS",
@@ -1958,9 +1958,6 @@
     "packages/webui-server/src/server/git-hunks.ts": [
       "partialHunk"
     ],
-    "packages/webui-server/src/server/goal-usage-pricer.ts": [
-      "createGoalUsagePricer"
-    ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],
@@ -1986,9 +1983,6 @@
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
-    ],
-    "packages/webui-server/src/server/standalone-delegation.ts": [
-      "createStandaloneAutoWake"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"

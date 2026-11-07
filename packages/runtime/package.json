@@ -21,6 +21,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./chimera": {
+      "types": "./dist/chimera.d.ts",
+      "import": "./dist/chimera.js"
+    },
     "./commands": {
       "types": "./dist/commands.d.ts",
       "import": "./dist/commands.js"
@@ -95,10 +99,10 @@
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
-    "cron-parser": "^5.10.2"
+    "cron-parser": "^5.10.3"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@wrongstack/wrongtrace": "workspace:*",
     "typescript": "^7.0.2"
   },

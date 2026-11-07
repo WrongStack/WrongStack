@@ -1,26 +1,3 @@
-/**
- * Post-context backend service construction for the standalone WebUI server.
- *
- * Phase 1c of the god-module split (issue: God-modules >1500 lines).
- * `startWebUI` previously inlined ~400 lines of construction that runs
- * AFTER `context` exists: the agent pipelines + collab middleware, the
- * strategy compactor + auto-compaction middleware, the tool executor +
- * agent, the tiered Brain + monitor, and the per-feature WebSocket
- * handlers (Goal, specs, SDD board/wizard, worktree, terminal, collab).
- *
- * All of that moves into `createAgentServices()`. The pre-context
- * registries/stores (modelsRegistry, container, toolRegistry, session,
- * tokenCounter, …) stay in `startWebUI` because they are interleaved with
- * the `opts.services?` injection contract the CLI's embedded server
- * relies on; lifting them would restructure that contract, which is a
- * separate, higher-risk task.
- *
- * The factory is pure construction — no behaviour change. It returns a
- * typed `AgentServices` object plus the `updateAutoCompactionMaxContext`
- * closure (which needs the live `context`, `autoCompactor`, and
- * `modelCapabilitiesRef` it just built).
- */
-
 import { TOKENS } from '@wrongstack/contracts/kernel';
 import { DEFAULT_TOOLS_CONFIG, resolveContextWindowPolicy } from '@wrongstack/contracts/types';
 import {
@@ -49,7 +26,7 @@ import {
 import type { ConsolidatorSage } from '@wrongstack/core/storage';
 import { SessionMemoryConsolidator } from '@wrongstack/core/storage';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
-import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
+import { estimateRequestTokensCalibrated, resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import {
   createMemoryCuratorLlmCall,
@@ -71,6 +48,7 @@ import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { installConversationFallback } from './conversation-fallback.js';
 import { createSessionAgentManager } from './create-session-agent-manager.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
+import { createGoalUsagePricer } from './goal-usage-pricer.js';
 import { GoalWebSocketHandler } from './goal-ws-handler.js';
 import { createKanbanRunMirror } from './kanban-run-mirror.js';
 import { registerLeaderEffortTool } from './leader-effort-tool.js';
@@ -81,9 +59,9 @@ import { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
 import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
-import { installStandaloneDelegation } from './standalone-delegation.js';
+import { createStandaloneChimera } from './standalone-chimera.js';
+import { createStandaloneAutoWake, installStandaloneDelegation } from './standalone-delegation.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
-import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { errMessage } from './ws-utils.js';
 
@@ -409,6 +387,11 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     projectSessionsDir: wpaths.projectSessions,
     session: input.sessionGetter(),
   });
+  // Timers, watches and background shell exits wake an idle leader too, so the engine
+  // keeps an auto-wake controller even when `delegate` is disabled.
+  const autoWakeWithoutDelegation = delegation
+    ? undefined
+    : createStandaloneAutoWake({ events, getConfig: () => input.getConfig?.() ?? input.config });
   console.log(
     delegation
       ? '[WebUI] Worker delegation enabled'
@@ -533,19 +516,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     undefined,
     // Goal cost budgets price each task agent response with the same catalog rates as `stats.get`;
     // a model without a catalog price stays unpriced (null), never $0.
-    async (usage, source) => {
-      if (!source.providerId || !source.model) return null;
-      const metadata = await resolveProviderModelMetadata(
-        modelsRegistry,
-        source.providerId,
-        source.model,
-        (input.getConfig?.() ?? config).providers?.[source.providerId],
-      ).catch(() => undefined);
-      if (!metadata || !(metadata as { cost?: unknown }).cost) return null;
-      // One response is one request: its context selects the catalog's context price tier.
-      const context = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
-      return computeUsageCost(usage, getCostRates(metadata, context));
-    },
+    createGoalUsagePricer(input),
   );
   const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
   const sddBoardHandler = new SddBoardWebSocketHandler(
@@ -618,8 +589,28 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     void delegation?.dispose().catch((err: unknown) => {
       logger.warn('delegation host dispose failed', { err: errMessage(err) });
     });
+    autoWakeWithoutDelegation?.dispose();
   };
 
+  const chimera = createStandaloneChimera({
+    container,
+    events,
+    pipelines,
+    toolRegistry,
+    providerRegistry,
+    modelsRegistry,
+    getConfig: getLiveConfig,
+    projectDir: wpaths.projectDir,
+    cwd: workingDir,
+    logger,
+    getProjectDir: (owner) =>
+      resolveWstackPaths({
+        projectRoot: owner.ctx.projectRoot ?? projectRoot,
+        globalRoot: wpaths.globalRoot,
+      }).projectDir,
+    ensureDirector: async () => delegation?.host.ensureDirector() ?? null,
+  });
+  chimera.attach(agent);
   const MAX_CONCURRENT_SESSION_AGENTS = 4;
   /**
    * One Agent per open tab.
@@ -647,6 +638,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     toolExecutor,
     logger,
     updateMaxContext: updateAutoCompactionMaxContext,
+    onAgentCreated: chimera.attach,
+    onSessionEnd: chimera.finish,
+    onSessionRelease: chimera.release,
   });
   const getAgentForSession = (sessionId?: string): Agent => sessionAgents.get(sessionId);
 
@@ -669,6 +663,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     // own teardown and salvage hook only know the leader's writer.
     flushSessionJournalsSync: () => sessionAgents.flushAllSync(),
     closeSessionJournals: () => sessionAgents.closeAll(),
+    closeChimera: () => chimera.dispose(),
     permissionPolicy,
     pipelines,
     brain,
@@ -683,6 +678,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     codebaseIndexing,
     subagentFactory,
     delegation,
+    autoWake: delegation ?? autoWakeWithoutDelegation,
     goalHandler,
     kanbanRunMirror,
     specsHandler,

@@ -27,9 +27,15 @@ export function createSessionAgentManager({
   toolExecutor,
   logger,
   updateMaxContext,
+  onAgentCreated,
+  onSessionEnd,
+  onSessionRelease,
 }: {
   agent: import('@wrongstack/core/agent').Agent;
   MAX_CONCURRENT_SESSION_AGENTS: 4;
+  onAgentCreated?: ((agent: Agent) => void) | undefined;
+  onSessionEnd?: ((sessionId: string) => Promise<void>) | undefined;
+  onSessionRelease?: ((sessionId: string) => Promise<void>) | undefined;
   input: {
     isRunActive?: ((sessionId: string) => boolean) | undefined;
     isDisplayed?: ((sessionId: string) => boolean) | undefined;
@@ -54,6 +60,9 @@ export function createSessionAgentManager({
 }) {
   const sessionAgents = createSessionAgentRegistry({
     template: agent,
+    onCreate: onAgentCreated,
+    onSessionEnd,
+    onSessionRelease,
     maxAgents: MAX_CONCURRENT_SESSION_AGENTS,
     ...(input.isRunActive ? { isRunActive: input.isRunActive } : {}),
     ...(input.isDisplayed ? { isDisplayed: input.isDisplayed } : {}),

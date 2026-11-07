@@ -102,6 +102,7 @@ export function setupWebuiShutdown(options: {
       ...(options.wssSecondary ? [options.wssSecondary] : []),
     ],
     onPreShutdown: async () => {
+      await options.agentServices.closeChimera?.();
       await options.stopEmptySessionCleanup.dispose();
       const disposeKanban = options.getKanbanSupervisorDispose();
       await disposeKanban?.();

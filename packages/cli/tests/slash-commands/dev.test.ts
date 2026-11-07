@@ -1,5 +1,6 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { describe, expect, it } from 'vitest';
 import { runCommand, tokenizeCommand } from '../../src/slash-commands/dev.js';
 
@@ -108,61 +109,76 @@ describe('/dev runCommand (BIZ-001/BIZ-002 regression)', () => {
     expect(result.exitCode).toBe(42);
   });
 
-  it('kills a runaway command at the timeout — never exit 0 / OK', async () => {
-    // NOTE: the child body avoids `=>` — the arrow's `>` is a cmd.exe
-    // operator the win32 shim refuses (correctly, 127), which would test
-    // the refusal instead of the timeout.
-    const result = await runCommand('node -e "setTimeout(function(){}, 30000)"', cwd, 500);
-    // The invariant that matters (BIZ-001): a killed command must never
-    // report success. Since the timedOut fix derives from the timer's kill flag (the
-    // only kill this handle can issue is the spawn timeout), BOTH platforms
-    // report the timeout convention: 124 + timedOut. (Previously Windows
-    // TerminateProcess surfaced as a plain EXIT 1, and POSIX conflated any
-    // foreign signal with TIMEOUT.)
-    expect(result.exitCode).not.toBe(0);
-    expect(result.exitCode).toBe(124);
-    expect(result.timedOut).toBe(true);
-    // Contract regression (chimera): DevCommandResult.killed must be true
-    // for a timeout kill too ("died from a signal — timeout kill or
-    // foreign"), not only for foreign-signal deaths.
-    expect(result.killed).toBe(true);
-    // Boundary-race guard (dev.ts close handler): `timedOut` requires
-    // `killedByTimeout && code !== 0`, so a successful exit reaped right after
-    // the timer fired can never be mislabeled 124/TIMEOUT. That exact race
-    // is not deterministically reproducible with real children; the guard
-    // is pinned here by the non-zero-code invariant above plus the
-    // foreign-signal test below (signal death without kill → no TIMEOUT).
-  });
+  it(
+    'kills a runaway command at the timeout — never exit 0 / OK',
+    async () => {
+      // NOTE: the child body avoids `=>` — the arrow's `>` is a cmd.exe
+      // operator the win32 shim refuses (correctly, 127), which would test
+      // the refusal instead of the timeout.
+      const fuseMs = isWin ? WIN32_TREE_KILL_BUDGET_MS + 30_000 : 30_000;
+      const result = await runCommand(`node -e "setTimeout(function(){}, ${fuseMs})"`, cwd, 500);
+      // The invariant that matters (BIZ-001): a killed command must never
+      // report success. Since the timedOut fix derives from the timer's kill flag (the
+      // only kill this handle can issue is the spawn timeout), BOTH platforms
+      // report the timeout convention: 124 + timedOut. (Previously Windows
+      // TerminateProcess surfaced as a plain EXIT 1, and POSIX conflated any
+      // foreign signal with TIMEOUT.)
+      expect(result.exitCode).not.toBe(0);
+      expect(result.exitCode).toBe(124);
+      expect(result.timedOut).toBe(true);
+      // Contract regression (chimera): DevCommandResult.killed must be true
+      // for a timeout kill too ("died from a signal — timeout kill or
+      // foreign"), not only for foreign-signal deaths.
+      expect(result.killed).toBe(true);
+      // Boundary-race guard (dev.ts close handler): `timedOut` requires
+      // `killedByTimeout && code !== 0`, so a successful exit reaped right after
+      // the timer fired can never be mislabeled 124/TIMEOUT. That exact race
+      // is not deterministically reproducible with real children; the guard
+      // is pinned here by the non-zero-code invariant above plus the
+      // foreign-signal test below (signal death without kill → no TIMEOUT).
+    },
+    isWin ? WIN32_TREE_KILL_BUDGET_MS + 15_000 : 60_000,
+  );
 
-  it('returns promptly at the timeout and leaves no program running behind cmd.exe', async () => {
-    const pidFile = path.join(os.tmpdir(), `ws-dev-timeout-${process.pid}.pid`).replace(/\\/g, '/');
-    const started = Date.now();
-    const result = await runCommand(
-      `node -e "require('fs').writeFileSync('${pidFile}', String(process.pid)); setTimeout(function(){}, 30000)"`,
-      cwd,
-      1500,
-    );
-    expect(result.timedOut).toBe(true);
-    // On Windows the program is cmd.exe's child; killing only cmd.exe left it
-    // holding the pipes, so this resolved after the full 30 s, not at 1.5 s.
-    expect(Date.now() - started).toBeLessThan(15_000);
-    const fs = await import('node:fs');
-    const pid = Number(fs.readFileSync(pidFile, 'utf8'));
-    fs.rmSync(pidFile, { force: true });
-    const alive = (): boolean => {
-      try {
-        process.kill(pid, 0);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    const deadline = Date.now() + 5000;
-    while (alive() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
-    const leaked = alive();
-    if (leaked) process.kill(pid);
-    expect(leaked).toBe(false);
-  }, 40_000);
+  it(
+    'returns promptly at the timeout and leaves no program running behind cmd.exe',
+    async () => {
+      const pidFile = path
+        .join(os.tmpdir(), `ws-dev-timeout-${process.pid}.pid`)
+        .replace(/\\/g, '/');
+      const fuseMs = isWin ? WIN32_TREE_KILL_BUDGET_MS + 30_000 : 30_000;
+      const started = Date.now();
+      const result = await runCommand(
+        `node -e "require('fs').writeFileSync('${pidFile}', String(process.pid)); setTimeout(function(){}, ${fuseMs})"`,
+        cwd,
+        1500,
+      );
+      expect(result.timedOut).toBe(true);
+      // On Windows the program is cmd.exe's child; killing only cmd.exe left it
+      // holding the pipes, so this resolved after the full 30 s, not at 1.5 s.
+      // Windows tree enumeration must finish before the direct-shell backstop fires.
+      // A successful taskkill can exceed 15 seconds on a busy coverage run.
+      const teardownLimitMs = isWin ? 1500 + WIN32_TREE_KILL_BUDGET_MS + 5000 : 15_000;
+      expect(Date.now() - started).toBeLessThan(teardownLimitMs);
+      const fs = await import('node:fs');
+      const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+      fs.rmSync(pidFile, { force: true });
+      const alive = (): boolean => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const deadline = Date.now() + 5000;
+      while (alive() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
+      const leaked = alive();
+      if (leaked) process.kill(pid);
+      expect(leaked).toBe(false);
+    },
+    isWin ? WIN32_TREE_KILL_BUDGET_MS + 15_000 : 40_000,
+  );
 
   // Windows has no real signals; TerminateProcess → exit 1
   it.skipIf(isWin)(

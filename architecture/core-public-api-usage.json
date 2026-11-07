@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 495,
-      "typeOnly": 370,
+      "files": 497,
+      "typeOnly": 373,
       "runtimeOrMixed": 156
     },
     "@wrongstack/core/boot": {
@@ -49,9 +49,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/extension": {
-      "files": 7,
+      "files": 8,
       "typeOnly": 6,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     "@wrongstack/core/hooks": {
       "files": 18,
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 21,
+      "files": 22,
       "typeOnly": 11,
-      "runtimeOrMixed": 11
+      "runtimeOrMixed": 12
     },
     "@wrongstack/core/prompts": {
       "files": 10,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 196,
-      "typeOnly": 79,
-      "runtimeOrMixed": 120
+      "files": 198,
+      "typeOnly": 80,
+      "runtimeOrMixed": 121
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -209,9 +209,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 30,
+      "files": 32,
       "typeOnly": 1,
-      "runtimeOrMixed": 29
+      "runtimeOrMixed": 31
     },
     "@wrongstack/core/vcs": {
       "files": 2,
@@ -443,12 +443,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/chimera-reviewer-policy.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/cli-eternal-flag.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -480,12 +474,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/execution-chimera-handlers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/execution-chimera-review.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -1550,6 +1538,18 @@
       "file": "packages/providers/tests/tool-use-envelope.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/chimera/chimera-reviewer-policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3035,6 +3035,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/standalone-chimera.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/standalone-delegation.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3174,6 +3180,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/setup-events.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/standalone-chimera.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4240,6 +4252,12 @@
       "runtimeOrMixed": 0
     },
     {
+      "specifier": "@wrongstack/core/extension",
+      "file": "packages/webui-server/tests/standalone-chimera.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/hooks",
       "file": "packages/cli/src/fleet/subagent-hook-runner.ts",
       "typeOnly": 0,
@@ -5286,6 +5304,12 @@
     {
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/src/server/pref-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/standalone-chimera.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6809,6 +6833,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/standalone-chimera.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/standalone-delegation.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6866,6 +6896,12 @@
       "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-chimera.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -16890,6 +16926,18 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/cli/src/slash-commands/dev.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/cli/tests/chimera-cascade-evidence.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/cli/tests/slash-commands/dev.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

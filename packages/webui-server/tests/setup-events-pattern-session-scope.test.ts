@@ -6,13 +6,14 @@
  * cron scheduler are one per project and their client handlers write global
  * stores without reading a session at all, so stamping them with whichever
  * session the runtime happened to be on could only ever lose frames — a
- * second browser page would see no mail arrive and a cron table that never
- * ticks. Chimera and memory events retain their existing session behavior;
+ * second browser page would see no mail arrive and a wakeup table (the
+ * `cron.*` frames, fed by `session_wakeup`) that never ticks. Chimera and memory events retain their existing session behavior;
  * Brain events must already name their owning session before broadcasting.
  */
 
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { ObservableBrainArbiter } from '@wrongstack/coordination';
+import { sessionWakeupTool } from '@wrongstack/tools';
 import { describe, expect, it, vi } from 'vitest';
 import { registerSetupEventsPatternHandlers } from '../src/server/setup-events-pattern-handlers.js';
 import { createSetupEventSessionHelpers } from '../src/server/setup-events-session-helpers.js';
@@ -30,7 +31,7 @@ function register() {
   const patterns = new Map<string, (event: string, payload: unknown) => void>();
   const sent: Sent[] = [];
 
-  registerSetupEventsPatternHandlers({
+  const disposers = registerSetupEventsPatternHandlers({
     events: {
       onPattern: (pattern: string, fn: (event: string, payload: unknown) => void) => {
         patterns.set(pattern, fn);
@@ -49,6 +50,10 @@ function register() {
   });
 
   return {
+    sent,
+    dispose: () => {
+      for (const dispose of disposers) dispose();
+    },
     emit(pattern: string, event: string, payload: unknown) {
       const fn = patterns.get(pattern);
       if (!fn) throw new Error(`no handler registered for ${pattern}`);
@@ -65,14 +70,40 @@ describe('setup-events pattern handlers — session scope', () => {
     ['mailbox.received', 'mailbox.received'],
     ['mailbox.agent_registered', 'mailbox.agent_registered'],
     ['mailbox.agent_deregistered', 'mailbox.agent_deregistered'],
-    ['cron:state_snapshot', 'cron:state_snapshot'],
-    ['cron:job_fired', 'cron:job_fired'],
   ])('broadcasts %s to every connection, unstamped', (pattern, event) => {
     const sent = register().emit(pattern, event, { from: 'chimera', count: 2 });
 
     expect(sent.payload['sessionId']).toBeUndefined();
     // The rest of the payload survives.
     expect(sent.payload['count']).toBe(2);
+  });
+
+  it('broadcasts session_wakeup changes as an unstamped cron.snapshot', async () => {
+    const h = register();
+    const ctx = { agentId: 'leader', session: { id: 'sess_wakeup_panel' } };
+    const signal = new AbortController().signal;
+    try {
+      const made = await sessionWakeupTool.execute(
+        { prompt: 'check CI', delay_s: 600 },
+        ctx as never,
+        { signal },
+      );
+      const id = made.wakeup?.id;
+      const snapshot = h.sent.filter((m) => m.type === 'cron.snapshot').at(-1);
+      expect(snapshot?.payload['sessionId']).toBeUndefined();
+      expect(snapshot?.payload['jobs']).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: id, action: 'check CI', intervalMs: 0, runCount: 0 }),
+        ]),
+      );
+      await sessionWakeupTool.execute({ action: 'cancel', id }, ctx as never, { signal });
+      const after = h.sent.filter((m) => m.type === 'cron.snapshot').at(-1);
+      expect(after?.payload['jobs']).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: id })]),
+      );
+    } finally {
+      h.dispose();
+    }
   });
 
   it('drops a session the emitter put on a project-wide payload', () => {

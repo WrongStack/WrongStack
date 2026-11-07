@@ -1,3 +1,4 @@
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { describe, expect, it, vi } from 'vitest';
 import { removeProjectFixtureDirectorySync } from '../../core/tests/helpers/project-server-harness.js';
 import { extractCascadeEvidence, verifyCascadeEvidence } from '../src/chimera-cascade-evidence.js';
@@ -144,6 +145,6 @@ describe('verifyCascadeEvidence', () => {
         removeProjectFixtureDirectorySync(dir, { maxRetries: 10, retryDelay: 100 });
       }
     },
-    20_000,
+    WIN32_TREE_KILL_BUDGET_MS + 15_000,
   );
 });

@@ -50,6 +50,10 @@ export interface SessionAgentRegistryOptions {
   isRunActive?: ((sessionId: string) => boolean) | undefined;
   /** Called once, right after a new session agent is constructed. */
   onCreate?: ((agent: Agent, sessionId: string) => void) | undefined;
+  /** Drain session-owned background work before closing its journal. */
+  onSessionEnd?: ((sessionId: string) => Promise<void>) | undefined;
+  /** Join background work before eviction releases a journal; this is not session end. */
+  onSessionRelease?: ((sessionId: string) => Promise<void>) | undefined;
   /** Models registry, so a session's own counter can price its own usage. */
   modelsRegistry?: ModelsRegistry | undefined;
   /**
@@ -289,7 +293,14 @@ export function createSessionAgentRegistry(
         } catch {
           // close() below flushes too; a failed sync drain is not fatal here.
         }
-        void Promise.resolve(journal.close()).catch(() => undefined);
+        if (opts.onSessionRelease) {
+          void opts
+            .onSessionRelease(victim)
+            .finally(() => journal.close())
+            .catch(() => undefined);
+        } else {
+          void Promise.resolve(journal.close()).catch(() => undefined);
+        }
       }
       evicted?.ctx.readFiles.clear();
       evicted?.ctx.fileMtimes.clear();
@@ -321,6 +332,7 @@ export function createSessionAgentRegistry(
     agent?.ctx.readFiles.clear();
     agent?.ctx.fileMtimes.clear();
     agents.delete(sessionId);
+    await opts.onSessionEnd?.(sessionId);
     if (!journal) return;
     try {
       // This session's OWN usage: the counters are per-session, and the host

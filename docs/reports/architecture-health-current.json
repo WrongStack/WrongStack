@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T16:17:37.181Z",
+  "generatedAt": "2026-11-07T16:19:02.254Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6056,
-    "testFiles": 5055,
-    "sourceLines": 1255031,
+    "sourceFiles": 6063,
+    "testFiles": 5056,
+    "sourceLines": 1255342,
     "workspaceEdges": 243,
-    "moduleEdges": 17922,
+    "moduleEdges": 17927,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1038
   },
   "errors": [],
   "packageCycles": [],
@@ -818,7 +818,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 60,
+      "sourceFiles": 66,
       "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -1167,8 +1167,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 334,
-      "testFiles": 371,
+      "sourceFiles": 335,
+      "testFiles": 372,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1203,7 +1203,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 371
+          "testFiles": 372
         }
       ]
     },
@@ -28123,6 +28123,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-chimera.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-delegation.test.ts",
         "projects": [
           "root-node"
@@ -35637,14 +35643,6 @@
       "name": "enrichStubSummaries"
     },
     {
-      "file": "packages/cli/src/chimera-reviewer-policy.ts",
-      "name": "MAX_MUTATING_ATTEMPTS"
-    },
-    {
-      "file": "packages/cli/src/chimera-reviewer-policy.ts",
-      "name": "MAX_REVIEWER_ATTEMPTS"
-    },
-    {
       "file": "packages/cli/src/cli-entry-point.ts",
       "name": "scheduleForcedExit"
     },
@@ -35663,10 +35661,6 @@
     {
       "file": "packages/cli/src/config-history.ts",
       "name": "MAX_CONFIG_HISTORY_ENTRIES"
-    },
-    {
-      "file": "packages/cli/src/execution-chimera-review.ts",
-      "name": "normalizeFileKeyForCitation"
     },
     {
       "file": "packages/cli/src/fleet-statusline.ts",
@@ -37381,6 +37375,18 @@
       "name": "verifyGitHubSignature"
     },
     {
+      "file": "packages/runtime/src/chimera/chimera-reviewer-policy.ts",
+      "name": "MAX_MUTATING_ATTEMPTS"
+    },
+    {
+      "file": "packages/runtime/src/chimera/chimera-reviewer-policy.ts",
+      "name": "MAX_REVIEWER_ATTEMPTS"
+    },
+    {
+      "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
+      "name": "normalizeFileKeyForCitation"
+    },
+    {
       "file": "packages/runtime/src/governance-bootstrap.ts",
       "name": "bootstrapGovernanceRuntimeWithFactory"
     },
@@ -38569,10 +38575,6 @@
       "name": "partialHunk"
     },
     {
-      "file": "packages/webui-server/src/server/goal-usage-pricer.ts",
-      "name": "createGoalUsagePricer"
-    },
-    {
       "file": "packages/webui-server/src/server/governance-runtime.ts",
       "name": "webUiGovernanceRuntimeEnabled"
     },
@@ -38611,10 +38613,6 @@
     {
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
       "name": "seedWrongProxyFromConfig"
-    },
-    {
-      "file": "packages/webui-server/src/server/standalone-delegation.ts",
-      "name": "createStandaloneAutoWake"
     },
     {
       "file": "packages/webui-server/src/server/terminal-ws-handler.ts",

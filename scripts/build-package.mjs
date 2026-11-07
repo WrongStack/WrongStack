@@ -385,6 +385,7 @@ const profiles = {
       pack: 'src/pack.ts',
       host: 'src/host.ts',
       commands: 'src/commands.ts',
+      chimera: 'src/chimera.ts',
       'governance-bootstrap': 'src/governance-bootstrap.ts',
       'governance-sanitize': 'src/governance-sanitize.ts',
       'governance-mutation-snapshot-bridge': 'src/governance-mutation-snapshot-bridge.ts',
