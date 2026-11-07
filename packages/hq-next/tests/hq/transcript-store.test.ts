@@ -213,6 +213,27 @@ describe('applyLiveBatch', () => {
     expect(s.entries[0]?.text).toBe('All tests passed');
     expect(s.entries[0]?.durationMs).toBe(185);
   });
+
+  it('preserves repeated streamed text delta tokens inside applyFetch and across contiguous fetch/live overlap (F81)', () => {
+    const fetchedDeltas = [
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: 'the' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' cat' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' and ' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: 'the' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' dog' }),
+    ];
+    let s = applyFetch(createTranscriptState(), fetchedDeltas);
+    expect(s.entries.map((x) => x.text).join('')).toBe('the cat and the dog');
+
+    s = applyLiveBatch(s, 1, [
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: 'the' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' dog' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' and ' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: 'the' }),
+      e({ ts: '2026-11-07T10:00:00.000Z', role: 'assistant', text: ' bird' }),
+    ]);
+    expect(s.entries.map((x) => x.text).join('')).toBe('the cat and the dog and the bird');
+  });
 });
 
 describe('entryKey', () => {

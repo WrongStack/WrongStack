@@ -179,7 +179,8 @@ export function groupMailboxEvents(
     }
   }
 
-  // 2. Walk every mailbox.snapshot envelope to pull its message list.
+  // 2. Walk every mailbox.snapshot envelope to pull its message list and agent roster.
+  const agentOnline = new Map<ProjectGroup, Map<string, boolean>>();
   for (const evt of events) {
     if (evt.type !== 'mailbox.snapshot' || !isMailboxSnapshot(evt.payload)) continue;
     const snap = evt.payload;
@@ -195,6 +196,25 @@ export function groupMailboxEvents(
         projectId: evt.projectId,
       });
     }
+    for (const rawAgent of snap.agents) {
+      if (
+        rawAgent !== null &&
+        typeof rawAgent === 'object' &&
+        !Array.isArray(rawAgent) &&
+        typeof rawAgent.agentId === 'string'
+      ) {
+        const agents = agentOnline.get(g) ?? new Map<string, boolean>();
+        agents.set(rawAgent.agentId, rawAgent.online === true);
+        agentOnline.set(g, agents);
+      }
+    }
+    if (
+      !g.countersFromSnapshot &&
+      !agentOnline.has(g) &&
+      typeof snap.totals?.onlineAgents === 'number'
+    ) {
+      g.onlineAgentCount = snap.totals.onlineAgents;
+    }
   }
 
   // 3. Walk mailbox.event envelopes — these carry the live action verb
@@ -207,7 +227,6 @@ export function groupMailboxEvents(
   //    every online-flagged event inflated the figure with each heartbeat
   //    and never dropped an agent that went offline.
   const mailIndex = new Map<string, ProjectGroup>();
-  const agentOnline = new Map<ProjectGroup, Map<string, boolean>>();
   for (const evt of events) {
     if (evt.type !== 'mailbox.event' || !isMailboxEvent(evt.payload)) continue;
     const p = evt.payload;

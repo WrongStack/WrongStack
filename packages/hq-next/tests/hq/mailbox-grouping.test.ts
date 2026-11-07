@@ -546,4 +546,36 @@ describe('groupMailboxEvents', () => {
     const { projects } = groupMailboxEvents(snap, [offlineEvent]);
     expect(projects[0]?.onlineAgentCount).toBe(10);
   });
+
+  it('derives onlineAgentCount from mailbox.snapshot agents when top-level snapshot is null and updates with later agent events (F81)', () => {
+    const snapEvent = mailboxSnapshot('demo', []);
+    snapEvent.payload.agents = [
+      {
+        agentId: 'a1',
+        name: 'a1',
+        sessionId: 's',
+        status: 'running',
+        iterations: 0,
+        toolCalls: 0,
+        lastActivityAt: '2026-07-03T08:00:00.000Z',
+        lastSeenAt: '2026-07-03T08:00:00.000Z',
+        online: true,
+      },
+      {
+        agentId: 'a2',
+        name: 'a2',
+        sessionId: 's',
+        status: 'running',
+        iterations: 0,
+        toolCalls: 0,
+        lastActivityAt: '2026-07-03T08:00:00.000Z',
+        lastSeenAt: '2026-07-03T08:00:00.000Z',
+        online: true,
+      },
+    ];
+    snapEvent.payload.totals.onlineAgents = 2;
+
+    const { projects } = groupMailboxEvents(null, [snapEvent]);
+    expect(projects[0]?.onlineAgentCount).toBe(2);
+  });
 });

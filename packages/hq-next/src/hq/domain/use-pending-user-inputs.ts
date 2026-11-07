@@ -24,12 +24,14 @@ function project(
   resolved: readonly HqEventEnvelope[],
 ): PendingUserInput[] {
   const settled = new Set(
-    resolved.map((event) => (event.payload as HqUserInputResolvedPayload).requestId),
+    resolved
+      .map((event) => (event.payload as HqUserInputResolvedPayload | undefined)?.requestId)
+      .filter((id): id is string => typeof id === 'string'),
   );
   const pending = new Map<string, PendingUserInput>();
   for (const event of requested) {
-    const payload = event.payload as HqUserInputRequestedPayload;
-    if (!payload.request?.id || settled.has(payload.request.id)) continue;
+    const payload = event.payload as HqUserInputRequestedPayload | undefined;
+    if (!payload?.request?.id || settled.has(payload.request.id)) continue;
     pending.set(payload.request.id, {
       ...payload,
       clientId: event.clientId,

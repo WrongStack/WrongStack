@@ -15,7 +15,12 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@wrongstack/webui-protocol'],
   // Existing views are compiled straight from `packages/webui-hq/src` while each
   // surface is redesigned; that source lives outside this package root.
-  experimental: { externalDir: true },
+  experimental: {
+    externalDir: true,
+    // Bun's Windows child processes reserve enough memory that the default
+    // per-CPU page workers can exhaust commit before static export starts.
+    ...(process.platform === 'win32' ? { cpus: 2 } : {}),
+  },
   // That source uses NodeNext-style specifiers (`./store/index.js` naming a
   // `.ts` file), which webpack only follows with an explicit extension alias.
   webpack(config: { resolve: { extensionAlias?: Record<string, string[]> } }) {

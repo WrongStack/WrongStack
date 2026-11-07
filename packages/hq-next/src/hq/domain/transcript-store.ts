@@ -27,6 +27,8 @@ export interface TranscriptState {
   entries: HqTranscriptEntry[];
   /** Content keys of every entry already represented (dedup). */
   seen: Set<string>;
+  /** Ordered content keys of streamed-text entries from the latest fetch, for contiguous overlap dedup. */
+  fetchedStreamedKeys?: string[];
   /** Batch keys (`fromSeq:length`) already folded in (exactly-once). */
   consumedBatches: Set<string>;
   /** Index of open tool cards by toolUseId, for live result merging. */
@@ -36,7 +38,14 @@ export interface TranscriptState {
 }
 
 export function createTranscriptState(): TranscriptState {
-  return { entries: [], seen: new Set(), consumedBatches: new Set(), openTools: new Map(), rev: 0 };
+  return {
+    entries: [],
+    seen: new Set(),
+    fetchedStreamedKeys: [],
+    consumedBatches: new Set(),
+    openTools: new Map(),
+    rev: 0,
+  };
 }
 
 /** Identify the output half of a live tool call (to be merged, not appended). */
@@ -79,7 +88,7 @@ function isStreamedText(e: HqTranscriptEntry): boolean {
  * rendered message. Live non-text entries still record, so a re-delivered
  * batch is not left entirely unguarded.
  */
-function foldEntry(next: TranscriptState, src: HqTranscriptEntry, recordSeen: boolean): void {
+function foldEntry(next: TranscriptState, src: HqTranscriptEntry, isFromFetch: boolean): void {
   const e = { ...src };
   if (isLiveResultEntry(e)) {
     const idx = e.toolUseId !== undefined ? next.openTools.get(e.toolUseId) : undefined;
@@ -97,23 +106,29 @@ function foldEntry(next: TranscriptState, src: HqTranscriptEntry, recordSeen: bo
     // No open card (history was truncated) — fall through and append.
   }
   const key = entryKey(e);
-  if (next.seen.has(key)) {
-    if (e.toolUseId !== undefined && e.toolInput !== undefined && !isToolRunning(e)) {
-      const idx = next.openTools.get(e.toolUseId);
-      if (idx !== undefined && isToolRunning(next.entries[idx]!)) {
-        const tgt = { ...next.entries[idx]! };
-        tgt.text = e.text || '';
-        if (e.durationMs !== undefined) tgt.durationMs = e.durationMs;
-        if (e.isError) {
-          tgt.role = 'error';
-          tgt.isError = true;
+  const streamed = isStreamedText(e);
+  if (!streamed) {
+    if (next.seen.has(key)) {
+      if (e.toolUseId !== undefined && e.toolInput !== undefined && !isToolRunning(e)) {
+        const idx = next.openTools.get(e.toolUseId);
+        if (idx !== undefined && isToolRunning(next.entries[idx]!)) {
+          const tgt = { ...next.entries[idx]! };
+          tgt.text = e.text || '';
+          if (e.durationMs !== undefined) tgt.durationMs = e.durationMs;
+          if (e.isError) {
+            tgt.role = 'error';
+            tgt.isError = true;
+          }
+          next.entries[idx] = tgt;
         }
-        next.entries[idx] = tgt;
       }
+      return;
     }
-    return;
+    next.seen.add(key);
+  } else if (isFromFetch) {
+    next.fetchedStreamedKeys = next.fetchedStreamedKeys ?? [];
+    next.fetchedStreamedKeys.push(key);
   }
-  if (recordSeen || !isStreamedText(e)) next.seen.add(key);
   if (
     (e.role === 'tool' || e.role === 'error') &&
     e.toolUseId !== undefined &&
@@ -122,6 +137,62 @@ function foldEntry(next: TranscriptState, src: HqTranscriptEntry, recordSeen: bo
     next.openTools.set(e.toolUseId, next.entries.length);
   }
   next.entries.push(e);
+}
+
+function foldLiveSequence(next: TranscriptState, entries: readonly HqTranscriptEntry[]): void {
+  const tail = next.fetchedStreamedKeys ?? [];
+  const incomingStreamedKeys = entries.filter(isStreamedText).map(entryKey);
+  let skipStreamed = 0;
+
+  if (tail.length > 0 && incomingStreamedKeys.length > 0) {
+    // 1. Check if the entire incoming streamed-text sequence is a contiguous slice of `tail`.
+    let fullMatchEnd = -1;
+    if (incomingStreamedKeys.length <= tail.length) {
+      for (let i = 0; i <= tail.length - incomingStreamedKeys.length; i++) {
+        let matches = true;
+        for (let j = 0; j < incomingStreamedKeys.length; j++) {
+          if (tail[i + j] !== incomingStreamedKeys[j]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          fullMatchEnd = i + incomingStreamedKeys.length;
+          break;
+        }
+      }
+    }
+
+    if (fullMatchEnd !== -1) {
+      skipStreamed = incomingStreamedKeys.length;
+      next.fetchedStreamedKeys = tail.slice(fullMatchEnd);
+    } else {
+      // 2. Otherwise find the longest suffix of `tail` matching a prefix of `incomingStreamedKeys`.
+      const maxOverlap = Math.min(tail.length, incomingStreamedKeys.length);
+      for (let k = maxOverlap; k >= 1; k--) {
+        let matches = true;
+        for (let j = 0; j < k; j++) {
+          if (tail[tail.length - k + j] !== incomingStreamedKeys[j]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          skipStreamed = k;
+          break;
+        }
+      }
+      next.fetchedStreamedKeys = [];
+    }
+  }
+
+  for (const src of entries) {
+    if (isStreamedText(src) && skipStreamed > 0) {
+      skipStreamed -= 1;
+      continue;
+    }
+    foldEntry(next, src, false);
+  }
 }
 
 /**
@@ -138,7 +209,7 @@ export function applyFetch(
   next.rev = state.rev + 1;
   next.consumedBatches = new Set(state.consumedBatches);
   for (const src of entries) foldEntry(next, src, true);
-  for (const prev of state.entries) foldEntry(next, prev, false);
+  foldLiveSequence(next, state.entries);
   return next;
 }
 
@@ -163,12 +234,13 @@ export function applyLiveBatch(
   const next: TranscriptState = {
     entries: [...state.entries],
     seen: new Set(state.seen),
+    fetchedStreamedKeys: [...(state.fetchedStreamedKeys ?? [])],
     consumedBatches: new Set(state.consumedBatches),
     openTools: new Map(state.openTools),
     rev: state.rev + 1,
   };
   next.consumedBatches.add(batchKey);
-  for (const src of entries) foldEntry(next, src, false);
+  foldLiveSequence(next, entries);
   return next;
 }
 

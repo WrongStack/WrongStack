@@ -73,6 +73,8 @@ export function useKanbanBoards(projectId: string | null): KanbanBoards {
     sequence.current += 1;
     setPayload(null);
     setError(null);
+    setLoading(false);
+    setRefreshing(false);
     if (projectId === null) return;
     void load(true);
     const timer = window.setInterval(() => void load(false), REFRESH_INTERVAL_MS);
