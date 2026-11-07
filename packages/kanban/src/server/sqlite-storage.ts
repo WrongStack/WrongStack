@@ -184,6 +184,7 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
       }
     });
     if (outcome.deleted && outcome.boardId) {
+      this.oversizedBoards.delete(outcome.boardId);
       this.notify({ type: 'deleted', boardId: outcome.boardId });
     }
     return outcome.deleted;
@@ -411,6 +412,9 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         const readRevision = board.revision ?? 0;
         const before = fingerprint(board);
         const result = await mutator(board);
+        if (this.closed) {
+          throw new Error('Kanban SQLite storage is closed');
+        }
         const changed = fingerprint(board) !== before;
         if (changed) {
           board.revision = readRevision + 1;
@@ -568,7 +572,11 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
 
   private exclusive<T>(operation: () => Promise<T> | T): Promise<T> {
     if (this.closed) return Promise.reject(new Error('Kanban SQLite storage is closed'));
-    const next = this.queue.then(operation, operation);
+    const run = (): Promise<T> | T => {
+      if (this.closed) throw new Error('Kanban SQLite storage is closed');
+      return operation();
+    };
+    const next = this.queue.then(run, run);
     this.queue = next.then(
       () => undefined,
       () => undefined,
@@ -582,5 +590,5 @@ function fingerprint(board: KanbanBoard): string {
 }
 
 function escapeLike(value: string): string {
-  return value.replaceAll('%', '\\%').replaceAll('_', '\\_');
+  return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
 }

@@ -420,6 +420,7 @@ class KanbanServerConnection {
   }
 
   subscribe(listener: (ev: KanbanServerEvent) => void): () => void {
+    if (this.destroyed) return () => {};
     this.eventListeners.add(listener);
     return () => this.eventListeners.delete(listener);
   }
@@ -430,8 +431,13 @@ class KanbanServerConnection {
    */
   onDisconnect(listener: () => void): () => void {
     if (this.destroyed) {
-      queueMicrotask(listener);
-      return () => {};
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) listener();
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     this.disconnectListeners.add(listener);
     return () => this.disconnectListeners.delete(listener);

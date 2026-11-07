@@ -7,6 +7,7 @@ import { closeKanbanServerConnections, getKanbanServerConnection } from '../src/
 import { kanbanProjectServerEndpoint } from '../src/server/endpoint.js';
 import { bridgeKanbanSupervisor } from '../src/server/kanban-supervisor-bridge.js';
 import { KANBAN_PROJECT_SERVER_PROTOCOL_VERSION } from '../src/server/protocol.js';
+import { SqliteKanbanStorage } from '../src/server/sqlite-storage.js';
 
 /**
  * A bridge disposed while its connect is in flight must release the connection
@@ -133,5 +134,79 @@ describe('bridgeKanbanSupervisor disposal during connect', () => {
     await expect(bounded(daemon.closed, 150)).resolves.toBe('timeout');
 
     dispose();
+  });
+
+  it('releases the connection when disposed while async onConnected() is in flight and cancels onDisconnect on closed connection (F66)', async () => {
+    const daemon = await startFakeDaemon('onconnected-race');
+    let markStarted!: () => void;
+    const started = new Promise<void>((r) => {
+      markStarted = r;
+    });
+    let releaseOnConnected!: () => void;
+    const onConnectedGate = new Promise<void>((r) => {
+      releaseOnConnected = r;
+    });
+
+    const dispose = bridgeKanbanSupervisor(daemon.projectRoot, () => undefined, {
+      autoReconnect: false,
+      onConnected: async () => {
+        markStarted();
+        await onConnectedGate;
+      },
+    });
+
+    await bounded(daemon.accepted, BOUND_MS);
+    await daemon.sendHello();
+    await started;
+
+    dispose();
+    releaseOnConnected();
+    await expect(bounded(daemon.closed, BOUND_MS)).resolves.not.toBe('timeout');
+  });
+
+  it('escapes backslashes in LIKE prefixes and rejects queued exclusive operations after close() (F65)', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-kanban-sqlite-f65-'));
+    cleanups.push(async () => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+    const storage = await SqliteKanbanStorage.open(tmpDir);
+    await storage.writeWorkflowState('wf\\sub\\alpha', { v: 1 });
+    await storage.writeWorkflowState('wfsubalpha', { v: 2 });
+
+    const states = await storage.listWorkflowStates('wf\\sub\\');
+    expect(states.map((s) => s.workflowId)).toEqual(['wf\\sub\\alpha']);
+
+    await storage.writeBoard({
+      id: 'b1',
+      version: 1,
+      title: 'B1',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+      columns: [{ id: 'todo', title: 'To Do', order: 0 }],
+      tasks: [],
+    });
+
+    let releaseMutator!: () => void;
+    const mutatorGate = new Promise<void>((r) => {
+      releaseMutator = r;
+    });
+    let markStarted!: () => void;
+    const started = new Promise<void>((r) => {
+      markStarted = r;
+    });
+
+    const first = storage.mutateBoard('b1', async () => {
+      markStarted();
+      await mutatorGate;
+      return 'ok';
+    });
+    await started;
+
+    const second = storage.listBoardIds();
+    storage.close();
+    releaseMutator();
+
+    await expect(first).rejects.toThrow('Kanban SQLite storage is closed');
+    await expect(second).rejects.toThrow('Kanban SQLite storage is closed');
   });
 });

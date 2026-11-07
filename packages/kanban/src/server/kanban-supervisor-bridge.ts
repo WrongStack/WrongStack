@@ -108,10 +108,15 @@ export function bridgeKanbanSupervisor(
           clearConnectionSubscriptions();
           scheduleReconnect();
         });
+        connecting = false;
         try {
           await options.onConnected?.();
         } catch {
           // Refresh callbacks are best-effort and must not break reconnection.
+        }
+        if (disposed) {
+          clearConnectionSubscriptions();
+          releaseAbandonedConnection(conn);
         }
       } catch {
         scheduleReconnect();
