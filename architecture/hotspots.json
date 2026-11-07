@@ -59,7 +59,7 @@
       "relativeImports": 0
     },
     "packages/project-surfaces/src/atlas/codemap-model.ts": {
-      "lines": 1098,
+      "lines": 1110,
       "relativeImports": 0
     },
     "packages/project-surfaces/src/sage/useMemoryManagerState.ts": {

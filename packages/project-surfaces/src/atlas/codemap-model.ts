@@ -84,6 +84,10 @@ const NODE_WIDTH = 236;
 const NODE_HEIGHT = 156;
 const X_GAP = 150;
 const Y_GAP = 52;
+/** Cards per column inside one dependency layer before it wraps into another column. */
+const LAYER_ROWS = 12;
+/** Gap between the wrapped columns of one layer (narrower than between layers). */
+const LAYER_COLUMN_GAP = 40;
 
 /**
  * Module-level memo cache for `normalizedPath`. Path strings are stable
@@ -717,21 +721,29 @@ function layeredLayout(graph: CodeMapGraphResponse): PositionedGraphNode[] {
     );
   }
 
-  const maxLayerSize = Math.max(1, ...[...layers.values()].map((layer) => layer.length));
-  const canvasHeight = maxLayerSize * (NODE_HEIGHT + Y_GAP);
+  // A crowded layer wraps into sub-columns of at most LAYER_ROWS cards. One column per
+  // layer put a workspace's ~60 dependency-free packages in a single strip that the fitted
+  // view shrank to unreadable slivers. Sub-columns of one layer sit closer together than
+  // two layers do, so the layering stays visible.
+  const rowsOf = (layer: GraphNodeData[]) => Math.min(layer.length, LAYER_ROWS);
+  const canvasRows = Math.max(1, ...[...layers.values()].map(rowsOf));
+  const canvasHeight = canvasRows * (NODE_HEIGHT + Y_GAP);
   const positioned: PositionedGraphNode[] = [];
-  for (const [layerIndex, layer] of [...layers.entries()].sort(([a], [b]) => a - b)) {
-    const layerHeight = layer.length * (NODE_HEIGHT + Y_GAP);
-    const startY = (canvasHeight - layerHeight) / 2;
+  let x = 0;
+  for (const [, layer] of [...layers.entries()].sort(([a], [b]) => a - b)) {
+    const rows = rowsOf(layer);
+    const startY = (canvasHeight - rows * (NODE_HEIGHT + Y_GAP)) / 2;
+    const columns = Math.ceil(layer.length / rows);
     layer.forEach((node, index) => {
       positioned.push({
         node,
         position: {
-          x: layerIndex * (NODE_WIDTH + X_GAP),
-          y: startY + index * (NODE_HEIGHT + Y_GAP),
+          x: x + Math.floor(index / rows) * (NODE_WIDTH + LAYER_COLUMN_GAP),
+          y: startY + (index % rows) * (NODE_HEIGHT + Y_GAP),
         },
       });
     });
+    x += columns * NODE_WIDTH + (columns - 1) * LAYER_COLUMN_GAP + X_GAP;
   }
   return positioned;
 }

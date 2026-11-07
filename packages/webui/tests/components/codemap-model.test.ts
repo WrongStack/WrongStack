@@ -60,6 +60,28 @@ describe('codemap model', () => {
     expect(endpointReads).toBeLessThan(edges.length * 20);
   });
 
+  it('wraps a crowded layer into several columns instead of one tall strip', () => {
+    // A workspace whose packages mostly have no incoming edges put ~60 cards in one column:
+    // the fitted view shrank them to unreadable slivers.
+    const nodes = Array.from({ length: 60 }, (_, index) => graphNode(index));
+
+    const positioned = layoutGraph({ nodes, edges: [] }, 'layers');
+
+    const columns = new Set(positioned.map((entry) => entry.position.x));
+    const rows = new Set(positioned.map((entry) => entry.position.y));
+    expect(columns.size).toBeGreaterThan(1);
+    expect(rows.size).toBeLessThanOrEqual(12);
+    expect(new Set(positioned.map((entry) => `${entry.position.x}:${entry.position.y}`)).size).toBe(
+      nodes.length,
+    );
+  });
+
+  it('keeps a small layer in a single column', () => {
+    const nodes = Array.from({ length: 5 }, (_, index) => graphNode(index));
+    const positioned = layoutGraph({ nodes, edges: [] }, 'layers');
+    expect(new Set(positioned.map((entry) => entry.position.x)).size).toBe(1);
+  });
+
   it('keeps cyclic islands spread across multiple layers', () => {
     const nodes = Array.from({ length: 6 }, (_, index) => graphNode(index));
     const edges = nodes.map((node, index) => ({
