@@ -69,7 +69,7 @@ export function createSandboxMcpGate(
           return rawExecute.call(tool, input, ctx, opts);
         }
         const decision = mcpDenyDecision(config.tier);
-        if ((await resolveDeny(tool.name, decision, config.tier, ctx)) === 'elevated') {
+        if ((await resolveDeny(tool.name, decision, config, ctx)) === 'elevated') {
           return rawExecute.call(tool, input, ctx, opts);
         }
         throw new SandboxDeniedError(tool.name, decision);
@@ -87,7 +87,7 @@ export function createSandboxMcpGate(
           return;
         }
         const decision = mcpDenyDecision(config.tier);
-        if ((await resolveDeny(tool.name, decision, config.tier, ctx)) === 'elevated') {
+        if ((await resolveDeny(tool.name, decision, config, ctx)) === 'elevated') {
           yield* rawExecuteStream.call(tool, input, ctx as never, opts as never);
           return;
         }
@@ -109,9 +109,10 @@ function mcpDenyDecision(tier: string): SandboxDenyDecision {
 async function resolveDeny(
   toolName: string,
   decision: SandboxDenyDecision,
-  tier: string,
+  config: SandboxConfig,
   ctx: unknown,
 ): Promise<'denied' | 'elevated'> {
+  const tier = config.tier;
   emitSandboxDenied(toolName, decision, tier);
   const sessionCtx: SandboxExpansionCtx = {
     session: (ctx as { session?: SandboxExpansionCtx['session'] } | undefined)?.session,
@@ -126,7 +127,7 @@ async function resolveDeny(
   // otherwise a denial stays a denial (no request/outcome chatter).
   if (!getSandboxExpansionApprover()) return 'denied';
   const resolution = await requestSandboxExpansion(
-    { tool: toolName },
+    { tool: toolName, config },
     decision,
     'agent',
     sessionCtx,
@@ -154,9 +155,12 @@ export function createSandboxExecWrapper(
     input: unknown,
     ctx: unknown,
   ): SandboxRouteRequest | undefined {
-    const cwd = (ctx as { cwd?: string } | undefined)?.cwd;
-    const source = input as { command?: unknown; args?: unknown } | undefined;
+    const source = input as { command?: unknown; args?: unknown; cwd?: unknown } | undefined;
     if (!source || typeof source.command !== 'string') return undefined;
+    const inputCwd =
+      typeof source.cwd === 'string' && source.cwd.trim() !== '' ? source.cwd.trim() : undefined;
+    const ctxObj = ctx as { cwd?: string; workingDir?: string } | undefined;
+    const cwd = inputCwd ?? ctxObj?.cwd ?? ctxObj?.workingDir;
     if (name === 'bash') {
       return { tool: name, kind: 'shell', command: source.command, cwd };
     }
@@ -218,7 +222,7 @@ export function createSandboxExecWrapper(
           // Granted one-call elevation (T6) runs THIS call unsandboxed —
           // routing is skipped so an approved call can't be rewritten into a
           // form the deny reason made impossible (chimera medium, 2026-10-04).
-          if ((await resolveDeny(tool.name, decision, cfg.tier, ctx)) === 'denied') {
+          if ((await resolveDeny(tool.name, decision, cfg, ctx)) === 'denied') {
             throw new SandboxDeniedError(tool.name, decision);
           }
           return rawExecute.call(tool, input, ctx, opts);
@@ -255,7 +259,7 @@ export function createSandboxExecWrapper(
           // Granted one-call elevation (T6) runs THIS call unsandboxed —
           // routing is skipped so an approved call can't be rewritten into a
           // form the deny reason made impossible (chimera medium, 2026-10-04).
-          if ((await resolveDeny(tool.name, decision, cfg.tier, ctx)) === 'denied') {
+          if ((await resolveDeny(tool.name, decision, cfg, ctx)) === 'denied') {
             throw new SandboxDeniedError(tool.name, decision);
           }
           yield* rawExecuteStream.call(tool, input, ctx as never, opts as never);

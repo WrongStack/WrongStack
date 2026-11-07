@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  areSubagentCompanionsAllowed,
+  areSubagentsAllowed,
+  isSubagentPolicyLocked,
+  seedSessionSubagentPolicy,
+  setSessionSubagentPolicy,
+  subagentPolicyMode,
+} from '../../src/security/session-subagent-policy.js';
+import {
   base32Decode,
   base32Encode,
   buildOtpAuthUri,
@@ -232,5 +240,54 @@ describe('verifyTotp code-shape guard (WS-SEC-LOW)', () => {
     const codeAtEpoch = generateTotp(secret, 0);
     expect(verifyTotp(codeAtEpoch, secret, 0)).toBe(true);
     expect(verifyTotpCounter('000000', secret, 0)).toBeUndefined();
+  });
+
+  it('guards verifyTotpCounter against non-finite atMs, non-positive stepSeconds, negative window, and invalid digits (F91)', () => {
+    const now = 1_700_000_000_000;
+    const validCode = generateTotp(secret, now);
+    expect(verifyTotpCounter(validCode, secret, Number.NaN)).toBeUndefined();
+    expect(verifyTotpCounter(validCode, secret, now, 1, 0)).toBeUndefined();
+    expect(verifyTotpCounter(validCode, secret, now, 1, -30)).toBeUndefined();
+    expect(verifyTotpCounter(validCode, secret, now, -1, 30)).toBeUndefined();
+    expect(verifyTotpCounter(validCode, secret, now, 1, 30, 0)).toBeUndefined();
+  });
+
+  it('rejects empty and whitespace/hyphen-only recovery codes in hashRecoveryCode and verifyRecoveryCode (F91)', () => {
+    const emptySha256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    expect(hashRecoveryCode('')).toBe('');
+    expect(hashRecoveryCode(' ---  --- ')).toBe('');
+    expect(verifyRecoveryCode(' --- ', [emptySha256])).toBe(false);
+  });
+});
+
+describe('session subagent policy inheritance and lock seeding (F91)', () => {
+  it('falls back to sessionPolicies when ctx.meta is present but has no subagent policy keys', async () => {
+    const writerCtx = {
+      meta: {} as Record<string, unknown>,
+      session: { id: 'sess-f91-reg-policy', append: async () => {} },
+    };
+    await setSessionSubagentPolicy(writerCtx, 'companions');
+    const derivedCtx = {
+      meta: {},
+      session: { id: 'sess-f91-reg-policy', append: async () => {} },
+    };
+    expect(subagentPolicyMode(derivedCtx)).toBe('companions');
+    expect(areSubagentsAllowed(derivedCtx)).toBe(false);
+    expect(areSubagentCompanionsAllowed(derivedCtx)).toBe(true);
+  });
+
+  it('records locked sessionId in lockedSessions during seedSessionSubagentPolicy', () => {
+    const seededCtx = {
+      meta: {} as Record<string, unknown>,
+      messages: [{ role: 'user' as const, content: 'hello' }],
+      session: { id: 'sess-f91-reg-seeded', append: async () => {} },
+    };
+    seedSessionSubagentPolicy(seededCtx);
+    expect(
+      isSubagentPolicyLocked({
+        meta: {},
+        session: { id: 'sess-f91-reg-seeded', append: async () => {} },
+      }),
+    ).toBe(true);
   });
 });

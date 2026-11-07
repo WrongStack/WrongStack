@@ -35,10 +35,19 @@ export function subagentPolicyModeFrom(
 }
 
 export function subagentPolicyMode(ctx: PolicyContext | null | undefined): SubagentPolicyMode {
-  return subagentPolicyModeFrom(
-    ctx?.meta?.[SUBAGENTS_ALLOWED_META_KEY] !== false,
-    ctx?.meta?.[SUBAGENT_COMPANIONS_ALLOWED_META_KEY] === true,
-  );
+  if (
+    ctx?.meta &&
+    (SUBAGENTS_ALLOWED_META_KEY in ctx.meta || SUBAGENT_COMPANIONS_ALLOWED_META_KEY in ctx.meta)
+  ) {
+    return subagentPolicyModeFrom(
+      ctx.meta[SUBAGENTS_ALLOWED_META_KEY] !== false,
+      ctx.meta[SUBAGENT_COMPANIONS_ALLOWED_META_KEY] === true,
+    );
+  }
+  if (ctx?.session?.id && sessionPolicies.has(ctx.session.id)) {
+    return sessionPolicies.get(ctx.session.id) ?? 'all';
+  }
+  return 'all';
 }
 
 function applyMode(ctx: PolicyContext, mode: SubagentPolicyMode): void {
@@ -150,8 +159,12 @@ export function restoreSessionSubagentPolicy(
 export function seedSessionSubagentPolicy(ctx: PolicyContext): void {
   const mode = subagentPolicyMode(ctx);
   applyMode(ctx, mode);
-  if (ctx.meta) ctx.meta[SUBAGENTS_POLICY_LOCKED_META_KEY] = isSubagentPolicyLocked(ctx);
-  if (ctx.session?.id) sessionPolicies.set(ctx.session.id, mode);
+  const locked = isSubagentPolicyLocked(ctx);
+  if (ctx.meta) ctx.meta[SUBAGENTS_POLICY_LOCKED_META_KEY] = locked;
+  if (ctx.session?.id) {
+    sessionPolicies.set(ctx.session.id, mode);
+    if (locked) lockedSessions.add(ctx.session.id);
+  }
 }
 
 export function resetSessionSubagentPolicy(ctx: PolicyContext): void {

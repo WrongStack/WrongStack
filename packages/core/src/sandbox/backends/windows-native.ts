@@ -43,14 +43,10 @@ export interface WindowsAclPlan {
  */
 export function buildWindowsAclPlan(config: SandboxConfig): WindowsAclPlan {
   if (config.tier !== 'workspace-write') return { grants: [], lowIntegrityDirs: [] };
+  const roots = config.writableRoots.map((root) => root.trim()).filter(Boolean);
   return {
-    grants: config.writableRoots.map((root) => [
-      'icacls',
-      root,
-      '/grant',
-      `${SANDBOX_IDENTITY}:(OI)(CI)M`,
-    ]),
-    lowIntegrityDirs: [...config.writableRoots],
+    grants: roots.map((root) => ['icacls', root, '/grant', `${SANDBOX_IDENTITY}:(OI)(CI)M`]),
+    lowIntegrityDirs: [...roots],
   };
 }
 

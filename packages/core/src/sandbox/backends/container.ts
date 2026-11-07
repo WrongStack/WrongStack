@@ -82,7 +82,8 @@ export function buildContainerRoute(
   //   for the writable roots — and `-w` targets the working directory's mount.
   const isWindows = process.platform === 'win32';
   const argv = [RUNNER, 'run', '--rm', '--network', 'none'];
-  const mounts = [...new Set([cwd, ...(readOnly ? [] : config.writableRoots)])];
+  const writableRoots = config.writableRoots.map((root) => root.trim()).filter(Boolean);
+  const mounts = [...new Set([cwd, ...(readOnly ? [] : writableRoots)])];
   let workdir = cwd;
   // Windows: the route line is executed by cmd.exe, which does NOT strip
   // POSIX single quotes (they reached docker literally → exit 125). Double-

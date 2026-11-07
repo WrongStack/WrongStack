@@ -176,6 +176,18 @@ export function verifyTotpCounter(
   // Constraining to ASCII digits fixes both halves at once: it is the actual
   // domain of a TOTP code (RFC 6238 codes are decimal), and it makes the UTF-8
   // byte length equal the character length by construction.
+  if (
+    !Number.isFinite(atMs) ||
+    !Number.isFinite(stepSeconds) ||
+    stepSeconds <= 0 ||
+    !Number.isSafeInteger(window) ||
+    window < 0 ||
+    !Number.isSafeInteger(digits) ||
+    digits < 1 ||
+    digits > 10
+  ) {
+    return undefined;
+  }
   if (typeof code !== 'string' || code.length !== digits) return undefined;
   for (let i = 0; i < code.length; i++) {
     const c = code.charCodeAt(i);
@@ -265,6 +277,7 @@ export function hashRecoveryCode(code: string): string {
   // Normalize: strip whitespace and hyphens before hashing so the stored
   // form is independent of how the user typed or pasted the code.
   const normalized = code.replace(/[\s-]/g, '').toLowerCase();
+  if (normalized.length === 0) return '';
   return createHash('sha256').update(normalized, 'utf8').digest('hex');
 }
 

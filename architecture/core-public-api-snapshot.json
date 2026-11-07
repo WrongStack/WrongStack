@@ -1181,14 +1181,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused sandbox implementation",
       "sourceFiles": 12,
-      "sourceLines": 1302
+      "sourceLines": 1303
     },
     {
       "directory": "security",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 40,
-      "sourceLines": 10052
+      "sourceLines": 10078
     },
     {
       "directory": "session-catalog",

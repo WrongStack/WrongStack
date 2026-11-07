@@ -1,15 +1,20 @@
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  buildContainerRoute,
+  buildWindowsAclPlan,
   configureSandboxPolicy,
   createSandboxExecWrapper,
   getResolvedSandboxConfig,
   resetSandboxPolicy,
+  setSandboxExpansionApprover,
 } from '../../src/sandbox/index.js';
 import {
   DEFAULT_SANDBOX_CONFIG,
   type SandboxBackend,
   SandboxDeniedError,
+  type SandboxExecCall,
+  type SandboxRouteRequest,
 } from '../../src/sandbox/types.js';
 
 interface EchoInput {
@@ -133,5 +138,88 @@ describe('sandbox choke point (T2, policy-only backend)', () => {
     expect(err.tool).toBe('exec');
     expect(err.message).toContain('outside writable roots');
     expect(err.decision.missing[0]?.type).toBe('path');
+  });
+
+  it('forwards input.cwd > ctx.cwd > ctx.workingDir to routeExec, passes resolved config on deny expansion, and trims/filters blank writableRoots (F92)', async () => {
+    try {
+      configureSandboxPolicy({
+        mode: 'enforced',
+        tier: 'workspace-write',
+        backend: 'container',
+        image: 'alpine:3.20',
+        writableRoots: ['/proj/out'],
+      });
+      const baseTool: Tool<{ command: string; cwd?: string }, string> = {
+        name: 'bash',
+        description: 'bash',
+        permission: 'confirm',
+        mutating: true,
+        inputSchema: { type: 'object', properties: {} },
+        execute: async (input) => `ran:${input.command}`,
+      };
+      const capturedRequests: SandboxRouteRequest[] = [];
+      const customBackend: SandboxBackend = {
+        id: 'container',
+        enforceExec: async () => ({ outcome: 'allow' }),
+        routeExec: (req) => {
+          capturedRequests.push(req);
+          return { command: `routed:${req.cwd ?? 'NONE'}` };
+        },
+      };
+      const wrapped = createSandboxExecWrapper({ backend: customBackend })(baseTool);
+      const options = { signal: new AbortController().signal };
+      await wrapped.execute(
+        { command: 'ls', cwd: '/explicit/input-cwd' },
+        { workingDir: '/ctx/working-dir' } as never,
+        options,
+      );
+      await wrapped.execute(
+        { command: 'pwd' },
+        { workingDir: '/ctx/working-dir' } as never,
+        options,
+      );
+      expect(capturedRequests[0]?.cwd).toBe('/explicit/input-cwd');
+      expect(capturedRequests[1]?.cwd).toBe('/ctx/working-dir');
+
+      let capturedExpansionCall: SandboxExecCall | undefined;
+      setSandboxExpansionApprover(async (call) => {
+        capturedExpansionCall = call;
+        return { granted: true, decidedBy: 'test' };
+      });
+      const wrappedDeny = createSandboxExecWrapper({ backend: denyBackend })(baseTool);
+      await wrappedDeny.execute(
+        { command: 'ls' },
+        { workingDir: '/ctx/working-dir' } as never,
+        options,
+      );
+      expect(capturedExpansionCall?.config?.tier).toBe('workspace-write');
+
+      const route = buildContainerRoute(
+        { tool: 'exec', kind: 'argv', argv: ['ls'], cwd: '/work' },
+        {
+          mode: 'enforced',
+          tier: 'workspace-write',
+          backend: 'container',
+          image: 'alpine:3.20',
+          writableRoots: ['', '   ', ' /work/out '],
+        },
+      );
+      const volumeArgs = (route?.argv ?? []).filter(
+        (_, idx, arr) => idx > 0 && arr[idx - 1] === '-v',
+      );
+      expect(volumeArgs).toHaveLength(2);
+      expect(volumeArgs.some((v) => v.includes('/work/out:'))).toBe(true);
+
+      const aclPlan = buildWindowsAclPlan({
+        mode: 'enforced',
+        tier: 'workspace-write',
+        backend: 'windows-native',
+        writableRoots: ['', '  ', ' D:\\work '],
+      });
+      expect(aclPlan.grants).toHaveLength(1);
+      expect(aclPlan.lowIntegrityDirs).toEqual(['D:\\work']);
+    } finally {
+      setSandboxExpansionApprover(undefined);
+    }
   });
 });
