@@ -22,21 +22,22 @@
     "typecheck": "bun ../../scripts/bun-typecheck.mjs --noEmit"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.23",
-    "@radix-ui/react-scroll-area": "^1.2.18",
-    "@radix-ui/react-slot": "^1.3.3",
-    "@radix-ui/react-tabs": "^1.1.21",
-    "@tanstack/react-virtual": "^3.14.21",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-scroll-area": "^1.4.0",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-tabs": "^1.2.1",
+    "@tanstack/react-virtual": "^3.14.26",
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/providers": "workspace:*",
-    "@xyflow/react": "^12.11.6",
+    "@wrongstack/tools": "workspace:*",
+    "@xyflow/react": "^12.12.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.61.0",
+    "lucide-react": "^1.69.0",
     "qrcode": "^1.5.4",
-    "react-i18next": "^17.1.0",
+    "react-i18next": "^17.1.13",
     "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.16"
   },
@@ -48,9 +49,9 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "i18next": "^26.5.4",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "i18next": "^26.7.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2"
   }
 }

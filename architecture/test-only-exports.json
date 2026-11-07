@@ -1255,6 +1255,9 @@
     "packages/project-surfaces/src/story/StoryInsights.tsx": [
       "observedOverlap"
     ],
+    "packages/project-surfaces/src/tools/ToolCallOverview.tsx": [
+      "TOOL_OVERVIEW_REGISTRY"
+    ],
     "packages/providers/src/ai-gateway.ts": [
       "resolveGatewayWireBaseUrl"
     ],
@@ -2011,9 +2014,6 @@
     ],
     "packages/webui/src/components/MessageBubble/StreamingMarkdown.tsx": [
       "splitStableStreamPrefix"
-    ],
-    "packages/webui/src/components/MessageBubble/ToolCallOverview.tsx": [
-      "TOOL_OVERVIEW_REGISTRY"
     ],
     "packages/webui/src/components/ProviderWaitingRoom.tsx": [
       "siblingTriggerOf"

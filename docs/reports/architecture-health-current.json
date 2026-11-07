@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T16:20:22.871Z",
+  "generatedAt": "2026-11-07T16:21:52.032Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6063,
+    "sourceFiles": 6068,
     "testFiles": 5056,
-    "sourceLines": 1255342,
-    "workspaceEdges": 243,
-    "moduleEdges": 17927,
+    "sourceLines": 1255365,
+    "workspaceEdges": 244,
+    "moduleEdges": 17933,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -733,13 +733,14 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 247,
+      "sourceFiles": 252,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
         "@wrongstack/kanban",
-        "@wrongstack/providers"
+        "@wrongstack/providers",
+        "@wrongstack/tools"
       ],
       "tsconfigs": [
         {
@@ -37315,6 +37316,10 @@
       "name": "observedOverlap"
     },
     {
+      "file": "packages/project-surfaces/src/tools/ToolCallOverview.tsx",
+      "name": "TOOL_OVERVIEW_REGISTRY"
+    },
+    {
       "file": "packages/providers/src/ai-gateway.ts",
       "name": "resolveGatewayWireBaseUrl"
     },
@@ -38653,10 +38658,6 @@
     {
       "file": "packages/webui/src/components/MessageBubble/StreamingMarkdown.tsx",
       "name": "splitStableStreamPrefix"
-    },
-    {
-      "file": "packages/webui/src/components/MessageBubble/ToolCallOverview.tsx",
-      "name": "TOOL_OVERVIEW_REGISTRY"
     },
     {
       "file": "packages/webui/src/components/ProviderWaitingRoom.tsx",
