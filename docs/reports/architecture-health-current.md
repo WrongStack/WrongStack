@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-07T17:16:45.883Z
+**Generated:** 2026-11-07T17:18:27.930Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6068 |
-| Production source lines | 1256797 |
+| Production source lines | 1256869 |
 | Test files | 5056 |
 | Workspace dependency edges | 244 |
 | Relative module edges | 17934 |
@@ -125,6 +125,7 @@ None.
 | 719 | `packages/chronicle/src/project-server-client.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
+| 712 | `packages/mailbox-mcp/src/adapter.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |
 | 709 | `apps/desktop-v2/src/EngineWorkspace.tsx` |
 | 709 | `packages/core/src/storage/file-session-writer.ts` |
@@ -132,7 +133,6 @@ None.
 | 708 | `packages/core/src/core/agent-tools.ts` |
 | 708 | `packages/plugins/src/audit/index.ts` |
 | 707 | `packages/acp/src/client/acp-session.ts` |
-| 707 | `packages/mailbox-mcp/src/adapter.ts` |
 | 706 | `packages/chronicle/src/project-server.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |

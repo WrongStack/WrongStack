@@ -252,8 +252,22 @@ function validateArgs(
       return 'codebase_search does not accept "preferLsp" over MCP';
     }
   }
-  if (name === 'codebase_file_graph' && !nonEmptyString(args['package'])) {
-    return 'codebase_file_graph requires a non-empty string "package"';
+  if (name === 'codebase_package_graph') {
+    for (const key of Object.keys(args)) {
+      if (args[key] !== undefined) {
+        return `codebase_package_graph: unknown argument "${key}"`;
+      }
+    }
+  }
+  if (name === 'codebase_file_graph') {
+    for (const key of Object.keys(args)) {
+      if (key !== 'package' && args[key] !== undefined) {
+        return `codebase_file_graph: unknown argument "${key}"`;
+      }
+    }
+    if (!nonEmptyString(args['package'])) {
+      return 'codebase_file_graph requires a non-empty string "package"';
+    }
   }
   // Built-in tools: every string field their own schema marks required.
   const builtin = BUILTIN_TOOLS[name];
@@ -274,8 +288,15 @@ function validateArgs(
       }
     }
   }
-  if (name === 'codebase_symbol_graph' && !nonEmptyString(args['file'])) {
-    return 'codebase_symbol_graph requires a non-empty string "file"';
+  if (name === 'codebase_symbol_graph') {
+    for (const key of Object.keys(args)) {
+      if (key !== 'file' && args[key] !== undefined) {
+        return `codebase_symbol_graph: unknown argument "${key}"`;
+      }
+    }
+    if (!nonEmptyString(args['file'])) {
+      return 'codebase_symbol_graph requires a non-empty string "file"';
+    }
   }
   if (name === 'codebase_index') {
     if (args['force'] !== undefined && typeof args['force'] !== 'boolean') {
@@ -355,16 +376,21 @@ export function createCodebaseIndexMcpToolHost(
           // Without it codebase_skeleton went out as one-line JSON carrying
           // every file's skeleton twice.
           const serialize = builtin.serialize;
-          if (
+          const normalizedContent =
             content &&
             typeof content === 'object' &&
+            !Array.isArray(content) &&
             typeof (content as { note?: unknown }).note === 'string'
-          ) {
-            const record = content as { note: string };
-            record.note = mcpToolNote(record.note, opts);
-          }
+              ? {
+                  ...(content as Record<string, unknown>),
+                  note: mcpToolNote((content as { note: string }).note, opts),
+                }
+              : content;
           return {
-            content: typeof serialize === 'function' ? serialize(content, args) : content,
+            content:
+              typeof serialize === 'function'
+                ? serialize(normalizedContent, args)
+                : normalizedContent,
             isError: false,
           };
         }

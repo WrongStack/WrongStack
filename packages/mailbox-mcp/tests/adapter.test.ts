@@ -385,6 +385,13 @@ describe('createMailboxMcpToolHost', () => {
       isError: true,
     });
     expect(emitter.subscriberCount).toBe(0);
+
+    await expect(
+      host.callTool('mailbox_watch', { eventType: 'message.sent', to: 'external-agent' }),
+    ).resolves.toEqual({
+      content: 'mailbox_watch: unknown argument "to"',
+      isError: true,
+    });
   });
 
   it('does not execute Mailbox operations for a pre-cancelled request', async () => {

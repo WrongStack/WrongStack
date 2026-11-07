@@ -17,5 +17,11 @@ describe('codebase-index-mcp: privilege switches with an inline value', () => {
     expect(parse(['--writable=false']).writable).toBe(false);
     expect(parse(['--writable=0']).writable).toBe(false);
     expect(parse(['--writable=yes-please']).writable).toBe(false);
+    expect(parse(['--watch']).watch).toBe(true);
+    expect(parse(['--watch=true']).watch).toBe(true);
+    expect(parse(['--watch=1']).watch).toBe(true);
+    expect(parse(['--watch=false']).watch).toBe(false);
+    expect(parse(['--watch=0']).watch).toBe(false);
+    expect(parse(['--watch=yes-please']).watch).toBe(false);
   });
 });

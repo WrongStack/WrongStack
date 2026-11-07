@@ -203,7 +203,10 @@ export function parseArgs(
   // the command line where other local processes can read it.
   if (parsed.httpToken === undefined) {
     const fromEnv = env[HTTP_TOKEN_ENV]?.trim();
-    if (fromEnv) parsed.httpToken = fromEnv;
+    if (fromEnv) {
+      parsed.httpToken = fromEnv;
+      parsed.tokenMissing = false;
+    }
   } else if (parsed.httpToken.length > 0) {
     console.warn(
       `[mcp] --token puts the auth token in this process's command line, which other ` +
@@ -264,16 +267,24 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         ...(args.httpToken ? { token: args.httpToken } : {}),
         logger: { warn: (message) => process.stderr.write(`[kanban-mcp] ${message}\n`) },
       });
-      process.stderr.write(
-        `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} transport=http ${policyText}${
-          args.httpToken ? ' [token auth]' : ''
-        }\n`,
-      );
-      await new Promise<void>((resolve) => {
-        process.once('SIGINT', resolve);
-        process.once('SIGTERM', resolve);
-      });
-      await handle.close();
+      try {
+        process.stderr.write(
+          `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} transport=http ${policyText}${
+            args.httpToken ? ' [token auth]' : ''
+          }\n`,
+        );
+        await new Promise<void>((resolve) => {
+          const finish = (): void => {
+            process.off('SIGINT', finish);
+            process.off('SIGTERM', finish);
+            resolve();
+          };
+          process.once('SIGINT', finish);
+          process.once('SIGTERM', finish);
+        });
+      } finally {
+        await handle.close();
+      }
       return 0;
     }
 

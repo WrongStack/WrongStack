@@ -73,7 +73,7 @@ export function codebaseIndexMcpWriteVariant(
 export function mcpToolNote(note: string, opts: CodebaseIndexMcpPolicyOptions = {}): string {
   const exposed = new Set<string>(selectCodebaseIndexMcpTools(opts));
   const write = new Set<string>(CODEBASE_INDEX_WRITE_TOOLS);
-  return note.replace(/\bcodebase-[a-z]+(?:-[a-z]+)*/g, (name) => {
+  return note.replace(/\b(?:codebase|dead-code)-[a-z]+(?:-[a-z]+)*/g, (name) => {
     const mcp = name.replace(/-/g, '_');
     if (exposed.has(mcp)) return mcp;
     return write.has(mcp) ? `${mcp} (needs --writable)` : name;

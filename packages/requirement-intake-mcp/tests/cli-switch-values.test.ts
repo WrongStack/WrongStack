@@ -3,7 +3,7 @@
  * `--writable=false` granted the tier it was written to deny.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { parseArgs } from '../src/main.js';
+import { main, parseArgs } from '../src/main.js';
 
 vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 const parse = (argv: string[]) =>
@@ -17,5 +17,37 @@ describe('requirement-intake-mcp: privilege switches with an inline value', () =
     expect(parse(['--writable=false']).writable).toBe(false);
     expect(parse(['--writable=0']).writable).toBe(false);
     expect(parse(['--writable=yes-please']).writable).toBe(false);
+  });
+
+  it('clears tokenMissing on WRONGSTACK_MCP_TOKEN fallback and removes both signal listeners on HTTP shutdown (F73)', async () => {
+    const parsed = parseArgs(['--project-root', '/tmp/proj', '--token', ''], {
+      WRONGSTACK_MCP_TOKEN: 'env-token-123',
+    });
+    expect(parsed.httpToken).toBe('env-token-123');
+    expect(parsed.tokenMissing).toBe(false);
+
+    const sigintBefore = process.listenerCount('SIGINT');
+    const sigtermBefore = process.listenerCount('SIGTERM');
+    let readyResolve!: () => void;
+    const readyPromise = new Promise<void>((r) => {
+      readyResolve = r;
+    });
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+      if (text.includes('ready at http://')) readyResolve();
+      return true;
+    });
+
+    try {
+      const runPromise = main(['--project-root', process.cwd(), '--http', '--port', '0']);
+      await readyPromise;
+      process.emit('SIGINT', 'SIGINT');
+      await expect(runPromise).resolves.toBe(0);
+    } finally {
+      stderrSpy.mockRestore();
+    }
+
+    expect(process.listenerCount('SIGINT')).toBe(sigintBefore);
+    expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore);
   });
 });

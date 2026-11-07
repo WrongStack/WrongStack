@@ -200,6 +200,11 @@ async function watchForMailboxEvent(
   args: Record<string, unknown>,
   signal: AbortSignal,
 ): Promise<unknown> {
+  for (const key of Object.keys(args)) {
+    if (key !== 'eventType' && key !== 'timeoutMs' && args[key] !== undefined) {
+      throw new Error(`mailbox_watch: unknown argument "${key}"`);
+    }
+  }
   const eventType = optionalEnum(args, 'eventType', WATCH_EVENT_TYPES);
   const timeoutMs = normalizeTimeout(args['timeoutMs']);
   if (signal.aborted) {

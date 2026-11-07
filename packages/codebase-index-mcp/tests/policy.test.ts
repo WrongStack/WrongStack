@@ -28,6 +28,12 @@ describe('Codebase Index MCP policy', () => {
       'Next: codebase_read_symbol({ file: "a.ts", symbol: "f" }); then codebase_targeted_test (needs --writable)({ file: "a.ts" }).',
     );
     expect(mcpToolNote(note, { writable: true })).toContain('codebase_targeted_test({ file');
+    expect(mcpToolNote('Run dead-code-scan then dead-code-fix.')).toBe(
+      'Run dead_code_scan then dead_code_fix (needs --writable).',
+    );
+    expect(mcpToolNote('Run dead-code-scan then dead-code-fix.', { writable: true })).toBe(
+      'Run dead_code_scan then dead_code_fix.',
+    );
     // Not an MCP tool: left as written.
     expect(mcpToolNote('see codebase-lsp-search')).toBe('see codebase-lsp-search');
   });

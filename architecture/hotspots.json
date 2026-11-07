@@ -51,7 +51,7 @@
       "relativeImports": 3
     },
     "packages/mailbox-mcp/src/adapter.ts": {
-      "lines": 707,
+      "lines": 712,
       "relativeImports": 3
     },
     "packages/plugins/src/audit/index.ts": {

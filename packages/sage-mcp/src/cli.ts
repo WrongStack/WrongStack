@@ -218,7 +218,10 @@ export function parseArgs(
   // the command line where other local processes can read it.
   if (out.httpToken === undefined) {
     const fromEnv = env[HTTP_TOKEN_ENV]?.trim();
-    if (fromEnv) out.httpToken = fromEnv;
+    if (fromEnv) {
+      out.httpToken = fromEnv;
+      out.tokenMissing = false;
+    }
   } else if (out.httpToken.length > 0) {
     console.warn(
       `[mcp] --token puts the auth token in this process's command line, which other ` +
@@ -304,15 +307,23 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         ...(args.httpToken ? { token: args.httpToken } : {}),
         logger: { warn: (m) => process.stderr.write(`[sage-mcp] ${m}\n`) },
       });
-      process.stderr.write(
-        `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} ` +
-          `transport=http writable=${String(args.writable)}${args.httpToken ? ' [token auth]' : ''}\n`,
-      );
-      await new Promise<void>((resolve) => {
-        process.once('SIGINT', resolve);
-        process.once('SIGTERM', resolve);
-      });
-      await handle.close();
+      try {
+        process.stderr.write(
+          `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} ` +
+            `transport=http writable=${String(args.writable)}${args.httpToken ? ' [token auth]' : ''}\n`,
+        );
+        await new Promise<void>((resolve) => {
+          const finish = (): void => {
+            process.off('SIGINT', finish);
+            process.off('SIGTERM', finish);
+            resolve();
+          };
+          process.once('SIGINT', finish);
+          process.once('SIGTERM', finish);
+        });
+      } finally {
+        await handle.close();
+      }
       return 0;
     }
 

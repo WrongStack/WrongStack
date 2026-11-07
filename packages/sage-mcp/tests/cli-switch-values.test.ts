@@ -18,4 +18,12 @@ describe('sage-mcp: privilege switches with an inline value', () => {
     expect(parse(['--writable=0']).writable).toBe(false);
     expect(parse(['--writable=yes-please']).writable).toBe(false);
   });
+
+  it('clears tokenMissing when WRONGSTACK_MCP_TOKEN satisfies an empty --token flag (F73)', () => {
+    const parsed = parseArgs(['--project-root', '/tmp/proj', '--token', ''], {
+      WRONGSTACK_MCP_TOKEN: 'env-token-123',
+    });
+    expect(parsed.httpToken).toBe('env-token-123');
+    expect(parsed.tokenMissing).toBe(false);
+  });
 });

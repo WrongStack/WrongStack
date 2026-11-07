@@ -350,6 +350,43 @@ describe('createCodebaseIndexMcpToolHost', () => {
         isError: true,
       });
     }
+
+    // F74: frozen result note is rewritten without mutating in-place, and graph tools reject unknown arguments
+    const frozenPayload = Object.freeze({
+      symbols: [],
+      note: 'Next: call dead-code-fix or codebase-read-symbol',
+    });
+    const frozenHost = createCodebaseIndexMcpToolHost('C:/project', {
+      writable: false,
+      dependencies: {
+        executeTool: async () => frozenPayload,
+        packageGraph: vi.fn().mockResolvedValue({ ok: true }),
+        fileGraph,
+        symbolGraph,
+      },
+    });
+    const frozenRes = await frozenHost.callTool('codebase_search', { query: 'fn' });
+    expect(frozenRes.isError).toBe(false);
+    expect(frozenPayload.note).toBe('Next: call dead-code-fix or codebase-read-symbol');
+    expect((frozenRes.content as { note: string }).note).toBe(
+      'Next: call dead_code_fix (needs --writable) or codebase_read_symbol',
+    );
+    await expect(frozenHost.callTool('codebase_package_graph', { extra: true })).resolves.toEqual({
+      content: 'codebase_package_graph: unknown argument "extra"',
+      isError: true,
+    });
+    await expect(
+      frozenHost.callTool('codebase_file_graph', { package: 'pkg', extra: true }),
+    ).resolves.toEqual({
+      content: 'codebase_file_graph: unknown argument "extra"',
+      isError: true,
+    });
+    await expect(
+      frozenHost.callTool('codebase_symbol_graph', { file: 'a.ts', extra: true }),
+    ).resolves.toEqual({
+      content: 'codebase_symbol_graph: unknown argument "extra"',
+      isError: true,
+    });
   });
 });
 
