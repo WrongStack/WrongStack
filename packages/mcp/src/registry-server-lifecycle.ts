@@ -260,6 +260,7 @@ export async function stop(host: RegistryServerLifecycleHost, name: string): Pro
     }
     slot.state = 'disconnected';
   }
+  slot.startupGeneration = (slot.startupGeneration ?? 0) + 1;
   slot.connecting = undefined;
   resetDisconnectedSlotTools(slot, host.toolRegistry);
   // Full teardown — a future start()/restart() re-registers lazy wrappers.
@@ -300,7 +301,9 @@ export async function restart(
   }
   slot.operations.restartCount++;
   host.recordOperation(slot, 'restart', 'manual');
+  const expectedGeneration = (slot.startupGeneration ?? 0) + 2;
   await host.stop(name);
+  if (host.servers.get(name) !== slot || slot.startupGeneration !== expectedGeneration) return;
   if (nextCfg) {
     slot.cfg = nextCfg;
     slot.lazy = !!nextCfg.lazy && !!host.cacheDir;

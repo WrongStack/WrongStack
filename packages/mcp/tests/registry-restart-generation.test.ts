@@ -110,4 +110,62 @@ describe('restart supersedes an in-flight connection', () => {
       await registry.stopAll();
     }
   });
+
+  it('fences a demand-wake spawned during restart close and respects a concurrent stop during restart', async () => {
+    const closeGate = gate();
+    const wakeGate = gate();
+    const registry = new MCPRegistry({
+      toolRegistry: new ToolRegistry(),
+      events: new EventBus(),
+      idleTimeoutMs: 0,
+      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as unknown as Logger,
+    });
+    let connectCall = 0;
+    vi.spyOn(MCPClient.prototype, 'connect').mockImplementation(async function (this: MCPClient) {
+      connectCall++;
+      if (connectCall === 2 && this.opts.command === 'old') {
+        await wakeGate.wait();
+      }
+    });
+    let closeCall = 0;
+    vi.spyOn(MCPClient.prototype, 'close').mockImplementation(async () => {
+      closeCall++;
+      if (closeCall === 1) await closeGate.wait();
+    });
+    vi.spyOn(MCPClient.prototype, 'listTools').mockReturnValue([]);
+    vi.spyOn(MCPClient.prototype, 'getServerMetadata').mockReturnValue(undefined);
+
+    const cfg = { name: 'fixture', transport: 'stdio' as const, command: 'old' };
+    await registry.start(cfg);
+    const restarting = registry.restart('fixture', { ...cfg, command: 'next' });
+    await closeGate.ready;
+    const wake = registry.ensureConnected('fixture').catch(() => undefined);
+    await wakeGate.ready;
+    closeGate.release();
+    await restarting;
+    wakeGate.release();
+    await wake;
+    const active = await registry.ensureConnected('fixture');
+    expect(active.opts.command).toBe('next');
+
+    const closeGate2 = gate();
+    vi.spyOn(MCPClient.prototype, 'connect').mockResolvedValue();
+    let close2 = 0;
+    vi.spyOn(MCPClient.prototype, 'close').mockImplementation(async () => {
+      close2++;
+      if (close2 === 1) await closeGate2.wait();
+    });
+    await registry.start({ name: 'fixture-stop', transport: 'stdio', command: 'old' });
+    const restarting2 = registry.restart('fixture-stop', {
+      name: 'fixture-stop',
+      transport: 'stdio',
+      command: 'next',
+    });
+    await closeGate2.ready;
+    const stopping2 = registry.stop('fixture-stop');
+    closeGate2.release();
+    await Promise.all([restarting2, stopping2]);
+    expect(registry.health().find((h) => h.name === 'fixture-stop')?.alive).toBe(false);
+    await registry.stopAll();
+  });
 });

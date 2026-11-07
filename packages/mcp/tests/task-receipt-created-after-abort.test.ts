@@ -100,3 +100,66 @@ it('releases a receipt whose creation finishes after the aborted call settled', 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+it('does not start recovery when dispose or abort arrives while retry awaits journal.list', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-task-retry-fence-'));
+  const journal = new MCPTaskJournal(dir);
+  const owner = { sessionId: 'sess', agentId: 'agent' };
+  const leaseToken = '00000000-0000-4000-8000-000000000001';
+  const created = await journal.create(
+    owner,
+    'srv',
+    'tool',
+    'a'.repeat(64),
+    { ...task, status: 'working' as const },
+    leaseToken,
+  );
+  await journal.release(created.id, leaseToken);
+
+  const originalList = MCPTaskJournal.prototype.list;
+  let releaseList!: () => void;
+  const listGate = new Promise<void>((resolve) => {
+    releaseList = resolve;
+  });
+  let listEntered!: () => void;
+  const listReady = new Promise<void>((resolve) => {
+    listEntered = resolve;
+  });
+  vi.spyOn(MCPTaskJournal.prototype, 'list').mockImplementation(async function (
+    this: MCPTaskJournal,
+    ...args: Parameters<MCPTaskJournal['list']>
+  ) {
+    listEntered();
+    await listGate;
+    return originalList.apply(this, args);
+  });
+
+  let withClientCalls = 0;
+  const recovery = new MCPTaskRecovery(dir, {
+    withClient: async () => {
+      withClientCalls++;
+      throw new Error('should not be called');
+    },
+    log: { warn() {}, info() {}, debug() {}, error() {} } as never,
+  });
+
+  try {
+    const abort = new AbortController();
+    const context = {
+      session: { id: 'sess' },
+      agentId: 'agent',
+      signal: abort.signal,
+    };
+    const retrying = recovery.retry(context as never, created.id);
+    await listReady;
+    recovery.dispose();
+    abort.abort();
+    releaseList();
+    expect(await retrying).toBe('unavailable');
+    await recovery.drain();
+    expect(withClientCalls).toBe(0);
+  } finally {
+    recovery.dispose();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

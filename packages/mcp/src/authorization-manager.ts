@@ -134,6 +134,7 @@ interface ClientIdentity {
 export class MCPAuthorizationManager {
   private readonly pending = new Map<string, PendingAuthorization>();
   private readonly starting = new Map<string, symbol>();
+  private readonly completing = new Map<string, symbol>();
   /** Registrations reused across servers that share one authorization server. */
   private readonly registrations = new Map<string, MCPClientRegistration>();
   private readonly pendingTtlMs: number;
@@ -235,28 +236,41 @@ export class MCPAuthorizationManager {
     // Authorization codes and PKCE verifiers are one-shot. Remove before the
     // network exchange so retries cannot accidentally replay either value.
     this.pending.delete(key);
-    const tokenSet = await this.exchange({
-      authorizationServer: pending.discovery.authorizationServer,
-      clientId: pending.session.clientId,
-      clientSecret: pending.clientSecret,
-      redirectUri: pending.session.redirectUri,
-      resource,
-      code,
-      codeVerifier: pending.session.codeVerifier,
-      signal: input.signal,
-    });
-    const stored: MCPStoredAuthorization = {
-      serverName,
-      resource,
-      clientId: pending.session.clientId,
-      ...(pending.clientSecret ? { clientSecret: pending.clientSecret } : {}),
-      authorizationServer: pending.discovery.authorizationServer,
-      tokenSet,
-      updatedAt: new Date(this.now()).toISOString(),
-    };
-    await this.options.store.save(stored);
-    this.emit('authorized', stored);
-    return statusFromStored(stored, this.now());
+    const attempt = Symbol(key);
+    this.completing.set(key, attempt);
+    try {
+      const tokenSet = await this.exchange({
+        authorizationServer: pending.discovery.authorizationServer,
+        clientId: pending.session.clientId,
+        clientSecret: pending.clientSecret,
+        redirectUri: pending.session.redirectUri,
+        resource,
+        code,
+        codeVerifier: pending.session.codeVerifier,
+        signal: input.signal,
+      });
+      if (this.completing.get(key) !== attempt) {
+        throw new Error('MCP authorization completion was cancelled');
+      }
+      const stored: MCPStoredAuthorization = {
+        serverName,
+        resource,
+        clientId: pending.session.clientId,
+        ...(pending.clientSecret ? { clientSecret: pending.clientSecret } : {}),
+        authorizationServer: pending.discovery.authorizationServer,
+        tokenSet,
+        updatedAt: new Date(this.now()).toISOString(),
+      };
+      await this.options.store.save(stored);
+      if (this.completing.get(key) !== attempt) {
+        await this.options.store.remove(serverName, resource).catch(() => false);
+        throw new Error('MCP authorization completion was cancelled');
+      }
+      this.emit('authorized', stored);
+      return statusFromStored(stored, this.now());
+    } finally {
+      if (this.completing.get(key) === attempt) this.completing.delete(key);
+    }
   }
 
   /**
@@ -288,6 +302,13 @@ export class MCPAuthorizationManager {
       listener.close();
       throw error;
     }
+    const key = authorizationKey(started.serverName, started.resource);
+    const createdSession = this.pending.get(key)?.session;
+    const clearOwnedPending = () => {
+      if (createdSession && this.pending.get(key)?.session === createdSession) {
+        this.pending.delete(key);
+      }
+    };
     const completion = listener
       .waitForCallback()
       .then((callbackUrl) =>
@@ -298,8 +319,19 @@ export class MCPAuthorizationManager {
           signal: input.signal,
         }),
       )
-      .finally(() => listener.close());
-    return { started, completion, cancel: () => listener.close() };
+      .finally(() => {
+        clearOwnedPending();
+        listener.close();
+      });
+    return {
+      started,
+      completion,
+      cancel: () => {
+        clearOwnedPending();
+        this.completing.delete(key);
+        listener.close();
+      },
+    };
   }
 
   /**
@@ -397,6 +429,7 @@ export class MCPAuthorizationManager {
     const key = authorizationKey(normalizedName, normalizedResource);
     this.starting.delete(key);
     this.pending.delete(key);
+    this.completing.delete(key);
     const removed = await this.options.store.remove(normalizedName, normalizedResource);
     if (removed) {
       this.options.onStateChange?.({

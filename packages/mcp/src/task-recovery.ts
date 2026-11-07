@@ -98,7 +98,13 @@ export class MCPTaskRecovery {
     const owner = taskOwner(context);
     if (this.closed || !owner || context.signal.aborted) return 'unavailable';
     const receipt = (await this.journal.list(owner)).find((r) => r.id === id && !r.delivered);
-    if (!receipt || !sameTaskOwner(owner, taskOwner(context))) return 'unavailable';
+    if (
+      this.closed ||
+      context.signal.aborted ||
+      !receipt ||
+      !sameTaskOwner(owner, taskOwner(context))
+    )
+      return 'unavailable';
     if (this.active.has(id) || (receipt.leaseExpiresAt ?? 0) > Date.now()) return 'busy';
     void this.recoverOne(receipt, context, owner).catch(() =>
       this.host.log.warn('MCP task recovery retry failed'),
@@ -252,7 +258,8 @@ export class MCPTaskRecovery {
           (r.leaseExpiresAt ?? 0) <= Date.now(),
       )
       .slice(0, 4);
-    if (this.closed) return [];
+    if (this.closed || context.signal.aborted || !sameTaskOwner(owner, taskOwner(context)))
+      return [];
     return Promise.all(receipts.map((r) => this.recoverOne(r, context, owner)));
   }
   private async recoverOne(

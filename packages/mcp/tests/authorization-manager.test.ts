@@ -353,6 +353,49 @@ describe('MCPAuthorizationManager', () => {
     ]);
     expect(observed).toMatchObject({ state: 'rejected' });
     expect('message' in observed ? observed.message : '').toMatch(/cancel|closed|abandon/i);
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({
+      state: 'not_authorized',
+    });
+  });
+
+  it('does not resurrect an authorization completion cancelled by disconnect during token exchange', async () => {
+    const fixture = await createFixture();
+    const resource = 'https://mcp.example.com/mcp';
+    let finishExchange: (() => void) | undefined;
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      discover: async () => discovery(resource),
+      exchange: () =>
+        new Promise((resolve) => {
+          finishExchange = () =>
+            resolve({
+              accessToken: 'resurrected',
+              tokenType: 'Bearer',
+              resource,
+            });
+        }),
+    });
+
+    const started = await manager.begin({
+      serverName: 'remote',
+      resource,
+      clientId: 'client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+    });
+    const state = new URL(started.authorizationUrl).searchParams.get('state')!;
+    const completing = manager.complete({
+      serverName: 'remote',
+      resource,
+      callbackUrl: `http://127.0.0.1:43123/callback?code=code-1&state=${encodeURIComponent(state)}`,
+    });
+    await vi.waitFor(() => expect(finishExchange).toBeTypeOf('function'));
+    await expect(manager.disconnect('remote', resource)).resolves.toBe(false);
+    finishExchange?.();
+
+    await expect(completing).rejects.toThrow(/completion was cancelled/);
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({
+      state: 'not_authorized',
+    });
   });
 });
 
