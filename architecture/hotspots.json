@@ -123,7 +123,7 @@
       "relativeImports": 5
     },
     "packages/vibeui/src/lib/use-session.ts": {
-      "lines": 750,
+      "lines": 753,
       "relativeImports": 8
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {

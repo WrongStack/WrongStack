@@ -7,8 +7,8 @@ export interface DiffLine {
 
 /** Bounded look-ahead produces a valid line edit script without quadratic memory. */
 export function compareLines(before: string, after: string): DiffLine[] {
-  const oldLines = before ? before.replaceAll('\r\n', '\n').split('\n') : [];
-  const newLines = after ? after.replaceAll('\r\n', '\n').split('\n') : [];
+  const oldLines = before ? before.replace(/\r\n?/g, '\n').split('\n') : [];
+  const newLines = after ? after.replace(/\r\n?/g, '\n').split('\n') : [];
   const lines: DiffLine[] = [];
   let i = 0;
   let j = 0;

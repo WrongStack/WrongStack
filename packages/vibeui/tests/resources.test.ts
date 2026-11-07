@@ -43,6 +43,7 @@ describe('shared resource workflows', () => {
     expect(promptSlug(' Review a target! ')).toBe('review-a-target');
     expect(promptSlug('Review / a target')).toBe(promptSlug('Review a target'));
     expect(promptSlug('????')).toBe('prompt');
+    expect(promptSlug(`${'a'.repeat(63)} extra words`)).toBe('a'.repeat(63));
   });
   it('accepts only well-formed variable metadata and searches labels, tags and owners', () => {
     expect(

@@ -42,7 +42,8 @@ export function promptSlug(title: string) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 64) || 'prompt'
+      .slice(0, 64)
+      .replace(/-+$/g, '') || 'prompt'
   );
 }
 export function resourceDetails(tab: string, payload: Record<string, unknown>, level = 'detailed') {

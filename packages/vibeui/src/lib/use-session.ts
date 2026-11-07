@@ -184,7 +184,10 @@ export function useSession() {
         }
         if (held) handle(held);
       }
-      if (frame.type === 'session.start' && !pendingSwitch.current.accepts(p.sessionId)) return;
+      if (frame.type === 'session.start' && !pendingSwitch.current.accepts(p.sessionId)) {
+        pendingSwitch.current.hold(frame);
+        return;
+      }
       if (
         frame.type !== 'session.start' &&
         typeof p.sessionId === 'string' &&

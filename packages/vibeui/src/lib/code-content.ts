@@ -27,7 +27,9 @@ const extensions: Record<string, string> = {
 };
 
 export function codeLanguage(hint: string) {
-  const name = hint.toLowerCase().split(/[\\/]/).at(-1) ?? '';
+  const cleanHint = hint.split(/[?#]/)[0] ?? '';
+  const name = cleanHint.toLowerCase().split(/[\\/]/).at(-1) ?? '';
+  if (/^(dockerfile|containerfile)(\.|$)/.test(name)) return 'dockerfile';
   const extension = name.split('.').at(-1) ?? name;
   const language = Object.hasOwn(extensions, extension) ? extensions[extension]! : extension;
   return highlighter.registered(language) ? language : '';
