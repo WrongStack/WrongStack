@@ -63,4 +63,13 @@ describe('truncate', () => {
   it('returns an exact-fit astral string unchanged', () => {
     expect(truncate('😀', 2)).toBe('😀');
   });
+
+  it('handles NaN, Infinity, and fractional max values deterministically (F87)', () => {
+    expect(truncate('hello', Number.NaN)).toBe('');
+    expect(truncate('hello', Number.NEGATIVE_INFINITY)).toBe('');
+    expect(truncate('hello', Number.POSITIVE_INFINITY)).toBe('hello');
+    expect(truncate('😀abc', 1.9)).toBe('…');
+    expect(truncate('😀abc', 2.9)).toBe('…');
+    expect(truncate('😀abc', 3.9)).toBe('😀…');
+  });
 });

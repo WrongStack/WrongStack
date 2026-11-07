@@ -202,8 +202,15 @@ export function hexAt(s: string, start: number, len: number): number | null {
 
 /** Parse the escape sequence starting AT the backslash `s[i]`. Returns the
  * token and the index just past it, or null for unknown escapes (`\p`, `\k`,
- * `\c`, …) — callers treat null as "not comparable" (sound under-rejection). */
-export function parseEscape(s: string, i: number, unicode = false): EscapedToken | null {
+ * `\c`, …) — callers treat null as "not comparable" (sound under-rejection).
+ * `inClass` selects the class-context semantics of digit escapes: Annex B
+ * legacy octal there, a backreference in branch position. */
+export function parseEscape(
+  s: string,
+  i: number,
+  unicode = false,
+  inClass = false,
+): EscapedToken | null {
   const ch = s[i + 1];
   if (ch === undefined) return null;
   if (NAMED_CLASS_SETS[ch] !== undefined) {
@@ -245,6 +252,32 @@ export function parseEscape(s: string, i: number, unicode = false): EscapedToken
     const cp = hexAt(s, i + 2, 4);
     if (cp === null) return null;
     return { kind: 'literal', cp, name: '', next: i + 6 };
+  }
+  if (/[1-7]/.test(ch)) {
+    // `\1`–`\7`: Annex B legacy octal INSIDE a class (non-unicode mode) —
+    // `[\1]` is U+0001 plus up to two following octal digits, never the
+    // literal character '1'. Outside a class the same escape is a
+    // backreference, which this context-free parser does not model, and in
+    // unicode mode it is a SyntaxError. All three are reasons not to claim
+    // a literal digit: the old fall-through modeled `[\1]` as {0x31} while
+    // V8 matched U+0001, so engine-identical branches (`(?:[\1]|[\x01])+`)
+    // compared as disjoint sets and the (a|a)+ exponential class compiled.
+    if (unicode || !inClass) return null;
+    let cp = ch.codePointAt(0)! - 48;
+    let next = i + 2;
+    for (let k = 0; k < 2; k++) {
+      const d = s[next];
+      if (d === undefined || d < '0' || d > '7') break;
+      cp = cp * 8 + (d.codePointAt(0)! - 48);
+      next++;
+    }
+    return { kind: 'literal', cp, name: '', next };
+  }
+  if (/[89]/.test(ch)) {
+    // `\8`/`\9`: Annex B IdentityEscape — the literal digit — in non-unicode
+    // mode; a SyntaxError in unicode mode (RegExp rejects it anyway).
+    if (unicode) return null;
+    return { kind: 'literal', cp: ch.codePointAt(0) ?? -1, name: '', next: i + 2 };
   }
   if (/[A-Za-z]/.test(ch)) return null; // \p{…}, \k<…>, \c…, invalid — unknown
   // Escaped punctuation and separators are literals of that character.
@@ -334,7 +367,7 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
     let lo: number;
     let width: number;
     if (ch === '\\') {
-      const tok = parseEscape(s, i, unicode);
+      const tok = parseEscape(s, i, unicode, true);
       if (!tok) return null;
       if (tok.kind === 'named') {
         // No cast: `Record<string, CharSet>` under noUncheckedIndexedAccess
@@ -367,7 +400,7 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
       const hiStart = i + width + 1;
       let hi: number;
       if (s[hiStart] === '\\') {
-        const tok = parseEscape(s, hiStart, unicode);
+        const tok = parseEscape(s, hiStart, unicode, true);
         if (tok?.kind !== 'literal') return null;
         hi = tok.cp;
         i = tok.next;

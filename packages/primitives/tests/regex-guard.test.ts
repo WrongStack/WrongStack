@@ -537,3 +537,55 @@ describe('compileUserRegex — char-set tables survive every compile', () => {
     expect(compileUserRegex(String.raw`(?:\s|\x20)+`, '').ok).toBe(false); // ' ' is whitespace
   });
 });
+
+describe('compileUserRegex — Annex B digit escapes (bug 20261106-r1)', () => {
+  it('rejects engine-identical class branches spelled with legacy octal vs escape', () => {
+    // parseEscape modeled `\1` inside a class as the literal character '1'
+    // (cp 0x31), but Annex B gives `[\1]` the legacy-octal meaning U+0001 —
+    // so `[\1]` and `[\x01]` are engine-identical sets while the model saw
+    // disjoint {0x31} vs {0x01}: the (a|a)+ exponential class compiled.
+    const result = compileUserRegex('(?:[\\1]|[\\x01])+', '');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toMatch(/overlapping branches/);
+    }
+  });
+
+  it('rejects legacy-octal class ranges against their escape spellings', () => {
+    expect(compileUserRegex('(?:[\\1-\\2]|[\\x01-\\x02])+', '').ok).toBe(false);
+  });
+
+  it('does not model a bare digit escape as a literal digit in branch position', () => {
+    // Outside a class, `\1` is a backreference (or Annex B octal) — never
+    // the literal '1'. The set model must not claim {0x31} for it: with the
+    // old fall-through, `(?:\1|1)+` was rejected as "overlapping" even
+    // though V8 reads `\1` as U+0001 (disjoint from '1').
+    expect(compileUserRegex('(?:\\1|1)+', '').ok).toBe(true);
+    expect(compileUserRegex('(?:\\1|\\x01)+', '').ok).toBe(true); // disjoint model, sound under-rejection
+  });
+
+  it('keeps Annex B IdentityEscapes \\8/\\9 as literal digits', () => {
+    // `\8`/`\9` are literal digits in Annex B (non-unicode) mode; identical
+    // branches built from them must still be rejected as ambiguous.
+    expect(compileUserRegex('(?:[\\8]|[8])+', '').ok).toBe(false);
+    expect(compileUserRegex('(?:\\8|8)+', '').ok).toBe(false);
+  });
+
+  it('treats digit escapes as unmodelable in unicode mode', () => {
+    // In unicode mode `\1` is a SyntaxError: `new RegExp` rejects the whole
+    // pattern at construction, and the guard must agree (never claim a
+    // literal or an octal for it).
+    expect(compileUserRegex('(?:[\\1]|[\\x01])+', 'u').ok).toBe(false);
+    // compileUserRegex constructs the RegExp itself, so ok:false already
+    // proves the engine rejects the pattern under `u` (SyntaxError).
+    // The escaped spelling is the valid unicode-mode form of the same
+    // engine-identical branches — and stays rejected as ambiguous.
+    expect(compileUserRegex('(?:[\\u0001]|[\\x01])+', 'u').ok).toBe(false);
+  });
+
+  it('models multi-digit legacy octal inside a class', () => {
+    // `[\101]` is octal 101 = U+0041 'A' — one member, not \1 followed by 01.
+    const result = compileUserRegex('(?:[\\101]|[A])+', '');
+    expect(result.ok).toBe(false);
+  });
+});

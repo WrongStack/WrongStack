@@ -7,10 +7,14 @@
  * was longer. Returns the original string unchanged when it fits.
  */
 export function truncate(s: string, max: number): string {
-  if (max <= 0) return '';
-  if (s.length <= max) return s;
-  if (max === 1) return '…';
-  let end = max - 1;
+  if (!Number.isFinite(max)) {
+    return max === Number.POSITIVE_INFINITY ? s : '';
+  }
+  const limit = Math.floor(max);
+  if (limit <= 0) return '';
+  if (s.length <= limit) return s;
+  if (limit === 1) return '…';
+  let end = limit - 1;
   const lastCode = s.charCodeAt(end - 1);
   if (lastCode >= 0xd800 && lastCode <= 0xdbff) {
     end -= 1;
