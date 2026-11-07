@@ -172,6 +172,10 @@ export class BrainDecisionLedger {
     { requestId: string; at: number; sessionId?: string | undefined }
   >();
   private readonly unsubscribers: Array<() => void> = [];
+  private started = false;
+  private seeded = false;
+  private startGeneration = 0;
+  private startPromise: Promise<void> | undefined;
   /** Serialized fire-and-forget writes — awaited by `stop()` (drain). */
   private writeChain: Promise<unknown> = Promise.resolve();
   private pendingWriteCount = 0;
@@ -210,6 +214,12 @@ export class BrainDecisionLedger {
    * (best-effort — a missing/corrupt file is an empty history, not an error).
    */
   async start(): Promise<void> {
+    if (this.started) {
+      await this.startPromise;
+      return;
+    }
+    this.started = true;
+    const gen = ++this.startGeneration;
     const { events } = this.opts;
     this.unsubscribers.push(
       events.on('brain.decision_answered', (e) => {
@@ -349,11 +359,19 @@ export class BrainDecisionLedger {
         }
       }),
     );
-    await this.load();
+    if (!this.seeded) {
+      this.startPromise = this.load(gen).finally(() => {
+        if (this.startGeneration === gen) this.startPromise = undefined;
+      });
+      await this.startPromise;
+    }
   }
 
   /** Unsubscribe and drain pending writes. Safe to call twice. */
   async stop(): Promise<void> {
+    this.started = false;
+    this.startGeneration += 1;
+    this.startPromise = undefined;
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
     await this.writeChain.catch(() => {});
@@ -549,17 +567,20 @@ export class BrainDecisionLedger {
   }
 
   /** Seed the in-memory ring from the JSONL tail (cross-session learning). */
-  private async load(): Promise<void> {
+  private async load(gen: number): Promise<void> {
     try {
       await access(this.opts.filePath);
     } catch {
+      if (this.startGeneration === gen && this.started) this.seeded = true;
       return; // No ledger yet.
     }
+    if (this.startGeneration !== gen || !this.started) return;
     const seed: BrainLedgerEntry[] = [];
     const input = createReadStream(this.opts.filePath, { encoding: 'utf8' });
     const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
     try {
       for await (const line of lines) {
+        if (this.startGeneration !== gen || !this.started) return;
         if (!line.trim()) continue;
         try {
           const parsed = JSON.parse(line) as BrainLedgerEntry;
@@ -577,13 +598,13 @@ export class BrainDecisionLedger {
       lines.close();
       input.destroy();
     }
+    if (this.startGeneration !== gen || !this.started) return;
+    this.seeded = true;
     // Entries recorded while the file was loading stay AFTER the seed.
     this.entries.unshift(...seed);
-    if (this.entries.length > this.maxMemoryEntries) {
-      this.entries.splice(0, this.entries.length - this.maxMemoryEntries);
-    }
     for (const e of this.entries) {
       if (e.kind === 'outcome' && e.outcome) this.outcomeByRequest.set(e.requestId, e.outcome);
     }
+    this.pruneEntries();
   }
 }

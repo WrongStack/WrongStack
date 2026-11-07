@@ -169,16 +169,39 @@ export class BrainDecisionQueue {
   }
 
   async requestHumanDecision(request: BrainDecisionRequest): Promise<BrainDecision> {
-    if (this.disposed) return { type: 'deny', reason: 'Brain decision queue disposed.' };
-    if (this.pending.has(request.id))
+    const askedAt = Date.now();
+    if (this.disposed) {
+      markDecisionTier(request, 'terminal');
+      emitBrainTierTransition(
+        this.events,
+        request,
+        'terminal',
+        'deny',
+        true,
+        askedAt,
+        'brain decision queue disposed',
+      );
+      return { type: 'deny', reason: 'Brain decision queue disposed.' };
+    }
+    if (this.pending.has(request.id)) {
+      markDecisionTier(request, 'terminal');
+      emitBrainTierTransition(
+        this.events,
+        request,
+        'terminal',
+        'deny',
+        true,
+        askedAt,
+        'duplicate pending decision id',
+      );
       return { type: 'deny', reason: 'A Brain decision with this id is already pending.' };
+    }
     const ask: BrainDecision = {
       type: 'ask_human',
       prompt: formatHumanPrompt(request),
       options: request.options,
       rationale: 'Decision escalated to human authority.',
     };
-    const askedAt = Date.now();
     const pending = new Promise<BrainDecision>((resolve) => {
       const entry: {
         request: BrainDecisionRequest;
@@ -304,6 +327,16 @@ export class BrainDecisionQueue {
     for (const [id, pending] of this.pending) {
       if (pending.timer) clearTimeout(pending.timer);
       pending.formAbort.abort();
+      markDecisionTier(pending.request, 'terminal');
+      emitBrainTierTransition(
+        this.events,
+        pending.request,
+        'terminal',
+        'deny',
+        true,
+        pending.askedAt,
+        'brain decision queue disposed',
+      );
       pending.resolve({ type: 'deny', reason: 'Brain decision queue disposed.' });
       this.pending.delete(id);
     }

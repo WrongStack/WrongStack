@@ -1069,7 +1069,7 @@
       "classification": "agent-domain service",
       "intendedOwner": "Core decision arbiter, exported via the coordination subpath",
       "sourceFiles": 14,
-      "sourceLines": 4071
+      "sourceLines": 4125
     },
     {
       "directory": "core",

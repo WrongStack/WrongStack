@@ -704,4 +704,105 @@ describe('Brain architecture regressions', () => {
     expect(readDecisionTier(termReq)).toBe('terminal');
     queue.dispose();
   });
+
+  it('fences BrainDecisionLedger start/stop/load against duplicate listeners and post-stop seed mutation', async () => {
+    const { mkdtemp, rm, writeFile } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = await mkdtemp(join(tmpdir(), 'brain-ledger-race-'));
+    try {
+      const seedPath = join(dir, 'seed.jsonl');
+      await writeFile(
+        seedPath,
+        `${JSON.stringify({
+          at: 500,
+          sessionId: 's-seed',
+          requestId: 'seed-1',
+          kind: 'answered',
+          source: 'director',
+          risk: 'medium',
+          question: 'Seeded question?',
+          optionId: 'approve',
+        })}\n`,
+        'utf8',
+      );
+      const events = new EventBus();
+      const ledger = new BrainDecisionLedger({ events, filePath: seedPath });
+
+      const firstStart = ledger.start();
+      await ledger.stop();
+      await firstStart;
+      expect(ledger.tail(10)).toHaveLength(0);
+
+      await ledger.start();
+      await ledger.start();
+      events.emit('brain.decision_answered', {
+        sessionId: 's-live',
+        request: request({ id: 'live-1' }),
+        decision: { type: 'answer', optionId: 'approve', text: 'Approve' },
+        at: 2000,
+      });
+      await ledger.stop();
+
+      const rows = ledger.tail(10);
+      expect(rows.filter((r) => r.requestId === 'seed-1')).toHaveLength(1);
+      expect(rows.filter((r) => r.requestId === 'live-1')).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('marks terminal tier and emits terminal transitions when BrainDecisionQueue denies on dispose or duplicate id', async () => {
+    const events = new EventBus();
+    const counter = new BrainTierCounter();
+    const deniedTiers: Array<string | undefined> = [];
+    events.on('brain.tier_transition', (e) => {
+      if (e.terminal) counter.record(e.tier);
+    });
+    events.on('brain.decision_denied', (e) => {
+      deniedTiers.push(e.tier);
+    });
+
+    const queue = new BrainDecisionQueue(events);
+    const arbiter = new ObservableBrainArbiter(
+      new EscalationRoutingBrainArbiter(
+        createTieredBrainArbiter({
+          policy: new DefaultBrainArbiter(),
+          events,
+        }),
+        queue,
+        () => 'interactive',
+        undefined,
+        events,
+      ),
+      events,
+    );
+
+    const reqInFlight = request({ id: 'q-in-flight', risk: 'high' });
+    const inFlight = arbiter.decide(reqInFlight);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const reqDuplicate = request({ id: 'q-in-flight', risk: 'high' });
+    const dupDecision = await arbiter.decide(reqDuplicate);
+
+    queue.dispose();
+    const disposedDecision = await inFlight;
+
+    const reqAfterDispose = request({ id: 'q-after-dispose', risk: 'high' });
+    const afterDisposeDecision = await arbiter.decide(reqAfterDispose);
+
+    expect([dupDecision.type, disposedDecision.type, afterDisposeDecision.type]).toEqual([
+      'deny',
+      'deny',
+      'deny',
+    ]);
+    expect([
+      readDecisionTier(reqDuplicate),
+      readDecisionTier(reqInFlight),
+      readDecisionTier(reqAfterDispose),
+    ]).toEqual(['terminal', 'terminal', 'terminal']);
+    expect(deniedTiers).toEqual(['terminal', 'terminal', 'terminal']);
+    expect(counter.snapshot().byTier.terminal).toBe(3);
+  });
 });
