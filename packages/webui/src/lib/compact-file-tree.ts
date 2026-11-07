@@ -79,11 +79,12 @@ export function buildCompactFileTree<F extends TreeFileLike>(
 ): CompactTreeNode<F>[] {
   const root = emptyDir<F>();
   for (const file of files) {
-    const parts = file.path.split('/').filter(Boolean);
+    const normalizedPath = file.path.replace(/\\/g, '/');
+    const parts = normalizedPath.split('/').filter(Boolean);
     const last = parts.pop();
     if (last === undefined) continue;
     // Git lists an untracked directory as `dir/`: it stays one entry, named `dir/`.
-    const name = file.path.endsWith('/') ? `${last}/` : last;
+    const name = normalizedPath.endsWith('/') ? `${last}/` : last;
     let dir = root;
     for (const part of parts) {
       let next = dir.dirs.get(part);

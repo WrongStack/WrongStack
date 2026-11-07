@@ -2205,6 +2205,11 @@
       "PANEL_VIEW_BY_ACTIVITY",
       "VIEW_ACTIVITY"
     ],
+    "packages/webui/src/lib/ws-client-swap.ts": [
+      "MAX_ARMED_RESENDS",
+      "MAX_SEEN_SESSION_IDS",
+      "NOT_READY_RETRY_COOLDOWN_MS"
+    ],
     "packages/webui/src/lib/ws-client-utils.ts": [
       "resolvePublicWsUrl"
     ],

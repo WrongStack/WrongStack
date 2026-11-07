@@ -166,6 +166,39 @@ describe('the answer to a session.new', () => {
     announce(ws, 'sess_fresh');
     expect(client.consumeRequestedSwitch('sess_fresh')).toBe(true);
   });
+
+  it('refreshes existing seenSessionIds and armedResends entries at capacity without evicting live sessions (F89)', async () => {
+    const {
+      armNotReadyResendHelper,
+      MAX_ARMED_RESENDS,
+      MAX_SEEN_SESSION_IDS,
+      NOT_READY_RETRY_COOLDOWN_MS,
+      rememberSeenSession,
+    } = await import('../../src/lib/ws-client-swap');
+
+    const seen = new Set<string>();
+    for (let i = 0; i < MAX_SEEN_SESSION_IDS; i++) {
+      rememberSeenSession(seen, `sess-${i}`);
+    }
+    // Re-remembering an already-present session at capacity must not shrink the set or evict sess-0
+    rememberSeenSession(seen, 'sess-32');
+    expect(seen.size).toBe(MAX_SEEN_SESSION_IDS);
+    expect(seen.has('sess-0')).toBe(true);
+    // Refreshing sess-0 moves it to most-recent so adding sess-64 evicts sess-1 instead of sess-0
+    rememberSeenSession(seen, 'sess-0');
+    rememberSeenSession(seen, 'sess-64');
+    expect(seen.has('sess-0')).toBe(true);
+    expect(seen.has('sess-1')).toBe(false);
+
+    const armed = new Map<string, { content: string; armedAt: number }>();
+    const expiredAt = Date.now() - NOT_READY_RETRY_COOLDOWN_MS - 1000;
+    for (let i = 0; i < MAX_ARMED_RESENDS; i++) {
+      armed.set(`s-${i}`, { content: `msg-${i}`, armedAt: expiredAt });
+    }
+    expect(armNotReadyResendHelper(armed, 's-4', { content: 'retry-s4' })).toBe(true);
+    expect(armed.size).toBe(MAX_ARMED_RESENDS);
+    expect(armed.has('s-0')).toBe(true);
+  });
 });
 
 describe('the New Session button', () => {

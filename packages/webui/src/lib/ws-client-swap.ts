@@ -58,6 +58,7 @@ export function matchesPendingSwap(
 
 export function rememberSeenSession(seenSessionIds: Set<string>, sessionId: string): void {
   if (!sessionId) return;
+  seenSessionIds.delete(sessionId);
   if (seenSessionIds.size >= MAX_SEEN_SESSION_IDS) {
     // Insertion-ordered: drop the oldest rather than the whole set, so the
     // four live tabs are never forgotten in one step.
@@ -90,6 +91,7 @@ export function armNotReadyResendHelper(
   if (held && now - held.armedAt < NOT_READY_RETRY_COOLDOWN_MS) {
     return false;
   }
+  armedResends.delete(sessionId);
   if (armedResends.size >= MAX_ARMED_RESENDS) {
     const oldest = armedResends.keys().next();
     if (!oldest.done) armedResends.delete(oldest.value);

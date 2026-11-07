@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T17:37:11.180Z",
+  "generatedAt": "2026-11-07T17:38:32.791Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6068,
     "testFiles": 5058,
-    "sourceLines": 1257611,
+    "sourceLines": 1257651,
     "workspaceEdges": 244,
     "moduleEdges": 17935,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1038
+    "testOnlyExports": 1041
   },
   "errors": [],
   "packageCycles": [],
@@ -39136,6 +39136,18 @@
     {
       "file": "packages/webui/src/lib/view-navigation.ts",
       "name": "VIEW_ACTIVITY"
+    },
+    {
+      "file": "packages/webui/src/lib/ws-client-swap.ts",
+      "name": "MAX_ARMED_RESENDS"
+    },
+    {
+      "file": "packages/webui/src/lib/ws-client-swap.ts",
+      "name": "MAX_SEEN_SESSION_IDS"
+    },
+    {
+      "file": "packages/webui/src/lib/ws-client-swap.ts",
+      "name": "NOT_READY_RETRY_COOLDOWN_MS"
     },
     {
       "file": "packages/webui/src/lib/ws-client-utils.ts",

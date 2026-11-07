@@ -52,6 +52,15 @@ describe('buildCompactFileTree', () => {
         ? packages.children[0].path
         : '',
     ).toBe('packages/cli/src');
+    // Windows backslash paths and trailing backslashes normalize into the same compact tree (F89).
+    expect(
+      outline(
+        buildCompactFileTree([
+          file('packages\\webui\\src\\App.tsx', 2, 1),
+          file('packages\\webui\\src\\untracked\\', 0, 0),
+        ]),
+      ),
+    ).toEqual(['packages/webui/src/ (2, +2 -1)', '  App.tsx', '  untracked/']);
   });
 });
 
