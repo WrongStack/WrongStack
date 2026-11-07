@@ -275,10 +275,13 @@ Full flag and subcommand reference: [`docs/cli-reference.md`](docs/cli-reference
 Plain `wstack` on a TTY opens a launch menu; add `--no-menu` to go straight to the
 REPL. See [WebUI](docs/webui.md) for the browser surface details.
 
-**Desktop v2** is a native Tauri app for multiple projects and persistent
-sessions, built from source: `bun run desktop:v2` for development and
-`bun run desktop:v2:build` for a portable Windows build. It has its own shell
-and bundled engine and does not load or embed the WebUI app; its project pages
+**WrongStack Desktop** (Desktop v2) is a native Tauri app for multiple projects
+and persistent sessions. Each GitHub release carries one installer per platform
+with the WrongStack engine inside it: `wrongstack-desktop-<version>-windows-<arch>-setup.exe`
+(per-user, no administrator rights), `-macos-<arch>.dmg`, and `-linux-<arch>.deb` /
+`.rpm`, checksummed in `DESKTOP-SHA256SUMS`. From source, `bun run desktop:v2`
+starts development and `bun run desktop:v2:build` writes this machine's installer.
+It has its own shell and does not load or embed the WebUI app; its project pages
 (SAGE memory, Kanban, Code Atlas, office, Session Story and more) render the
 same components as the WebUI from `@wrongstack/project-surfaces`, and every
 screen follows the profile's display language. See

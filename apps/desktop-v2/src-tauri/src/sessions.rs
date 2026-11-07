@@ -479,6 +479,13 @@ impl HostState {
         std::fs::create_dir_all(&disabled_frontend).map_err(err)?;
         command.env("WRONGSTACK_DESKTOP_EMPTY_DIST", disabled_frontend);
         hide(&mut command);
+        // Its own process group, so stopping the session reaches the tools the engine started
+        // (Windows uses `taskkill /T` for the same tree).
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         drop(reservation);
         let mut child = command.spawn().map_err(err)?;
         let sink = Transcript::open(&self.dir.join("transcripts"), runtime_id)?;
@@ -685,8 +692,9 @@ impl HostState {
             }
             #[cfg(not(windows))]
             {
+                // The engine leads its own process group: signal the whole group.
                 Command::new("kill")
-                    .args(["-TERM", &pid.to_string()])
+                    .args(["-TERM", "--", &format!("-{pid}")])
                     .status()
                     .map_err(err)?;
             }
@@ -909,8 +917,8 @@ fn engine_command(adopted: Option<&Path>) -> Result<Command> {
         .map(PathBuf::from)
         .or_else(|| adopted.map(Path::to_path_buf))
         .ok_or(
-            "No desktop engine was found. Start wrongstack-desktop-native.exe from its portable \
-             folder (apps/desktop-v2/dist-native/<build>), next to wrongstack-engine.exe, or run \
+            "No desktop engine was found. Reinstall WrongStack Desktop, start the application \
+             from its portable folder next to the bundled wrongstack-engine, or run \
              bun run desktop:v2 for development.",
         )?;
     if !path.is_absolute() || !path.is_file() {

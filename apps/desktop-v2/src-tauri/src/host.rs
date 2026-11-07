@@ -45,6 +45,13 @@ pub struct Client {
 pub fn engine_build() -> &'static str {
     option_env!("WRONGSTACK_DESKTOP_ENGINE_ID").unwrap_or("development")
 }
+/// The bundled runtime's file name. Installers place it beside the application executable
+/// (Windows install folder, `/usr/bin` for deb/rpm, `Contents/MacOS` in the macOS bundle).
+pub const ENGINE_FILE_NAME: &str = if cfg!(windows) {
+    "wrongstack-engine.exe"
+} else {
+    "wrongstack-engine"
+};
 pub fn can_share_services(capabilities: &Value) -> bool {
     capabilities["projectApi"] == 1 && capabilities["engineBuild"].as_str() == Some(engine_build())
 }
@@ -113,13 +120,75 @@ pub fn data_dir() -> Result<PathBuf> {
     if let Some(p) = std::env::var_os("WRONGSTACK_DESKTOP_DATA") {
         return Ok(PathBuf::from(p));
     }
-    let base = std::env::var_os(if cfg!(windows) {
-        "LOCALAPPDATA"
+    let var = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
+    Ok(data_root_for(std::env::consts::OS, var)?.join("WrongStack/desktop-v2-native"))
+}
+/// The per-user application data root each OS expects: `%LOCALAPPDATA%` on Windows,
+/// `~/Library/Application Support` on macOS, `$XDG_DATA_HOME` (or `~/.local/share`) elsewhere.
+fn data_root_for(os: &str, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Result<PathBuf> {
+    if os == "windows" {
+        return var("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .ok_or_else(|| "Cannot locate user data directory (LOCALAPPDATA)".into());
+    }
+    if os != "macos" {
+        // The XDG spec ignores a relative XDG_DATA_HOME.
+        if let Some(xdg) = var("XDG_DATA_HOME").map(PathBuf::from) {
+            if xdg.has_root() {
+                return Ok(xdg);
+            }
+        }
+    }
+    let home = PathBuf::from(var("HOME").ok_or("Cannot locate user data directory (HOME)")?);
+    Ok(if os == "macos" {
+        home.join("Library/Application Support")
     } else {
-        "HOME"
+        home.join(".local/share")
     })
-    .ok_or("Cannot locate user data directory")?;
-    Ok(PathBuf::from(base).join("WrongStack/desktop-v2-native"))
+}
+#[cfg(test)]
+mod data_root_tests {
+    use super::*;
+    fn env<'a>(
+        pairs: &'a [(&'a str, &'a str)],
+    ) -> impl Fn(&str) -> Option<std::ffi::OsString> + 'a {
+        move |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.into())
+        }
+    }
+    #[test]
+    fn each_platform_uses_its_own_per_user_data_root() {
+        let vars = [
+            ("LOCALAPPDATA", "C:/Users/a/AppData/Local"),
+            ("HOME", "/home/a"),
+            ("XDG_DATA_HOME", "/data/a"),
+        ];
+        assert_eq!(
+            data_root_for("windows", env(&vars)).unwrap(),
+            PathBuf::from("C:/Users/a/AppData/Local")
+        );
+        assert_eq!(
+            data_root_for("macos", env(&vars)).unwrap(),
+            PathBuf::from("/home/a/Library/Application Support")
+        );
+        assert_eq!(
+            data_root_for("linux", env(&vars)).unwrap(),
+            PathBuf::from("/data/a")
+        );
+    }
+    #[test]
+    fn linux_falls_back_to_local_share_and_ignores_a_relative_xdg_root() {
+        let relative = [("HOME", "/home/a"), ("XDG_DATA_HOME", "data")];
+        assert_eq!(
+            data_root_for("linux", env(&relative)).unwrap(),
+            PathBuf::from("/home/a/.local/share")
+        );
+        assert!(data_root_for("linux", env(&[])).is_err());
+        assert!(data_root_for("windows", env(&[("HOME", "/home/a")])).is_err());
+    }
 }
 pub fn protect_dir(dir: &std::path::Path) -> Result<()> {
     std::fs::create_dir_all(dir).map_err(err)?;
@@ -158,6 +227,24 @@ pub fn protect_dir(dir: &std::path::Path) -> Result<()> {
     }
     Ok(())
 }
+/// The executable the persistent session host runs from.
+///
+/// Windows locks a running executable, so the host runs from a private copy: dev rebuilds and
+/// installer updates can then replace the application while sessions stay alive. Unix keeps
+/// the old inode alive for a running process, and a copy taken out of a macOS bundle would
+/// carry the bundle's quarantine attribute without its code-signing context, so the host runs
+/// the installed executable directly there.
+fn session_host_executable(dir: &Path) -> Result<PathBuf> {
+    let current = std::env::current_exe().map_err(err)?;
+    if !cfg!(windows) {
+        return Ok(current);
+    }
+    let host_bin = dir.join("hosts").join(Uuid::new_v4().to_string());
+    std::fs::create_dir_all(&host_bin).map_err(err)?;
+    let host_exe = host_bin.join("wrongstack-session-host.exe");
+    std::fs::copy(current, &host_exe).map_err(err)?;
+    Ok(host_exe)
+}
 impl Client {
     pub fn connect(engine: Option<&Path>) -> Result<Self> {
         let dir = data_dir()?;
@@ -186,17 +273,7 @@ impl Client {
             .append(true)
             .open(dir.join("host.log"))
             .map_err(err)?;
-        // A persistent host must not keep the UI executable locked on Windows:
-        // dev rebuilds and future updates replace that executable independently.
-        let host_bin = dir.join("hosts").join(Uuid::new_v4().to_string());
-        std::fs::create_dir_all(&host_bin).map_err(err)?;
-        let host_exe = host_bin.join(if cfg!(windows) {
-            "wrongstack-session-host.exe"
-        } else {
-            "wrongstack-session-host"
-        });
-        std::fs::copy(std::env::current_exe().map_err(err)?, &host_exe).map_err(err)?;
-        let mut command = Command::new(host_exe);
+        let mut command = Command::new(session_host_executable(dir)?);
         if let Some(engine) = engine {
             command
                 .env("WRONGSTACK_DESKTOP_ENGINE", engine)
@@ -210,6 +287,13 @@ impl Client {
             .stdout(Stdio::from(log.try_clone().map_err(err)?))
             .stderr(Stdio::from(log));
         hide(&mut command);
+        // The host outlives the window: keep it out of the launching terminal's process group
+        // so closing that terminal (or Ctrl+C) does not take every session down with it.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         let mut child = command.spawn().map_err(err)?;
         let deadline = Instant::now() + Duration::from_secs(15);
         loop {

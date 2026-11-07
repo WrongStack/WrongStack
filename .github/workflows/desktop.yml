@@ -1,0 +1,187 @@
+name: Desktop
+
+# Builds the WrongStack Desktop installers (apps/desktop-v2) natively on every
+# supported OS: one download per platform, with the bundled WrongStack engine
+# inside it (Windows NSIS setup.exe, macOS .dmg, Linux .deb and .rpm).
+#
+# Tauri cannot cross-compile the webview application, so each platform builds
+# on its own runner; the engine (a Bun standalone executable) is compiled for
+# the same target there. Publishes nothing: release.yml calls this for a tag
+# and attaches the installers to the GitHub release. Run it by hand (Actions →
+# Desktop → Run workflow, or `gh workflow run desktop.yml`) to prove a tree
+# still produces installers without cutting a release.
+#
+# AppImage is not built: its squashfs mount disappears when the window closes,
+# while the persistent session host and its engines keep running from it.
+# The installers are unsigned (macOS: ad-hoc signature, not notarized).
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to build (release.yml passes the SHA its verify job validated)
+        required: true
+        type: string
+      artifact-prefix:
+        description: Prefix of the uploaded artifacts; each platform appends its label
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Desktop installer (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x64
+          - os: windows-11-arm
+            label: windows-arm64
+          - os: macos-latest
+            label: macos-arm64
+          - os: macos-15-intel
+            label: macos-x64
+          # 22.04 keeps the glibc floor low enough for current Debian/Ubuntu/Fedora.
+          - os: ubuntu-22.04
+            label: linux-x64
+          - os: ubuntu-22.04-arm
+            label: linux-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      # Provenance for the installers, as binaries.yml does for the CLI.
+      id-token: write
+      attestations: write
+    steps:
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0 (Node 24 runtime, pinned 2026-09-06)
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+
+      - name: Install Linux webview dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev libssl-dev patchelf rpm
+
+      - name: Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null 2>&1; then
+            case "$RUNNER_OS-$RUNNER_ARCH" in
+              Windows-ARM64) init=aarch64-pc-windows-msvc ;;
+              Windows-X64) init=x86_64-pc-windows-msvc ;;
+              *) init= ;;
+            esac
+            if [ -n "$init" ]; then
+              curl -fsSLo "$RUNNER_TEMP/rustup-init.exe" \
+                "https://static.rust-lang.org/rustup/dist/$init/rustup-init.exe"
+              "$RUNNER_TEMP/rustup-init.exe" -y --profile minimal --default-toolchain stable
+              cargo_bin="$USERPROFILE/.cargo/bin"
+            else
+              curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
+              cargo_bin="$HOME/.cargo/bin"
+            fi
+            echo "$cargo_bin" >> "$GITHUB_PATH"
+            export PATH="$cargo_bin:$PATH"
+          fi
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc -vV
+
+      - name: Install dependencies
+        # Same hardening as binaries.yml: these installers ship to users, so
+        # dependency lifecycle code must not run here either.
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        run: bun run setup:native
+
+      - name: Build workspace
+        run: bun run build
+
+      # Compiles the engine for this runner's target, bundles it into the
+      # application and writes the platform installers.
+      - name: Build desktop installers
+        working-directory: apps/desktop-v2
+        run: bun scripts/launch.ts build --skip-workspace-build
+
+      - name: Collect installers
+        shell: bash
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          version="$(bun -p "require('./apps/desktop-v2/package.json').version")"
+          bundle=apps/desktop-v2/src-tauri/target/release/bundle
+          out=desktop-dist
+          mkdir -p "$out"
+          base="wrongstack-desktop-$version-$LABEL"
+          for f in "$bundle"/nsis/*-setup.exe; do cp "$f" "$out/$base-setup.exe"; done
+          for f in "$bundle"/dmg/*.dmg; do cp "$f" "$out/$base.dmg"; done
+          for f in "$bundle"/deb/*.deb; do cp "$f" "$out/$base.deb"; done
+          for f in "$bundle"/rpm/*.rpm; do cp "$f" "$out/$base.rpm"; done
+          ls -la "$out"
+          case "$RUNNER_OS" in
+            Windows) expected=1 ;;
+            macOS) expected=1 ;;
+            Linux) expected=2 ;;
+          esac
+          count="$(find "$out" -maxdepth 1 -type f -name 'wrongstack-desktop-*' | wc -l | tr -d ' ')"
+          if [ "$count" != "$expected" ]; then
+            echo "::error::Expected $expected installer(s) for $RUNNER_OS, found $count."
+            exit 1
+          fi
+          if command -v sha256sum >/dev/null 2>&1; then sum='sha256sum'; else sum='shasum -a 256'; fi
+          (cd "$out" && $sum wrongstack-desktop-* > "SHA256SUMS-$LABEL")
+          cat "$out/SHA256SUMS-$LABEL"
+
+      # The point of the installer: application AND engine in one download.
+      # Refuse an installer that does not carry the engine beside the app.
+      - name: Verify the engine is inside the installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS" in
+            Windows)
+              # 7-Zip reads NSIS archives; it ships on the hosted Windows images.
+              listing="$(7z l desktop-dist/wrongstack-desktop-*-setup.exe)"
+              grep -Fq 'wrongstack-engine.exe' <<<"$listing"
+              ;;
+            macOS)
+              app="$(find apps/desktop-v2/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' | head -n1)"
+              test -x "$app/Contents/MacOS/wrongstack-engine"
+              codesign --verify --deep "$app"
+              ;;
+            Linux)
+              dpkg-deb -c desktop-dist/wrongstack-desktop-*.deb | grep -Fq './usr/bin/wrongstack-engine'
+              rpm -qlp desktop-dist/wrongstack-desktop-*.rpm | grep -Fqx '/usr/bin/wrongstack-engine'
+              ;;
+          esac
+          echo "Engine bundled."
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2 (pinned 2026-09-22)
+        with:
+          subject-path: desktop-dist/wrongstack-desktop-*
+
+      - name: Upload installers
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24 runtime, pinned 2026-10-23)
+        with:
+          name: ${{ inputs.artifact-prefix || format('desktop-{0}', github.run_id) }}-${{ matrix.label }}
+          path: desktop-dist/
+          if-no-files-found: error
+          retention-days: 7

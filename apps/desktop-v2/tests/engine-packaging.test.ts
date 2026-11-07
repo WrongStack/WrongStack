@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { buildAssetPack } from '../../../scripts/build-binaries.mjs';
-import { createEngineEntry } from '../scripts/build-engine.mjs';
+import {
+  createEngineEntry,
+  ENGINE_TARGETS,
+  engineSidecarPath,
+  engineTargetForTriple,
+} from '../scripts/build-engine.mjs';
 
 describe('native engine standalone bootstrap', () => {
   it('keeps real daemon/script dispatch while selecting the desktop backend and local asset pack', () => {
@@ -38,5 +43,47 @@ describe('native engine standalone bootstrap', () => {
     } finally {
       rmSync(destination, { recursive: true, force: true });
     }
+  });
+});
+
+describe('desktop installer bundle', () => {
+  const overlay = JSON.parse(
+    readFileSync(new URL('../src-tauri/tauri.bundle.conf.json', import.meta.url), 'utf8'),
+  );
+  it('ships one installer per OS with the engine bundled inside it', () => {
+    expect(overlay.bundle.active).toBe(true);
+    expect(overlay.bundle.externalBin).toEqual(['../binaries/wrongstack-engine']);
+    // AppImage is excluded on purpose: its mount disappears when the window closes, while the
+    // session host and its engines keep running from that path.
+    expect(overlay.bundle.targets).toEqual(['nsis', 'app', 'dmg', 'deb', 'rpm']);
+    expect(overlay.bundle.windows.nsis.installMode).toBe('currentUser');
+    expect(overlay.bundle.icon).toEqual(
+      expect.arrayContaining(['icons/icon.icns', 'icons/icon.ico']),
+    );
+  });
+  it('keeps the base config unbundled so development never needs a compiled engine', () => {
+    const base = JSON.parse(
+      readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
+    );
+    expect(base.bundle.active).toBe(false);
+    expect(base.bundle.externalBin).toBeUndefined();
+  });
+  it('builds the sidecar under the name Tauri resolves for every supported desktop target', () => {
+    expect(Object.values(ENGINE_TARGETS)).toEqual([
+      'x86_64-pc-windows-msvc',
+      'aarch64-pc-windows-msvc',
+      'x86_64-unknown-linux-gnu',
+      'aarch64-unknown-linux-gnu',
+      'x86_64-apple-darwin',
+      'aarch64-apple-darwin',
+    ]);
+    for (const [target, triple] of Object.entries(ENGINE_TARGETS)) {
+      expect(engineTargetForTriple(triple)).toBe(target);
+      const file = engineSidecarPath(triple, '/app');
+      expect(file.replaceAll('\\', '/')).toBe(
+        `/app/binaries/wrongstack-engine-${triple}${triple.includes('-windows-') ? '.exe' : ''}`,
+      );
+    }
+    expect(() => engineTargetForTriple('x86_64-unknown-freebsd')).toThrow(/no engine target/);
   });
 });

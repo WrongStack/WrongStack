@@ -10,22 +10,46 @@ Spanish or Brazilian Portuguese. The composer runs the engine's command catalog,
 slash commands (`/git`, `/commit`, `/spawn`, `/acp`, `/tuneup` and more) work here; a command
 that changes or deletes data runs only when the same draft is sent again.
 
-## Run the portable application
+## Install
 
-`bun run desktop:v2:build` creates an immutable build under `dist-native/<ui-hash>-<engine-hash>/`.
-`dist-native/latest.json` identifies the newest build. That build directory contains:
+Every GitHub release attaches one installer per platform. Each carries the application and the
+bundled WrongStack engine, and installs them side by side:
 
-- `wrongstack-desktop-native.exe` — the application to open.
-- `wrongstack-engine.exe` — the bundled WrongStack runtime; keep it beside the application.
+| Platform | Download | Notes |
+| --- | --- | --- |
+| Windows x64 / arm64 | `wrongstack-desktop-<version>-windows-<arch>-setup.exe` | Per-user install, no administrator rights. Installs WebView2 if it is missing. |
+| macOS Apple silicon / Intel | `wrongstack-desktop-<version>-macos-<arch>.dmg` | macOS 13 or later. Ad-hoc signed, not notarized: open it once with Control-click → Open. |
+| Linux x64 / arm64 | `wrongstack-desktop-<version>-linux-<arch>.deb` or `.rpm` | Installs to `/usr/bin`; needs WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 39+). |
+
+`DESKTOP-SHA256SUMS` lists every installer's checksum, and each has a GitHub build-provenance
+attestation (`gh attestation verify <file> --repo WrongStack/WrongStack`). No AppImage is
+published: the session host outlives the window and keeps running engines from the install
+path, which an AppImage unmounts when the window closes.
+
+## Build the installer
+
+`bun run desktop:v2:build` compiles the engine for this machine's Rust target, bundles it as the
+Tauri sidecar (`binaries/wrongstack-engine-<target-triple>`) and writes this platform's installer
+under `src-tauri/target/release/bundle/` (Windows `nsis/`, macOS `dmg/`, Linux `deb/` and `rpm/`).
+The installer settings live in `src-tauri/tauri.bundle.conf.json`, merged only for this build, so
+`bun run desktop:v2` never needs a compiled engine. `.github/workflows/desktop.yml` runs the same
+build natively on Windows, macOS and Linux (x64 and arm64) and checks that each installer carries
+the engine.
+
+The build also stages an immutable portable copy for local acceptance runs under
+`dist-native/<ui-hash>-<engine-hash>/`, with `dist-native/latest.json` naming the newest one:
+
+- `wrongstack-desktop-native[.exe]` — the application to open.
+- `wrongstack-engine[.exe]` — the bundled WrongStack runtime; keep it beside the application.
 - `SHA256SUMS` — checksums for both executables.
 
-Copy the whole folder to the target Windows machine. Bun, Node, repository files, and workspace
-packages are not required there; WebView2 remains the OS webview dependency. The engine uses the
+Bun, Node, repository files, and workspace packages are not required on the target machine; the
+OS webview (WebView2, WKWebView or WebKitGTK) is the only runtime dependency. The engine uses the
 canonical standalone bootstrap and daemon/script dispatch, with only backend runtime assets.
 WebUI frontend bundles are excluded. Static WrongStack logos and canonical color tokens are
 synchronized at build time; the shared surfaces read theme tokens generated from the WebUI
-stylesheets inside their own frame, and no WebUI bundle or runtime stylesheet is loaded. Both executables
-are currently unsigned. The native icons are owned original assets in `src-tauri/icons`; brand
+stylesheets inside their own frame, and no WebUI bundle or runtime stylesheet is loaded. The
+executables carry no publisher signature yet. The native icons are owned original assets in `src-tauri/icons`; brand
 synchronization does not require the legacy Electron application.
 New builds leave binaries used by open sessions in place. Existing sessions remain on their
 original host; an older host can run beside a newer project-service host without restarting them.
@@ -381,10 +405,14 @@ explicit engine executable. There is no fallback to `wstack --webui`.
 - Native localhost preview windows with DevTools and zero host IPC capability. These preview
   project output; they never host project/session UI.
 
-Default data is `%LOCALAPPDATA%/WrongStack/desktop-v2-native`. `WRONGSTACK_DESKTOP_DATA` selects an
-isolated directory for tests. Earlier prototype data under `desktop-v2` and its active sessions
-remain untouched. Hosts run from a private executable copy so they do not lock the UI binary
-against subsequent builds.
+Default data is `WrongStack/desktop-v2-native` under the per-user data root: `%LOCALAPPDATA%` on
+Windows, `~/Library/Application Support` on macOS, `$XDG_DATA_HOME` (else `~/.local/share`) on Linux.
+`WRONGSTACK_DESKTOP_DATA` selects an isolated directory for tests. Earlier prototype data under
+`desktop-v2` and its active sessions remain untouched. On Windows, hosts run from a private
+executable copy so they do not lock the UI binary against subsequent builds; macOS and Linux run
+the installed executable, which an update can replace while the host runs. There the host and
+each engine lead their own process group, so closing the launching terminal does not stop
+sessions and stopping a session reaches the tools its engine started.
 
 Workdirs currently stay inside a registered project. External linked worktrees can be registered
 as projects until workdir overlays land. Read-oriented feature panels are not full control parity.

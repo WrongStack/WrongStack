@@ -148,6 +148,20 @@ jobs:
       id-token: write
       attestations: write
 
+  # WrongStack Desktop installers (Windows setup.exe, macOS .dmg, Linux .deb and
+  # .rpm), each with the engine bundled. Built natively per OS by desktop.yml.
+  desktop:
+    name: Desktop installers
+    needs: verify
+    uses: ./.github/workflows/desktop.yml
+    with:
+      ref: ${{ needs.verify.outputs.sha }}
+      artifact-prefix: desktop-${{ needs.verify.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
   github-release:
     name: Create GitHub release
     # Depends on the binaries only: the standalone executables are the primary
@@ -210,3 +224,37 @@ jobs:
             gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber \
               dist-bin/wstack-* dist-bin/SHA256SUMS dist-bin/install.sh dist-bin/install.ps1
           fi
+
+  # Attach the desktop installers once the release exists. Their own manifest
+  # (DESKTOP-SHA256SUMS) leaves the standalone-binary checksum gate above as is.
+  desktop-release:
+    name: Attach desktop installers
+    needs: [verify, desktop, github-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 (Node 24 runtime, pinned 2026-10-23)
+        with:
+          pattern: desktop-${{ needs.verify.outputs.version }}-*
+          merge-multiple: true
+          path: desktop-dist
+
+      - name: Upload installers to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd desktop-dist
+          cat SHA256SUMS-* | LC_ALL=C sort -k2 > DESKTOP-SHA256SUMS
+          rm SHA256SUMS-*
+          sha256sum --check DESKTOP-SHA256SUMS
+          # Every installer is vouched for by the manifest, and nothing else ships.
+          awk 'NF == 2 { print $2 }' DESKTOP-SHA256SUMS > "$RUNNER_TEMP/listed"
+          find . -maxdepth 1 -type f -name 'wrongstack-desktop-*' -printf '%f\n' | LC_ALL=C sort > "$RUNNER_TEMP/found"
+          diff -u "$RUNNER_TEMP/listed" "$RUNNER_TEMP/found"
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            wrongstack-desktop-* DESKTOP-SHA256SUMS

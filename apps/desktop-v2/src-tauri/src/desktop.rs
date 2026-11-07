@@ -540,11 +540,11 @@ pub fn run() {
                 let mut candidates = Vec::new();
                 if let Ok(exe) = std::env::current_exe() {
                     if let Some(parent) = exe.parent() {
-                        candidates.push(parent.join("wrongstack-engine.exe"));
+                        candidates.push(parent.join(crate::host::ENGINE_FILE_NAME));
                     }
                 }
                 if let Ok(resources) = app.path().resource_dir() {
-                    candidates.push(resources.join("wrongstack-engine.exe"));
+                    candidates.push(resources.join(crate::host::ENGINE_FILE_NAME));
                 }
                 candidates
                     .into_iter()

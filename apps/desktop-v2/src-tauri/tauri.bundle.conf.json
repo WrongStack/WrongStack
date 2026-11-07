@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WrongStack Desktop",
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "dmg", "deb", "rpm"],
+    "externalBin": ["../binaries/wrongstack-engine"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "publisher": "WrongStack",
+    "copyright": "MIT License",
+    "license": "MIT",
+    "category": "DeveloperTool",
+    "shortDescription": "WrongStack desktop operations console",
+    "longDescription": "Native desktop application for WrongStack projects and persistent agent sessions. The WrongStack runtime is bundled; no Bun, Node or repository checkout is required.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English",
+          "Turkish",
+          "German",
+          "French",
+          "Italian",
+          "Spanish",
+          "PortugueseBR"
+        ],
+        "displayLanguageSelector": false
+      }
+    },
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "13.0"
+    },
+    "linux": {
+      "deb": {
+        "section": "devel"
+      }
+    }
+  }
+}
