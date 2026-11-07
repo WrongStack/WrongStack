@@ -46,6 +46,30 @@ fn stamp_frame(message: &mut Value, at: i64) {
     }
 }
 
+/// Socket I/O that only means "not now": a read or write timeout, an interrupted call, or on
+/// Windows an overlapped operation still in flight (ERROR_IO_PENDING, os error 997). The
+/// engine connection is fine; treating 997 as fatal closed it at random, and the profile's
+/// settings fell back to "Loading your WrongStack profile…" for the rest of the session.
+fn transient_io(error: &std::io::Error) -> bool {
+    const ERROR_IO_PENDING: i32 = 997;
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::WouldBlock
+            | std::io::ErrorKind::TimedOut
+            | std::io::ErrorKind::Interrupted
+    ) || (cfg!(windows) && error.raw_os_error() == Some(ERROR_IO_PENDING))
+}
+
+/// A tungstenite result where a transient socket error is `Ok(false)` ("try again"): an
+/// unsent frame stays in the socket's write buffer and the next flush delivers it.
+fn settle<T>(result: tungstenite::Result<T>) -> Result<bool> {
+    match result {
+        Ok(_) => Ok(true),
+        Err(tungstenite::Error::Io(e)) if transient_io(&e) => Ok(false),
+        Err(e) => Err(err(e)),
+    }
+}
+
 fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
     if bind_session {
         if let Some(id) = identity["sessionId"].as_str() {
@@ -59,10 +83,21 @@ fn scope_message(message: &mut Value, identity: &Value, bind_session: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_live_frame, scope_message, stamp_frame, Engine};
+    use super::{is_live_frame, scope_message, stamp_frame, transient_io, Engine};
     use serde_json::json;
     use std::fs;
     use uuid::Uuid;
+
+    #[test]
+    fn a_pending_or_timed_out_socket_operation_keeps_the_engine_connected() {
+        use std::io::{Error, ErrorKind};
+        assert!(transient_io(&Error::from(ErrorKind::WouldBlock)));
+        assert!(transient_io(&Error::from(ErrorKind::TimedOut)));
+        assert!(transient_io(&Error::from(ErrorKind::Interrupted)));
+        assert_eq!(transient_io(&Error::from_raw_os_error(997)), cfg!(windows));
+        assert!(!transient_io(&Error::from(ErrorKind::ConnectionReset)));
+        assert!(!transient_io(&Error::from(ErrorKind::BrokenPipe)));
+    }
 
     #[test]
     fn stamps_frames_with_their_arrival_but_not_token_deltas() {
@@ -213,14 +248,18 @@ impl Engine {
                 log.write_all(b"\n")
             };
             let result = (|| -> Result<()> {
+                let mut unflushed = false;
                 loop {
+                    if unflushed {
+                        unflushed = !settle(socket.flush())?;
+                    }
                     while let Ok(mut message) = receiver.try_recv() {
                         let identity = owner.identity.lock().map_err(err)?;
                         scope_message(&mut message, &identity, bind_session);
                         drop(identity);
-                        socket
-                            .send(Message::Text(message.to_string().into()))
-                            .map_err(err)?;
+                        if !settle(socket.send(Message::Text(message.to_string().into())))? {
+                            unflushed = true;
+                        }
                         if message["type"] == "user_message" {
                             record(&mut log,&json!({"type":"desktop.user_message","payload":message["payload"],"at":now()})).map_err(err)?;
                         }
@@ -241,15 +280,11 @@ impl Engine {
                             record(&mut log, &message).map_err(err)?;
                         }
                         Ok(Message::Ping(_)) => {
-                            socket.flush().map_err(err)?;
+                            unflushed = !settle(socket.flush())?;
                         }
                         Ok(Message::Close(_)) => break,
                         Ok(_) => {}
-                        Err(tungstenite::Error::Io(e))
-                            if matches!(
-                                e.kind(),
-                                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                            ) => {}
+                        Err(tungstenite::Error::Io(e)) if transient_io(&e) => {}
                         Err(e) => return Err(err(e)),
                     }
                 }
