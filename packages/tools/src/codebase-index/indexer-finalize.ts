@@ -10,11 +10,7 @@ import {
   type SymbolSnapshotItem,
 } from './ecosystem-bridge.js';
 import { runGraphRankPass, shouldRefreshRanks } from './graph-rank-pass.js';
-import {
-  computeGitSnapshotKey,
-  gitBlobStamp,
-  IndexSourceChangedError,
-} from './index-source-files.js';
+import { currentCleanBlobs, gitBlobStamp } from './index-source-files.js';
 import type { IndexerOptions } from './indexer-discovery.js';
 import {
   GRAPH_STAMP_KEY,
@@ -147,6 +143,7 @@ export async function finalizeIndexRun(
     // Record that per file; a failed file keeps whatever it had (its rows are
     // an older copy).
     const blobUpdates = new Map<string, string>();
+    const previousStamps = new Map<string, string>();
     let blesses = false;
     for (const file of discoveredFiles) {
       if (failed.has(file)) continue;
@@ -160,19 +157,27 @@ export async function finalizeIndexRun(
       const current = wasRewritten ? '' : (previous?.gitBlob ?? '');
       if (desired === current) continue;
       blobUpdates.set(file, desired);
+      previousStamps.set(file, current);
       if (desired !== '') blesses = true;
     }
-    // A new stamp vouches that the rows match the blob, which only holds if
-    // nothing moved between discovery and the reads — so re-list and compare
-    // before writing one. A run that stamps nothing (the steady state: every
-    // clean file already trusted) has nothing to vouch for and skips the
-    // extra git process.
+    // A new stamp vouches that a file's rows match its blob, which only holds if
+    // that file did not move between discovery and the end of the run — so
+    // re-list and check each stamp against its own file. A run that stamps
+    // nothing (the steady state: every clean file already trusted) has nothing
+    // to vouch for and skips the extra git process.
+    //
+    // This used to compare one repository-wide snapshot and throw the run away
+    // on any difference. In a checkout where agents edit files all the time a
+    // full run (minutes on a large tree) always saw some unrelated change, so it
+    // was discarded twice, never published and never stamped — and the next run
+    // re-read everything again. A file that moved simply gets no stamp; its next
+    // run (or the watcher) reads it.
     if (blesses) {
-      const finalSnapshotKey = await computeGitSnapshotKey(projectRoot, discoveredFiles, signal);
-      if (finalSnapshotKey !== discoverySnapshotKey) {
-        throw new IndexSourceChangedError(
-          'Project files changed during indexing; retrying before publishing the generation.',
-        );
+      const now = await currentCleanBlobs(projectRoot, discoveredFiles, signal);
+      for (const [file, stamp] of blobUpdates) {
+        if (stamp === '' || now?.get(file) === cleanBlobs.get(file)) continue;
+        if (previousStamps.get(file) === '') blobUpdates.delete(file);
+        else blobUpdates.set(file, '');
       }
     }
     store.setGitBlobs(blobUpdates);

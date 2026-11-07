@@ -10,6 +10,7 @@ import { loadRuntimeDatabaseSync as loadTestDatabaseSync } from '@wrongstack/per
  */
 
 import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -124,6 +125,41 @@ describe('per-file Git trust', () => {
 
     // gitBlobStamp(blob, '') is '' as well; equality alone skipped this file.
     expect(symbolsOf('a.ts')).toEqual(['alpha']);
+  });
+
+  it('publishes a full run while another file keeps changing, stamping only the still-clean ones', async () => {
+    // A busy checkout (agents editing, notes being written) changes some file during
+    // almost every run. A repository-wide "nothing moved" check threw the whole run away,
+    // twice, so no generation was ever published and no file was ever stamped.
+    const c = path.join(root, 'c.ts');
+    writeFileSync(c, 'export function charlie() {}\n');
+    git('add', '-A');
+    git('commit', '-qm', 'c');
+    let edits = 0;
+    const result = await index(undefined, () => {
+      edits += 1;
+      writeFileSync(c, `export function charlie() {}\n// edit ${edits}\n`);
+    });
+
+    expect(result.filesIndexed).toBeGreaterThan(0);
+    const stagedA = git('ls-files', '-s', 'a.ts').split(' ')[1];
+    expect(blobOf('a.ts')).toMatch(new RegExp(`^${stagedA}:[0-9a-f]{16}$`));
+    expect(blobOf('c.ts')).toBe('');
+  });
+
+  it('does not stamp a file whose own blob changed while the run read it', async () => {
+    let committed = false;
+    await index(undefined, () => {
+      if (committed) return;
+      committed = true;
+      writeFileSync(path.join(root, 'a.ts'), 'export function alphaNext() {}\n');
+      git('commit', '-qam', 'a moved');
+    });
+
+    // a.ts is clean again, at a blob the run may never have read: it vouches for nothing.
+    expect(blobOf('a.ts')).toBe('');
+    const stagedB = git('ls-files', '-s', 'b.ts').split(' ')[1];
+    expect(blobOf('b.ts')).toMatch(new RegExp(`^${stagedB}:[0-9a-f]{16}$`));
   });
 
   it('re-reads only the files a branch switch changed', async () => {

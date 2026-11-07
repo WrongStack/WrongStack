@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { indexParallelBatchSize, isFrugalPerf } from '@wrongstack/core/utils';
 import { throwIfAborted, YIELD_EVERY_N, yieldEventLoop } from './index-scheduling.js';
-import { gitBlobStamp, IndexSourceChangedError } from './index-source-files.js';
+import { gitBlobStamp } from './index-source-files.js';
 import { commitBatchResults } from './indexer-batch-commit.js';
 import { parseBatchFiles, readBatchFiles } from './indexer-batch-read.js';
 import { finalizeIndexRun } from './indexer-finalize.js';
@@ -72,15 +72,9 @@ export async function runIndexerWithStore(
   // WrongIndex claim on this index.
   const ownedDir = resolveIndexDir(opts.projectRoot, opts.indexDir);
   if (isOwnedByWrongIndex(ownedDir)) throw new IndexOwnedExternallyError(ownedDir);
-  let result: IndexResult;
-  try {
-    result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));
-  } catch (error) {
-    if (!(error instanceof IndexSourceChangedError)) throw error;
-    // One bounded retry turns an edit that raced discovery into a coherent
-    // generation. A second race fails and preserves the previous generation.
-    result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));
-  }
+  // An edit that races the run no longer voids it: the finalize pass withholds
+  // the Git stamp of a file that moved, and its next run reads it again.
+  const result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));
   // VACUUM cannot run inside a transaction. Publish the completed generation
   // first, then perform best-effort maintenance on full-project runs.
   if (!opts.files) store.compactIfNeeded();

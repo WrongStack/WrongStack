@@ -57,10 +57,6 @@ export function gitBlobStamp(blob: string, contentHash: string | undefined): str
   return contentHash ? `${blob}:${contentHash}` : '';
 }
 
-export class IndexSourceChangedError extends Error {
-  override name = 'IndexSourceChangedError';
-}
-
 export function isWithinProject(projectRoot: string, file: string): boolean {
   const rel = path.relative(projectRoot, file);
   return rel !== '' && !rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel);
@@ -210,21 +206,26 @@ async function computeSnapshot(
 }
 
 /**
- * Recompute the snapshot key of a file set discovered earlier in the run, for
- * the end-of-run check that nothing moved while the generation was built.
- * Equal to {@link findGitSourceFiles}' key for an unchanged checkout.
+ * The staged blob of every file in `files` that Git reports clean right now, for the
+ * end-of-run check that a stamp's own file did not move while the run read it. One
+ * listing, no file reads; null when Git cannot answer (then nothing new is vouched for).
  */
-export async function computeGitSnapshotKey(
+export async function currentCleanBlobs(
   projectRoot: string,
-  indexedFiles: ReadonlySet<string>,
+  files: ReadonlySet<string>,
   signal?: AbortSignal | undefined,
-): Promise<string | null> {
+): Promise<Map<string, string> | null> {
   try {
     throwIfAborted(signal);
     const listing = await gitOutput(projectRoot, GIT_WORKTREE_ARGS);
     throwIfAborted(signal);
     const worktree = parseGitWorktree(projectRoot, listing);
-    return (await computeSnapshot(listing, worktree, indexedFiles)).snapshotKey;
+    const clean = new Map<string, string>();
+    for (const file of files) {
+      const blob = worktree.blobs.get(file);
+      if (blob !== undefined && !worktree.dirty.has(file)) clean.set(file, blob);
+    }
+    return clean;
   } catch {
     return null;
   }
