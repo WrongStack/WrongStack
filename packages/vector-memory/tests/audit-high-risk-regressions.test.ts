@@ -29,6 +29,39 @@ function provider(
   };
 }
 
+// A store whose lookup keeps answering with the row `forget` just reported
+// deleted. This `forget` settles without real I/O, so an
+// unguarded delete loop spins on microtasks and no test timeout can fire;
+// the throw after `limit` calls turns that hang into a failure.
+function stuckSageStore(limit = 25) {
+  const calls = { forget: 0, remember: 0 };
+  const store = {
+    findBySageId: () => ({ id: 'stuck-row' }),
+    forget: async () => {
+      calls.forget++;
+      if (calls.forget > limit) throw new Error('mirror delete loop did not advance');
+      return true;
+    },
+    remember: async () => {
+      calls.remember++;
+      return { id: 'fresh-row' };
+    },
+  } as unknown as VectorMemoryStore;
+  return { store, calls };
+}
+
+function sageMemoryStore(events: EventBus, scope: string) {
+  return {
+    events,
+    getCapability: (capability: { id: string }) =>
+      capability.id === SAGE_SURFACE_CAPABILITY.id
+        ? {
+            getSage: async () => ({ id: 'sage', text: 'fact', scope, status: 'active' }),
+          }
+        : undefined,
+  } as never;
+}
+
 afterEach(() => {
   for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
   roots.clear();
@@ -55,6 +88,7 @@ describe('high-risk audit regressions', () => {
       findBySageId: () => ({ id: 'vector-entry' }),
       forget: async () => {
         forgotten++;
+        if (forgotten > 25) throw new Error('mirror delete loop did not advance');
         return true;
       },
       remember: async () => {
@@ -73,6 +107,35 @@ describe('high-risk audit regressions', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     handle.dispose();
     expect(forgotten).toBe(1);
+  });
+
+  it('stops the session-scope delete loop when the store keeps returning a deleted row', async () => {
+    const events = new EventBus();
+    const { store, calls } = stuckSageStore();
+    const warnings: string[] = [];
+    const handle = subscribeVectorMemoryToSage({
+      store,
+      memoryStore: sageMemoryStore(events, 'session'),
+      logger: { warn: (msg) => void warnings.push(msg) },
+    });
+    events.emit('memory.updated', { memoryId: 'sage', status: 'updated' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    handle.dispose();
+    expect(calls).toEqual({ forget: 1, remember: 0 });
+    expect(warnings).toEqual([expect.stringMatching(/no progress for sage: row stuck-row/)]);
+  });
+
+  it('stops the pre-remember delete loop when the store keeps returning a deleted row', async () => {
+    const events = new EventBus();
+    const { store, calls } = stuckSageStore();
+    const handle = subscribeVectorMemoryToSage({
+      store,
+      memoryStore: sageMemoryStore(events, 'project'),
+    });
+    events.emit('memory.accepted', { memoryId: 'sage' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    handle.dispose();
+    expect(calls).toEqual({ forget: 1, remember: 1 });
   });
 
   it('F262/F268 skips malformed and dimension-mismatched vectors during search', async () => {

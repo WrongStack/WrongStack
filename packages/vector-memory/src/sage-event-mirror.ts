@@ -154,14 +154,7 @@ export function subscribeVectorMemoryToSage(
       // The forget-then-remember churn is one extra DELETE per SAGE
       // write — an acceptable cost for a state that actually matches
       // the source of truth.
-      for (
-        let existing = store.findBySageId(memoryId);
-        existing;
-        existing = store.findBySageId(memoryId)
-      ) {
-        if (!(await store.forget(existing.id))) break;
-        if (disposed) return;
-      }
+      await forgetAllMirrorRows(memoryId);
       if (disposed) return;
       await store.remember({
         text: memory.text,
@@ -183,15 +176,35 @@ export function subscribeVectorMemoryToSage(
     }
   };
 
+  // Deletes every vector row mirrored for one SAGE id. Each pass must
+  // remove a row it has not removed before. Termination used to rest on
+  // the store alone: a store whose lookup keeps answering with a row
+  // `forget` already reported deleted never ended the loop, and when its
+  // `forget` settles without real I/O the loop is a pure microtask spin —
+  // timers never fire again and one core stays pinned until the process
+  // is killed. A repeated id means the store is not making progress; stop.
+  const forgetAllMirrorRows = async (memoryId: string): Promise<void> => {
+    const removed = new Set<string>();
+    for (
+      let existing = store.findBySageId(memoryId);
+      existing;
+      existing = store.findBySageId(memoryId)
+    ) {
+      if (removed.has(existing.id)) {
+        log?.warn?.(
+          `vector-memory mirror forget made no progress for ${memoryId}: row ${existing.id} is still present`,
+        );
+        return;
+      }
+      if (!(await store.forget(existing.id))) return;
+      removed.add(existing.id);
+      if (disposed) return;
+    }
+  };
+
   const forgetMirror = async (memoryId: string): Promise<void> => {
     try {
-      for (
-        let existing = store.findBySageId(memoryId);
-        existing;
-        existing = store.findBySageId(memoryId)
-      ) {
-        if (!(await store.forget(existing.id))) break;
-      }
+      await forgetAllMirrorRows(memoryId);
     } catch (err) {
       log?.warn?.(`vector-memory mirror forget failed for ${memoryId}: ${errMsg(err)}`);
     }
