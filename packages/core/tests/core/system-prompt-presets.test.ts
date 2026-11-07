@@ -14,6 +14,7 @@ import {
   readActiveSystemPromptPresets,
   readProjectSystemPromptPresets,
   saveSystemPromptPreset,
+  systemPromptPresetCacheKey,
   validateSystemPromptPreset,
 } from '../../src/core/system-prompt-presets.js';
 
@@ -139,6 +140,31 @@ describe('profile system prompt presets', () => {
     await fs.utimes(presetFile, new Date(), new Date(Date.now() + 1000));
     const refreshed = (await builder.build(context)).map((block) => block.text).join('\n');
     expect(refreshed).toContain('Changed by another process');
+  });
+
+  it('falls back to the base identity when the selected preset file is deleted', async () => {
+    // F3: a dangling selection (deleted preset JSON, partial profile sync)
+    // used to reject every system-prompt build with a raw ENOENT.
+    const { globalDir } = await fixture();
+    const preset = await createSystemPromptPreset(globalDir, 'Deleted', 'default');
+    const edited = await saveSystemPromptPreset(
+      globalDir,
+      preset.id,
+      preset.revision,
+      preset.name,
+      '# Custom preset identity',
+    );
+    await activateSystemPromptPreset(globalDir, 'default', edited.id);
+    expect((await loadInstructionBundle({ globalDir })).system?.identity).toBe(
+      '# Custom preset identity',
+    );
+
+    await fs.unlink(path.join(globalDir, 'system-prompt-presets', `${edited.id}.json`));
+
+    expect(await systemPromptPresetCacheKey(globalDir, 'default')).toBe('');
+    const bundle = await loadInstructionBundle({ globalDir });
+    expect(bundle.system?.identity).toContain('You are WrongStack');
+    expect(bundle.system?.identity).not.toBe('# Custom preset identity');
   });
 
   it('lets a project choose a different preset without writing to the repository', async () => {

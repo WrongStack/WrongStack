@@ -355,7 +355,16 @@ export async function activeSystemPromptPresetText(
     : undefined;
   const id = project ?? (await readActiveSystemPromptPresets(globalInstructions))[variant];
   if (!id) return undefined;
-  const preset = await readSystemPromptPreset(globalInstructions, id);
+  let preset: SystemPromptPreset;
+  try {
+    preset = await readSystemPromptPreset(globalInstructions, id);
+  } catch (error) {
+    // A dangling selection (deleted file, partial profile sync) is not prompt
+    // content: failing here rejected every system-prompt build with a raw
+    // ENOENT. Fall back to the base identity; real corruption still throws.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
   if (preset.baseVariant !== variant) throw new Error('Active preset base variant does not match.');
   return preset.text;
 }
@@ -373,6 +382,16 @@ export async function systemPromptPresetCacheKey(
     : undefined;
   const id = project ?? (await readActiveSystemPromptPresets(globalInstructions))[variant];
   if (!id) return '';
-  const stat = await fs.stat(fileFor(globalInstructions, id), { bigint: true });
+  // A dangling selection (deleted file, partial profile sync) is not prompt
+  // content: report "no preset" so the builder reloads the base bundle instead
+  // of throwing on every turn. The same state is absorbed by
+  // activeSystemPromptPresetText; real corruption still throws.
+  const stat = await fs
+    .stat(fileFor(globalInstructions, id), { bigint: true })
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+  if (stat === null) return '';
   return `${id}:${stat.mtimeNs}:${stat.size}`;
 }

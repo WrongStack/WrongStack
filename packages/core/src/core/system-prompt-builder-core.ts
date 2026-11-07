@@ -68,7 +68,14 @@ export function buildIdentityLayer(
 ): string {
   const render = (text: string): string => renderInstructionLayer(text, tplCtx);
   if (identity === undefined) return render(LAYER_1_IDENTITY);
-  if (source !== 'project') return render(identity);
+  if (source !== 'project') {
+    const replacement = render(identity);
+    // Fail open: an empty override file, or one whose every block is gated out
+    // for the live tool set, renders empty. Returning that verbatim erased
+    // layer 1 — the "a malformed override must never blank the identity prompt"
+    // contract the project path below already honours.
+    return replacement.trim().length > 0 ? replacement : render(LAYER_1_IDENTITY);
+  }
   const fenced = formatProjectSuppliedBlock({
     tag: PROJECT_SUPPLIED_INSTRUCTIONS_TAG,
     source: '.wrongstack/instructions/system.md',
