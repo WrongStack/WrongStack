@@ -147,4 +147,35 @@ describe('OAuth refresh successor links survive access-token expiry', () => {
     await expect(sibling.ensureFreshToken(new AbortController().signal)).resolves.toBeUndefined();
     expect(siblingAccess).toBe('valid-a2');
   });
+
+  it('compresses predecessor rotation links so an expired first hop is not evicted while its chain is still fresh', async () => {
+    let step = 0;
+    const leader = coordinator('r1', async (key) => {
+      step++;
+      if (step === 1 && key === 'r1') {
+        return { accessToken: 'a2', refreshKey: 'r2', expiresAt: Date.now() - 1000 };
+      }
+      return { accessToken: 'a3', refreshKey: 'r3', expiresAt: Date.now() + 60_000 };
+    });
+    const sibling = coordinator('r1', async () => {
+      throw new Error('invalid_grant');
+    });
+    await leader.value.runRefresh();
+    await leader.value.runRefresh();
+    for (let i = 0; i < 63; i++) {
+      await coordinator(
+        `other-${i}`,
+        async (k) => ({
+          accessToken: `oa-${i}`,
+          refreshKey: `${k}-next`,
+          expiresAt: i === 60 ? Date.now() - 500 : Date.now() + 60_000,
+        }),
+        `other-${i}`,
+      ).value.runRefresh();
+    }
+    await expect(sibling.value.runRefresh()).resolves.toMatchObject({
+      accessToken: 'a3',
+      refreshKey: 'r3',
+    });
+  });
 });

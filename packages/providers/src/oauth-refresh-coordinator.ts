@@ -64,7 +64,21 @@ function sharedKey(label: string, refreshKey: string): string {
   return `${label}\u0000${refreshKey}`;
 }
 
-function recordRotation(key: string, rotation: SharedRotation): void {
+function recordRotation(
+  label: string,
+  exchangedKey: string,
+  key: string,
+  rotation: SharedRotation,
+): void {
+  const prefix = `${label}\u0000`;
+  for (const [existingKey, existing] of sharedRotations) {
+    if (existingKey.startsWith(prefix) && existing.nextKey === exchangedKey) {
+      existing.nextKey = rotation.nextKey;
+      existing.tokens = rotation.tokens;
+      existing.expiresAt = rotation.expiresAt;
+    }
+  }
+  sharedRotations.delete(key);
   const now = Date.now();
   while (sharedRotations.size >= MAX_SHARED_ROTATIONS) {
     const oldest =
@@ -74,6 +88,16 @@ function recordRotation(key: string, rotation: SharedRotation): void {
     sharedRotations.delete(oldest);
   }
   sharedRotations.set(key, rotation);
+  for (const [existingKey, existing] of [...sharedRotations]) {
+    if (
+      existingKey !== key &&
+      existingKey.startsWith(prefix) &&
+      existing.nextKey === rotation.nextKey
+    ) {
+      sharedRotations.delete(existingKey);
+      sharedRotations.set(existingKey, existing);
+    }
+  }
 }
 
 /** Test hook: forget every shared refresh and rotation. */
@@ -313,7 +337,7 @@ export class OAuthRefreshCoordinator<TTokens, TPayload> {
       const tokens = await flight;
       const derived = this.hooks.projectTokens(tokens);
       if (leader && derived.refreshKey && derived.refreshKey !== refreshKey) {
-        recordRotation(key, {
+        recordRotation(this.label, refreshKey, key, {
           nextKey: derived.refreshKey,
           tokens,
           expiresAt: derived.expiresAt,

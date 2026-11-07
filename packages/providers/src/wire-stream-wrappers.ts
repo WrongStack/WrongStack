@@ -50,42 +50,100 @@ export function wrapDebugStream(
   return wrapDebugWebStream(providerId, body as ReadableStream<Uint8Array>);
 }
 
+function attachLegacyNodeReadable(body: NodeJS.ReadableStream): Readable {
+  const onData = (chunk: unknown) => {
+    readable.push(chunk);
+  };
+  const onEnd = () => {
+    cleanup();
+    readable.push(null);
+  };
+  const onError = (err: Error) => {
+    cleanup();
+    readable.destroy(err);
+  };
+  const cleanup = () => {
+    body.removeListener('data', onData);
+    body.removeListener('end', onEnd);
+    body.removeListener('error', onError);
+  };
+  const readable = new Readable({
+    read() {},
+    destroy(err, callback) {
+      cleanup();
+      const destroyable = body as { destroy?: (error?: Error) => void };
+      if (typeof destroyable.destroy === 'function') {
+        destroyable.destroy(err ?? undefined);
+      }
+      callback(err);
+    },
+  });
+  body.on('data', onData);
+  body.on('end', onEnd);
+  body.on('error', onError);
+  return readable;
+}
+
+function destroyStreamSource(source: NodeJS.ReadableStream, err?: Error | null): void {
+  const destroyable = source as { destroy?: (error?: Error) => void; destroyed?: boolean };
+  if (!destroyable.destroyed && typeof destroyable.destroy === 'function') {
+    destroyable.destroy(err ?? undefined);
+  }
+}
+
 function wrapDebugNodeStream(
   providerId: string,
   body: NodeJS.ReadableStream,
 ): NodeJS.ReadableStream {
   let lastChunkTime = Date.now();
   let chunkIndex = 0;
-  let streamSource: NodeJS.ReadableStream;
-  if (
-    Symbol.asyncIterator in body &&
-    typeof (body as unknown as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function'
-  ) {
-    streamSource = body;
-  } else if (body instanceof Readable) {
-    streamSource = body;
-  } else {
-    const r = new Readable({ read() {} });
-    body.on('data', (chunk: unknown) => r.push(chunk));
-    body.on('end', () => r.push(null));
-    body.on('error', (err: Error) => r.destroy(err));
-    streamSource = r;
-  }
-
-  return Readable.from(
-    (async function* () {
-      for await (const chunk of streamSource) {
-        const bytes: Uint8Array =
-          typeof chunk === 'string'
-            ? STREAM_DEBUG_TEXT_ENCODER.encode(chunk)
-            : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-        const now = Date.now();
-        logRawChunk(providerId, chunkIndex++, bytes, now - lastChunkTime);
-        lastChunkTime = now;
-        yield chunk;
-      }
-    })(),
-  );
+  const onData = (chunk: Buffer | Uint8Array | string) => {
+    const bytes: Uint8Array =
+      typeof chunk === 'string'
+        ? STREAM_DEBUG_TEXT_ENCODER.encode(chunk)
+        : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    const now = Date.now();
+    logRawChunk(providerId, chunkIndex++, bytes, now - lastChunkTime);
+    lastChunkTime = now;
+    if (!readable.push(chunk)) {
+      body.pause?.();
+    }
+  };
+  const onEnd = () => {
+    cleanup();
+    readable.push(null);
+  };
+  const onError = (err: Error) => {
+    cleanup();
+    readable.destroy(err);
+  };
+  const onClose = () => {
+    cleanup();
+    if (!readable.readableEnded && !readable.destroyed) {
+      readable.destroy();
+    }
+  };
+  const cleanup = () => {
+    body.removeListener('data', onData);
+    body.removeListener('end', onEnd);
+    body.removeListener('error', onError);
+    body.removeListener('close', onClose);
+  };
+  const readable = new Readable({
+    read() {
+      body.resume?.();
+    },
+    destroy(err, callback) {
+      cleanup();
+      destroyStreamSource(body, err);
+      callback(err);
+    },
+  });
+  body.on('data', onData);
+  body.on('end', onEnd);
+  body.on('error', onError);
+  body.on('close', onClose);
+  return readable;
 }
 
 function wrapDebugWebStream(
@@ -148,21 +206,27 @@ function wrapHangNodeStream(
   ) {
     readable = Readable.from(body as unknown as AsyncIterable<unknown>);
   } else {
-    readable = new Readable({ read() {} });
-    body.on('data', (chunk: unknown) => readable.push(chunk));
-    body.on('end', () => readable.push(null));
-    body.on('error', (err: Error) => readable.destroy(err));
+    readable = attachLegacyNodeReadable(body);
   }
+  const teardown = () => {
+    destroyStreamSource(readable);
+    if (readable !== body) destroyStreamSource(body);
+  };
   const webStream = Readable.toWeb(readable);
-  const wrappedWeb = wrapHangWebStream(webStream as ReadableStream<Uint8Array>, hang);
+  const wrappedWeb = wrapHangWebStream(webStream as ReadableStream<Uint8Array>, hang, teardown);
   // `as never`: the global ReadableStream differs from node:stream/web's
   // when the DOM lib is in scope (vitest types), so don't name either.
-  return Readable.fromWeb(wrappedWeb as never) as never as NodeJS.ReadableStream;
+  const fromWeb = Readable.fromWeb(wrappedWeb as never);
+  fromWeb.once('close', () => {
+    if (!readable.readableEnded) teardown();
+  });
+  return fromWeb as never as NodeJS.ReadableStream;
 }
 
 function wrapHangWebStream(
   body: ReadableStream<Uint8Array>,
   { providerId, model, timeoutMs: timeout }: StreamHangContext,
+  onHang?: () => void,
 ): ReadableStream<Uint8Array> {
   const startTime = Date.now();
   let bytesReceived = 0;
@@ -186,6 +250,9 @@ function wrapHangWebStream(
 
       if ('timedOut' in result && result.timedOut) {
         // The read is still pending — this is a hang.
+        // Guard readPromise against unhandled rejection if cancel rejects it.
+        void readPromise.catch(() => {});
+        onHang?.();
         // Cancel the reader and throw.
         reader
           .cancel('stream hang detected')

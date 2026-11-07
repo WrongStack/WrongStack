@@ -59,8 +59,8 @@ export class CodexWebSocketPool {
     });
     const chain = previous.catch(() => undefined).then(() => current);
     this.locks.set(key, chain);
-    await previous.catch(() => undefined);
     try {
+      await waitForLock(previous, opts.signal);
       let recoveryReason: WebSocketRecoveryCode | undefined;
       for (let attempt = 0; attempt < 2; attempt++) {
         if (opts.signal.aborted)
@@ -74,7 +74,11 @@ export class CodexWebSocketPool {
           this.connections.delete(key);
           connection = undefined;
         }
-        if (!connection) {
+        if (connection) {
+          // Refresh recency order so bounded eviction drops the least-recently-used session.
+          this.connections.delete(key);
+          this.connections.set(key, connection);
+        } else {
           connection = new CodexWebSocketConnection(
             this.factory,
             opts.url,
@@ -148,4 +152,26 @@ export function defaultCodexWebSocketFactory(
     // a handshake-time abort also tears down the underlying request.
     signal: options.signal,
   }) as CodexWebSocketLike;
+}
+
+function waitForLock(previous: Promise<void>, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new Error('Codex WebSocket request aborted'));
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      reject(signal.reason ?? new Error('Codex WebSocket request aborted'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    previous
+      .catch(() => undefined)
+      .then(() => {
+        signal.removeEventListener('abort', onAbort);
+        if (signal.aborted) {
+          reject(signal.reason ?? new Error('Codex WebSocket request aborted'));
+          return;
+        }
+        resolve();
+      });
+  });
 }

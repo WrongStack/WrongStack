@@ -950,4 +950,63 @@ describe('Codex WebSocket Responses transport', () => {
       },
     });
   });
+
+  it('refreshes LRU order on connection reuse and rejects an aborted queued request without waiting for the prior turn', async () => {
+    let created = 0;
+    const lruPool = new CodexWebSocketPool(() => {
+      created++;
+      return new FakeSocket((sock) => {
+        sock.message({
+          type: 'response.created',
+          response: { id: `r-${created}`, model: 'gpt-5-codex' },
+        });
+        sock.message({
+          type: 'response.completed',
+          response: { id: `r-${created}`, status: 'completed' },
+        });
+      });
+    }, 2);
+    await collect(lruPool.stream(options('a'), parseOpenAIResponsesStream));
+    await collect(lruPool.stream(options('b'), parseOpenAIResponsesStream));
+    await collect(lruPool.stream(options('a'), parseOpenAIResponsesStream));
+    await collect(lruPool.stream(options('c'), parseOpenAIResponsesStream));
+    await collect(lruPool.stream(options('a'), parseOpenAIResponsesStream));
+    expect(created).toBe(3);
+
+    let releaseTurn1!: () => void;
+    const turn1Gate = new Promise<void>((r) => {
+      releaseTurn1 = r;
+    });
+    let turn1Started!: () => void;
+    const turn1Ready = new Promise<void>((r) => {
+      turn1Started = r;
+    });
+    const queuePool = new CodexWebSocketPool(
+      () =>
+        new FakeSocket((sock) => {
+          turn1Started();
+          void turn1Gate.then(() => {
+            sock.message({
+              type: 'response.created',
+              response: { id: 'rx', model: 'gpt-5-codex' },
+            });
+            sock.message({
+              type: 'response.completed',
+              response: { id: 'rx', status: 'completed' },
+            });
+          });
+        }),
+    );
+    const turn1 = collect(queuePool.stream(options('queued'), parseOpenAIResponsesStream));
+    await turn1Ready;
+
+    const abort2 = new AbortController();
+    const turn2 = collect(
+      queuePool.stream({ ...options('queued'), signal: abort2.signal }, parseOpenAIResponsesStream),
+    );
+    abort2.abort(new Error('queued caller cancelled'));
+    await expect(turn2).rejects.toThrow('queued caller cancelled');
+    releaseTurn1();
+    await turn1;
+  });
 });

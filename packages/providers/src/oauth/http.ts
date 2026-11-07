@@ -47,14 +47,20 @@ export function oauthFailure(provider: string, status: number, body: OAuthJson):
     'refresh_token_invalidated',
     'refresh_token_reused',
   ].includes(code);
+  const message = `${provider} sign-in/token renewal failed (${status}, ${code}).${
+    status === 401 || status === 403 || invalidSession ? ' Sign in again.' : ''
+  }`;
   return new ProviderError(
-    `${provider} sign-in/token renewal failed (${status}, ${code}).${
-      status === 401 || status === 403 || invalidSession ? ' Sign in again.' : ''
-    }`,
+    message,
     status,
     !invalidSession && (status === 429 || status >= 500),
     provider,
-    { body: { code }, ...(invalidSession ? { kind: 'auth' as const } : {}) },
+    {
+      // describe() projects the safe structured body for Desktop/WebUI model tests.
+      // Keep our generated guidance there; never forward raw OAuth descriptions.
+      body: { code, message, ...(invalidSession ? { type: 'authentication_error' } : {}) },
+      ...(invalidSession ? { kind: 'auth' as const } : {}),
+    },
   );
 }
 

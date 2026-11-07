@@ -3,6 +3,7 @@
  * always accepted them, but no host passed them and the composite providers
  * never forwarded them, so both were pinned at 60s whatever the user set.
  */
+import { Readable } from 'node:stream';
 import type { StreamEvent } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -13,6 +14,7 @@ import {
   streamTimeoutDefaults,
 } from '../src/stream-timeouts.js';
 import { WireAdapter } from '../src/wire-adapter.js';
+import { wrapDebugStream, wrapWithHangDetection } from '../src/wire-stream-wrappers.js';
 
 class Probe extends WireAdapter {
   override readonly id = 'probe';
@@ -73,5 +75,21 @@ describe('stream timeout defaults', () => {
     setStreamTimeoutDefaults({ hangTimeoutMs: 1_000 });
     expect(before.budgets().hang).toBe(DEFAULT_STREAM_HANG_TIMEOUT_MS);
     expect(probe().hang).toBe(1_000);
+  });
+
+  it('destroys a stalled Node Readable upstream when wrapDebugStream and wrapWithHangDetection time out', async () => {
+    const upstream = new Readable({ read() {} });
+    upstream.push(Buffer.from('chunk-1'));
+    const wrapped = wrapWithHangDetection(wrapDebugStream('probe', upstream), {
+      providerId: 'probe',
+      model: 'test-model',
+      timeoutMs: 20,
+    });
+    await expect(async () => {
+      for await (const _ of wrapped as AsyncIterable<Uint8Array>) {
+        // stalls after first chunk
+      }
+    }).rejects.toThrow(/hang/i);
+    expect(upstream.destroyed).toBe(true);
   });
 });
