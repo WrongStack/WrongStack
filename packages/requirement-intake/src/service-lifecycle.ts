@@ -39,6 +39,13 @@ export async function submitIntake(
 ): Promise<IntakeSubmitResult> {
   const record = await host.requireRecord(id, ctx, 'submit');
   if (record.status === 'submitted') {
+    if (
+      expectedVersion !== undefined &&
+      record.version !== expectedVersion &&
+      record.version !== expectedVersion + 1
+    ) {
+      throw new IntakeConflictError(id, expectedVersion, record.version);
+    }
     host.metrics.increment('intake.duplicate_submit');
     return { record, idempotent: true };
   }
@@ -84,10 +91,17 @@ export async function submitIntake(
     return { record: updated, idempotent: false };
   } catch (error) {
     // A concurrent submit won the CAS race. Re-read: if the record is now
-    // submitted, this is a safe duplicate — report it idempotently.
+    // submitted without an intervening version jump past expectedVersion,
+    // this is a safe duplicate — report it idempotently.
     if (error instanceof IntakeConflictError) {
       const latest = await host.store.load(id);
-      if (latest && latest.status === 'submitted') {
+      if (
+        latest &&
+        latest.status === 'submitted' &&
+        (expectedVersion === undefined ||
+          latest.version === expectedVersion ||
+          latest.version === expectedVersion + 1)
+      ) {
         host.metrics.increment('intake.duplicate_submit');
         return { record: latest, idempotent: true };
       }

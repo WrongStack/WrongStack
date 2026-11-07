@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-07T17:22:07.959Z
+**Generated:** 2026-11-07T17:23:38.508Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6068 |
-| Production source lines | 1257169 |
+| Production source lines | 1257250 |
 | Test files | 5057 |
 | Workspace dependency edges | 244 |
 | Relative module edges | 17934 |
@@ -124,6 +124,7 @@ None.
 | 720 | `packages/tools/src/read.ts` |
 | 719 | `packages/chronicle/src/project-server-client.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
+| 716 | `packages/requirement-intake/src/service.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/mailbox-mcp/src/adapter.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |
@@ -139,7 +140,6 @@ None.
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 | 701 | `packages/coordination/src/provider-status-tracker.ts` |
-| 700 | `apps/desktop-v2/src/useDesktop.ts` |
 
 ## Exports only tests reference
 

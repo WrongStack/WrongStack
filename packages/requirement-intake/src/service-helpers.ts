@@ -351,10 +351,13 @@ export function markUserSources(record: RequirementIntakeRecord, changedKeys: st
   for (const key of changedKeys) {
     const sourceField = mapping[key];
     if (sourceField) {
-      if (
+      const clearedOptional =
         (key === 'businessGoal' || key === 'expectedOutcome' || key === 'scopeNotes') &&
-        record[key] === undefined
-      ) {
+        record[key] === undefined;
+      const clearedArray =
+        (key === 'targetUsers' || key === 'constraints' || key === 'providedContext') &&
+        record[key].length === 0;
+      if (clearedOptional || clearedArray) {
         delete record.fieldSources[sourceField];
       } else {
         record.fieldSources[sourceField] = 'user';
@@ -373,6 +376,37 @@ export function markQuestionAnswered(
     question.status = 'answered';
     question.answer = value;
   }
+}
+
+export function reopenQuestionIfEmpty(record: RequirementIntakeRecord, field: string): void {
+  const question = record.questions.find((candidate) => candidate.field === field);
+  if (!question) return;
+  const latestAnswer = [...record.answers].reverse().find((candidate) => candidate.field === field);
+  if (latestAnswer) {
+    if (field === 'priority') {
+      const normalized = latestAnswer.answer.trim().toLowerCase();
+      if (
+        !(INTAKE_PRIORITIES as readonly string[]).includes(normalized) ||
+        normalized === 'unspecified'
+      ) {
+        question.status = 'unanswered';
+        delete question.answer;
+        return;
+      }
+    }
+    question.status = 'answered';
+    question.answer = latestAnswer.answer;
+    return;
+  }
+  question.status = 'unanswered';
+  delete question.answer;
+}
+
+function isConcretePriorityAnswer(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return (
+    (INTAKE_PRIORITIES as readonly string[]).includes(normalized) && normalized !== 'unspecified'
+  );
 }
 
 function syncVibeFromAnswer(
@@ -413,7 +447,9 @@ export function applyAnswerToRecord(
     source: 'user',
   };
   record.answers.push(answer);
-  markQuestionAnswered(record, validated.field, validated.answer);
+  if (validated.field !== 'priority' || isConcretePriorityAnswer(validated.answer)) {
+    markQuestionAnswered(record, validated.field, validated.answer);
+  }
   syncVibeFromAnswer(record, validated.answer, now);
   const mapping = ANSWER_FIELD_MAPPING[validated.field];
   if (mapping) {
@@ -448,10 +484,19 @@ export function applyAnswerUpdateToRecord(
   const previous = answer.answer;
   answer.answer = newAnswer;
   answer.answeredAt = now;
+  const latestForField =
+    [...record.answers].reverse().find((candidate) => candidate.field === answer.field) ?? answer;
   const question = record.questions.find((candidate) => candidate.field === answer.field);
   if (question) {
-    question.answer = newAnswer;
-    question.status = 'answered';
+    if (answer.field === 'priority' && !isConcretePriorityAnswer(latestForField.answer)) {
+      if (record.priority === 'unspecified') {
+        question.status = 'unanswered';
+        delete question.answer;
+      }
+    } else {
+      question.answer = latestForField.answer;
+      question.status = 'answered';
+    }
   }
   syncVibeFromAnswer(record, newAnswer, now);
   const mapping = ANSWER_FIELD_MAPPING[answer.field];
@@ -487,7 +532,7 @@ export function applyAnswerUpdateToRecord(
     contribution = [...new Set([...contributed.filter((item) => kept.has(item)), ...introduced])];
   }
   if (mapping) {
-    mapping.set(record, newAnswer);
+    mapping.set(record, list ? newAnswer : latestForField.answer);
     if (contribution) answer.contributedItems = contribution;
     if (mapping.sourceField) {
       record.fieldSources[mapping.sourceField] = 'user';

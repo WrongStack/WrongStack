@@ -66,6 +66,10 @@
       "lines": 718,
       "relativeImports": 14
     },
+    "packages/requirement-intake/src/service.ts": {
+      "lines": 716,
+      "relativeImports": 17
+    },
     "packages/sage/src/wrongmemory-port.ts": {
       "lines": 1733,
       "relativeImports": 14

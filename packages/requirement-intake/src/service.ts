@@ -43,6 +43,7 @@ import {
   findSuggestionProposal,
   markQuestionAnswered,
   markUserSources,
+  reopenQuestionIfEmpty,
 } from './service-helpers.js';
 import {
   closeIntake as closeIntakeWithHost,
@@ -269,30 +270,48 @@ export class RequirementIntakeService {
           next.fieldSources.priority = 'user';
           if (validated.priority !== 'unspecified') {
             markQuestionAnswered(next, 'priority', validated.priority);
+          } else {
+            reopenQuestionIfEmpty(next, 'priority');
           }
         }
         applyOptionalString(next, 'businessGoal', validated.businessGoal);
-        if (validated.businessGoal !== undefined && next.businessGoal !== undefined) {
-          markQuestionAnswered(next, 'business_goal', next.businessGoal);
+        if (validated.businessGoal !== undefined) {
+          if (next.businessGoal !== undefined) {
+            markQuestionAnswered(next, 'business_goal', next.businessGoal);
+          } else {
+            reopenQuestionIfEmpty(next, 'business_goal');
+          }
         }
         applyOptionalString(next, 'expectedOutcome', validated.expectedOutcome);
-        if (validated.expectedOutcome !== undefined && next.expectedOutcome !== undefined) {
-          markQuestionAnswered(next, 'expected_outcome', next.expectedOutcome);
+        if (validated.expectedOutcome !== undefined) {
+          if (next.expectedOutcome !== undefined) {
+            markQuestionAnswered(next, 'expected_outcome', next.expectedOutcome);
+          } else {
+            reopenQuestionIfEmpty(next, 'expected_outcome');
+          }
         }
         applyOptionalString(next, 'scopeNotes', validated.scopeNotes);
-        if (validated.scopeNotes !== undefined && next.scopeNotes !== undefined) {
-          markQuestionAnswered(next, 'scope_notes', next.scopeNotes);
+        if (validated.scopeNotes !== undefined) {
+          if (next.scopeNotes !== undefined) {
+            markQuestionAnswered(next, 'scope_notes', next.scopeNotes);
+          } else {
+            reopenQuestionIfEmpty(next, 'scope_notes');
+          }
         }
         if (validated.targetUsers !== undefined) {
           next.targetUsers = [...validated.targetUsers];
           if (next.targetUsers.length > 0) {
             markQuestionAnswered(next, 'target_users', next.targetUsers.join(', '));
+          } else {
+            reopenQuestionIfEmpty(next, 'target_users');
           }
         }
         if (validated.constraints !== undefined) {
           next.constraints = [...validated.constraints];
           if (next.constraints.length > 0) {
             markQuestionAnswered(next, 'constraints', next.constraints.join(', '));
+          } else {
+            reopenQuestionIfEmpty(next, 'constraints');
           }
         }
         if (validated.providedContext !== undefined) {
@@ -301,6 +320,9 @@ export class RequirementIntakeService {
             const joined = next.providedContext.join(', ');
             markQuestionAnswered(next, 'provided_context', joined);
             markQuestionAnswered(next, 'project_component', joined);
+          } else {
+            reopenQuestionIfEmpty(next, 'provided_context');
+            reopenQuestionIfEmpty(next, 'project_component');
           }
         }
         if (validated.metadata !== undefined) next.metadata = validated.metadata;

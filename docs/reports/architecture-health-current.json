@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T17:22:07.959Z",
+  "generatedAt": "2026-11-07T17:23:38.508Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6068,
     "testFiles": 5057,
-    "sourceLines": 1257169,
+    "sourceLines": 1257250,
     "workspaceEdges": 244,
     "moduleEdges": 17934,
     "nonCommandSlashImports": 0,
@@ -34607,6 +34607,11 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/requirement-intake/src/service.ts",
+      "lines": 716,
+      "relativeImports": 17
+    },
+    {
       "file": "packages/sage/src/wrongmemory-port.ts",
       "lines": 1733,
       "relativeImports": 14
@@ -34944,6 +34949,11 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/requirement-intake/src/service.ts",
+      "lines": 716,
+      "relativeImports": 17
+    },
+    {
       "file": "packages/tui/src/reducers/panel-pickers.ts",
       "lines": 714,
       "relativeImports": 5
@@ -35017,11 +35027,6 @@
       "file": "packages/coordination/src/provider-status-tracker.ts",
       "lines": 701,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/useDesktop.ts",
-      "lines": 700,
-      "relativeImports": 9
     }
   ],
   "testOnlyExports": [
