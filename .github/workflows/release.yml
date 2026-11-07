@@ -249,7 +249,9 @@ jobs:
         run: |
           set -euo pipefail
           cd desktop-dist
-          cat SHA256SUMS-* | LC_ALL=C sort -k2 > DESKTOP-SHA256SUMS
+          # Windows runners write binary-mode lines (`<hash> *<file>`); drop the
+          # marker so every line names the file the same way.
+          cat SHA256SUMS-* | sed -E 's/^([0-9a-f]{64}) \*/\1  /' | LC_ALL=C sort -k2 > DESKTOP-SHA256SUMS
           rm SHA256SUMS-*
           sha256sum --check DESKTOP-SHA256SUMS
           # Every installer is vouched for by the manifest, and nothing else ships.
