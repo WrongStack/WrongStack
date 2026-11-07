@@ -245,14 +245,25 @@ export function extractFindingAnchor(title: string, description: string): string
  */
 export function resolveFindingPath(raw: string, cwd: string): string | null {
   const pathMod = process.platform === 'win32' ? path.win32 : path;
-  const forward = raw.replace(/\\/g, '/').replace(/^\.\//, '');
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === '.') return null;
+  const forward = trimmed.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!forward || forward === '.') return null;
   const isAbsolute = pathMod.isAbsolute(forward) || /^[a-zA-Z]:\//.test(forward);
   const relative = isAbsolute ? pathMod.relative(cwd, forward).replace(/\\/g, '/') : forward;
   // Reject traversal: `../` escaping the workspace must never resolve.
-  if (relative === '..' || relative.startsWith('../') || pathMod.isAbsolute(relative)) return null;
+  if (
+    !relative ||
+    relative === '.' ||
+    relative === '..' ||
+    relative.startsWith('../') ||
+    pathMod.isAbsolute(relative)
+  )
+    return null;
   const resolved = pathMod.resolve(cwd, relative);
   const rel = pathMod.relative(cwd, resolved);
-  if (rel === '..' || rel.startsWith(`..${pathMod.sep}`) || pathMod.isAbsolute(rel)) return null;
+  if (!rel || rel === '..' || rel.startsWith(`..${pathMod.sep}`) || pathMod.isAbsolute(rel))
+    return null;
   return resolved;
 }
 
@@ -337,7 +348,7 @@ export async function verifyFindingsAgainstDisk(
       }
 
       const line = finding.location.line;
-      if (line < 1 || line > file.lines.length) {
+      if (!Number.isSafeInteger(line) || line < 1 || line > file.lines.length) {
         return { ...finding, verification: { status: 'failed', reason: 'line_out_of_range' } };
       }
 

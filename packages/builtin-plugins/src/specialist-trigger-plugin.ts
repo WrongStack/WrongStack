@@ -117,6 +117,8 @@ function buildSpecialistTriggerCommand(
 }
 
 export function createSpecialistTriggerPlugin(): Plugin {
+  let cleanupListeners: (() => void) | null = null;
+
   return {
     name: PLUGIN_CONFIG_KEY,
     version: '1.0.0',
@@ -126,6 +128,9 @@ export function createSpecialistTriggerPlugin(): Plugin {
     defaultConfig: {},
 
     setup(api) {
+      cleanupListeners?.();
+      cleanupListeners = null;
+
       const recompute = (): ResolvedSpecialistTriggerConfig =>
         resolveSpecialistTriggerConfig(
           api.config.extensions?.[PLUGIN_CONFIG_KEY] as SpecialistTriggerConfig | undefined,
@@ -135,15 +140,61 @@ export function createSpecialistTriggerPlugin(): Plugin {
 
       const fired: { key: string; at: number }[] = [];
       const firedKeys = new Set<string>();
+      const inFlightTimers = new Set<ReturnType<typeof setTimeout>>();
       let inFlight = 0;
       let settleTimer: ReturnType<typeof setTimeout> | undefined;
       let lastSeenKeys = '';
       let sessionEnded = false;
       let scanInFlight = false;
 
-      api.onConfigChange(() => {
+      let offIteration: (() => void) | null = null;
+      let offSessionEnded: (() => void) | null = null;
+
+      const clearTimers = (): void => {
+        if (settleTimer) clearTimeout(settleTimer);
+        settleTimer = undefined;
+        for (const t of inFlightTimers) clearTimeout(t);
+        inFlightTimers.clear();
+        inFlight = 0;
+      };
+
+      const syncEventSubscriptions = (): void => {
+        if (resolved.enabled) {
+          if (!offIteration) {
+            offIteration = api.onEvent('iteration.completed', async (payload) => {
+              await scan(payload as EventMap['iteration.completed'] | undefined, false);
+            });
+          }
+          if (!offSessionEnded) {
+            offSessionEnded = api.onEvent('session.ended', () => {
+              sessionEnded = true;
+              clearTimers();
+            });
+          }
+        } else {
+          if (offIteration) {
+            try {
+              offIteration();
+            } catch {}
+            offIteration = null;
+          }
+          if (offSessionEnded) {
+            try {
+              offSessionEnded();
+            } catch {}
+            offSessionEnded = null;
+          }
+        }
+      };
+
+      const offConfig = api.onConfigChange(() => {
         const previous = resolved.enabled;
         resolved = recompute();
+        if (!resolved.enabled && settleTimer) {
+          clearTimeout(settleTimer);
+          settleTimer = undefined;
+        }
+        syncEventSubscriptions();
         if (previous !== resolved.enabled) {
           api.log.info(`[specialist-triggers] enabled=${resolved.enabled}`);
         }
@@ -159,11 +210,11 @@ export function createSpecialistTriggerPlugin(): Plugin {
 
       if (!resolved.enabled) {
         api.log.info('[specialist-triggers] disabled by config');
-        return;
+      } else {
+        api.log.info(
+          `[specialist-triggers] loaded — ${resolved.rules.length} rule(s), debounce=${resolved.debounceMs}ms`,
+        );
       }
-      api.log.info(
-        `[specialist-triggers] loaded — ${resolved.rules.length} rule(s), debounce=${resolved.debounceMs}ms`,
-      );
 
       const releaseInFlight = (): void => {
         inFlight = Math.max(0, inFlight - 1);
@@ -182,8 +233,12 @@ export function createSpecialistTriggerPlugin(): Plugin {
         // may die, be a version that does not report back, or simply not exist.
         // A counter that can only go up would silence the plugin for the rest
         // of the session, which is a worse failure than one extra worker.
-        const timer = setTimeout(releaseInFlight, IN_FLIGHT_TTL_MS);
+        const timer = setTimeout(() => {
+          inFlightTimers.delete(timer);
+          releaseInFlight();
+        }, IN_FLIGHT_TTL_MS);
         timer.unref();
+        inFlightTimers.add(timer);
 
         const payload: SpecialistNeededPayload = {
           role: match.rule.role,
@@ -252,15 +307,33 @@ export function createSpecialistTriggerPlugin(): Plugin {
         }
       };
 
-      api.onEvent('iteration.completed', async (payload) => {
-        await scan(payload as EventMap['iteration.completed'] | undefined, false);
-      });
+      syncEventSubscriptions();
 
-      api.onEvent('session.ended', () => {
+      cleanupListeners = () => {
         sessionEnded = true;
-        if (settleTimer) clearTimeout(settleTimer);
-        settleTimer = undefined;
-      });
+        clearTimers();
+        try {
+          offConfig();
+        } catch {}
+        if (offIteration) {
+          try {
+            offIteration();
+          } catch {}
+          offIteration = null;
+        }
+        if (offSessionEnded) {
+          try {
+            offSessionEnded();
+          } catch {}
+          offSessionEnded = null;
+        }
+      };
+    },
+
+    teardown(api) {
+      cleanupListeners?.();
+      cleanupListeners = null;
+      api.slashCommands.unregister('specialist-triggers');
     },
   };
 }

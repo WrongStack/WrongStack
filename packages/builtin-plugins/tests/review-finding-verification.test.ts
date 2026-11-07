@@ -229,4 +229,27 @@ describe('verifyFindingsAgainstDisk', () => {
     await verifyFindingsAgainstDisk([finding], { cwd: dir });
     expect(finding.verification).toBeUndefined();
   });
+
+  it('rejects non-integer lines as line_out_of_range without throwing and rejects dot/blank paths (F84)', async () => {
+    expect(resolveFindingPath('', dir)).toBeNull();
+    expect(resolveFindingPath('   ', dir)).toBeNull();
+    expect(resolveFindingPath('.', dir)).toBeNull();
+
+    const floatLine = makeFinding({ location: { file: 'auth.ts', line: 4.5 } });
+    const nanLine = makeFinding({ location: { file: 'auth.ts', line: Number.NaN } });
+    const dotFile = makeFinding({ location: { file: '.' } });
+    const results = await verifyFindingsAgainstDisk([floatLine, nanLine, dotFile], { cwd: dir });
+    expect(results[0]!.verification).toMatchObject({
+      status: 'failed',
+      reason: 'line_out_of_range',
+    });
+    expect(results[1]!.verification).toMatchObject({
+      status: 'failed',
+      reason: 'line_out_of_range',
+    });
+    expect(results[2]!.verification).toMatchObject({
+      status: 'failed',
+      reason: 'outside_workspace',
+    });
+  });
 });

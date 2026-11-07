@@ -303,4 +303,28 @@ describe('specialist trigger plugin', () => {
       await fs.rm(plain, { recursive: true, force: true });
     }
   });
+
+  it('wires event listeners when enabled dynamically via onConfigChange and cleans up on teardown (F84)', async () => {
+    const { api, handlers } = makeApi({ enabled: false });
+    const plugin = createSpecialistTriggerPlugin();
+    plugin.setup?.(api);
+    expect(handlers['iteration.completed']).toBeUndefined();
+
+    // Enable at runtime via config change callback
+    (
+      api as {
+        config: { extensions: Record<string, { enabled: boolean }> };
+        onConfigChange: ReturnType<typeof vi.fn>;
+      }
+    ).config.extensions['wstack-specialist-triggers']!.enabled = true;
+    const configCb = (api as { onConfigChange: ReturnType<typeof vi.fn> }).onConfigChange.mock
+      .calls[0]?.[0] as (() => void) | undefined;
+    configCb?.();
+    expect(typeof handlers['iteration.completed']).toBe('function');
+
+    await plugin.teardown?.(api);
+    expect(
+      (api as { slashCommands: { unregister: ReturnType<typeof vi.fn> } }).slashCommands.unregister,
+    ).toHaveBeenCalledWith('specialist-triggers');
+  });
 });
