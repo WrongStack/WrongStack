@@ -62,8 +62,9 @@ export class IndexStore extends IndexStoreDerivedLayers {
     writerDeletion.deleteFileSymbols(this.indexDeletionHost(), file);
   }
 
-  deleteFile(file: string): void {
-    writerDeletion.deleteIndexedFile(this.indexDeletionHost(), file);
+  /** `deferResolution` collects the names to re-resolve instead (see deleteIndexedFile). */
+  deleteFile(file: string, opts?: { deferResolution?: Set<string> }): void {
+    writerDeletion.deleteIndexedFile(this.indexDeletionHost(), file, opts?.deferResolution);
   }
 
   upsertFile(meta: FileMeta): void {

@@ -86,7 +86,8 @@ export async function finalizeIndexRun(
             });
           }
         }
-        store.deleteFile(file_);
+        // Names re-resolve once below (resolveRefsForNames), not once per deleted file.
+        store.deleteFile(file_, { deferResolution: deferredRefNames });
         deleted.add(file_);
       }
     }

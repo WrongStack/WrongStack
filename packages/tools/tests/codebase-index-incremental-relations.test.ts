@@ -101,6 +101,29 @@ describe('incremental relation pass', () => {
     expect(importTargets('src/a.ts')).toEqual({ './b': null });
   });
 
+  it('rebinds calls into a deleted file to a same-named symbol once, at the end of a full scan', async () => {
+    // A full scan removing many stale files defers each file's name re-resolution to one
+    // pass at the end (per file it rescanned the whole ref table: minutes for thousands).
+    const first = await write('src/first.ts', 'export function helper() { return 1; }\n');
+    await write('src/second.ts', 'export function helper() { return 2; }\n');
+    await write('src/user.ts', 'export function use() { return helper(); }\n');
+    await index();
+    const target = () =>
+      query<{ file: string | null }>(
+        `SELECT t.file AS file FROM refs r
+           JOIN symbols s ON s.id = r.from_id
+           LEFT JOIN symbols t ON t.id = r.to_id
+          WHERE s.file = ? AND r.to_name = 'helper'`,
+        path.join(root, 'src/user.ts'),
+      )[0]?.file;
+    expect(target()).toBe(first);
+
+    await fs.rm(first);
+    await index();
+
+    expect(target()).toBe(path.join(root, 'src/second.ts'));
+  });
+
   it('reports no change, and keeps the content stamp, for an unchanged targeted run', async () => {
     const a = await write('src/a.ts', 'export const a = 1;\n');
     await index();

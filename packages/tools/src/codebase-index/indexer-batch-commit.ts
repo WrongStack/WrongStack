@@ -71,7 +71,7 @@ export function commitBatchResults(
               });
             }
           }
-          store.deleteFile(file);
+          store.deleteFile(file, { deferResolution: deferredRefNames });
           deleted.add(file);
         }
         continue;

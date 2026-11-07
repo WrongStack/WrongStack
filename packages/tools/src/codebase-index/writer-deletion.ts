@@ -72,7 +72,17 @@ export function deleteFileSymbols(host: IndexDeletionHost, file: string): void {
   });
 }
 
-export function deleteIndexedFile(host: IndexDeletionHost, file: string): void {
+/**
+ * Remove one file's rows. References that pointed into it are re-resolved by name right
+ * away, unless `deferResolution` collects those names for the run's single pass: that
+ * re-resolution scans the whole ref table, so per file it made deleting N files cost N
+ * scans (a cleanup of thousands of stale files blocked the index server for minutes).
+ */
+export function deleteIndexedFile(
+  host: IndexDeletionHost,
+  file: string,
+  deferResolution?: Set<string>,
+): void {
   host.invalidateBm25();
   host.runWriteTransaction(() => {
     const affectedNames = host.invalidateIncomingRefsForFiles([file]);
@@ -102,7 +112,8 @@ export function deleteIndexedFile(host: IndexDeletionHost, file: string): void {
     );
     host.recordFtsChurn(deletedChanges);
     host.stmt('DELETE FROM files WHERE file = ?').run(file);
-    host.resolveRefsForNamesUnsafe(affectedNames);
+    if (deferResolution) for (const name of affectedNames) deferResolution.add(name);
+    else host.resolveRefsForNamesUnsafe(affectedNames);
   });
 }
 
