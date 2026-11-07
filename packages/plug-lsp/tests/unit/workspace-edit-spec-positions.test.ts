@@ -97,3 +97,99 @@ describe('applyTextEdits LSP position semantics', () => {
     }
   });
 });
+
+describe('applyWorkspaceEdit same-file targets under different spellings', () => {
+  // Two spellings of one file used to become two targets: both were read from
+  // the same original, the second write silently discarded the first file's
+  // edits, and overlapping ranges split across the spellings went unnoticed.
+  async function withPlatform<T>(platform: NodeJS.Platform, run: () => Promise<T>): Promise<T> {
+    const originalPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+    try {
+      return await run();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    }
+  }
+
+  async function sampleFile(): Promise<{ dir: string; file: string; uri: string }> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-edit-spelling-'));
+    const file = path.join(dir, 'sample.ts');
+    await fs.writeFile(file, 'const a = 1;\nconst b = 2;\n', 'utf8');
+    return { dir, file, uri: pathToFileURL(file).toString() };
+  }
+
+  const tracker = { fileWritten: async () => {} } as never;
+
+  it.each(['win32', 'linux'] as const)(
+    'merges a redundant-separator spelling into one target on %s',
+    async (platform) => {
+      const { dir, file, uri } = await sampleFile();
+      try {
+        // `dir//sample.ts` decodes to a different string than `dir/sample.ts`,
+        // so `editsByPath` keeps both keys; only the resolved path matches.
+        const doubled = uri.replace(/\/sample\.ts$/, '//sample.ts');
+        const result = await withPlatform(platform, () =>
+          applyWorkspaceEdit(
+            {
+              changes: {
+                [uri]: [edit(0, 10, 0, 11, '10')],
+                [doubled]: [edit(1, 10, 1, 11, '20')],
+              },
+            },
+            tracker,
+            dir,
+          ),
+        );
+
+        expect(result).toEqual({ files: [file], edits: 2 });
+        expect(await fs.readFile(file, 'utf8')).toBe('const a = 10;\nconst b = 20;\n');
+
+        // Overlap detection sees the merged group, so a conflict split across
+        // the two spellings is refused before anything is written.
+        await expect(
+          withPlatform(platform, () =>
+            applyWorkspaceEdit(
+              {
+                changes: {
+                  [uri]: [edit(0, 6, 0, 9, 'x')],
+                  [doubled]: [edit(0, 8, 0, 12, 'y')],
+                },
+              },
+              tracker,
+              dir,
+            ),
+          ),
+        ).rejects.toThrow(/overlapping/i);
+        expect(await fs.readFile(file, 'utf8')).toBe('const a = 10;\nconst b = 20;\n');
+      } finally {
+        await fs.rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('folds case-only spellings of one file into one target on Windows', async () => {
+    const { dir, file, uri } = await sampleFile();
+    try {
+      const upper = uri.replace(/sample\.ts$/, 'SAMPLE.ts');
+      const result = await withPlatform('win32', () =>
+        applyWorkspaceEdit(
+          {
+            changes: {
+              [uri]: [edit(0, 6, 0, 7, 'x')],
+              [upper]: [edit(1, 6, 1, 7, 'y')],
+            },
+          },
+          tracker,
+          dir,
+        ),
+      );
+
+      // The first spelling names the file that is written.
+      expect(result).toEqual({ files: [file], edits: 2 });
+      expect(await fs.readFile(file, 'utf8')).toBe('const x = 1;\nconst y = 2;\n');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});

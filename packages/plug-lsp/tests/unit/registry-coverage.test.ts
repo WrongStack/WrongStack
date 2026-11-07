@@ -473,6 +473,131 @@ describe('runtime server mutation', () => {
     expect(tracker.reopenForServer).not.toHaveBeenCalled();
   });
 
+  it('a crash report from a replaced instance does not schedule a reconnect', async () => {
+    const { value } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const stale = value.get('a')!;
+    await value.upsertServer('a', cfg('typescript'));
+    const current = value.get('a')!;
+    expect(current).not.toBe(stale);
+    // A late crash on the old instance: its exit handler marks it failed.
+    stale.state = 'failed';
+    stale.start = vi.fn(async () => undefined);
+
+    const state = value as unknown as {
+      scheduleReconnect: (s: typeof stale) => void;
+      reconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+      reconnectAttempts: Map<string, number>;
+    };
+    state.scheduleReconnect(stale);
+
+    // Reconnecting the stale instance would launch a second process under the
+    // name the replacement owns and burn the replacement's attempt budget.
+    expect(stale.state).toBe('failed');
+    expect(state.reconnectTimers.has('a')).toBe(false);
+    expect(state.reconnectAttempts.has('a')).toBe(false);
+    expect(stale.start).not.toHaveBeenCalled();
+    expect(current.state).toBe('exited');
+  });
+
+  it.each(['exited', 'shutting_down', 'disabled'] as const)(
+    'a crash report while the server is %s does not schedule a reconnect',
+    async (stopped) => {
+      const { value } = registry();
+      await value.upsertServer('a', cfg('typescript'));
+      const server = value.get('a')!;
+      server.state = stopped;
+
+      const state = value as unknown as {
+        scheduleReconnect: (s: typeof server) => void;
+        reconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+        reconnectAttempts: Map<string, number>;
+      };
+      state.scheduleReconnect(server);
+
+      // A stop or disable is the user's decision; flipping the state to
+      // `reconnecting` would bring the server back moments later.
+      expect(server.state).toBe(stopped);
+      expect(state.reconnectTimers.has('a')).toBe(false);
+      expect(state.reconnectAttempts.has('a')).toBe(false);
+    },
+  );
+
+  it('a pending reconnect does not relaunch a server a lazy lookup already brought up', async () => {
+    vi.useFakeTimers();
+    const { value, tracker } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const server = value.get('a')!;
+    server.start = vi.fn(async () => {
+      server.state = 'ready';
+    });
+    server.state = 'failed';
+
+    const state = value as unknown as {
+      scheduleReconnect: (s: typeof server) => void;
+      reconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+    };
+    state.scheduleReconnect(server);
+    expect(server.state).toBe('reconnecting');
+    expect(state.reconnectTimers.has('a')).toBe(true);
+
+    // During the back-off window a tool call needs the server and starts it.
+    await expect(value.findForPath('index.ts')).resolves.toBe(server);
+    expect(server.start).toHaveBeenCalledTimes(1);
+    expect(tracker.reopenForServer).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(state.reconnectTimers.has('a')).toBe(false);
+    expect(server.start).toHaveBeenCalledTimes(1);
+    expect(tracker.reopenForServer).toHaveBeenCalledTimes(1);
+    expect(server.state).toBe('ready');
+  });
+
+  it('a reconnect start that resolves after a stop does not reopen documents', async () => {
+    vi.useFakeTimers();
+    const { value, tracker } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const server = value.get('a')!;
+    server.state = 'failed';
+
+    const state = value as unknown as {
+      scheduleReconnect: (s: typeof server) => void;
+      reconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+    };
+    state.scheduleReconnect(server);
+    // Fire the timer synchronously: the real start() runs up to its
+    // command-resolution await and nothing has been spawned yet.
+    vi.advanceTimersByTime(1000);
+    expect(server.state).toBe('starting');
+
+    // The stop lands before the command resolves; start() then returns
+    // normally (it does not reject) without reaching `ready`.
+    await value.stop('a');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(server.state).toBe('exited');
+    expect((server as unknown as { child: unknown }).child).toBeNull();
+    expect(state.reconnectTimers.has('a')).toBe(false);
+    expect(tracker.reopenForServer).not.toHaveBeenCalled();
+  });
+
+  it('a lazy lookup does not reopen documents when the start is cut short by a stop', async () => {
+    const { value, tracker } = registry();
+    await value.upsertServer('a', cfg('typescript'));
+    const server = value.get('a')!;
+
+    // findForPath runs the real start() up to its command-resolution await;
+    // a stop issued in that window wins and start() resolves without `ready`.
+    const lookup = value.findForPath('index.ts');
+    expect(server.state).toBe('starting');
+    await value.stop('a');
+
+    await expect(lookup).resolves.toBeNull();
+    expect(server.state).toBe('exited');
+    expect((server as unknown as { child: unknown }).child).toBeNull();
+    expect(tracker.reopenForServer).not.toHaveBeenCalled();
+  });
+
   it('DocumentTracker.reopenForServer skips documents already open on the server', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'f25-reopen-'));
     directories.push(root);

@@ -91,4 +91,44 @@ describe('LSPServer.start during shutdown', () => {
     expect(secondSettled).toBe(true);
     expect(server.state).toBe('ready');
   });
+
+  it('a start() re-entered from the starting event neither relaunches nor waits on itself', async () => {
+    const events = new EventBus();
+    const server = new LSPServer(
+      'probe',
+      { command: process.execPath, languages: ['typescript'] },
+      { cwd: process.cwd(), rootPath: process.cwd(), log, events },
+    );
+    const startOnce = vi.spyOn(
+      server as unknown as { startOnce: () => Promise<void> },
+      'startOnce',
+    );
+
+    // `lsp.server.starting` is emitted synchronously from inside the launch,
+    // before the in-flight promise is recorded. A listener that calls start()
+    // again sees `starting` with no promise to join yet.
+    const reentrant: Promise<void>[] = [];
+    events.on('lsp.server.starting', () => {
+      reentrant.push(server.start());
+    });
+
+    const settled: string[] = [];
+    const outer = server.start().then(() => settled.push('outer'));
+    expect(reentrant).toHaveLength(1);
+    expect(server.state).toBe('starting');
+    void reentrant[0]!.then(() => settled.push('reentrant'));
+    // Falling through would recurse launch -> event -> start -> launch.
+    expect(startOnce).toHaveBeenCalledTimes(1);
+
+    // Stop the outer launch before it spawns anything (it is parked on the
+    // command-resolution await).
+    await server.shutdown();
+    await outer;
+    // The re-entrant call returned on its own instead of joining the launch
+    // that is still running underneath the listener.
+    expect(settled).toEqual(['reentrant', 'outer']);
+    expect(startOnce).toHaveBeenCalledTimes(1);
+    expect(server.state).toBe('exited');
+    expect((server as unknown as { child: unknown }).child).toBeNull();
+  });
 });
