@@ -358,6 +358,36 @@ describe('SessionNoteHub', () => {
     hub.post({ sessionId: 'sess-1', from: 'x', to: 'b', kind: 'note', body: 'after last' });
     expect(seen).toEqual(['still live']);
   });
+
+  it('isolates throwing sessionId() inbox getters and matches inbox sessionId case-insensitively (F80)', () => {
+    const hub = new SessionNoteHub();
+    const offBroken = hub.register({
+      sessionId: () => {
+        throw new Error('disposed surface');
+      },
+      agentId: 'broken-inbox',
+      deliver: () => {},
+    });
+    const deliveredBodies: string[] = [];
+    const offHealthy = hub.register({
+      sessionId: () => 'Sess-Mixed-Case',
+      agentId: 'worker-healthy',
+      deliver: (note) => deliveredBodies.push(note.body),
+    });
+
+    const res = hub.post({
+      sessionId: 'sess-mixed-case',
+      from: 'leader',
+      to: '@session:Sess-Mixed-Case',
+      kind: 'note',
+      body: 'survives broken sibling inbox',
+    });
+
+    expect(res.delivered).toBe(1);
+    expect(deliveredBodies).toEqual(['survives broken sibling inbox']);
+    offBroken();
+    offHealthy();
+  });
 });
 
 describe('session_note tool', () => {

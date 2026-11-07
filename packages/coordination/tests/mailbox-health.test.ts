@@ -278,6 +278,61 @@ describe('MailboxHealthWatchdog lifecycle', () => {
     await wd.stop();
     expect(wd.isRunning()).toBe(false);
   });
+
+  it('does not emit or post when an unhealthy probe settles after stop()', async () => {
+    let resolveFetch: ((value: Response) => void) | undefined;
+    fetchMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    const send = vi.fn(async () => undefined);
+    const events: MailboxHealthEvent[] = [];
+    const wd = new MailboxHealthWatchdog({
+      mailbox: makeMailbox(send),
+      url: 'http://x',
+      probeIntervalMs: 1000,
+      probeTimeoutMs: 100,
+      failureThreshold: 1,
+      onAlert: (e) => events.push(e),
+    });
+    await wd.start();
+    await flush(); // the immediate probe is now in flight
+    await wd.stop();
+    const eventsAtStop = events.length;
+    resolveFetch?.({ ok: false } as Response); // the stale probe settles AFTER stop()
+    await flush();
+    expect(events.length).toBe(eventsAtStop);
+    expect(events.some((e) => e.kind === 'alert-posted')).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(wd.isRunning()).toBe(false);
+  });
+
+  it('does not emit a probe-failed event when an in-flight probe rejects after stop()', async () => {
+    let rejectFetch: ((reason: unknown) => void) | undefined;
+    fetchMock.mockReturnValue(
+      new Promise<Response>((_resolve, reject) => {
+        rejectFetch = reject;
+      }),
+    );
+    const events: MailboxHealthEvent[] = [];
+    const wd = new MailboxHealthWatchdog({
+      mailbox: makeMailbox(),
+      url: 'http://x',
+      probeIntervalMs: 1000,
+      probeTimeoutMs: 100,
+      failureThreshold: 1,
+      onAlert: (e) => events.push(e),
+    });
+    await wd.start();
+    await flush();
+    await wd.stop();
+    const eventsAtStop = events.length;
+    rejectFetch?.(new Error('socket hang up')); // the stale probe rejects AFTER stop()
+    await flush();
+    expect(events.length).toBe(eventsAtStop);
+    expect(events.some((e) => e.kind === 'probe-failed')).toBe(false);
+  });
 });
 
 describe('MailboxHealthWatchdog probing', () => {

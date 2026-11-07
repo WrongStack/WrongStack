@@ -164,6 +164,11 @@ export class MailboxHealthWatchdog {
     this.inFlight = true;
     try {
       const ok = await this.probe();
+      // The owner may have been stopped (disposed) while the probe was in
+      // flight. Its lifecycle is over — do not run the continuation, which
+      // would emit `probe-failed`/`alert-posted` and post a `*`-broadcast to
+      // the mailbox after `stop()` already emitted `stopped`.
+      if (this.aborted) return;
       if (ok) {
         this.recordSuccess();
       } else {
@@ -188,7 +193,11 @@ export class MailboxHealthWatchdog {
       return res.ok;
     } catch (err) {
       clearTimeout(timer);
-      this.emit({ kind: 'probe-failed', error: (err as Error).message });
+      // As in `tick()`, a stop() during the in-flight probe must not publish a
+      // failure event for a watchdog that is already disposed.
+      if (!this.aborted) {
+        this.emit({ kind: 'probe-failed', error: (err as Error).message });
+      }
       return false;
     }
   }

@@ -473,5 +473,53 @@ describe('makeDependencyWatcherConfig', () => {
       const cfg = makeDependencyWatcherConfig({ projectRoot, mailbox });
       expect(cfg.debounceMs).toBe(3000);
     });
+
+    it('preserves baseline across half-written JSON saves and normalizes trailing-slash projectRoot paths (F79)', async () => {
+      const cfg = makeDependencyWatcherConfig({
+        projectRoot: `${projectRoot}/`,
+        mailbox,
+        debounceMs: 10,
+      });
+      expect(cfg.watchPaths.some((p) => p.includes('//'))).toBe(false);
+
+      const pkgPath = path.join(projectRoot, 'package.json');
+      await fs.writeFile(
+        pkgPath,
+        `\uFEFF${JSON.stringify({ name: 'f79-app', dependencies: { react: '^19.0.0', zod: '^3.24.0' } })}`,
+        'utf8',
+      );
+      const future = new Date(Date.now() + 2000);
+      await fs.utimes(pkgPath, future, future);
+
+      const spy = vi.spyOn(mailbox, 'send');
+      await cfg.onChange(makeEntry({ path: 'package.json' }));
+      await waitForSend(spy);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      // Half-written truncated JSON save must not clobber the dependency baseline
+      await fs.writeFile(pkgPath, '{"name": "f79-app", "dependencies": { "react": ', 'utf8');
+      await fs.utimes(pkgPath, new Date(Date.now() + 3000), new Date(Date.now() + 3000));
+      await cfg.onChange(makeEntry({ path: './package.json' }));
+      await new Promise((r) => setTimeout(r, 35));
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      // Subsequent valid save only reports the newly added dependency (immer), not react/zod
+      await fs.writeFile(
+        pkgPath,
+        JSON.stringify({
+          name: 'f79-app',
+          dependencies: { react: '^19.0.0', zod: '^3.24.0', immer: '^10.0.0' },
+        }),
+        'utf8',
+      );
+      await fs.utimes(pkgPath, new Date(Date.now() + 4000), new Date(Date.now() + 4000));
+      await cfg.onChange(makeEntry({ path: `${projectRoot.replaceAll('\\', '/')}//package.json` }));
+      await new Promise((r) => setTimeout(r, 40));
+
+      expect(spy).toHaveBeenCalledTimes(2);
+      const secondCall = spy.mock.calls[1]![0] as { subject: string };
+      expect(secondCall.subject).toBe('Dependency added: immer@^10.0.0 (package.json)');
+      cfg.dispose();
+    });
   });
 });

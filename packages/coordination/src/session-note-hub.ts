@@ -45,7 +45,11 @@ export interface SessionNotePostResult {
 }
 
 function resolveInboxSessionId(inbox: SessionNoteInbox): string | undefined {
-  return typeof inbox.sessionId === 'function' ? inbox.sessionId() : inbox.sessionId;
+  try {
+    return typeof inbox.sessionId === 'function' ? inbox.sessionId() : inbox.sessionId;
+  } catch {
+    return undefined;
+  }
 }
 
 function identityKeys(inbox: SessionNoteInbox): Set<string> {
@@ -106,7 +110,7 @@ export class SessionNoteHub {
     const fromLeader = isMailboxLeader(from);
     for (const inbox of this.inboxes) {
       const inboxSid = resolveInboxSessionId(inbox)?.trim().replace(/\\/g, '/');
-      if (inboxSid !== sessionId) continue;
+      if (!inboxSid || inboxSid.toLowerCase() !== sessionLower) continue;
       // Session getters can change after registration; observers must use the
       // same live session lookup as delivery, including the sender's bus.
       bus ??= inbox.events;

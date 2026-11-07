@@ -150,6 +150,8 @@ export function makeDependencyWatcherConfig(
   // root recursively for the glob patterns (e.g. *.csproj).
   const watchPaths: string[] = [];
 
+  const cleanRoot = projectRoot.replace(/[\\/]+$/, '');
+
   // Individual named files — watch them directly
   for (const p of patterns) {
     // Glob patterns like *.csproj need a different approach — watch
@@ -160,14 +162,14 @@ export function makeDependencyWatcherConfig(
       continue;
     }
     // Watch at project root level
-    watchPaths.push(`${projectRoot}/${p}`);
+    watchPaths.push(`${cleanRoot}/${p}`);
     // Also watch subdirectories for nested manifests (monorepos)
     // Pattern: watch the project root recursively — file-watcher
     // will fire for any matching file in the tree.
   }
 
   // Also watch project root for glob patterns and nested files
-  watchPaths.push(projectRoot);
+  watchPaths.push(cleanRoot || projectRoot);
 
   // Deduplicate
   const unique = [...new Set(watchPaths)];
@@ -183,9 +185,9 @@ export function makeDependencyWatcherConfig(
   const normalizedRootLower = normalizedRoot.toLowerCase();
 
   function normalizeManifestKey(manifestPath: string): string {
-    const slash = manifestPath.replaceAll('\\', '/').replace(/^\.\//, '');
+    const slash = manifestPath.replaceAll('\\', '/').replace(/\/+/g, '/').replace(/^\.\//, '');
     if (normalizedRoot.length > 0 && slash.toLowerCase().startsWith(`${normalizedRootLower}/`)) {
-      return slash.slice(normalizedRoot.length + 1);
+      return slash.slice(normalizedRoot.length + 1).replace(/^\/+/, '');
     }
     return slash;
   }
@@ -239,8 +241,22 @@ export function makeDependencyWatcherConfig(
     try {
       const absolute = isAbsolutePath(manifestPath)
         ? manifestPath
-        : `${projectRoot}/${manifestPath.replaceAll('\\', '/')}`;
-      const content = await fs.readFile(absolute, 'utf8');
+        : `${cleanRoot}/${manifestPath.replaceAll('\\', '/')}`;
+      const rawContent = await fs.readFile(absolute, 'utf8');
+      const content = rawContent.replace(/^\uFEFF/, '');
+      const lowerName = key.split('/').pop()?.toLowerCase() ?? '';
+      if (
+        lowerName === 'package.json' ||
+        lowerName === 'composer.json' ||
+        lowerName === 'vcpkg.json'
+      ) {
+        try {
+          JSON.parse(content);
+        } catch {
+          // Half-written JSON during an editor save: do not clobber baseline or fingerprint.
+          return 'unchanged';
+        }
+      }
       const current = parseDeclaredDependencies(content, key);
       const delta = diffDeclaredDependencies(baselines.get(key), current);
       baselines.set(key, current);
