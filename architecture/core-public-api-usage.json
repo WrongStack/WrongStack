@@ -165,8 +165,8 @@
     },
     "@wrongstack/core/utils": {
       "files": 958,
-      "typeOnly": 72,
-      "runtimeOrMixed": 920
+      "typeOnly": 71,
+      "runtimeOrMixed": 921
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -14262,8 +14262,8 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

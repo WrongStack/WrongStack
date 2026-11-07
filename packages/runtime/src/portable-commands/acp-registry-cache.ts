@@ -12,7 +12,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { type ACPAgentDescriptor, type AcpLiveCatalog, fetchAcpRegistry } from '@wrongstack/acp';
-import type { WstackPaths } from '@wrongstack/core/utils';
+import { atomicWrite, type WstackPaths } from '@wrongstack/core/utils';
 
 interface CacheEnvelope {
   fetchedAt: string;
@@ -65,6 +65,6 @@ export async function refreshAcpRegistry(
   const location = acpRegistryCachePath(paths);
   await fs.mkdir(path.dirname(location), { recursive: true });
   const env: CacheEnvelope = { fetchedAt: result.fetchedAt, agents: result.agents };
-  await fs.writeFile(location, JSON.stringify(env), 'utf8');
+  await atomicWrite(location, JSON.stringify(env));
   return { count: result.agents.length, location, fetchedAt: result.fetchedAt };
 }

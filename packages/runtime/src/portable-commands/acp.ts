@@ -19,6 +19,7 @@ import {
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from './acp-registry-cache.js';
+import { askingSessionId } from './fleet.js';
 import type { AcpCommandHost } from './host.js';
 
 /**
@@ -97,10 +98,11 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
 
       if (head === 'probe') return probeAgents(rest, overrides, live, opts);
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
-      if (head === 'parallel') return parallelAgents(rest, overrides, live, opts);
+      const originSessionId = askingSessionId(ctx);
+      if (head === 'parallel') return parallelAgents(rest, overrides, live, opts, originSessionId);
 
       // Otherwise `head` is an agent id and `rest` is the task (+ optional --bg).
-      return runSingle(head, rest, overrides, live, opts, ctx?.eventSessionId?.());
+      return runSingle(head, rest, overrides, live, opts, ctx?.eventSessionId?.(), originSessionId);
     },
   };
 }
@@ -249,6 +251,7 @@ async function parallelAgents(
   overrides: AcpAgentCommandOverrides | undefined,
   live: LoadedAcpRegistry | null,
   opts: AcpCommandHost,
+  originSessionId?: string | undefined,
 ): Promise<{ message: string }> {
   // Detect a `--bg` flag anywhere in the tokens; the rest is `<csv> <task>`.
   const tokens = rest.split(/\s+/).filter(Boolean);
@@ -277,7 +280,7 @@ async function parallelAgents(
   // Background path: dispatch every known agent as its own fleet subagent
   // (provider:'acp') and return immediately. Live progress for each subagent
   // streams through the same fleet/host buses as any other background worker.
-  if (bg) {
+  if (bg || (opts.inlineAcpRuns === false && opts.onSpawn)) {
     if (!opts.onSpawn) {
       return {
         message: 'Background mode needs the fleet (director). Director Mode is always active.',
@@ -291,7 +294,11 @@ async function parallelAgents(
         continue;
       }
       try {
-        const summary = await opts.onSpawn(task, { provider: 'acp', name: id });
+        const summary = await opts.onSpawn(task, {
+          provider: 'acp',
+          name: id,
+          ...(originSessionId ? { originSessionId } : {}),
+        });
         dispatched.push(`  • ${id}: ${summary}`);
       } catch (err) {
         skipped.push({ id, reason: toErrorMessage(err) });
@@ -333,6 +340,7 @@ async function runSingle(
   live: LoadedAcpRegistry | null,
   opts: AcpCommandHost,
   sessionId: string | undefined,
+  originSessionId?: string | undefined,
 ): Promise<{ message: string }> {
   // Detect a `--bg` flag anywhere in the remaining tokens.
   const tokens = rest.split(/\s+/).filter(Boolean);
@@ -368,7 +376,11 @@ async function runSingle(
       };
     }
     try {
-      const summary = await opts.onSpawn(task, { provider: 'acp', name: agentId });
+      const summary = await opts.onSpawn(task, {
+        provider: 'acp',
+        name: agentId,
+        ...(originSessionId ? { originSessionId } : {}),
+      });
       return { message: `Dispatched '${agentId}' as a background ACP subagent.\n${summary}` };
     } catch (err) {
       return { message: `Background spawn failed: ${toErrorMessage(err)}` };

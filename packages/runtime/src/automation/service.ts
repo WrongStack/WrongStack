@@ -320,7 +320,25 @@ export class AutomationService {
       await active.done;
       return;
     }
-    await this.store.cancel(id);
+    try {
+      await this.store.cancel(id);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'Only queued runs can be cancelled through the store'
+      ) {
+        if (this.ticking) await this.tickDone;
+        const claimedActive = this.active.get(id);
+        if (claimedActive) {
+          claimedActive.abort.abort();
+          await claimedActive.done;
+          return;
+        }
+        const latest = (await this.store.snapshot()).runs.find((item) => item.id === id);
+        if (latest?.status === 'cancelled') return;
+      }
+      throw error;
+    }
   }
   async idle(): Promise<void> {
     await Promise.all([...this.active.values()].map((item) => item.done));

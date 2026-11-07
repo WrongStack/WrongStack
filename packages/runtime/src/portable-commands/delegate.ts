@@ -72,26 +72,32 @@ export function buildDelegateCommand(host: FleetCommandHost): SlashCommand {
         };
       }
 
-      // Parse --role and --name flags, extract the task text
+      // Parse leading --role and --name flags, preserving any flags inside the task text
       let role: string | undefined;
-      const taskParts: string[] = [];
-
-      const tokens = trimmed.split(/\s+/);
-      for (let i = 0; i < tokens.length; i++) {
-        const t = tokens[i] ?? '';
-        if (t.startsWith('--role=')) {
-          role = t.slice('--role='.length);
-        } else if (t === '--role' && tokens[i + 1]) {
-          role = tokens[++i];
-        } else if (t === '--name' && tokens[i + 1]) {
-          // The label is not part of the task; the roster role names the worker.
-          i++;
-        } else if (!t.startsWith('-')) {
-          taskParts.push(t);
+      let rest = trimmed;
+      const consume = (re: RegExp): RegExpMatchArray | null => {
+        const m = rest.match(re);
+        if (m) {
+          rest = rest.slice(m[0].length).replace(/^\s+/, '');
+          return m;
         }
+        return null;
+      };
+      while (rest.length > 0) {
+        const roleMatch = consume(/^--role[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+        if (roleMatch) {
+          role = roleMatch[1] ?? roleMatch[2] ?? roleMatch[3];
+          continue;
+        }
+        const nameMatch = consume(/^--name[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+        if (nameMatch) {
+          // The label is not part of the task; the roster role names the worker.
+          continue;
+        }
+        break;
       }
 
-      const task = taskParts.join(' ').trim();
+      const task = rest.trim();
       if (!task) {
         return {
           message: `${color.amber('Usage:')} /delegate [--role=<role>] [--name=<label>] <task description>`,

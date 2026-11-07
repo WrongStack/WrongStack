@@ -409,6 +409,7 @@ export class AutomationStore {
     await this.change((state) => {
       const run = state.runs.find((item) => item.id === id);
       if (!run) throw new Error('Automation run not found');
+      if (run.status === 'cancelled') return;
       if (run.status !== 'queued')
         throw new Error('Only queued runs can be cancelled through the store');
       run.status = 'cancelled';

@@ -45,21 +45,38 @@ const READONLY_VERBS = new Set([
 ]);
 
 /** Shell metacharacters that could turn an otherwise read-only verb destructive. */
-const SHELL_WRITE_TOKENS = /[>|;&`$()]|\brm\b|\bmv\b|\bcp\b|--write|--fix|--force|-i\b/;
+const SHELL_METACHAR_TOKENS = /[<>|;&`$()\r\n]/;
+const SHELL_WRITE_TOKENS =
+  /\brm\b|\bmv\b|\bcp\b|--write\b|--fix\b|--force\b|--in-place\b|--output(?:=|\b)|--delete\b|(?:^|\s)-(?:i|f|o)\b/;
 
 /** True when `command` is safely read-only by our conservative heuristic. */
 export function isReadOnlyCommand(command: string): boolean {
   const trimmed = command.trim();
   if (trimmed.length === 0) return false;
-  if (SHELL_WRITE_TOKENS.test(trimmed)) {
-    // `git status`/`git log`/`git diff`/`git show` are allowed despite the
-    // broad guard, but nothing with redirection or a write subcommand.
-    if (!/^git\s+(status|log|diff|show|branch|remote|blame)\b/.test(trimmed)) return false;
-    if (/[>|;&`$()]/.test(trimmed)) return false;
+  if (SHELL_METACHAR_TOKENS.test(trimmed) || SHELL_WRITE_TOKENS.test(trimmed)) {
+    return false;
   }
   const first = trimmed.split(/\s+/)[0] ?? '';
   if (first === 'git') {
-    return /^git\s+(status|log|diff|show|branch|remote|blame)\b/.test(trimmed);
+    if (!/^git\s+(status|log|diff|show|branch|remote|blame)\b/.test(trimmed)) return false;
+    if (/^git\s+branch\b/.test(trimmed)) {
+      return !/(?:^|\s)(?:-[dDmMcCfF]\b|--delete\b|--move\b|--copy\b|--set-upstream-to\b|--unset-upstream\b|--edit-description\b)/.test(
+        trimmed,
+      );
+    }
+    if (/^git\s+remote\b/.test(trimmed)) {
+      return /^git\s+remote(?:\s+(?:-v|--verbose|show\b.*|get-url\b.*))?$/.test(trimmed);
+    }
+    return true;
+  }
+  if (first === 'find') {
+    if (/(?:^|\s)-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)\b/.test(trimmed)) {
+      return false;
+    }
+  } else if (first === 'sed') {
+    if (/(?:^|\s)(?:--in-place\b|-[a-zA-Z]*i)/.test(trimmed)) return false;
+  } else if (first === 'sort' || first === 'uniq') {
+    if (/(?:^|\s)(?:-o\S*|--output(?:=|\b))/.test(trimmed)) return false;
   }
   return READONLY_VERBS.has(first);
 }
