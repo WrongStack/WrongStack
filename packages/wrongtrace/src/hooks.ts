@@ -244,6 +244,21 @@ function pendingFor(counters: Map<string, number>): Map<string, Set<Promise<unkn
   return map;
 }
 
+// Post-hook daemon unlockFile calls still in flight, keyed like the counters.
+// A subsequent preToolUse on the same key must wait for an in-flight unlockFile
+// to settle before acquiring the new daemon lock; otherwise the prior post hook's
+// unlockFile lands after the new lockFile and releases the active lock mid-edit.
+const releasingByCounters = new WeakMap<Map<string, number>, Map<string, Set<Promise<unknown>>>>();
+
+function releasingFor(counters: Map<string, number>): Map<string, Set<Promise<unknown>>> {
+  let map = releasingByCounters.get(counters);
+  if (!map) {
+    map = new Map<string, Set<Promise<unknown>>>();
+    releasingByCounters.set(counters, map);
+  }
+  return map;
+}
+
 /** How long a post hook waits for an in-flight claim before leaving it to the TTL. */
 const CLAIM_SETTLE_MS = 10_000;
 
@@ -324,6 +339,9 @@ export function createWrongTraceHookPair(
 
       async function claim(): Promise<WrongTracePreToolUseOutcome | undefined> {
         try {
+          const inFlightRelease = releasingFor(counters).get(key);
+          if (inFlightRelease) await settleWithin(inFlightRelease, CLAIM_SETTLE_MS);
+
           // Self-owner exemption: OUR OWN held lock (leaked by an interrupted
           // earlier edit) must not deny this session's retry. lock_owner from
           // the daemon's file-health response is compared against this pair's
@@ -423,7 +441,21 @@ export function createWrongTraceHookPair(
           const inFlightAfter = pendingFor(counters).get(key);
           if (inFlightAfter) await settleWithin(inFlightAfter, CLAIM_SETTLE_MS);
           if (counters.has(key)) return; // re-acquired by a new preToolUse while awaiting
-          const released = await wt.unlockFile(path);
+          const releasing = releasingFor(counters);
+          let releaseSet = releasing.get(key);
+          if (!releaseSet) {
+            releaseSet = new Set<Promise<unknown>>();
+            releasing.set(key, releaseSet);
+          }
+          const unlockWork = wt.unlockFile(path);
+          releaseSet.add(unlockWork);
+          let released: Awaited<typeof unlockWork>;
+          try {
+            released = await unlockWork;
+          } finally {
+            releaseSet.delete(unlockWork);
+            if (releaseSet.size === 0) releasing.delete(key);
+          }
           if (released !== null && released.ok !== false) {
             // Emit lock-released only on a CONFIRMED daemon response —
             // mirroring lock-acquired's confirmed-emission rule. A failed

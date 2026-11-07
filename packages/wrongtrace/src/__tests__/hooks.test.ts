@@ -710,4 +710,88 @@ describe('createWrongTraceHookPair abandoned pre hook', () => {
     await Promise.all([post2, post1Abandoned]);
     expect(caseBActiveLocks).toBe(0);
   });
+
+  it('waits for an in-flight postToolUse unlockFile before a new preToolUse acquires on the same key and keeps withFileLock best-effort on lock/unlock throws (F72)', async () => {
+    resetWrongTraceGate();
+    let daemonLockOwner: string | null = null;
+    let unlockEnteredResolve!: () => void;
+    const unlockEntered = new Promise<void>((r) => {
+      unlockEnteredResolve = r;
+    });
+    let releaseUnlockGate!: () => void;
+    const unlockGate = new Promise<void>((r) => {
+      releaseUnlockGate = r;
+    });
+    const opOrder: string[] = [];
+
+    globalThis.fetch = makeFetch(async (url, init) => {
+      const u = new URL(url);
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      if (u.pathname === '/api/health') return healthyHealth();
+      if (u.pathname === '/api/file/health') {
+        return jsonResponse({
+          path: resolve('src/f72.ts'),
+          health_score: 100,
+          is_fragile: false,
+          recent_thrashing_count: 0,
+          is_locked: daemonLockOwner !== null,
+          ...(daemonLockOwner ? { lock_owner: daemonLockOwner } : {}),
+        });
+      }
+      if (u.pathname === '/api/guardrail/lock') {
+        opOrder.push('lock');
+        daemonLockOwner = String(body.owner ?? 'wrongstack:sess-f72');
+        return jsonResponse({ ok: true, path: body.path, status: 'locked' });
+      }
+      if (u.pathname === '/api/guardrail/unlock') {
+        opOrder.push('unlock:start');
+        unlockEnteredResolve();
+        await unlockGate;
+        opOrder.push('unlock:done');
+        daemonLockOwner = null;
+        return jsonResponse({ ok: true, path: body.path, status: 'unlocked' });
+      }
+      return jsonResponse({});
+    });
+
+    const pair = createWrongTraceHookPair(() => 'sess-f72');
+    const input = { toolName: 'edit', toolInput: { path: 'src/f72.ts' } };
+
+    await pair.preToolUse(input);
+    const post1 = pair.postToolUse(input);
+    await unlockEntered;
+
+    const pre2 = pair.preToolUse(input);
+    await new Promise((r) => setTimeout(r, 15));
+    expect(opOrder).toEqual(['lock', 'unlock:start']);
+
+    releaseUnlockGate();
+    await Promise.all([post1, pre2]);
+    expect(opOrder).toEqual(['lock', 'unlock:start', 'unlock:done', 'lock']);
+    expect(daemonLockOwner).toBe('wrongstack:sess-f72');
+
+    await pair.postToolUse(input);
+    expect(daemonLockOwner).toBeNull();
+
+    // withFileLock best-effort resilience when lockFile or unlockFile throws
+    const { getWrongTrace, withFileLock } = await import('../gate.js');
+    const wt = await getWrongTrace();
+    const origLock = wt.lockFile.bind(wt);
+    const origUnlock = wt.unlockFile.bind(wt);
+    try {
+      wt.lockFile = async () => {
+        throw new Error('simulated lockFile transport throw');
+      };
+      await expect(withFileLock('src/f72.ts', 'test', async () => 'ran')).resolves.toBe('ran');
+
+      wt.lockFile = origLock;
+      wt.unlockFile = async () => {
+        throw new Error('simulated unlockFile transport throw');
+      };
+      await expect(withFileLock('src/f72.ts', 'test', async () => 'done')).resolves.toBe('done');
+    } finally {
+      wt.lockFile = origLock;
+      wt.unlockFile = origUnlock;
+    }
+  });
 });

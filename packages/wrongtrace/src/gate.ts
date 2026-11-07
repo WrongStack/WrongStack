@@ -92,8 +92,8 @@ export async function withFileLock<T>(
   fn: () => Promise<T>,
   opts: PreflightOptions = {},
 ): Promise<T> {
-  const wt = await getWrongTrace();
-  if (!wt.isAvailable) return fn();
+  const wt = await getWrongTrace().catch(() => null);
+  if (!wt?.isAvailable) return fn();
 
   const lockOpts: { ttlSeconds: number; owner?: string; ownerRunId?: string } = {
     // Generous TTL: heavy edits can run long; the lock self-reaps if we
@@ -103,7 +103,7 @@ export async function withFileLock<T>(
   if (opts.owner !== undefined) lockOpts.owner = opts.owner;
   if (opts.ownerRunId !== undefined) lockOpts.ownerRunId = opts.ownerRunId;
 
-  const res = await wt.lockFile(path, reason, lockOpts);
+  const res = await wt.lockFile(path, reason, lockOpts).catch(() => null);
 
   // Conflict body carries ok:false + owner/expires_at — do NOT steal the
   // file; run unlocked rather than forcing a peer's lock away.
@@ -111,6 +111,8 @@ export async function withFileLock<T>(
   try {
     return await fn();
   } finally {
-    if (acquired) await wt.unlockFile(path);
+    if (acquired) {
+      await wt.unlockFile(path).catch(() => null);
+    }
   }
 }
