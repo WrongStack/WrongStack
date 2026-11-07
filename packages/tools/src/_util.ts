@@ -287,10 +287,13 @@ export function truncateDiffPayload(
   const nl = head.lastIndexOf('\n');
   if (nl > 0) head = head.slice(0, nl);
   const kept = Buffer.byteLength(head, 'utf8');
-  return {
-    text: `${head}\n…[diff truncated: ${total - kept} of ${total} bytes omitted]`,
-    truncated: true,
-  };
+  const text = `${head}\n…[diff truncated: ${total - kept} of ${total} bytes omitted]`;
+  // Budget too small for the marker (maxBytes <= MARKER_RESERVE, and replace's
+  // shrinking per-file budget can land there): hard cut rather than overrun.
+  if (Buffer.byteLength(text, 'utf8') > maxBytes) {
+    return { text: takeHeadBytes(diff, maxBytes), truncated: true };
+  }
+  return { text, truncated: true };
 }
 
 /**
@@ -473,7 +476,12 @@ export function truncateHeadTail(s: string, maxBytes: number): string {
   const head = takeHeadBytes(s, headBudget);
   const tail = takeTailBytes(s, avail - Buffer.byteLength(head, 'utf8'));
   const kept = Buffer.byteLength(head, 'utf8') + Buffer.byteLength(tail, 'utf8');
-  return `${head}\n…[truncated ${total - kept} bytes]…\n${tail}`;
+  const out = `${head}\n…[truncated ${total - kept} bytes]…\n${tail}`;
+  // A budget below the marker reserve (reachable via a small
+  // toolOutputPreviewBytes) used to append the marker unconditionally and
+  // overrun the cap the contract promises never to exceed — hard cut then.
+  if (Buffer.byteLength(out, 'utf8') > maxBytes) return takeHeadBytes(s, maxBytes);
+  return out;
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   normalizeCommandOutput,
   resolvePath,
   safeResolve,
+  truncateDiffPayload,
   truncateHeadTail,
   truncateMiddle,
 } from '../src/_util.js';
@@ -454,5 +455,40 @@ describe('detectPackageManager', () => {
         await fsp.rm(other, { recursive: true, force: true });
       }
     });
+  });
+});
+
+describe('truncateHeadTail / truncateDiffPayload — undersized budgets (bug 20261106-r4)', () => {
+  // Both helpers promise "the result never exceeds maxBytes". With a budget
+  // smaller than the fixed marker reserve (64 / 96 bytes — reachable via
+  // limits.toolOutputPreviewBytes and replace's shrinking per-file diff
+  // budget), the marker was appended unconditionally and overran the cap.
+  const samples = ['a'.repeat(500), 'é'.repeat(500), '😀'.repeat(300)];
+
+  it.each(samples)('truncateHeadTail hard-cuts below the marker reserve (%#)', (s) => {
+    for (const max of [10, 50, 64]) {
+      expect(Buffer.byteLength(truncateHeadTail(s, max), 'utf8')).toBeLessThanOrEqual(max);
+    }
+    // Sanity: a cap above the reserve keeps the marker form, within cap.
+    const withMarker = truncateHeadTail(s, 400);
+    expect(withMarker).toContain('[truncated');
+    expect(Buffer.byteLength(withMarker, 'utf8')).toBeLessThanOrEqual(400);
+  });
+
+  it.each(samples)('truncateDiffPayload hard-cuts below the marker reserve (%#)', (s) => {
+    for (const max of [10, 50, 96]) {
+      const { text, truncated } = truncateDiffPayload(s, max);
+      expect(truncated).toBe(true);
+      expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(max);
+    }
+    // Below the total but above the reserve: marker kept, within cap, count truthful.
+    const { text, truncated } = truncateDiffPayload(s, 400);
+    expect(truncated).toBe(true);
+    expect(text).toContain('[diff truncated:');
+    expect(Buffer.byteLength(text, 'utf8')).toBeLessThanOrEqual(400);
+  });
+
+  it('truncateDiffPayload still reports no truncation when the diff fits', () => {
+    expect(truncateDiffPayload('abc', 96)).toEqual({ text: 'abc', truncated: false });
   });
 });

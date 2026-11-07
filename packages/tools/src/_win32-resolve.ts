@@ -109,9 +109,24 @@ export function resolvePowerShell(cmd: string): string {
   if (resolved === primary) {
     // resolveWin32Command returns the original string when not found.
     const fb = resolveWin32Command(fallback);
-    return fb === fallback ? cmd : fb;
+    return fb === fallback ? cmd : resolvePowerShellAlias(fb);
   }
-  return resolved;
+  return resolvePowerShellAlias(resolved);
+}
+
+/**
+ * Store app execution aliases can pass access checks but fail during spawn.
+ * Follow their readable link to the same installed executable. realpathSync
+ * can reject these reparse points, so read the link directly instead.
+ */
+function resolvePowerShellAlias(binary: string): string {
+  try {
+    const target = path.resolve(path.dirname(binary), fs.readlinkSync(binary));
+    fs.accessSync(target, fs.constants.X_OK);
+    return target;
+  } catch {
+    return binary;
+  }
 }
 
 /**

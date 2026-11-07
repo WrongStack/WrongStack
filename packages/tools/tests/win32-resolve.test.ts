@@ -1,18 +1,24 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   assertSafeWin32ShellArgs,
   buildWin32CmdShimInvocation,
+  resolvePowerShell,
   resolveWin32Command,
 } from '../src/_win32-resolve.js';
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+}));
 
 const realPlatform = process.platform;
 const realPath = process.env['PATH'];
 const realPathext = process.env['PATHEXT'];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   Object.defineProperty(process, 'platform', { value: realPlatform });
   process.env['PATH'] = realPath;
   process.env['PATHEXT'] = realPathext;
@@ -225,5 +231,47 @@ describe('buildWin32CmdShimInvocation', () => {
       'call "C:\\Program Files\\nodejs\\pnpm.cmd" "test" "space arg"',
     ]);
     expect(invocation.windowsVerbatimArguments).toBe(true);
+  });
+});
+
+describe('resolvePowerShell execution aliases', () => {
+  it.each(['pwsh', 'powershell'])('follows an executable alias for %s', (edition) => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pwsh-alias-'));
+    try {
+      const alias = path.join(dir, 'pwsh.exe');
+      const target = path.join(dir, 'installed.exe');
+      fs.writeFileSync(alias, '');
+      fs.writeFileSync(target, '');
+      fs.chmodSync(alias, 0o755);
+      fs.chmodSync(target, 0o755);
+      process.env['PATH'] = dir;
+      process.env['PATHEXT'] = '.EXE';
+      // Only the reparse-point boundary needs a double: creating Windows
+      // executable symlinks otherwise requires developer mode or elevation.
+      vi.spyOn(fs, 'readlinkSync').mockReturnValue('installed.exe');
+      expect(resolvePowerShell(edition)).toBe(target);
+      // Explicit paths retain the caller's choice.
+      expect(resolvePowerShell(alias)).toBe(alias);
+      fs.unlinkSync(target);
+      expect(resolvePowerShell(edition)).toBe(alias);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves a regular executable when reading the link fails', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pwsh-regular-'));
+    try {
+      const binary = path.join(dir, 'pwsh.exe');
+      fs.writeFileSync(binary, '');
+      fs.chmodSync(binary, 0o755);
+      process.env['PATH'] = dir;
+      process.env['PATHEXT'] = '.EXE';
+      expect(resolvePowerShell('pwsh')).toBe(binary);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

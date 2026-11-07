@@ -93,7 +93,8 @@ export async function withServedProjectFile<T>(
       }
       try {
         if (req.headers.host !== host) throw new Error('host');
-        const pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname);
+        const rawUrl = (req.url ?? '/').replace(/^\/+/, '/');
+        const pathname = decodeURIComponent(new URL(rawUrl, 'http://x').pathname);
         if (hasDotSegment(pathname)) throw new Error('dot segment');
         let target = path.resolve(root, `.${pathname}`);
         if ((await fs.stat(target)).isDirectory()) target = path.join(target, 'index.html');
@@ -103,16 +104,26 @@ export async function withServedProjectFile<T>(
           throw new Error('not served');
         }
         const body = await fs.readFile(real);
-        res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
-        res.end(req.method === 'HEAD' ? undefined : body);
+        if (!res.headersSent && !res.destroyed) {
+          res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
+          res.end(req.method === 'HEAD' ? undefined : body);
+        }
       } catch {
-        res.writeHead(404).end();
+        if (!res.headersSent && !res.destroyed) {
+          res.writeHead(404).end();
+        } else if (!res.destroyed) {
+          res.end();
+        }
       }
     })();
   });
   await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
+    const onError = (err: Error) => reject(err);
+    server.once('error', onError);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', onError);
+      resolve();
+    });
   });
   host = `127.0.0.1:${(server.address() as AddressInfo).port}`;
   const origin = `http://${host}`;

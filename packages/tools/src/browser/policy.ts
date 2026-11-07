@@ -22,11 +22,12 @@ function policyPath(root: string): string {
 }
 
 function policyStamp(path: string): string {
+  const envRaw = process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'] ?? '';
   try {
     const stat = statSync(path);
-    return `${stat.mtimeMs}:${stat.size}`;
+    return `${stat.mtimeMs}:${stat.size}|${envRaw}`;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return `missing|${envRaw}`;
     throw error;
   }
 }

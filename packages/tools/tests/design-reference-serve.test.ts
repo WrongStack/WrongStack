@@ -3,6 +3,7 @@ import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { browserPrivateOrigins } from '../src/browser/policy.js';
 import { withServedProjectFile } from '../src/design-reference-serve.js';
 
 let root: string;
@@ -71,5 +72,40 @@ describe('withServedProjectFile', () => {
     await expect(withServedProjectFile(root, '.design/x.html', async () => 1)).rejects.toThrow(
       /\.html file inside the project root/,
     );
+  });
+
+  it('normalizes double-leading-slash request paths and refreshes browserPrivateOrigins when WRONGSTACK_BROWSER_PRIVATE_ORIGINS changes (F78)', async () => {
+    await withServedProjectFile(root, 'site/index.html', async (url) => {
+      const u = new URL(url);
+      const status = await new Promise<number>((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: u.hostname,
+            port: u.port,
+            path: '//site/assets/a.css',
+            headers: { host: u.host },
+          },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      });
+      expect(status).toBe(200);
+    });
+
+    const prevEnv = process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'];
+    try {
+      delete process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'];
+      const live = browserPrivateOrigins(root);
+      expect(live).toEqual([]);
+      process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'] = 'http://localhost:4321';
+      expect(browserPrivateOrigins(root)).toEqual(['http://localhost:4321']);
+    } finally {
+      if (prevEnv === undefined) delete process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'];
+      else process.env['WRONGSTACK_BROWSER_PRIVATE_ORIGINS'] = prevEnv;
+    }
   });
 });

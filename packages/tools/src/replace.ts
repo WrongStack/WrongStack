@@ -330,11 +330,11 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
 
 /**
  * Expand a replacement template against one regex match with JavaScript
- * `String.prototype.replace` semantics: `$1`–`$9` insert capture groups
- * (empty when the group did not participate), `$&` inserts the whole match,
- * and `$$` inserts a literal `$`. A `$` followed by anything else — or a
- * digit that exceeds the pattern's group count — stays literal, mirroring
- * String.replace.
+ * `String.prototype.replace` semantics for the documented forms: `$1`–`$9`
+ * (and the two-digit `$01`–`$99`) insert capture groups (empty when the group
+ * did not participate), `$&` inserts the whole match, and `$$` inserts a
+ * literal `$`. A `$` followed by anything else — or a number that exceeds the
+ * pattern's group count — stays literal.
  */
 function expandReplacement(template: string, match: RegExpMatchArray): string {
   if (!template.includes('$')) return template;
@@ -352,10 +352,21 @@ function expandReplacement(template: string, match: RegExpMatchArray): string {
     } else if (next === '&') {
       out += match[0];
       i++;
-    } else if (next !== undefined && next >= '1' && next <= '9') {
-      const idx = next.charCodeAt(0) - 48;
-      if (idx < match.length) {
-        out += match[idx] ?? '';
+    } else if (next !== undefined && next >= '0' && next <= '9') {
+      // ECMAScript GetSubstitution: `$nn` (01–99) names a two-digit group when
+      // that group exists; otherwise the single digit is tried; only then does
+      // the `$` stay literal. `$0`/`$00` name no group.
+      const single = next.charCodeAt(0) - 48;
+      const following = template[i + 2];
+      const pair =
+        following !== undefined && following >= '0' && following <= '9'
+          ? single * 10 + (following.charCodeAt(0) - 48)
+          : undefined;
+      if (pair !== undefined && pair >= 1 && pair < match.length) {
+        out += match[pair] ?? '';
+        i += 2;
+      } else if (single >= 1 && single < match.length) {
+        out += match[single] ?? '';
         i++;
       } else {
         // Group does not exist in the pattern: keep `$N` literal.

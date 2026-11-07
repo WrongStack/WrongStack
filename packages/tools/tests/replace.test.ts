@@ -102,6 +102,18 @@ describe('replaceTool', () => {
     expect(await fs.readFile(filePath, 'utf8')).toBe('$5y');
   });
 
+  it('expands leading-zero and two-digit group references like String.replace', async () => {
+    const filePath = path.join(tmpDir, 'two-digit.txt');
+    await fs.writeFile(filePath, 'ab', 'utf8');
+    await replaceTool.execute(
+      { pattern: '(a)(b)', replacement: '<$01|$02|$1x|$10|$011>', files: filePath, dry_run: false },
+      makeCtx(),
+      makeOpts(),
+    );
+    // Ground truth: 'ab'.replace(/(a)(b)/g, '<$01|$02|$1x|$10|$011>')
+    expect(await fs.readFile(filePath, 'utf8')).toBe('<a|b|ax|a0|a1>');
+  });
+
   it('unmatched optional groups expand to the empty string', async () => {
     const filePath = path.join(tmpDir, 'opt.txt');
     await fs.writeFile(filePath, 'ab', 'utf8');
