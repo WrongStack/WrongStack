@@ -10,6 +10,17 @@ type EngineEvent = NonNullable<ReturnType<typeof engineEvent>>;
 type Subscriber = { changed: () => void; onError: (error: unknown) => void };
 /** Readers kept with their state after their last view closed, most recently used last. */
 export const DORMANT_STREAM_LIMIT = 8;
+/**
+ * How long a reader keeps quietly retrying while the host is still starting a project's
+ * services. Opening a project right after the window starts reads its journal before the
+ * services are registered; that is "not ready yet", not an error to show in a banner.
+ */
+const SERVICES_STARTING_GRACE_MS = 30_000;
+const SERVICES_STARTING = /Project services (have not started|are starting)/;
+/** Whether `error` is the host saying the project's services are not up yet. */
+function servicesStarting(error: unknown): boolean {
+  return SERVICES_STARTING.test(error instanceof Error ? error.message : String(error));
+}
 
 /**
  * One journal reader per backend. Every view of the same project used to replay the whole
@@ -28,6 +39,7 @@ export class BackendStream {
   private run = 0;
   private offset = 0;
   private read = false;
+  private startedAt = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private scope: BackendScope,
@@ -78,6 +90,7 @@ export class BackendStream {
     this.registry.set(this.key(), this);
     // A quick unsubscribe and resubscribe (React StrictMode) must not leave two readers running.
     const run = ++this.run;
+    this.startedAt = Date.now();
     if (!this.read) {
       this.offset = 0;
       this.state = { ...emptyEngineState, hydrating: true, synced: false };
@@ -115,8 +128,10 @@ export class BackendStream {
         this.timer = setTimeout(poll, hasMore ? 0 : 100);
       } catch (error) {
         if (run === this.run && !this.stopped) {
-          this.error(error);
-          this.timer = setTimeout(poll, 1000);
+          const starting =
+            servicesStarting(error) && Date.now() - this.startedAt < SERVICES_STARTING_GRACE_MS;
+          if (!starting) this.error(error);
+          this.timer = setTimeout(poll, starting ? 250 : 1000);
         }
       }
     };

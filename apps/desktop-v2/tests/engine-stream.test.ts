@@ -10,6 +10,35 @@ afterEach(() => {
   mocked.mockReset();
 });
 describe('shared backend journal reader', () => {
+  it('waits quietly while the project services are still starting', async () => {
+    vi.useFakeTimers();
+    let ready = false;
+    mocked.mockImplementation(async () => {
+      if (!ready) throw new Error('Project services have not started');
+      return { offset: 4, events: [{ type: 'session.title', payload: { title: 'Up' } }] };
+    });
+    const stream = backendStream('project', 'starting');
+    const onError = vi.fn();
+    const stop = stream.subscribe({ changed: () => {}, onError });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(onError).not.toHaveBeenCalled();
+    ready = true;
+    await vi.advanceTimersByTimeAsync(300);
+    expect(stream.state.hydrating).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+    stop();
+  });
+  it('reports services that never start once the grace has passed', async () => {
+    vi.useFakeTimers();
+    mocked.mockRejectedValue(new Error('Project services have not started'));
+    const stream = backendStream('project', 'never');
+    const onError = vi.fn();
+    const stop = stream.subscribe({ changed: () => {}, onError });
+    // The reader keeps quiet for 30 seconds while the services start.
+    await vi.advanceTimersByTimeAsync(31_500);
+    expect(onError).toHaveBeenCalled();
+    stop();
+  });
   it('reads one project journal once for every view and stops with the last view', async () => {
     vi.useFakeTimers();
     const reads: number[] = [];
