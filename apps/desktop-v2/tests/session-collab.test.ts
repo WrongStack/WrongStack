@@ -89,9 +89,10 @@ describe('conversation collaboration', () => {
       );
     });
     expect(host.textContent).toContain('No live observers');
-    const join = [...host.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('observer'),
+    const join = [...host.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Observer',
     );
+    expect(join).toBeDefined();
     await act(async () => join?.click());
     expect(fake.sent[0]).toEqual(['collab.join', { sessionId: 's1', role: 'observer' }]);
     await act(async () =>
