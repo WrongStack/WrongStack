@@ -662,7 +662,18 @@ describe('persistence 100% coverage suite', () => {
         await fsPromises.mkdir(existingParent, { recursive: true });
         const nonExistentReal = path.join(existingParent, 'future-project');
         const nonExistentLower = path.join(existingParent.toLowerCase(), 'future-project');
-        expect(projectSlug(nonExistentLower)).toBe(projectSlug(nonExistentReal));
+        // Casing names the same directory only on a case-insensitive file
+        // system (Windows, default macOS); on Linux the lower-cased parent is
+        // a different directory and must keep its own slug.
+        const caseInsensitive = await fsPromises
+          .access(existingParent.toLowerCase())
+          .then(() => true)
+          .catch(() => false);
+        if (caseInsensitive) {
+          expect(projectSlug(nonExistentLower)).toBe(projectSlug(nonExistentReal));
+        } else {
+          expect(projectSlug(nonExistentLower)).not.toBe(projectSlug(nonExistentReal));
+        }
 
         expect(checkUnixSocketPath('   ', 'linux').ok).toBe(false);
         expect(() => assertUnixSocketPathWithinLimit('   ', 'kanban', 'linux')).toThrow(

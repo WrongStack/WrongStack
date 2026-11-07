@@ -29,10 +29,13 @@ describe('dependency advisory guards', () => {
   });
 
   it('checks the installed downstream resolutions using metadata only', async () => {
-    const tui = createRequire(path.join(root, 'packages/tui/package.json'));
-    const jsdom = tui.resolve('jsdom/package.json');
-    const cssTree = createRequire(jsdom).resolve('css-tree/package.json');
-    const sourceMap = createRequire(cssTree).resolve('source-map-js/package.json');
+    // jsdom 31 dropped css-tree, the old route to source-map-js; a fresh
+    // isolated install no longer has it at all. Vite's postcss is the
+    // installed consumer now, reached through each package's own links.
+    const webui = createRequire(path.join(root, 'packages/webui/package.json'));
+    const vite = webui.resolve('vite/package.json');
+    const postcss = createRequire(vite).resolve('postcss/package.json');
+    const sourceMap = createRequire(postcss).resolve('source-map-js/package.json');
     expect(JSON.parse(await readFile(sourceMap, 'utf8')).version).toBe('1.2.2');
   });
 });
