@@ -111,13 +111,13 @@ export function openSocket(
         return;
       }
       if (settled) return;
-      if (opened) {
+      if (opened || event.code === 1000) {
         fail(
           new WrongStackError({
             kind: 'connection',
             code: String(event.code ?? 'closed'),
             detail: event.reason || 'closed before the session was announced',
-            retryable: true,
+            retryable: event.code !== 1000,
           }),
         );
         return;

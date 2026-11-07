@@ -14,7 +14,7 @@ import {
   WebSocket as WsWebSocket,
 } from './ws-runtime.js';
 
-type Frame = { type: string; payload?: Record<string, unknown>; seq?: number };
+type Frame = { type: string; payload?: Record<string, unknown>; seq?: number; stream?: string };
 
 /**
  * A WebUI server stand-in: announces a session, records what the client
@@ -1190,5 +1190,130 @@ describe('createHttpClient', () => {
     expect(sockets).toHaveLength(2);
     rcClient.close();
     expect(sockets[1]?.closedWith).toBe(1000);
+  });
+
+  it('strips stale replay fields on same-epoch reconnect catch-up, routes stream-tagged session frames, and reports invalid_url in createHttpClient (F49, F50)', async () => {
+    const { server, client } = await connected({}, { reconnect: { initialDelayMs: 20 } });
+    await server.frame('session.subscribe');
+
+    let seenFirst = false;
+    client.on('provider.text_delta', () => {
+      seenFirst = true;
+    });
+    server.broadcast({
+      type: 'provider.text_delta',
+      payload: { text: 'before-drop ', messageId: 'm1', sessionId: 'sess_1' },
+    });
+    await expect.poll(() => seenFirst).toBe(true);
+
+    const run = client.send('background-turn', { sessionId: 'sess_1' });
+    await server.frame('user_message');
+    const deltas: string[] = [];
+    run.onEvent((ev) => {
+      if (ev.type === 'provider.text_delta') deltas.push(ev.payload.text);
+    });
+
+    const resumed = client.resumeSession('sess_2');
+    await server.frame('session.resume');
+    server.emit({
+      type: 'session.start',
+      payload: { sessionId: 'sess_2', provider: 'p', model: 'm', eventEpoch: server.epoch },
+    });
+    await resumed;
+    await server.frame('session.subscribe');
+
+    // Broadcast for sess_1 where stream carries the owning session id and payload omits sessionId
+    server.emit({
+      type: 'provider.text_delta',
+      seq: 2,
+      stream: 'sess_1',
+      payload: { text: 'from-stream', messageId: 'm2' },
+    });
+    await expect.poll(() => deltas).toEqual(['from-stream']);
+
+    const reconnectStarts: Array<Record<string, unknown>> = [];
+    let rcAttempt = 0;
+    let firstRcSocket!: { drop(): void };
+    class ReplayReconnectSocket {
+      readyState = 0;
+      private readonly listeners = new Map<string, Array<(e: unknown) => void>>();
+      constructor(_url: string) {
+        rcAttempt += 1;
+        const myAttempt = rcAttempt;
+        if (myAttempt === 1) firstRcSocket = this;
+        queueMicrotask(() => {
+          this.readyState = 1;
+          for (const fn of this.listeners.get('open') ?? []) fn({});
+          for (const fn of this.listeners.get('message') ?? []) {
+            fn({
+              data: JSON.stringify({
+                type: 'session.start',
+                payload: {
+                  sessionId: 'sess_1',
+                  provider: 'p',
+                  model: 'm',
+                  eventEpoch: 'e1',
+                  replayMessages: [{ role: 'user', content: `replay_${myAttempt}` }],
+                },
+              }),
+            });
+          }
+          if (myAttempt === 1) {
+            for (const fn of this.listeners.get('message') ?? []) {
+              fn({
+                data: JSON.stringify({
+                  type: 'provider.text_delta',
+                  seq: 1,
+                  payload: { sessionId: 'sess_1', messageId: 'm1', text: 'live' },
+                }),
+              });
+            }
+          }
+        });
+      }
+      addEventListener(type: string, listener: (e: unknown) => void): void {
+        const list = this.listeners.get(type) ?? [];
+        list.push(listener);
+        this.listeners.set(type, list);
+      }
+      drop(): void {
+        this.readyState = 3;
+        for (const fn of this.listeners.get('close') ?? []) fn({ code: 1006, reason: 'drop' });
+      }
+      send(): void {}
+      close(code = 1000, reason = ''): void {
+        this.readyState = 3;
+        for (const fn of this.listeners.get('close') ?? []) fn({ code, reason });
+      }
+    }
+    const replayClient = await WrongStackClient.connect({
+      url: 'http://127.0.0.1:3456',
+      WebSocket: ReplayReconnectSocket as never,
+      reconnect: { attempts: 2, initialDelayMs: 5, maxDelayMs: 10 },
+    });
+    expect(replayClient.session.replayMessages).toHaveLength(1);
+    replayClient.on('session.start', (payload) => {
+      reconnectStarts.push(payload as unknown as Record<string, unknown>);
+    });
+    firstRcSocket.drop();
+    await expect.poll(() => reconnectStarts.length).toBe(1);
+    expect(reconnectStarts[0]).not.toHaveProperty('replayMessages');
+    replayClient.close();
+
+    server.emit({
+      type: 'run.result',
+      stream: 'sess_1',
+      payload: { requestId: run.id, status: 'done', iterations: 1 },
+    });
+    await expect(run.text()).resolves.toBe('from-stream');
+
+    const invalidHttp = createHttpClient({
+      url: '://bad-url',
+      fetch: (async () => new Response('[]', { status: 200 })) as typeof fetch,
+    });
+    await expect(invalidHttp.listLiveSessions()).rejects.toMatchObject({
+      kind: 'connection',
+      code: 'invalid_url',
+    });
   });
 });

@@ -494,7 +494,11 @@ export class WrongStackClient {
 
   private dispatch(frame: Frame): void {
     const payload = (frame.payload ?? {}) as { sessionId?: string };
-    const sessionId = payload.sessionId ?? this.current?.sessionId ?? '';
+    const sessionId =
+      (typeof frame.stream === 'string' && frame.stream ? frame.stream : undefined) ??
+      payload.sessionId ??
+      this.current?.sessionId ??
+      '';
 
     if (frame.type === 'session.start') {
       const info = frame.payload as SessionInfo;
@@ -662,8 +666,8 @@ export class WrongStackClient {
           this.socket.close(NORMAL_CLOSURE, 'client closed');
           return;
         }
-        this.receive({ type: 'session.start', payload: start });
         if (closed) {
+          this.receive({ type: 'session.start', payload: start });
           for (const frame of early) this.receive(frame);
           if (closed.code === NORMAL_CLOSURE) {
             this.finish(undefined);
@@ -676,7 +680,11 @@ export class WrongStackClient {
             retryable: true,
           });
         }
+        if (typeof start.eventEpoch === 'string') {
+          for (const frame of this.frames.gate.adoptEpoch(start.eventEpoch)) this.dispatch(frame);
+        }
         this.subscribe(this.current.sessionId, true);
+        this.receive({ type: 'session.start', payload: start });
         for (const frame of early) this.receive(frame);
         this.setState('open', undefined);
         return;

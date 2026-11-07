@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T17:00:58.187Z",
+  "generatedAt": "2026-11-07T17:03:12.518Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 48,
     "sourceFiles": 6068,
     "testFiles": 5056,
-    "sourceLines": 1256243,
+    "sourceLines": 1256261,
     "workspaceEdges": 244,
     "moduleEdges": 17933,
     "nonCommandSlashImports": 0,
@@ -34537,7 +34537,7 @@
     },
     {
       "file": "packages/client/src/client.ts",
-      "lines": 754,
+      "lines": 762,
       "relativeImports": 4
     },
     {
@@ -34863,6 +34863,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/client/src/client.ts",
+      "lines": 762,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
@@ -34871,11 +34876,6 @@
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
       "lines": 755,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/client/src/client.ts",
-      "lines": 754,
-      "relativeImports": 4
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",

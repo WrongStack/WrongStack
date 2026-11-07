@@ -53,9 +53,19 @@ export function createHttpClient(options: HttpClientOptions): WrongStackHttpClie
     const headers: Record<string, string> = {};
     if (effectiveToken) headers['X-WS-Token'] = effectiveToken;
     if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+    let targetUrl: URL;
+    try {
+      targetUrl = new URL(path, base);
+    } catch (error) {
+      throw new WrongStackError({
+        kind: 'connection',
+        code: 'invalid_url',
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
     let response: Response;
     try {
-      response = await doFetch(new URL(path, base), {
+      response = await doFetch(targetUrl, {
         method: init.method ?? 'GET',
         headers,
         ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
