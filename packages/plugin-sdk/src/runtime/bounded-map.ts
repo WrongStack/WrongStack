@@ -197,7 +197,12 @@ export class BoundedSet<T> {
   }
 
   has(value: T): boolean {
-    return this.inner.has(value);
+    return this.inner.get(value) !== undefined;
+  }
+
+  /** Check membership without promoting `value` to most-recently-used. */
+  peek(value: T): boolean {
+    return this.inner.peek(value) !== undefined;
   }
 
   add(value: T): this {

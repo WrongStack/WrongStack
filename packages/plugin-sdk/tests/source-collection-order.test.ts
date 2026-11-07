@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { collectSourceFiles, collectSourceFilesAsync } from '../src/runtime/index.js';
+import { BoundedSet, collectSourceFiles, collectSourceFilesAsync } from '../src/runtime/index.js';
 
 let root = '';
 const expected = () => ['alpha.ts', 'Beta.ts', 'zeta.ts'].map((name) => join(root, name));
@@ -38,5 +38,30 @@ describe('source collection locale order', () => {
     expect(collectSourceFiles(root, options), 'FAIL: sync/async source order diverged').toEqual(
       asynchronous,
     );
+  });
+
+  it('normalizes relative single-file roots to absolute paths and tolerates missing roots (F83)', async () => {
+    const targetFile = join(root, 'alpha.ts');
+    const relFile = relative(process.cwd(), targetFile);
+    const syncFiles = collectSourceFiles(relFile, { extensions: ['.ts'] });
+    const asyncFiles = await collectSourceFilesAsync(relFile, { extensions: ['.ts'] });
+    expect(syncFiles).toEqual([resolve(relFile)]);
+    expect(isAbsolute(syncFiles[0]!)).toBe(true);
+    expect(asyncFiles).toEqual([resolve(relFile)]);
+
+    const missing = join(root, 'does-not-exist.ts');
+    expect(collectSourceFiles(missing, { extensions: ['.ts'] })).toEqual([]);
+    expect(await collectSourceFilesAsync(missing, { extensions: ['.ts'] })).toEqual([]);
+  });
+
+  it('promotes accessed BoundedSet entries in LRU order on has() (F83)', () => {
+    const set = new BoundedSet<string>({ max: 2 });
+    set.add('hot');
+    set.add('cold');
+    expect(set.has('hot')).toBe(true);
+    set.add('newest');
+    expect(set.has('hot')).toBe(true);
+    expect(set.has('cold')).toBe(false);
+    expect(set.has('newest')).toBe(true);
   });
 });

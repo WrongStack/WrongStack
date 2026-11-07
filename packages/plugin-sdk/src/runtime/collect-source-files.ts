@@ -31,14 +31,24 @@ const DEFAULT_EXCLUDE_DIRS = ['node_modules', 'dist', '.git', 'coverage'];
 export function collectSourceFiles(root: string, opts: CollectOptions): string[] {
   const files: string[] = [];
   if (!existsSync(root)) return files;
-  const s = statSync(root);
+  const resolvedRoot = resolve(root);
+  let s;
+  try {
+    s = statSync(resolvedRoot);
+  } catch {
+    return files;
+  }
   if (s.isFile()) {
-    if (matchesExtension(root, opts.extensions)) files.push(root);
+    if (matchesExtension(resolvedRoot, opts.extensions)) files.push(resolvedRoot);
     return files;
   }
   if (!s.isDirectory()) return files;
   const exclude = opts.excludeDirs ?? DEFAULT_EXCLUDE_DIRS;
   const excludeSet = new Set(exclude); // O(1) lookup instead of O(n) includes()
+  const visitedInodes = new Set<string>();
+  if (s.dev !== undefined && s.ino !== undefined && (s.dev !== 0 || s.ino !== 0)) {
+    visitedInodes.add(`${s.dev}:${s.ino}`);
+  }
 
   function walk(dir: string, depth: number) {
     if (opts.maxDepth !== undefined && depth > opts.maxDepth) return;
@@ -60,6 +70,11 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
         continue;
       }
       if (st.isDirectory()) {
+        if (st.dev !== undefined && st.ino !== undefined && (st.dev !== 0 || st.ino !== 0)) {
+          const inodeKey = `${st.dev}:${st.ino}`;
+          if (visitedInodes.has(inodeKey)) continue;
+          visitedInodes.add(inodeKey);
+        }
         walk(full, depth + 1);
       } else if (st.isFile() && matchesExtension(full, opts.extensions)) {
         files.push(full);
@@ -67,7 +82,7 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
     }
   }
 
-  walk(root, 0);
+  walk(resolvedRoot, 0);
   return files;
 }
 
@@ -85,11 +100,12 @@ export async function collectSourceFilesAsync(
 ): Promise<string[]> {
   const { readdir, stat } = await import('node:fs/promises');
   const files: string[] = [];
+  const resolvedRoot = resolve(root);
 
   try {
-    const s = await stat(root);
+    const s = await stat(resolvedRoot);
     if (s.isFile()) {
-      if (matchesExtension(root, opts.extensions)) files.push(root);
+      if (matchesExtension(resolvedRoot, opts.extensions)) files.push(resolvedRoot);
       return files;
     }
     if (!s.isDirectory()) return files;
@@ -120,7 +136,7 @@ export async function collectSourceFilesAsync(
     }
   }
 
-  await walk(root, 0);
+  await walk(resolvedRoot, 0);
   return files;
 }
 

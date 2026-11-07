@@ -184,7 +184,7 @@ export function withReDoSGuard(
       (timer as { unref?: () => void }).unref?.();
     }
 
-    worker.once('message', onMessage);
+    worker.on('message', onMessage);
     worker.once('error', onError);
     worker.once('exit', onExit);
     // Queued until the worker's message loop starts; a warm worker is
