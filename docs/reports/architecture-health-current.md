@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-07T17:25:17.833Z
+**Generated:** 2026-11-07T17:27:03.708Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6068 |
-| Production source lines | 1257304 |
+| Production source lines | 1257359 |
 | Test files | 5057 |
 | Workspace dependency edges | 244 |
 | Relative module edges | 17935 |
@@ -91,7 +91,7 @@ None.
 | Lines | File |
 |---:|---|
 | 2053 | `apps/desktop-v2/src/FileWorkspace.tsx` |
-| 1733 | `packages/sage/src/wrongmemory-port.ts` |
+| 1753 | `packages/sage/src/wrongmemory-port.ts` |
 | 1586 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
 | 1206 | `packages/vibeui/src/components/workspace.tsx` |
 | 1110 | `packages/project-surfaces/src/atlas/codemap-model.ts` |

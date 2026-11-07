@@ -309,6 +309,7 @@ export class WrongMemoryPort implements MemoryPort {
   private lock: Promise<unknown> = Promise.resolve();
   private traceId: string | undefined;
   private disposed = false;
+  private clientEpoch = 0;
   /** Every `connectionId` this port has used: its own changes, past and present. */
   private readonly ownConnections = new Set<string>();
   private relayTimer: ReturnType<typeof setInterval> | undefined;
@@ -325,7 +326,9 @@ export class WrongMemoryPort implements MemoryPort {
   // ─── Lifecycle ─────────────────────────────────────────────────────
 
   async initialize(): Promise<void> {
+    if (this.disposed) throw new WrongMemoryUnavailableError('port disposed');
     await this.ensureProject();
+    if (this.disposed) return;
     const interval = this.options.relayIntervalMs ?? 2_000;
     if (this.options.events && interval > 0 && !this.relayTimer) {
       this.relayTimer = setInterval(() => void this.relayChanges(), interval);
@@ -1401,6 +1404,7 @@ export class WrongMemoryPort implements MemoryPort {
   }
 
   private dropClient(): void {
+    this.clientEpoch += 1;
     const client = this.client;
     this.client = undefined;
     this.connecting = undefined;
@@ -1412,7 +1416,9 @@ export class WrongMemoryPort implements MemoryPort {
   private async ensureClient(): Promise<WrongMemoryClientLike> {
     if (this.disposed) throw new WrongMemoryUnavailableError('port disposed');
     if (this.client) return this.client;
-    this.connecting ??= (async () => {
+    if (this.connecting) return this.connecting;
+    const epoch = this.clientEpoch;
+    const attempt = Promise.resolve().then(async () => {
       const connect = this.options.connect ?? ((o: ConnectOptions) => WrongMemoryClient.connect(o));
       // The vendored client's own `start` spawns with the inherited
       // environment; WrongStack starts the daemon itself through
@@ -1441,6 +1447,15 @@ export class WrongMemoryPort implements MemoryPort {
             connect: () => connect(connectOptions),
           });
         }
+        if (this.connecting === attempt) {
+          this.connecting = undefined;
+        }
+        if (this.disposed || this.clientEpoch !== epoch) {
+          client.close();
+          throw new WrongMemoryUnavailableError(
+            this.disposed ? 'port disposed' : 'connection released',
+          );
+        }
         this.client = client;
         this.boundSession = undefined;
         try {
@@ -1451,7 +1466,9 @@ export class WrongMemoryPort implements MemoryPort {
         }
         return client;
       } catch (error) {
-        this.connecting = undefined;
+        if (this.connecting === attempt) {
+          this.connecting = undefined;
+        }
         if (
           error instanceof WrongMemoryError &&
           (error.code === 'UNAVAILABLE' || error.code === 'TRANSPORT')
@@ -1460,11 +1477,13 @@ export class WrongMemoryPort implements MemoryPort {
         }
         throw error;
       }
-    })();
-    return this.connecting;
+    });
+    this.connecting = attempt;
+    return attempt;
   }
 
   private async ensureProject(): Promise<ProjectInfo> {
+    if (this.disposed) throw new WrongMemoryUnavailableError('port disposed');
     if (this.project) return this.project;
     let client: WrongMemoryClientLike;
     try {
@@ -1472,6 +1491,7 @@ export class WrongMemoryPort implements MemoryPort {
     } catch (error) {
       throw this.translate(error);
     }
+    if (this.disposed) throw new WrongMemoryUnavailableError('port disposed');
     try {
       this.project = await resolveWrongMemoryProject(client, {
         projectRoot: this.options.projectRoot,

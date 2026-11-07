@@ -71,7 +71,7 @@
       "relativeImports": 17
     },
     "packages/sage/src/wrongmemory-port.ts": {
-      "lines": 1733,
+      "lines": 1753,
       "relativeImports": 14
     },
     "packages/tools/src/codebase-index/ast-symbol-mutator.ts": {

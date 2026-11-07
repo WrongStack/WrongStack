@@ -692,6 +692,36 @@ describe('WrongMemoryPort mapping', () => {
     expect((await port.health()).status).toBe('unavailable');
   });
 
+  it('retries after a synchronous connector failure without masking its cause', async () => {
+    const control = setup();
+    await control.port.initialize();
+    expect(control.port.getProject()?.projectId).toBe('p_1');
+    await control.port.dispose();
+
+    const client = new FakeClient((method, params) => defaults(method, params));
+    let attempts = 0;
+    const port = new WrongMemoryPort({
+      projectRoot: ROOT,
+      startPolicy: 'never',
+      connect: () => {
+        attempts++;
+        if (attempts === 1)
+          throw new WrongMemoryError('TRANSPORT', 'synchronous connector failure');
+        return Promise.resolve(client);
+      },
+    });
+    try {
+      await expect(port.initialize()).rejects.toMatchObject({
+        message: expect.stringContaining('synchronous connector failure'),
+      });
+      await port.initialize();
+      expect(attempts).toBe(2);
+      expect(port.getProject()?.projectId).toBe('p_1');
+    } finally {
+      await port.dispose();
+    }
+  });
+
   it('starts the daemon through its own sanitized launcher on demand, never via the client', async () => {
     const client = new FakeClient((m, p) => defaults(m, p));
     const launches: unknown[] = [];
@@ -897,5 +927,39 @@ describe('WrongMemoryPort checkout binding', () => {
     await expect(port.retrieveForPath({ path: 'src/a.ts' })).rejects.toBeInstanceOf(
       WrongMemoryUnavailableError,
     );
+  });
+
+  it('closes an in-flight client and does not start relay polling when disposed mid-connect (F64)', async () => {
+    let releaseConnect!: () => void;
+    const connectGate = new Promise<void>((r) => {
+      releaseConnect = r;
+    });
+    let markStarted!: () => void;
+    const started = new Promise<void>((r) => {
+      markStarted = r;
+    });
+    const lateClient = new FakeClient((m, p) => defaults(m, p));
+    const port = new WrongMemoryPort({
+      projectRoot: ROOT,
+      projectId: 'p_1',
+      events: { emit: () => undefined },
+      relayIntervalMs: 15,
+      connect: async () => {
+        markStarted();
+        await connectGate;
+        return lateClient;
+      },
+    });
+
+    const init = port.initialize().catch(() => undefined);
+    await started;
+    await port.dispose();
+    releaseConnect();
+    await init;
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(lateClient.closed).toBe(true);
+    expect(lateClient.calls).toHaveLength(0);
+    expect((port.getBackend() as { connected: boolean }).connected).toBe(false);
   });
 });

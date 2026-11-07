@@ -220,9 +220,23 @@ export async function backfillRecoverableSqliteSage(
 
   if (!dryRun && report.recoverableRecords.length > 0) {
     await ctx.runMutation(() => {
+      // The scan above ran OUTSIDE this transaction, so `alreadyRecovered` /
+      // `liveKnowledge` describe the pre-scan snapshot only. An overlapping
+      // apply — or a manual recoverSqliteSage — can resurrect a tombstone as a
+      // new active successor between that scan and this write pass, and
+      // re-checking the ORIGINAL's status alone does not see it (backfill
+      // leaves the tombstone 'deleted' by design). Re-derive the superseded set
+      // under the lock, mirroring the scan's own `alreadyRecovered` rule and
+      // recoverSqliteSage's in-mutation successor check, so the loser of the
+      // race does not create a second active copy of the same knowledge.
+      const restoredBySupersedes = new Set<string>();
+      for (const memory of ctx.listMemories()) {
+        if (memory.status === 'deleted') continue;
+        for (const previous of memory.supersedes ?? []) restoredBySupersedes.add(previous);
+      }
       for (const record of report.recoverableRecords) {
         const original = ctx.getMemory(record.originalId);
-        if (original?.status !== 'deleted') {
+        if (original?.status !== 'deleted' || restoredBySupersedes.has(record.originalId)) {
           record.reason = 'race_lost';
           report.byReason['race_lost'] = (report.byReason['race_lost'] ?? 0) + 1;
           continue;

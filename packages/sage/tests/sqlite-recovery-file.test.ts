@@ -82,6 +82,30 @@ describe('SQLite recovery and file memory operations', () => {
     expect(live).toHaveLength(1);
   });
 
+  it('overlapping backfill applies never create a second active copy', async () => {
+    const store = await createStore();
+    const created = await store.rememberSage({
+      text: 'Overlapping backfill contract',
+      sources: [{ type: 'test' }],
+    });
+    await store.deleteSage(created.id, 'test deletion', { force: true });
+
+    // Two applies started together both scan the tombstone before either write
+    // pass runs (runMutation defers behind the file lock), so the write pass
+    // must re-check for an already-created successor under the lock.
+    const [a, b] = await Promise.all([
+      store.backfillRecoverable({ dryRun: false }),
+      store.backfillRecoverable({ dryRun: false }),
+    ]);
+
+    const live = (await store.listSage(['active'])).filter(
+      (m) => m.text === 'Overlapping backfill contract',
+    );
+    expect(live).toHaveLength(1);
+    expect(a.recovered + b.recovered).toBe(1);
+    expect((a.byReason['race_lost'] ?? 0) + (b.byReason['race_lost'] ?? 0)).toBe(1);
+  });
+
   it('backfill does not restore a deleted memory whose knowledge is already active', async () => {
     const store = await createStore();
     const first = await store.rememberSage({

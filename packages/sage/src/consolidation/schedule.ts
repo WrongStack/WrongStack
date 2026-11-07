@@ -60,20 +60,32 @@ function readState(file: string): ConsolidationState {
 
 const readLastRun = (file: string) => readState(file).lastRunAt;
 
+let lockSeq = 0;
+
 /** Exclusive create; a lock older than {@link STALE_LOCK_MS} is taken over. */
-function acquireLock(file: string, nowMs: number): boolean {
+function acquireLock(file: string, nowMs: number, token: string): boolean {
   try {
-    fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+    fs.writeFileSync(file, token, { flag: 'wx' });
     return true;
   } catch {
     try {
       if (nowMs - fs.statSync(file).mtimeMs < STALE_LOCK_MS) return false;
       fs.rmSync(file, { force: true });
-      fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+      fs.writeFileSync(file, token, { flag: 'wx' });
       return true;
     } catch {
       return false;
     }
+  }
+}
+
+function releaseOwnedLock(file: string, token: string): void {
+  try {
+    if (fs.readFileSync(file, 'utf8') === token) {
+      fs.rmSync(file, { force: true });
+    }
+  } catch {
+    // A leftover lock goes stale and is taken over.
   }
 }
 
@@ -90,12 +102,15 @@ export function scheduleConsolidation(deps: ConsolidationScheduleDeps): () => vo
   const lockPath = path.join(deps.stateDir, LOCK_FILE);
   let lastActivity = now();
   let running = false;
+  let disposed = false;
+  let currentAbort: AbortController | undefined;
   const offActivity = deps.events?.on('iteration.started', () => {
     lastActivity = now();
+    currentAbort?.abort();
   });
 
   const check = async (): Promise<void> => {
-    if (running) return;
+    if (running || disposed) return;
     const at = now();
     if (at - lastActivity < idleMs || at - readLastRun(statePath) < DAY_MS) return;
     const llm = deps.getLlmCall();
@@ -105,8 +120,11 @@ export function scheduleConsolidation(deps: ConsolidationScheduleDeps): () => vo
     } catch {
       return;
     }
-    if (!acquireLock(lockPath, at)) return;
+    const lockToken = `${process.pid}:${at}:${++lockSeq}`;
+    if (!acquireLock(lockPath, at, lockToken)) return;
     running = true;
+    const abortController = new AbortController();
+    currentAbort = abortController;
     try {
       // Re-read under the lock: another host may have finished a pass.
       const state = readState(statePath);
@@ -117,9 +135,11 @@ export function scheduleConsolidation(deps: ConsolidationScheduleDeps): () => vo
       const { seenIds, ...report } = await runConsolidationPass(deps.surface, llm, {
         maxCalls: deps.maxCalls,
         now,
+        signal: abortController.signal,
         projectRoot: deps.projectRoot,
         skipIds: new Set(Object.keys(seen)),
       });
+      if (disposed || abortController.signal.aborted) return;
       // An outdated store owner withdrew the pass's proposal: remember nothing
       // as seen and retry an hour later instead of tomorrow.
       const stamp = new Date(
@@ -138,17 +158,15 @@ export function scheduleConsolidation(deps: ConsolidationScheduleDeps): () => vo
         `sage consolidation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
+      if (currentAbort === abortController) currentAbort = undefined;
       running = false;
-      try {
-        fs.rmSync(lockPath, { force: true });
-      } catch {
-        // A leftover lock goes stale and is taken over.
-      }
+      releaseOwnedLock(lockPath, lockToken);
     }
   };
 
   let interval: ReturnType<typeof setInterval> | undefined;
   const first = setTimeout(() => {
+    if (disposed) return;
     void check();
     interval = setInterval(() => void check(), deps.checkIntervalMs ?? CHECK_INTERVAL_MS);
     interval.unref?.();
@@ -156,6 +174,8 @@ export function scheduleConsolidation(deps: ConsolidationScheduleDeps): () => vo
   first.unref?.();
 
   return () => {
+    disposed = true;
+    currentAbort?.abort();
     offActivity?.();
     clearTimeout(first);
     if (interval) clearInterval(interval);

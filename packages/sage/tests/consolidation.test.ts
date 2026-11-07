@@ -437,4 +437,58 @@ describe('consolidation end to end on a real store', () => {
     dispose();
     expect(listeners).toHaveLength(0);
   });
+
+  it('aborts an in-flight pass on dispose or foreground activity and does not delete a foreign lock (F63)', async () => {
+    await seedLogs();
+    const stateDir = path.join(tmpDir, 'hygiene-f63');
+    const lockPath = path.join(stateDir, 'consolidation.lock');
+    const statePath = path.join(stateDir, 'consolidation.json');
+    const now = NOW;
+    let markStarted!: () => void;
+    const started = new Promise<void>((r) => {
+      markStarted = r;
+    });
+    let releaseLlm!: () => void;
+    const llmGate = new Promise<void>((r) => {
+      releaseLlm = r;
+    });
+
+    const llm = vi.fn(async (_sys: string, prompt: string) => {
+      markStarted();
+      await llmGate;
+      const ids = [...prompt.matchAll(/"id": "([^"]+)"/g)].map((m) => m[1]);
+      return JSON.stringify({
+        lesson: {
+          text: 'packages/tui/src/hooks/use-brain-panel.ts focus handling was audited clean three times; its duplicate interval is idempotent and is not a defect to re-raise.',
+          kind: 'anti_pattern',
+          anchors: [{ type: 'file', path: 'packages/tui/src/hooks/use-brain-panel.ts' }],
+          tags: ['tui'],
+          sourceIds: ids,
+        },
+      });
+    });
+
+    const dispose = scheduleConsolidation({
+      surface: store,
+      getLlmCall: () => llm,
+      stateDir,
+      maxCalls: 5,
+      logger: { debug: () => {} } as never,
+      now: () => now,
+      firstCheckMs: 5,
+      checkIntervalMs: 1_000,
+      idleMs: 0,
+    });
+
+    await started;
+    // Simulate a foreign host taking over the lock while this pass was stalled, then dispose.
+    await fs.writeFile(lockPath, 'foreign-host-lock-token', 'utf8');
+    dispose();
+    releaseLlm();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(await fs.readFile(lockPath, 'utf8')).toBe('foreign-host-lock-token');
+    await expect(fs.stat(statePath)).rejects.toThrow();
+    expect(await store.listCandidates(false)).toHaveLength(0);
+  });
 });

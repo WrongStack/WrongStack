@@ -95,6 +95,7 @@ export async function runConsolidationPass(
       report.errors++;
       continue;
     }
+    if (options.signal?.aborted) break;
     const lesson = parseConsolidationResponse(raw, batch);
     if (!lesson) {
       report.noLesson++;
