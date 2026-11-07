@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-07T17:34:13.181Z
+**Generated:** 2026-11-07T17:35:59.389Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6068 |
-| Production source lines | 1257561 |
+| Production source lines | 1257605 |
 | Test files | 5058 |
 | Workspace dependency edges | 244 |
 | Relative module edges | 17935 |
@@ -120,6 +120,7 @@ None.
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
+| 726 | `packages/vector-memory/src/store.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
 | 719 | `packages/chronicle/src/project-server-client.ts` |
@@ -139,7 +140,6 @@ None.
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
-| 701 | `packages/coordination/src/provider-status-tracker.ts` |
 
 ## Exports only tests reference
 

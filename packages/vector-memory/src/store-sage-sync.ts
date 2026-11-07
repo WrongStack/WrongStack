@@ -38,6 +38,7 @@ export async function syncSageEntries(
   // historical `limit: 5000` silently truncated large projects; the
   // caller's source is now authoritative.
   const memories = await sage.listActiveMemories({ limit: Number.POSITIVE_INFINITY });
+  host.assertOpen();
   let indexed = 0;
   let skipped = 0;
   let failed = 0;
@@ -119,9 +120,11 @@ export async function syncSageEntries(
       if (changed) indexed++;
       else skipped++;
     } catch (err) {
+      host.assertOpen();
       failed++;
       errors.push({ memoryId: memory.id, message: errMsg(err) });
     }
   }
+  host.assertOpen();
   return { scanned: memories.length, indexed, skipped, failed, errors };
 }

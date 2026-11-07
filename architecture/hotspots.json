@@ -98,6 +98,10 @@
       "lines": 703,
       "relativeImports": 6
     },
+    "packages/vector-memory/src/store.ts": {
+      "lines": 726,
+      "relativeImports": 8
+    },
     "packages/vibeui/src/components/memory-browser.tsx": {
       "lines": 709,
       "relativeImports": 12

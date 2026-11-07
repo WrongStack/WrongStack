@@ -154,8 +154,14 @@ export function subscribeVectorMemoryToSage(
       // The forget-then-remember churn is one extra DELETE per SAGE
       // write — an acceptable cost for a state that actually matches
       // the source of truth.
-      const existing = store.findBySageId(memoryId);
-      if (existing) await store.forget(existing.id);
+      for (
+        let existing = store.findBySageId(memoryId);
+        existing;
+        existing = store.findBySageId(memoryId)
+      ) {
+        if (!(await store.forget(existing.id))) break;
+        if (disposed) return;
+      }
       if (disposed) return;
       await store.remember({
         text: memory.text,
@@ -179,8 +185,13 @@ export function subscribeVectorMemoryToSage(
 
   const forgetMirror = async (memoryId: string): Promise<void> => {
     try {
-      const existing = store.findBySageId(memoryId);
-      if (existing) await store.forget(existing.id);
+      for (
+        let existing = store.findBySageId(memoryId);
+        existing;
+        existing = store.findBySageId(memoryId)
+      ) {
+        if (!(await store.forget(existing.id))) break;
+      }
     } catch (err) {
       log?.warn?.(`vector-memory mirror forget failed for ${memoryId}: ${errMsg(err)}`);
     }

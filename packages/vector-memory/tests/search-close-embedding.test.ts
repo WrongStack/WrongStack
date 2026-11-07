@@ -68,3 +68,51 @@ it('verifies vector, empty, failure and strict embedding completions after close
   const strict = await exercise(false, 'failure', true);
   expect(strict.error?.message).toContain('provider failed');
 });
+
+it('rejects remember, forget, and syncFromSage with closed error when closed mid-operation and deduplicates concurrent sageId writes', async () => {
+  const root2 = mkdtempSync(path.join(tmpdir(), 'audit-six-vector-'));
+  let entered2!: () => void;
+  let release2!: () => void;
+  const enteredPromise2 = new Promise<void>((r) => {
+    entered2 = r;
+  });
+  const gate2 = new Promise<void>((r) => {
+    release2 = r;
+  });
+  let calls2 = 0;
+  const store2 = new VectorMemoryStore({
+    provider: {
+      id: 'gated-write-2',
+      dimensions: 2,
+      embed: async () => {
+        calls2++;
+        if (calls2 === 1) throw new Error('seed-outage');
+        if (calls2 <= 3) return [new Float32Array([1, 0])];
+        entered2();
+        await gate2;
+        return [new Float32Array([1, 0])];
+      },
+    },
+    projectRoot: root2,
+  });
+  try {
+    const seeded = await store2.remember({ text: 'recover-target' });
+    expect(seeded.vector).toBeUndefined();
+    await store2.remember({ text: 'v1-body', metadata: { source: 'sage', sageId: 'dup-sage' } });
+    await store2.remember({ text: 'v2-body', metadata: { source: 'sage', sageId: 'dup-sage' } });
+    expect(
+      store2.list({ limit: 10 }).filter((e) => e.metadata?.['sageId'] === 'dup-sage'),
+    ).toHaveLength(1);
+
+    const recoverPromise = store2.remember({ text: 'recover-target' });
+    await enteredPromise2;
+    const forgetPromise = store2.forget(seeded.id);
+    store2.close();
+    release2();
+    await expect(recoverPromise).rejects.toThrow('VectorMemoryStore is closed');
+    await expect(forgetPromise).rejects.toThrow('VectorMemoryStore is closed');
+  } finally {
+    store2.close();
+    rmSync(root2, { recursive: true, force: true });
+  }
+});

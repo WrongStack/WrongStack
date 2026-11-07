@@ -247,6 +247,7 @@ export class VectorMemoryStore {
     }
     try {
       const result = await this.provider.embed([text]);
+      this.assertOpen();
       const vec = result[0];
       if (vec && vec.length !== this.provider.dimensions) {
         throw new Error(
@@ -259,6 +260,7 @@ export class VectorMemoryStore {
       if (vec) this.cacheVector(text, vec, now);
       return vec;
     } catch (err) {
+      this.assertOpen();
       if (strict) {
         throw new VectorMemoryProviderUnavailableError(
           `Embedding provider "${this.provider.id}" failed: ${errMsg(err)}`,
@@ -398,6 +400,7 @@ export class VectorMemoryStore {
   }
 
   private async rememberUnlocked(input: VectorEntryInput): Promise<VectorEntryWithVector> {
+    this.assertOpen();
     const now = new Date().toISOString();
     let contentHash = VectorMemoryStore.contentHash(input.text);
     const scope: VectorScope = input.scope ?? 'project';
@@ -406,6 +409,8 @@ export class VectorMemoryStore {
     // second line of defense across processes.
     let existing = this.findByContentHash(contentHash, scope);
     const sageId = input.metadata?.['sageId'];
+    const normalizedSageId =
+      typeof sageId === 'string' && sageId.trim().length > 0 ? sageId : undefined;
     // Key by sageId when the rawHash slot belongs to another SAGE memory, or when the
     // rawHash slot is free and this sageId already has a keyed row from an earlier collision.
     if (typeof sageId === 'string' && sageId.length > 0) {
@@ -418,6 +423,17 @@ export class VectorMemoryStore {
       }
     }
     if (existing) {
+      if (normalizedSageId !== undefined) {
+        this.db
+          .prepare(
+            `DELETE FROM entries
+              WHERE CASE WHEN json_valid(metadata)
+                         THEN json_extract(metadata, '$.sageId')
+                    END = ?
+                AND id != ?`,
+          )
+          .run(normalizedSageId, existing.id);
+      }
       if (
         existing.providerId === this.provider.id &&
         existing.dimensions === this.provider.dimensions &&
@@ -426,6 +442,7 @@ export class VectorMemoryStore {
         return existing;
       }
       const recoveredVector = await this.embedWithCache(input.text);
+      this.assertOpen();
       if (!recoveredVector) {
         const { vector: _staleVector, ...withoutVector } = existing;
         return { ...withoutVector, providerId: '', dimensions: 0 };
@@ -461,10 +478,22 @@ export class VectorMemoryStore {
     const id = randomUUID();
 
     const vector = await this.embedWithCache(input.text);
+    this.assertOpen();
     const providerId = vector ? this.provider.id : undefined;
 
     this.db.exec('BEGIN');
     try {
+      if (normalizedSageId !== undefined) {
+        this.db
+          .prepare(
+            `DELETE FROM entries
+              WHERE CASE WHEN json_valid(metadata)
+                         THEN json_extract(metadata, '$.sageId')
+                    END = ?
+                AND id != ?`,
+          )
+          .run(normalizedSageId, id);
+      }
       this.db
         .prepare(
           `INSERT INTO entries
@@ -541,6 +570,7 @@ export class VectorMemoryStore {
 
   /** Hard-delete an entry by id without acquiring the lock (caller must hold lock if needed). */
   private forgetUnlocked(id: string): boolean {
+    this.assertOpen();
     this.db.exec('BEGIN');
     try {
       const info = this.db.prepare('DELETE FROM entries WHERE id = ?').run(id);
