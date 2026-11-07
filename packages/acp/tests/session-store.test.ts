@@ -571,4 +571,28 @@ describe('ACPSessionStore', () => {
     const listed = await new ACPSessionStore({ dir }).list();
     expect(listed).toHaveLength(13);
   });
+
+  it('serializes same-session save/delete and filters corrupt or mismatched files on scan (F17)', async () => {
+    const saveP = store.save(fakeState({ id: 'sess_same_race' }));
+    const delP = store.delete('sess_same_race');
+    await Promise.all([saveP, delP]);
+    expect(await store.load('sess_same_race')).toBeNull();
+    expect((await store.list()).some((e) => e.id === 'sess_same_race')).toBe(false);
+
+    await store.save(fakeState({ id: 'sess_good', updatedAt: '2026-01-05T00:00:00.000Z' }));
+    await fsp.writeFile(
+      path.join(dir, 'sess_bad_meta.json'),
+      JSON.stringify({ id: 'sess_bad_meta', modeId: 99, updatedAt: '2026-01-06T00:00:00.000Z' }),
+      'utf8',
+    );
+    await fsp.writeFile(
+      path.join(dir, 'sess_mismatch.json'),
+      JSON.stringify({ id: 'index', updatedAt: '2026-01-07T00:00:00.000Z' }),
+      'utf8',
+    );
+    await fsp.unlink(path.join(dir, 'index.json')).catch(() => {});
+    expect(await store.list()).toEqual([
+      { id: 'sess_good', updatedAt: '2026-01-05T00:00:00.000Z' },
+    ]);
+  });
 });

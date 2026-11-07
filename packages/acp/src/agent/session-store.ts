@@ -205,6 +205,7 @@ export class ACPSessionStore {
    * `packages/core/src/storage/tool-audit-log.ts`.
    */
   private indexChain: Promise<void> = Promise.resolve();
+  private readonly sessionChains = new Map<string, Promise<void>>();
   /**
    * Monotonic per-store counter. Used to make tmp filenames unique so two
    * concurrent saves started in the same millisecond cannot collide on
@@ -215,6 +216,22 @@ export class ACPSessionStore {
 
   constructor(opts: SessionStoreOptions = {}) {
     this.dir = opts.dir ?? path.join(process.cwd(), '.acp-sessions');
+  }
+
+  private withSessionLock<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.sessionChains.get(sessionId) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    const settled = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.sessionChains.set(sessionId, settled);
+    void settled.finally(() => {
+      if (this.sessionChains.get(sessionId) === settled) {
+        this.sessionChains.delete(sessionId);
+      }
+    });
+    return next;
   }
 
   /**
@@ -272,55 +289,58 @@ export class ACPSessionStore {
     if (target === null) {
       throw new Error(`ACPSessionStore: refusing to persist unsafe session id "${state.id}"`);
     }
-    await this.init();
-    // Atomic tmp+rename (same pattern as writeIndex): a crash mid-save must
-    // not tear the session file — it carries replayable history. The
-    // per-call sequence counter keeps the tmp unique even when two
-    // concurrent saves fire inside the same millisecond.
-    const tmp = `${target}.${process.pid}.${Date.now()}.${++this.writeSeq}.tmp`;
-    let renamed = false;
-    try {
-      const data = JSON.stringify({
-        id: state.id,
-        cwd: state.cwd,
-        modeId: state.modeId,
-        configOptions: state.configOptions,
-        createdAt: state.createdAt,
-        updatedAt: state.updatedAt,
-        title: state.title,
-        ...(state.mcpServers && state.mcpServers.length > 0
-          ? { mcpServers: state.mcpServers }
-          : {}),
-        ...(history && history.length > 0 ? { history } : {}),
-      });
+    return this.withSessionLock(state.id, async () => {
+      await this.init();
+      // Atomic tmp+rename (same pattern as writeIndex): a crash mid-save must
+      // not tear the session file — it carries replayable history. The
+      // per-call sequence counter keeps the tmp unique even when two
+      // concurrent saves fire inside the same millisecond.
+      const tmp = `${target}.${process.pid}.${Date.now()}.${++this.writeSeq}.tmp`;
+      let renamed = false;
       try {
-        await fsp.writeFile(tmp, data, 'utf8');
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-        // Recover once when the memoized directory disappeared between saves.
-        this.initialized = false;
-        await this.init();
-        await fsp.writeFile(tmp, data, 'utf8');
+        const data = JSON.stringify({
+          id: state.id,
+          cwd: state.cwd,
+          modeId: state.modeId,
+          configOptions: state.configOptions,
+          createdAt: state.createdAt,
+          updatedAt: state.updatedAt,
+          title: state.title,
+          ...(state.mcpServers && state.mcpServers.length > 0
+            ? { mcpServers: state.mcpServers }
+            : {}),
+          ...(history && history.length > 0 ? { history } : {}),
+        });
+        try {
+          await fsp.writeFile(tmp, data, 'utf8');
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+          // Recover once when the memoized directory disappeared between saves.
+          this.initialized = false;
+          await this.init();
+          await fsp.writeFile(tmp, data, 'utf8');
+        }
+        await fsp.rename(tmp, target);
+        renamed = true;
+      } finally {
+        // Best-effort: drop the tmp unless rename already moved it into place.
+        // Without this, a failing write/rename leaks an orphan on every retry
+        // (Chimera MEDIUM — repeated persistence failures accumulate).
+        if (!renamed) {
+          /* v8 ignore next */
+          await fsp.unlink(tmp).catch(() => undefined);
+        }
       }
-      await fsp.rename(tmp, target);
-      renamed = true;
-    } finally {
-      // Best-effort: drop the tmp unless rename already moved it into place.
-      // Without this, a failing write/rename leaks an orphan on every retry
-      // (Chimera MEDIUM — repeated persistence failures accumulate).
-      if (!renamed) {
-        /* v8 ignore next */
-        await fsp.unlink(tmp).catch(() => undefined);
-      }
-    }
-    await this.updateIndex(state.id, state.updatedAt);
-    return state.id;
+      await this.updateIndex(state.id, state.updatedAt);
+      return state.id;
+    });
   }
 
   /** Load a persisted session (metadata + history) from disk, or null. */
   async load(sessionId: string): Promise<PersistedSession | null> {
     const target = this.sessionFile(sessionId);
     if (target === null) return null;
+    await this.sessionChains.get(sessionId);
     try {
       const data = await fsp.readFile(target, 'utf8');
       return parsePersistedSession(data);
@@ -366,15 +386,12 @@ export class ACPSessionStore {
 
     const sessions: Array<{ id: string; updatedAt: string }> = [];
     for (const file of files) {
+      const stem = file.slice(0, -5);
+      if (this.sessionFile(stem) === null) continue;
       try {
         const data = await fsp.readFile(path.join(this.dir, file), 'utf8');
-        const parsed = JSON.parse(data) as { id?: string; updatedAt?: string };
-        if (
-          parsed &&
-          typeof parsed.id === 'string' &&
-          parsed.id !== '' &&
-          (parsed.updatedAt === undefined || typeof parsed.updatedAt === 'string')
-        ) {
+        const parsed = parsePersistedSession(data);
+        if (parsed && parsed.id === stem) {
           sessions.push({ id: parsed.id, updatedAt: parsed.updatedAt ?? '' });
         }
       } catch {
@@ -431,6 +448,7 @@ export class ACPSessionStore {
         if (
           e &&
           typeof (e as { id?: unknown }).id === 'string' &&
+          this.sessionFile((e as { id: string }).id) !== null &&
           typeof (e as { updatedAt?: unknown }).updatedAt === 'string'
         ) {
           out.push({
@@ -496,25 +514,27 @@ export class ACPSessionStore {
   async delete(sessionId: string): Promise<void> {
     const target = this.sessionFile(sessionId);
     if (target === null) return;
-    try {
-      await fsp.unlink(target);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-    }
-    // Best-effort: drop the entry from the sidecar index so future
-    // `list()` calls don't return a stale row. Routed through the
-    // index lock so concurrent save/delete cannot race on the index.
-    await this.withIndexLock(async () => {
-      const entries = await this.readIndex();
-      if (entries === null) return;
-      const next = entries.filter((e) => e.id !== sessionId);
-      if (next.length !== entries.length) {
-        try {
-          await this.writeIndex(next);
-        } catch {
-          // Index is best-effort; next list() rebuild will fix it.
-        }
+    await this.withSessionLock(sessionId, async () => {
+      try {
+        await fsp.unlink(target);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
       }
+      // Best-effort: drop the entry from the sidecar index so future
+      // `list()` calls don't return a stale row. Routed through the
+      // index lock so concurrent save/delete cannot race on the index.
+      await this.withIndexLock(async () => {
+        const entries = await this.readIndex();
+        if (entries === null) return;
+        const next = entries.filter((e) => e.id !== sessionId);
+        if (next.length !== entries.length) {
+          try {
+            await this.writeIndex(next);
+          } catch {
+            // Index is best-effort; next list() rebuild will fix it.
+          }
+        }
+      });
     });
   }
 

@@ -154,6 +154,10 @@ export async function handleSessionLoadOp(
       if (ctx.sessions.has(sessionId)) {
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
+      if ((await ctx.store.load(sessionId)) === null) {
+        await ctx.sendError(id, -32000, `session not found: ${sessionId}`);
+        return false;
+      }
       if (ctx.sessions.size >= ctx.maxSessions) {
         await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
         return false;
@@ -180,8 +184,10 @@ export async function handleSessionLoadOp(
         await ctx.persist(restored, persisted.history);
       }
       for (const update of replayHistory ? (persisted.history ?? []) : []) {
+        if (ctx.sessions.get(sessionId) !== restored) return false;
         await ctx.sendNotification({ sessionId, update });
       }
+      if (ctx.sessions.get(sessionId) !== restored) return false;
       if (replayHistory)
         await ctx.sendNotification({
           sessionId,
@@ -241,9 +247,11 @@ export async function handleSessionLoadOp(
     }
     if (replayHistory && replay) {
       for (const update of replay) {
+        if (ctx.sessions.get(sessionId!) !== existing) return false;
         await ctx.sendNotification({ sessionId, update });
       }
     }
+    if (ctx.sessions.get(sessionId!) !== existing) return false;
     if (replayHistory)
       await ctx.sendNotification({
         sessionId,

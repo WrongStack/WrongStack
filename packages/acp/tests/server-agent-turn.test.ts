@@ -1238,4 +1238,58 @@ describe('serverAgentTurn deterministic helpers', () => {
     expect(first.teardown).toHaveBeenCalledOnce();
     expect(second.teardown).toHaveBeenCalledOnce();
   });
+
+  it('suppresses error chunks and history recording on cancelled turns and clears history on empty/oversized seeds (F15)', async () => {
+    const updates: unknown[] = [];
+    const controller = new AbortController();
+    const appended: unknown[] = [];
+    const turn = makeACPServerAgentTurn({
+      maxHistoryBytes: 128,
+      agentFor: async () =>
+        ({
+          ctx: { state: { appendMessage: (m: unknown) => appended.push(m) } },
+          run: vi.fn(
+            (_input: unknown, { signal }: { signal: AbortSignal }) =>
+              new Promise((resolve) => {
+                if (signal.aborted) {
+                  resolve({ status: 'cancelled', error: 'Turn aborted by user' });
+                  return;
+                }
+                signal.addEventListener(
+                  'abort',
+                  () => resolve({ status: 'cancelled', error: 'Turn aborted by user' }),
+                  { once: true },
+                );
+              }),
+          ),
+          teardown: vi.fn(),
+        }) as never as Agent,
+    });
+
+    const pending = turn(
+      {
+        sessionId: 'f15-cancel',
+        prompt: [{ type: 'text', text: 'do work' }],
+        signal: controller.signal,
+      },
+      (u) => updates.push(u),
+    );
+    await new Promise((r) => setImmediate(r));
+    controller.abort();
+    const res = await pending;
+    expect(res).toEqual({ stopReason: 'cancelled' });
+    expect(updates).toEqual([]);
+    expect(turn.replay('f15-cancel')).toEqual([]);
+
+    turn.seed('f15-seed', [
+      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'short' } },
+    ]);
+    expect(turn.replay('f15-seed')).toHaveLength(1);
+    turn.seed('f15-seed', []);
+    expect(turn.replay('f15-seed')).toEqual([]);
+    turn.seed('f15-seed', [
+      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'x'.repeat(200) } },
+    ]);
+    expect(turn.replay('f15-seed')).toEqual([]);
+  });
 });

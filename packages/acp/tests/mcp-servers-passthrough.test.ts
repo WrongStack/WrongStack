@@ -296,5 +296,27 @@ describe('ACP session mcpServers passthrough', () => {
       params: { sessionId: forkId, prompt: [{ type: 'text', text: 'forked' }] },
     });
     expect(h2.turns.at(-1)?.mcpServers).toBeUndefined();
+
+    // Cold session/load racing with session/delete must not resurrect the deleted session (F16)
+    await h2.handler.handleMessage({ id: 18, method: 'session/close', params: { sessionId } });
+    const origLoad = store.load.bind(store);
+    let deletePromise: Promise<boolean> | undefined;
+    store.load = async (id: string) => {
+      store.load = origLoad;
+      const loaded = await origLoad(id);
+      deletePromise = h2.handler.handleMessage({
+        id: 20,
+        method: 'session/delete',
+        params: { sessionId: id },
+      });
+      return loaded;
+    };
+    await h2.handler.handleMessage({
+      id: 19,
+      method: 'session/load',
+      params: { sessionId, cwd: CWD },
+    });
+    await deletePromise;
+    expect(await store.load(sessionId)).toBeNull();
   });
 });

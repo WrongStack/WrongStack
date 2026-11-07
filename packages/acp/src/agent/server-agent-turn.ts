@@ -292,12 +292,12 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
         return { stopReason: 'cancelled' };
       }
       agents.set(input.sessionId, agent);
-      // Cold-load priming: re-feed the restored conversation into the new
-      // agent's context so the MODEL resumes (not just the client UI).
-      if (pendingSeed.has(input.sessionId)) {
-        pendingSeed.delete(input.sessionId);
-        seedAgentContext(agent, history.get(input.sessionId)!);
-      }
+    }
+    // Cold-load priming: re-feed the restored conversation into the
+    // agent's context so the MODEL resumes (not just the client UI).
+    if (pendingSeed.delete(input.sessionId)) {
+      const prior = history.get(input.sessionId);
+      if (prior) seedAgentContext(agent, prior);
     }
 
     // This turn's loop injects every result queued so far, so any notice still
@@ -378,7 +378,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       // Stream the agent's final text back. A failed run with no text would
       // otherwise reach the client as an empty, successful-looking end_turn
       // (#421), so its error becomes the visible reply.
-      const text = extractText(result) || extractRunError(result);
+      const text = extractText(result) || (turnAbort.signal.aborted ? '' : extractRunError(result));
       if (text) {
         emit({
           sessionUpdate: 'agent_message_chunk',
@@ -388,7 +388,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
 
       // Record the turn so `session/load` can replay the conversation (not
       // for a session disposed mid-turn: that would outlive the session).
-      const record = alive();
+      const record = alive() && !turnAbort.signal.aborted;
       const userText = promptToText(input.prompt);
       const hist = history.get(input.sessionId) ?? [];
       let retainedHistoryBytes = historyBytes.get(input.sessionId) ?? 0;
@@ -476,7 +476,12 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     sessionId: string,
     incoming: ReadonlyArray<{ sessionUpdate: string; content: unknown }>,
   ): void => {
-    if (incoming.length === 0) return;
+    if (incoming.length === 0) {
+      history.delete(sessionId);
+      historyBytes.delete(sessionId);
+      pendingSeed.delete(sessionId);
+      return;
+    }
     const seeded = [...incoming] as SessionReplayUpdate[];
     const retainedBytes = trimHistory(
       seeded,
@@ -484,6 +489,12 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       maxHistoryEntries,
       maxHistoryBytes,
     );
+    if (seeded.length === 0) {
+      history.delete(sessionId);
+      historyBytes.delete(sessionId);
+      pendingSeed.delete(sessionId);
+      return;
+    }
     history.set(sessionId, seeded);
     historyBytes.set(sessionId, retainedBytes);
     pendingSeed.add(sessionId);
