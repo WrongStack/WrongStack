@@ -59,7 +59,7 @@
   background: var(--raised);
 }
 .file-content-search-results strong {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .file-content-search-results span,
@@ -69,7 +69,7 @@
 .file-content-search-results code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
 }
 .file-content-search-dialog > small {
   color: var(--muted);

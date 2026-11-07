@@ -20,7 +20,7 @@
 .recovery-heading p,
 .recovery-checkpoints :where(header) p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   max-width: 760px;
 }
@@ -45,7 +45,7 @@
   margin-left: auto;
 }
 .recovery-identity p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin: 0;
 }
@@ -67,7 +67,7 @@
 }
 .recovery-metrics span {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -109,7 +109,7 @@
 }
 .recovery-checkpoints strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -117,7 +117,7 @@
 .recovery-files small {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 5px;
 }
 .recovery-checkpoint-index {
@@ -129,7 +129,7 @@
   background: var(--base);
   color: var(--accent);
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .recovery-detail-grid {
   display: grid;
@@ -186,18 +186,18 @@
 .recovery-events small {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 6px;
 }
 .recovery-events strong {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.7;
 }
 .recovery-events :where(li) p {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
   white-space: pre-wrap;
@@ -214,7 +214,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   margin: 18px 0;
   overflow-wrap: anywhere;
 }
@@ -230,7 +230,7 @@
   align-items: center;
   gap: 8px;
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
   background: transparent;
   border: 0;
   padding: 7px 0;
@@ -246,7 +246,7 @@
 }
 .recovery-outcome p,
 .recovery-outcome li {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -280,7 +280,7 @@
   gap: 4px;
   border-left: 3px solid var(--border);
   padding-left: 12px;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .recovery-record-partial,
@@ -323,7 +323,7 @@
   max-height: 180px;
   overflow: auto;
   white-space: pre-wrap;
-  font-size: 12px;
+  font-size: 13px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 5px;

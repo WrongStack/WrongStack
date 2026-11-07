@@ -3,7 +3,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .scheduled-jobs.overdue {
   border-color: var(--danger);
@@ -41,7 +41,7 @@
   padding: 0 6px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .scheduled-job-status.active {
   border-color: hsl(var(--ws-success));

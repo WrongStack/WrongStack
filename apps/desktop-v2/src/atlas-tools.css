@@ -21,7 +21,7 @@
 .atlas-index-controls .button {
   gap: 6px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -29,7 +29,7 @@
   max-width: 260px;
   overflow: hidden;
   color: hsl(var(--destructive));
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -38,7 +38,7 @@
   gap: 10px;
   padding: 10px 12px;
   border-top: 1px solid hsl(var(--border));
-  font-size: 12px;
+  font-size: 13px;
 }
 .atlas-code-assist {
   overflow-y: auto;

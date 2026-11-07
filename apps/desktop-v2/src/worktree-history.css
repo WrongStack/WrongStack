@@ -8,7 +8,7 @@
   gap: 4px 12px;
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .worktree-history-counts strong {
   color: var(--text);
@@ -28,7 +28,7 @@
   display: grid;
   min-width: 0;
   padding-right: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .worktree-history-label code,
 .worktree-history-label small {
@@ -123,7 +123,7 @@
   position: relative;
   height: 14px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .worktree-history-axis span {
   position: absolute;
@@ -154,7 +154,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .worktree-history-detail header {
   display: flex;
@@ -173,7 +173,7 @@
   padding: 0 6px;
   border: 1px solid currentColor;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .worktree-history-detail > p {
   margin: 0;

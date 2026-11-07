@@ -12,7 +12,7 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .image-diff-modes {
   display: flex;
@@ -24,7 +24,7 @@
   gap: 4px;
   padding: 4px 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -90,7 +90,7 @@
   gap: 8px;
   width: min(100%, 28rem);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .image-diff-onion input {
   flex: 1;
@@ -106,7 +106,7 @@
   gap: 8px;
   color: var(--muted);
   font-family: var(--user-font-code, var(--mono, monospace));
-  font-size: 11px;
+  font-size: 12px;
 }
 .image-diff figcaption strong {
   color: var(--text);

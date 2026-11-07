@@ -19,7 +19,7 @@
 .prompt-preset-editor label {
   display: grid;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .prompt-preset-variant ul {
   display: grid;
@@ -42,16 +42,16 @@
 }
 .prompt-preset-editor textarea {
   font-family: var(--user-font-code, var(--mono, monospace));
-  font-size: 12px;
+  font-size: 13px;
 }
 .prompt-preset-editor pre,
 .prompt-preset-source pre {
   max-height: 320px;
   overflow: auto;
   white-space: pre-wrap;
-  font-size: 11px;
+  font-size: 12px;
 }
 .prompt-preset-issues {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
 }

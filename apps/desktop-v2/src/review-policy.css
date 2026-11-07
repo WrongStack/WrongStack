@@ -3,7 +3,7 @@
   margin-bottom: 18px;
 }
 .review-policy-settings .policy-field-grid label > span {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .review-chain-evidence {
@@ -11,7 +11,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--base);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }

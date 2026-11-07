@@ -15,7 +15,7 @@
 }
 .mcp-connection-editor :where(p, small, li) {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .mcp-connection-editor > fieldset {
@@ -38,7 +38,7 @@
 .mcp-connection-editor :where(summary) {
   margin-top: 20px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mcp-connection-editor :where(ul) {
   padding-left: 20px;
@@ -96,7 +96,7 @@
 .mcp-authorization {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mcp-authorization > summary {
   display: inline-flex;

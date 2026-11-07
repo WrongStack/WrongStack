@@ -7,7 +7,7 @@
   padding: 8px 12px;
   border: 1px solid var(--accent);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .hunt-paused > svg {
   color: var(--accent);
@@ -25,7 +25,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .hunt-round-card > strong > svg {
   color: var(--accent);
@@ -39,7 +39,7 @@
   max-width: 100%;
   padding: 4px 8px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
   border: 1px solid var(--border);

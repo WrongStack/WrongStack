@@ -21,12 +21,12 @@
 }
 .atlas-view-switcher :where(strong) {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 .atlas-view-switcher :where(small) {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 5px;
   line-height: 1.5;
@@ -56,7 +56,7 @@
   font-weight: 500;
 }
 .atlas-view-heading :where(p) {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.8;
   margin-bottom: 0;
@@ -70,7 +70,7 @@
 }
 .atlas-grouping > button {
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -109,7 +109,7 @@
   gap: 12px;
 }
 .atlas-subsystem-card :where(h3) {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
   font-weight: 550;
   margin: 0;
@@ -120,7 +120,7 @@
 }
 .atlas-subsystem-card :where(header) :where(small) {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   font-weight: 400;
 }
@@ -146,7 +146,7 @@
   align-items: center;
   gap: 3px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .atlas-subsystem-card :where(dd) {
   margin: 5px 0 0;
@@ -179,13 +179,13 @@
 .atlas-subsystem-nodes :where(strong),
 .atlas-impact-ring :where(strong) {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .atlas-subsystem-nodes :where(small),
 .atlas-impact-ring :where(small) {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,7 +193,7 @@
   margin-top: 4px;
 }
 .atlas-subsystem-nodes :where(b) {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .atlas-matrix-pages {
@@ -202,7 +202,7 @@
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
 }
 .atlas-matrix-pages :where(button) {
@@ -219,11 +219,11 @@
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
-  font-size: 10px;
+  font-size: 11px;
 }
 .atlas-matrix-scroll :where(caption) {
   text-align: left;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   padding: 8px;
 }
@@ -249,7 +249,7 @@
   padding: 0 10px;
 }
 .atlas-matrix-scroll :where(th) > :where(button) {
-  font-size: 10px;
+  font-size: 11px;
   padding: 6px 0;
   width: 100%;
   text-align: inherit;
@@ -279,20 +279,20 @@
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   column-gap: 20px;
   row-gap: 10px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   padding-left: 20px;
 }
 .atlas-matrix-key :where(button) {
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text);
   overflow-wrap: anywhere;
 }
 .atlas-matrix-key :where(small) {
   display: block;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 3px;
 }
 .atlas-impact-controls {
@@ -304,7 +304,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   flex: 1;
   min-width: 140px;
@@ -329,12 +329,12 @@
   font-weight: 400;
 }
 .atlas-impact-summary > :where(span) {
-  font-size: 12px;
+  font-size: 13px;
 }
 .atlas-impact-summary :where(small) {
   display: block;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 7px;
 }
 .atlas-impact-ring {
@@ -344,13 +344,13 @@
   display: flex;
   justify-content: space-between;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 8px;
   background: var(--raised);
   border-left: 2px solid var(--accent);
 }
 .atlas-impact-ring :where(em) {
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
   color: var(--subtle);
   max-width: 100px;

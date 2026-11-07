@@ -78,11 +78,11 @@
   overflow-wrap: anywhere;
 }
 .live-fleet-map :where(.react-flow__node) small {
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 8px;
 }
 .live-fleet-caption {
-  font-size: 11px;
+  font-size: 12px;
 }
 .live-fleet-list {
   display: grid;
@@ -98,7 +98,7 @@
 }
 .live-fleet-list :where(article) > header {
   margin-bottom: 16px;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .live-fleet-list header .text-link {
@@ -109,7 +109,7 @@
 }
 .live-fleet-list :where(header) :where(.text-link) small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 .live-fleet-map .react-flow__node.selected {
@@ -159,7 +159,7 @@
   display: grid;
   grid-template-columns: 145px minmax(0, 1fr);
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .live-fleet-inspector dt {
   color: var(--muted);
@@ -218,7 +218,7 @@
 }
 .live-fleet-activity time,
 .live-fleet-activity small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .live-fleet-activity details {

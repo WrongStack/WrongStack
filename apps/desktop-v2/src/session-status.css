@@ -91,7 +91,7 @@ strong.context-critical {
 .chat-turn-meta {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .agent-working-elapsed {
   color: var(--muted);

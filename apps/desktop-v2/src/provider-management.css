@@ -6,7 +6,7 @@
 .saved-provider-list .saved-key-actions button {
   width: auto;
   display: inline-flex;
-  font-size: 10px;
+  font-size: 11px;
   padding: 5px 8px;
 }
 /* A destructive action, drawn as one: it read as muted text, like a section label. */
@@ -17,7 +17,7 @@
   width: auto;
   margin-top: 14px;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--danger);
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
@@ -31,7 +31,7 @@
   background: var(--sidebar);
 }
 .provider-management-confirm p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .saved-provider-list .provider-management-confirm button,
@@ -50,7 +50,7 @@
 }
 .provider-wiring {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .provider-wiring summary {
   cursor: pointer;

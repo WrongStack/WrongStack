@@ -2,15 +2,15 @@
   display: grid;
   gap: 14px;
   min-width: min(720px, 100%);
-  font-size: 12px;
+  font-size: 13px;
 }
 .kanban-contract-map h3 {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .kanban-contract-map h4 {
   margin: 8px 0 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .kanban-contract-map ul {
   margin: 0;
@@ -38,7 +38,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .kanban-contract-enforcement {
   display: grid;

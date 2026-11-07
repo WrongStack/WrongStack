@@ -20,7 +20,7 @@
   display: grid;
   gap: 4px;
   margin: 6px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-browser-selection code {
   overflow-wrap: anywhere;
@@ -28,5 +28,5 @@
 .session-browser-log ol {
   max-height: 200px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
 }

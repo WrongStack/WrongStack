@@ -16,7 +16,7 @@
   gap: 7px;
   flex: 1;
   min-width: 160px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .provider-quota-grid {
   display: grid;
@@ -43,11 +43,11 @@
   margin: 6px 0 16px;
 }
 .provider-health p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .provider-health small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.6;
 }
@@ -60,7 +60,7 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .quota-window meter {
   width: 100%;

@@ -4,7 +4,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
 }
 .file-draft-recovery summary {
   cursor: pointer;
@@ -58,7 +58,7 @@
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -68,7 +68,7 @@
   gap: 12px;
   border: 0;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .draft-merge textarea {
   width: 100%;

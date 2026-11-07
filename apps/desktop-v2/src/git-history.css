@@ -14,12 +14,12 @@
   background: var(--raised);
 }
 .git-history-toolbar > strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
   white-space: nowrap;
 }
 .git-history-toolbar > span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .git-history-toolbar > label {
@@ -40,7 +40,7 @@
   outline: 0;
   min-width: 80px;
   width: 160px;
-  font-size: 11px;
+  font-size: 12px;
   min-height: 0;
   box-shadow: none;
   padding: 0;
@@ -50,7 +50,7 @@
   color: var(--muted);
   padding: 8px;
   border: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   border-radius: 4px;
   max-width: 190px;
 }
@@ -71,13 +71,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   letter-spacing: 0.7px;
   border-bottom: 1px solid var(--border);
 }
 .git-commit-list :where(header) > small {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0;
 }
 .git-commit-list > button {
@@ -113,7 +113,7 @@
 }
 .git-commit-list strong {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   display: block;
   overflow-wrap: anywhere;
@@ -122,12 +122,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 9px;
 }
 .git-commit-list code {
-  font-size: 9px;
+  font-size: 11px;
   margin-left: auto;
   color: var(--accent);
 }
@@ -141,7 +141,7 @@
   display: none;
 }
 .git-commit-refs > b {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 500;
   padding: 3px 5px;
   border: 1px solid var(--border);
@@ -150,7 +150,7 @@
 }
 .git-commit-list > .git-history-more {
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
   justify-content: center;
 }
 .git-commit-detail {
@@ -167,7 +167,7 @@
   overflow-wrap: anywhere;
 }
 .git-commit-detail > :where(header) > p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.9;
 }
@@ -179,12 +179,12 @@
   align-items: center;
   gap: 8px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   margin: 18px 0;
   max-width: 100%;
 }
 .git-copy-hash code {
-  font-size: 9px;
+  font-size: 11px;
   overflow-wrap: anywhere;
   text-align: left;
 }
@@ -198,7 +198,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 20px 0;
 }
@@ -206,7 +206,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
   padding: 5px;
   border: 1px solid var(--border);
@@ -218,7 +218,7 @@
   gap: 12px;
   border-block: 1px solid var(--border);
   padding: 16px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .git-commit-stats > strong {
   font-weight: 500;
@@ -226,7 +226,7 @@
 .git-commit-stats > small {
   color: var(--subtle);
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 .git-commit-files {
   margin: 18px 0 25px;
@@ -238,7 +238,7 @@
   gap: 10px;
   padding: 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   text-align: left;
 }
 .git-commit-files > button:hover,
@@ -252,13 +252,13 @@
 }
 .git-commit-files small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 5px;
 }
 .git-commit-files b {
   font-weight: 400;
-  font-size: 9px;
+  font-size: 11px;
 }
 .git-commit-diff {
   border: 1px solid var(--border);
@@ -271,21 +271,21 @@
   gap: 15px;
   padding: 14px;
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   background: var(--raised);
 }
 .git-commit-diff :where(header) > code {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 10px;
+  font-size: 11px;
 }
 .git-commit-diff :where(header) > button {
   display: flex;
   align-items: center;
   gap: 7px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
 }
 .git-history-placeholder {
   min-height: 400px;
@@ -309,7 +309,7 @@
   margin: 0;
 }
 .git-history-placeholder > p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   max-width: 400px;
   margin: 0;

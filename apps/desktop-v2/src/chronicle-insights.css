@@ -15,7 +15,7 @@
 .chronicle-insights > summary span {
   margin-left: auto;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
 }
 .insights-content {
@@ -25,7 +25,7 @@
 .insights-content > p,
 .insights-footnote {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .insights-toolbar {
   display: flex;
@@ -69,11 +69,11 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .insights-list p {
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   margin: 8px 0;
 }
 .insights-list small {
@@ -99,5 +99,5 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }

@@ -13,7 +13,7 @@
 .automation-environment-editor p,
 .automation-template-review p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .automation-templates > div {
@@ -44,12 +44,12 @@
 .automation-templates small {
   margin-top: auto;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.6;
 }
 .automation-draft-status {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 .automation-editor-fields {
@@ -82,7 +82,7 @@
   margin: 0;
 }
 .automation-config-section > ul {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.8;
   padding-left: 18px;
@@ -99,15 +99,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .automation-environment-summary code {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .automation-environment-summary small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .automation-config-grid {
@@ -127,7 +127,7 @@
 .automation-environment-editor legend {
   padding: 0 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .automation-reference-note {
   display: flex;
@@ -136,7 +136,7 @@
 }
 .automation-template-label {
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
 }
 .modal:has(.automation-environment-editor) {
   width: min(960px, calc(100vw - 32px));
@@ -177,21 +177,21 @@
 }
 .automation-environment-editor > :where(footer) span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .automation-template-review :where(blockquote) {
   margin: 20px 0;
   padding: 16px;
   border-left: 2px solid var(--accent);
   background: var(--base);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .automation-template-review :where(ul) {
   margin: 14px 0 24px;
   padding-left: 20px;
   line-height: 1.9;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .automation-template-review > button {
@@ -232,7 +232,7 @@
   margin: 18px 0 10px;
 }
 .automation-run-inspector :where(p, li) {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -250,7 +250,7 @@
   display: grid;
   grid-template-columns: minmax(130px, 0.3fr) minmax(0, 1fr);
   gap: 10px 18px;
-  font-size: 12px;
+  font-size: 13px;
   margin: 16px 0;
 }
 .automation-run-inspector :where(dt) {
@@ -270,7 +270,7 @@
 }
 .automation-run-inspector :where(summary) {
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   margin: 12px 0;
 }
@@ -280,7 +280,7 @@
   gap: 14px;
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   padding: 14px 0;
 }
 .automation-run-status strong {
@@ -305,7 +305,7 @@
 }
 .automation-run-metrics small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .automation-run-metrics strong {
   font-size: 17px;
@@ -318,11 +318,11 @@
   margin: 12px 0;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .automation-check-list :where(small, span) {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .automation-run-log,
 .automation-patch {
@@ -365,7 +365,7 @@
 .automation-publication :where(legend) {
   padding: 0 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 @media (max-width: 1050px) {
   .automation-templates > div {
@@ -412,7 +412,7 @@
 .automation-run-comparison table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
 }
 .automation-run-comparison :where(th, td) {
   padding: 6px 8px;
@@ -427,5 +427,5 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
 }

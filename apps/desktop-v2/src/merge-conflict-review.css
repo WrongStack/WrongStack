@@ -20,7 +20,7 @@
 }
 .merge-conflict-review p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -40,7 +40,7 @@
   padding: 12px;
   background: var(--base);
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 13px;
   /* The base side has no choose button; keep its header as tall as the others so the three
      columns line up. */
   min-height: 58px;
@@ -51,13 +51,13 @@
   min-height: 100px;
   max-height: 25vh;
   overflow: auto;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .merge-result-label {
   display: grid;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .merge-result-label textarea {
   width: 100%;
@@ -68,7 +68,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: var(--user-font-code, Consolas, monospace);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   resize: vertical;
 }
@@ -108,7 +108,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   margin-top: 20px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .merge-related-paths li {
   margin: 8px 0;

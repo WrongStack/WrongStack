@@ -11,7 +11,7 @@
   background: var(--raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .design-gallery-controls {
   display: flex;
@@ -31,7 +31,7 @@
 }
 .design-gallery-controls > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .design-studio-layout {
   display: grid;
@@ -77,7 +77,7 @@
 .design-card-copy span,
 .design-card-copy small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .design-theme-preview {
@@ -94,7 +94,7 @@
   margin-bottom: 18px;
 }
 .design-preview-top small {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--design-muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -146,7 +146,7 @@
   min-width: 0;
 }
 .design-preview-overline {
-  font-size: 7px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--design-muted);
 }
@@ -158,7 +158,7 @@
   letter-spacing: -0.04em;
 }
 .design-theme-preview p {
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--design-muted);
   margin: 0 0 14px;
@@ -167,7 +167,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  font-size: 8px;
+  font-size: 11px;
 }
 .design-preview-actions > span {
   background: var(--design-primary);
@@ -228,7 +228,7 @@
   justify-content: space-between;
   margin-top: 18px;
   color: var(--design-muted);
-  font-size: 6px;
+  font-size: 11px;
   letter-spacing: 0.15em;
 }
 .design-theme-preview footer > div {
@@ -257,10 +257,10 @@
   height: 35px;
 }
 .design-preview-compact p {
-  font-size: 8px;
+  font-size: 11px;
 }
 .design-preview-compact .design-preview-actions {
-  font-size: 7px;
+  font-size: 11px;
 }
 :where(.design-preview-compact) .design-preview-actions > span {
   padding: 6px;
@@ -278,7 +278,7 @@
 }
 .design-studio-detail p {
   line-height: 1.6;
-  font-size: 12px;
+  font-size: 13px;
 }
 .design-studio-detail > :where(header) p,
 .design-studio-detail > :where(header) small {
@@ -292,7 +292,7 @@
 }
 .design-kit-tags span {
   padding: 4px 7px;
-  font-size: 10px;
+  font-size: 11px;
   border: 1px solid var(--border);
   border-radius: 12px;
   color: var(--muted);
@@ -315,7 +315,7 @@
 .design-pin-controls label {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   flex: 1;
 }
 .design-studio-detail > section {
@@ -356,7 +356,7 @@
   display: grid;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .design-color-fields :where(label) > span {
   display: flex;
@@ -379,7 +379,7 @@
   padding: 16px;
   border-radius: 9px;
   margin: 16px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .design-action-confirm button {
   margin: 6px 10px 0 0;
@@ -399,14 +399,14 @@
   margin-top: 24px;
 }
 .design-contrast {
-  font-size: 12px;
+  font-size: 13px;
 }
 .design-verification article {
   border: 1px solid var(--border);
   padding: 14px;
   border-radius: 8px;
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .design-verification article small {
@@ -458,5 +458,5 @@
 .design-draft-status {
   margin: 8px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }

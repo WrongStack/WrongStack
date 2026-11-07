@@ -5,7 +5,7 @@
 .fleet-policy-settings :where(p, small) {
   color: var(--muted);
   line-height: 1.8;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .fleet-policy-settings h3 {
@@ -37,7 +37,7 @@
   min-width: 0;
 }
 .fleet-capacity-fields strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 .fleet-capacity-fields :where(input, select) {
   width: 100%;
@@ -72,14 +72,14 @@
 }
 .fleet-policy-switch strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
 }
 .fleet-policy-switch small {
   display: block;
   margin: 5px 0;
 }
 .fleet-policy-switch em {
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   color: var(--subtle);
 }

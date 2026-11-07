@@ -4,7 +4,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-inspect-summary > summary {
   cursor: pointer;
@@ -24,7 +24,7 @@
 }
 .inspect-stats dt {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .inspect-stats dd {
   margin: 2px 0 0;
@@ -34,7 +34,7 @@
 }
 .inspect-stats small {
   color: var(--danger);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
 }
 .inspect-columns {
@@ -52,7 +52,7 @@
 }
 .inspect-columns h4 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .inspect-columns ol {
   display: grid;
@@ -78,14 +78,14 @@
 }
 .inspect-columns code {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .inspect-columns time,
 .inspect-columns li small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .inspect-columns aside {

@@ -30,7 +30,7 @@
   grid-template-columns: minmax(120px, 160px) minmax(0, 240px) minmax(0, 1fr);
   align-items: center;
   gap: 8px 14px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .appearance-font > input {
   grid-column: 2;
@@ -41,7 +41,7 @@
   grid-row: 1;
   overflow: hidden;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

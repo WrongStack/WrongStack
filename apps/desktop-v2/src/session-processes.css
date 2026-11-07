@@ -71,12 +71,12 @@
 }
 .process-list header {
   justify-content: flex-start;
-  font-size: 12px;
+  font-size: 13px;
 }
 .process-list header small,
 .process-list time {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .process-status {
   padding: 4px 8px;
@@ -95,7 +95,7 @@
   overflow-wrap: anywhere;
   line-height: 1.7;
   margin: 16px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .process-output {
   margin-top: 22px;
@@ -111,7 +111,7 @@
   overflow-wrap: anywhere;
   padding: 16px;
   background: var(--base);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .process-empty {
@@ -149,19 +149,19 @@
   align-items: center;
   gap: 8px;
   margin: 10px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .process-review ul {
   max-height: 200px;
   overflow: auto;
   padding-left: 18px;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .process-ended {
   margin-top: 14px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .process-ended summary {
   cursor: pointer;
@@ -203,7 +203,7 @@ fieldset.process-preview-links {
 .process-end {
   margin-left: 8px;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 11px;
 }
 .process-end.ok {
   color: light-dark(#397239, #94c788);

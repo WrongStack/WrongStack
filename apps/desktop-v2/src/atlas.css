@@ -52,14 +52,14 @@
   margin: 18px 0;
 }
 .atlas-node-facts dt {
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--subtle);
   margin-bottom: 5px;
 }
 .atlas-node-facts dd {
-  font-size: 10px;
+  font-size: 11px;
   margin: 0;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -72,7 +72,7 @@
 .atlas-centrality > header {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .atlas-centrality strong {
@@ -96,7 +96,7 @@
   border-radius: 4px;
 }
 .atlas-centrality p {
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
   margin: 8px 0 0;
@@ -113,12 +113,12 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   margin: 0 0 12px;
 }
 .atlas-trace-alert p {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   margin: 5px 0;
   color: var(--muted);
@@ -133,7 +133,7 @@
 }
 .atlas-institutional-memory :where(h3) > span {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 .atlas-institutional-memory > button {
   display: block;
@@ -146,19 +146,19 @@
   margin: 8px 0;
 }
 .atlas-institutional-memory > :where(button) > span {
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.7px;
   color: var(--accent);
 }
 .atlas-institutional-memory p {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.9;
   color: var(--muted);
   margin: 7px 0;
 }
 .atlas-institutional-memory small {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .atlas-file-history {
@@ -170,7 +170,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   width: 100%;
   text-align: left;
 }
@@ -184,12 +184,12 @@
 }
 .atlas-file-history :where(article) > strong {
   font-weight: 500;
-  font-size: 10px;
+  font-size: 11px;
   display: block;
   line-height: 1.8;
 }
 .atlas-file-history :where(article) > span {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   display: flex;
   gap: 5px;
@@ -197,14 +197,14 @@
   margin-top: 6px;
 }
 .atlas-file-history time {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   display: block;
   margin-top: 6px;
 }
 .atlas-file-history p,
 .atlas-detail-error {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
 }
@@ -227,18 +227,18 @@
   flex: 1;
 }
 .desktop-code-assist h3 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   margin: 0 0 5px;
 }
 .desktop-code-assist > :where(header) > :where(div) > span {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   overflow-wrap: anywhere;
 }
 .desktop-code-assist :where(form) > label {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 17px 0 12px;
 }
@@ -250,7 +250,7 @@
   border-radius: 4px;
   background: var(--base);
   color: var(--text);
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 7px;
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
@@ -266,7 +266,7 @@
   border-radius: 4px;
   background: var(--base);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
 }
 .code-assist-run-options {
   display: flex;
@@ -276,7 +276,7 @@
 }
 .code-assist-run-options > label,
 .code-assist-run-options > span {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   line-height: 1.8;
 }
@@ -296,14 +296,14 @@
   border-radius: 4px;
   max-height: 360px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
 }
 .code-assist-answer .markdown-content {
-  font-size: 11px;
+  font-size: 12px;
 }
 .code-assist-applied {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--accent);
   padding: 10px;
@@ -314,7 +314,7 @@
   display: grid;
   gap: 8px;
   margin-top: 10px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .code-assist-edit-review > header {
   display: flex;

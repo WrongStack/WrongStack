@@ -7,7 +7,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .model-draft-comparison {
@@ -23,7 +23,7 @@
 }
 .model-draft-comparison h4 {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 :where(.model-draft-notice) .model-tier-actions {
   flex-wrap: wrap;
@@ -34,7 +34,7 @@
 }
 .model-price-tiers p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .model-price-tier {
@@ -67,7 +67,7 @@
 }
 .catalog-model-search p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .catalog-model-search form {
@@ -104,7 +104,7 @@
 }
 .registry-model-results code,
 .registry-model-results small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .model-catalog-toolbar {
@@ -157,7 +157,7 @@
 }
 .model-catalog-list small,
 .model-catalog-list span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .model-catalog-detail {
@@ -186,7 +186,7 @@
 }
 .model-metrics dt,
 .model-info dt {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .model-metrics dd {
@@ -203,7 +203,7 @@
 }
 .model-info dd {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .model-capabilities {
   display: flex;
@@ -215,7 +215,7 @@
   border: 1px solid var(--accent-border);
   border-radius: 20px;
   padding: 5px 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 /* The form scrolled inside the already scrolling dialog: two scrollbars, and the focus ring of
    the first visible field was clipped. The dialog scrolls; the two-column form gets room. */
@@ -234,7 +234,7 @@
   display: grid;
   gap: 7px;
   margin: 10px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 /* The generic dialog field rule stacked a 9 px top margin on top of the label gap. */
 .modal .model-editor :is(input, select, textarea) {
@@ -252,7 +252,7 @@
 .model-editor p {
   color: var(--muted);
   line-height: 1.6;
-  font-size: 12px;
+  font-size: 13px;
 }
 .model-remove-confirm {
   padding: 14px;
@@ -320,7 +320,7 @@
   display: grid;
   gap: 12px;
   min-width: min(640px, 100%);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .model-draft-admin > p,
@@ -333,14 +333,14 @@
   align-items: center;
   gap: 8px;
   margin: 8px 0 6px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .model-draft-count {
   padding: 0 7px;
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .model-draft-admin-list {

@@ -27,14 +27,14 @@
   margin: 8px 0 0;
 }
 .composer-dialog p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.8;
 }
 .composer-dialog label:not(.refine-edit-toggle) {
   display: grid;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .composer-dialog :is(input:not([type="checkbox"]), select) {
@@ -75,7 +75,7 @@
   border-color: var(--border);
 }
 .composer-model-list small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }

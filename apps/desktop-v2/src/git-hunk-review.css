@@ -22,7 +22,7 @@
 .git-hunk-review p,
 .git-hunk-review small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -36,7 +36,7 @@
 .git-hunk-controls label {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .git-hunk-controls select {
   padding: 10px;
@@ -61,7 +61,7 @@
   margin: 0;
   overflow: auto;
   padding: 15px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   max-height: 38vh;
 }

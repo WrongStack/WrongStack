@@ -26,12 +26,12 @@
 }
 .memory-systems strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
 }
 .memory-systems span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 5px;
   color: var(--subtle);
 }
@@ -48,7 +48,7 @@
   gap: 7px;
   padding: 8px 11px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 4px;
 }
 .sage-workspace-nav > button[aria-current] {
@@ -82,7 +82,7 @@
   margin: 10px 0;
 }
 .sage-page-heading p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.9;
   margin: 0;
@@ -96,7 +96,7 @@
   align-items: center;
   padding: 15px 0;
   border-block: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 24px;
 }
@@ -131,7 +131,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .sage-candidate-card > :where(header) > label {
@@ -148,7 +148,7 @@
   margin: 18px 0;
 }
 .sage-review-reason {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--muted);
 }
@@ -161,18 +161,18 @@
   margin: 18px 0;
 }
 .sage-candidate-card dt {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 6px;
 }
 .sage-candidate-card dd {
-  font-size: 11px;
+  font-size: 12px;
   margin: 0;
 }
 .sage-candidate-card > code {
   display: block;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   margin: 6px 0;
 }
 .sage-candidate-card > footer {
@@ -213,7 +213,7 @@
   margin: 0;
 }
 .sage-target-inspector > p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
 }
 .sage-large-empty {
@@ -242,7 +242,7 @@
 }
 .sage-large-empty p {
   max-width: 650px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   margin: 0;
 }
@@ -263,7 +263,7 @@
 }
 .sage-health-metrics > :where(article) > span {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.4px;
   color: var(--subtle);
 }
@@ -300,7 +300,7 @@
   gap: 10px;
 }
 .sage-health-check > :where(header) > span {
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.7px;
   padding: 4px 6px;
@@ -315,7 +315,7 @@
   border-color: oklch(0.67 0.12 80 / 0.55);
 }
 .sage-health-check > :where(header) > strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .sage-health-check > header > b {
@@ -325,7 +325,7 @@
   color: var(--subtle);
 }
 .sage-health-check > p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   color: var(--muted);
   margin: 13px 0;
@@ -355,12 +355,12 @@
   border-bottom: 1px solid var(--border);
 }
 .sage-maintenance dt {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 6px;
 }
 .sage-maintenance dd {
-  font-size: 11px;
+  font-size: 12px;
   margin: 0;
   overflow-wrap: anywhere;
 }
@@ -382,12 +382,12 @@
 }
 .sage-maintenance strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .sage-maintenance small {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
   margin-top: 5px;
@@ -401,7 +401,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
   cursor: pointer;
   list-style: none;
@@ -418,14 +418,14 @@
   margin: 13px 0;
 }
 .sage-editor-details :where(label) > strong {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   float: right;
   color: var(--subtle);
 }
 .sage-editor-details small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
   margin-top: 7px;
@@ -439,7 +439,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .sage-record-details {
@@ -455,7 +455,7 @@
 .sage-record-badges > span {
   border: 1px solid var(--border);
   padding: 4px 6px;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   border-radius: 3px;
 }
@@ -466,12 +466,12 @@
   margin: 20px 0;
 }
 .sage-usage-grid dt {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 6px;
 }
 .sage-usage-grid dd {
-  font-size: 11px;
+  font-size: 12px;
   margin: 0;
 }
 .sage-record-details > section {
@@ -483,26 +483,26 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   margin: 0 0 12px;
 }
 .sage-record-details p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.85;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 .sage-source-evidence {
   padding: 9px 0;
-  font-size: 10px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 .sage-source-evidence > span {
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 5px;
 }
@@ -519,14 +519,14 @@
   margin-top: 7px;
 }
 .sage-source-evidence > small {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .sage-lifecycle-row {
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   padding: 7px 0;
 }
@@ -535,7 +535,7 @@
 }
 .sage-record-details :where(section) > button,
 .sage-record-details :where(h4) + button {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--accent);
   border: 1px solid var(--border);
   padding: 6px;
@@ -543,18 +543,18 @@
   overflow-wrap: anywhere;
 }
 .sage-record-details h4 {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 .sage-record-details article {
   border-left: 2px solid var(--border);
   padding-left: 12px;
   margin: 12px 0;
-  font-size: 10px;
+  font-size: 11px;
 }
 .sage-record-details :where(article) > small {
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .sage-retrieval-search {
   display: flex;
@@ -576,13 +576,13 @@
   border: 0;
   color: var(--text);
   padding: 6px 0;
-  font-size: 12px;
+  font-size: 13px;
   outline: 0;
   min-height: 0;
   box-shadow: none;
 }
 .sage-retrieval-search > label {
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -590,7 +590,7 @@
   color: var(--subtle);
 }
 .sage-retrieval-channel {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   padding: 8px 0;
 }
@@ -617,7 +617,7 @@
   min-width: 0;
 }
 .sage-search-hits > :where(button) > :where(div) > span {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--accent);
   text-transform: uppercase;
 }
@@ -628,7 +628,7 @@
   margin: 7px 0;
 }
 .sage-search-hits p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 0;
 }
@@ -638,7 +638,7 @@
   margin: 0;
 }
 .sage-search-hits dt {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 5px;
 }
@@ -663,10 +663,10 @@
   justify-content: space-between;
   gap: 10px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .sage-vector-hits p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .sage-decision-dialog {
@@ -684,13 +684,13 @@
   letter-spacing: -0.5px;
 }
 .sage-decision-dialog > p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--muted);
 }
 .sage-decision-dialog label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 20px;
 }
 .sage-decision-dialog textarea {
@@ -703,7 +703,7 @@
   display: block;
   margin-top: 10px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .sage-audience-filters {
@@ -719,7 +719,7 @@
   display: grid;
   gap: 8px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   min-width: 180px;
 }
 .sage-audience-filters select {
@@ -731,7 +731,7 @@
 }
 .sage-audience-filters > span {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   padding-bottom: 10px;
 }
@@ -767,7 +767,7 @@
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--accent);
-  font-size: 8px;
+  font-size: 11px;
 }
 .sage-audience-cards h2 {
   font-size: 15px;
@@ -779,7 +779,7 @@
 .sage-audience-cards p {
   display: flex;
   gap: 12px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.7;
   margin: 6px 0;
   color: var(--muted);
@@ -796,7 +796,7 @@
   padding-top: 14px;
   margin-top: 18px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .sage-decision-dialog > footer {
   display: flex;
@@ -831,13 +831,13 @@
     padding: 11px;
   }
   .memory-systems span {
-    font-size: 9px;
+    font-size: 11px;
   }
   .sage-workspace-nav {
     gap: 3px;
   }
   .sage-workspace-nav > button {
-    font-size: 10px;
+    font-size: 11px;
     padding: 7px;
   }
   .sage-health-layout {
@@ -895,15 +895,15 @@
   gap: 5px;
 }
 .sage-store-identity strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .sage-store-identity span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .sage-store-identity > small {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   max-width: 260px;
   margin-left: auto;
@@ -916,11 +916,11 @@
 }
 .sage-library-meta > small {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .sage-status {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   border: 1px solid var(--border);
   padding: 3px 5px;
@@ -934,7 +934,7 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   padding-top: 8px;
   border-top: 1px solid var(--border);
@@ -953,7 +953,7 @@
   color: var(--text);
 }
 .sage-library-empty p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   max-width: 370px;
   margin: 0 auto;
@@ -971,7 +971,7 @@
   overflow: hidden;
 }
 .sage-record-reader .markdown-content {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.85;
 }
 .sage-reader-heading {
@@ -994,7 +994,7 @@
 .sage-reader-actions :where(small) {
   max-width: 250px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.7;
 }
 .sage-reader-empty {
@@ -1002,7 +1002,7 @@
   color: var(--muted);
 }
 .sage-reader-empty :where(p) {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   max-width: 420px;
 }
@@ -1013,12 +1013,12 @@
 .sage-stored-relations :where(small) {
   display: block;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 8px;
 }
 .sage-stored-relations :where(button) {
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
   line-height: 1.7;
   display: -webkit-box;
@@ -1052,7 +1052,7 @@
 .sage-validity-result code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 11px;
+  font-size: 12px;
 }
 .sage-validity-result header strong {
   overflow-wrap: anywhere;
@@ -1066,7 +1066,7 @@
 .sage-validity-editor p,
 .sage-validity-review p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .vector-memory-add form {
@@ -1089,7 +1089,7 @@
 .vector-memory-reindex {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .vector-memory-reindex-actions {
   display: flex;
@@ -1098,7 +1098,7 @@
 }
 .sage-injection-history {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .sage-injection-history summary {
   cursor: pointer;

@@ -19,7 +19,7 @@
   margin: 8px 0 14px;
 }
 .session-mcp-tasks p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -30,7 +30,7 @@
   padding: 18px 0;
   border-bottom: 1px solid var(--border);
   margin-bottom: 18px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .mcp-task-summary > span:last-child {
@@ -54,7 +54,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   background: var(--raised);
   color: var(--text);
 }
@@ -77,7 +77,7 @@
   overflow-wrap: anywhere;
 }
 .mcp-task-list code {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -88,7 +88,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px 16px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin: 16px 0;
 }
@@ -100,7 +100,7 @@
 .mcp-task-status {
   padding: 6px 10px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
@@ -122,7 +122,7 @@
 }
 .mcp-task-cancel > :where(p) {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   margin: 16px 0;
 }

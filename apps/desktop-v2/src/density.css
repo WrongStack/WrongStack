@@ -9,7 +9,7 @@
   margin-bottom: 6px;
 }
 :root[data-density="compact"] .chat-message > div {
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.55;
 }
 :root[data-density="compact"] .user-chat-body {

@@ -18,7 +18,7 @@
 .board-create-preview {
   max-height: 200px;
   overflow: auto;
-  font-size: 12px;
+  font-size: 13px;
 }
 .board-create-preview ol {
   margin: 6px 0 0;
@@ -30,7 +30,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .kanban-task-transfer {
@@ -39,7 +39,7 @@
   margin: 12px 0;
   padding-top: 12px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .kanban-task-transfer label {
   display: grid;
@@ -64,7 +64,7 @@
   margin: 12px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .kanban-task-merge summary {
   cursor: pointer;

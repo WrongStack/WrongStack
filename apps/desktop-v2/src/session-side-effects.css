@@ -23,7 +23,7 @@
   flex: 0 0 auto;
 }
 .session-side-effects > header > .feature-actions select {
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-side-effects h2 {
   font-size: 30px;
@@ -37,7 +37,7 @@
 }
 .session-side-effects > header p {
   max-width: 650px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .effects-summary {
@@ -82,12 +82,12 @@
   background: var(--base);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 .effects-export {
   justify-content: flex-end;
   margin: 16px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .effects-window-note {
@@ -95,7 +95,7 @@
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: 13px;
 }
 .effects-records {
   display: grid;
@@ -125,7 +125,7 @@
   overflow-wrap: anywhere;
 }
 .effects-records time {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .effect-kind {
@@ -133,7 +133,7 @@
   background: var(--accent-soft);
   color: var(--accent-ink);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .effects-empty {
   display: grid;
@@ -155,7 +155,7 @@
   display: grid;
   grid-template-columns: 135px minmax(0, 1fr);
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .effect-inspector dt {
   color: var(--muted);

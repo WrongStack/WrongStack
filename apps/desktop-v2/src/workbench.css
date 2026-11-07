@@ -43,7 +43,7 @@
   min-width: 0;
   width: auto;
   padding: 8px 3px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .project-new-session {
   /* WCAG 2.2 target size: at least 24 by 24 px. */
@@ -130,7 +130,7 @@
   padding: 0 0 25px;
   margin: -4px 0 24px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .workspace-overview > span {
   display: flex;
@@ -146,7 +146,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .workspace-overview .overview-terminal {
   margin-left: auto;
@@ -171,7 +171,7 @@
   margin: 0;
 }
 .project-session-group > header > div > span:last-child {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .session-card-title {
@@ -199,7 +199,7 @@
 .workspace-focused .statusbar {
   min-height: 25px;
   padding: 5px 15px;
-  font-size: 8px;
+  font-size: 11px;
 }
 .session-tabs {
   background: var(--sidebar);
@@ -218,7 +218,7 @@
 }
 .session-tab-label small {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 450;
   letter-spacing: 0.3px;
   color: var(--subtle);
@@ -240,7 +240,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
   color: var(--muted);
 }
@@ -255,7 +255,7 @@
   overflow: visible;
 }
 .workspace-tabs button {
-  font-size: 11px;
+  font-size: 12px;
   gap: 6px;
   padding: 7px 10px;
 }
@@ -289,7 +289,7 @@
   color: var(--accent);
 }
 .native-chat-welcome p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
 }
 .native-composer {
@@ -347,7 +347,7 @@
   background: transparent;
   color: var(--text);
   border: 0;
-  font-size: 13px;
+  font-size: 14px;
   min-height: 0;
   box-shadow: none;
   padding: 0;
@@ -359,7 +359,7 @@
   width: 100%;
   text-align: left;
   padding: 17px 4px;
-  font-size: 12px;
+  font-size: 13px;
   border-bottom: 1px solid var(--border);
 }
 .tools-activity span {
@@ -367,7 +367,7 @@
   align-items: center;
   gap: 8px;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: 12px;
 }
 .tool-groups {
   display: grid;
@@ -377,7 +377,7 @@
 }
 .tool-groups h3 {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   font-weight: 500;
@@ -395,11 +395,11 @@
 }
 .tool-groups strong {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
 }
 .tool-groups button span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.6;
   margin-top: 4px;
@@ -418,7 +418,7 @@
   }
   .workspace-tabs button {
     padding: 7px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .workspace-tabs .model-selector {
     max-width: 155px;
@@ -442,7 +442,7 @@
     margin: 12px -9px 0;
   }
   .nav-item {
-    font-size: 10px;
+    font-size: 11px;
     gap: 5px;
   }
   .nav-item svg {

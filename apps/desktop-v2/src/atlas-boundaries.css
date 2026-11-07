@@ -17,7 +17,7 @@
 }
 .atlas-boundaries p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
@@ -47,7 +47,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 .boundary-groups button[aria-expanded="true"] {
@@ -61,7 +61,7 @@
   border-radius: 6px;
 }
 .boundary-detail h4 {
-  font-size: 12px;
+  font-size: 13px;
   margin: 10px 0;
 }
 .boundary-detail ul {
@@ -72,7 +72,7 @@
   overflow: auto;
 }
 .boundary-detail li {
-  font-size: 11px;
+  font-size: 12px;
   border-top: 1px solid var(--border);
   padding: 10px 0;
   overflow-wrap: anywhere;

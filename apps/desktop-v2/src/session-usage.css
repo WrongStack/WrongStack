@@ -6,7 +6,7 @@
   min-width: 0;
 }
 .usage-conversation-title {
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .session-usage-heading,
@@ -28,13 +28,13 @@
 }
 .session-usage p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .usage-snapshot-status {
   margin: 20px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .usage-snapshot-status label {
   display: flex;
@@ -47,7 +47,7 @@
   padding: 0 0 18px;
   margin-bottom: 20px;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
 }
 .usage-route span {
   color: var(--muted);
@@ -67,7 +67,7 @@
   margin: 0 0 12px;
 }
 .usage-card h3 {
-  font-size: 13px;
+  font-size: 14px;
   margin: 0 0 12px;
 }
 .usage-total-grid,
@@ -82,7 +82,7 @@
 }
 .usage-total-grid span,
 .usage-metric-grid dt {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .usage-total-grid strong,
@@ -129,7 +129,7 @@
   letter-spacing: -0.5px;
 }
 .usage-big-number small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -139,7 +139,7 @@
   gap: 10px;
   padding: 9px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .usage-detail-list dd {
   margin: 0;
@@ -152,7 +152,7 @@
   width: 100%;
   text-align: left;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 .session-usage th,
 .session-usage td {
@@ -197,7 +197,7 @@
   padding: 0;
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-delegations li {
   display: grid;

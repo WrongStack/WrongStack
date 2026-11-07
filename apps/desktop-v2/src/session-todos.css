@@ -3,7 +3,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-todos > summary {
   display: flex;
@@ -50,7 +50,7 @@
   padding: 10px 12px;
   border: 1px solid var(--warning, var(--accent));
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .fallback-picker p {
   margin: 0;

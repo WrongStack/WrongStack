@@ -16,7 +16,7 @@
   margin: 8px 0;
 }
 .mcp-content-browser p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -63,11 +63,11 @@
   background: var(--accent-soft);
 }
 .mcp-content-workbench > aside strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 .mcp-content-workbench :where(small, code) {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .mcp-content-detail {
@@ -178,13 +178,13 @@
 .mcp-content-detail textarea {
   width: 100%;
   font-family: var(--user-font-code, Consolas, monospace);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* A tool without input fields keeps its JSON editor folded away. */
 .mcp-tool-raw-input > summary {
   margin: 6px 0 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }

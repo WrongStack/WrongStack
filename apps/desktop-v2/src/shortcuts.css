@@ -12,7 +12,7 @@
 }
 .shortcuts-dialog h3 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted);
 }
@@ -28,7 +28,7 @@
   align-items: baseline;
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .shortcuts-dialog dd {
   margin: 0;
@@ -38,7 +38,7 @@
   min-width: 1.6em;
   padding: 1px 6px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
   border: 1px solid var(--border);
   border-radius: 4px;

@@ -21,7 +21,7 @@
 .chronicle-metrics span {
   display: block;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .chronicle-metrics strong {
   display: block;
@@ -40,7 +40,7 @@
 .chronicle-filters > label {
   display: grid;
   gap: 7px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   flex: 1 1 115px;
   min-width: 0;
@@ -54,7 +54,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .chronicle-filters > .chronicle-text-filter {
   flex-basis: 100%;
@@ -77,7 +77,7 @@
 .chronicle-extra-filters {
   width: 100%;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .chronicle-extra-filters summary {
   cursor: pointer;
@@ -111,23 +111,23 @@
   padding: 13px 0;
   border-bottom: 1px solid var(--border);
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   min-height: 45px;
 }
 .chronicle-list-heading strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 .chronicle-list-heading > span {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 .chronicle-list-heading > button {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
 }
 .chronicle-events > button {
@@ -162,13 +162,13 @@
 }
 .chronicle-events time {
   min-width: 70px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .chronicle-events :where(time) > small {
   display: block;
   margin-top: 5px;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .chronicle-events :where(button) > div {
@@ -177,19 +177,19 @@
 }
 .chronicle-events :where(div) > span {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--accent);
   margin-bottom: 6px;
 }
 .chronicle-events strong {
   display: block;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 .chronicle-events :where(div) > small {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   display: block;
   overflow: hidden;
@@ -199,7 +199,7 @@
 }
 .chronicle-event-result {
   color: var(--subtle);
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 .chronicle-events :where(button) > svg {
@@ -211,7 +211,7 @@
   margin-top: 20px;
 }
 .chronicle-footnote {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   line-height: 1.9;
   padding: 12px 0;
@@ -233,7 +233,7 @@
   margin: 0;
 }
 .chronicle-empty p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   max-width: 420px;
   margin: 0;
@@ -258,7 +258,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.8px;
   color: var(--subtle);
   margin-bottom: 16px;
@@ -272,7 +272,7 @@
   overflow-wrap: anywhere;
 }
 .chronicle-event-type {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   overflow-wrap: anywhere;
   margin-bottom: 20px;
@@ -283,7 +283,7 @@
 }
 .chronicle-result-badge {
   display: inline-block;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
   border: 1px solid var(--border);
   color: var(--accent);
@@ -306,30 +306,30 @@
 }
 .chronicle-event-facts dt,
 .chronicle-identities dt {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 5px;
 }
 .chronicle-event-facts dd,
 .chronicle-identities dd {
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
 .chronicle-attributes h3 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   margin: 22px 0 14px;
 }
 .chronicle-attributes h4 {
   font-weight: 400;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 15px 0 5px;
 }
 .chronicle-attributes p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.8;
   white-space: pre-wrap;
@@ -337,13 +337,13 @@
   margin: 0;
 }
 .chronicle-manifest h3 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   margin: 22px 0 10px;
 }
 .chronicle-manifest h4 {
   font-weight: 400;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 14px 0 6px;
 }
@@ -356,7 +356,7 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .chronicle-manifest dd {
   margin: 0;
@@ -366,7 +366,7 @@
 .chronicle-manifest table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10px;
+  font-size: 11px;
 }
 .chronicle-manifest :is(th, td) {
   text-align: left;
@@ -374,7 +374,7 @@
   border-bottom: 1px solid var(--border);
 }
 .chronicle-manifest-tools {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -388,7 +388,7 @@
 .chronicle-identities summary {
   cursor: pointer;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .chronicle-inspector-empty {
   padding: 35px 25px;
@@ -397,7 +397,7 @@
   color: var(--accent);
 }
 .chronicle-inspector-empty > p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 2;
   color: var(--subtle);
 }
@@ -412,11 +412,11 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
 }
 .chronicle-collector :where(summary) > span {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .chronicle-collector dl {
@@ -426,13 +426,13 @@
   margin: 22px 0 5px;
 }
 .chronicle-collector dt {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 7px;
 }
 .chronicle-collector dd {
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 @media (max-width: 1150px) {

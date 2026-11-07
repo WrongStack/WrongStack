@@ -11,7 +11,7 @@
   border-radius: 7px;
   padding: 10px 12px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-scan-controls {
   padding: 20px 0;
@@ -26,17 +26,17 @@
   display: grid;
   gap: 8px;
   flex: 1;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-check {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-scan-controls small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .dead-code-stats {
   display: grid;
@@ -54,7 +54,7 @@
 }
 .dead-code-stats small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .dead-code-stats strong {
   font-size: 25px;
@@ -65,7 +65,7 @@
   background: var(--accent-soft);
   padding: 16px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .dead-code-filters {
@@ -89,7 +89,7 @@
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin: 12px 0;
 }
@@ -118,18 +118,18 @@
   overflow-wrap: anywhere;
 }
 .dead-code-findings :where(label) span {
-  font-size: 11px;
+  font-size: 12px;
   border: 1px solid var(--border);
   padding: 5px 7px;
   border-radius: 6px;
 }
 .dead-code-findings p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .dead-code-findings small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .dead-code-file-link {
   display: inline-flex;
@@ -140,7 +140,7 @@
   padding: 12px 0 0;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   text-align: left;
 }
@@ -160,7 +160,7 @@
   border: 1px solid var(--accent-border);
   background: var(--accent-soft);
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   margin-top: 12px;
 }
@@ -183,7 +183,7 @@
   gap: 12px;
   align-items: center;
   padding: 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-diff {
   margin: 0;
@@ -191,7 +191,7 @@
   max-height: 420px;
   padding: 16px;
   background: var(--code);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .dead-code-diff > span {
@@ -214,7 +214,7 @@
   border-top: 1px solid var(--border);
   padding: 18px 0;
   margin: 18px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-handoff select,
 .dead-code-handoff button {
@@ -225,7 +225,7 @@
   border: 1px solid var(--accent-border);
   padding: 18px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .dead-code-result details {
   margin-top: 14px;
@@ -257,7 +257,7 @@
 .dead-code-backups article {
   padding: 16px 0;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .dead-code-backups small,

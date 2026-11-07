@@ -17,7 +17,7 @@
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .agent-plan-switches {
@@ -43,7 +43,7 @@
   font-weight: 600;
 }
 .agent-plan-section p {
-  font-size: 12px;
+  font-size: 13px;
 }
 .agent-plan-section input {
   width: 80px;
@@ -66,7 +66,7 @@
 .agent-plan-route legend {
   padding: 0 6px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
 }
 .agent-plan-route label {
   margin: 0;
@@ -76,7 +76,7 @@
   justify-content: flex-start;
 }
 .agent-plan-route details {
-  font-size: 12px;
+  font-size: 13px;
 }
 .agent-plan-route summary {
   color: var(--muted);
@@ -112,7 +112,7 @@
 }
 .session-agent-plan footer > span {
   margin-right: auto;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 @media (max-width: 640px) {

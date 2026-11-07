@@ -32,7 +32,7 @@
 }
 .generated-images figcaption {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -44,7 +44,7 @@
   width: 6rem;
   height: 6rem;
   padding: 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   text-align: center;
   border: 1px solid var(--border);

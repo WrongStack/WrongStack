@@ -32,7 +32,7 @@
   border-radius: 4px;
   padding: 4px 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .approval-destructive .approval-risk {
   color: var(--danger);
@@ -60,7 +60,7 @@
 .approval-pattern > strong {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -85,13 +85,13 @@
 }
 .approval-arguments dt {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .approval-arguments dd {
   margin: 0;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .approval-arguments ol {
@@ -112,12 +112,12 @@
   display: block;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 11px;
+  font-size: 12px;
 }
 .approval-scope {
   display: grid;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .approval-scope select {
   max-width: 100%;

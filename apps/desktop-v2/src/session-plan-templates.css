@@ -10,25 +10,25 @@
   gap: 6px;
   max-width: 420px;
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .session-plan-templates > p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .session-plan-templates ol {
   margin: 8px 0 18px;
   padding-left: 20px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .session-plan-templates small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-plan-templates [role="status"] {
   margin-top: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }

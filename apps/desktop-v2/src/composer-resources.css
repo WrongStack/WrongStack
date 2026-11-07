@@ -69,7 +69,7 @@
   border-bottom: 1px solid var(--border);
   background: var(--raised);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -84,12 +84,12 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .resource-list span,
 .resource-list small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -112,7 +112,7 @@
 }
 .resource-detail small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .prompt-template-preview {
   line-height: 1.8;
@@ -127,7 +127,7 @@
 .prompt-variables legend,
 .template-required legend {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .resource-empty {
   padding: 25px 15px;
@@ -207,13 +207,13 @@
   gap: 7px;
 }
 .prompt-journal-list strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .prompt-journal-list small,
 .journal-limit small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .journal-entry-body {
@@ -238,7 +238,7 @@
   min-width: 0;
   gap: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-dialog.resource-dialog .resource-toolbar label.journal-date-filter input {
   width: auto;
@@ -269,12 +269,12 @@
   align-items: center;
   gap: 8px;
   padding: 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-mention-popup header small {
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .composer-mention-popup [role="option"] {
   display: grid;
@@ -288,13 +288,13 @@
   background: var(--raised);
 }
 .composer-mention-popup strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .composer-mention-popup span,
 .composer-mention-popup p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.6;
 }
 .composer-mention-popup .runtime-state {
@@ -314,7 +314,7 @@
   gap: 6px;
   align-items: center;
   padding: 5px 7px;
-  font-size: 10px;
+  font-size: 11px;
   border: 1px solid var(--border);
   border-radius: 5px;
   overflow-wrap: anywhere;
@@ -343,7 +343,7 @@
 }
 .context-summary span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .context-token-row {
   display: grid;
@@ -351,7 +351,7 @@
   align-items: center;
   gap: 15px;
   padding: 10px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .context-token-row meter {
   width: 100%;
@@ -368,7 +368,7 @@
 }
 .context-inspector summary {
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
 }
 .context-entries {
   max-height: 220px;
@@ -380,7 +380,7 @@
   justify-content: space-between;
   gap: 15px;
   padding: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .context-entries span {
   min-width: 0;
@@ -442,7 +442,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
 }
 .composer-reference-range-fields {
   display: flex;
@@ -464,7 +464,7 @@
   max-height: 220px;
   margin: 0;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 .composer-reference-preview pre span {
@@ -491,7 +491,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .context-editor-rows {
@@ -527,7 +527,7 @@
 .context-editor-trim textarea {
   width: 100%;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   resize: vertical;
 }
 .context-editor-trim button {
@@ -596,7 +596,7 @@
   padding-top: 12px;
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   min-width: 0;
 }
 /* Beats `.composer-dialog header` (space-between), which split the icon from its title. */
