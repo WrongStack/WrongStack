@@ -88,4 +88,16 @@ describe('buildBtwBlock', () => {
     expect(text).toContain('untrusted context');
     expect(text).not.toMatch(/the user added this/i);
   });
+
+  it('keeps untrusted peer framing for [MAILBOX BTW] notes when mixed with user notes and returns empty string for empty notes (F95)', () => {
+    expect(buildBtwBlock([])).toBe('');
+    const mixed = buildBtwBlock([
+      'user note: keep going',
+      '[MAILBOX BTW] fleet@explore: indexing finished',
+    ]);
+    expect(mixed).toContain('the user added this');
+    expect(mixed).toContain('untrusted context');
+    expect(mixed).toContain('- user note: keep going');
+    expect(mixed).toContain('- [MAILBOX BTW] fleet@explore: indexing finished');
+  });
 });

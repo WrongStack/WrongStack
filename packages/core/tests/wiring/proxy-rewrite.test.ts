@@ -24,6 +24,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  __resetProxyConfigForTests,
   applyProxyConfig,
   createProxyInstantApply,
   deactivateProxyOnConnectionFailure,
@@ -33,7 +34,7 @@ import {
   rewriteBaseUrl,
   shouldRewriteFor,
   subscribeToProxyConfig,
-  __resetProxyConfigForTests,
+  waitForProxyRoutingSettle,
 } from '../../src/wiring/proxy-rewrite.js';
 
 describe('rewriteBaseUrl', () => {
@@ -413,7 +414,10 @@ describe('createProxyInstantApply', () => {
     const h = makeHandle({ rebuildProvider });
     applyProxyConfig({ active: false });
     applyProxyConfig({ active: true });
-    await flush();
+    // Wait on the production routing-settle barrier (the chain promise itself)
+    // instead of a fixed sleep: under a fully parallel suite the second 5 ms
+    // rebuild can outlive a 25 ms flush and the ordering assertion races it.
+    await waitForProxyRoutingSettle();
     expect(rebuildProvider).toHaveBeenCalledTimes(2);
     // Strict alternation proves no interleaving: start,end,start,end.
     expect(order).toEqual(['start', 'end', 'start', 'end']);

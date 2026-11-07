@@ -17,17 +17,21 @@ export function sessionScopedPath(dir: string, sessionId: string, suffix: string
     typeof dir !== 'string' ||
     !dir ||
     typeof sessionId !== 'string' ||
-    !sessionId ||
+    !sessionId.trim() ||
     typeof suffix !== 'string' ||
     sessionId.includes('\0') ||
     sessionId.includes('..') ||
-    sessionId.includes('\\')
+    sessionId.includes('\\') ||
+    sessionId.includes(':') ||
+    sessionId.startsWith('/') ||
+    sessionId.endsWith('/') ||
+    sessionId.split('/').some((seg) => !seg.trim() || seg === '.' || seg === '..')
   ) {
     throw invalid(sessionId);
   }
   const resolved = path.resolve(dir, `${sessionId}${suffix}`);
   const rel = path.relative(path.resolve(dir), resolved);
-  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+  if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
     throw invalid(sessionId);
   }
   return resolved;

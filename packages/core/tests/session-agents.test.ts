@@ -382,4 +382,78 @@ describe('SessionCatalogStore.listSessionAgents', () => {
       store.close();
     }
   });
+
+  it('ignores blank/whitespace agentIds, resets terminal state on re-spawn, and publishes agents on same-session re-registration (F94)', async () => {
+    const { ProjectSessionRegistry } = await import('../src/session-catalog/registry.js');
+    const roster = deriveSessionAgents([
+      { type: 'agent_spawned', agentId: '   ', role: 'ghost', ts: ts(0) } as SessionEvent,
+      { type: 'agent_spawned', agentId: 'agent-1', role: 'worker', ts: ts(1) } as SessionEvent,
+      { type: 'agent_error', agentId: 'agent-1', error: 'timeout', ts: ts(2) } as SessionEvent,
+      { type: 'agent_stopped', agentId: 'agent-1', reason: 'failed', ts: ts(3) } as SessionEvent,
+      { type: 'agent_spawned', agentId: 'agent-1', role: 'worker', ts: ts(4) } as SessionEvent,
+    ]);
+    expect(roster).toHaveLength(1);
+    expect(roster[0]?.agentId).toBe('agent-1');
+    expect(roster[0]?.status).toBe('running');
+    expect(roster[0]?.endedAt).toBeUndefined();
+    expect(roster[0]?.error).toBeUndefined();
+    expect(roster[0]?.spawnedAt).toBe(ts(1));
+
+    const root = makeTempProject();
+    const registry = new ProjectSessionRegistry(root);
+    const calls: string[] = [];
+    (registry as unknown as { current: unknown }).current = {
+      binding: {
+        projectDir: path.join(root, 'projects', 'demo'),
+        projectRoot: root,
+        subscriptions: 0,
+        reservations: 0,
+        client: {
+          call: async (method: string, args: unknown) => {
+            calls.push(method);
+            if (method === 'heartbeat') return (args as { credential: unknown }).credential;
+            return { accepted: true, revision: 1 };
+          },
+          close: async () => {},
+        },
+      },
+      credential: {
+        sessionId: 'sess-f94',
+        leaseId: 'lease-1',
+        leaseSecret: 'sec-1',
+        ownerInstanceId: 'inst-1',
+        expiresAt: Date.now() + 30_000,
+      },
+      entry: {
+        sessionId: 'sess-f94',
+        projectSlug: 'demo',
+        projectRoot: root,
+        pid: 4242,
+        startedAt: ts(0),
+        lastHeartbeatAt: ts(0),
+        status: 'idle',
+        agentCount: 0,
+        agents: [],
+      },
+    };
+    await registry.register({
+      sessionId: 'sess-f94',
+      projectSlug: 'demo',
+      projectRoot: root,
+      pid: 4242,
+      startedAt: ts(0),
+      agents: [
+        {
+          id: 'sub-1',
+          name: 'sub-1',
+          status: 'running',
+          iterations: 0,
+          toolCalls: 0,
+          startedAt: ts(1),
+          lastActivityAt: ts(1),
+        },
+      ],
+    } as never);
+    expect(calls).toContain('publish_agents');
+  });
 });

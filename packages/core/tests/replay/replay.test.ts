@@ -168,6 +168,13 @@ describe('hashRequest', () => {
     expect(stableStringify([1, 2, 3])).toBe('[1,2,3]');
     expect(stableStringify([3, 2, 1])).toBe('[3,2,1]');
   });
+
+  it('stableStringify preserves own __proto__ keys instead of dropping them (F102)', () => {
+    const parsedA = JSON.parse('{"a":1,"__proto__":{"x":1}}');
+    const parsedB = JSON.parse('{"a":1,"__proto__":{"x":2}}');
+    expect(stableStringify(parsedA)).toBe('{"__proto__":{"x":1},"a":1}');
+    expect(stableStringify(parsedA)).not.toBe(stableStringify(parsedB));
+  });
 });
 
 describe('ReplayLogStore', () => {

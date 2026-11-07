@@ -27,4 +27,12 @@ describe('sessionScopedPath', () => {
   it('rejects empty session IDs', () => {
     expect(() => sessionScopedPath(dir, '', '.json')).toThrow();
   });
+
+  it('rejects dot segments, empty segments, whitespace-only IDs, and colons (F101)', () => {
+    expect(() => sessionScopedPath(dir, '.', '')).toThrow('Invalid sessionId');
+    expect(() => sessionScopedPath(dir, './sess_1', '.json')).toThrow('Invalid sessionId');
+    expect(() => sessionScopedPath(dir, 'sess_1/', '.json')).toThrow('Invalid sessionId');
+    expect(() => sessionScopedPath(dir, 'sess_1:ads', '.json')).toThrow('Invalid sessionId');
+    expect(() => sessionScopedPath(dir, '   ', '.json')).toThrow('Invalid sessionId');
+  });
 });

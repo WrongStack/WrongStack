@@ -115,8 +115,8 @@ export class HookRegistry implements HookRegistryPort {
       for (const h of list ?? []) {
         if (options.policyOnly && h.policy !== true) continue;
         if (h.type === 'http') {
-          if (h.url) this.registerHttp(event, h);
-        } else if (h.command) {
+          if (h.url?.trim()) this.registerHttp(event, h);
+        } else if (h.command?.trim()) {
           this.registerShell(event, h);
         }
       }
@@ -222,10 +222,10 @@ export class HookRegistry implements HookRegistryPort {
 export function hookMatcherMatches(matcher: HookMatcher, toolName: string | undefined): boolean {
   if (!matcher || matcher === '*') return true;
   if (toolName === undefined) return true;
-  const target = toolName.toLowerCase();
-  return matcher
+  const tokens = matcher
     .split('|')
     .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(target);
+    .filter(Boolean);
+  if (tokens.length === 0 || tokens.includes('*')) return true;
+  return tokens.includes(toolName.trim().toLowerCase());
 }

@@ -626,6 +626,24 @@ describe('countShellHooks', () => {
       }),
     ).toBe(1);
   });
+  it('ignores blank commands/URLs in loadShellHooks and countShellHooks and matches padded wildcards (F100)', () => {
+    expect(hookMatcherMatches(' * ', 'bash')).toBe(true);
+    expect(hookMatcherMatches('Edit | *', 'bash')).toBe(true);
+    expect(hookMatcherMatches('   ', 'bash')).toBe(true);
+    expect(hookMatcherMatches('Edit|Write', ' write ')).toBe(true);
+
+    const hooksConfig = {
+      PreToolUse: [
+        { command: 'echo ok' },
+        { command: '   ' },
+        { type: 'http' as const, url: '   ' },
+      ],
+    };
+    const reg = new HookRegistry();
+    reg.loadShellHooks(hooksConfig);
+    expect(reg.list('PreToolUse')).toHaveLength(1);
+    expect(countShellHooks(hooksConfig)).toBe(1);
+  });
 });
 
 /**

@@ -307,6 +307,31 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
       expect(await getPromptJournalEntries(tempDir, { limit: 2 })).toHaveLength(2);
       expect(await getPromptJournalEntries(tempDir, { limit: 0 })).toHaveLength(0);
       expect(await getPromptJournalEntries(tempDir, { limit: -1 })).toHaveLength(0);
+      expect(await getPromptJournalEntries(tempDir, { limit: Number.NaN })).toHaveLength(0);
+      expect(
+        await getPromptJournalEntries(tempDir, { limit: Number.NEGATIVE_INFINITY }),
+      ).toHaveLength(0);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('sanitizes Windows-illegal filename characters in sessionId and escapes pipes in index.md (F102)', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'prompt-journal-f102-'));
+    try {
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess|1',
+        category: 'raw_user',
+        content: 'hello world',
+      });
+      const indexMd = await fs.readFile(
+        path.join(tempDir, '.wrongstack', 'prompts', 'index.md'),
+        'utf8',
+      );
+      expect(indexMd).toContain('`sess\\|1`');
+      const entries = await getPromptJournalEntries(tempDir, { sessionId: 'sess|1' });
+      expect(entries).toHaveLength(1);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }

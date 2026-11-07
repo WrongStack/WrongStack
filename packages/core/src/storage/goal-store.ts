@@ -372,6 +372,7 @@ export function replaceGoalMission(
  * Clamps progress to 0-100.
  */
 export function setProgress(goal: GoalFile, progress: number, note?: string): GoalFile {
+  if (!Number.isFinite(progress)) return goal;
   const clamped = Math.min(100, Math.max(0, progress));
   return {
     ...goal,
@@ -443,7 +444,7 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
   }
 
   // Progress bar (20-segment)
-  if (typeof goal.progress === 'number') {
+  if (typeof goal.progress === 'number' && Number.isFinite(goal.progress)) {
     const pct = Math.min(100, Math.max(0, Math.round(goal.progress)));
     const filled = Math.round(pct / 5);
     const empty = 20 - filled;
@@ -471,7 +472,7 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
     for (const d of goal.deliverables) {
       // Done markers are prefixes (see DONE_PREFIX in goal-coordination.ts);
       // ✅/(done) appearing mid-string must not mark the deliverable done.
-      const done = /^(?:\[[x✓]\]|✅|\(done\))/i.test(d);
+      const done = /^\s*(?:\[[x✓]\]|✅|\(done\))/i.test(d);
       const marker = done ? color.green('✓') : color.dim('○');
       lines.push('  ' + marker + ' ' + d);
     }
@@ -501,7 +502,7 @@ export function formatGoal(goal: GoalFile, journalLimit = 10): string {
       ' iterations)';
     lines.push(spent);
   }
-  if (goal.journal.length > 0) {
+  if (goal.journal.length > 0 && journalLimit > 0) {
     lines.push('');
     lines.push('Recent journal (last ' + Math.min(journalLimit, goal.journal.length) + '):');
     const tail = goal.journal.slice(-journalLimit);
@@ -555,6 +556,7 @@ export function parseProgressFromText(text: string): { progress: number; note?: 
  * - progress trend computed (accelerating/steady/stalling)
  */
 export function recordProgress(goal: GoalFile, progress: number, note?: string): GoalFile {
+  if (!Number.isFinite(progress)) return goal;
   const clamped = Math.min(100, Math.max(0, progress));
   const history = [
     ...(goal.progressHistory ?? []),

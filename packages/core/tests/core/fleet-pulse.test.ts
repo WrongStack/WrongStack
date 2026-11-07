@@ -223,4 +223,12 @@ describe('fleetPulseSignature', () => {
     const y = status({ agentId: 'y@a' });
     expect(fleetPulseSignature([x, y])).toBe(fleetPulseSignature([y, x]));
   });
+
+  it('changes when online status or currentTool changes (F95)', () => {
+    const onlineRead = [status({ agentId: 'e@a', online: true, currentTool: 'read' })];
+    const offlineRead = [status({ agentId: 'e@a', online: false, currentTool: 'read' })];
+    const onlineBash = [status({ agentId: 'e@a', online: true, currentTool: 'bash' })];
+    expect(fleetPulseSignature(onlineRead)).not.toBe(fleetPulseSignature(offlineRead));
+    expect(fleetPulseSignature(onlineRead)).not.toBe(fleetPulseSignature(onlineBash));
+  });
 });

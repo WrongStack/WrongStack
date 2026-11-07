@@ -208,6 +208,7 @@ export function evaluateGuard(
       entry.machine !== undefined &&
       entry.machine !== options.currentMachine
     ) {
+      const driftRaw = measured === undefined ? undefined : rawDeltaPct(entry.value, measured);
       results.push({
         id: entry.id,
         label: entry.label,
@@ -216,12 +217,9 @@ export function evaluateGuard(
         baseline: entry.value,
         current: measured,
         deltaPct:
-          measured === undefined
-            ? 0
-            : round(
-                (PERF_METRICS[entry.metric].better === 'lower' ? -1 : 1) *
-                  rawDeltaPct(entry.value, measured),
-              ),
+          driftRaw !== undefined && Number.isFinite(driftRaw)
+            ? round((PERF_METRICS[entry.metric].better === 'lower' ? -1 : 1) * driftRaw) || 0
+            : 0,
         thresholdPct,
         message: `baseline was recorded on a different machine (${entry.machine}) — not comparable`,
       });
@@ -245,6 +243,20 @@ export function evaluateGuard(
     }
     const signed = rawDeltaPct(entry.value, measured);
     const deltaPct = PERF_METRICS[entry.metric].better === 'lower' ? -signed : signed;
+    if (!Number.isFinite(deltaPct)) {
+      results.push({
+        id: entry.id,
+        label: entry.label,
+        metric: entry.metric,
+        verdict: 'noise',
+        baseline: entry.value,
+        current: measured,
+        deltaPct: 0,
+        thresholdPct,
+        message: 'baseline was zero — percentage delta is undefined',
+      });
+      continue;
+    }
     const verdict: PerfVerdict =
       Math.abs(deltaPct) < thresholdPct ? 'noise' : deltaPct > 0 ? 'improved' : 'regressed';
     results.push({

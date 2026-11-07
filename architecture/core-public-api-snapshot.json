@@ -1076,7 +1076,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 80,
-      "sourceLines": 17152
+      "sourceLines": 17164
     },
     {
       "directory": "design",
@@ -1104,7 +1104,7 @@
       "classification": "product feature",
       "intendedOwner": "feature/plugin owner",
       "sourceFiles": 8,
-      "sourceLines": 1780
+      "sourceLines": 1785
     },
     {
       "directory": "infrastructure",
@@ -1118,7 +1118,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 19,
-      "sourceLines": 4414
+      "sourceLines": 4429
     },
     {
       "directory": "notifications",
@@ -1139,7 +1139,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused performance package",
       "sourceFiles": 9,
-      "sourceLines": 1815
+      "sourceLines": 1827
     },
     {
       "directory": "plugin",
@@ -1153,7 +1153,7 @@
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 714
+      "sourceLines": 726
     },
     {
       "directory": "quota",
@@ -1174,7 +1174,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository/runtime implementation",
       "sourceFiles": 3,
-      "sourceLines": 262
+      "sourceLines": 267
     },
     {
       "directory": "sandbox",
@@ -1195,7 +1195,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 20,
-      "sourceLines": 5741
+      "sourceLines": 5751
     },
     {
       "directory": "skills",
@@ -1216,7 +1216,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 119,
-      "sourceLines": 26765
+      "sourceLines": 26770
     },
     {
       "directory": "tasking",
@@ -1237,7 +1237,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 96,
-      "sourceLines": 15019
+      "sourceLines": 15024
     },
     {
       "directory": "vcs",

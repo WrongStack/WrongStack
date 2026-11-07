@@ -41,6 +41,7 @@ export function countUnifiedDiffLines(diff: string): { added: number; removed: n
       continue;
     }
     if (line.startsWith('diff --git ')) {
+      sawHunk = false;
       oldRemaining = 0;
       newRemaining = 0;
       hunkCountsDeclared = false;

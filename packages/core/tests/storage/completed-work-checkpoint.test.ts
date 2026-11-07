@@ -70,4 +70,41 @@ describe('completed-work-checkpoint', () => {
     await fs.writeFile(fp, JSON.stringify({ version: 1, completedWork: {} }), 'utf8');
     expect(await loadCompletedWorkCheckpoint(fp)).toBeNull();
   });
+
+  it('strips UTF-8 BOM, filters non-finite completedAt, and preserves sessionId alongside traceId on save (F93)', async () => {
+    const fp = path.join(dir, 'bom-checkpoint.json');
+    const bomPayload =
+      '\uFEFF' +
+      JSON.stringify({
+        version: 1,
+        sessionId: 'sess-real',
+        updatedAt: new Date().toISOString(),
+        completedWork: [
+          { key: 'k1', source: 'todo', summary: 'valid', completedAt: 1700000000000 },
+          { key: 'k2', source: 'todo', summary: 'infinite', completedAt: null },
+        ],
+      }).replace('"completedAt":null', '"completedAt":1e500');
+    await fs.writeFile(fp, bomPayload, 'utf8');
+    const loaded = await loadCompletedWorkCheckpoint(fp);
+    expect(loaded).toEqual([
+      { key: 'k1', source: 'todo', summary: 'valid', completedAt: 1700000000000 },
+    ]);
+
+    const events = { emit: vi.fn() };
+    await saveCompletedWorkCheckpoint(
+      fp,
+      'sess-owner-42',
+      loaded ?? [],
+      events as never,
+      'trace-abc',
+    );
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.write',
+      expect.objectContaining({
+        sessionId: 'sess-owner-42',
+        traceId: 'trace-abc',
+        store: 'completed-work',
+      }),
+    );
+  });
 });

@@ -170,4 +170,53 @@ describe('ModelRouter.suggestMatrix', () => {
     expect(pick.model).toBe('claude-sonnet-4-20250514');
     expect(pick.provider).toBe('anthropic');
   });
+
+  it('matches task keywords at word boundaries, excludes mini/flash from GPT-4/Gemini-Pro profiles, and deep-copies getCosts (F97)', () => {
+    const r = new ModelRouter({
+      config: {
+        provider: 'openai',
+        model: 'gpt-4o',
+        providers: {
+          openai: { type: 'openai', apiKey: 'sk-oai', models: ['gpt-4o-mini', 'gpt-4o'] },
+          google: { type: 'google', apiKey: 'gk', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] },
+        },
+      },
+    });
+    expect(r.pickForTask('general', 'do a quick check').reason).toBe(
+      'best-for lightweight (auto-detected)',
+    );
+    expect(r.pickForTask('backend', 'build the server').reason).toBe(
+      'best-for backend (auto-detected)',
+    );
+    expect(r.pickForTask('general', 'investigate docker container crash').reason).toBe(
+      'best-for debugging (auto-detected)',
+    );
+    expect(r.pickForTask('executor', 'implement coding feature').model).toBe('gpt-4o');
+
+    const googleOnly = new ModelRouter({
+      config: {
+        provider: 'google',
+        model: 'gemini-2.5-pro',
+        providers: {
+          google: { type: 'google', apiKey: 'gk', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] },
+        },
+      },
+    });
+    expect(googleOnly.pickForTask('executor', 'implement coding feature').model).toBe(
+      'gemini-2.5-pro',
+    );
+
+    r.recordCost('openai', 'gpt-4o', 0.05, { input: 100, output: 50 });
+    r.recordCost('openai', 'gpt-4o', Number.NaN, { input: Number.NaN, output: 10 });
+    const snap = r.getCosts();
+    if (snap.byModel['openai/gpt-4o']) {
+      snap.byModel['openai/gpt-4o'].cost = 999;
+      snap.byModel['openai/gpt-4o'].tokens.input = 999999;
+    }
+    expect(r.getCosts().byModel['openai/gpt-4o']).toEqual({
+      cost: 0.05,
+      calls: 2,
+      tokens: { input: 100, output: 60 },
+    });
+  });
 });

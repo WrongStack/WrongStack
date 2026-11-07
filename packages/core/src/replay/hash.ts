@@ -49,7 +49,12 @@ function sortKeys(value: unknown): unknown {
     const obj = value as Record<string, unknown>;
     const sorted: Record<string, unknown> = {};
     for (const key of Object.keys(obj).sort()) {
-      sorted[key] = sortKeys(obj[key]);
+      Object.defineProperty(sorted, key, {
+        value: sortKeys(obj[key]),
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return sorted;
   }

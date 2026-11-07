@@ -46,7 +46,8 @@ export async function loadCompletedWorkCheckpoint(
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as CompletedWorkCheckpointFile;
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    const parsed = JSON.parse(text) as CompletedWorkCheckpointFile;
     if (parsed?.version !== 1 || !Array.isArray(parsed.completedWork)) {
       events?.emit('storage.read', {
         sessionId: traceId ?? '~boot~',
@@ -102,7 +103,7 @@ export async function saveCompletedWorkCheckpoint(
   try {
     await atomicWrite(filePath, JSON.stringify(payload, null, 2), { mode: 0o600 });
     events?.emit('storage.write', {
-      sessionId: traceId ?? sessionId,
+      sessionId,
       store: 'completed-work',
       filePath,
       operation: 'save',
@@ -112,13 +113,14 @@ export async function saveCompletedWorkCheckpoint(
     });
   } catch (err) {
     events?.emit('storage.error', {
-      sessionId: traceId ?? sessionId,
+      sessionId,
       store: 'completed-work',
       filePath,
       operation: 'save',
       outcome: 'failure',
       error: toErrorMessage(err),
       recoverable: false,
+      ...(traceId !== undefined && { traceId }),
     });
     console.warn(
       JSON.stringify({
@@ -140,6 +142,7 @@ function isCompletedWorkEvidence(value: unknown): value is CompletedWorkEvidence
     ['todo', 'plan', 'task', 'verification', 'manual'].includes(item.source) &&
     typeof item.summary === 'string' &&
     typeof item.completedAt === 'number' &&
+    Number.isFinite(item.completedAt) &&
     (item.evidence === undefined || typeof item.evidence === 'string')
   );
 }

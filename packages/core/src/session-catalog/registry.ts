@@ -132,6 +132,10 @@ export class ProjectSessionRegistry {
         credential: this.current.credential,
         status: full.status,
       });
+      if (entry.agents !== undefined) {
+        this.pendingAgents = full.agents;
+        await this.flushAgents();
+      }
       return;
     }
     const nextBinding = this.binding(full.projectSlug, full.projectRoot);
@@ -368,7 +372,7 @@ export class ProjectSessionRegistry {
       const metadata = JSON.parse(
         await fs.readFile(sessionCatalogProjectServerMetadataPath(projectDir), 'utf8'),
       ) as { projectRoot?: unknown };
-      if (typeof metadata.projectRoot !== 'string') return [];
+      if (typeof metadata.projectRoot !== 'string' || !metadata.projectRoot.trim()) return [];
       client = new SessionCatalogProjectClient({ projectDir, projectRoot: metadata.projectRoot });
       return await client.callExisting('list_live', {}).catch(() => []);
     } catch {

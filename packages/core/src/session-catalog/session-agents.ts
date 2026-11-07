@@ -68,10 +68,11 @@ export function deriveSessionAgents(events: Iterable<SessionEvent>): SessionAgen
   };
 
   for (const event of events) {
+    const agentId = typeof event.agentId === 'string' ? event.agentId.trim() : '';
     // Attribution first: it applies to EVERY event type, including the agent
     // lifecycle records below, and an agent can appear here before any
     // lifecycle record if the journal was truncated at the head.
-    if (event.agentId !== undefined && event.agentId !== '') {
+    if (agentId !== '') {
       // The lifecycle records name their subject in `agentId` too, so counting
       // them as interleaved output would credit an agent for its own spawn
       // notice. Only non-lifecycle events are the agent's actual work.
@@ -80,21 +81,26 @@ export function deriveSessionAgents(events: Iterable<SessionEvent>): SessionAgen
         event.type === 'agent_session_linked' ||
         event.type === 'agent_stopped' ||
         event.type === 'agent_error';
-      const row = upsert(event.agentId);
+      const row = upsert(agentId);
       if (!isLifecycle) row.interleavedEventCount += 1;
     }
 
+    if (agentId === '') continue;
+
     switch (event.type) {
       case 'agent_spawned': {
-        const row = upsert(event.agentId);
+        const row = upsert(agentId);
         row.role = event.role;
         // Keep the EARLIEST spawn stamp. A resumed fleet can re-announce an
         // agent; the first announcement is when it actually started.
         row.spawnedAt ??= event.ts;
+        row.status = 'running';
+        delete row.endedAt;
+        delete row.error;
         break;
       }
       case 'agent_session_linked': {
-        const row = upsert(event.agentId);
+        const row = upsert(agentId);
         row.agentSessionId = event.agentSessionId;
         if (event.transcriptPath !== undefined) row.transcriptPath = event.transcriptPath;
         if (event.provider !== undefined) row.provider = event.provider;
@@ -104,7 +110,7 @@ export function deriveSessionAgents(events: Iterable<SessionEvent>): SessionAgen
         break;
       }
       case 'agent_stopped': {
-        const row = upsert(event.agentId);
+        const row = upsert(agentId);
         row.endedAt = event.ts;
         // An error already recorded is the more specific outcome: a failing
         // agent is stopped too, and `agent_stopped` carries no error text.
@@ -116,7 +122,7 @@ export function deriveSessionAgents(events: Iterable<SessionEvent>): SessionAgen
         break;
       }
       case 'agent_error': {
-        const row = upsert(event.agentId);
+        const row = upsert(agentId);
         row.status = 'failed';
         row.error = event.error;
         row.endedAt ??= event.ts;

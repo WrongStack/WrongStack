@@ -117,6 +117,21 @@ describe('countUnifiedDiffLines', () => {
     const patch = ['@@ -1,1 +1,1 @@', '-old', '+new', '-not part of the hunk'].join('\n');
     expect(countUnifiedDiffLines(patch)).toEqual({ added: 1, removed: 1 });
   });
+
+  it('resets hunk state on subsequent diff --git headers so non-hunk lines are ignored (F101)', () => {
+    const patch = [
+      'diff --git a/a.ts b/a.ts',
+      '--- a/a.ts',
+      '+++ b/a.ts',
+      '@@ -1 +1 @@',
+      '-old',
+      '+new',
+      'diff --git a/binary.png b/binary.png',
+      '-- ',
+      '2.45.0',
+    ].join('\n');
+    expect(countUnifiedDiffLines(patch)).toEqual({ added: 1, removed: 1 });
+  });
 });
 
 // `files=N` is a count of FILES, and `git diff` names each file twice

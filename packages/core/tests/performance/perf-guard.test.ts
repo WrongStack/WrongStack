@@ -286,6 +286,27 @@ describe('machine drift', () => {
     expect(results[0]?.verdict).toBe('regressed');
   });
 
+  it('treats a zero baseline with a non-zero measurement as noise with finite deltaPct (F99)', () => {
+    const zeroBaseline: PerfBaselineFile = {
+      schemaVersion: 1,
+      thresholdPct: 10,
+      entries: [
+        {
+          id: 'alloc.zero',
+          label: 'Zero allocations baseline',
+          metric: 'allocs-per-op',
+          value: 0,
+          source: 'bench',
+          recordedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    };
+    const results = evaluateGuard(zeroBaseline, { 'alloc.zero': 5 });
+    expect(results[0]?.verdict).toBe('noise');
+    expect(results[0]?.deltaPct).toBe(0);
+    expect(results[0]?.message).not.toContain('Infinity');
+  });
+
   it('records a never-measured probe here even if it names another machine', () => {
     // Nothing to protect yet: the first number is the baseline, and the ratchet
     // stamps this machine onto it.

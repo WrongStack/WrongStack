@@ -95,7 +95,7 @@ const DEFAULT_PROFILES: ModelIntelligenceEntry[] = [
   },
   {
     provider: 'openai',
-    pattern: /gpt-4/i,
+    pattern: /gpt-4(?!.*mini)/i,
     family: 'GPT-4',
     strengths: ['coding'],
     bestFor: ['coding', 'docs'],
@@ -114,7 +114,7 @@ const DEFAULT_PROFILES: ModelIntelligenceEntry[] = [
   },
   {
     provider: 'google',
-    pattern: /gemini-(?:2\.5|3)/i,
+    pattern: /gemini-(?:2\.5|3)(?!.*flash)/i,
     family: 'Gemini 2.5/3',
     strengths: ['context', 'coding'],
     bestFor: ['coding', 'data'],
@@ -296,8 +296,14 @@ export class ModelRouter {
   /** Infer task category from description keywords + role. */
   private inferCategory(description: string, role: string): string {
     const d = description.toLowerCase();
+    const shortExact = new Set(['ui', 'api', 'sql', 'css', 'json']);
     for (const [keyword, category] of Object.entries(TASK_CATEGORIES)) {
-      if (d.includes(keyword)) return category;
+      const matched = shortExact.has(keyword)
+        ? new RegExp(`\\b${keyword}\\b`, 'i').test(d)
+        : keyword === 'doc'
+          ? /\b(?:doc|docs|document\w*)\b/i.test(d)
+          : new RegExp(`\\b${keyword}`, 'i').test(d);
+      if (matched) return category;
     }
     // Map role to category
     const roleMap: Record<string, string> = {
@@ -390,21 +396,30 @@ export class ModelRouter {
     cost: number,
     tokens?: { input: number; output: number },
   ): void {
+    const safeCost = Number.isFinite(cost) ? cost : 0;
     const key = `${provider}/${model}`;
     const entry = this.costs.byModel[key] ?? { cost: 0, tokens: { input: 0, output: 0 }, calls: 0 };
-    entry.cost += cost;
+    entry.cost += safeCost;
     if (tokens) {
-      entry.tokens.input += tokens.input;
-      entry.tokens.output += tokens.output;
+      if (Number.isFinite(tokens.input)) entry.tokens.input += tokens.input;
+      if (Number.isFinite(tokens.output)) entry.tokens.output += tokens.output;
     }
     entry.calls += 1;
     this.costs.byModel[key] = entry;
-    this.costs.totalCost += cost;
+    this.costs.totalCost += safeCost;
   }
 
   /** Get cumulative costs. */
   getCosts(): RouterCosts {
-    return { ...this.costs, byModel: { ...this.costs.byModel } };
+    return {
+      totalCost: this.costs.totalCost,
+      byModel: Object.fromEntries(
+        Object.entries(this.costs.byModel).map(([k, v]) => [
+          k,
+          { cost: v.cost, calls: v.calls, tokens: { ...v.tokens } },
+        ]),
+      ),
+    };
   }
 
   /** Reset cost tracking. */

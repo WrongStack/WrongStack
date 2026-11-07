@@ -166,8 +166,13 @@ export async function ensureGitignore(projectRoot: string): Promise<void> {
  * stored verbatim; only file names and markdown links use this form.
  */
 function sessionFileId(sessionId: string): string {
-  const leaf = sessionId.split(/[\\/]/u).pop();
-  return leaf && leaf.trim().length > 0 ? leaf : 'general';
+  const leaf = sessionId
+    .split(/[\\/]/u)
+    .pop()
+    ?.trim()
+    .replace(/[<>:"|?*\x00-\x1f]+/gu, '_')
+    .replace(/\.+$/gu, '');
+  return leaf && leaf.length > 0 && leaf !== '.' && leaf !== '..' ? leaf : 'general';
 }
 
 /**
@@ -418,12 +423,18 @@ async function updateRootCatalog(
     md += `| Date | Session | Prompts | Tokens (est) | Daily Log | Session Log |\n`;
     md += `| :--- | :--- | :--- | :--- | :--- | :--- |\n`;
 
+    const sanitizeCell = (val: string): string =>
+      val
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\|/g, '\\|')
+        .trim();
+
     for (const [m, mObj] of Object.entries(catalog.months).sort().reverse()) {
       for (const [d, dObj] of Object.entries(mObj.days).sort().reverse()) {
         for (const [sId, sData] of Object.entries(dObj.sessions)) {
           const dailyLink = `[daily-summary.md](./${m}/${d}/daily-summary.md)`;
           const sessionLink = `[session-${sessionFileId(sId)}.md](./${m}/${d}/session-${sessionFileId(sId)}.md)`;
-          md += `| **${d}** | \`${sId}\` | ${sData.promptCount} | ~${sData.tokenEstimate.toLocaleString()} | ${dailyLink} | ${sessionLink} |\n`;
+          md += `| **${d}** | \`${sanitizeCell(sId)}\` | ${sData.promptCount} | ~${sData.tokenEstimate.toLocaleString()} | ${dailyLink} | ${sessionLink} |\n`;
         }
       }
     }
@@ -512,8 +523,9 @@ export async function getPromptJournalEntries(
     // not turn into `slice(-limit)`: limit=-1 used `slice(1)` and returned
     // every entry except the first; limit=0 fell through and returned all.
     const requested = Number(filter.limit);
+    if (Number.isNaN(requested) || requested <= 0) return [];
     if (Number.isFinite(requested)) {
-      const limit = Math.max(0, Math.floor(requested));
+      const limit = Math.floor(requested);
       if (limit === 0) return [];
       if (results.length > limit) return results.slice(-limit);
     }

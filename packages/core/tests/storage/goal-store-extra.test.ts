@@ -6,13 +6,13 @@ import {
   appendJournal,
   emptyGoal,
   formatGoal,
+  type GoalFile,
   loadGoal,
   parseProgressFromText,
   recordProgress,
   saveGoal,
   setProgress,
   updateGoal,
-  type GoalFile,
 } from '../../src/storage/goal-store.js';
 
 let dir: string;
@@ -163,5 +163,30 @@ describe('formatGoal branches', () => {
     const base = emptyGoal('m');
     expect(formatGoal({ ...base, progress: 10, progressTrend: 'stalling' })).toContain('stalling');
     expect(formatGoal({ ...base, progress: 10, progressTrend: 'steady' })).toContain('steady');
+  });
+
+  it('ignores non-finite progress in setProgress/recordProgress, hides journal on journalLimit=0, and matches leading-whitespace done markers (F93)', () => {
+    const base = emptyGoal('m');
+    const g50 = setProgress(base, 50);
+    expect(setProgress(g50, Number.NaN).progress).toBe(50);
+
+    let g = recordProgress(base, 10);
+    g = recordProgress(g, 20);
+    g = recordProgress(g, 30);
+    g = recordProgress(g, Number.NaN);
+    expect(g.progress).toBe(30);
+    expect(g.progressTrend).toBe('accelerating');
+
+    const withJournalAndDeliverables = {
+      ...appendJournal(g50, {
+        source: 'todo',
+        task: 'hidden-when-limit-zero',
+        status: 'success',
+      }),
+      deliverables: ['  ✅ Leading whitespace done'],
+    };
+    const formatted = formatGoal(withJournalAndDeliverables, 0);
+    expect(formatted).not.toContain('hidden-when-limit-zero');
+    expect(formatted).toContain('✓   ✅ Leading whitespace done');
   });
 });

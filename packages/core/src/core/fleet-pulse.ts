@@ -39,7 +39,10 @@ const TASK_SNIPPET_CHARS = 60;
  */
 export function fleetPulseSignature(statuses: MailboxAgentStatus[]): string {
   return statuses
-    .map((s) => `${s.agentId}|${s.status}|${s.currentTask ?? ''}`)
+    .map(
+      (s) =>
+        `${s.agentId}|${s.online ? '1' : '0'}|${s.status}|${s.currentTask ?? ''}|${s.currentTool ?? ''}`,
+    )
     .sort()
     .join('\n');
 }
