@@ -139,8 +139,14 @@ export class WrongMemoryClient {
         );
       }
       client.socket.write(encodeFrame(auth, MAX_AUTH_FRAME_BYTES));
-      const reply = (await client.next(client.timeoutMs)) as AuthResponse;
+      const reply = (await client.next(client.timeoutMs)) as AuthResponse | null;
+      if (!reply || typeof reply !== 'object') {
+        throw new WrongMemoryError('PROTOCOL', 'invalid auth response frame');
+      }
       if (reply.status === 'error') throw WrongMemoryError.fromBody(reply.error);
+      if (reply.status !== 'ok' || !reply.hello || typeof reply.hello !== 'object') {
+        throw new WrongMemoryError('PROTOCOL', 'invalid auth response frame');
+      }
       client.hello_ = reply.hello;
       return client;
     } catch (e) {
@@ -163,7 +169,12 @@ export class WrongMemoryClient {
       if (opts.projectId !== undefined) req.projectId = opts.projectId;
       if (opts.idempotencyKey !== undefined) req.idempotencyKey = opts.idempotencyKey;
       this.socket.write(encodeFrame(req));
-      const resp = (await this.next(opts.timeoutMs ?? this.timeoutMs)) as Response;
+      const resp = (await this.next(opts.timeoutMs ?? this.timeoutMs)) as Response | null;
+      if (!resp || typeof resp !== 'object') {
+        const err = new WrongMemoryError('PROTOCOL', 'invalid response frame');
+        this.fail(err);
+        throw err;
+      }
       if (resp.requestId !== requestId) {
         const err = new WrongMemoryError(
           'PROTOCOL',
@@ -185,13 +196,12 @@ export class WrongMemoryClient {
   }
 
   close(): void {
-    this.failure ??= new WrongMemoryError('TRANSPORT', 'client closed');
-    this.socket.destroy();
+    this.fail(new WrongMemoryError('TRANSPORT', 'client closed'));
   }
 
   private next(timeoutMs: number): Promise<unknown> {
-    if (this.frames.length > 0) return Promise.resolve(this.frames.shift());
     if (this.failure) return Promise.reject(this.failure);
+    if (this.frames.length > 0) return Promise.resolve(this.frames.shift());
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.waiter = undefined;
@@ -216,6 +226,7 @@ export class WrongMemoryClient {
   }
 
   private flush(): void {
+    if (this.failure) return;
     if (this.waiter && this.frames.length > 0) {
       const w = this.waiter;
       this.waiter = undefined;
@@ -225,6 +236,7 @@ export class WrongMemoryClient {
 
   private fail(e: Error): void {
     this.failure ??= e;
+    this.frames.length = 0;
     if (this.waiter) {
       const w = this.waiter;
       this.waiter = undefined;
@@ -237,18 +249,26 @@ export class WrongMemoryClient {
 function openPipe(endpoint: string, timeoutMs: number): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(endpoint);
+    const cleanup = () => {
+      clearTimeout(timer);
+      socket.removeListener('connect', onConnect);
+      socket.removeListener('error', onError);
+    };
+    const onConnect = () => {
+      cleanup();
+      resolve(socket);
+    };
+    const onError = (e: Error) => {
+      cleanup();
+      reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: ${e.message}`));
+    };
     const timer = setTimeout(() => {
+      cleanup();
       socket.destroy();
       reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: timeout`));
     }, timeoutMs);
-    socket.once('connect', () => {
-      clearTimeout(timer);
-      resolve(socket);
-    });
-    socket.once('error', (e) => {
-      clearTimeout(timer);
-      reject(new WrongMemoryError('UNAVAILABLE', `cannot open ${endpoint}: ${e.message}`));
-    });
+    socket.once('connect', onConnect);
+    socket.once('error', onError);
   });
 }
 
