@@ -89,4 +89,34 @@ describe('evaluateTraceEval', () => {
       editApplicationPassed: true,
     });
   });
+
+  it('matches hyphenated and underscored tool names interchangeably across retrieval and recall (F90)', async () => {
+    const dirs = await writeSession([
+      { type: 'tool_use', id: 'search-1', name: 'codebase-search', input: { query: 'handler' } },
+      { type: 'tool_result', id: 'search-1', content: 'legacy handler', isError: false },
+      {
+        type: 'tool_use',
+        id: 'edit-1',
+        name: 'multi-edit',
+        input: { path: 'src/handler.ts', newText: 'modern handler' },
+      },
+      { type: 'tool_call_end', id: 'edit-1', name: 'multi-edit', ok: true },
+    ]);
+
+    const crossSurfaceSpec: TranscriptEvalSpec = {
+      source: spec.source,
+      retrieval: [{ toolNames: ['codebase_search'], contains: 'legacy handler' }],
+      recall: {
+        toolNames: ['multi_edit'],
+        inputContains: ['src/handler.ts', 'modern handler'],
+      },
+    };
+
+    await expect(evaluateTraceEval({ ...dirs, spec: crossSurfaceSpec })).resolves.toEqual({
+      sourceSessionId: 'source-session',
+      retrievalPassed: true,
+      recallPassed: true,
+      editApplicationPassed: true,
+    });
+  });
 });

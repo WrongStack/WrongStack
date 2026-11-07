@@ -220,4 +220,21 @@ describe('evidence-based bench experiments', () => {
       review.findings.some((finding) => finding.category === 'missing-final-requirement'),
     ).toBe(false);
   });
+  it('normalizes hyphenated tool names and recognizes str_replace in reviewTranscript (F90)', () => {
+    const events = [
+      { type: 'tool_use', id: 'r1', name: 'read-file', input: { path: 'src/a.ts' } },
+      { type: 'compaction', fullRequestTokensBefore: 800, fullRequestTokensAfter: 300 },
+      { type: 'tool_use', id: 'r2', name: 'read_file', input: { path: 'src/a.ts' } },
+      { type: 'tool_use', id: 'e1', name: 'str_replace', input: { path: 'src/outside.ts' } },
+      { type: 'tool_use', id: 'e2', name: 'apply-patch', input: { path: 'src/a.ts' } },
+    ];
+    const review = reviewTranscript(events, 'a'.repeat(64), {
+      allowedEditPaths: ['src/a.ts'],
+    });
+    expect(review.observations.edits).toBe(2);
+    expect(review.observations.rereadsAfterCompaction).toBe(1);
+    expect(
+      review.findings.filter((finding) => finding.category === 'scope-excursion'),
+    ).toHaveLength(1);
+  });
 });

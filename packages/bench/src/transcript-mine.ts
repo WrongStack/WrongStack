@@ -177,7 +177,7 @@ function buildCandidates(
   }
 
   for (const [key, use] of toolUses) {
-    if (!EDIT_TOOLS.has(use.name.toLowerCase())) continue;
+    if (!EDIT_TOOLS.has(use.name.toLowerCase().replace(/-/g, '_'))) continue;
     ordinal++;
     const endingIndex = toolEndIndexes.get(key) ?? use.index;
     const prompt = latestPrompt(prompts, use.index);

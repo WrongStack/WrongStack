@@ -68,7 +68,7 @@ export function reviewTranscript(
       typeof event['id'] === 'string' &&
       typeof event['name'] === 'string'
     ) {
-      const name = event['name'].toLowerCase();
+      const name = event['name'].toLowerCase().replace(/-/g, '_');
       const input =
         event['input'] && typeof event['input'] === 'object'
           ? (event['input'] as Record<string, unknown>)
@@ -101,9 +101,16 @@ export function reviewTranscript(
         if (firstRead === undefined) reads.set(readKey, index);
       }
       if (
-        ['edit', 'write', 'patch', 'apply_patch', 'replace', 'multi_edit', 'multiedit'].includes(
-          name,
-        )
+        [
+          'edit',
+          'write',
+          'patch',
+          'apply_patch',
+          'replace',
+          'str_replace',
+          'multi_edit',
+          'multiedit',
+        ].includes(name)
       ) {
         edits++;
         if (file && policy.allowedEditPaths && !policy.allowedEditPaths.includes(file))

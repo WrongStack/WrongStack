@@ -8,6 +8,7 @@ import { execCommand } from '../src/exec-command.js';
 const saved = {
   NODE_ENV: process.env['NODE_ENV'],
   WRONGSTACK_NODE_ENV_DEFAULTED: process.env['WRONGSTACK_NODE_ENV_DEFAULTED'],
+  SystemDrive: process.env['SystemDrive'],
 };
 
 afterEach(() => {
@@ -52,6 +53,8 @@ describe('inheritedEnv', () => {
   it.runIf(process.platform === 'win32')(
     'reads JAVA_HOME from the registry, user before machine, expanding variables',
     () => {
+      // Environment expansion is the contract; the test must supply its variable.
+      process.env['SystemDrive'] = 'C:';
       const seen: string[] = [];
       const found = registryJavaHome((key) => {
         seen.push(key);

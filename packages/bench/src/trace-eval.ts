@@ -84,8 +84,8 @@ function matchesRecall(name: string, input: unknown, expected: RecallExpectation
 
 function matchesToolName(name: string, allowList: string[] | undefined): boolean {
   if (!allowList || allowList.length === 0) return true;
-  const normalised = name.toLowerCase();
-  return allowList.some((candidate) => candidate.toLowerCase() === normalised);
+  const normalised = name.toLowerCase().replace(/-/g, '_');
+  return allowList.some((candidate) => candidate.toLowerCase().replace(/-/g, '_') === normalised);
 }
 
 function stringValue(value: unknown): string | undefined {

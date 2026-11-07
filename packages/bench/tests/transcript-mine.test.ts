@@ -133,6 +133,30 @@ describe('mineTranscript', () => {
     ]);
   });
 
+  it('mines hyphenated edit tools (multi-edit, str-replace, apply-patch) into candidates (F90)', async () => {
+    const dir = await tempDir();
+    const transcriptPath = path.join(dir, 'hyphen-edit.jsonl');
+    const raw =
+      [
+        { type: 'session_start', id: 'sess/hyphen-edit' },
+        { type: 'user_input', content: 'Patch the handler.' },
+        {
+          type: 'tool_use',
+          id: 'edit-1',
+          name: 'multi-edit',
+          input: { path: 'src/handler.ts', newText: 'updated' },
+        },
+        { type: 'tool_call_end', id: 'edit-1', name: 'multi-edit', ok: true },
+      ]
+        .map((event) => JSON.stringify(event))
+        .join('\n') + '\n';
+    await fs.writeFile(transcriptPath, raw, 'utf8');
+
+    const mined = await mineTranscript({ transcriptPath, outDir: path.join(dir, 'evals-hyphen') });
+    expect(mined.candidates).toHaveLength(1);
+    expect(mined.candidates[0]?.observed.toolName).toBe('multi-edit');
+  });
+
   it('refuses a non-session JSONL rather than fabricating provenance', async () => {
     const dir = await tempDir();
     const transcriptPath = path.join(dir, 'not-a-session.jsonl');
