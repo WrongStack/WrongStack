@@ -12,6 +12,7 @@ import {
   enqueueBoardWork,
   ensureSessionKanbanBoard,
   MIRROR_DISABLED_ENV,
+  onSessionKanbanCleanedUp,
   sessionBoardTags,
 } from './session-kanban-boards.js';
 
@@ -42,6 +43,16 @@ export const mirrorFailures = new Map<
   string,
   { message: string; sourceSystem: PendingMirror['sourceSystem'] }
 >();
+
+onSessionKanbanCleanedUp((projectRoot, sessionId) => {
+  const bKey = boardKey(projectRoot, sessionId);
+  mirrorFailures.delete(bKey);
+  for (const source of ['session-todo', 'session-task', 'session-plan'] as const) {
+    const mKey = mirrorKey(projectRoot, sessionId, source);
+    pendingMirrors.delete(mKey);
+    lastMirroredGraphs.delete(mKey);
+  }
+});
 
 export function mirrorKey(
   projectRoot: string,

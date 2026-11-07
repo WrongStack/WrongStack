@@ -516,6 +516,45 @@ describe('unified session kanban', () => {
     expect(await getBoard(dir, board!.id)).toBeNull();
   });
 
+  it('cleans up an in-flight empty session board when detach() races ensureSessionKanbanBoard and clears cached mirror graphs on cleanup (F77)', async () => {
+    const context = {
+      eventSessionId: () => 'short-lived-f77',
+      projectRoot: dir,
+      session: { id: 'short-lived-f77' },
+      meta: {},
+      state: { onChange: () => () => undefined },
+    } as never as Context;
+    const detach = attachSessionKanbanMirror(context);
+    detach();
+    await settleSessionKanbanBackgroundWork();
+
+    const leaked = (await listBoards(dir)).filter((b) =>
+      b.tags?.includes('session:short-lived-f77'),
+    );
+    expect(leaked).toEqual([]);
+
+    mirrorSessionTodosToKanban(
+      dir,
+      [{ id: 'done-1', content: 'Finished item', status: 'completed' }],
+      'reused-f77',
+    );
+    await settleSessionKanbanBackgroundWork();
+    await cleanupSessionKanbanBoard(dir, 'reused-f77');
+
+    // A subsequent mirror of only a new pending item must not resurrect 'done-1' from the deleted board
+    mirrorSessionTodosToKanban(
+      dir,
+      [{ id: 'fresh-1', content: 'Fresh item', status: 'pending' }],
+      'reused-f77',
+    );
+    await settleSessionKanbanBackgroundWork();
+    const freshSummary = (await listBoards(dir)).find((b) =>
+      b.tags?.includes('session:reused-f77'),
+    );
+    const freshBoard = freshSummary ? await getBoard(dir, freshSummary.id) : null;
+    expect(freshBoard?.tasks.map((t) => t.title)).toEqual(['Fresh item']);
+  });
+
   it('replaces session todos when an agent reassesses and changes the board', async () => {
     const todos: TodoItem[] = [{ id: 'initial', content: 'Initial work', status: 'pending' }];
     const context = {

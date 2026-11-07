@@ -379,7 +379,11 @@ export function attachSessionKanbanMirror(context: Context): () => void {
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => fireAndForget('refresh-files', refreshFiles()), 60);
       });
-      watcher.on('error', () => watcher?.close());
+      watcher.on('error', () => {
+        watcher?.close();
+        watcher = null;
+        watchedDir = '';
+      });
     } catch {
       watcher = null;
       watchedDir = '';

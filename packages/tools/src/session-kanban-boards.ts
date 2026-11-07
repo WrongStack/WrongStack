@@ -46,6 +46,19 @@ export const SESSION_KANBAN_COLUMNS: KanbanColumn[] = DEFAULT_COLUMNS.map((colum
 const boardQueue = new Map<string, Promise<void>>();
 const boardEnsures = new Map<string, Promise<KanbanBoard>>();
 const activeSessionBoards = new Map<string, number>();
+const sessionCleanupListeners = new Set<(projectRoot: string, sessionId: string) => void>();
+
+export function onSessionKanbanCleanedUp(
+  listener: (projectRoot: string, sessionId: string) => void,
+): void {
+  sessionCleanupListeners.add(listener);
+}
+
+function notifySessionCleanedUp(projectRoot: string, sessionId: string): void {
+  for (const listener of sessionCleanupListeners) {
+    listener(projectRoot, sessionId);
+  }
+}
 
 export function boardKey(projectRoot: string, sessionId: string): string {
   return `${projectRoot}\0${sessionId}`;
@@ -161,32 +174,39 @@ export function enqueueBoardWork<T>(
   return result;
 }
 
+async function removeEmptySessionBoardDirect(
+  projectRoot: string,
+  boardId: string,
+  sessionId: string,
+): Promise<string | null> {
+  if (isSessionBoardActive(projectRoot, sessionId)) return null;
+  const board = await getBoard(projectRoot, boardId);
+  if (!board || board.tasks.length > 0 || !isOwnedSessionBoard(board.tags)) return null;
+  if (sessionIdFromTags(board.tags) !== sessionId) return null;
+  return (await removeBoard(projectRoot, board.id)) ? board.id : null;
+}
+
 async function removeEmptySessionBoard(
   projectRoot: string,
   boardId: string,
   sessionId: string,
 ): Promise<string | null> {
   return enqueueBoardWork(projectRoot, sessionId, async () => {
-    if (isSessionBoardActive(projectRoot, sessionId)) return null;
-    const board = await getBoard(projectRoot, boardId);
-    if (!board || board.tasks.length > 0 || !isOwnedSessionBoard(board.tags)) return null;
-    if (sessionIdFromTags(board.tags) !== sessionId) return null;
-    return (await removeBoard(projectRoot, board.id)) ? board.id : null;
+    await boardEnsures.get(boardKey(projectRoot, sessionId))?.catch(() => null);
+    return removeEmptySessionBoardDirect(projectRoot, boardId, sessionId);
   });
 }
 
-async function removeOwnedSessionBoard(
+async function removeOwnedSessionBoardDirect(
   projectRoot: string,
   boardId: string,
   sessionId: string,
 ): Promise<string | null> {
-  return enqueueBoardWork(projectRoot, sessionId, async () => {
-    if (isSessionBoardActive(projectRoot, sessionId)) return null;
-    const board = await getBoard(projectRoot, boardId);
-    if (!board || !isOwnedSessionBoard(board.tags)) return null;
-    if (sessionIdFromTags(board.tags) !== sessionId) return null;
-    return (await removeBoard(projectRoot, board.id)) ? board.id : null;
-  });
+  if (isSessionBoardActive(projectRoot, sessionId)) return null;
+  const board = await getBoard(projectRoot, boardId);
+  if (!board || !isOwnedSessionBoard(board.tags)) return null;
+  if (sessionIdFromTags(board.tags) !== sessionId) return null;
+  return (await removeBoard(projectRoot, board.id)) ? board.id : null;
 }
 
 export async function cleanupSessionKanbanBoard(
@@ -195,13 +215,21 @@ export async function cleanupSessionKanbanBoard(
 ): Promise<string[]> {
   if (!projectRoot || !sessionId || process.env[MIRROR_DISABLED_ENV] === '0') return [];
   if (isSessionBoardActive(projectRoot, sessionId)) return [];
-  const candidates = (await listBoards(projectRoot)).filter(
-    (board) => isOwnedSessionBoard(board.tags) && sessionIdFromTags(board.tags) === sessionId,
-  );
-  const removed = await Promise.all(
-    candidates.map((board) => removeOwnedSessionBoard(projectRoot, board.id, sessionId)),
-  );
-  return removed.filter((boardId): boardId is string => Boolean(boardId));
+  return enqueueBoardWork(projectRoot, sessionId, async () => {
+    await boardEnsures.get(boardKey(projectRoot, sessionId))?.catch(() => null);
+    if (isSessionBoardActive(projectRoot, sessionId)) return [];
+    const candidates = (await listBoards(projectRoot)).filter(
+      (board) => isOwnedSessionBoard(board.tags) && sessionIdFromTags(board.tags) === sessionId,
+    );
+    const removed = await Promise.all(
+      candidates.map((board) => removeOwnedSessionBoardDirect(projectRoot, board.id, sessionId)),
+    );
+    const removedIds = removed.filter((boardId): boardId is string => Boolean(boardId));
+    if (removedIds.length > 0) {
+      notifySessionCleanedUp(projectRoot, sessionId);
+    }
+    return removedIds;
+  });
 }
 
 export async function cleanupSessionKanbanBoardIfEmpty(
@@ -210,16 +238,24 @@ export async function cleanupSessionKanbanBoardIfEmpty(
 ): Promise<string[]> {
   if (!projectRoot || !sessionId || process.env[MIRROR_DISABLED_ENV] === '0') return [];
   if (isSessionBoardActive(projectRoot, sessionId)) return [];
-  const candidates = (await listBoards(projectRoot)).filter(
-    (board) =>
-      board.taskCount === 0 &&
-      isOwnedSessionBoard(board.tags) &&
-      sessionIdFromTags(board.tags) === sessionId,
-  );
-  const removed = await Promise.all(
-    candidates.map((board) => removeEmptySessionBoard(projectRoot, board.id, sessionId)),
-  );
-  return removed.filter((boardId): boardId is string => Boolean(boardId));
+  return enqueueBoardWork(projectRoot, sessionId, async () => {
+    await boardEnsures.get(boardKey(projectRoot, sessionId))?.catch(() => null);
+    if (isSessionBoardActive(projectRoot, sessionId)) return [];
+    const candidates = (await listBoards(projectRoot)).filter(
+      (board) =>
+        board.taskCount === 0 &&
+        isOwnedSessionBoard(board.tags) &&
+        sessionIdFromTags(board.tags) === sessionId,
+    );
+    const removed = await Promise.all(
+      candidates.map((board) => removeEmptySessionBoardDirect(projectRoot, board.id, sessionId)),
+    );
+    const removedIds = removed.filter((boardId): boardId is string => Boolean(boardId));
+    if (removedIds.length > 0) {
+      notifySessionCleanedUp(projectRoot, sessionId);
+    }
+    return removedIds;
+  });
 }
 
 export async function cleanupEmptySessionKanbanBoards(
