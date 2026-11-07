@@ -46,7 +46,11 @@ export function checkUnixSocketPath(
   platform: NodeJS.Platform = process.platform,
 ): UnixSocketPathCheck {
   const maxBytes = platform === 'win32' ? Number.MAX_SAFE_INTEGER : unixSocketPathLimit(platform);
-  if (typeof socketPath !== 'string' || socketPath.length === 0 || socketPath.includes('\0')) {
+  if (
+    typeof socketPath !== 'string' ||
+    socketPath.trim().length === 0 ||
+    socketPath.includes('\0')
+  ) {
     return { ok: false, byteLength: 0, maxBytes };
   }
   const byteLength = Buffer.byteLength(socketPath, 'utf8');
@@ -75,7 +79,7 @@ export function assertUnixSocketPathWithinLimit(
   if (typeof socketPath !== 'string') {
     throw new Error(`${service} IPC socket path must be a string, received ${typeof socketPath}.`);
   }
-  if (socketPath.length === 0) {
+  if (socketPath.trim().length === 0) {
     throw new Error(
       `${service} IPC socket path must not be empty. ` +
         `Check whatever derives this endpoint; the value is not a usable path.`,

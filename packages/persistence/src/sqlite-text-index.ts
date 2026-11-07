@@ -31,12 +31,15 @@ export function initializeSqliteTextIndex(db: DatabaseSync, index: SqliteTextInd
     )
     .get(triggerName) as { sql?: string | null } | undefined;
   if (typeof existingTrigger?.sql === 'string') {
-    const normalizedSql = existingTrigger.sql.replace(/\s+/g, ' ').toLowerCase();
-    const expectedSourceClause = `after update of ${source.toLowerCase()} on ${table.toLowerCase()}`;
-    const expectedFieldClause = `'$.${field.toLowerCase()}'`;
+    const collapsedSql = existingTrigger.sql.replace(/\s+/g, ' ');
+    const normalizedSql = collapsedSql.toLowerCase();
+    const expectedSourceClause = `after update of ${source.toLowerCase()} on ${table.toLowerCase()} when `;
+    const expectedKeyClause = `where ${key.toLowerCase()}=new.${key.toLowerCase()};`;
+    const expectedFieldClause = `'$.${field}'`;
     if (
       !normalizedSql.includes(expectedSourceClause) ||
-      !normalizedSql.includes(expectedFieldClause)
+      !normalizedSql.includes(expectedKeyClause) ||
+      !collapsedSql.includes(expectedFieldClause)
     ) {
       db.exec(`
         DROP TRIGGER IF EXISTS ${triggerName};

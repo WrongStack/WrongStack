@@ -135,6 +135,13 @@ describe('createProjectMetadataReasserter', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('rewrites when authToken is blank or mismatches the expected daemon authToken (F35)', async () => {
+    const blankToken = await setup({ ...OWN, authToken: '   ' });
+    blankToken.guard.enable();
+    await blankToken.guard.reassert();
+    expect(blankToken.write).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('retryWhileUnauthorized', () => {

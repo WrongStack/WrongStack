@@ -176,6 +176,10 @@ function onDiskCase(root: string): string {
     const real = fs.realpathSync.native(root);
     return real !== root && real.toLowerCase() === root.toLowerCase() ? real : root;
   } catch {
+    const parent = path.dirname(root);
+    if (parent !== root) {
+      return path.join(onDiskCase(parent), path.basename(root));
+    }
     return root;
   }
 }
@@ -190,9 +194,7 @@ function worktreeBacklinkMatches(gitDir: string, checkoutRoot: string): boolean 
   if (!recorded) return false;
   const target = fs.realpathSync.native(path.resolve(gitDir, recorded));
   const own = path.join(fs.realpathSync.native(checkoutRoot), '.git');
-  return process.platform === 'win32'
-    ? target.toLowerCase() === own.toLowerCase()
-    : target === own;
+  return process.platform === 'win32' ? target.toLowerCase() === own.toLowerCase() : target === own;
 }
 
 function gitIdentityRoot(checkoutRoot: string): string {
@@ -216,7 +218,13 @@ function gitIdentityRoot(checkoutRoot: string): string {
     // Submodules use `<common>/.git/modules/...` and retain their own identity.
     const worktreesDir = path.dirname(gitDir);
     if (path.basename(worktreesDir).toLowerCase() !== 'worktrees') return checkoutRoot;
-    if (onDiskCase(path.resolve(worktreesDir, '..')) !== onDiskCase(commonDir)) return checkoutRoot;
+    const worktreesParentReal = fs.realpathSync.native(path.resolve(worktreesDir, '..'));
+    const commonDirReal = fs.realpathSync.native(commonDir);
+    const sameCommonDir =
+      process.platform === 'win32'
+        ? worktreesParentReal.toLowerCase() === commonDirReal.toLowerCase()
+        : worktreesParentReal === commonDirReal;
+    if (!sameCommonDir) return checkoutRoot;
     if (path.basename(commonDir).toLowerCase() !== '.git') return checkoutRoot;
     // Check the link from both sides, as Git does: the worktree entry records
     // this checkout's `.git` file in its `gitdir` file. A `.git` file planted
@@ -286,15 +294,18 @@ export interface WstackPathOptions {
   profileName?: string | undefined;
 }
 
+const WINDOWS_RESERVED_PROFILE_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
+
 /** Make an untrusted profile name safe for use as one path segment. */
 export function safeProfileName(name: string | undefined): string {
-  const trimmed = (name ?? '').replace(/\0/g, '').replace(/^[.\s]+|[.\s]+$/g, '');
+  if (typeof name !== 'string') return 'default';
+  const trimmed = name.replace(/\0/g, '').replace(/^[.\s]+|[.\s]+$/g, '');
   if (!trimmed) return 'default';
   const safe = trimmed
-    .replace(/[/\\:]/g, '_')
+    .replace(/[\x01-\x1f\x7f/\\:<>"|?*]/g, '_')
     .replace(/\.{2,}/g, '_')
     .replace(/^[.\s]+|[.\s]+$/g, '');
-  if (!safe || /^_+$/.test(safe)) return 'default';
+  if (!safe || /^_+$/.test(safe) || WINDOWS_RESERVED_PROFILE_RE.test(safe)) return 'default';
   return safe;
 }
 

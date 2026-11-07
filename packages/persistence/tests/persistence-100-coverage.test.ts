@@ -650,6 +650,45 @@ describe('persistence 100% coverage suite', () => {
       expect(safeProfileName('...')).toBe('default');
       expect(safeProfileName('..')).toBe('default');
       expect(safeProfileName('///')).toBe('default');
+      expect(safeProfileName('dev\nprod')).toBe('dev_prod');
+      expect(safeProfileName('CON')).toBe('default');
+      expect(safeProfileName('nul.json')).toBe('default');
+    });
+
+    it('normalizes ancestor casing for non-existent child roots and hardens socket/account/reasserter checks (F34, F35)', async () => {
+      const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'ws-f34-f35-'));
+      try {
+        const existingParent = path.join(tmpRoot, 'MixedCaseParent');
+        await fsPromises.mkdir(existingParent, { recursive: true });
+        const nonExistentReal = path.join(existingParent, 'future-project');
+        const nonExistentLower = path.join(existingParent.toLowerCase(), 'future-project');
+        expect(projectSlug(nonExistentLower)).toBe(projectSlug(nonExistentReal));
+
+        expect(checkUnixSocketPath('   ', 'linux').ok).toBe(false);
+        expect(() => assertUnixSocketPathWithinLimit('   ', 'kanban', 'linux')).toThrow(
+          /must not be empty/,
+        );
+
+        _filePermOps.platform = 'win32';
+        _filePermOps.userInfo = () => ({ username: 'validUser' }) as any;
+        const grants: string[] = [];
+        _filePermOps.execFileAsync = vi.fn(async (_cmd: string, args: any) => {
+          grants.push(args[3]);
+          return { stdout: '', stderr: '' };
+        });
+        process.env['USERNAME'] = '   ';
+        delete process.env['USER'];
+        delete process.env['USERDOMAIN'];
+        await restrictFilePermissions('C:\\secret.json');
+        expect(grants).toEqual(['validUser:(F)']);
+
+        grants.length = 0;
+        process.env['USERNAME'] = 'injected:(F) /grant:r Everyone';
+        await restrictFilePermissions('C:\\secret.json', { warn: () => undefined });
+        expect(grants).toEqual([]);
+      } finally {
+        await fsPromises.rm(tmpRoot, { recursive: true, force: true });
+      }
     });
   });
 });

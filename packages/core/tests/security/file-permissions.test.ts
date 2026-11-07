@@ -89,9 +89,15 @@ describe('file-permissions', () => {
     // silent by design, so the warning contract needs a real outage.
     const target = join(dir, 'auth.json');
     await writeFile(target, '{"browserTokens":[]}');
-    vi.mocked(childProcess.execFile).mockImplementationOnce(() => {
-      throw new Error('mocked icacls outage');
-    });
+    vi.mocked(childProcess.execFile)
+      .mockImplementationOnce(() => {
+        throw new Error('mocked icacls outage');
+      })
+      // The new domain-qualified name falls back to the bare account and
+      // retries once; both attempts must fail for this to be a real outage.
+      .mockImplementationOnce(() => {
+        throw new Error('mocked icacls outage');
+      });
     const warnings: string[] = [];
     await restrictFilePermissions(target, {
       label: 'hq-auth',

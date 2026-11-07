@@ -202,4 +202,51 @@ describe('SQLite Unicode text index', () => {
       db.close();
     }
   });
+
+  it('replaces stale triggers when JSON field casing or key column changes (F33)', () => {
+    const Database = loadRuntimeDatabaseSync();
+    const db = new Database(':memory:');
+    try {
+      db.exec('CREATE TABLE docs(id TEXT PRIMARY KEY, doc_id TEXT UNIQUE, payload TEXT NOT NULL)');
+      const indexV1 = {
+        table: 'docs',
+        key: 'id',
+        source: 'payload',
+        field: 'Title',
+        column: 'folded_title',
+      };
+      initializeSqliteTextIndex(db, indexV1);
+      db.prepare('INSERT INTO docs(id, doc_id, payload) VALUES (?, ?, ?)').run(
+        '1',
+        'd-1',
+        JSON.stringify({ Title: 'Legacy Title', title: 'Initial Lowercase' }),
+      );
+      const fold = (v: unknown) => (typeof v === 'string' ? v.toLowerCase() : '');
+      expect(
+        withSqliteTextIndex(db.prepare.bind(db), indexV1, fold, () =>
+          db.prepare('SELECT folded_title FROM docs WHERE id = ?').get('1'),
+        ),
+      ).toEqual({ folded_title: 'legacy title' });
+
+      const indexV2 = {
+        table: 'docs',
+        key: 'doc_id',
+        source: 'payload',
+        field: 'title',
+        column: 'folded_title',
+      };
+      initializeSqliteTextIndex(db, indexV2);
+      db.prepare('UPDATE docs SET payload = ? WHERE doc_id = ?').run(
+        JSON.stringify({ Title: 'Legacy Title', title: 'Updated Lowercase' }),
+        'd-1',
+      );
+      expect(
+        withSqliteTextIndex(db.prepare.bind(db), indexV2, fold, () =>
+          db.prepare('SELECT folded_title FROM docs WHERE doc_id = ?').get('d-1'),
+        ),
+      ).toEqual({ folded_title: 'updated lowercase' });
+    } finally {
+      db.close();
+    }
+  });
 });

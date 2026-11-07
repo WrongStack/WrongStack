@@ -80,7 +80,11 @@ describe('file-permissions', () => {
         const execFile = promisify(cp.execFile);
         const { stdout } = await execFile('icacls', [testFile]);
 
-        const expectedUser = os.userInfo().username;
+        const info = os.userInfo();
+        const expectedUser =
+          info.username && info.username !== 'unknown'
+            ? info.username
+            : path.basename(info.homedir);
         expect(stdout).toContain(expectedUser);
         expect(stdout).toContain(':(F)');
       } finally {

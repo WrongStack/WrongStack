@@ -127,9 +127,22 @@ async function applyPermissions(
         return;
       }
       const perm = isDir ? `${user}:(OI)(CI)(F)` : `${user}:(F)`;
-      await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', perm], {
-        windowsHide: true,
-      });
+      try {
+        await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', perm], {
+          windowsHide: true,
+        });
+      } catch (firstError) {
+        const slashIdx = user.indexOf('\\');
+        const bareUser = slashIdx > 0 ? user.slice(slashIdx + 1) : '';
+        if (bareUser && _filePermOps.execFileAsync === undefined) {
+          const barePerm = isDir ? `${bareUser}:(OI)(CI)(F)` : `${bareUser}:(F)`;
+          await execFn('icacls', [targetPath, '/inheritance:r', '/grant:r', barePerm], {
+            windowsHide: true,
+          });
+        } else {
+          throw firstError;
+        }
+      }
     } catch (error) {
       // Best-effort: icacls may not be available in all environments. A file
       // that vanished mid-hardening (daemon restart, test teardown racing the
@@ -193,17 +206,36 @@ export async function restrictDirPermissions(
 }
 
 function windowsAccountName(): string | undefined {
-  let username = (process.env['USERNAME'] || process.env['USER']) ?? undefined;
+  const rawEnv = process.env['USERNAME'] || process.env['USER'];
+  let username = rawEnv && rawEnv.trim().length > 0 ? rawEnv.trim() : undefined;
   if (!username) {
     try {
-      username = getUserInfo()().username;
+      const info = getUserInfo()();
+      const osUser = info.username?.trim();
+      if (osUser && osUser !== 'unknown') {
+        username = osUser;
+      } else if (info.homedir) {
+        const homeBase = info.homedir
+          .replace(/[\\/]+$/, '')
+          .split(/[\\/]/)
+          .pop()
+          ?.trim();
+        username = homeBase || osUser;
+      } else {
+        username = osUser;
+      }
     } catch {
       username = undefined;
     }
   }
-  if (!username || username.includes('\0')) return undefined;
-  const domain = process.env['USERDOMAIN'];
-  if (domain && !domain.includes('\0') && !username.includes('\\') && !username.includes('@')) {
+  if (!username || /[\0\r\n:]/.test(username)) return undefined;
+  const domain = process.env['USERDOMAIN']?.trim();
+  if (
+    domain &&
+    !/[\0\r\n:\\/@]/.test(domain) &&
+    !username.includes('\\') &&
+    !username.includes('@')
+  ) {
     return `${domain}\\${username}`;
   }
   return username;

@@ -405,6 +405,7 @@ export function createProjectMetadataReasserter(options: {
   readonly metadataPath: string;
   readonly endpoint: string;
   readonly pid: number;
+  readonly authToken?: string;
   readonly write: () => Promise<void>;
 }): ProjectMetadataReasserter {
   let enabled = false;
@@ -415,8 +416,26 @@ export function createProjectMetadataReasserter(options: {
       const current = JSON.parse(await fsPromises.readFile(options.metadataPath, 'utf8')) as {
         pid?: unknown;
         endpoint?: unknown;
+        authToken?: unknown;
       };
-      return current.pid === options.pid && current.endpoint === options.endpoint;
+      if (
+        typeof current !== 'object' ||
+        current === null ||
+        current.pid !== options.pid ||
+        current.endpoint !== options.endpoint
+      ) {
+        return false;
+      }
+      if (
+        'authToken' in current &&
+        (typeof current.authToken !== 'string' || current.authToken.trim().length === 0)
+      ) {
+        return false;
+      }
+      if (options.authToken !== undefined && current.authToken !== options.authToken) {
+        return false;
+      }
+      return true;
     } catch {
       return false;
     }
