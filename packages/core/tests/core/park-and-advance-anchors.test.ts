@@ -1,10 +1,7 @@
 /**
- * Park-and-advance is a directive, not prose — it survives prompt rewrites.
- *
- * The rule has two halves and a trim that keeps only the first one inverts it.
- * "Stop retrying a refused card" alone reads as permission to drop the work;
- * "keep working" alone reads as permission to loop. Both must stay, in every
- * identity variant, alongside the clause that parking never sheds scope.
+ * Short task guidance must preserve both progress and accountability.
+ * The tool schema owns lifecycle mechanics; blocked work must neither loop
+ * unchanged nor disappear from the request's tracked scope.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -27,27 +24,25 @@ const VARIANTS = [
 ] as const;
 
 describe('park-and-advance anchors', () => {
-  it.each(VARIANTS)('%s states that verification gates Done, not progress', (_name, text) => {
-    expect(text).toContain('Two refusals park the card');
-    expect(text).toMatch(/[Vv]erification guards \*?Done\*?, not \*?progress\*?/);
+  it.each(VARIANTS)('%s keeps completion evidence-based', (_name, text) => {
+    expect(text).toContain('mark unverified work Done');
+    expect(text).toContain('verification truthful');
   });
 
   it.each(VARIANTS)('%s keeps both halves of the rule', (_name, text) => {
-    // Half one: stop retrying the refused card.
-    expect(text).toMatch(/never retry a parked card unchanged|retry a parked card|do not argue/i);
-    // Half two: keep working. Without this the rule reads as permission to quit.
-    expect(text).toContain('next ready card');
+    expect(text).toContain('do not stack speculative patches or repeat identical calls');
+    expect(text).toContain('resolve its cause or advance other ready work');
   });
 
-  it.each(VARIANTS)('%s keeps parking from becoming a scope escape', (_name, text) => {
-    expect(text).toMatch(/never sheds scope|never a way to shed scope/);
-    expect(text).toMatch(/not Done, not abandoned/);
+  it.each(VARIANTS)('%s keeps blockers from becoming a scope escape', (_name, text) => {
+    expect(text).toContain('do not drop unfinished requirements');
+    expect(text).toContain('Blocked work stays open');
+    expect(text).toContain('without abandoning it');
   });
 
-  it('the full variants explain what to do about a parked dependency', () => {
+  it('the full variants preserve dependency and progress accountability', () => {
     for (const [name, text] of VARIANTS.filter(([variant]) => variant !== 'system-lite.md')) {
-      expect(text, name).toContain('parked dependency');
-      expect(text, name).toContain('dependsOn');
+      expect(text, name).toContain('scope, dependencies, progress, and verification truthful');
     }
   });
 

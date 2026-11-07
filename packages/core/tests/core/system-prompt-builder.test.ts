@@ -61,22 +61,19 @@ describe('DefaultSystemPromptBuilder', () => {
       projectRoot: tmp,
       tools: [mkTool('kanban'), mkTool('codebase-search'), mkTool('codebase-index')],
     });
-    expect(withTools[0]?.text).toContain('## Kanban Agent hard conditions');
-    expect(withTools[0]?.text).toContain('Never abandon or misrepresent work');
-    expect(withTools[0]?.text).toContain('Backlog → Todo → Running → Review → Done');
-    expect(withTools[0]?.text).toContain('Managed boards have a fixed column order');
-    expect(withTools[0]?.text).toContain('### Codebase-first discovery');
-    expect(withTools[0]?.text).not.toContain('codebase-stats/codebase-search');
-    expect(withTools[0]?.text).toContain('call live `codebase-index`');
+    expect(withTools[0]?.text).toContain('Kanban is durable project task state');
+    expect(withTools[0]?.text).toContain('do not drop unfinished requirements');
+    expect(withTools[0]?.text).toContain('mark unverified work Done');
+    expect(withTools[0]?.text).toContain('The codebase index and codebase tools');
+    expect(withTools[0]?.text).not.toContain('call live `codebase-index`');
 
     // A fresh builder: the rendered identity is cached per tool set.
     const bare = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
     const withoutTools = await bare.build({ cwd: tmp, projectRoot: tmp, tools: [] });
-    expect(withoutTools[0]?.text).not.toContain('## Kanban Agent hard conditions');
-    expect(withoutTools[0]?.text).not.toContain('### Codebase-first discovery');
-    expect(withoutTools[0]?.text).not.toContain('call live `codebase-index`');
-    // …and the fallback wording takes its place.
-    expect(withoutTools[0]?.text).toContain('No task-tracking tool is registered');
+    expect(withoutTools[0]?.text).not.toContain('Kanban is durable project task state');
+    expect(withoutTools[0]?.text).not.toContain('The codebase index and codebase tools');
+    // The schemas, rather than an unconditional catalog, define availability.
+    expect(withoutTools[0]?.text).toContain('The live registry and schemas define available tools');
     // Unconditional guidance survives either way.
     expect(withoutTools[0]?.text).toContain('You are WrongStack');
     expect(withoutTools[0]?.text).toContain('Tool output trust boundary');
@@ -115,9 +112,9 @@ describe('DefaultSystemPromptBuilder', () => {
     });
     const prompt = blocks.map((block) => block.text).join('\n');
 
-    expect(prompt).toContain('Search the registered local catalog with `tool_search`');
+    expect(prompt).toContain('Discover deferred tools with `tool_search`');
     expect(prompt).toContain('using the returned `inputSchema`');
-    expect(prompt).toContain('Prefer that local built-in');
+    expect(prompt).toContain('Prefer an enabled local tool over installing an MCP server');
     expect(prompt).not.toContain('No task-tracking tool is registered in this request');
   });
 
@@ -233,19 +230,19 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(proBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
   });
 
-  it('renders the Architecture discipline guidance in every identity variant', async () => {
+  it('keeps detailed architecture guidance in Standard/Pro and conventions in Lite', async () => {
     const shared = [
       'Match the existing project architecture',
       'concrete duplication',
       'a useful testing boundary',
-      'number of switch cases alone is not a reason',
+      'real variation',
       'Do not add speculative interfaces',
     ];
     // `tools: []` is the harshest render path: anything the conditional-block
     // or tool-reference filter drops would silently vanish here first. No
     // `globalDir`/`projectDir` on purpose — this asserts the bundled
     // instruction variants themselves ship the guidance.
-    for (const variant of ['default', 'lite', 'pro'] as const) {
+    for (const variant of ['default', 'pro'] as const) {
       const b = new DefaultSystemPromptBuilder({
         todayIso: '2026-05-13',
         instructionPaths: { systemVariant: variant },
@@ -258,14 +255,21 @@ describe('DefaultSystemPromptBuilder', () => {
         );
       }
     }
+    const lite = new DefaultSystemPromptBuilder({
+      todayIso: '2026-05-13',
+      instructionPaths: { systemVariant: 'lite' },
+    });
+    const identity = (await lite.build({ cwd: tmp, projectRoot: tmp, tools: [] }))[0]?.text;
+    expect(identity).toContain('Follow existing conventions');
+    expect(identity).not.toContain('## Architecture discipline');
   });
 
   it('renders evidence-led implementation guidance in every identity variant', async () => {
     const expected = [
       '## Evidence-led implementation',
       'no quota exists for findings',
-      'permanent regression/behavior test',
-      'baseline',
+      'meaningful regression coverage',
+      'distinguish existing failures',
       'arbitrary sleeps',
     ];
 

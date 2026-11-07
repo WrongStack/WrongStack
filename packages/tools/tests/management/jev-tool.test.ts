@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import type { Config } from '@wrongstack/contracts/types/config/root';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderInstructionLayer } from '../../../core/src/core/instruction-template.js';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import { registerJevTools } from '../../src/management/jev-registration.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderInstructionLayer } from '../../../core/src/core/instruction-template.js';
 import { jevActivitySnapshot } from '../../../core/src/typesafe/activity.js';
 import {
   createJevTool,
@@ -13,6 +12,7 @@ import {
 } from '../../../core/src/typesafe/jev-tool.js';
 import { resetTypeSafeJudgesForTests } from '../../../core/src/typesafe/judgments.js';
 import { resetSharedTypeSafeRestGatesForTests } from '../../../core/src/typesafe/rest.js';
+import { registerJevTools } from '../../src/management/jev-registration.js';
 
 const input: JevToolInput = {
   state: { evidence: 'All tests passed' },
@@ -237,11 +237,12 @@ describe('Jev live discovery and prompt guidance', () => {
           subagent: false,
           strictToolReferences: true,
         });
-      expect(render(['jev', 'jev_status'])).toContain('Jev structured decisions');
-      expect(render(['jev', 'jev_status'])).toContain('"type":"noul"');
-      expect(render(['jev', 'jev_status'])).toContain('distribution concentration');
-      expect(render(['jev_status'])).not.toContain('Jev structured decisions');
-      expect(render([])).not.toContain('jev_status({})');
+      expect(render(['jev', 'jev_status'])).toContain(
+        'Jev supplies structured second opinions, not proof',
+      );
+      expect(render(['jev', 'jev_status'])).not.toContain('"type":"noul"');
+      expect(render(['jev_status'])).not.toContain('Jev supplies structured second opinions');
+      expect(render([])).not.toContain('Jev supplies structured second opinions');
     },
   );
 });

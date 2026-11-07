@@ -27,25 +27,21 @@ function ctx(
 }
 
 describe('renderInstructionLayer — block conditionals', () => {
-  it('exposes the feedback lifecycle only when the memory update tool is available', async () => {
+  it('introduces available memory without duplicating update schemas', async () => {
     const source = await fs.readFile(
       new URL('../../instructions/shared/system/memory.md', import.meta.url),
       'utf8',
     );
-    const writable = renderInstructionLayer(
-      source,
-      ctx(['remember', 'memory_search', 'memory_update']),
-    );
-    expect(writable).toContain('feedback: { verdict, observedRevision, evidence }');
-    expect(writable).toContain('not after every tool call');
-    expect(writable).toContain('expectedRevision');
-    const readOnly = renderInstructionLayer(source, ctx(['memory_search']));
-    expect(readOnly).not.toContain('observedRevision');
-    expect(readOnly).not.toContain('expectedRevision');
-    expect(readOnly).not.toContain('Agent observations belong to the session');
-    const disabled = renderInstructionLayer(source, ctx([]));
-    expect(disabled).not.toContain('feedback');
-    expect(disabled).toContain('final summary');
+    for (const names of [['remember', 'memory_search', 'memory_update'], ['memory_search']]) {
+      const output = renderInstructionLayer(source, ctx(names));
+      expect(output).toContain('SAGE is the only long-term memory');
+      expect(output).toContain('verify it against current evidence');
+      expect(output).toContain('deletion requires explicit user authorization');
+      expect(output).not.toContain('observedRevision');
+      expect(output).not.toContain('expectedRevision');
+      expect(output).not.toContain('feedback:');
+    }
+    expect(renderInstructionLayer(source, ctx([])).trim()).toBe('');
   });
 
   it('keeps a block whose tool is registered and drops one whose tool is not', () => {
@@ -213,7 +209,7 @@ describe('renderInstructionLayer — placeholders', () => {
 });
 
 describe('bundled instruction tool-reference integrity', () => {
-  it('keeps the Todo/Kanban status lifecycle contract in default, lite, and pro variants', async () => {
+  it('keeps truthful task state and scope without duplicating lifecycle schemas', async () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const instructions = path.resolve(here, '..', '..', 'instructions');
 
@@ -222,36 +218,24 @@ describe('bundled instruction tool-reference integrity', () => {
         await fs.readFile(path.join(instructions, name), 'utf8'),
       );
       const withTracking = renderInstructionLayer(raw, ctx(['todo', 'kanban']));
-      expect(withTracking, name).toContain('## Todo status lifecycle');
-      expect(withTracking, name).toContain('completed → Done');
-      expect(withTracking, name).toContain('leave finished work sitting in Running');
-      // Contract Map is no longer part of the agent-facing surface: its seven
-      // actions were withdrawn from the tool schema, so a prompt rule telling
-      // the model not to use them was pure weight. The library and the WebUI
-      // panel are untouched.
-      expect(withTracking, name).not.toContain('Contract Map');
-      expect(withTracking, name).toContain('Never shrink tracked scope by omission');
-      expect(withTracking, name).toContain('executable leaf');
-      expect(withTracking, name).not.toContain('Use `kanban` only when');
-
-      // The board informs whoever picks the work up; it does not license the
-      // work. A card-before-any-action mandate turned trivial edits into
-      // lifecycle ceremony and, with the runtime gate that used to accompany
-      // it, produced sessions that advanced cards without ever writing code.
+      expect(withTracking, name).toContain('Kanban is durable project task state');
+      expect(withTracking, name).toContain('Todo is the compact active-task view');
+      expect(withTracking, name).toContain('do not drop unfinished requirements');
+      expect(withTracking, name).toContain('mark unverified work Done');
+      expect(withTracking, name).toContain('Blocked work stays open');
       expect(withTracking, name).toContain('the work does not wait on the board');
-      expect(withTracking, name).toContain('release_managed_lifecycle');
+      expect(withTracking, name).not.toContain('Contract Map');
       expect(withTracking, name).not.toContain('Every actionable work request MUST');
       expect(withTracking, name).not.toContain('Kanban first, project action second');
-      expect(withTracking, name).not.toContain('cannot be overridden for convenience');
-      expect(withTracking, name).not.toContain('An under-filled card must remain in Backlog');
+      expect(withTracking, name).not.toContain('verify_completion');
 
       const kanbanOnly = renderInstructionLayer(raw, ctx(['kanban']));
-      expect(kanbanOnly, name).not.toContain('## Todo status lifecycle');
-      expect(kanbanOnly, name).toContain('## Kanban Agent hard conditions');
+      expect(kanbanOnly, name).toContain('Kanban is durable project task state');
+      expect(kanbanOnly, name).not.toContain('Todo is the compact active-task view');
 
       const todoOnly = renderInstructionLayer(raw, ctx(['todo']));
-      expect(todoOnly, name).toContain('## Todo status lifecycle');
-      expect(todoOnly, name).not.toContain('## Kanban Agent hard conditions');
+      expect(todoOnly, name).toContain('Todo is the compact active-task view');
+      expect(todoOnly, name).not.toContain('Kanban is durable project task state');
     }
   });
 

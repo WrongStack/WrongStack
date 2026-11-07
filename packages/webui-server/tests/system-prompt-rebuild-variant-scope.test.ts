@@ -19,7 +19,7 @@ import { rebuildSystemPrompt } from '../src/server/system-prompt-rebuild.js';
 /** A line that appears in system-pro.md and in neither other variant. */
 const PRO_MARKER = 'Assumption ledger';
 /** Likewise for system-lite.md. */
-const LITE_MARKER = 'Use a direct, low-overhead workflow';
+const LITE_MARKER = 'Work directly with minimal overhead.';
 
 let tmp: string;
 
