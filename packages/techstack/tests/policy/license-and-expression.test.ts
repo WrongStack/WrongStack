@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assessLicense,
+  constructPurl,
   createLicenseFinding,
   parsePurl,
   parsePurlEcosystem,
@@ -49,6 +50,29 @@ describe('license AND expressions', () => {
       namespace: '@types',
       name: 'node',
       version: '22.0.0',
+    });
+  });
+
+  it('classifies SPDX + suffixes and WITH exceptions and normalizes Go/uppercase PURLs (F88)', () => {
+    expect(assessLicense('AGPL-3.0+')).toMatchObject({
+      category: 'network_copyleft',
+      severity: 'high',
+    });
+    expect(assessLicense('GPL-3.0+')).toMatchObject({
+      category: 'strong_copyleft',
+      severity: 'high',
+    });
+    expect(assessLicense('Apache-2.0 WITH LLVM-exception')).toMatchObject({
+      category: 'permissive',
+      isCommercialSafe: true,
+    });
+    expect(constructPurl('go', 'github.com/gorilla/mux', '')).toBe(
+      'pkg:golang/github.com/gorilla/mux',
+    );
+    expect(parsePurlEcosystem('pkg:NPM/react@19.1.0')).toEqual({
+      ecosystem: 'npm',
+      name: 'react',
+      version: '19.1.0',
     });
   });
 });

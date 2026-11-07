@@ -163,7 +163,7 @@ export function parsePurl(purl: string): PurlParts | undefined {
   // Split type
   const slashIdx = main.indexOf('/');
   if (slashIdx < 0) return undefined;
-  const type = main.slice(0, slashIdx);
+  const type = main.slice(0, slashIdx).toLowerCase();
   const remainder = main.slice(slashIdx + 1);
 
   // Check for namespace (second /)
@@ -249,7 +249,7 @@ export function constructPurl(ecosystem: EcosystemId, name: string, version?: st
   // like `github.com/gorilla/mux` stay literal. Build the Go PURL string
   // directly so no `/` encoding is applied.
   if (ecosystem === 'go') {
-    const versionSuffix = version !== undefined ? `@${encodePurlVersion(version)}` : '';
+    const versionSuffix = version ? `@${encodePurlVersion(version)}` : '';
     return `pkg:${type}/${name}${versionSuffix}`;
   }
   // PyPI names reach the purl in their canonical PEP 503 form (lowercase, with

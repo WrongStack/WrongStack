@@ -51,10 +51,13 @@ const WEAK_COPYLEFT_LICENSES = new Set([
   // reached the GPL fallback below, which matched the 'gpl' inside 'lgpl'.
   'lgpl-2.0-only',
   'lgpl-2.0-or-later',
+  'lgpl-2.0+',
   'lgpl-2.1-only',
   'lgpl-2.1-or-later',
+  'lgpl-2.1+',
   'lgpl-3.0-only',
   'lgpl-3.0-or-later',
+  'lgpl-3.0+',
   'mpl-2.0',
   'cddl-1.0',
   'epl-1.0',
@@ -65,9 +68,11 @@ const STRONG_COPYLEFT_LICENSES = new Set([
   'gpl-2.0',
   'gpl-2.0-only',
   'gpl-2.0-or-later',
+  'gpl-2.0+',
   'gpl-3.0',
   'gpl-3.0-only',
   'gpl-3.0-or-later',
+  'gpl-3.0+',
   'eupl-1.1',
   'eupl-1.2',
   'osl-3.0',
@@ -77,9 +82,11 @@ const NETWORK_COPYLEFT_LICENSES = new Set([
   'agpl-1.0',
   'agpl-1.0-only',
   'agpl-1.0-or-later',
+  'agpl-1.0+',
   'agpl-3.0',
   'agpl-3.0-only',
   'agpl-3.0-or-later',
+  'agpl-3.0+',
   'sspl-1.0',
 ]);
 
@@ -150,7 +157,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
   // that disagree keep the conservative fallbacks below, because the tool cannot
   // know which branch the project relies on.
   const branches = normalized
-    .split(/[/+]/)
+    .split(/\/|\+(?=[a-z0-9])/)
     .map((branch) => branch.trim())
     .filter((branch) => branch !== '');
   if (branches.length > 1) {
@@ -167,7 +174,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     // Otherwise the `lgpl` substring shortcut below reported
     // `LGPL-2.1 AND AGPL-3.0` as weak copyleft — commercial-safe, no finding.
     // OR keeps the conservative fallbacks: the project may use either branch.
-    if (normalized.includes('+')) {
+    if (/\+(?=[a-z0-9])/.test(normalized)) {
       const strictest = branchAssessments.reduce((left, right) =>
         STRICT_CATEGORY_RANK[right.category] > STRICT_CATEGORY_RANK[left.category] ? right : left,
       );
@@ -181,7 +188,9 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     }
   }
 
-  if (NETWORK_COPYLEFT_LICENSES.has(normalized)) {
+  const lookupId = normalized.replace(/\s+with\s+[a-z0-9.-]+$/i, '').trim();
+
+  if (NETWORK_COPYLEFT_LICENSES.has(lookupId)) {
     return {
       license: rawLicense,
       category: 'network_copyleft',
@@ -192,7 +201,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     };
   }
 
-  if (STRONG_COPYLEFT_LICENSES.has(normalized)) {
+  if (STRONG_COPYLEFT_LICENSES.has(lookupId)) {
     return {
       license: rawLicense,
       category: 'strong_copyleft',
@@ -203,7 +212,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     };
   }
 
-  if (RESTRICTIVE_LICENSES.has(normalized)) {
+  if (RESTRICTIVE_LICENSES.has(lookupId)) {
     return {
       license: rawLicense,
       category: 'restrictive',
@@ -214,7 +223,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     };
   }
 
-  if (WEAK_COPYLEFT_LICENSES.has(normalized)) {
+  if (WEAK_COPYLEFT_LICENSES.has(lookupId)) {
     return {
       license: rawLicense,
       category: 'weak_copyleft',
@@ -225,7 +234,7 @@ export function assessLicense(rawLicense: string | undefined): LicenseRiskAssess
     };
   }
 
-  if (PERMISSIVE_LICENSES.has(normalized)) {
+  if (PERMISSIVE_LICENSES.has(lookupId)) {
     return {
       license: rawLicense,
       category: 'permissive',
