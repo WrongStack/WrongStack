@@ -199,9 +199,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/utils/sage-kinds": {
-      "files": 6,
+      "files": 7,
       "typeOnly": 0,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     "@wrongstack/core/utils/sage-output-block": {
       "files": 3,
@@ -16794,6 +16794,12 @@
     {
       "specifier": "@wrongstack/core/utils/sage-kinds",
       "file": "packages/tui/tests/memory-split-modules.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/sage-kinds",
+      "file": "packages/webui/tests/components/sage-kind-labels.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

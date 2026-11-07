@@ -345,13 +345,14 @@ describe('runIndexer', () => {
     ).rejects.toThrow('Indexing cancelled');
   });
 
-  it('records a read error when fs.readFile fails on an aborted signal', async () => {
+  it('records a file error instead of crashing when the signal is already aborted', async () => {
     const f = path.join(dir, 'a.ts');
     await fs.writeFile(f, 'export class Alpha {}');
     const ac = new AbortController();
     ac.abort();
-    // Node's fs.stat resolves despite the aborted signal, but readFile rejects
-    // with a (non-DOMException) AbortError → caught as an ordinary read error.
+    // The (non-DOMException) AbortError is caught as an ordinary file error. Older Node
+    // resolved fs.stat despite the aborted signal and failed at readFile ("read error");
+    // newer Node honours the signal in fs.stat already ("stat error").
     const res = await runIndexer(ctx, {
       projectRoot: dir,
       indexDir: indexDir(),
@@ -359,6 +360,6 @@ describe('runIndexer', () => {
       signal: ac.signal,
     });
     expect(res.filesIndexed).toBe(0);
-    expect(res.errors.some((e) => /read error/.test(e))).toBe(true);
+    expect(res.errors.some((e) => /(?:read|stat) error/.test(e))).toBe(true);
   });
 });
