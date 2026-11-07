@@ -331,8 +331,11 @@ const plugin: Plugin = {
         const safePaths: string[] = [];
         for (const p of paths) {
           const safePath = await resolveProjectPath(p, state.root);
-          if (safePath) safePaths.push(safePath);
-          else rejectedOutsideProject.push(p);
+          if (safePath) {
+            if (!safePaths.includes(safePath)) safePaths.push(safePath);
+          } else {
+            rejectedOutsideProject.push(p);
+          }
         }
         if (rejectedOutsideProject.length > 0) {
           throw new ToolValidationError({

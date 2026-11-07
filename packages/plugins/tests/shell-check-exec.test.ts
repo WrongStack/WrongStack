@@ -380,4 +380,34 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
     );
     expect((res.issues as Array<{ code: string }>).map((i) => i.code)).toEqual(['SC2034']);
   });
+
+  it('rejects symlinks/junctions escaping outside the project root and passes -- before filenames (F36)', async () => {
+    const fs = await import('node:fs');
+    const outsideDir = mkdtempSync(join(tmpdir(), 'shellcheck-outside-'));
+    try {
+      fs.writeFileSync(join(outsideDir, 'secret.sh'), '#!/bin/sh\necho secret\n', 'utf8');
+      fs.symlinkSync(
+        outsideDir,
+        join(tmpRoot, 'outside-link'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      const { tools } = setup();
+      await expect(tools.shellcheck!.execute({ directory: 'outside-link' })).rejects.toThrow(
+        /outside the project root/,
+      );
+      await expect(
+        tools.shellcheck!.execute({ files: ['outside-link/secret.sh'] }),
+      ).rejects.toThrow(/outside the project root/);
+
+      cp.execFileSync.mockReturnValue('[]');
+      await tools.shellcheck!.execute({ files: ['sub/ok.sh'] });
+      expect(cp.execFileSync).toHaveBeenCalledWith(
+        'shellcheck',
+        ['-f', 'json', '-S', 'warning', '--', 'sub/ok.sh'],
+        expect.anything(),
+      );
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
 });

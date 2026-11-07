@@ -2913,6 +2913,37 @@ describe('path-guard covers any tool that declares a write', () => {
           cwd: projectDir,
         }),
       ).toBeUndefined();
+
+      // F37: deletion-scope targets (rm -rf, delete_dir) on escaped symlinks must also block,
+      // and isSymlinkEscape must honor explicit cwd when process.cwd() differs.
+      const narrowApi = makeApi({
+        extensions: {
+          'path-guard': { protect: ['config/secret.json'], allow: ['assets-link/**'] },
+        },
+      });
+      pathGuardPlugin.setup(narrowApi as never);
+      expect(
+        (
+          await hookOf(narrowApi)({
+            toolName: 'bash',
+            toolInput: { command: 'rm -rf assets-link' },
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      expect(
+        (
+          await hookOf(narrowApi)({
+            toolName: 'delete_dir',
+            toolInput: { path: 'assets-link' },
+            toolMutating: true,
+            cwd: projectDir,
+          })
+        )?.decision,
+      ).toBe('block');
+      process.chdir(original);
+      expect(isSymlinkEscape('brand/new/file.txt', projectDir)).toBe(false);
+      expect(isSymlinkEscape('assets-link', projectDir)).toBe(true);
     } finally {
       process.chdir(original);
       fs.rmSync(projectDir, { recursive: true, force: true });

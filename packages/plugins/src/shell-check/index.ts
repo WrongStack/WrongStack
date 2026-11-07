@@ -10,11 +10,44 @@
  */
 
 import { execFile } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { type Plugin, ToolValidationError } from '@wrongstack/contracts/types';
 
 const API_VERSION = '^0.1.10';
+
+function isLexicallyWithin(root: string, target: string): boolean {
+  const normRoot = process.platform === 'win32' ? root.toLowerCase() : root;
+  const normTarget = process.platform === 'win32' ? target.toLowerCase() : target;
+  const rel = relative(normRoot, normTarget);
+  if (rel === '' || rel === '.') return true;
+  if (rel.split(/[\\/]/)[0] === '..') return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
+
+function resolveRealOrNearestAncestor(abs: string, root: string): string | null {
+  try {
+    return realpathSync(abs);
+  } catch {
+    let current = dirname(abs);
+    for (let hops = 0; hops < 64; hops++) {
+      if (existsSync(current)) {
+        try {
+          return realpathSync(current);
+        } catch {
+          return null;
+        }
+      }
+      if (current === root) return null;
+      const parent = dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Sandbox: reject paths that resolve outside the current working directory.
@@ -37,10 +70,10 @@ function withinProject(p: string): boolean {
   if (p.startsWith('-')) return false;
   const root = process.cwd();
   const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.split(/[\\/]/)[0] === '..') return false;
-  if (isAbsolute(rel)) return false;
+  if (!isLexicallyWithin(root, resolved)) return false;
+  const realRoot = resolveRealOrNearestAncestor(root, root) ?? root;
+  const realTarget = resolveRealOrNearestAncestor(resolved, root);
+  if (realTarget !== null && !isLexicallyWithin(realRoot, realTarget)) return false;
   return true;
 }
 
@@ -115,7 +148,7 @@ async function runShellCheck(
 
   /* v8 ignore next -- severity is constrained to levelMap keys by the schema enum; the ?? fallback is defensive. */
   const severityFlag = levelMap[severity] ?? 'warning';
-  const args = ['-f', 'json', '-S', severityFlag, ...files];
+  const args = ['-f', 'json', '-S', severityFlag, '--', ...files];
 
   let raw: string;
   try {
@@ -209,6 +242,7 @@ async function findShellFiles(dir: string, pattern: string, isRoot = true): Prom
   }
   for (const entry of entries) {
     const full = join(dir, entry.name);
+    if (!withinProject(full)) continue;
     if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
       results.push(...(await findShellFiles(full, pattern, false)));
     } else if (

@@ -1,11 +1,13 @@
 import { isUtf8 } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises';
+import { chmod, mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Snapshot } from './snapshot.js';
 
 function inside(root: string, target: string): boolean {
-  const path = relative(root, target);
+  const normRoot = process.platform === 'win32' ? root.toLowerCase() : root;
+  const normTarget = process.platform === 'win32' ? target.toLowerCase() : target;
+  const path = relative(normRoot, normTarget);
   return (
     path !== '..' &&
     !path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) &&
@@ -27,10 +29,12 @@ async function canonicalPath(path: string): Promise<string> {
 /** Existing ancestors are canonicalized too, including for a missing target file. */
 export async function resolveProjectPath(raw: string, root: string): Promise<string | null> {
   if (typeof raw !== 'string' || !raw || raw.includes('\0')) return null;
-  const path = resolve(root, raw);
-  if (!isAbsolute(raw) && !inside(root, path)) return null;
+  const resolvedRoot = resolve(root);
+  const path = resolve(resolvedRoot, raw);
+  if (!isAbsolute(raw) && !inside(resolvedRoot, path)) return null;
+  const canonicalRoot = await canonicalPath(resolvedRoot);
   const canonical = await canonicalPath(path);
-  return inside(root, canonical) ? canonical : null;
+  return inside(canonicalRoot, canonical) ? canonical : null;
 }
 
 export async function captureFile(
@@ -98,14 +102,15 @@ export async function restoreFile(
     throw new Error('Restore path moved outside the project or changed its target');
   if (file.content === null) return;
   await mkdir(dirname(file.path), { recursive: true });
-  let mode = file.mode ?? 0o600;
+  let existingMode: number | undefined;
   try {
-    mode = (await stat(file.path)).mode & 0o777;
+    existingMode = (await stat(file.path)).mode & 0o777;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
+  const mode = file.mode ?? existingMode ?? 0o600;
   const temporary = join(dirname(file.path), `.checkpoint-${randomUUID()}.tmp`);
-  const handle = await open(temporary, 'wx', mode);
+  const handle = await open(temporary, 'wx', mode | 0o200);
   try {
     try {
       signal.throwIfAborted();
@@ -113,12 +118,35 @@ export async function restoreFile(
     } finally {
       await handle.close();
     }
+    await chmod(temporary, mode).catch(() => undefined);
     signal.throwIfAborted();
     if ((await resolveProjectPath(file.path, root)) !== file.path)
       throw new Error('Restore path changed during preparation');
     signal.throwIfAborted();
-    await rename(temporary, file.path);
+    let clearedReadOnly = false;
+    if (
+      process.platform === 'win32' &&
+      existingMode !== undefined &&
+      (existingMode & 0o200) === 0
+    ) {
+      clearedReadOnly = true;
+      await chmod(file.path, 0o666).catch(() => undefined);
+    }
+    try {
+      await rename(temporary, file.path);
+    } catch (error) {
+      if (clearedReadOnly && existingMode !== undefined) {
+        await chmod(file.path, existingMode).catch(() => undefined);
+      }
+      throw error;
+    }
+    if (process.platform === 'win32') {
+      await chmod(file.path, mode).catch(() => undefined);
+    }
   } finally {
+    if (process.platform === 'win32' && (mode & 0o200) === 0) {
+      await chmod(temporary, 0o666).catch(() => undefined);
+    }
     await rm(temporary, { force: true });
   }
 }

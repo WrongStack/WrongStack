@@ -6,7 +6,7 @@
  */
 
 import { existsSync, realpathSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin, PluginAPI } from '@wrongstack/contracts/types';
 import { withinProject } from '../runtime/index.js';
 import {
@@ -52,9 +52,42 @@ export { destructiveTargets } from './shell-targets.js';
  * is still detected. A brand-new path under ordinary project directories
  * resolves to an ancestor inside the project and returns false.
  */
+function withinBaseRoot(root: string, candidate: string): boolean {
+  if (typeof candidate !== 'string' || candidate.length === 0 || candidate.length > 4096) {
+    return false;
+  }
+  if (candidate.startsWith('-')) return false;
+  const resolvedRoot = resolve(root);
+  const resolvedCandidate = isAbsolute(candidate)
+    ? resolve(candidate)
+    : resolve(resolvedRoot, candidate);
+  const normRoot = process.platform === 'win32' ? resolvedRoot.toLowerCase() : resolvedRoot;
+  const normCandidate =
+    process.platform === 'win32' ? resolvedCandidate.toLowerCase() : resolvedCandidate;
+  const rel = relative(normRoot, normCandidate);
+  return (
+    rel === '' ||
+    rel === '.' ||
+    (rel !== '..' &&
+      !rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) &&
+      !isAbsolute(rel))
+  );
+}
+
 export function isSymlinkEscape(path: string, cwd?: string): boolean {
-  if (!withinProject(path)) return false;
-  const abs = resolve(cwd ?? process.cwd(), path);
+  const baseCwd = cwd ?? process.cwd();
+  const resolvedBase = resolve(baseCwd);
+  if (cwd !== undefined && !existsSync(resolvedBase)) return false;
+  const insideLexically =
+    cwd !== undefined ? withinBaseRoot(resolvedBase, path) : withinProject(path);
+  if (!insideLexically) return false;
+  const abs = resolve(resolvedBase, path);
+  let realBase: string;
+  try {
+    realBase = realpathSync(resolvedBase);
+  } catch {
+    return false;
+  }
   let real: string;
   try {
     real = realpathSync(abs);
@@ -63,7 +96,7 @@ export function isSymlinkEscape(path: string, cwd?: string): boolean {
     // ancestor. The non-existing tail cannot introduce an escape — `abs`
     // already passed the lexical withinProject check, so plain tail segments
     // appended to an inside-project realpath stay inside.
-    const ancestor = nearestExistingAncestor(abs);
+    const ancestor = nearestExistingAncestor(abs, resolvedBase);
     if (ancestor === null) return false;
     try {
       real = realpathSync(ancestor);
@@ -71,14 +104,15 @@ export function isSymlinkEscape(path: string, cwd?: string): boolean {
       return false;
     }
   }
-  return !withinProject(real);
+  return cwd !== undefined ? !withinBaseRoot(realBase, real) : !withinProject(real);
 }
 
-/** Deepest existing prefix directory of `abs`; null when none exists. */
-function nearestExistingAncestor(abs: string): string | null {
+/** Deepest existing prefix directory of `abs` within `root`; null when none exists. */
+function nearestExistingAncestor(abs: string, root: string): string | null {
   let current = dirname(abs);
   for (let hops = 0; hops < 64; hops++) {
     if (existsSync(current)) return current;
+    if (current === root) return null;
     const parent = dirname(current);
     if (parent === current) return null;
     current = parent;
@@ -322,8 +356,12 @@ const plugin: Plugin = {
                   ? 'deletion-scope'
                   : 'file',
             };
-            if (target.kind === 'file' && isSymlinkEscape(target.path, input.cwd)) {
-              return target;
+            if (
+              !isUnresolvedPathScope(target.path) &&
+              !isRootPathScope(target.path) &&
+              isSymlinkEscape(target.path, input.cwd)
+            ) {
+              return { ...target, kind: 'file' as const };
             }
             if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
             const protectedShellTarget =
@@ -372,7 +410,13 @@ const plugin: Plugin = {
       // the PreToolUse deadline. First-hit-in-original-order is preserved.
       const writeHits = await Promise.all(
         targets.map(async (target) => {
-          if (target.kind === 'file' && isSymlinkEscape(target.path, input.cwd)) return target;
+          if (
+            !isUnresolvedPathScope(target.path) &&
+            !isRootPathScope(target.path) &&
+            isSymlinkEscape(target.path, input.cwd)
+          ) {
+            return { ...target, kind: 'file' as const };
+          }
           if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
           // Concrete write targets use the sync matcher. The worker-thread
           // guard is for hostile path *inputs* against user globs (shell

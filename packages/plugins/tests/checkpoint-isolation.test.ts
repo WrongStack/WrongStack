@@ -274,4 +274,26 @@ describe('checkpoint ownership and restore boundaries', () => {
     expect(await fs.readFile(join(outside, 'b.txt'), 'utf8')).toBe('outside must survive');
     expect(await fs.readFile(join(project, 'a.txt'), 'utf8')).toBe('edited');
   });
+
+  it('restores read-only files and deduplicates aliased paths in checkpoint_create (F38)', async () => {
+    const targetFile = join(root, 'readonly.txt');
+    await fs.writeFile(targetFile, 'original-content', 'utf8');
+    const loaded = host();
+    const created = await loaded.call(
+      'checkpoint_create',
+      { paths: ['readonly.txt', './readonly.txt'] },
+      'A',
+      root,
+    );
+    expect(created.capturedFiles).toHaveLength(1);
+
+    await fs.writeFile(targetFile, 'mutated-content', 'utf8');
+    await fs.chmod(targetFile, 0o400);
+    try {
+      await loaded.call('checkpoint_restore', {}, 'A', root);
+      expect(await fs.readFile(targetFile, 'utf8')).toBe('original-content');
+    } finally {
+      await fs.chmod(targetFile, 0o666).catch(() => undefined);
+    }
+  });
 });
