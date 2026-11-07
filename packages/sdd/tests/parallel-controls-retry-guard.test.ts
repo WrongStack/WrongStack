@@ -207,4 +207,169 @@ describe('retryTask status and active subagent guard', () => {
     expect(released).toContain(`sdd-${task.id}`);
     expect(state.taskWorktrees.has(task.id)).toBe(false);
   });
+
+  it('honours cancelTask during verifyTask/superviseFailure without merging or retrying, and clears cancelled metadata on splitTask (F57)', async () => {
+    const { EventBus } = await import('@wrongstack/contracts/kernel/events');
+    const { DefaultTaskStore, TaskTracker } = await import('@wrongstack/core/tasking');
+    const { buildBoardTasks } = await import('../src/board-types.js');
+    const { SddParallelRun } = await import('../src/sdd-parallel-run.js');
+
+    const store = new DefaultTaskStore();
+    const tracker = new TaskTracker({ store });
+    const graph = await tracker.createGraph('spec-f57', 'Graph F57');
+    const tPass = tracker.addNode({
+      title: 'Pass Cancel',
+      description: 'desc',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    const tFail = tracker.addNode({
+      title: 'Fail Cancel',
+      description: 'desc',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+
+    let mergedCount = 0;
+    let runRef!: InstanceType<typeof SddParallelRun>;
+    runRef = new SddParallelRun({
+      tracker,
+      graph,
+      agent: { events: new EventBus() } as never,
+      projectRoot: process.cwd(),
+      sessionId: 'sess-f57',
+      maxRetries: 1,
+      worktrees: {
+        allocate: async (ownerId: string) => ({
+          id: ownerId,
+          ownerId,
+          status: 'active',
+          dir: `/wt/${ownerId}`,
+          branch: `b-${ownerId}`,
+          baseBranch: 'main',
+        }),
+        commitAll: async () => {},
+        baseHead: async () => 'SHA1',
+        merge: async () => {
+          mergedCount++;
+          return { ok: true };
+        },
+        release: async () => {},
+      } as never,
+      verifyTask: async ({ task }) => {
+        await runRef.cancelTask(task.id);
+        return task.id === tFail.id ? { ok: false, reason: 'gate failed' } : { ok: true };
+      },
+    });
+
+    (runRef as never as { coordinator: unknown }).coordinator = {
+      spawn: async (c: { id: string }) => ({ subagentId: c.id }),
+      assign: async () => {},
+      awaitTasks: async (ids: string[]) =>
+        ids.map((taskId) => ({
+          subagentId: 's',
+          taskId,
+          status: 'success',
+          iterations: 1,
+          toolCalls: 1,
+          durationMs: 1,
+        })),
+      stop: async () => {},
+      stopAll: () => {},
+    };
+
+    await runRef.executeWave({
+      wave: 0,
+      tasks: [tPass, tFail],
+      deadlocked: false,
+      allDone: false,
+    } as never);
+
+    expect(mergedCount).toBe(0);
+    expect(tracker.getNode(tPass.id)?.status).toBe('failed');
+    expect(tracker.getNode(tFail.id)?.status).toBe('failed');
+
+    const leafIds = runRef.splitTask(tPass.id, [
+      { title: 'Sub 1', description: 'd1' },
+      { title: 'Sub 2', description: 'd2' },
+    ]);
+    expect(leafIds).toHaveLength(2);
+    const parentBoardTask = buildBoardTasks(graph).tasks.find((t) => t.id === tPass.id);
+    expect(parentBoardTask?.status).toBe('completed');
+    expect(parentBoardTask?.displayStatus).toBe('completed');
+  });
+
+  it('flushes pending throttled snapshots and awaits appendEvent writes in SddBoardProjector.drain, and ignores post-dispose control drains (F58)', async () => {
+    const { EventBus } = await import('@wrongstack/contracts/kernel/events');
+    const { DefaultTaskStore, TaskTracker } = await import('@wrongstack/core/tasking');
+    const { SddBoardProjector } = await import('../src/sdd-board-projector.js');
+    const { startSddRun } = await import('../src/start-sdd-run.js');
+
+    const store = new DefaultTaskStore();
+    const tracker = new TaskTracker({ store });
+    const graph = await tracker.createGraph('spec-f58', 'Graph F58');
+    const events = new EventBus();
+    const savedStatuses: string[] = [];
+    const appendedTypes: string[] = [];
+
+    const projector = new SddBoardProjector({
+      runId: 'run-f58',
+      graph,
+      tracker,
+      events,
+      throttleMs: 50,
+      store: {
+        saveSnapshot: async (snap) => {
+          await new Promise((r) => setTimeout(r, 5));
+          savedStatuses.push(snap.status);
+        },
+        appendEvent: async (_runId, ev) => {
+          await new Promise((r) => setTimeout(r, 15));
+          appendedTypes.push(ev.type);
+        },
+      },
+    });
+
+    events.emit('sdd.run.started', {
+      sessionId: 'sess-f58',
+      runId: 'run-f58',
+      graphId: graph.id,
+      specId: 'spec-f58',
+      total: 0,
+    });
+
+    await projector.drain();
+    projector.dispose();
+
+    expect(savedStatuses).toContain('running');
+    expect(appendedTypes).toContain('sdd.run.started');
+
+    let releaseDrain!: (cmds: Array<{ ts: number; type: string }>) => void;
+    const handle = startSddRun({
+      tracker,
+      graph,
+      agent: { events: new EventBus() } as never,
+      projectRoot: process.cwd(),
+      sessionId: 'sess-f58',
+      events: new EventBus(),
+      boardStore: {
+        saveSnapshot: async () => {},
+        appendEvent: async () => {},
+        drainControl: () =>
+          new Promise<Array<{ ts: number; type: string }>>((resolve) => {
+            releaseDrain = resolve;
+          }),
+      } as never,
+      controlTransport: 'legacy-file',
+      boardStateTransport: 'legacy-file',
+      controlDrainMs: 5,
+    });
+
+    await handle.completion;
+    releaseDrain([{ ts: Date.now(), type: 'pause' }]);
+    await new Promise((r) => setTimeout(r, 15));
+    expect(handle.run.isPaused()).toBe(false);
+  });
 });

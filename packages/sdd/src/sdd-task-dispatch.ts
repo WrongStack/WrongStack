@@ -101,6 +101,9 @@ export async function applyTaskFailure(
   subagentId: string,
   errMsg: string,
 ): Promise<void> {
+  if (this.cancelledTasks.has(taskId) || this.opts.tracker.getNode(taskId)?.metadata?.cancelled) {
+    return;
+  }
   const currentRetries = this.retryMap.get(taskId) ?? 0;
   if (currentRetries < this.maxRetries) {
     this.retryMap.set(taskId, currentRetries + 1);
@@ -122,6 +125,9 @@ export async function applyTaskFailure(
   // Retries exhausted — give the supervisor a bounded chance to rescue the
   // task before it goes terminal, so a run "decides" rather than dead-ends.
   if (await this.trySupervisorRescue(taskId, errMsg)) return;
+  if (this.cancelledTasks.has(taskId) || this.opts.tracker.getNode(taskId)?.metadata?.cancelled) {
+    return;
+  }
 
   this.opts.tracker.updateNodeStatus(taskId, 'failed', errMsg);
   this.emit('sdd.task.failed', { runId: this.runId, taskId, subagentId, error: errMsg });
@@ -134,6 +140,9 @@ export async function trySupervisorRescue(
 ): Promise<boolean> {
   const supervise = this.opts.superviseFailure;
   if (!supervise) return false;
+  if (this.cancelledTasks.has(taskId) || this.opts.tracker.getNode(taskId)?.metadata?.cancelled) {
+    return false;
+  }
   const used = this.supervisorEscalations.get(taskId) ?? 0;
   if (used >= this.maxSupervisorEscalations) return false;
   const node = this.opts.tracker.getNode(taskId);
@@ -144,6 +153,9 @@ export async function trySupervisorRescue(
     verdict = await supervise({ task: node, error: errMsg, attempts: used });
   } catch {
     return false; // a flaky supervisor must not block terminal failure
+  }
+  if (this.cancelledTasks.has(taskId) || this.opts.tracker.getNode(taskId)?.metadata?.cancelled) {
+    return false;
   }
   if (!verdict || verdict.action === 'fail') return false;
 

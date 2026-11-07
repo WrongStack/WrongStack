@@ -112,6 +112,8 @@ export class SddBoardProjector {
   private pendingSnapshot: SddBoardSnapshot | undefined;
   /** At most one persistence loop runs; intermediate snapshots are coalesced. */
   private saveLoop: Promise<void> | undefined;
+  /** In-flight appendEvent writes tracked so drain() waits for audit log completion. */
+  private readonly pendingAppends = new Set<Promise<unknown>>();
 
   constructor(opts: SddBoardProjectorOptions) {
     this.o = opts;
@@ -298,20 +300,22 @@ export class SddBoardProjector {
         ok: e.ok,
         text: `${agentName ?? 'worker'} ran ${action}${detail ? ` · ${detail}` : ''}`,
       });
-      void this.o.store?.appendEvent(this.o.runId, {
-        ts: this.now(),
-        type: 'subagent.tool_executed',
-        payload: {
-          runId: this.o.runId,
-          taskId,
-          subagentId: e.subagentId,
-          agentName,
-          name: action,
-          durationMs: e.durationMs,
-          ok: e.ok,
-          detail,
-        },
-      });
+      this.trackAppend(
+        this.o.store?.appendEvent(this.o.runId, {
+          ts: this.now(),
+          type: 'subagent.tool_executed',
+          payload: {
+            runId: this.o.runId,
+            taskId,
+            subagentId: e.subagentId,
+            agentName,
+            name: action,
+            durationMs: e.durationMs,
+            ok: e.ok,
+            detail,
+          },
+        }),
+      );
       this.markDirty();
     });
     this.onTask('file.event', (e, taskId) => {
@@ -331,20 +335,22 @@ export class SddBoardProjector {
         ok: true,
         text: `${e.operation} ${filePath}`,
       });
-      void this.o.store?.appendEvent(this.o.runId, {
-        ts: this.now(),
-        type: 'file.event',
-        payload: {
-          runId: this.o.runId,
-          taskId,
-          agentName,
-          operation: e.operation,
-          filePath,
-          toolName: this.scrubber.scrub(e.toolName),
-          durationMs: e.durationMs,
-          timestamp: e.timestamp,
-        },
-      });
+      this.trackAppend(
+        this.o.store?.appendEvent(this.o.runId, {
+          ts: this.now(),
+          type: 'file.event',
+          payload: {
+            runId: this.o.runId,
+            taskId,
+            agentName,
+            operation: e.operation,
+            filePath,
+            toolName: this.scrubber.scrub(e.toolName),
+            durationMs: e.durationMs,
+            timestamp: e.timestamp,
+          },
+        }),
+      );
       this.markDirty();
     });
   }
@@ -379,9 +385,29 @@ export class SddBoardProjector {
     return this.build();
   }
 
-  /** Resolve once all in-flight snapshot persistence has settled. */
+  /** Resolve once all in-flight snapshot and event persistence has settled. */
   async drain(): Promise<void> {
-    while (this.saveLoop) await this.saveLoop;
+    if (this.timer) {
+      this.flush();
+    }
+    while (
+      this.saveLoop ||
+      (this.pendingSnapshot && this.o.store) ||
+      this.pendingAppends.size > 0
+    ) {
+      if (this.timer) {
+        this.flush();
+      }
+      if (!this.saveLoop && this.pendingSnapshot && this.o.store) {
+        this.startSaveLoop(this.o.store);
+      }
+      if (this.saveLoop) {
+        await this.saveLoop;
+      }
+      if (this.pendingAppends.size > 0) {
+        await Promise.allSettled([...this.pendingAppends]);
+      }
+    }
   }
 
   /** Stop projecting and release subscriptions. */
@@ -396,11 +422,22 @@ export class SddBoardProjector {
 
   // ── internal ────────────────────────────────────────────────────────────
 
+  private trackAppend(write: Promise<void> | undefined): void {
+    if (!write) return;
+    const tracked = write.catch(() => {});
+    this.pendingAppends.add(tracked);
+    void tracked.finally(() => {
+      this.pendingAppends.delete(tracked);
+    });
+  }
+
   /** Subscribe to a run event scoped to this run id; also append to JSONL. */
   private onRun<K extends keyof EventMap>(event: K, handler: (e: EventMap[K]) => void): void {
     const wrapped = (e: EventMap[K]) => {
       if ((e as { runId?: string }).runId !== this.o.runId) return;
-      void this.o.store?.appendEvent(this.o.runId, { ts: this.now(), type: event, payload: e });
+      this.trackAppend(
+        this.o.store?.appendEvent(this.o.runId, { ts: this.now(), type: event, payload: e }),
+      );
       handler(e);
     };
     const off = this.o.events.on(event, wrapped as (p: EventMap[K]) => void);
@@ -494,7 +531,12 @@ export class SddBoardProjector {
     const loop = this.persistPendingSnapshots(store);
     this.saveLoop = loop;
     void loop.finally(() => {
-      this.saveLoop = undefined;
+      if (this.saveLoop === loop) {
+        this.saveLoop = undefined;
+      }
+      if (this.pendingSnapshot) {
+        this.startSaveLoop(store);
+      }
     });
   }
 

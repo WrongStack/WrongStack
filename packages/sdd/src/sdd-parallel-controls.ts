@@ -170,6 +170,8 @@ export function splitTask(
     isRunning: (id) => host.taskSubagents.has(id),
   });
   if (!leafIds.length) return [];
+  host.cancelledTasks.delete(taskId);
+  host.opts.tracker.patchMetadata(taskId, { cancelled: undefined });
   host.retryMap.delete(taskId);
   host.persistRetries(taskId, 0);
   host.emit('sdd.task.split', { runId: host.runId, taskId, subtaskIds: leafIds });

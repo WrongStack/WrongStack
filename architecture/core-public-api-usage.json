@@ -156,7 +156,7 @@
     "@wrongstack/core/tasking": {
       "files": 45,
       "typeOnly": 20,
-      "runtimeOrMixed": 25
+      "runtimeOrMixed": 27
     },
     "@wrongstack/core/typesafe": {
       "files": 32,
@@ -10447,7 +10447,7 @@
       "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/tests/parallel-controls-retry-guard.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/tasking",

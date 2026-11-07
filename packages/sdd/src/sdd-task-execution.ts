@@ -123,15 +123,27 @@ export async function executeSddTask(params: {
 
   params.taskSubagents.delete(taskId);
 
-  if (params.cancelledTasks.has(taskId)) {
+  const isCancelled = () =>
+    params.cancelledTasks.has(taskId) || Boolean(opts.tracker.getNode(taskId)?.metadata?.cancelled);
+
+  if (isCancelled()) {
     await params.resolveWorktrees([task]);
     return { taskId, success: false, result };
   }
 
   const verificationFailReason = await verifyTaskResult(params, result);
+  if (isCancelled()) {
+    await params.resolveWorktrees([task]);
+    return { taskId, success: false, result };
+  }
+
   let success = false;
   if (result.status === 'success' && !verificationFailReason) {
     const merged = await params.integrateWorktree(task, result);
+    if (isCancelled()) {
+      await params.resolveWorktrees([task]);
+      return { taskId, success: false, result };
+    }
     if (merged.ok) {
       success = true;
       opts.tracker.updateNodeStatus(taskId, 'completed');

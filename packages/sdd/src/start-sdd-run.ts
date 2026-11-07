@@ -234,16 +234,25 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
   // atomic SQLite queue. Push notifications provide the fast path; a slow
   // reconciliation drain covers startup races and daemon restarts.
   let controlDrainInFlight = false;
+  let controlDrainPending = false;
   let controlDisposed = false;
   let unsubscribeControl: (() => void) | undefined;
   const drainControl = async (): Promise<void> => {
-    if (controlDrainInFlight || controlDisposed) return;
+    if (controlDisposed) return;
+    if (controlDrainInFlight) {
+      controlDrainPending = true;
+      return;
+    }
     controlDrainInFlight = true;
     try {
-      const commands = legacyControl
-        ? await opts.boardStore.drainControl(run.runId)
-        : await drainKanbanWorkflowCommands(opts.projectRoot, workflowId);
-      for (const command of commands) applySddControlCommand(run, command);
+      do {
+        controlDrainPending = false;
+        const commands = legacyControl
+          ? await opts.boardStore.drainControl(run.runId)
+          : await drainKanbanWorkflowCommands(opts.projectRoot, workflowId);
+        if (controlDisposed) return;
+        for (const command of commands) applySddControlCommand(run, command);
+      } while (controlDrainPending && !controlDisposed);
     } catch (error) {
       // Kanban IPC is the SDD run's only cross-process control channel.
       // Silently swallowing a rejection here means a daemon outage, a
@@ -298,6 +307,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     void opts.boardStore
       .drainControl(run.runId)
       .then((commands) => {
+        if (controlDisposed) return;
         for (const command of commands) applySddControlCommand(run, command);
       })
       .catch((error) => {
