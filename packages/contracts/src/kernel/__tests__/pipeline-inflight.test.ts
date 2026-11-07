@@ -78,4 +78,21 @@ describe('Pipeline in-flight registration changes', () => {
     expect(await inFlight).toBe(111);
     expect(await pipeline.run(0)).toBe(110);
   });
+
+  it('routes duplicate next() calls through errorHandler and normalizes insertAt indices (F87)', async () => {
+    const pipeline = new Pipeline<number>().setErrorHandler(() => 'swallow');
+    pipeline.use({
+      name: 'double-next',
+      handler: async (value: number, next: (value: number) => Promise<number>) => {
+        await next(value + 1);
+        return next(value + 2);
+      },
+    });
+    pipeline.insertAt(Number.NaN, {
+      name: 'front',
+      handler: async (value: number, next: (value: number) => Promise<number>) => next(value + 10),
+    });
+    expect(pipeline.list()).toEqual(['front', 'double-next']);
+    expect(await pipeline.run(5)).toBe(15);
+  });
 });

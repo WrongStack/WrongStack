@@ -108,7 +108,8 @@ export class Pipeline<T> {
    */
   insertAt(index: number, mw: Middleware<T>): this {
     this.ensureUnique(mw.name);
-    const idx = Math.max(0, Math.min(index, this.chain.length));
+    const normalized = Number.isNaN(index) ? 0 : Math.floor(index);
+    const idx = Math.max(0, Math.min(normalized, this.chain.length));
     this.chain.splice(idx, 0, mw);
     return this;
   }
@@ -204,8 +205,18 @@ export class Pipeline<T> {
       if (!mw) return value;
       let downstreamErr: unknown;
       let hasDownstreamErr = false;
+      let nextCalled = false;
       try {
         return await mw.handler(value, async (v) => {
+          if (nextCalled || i + 1 <= index) {
+            throw new WrongStackError({
+              message: `Pipeline: next() called multiple times in "${mw.name}"`,
+              code: ERROR_CODES.VALIDATION_ERROR,
+              subsystem: 'container',
+              context: { middleware: mw.name },
+            });
+          }
+          nextCalled = true;
           try {
             return await dispatch(i + 1, v);
           } catch (err) {
