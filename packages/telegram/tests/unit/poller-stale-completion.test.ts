@@ -58,9 +58,53 @@ describe('Poller stale completions', () => {
       );
       await pending;
       expect(handler).toHaveBeenCalledOnce();
-      expect(f.write).not.toHaveBeenCalled();
+      // Update 12 was handled, so its offset is persisted; update 13 never
+      // reached a handler and must stay unacknowledged.
+      expect(f.write.mock.calls).toEqual([[13]]);
     },
   );
+
+  it('does not redeliver the update whose handler stopped its owner to the next owner', async () => {
+    let saved: number | null = null;
+    const store = {
+      read: () => saved,
+      write: (offset: number) => {
+        saved = offset;
+      },
+    };
+    const batch: TelegramApiUpdate[] = [
+      { ...update, message: { ...update.message!, text: 'stop-owner' } },
+      { ...update, update_id: 13, message: { ...update.message!, text: 'next' } },
+    ];
+    const requested: number[] = [];
+    const handled: string[] = [];
+    const owner = (onMessage: (text: string) => void): Poller =>
+      new Poller({
+        api: () =>
+          ({
+            getUpdates: async ({ offset }: { offset: number }) => {
+              requested.push(offset);
+              return batch.filter((u) => u.update_id >= offset);
+            },
+            safeBaseUrl: 'fake',
+          }) as unknown as TelegramApiClient,
+        pollIntervalMs: 60_000,
+        standbyRetryMs: 60_000,
+        controller: new AbortController(),
+        log: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() } as unknown as Logger,
+        offsetStore: store as never,
+        onMessageUpdate: (msg) => onMessage(msg.text ?? ''),
+        onCallbackQuery: vi.fn(),
+      });
+    const first: Poller = owner((text) => {
+      handled.push(text);
+      first.stop();
+    });
+    await first.poll();
+    await owner((text) => handled.push(text)).poll();
+    expect(handled).toEqual(['stop-owner', 'next']);
+    expect(requested).toEqual([0, 13]);
+  });
 
   it('delivers and persists the current chain as an unaffected control', async () => {
     const f = fixture(async () => [update]);
