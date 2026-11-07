@@ -4616,7 +4616,7 @@ Prefer: bash, session_wakeup.
 
 ## process_watch_control
 
-List this session’s process watches, or stop one by id (or all with id="all").
+List or stop this session’s process watches (id "all" stops every one).
 
 Permission: `auto`; mutating: `false`; icon: `logs`; color: `#a3a3a3`.
 
@@ -4631,11 +4631,12 @@ Permission: `auto`; mutating: `false`; icon: `logs`; color: `#a3a3a3`.
       "enum": [
         "list",
         "stop"
-      ]
+      ],
+      "description": "list or stop."
     },
     "id": {
       "type": "string",
-      "description": "stop: the watch id, or \"all\"."
+      "description": "Watch id, or \"all\"."
     }
   },
   "required": [

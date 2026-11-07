@@ -646,7 +646,7 @@ export const toolCatalog = [
   },
   {
     name: 'process_watch_control',
-    summary: 'List this session’s process watches, or stop one by id (or all with id="all").',
+    summary: 'List or stop this session’s process watches (id "all" stops every one).',
     permission: 'auto',
     mutating: false,
     category: 'Shell, Git & web',

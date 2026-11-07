@@ -4496,7 +4496,7 @@
     {
       "name": "process_watch_control",
       "owner": "builtin-tools",
-      "description": "List this session’s process watches, or stop one by id (or all with id=\"all\").",
+      "description": "List or stop this session’s process watches (id \"all\" stops every one).",
       "permission": "auto",
       "mutating": false,
       "exposure": "direct",
@@ -4509,11 +4509,12 @@
             "enum": [
               "list",
               "stop"
-            ]
+            ],
+            "description": "list or stop."
           },
           "id": {
             "type": "string",
-            "description": "stop: the watch id, or \"all\"."
+            "description": "Watch id, or \"all\"."
           }
         },
         "required": [
@@ -5649,8 +5650,8 @@
   "schemaMeasurements": {
     "off": {
       "count": 81,
-      "wireBytes": 100878,
-      "estimatedTokens": 27891
+      "wireBytes": 100891,
+      "estimatedTokens": 27895
     },
     "minimal": {
       "count": 30,
@@ -5664,8 +5665,8 @@
     },
     "medium": {
       "count": 57,
-      "wireBytes": 86482,
-      "estimatedTokens": 24046
+      "wireBytes": 86495,
+      "estimatedTokens": 24050
     },
     "aggressive": {
       "count": 30,

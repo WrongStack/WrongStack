@@ -187,7 +187,7 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   process_watch:
     'Run a command and receive its output lines (optionally only those matching a regex `filter`) as [RUNTIME NOTICE]s while it runs, plus its exit; an idle session is woken for them. For log tails, readiness lines and CI loops instead of polling. Returns at once.',
   process_watch_control:
-    'List this session’s process watches, or stop one by id (or all with id="all").',
+    'List or stop this session’s process watches (id "all" stops every one).',
   session_wakeup:
     'Schedule a prompt to come back to you as a [RUNTIME NOTICE]: once after delay_s, or every every_s (expires after 24h); an idle session is woken for it. Use instead of sleeping or polling while waiting on CI, a deploy or a long build. Also list and cancel.',
   pwsh: 'Execute a PowerShell command in the project with timeout, output, and background controls. Use it for Windows-native project operations and verify commands that can modify state.',

@@ -470,18 +470,18 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
     useInstead: ['bash', 'session_wakeup'],
   },
   process_watch_control: {
-    longDescription:
-      'List this session’s process watches, or stop one by id (or all with id="all").',
+    longDescription: 'List or stop this session’s process watches (id "all" stops every one).',
     params: [
       {
         name: 'action',
         type: "'list' | 'stop'",
         required: true,
+        description: 'list or stop.',
       },
       {
         name: 'id',
         type: 'string',
-        description: 'stop: the watch id, or "all".',
+        description: 'Watch id, or "all".',
       },
     ],
   },

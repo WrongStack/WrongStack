@@ -507,7 +507,7 @@ export const processWatchTool: Tool<ProcessWatchInput, ProcessWatchOutput> = {
 export const processWatchControlTool: Tool<ProcessWatchControlInput, ProcessWatchOutput> = {
   name: 'process_watch_control',
   category: 'Shell',
-  description: 'List this session\'s process watches or stop one (id) or all (id="all").',
+  description: 'List or stop this session\'s process watches (id "all" stops every one).',
   permission: 'auto',
   mutating: false,
   riskTier: 'safe',
@@ -515,8 +515,12 @@ export const processWatchControlTool: Tool<ProcessWatchControlInput, ProcessWatc
   inputSchema: {
     type: 'object',
     properties: {
-      action: { type: 'string', enum: ['list', 'stop'] },
-      id: { type: 'string', description: 'stop: the watch id, or "all".' },
+      action: {
+        type: 'string',
+        enum: ['list', 'stop'],
+        description: 'list or stop.',
+      },
+      id: { type: 'string', description: 'Watch id, or "all".' },
     },
     required: ['action'],
   },
