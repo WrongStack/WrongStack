@@ -131,10 +131,6 @@
     "apps/desktop-v2/src/memory-injections.ts": [
       "MEMORY_RUN_LIMIT"
     ],
-    "apps/desktop-v2/src/message-pins.ts": [
-      "readMessagePins",
-      "toggleMessagePin"
-    ],
     "apps/desktop-v2/src/Modal.tsx": [
       "outsideBox"
     ],

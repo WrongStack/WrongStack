@@ -146,36 +146,40 @@
       "lines": 853,
       "relativeImports": 17
     },
+    "apps/desktop-v2/src/EngineWorkspace.tsx": {
+      "lines": 709,
+      "relativeImports": 45
+    },
     "apps/desktop-v2/src/FileWorkspace.tsx": {
-      "lines": 2063,
-      "relativeImports": 35
+      "lines": 2053,
+      "relativeImports": 31
     },
     "apps/desktop-v2/src/ModelCatalogSettings.tsx": {
-      "lines": 940,
-      "relativeImports": 20
+      "lines": 936,
+      "relativeImports": 19
     },
     "apps/desktop-v2/src/ProjectAgentRoster.tsx": {
-      "lines": 1589,
+      "lines": 1586,
       "relativeImports": 18
     },
     "apps/desktop-v2/src/ProjectChimera.tsx": {
-      "lines": 766,
+      "lines": 788,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectChronicle.tsx": {
-      "lines": 723,
-      "relativeImports": 11
+      "lines": 744,
+      "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectDesignStudio.tsx": {
       "lines": 791,
       "relativeImports": 10
     },
     "apps/desktop-v2/src/ProjectGoals.tsx": {
-      "lines": 1080,
+      "lines": 1078,
       "relativeImports": 11
     },
     "apps/desktop-v2/src/ProjectMailbox.tsx": {
-      "lines": 832,
+      "lines": 824,
       "relativeImports": 12
     },
     "apps/desktop-v2/src/ProjectRequirements.tsx": {
@@ -187,7 +191,7 @@
       "relativeImports": 14
     },
     "apps/desktop-v2/src/ProjectSessionHistory.tsx": {
-      "lines": 747,
+      "lines": 745,
       "relativeImports": 16
     },
     "apps/desktop-v2/src/RosterRuntimeEditor.tsx": {
@@ -199,8 +203,8 @@
       "relativeImports": 37
     },
     "apps/desktop-v2/src/SkillLibrary.tsx": {
-      "lines": 898,
-      "relativeImports": 10
+      "lines": 903,
+      "relativeImports": 9
     }
   }
 }
