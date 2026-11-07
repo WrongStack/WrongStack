@@ -18,6 +18,7 @@ export class Poller {
   private pollActive = false;
   private _startedAt: number | null = null;
   private offset = 0;
+  private persistedOffset = 0;
   /** The saved offset exists but could not be read; polls hold until it can. */
   private offsetUnreadable = false;
   private _conflictStreak = 0;
@@ -84,6 +85,7 @@ export class Poller {
   }
   stop(): void {
     this.pollActive = false;
+    this.standbyAnnounced = false;
     this.chainEpoch += 1;
     this.controller.abort();
     if (this.pollTimer) {
@@ -177,7 +179,7 @@ export class Poller {
       if (epoch !== this.chainEpoch || signal.aborted) return;
       this._conflictStreak = 0;
       for (const upd of updates) {
-        if (epoch !== this.chainEpoch || signal.aborted) return;
+        if (epoch !== this.chainEpoch || signal.aborted) break;
         if (upd.update_id < this.offset) continue;
         if (upd.callback_query) {
           // Same poison-safety contract as the message path below: a failing
@@ -191,8 +193,8 @@ export class Poller {
               `Telegram callback handler failed: ${err instanceof Error ? err.message : String(err)}`,
             );
           }
-          if (epoch !== this.chainEpoch || signal.aborted) return;
           this.offset = upd.update_id + 1;
+          if (epoch !== this.chainEpoch || signal.aborted) break;
           continue;
         }
         const raw = upd.message ?? upd.edited_message;
@@ -211,10 +213,12 @@ export class Poller {
             `Telegram processMessage failed: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
-        if (epoch !== this.chainEpoch || signal.aborted) return;
         this.offset = upd.update_id + 1;
+        if (epoch !== this.chainEpoch || signal.aborted) break;
       }
-      if (this.offsetStore && updates.length > 0) void this.saveOffset();
+      if (this.offsetStore && (updates.length > 0 || this.offset > this.persistedOffset)) {
+        void this.saveOffset();
+      }
     } catch (err) {
       if (epoch !== this.chainEpoch || signal.aborted) return;
       if (err instanceof TelegramNetworkError && err.aborted) return;
@@ -237,9 +241,12 @@ export class Poller {
     try {
       const saved = this.offsetStore.read();
       this.offsetUnreadable = false;
-      if (saved !== null && saved > this.offset) {
-        this.offset = saved;
-        this.log.debug(`Telegram polling offset restored: ${this.offset}`);
+      if (saved !== null) {
+        this.persistedOffset = Math.max(this.persistedOffset, saved);
+        if (saved > this.offset) {
+          this.offset = saved;
+          this.log.debug(`Telegram polling offset restored: ${this.offset}`);
+        }
       }
     } catch (err) {
       if (!this.offsetUnreadable) {
@@ -252,8 +259,10 @@ export class Poller {
   }
   async saveOffset(): Promise<void> {
     if (!this.offsetStore) return;
+    const targetOffset = this.offset;
     try {
-      this.offsetStore.write(this.offset);
+      this.offsetStore.write(targetOffset);
+      this.persistedOffset = Math.max(this.persistedOffset, targetOffset);
     } catch (err) {
       this.log.debug(`Failed to persist Telegram offset: ${err}`);
     }

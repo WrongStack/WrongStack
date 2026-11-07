@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T17:32:04.445Z",
+  "generatedAt": "2026-11-07T17:33:12.962Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6068,
-    "testFiles": 5057,
-    "sourceLines": 1257499,
+    "testFiles": 5058,
+    "sourceLines": 1257524,
     "workspaceEdges": 244,
     "moduleEdges": 17935,
     "nonCommandSlashImports": 0,
@@ -980,7 +980,7 @@
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
       "sourceFiles": 28,
-      "testFiles": 43,
+      "testFiles": 44,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -995,7 +995,7 @@
         {
           "path": "packages/telegram/tsconfig.test.json",
           "error": null,
-          "testFiles": 43
+          "testFiles": 44
         }
       ]
     },
@@ -20811,6 +20811,12 @@
       },
       {
         "file": "packages/telegram/tests/unit/offset-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/telegram/tests/unit/outbound-abort-and-poller-offset.test.ts",
         "projects": [
           "root-node"
         ]

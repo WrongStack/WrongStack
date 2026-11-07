@@ -59,6 +59,7 @@ export class TelegramBotOutbound {
   readonly #getRateTokensPerSecond: () => number;
   readonly #getRateBurst: () => number;
   readonly #bucketSweepTimer: ReturnType<typeof setInterval>;
+  readonly #stopController = new AbortController();
   #stopped = false;
 
   constructor(opts: BotOutboundOptions) {
@@ -110,8 +111,14 @@ export class TelegramBotOutbound {
     // Wait up to 5s for a token slot; if timeout, proceed anyway so the
     // queue doesn't stall. Telegram will return 429 if we're still over the
     // limit, and the api-client's retry logic will handle it.
-    await bucket.waitForToken(5_000, signal);
+    const waitSignal = signal
+      ? AbortSignal.any([signal, this.#stopController.signal])
+      : this.#stopController.signal;
+    await bucket.waitForToken(5_000, waitSignal);
     signal?.throwIfAborted();
+    if (this.#stopped || this.#stopController.signal.aborted) {
+      throw new Error('Telegram outbound queue stopped before send');
+    }
 
     const res = signal
       ? await this.#bot.sendMessage(chatId, text, signal)
@@ -161,6 +168,7 @@ export class TelegramBotOutbound {
 
   async stop(): Promise<void> {
     this.#stopped = true;
+    this.#stopController.abort();
     clearInterval(this.#bucketSweepTimer);
     await this.#queue.stop();
   }

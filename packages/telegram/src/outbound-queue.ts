@@ -222,13 +222,13 @@ export class OutboundQueue {
         internal.abortHandler = () => {
           const currentLane = this.#lanes.get(key);
           const index = currentLane?.pending.indexOf(internal) ?? -1;
-          const resolver = this.#resolvers.get(internal.id);
-          if (index >= 0) {
-            currentLane?.pending.splice(index, 1);
-            if (currentLane && !currentLane.running && currentLane.pending.length === 0) {
-              this.#lanes.delete(key);
-            }
+          if (index < 0) return;
+          currentLane?.pending.splice(index, 1);
+          this.#dropped += 1;
+          if (currentLane && !currentLane.running && currentLane.pending.length === 0) {
+            this.#lanes.delete(key);
           }
+          const resolver = this.#resolvers.get(internal.id);
           if (resolver) {
             this.#resolvers.delete(internal.id);
             resolver.cleanup();
@@ -264,7 +264,7 @@ export class OutboundQueue {
    */
   async stop(): Promise<void> {
     this.#stopped = true;
-    for (const lane of this.#lanes.values()) {
+    for (const [key, lane] of this.#lanes.entries()) {
       for (const entry of lane.pending.splice(0)) {
         this.#dropped += 1;
         const resolver = this.#resolvers.get(entry.id);
@@ -276,6 +276,9 @@ export class OutboundQueue {
         this.#opts.log?.debug(
           `Telegram outbound queue stopped, dropped pending ${entry.kind} for chat ${entry.chatId}`,
         );
+      }
+      if (!lane.running) {
+        this.#lanes.delete(key);
       }
     }
     while (this.#active > 0) {
@@ -321,7 +324,12 @@ export class OutboundQueue {
     for (const lane of this.#lanes.values()) {
       if (!lane.running && lane.pending.length > 0) {
         lane.running = true;
-        return lane.pending.shift();
+        const entry = lane.pending.shift();
+        if (entry?.abortHandler && entry.signal) {
+          entry.signal.removeEventListener('abort', entry.abortHandler);
+          entry.abortHandler = undefined;
+        }
+        return entry;
       }
     }
     return undefined;
