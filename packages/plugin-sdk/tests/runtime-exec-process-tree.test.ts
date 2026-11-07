@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { removeProjectFixtureDirectorySync } from '../../core/tests/helpers/project-server-harness.js';
 import { runRunnerCommand } from '../src/runtime/index.js';
@@ -24,6 +25,7 @@ describe('runRunnerCommand process lifecycle', () => {
   });
 
   describe.skipIf(process.platform !== 'win32')('behind the cmd.exe shim', () => {
+    const lifecycleDeadlineMs = WIN32_TREE_KILL_BUDGET_MS + 20_000;
     let savedPath: string | undefined;
     beforeEach(() => {
       const bin = path.join(root, 'bin');
@@ -61,23 +63,31 @@ describe('runRunnerCommand process lifecycle', () => {
       expect(leaked).toBe(false);
     };
 
-    it('kills the program, not just cmd.exe, at the timeout', async () => {
-      const result = await runRunnerCommand(['pnpm', 'dev'], opts({ timeoutMs: 2000 }));
-      expect(result.timedOut).toBe(true);
-      await expectGone();
-    }, 20_000);
+    it(
+      'kills the program, not just cmd.exe, at the timeout',
+      async () => {
+        const result = await runRunnerCommand(['pnpm', 'dev'], opts({ timeoutMs: 2000 }));
+        expect(result.timedOut).toBe(true);
+        await expectGone();
+      },
+      lifecycleDeadlineMs,
+    );
 
-    it('kills the program, not just cmd.exe, on abort', async () => {
-      const controller = new AbortController();
-      const pending = runRunnerCommand(['pnpm', 'dev'], opts({ signal: controller.signal }));
-      const pidFile = path.join(root, 'hang.pid');
-      const deadline = Date.now() + 10_000;
-      while (!fs.existsSync(pidFile) && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 50));
-      }
-      controller.abort();
-      expect((await pending).timedOut).toBe(true);
-      await expectGone();
-    }, 20_000);
+    it(
+      'kills the program, not just cmd.exe, on abort',
+      async () => {
+        const controller = new AbortController();
+        const pending = runRunnerCommand(['pnpm', 'dev'], opts({ signal: controller.signal }));
+        const pidFile = path.join(root, 'hang.pid');
+        const deadline = Date.now() + 10_000;
+        while (!fs.existsSync(pidFile) && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        controller.abort();
+        expect((await pending).timedOut).toBe(true);
+        await expectGone();
+      },
+      lifecycleDeadlineMs,
+    );
   });
 });

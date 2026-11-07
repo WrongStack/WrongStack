@@ -83,6 +83,20 @@ describe('killWin32Tree async-error safety (#99)', () => {
     expect(child.kill).not.toHaveBeenCalled();
   });
 
+  it('does not interrupt an eight-second tree walk at the default deadline', () => {
+    vi.useFakeTimers();
+    const child = controllableChild(),
+      onSettled = vi.fn();
+    spawnMock.mockReturnValue(child);
+    expect(killWin32Tree(1234, { onSettled })).toBe(true);
+    vi.advanceTimersByTime(8000);
+    expect(child.kill).not.toHaveBeenCalled();
+    expect(onSettled).not.toHaveBeenCalled();
+    child.emit('close', 0);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(child.kill).not.toHaveBeenCalled();
+  });
+
   it('runs fallback after taskkill timeout when taskkill never settles', () => {
     vi.useFakeTimers();
     const child = controllableChild();

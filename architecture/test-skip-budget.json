@@ -152,6 +152,11 @@
       "fingerprint": "6c1dfd9f1895e5c4"
     },
     {
+      "file": "packages/core/tests/architecture/coverage-runtime.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "4e8e54569a666f3d"
+    },
+    {
       "file": "packages/core/tests/boot-project-registration-identity.test.ts",
       "kind": "skipIf",
       "fingerprint": "ce32fc5eae4b423b"
@@ -235,6 +240,11 @@
       "file": "packages/core/tests/utils/project-state-guard.test.ts",
       "kind": "runIf",
       "fingerprint": "bd971256de0bdb44"
+    },
+    {
+      "file": "packages/core/tests/utils/tree-kill-native-windows.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "11431a943697546e"
     },
     {
       "file": "packages/core/tests/utils/win32-cmd.test.ts",
@@ -384,7 +394,7 @@
     {
       "file": "packages/plugin-sdk/tests/runtime-exec-process-tree.test.ts",
       "kind": "skipIf",
-      "fingerprint": "6676a44196b78a16"
+      "fingerprint": "9110b9520598d838"
     },
     {
       "file": "packages/plugins/tests/process-guard.test.ts",

@@ -15,7 +15,7 @@ import { bashTool } from '../src/bash.js';
 import { hermeticEnv, hermeticPosixArgv } from '../src/bash-hermetic.js';
 import { execTool } from '../src/exec.js';
 import { pwshTool } from '../src/pwsh.js';
-import { mkSandbox, newSignal } from './fixtures.js';
+import { mkSandbox, newSignal, processCleanupDeadline } from './fixtures.js';
 import { runtimeFixtureCommand } from './shell-fixture-command.js';
 
 // A command that outlives a short executor ceiling but finishes on its own.
@@ -56,7 +56,7 @@ describe('bash timeout_ms: 0', () => {
     const ac = new AbortController();
     let running: Promise<unknown> | undefined;
     try {
-      const cmd = await slowCommand(sb.dir, 20_000);
+      const cmd = await slowCommand(sb.dir, 120_000);
       running = bashTool
         .execute({ command: cmd, timeout_ms: 0 }, sb.ctx, { signal: ac.signal })
         .catch((err: unknown) => ({ aborted: err }));
@@ -71,7 +71,7 @@ describe('bash timeout_ms: 0', () => {
       const started = Date.now();
       ac.abort();
       const out = await running;
-      expect(Date.now() - started).toBeLessThan(10_000);
+      expect(Date.now() - started).toBeLessThan(processCleanupDeadline(10_000));
       expect(out).not.toMatchObject({ exit_code: 0 });
     } finally {
       ac.abort();

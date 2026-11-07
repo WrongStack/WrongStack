@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { verifyGoalProject } from '../src/project-verifier.js';
-
 import { removeProjectFixtureDirectory } from '../../core/tests/helpers/project-server-harness.js';
+import { verifyGoalProject } from '../src/project-verifier.js';
 
 // A real cmd.exe shim tree: `pnpm.cmd` -> node script that records its pid and
 // hangs. The step timeout must take the script down, not just cmd.exe.
@@ -51,14 +51,18 @@ describe.skipIf(process.platform !== 'win32')('verifyGoalProject step timeout', 
     }
   };
 
-  it('fails the step and tears down the hung script tree', async () => {
-    const result = await verifyGoalProject({ cwd: dir, steps: ['typecheck'], timeoutMs: 2000 });
-    expect(result.ok).toBe(false);
-    const pid = Number(await fs.readFile(path.join(dir, 'hang.pid'), 'utf8'));
-    const deadline = Date.now() + 5000;
-    while (alive(pid) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
-    const leaked = alive(pid);
-    if (leaked) execFileSync('taskkill', ['/PID', String(pid), '/T', '/F']);
-    expect(leaked).toBe(false);
-  }, 20_000);
+  it(
+    'fails the step and tears down the hung script tree',
+    async () => {
+      const result = await verifyGoalProject({ cwd: dir, steps: ['typecheck'], timeoutMs: 2000 });
+      expect(result.ok).toBe(false);
+      const pid = Number(await fs.readFile(path.join(dir, 'hang.pid'), 'utf8'));
+      const deadline = Date.now() + 5000;
+      while (alive(pid) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
+      const leaked = alive(pid);
+      if (leaked) execFileSync('taskkill', ['/PID', String(pid), '/T', '/F']);
+      expect(leaked).toBe(false);
+    },
+    WIN32_TREE_KILL_BUDGET_MS + 20_000,
+  );
 });

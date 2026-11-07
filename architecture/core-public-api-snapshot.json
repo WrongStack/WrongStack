@@ -417,11 +417,13 @@
       "source": "packages/core/src/utils/tree-kill.ts",
       "declarations": [
         "export const WIN32_TASKKILL_BACKSTOP_MS",
+        "export const WIN32_TREE_KILL_BUDGET_MS",
         "export function settleWin32Kill",
         "export function treeKill",
         "export interface KillableChild",
         "export interface TaskkillHandle",
-        "export interface TreeKillOptions"
+        "export interface TreeKillOptions",
+        "export { terminateWin32Descendants } from './win32-process-tree.js';"
       ]
     },
     {
@@ -1234,8 +1236,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 95,
-      "sourceLines": 14882
+      "sourceFiles": 96,
+      "sourceLines": 15019
     },
     {
       "directory": "vcs",

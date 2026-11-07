@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 
 export interface Sandbox {
   dir: string;
@@ -92,4 +93,9 @@ export async function mkSandbox(): Promise<Sandbox> {
 
 export function newSignal(): AbortSignal {
   return new AbortController().signal;
+}
+
+/** Windows may enumerate a full process tree until its shared backstop expires. */
+export function processCleanupDeadline(posixLimitMs: number, platform = process.platform): number {
+  return platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + 5000 : posixLimitMs;
 }

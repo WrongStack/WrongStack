@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T16:12:25.650Z",
+  "generatedAt": "2026-11-07T16:14:28.761Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6050,
-    "testFiles": 5043,
-    "sourceLines": 1253555,
+    "sourceFiles": 6051,
+    "testFiles": 5052,
+    "sourceLines": 1253809,
     "workspaceEdges": 243,
-    "moduleEdges": 17898,
+    "moduleEdges": 17901,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1038
+    "testOnlyExports": 1037
   },
   "errors": [],
   "packageCycles": [],
@@ -140,7 +140,7 @@
       "name": "@wrongstack/bench",
       "dir": "packages/bench",
       "sourceFiles": 32,
-      "testFiles": 64,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -153,7 +153,7 @@
         {
           "path": "packages/bench/tsconfig.test.json",
           "error": null,
-          "testFiles": 64
+          "testFiles": 65
         }
       ]
     },
@@ -361,8 +361,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 639,
-      "testFiles": 699,
+      "sourceFiles": 640,
+      "testFiles": 700,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 699
+          "testFiles": 700
         }
       ]
     },
@@ -602,7 +602,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 98,
+      "testFiles": 99,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -616,7 +616,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 98
+          "testFiles": 99
         }
       ]
     },
@@ -906,7 +906,7 @@
       "name": "@wrongstack/sdd",
       "dir": "packages/sdd",
       "sourceFiles": 45,
-      "testFiles": 42,
+      "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -925,7 +925,7 @@
         {
           "path": "packages/sdd/tsconfig.test.json",
           "error": null,
-          "testFiles": 42
+          "testFiles": 43
         }
       ]
     },
@@ -1002,7 +1002,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 396,
-      "testFiles": 377,
+      "testFiles": 382,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1021,7 +1021,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 377
+          "testFiles": 382
         }
       ]
     },
@@ -3554,6 +3554,12 @@
       },
       {
         "file": "packages/bench/tests/coverage-completion.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/bench/tests/exec-command-cleanup-order.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13753,6 +13759,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/utils/tree-kill-native-windows.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/utils/tree-kill.test.ts",
         "projects": [
           "root-node"
@@ -15560,6 +15572,12 @@
       },
       {
         "file": "packages/mcp/tests/client-resources-prompts.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/client-windows-close-order.test.ts",
         "projects": [
           "root-node"
         ]
@@ -20029,6 +20047,12 @@
         ]
       },
       {
+        "file": "packages/sdd/tests/verifier-cleanup-order.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sdd/tests/verify-task.test.ts",
         "projects": [
           "root-node"
@@ -21043,6 +21067,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/bash-kill-guard-foreign-host.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/bash-kill-guard-parse.test.ts",
         "projects": [
           "root-node"
@@ -21889,6 +21919,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/exec-kill-guard-group-kill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/exec-kill-guard.test.ts",
         "projects": [
           "root-node"
@@ -22597,6 +22633,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/process-registry-foreign-host.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/process-registry-killtree.test.ts",
         "projects": [
           "root-node"
@@ -22627,6 +22669,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/process-registry-win32-self-kill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/process-registry.test.ts",
         "projects": [
           "root-node"
@@ -22646,6 +22694,12 @@
       },
       {
         "file": "packages/tools/tests/project-kit-advisor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/project-kit-runner-lifecycle.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34538,7 +34592,7 @@
     },
     {
       "file": "packages/tools/src/process-registry.ts",
-      "lines": 729,
+      "lines": 744,
       "relativeImports": 3
     },
     {
@@ -34819,6 +34873,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/tools/src/process-registry.ts",
+      "lines": 744,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/webui-server/src/server/completion-handlers.ts",
       "lines": 737,
       "relativeImports": 3
@@ -34827,11 +34886,6 @@
       "file": "packages/vibeui/src/components/provider-manager.tsx",
       "lines": 733,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/tools/src/process-registry.ts",
-      "lines": 729,
-      "relativeImports": 3
     },
     {
       "file": "packages/coordination/src/multi-agent-coordinator.ts",
@@ -36427,10 +36481,6 @@
     {
       "file": "packages/core/src/utils/tool-wire-compact.ts",
       "name": "findSemanticBoundary"
-    },
-    {
-      "file": "packages/core/src/utils/tree-kill.ts",
-      "name": "WIN32_TASKKILL_BACKSTOP_MS"
     },
     {
       "file": "packages/core/src/wiring/proxy-rewrite.ts",

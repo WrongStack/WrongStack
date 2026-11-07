@@ -18,7 +18,7 @@ import { accessSync } from 'node:fs';
 import * as path from 'node:path';
 import type { TaskNode, TaskResult } from '@wrongstack/contracts/types';
 import { buildWin32CmdShimInvocation } from '@wrongstack/core/utils';
-import { treeKill } from '@wrongstack/core/utils/tree-kill';
+import { treeKill, WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 
 /**
  * The `.cmd`/`.bat` a Windows executable resolves to, if any. `npm test`,
@@ -331,18 +331,31 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
         ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
       });
       let timedOut = false;
+      let closeBackstop: ReturnType<typeof setTimeout> | undefined;
+      const timeoutResult = { ok: false, reason: `verification timed out: ${rawCommand}` };
+      const finish = (result: { ok: boolean; reason?: string }) => {
+        clearTimeout(timer);
+        clearTimeout(closeBackstop);
+        resolve(result);
+      };
       const timer = setTimeout(() => {
         timedOut = true;
-        // A .cmd shim runs the verifier as cmd.exe's child: kill() alone ended
-        // only the wrapper and left the hung verifier running for good.
+        // Keep the Windows shell alive until taskkill finishes its tree walk,
+        // and do not release the verifier result while it can still write.
         treeKill(child);
-        resolve({ ok: false, reason: `verification timed out: ${rawCommand}` });
+        if (process.platform === 'win32') {
+          closeBackstop = setTimeout(() => finish(timeoutResult), WIN32_TREE_KILL_BUDGET_MS + 1000);
+          closeBackstop.unref?.();
+        } else finish(timeoutResult);
       }, timeoutMs);
       child.on('exit', (code) => {
         clearTimeout(timer);
         // Don't overwrite the timeout reason once the timer has fired.
-        if (timedOut) return;
-        resolve(
+        if (timedOut) {
+          finish(timeoutResult);
+          return;
+        }
+        finish(
           code === 0
             ? { ok: true }
             : { ok: false, reason: `verification failed (exit ${code}): ${rawCommand}` },
@@ -350,7 +363,11 @@ export function makeCommandVerifier(options: CommandVerifierOptions = {}) {
       });
       child.on('error', (err) => {
         clearTimeout(timer);
-        resolve({ ok: false, reason: `verification spawn error: ${String(err)}` });
+        finish(
+          timedOut
+            ? timeoutResult
+            : { ok: false, reason: `verification spawn error: ${String(err)}` },
+        );
       });
     });
   };

@@ -6,11 +6,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { heartbeatLine, partitionRerunRows, runBenchmark, unitKey } from '../src/orchestrate.js';
 import { readRunDir, writeRunManifest } from '../src/report/json.js';
 import { renderMarkdownReport } from '../src/report/markdown.js';
 import type { BenchConfig, BenchSuite, BenchTask, TaskResult } from '../src/types.js';
+
+// Production performs one bounded 30s process-table sweep per completed unit
+// and one in finally. These integration tests include that actual OS cleanup.
+const processSweepBudgetMs = 30_000;
+const completedRunDeadlineMs = (completedUnits: number, runs = 1) =>
+  process.platform === 'win32' ? (completedUnits + runs) * processSweepBudgetMs + 15_000 : 30_000;
 
 let dir: string;
 let templateDir: string;
@@ -63,70 +70,84 @@ const base = {
 };
 
 describe('stopping a run', () => {
-  it('kills the in-flight agent, drops its row and starts nothing new', async () => {
-    const stop = new AbortController();
-    const persisted: TaskResult[] = [];
-    const started = Date.now();
-    const report = await runBenchmark({
-      ...base,
-      suite: suite(['t1', 't2', 't3']),
-      config,
-      wstackEntry: slowWstack,
-      signal: stop.signal,
-      onStart: () => {
-        setTimeout(() => stop.abort(), 300);
-      },
-      onResult: (row) => {
-        persisted.push(row);
-      },
-    });
-    expect(Date.now() - started).toBeLessThan(20_000);
-    expect(report.results).toEqual([]);
-    expect(persisted).toEqual([]);
-    expect(report.progress).toEqual({ planned: 3, completed: 0, interrupted: true });
-  }, 30_000);
+  it(
+    'kills the in-flight agent, drops its row and starts nothing new',
+    async () => {
+      const stop = new AbortController();
+      const persisted: TaskResult[] = [];
+      const started = Date.now();
+      const report = await runBenchmark({
+        ...base,
+        suite: suite(['t1', 't2', 't3']),
+        config,
+        wstackEntry: slowWstack,
+        signal: stop.signal,
+        onStart: () => {
+          setTimeout(() => stop.abort(), 300);
+        },
+        onResult: (row) => {
+          persisted.push(row);
+        },
+      });
+      expect(Date.now() - started).toBeLessThan(
+        process.platform === 'win32'
+          ? WIN32_TREE_KILL_BUDGET_MS + processSweepBudgetMs + 10_000
+          : 20_000,
+      );
+      expect(report.results).toEqual([]);
+      expect(persisted).toEqual([]);
+      expect(report.progress).toEqual({ planned: 3, completed: 0, interrupted: true });
+    },
+    process.platform === 'win32'
+      ? WIN32_TREE_KILL_BUDGET_MS + processSweepBudgetMs + 20_000
+      : 30_000,
+  );
 });
 
 describe('resuming a run', () => {
-  it('runs only the units without a row and folds the old rows in', async () => {
-    const prior: TaskResult[] = [
-      {
-        taskId: 't1',
-        cell: config.cells[0]!,
-        run: {
-          status: 'completed',
-          finalText: 'ok',
-          iterations: 1,
-          tokensIn: 0,
-          tokensOut: 0,
-          costUsd: 0,
-          elapsedMs: 1,
-          exitCode: 0,
+  it(
+    'runs only the units without a row and folds the old rows in',
+    async () => {
+      const prior: TaskResult[] = [
+        {
+          taskId: 't1',
+          cell: config.cells[0]!,
+          run: {
+            status: 'completed',
+            finalText: 'ok',
+            iterations: 1,
+            tokensIn: 0,
+            tokensOut: 0,
+            costUsd: 0,
+            elapsedMs: 1,
+            exitCode: 0,
+          },
+          grade: { passed: false },
+          tools: { totalCalls: 0, editCalls: 0, editErrors: 0, rateLimitRetries: 0 },
         },
-        grade: { passed: false },
-        tools: { totalCalls: 0, editCalls: 0, editErrors: 0, rateLimitRetries: 0 },
-      },
-    ];
-    const ran: string[] = [];
-    const progress: string[] = [];
-    const report = await runBenchmark({
-      ...base,
-      suite: suite(['t1', 't2']),
-      config,
-      wstackEntry: fastWstack,
-      priorResults: prior,
-      onResult: (row) => {
-        ran.push(row.taskId);
-      },
-      onProgress: (line) => progress.push(line),
-    });
-    expect(ran).toEqual(['t2']);
-    expect(report.results.map((row) => row.taskId)).toEqual(['t1', 't2']);
-    expect(report.progress).toEqual({ planned: 2, completed: 2, interrupted: false });
-    expect(progress[0]).toContain('resuming: 1 done, 1 to go');
-    // The resumed run's counter continues from the old rows.
-    expect(progress.some((line) => line.includes('[2/2 · 1 pass]'))).toBe(true);
-  }, 30_000);
+      ];
+      const ran: string[] = [];
+      const progress: string[] = [];
+      const report = await runBenchmark({
+        ...base,
+        suite: suite(['t1', 't2']),
+        config,
+        wstackEntry: fastWstack,
+        priorResults: prior,
+        onResult: (row) => {
+          ran.push(row.taskId);
+        },
+        onProgress: (line) => progress.push(line),
+      });
+      expect(ran).toEqual(['t2']);
+      expect(report.results.map((row) => row.taskId)).toEqual(['t1', 't2']);
+      expect(report.progress).toEqual({ planned: 2, completed: 2, interrupted: false });
+      expect(progress[0]).toContain('resuming: 1 done, 1 to go');
+      // The resumed run's counter continues from the old rows.
+      expect(progress.some((line) => line.includes('[2/2 · 1 pass]'))).toBe(true);
+    },
+    completedRunDeadlineMs(1),
+  );
 
   it('drops the rows --rerun names so a resume runs those units again', () => {
     const rows = ['polyglot/java/a', 'polyglot/go/b', 'polyglot/java/c'].map((taskId) => ({
@@ -144,80 +165,88 @@ describe('resuming a run', () => {
 });
 
 describe('last-chance re-grade', () => {
-  it('grades a failed row again after the run, without running the agent again', async () => {
-    const graded: string[] = [];
-    const progress: string[] = [];
-    let agentRuns = 0;
-    const report = await runBenchmark({
-      ...base,
-      suite: suite(['flaky', 'broken']),
-      config,
-      wstackEntry: fastWstack,
-      // First grades fail; the second grade of `flaky` passes (a harness fault).
-      grade: async ({ task }) => {
-        graded.push(task.id);
-        const second = graded.filter((id) => id === task.id).length > 1;
-        return { passed: second && task.id === 'flaky', detail: second ? 'ok' : 'wrong JDK' };
-      },
-      onResult: () => {
-        agentRuns++;
-      },
-      onProgress: (line) => progress.push(line),
-    });
-    expect(agentRuns).toBe(2);
-    expect(graded.sort()).toEqual(['broken', 'broken', 'flaky', 'flaky']);
-    const byId = Object.fromEntries(report.results.map((row) => [row.taskId, row]));
-    expect(byId['flaky']?.grade.passed).toBe(true);
-    expect(byId['flaky']?.lastChance).toEqual({ passed: true, firstDetail: 'wrong JDK' });
-    expect(byId['broken']?.grade).toEqual({ passed: false, detail: 'wrong JDK' });
-    expect(byId['broken']?.lastChance).toEqual({ passed: false, firstDetail: 'wrong JDK' });
-    expect(report.cells[0]?.passRate).toBe(0.5);
-    expect(progress.some((line) => line.includes('1/2 passed on the second grade'))).toBe(true);
-    expect(renderMarkdownReport(report)).toContain('**Last chance:** 2 failed run(s)');
-  }, 30_000);
+  it(
+    'grades a failed row again after the run, without running the agent again',
+    async () => {
+      const graded: string[] = [];
+      const progress: string[] = [];
+      let agentRuns = 0;
+      const report = await runBenchmark({
+        ...base,
+        suite: suite(['flaky', 'broken']),
+        config,
+        wstackEntry: fastWstack,
+        // First grades fail; the second grade of `flaky` passes (a harness fault).
+        grade: async ({ task }) => {
+          graded.push(task.id);
+          const second = graded.filter((id) => id === task.id).length > 1;
+          return { passed: second && task.id === 'flaky', detail: second ? 'ok' : 'wrong JDK' };
+        },
+        onResult: () => {
+          agentRuns++;
+        },
+        onProgress: (line) => progress.push(line),
+      });
+      expect(agentRuns).toBe(2);
+      expect(graded.sort()).toEqual(['broken', 'broken', 'flaky', 'flaky']);
+      const byId = Object.fromEntries(report.results.map((row) => [row.taskId, row]));
+      expect(byId['flaky']?.grade.passed).toBe(true);
+      expect(byId['flaky']?.lastChance).toEqual({ passed: true, firstDetail: 'wrong JDK' });
+      expect(byId['broken']?.grade).toEqual({ passed: false, detail: 'wrong JDK' });
+      expect(byId['broken']?.lastChance).toEqual({ passed: false, firstDetail: 'wrong JDK' });
+      expect(report.cells[0]?.passRate).toBe(0.5);
+      expect(progress.some((line) => line.includes('1/2 passed on the second grade'))).toBe(true);
+      expect(renderMarkdownReport(report)).toContain('**Last chance:** 2 failed run(s)');
+    },
+    completedRunDeadlineMs(2),
+  );
 
-  it('can be turned off, and never re-grades rows a resume carried in', async () => {
-    const graded: string[] = [];
-    const grade = async ({ task }: { task: BenchTask }) => {
-      graded.push(task.id);
-      return { passed: false };
-    };
-    await runBenchmark({
-      ...base,
-      suite: suite(['t1']),
-      config,
-      wstackEntry: fastWstack,
-      grade,
-      lastChanceRegrade: false,
-    });
-    expect(graded).toEqual(['t1']);
-    graded.length = 0;
-    const prior: TaskResult = {
-      taskId: 't1',
-      cell: config.cells[0]!,
-      run: {
-        status: 'completed',
-        finalText: 'ok',
-        iterations: 1,
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsd: 0,
-        elapsedMs: 1,
-        exitCode: 0,
-      },
-      grade: { passed: false },
-      tools: { totalCalls: 0, editCalls: 0, editErrors: 0, rateLimitRetries: 0 },
-    };
-    await runBenchmark({
-      ...base,
-      suite: suite(['t1', 't2']),
-      config,
-      wstackEntry: fastWstack,
-      grade,
-      priorResults: [prior],
-    });
-    expect(graded).toEqual(['t2', 't2']);
-  }, 30_000);
+  it(
+    'can be turned off, and never re-grades rows a resume carried in',
+    async () => {
+      const graded: string[] = [];
+      const grade = async ({ task }: { task: BenchTask }) => {
+        graded.push(task.id);
+        return { passed: false };
+      };
+      await runBenchmark({
+        ...base,
+        suite: suite(['t1']),
+        config,
+        wstackEntry: fastWstack,
+        grade,
+        lastChanceRegrade: false,
+      });
+      expect(graded).toEqual(['t1']);
+      graded.length = 0;
+      const prior: TaskResult = {
+        taskId: 't1',
+        cell: config.cells[0]!,
+        run: {
+          status: 'completed',
+          finalText: 'ok',
+          iterations: 1,
+          tokensIn: 0,
+          tokensOut: 0,
+          costUsd: 0,
+          elapsedMs: 1,
+          exitCode: 0,
+        },
+        grade: { passed: false },
+        tools: { totalCalls: 0, editCalls: 0, editErrors: 0, rateLimitRetries: 0 },
+      };
+      await runBenchmark({
+        ...base,
+        suite: suite(['t1', 't2']),
+        config,
+        wstackEntry: fastWstack,
+        grade,
+        priorResults: [prior],
+      });
+      expect(graded).toEqual(['t2', 't2']);
+    },
+    completedRunDeadlineMs(2, 2),
+  );
 });
 
 describe('reading an unfinished run directory', () => {

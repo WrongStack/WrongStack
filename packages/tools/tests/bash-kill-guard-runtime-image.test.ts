@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('../src/process-registry-persistent.js', () => ({
+  isEntryFromThisHost: () => true,
   getPersistentProcessRegistry: () => ({
     shouldBlockKill: async () => false,
     getAllProtectedPids: async () => [],

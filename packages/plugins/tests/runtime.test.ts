@@ -1,3 +1,4 @@
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { describe, expect, it } from 'vitest';
 import {
   type LanguageRuntime,
@@ -191,21 +192,22 @@ describe('runtime helper', () => {
     // After the fix, a deliberately slow child process must produce
     // `timedOut: true` and `code: null` — not the generic error shape
     // with `timedOut: false` the bug produced.
-    it('reports timedOut:true and code:null when execFile kills the child via its built-in timeout', async () => {
-      const { runRunnerCommand } = await import('../src/runtime/index.js');
-      // argv-form, no shell: a pure-Node expression that takes 10s to
-      // resolve. execFile's `timeout: 200` will SIGTERM the child well
-      // before then. The fix at runtime/index.ts:436-467 detects
-      // killed/SIGTERM + elapsed-time and short-circuits to the
-      // timeout-shaped resolve.
-      const result = await runRunnerCommand(['node', '-e', 'setTimeout(()=>{},10000)'], {
-        cwd: process.cwd(),
-        timeoutMs: 200,
-      });
-      expect(result.timedOut).toBe(true);
-      expect(result.code).toBeNull();
-      expect(result.spawnError).toBe(false);
-    }, 5_000);
+    it(
+      'reports timedOut:true and code:null after the timed-out child is stopped',
+      async () => {
+        const { runRunnerCommand } = await import('../src/runtime/index.js');
+        // A never-ending fixture cannot pass by exiting naturally. Windows
+        // taskkill may need more than five seconds to walk the process tree.
+        const result = await runRunnerCommand(['node', '-e', 'setInterval(()=>{},100)'], {
+          cwd: process.cwd(),
+          timeoutMs: 200,
+        });
+        expect(result.timedOut).toBe(true);
+        expect(result.code).toBeNull();
+        expect(result.spawnError).toBe(false);
+      },
+      process.platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + 2_000 : 5_000,
+    );
 
     // Companion regression for the same defect class: maxBuffer
     // overflow (stderr/exec_buffer exceeded the 16 MiB cap) also

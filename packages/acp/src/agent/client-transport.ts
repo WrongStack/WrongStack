@@ -358,6 +358,11 @@ export class ClientTransport implements ACPClientTransport {
     this.notifyClosed(reason);
     const child = this.child;
     if (!child) return;
+    try {
+      child.stdin?.end?.();
+    } catch {
+      // best-effort EOF before treeKill
+    }
     // On Windows `child` is the cmd.exe shim wrapper; a bare kill() orphans the
     // real agent grandchild. treeKill tears down the whole process tree.
     treeKill(child);

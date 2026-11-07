@@ -3,7 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel';
 import { runWithProcessTelemetry } from '@wrongstack/core/observability';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { afterEach, describe, expect, it } from 'vitest';
+import { getProcessRegistry } from '../src/process-registry.js';
 import {
   KIT_DIRECTORY,
   KIT_HISTORY_DIRECTORY,
@@ -14,6 +16,9 @@ import {
 import { executeKit, kitHistory } from '../src/project-kit/service.js';
 import { projectKitRunTool, projectKitTool } from '../src/project-kit.js';
 
+// Each lifecycle case performs two forced stops, plus bounded child startup.
+const lifecycleDeadlineMs =
+  process.platform === 'win32' ? 2 * WIN32_TREE_KILL_BUDGET_MS + 60_000 : 45_000;
 const roots: string[] = [];
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
@@ -55,14 +60,28 @@ async function fixture() {
   return { root, ctx, opts, kitDir, revision, run, manifest };
 }
 
-async function cancelAfterChildOutput(f: Awaited<ReturnType<typeof fixture>>, revision: string) {
+async function runAfterChildOutput(
+  f: Awaited<ReturnType<typeof fixture>>,
+  revision: string,
+  cancel = true,
+) {
   const events = new EventBus();
   const controller = new AbortController();
   let observed = false;
+  let observedExit = false;
+  let exitCode: number | null = null;
   const off = events.on('process.output', (event) => {
-    if (event.stream !== 'stderr') return;
+    if (event.stream !== 'stderr' || typeof event.pid !== 'number' || observed) return;
     observed = true;
-    controller.abort();
+    // Observe the real child handle rather than assuming how Windows reports a
+    // taskkill exit versus the registry's direct SIGKILL fallback.
+    getProcessRegistry()
+      .get(event.pid)
+      ?.child?.once('exit', (code) => {
+        observedExit = true;
+        exitCode = code;
+      });
+    if (cancel) controller.abort();
   });
   try {
     const result = await runWithProcessTelemetry(
@@ -75,6 +94,8 @@ async function cancelAfterChildOutput(f: Awaited<ReturnType<typeof fixture>>, re
       () => f.run('verify', {}, revision, controller.signal),
     );
     expect(observed).toBe(true);
+    expect(observedExit, 'the runner must retain ownership until the real child exits').toBe(true);
+    expect(result.exitCode).toBe(exitCode ?? undefined);
     return result;
   } finally {
     off();
@@ -170,72 +191,70 @@ export function run(input, ctx) {
     await expect(f.run('run', { values: [] }, rev)).rejects.toThrow('no passing verification');
   });
 
-  it('bounds infinite loops and records cancellation', async () => {
-    const f = await fixture();
-    f.manifest.timeoutMs = 500;
-    await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
-    await writeFile(
-      path.join(f.kitDir, 'main.mjs'),
-      'export function run() { process.stderr.write("ready"); while (true) {} }',
-    );
-    const rev = (await loadKit(f.root, 'strings.unique')).revision;
-    expect(await f.run('verify', {}, rev)).toMatchObject({ status: 'failed', error: 'Timed out' });
-    // Cancellation is exercised after the child starts, independently of its
-    // timeout. Snapshot I/O and Node startup may exceed 200ms under coverage.
-    f.manifest.timeoutMs = 30_000;
-    await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
-    const cancellationRevision = (await loadKit(f.root, 'strings.unique')).revision;
-    expect(await cancelAfterChildOutput(f, cancellationRevision)).toMatchObject({
-      status: 'failed',
-      error: 'Cancelled',
-    });
-  }, 45_000);
+  it(
+    'bounds infinite loops and records cancellation',
+    async () => {
+      const f = await fixture();
+      f.manifest.timeoutMs = 500;
+      await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
+      await writeFile(
+        path.join(f.kitDir, 'main.mjs'),
+        'export function run() { process.stderr.write("ready"); while (true) {} }',
+      );
+      const rev = (await loadKit(f.root, 'strings.unique')).revision;
+      expect(await f.run('verify', {}, rev)).toMatchObject({
+        status: 'failed',
+        error: 'Timed out',
+      });
+      // Cancellation is exercised after the child starts, independently of its
+      // timeout. Snapshot I/O and Node startup may exceed 200ms under coverage.
+      f.manifest.timeoutMs = 30_000;
+      await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
+      const cancellationRevision = (await loadKit(f.root, 'strings.unique')).revision;
+      expect(await runAfterChildOutput(f, cancellationRevision)).toMatchObject({
+        status: 'failed',
+        error: 'Cancelled',
+      });
+    },
+    lifecycleDeadlineMs,
+  );
 
-  it('records exitCode and a bounded redacted stderr tail for timed-out and cancelled runs', async () => {
-    const f = await fixture();
-    // This test requires actual stderr evidence, so allow bounded startup
-    // headroom; the separate loop test covers the short timeout contract.
-    f.manifest.timeoutMs = 10_000;
-    await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
-    await writeFile(
-      path.join(f.kitDir, 'main.mjs'),
-      `export function run() {
+  it(
+    'records exitCode and a bounded redacted stderr tail for timed-out and cancelled runs',
+    async () => {
+      const f = await fixture();
+      // This test requires actual stderr evidence, so allow bounded startup
+      // headroom; the separate loop test covers the short timeout contract.
+      f.manifest.timeoutMs = 10_000;
+      await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
+      await writeFile(
+        path.join(f.kitDir, 'main.mjs'),
+        `export function run() {
         process.stderr.write('stalled with GITHUB_TOKEN=ghp_timeoutsecret123\\n');
         return new Promise(() => {});
       }`,
-    );
-    const rev = (await loadKit(f.root, 'strings.unique')).revision;
+      );
+      const rev = (await loadKit(f.root, 'strings.unique')).revision;
 
-    const timedOut = await f.run('verify', {}, rev);
-    expect(timedOut.error).toBe('Timed out');
-    expect(timedOut.stderrTail).toContain('GITHUB_TOKEN=[REDACTED]');
-    expect(timedOut.stderrTail ?? '').not.toContain('ghp_timeoutsecret123');
-    expect((timedOut.stderrTail ?? '').length).toBeLessThanOrEqual(4096);
-    // Measured on this platform: a force-killed child reports exit code 1 on both
-    // the timeout and the cancellation path, so it is asserted exactly here. Other
-    // platforms report no code for a killed child, so they keep the portable check.
-    if (process.platform === 'win32') {
-      expect(timedOut.exitCode).toBe(1);
-    } else {
-      expect(timedOut.exitCode === undefined || typeof timedOut.exitCode === 'number').toBe(true);
-    }
-    const [timedOutRecord] = await kitHistory(f.root, 'strings.unique');
-    expect(timedOutRecord?.stderrTail).toBe(timedOut.stderrTail);
-    expect(timedOutRecord?.exitCode).toBe(timedOut.exitCode);
+      const timedOut = await runAfterChildOutput(f, rev, false);
+      expect(timedOut.error).toBe('Timed out');
+      expect(timedOut.stderrTail).toContain('GITHUB_TOKEN=[REDACTED]');
+      expect(timedOut.stderrTail ?? '').not.toContain('ghp_timeoutsecret123');
+      expect((timedOut.stderrTail ?? '').length).toBeLessThanOrEqual(4096);
+      const [timedOutRecord] = await kitHistory(f.root, 'strings.unique');
+      expect(timedOutRecord?.stderrTail).toBe(timedOut.stderrTail);
+      expect(timedOutRecord?.exitCode).toBe(timedOut.exitCode);
 
-    f.manifest.timeoutMs = 30_000;
-    await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
-    const cancellationRevision = (await loadKit(f.root, 'strings.unique')).revision;
-    const cancelled = await cancelAfterChildOutput(f, cancellationRevision);
-    expect(cancelled.error).toBe('Cancelled');
-    expect(cancelled.stderrTail).toContain('GITHUB_TOKEN=[REDACTED]');
-    expect((cancelled.stderrTail ?? '').length).toBeLessThanOrEqual(4096);
-    if (process.platform === 'win32') {
-      expect(cancelled.exitCode).toBe(1);
-    } else {
-      expect(cancelled.exitCode === undefined || typeof cancelled.exitCode === 'number').toBe(true);
-    }
-  }, 45_000);
+      f.manifest.timeoutMs = 30_000;
+      await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
+      const cancellationRevision = (await loadKit(f.root, 'strings.unique')).revision;
+      const cancelled = await runAfterChildOutput(f, cancellationRevision);
+      expect(cancelled.error).toBe('Cancelled');
+      expect(cancelled.stderrTail).toContain('GITHUB_TOKEN=[REDACTED]');
+      expect((cancelled.stderrTail ?? '').length).toBeLessThanOrEqual(4096);
+    },
+    lifecycleDeadlineMs,
+  );
 
   it('persists the exit code and a bounded redacted stderr tail when the child dies without a result', async () => {
     const f = await fixture();

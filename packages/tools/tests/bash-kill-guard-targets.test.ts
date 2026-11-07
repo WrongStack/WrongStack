@@ -15,6 +15,9 @@ const { PROTECTED_PID, heartbeatAt, entryName } = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/process-registry-persistent.js', () => ({
+  // The guard's host filter is exercised by bash-kill-guard-foreign-host; here
+  // the fixtures are host-less, so every entry counts as local.
+  isEntryFromThisHost: () => true,
   getPersistentProcessRegistry: () => ({
     shouldBlockKill: async (pid: number) => pid === PROTECTED_PID,
     getAllProtectedPids: async () => [PROTECTED_PID],

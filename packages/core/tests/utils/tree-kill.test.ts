@@ -134,6 +134,21 @@ describe('treeKill', () => {
     expect(child.kill).not.toHaveBeenCalled();
   });
 
+  it('keeps the shell alive while an eight-second Windows tree walk is still running', () => {
+    vi.useFakeTimers();
+    setPlatform('win32');
+    const killer = fakeKiller();
+    spawnMock.mockReturnValue(killer);
+    const child = { pid: 42, exitCode: null as number | null, kill: vi.fn() };
+    treeKill(child);
+    vi.advanceTimersByTime(8000);
+    expect(child.kill).not.toHaveBeenCalled();
+    child.exitCode = 1;
+    killer.emit('close', 0);
+    vi.advanceTimersByTime(30000);
+    expect(child.kill).not.toHaveBeenCalled();
+  });
+
   it('on Windows kills the child directly when taskkill stalls past the backstop', () => {
     vi.useFakeTimers();
     setPlatform('win32');

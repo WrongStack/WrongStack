@@ -15,6 +15,7 @@ import {
   resetExecPolicy,
 } from '../src/exec.js';
 import { getProcessRegistry } from '../src/process-registry.js';
+import { processCleanupDeadline } from './fixtures.js';
 
 const makeOpts = () => ({ signal: new AbortController().signal });
 const makeCtx = () => ({ cwd: '/fake', tools: [], projectRoot: '/fake' }) as any;
@@ -329,12 +330,12 @@ describe('exec timer and buffer paths', () => {
     try {
       const startedAt = Date.now();
       const result = (await execTool.execute(
-        { command: 'node', args: ['-e', 'setTimeout(() => {}, 10000)'], timeout: 300 },
+        { command: 'node', args: ['-e', 'setInterval(() => {}, 1000)'], timeout: 300 },
         sb.ctx,
         makeOpts(),
       )) as { exitCode: number };
       expect(result.exitCode).toBe(124);
-      expect(Date.now() - startedAt).toBeLessThan(8_000);
+      expect(Date.now() - startedAt).toBeLessThan(processCleanupDeadline(8_000));
     } finally {
       await sb.cleanup();
     }

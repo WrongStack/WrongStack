@@ -23,16 +23,29 @@ import {
   acquireLock,
   isNodeError,
   readRegistryFile,
+  registryEntryKey,
   writeRegistryFile,
 } from './process-registry-lock.js';
 
 export type { PersistentProcessEntry, PersistentRegistryData } from './process-registry-lock.js';
-export { acquireLock } from './process-registry-lock.js';
+export { acquireLock, registryEntryKey } from './process-registry-lock.js';
 
 const REGISTRY_FILE = 'process-registry.json';
 
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * True when an entry describes a process on this host. A legacy entry written
+ * before hostnames were stored has none and is treated as local.
+ *
+ * PIDs are host-local: on a shared home directory (NFS, roaming profile) every
+ * machine writes the same registry file, so a consumer that reasons about
+ * *this* process table (kill protection, name matching) must ask this first.
+ */
+export function isEntryFromThisHost(entry: PersistentProcessEntry): boolean {
+  return !entry.hostname || entry.hostname === os.hostname();
 }
 
 function emitStructuredLog(
@@ -246,8 +259,9 @@ export class PersistentProcessRegistry {
     try {
       const data = await readRegistryFile(this.registryPath);
 
-      // Update or insert
-      data.instances.set(String(entry.pid), entry);
+      // Update or insert. The host+PID key keeps a same-numbered process on
+      // another machine (shared home directory) from replacing this entry.
+      data.instances.set(registryEntryKey(entry.hostname, entry.pid), entry);
 
       // Also update the in-memory registry. `child: null` is the documented
       // shape for cross-instance mirror entries (no live handle here) — the
@@ -275,7 +289,7 @@ export class PersistentProcessRegistry {
     const release = await acquireLock(this.lockPath);
     try {
       const data = await readRegistryFile(this.registryPath);
-      data.instances.delete(String(pid));
+      data.instances.delete(registryEntryKey(os.hostname(), pid));
       await writeRegistryFile(this.registryPath, data);
     } finally {
       await release();
@@ -375,6 +389,13 @@ export class PersistentProcessRegistry {
         const age = now - entry.lastHeartbeat;
 
         if (age > STALE_THRESHOLD_MS) {
+          // A foreign entry's PID says nothing about this host's process table:
+          // checking it locally either spares an unrelated process or removes a
+          // live remote entry. Its heartbeat age is the only signal we have.
+          if (!isEntryFromThisHost(entry)) {
+            stalePids.push(_pidStr);
+            continue;
+          }
           // Check if process is actually dead
           try {
             if (process.platform !== 'win32') {
@@ -419,7 +440,7 @@ export class PersistentProcessRegistry {
     const release = await acquireLock(this.lockPath);
     try {
       const data = await readRegistryFile(this.registryPath);
-      const entry = data.instances.get(String(pid));
+      const entry = data.instances.get(registryEntryKey(os.hostname(), pid));
 
       if (!entry) return false;
 
@@ -445,6 +466,7 @@ export class PersistentProcessRegistry {
       const protectedPids: number[] = [];
 
       for (const [_pidStr, entry] of data.instances) {
+        if (!isEntryFromThisHost(entry)) continue;
         if (entry.protected && now - entry.lastHeartbeat < STALE_THRESHOLD_MS) {
           protectedPids.push(entry.pid);
         }

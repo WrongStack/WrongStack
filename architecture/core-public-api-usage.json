@@ -209,9 +209,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 17,
-      "typeOnly": 0,
-      "runtimeOrMixed": 17
+      "files": 30,
+      "typeOnly": 1,
+      "runtimeOrMixed": 29
     },
     "@wrongstack/core/vcs": {
       "files": 2,
@@ -16841,7 +16841,25 @@
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/bench/src/exec-command.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/bench/src/runner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/bench/tests/exec-command.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/bench/tests/stop-resume.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16871,6 +16889,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/goal/tests/project-verifier-timeout.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/mcp/src/client-lifecycle.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/mcp/src/client-process.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16884,6 +16914,12 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/plugin-sdk/src/runtime/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/plugin-sdk/tests/runtime-exec-process-tree.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16907,7 +16943,25 @@
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/plugins/tests/runtime.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/sdd/src/verify-task.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/sdd/tests/verifier-cleanup-order.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/sdd/tests/verify-task.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16920,6 +16974,30 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/tools/src/dead-code/fix-verify.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/tools/src/process-registry.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/tools/src/project-kit/runner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/tools/tests/fixtures.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/tools/tests/project-kit.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

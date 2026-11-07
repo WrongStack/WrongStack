@@ -20,7 +20,12 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { compileUserRegex } from './_regex.js';
-import { parsePidFilterValue, pidFilterMatches, splitShellSequence } from './bash-kill-detect.js';
+import {
+  parsePidFilterValue,
+  parsePosixKillTargets,
+  pidFilterMatches,
+  splitShellSequence,
+} from './bash-kill-detect.js';
 import { wildcardNameMatches } from './bash-kill-guard.js';
 import { getPersistentProcessRegistry } from './process-registry-persistent.js';
 
@@ -332,6 +337,20 @@ export async function checkExecKillCommand(
     // POSIX
     // Direct kill/pkill/killall via exec
     if (cmdLower === 'kill') {
+      // A negative operand is a process GROUP (`kill -9 -1234`) or every
+      // process (`-1`), not a PID. Reading the bare number would miss a
+      // protected process inside the group; the bash guard blocks a group kill
+      // while any protected process exists, so mirror that rule here.
+      const parsed = parsePosixKillTargets(['kill', ...args].join(' '), fullCommand);
+      if (parsed?.isGroupKill) {
+        const protectedPids = await getPersistentProcessRegistry().getAllProtectedPids();
+        if (protectedPids.length > 0) {
+          return {
+            blocked: true,
+            reason: `Blocked: kill ${parsed.signal} ${args.join(' ')} signals a process group that may include protected WrongStack processes.`,
+          };
+        }
+      }
       for (const a of args) {
         // kill 1234, kill -9 1234, kill -- -1234 (group)
         const num = a.replace(/^-/, '');

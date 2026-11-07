@@ -73,6 +73,7 @@ import {
 import { parseWindowsKillCommand } from './bash-kill-parse-windows.js';
 import {
   getPersistentProcessRegistry,
+  isEntryFromThisHost,
   type PersistentProcessEntry,
 } from './process-registry-persistent.js';
 
@@ -266,6 +267,9 @@ async function getProtectedEntries(): Promise<PersistentProcessEntry[]> {
 
   for (const instanceEntries of status.instances.values()) {
     for (const entry of instanceEntries) {
+      // PIDs and names are host-local; a foreign entry describes a process
+      // this host's kill cannot reach, and must not make a local name match.
+      if (!isEntryFromThisHost(entry)) continue;
       if (entry.protected && Date.now() - entry.lastHeartbeat < 30_000) {
         entries.push(entry);
       }

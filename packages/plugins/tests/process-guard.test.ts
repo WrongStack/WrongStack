@@ -48,6 +48,23 @@ describe('process-guard telemetry', () => {
     const health = await processGuardPlugin.health!();
     expect(health.message).not.toContain('last detection on');
   });
+
+  it('registers this process in the persistent registry at setup', async () => {
+    const api = makeApi();
+    processGuardPlugin.setup(api as never);
+    const { getPersistentProcessRegistry } = await import('@wrongstack/tools');
+    try {
+      // Registration is fire-and-forget inside the registry; wait for the
+      // write instead of assuming it landed synchronously.
+      await vi.waitFor(async () => {
+        const status = await getPersistentProcessRegistry().getGlobalStatus();
+        const pids = [...status.instances.values()].flat().map((entry) => entry.pid);
+        expect(pids).toContain(process.pid);
+      });
+    } finally {
+      processGuardPlugin.teardown!(api as never);
+    }
+  });
 });
 
 describe('issue #360 kill-defense regression matrix', () => {

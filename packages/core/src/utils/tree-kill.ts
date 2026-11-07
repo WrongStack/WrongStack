@@ -1,5 +1,11 @@
 import { spawn } from 'node:child_process';
 import { buildChildEnv } from './child-env.js';
+import {
+  terminateWin32Descendants,
+  WIN32_NATIVE_CLEANUP_TIMEOUT_MS,
+} from './win32-process-tree.js';
+
+export { terminateWin32Descendants } from './win32-process-tree.js';
 
 /**
  * Minimal shape shared by Node's `ChildProcess` and lighter child wrappers.
@@ -35,8 +41,16 @@ export interface TreeKillOptions {
   graceMs?: number | undefined;
 }
 
-/** Upper bound for taskkill before the direct-kill backstop runs anyway. */
-export const WIN32_TASKKILL_BACKSTOP_MS = 5000;
+/**
+ * Bound a stalled taskkill without interrupting a legitimate Windows tree walk.
+ * Real /T enumeration can exceed eight seconds; killing its shell at five
+ * seconds breaks the parent chain before descendants have been collected.
+ * Successful taskkill completion still settles immediately.
+ */
+export const WIN32_TASKKILL_BACKSTOP_MS = 30_000;
+/** Complete Windows stop budget: taskkill plus its bounded native fallback. */
+export const WIN32_TREE_KILL_BUDGET_MS =
+  WIN32_TASKKILL_BACKSTOP_MS + WIN32_NATIVE_CLEANUP_TIMEOUT_MS;
 
 /** The parts of a spawned taskkill process the backstop listens to. */
 export interface TaskkillHandle {
@@ -66,6 +80,7 @@ export function settleWin32Kill(
     settled = true;
     clearTimeout(timer);
     if (child.exitCode != null || child.signalCode != null) return;
+    terminateWin32Descendants(child);
     directKill();
   };
   const timer = setTimeout(settle, backstopMs);

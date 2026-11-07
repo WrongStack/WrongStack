@@ -38,6 +38,7 @@
 
 import * as os from 'node:os';
 import type { Plugin } from '@wrongstack/contracts/types';
+import { getPersistentProcessRegistry } from '@wrongstack/tools';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -138,6 +139,13 @@ const plugin: Plugin = {
       }
       state.hookUnregister = null;
     }
+
+    // Register this instance's main process in the cross-instance persistent
+    // registry. The tool-level kill guards read it to protect WrongStack's own
+    // PIDs; without this writer the registry stays empty and only name
+    // heuristics protect us. Idempotent, and independent of this plugin's
+    // observation mode (the guards run either way).
+    getPersistentProcessRegistry().start();
 
     const cfg = readConfig(api.config.extensions?.['process-guard']);
 
@@ -259,6 +267,9 @@ const plugin: Plugin = {
       }
       state.hookUnregister = null;
     }
+    // Balance the registration from setup(): remove the heartbeat, reaper and
+    // process-exit hook this plugin armed.
+    getPersistentProcessRegistry().stop();
     const final = {
       invocations: state.invocations,
       detections: state.detections,

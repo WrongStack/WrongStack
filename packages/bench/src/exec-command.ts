@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { inheritedEnv } from './child-env.js';
 import { treeKill } from './runner.js';
 
@@ -13,7 +14,7 @@ import { treeKill } from './runner.js';
 const DEFAULT_MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MiB
 
 /** How long after a tree kill to wait for `close` before giving up on the pipes. */
-const KILL_GRACE_MS = 5_000;
+const KILL_GRACE_MS = process.platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + 1000 : 5_000;
 
 export interface ExecResult {
   exitCode: number | null;
@@ -107,10 +108,16 @@ export function execCommand(opts: {
     const stderrDecoder = new StringDecoder('utf8');
 
     let killBackstop: NodeJS.Timeout | undefined;
+    let killStarted = false;
     // Kill the tree, then stop waiting for `close` after a grace period: a
     // descendant that survived still holds the stdio pipes, and `close` never
     // fires while it does — the grader then hung the whole bench run forever.
     const killTree = () => {
+      if (killStarted) return;
+      killStarted = true;
+      // The command deadline cannot replace an earlier buffer limit or caller abort
+      // while Windows is still enumerating the process tree.
+      clearTimeout(timer);
       try {
         child.stdin?.destroy();
       } catch {

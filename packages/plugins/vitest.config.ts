@@ -6,6 +6,7 @@ export default defineConfig({
     maxWorkers: getVitestMaxWorkers(),
     globals: false,
     environment: 'node',
+    setupFiles: ['./vitest.setup.ts'],
     include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',

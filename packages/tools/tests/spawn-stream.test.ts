@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawnStream } from '../src/_spawn-stream.js';
 import { _resetProcessRegistry, getProcessRegistry } from '../src/process-registry.js';
+import { processCleanupDeadline } from './fixtures.js';
 
 // A chatty long-runner: prints ~1 KB every 20ms, never exits on its own.
 // Used to exercise the abort/abandonment paths — without the teardown fixes
@@ -41,7 +42,11 @@ describe('spawnStream teardown', () => {
       const { done } = await gen.next();
       if (done) break;
     }
-    await expect.poll(() => getProcessRegistry().stats().totalCount, { timeout: 10_000 }).toBe(0);
+    await expect
+      .poll(() => getProcessRegistry().stats().totalCount, {
+        timeout: processCleanupDeadline(10_000),
+      })
+      .toBe(0);
   });
 
   it('abort wakes the loop and finishes with exit code 124', async () => {
@@ -76,7 +81,11 @@ describe('spawnStream teardown', () => {
     // don't need to know the platform.
     expect([1, 124, 137, 143, null]).toContain((result as { exitCode: number | null }).exitCode);
     // The child must not survive the abort.
-    await expect.poll(() => getProcessRegistry().stats().activeCount, { timeout: 10_000 }).toBe(0);
+    await expect
+      .poll(() => getProcessRegistry().stats().activeCount, {
+        timeout: processCleanupDeadline(10_000),
+      })
+      .toBe(0);
   });
 
   it('an already-aborted signal yields an immediate close without streaming', async () => {
@@ -98,7 +107,11 @@ describe('spawnStream teardown', () => {
       }
     }
     expect([1, 124, 137, 143, null]).toContain(result?.exitCode ?? null);
-    await expect.poll(() => getProcessRegistry().stats().activeCount, { timeout: 10_000 }).toBe(0);
+    await expect
+      .poll(() => getProcessRegistry().stats().activeCount, {
+        timeout: processCleanupDeadline(10_000),
+      })
+      .toBe(0);
     expect(register).not.toHaveBeenCalled();
   });
 
@@ -117,7 +130,11 @@ describe('spawnStream teardown', () => {
     // Abandon — mirrors ToolExecutor.runStreamedTool's iter.return() path.
     await gen.return(undefined as never);
     // The finally teardown must have force-killed the child.
-    await expect.poll(() => getProcessRegistry().stats().activeCount, { timeout: 10_000 }).toBe(0);
+    await expect
+      .poll(() => getProcessRegistry().stats().activeCount, {
+        timeout: processCleanupDeadline(10_000),
+      })
+      .toBe(0);
   });
 
   it('executes successfully when signal is omitted or undefined', async () => {

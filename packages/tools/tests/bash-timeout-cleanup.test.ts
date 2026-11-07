@@ -7,7 +7,7 @@ import {
   type ProcessRegistryImpl,
   type TrackedProcess,
 } from '../src/process-registry.js';
-import { mkSandbox } from './fixtures.js';
+import { mkSandbox, processCleanupDeadline } from './fixtures.js';
 
 const isWin = os.platform() === 'win32';
 
@@ -28,37 +28,41 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
     expect(typeof bashTool.cleanup).toBe('function');
   });
 
-  it('kills a still-running bash process registered for the same session', async () => {
-    _resetProcessRegistry();
-    const registry: ProcessRegistryImpl = getProcessRegistry();
-    const sb = await mkSandbox();
-    try {
-      // Spawn a long-running bash command and let it register with the
-      // ProcessRegistry (the executeStream path does this in bash.ts:392).
-      const longRun = isWin ? 'ping -n 30 127.0.0.1 > NUL' : 'sleep 30';
-      const execPromise = bashTool.execute({ command: longRun, timeout_ms: 200 }, sb.ctx, {
-        signal: new AbortController().signal,
-      });
-      // The command times out at 200ms; by the time it resolves the child is
-      // force-killed via the generator's finally block. cleanup() is the
-      // executor's defensive second layer — it must be a no-op on already-
-      // reaped processes (idempotent) but still callable without error.
-      const out = await execPromise;
-      expect(out.timed_out).toBe(true);
-
-      // Simulate the executor calling tool.cleanup() after the timeout.
-      await expect(bashTool.cleanup!({ command: longRun }, sb.ctx)).resolves.toBeUndefined();
-
-      // No bash process for this session should remain active in the registry.
-      const lingering = registry
-        .bySession(sb.ctx.session.id)
-        .filter((p) => p.name === 'bash' && p.child?.exitCode === null);
-      expect(lingering).toHaveLength(0);
-    } finally {
-      await sb.cleanup();
+  it(
+    'kills a still-running bash process registered for the same session',
+    async () => {
       _resetProcessRegistry();
-    }
-  }, 15_000);
+      const registry: ProcessRegistryImpl = getProcessRegistry();
+      const sb = await mkSandbox();
+      try {
+        // Spawn a long-running bash command and let it register with the
+        // ProcessRegistry (the executeStream path does this in bash.ts:392).
+        const longRun = isWin ? 'ping -n 120 127.0.0.1 > NUL' : 'sleep 30';
+        const execPromise = bashTool.execute({ command: longRun, timeout_ms: 200 }, sb.ctx, {
+          signal: new AbortController().signal,
+        });
+        // The command times out at 200ms; by the time it resolves the child is
+        // force-killed via the generator's finally block. cleanup() is the
+        // executor's defensive second layer — it must be a no-op on already-
+        // reaped processes (idempotent) but still callable without error.
+        const out = await execPromise;
+        expect(out.timed_out).toBe(true);
+
+        // Simulate the executor calling tool.cleanup() after the timeout.
+        await expect(bashTool.cleanup!({ command: longRun }, sb.ctx)).resolves.toBeUndefined();
+
+        // No bash process for this session should remain active in the registry.
+        const lingering = registry
+          .bySession(sb.ctx.session.id)
+          .filter((p) => p.name === 'bash' && p.child?.exitCode === null);
+        expect(lingering).toHaveLength(0);
+      } finally {
+        await sb.cleanup();
+        _resetProcessRegistry();
+      }
+    },
+    processCleanupDeadline(15_000),
+  );
 
   it('kills every bash process still alive when cleanup is called', async () => {
     // Directly drive the registry + cleanup without a real subprocess, so the

@@ -36,6 +36,18 @@ export interface PersistentRegistryData {
 }
 
 /**
+ * Map key for one entry. PIDs are host-local, so the same number on two
+ * machines is two different processes: keying by the PID alone let a foreign
+ * entry answer a local kill-protection query and let one host's heartbeat
+ * overwrite another's entry on a shared home directory. A legacy entry with no
+ * hostname is assumed to be local, preserving protection after an upgrade.
+ */
+export function registryEntryKey(hostname: string | undefined, pid: number): string {
+  const host = typeof hostname === 'string' && hostname.length > 0 ? hostname : os.hostname();
+  return `${host}:${pid}`;
+}
+
+/**
  * Acquire a file lock using flock-style locking.
  * On Windows, uses a separate lockfile with atomic rename.
  */
@@ -235,7 +247,7 @@ export async function readRegistryFile(filePath: string): Promise<PersistentRegi
           (typeof item[0] === 'string' || typeof item[0] === 'number') &&
           isPersistentProcessEntry(item[1])
         ) {
-          instances.set(String(item[0]), item[1]);
+          instances.set(registryEntryKey(item[1].hostname, item[1].pid), item[1]);
         }
       }
     }

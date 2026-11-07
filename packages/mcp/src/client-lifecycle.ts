@@ -1,3 +1,4 @@
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import type { MCPClientInternals } from './client-internals.js';
 import { forceKillTree } from './client-process.js';
 import type { MCPRequestOptions } from './client-types.js';
@@ -56,7 +57,9 @@ export async function closeClient(self: MCPClientInternals): Promise<void> {
     // server that ignores SIGTERM would otherwise stay alive after
     // close() returns — orphan child processes accumulate over restarts.
     const GRACEFUL_MS = 800;
-    const FORCE_TIMEOUT_MS = 1200;
+    // Retain the Windows child until tree enumeration and its bounded
+    // backstop settle; 1.2 seconds can release a still-running server.
+    const FORCE_TIMEOUT_MS = process.platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + 1000 : 1200;
     let gracefulTimer: NodeJS.Timeout | undefined;
     const gracefulRace = await Promise.race([
       exitPromise.then(() => 'exited' as const),

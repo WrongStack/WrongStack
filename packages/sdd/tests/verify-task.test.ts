@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { TaskResult } from '@wrongstack/contracts/types/multi-agent';
 import type { TaskNode } from '@wrongstack/contracts/types/task-graph';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { describe, expect, it } from 'vitest';
 import {
   makeAcceptanceCriteriaVerifier,
@@ -163,7 +164,7 @@ describe('makeCommandVerifier', () => {
         rmSync(dir, { recursive: true, force: true });
       }
     },
-    20_000,
+    WIN32_TREE_KILL_BUDGET_MS + 20_000,
   );
 
   it.skipIf(process.platform !== 'win32')(

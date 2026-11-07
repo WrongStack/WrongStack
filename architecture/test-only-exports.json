@@ -823,9 +823,6 @@
       "compactDescription",
       "findSemanticBoundary"
     ],
-    "packages/core/src/utils/tree-kill.ts": [
-      "WIN32_TASKKILL_BACKSTOP_MS"
-    ],
     "packages/core/src/wiring/proxy-rewrite.ts": [
       "__resetProxyConfigForTests",
       "PROXY_EXCLUDED_PROVIDERS",

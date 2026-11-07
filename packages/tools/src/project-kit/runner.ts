@@ -5,6 +5,7 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import { buildChildEnv } from '@wrongstack/core/utils';
+import { WIN32_TREE_KILL_BUDGET_MS } from '@wrongstack/core/utils/tree-kill';
 import { redactSecrets } from '@wrongstack/primitives';
 import { getProcessRegistry } from '../process-registry.js';
 
@@ -93,7 +94,8 @@ export const STDERR_TAIL_LIMIT = 4096;
 /** After a stopped child has exited: how long inherited pipes may stay open. */
 const PIPE_GRACE_MS = 3000;
 /** After a stop: how long the forced kill may take before the run settles anyway. */
-const KILL_GRACE_MS = 15_000;
+const KILL_GRACE_MS =
+  process.platform === 'win32' ? WIN32_TREE_KILL_BUDGET_MS + PIPE_GRACE_MS : 15_000;
 
 export async function runKitProcess(request: {
   projectRoot: string;

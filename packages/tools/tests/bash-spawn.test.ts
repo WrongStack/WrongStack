@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { executeStreamedTool } from '../../core/src/execution/tool-executor-stream.js';
 import { wrapPowerShellScript } from '../src/_shell-pick.js';
+import { processCleanupDeadline } from './fixtures.js';
 
 // Drive bash's spawn-dependent branches deterministically (background detach,
 // foreground error/throw, backpressure, teardown, both
@@ -277,12 +278,16 @@ describe('bashTool background (faked shell)', () => {
 });
 
 describe('bashTool timeout kill paths', () => {
-  it('times out and kills on win32 (tree-kill + fallback)', async () => {
-    cfg.platform = 'win32';
-    cfg.mode = 'hang';
-    const out = await runFinal({ command: 'sleep', timeout_ms: 1 });
-    expect(out.timed_out).toBe(true);
-  }, 10_000);
+  it(
+    'times out and kills on win32 (tree-kill + fallback)',
+    async () => {
+      cfg.platform = 'win32';
+      cfg.mode = 'hang';
+      const out = await runFinal({ command: 'sleep', timeout_ms: 1 });
+      expect(out.timed_out).toBe(true);
+    },
+    processCleanupDeadline(10_000, 'win32'),
+  );
 
   it('times out and kills on POSIX (process-group SIGTERM/SIGKILL)', async () => {
     cfg.platform = 'linux';

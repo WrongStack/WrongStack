@@ -15,6 +15,10 @@ import type { ChildProcess } from 'node:child_process';
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import {
+  terminateWin32Descendants,
+  WIN32_TASKKILL_BACKSTOP_MS,
+} from '@wrongstack/core/utils/tree-kill';
+import {
   CircuitBreaker,
   type CircuitBreakerConfig,
   type CircuitBreakerSnapshot,
@@ -98,7 +102,7 @@ export interface RegistryStats {
 }
 
 const DEFAULT_GRACE_MS = 2000;
-const WIN32_TASKKILL_TIMEOUT_MS = 5000;
+const WIN32_TASKKILL_TIMEOUT_MS = WIN32_TASKKILL_BACKSTOP_MS; // Windows tree walks can exceed eight seconds.
 /** Longest delay a Node timer holds; past it Node fires after 1 ms. */
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
@@ -539,6 +543,16 @@ export class ProcessRegistryImpl {
     const isWin = os.platform() === 'win32';
 
     if (isWin) {
+      // A mirror entry can name this process or its parent (exactly what
+      // `registerMainProcess` writes). `taskkill /T` on self would end
+      // WrongStack mid-cleanup — the shutdown path calls
+      // `killAll({ includeProtected: true })` over every entry. POSIX already
+      // refuses to signal self/parent in `_killChildDirect`; keep parity.
+      // A real child handle is unaffected: child.kill() signals only the child.
+      if (p.child === null && !this._isSafeSignalPid(pid)) {
+        p.killed = true;
+        return true;
+      }
       // Windows: no process group semantics. A direct kill terminates only
       // the immediate child — shell-wrapped commands (cmd.exe /c …) leave
       // grandchildren running that hold the inherited stdio pipes open and
@@ -557,6 +571,7 @@ export class ProcessRegistryImpl {
       const directFallback = () => {
         if (p.child && p.child.exitCode == null && p.child.signalCode == null) {
           try {
+            terminateWin32Descendants(p.child);
             p.child.kill('SIGKILL');
           } catch {
             // Process may have already exited.
