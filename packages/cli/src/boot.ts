@@ -107,6 +107,16 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     });
   }
 
+  // `wstack desktop` opens, installs or updates WrongStack Desktop. Like
+  // `update` it needs no config; it reads the raw argv because the global
+  // parser treats `--version` (the release to install) as a switch.
+  if (positional[0] === 'desktop') {
+    const { argsAfterDesktop, runDesktopCommand } = await import(
+      './subcommands/handlers/desktop.js'
+    );
+    return runDesktopCommand(argsAfterDesktop(argv), { renderer: new TerminalRenderer() });
+  }
+
   // `wstack remote <target>` (or `--remote <target>`) runs WrongStack on another
   // machine; nothing local is loaded, so it works from any directory.
   if (positional[0] === 'remote' || typeof flags['remote'] === 'string') {

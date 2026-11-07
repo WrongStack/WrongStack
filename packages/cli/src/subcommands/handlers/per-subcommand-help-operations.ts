@@ -20,6 +20,29 @@ export const OPERATIONS_HELP_ENTRIES: Record<string, PerSubcommandHelp> = {
     seeAlso: 'wstack version (read-only version info)',
   },
 
+  desktop: {
+    name: 'desktop',
+    title: 'wstack desktop — open, install and update WrongStack Desktop',
+    description:
+      'Opens the installed WrongStack Desktop (or the portable build of this repository ' +
+      'checkout) and returns. The application runs only with its engine beside it, so a ' +
+      'copy whose engine is missing is refused. install and update download the installer ' +
+      "for this CLI's release (or --version <x>), verify it against DESKTOP-SHA256SUMS, and " +
+      'run it on Windows, open the disk image on macOS, or print the sudo apt/dnf command on ' +
+      'Linux. WRONGSTACK_DESKTOP_APP selects a specific copy.',
+    usage: 'wstack desktop [install | update | path] [--version <x>] [--silent]',
+    subcommands: [
+      { name: '(none)', description: 'Open WrongStack Desktop.' },
+      { name: 'install', description: 'Download, verify and install the release installer.' },
+      {
+        name: 'update',
+        description: 'Install when the installed copy is older than the release.',
+      },
+      { name: 'path', description: 'Print the application and engine paths.' },
+    ],
+    seeAlso: 'wstack update (updates the CLI itself)',
+  },
+
   remote: {
     name: 'remote',
     title: 'wstack remote — run WrongStack on another machine over SSH',

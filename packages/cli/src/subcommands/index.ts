@@ -30,6 +30,7 @@ const loaders: Record<string, SubcommandLoader> = {
   init: async () => (await import('./handlers/init.js')).initCmd,
   auth: async () => (await import('./handlers/auth.js')).authCmd,
   update: async () => (await import('./handlers/update.js')).updateCmd,
+  desktop: async () => (await import('./handlers/desktop.js')).desktopCmd,
   remote: async () => (await import('./handlers/remote.js')).remoteCmd,
   sessions: async () => (await import('./handlers/sessions-config.js')).sessionsCmd,
   config: async () => (await import('./handlers/sessions-config.js')).configCmd,

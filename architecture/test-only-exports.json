@@ -487,7 +487,6 @@
       "truncateDesc"
     ],
     "packages/cli/src/standalone-update.ts": [
-      "parseSha256Sums",
       "replaceExecutable",
       "standaloneAssetName"
     ],

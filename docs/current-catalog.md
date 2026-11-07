@@ -67,7 +67,7 @@ tools in an individual session or verified external-service availability.
 
 ## Shell subcommands
 
-42 registered keys, 41 distinct handlers. Source: [packages/cli/src/subcommands/index.ts](../packages/cli/src/subcommands/index.ts).
+43 registered keys, 42 distinct handlers. Source: [packages/cli/src/subcommands/index.ts](../packages/cli/src/subcommands/index.ts).
 
 Launch aliases such as `webui`, `vibeui` and `resume` are normalized before
 this registry. Bench experiment actions are nested actions of `bench`.
@@ -83,6 +83,7 @@ this registry. Bench experiment actions are nested actions of `bench`.
 | `config` | [packages/cli/src/subcommands/handlers/sessions-config.ts](../packages/cli/src/subcommands/handlers/sessions-config.ts) (`configCmd`) | [Usage](subcommands/sessions-config.md) |
 | `config-export` | [packages/cli/src/subcommands/handlers/config-transfer.ts](../packages/cli/src/subcommands/handlers/config-transfer.ts) (`configExportCmd`) | [Usage](subcommands/config-transfer.md) |
 | `config-import` | [packages/cli/src/subcommands/handlers/config-transfer.ts](../packages/cli/src/subcommands/handlers/config-transfer.ts) (`configImportCmd`) | [Usage](subcommands/config-transfer.md) |
+| `desktop` | [packages/cli/src/subcommands/handlers/desktop.ts](../packages/cli/src/subcommands/handlers/desktop.ts) (`desktopCmd`) | [Usage](subcommands/desktop.md) |
 | `diag` | [packages/cli/src/subcommands/handlers/diag-doctor.ts](../packages/cli/src/subcommands/handlers/diag-doctor.ts) (`diagCmd`) | [Usage](subcommands/diag-doctor.md) |
 | `doctor` | [packages/cli/src/subcommands/handlers/diag-doctor.ts](../packages/cli/src/subcommands/handlers/diag-doctor.ts) (`doctorCmd`) | [Usage](subcommands/diag-doctor.md) |
 | `export` | [packages/cli/src/subcommands/handlers/export.ts](../packages/cli/src/subcommands/handlers/export.ts) (`exportCmd`) | [Usage](subcommands/export.md) |

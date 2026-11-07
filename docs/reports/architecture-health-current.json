@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T23:18:44.445Z",
+  "generatedAt": "2026-11-07T23:46:14.094Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6068,
-    "testFiles": 5059,
-    "sourceLines": 1257753,
+    "sourceFiles": 6073,
+    "testFiles": 5062,
+    "sourceLines": 1258800,
     "workspaceEdges": 244,
-    "moduleEdges": 17935,
+    "moduleEdges": 17952,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1041
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 626,
-      "testFiles": 686,
+      "sourceFiles": 631,
+      "testFiles": 689,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 686
+          "testFiles": 689
         }
       ]
     },
@@ -5073,6 +5073,24 @@
       },
       {
         "file": "packages/cli/tests/design-e2e.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/desktop-command.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/desktop-locate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/desktop-release.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35850,10 +35868,6 @@
     {
       "file": "packages/cli/src/slash-commands/theme.ts",
       "name": "truncateDesc"
-    },
-    {
-      "file": "packages/cli/src/standalone-update.ts",
-      "name": "parseSha256Sums"
     },
     {
       "file": "packages/cli/src/standalone-update.ts",

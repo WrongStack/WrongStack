@@ -20,6 +20,7 @@ WrongStack exposes standalone CLI entry points as `wstack <subcommand>` (the `wr
 | `wstack init` | deprecated compatibility command; directs users to `auth` | [init](init.md) |
 | `wstack auth` | `list`/`ls`; `remove`/`rm`; OAuth provider aliases | [authentication](auth.md) |
 | `wstack update` | `--check-only`/`-c`; package-manager selectors | [update](update.md) |
+| `wstack desktop` | bare opens the app; `install`, `update`, `path`; `--version`, `--silent` | [desktop](desktop.md) |
 | `wstack sessions` | nested `fleet` and `fork` forms | [sessions and config](sessions-config.md) |
 | `wstack config` | `show`, `edit`, `history`, `restore` | [sessions and config](sessions-config.md) |
 | `wstack rewind` | checkpoint flags; distinct from the TUI `/rewind` command | [rewind](rewind.md) |

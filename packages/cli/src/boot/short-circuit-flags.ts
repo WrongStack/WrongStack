@@ -44,7 +44,9 @@ export async function handleHelpVersionShortCircuit(argv: string[]): Promise<num
     },
   } as never as Parameters<typeof helpCmd>[1]['renderer'];
 
-  if (earlyFlags['version'] === true) {
+  // `wstack desktop install --version <x>` names the Desktop release to
+  // install; the desktop handler reads that flag from the raw argv.
+  if (earlyFlags['version'] === true && positional[0] !== 'desktop') {
     return await versionCmd([], { renderer: stubRenderer } as Parameters<typeof versionCmd>[1]);
   }
 

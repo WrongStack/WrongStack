@@ -91,6 +91,9 @@ const CHILD_ENV_EXEMPT: Record<string, string> = {
   // ── CLI self-relaunch / bundled UI ──
   'cli/src/boot-provider-selection.ts': REASON_SELF_RELAUNCH,
   'cli/src/boot/tui-project-spawn.ts': REASON_SELF_RELAUNCH,
+  // `wstack desktop`: the app's engine reads provider credentials from the
+  // environment, as it does when opened from the Start menu or the Dock.
+  'cli/src/desktop/desktop-launch.ts': REASON_SELF_RELAUNCH,
   'cli/src/hq-tunnel.ts': REASON_SELF_RELAUNCH,
   'cli/src/mailbox-bridge-bootstrap.ts': REASON_SELF_RELAUNCH,
   'cli/src/slash-commands/dev.ts': REASON_SELF_RELAUNCH,

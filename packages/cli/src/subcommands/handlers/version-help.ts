@@ -71,6 +71,7 @@ export const helpCmd: SubcommandHandler = async (_args, deps) => {
       ['wstack tools run <tool>', 'Call a built-in tool from a script or external agent'],
       ['wstack typesafe', 'TypeSafe account: status, login, test'],
       ['wstack update', 'Self-update (--check-only)'],
+      ['wstack desktop', 'Open WrongStack Desktop; install | update | path'],
     ]),
     ...section('Project & diagnostics', [
       ['wstack project | projects', 'Committed project identity / tracked projects'],

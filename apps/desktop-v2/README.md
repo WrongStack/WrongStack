@@ -26,6 +26,21 @@ attestation (`gh attestation verify <file> --repo WrongStack/WrongStack`). No Ap
 published: the session host outlives the window and keeps running engines from the install
 path, which an AppImage unmounts when the window closes.
 
+### Install / open / update from the CLI
+
+With the WrongStack CLI installed, `wstack desktop` does the same from a terminal:
+
+- `wstack desktop install` downloads this platform's installer for the CLI's release (or
+  `--version <x>`), verifies it against `DESKTOP-SHA256SUMS`, then runs it on Windows (`--silent`
+  for no wizard), opens the disk image on macOS, or prints the `sudo apt install` /
+  `sudo dnf install` command on Linux.
+- `wstack desktop` opens the installed application (or, inside a checkout, the newest portable
+  build below) and refuses a copy whose engine is not beside it.
+- `wstack desktop update` installs only when the installed copy is older; `wstack desktop path`
+  prints the application and engine paths. `WRONGSTACK_DESKTOP_APP` selects a specific copy.
+
+See [`docs/subcommands/desktop.md`](../../docs/subcommands/desktop.md).
+
 ## Build the installer
 
 `bun run desktop:v2:build` compiles the engine for this machine's Rust target, bundles it as the
