@@ -60,8 +60,8 @@ export function isRestrictedBy(
       return true;
   }
   if (!r.only) return false;
-  const candidates = [name, ...(entry?.tool.aliases ?? [])];
-  return !r.only.some((pattern) =>
-    candidates.some((candidate) => matchToolPattern(pattern, candidate)),
-  );
+  // An allowlist must name the canonical tool: a tool declares its own
+  // aliases, so matching them here would let a registration widen a
+  // restricted session's allowlist (tool-governance.test.ts).
+  return !r.only.some((pattern) => matchToolPattern(pattern, name));
 }

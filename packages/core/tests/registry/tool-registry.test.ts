@@ -445,7 +445,7 @@ describe('ToolRegistry registration + mode branches', () => {
     }); // 228 else-delete
   });
 
-  it('resolves tool aliases in applyDescriptionModes and setSessionRestriction only-lists (F98)', () => {
+  it('resolves tool aliases in applyDescriptionModes; only-lists still need the canonical name (F98)', () => {
     const r = new ToolRegistry();
     r.register({ ...t('edit'), aliases: ['str_replace'] });
     expect(r.applyDescriptionModes({ str_replace: 'simple' })).toEqual({
@@ -453,7 +453,10 @@ describe('ToolRegistry registration + mode branches', () => {
       missing: [],
     });
     expect(r.getDescriptionMode('edit')).toBe('simple');
+    // A tool declares its own aliases, so an alias must not widen an allowlist.
     r.setSessionRestriction({ only: ['str_replace'] });
+    expect(r.isRestricted('edit')).toBe(true);
+    r.setSessionRestriction({ only: ['edit'] });
     expect(r.isRestricted('edit')).toBe(false);
     expect(r.isRestricted('str_replace')).toBe(false);
   });
