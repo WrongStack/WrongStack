@@ -195,6 +195,8 @@ export function createChronicleCounterSink(
     tags: { collector: 'chronicle-counter' },
   });
 
+  const inflightEmits = new Set<Promise<void>>();
+
   const emit = async (keys: readonly string[]): Promise<void> => {
     const pending: ChronicleEventInput[] = [];
     for (const key of keys) {
@@ -207,7 +209,13 @@ export function createChronicleCounterSink(
     // One transaction for the whole sweep where the sink supports it. The
     // SQLite journal fsyncs on commit, and a sweep is exactly the burst that
     // `appendBatch` exists for.
-    await appendMany(options.inner, pending);
+    const run = appendMany(options.inner, pending).then(() => undefined);
+    inflightEmits.add(run);
+    try {
+      await run;
+    } finally {
+      inflightEmits.delete(run);
+    }
   };
 
   const sweep = (): void => {
@@ -225,7 +233,14 @@ export function createChronicleCounterSink(
   timer.unref?.();
 
   const drain = async (): Promise<void> => {
-    await emit([...buckets.keys()]);
+    while (buckets.size > 0 || inflightEmits.size > 0) {
+      if (buckets.size > 0) {
+        await emit([...buckets.keys()]);
+      }
+      if (inflightEmits.size > 0) {
+        await Promise.allSettled([...inflightEmits]);
+      }
+    }
   };
 
   const route = (input: ChronicleEventInput): ChronicleRouting =>

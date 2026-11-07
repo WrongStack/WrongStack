@@ -166,7 +166,7 @@
     "@wrongstack/core/utils": {
       "files": 958,
       "typeOnly": 72,
-      "runtimeOrMixed": 921
+      "runtimeOrMixed": 920
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11005,7 +11005,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/chronicle/src/file-observer.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

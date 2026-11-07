@@ -271,11 +271,40 @@ export async function readLastEntryState(filePath: string): Promise<{
     const size = stat.size;
     let position = size,
       suffix = '';
+    const probe = Buffer.alloc(1);
     while (position > 0) {
       const length = Math.min(65536, position);
-      position -= length;
-      const buf = Buffer.allocUnsafe(length);
-      await handle.read(buf, 0, length, position);
+      const windowStart = position - length;
+      // A window that begins mid-codepoint decodes the split character as
+      // U+FFFD, permanently corrupting the line straddling the boundary; its
+      // JSON.parse then fails and this backward scan walks on to an EARLIER
+      // entry, which refreshStateFromDisk would adopt as the append chain
+      // anchor. Back the window up over the (at most three) UTF-8 continuation
+      // bytes so the decode starts on a code point boundary — the preceding
+      // window then also ends on one, so both sides of every boundary decode
+      // cleanly. The backed-up bytes head lines[0], which stays a partial-line
+      // fragment carried in `suffix` exactly as before.
+      let back = 0;
+      if (windowStart > 0) {
+        await handle.read(probe, 0, 1, windowStart);
+        if ((probe[0]! & 0xc0) === 0x80) {
+          // The window opens mid-codepoint: include its lead byte and any
+          // continuation bytes ahead of it.
+          while (back < 3 && windowStart - back - 1 >= 0) {
+            await handle.read(probe, 0, 1, windowStart - back - 1);
+            back++;
+            if ((probe[0]! & 0xc0) !== 0x80) break; // lead byte included
+          }
+        }
+      }
+      const buf = Buffer.allocUnsafe(back + length);
+      await handle.read(buf, 0, buf.length, windowStart - back);
+      // The NEXT window (earlier bytes) must end at the aligned boundary, not
+      // at the raw windowStart — otherwise the two windows overlap by `back`
+      // bytes and the split code point is decoded twice (once corrupted in
+      // the head window's tail, once correctly in this one), reintroducing
+      // the corruption through the reassembled line.
+      position = windowStart - back;
       suffix = buf.toString('utf8') + suffix;
       const lines = suffix.split('\n');
       const start = position === 0 ? 0 : 1;

@@ -1,6 +1,9 @@
 import * as path from 'node:path';
-import { type ProjectWatchSubscription, watchProjectTree } from '@wrongstack/core/utils';
-import { DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
+import {
+  DEFAULT_WALK_IGNORE_DIRS,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from '@wrongstack/core/utils';
 import { buildPendingEvents, flushJournalInputs } from './file-observer-journal.js';
 import {
   fingerprint,
@@ -65,6 +68,13 @@ export async function startChronicleFileObserver(
       : path.resolve(root, hint.path);
     const relative = normalizeRelative(path.relative(root, absolute));
     if (relative.startsWith('../') || isExcluded(relative, excluded, excludedPaths)) return;
+    // Map.set on an existing key refreshes the value but keeps its ORIGINAL
+    // insertion position, so re-noting a hot path left it at the FRONT of the
+    // cap sweep — the newest hint was the eviction victim and its change
+    // degraded to `file.external.*` (the sweep's own comment promises
+    // oldest-first). Delete-then-set re-inserts at the back, making
+    // insertion order genuinely oldest-first.
+    recentToolMutations.delete(relative);
     recentToolMutations.set(relative, {
       at: hint.at ?? Date.now(),
       toolUseId: hint.toolUseId,

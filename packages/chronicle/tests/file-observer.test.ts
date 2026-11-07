@@ -550,3 +550,64 @@ describe('startChronicleFileObserver', () => {
     await observer.close();
   });
 });
+
+describe('startChronicleFileObserver — tool-hint cap eviction (bug 20261106-r3)', () => {
+  // noteToolMutation's 500-entry cap swept by Map INSERTION order, but set()
+  // on an existing key keeps its original position: re-noting a hot path left
+  // it at keys[0], so the sweep evicted the NEWEST hint and the file's change
+  // degraded to `file.external.*` instead of `file.tool.*`.
+  const CAP = 500;
+
+  async function observedAttribution(noteCount: number): Promise<string | undefined> {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-obs-'));
+    tempDirs.push(dir);
+    const files: string[] = [];
+    for (let i = 1; i <= Math.min(CAP, noteCount + 1); i++) {
+      const rel = `f${String(i).padStart(3, '0')}.txt`;
+      await writeFile(path.join(dir, rel), 'x');
+      files.push(rel);
+    }
+    const sink = new FlakyBatchSink(0);
+    const observer = await startChronicleFileObserver({
+      projectRoot: dir,
+      journal: sink,
+      context: createChronicleContext({
+        installationId: 'i',
+        machineId: 'm',
+        projectId: 'p',
+        sessionId: 's',
+      }),
+      debounceMs: 40,
+    });
+    try {
+      for (let i = 1; i <= noteCount; i++) {
+        observer.noteToolMutation({ path: files[i - 1]!, toolUseId: `u${i}`, toolName: 'edit' });
+      }
+      // Re-note the OLDEST path — now the freshest hint in the map.
+      observer.noteToolMutation({ path: files[0]!, toolUseId: 'refresh', toolName: 'edit' });
+      if (noteCount === CAP - 1) {
+        observer.noteToolMutation({ path: files[CAP - 1]!, toolUseId: 'extra', toolName: 'edit' });
+      }
+      await writeFile(path.join(dir, files[0]!), 'y'.repeat(50));
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        const hit = sink.recorded.find(
+          (event) => event.resource?.path === files[0] && event.eventType.startsWith('file.'),
+        );
+        if (hit) return hit.eventType;
+        if (Date.now() > deadline) return undefined;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    } finally {
+      await observer.close().catch(() => {});
+    }
+  }
+
+  it('keeps the freshly re-noted hint when the map exceeds its cap', async () => {
+    expect(await observedAttribution(CAP - 1)).toMatch(/^file\.tool\./);
+  }, 15000);
+
+  it('attributes tool changes below the cap (control)', async () => {
+    expect(await observedAttribution(300)).toMatch(/^file\.tool\./);
+  }, 15000);
+});

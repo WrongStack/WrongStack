@@ -568,6 +568,8 @@ export class ChronicleRemoteJournal implements ChronicleEventSink {
   private readonly batchWindowMs: number;
   private pending: QueuedAppend[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private microtaskScheduled = false;
+  private disposed = false;
   private readonly inflight = new Set<Promise<void>>();
   private readonly counters = {
     acceptedEvents: 0,
@@ -594,6 +596,10 @@ export class ChronicleRemoteJournal implements ChronicleEventSink {
   }
 
   append(input: ChronicleEventInput): Promise<ChronicleEvent> {
+    if (this.disposed) {
+      this.counters.rejectedEvents++;
+      return Promise.reject(new Error('Chronicle remote journal is disposed'));
+    }
     if (this.pending.length >= this.maxPending) {
       this.counters.rejectedEvents++;
       return Promise.reject(
@@ -636,14 +642,22 @@ export class ChronicleRemoteJournal implements ChronicleEventSink {
   }
 
   async dispose(): Promise<void> {
-    await this.flush();
-    await this.client.close();
+    this.disposed = true;
+    try {
+      await this.flush();
+    } finally {
+      await this.client.close();
+    }
   }
 
   private schedule(): void {
-    if (this.timer) return;
+    if (this.timer || this.microtaskScheduled) return;
     if (this.batchWindowMs === 0) {
-      queueMicrotask(() => this.startBatch());
+      this.microtaskScheduled = true;
+      queueMicrotask(() => {
+        this.microtaskScheduled = false;
+        this.startBatch();
+      });
       return;
     }
     this.timer = setTimeout(() => {

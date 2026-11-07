@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-07T16:58:42.750Z
+**Generated:** 2026-11-07T17:00:58.187Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6068 |
-| Production source lines | 1256175 |
+| Production source lines | 1256243 |
 | Test files | 5056 |
 | Workspace dependency edges | 244 |
 | Relative module edges | 17933 |
@@ -122,6 +122,7 @@ None.
 | 726 | `packages/coordination/src/multi-agent-coordinator.ts` |
 | 724 | `packages/coordination/src/agent-monitor.ts` |
 | 720 | `packages/tools/src/read.ts` |
+| 719 | `packages/chronicle/src/project-server-client.ts` |
 | 718 | `packages/project-surfaces/src/sage/useMemoryManagerState.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 712 | `packages/webui-server/src/server/pref-helpers.ts` |
@@ -133,7 +134,6 @@ None.
 | 707 | `packages/acp/src/client/acp-session.ts` |
 | 707 | `packages/mailbox-mcp/src/adapter.ts` |
 | 706 | `packages/chronicle/src/project-server.ts` |
-| 705 | `packages/chronicle/src/project-server-client.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |

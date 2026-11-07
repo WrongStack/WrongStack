@@ -7,7 +7,7 @@
       "relativeImports": 23
     },
     "packages/chronicle/src/project-server-client.ts": {
-      "lines": 705,
+      "lines": 719,
       "relativeImports": 5
     },
     "packages/chronicle/src/project-server.ts": {

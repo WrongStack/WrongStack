@@ -224,4 +224,77 @@ describe('chronicle counter sink', () => {
     expect(inner.written[0]?.eventType).toBe('permission.evaluated');
     await sink.dispose();
   });
+
+  it('awaits in-flight emit batches during drain, flush, and dispose (F59)', async () => {
+    const order: string[] = [];
+    const base = recordingSink();
+    let releaseBatch!: () => void;
+    const batchGate = new Promise<void>((resolve) => {
+      releaseBatch = resolve;
+    });
+    const sink = createChronicleCounterSink({
+      level: 'balanced',
+      windowMs: 60_000,
+      inner: {
+        ...base,
+        appendBatch: async (inputs) => {
+          order.push('batch:start');
+          await batchGate;
+          order.push('batch:done');
+          return base.appendBatch!(inputs);
+        },
+        flush: async () => {
+          order.push('inner:flush');
+        },
+      },
+    });
+
+    await sink.append(event());
+    const concurrentDrain = sink.drain();
+    const flushPromise = sink.flush();
+    releaseBatch();
+    await flushPromise;
+    await concurrentDrain;
+    await sink.dispose();
+
+    expect(order).toEqual(['batch:start', 'batch:done', 'inner:flush']);
+  });
+
+  it('closes ChronicleRemoteJournal client when flush fails during dispose and rejects post-dispose appends (F60)', async () => {
+    const { ChronicleRemoteJournal } = await import('../src/project-server-client.js');
+
+    let closed = false;
+    const journal = new ChronicleRemoteJournal(
+      {
+        projectRoot: '/proj',
+        globalRoot: '/global',
+        projectId: 'proj-1',
+        projectDir: '/proj/.wrongstack',
+        workspaceId: 'ws-1',
+        batchWindowMs: 0,
+      },
+      {
+        call: async (op: string, args: { inputs?: unknown[] }) => {
+          if (op === 'append') {
+            return (args.inputs ?? []).map((input, idx) => ({
+              ...(input as object),
+              id: `ev-${idx}`,
+              schemaVersion: '1.0',
+              occurredAt: new Date().toISOString(),
+            }));
+          }
+          throw new Error('flush failed');
+        },
+        close: async () => {
+          closed = true;
+        },
+      } as never,
+    );
+
+    const pendingAppend = journal.append(event());
+    await expect(journal.dispose()).rejects.toThrow('flush failed');
+    await pendingAppend;
+    expect(closed).toBe(true);
+    await expect(journal.append(event())).rejects.toThrow('Chronicle remote journal is disposed');
+  });
 });

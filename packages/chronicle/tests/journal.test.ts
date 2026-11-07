@@ -2,7 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { childChronicleContext, ChronicleJournal, createChronicleContext } from '../src/index.js';
+import { ChronicleJournal, childChronicleContext, createChronicleContext } from '../src/index.js';
+import { readLastEntryState } from '../src/journal-partitions.js';
 
 const tempDirs: string[] = [];
 const T0 = '2026-07-17T20:42:18.381Z';
@@ -358,5 +359,61 @@ describe('ChronicleJournal', () => {
       )
       .toBe(true);
     await expect(readFile(journal.path, 'utf8')).resolves.toBeTruthy();
+  });
+});
+
+describe('readLastEntryState — UTF-8 chunk-boundary alignment (bug 20261106-r2)', () => {
+  // The backward 64 KiB scan decoded each window independently; a window that
+  // opened mid-codepoint turned the split character into U+FFFD, the boundary
+  // line failed JSON.parse, and the scan returned an EARLIER entry — which
+  // refreshStateFromDisk would adopt as the append chain anchor, resuming the
+  // journal from a stale sequence/hash. Regression: filler line + a last line
+  // whose first 'é' straddles the exact 64 KiB window boundary.
+  // These parser-boundary fixtures intentionally contain raw JSON, not a full event.
+  const rawPayload = (entry: unknown): string =>
+    entry && typeof entry === 'object' && 'payload' in entry ? String(entry.payload ?? '') : '';
+  const fillerSize = 4096;
+  const fillerLine = `{"f":"${'a'.repeat(fillerSize - 9)}"}\n`;
+  const header = '{"payload":"x';
+  const tail = '"}\n';
+  const K = (65550 - 16) / 2; // last line: 13 + 2K + 3 = 65550 bytes
+
+  async function writePartition(dir: string, content: string): Promise<string> {
+    const file = path.join(dir, 'events.jsonl');
+    await writeFile(
+      file,
+      Buffer.concat([Buffer.from(fillerLine, 'utf8'), Buffer.from(content, 'utf8')]),
+    );
+    return file;
+  }
+
+  it('decodes a last entry whose code point straddles the window boundary', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-utf8-'));
+    tempDirs.push(dir);
+    const file = await writePartition(dir, header + 'é'.repeat(K) + tail);
+    const state = await readLastEntryState(file);
+    const payload = rawPayload(state.entry);
+    expect(payload.length).toBe(32768); // 'x' + K é — no U+FFFD, no duplication
+    expect(payload[0]).toBe('x');
+    expect(payload.includes('\uFFFD')).toBe(false);
+    expect(state.size).toBe(fillerSize + 65550);
+  });
+
+  it('still finds the true last entry for an ASCII twin (control)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-ascii-'));
+    tempDirs.push(dir);
+    const file = await writePartition(dir, `{"payload":"${'a'.repeat(65550 - 15)}"}\n`);
+    const state = await readLastEntryState(file);
+    expect(rawPayload(state.entry).length).toBe(65535);
+  });
+
+  it('returns no entry for an empty partition', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-chronicle-empty-'));
+    tempDirs.push(dir);
+    const file = path.join(dir, 'events.jsonl');
+    await writeFile(file, '');
+    const state = await readLastEntryState(file);
+    expect(state.entry).toBeUndefined();
+    expect(state.size).toBe(0);
   });
 });
