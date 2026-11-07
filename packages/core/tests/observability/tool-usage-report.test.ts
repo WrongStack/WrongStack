@@ -96,4 +96,25 @@ describe('tool usage evidence report', () => {
       observation: 'not-observed',
     });
   });
+
+  it('unwraps tools invoked through the tool_use lazy gateway (F99)', () => {
+    const gatewayJournal = [
+      {
+        type: 'llm_response',
+        ts,
+        content: [
+          {
+            type: 'tool_use',
+            id: 'gw-1',
+            name: 'tool_use',
+            input: { tool: 'write', input: { file_path: 'b.ts', content: 'x' } },
+          },
+        ],
+      },
+      { type: 'tool_result', id: 'gw-1', ts, isError: false },
+    ] as unknown as ToolUsageEvent[];
+    const report = summarizeToolUsage(catalog, [gatewayJournal]);
+    expect(report.tools.find((tool) => tool.name === 'write')?.invocations).toBe(1);
+    expect(report.unrecognizedCalls).toBe(0);
+  });
 });

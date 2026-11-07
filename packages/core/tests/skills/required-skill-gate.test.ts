@@ -210,6 +210,75 @@ describe('required-skill state against the transcript', () => {
     markRequiredSkillLoaded(ctx, 'bug-hunter', 'u1~1');
     expect(pendingRequiredSkills(ctx)).toEqual([]);
   });
+
+  it('does not treat a gateway call for another skill as satisfying a required skill, rejects parent-traversal in declaredPathMatch, and recognizes gateway file edits in skillSpeedBump (F96)', async () => {
+    const { declaredPathMatch } = await import('../../src/skills/skill-path-rules.js');
+    const { recommendSkills, skillSpeedBump } = await import(
+      '../../src/skills/skill-speed-bump.js'
+    );
+
+    const otherSkillCall: Message = {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool_use',
+          id: 'u1',
+          name: 'tool_use',
+          input: { tool: 'skill', input: { name: 'other-skill' } },
+        },
+      ],
+    };
+    const otherSkillResult: Message = {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'u1', content: 'body' }],
+    };
+    const gateCtx = {
+      meta: {} as Record<string, unknown>,
+      messages: [otherSkillCall, otherSkillResult],
+    };
+    armRequiredSkills(gateCtx, '<!-- wrongstack:required-skills target-skill -->');
+    markRequiredSkillLoaded(gateCtx, 'target-skill', 'u1~2');
+    expect(pendingRequiredSkills(gateCtx)).toEqual(['target-skill']);
+
+    expect(
+      declaredPathMatch({ paths: ['**/*.ts'] }, '../outside/secret.ts', '/proj'),
+    ).toBeUndefined();
+    expect(
+      declaredPathMatch({ paths: ['**/*.ts'] }, '../outside/secret.ts', undefined),
+    ).toBeUndefined();
+    expect(declaredPathMatch({ paths: ['src/**/*.ts'] }, 'src/index.ts', '/proj')).toBe(
+      'src/**/*.ts',
+    );
+
+    const bumpCtx = {
+      meta: {} as Record<string, unknown>,
+      session: { id: 'sess-bump-f96' },
+      messages: [
+        { role: 'user', content: 'edit file' },
+        {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'gw-edit-1',
+              name: 'tool_use',
+              input: { tool: 'edit', input: { file_path: 'a.ts' } },
+            },
+          ],
+        },
+        {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'gw-edit-1', content: 'ok' }],
+        },
+      ] as Message[],
+    };
+    recommendSkills(bumpCtx, 'sess-bump-f96', [
+      { name: 'code-quality', reason: 'late recommendation' },
+    ]);
+    expect(
+      skillSpeedBump(bumpCtx, { id: 'edit-2', name: 'edit', targets: ['a.ts'] }),
+    ).toBeUndefined();
+  });
 });
 
 describe('ToolExecutor — required-skill gate', () => {

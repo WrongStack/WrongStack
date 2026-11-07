@@ -72,7 +72,12 @@ export function resolvePluginConfig(input: ResolvePluginConfigInput): ResolvedPl
     for (const name of names) merge(plugins[name], 'legacy-plugin-map');
   } else if (Array.isArray(plugins)) {
     for (const candidate of plugins) {
-      if (!isPluginEntry(candidate) || !names.includes(candidate.name)) continue;
+      if (
+        !isPluginEntry(candidate) ||
+        !pluginEntryMatchesName(candidate.name, input.name, input.aliases ?? [])
+      ) {
+        continue;
+      }
       merge(candidate.options, 'plugin-entry');
     }
   }

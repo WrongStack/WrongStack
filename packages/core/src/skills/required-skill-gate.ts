@@ -188,9 +188,9 @@ function deliveryInContext(
     for (const block of message.content) {
       if (block.type !== 'tool_use') continue;
       const skillName = loadedSkillName(block);
-      if (!skillName) continue;
+      if (skillName !== name) continue;
       if (toolUseId && matchesDeliveryId(block.id, toolUseId)) byId = block;
-      if (skillName === name) byName = block;
+      byName = block;
     }
   }
   const delivery = byId ?? byName;

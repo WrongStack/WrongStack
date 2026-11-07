@@ -19,6 +19,17 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function resolvedToolName(rawName: unknown, rawInput: unknown): string | undefined {
+  if (typeof rawName !== 'string') return undefined;
+  if (rawName === 'tool_use') {
+    const nested = record(rawInput)?.['tool'];
+    if (typeof nested === 'string' && nested.trim().length > 0) {
+      return nested.trim();
+    }
+  }
+  return rawName;
+}
+
 /** Core audit journals reconstruct calls from messages rather than separate tool_use events. */
 export function projectToolUsageEvents(value: unknown): ToolUsageEvent[] {
   const event = record(value);
@@ -30,7 +41,7 @@ export function projectToolUsageEvents(value: unknown): ToolUsageEvent[] {
         type: event['type'],
         ts,
         id: typeof event['id'] === 'string' ? event['id'] : undefined,
-        name: typeof event['name'] === 'string' ? event['name'] : undefined,
+        name: resolvedToolName(event['name'], event['input']),
         isError: event['isError'] === true,
         inferred: event['inferred'] === true,
       },
@@ -52,7 +63,15 @@ export function projectToolUsageEvents(value: unknown): ToolUsageEvent[] {
       typeof block['id'] === 'string' &&
       typeof block['name'] === 'string'
     ) {
-      return [{ type: 'tool_use', ts, id: block['id'], name: block['name'], inferred: true }];
+      return [
+        {
+          type: 'tool_use',
+          ts,
+          id: block['id'],
+          name: resolvedToolName(block['name'], block['input']),
+          inferred: true,
+        },
+      ];
     }
     if (
       message['role'] === 'user' &&

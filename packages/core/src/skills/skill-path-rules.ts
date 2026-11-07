@@ -63,8 +63,17 @@ function projectPath(
   cwd: string | undefined,
 ): string | undefined {
   if (!isAbsolute(file)) {
-    if (!root || !cwd) return file.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '');
-    file = resolve(cwd, file);
+    if (!root) {
+      const norm = file.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '');
+      return !norm ||
+        norm === '..' ||
+        norm.startsWith('../') ||
+        norm.includes('/../') ||
+        norm.endsWith('/..')
+        ? undefined
+        : norm;
+    }
+    file = resolve(cwd ?? root, file);
   }
   if (!root) return undefined;
   const rel = relative(root, file).replace(/\\/g, '/');

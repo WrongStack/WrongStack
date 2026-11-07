@@ -390,8 +390,17 @@ function fileChangeLandedThisTurn(messages: readonly Message[] | undefined): boo
   for (const message of messages.slice(start)) {
     if (typeof message.content === 'string') continue;
     for (const block of message.content) {
-      if (block.type === 'tool_use' && SKILL_BUMP_TOOLS.has(block.name.toLowerCase())) {
-        changeIds.add(block.id);
+      if (block.type === 'tool_use') {
+        const directMatch = SKILL_BUMP_TOOLS.has(block.name.toLowerCase());
+        const nestedTool =
+          block.name === 'tool_use'
+            ? (block.input as { tool?: unknown } | undefined)?.tool
+            : undefined;
+        const gatewayMatch =
+          typeof nestedTool === 'string' && SKILL_BUMP_TOOLS.has(nestedTool.toLowerCase());
+        if (directMatch || gatewayMatch) {
+          changeIds.add(block.id);
+        }
       } else if (
         block.type === 'tool_result' &&
         !block.is_error &&

@@ -60,5 +60,8 @@ export function isRestrictedBy(
       return true;
   }
   if (!r.only) return false;
-  return !r.only.some((pattern) => matchToolPattern(pattern, name));
+  const candidates = [name, ...(entry?.tool.aliases ?? [])];
+  return !r.only.some((pattern) =>
+    candidates.some((candidate) => matchToolPattern(pattern, candidate)),
+  );
 }

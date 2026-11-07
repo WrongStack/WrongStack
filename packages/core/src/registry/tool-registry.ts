@@ -282,11 +282,12 @@ export class ToolRegistry extends ToolRegistryStorage {
     for (const [name, rawMode] of Object.entries(modes)) {
       const mode = normalizeToolDescriptionMode(rawMode);
       if (!mode) continue;
-      if (this.tools.has(name)) {
-        if (this.setDescriptionMode(name, mode)) applied++;
+      const resolved = this.resolveName(name);
+      if (this.tools.has(resolved)) {
+        if (this.setDescriptionMode(resolved, mode)) applied++;
       } else {
-        if (mode === 'simple') this.descriptionModes.set(name, mode);
-        else this.descriptionModes.delete(name);
+        if (mode === 'simple') this.descriptionModes.set(resolved, mode);
+        else this.descriptionModes.delete(resolved);
         missing.push(name);
       }
     }

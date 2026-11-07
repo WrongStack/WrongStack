@@ -1132,7 +1132,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "preferred Runtime pilot",
       "sourceFiles": 15,
-      "sourceLines": 2387
+      "sourceLines": 2406
     },
     {
       "directory": "performance",
@@ -1146,7 +1146,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 10,
-      "sourceLines": 2707
+      "sourceLines": 2712
     },
     {
       "directory": "prompts",
@@ -1167,7 +1167,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 11,
-      "sourceLines": 1926
+      "sourceLines": 1930
     },
     {
       "directory": "replay",
@@ -1202,7 +1202,7 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 27,
-      "sourceLines": 5662
+      "sourceLines": 5680
     },
     {
       "directory": "statusline",

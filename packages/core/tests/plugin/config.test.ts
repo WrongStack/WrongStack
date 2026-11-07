@@ -243,4 +243,22 @@ describe('resolvePluginConfig prototype-key filtering', () => {
     expect(Object.hasOwn(resolved.options, 'prototype')).toBe(false);
     expect(resolved.options['keep']).toBe(1);
   });
+
+  it('matches @wrongstack/plugins/<name> entries in config.plugins array when resolving options (F98)', () => {
+    const resolved = resolvePluginConfig({
+      name: 'lsp',
+      defaults: { serverPort: 3000 },
+      config: {
+        plugins: [
+          {
+            name: '@wrongstack/plugins/lsp',
+            enabled: true,
+            options: { serverPort: 9001 },
+          },
+        ],
+      },
+    });
+    expect(resolved.configured).toBe(true);
+    expect(resolved.options.serverPort).toBe(9001);
+  });
 });

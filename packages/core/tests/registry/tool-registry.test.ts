@@ -445,6 +445,19 @@ describe('ToolRegistry registration + mode branches', () => {
     }); // 228 else-delete
   });
 
+  it('resolves tool aliases in applyDescriptionModes and setSessionRestriction only-lists (F98)', () => {
+    const r = new ToolRegistry();
+    r.register({ ...t('edit'), aliases: ['str_replace'] });
+    expect(r.applyDescriptionModes({ str_replace: 'simple' })).toEqual({
+      applied: 1,
+      missing: [],
+    });
+    expect(r.getDescriptionMode('edit')).toBe('simple');
+    r.setSessionRestriction({ only: ['str_replace'] });
+    expect(r.isRestricted('edit')).toBe(false);
+    expect(r.isRestricted('str_replace')).toBe(false);
+  });
+
   it('list() returns a cached snapshot when unchanged', () => {
     const r = new ToolRegistry();
     r.register(t('a'));
