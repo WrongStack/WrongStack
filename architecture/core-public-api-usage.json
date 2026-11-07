@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 191,
+      "files": 192,
       "typeOnly": 55,
-      "runtimeOrMixed": 169
+      "runtimeOrMixed": 170
     },
     "@wrongstack/core/tasking": {
       "files": 45,
@@ -10178,6 +10178,12 @@
       "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/goal-usage-pricer.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",

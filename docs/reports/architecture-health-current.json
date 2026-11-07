@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T16:14:28.761Z",
+  "generatedAt": "2026-11-07T16:15:50.464Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6051,
-    "testFiles": 5052,
-    "sourceLines": 1253809,
+    "sourceFiles": 6053,
+    "testFiles": 5056,
+    "sourceLines": 1253965,
     "workspaceEdges": 243,
-    "moduleEdges": 17901,
+    "moduleEdges": 17907,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1037
+    "testOnlyExports": 1038
   },
   "errors": [],
   "packageCycles": [],
@@ -336,7 +336,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 190,
-      "testFiles": 184,
+      "testFiles": 186,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,7 +354,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 184
+          "testFiles": 186
         }
       ]
     },
@@ -408,8 +408,8 @@
     {
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
-      "sourceFiles": 59,
-      "testFiles": 2,
+      "sourceFiles": 60,
+      "testFiles": 3,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 2
+          "testFiles": 3
         }
       ]
     },
@@ -1167,8 +1167,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 333,
-      "testFiles": 370,
+      "sourceFiles": 334,
+      "testFiles": 371,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1203,7 +1203,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 370
+          "testFiles": 371
         }
       ]
     },
@@ -8797,6 +8797,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/delegate-price-certainty.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/delegate-timeout-e2e.test.ts",
         "projects": [
           "root-node"
@@ -8966,6 +8972,12 @@
       },
       {
         "file": "packages/coordination/tests/director-toolset-audit-regressions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/director-worker-pricing.test.ts",
         "projects": [
           "root-node"
         ]
@@ -13832,6 +13844,12 @@
       },
       {
         "file": "packages/fleet/tests/host-acp-runner-gateway.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/host-model-pricing.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26845,6 +26863,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/goal-usage-pricer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/goal-verify-typecheck-hardening.test.ts",
         "projects": [
           "root-node"
@@ -38545,6 +38569,10 @@
     {
       "file": "packages/webui-server/src/server/git-hunks.ts",
       "name": "partialHunk"
+    },
+    {
+      "file": "packages/webui-server/src/server/goal-usage-pricer.ts",
+      "name": "createGoalUsagePricer"
     },
     {
       "file": "packages/webui-server/src/server/governance-runtime.ts",

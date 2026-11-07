@@ -2,6 +2,7 @@ import type { SubagentConfig } from '@wrongstack/contracts/types/multi-agent';
 import { setSandboxAgentOverride } from '@wrongstack/core/sandbox';
 import { lockSessionSubagentPolicyForSession } from '@wrongstack/core/security';
 import { FleetSpawnBudgetError } from './director/director-errors.js';
+import type { DirectorOptions } from './director-options.js';
 import { isExternalAgentSpawn, isHumanPinnedSpawn } from './director-spawn-model.js';
 import { type DirectorFleetHost, spawn as fleetSpawn } from './fleet-spawn.js';
 import { claimSubagentSlot, type SubagentSlotClaim } from './session-subagent-models.js';
@@ -12,6 +13,7 @@ interface DirectorSpawnAdmissionHost {
   readonly spawnCount: number;
   hasExplicitMatrixRoute(role: string | undefined): boolean;
   resolveSpawnModel(config: SubagentConfig, slot?: SubagentSlotClaim): void;
+  readonly resolveModelPrice?: DirectorOptions['resolveModelPrice'];
   readonly subagentIdleTimeoutMs: number | undefined;
   readonly subagentIdleDelayMs: Map<string, number | undefined>;
   armSubagentIdleRetirement(id: string, delay: number | undefined): void;
@@ -66,7 +68,14 @@ export async function admitDirectorSpawn(
   host.resolveSpawnModel(config, slotClaim);
   let subagentId: string;
   try {
-    subagentId = await fleetSpawn(fleetHost, config, priceLookup);
+    // Resolve after lanes/matrix/tier routing; the leader's model may have a
+    // different price. Keep an explicit embedder rate authoritative.
+    const resolvedPrice =
+      priceLookup ??
+      (config.provider && config.model && !isExternalAgentSpawn(config)
+        ? await host.resolveModelPrice?.(config.provider, config.model)
+        : undefined);
+    subagentId = await fleetSpawn(fleetHost, config, resolvedPrice);
   } catch (err) {
     slotClaim?.abandon();
     throw err;

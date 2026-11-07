@@ -144,6 +144,7 @@ export abstract class DirectorCore implements DirectorFleetHost {
    */
   protected readonly sessionProvider: string | (() => string | undefined) | undefined;
   protected readonly sessionModel: string | (() => string | undefined) | undefined;
+  protected readonly resolveModelPrice: DirectorOptions['resolveModelPrice'];
   protected readonly sessionTerminateListeners = new Set<(sessionId: string) => void>();
 
   constructor(opts: DirectorOptions) {
@@ -196,6 +197,7 @@ export abstract class DirectorCore implements DirectorFleetHost {
     this.logger = opts.logger;
     this.sessionProvider = opts.sessionProvider;
     this.sessionModel = opts.sessionModel;
+    this.resolveModelPrice = opts.resolveModelPrice;
     if (this.sharedScratchpadPath) {
       void fsp
         .mkdir(this.sharedScratchpadPath, { recursive: true })

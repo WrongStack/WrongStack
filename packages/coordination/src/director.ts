@@ -198,6 +198,7 @@ export class Director extends DirectorCore implements DirectorFleetHost, ICoordi
         },
         hasExplicitMatrixRoute: (role) => this.hasExplicitMatrixRoute(role),
         resolveSpawnModel: (config, slot) => this.resolveSpawnModel(config, slot),
+        resolveModelPrice: this.resolveModelPrice,
         subagentIdleTimeoutMs: this.subagentIdleTimeoutMs,
         subagentIdleDelayMs: this.subagentIdleDelayMs,
         armSubagentIdleRetirement: (id, delay) => this.armSubagentIdleRetirement(id, delay),

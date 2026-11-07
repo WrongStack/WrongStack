@@ -42,6 +42,7 @@ import {
 import { makeFleetWorktreeConflictResolver } from './host-helpers.js';
 import type { HostLearningScheduler } from './host-learning-scheduler.js';
 import { HostMemoryCompanion } from './host-memory-companion.js';
+import { resolveHostModelPrice } from './host-model-pricing.js';
 import type { HostShadowManager } from './host-shadow-manager.js';
 import { HostSkillCompanion } from './host-skill-companion.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
@@ -129,6 +130,7 @@ export async function buildDirector(host: HostDirectorSetupHost): Promise<void> 
     // Live getter, like modelMatrix: tier edits from `/tier`, the TUI menu or
     // the WebUI editor take effect on the next spawn without a restart.
     appConfig: () => host.deps.configStore.get(),
+    resolveModelPrice: (provider, model) => resolveHostModelPrice(host.deps, provider, model),
     worktrees,
     worktreePolicy,
     worktreeConflictResolver: makeFleetWorktreeConflictResolver(),

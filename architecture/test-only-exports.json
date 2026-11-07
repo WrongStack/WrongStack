@@ -1955,6 +1955,9 @@
     "packages/webui-server/src/server/git-hunks.ts": [
       "partialHunk"
     ],
+    "packages/webui-server/src/server/goal-usage-pricer.ts": [
+      "createGoalUsagePricer"
+    ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],

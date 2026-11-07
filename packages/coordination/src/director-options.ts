@@ -117,6 +117,21 @@ export interface DirectorOptions {
    * spawn without a restart, exactly like `modelMatrix`.
    */
   appConfig?: Config | (() => Config | undefined) | undefined;
+  /** Catalog rates for the final routed worker model, in USD per million tokens. */
+  resolveModelPrice?:
+    | ((
+        provider: string,
+        model: string,
+      ) => Promise<
+        | {
+            input?: number | undefined;
+            output?: number | undefined;
+            cacheRead?: number | undefined;
+            cacheWrite?: number | undefined;
+          }
+        | undefined
+      >)
+    | undefined;
   /** Per-task model matrix. */
   modelMatrix?: ModelMatrixSource | undefined;
   /** Optional git-worktree manager for Director fleet isolation. */

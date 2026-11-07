@@ -203,6 +203,8 @@ export interface SubagentUsageSnapshot {
   cacheRead: number;
   cacheWrite: number;
   cost: number;
+  /** False after any consumed token bucket lacked a valid rate or reported cost. */
+  costKnown?: boolean | undefined;
   toolCalls: number;
   iterations: number;
   startedAt: number;
@@ -349,6 +351,20 @@ export class FleetUsageAggregator {
       typeof reported === 'number'
         ? undefined
         : this.priceLookup?.(e.subagentId, snap.provider, snap.model);
+    const reportedKnown =
+      typeof reported === 'number' && Number.isFinite(reported) && reported >= 0;
+    const priced = (tokens: number, rate: number | undefined) =>
+      tokens === 0 || (typeof rate === 'number' && Number.isFinite(rate) && rate >= 0);
+    if (
+      !reportedKnown &&
+      !(
+        priced(input, price?.input) &&
+        priced(output, price?.output) &&
+        priced(cacheRead, price?.cacheRead) &&
+        priced(cacheWrite, price?.cacheWrite)
+      )
+    )
+      snap.costKnown = false;
     if (typeof reported === 'number' && Number.isFinite(reported) && reported > 0) {
       snap.cost += reported;
       this.total.cost += reported;

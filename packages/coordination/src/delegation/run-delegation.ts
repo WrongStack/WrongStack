@@ -361,7 +361,8 @@ export async function settleDelegation(
         : buildDelegateSummary(i.role, result);
       let costUsd: number | undefined;
       try {
-        costUsd = dir.snapshot().perSubagent[result.subagentId]?.cost;
+        const usage = dir.snapshot().perSubagent[result.subagentId];
+        costUsd = usage?.costKnown === false ? undefined : usage?.cost;
       } catch {
         costUsd = undefined;
       }
