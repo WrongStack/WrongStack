@@ -28,7 +28,17 @@ import {
 import type { CatalogModel, SavedProvider, Step, TestResult } from './provider-test-model.js';
 import { compactNumber, diagnosisLabel, matchesModelRef } from './provider-test-model.js';
 
-export function ProviderTestView(): React.ReactElement {
+/**
+ * `heading` lets a host title the page as its navigation does; `providerNames` (id → name) lets
+ * it show account names instead of provider ids.
+ */
+export function ProviderTestView({
+  heading,
+  providerNames,
+}: {
+  heading?: string | undefined;
+  providerNames?: Readonly<Record<string, string>> | undefined;
+} = {}): React.ReactElement {
   const { t } = useAppTranslation();
   const host = useProviderHost();
   const client = host.useClient();
@@ -241,7 +251,7 @@ export function ProviderTestView(): React.ReactElement {
           <FlaskConical className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="">{t('activity:providerTest.title')}</h1>
+          <h1 className="">{heading ?? t('activity:providerTest.title')}</h1>
           <p className="truncate text-xs text-muted-foreground">
             {t('activity:providerTest.tagline')}
           </p>
@@ -277,6 +287,7 @@ export function ProviderTestView(): React.ReactElement {
           {step === 'provider' && (
             <ProviderTestProviderStep
               providers={providers}
+              providerNames={providerNames}
               providerId={providerId}
               setProviderId={setProviderId}
               openModels={openModels}

@@ -42,11 +42,13 @@ export function ProviderTestSteps({ step }: { step: Step }) {
 /** Step 1: pick the saved provider account to test. */
 export function ProviderTestProviderStep({
   providers,
+  providerNames,
   providerId,
   setProviderId,
   openModels,
 }: {
   providers: SavedProvider[];
+  providerNames?: Readonly<Record<string, string>> | undefined;
   providerId: string;
   setProviderId: (id: string) => void;
   openModels: () => void;
@@ -81,7 +83,7 @@ export function ProviderTestProviderStep({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-medium">{provider.id}</div>
+                    <div className="font-medium">{providerNames?.[provider.id] ?? provider.id}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {provider.type && provider.type !== provider.id
                         ? `${provider.type} · ${provider.family ?? 'auto'}`

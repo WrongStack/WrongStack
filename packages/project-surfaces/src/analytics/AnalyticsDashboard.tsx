@@ -113,7 +113,8 @@ function fmtTokens(n: number): string {
 }
 
 function fmtCost(n: number): string {
-  if (n < 0.01) return `$${displayDecimal(n, 4)}`;
+  // Nothing spent reads as "$0.00"; four decimals only for a real sub-cent cost.
+  if (n > 0 && n < 0.01) return `$${displayDecimal(n, 4)}`;
   if (n < 1) return `$${displayDecimal(n, 2)}`;
   return `$${displayDecimal(n, 2)}`;
 }
@@ -163,7 +164,18 @@ function StatCard({
 
 // ── Main component ─────────────────────────────────────────────────────
 
-export function AnalyticsDashboard() {
+/**
+ * `heading` lets a host title the page as its navigation does. `uiEvents: false` says the host
+ * records no interface events (the desktop), so the empty event list does not ask the user to
+ * interact with the UI to fill it.
+ */
+export function AnalyticsDashboard({
+  heading,
+  uiEvents = true,
+}: {
+  heading?: string | undefined;
+  uiEvents?: boolean | undefined;
+} = {}) {
   const { t } = useAppTranslation();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [events, setEvents] = useState<AnalyticsEvent[]>([]);
@@ -349,7 +361,7 @@ export function AnalyticsDashboard() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
-              <h1 className="truncate">{t('activity:analytics.heading')}</h1>
+              <h1 className="truncate">{heading ?? t('activity:analytics.heading')}</h1>
             </div>
             <span className="text-xs text-muted-foreground">
               {t('activity:analytics.autoRefresh')}
@@ -627,7 +639,9 @@ export function AnalyticsDashboard() {
             </h2>
             {events.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                {t('activity:analytics.noRecentEvents')}
+                {uiEvents
+                  ? t('activity:analytics.noRecentEvents')
+                  : t('activity:analytics.noEvents')}
               </p>
             ) : (
               <div className="max-h-64 space-y-1 overflow-y-auto">

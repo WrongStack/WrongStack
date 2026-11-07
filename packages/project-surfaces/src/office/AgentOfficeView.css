@@ -5,7 +5,9 @@
   --office-panel: hsl(var(--card) / 0.94);
   position: relative;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* header, floor, footer: the floor takes the height (a fourth track used to hand the spare
+     height to the footer, leaving the floor short and the status line floating mid-page). */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   overflow: hidden;

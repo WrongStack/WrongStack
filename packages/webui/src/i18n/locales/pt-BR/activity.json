@@ -765,7 +765,7 @@
     "filesProcessed": "Arquivos processados",
     "afterHash": "Após filtro de hash",
     "broadcastsSent": "Transmissões enviadas",
-    "toClients": "Aos clientes WebUI",
+    "toClients": "Aos clientes conectados",
     "debounceResets": "Reinícios de debounce",
     "rapidWrites": "Escritas rápidas sucessivas",
     "avgDebounce": "Atraso médio de debounce",
@@ -3711,7 +3711,7 @@
     "retDigest": "Resumos de compactação"
   },
   "debugDash": {
-    "webuiServerProcess": "Processo do servidor WebUI",
+    "webuiServerProcess": "Processo do servidor do motor",
     "liveWrongstackProcesses": "Processos ativos do WrongStack",
     "surface": "Superfície",
     "memory": "Memória",

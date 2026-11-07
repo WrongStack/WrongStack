@@ -765,7 +765,7 @@
     "filesProcessed": "İşlenen Dosyalar",
     "afterHash": "Hash süzgecinden sonra",
     "broadcastsSent": "Gönderilen Yayınlar",
-    "toClients": "WebUI istemcilerine",
+    "toClients": "Bağlı istemcilere",
     "debounceResets": "Debounce Sıfırlamaları",
     "rapidWrites": "Ardışık hızlı yazmalar",
     "avgDebounce": "Ort. Debounce Gecikmesi",
@@ -3773,7 +3773,7 @@
     "retDigest": "Compaction özetleri"
   },
   "debugDash": {
-    "webuiServerProcess": "WebUI Sunucu Süreci",
+    "webuiServerProcess": "Motor sunucu süreci",
     "liveWrongstackProcesses": "Canlı WrongStack Süreçleri",
     "surface": "Yüzey",
     "memory": "Bellek",

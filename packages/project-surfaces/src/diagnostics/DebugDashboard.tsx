@@ -17,8 +17,19 @@ import { PageMotif } from '../ui/PageMotif';
 import type { DebugData, FileWatcherMetrics, SystemMetrics } from './DebugDashboardParts.js';
 import { formatByteRate, formatBytes, formatUptime, MetricCard } from './DebugDashboardParts.js';
 
-/** `after` is a host's own section, shown under the engine's diagnostics. */
-export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
+/**
+ * `after` is a host's own section, shown under the engine's diagnostics. `heading` and
+ * `subtitle` let a host name the page as its navigation does (the desktop's "Engine diagnostics").
+ */
+export function DebugDashboard({
+  after,
+  heading,
+  subtitle,
+}: {
+  after?: ReactNode | undefined;
+  heading?: string | undefined;
+  subtitle?: string | undefined;
+} = {}) {
   const { t } = useAppTranslation();
   const scrollRef = useSurfaceHost().useScrollRestore<HTMLDivElement>('debug');
   const [data, setData] = useState<DebugData>({
@@ -110,9 +121,11 @@ export function DebugDashboard({ after }: { after?: ReactNode } = {}) {
             <div className="min-w-0">
               <h1 className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                {t('activity:debug.heading')}
+                {heading ?? t('activity:debug.heading')}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">{t('activity:debug.subtitle')}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {subtitle ?? t('activity:debug.subtitle')}
+              </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label className="flex min-w-0 items-center gap-2 text-sm">

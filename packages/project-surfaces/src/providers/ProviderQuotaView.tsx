@@ -94,7 +94,8 @@ function Section({
   );
 }
 
-export function ProviderQuotaView() {
+/** `heading` lets a host title the page as its navigation does. */
+export function ProviderQuotaView({ heading }: { heading?: string | undefined } = {}) {
   const { t } = useAppTranslation();
   const { cards, now, refreshing, refresh, wsConnected } = useQuotaFeed();
   const host = useProviderHost();
@@ -121,7 +122,7 @@ export function ProviderQuotaView() {
           <Gauge className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="">{t('activity:quotaPage.title')}</h1>
+          <h1 className="">{heading ?? t('activity:quotaPage.title')}</h1>
           <p className="truncate text-xs text-muted-foreground">
             {t('activity:quotaPage.subtitle')}
           </p>
