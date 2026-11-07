@@ -535,12 +535,18 @@ export function eliseOldToolResults(
       if (b.type !== 'tool_result' || isElidedResultContent(b.content)) continue;
       const tokens = tokensFor(b);
       if (tokens < opts.eliseThreshold) continue;
-      saved += tokens;
+      const receipt = summarizeToolResultElision(b, tokens);
+      const receiptTokens = estimateToolResultTokens(receipt);
+      // Never rewrite a result into something larger than it was. `saved` is
+      // the delta consumers report as "tokens saved"; a net-growing elision is
+      // prompt bloat, and the old `saved += tokens` accounting hid it.
+      if (receiptTokens >= tokens) continue;
+      saved += tokens - receiptTokens;
       const elided: ToolResultBlock = {
         type: 'tool_result',
         tool_use_id: b.tool_use_id,
         ...(b.name !== undefined && { name: b.name }),
-        content: summarizeToolResultElision(b, tokens),
+        content: receipt,
         is_error: b.is_error,
       };
       newContent ??= original.slice();

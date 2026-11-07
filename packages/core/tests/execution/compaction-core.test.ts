@@ -8,6 +8,7 @@ import {
   eliseAcknowledgedToolResults,
   eliseOldToolResults,
   enforceHardBudget,
+  estimateMessages,
   extractText,
   findExchangeStart,
   findPreserveStart,
@@ -182,6 +183,31 @@ describe('eliseOldToolResults', () => {
     const blocks = Array.isArray(elided?.content) ? elided.content : [];
     expect(blocks.find((b) => b.type === 'text')).toBeDefined(); // text block preserved (passthrough)
     expect(JSON.stringify(blocks)).toContain('elided');
+  });
+
+  it('reports saved tokens net of the receipt it writes back', () => {
+    // F2: a tool_result elision used to report the whole pre-elision size as
+    // saved, even though the semantic receipt still occupies tokens. The
+    // WebUI/TUI render this number as "tokens saved".
+    const messages: Message[] = [
+      big(8000),
+      text('user', 'recent 1'),
+      text('assistant', 'recent 2'),
+    ];
+    const before = estimateMessages(messages);
+    const res = eliseOldToolResults(messages, { preserveK: 1, eliseThreshold: 100 });
+    expect(res.changed).toBe(true);
+    expect(res.saved).toBe(before - estimateMessages(res.messages));
+  });
+
+  it('does not rewrite a result into a larger receipt', () => {
+    // Below the receipt's break-even size the old accounting still replaced
+    // the content and claimed the whole size as saved, growing the prompt.
+    const messages: Message[] = [big(500), text('user', 'recent 1'), text('assistant', 'recent 2')];
+    const res = eliseOldToolResults(messages, { preserveK: 1, eliseThreshold: 10 });
+    expect(res.changed).toBe(false);
+    expect(res.saved).toBe(0);
+    expect(res.messages).toBe(messages);
   });
 
   it('keeps semantic hints in elided tool result markers', () => {

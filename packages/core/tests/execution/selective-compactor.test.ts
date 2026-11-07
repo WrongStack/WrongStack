@@ -156,7 +156,7 @@ describe('SelectiveCompactor', () => {
       const toolResultBlock: ContentBlock = {
         type: 'tool_result',
         tool_use_id: 'tool_1',
-        content: 'x'.repeat(500),
+        content: 'x'.repeat(8000),
       };
       // With preserveK=1, the last assistant turn is preserved.
       // Tool result at index 1 is OLD, so should be elided.
@@ -377,7 +377,7 @@ describe('SelectiveCompactor', () => {
       const largeToolResult: ContentBlock = {
         type: 'tool_result',
         tool_use_id: 'tool_1',
-        content: 'x'.repeat(500),
+        content: 'x'.repeat(8000),
       };
       // preserveK=1: only last (user+assistant) pair at indices 2-3 preserved
       // Indices 0-1 (old messages) are eligible for elision
