@@ -11,7 +11,7 @@ function visit(node, fn) {
   fn(node);
   ts.forEachChild(node, (child) => visit(child, fn));
 }
-function namedDeclaration(file, name) {
+function findNamedDeclaration(file, name) {
   let result;
   visit(file, (node) => {
     if (
@@ -20,8 +20,86 @@ function namedDeclaration(file, name) {
     )
       result = node;
   });
+  return result;
+}
+function namedDeclaration(file, name) {
+  const result = findNamedDeclaration(file, name);
   if (!result) throw new Error(`Missing source declaration ${name}`);
   return result;
+}
+
+// CLI compatibility modules can re-export a builder through a workspace barrel.
+// Follow the named source export rather than reading a stale dist declaration.
+function sourceModule(file, specifier) {
+  if (specifier.startsWith('.')) return resolve(dirname(file), specifier).replace(/\.js$/, '.ts');
+  const match = /^@wrongstack\/([^/]+)(\/.*)?$/.exec(specifier);
+  if (!match) throw new Error(`Unsupported source export ${specifier}`);
+  const packageRoot = join(root, 'packages', match[1]);
+  const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
+  const entry = manifest.exports[match[2] ? `.${match[2]}` : '.'];
+  const output = typeof entry === 'string' ? entry : entry?.import;
+  if (manifest.name !== `@wrongstack/${match[1]}` || !output?.startsWith('./dist/'))
+    throw new Error(`Review workspace source export ${specifier}`);
+  return resolve(packageRoot, output.replace('./dist/', './src/')).replace(/\.js$/, '.ts');
+}
+function sourceDeclaration(file, name, seen = new Set()) {
+  const key = `${file}:${name}`;
+  if (seen.has(key)) throw new Error(`Circular source export ${key}`);
+  seen.add(key);
+  const parsed = ts.createSourceFile(
+    file,
+    readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const local = findNamedDeclaration(parsed, name);
+  if (local) {
+    if (sourceCommandNames(local).length === 0) {
+      const delegates = new Set();
+      visit(local, (node) => {
+        if (
+          ts.isReturnStatement(node) &&
+          node.expression &&
+          ts.isCallExpression(node.expression) &&
+          ts.isIdentifier(node.expression.expression) &&
+          node.expression.expression.text.startsWith('build')
+        )
+          delegates.add(node.expression.expression.text);
+      });
+      for (const statement of parsed.statements) {
+        if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier))
+          continue;
+        const bindings = statement.importClause?.namedBindings;
+        if (!bindings || !ts.isNamedImports(bindings)) continue;
+        const imported = bindings.elements.find((item) => delegates.has(item.name.text));
+        if (imported)
+          return sourceDeclaration(
+            sourceModule(file, statement.moduleSpecifier.text),
+            imported.propertyName?.text ?? imported.name.text,
+            seen,
+          );
+      }
+    }
+    return { parsed, declaration: local };
+  }
+  for (const statement of parsed.statements) {
+    if (
+      !ts.isExportDeclaration(statement) ||
+      !statement.moduleSpecifier ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !statement.exportClause ||
+      !ts.isNamedExports(statement.exportClause)
+    )
+      continue;
+    const exported = statement.exportClause.elements.find((item) => item.name.text === name);
+    if (!exported) continue;
+    return sourceDeclaration(
+      sourceModule(file, statement.moduleSpecifier.text),
+      exported.propertyName?.text ?? name,
+      seen,
+    );
+  }
+  throw new Error(`Missing source declaration ${name} in ${file}`);
 }
 function property(node, name) {
   return node.properties.find((item) => item.name?.getText().replace(/^['"]|['"]$/g, '') === name);
@@ -110,13 +188,8 @@ for (const builder of builders) {
   }
   const imported = imports.get(builder);
   const file = resolve(root, dirname(entryPath), imported.file.replace(/\.js$/, '.ts'));
-  const parsed = ts.createSourceFile(
-    file,
-    readFileSync(file, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-  );
-  let names = sourceCommandNames(namedDeclaration(parsed, imported.original));
+  const { parsed, declaration } = sourceDeclaration(file, imported.original);
+  let names = sourceCommandNames(declaration);
   // A delegating builder can return one shared factory from its module.
   if (names.length === 0) names = sourceCommandNames(parsed);
   if (names.length !== 1)

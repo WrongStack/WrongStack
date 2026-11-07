@@ -23,8 +23,8 @@ const DEFAULT_MAX_WAIT_MS = 60 * 60 * 1000;
  * On Windows, `process.kill(pid, 0)` does NOT throw for dead PIDs — it returns
  * true for any PID, including ones that have long exited. This caused stale
  * coverage locks to never be detected, blocking every subsequent coverage run
- * for the full 1h timeout on this host. Instead, we shell out to `tasklist`
- * and parse the CSV output for the PID row. When the probe tool itself fails
+ * for the full 1h timeout on this host. Query Windows PowerShell's in-process
+ * .NET process lookup instead of tasklist's slow global table. When the probe fails
  * (ENOENT, timeout), we conservatively assume the process is alive to avoid
  * breaking a valid lock. A probe failure keeps the lock held; the waiter
  * reports a timeout instead of corrupting another run's coverage output.
@@ -36,25 +36,32 @@ const DEFAULT_MAX_WAIT_MS = 60 * 60 * 1000;
  */
 function defaultCheckProcessAlive(pid) {
   if (process.platform === 'win32') {
+    if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+    // Process.GetProcessById takes Int32; an unsupported ID stays unknown/live.
+    if (pid > 0x7fffffff) return true;
+    const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT'] ?? 'C:\\Windows';
+    const probe = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    // Only our explicit 42 means dead. Startup/syntax/tool failures (including
+    // ordinary exit 1) must never authorize breaking another writer's lock.
+    const script = `$ErrorActionPreference='Stop'; try { $targetProcess=[System.Diagnostics.Process]::GetProcessById(${pid}); try { if($targetProcess.HasExited){exit 42}; exit 0 } finally { $targetProcess.Dispose() } } catch { $probeError=$_.Exception; while($probeError.InnerException){$probeError=$probeError.InnerException}; if($probeError -is [System.ArgumentException]){exit 42}; exit 43 }`;
     try {
-      // Parse the CSV output for the actual PID row rather than relying on
-      // exit codes — tasklist can return a non-empty stdout even for misses.
-      const stdout = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        windowsHide: true,
-        timeout: 5000,
-      });
-      return stdout.includes(`"${pid}"`);
-    } catch (error) {
-      // tasklist exited non-zero — we may still have parseable output.
-      if (error && typeof error.stdout === 'string' && error.stdout.length > 0) {
-        return error.stdout.includes(`"${pid}"`);
-      }
-      // Probe tool failure (binary missing, timeout, permission denied, FD
-      // exhaustion): conservatively assume alive. Breaking a valid lock
-      // re-opens the coverage/.tmp race this file exists to prevent.
+      execFileSync(
+        probe,
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-EncodedCommand',
+          Buffer.from(script, 'utf16le').toString('base64'),
+        ],
+        {
+          stdio: 'ignore',
+          windowsHide: true,
+          timeout: 5000,
+        },
+      );
       return true;
+    } catch (error) {
+      return error?.status !== 42;
     }
   }
   try {

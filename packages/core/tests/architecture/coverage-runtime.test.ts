@@ -396,6 +396,22 @@ describe('coverage lock script', () => {
 });
 
 describe('defaultCheckProcessAlive', () => {
+  it.skipIf(process.platform !== 'win32')(
+    'keeps a live owner when the native probe cannot start',
+    () => {
+      const missingRoot = mkdtempSync(path.join(tmpdir(), 'coverage-missing-native-probe-'));
+      temporaryDirectories.push(missingRoot);
+      const previousRoot = process.env['SystemRoot'];
+      process.env['SystemRoot'] = missingRoot;
+      try {
+        expect(defaultCheckProcessAlive(process.pid)).toBe(true);
+      } finally {
+        if (previousRoot === undefined) delete process.env['SystemRoot'];
+        else process.env['SystemRoot'] = previousRoot;
+      }
+    },
+  );
+
   it('detects the current process as alive', () => {
     expect(defaultCheckProcessAlive(process.pid)).toBe(true);
   });

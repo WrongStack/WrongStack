@@ -70,6 +70,7 @@ describe('executable script inventory', () => {
   });
 
   it.each([
+    ['scripts/check-command-docs.mjs', [], 0, 'Command documentation:'],
     ['scripts/build.mjs', ['--invalid'], 1, 'Unknown build option'],
     ['scripts/check-browser-runtime.mjs', ['--help'], 0, 'Usage:'],
     ['scripts/tui-heap-soak.mjs', ['--help'], 0, 'Usage:'],
