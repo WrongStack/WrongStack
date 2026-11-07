@@ -89,12 +89,19 @@ export function movePhaseTask(
 
   node.parentId = undefined;
   node.children = undefined;
+  if (node.status === 'blocked') {
+    node.status = 'pending';
+    node.startedAt = undefined;
+  }
   node.updatedAt = Date.now();
   to.taskGraph.nodes.set(taskId, node);
   if (!to.taskGraph.rootNodes.includes(taskId)) {
     to.taskGraph.rootNodes.push(taskId);
   }
   to.taskGraph.updatedAt = Date.now();
+  if (node.status !== 'completed') {
+    reopenPhaseForPendingWork(ctx, to);
+  }
 
   ctx.trackerCache.delete(from.id);
   ctx.trackerCache.delete(to.id);
@@ -143,18 +150,19 @@ export function addPhaseTask(
     priority: spec.priority ?? 'medium',
     status: 'pending',
   });
+  reopenPhaseForPendingWork(ctx, phase);
   ctx.graph.updatedAt = Date.now();
   ctx.emit('phase.taskAdded', { phaseId, taskId: node.id, taskTitle: node.title });
   return node.id;
 }
 
-export function requeuePhaseTask(ctx: PhaseBoardMutationContext, taskId: string): boolean {
-  const phase = findPhaseOfTaskInGraph(ctx.graph, taskId);
-  if (!phase) return false;
-  const tracker = ctx.getTrackerForPhase(phase);
-  tracker.updateNodeStatus(taskId, 'pending');
-  ctx.taskRetryCounts.delete(`${phase.id}:${taskId}`);
-  if (phase.status === 'completed' || phase.status === 'failed' || phase.status === 'paused') {
+function reopenPhaseForPendingWork(ctx: PhaseBoardMutationContext, phase: PhaseNode): void {
+  if (
+    phase.status === 'completed' ||
+    phase.status === 'failed' ||
+    phase.status === 'paused' ||
+    phase.status === 'skipped'
+  ) {
     ctx.graph.failedPhaseIds = ctx.graph.failedPhaseIds.filter((id) => id !== phase.id);
     ctx.graph.completedPhaseIds = ctx.graph.completedPhaseIds.filter((id) => id !== phase.id);
     ctx.graph.activePhaseIds = ctx.graph.activePhaseIds.filter((id) => id !== phase.id);
@@ -170,10 +178,19 @@ export function requeuePhaseTask(ctx: PhaseBoardMutationContext, taskId: string)
     Array.from(ctx.graph.phases.values()).some((p) => p.status === 'failed');
   if (!anyFailedPhase) {
     ctx.graph.runError = undefined;
-    if (ctx.graph.runState === 'failed') {
+    if (ctx.graph.runState === 'failed' || ctx.graph.runState === 'completed') {
       ctx.graph.runState = undefined;
     }
   }
+}
+
+export function requeuePhaseTask(ctx: PhaseBoardMutationContext, taskId: string): boolean {
+  const phase = findPhaseOfTaskInGraph(ctx.graph, taskId);
+  if (!phase) return false;
+  const tracker = ctx.getTrackerForPhase(phase);
+  tracker.updateNodeStatus(taskId, 'pending');
+  ctx.taskRetryCounts.delete(`${phase.id}:${taskId}`);
+  reopenPhaseForPendingWork(ctx, phase);
   ctx.graph.updatedAt = Date.now();
   return true;
 }

@@ -294,9 +294,13 @@ export class PhaseOrchestrator {
         this.updatePhaseStatus(phase, 'paused');
       }
     }
+    this.runningPhases.clear();
+    this.graph.activePhaseIds = [];
     // Release per-phase/task caches — they are no longer needed once stopped.
     this.trackerCache.clear();
     this.taskRetryCounts.clear();
+    this.phaseWorktrees.clear();
+    this.phaseMergePromise.clear();
     // Preserve any live worktrees for inspection rather than discarding work.
     if (this.worktrees) {
       for (const handle of this.worktrees.list()) {

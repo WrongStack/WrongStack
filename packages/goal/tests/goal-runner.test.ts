@@ -1,8 +1,8 @@
 import { EventBus } from '@wrongstack/contracts/kernel/events';
+import type { WorktreeHandle, WorktreeManager } from '@wrongstack/worktree';
 import { describe, expect, it, vi } from 'vitest';
 import { createGoalRunnerFromTaskGraph, GoalRunner } from '../src/goal-runner.js';
 import type { PhaseTemplate } from '../src/types.js';
-import type { WorktreeHandle, WorktreeManager } from '@wrongstack/worktree';
 
 function fakeWorktrees() {
   const calls: string[] = [];
@@ -325,5 +325,128 @@ describe('createGoalRunnerFromTaskGraph', () => {
     const runner = await createGoalRunnerFromTaskGraph(taskGraph, { executeTask: async () => {} });
     expect(runner).toBeInstanceOf(GoalRunner);
     expect(runner.getGraph()).toBeNull(); // not started
+  });
+
+  it('invokes onComplete/onFail without custom events bus, preserves task dependsOn in GoalPlanner, blocks completed status on needs_review in summarizeGoal, and clamps NaN concurrency (F44)', async () => {
+    const { GoalPlanner } = await import('../src/goal-planner.js');
+    const { summarizeGoal } = await import('../src/goal-summary.js');
+    const { PhaseGraphBuilder } = await import('../src/phase-graph-builder.js');
+    const { GoalTaskExecutionOwnership } = await import('../src/task-execution-ownership.js');
+
+    const onComplete = vi.fn();
+    const okRunner = new GoalRunner({
+      title: 'No Events Complete',
+      phases: [
+        {
+          name: 'P1',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+      executeTask: async () => 'done',
+      onComplete,
+    });
+    await okRunner.start();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+
+    const onFail = vi.fn();
+    const failRunner = new GoalRunner({
+      title: 'No Events Fail',
+      maxRetries: 0,
+      phases: [
+        {
+          name: 'P1',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: '', type: 'bugfix', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+      executeTask: async () => {
+        throw new Error('fail');
+      },
+      onFail,
+    });
+    await failRunner.start();
+    expect(onFail).toHaveBeenCalledTimes(1);
+
+    const planner = new GoalPlanner({
+      goal: 'Plan with dependsOn',
+      runOnce: async () =>
+        JSON.stringify([
+          {
+            name: 'Phase 1',
+            description: 'd',
+            priority: 'high',
+            estimateHours: 2,
+            parallelizable: false,
+            tasks: [
+              { title: 'A', description: 'a', type: 'feature', priority: 'high', estimateHours: 1 },
+              {
+                title: 'B',
+                description: 'b',
+                type: 'feature',
+                priority: 'high',
+                estimateHours: 1,
+                dependsOn: [0],
+              },
+            ],
+          },
+        ]),
+    });
+    const plan = await planner.plan();
+    expect(plan.phases[0]?.taskTemplates?.[1]?.dependsOn).toEqual([0]);
+
+    const reviewGraph = await new PhaseGraphBuilder({
+      title: 'Needs Review',
+      phases: [
+        {
+          name: 'P1',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+    }).build();
+    const p = Array.from(reviewGraph.phases.values())[0]!;
+    const t = Array.from(p.taskGraph.nodes.values())[0]!;
+    t.status = 'completed';
+    p.status = 'completed';
+    p.metadata = { integrationStatus: 'needs_review' };
+    reviewGraph.completedPhaseIds = [p.id];
+    reviewGraph.completedAt = Date.now();
+    expect(summarizeGoal(reviewGraph).status).not.toBe('completed');
+
+    let active = 0;
+    let maxActive = 0;
+    const gates: Array<() => void> = [];
+    const ownership = new GoalTaskExecutionOwnership(async () => {
+      active += 1;
+      if (active > maxActive) maxActive = active;
+      await new Promise<void>((r) => gates.push(r));
+      active -= 1;
+      return 'ok';
+    }, Number.NaN);
+    const run1 = ownership.execute({ ...t, id: 't-a' }, 'p-1');
+    const run2 = ownership.execute({ ...t, id: 't-b' }, 'p-1');
+    await new Promise((r) => setTimeout(r, 10));
+    expect(maxActive).toBe(1);
+    while (gates.length > 0) {
+      gates.shift()?.();
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    await Promise.all([run1, run2]);
   });
 });

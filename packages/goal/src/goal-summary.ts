@@ -58,10 +58,16 @@ export function summarizeGoal(graph: PhaseGraph, ownerId: string | null = null):
   }
   if (graph.finalVerification?.status === 'failed')
     blockers.push(graph.finalVerification.error ?? 'Final verification failed');
+  const hasIntegrationBlocker = [...graph.phases.values()].some(
+    (phase) =>
+      phase.metadata?.['integrationStatus'] === 'needs_review' ||
+      phase.metadata?.['integrationStatus'] === 'merge_failed',
+  );
   const complete =
     phases.length > 0 &&
     completedPhases === phases.length &&
     graph.completedAt !== undefined &&
+    !hasIntegrationBlocker &&
     phases.every(
       (phase) => phase.status === 'skipped' || phase.completedTasks === phase.totalTasks,
     );
@@ -79,7 +85,7 @@ export function summarizeGoal(graph: PhaseGraph, ownerId: string | null = null):
             : graph.runState === 'planning'
               ? 'planning'
               : 'running'
-          : graph.runState || graph.startedAt
+          : graph.runState || graph.startedAt || graph.completedAt
             ? 'stopped'
             : 'pending';
   const verification = graph.finalVerification?.skipped

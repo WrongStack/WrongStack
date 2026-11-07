@@ -57,7 +57,8 @@ export class GoalTaskExecutionOwnership {
       this.slots.set(phaseId, slots);
     }
     const ownedSlots = slots;
-    const limit = Math.max(1, this.concurrency);
+    const limit =
+      Number.isFinite(this.concurrency) && this.concurrency >= 1 ? Math.floor(this.concurrency) : 1;
     if (ownedSlots.active >= limit) {
       await new Promise<void>((resolve, reject) => {
         const waiter = () => {

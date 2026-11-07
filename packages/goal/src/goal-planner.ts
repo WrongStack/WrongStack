@@ -273,6 +273,14 @@ export class GoalPlanner {
       );
     }
 
+    const dependsOn = Array.isArray(o.dependsOn)
+      ? o.dependsOn.filter(
+          (dep): dep is number | string =>
+            (typeof dep === 'number' && Number.isInteger(dep) && dep >= 0) ||
+            (typeof dep === 'string' && dep.trim().length > 0),
+        )
+      : undefined;
+
     return {
       task: {
         title,
@@ -281,6 +289,7 @@ export class GoalPlanner {
         priority: coercedPriority,
         estimateHours: coerceHours(o.estimateHours, 2),
         tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
+        ...(dependsOn && dependsOn.length > 0 ? { dependsOn } : {}),
       },
       warnings: w,
     };

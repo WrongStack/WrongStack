@@ -91,10 +91,9 @@ export class CheckpointManager {
       label,
     };
 
-    this.checkpoints.set(checkpoint.id, checkpoint);
-
-    // Save to disk.
+    // Save to disk before updating in-memory state.
     await this.saveToDisk(checkpoint);
+    this.checkpoints.set(checkpoint.id, checkpoint);
 
     // Clean up old checkpoints for this graph only.
     await this.pruneCheckpoints(graph.id);
@@ -116,6 +115,18 @@ export class CheckpointManager {
     const graph = await this.store.load(checkpoint.graphId);
     if (!graph) return null;
 
+    const clearIntegrationMeta = (target: PhaseNode): void => {
+      if (!target.metadata) return;
+      const nextMeta = { ...target.metadata };
+      delete nextMeta['integrationStatus'];
+      delete nextMeta['integrationBranch'];
+      delete nextMeta['integrationWorktreeDir'];
+      delete nextMeta['integrationConflictFiles'];
+      delete nextMeta['integrationError'];
+      delete nextMeta['integrationUpdatedAt'];
+      target.metadata = Object.keys(nextMeta).length > 0 ? nextMeta : undefined;
+    };
+
     // Restore the phase status from the checkpoint.
     const now = Date.now();
     const phase = graph.phases.get(checkpoint.phaseId);
@@ -124,6 +135,9 @@ export class CheckpointManager {
       phase.updatedAt = now;
       if (checkpoint.phaseStatus !== 'completed' && checkpoint.phaseStatus !== 'failed') {
         phase.completedAt = undefined;
+      }
+      if (checkpoint.phaseStatus !== 'completed') {
+        clearIntegrationMeta(phase);
       }
       if (checkpoint.phaseStatus === 'pending') {
         phase.startedAt = undefined;
@@ -141,6 +155,18 @@ export class CheckpointManager {
       phase.taskGraph.edges = phase.taskGraph.edges.filter(
         (e) => allowedTaskIds.has(e.from) && allowedTaskIds.has(e.to),
       );
+      for (const survivingTask of phase.taskGraph.nodes.values()) {
+        if (survivingTask.children) {
+          const filteredChildren = survivingTask.children.filter((id) => allowedTaskIds.has(id));
+          survivingTask.children = filteredChildren.length > 0 ? filteredChildren : undefined;
+        }
+        if (survivingTask.parentId && !allowedTaskIds.has(survivingTask.parentId)) {
+          survivingTask.parentId = undefined;
+          if (!phase.taskGraph.rootNodes.includes(survivingTask.id)) {
+            phase.taskGraph.rootNodes.push(survivingTask.id);
+          }
+        }
+      }
 
       // Restore task statuses.
       for (const ts of checkpoint.taskStatuses) {
@@ -156,6 +182,40 @@ export class CheckpointManager {
           }
         }
       }
+
+      // If the restored phase is not completed/skipped, reset any downstream phases that transitively depend on it.
+      if (checkpoint.phaseStatus !== 'completed' && checkpoint.phaseStatus !== 'skipped') {
+        const invalidatedPhaseIds = new Set<string>([checkpoint.phaseId]);
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const candidate of graph.phases.values()) {
+            if (invalidatedPhaseIds.has(candidate.id)) continue;
+            if (candidate.dependsOn.some((depId) => invalidatedPhaseIds.has(depId))) {
+              invalidatedPhaseIds.add(candidate.id);
+              changed = true;
+            }
+          }
+        }
+        invalidatedPhaseIds.delete(checkpoint.phaseId);
+        for (const depPhaseId of invalidatedPhaseIds) {
+          const depPhase = graph.phases.get(depPhaseId);
+          if (!depPhase || depPhase.status === 'pending') continue;
+          depPhase.status = 'pending';
+          depPhase.startedAt = undefined;
+          depPhase.completedAt = undefined;
+          depPhase.actualDurationMs = undefined;
+          depPhase.updatedAt = now;
+          clearIntegrationMeta(depPhase);
+          for (const task of depPhase.taskGraph.nodes.values()) {
+            task.status = 'pending';
+            task.startedAt = undefined;
+            task.completedAt = undefined;
+            task.updatedAt = now;
+          }
+          depPhase.taskGraph.updatedAt = now;
+        }
+      }
     }
 
     const allPhases = Array.from(graph.phases.values());
@@ -167,6 +227,7 @@ export class CheckpointManager {
       !allPhases.every((p) => p.status === 'completed' || p.status === 'skipped')
     ) {
       graph.completedAt = undefined;
+      graph.finalVerification = undefined;
     }
     if (graph.failedPhaseIds.length === 0 && graph.runState === 'failed') {
       graph.runState =

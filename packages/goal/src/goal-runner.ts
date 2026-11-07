@@ -61,10 +61,12 @@ export class GoalRunner {
   private opts: GoalRunnerOptions;
   private progressInterval: ReturnType<typeof setInterval> | null = null;
   private maxRunTimer: ReturnType<typeof setTimeout> | null = null;
+  private terminalCallbackFired = false;
 
   private readonly graphCompletedHandler = (payload: unknown) => {
     const p = payload as { graphId: string; durationMs: number };
-    if (this.graph && p.graphId === this.graph.id) {
+    if (this.graph && p.graphId === this.graph.id && !this.terminalCallbackFired) {
+      this.terminalCallbackFired = true;
       this.opts.onComplete?.(this.graph);
       this.cleanup();
     }
@@ -72,7 +74,8 @@ export class GoalRunner {
 
   private readonly graphFailedHandler = (payload: unknown) => {
     const p = payload as { graphId: string; failedPhaseId: string; error: string };
-    if (this.graph && p.graphId === this.graph.id) {
+    if (this.graph && p.graphId === this.graph.id && !this.terminalCallbackFired) {
+      this.terminalCallbackFired = true;
       const phases = Array.from(this.graph.phases.values());
       const failedPhase =
         this.graph.phases.get(p.failedPhaseId) ??
@@ -196,8 +199,32 @@ export class GoalRunner {
       }, 2000);
     }
 
+    this.terminalCallbackFired = false;
     try {
       await this.orchestrator.start();
+      if (!this.terminalCallbackFired && this.graph) {
+        if (this.graph.completedAt !== undefined && this.graph.failedPhaseIds.length === 0) {
+          this.terminalCallbackFired = true;
+          this.opts.onComplete?.(this.graph);
+        } else if (
+          this.graph.failedPhaseIds.length > 0 ||
+          Array.from(this.graph.phases.values()).some((ph) => ph.status === 'failed')
+        ) {
+          this.terminalCallbackFired = true;
+          const phases = Array.from(this.graph.phases.values());
+          const failedPhase =
+            this.graph.phases.get(this.graph.failedPhaseIds[0] ?? '') ??
+            phases.find((ph) => ph.status === 'failed') ??
+            phases[phases.length - 1];
+          if (failedPhase) {
+            this.opts.onFail?.(
+              this.graph,
+              failedPhase,
+              new Error(this.graph.runError ?? `Phase "${failedPhase.name}" failed`),
+            );
+          }
+        }
+      }
     } finally {
       // A terminal event normally performs this cleanup synchronously. Keep the
       // finally path for no-op/custom event buses and thrown start failures.

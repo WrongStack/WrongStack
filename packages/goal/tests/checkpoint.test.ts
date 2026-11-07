@@ -397,4 +397,78 @@ describe('CheckpointManager', () => {
     expect(restoredPhase?.startedAt).toBeUndefined();
     expect(restoredPhase?.taskGraph.nodes.has('added-after')).toBe(false);
   });
+
+  it('cleans dangling task children, resets dependent downstream phases, clears stale integrationStatus, and clears finalVerification on restoreCheckpoint (F43)', async () => {
+    const twoPhaseGraph = await new PhaseGraphBuilder({
+      title: 'Two Phase Checkpoint',
+      phases: [
+        {
+          name: 'Phase 1',
+          description: 'First',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: 'd', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+        {
+          name: 'Phase 2',
+          description: 'Second',
+          priority: 'medium',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            {
+              title: 'T2',
+              description: 'd',
+              type: 'feature',
+              priority: 'medium',
+              estimateHours: 1,
+            },
+          ],
+        },
+      ],
+    }).build();
+    const [p1, p2] = Array.from(twoPhaseGraph.phases.values());
+    const t1 = Array.from(p1!.taskGraph.nodes.values())[0]!;
+    const t2 = Array.from(p2!.taskGraph.nodes.values())[0]!;
+
+    const cp = await manager.saveCheckpoint(twoPhaseGraph, 'before-completion');
+
+    p1!.taskGraph.nodes.set('late-child', {
+      id: 'late-child',
+      title: 'Late Child',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'completed',
+      parentId: t1.id,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    t1.children = ['late-child'];
+    t1.status = 'completed';
+    p1!.status = 'completed';
+    p1!.metadata = { integrationStatus: 'merged' };
+    t2.status = 'completed';
+    p2!.status = 'completed';
+    p2!.metadata = { integrationStatus: 'merged' };
+    twoPhaseGraph.completedPhaseIds = [p1!.id, p2!.id];
+    twoPhaseGraph.completedAt = Date.now();
+    twoPhaseGraph.finalVerification = { status: 'passed', checkedAt: Date.now() };
+    await store.save(twoPhaseGraph);
+
+    const restored = await manager.restoreCheckpoint(cp.id);
+    const rp1 = restored?.phases.get(p1!.id);
+    const rp2 = restored?.phases.get(p2!.id);
+    const rt1 = rp1?.taskGraph.nodes.get(t1.id);
+
+    expect(rt1?.children).toBeUndefined();
+    expect(restored?.finalVerification).toBeUndefined();
+    expect(rp2?.status).toBe('pending');
+    expect(restored?.completedPhaseIds).toEqual([]);
+    expect(rp1?.metadata?.['integrationStatus']).toBeUndefined();
+    expect(rp2?.metadata?.['integrationStatus']).toBeUndefined();
+  });
 });

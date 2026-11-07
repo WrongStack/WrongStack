@@ -193,6 +193,7 @@ async function mergeOne(
     // The merge failed → the phase's work never reached base. Reflect that in
     // the graph, not just in metadata + a stray event (see markPhaseMergeFailed).
     markPhaseMergeFailed(int, phase, `worktree merge failed: ${toErrorMessage(err)}`);
+    await int.worktrees.release(handle, { keep: true }).catch(() => {});
   }
 }
 

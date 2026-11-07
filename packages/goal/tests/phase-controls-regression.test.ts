@@ -251,4 +251,126 @@ describe('Goal timed-out worker ownership', () => {
     await runner.start();
     expect(onFail).toHaveBeenCalledTimes(1);
   });
+
+  it('reopens completed phases on addTask/moveTask, resets moved blocked tasks to pending, clears activePhaseIds/phaseWorktrees on stop, and releases worktrees when merge throws (F42)', async () => {
+    const { prepareGoalGraphForResume } = await import('../src/goal-run-lifecycle.js');
+    const g = await graph(1);
+    const orchestrator = new PhaseOrchestrator({
+      graph: g,
+      ctx: { executeTask: async () => 'done' },
+    });
+    await orchestrator.start();
+    const phaseId = g.rootPhaseIds[0]!;
+    const phase = g.phases.get(phaseId)!;
+    expect(phase.status).toBe('completed');
+
+    const addedId = orchestrator.addTask(phaseId, { title: 'Added Task' });
+    expect(addedId).toBeTruthy();
+    expect(phase.status).toBe('pending');
+    expect(g.completedPhaseIds).not.toContain(phaseId);
+    expect(g.completedAt).toBeUndefined();
+    await expect(prepareGoalGraphForResume(g)).resolves.toBeUndefined();
+
+    const moveGraph = await new PhaseGraphBuilder({
+      title: 'Move Blocked',
+      phases: [
+        {
+          name: 'P1',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+            {
+              title: 'T2',
+              description: '',
+              type: 'feature',
+              priority: 'high',
+              estimateHours: 1,
+              dependsOn: [0],
+            },
+          ],
+        },
+        {
+          name: 'P2',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T3', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+    }).build();
+    const [p1, p2] = Array.from(moveGraph.phases.values());
+    const [, t2] = Array.from(p1!.taskGraph.nodes.values());
+    t2!.status = 'blocked';
+    const moveOrch = new PhaseOrchestrator({
+      graph: moveGraph,
+      ctx: { executeTask: async () => 'done' },
+    });
+    expect(moveOrch.moveTask(t2!.id, p2!.id)).toBe(true);
+    expect(p2!.taskGraph.nodes.get(t2!.id)?.status).toBe('pending');
+
+    let acquireCalls = 0;
+    let releaseOnMergeThrow = false;
+    const stopGraph = await graph(1);
+    let firstRun = true;
+    const stopOrch = new PhaseOrchestrator({
+      graph: stopGraph,
+      worktrees: {
+        async allocate(id: string) {
+          acquireCalls += 1;
+          return {
+            id,
+            dir: `/tmp/wt-${id}`,
+            branch: `goal/${id}`,
+            baseBranch: 'main',
+            status: 'active',
+            createdAt: Date.now(),
+          };
+        },
+        async adopt(id: string, info: { dir: string; branch: string; baseBranch: string }) {
+          acquireCalls += 1;
+          return {
+            id,
+            dir: info.dir,
+            branch: info.branch,
+            baseBranch: info.baseBranch,
+            status: 'active',
+            createdAt: Date.now(),
+          };
+        },
+        async commitAll() {
+          return true;
+        },
+        async merge() {
+          throw new Error('merge boom');
+        },
+        async release() {
+          if (!firstRun) releaseOnMergeThrow = true;
+        },
+        list() {
+          return [];
+        },
+      } as never,
+      ctx: {
+        executeTask: async (_t, _p, _env, sig) => {
+          if (firstRun) {
+            firstRun = false;
+            stopOrch.stop();
+            sig?.throwIfAborted();
+          }
+          return 'done';
+        },
+      },
+    });
+    await stopOrch.start();
+    expect(stopGraph.activePhaseIds).toEqual([]);
+    await stopOrch.start();
+    expect(acquireCalls).toBe(2);
+    expect(releaseOnMergeThrow).toBe(true);
+  });
 });
