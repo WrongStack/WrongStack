@@ -614,9 +614,6 @@
     "packages/coordination/src/fleet.ts": [
       "EXPLORE_COMPANION_TOOLS"
     ],
-    "packages/coordination/src/leader-delivery-attach.ts": [
-      "isLeaderAgentId"
-    ],
     "packages/coordination/src/mailbox-attach.ts": [
       "applySessionAffinityFilter",
       "resetMailboxHqPublishersForTests"
@@ -1591,6 +1588,9 @@
     "packages/tools/src/process-registry.ts": [
       "killWin32Tree"
     ],
+    "packages/tools/src/process-watch.ts": [
+      "_resetProcessWatches"
+    ],
     "packages/tools/src/project-kit/advisor.ts": [
       "isAdHocScriptCall",
       "rankKitCandidates"
@@ -1604,6 +1604,9 @@
     "packages/tools/src/search.ts": [
       "__clearSearchCache",
       "__getSearchCacheSizeForTest"
+    ],
+    "packages/tools/src/session-wakeup.ts": [
+      "_resetSessionWakeups"
     ],
     "packages/tools/src/tool-diff.ts": [
       "DIFF_LINE_SAFETY_CAP",
@@ -1983,6 +1986,9 @@
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
+    ],
+    "packages/webui-server/src/server/standalone-delegation.ts": [
+      "createStandaloneAutoWake"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"

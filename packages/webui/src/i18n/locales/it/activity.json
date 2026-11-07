@@ -2775,8 +2775,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Processi cron",
-    "subtitle": "Attività ricorrenti pianificate gestite dal plugin cron.",
+    "heading": "Risvegli di sessione",
+    "subtitle": "Timer che l’agente si è impostato con session_wakeup; ognuno gli torna come avviso di runtime.",
     "statusDisabled": "Disabilitato",
     "statusOverdue": "In ritardo",
     "statusActive": "Attivo",
@@ -2785,8 +2785,8 @@
     "enabledCount": "{{count}} abilitati",
     "overdueCount": "{{count}} in ritardo",
     "totalRuns": "{{count}} esecuzioni totali",
-    "maxConcurrent": "max {{count}} concorrenti",
-    "emptyTitle": "Nessun processo cron pianificato.",
+    "maxConcurrent": "max {{count}} per sessione",
+    "emptyTitle": "Nessun risveglio di sessione programmato.",
     "emptyUse": "Usa",
     "emptyToAdd": "per aggiungerne uno.",
     "thStatus": "Stato",
@@ -3136,7 +3136,7 @@
     "workspaceInspector": "Ispettore del workspace",
     "processMonitor": "Monitor dei processi",
     "queue": "Coda",
-    "cronJobs": "Processi cron"
+    "cronJobs": "Risvegli di sessione"
   },
   "audienceMem": {
     "heading": "Memoria per pubblico",

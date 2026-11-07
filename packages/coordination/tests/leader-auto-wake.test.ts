@@ -120,6 +120,7 @@ describe('LeaderAutoWakeController', () => {
         sessionId: SID,
         deliveryIds: [delegationDeliveryId('d1'), delegationDeliveryId('d2')],
         delegationIds: ['d1', 'd2'],
+        notices: [],
         chain: 1,
       },
     ]);
@@ -365,5 +366,41 @@ describe('LeaderAutoWakeController', () => {
     expect(a.startsWith(AUTO_WAKE_MARKER)).toBe(true);
     expect(a).not.toBe(b);
     expect(isRuntimeContextInput(a)).toBe(true);
+  });
+
+  it('schedules a retry wake after an asynchronous startWakeTurn rejection and prevents post-dispose session state leaks (F80)', async () => {
+    const warn = vi.fn();
+    config = { autoWakeDebounceMs: 25 };
+    const controller = new LeaderAutoWakeController({
+      hub,
+      now: () => now,
+      config: () => config,
+      logger: { warn },
+    });
+    controllers.push(controller);
+    const { port, startWakeTurn } = makePort();
+    startWakeTurn.mockRejectedValueOnce(new Error('transient error'));
+    controller.attachPort(port);
+
+    hub.enqueue(delivery('d-f80'));
+    await vi.advanceTimersByTimeAsync(25);
+    expect(startWakeTurn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('transient error'));
+
+    // After the retry debounce window, startWakeTurn is retried automatically
+    await vi.advanceTimersByTimeAsync(25);
+    expect(startWakeTurn).toHaveBeenCalledTimes(2);
+    expect(controller.chainLength(SID)).toBe(1);
+
+    // Ignoring blank sessionId in LeaderDeliveryHub does not poison seenIds
+    expect(hub.enqueue({ ...delivery('d-blank'), sessionId: '   ' })).toBe(false);
+    expect(hub.enqueue({ ...delivery('d-blank'), sessionId: SID, wake: false })).toBe(true);
+
+    // Post-dispose hooks must not allocate entries in controller.sessions
+    controller.dispose();
+    expect(controller.onRunFinished('ghost-sid')).toBe('disabled');
+    expect(controller.onSessionDisplayed('ghost-sid')).toBe('disabled');
+    controller.noteUserInput('ghost-sid');
+    expect(controller.chainLength('ghost-sid')).toBe(0);
   });
 });

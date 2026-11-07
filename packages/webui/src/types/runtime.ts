@@ -100,7 +100,12 @@ export interface WSDelegationDeliveryPending {
 /** The runtime started a leader turn because background results arrived. */
 export interface WSDelegationAutoWakeStarted {
   type: 'delegation.auto_wake_started';
-  payload: SessionScopedPayload & { delegationIds: string[]; chain: number };
+  payload: SessionScopedPayload & {
+    delegationIds: string[];
+    /** Timer/watch/process notices the model asked for (`source:handle#seq`). */
+    notices?: string[] | undefined;
+    chain: number;
+  };
 }
 
 /** Auto-wake held results (chain cap) until the user sends a message. */

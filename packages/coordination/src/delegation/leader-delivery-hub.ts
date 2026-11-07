@@ -39,10 +39,26 @@ export interface DelegationDeliveryPayload {
   cause?: 'user' | 'restart' | undefined;
 }
 
-export interface LeaderDelivery {
+/**
+ * Something the leader asked to be told about later: a `session_wakeup` timer
+ * fired, a `process_watch` produced output or ended, or a background shell
+ * process exited. Session-scoped and in-process only — never journaled, so a
+ * restart forgets it (the timers and watches that raise it die with the
+ * process too).
+ */
+export interface RuntimeNoticePayload {
+  source: 'timer' | 'watch' | 'process';
+  /** The handle the model holds: wakeup id, watch id, or pid. */
+  handle: string;
+  /** One line saying what happened. */
+  title: string;
+  /** Bounded detail (output lines, log tail, the scheduled prompt). */
+  body?: string | undefined;
+}
+
+interface LeaderDeliveryBase {
   deliveryId: string;
   sessionId: string;
-  kind: 'delegation_result';
   createdAt: number;
   /**
    * Whether this delivery may start a new leader turn when the leader is idle
@@ -50,8 +66,19 @@ export interface LeaderDelivery {
    * items.
    */
   wake: boolean;
+}
+
+export interface DelegationLeaderDelivery extends LeaderDeliveryBase {
+  kind: 'delegation_result';
   payload: DelegationDeliveryPayload;
 }
+
+export interface RuntimeNoticeLeaderDelivery extends LeaderDeliveryBase {
+  kind: 'runtime_notice';
+  payload: RuntimeNoticePayload;
+}
+
+export type LeaderDelivery = DelegationLeaderDelivery | RuntimeNoticeLeaderDelivery;
 
 export interface LeaderDeliveryPendingEvent {
   sessionId: string;
@@ -89,11 +116,11 @@ export class LeaderDeliveryHub {
     const sessionId = normalizeSessionId(delivery.sessionId);
     if (!sessionId || !delivery.deliveryId) return false;
     if (this.seen.has(delivery.deliveryId)) return false;
-    this.remember(delivery.deliveryId);
     const item: LeaderDelivery = { ...delivery, sessionId };
     const queue = this.pendingBySession.get(sessionId) ?? [];
     queue.push(item);
     this.pendingBySession.set(sessionId, queue);
+    this.remember(delivery.deliveryId);
     const event: LeaderDeliveryPendingEvent = {
       sessionId,
       count: queue.length,
@@ -211,9 +238,36 @@ export function delegationDeliveryId(delegationId: string): string {
 }
 
 export const DELEGATION_RESULT_MARKER = '[DELEGATION RESULT]';
+export const RUNTIME_NOTICE_MARKER = '[RUNTIME NOTICE]';
+/** Upper bound for a runtime notice body in the conversation. */
+export const RUNTIME_NOTICE_BODY_MAX_CHARS = 4_000;
+
+/**
+ * Stable delivery id for one runtime notice. `seq` distinguishes repeated
+ * notices from the same handle (a recurring timer, a watch's batches).
+ */
+export function runtimeNoticeDeliveryId(
+  source: RuntimeNoticePayload['source'],
+  handle: string,
+  seq: number | string,
+): string {
+  return `notice:${source}:${handle}#${seq}`;
+}
+
+/**
+ * What a woken turn's prompt names for an item: the delegation id, or the
+ * notice's `source:handle#seq` (unique per notice, so two wakes never carry
+ * byte-identical input that `Agent.run` would burst-dedupe).
+ */
+export function leaderDeliveryRef(delivery: LeaderDelivery): string {
+  return delivery.kind === 'delegation_result'
+    ? delivery.payload.delegationId
+    : delivery.deliveryId.replace(/^notice:/, '');
+}
 
 /** The text block folded into the leader conversation for one delivery. */
 export function renderLeaderDeliveryBlock(delivery: LeaderDelivery): string {
+  if (delivery.kind === 'runtime_notice') return renderRuntimeNoticeBlock(delivery);
   const p = delivery.payload;
   const lines: string[] = [`${DELEGATION_RESULT_MARKER} delegationId=${p.delegationId}`];
   const facts = [
@@ -236,6 +290,25 @@ export function renderLeaderDeliveryBlock(delivery: LeaderDelivery): string {
   if (p.taskId) lines.push('', `Full result: roll_up(["${p.taskId}"])`);
   lines.push(
     'This result was delivered automatically; do not poll or re-await it. Continue from it.',
+  );
+  return lines.join('\n');
+}
+
+function renderRuntimeNoticeBlock(delivery: RuntimeNoticeLeaderDelivery): string {
+  const p = delivery.payload;
+  const lines = [`${RUNTIME_NOTICE_MARKER} source=${p.source} handle=${p.handle}`, p.title];
+  const body = p.body?.trim();
+  if (body) {
+    lines.push(
+      '',
+      body.length > RUNTIME_NOTICE_BODY_MAX_CHARS
+        ? `${body.slice(0, RUNTIME_NOTICE_BODY_MAX_CHARS - 1)}…`
+        : body,
+    );
+  }
+  lines.push(
+    '',
+    'You asked to be told about this; it was delivered automatically. Act on it, or stop the timer/watch if it is no longer needed.',
   );
   return lines.join('\n');
 }

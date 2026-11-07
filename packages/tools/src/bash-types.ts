@@ -3,6 +3,8 @@ export interface BashInput {
   timeout_ms?: number | undefined;
   background?: boolean | undefined;
   hermetic?: boolean | undefined;
+  /** Background run: report the exit as a runtime notice. Default true. */
+  notify_on_exit?: boolean | undefined;
 }
 
 export interface BashOutput {

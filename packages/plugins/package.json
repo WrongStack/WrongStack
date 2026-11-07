@@ -53,10 +53,6 @@
       "types": "./dist/shell-check.d.ts",
       "import": "./dist/shell-check.js"
     },
-    "./cron": {
-      "types": "./dist/cron.d.ts",
-      "import": "./dist/cron.js"
-    },
     "./template-engine": {
       "types": "./dist/template-engine.d.ts",
       "import": "./dist/template-engine.js"
@@ -406,7 +402,7 @@
     "clean": "bun -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   },

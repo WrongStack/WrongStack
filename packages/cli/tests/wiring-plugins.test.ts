@@ -57,7 +57,6 @@ vi.mock('@wrongstack/plugins/auto-doc', () => ({
 vi.mock('@wrongstack/plugins/shell-check', () => ({
   default: { name: 'shell-check', register: vi.fn() },
 }));
-vi.mock('@wrongstack/plugins/cron', () => ({ default: { name: 'cron', register: vi.fn() } }));
 vi.mock('@wrongstack/plugins/template-engine', () => ({
   default: { name: 'template-engine', register: vi.fn() },
 }));

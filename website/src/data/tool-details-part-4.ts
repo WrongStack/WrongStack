@@ -5,107 +5,6 @@
 import type { ToolDetail } from './tool-detail-types';
 
 export const toolDetailsPart4: Record<string, ToolDetail> = {
-  'codebase-context': {
-    longDescription:
-      'Find the files and declarations a task touches from a plain-language description. Ranked symbol search seeds a personalised walk over the reference graph, so results include what the matches are structurally attached to, not just what matched by name. Start here for any task spanning more than one file.',
-    params: [
-      {
-        name: 'query',
-        type: 'string',
-        required: true,
-        description: 'What you are trying to do or understand, in plain words.',
-      },
-      {
-        name: 'limit',
-        type: 'integer',
-        description: 'Number of files to return (default 12, max 50).',
-      },
-      {
-        name: 'symbolsPerFile',
-        type: 'integer',
-        description: 'Declarations shown per file (default 4, max 20).',
-      },
-      {
-        name: 'pathPrefix',
-        type: 'string',
-        description: 'Restrict results to this project-relative path prefix.',
-      },
-    ],
-  },
-  'codebase-read-symbol': {
-    longDescription:
-      'Read the exact implementation of a named declaration (function, method, class, interface, type, enum, variable) from a file using AST parsing. Returns line-numbered code in standard N→content format, eliminating offset guessing and saving context tokens.',
-    params: [
-      {
-        name: 'file',
-        type: 'string',
-        required: true,
-        description: 'Target file path (relative to project root or absolute within project).',
-      },
-      {
-        name: 'symbol',
-        type: 'string',
-        required: true,
-        description:
-          'Declaration name (function, method, class, interface, type, enum, variable). Qualify nested members as "ClassName.method" when the bare name is ambiguous. Not a test-case title.',
-      },
-      {
-        name: 'includeDocs',
-        type: 'boolean',
-        description: 'Keep leading JSDoc / docstrings in the output (defaults to true).',
-      },
-      {
-        name: 'target',
-        type: "'full' | 'body'",
-        description:
-          "Whether to read the full declaration ('full', default) or only the inner block ('body').",
-      },
-    ],
-  },
-  'codebase-ast-replace': {
-    longDescription:
-      'Replace a named declaration using source-aware structure instead of fragile text matching. Use it for a function, method, class, interface, or variable when the target is unambiguous.',
-    params: [
-      {
-        name: 'file',
-        type: 'string',
-        required: true,
-        description: 'Target file path (relative to project root or absolute).',
-      },
-      {
-        name: 'symbol',
-        type: 'string',
-        required: true,
-        description:
-          'Declaration name (function, method, class, interface, type, enum, variable). Qualify nested members as "ClassName.method" when the bare name is ambiguous. Not a test-case title.',
-      },
-      {
-        name: 'newBody',
-        type: 'string',
-        required: true,
-        description: 'The new body implementation (or complete declaration if target="full").',
-      },
-      {
-        name: 'target',
-        type: "'body' | 'full'",
-        description:
-          "Whether to replace only the inner body ('body', default) or the entire symbol declaration ('full').",
-      },
-      {
-        name: 'checkInvariants',
-        type: 'boolean',
-        description:
-          'Whether to check AST backward-compatibility invariants before write. Defaults to true.',
-      },
-      {
-        name: 'allowBreakingChanges',
-        type: 'boolean',
-        description:
-          'Explicitly allow breaking changes (e.g. adding mandatory parameter, removing export) if intentional.',
-      },
-    ],
-    notes: ['Mutating and confirmation-gated.'],
-  },
   'codebase-invariant-check': {
     longDescription:
       'Compare candidate code with its original source and report structural invariants that may have changed. Use before writing a risky refactor; it validates but does not modify files.',
@@ -536,6 +435,86 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         name: 'maxCommunities',
         type: 'number',
         description: 'Maximum number of Louvain communities to include (default 15, max 50).',
+      },
+    ],
+  },
+  process_watch: {
+    longDescription:
+      'Run a command and receive its output lines (optionally only those matching a regex `filter`) as [RUNTIME NOTICE]s while it runs, plus its exit; an idle session is woken for them. For log tails, readiness lines and CI loops instead of polling. Returns at once.',
+    params: [
+      {
+        name: 'command',
+        type: 'string',
+        required: true,
+        description: 'Shell command whose output lines are the events (e.g. `tail -f app.log`).',
+      },
+      {
+        name: 'description',
+        type: 'string',
+        required: true,
+        description: 'A few words naming what you watch for; shown in every notice.',
+      },
+      {
+        name: 'filter',
+        type: 'string',
+        description:
+          'Regex; only matching lines become notices. Include failure patterns, not only success.',
+      },
+      {
+        name: 'timeout_s',
+        type: 'number',
+        description: 'Lifetime in seconds (default 300, max 1800).',
+      },
+    ],
+    doNotUseWhen: ['you only need to know when a background process exits, or you need a timer.'],
+    useInstead: ['bash', 'session_wakeup'],
+  },
+  process_watch_control: {
+    longDescription:
+      'List this session’s process watches, or stop one by id (or all with id="all").',
+    params: [
+      {
+        name: 'action',
+        type: "'list' | 'stop'",
+        required: true,
+      },
+      {
+        name: 'id',
+        type: 'string',
+        description: 'stop: the watch id, or "all".',
+      },
+    ],
+  },
+  session_wakeup: {
+    longDescription:
+      'Schedule a prompt to come back to you as a [RUNTIME NOTICE]: once after delay_s, or every every_s (expires after 24h); an idle session is woken for it. Use instead of sleeping or polling while waiting on CI, a deploy or a long build. Also list and cancel.',
+    params: [
+      {
+        name: 'action',
+        type: "'schedule' | 'list' | 'cancel'",
+        description: 'Default schedule.',
+      },
+      {
+        name: 'prompt',
+        type: 'string',
+        description: 'schedule: what you should do when it fires (max 2000 chars).',
+      },
+      {
+        name: 'delay_s',
+        type: 'number',
+        description:
+          'schedule: seconds until it fires (5..86400). Defaults to every_s for a recurring wakeup.',
+      },
+      {
+        name: 'every_s',
+        type: 'number',
+        description:
+          'schedule: repeat interval in seconds (30..86400). Omit for a one-shot wakeup.',
+      },
+      {
+        name: 'id',
+        type: 'string',
+        description: 'cancel: the wakeup id, or "all".',
       },
     ],
   },

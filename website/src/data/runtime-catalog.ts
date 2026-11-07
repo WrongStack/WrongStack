@@ -636,6 +636,29 @@ export const toolCatalog = [
     mutating: false,
     category: 'Discovery & index',
   },
+  {
+    name: 'process_watch',
+    summary:
+      'Run a command and receive its output lines (optionally only those matching a regex `filter`) as [RUNTIME NOTICE]s while it runs, plus its exit; an idle session is woken for them. For log tails, readiness lines and CI loops instead of polling. Returns at once.',
+    permission: 'confirm',
+    mutating: true,
+    category: 'Shell, Git & web',
+  },
+  {
+    name: 'process_watch_control',
+    summary: 'List this session’s process watches, or stop one by id (or all with id="all").',
+    permission: 'auto',
+    mutating: false,
+    category: 'Shell, Git & web',
+  },
+  {
+    name: 'session_wakeup',
+    summary:
+      'Schedule a prompt to come back to you as a [RUNTIME NOTICE]: once after delay_s, or every every_s (expires after 24h); an idle session is woken for it. Use instead of sleeping or polling while waiting on CI, a deploy or a long build. Also list and cancel.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Work & state',
+  },
 ] as const;
 
 export const pluginSources = ['Core', 'Suite', 'Bridge'] as const;
@@ -745,13 +768,6 @@ export const pluginCatalog = [
     risk: 'low',
     summary:
       'Runs shellcheck analysis on bash/shell scripts and surfaces issues with severity levels',
-    defaultState: 'inactive',
-    source: 'Suite',
-  },
-  {
-    name: 'cron',
-    risk: 'medium',
-    summary: 'Schedules recurring tasks using beforeIteration/afterIteration extension hooks',
     defaultState: 'inactive',
     source: 'Suite',
   },
@@ -1456,9 +1472,9 @@ export const PLUGIN_COUNT = pluginCatalog.length;
  */
 // generated:tool-tier-counts
 export const TOOL_TIER_COUNTS = {
-  off: 78,
+  off: 81,
   minimal: 30,
   light: 30,
-  medium: 54,
+  medium: 57,
   aggressive: 30,
 } as const;

@@ -2775,8 +2775,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Trabajos cron",
-    "subtitle": "Tareas recurrentes programadas gestionadas por el plugin cron.",
+    "heading": "Avisos de sesión",
+    "subtitle": "Temporizadores que el agente se programó con session_wakeup; cada uno le vuelve como aviso de ejecución.",
     "statusDisabled": "Desactivado",
     "statusOverdue": "Vencido",
     "statusActive": "Activo",
@@ -2785,8 +2785,8 @@
     "enabledCount": "{{count}} activados",
     "overdueCount": "{{count}} vencidos",
     "totalRuns": "{{count}} ejecuciones en total",
-    "maxConcurrent": "máx. {{count}} simultáneos",
-    "emptyTitle": "No hay trabajos cron programados.",
+    "maxConcurrent": "máx. {{count}} por sesión",
+    "emptyTitle": "No hay avisos de sesión programados.",
     "emptyUse": "Usa",
     "emptyToAdd": "para añadir uno.",
     "thStatus": "Estado",
@@ -3136,7 +3136,7 @@
     "workspaceInspector": "Inspector del espacio de trabajo",
     "processMonitor": "Monitor de procesos",
     "queue": "Cola",
-    "cronJobs": "Tareas cron"
+    "cronJobs": "Avisos de sesión"
   },
   "audienceMem": {
     "heading": "Memoria por audiencia",

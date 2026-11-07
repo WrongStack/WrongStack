@@ -130,11 +130,15 @@ export function handleDelegationDeliveryPending(msg: WSServerMessage) {
 export function handleDelegationAutoWakeStarted(msg: WSServerMessage) {
   const chat = chatFor(msg);
   if (!chat) return;
-  const p = msg.payload as { delegationIds?: unknown; chain?: unknown };
+  const p = msg.payload as { delegationIds?: unknown; notices?: unknown; chain?: unknown };
   const chain = typeof p.chain === 'number' ? p.chain : undefined;
   chat.addMessage({
     role: 'system',
-    content: formatAutoWakeNotice(delegationIdsOf(p.delegationIds), chain),
+    content: formatAutoWakeNotice(
+      delegationIdsOf(p.delegationIds),
+      chain,
+      delegationIdsOf(p.notices),
+    ),
   });
 }
 

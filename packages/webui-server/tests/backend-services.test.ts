@@ -151,6 +151,7 @@ const runMirror = vi.hoisted(() => ({
 // Covered in standalone-delegation.test.ts; the fleet host needs the real coordination package.
 vi.mock('../src/server/standalone-delegation.js', () => ({
   installStandaloneDelegation: () => undefined,
+  createStandaloneAutoWake: () => ({ attachAutoWake: vi.fn(), dispose: vi.fn() }),
 }));
 vi.mock('../src/server/kanban-run-mirror.js', () => ({
   createKanbanRunMirror: (deps: unknown) => {

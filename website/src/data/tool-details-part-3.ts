@@ -5,88 +5,6 @@
 import type { ToolDetail } from './tool-detail-types';
 
 export const toolDetailsPart3: Record<string, ToolDetail> = {
-  tree: {
-    longDescription:
-      'Render a bounded directory tree with depth, file, hidden-file, and ignore controls. Use it for repository orientation without reading every file.',
-    params: [
-      {
-        name: 'path',
-        type: 'string',
-        description: 'Root directory to display the tree from (defaults to project root).',
-      },
-      {
-        name: 'depth',
-        type: 'integer',
-        description: 'Maximum directory depth to traverse (default 3, use 0 for unlimited).',
-      },
-      {
-        name: 'glob',
-        type: 'string',
-        description: 'Only include files matching this glob pattern.',
-      },
-      {
-        name: 'exclude',
-        type: 'string[]',
-        description: 'List of directory names to completely ignore.',
-      },
-      {
-        name: 'show_files',
-        type: 'boolean',
-        description: 'Whether to show individual files (default true).',
-      },
-      {
-        name: 'show_dirs',
-        type: 'boolean',
-        description: 'Whether to show directories (default true).',
-      },
-      {
-        name: 'show_hidden',
-        type: 'boolean',
-        description: 'Show hidden files starting with . (default: false)',
-      },
-      {
-        name: 'max_entries',
-        type: 'integer',
-        description: 'Maximum entries retained in the rendered tree (default 5000).',
-      },
-    ],
-    notes: [
-      'Call early when working with an unfamiliar project or module.',
-      'Tune `depth` (default 3) and use `glob`/`exclude` to focus the view.',
-      'Prefer this over raw `bash find` or `glob` + manual reading when you need a quick structural overview.',
-    ],
-  },
-  lint: {
-    longDescription:
-      'Run the project’s configured linter for a target path or working directory and return diagnostics. Use it after code edits to catch style and static-analysis issues.',
-    params: [
-      {
-        name: 'files',
-        type: 'string',
-        description:
-          'Files/patterns: single path, comma-separated list, or glob (e.g. "src/**/*.ts")',
-      },
-      {
-        name: 'fix',
-        type: 'boolean',
-        description: 'Auto-fix fixable issues (default: false)',
-      },
-      {
-        name: 'linter',
-        type: "'biome' | 'eslint' | 'tslint' | 'auto'",
-        description: 'Linter to use (default: auto-detect)',
-      },
-      {
-        name: 'cwd',
-        type: 'string',
-        description: 'Working directory (default: cwd)',
-      },
-    ],
-    notes: [
-      '`fix: true` will automatically correct what it can.',
-      'Target specific files or globs when you only want to check part of the project.',
-    ],
-  },
   format: {
     longDescription:
       'Run the project’s configured formatter on selected files or directories. Use it after editing code, while reviewing the resulting diff for unintended formatting scope.',
@@ -865,5 +783,106 @@ export const toolDetailsPart3: Record<string, ToolDetail> = {
       },
     ],
     notes: ['Useful at the start of unfamiliar or repository-wide work.'],
+  },
+  'codebase-context': {
+    longDescription:
+      'Find the files and declarations a task touches from a plain-language description. Ranked symbol search seeds a personalised walk over the reference graph, so results include what the matches are structurally attached to, not just what matched by name. Start here for any task spanning more than one file.',
+    params: [
+      {
+        name: 'query',
+        type: 'string',
+        required: true,
+        description: 'What you are trying to do or understand, in plain words.',
+      },
+      {
+        name: 'limit',
+        type: 'integer',
+        description: 'Number of files to return (default 12, max 50).',
+      },
+      {
+        name: 'symbolsPerFile',
+        type: 'integer',
+        description: 'Declarations shown per file (default 4, max 20).',
+      },
+      {
+        name: 'pathPrefix',
+        type: 'string',
+        description: 'Restrict results to this project-relative path prefix.',
+      },
+    ],
+  },
+  'codebase-read-symbol': {
+    longDescription:
+      'Read the exact implementation of a named declaration (function, method, class, interface, type, enum, variable) from a file using AST parsing. Returns line-numbered code in standard N→content format, eliminating offset guessing and saving context tokens.',
+    params: [
+      {
+        name: 'file',
+        type: 'string',
+        required: true,
+        description: 'Target file path (relative to project root or absolute within project).',
+      },
+      {
+        name: 'symbol',
+        type: 'string',
+        required: true,
+        description:
+          'Declaration name (function, method, class, interface, type, enum, variable). Qualify nested members as "ClassName.method" when the bare name is ambiguous. Not a test-case title.',
+      },
+      {
+        name: 'includeDocs',
+        type: 'boolean',
+        description: 'Keep leading JSDoc / docstrings in the output (defaults to true).',
+      },
+      {
+        name: 'target',
+        type: "'full' | 'body'",
+        description:
+          "Whether to read the full declaration ('full', default) or only the inner block ('body').",
+      },
+    ],
+  },
+  'codebase-ast-replace': {
+    longDescription:
+      'Replace a named declaration using source-aware structure instead of fragile text matching. Use it for a function, method, class, interface, or variable when the target is unambiguous.',
+    params: [
+      {
+        name: 'file',
+        type: 'string',
+        required: true,
+        description: 'Target file path (relative to project root or absolute).',
+      },
+      {
+        name: 'symbol',
+        type: 'string',
+        required: true,
+        description:
+          'Declaration name (function, method, class, interface, type, enum, variable). Qualify nested members as "ClassName.method" when the bare name is ambiguous. Not a test-case title.',
+      },
+      {
+        name: 'newBody',
+        type: 'string',
+        required: true,
+        description: 'The new body implementation (or complete declaration if target="full").',
+      },
+      {
+        name: 'target',
+        type: "'body' | 'full'",
+        description:
+          "Whether to replace only the inner body ('body', default) or the entire symbol declaration ('full').",
+      },
+      {
+        name: 'checkInvariants',
+        type: 'boolean',
+        description:
+          'Whether to check AST backward-compatibility invariants before write. Defaults to true.',
+      },
+      {
+        name: 'allowBreakingChanges',
+        type: 'boolean',
+        description:
+          'Explicitly allow breaking changes (e.g. adding mandatory parameter, removing export) if intentional.',
+      },
+    ],
+    notes: ['Mutating and confirmation-gated.'],
   },
 };

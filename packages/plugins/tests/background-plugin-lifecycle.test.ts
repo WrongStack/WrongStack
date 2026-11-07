@@ -8,7 +8,6 @@ vi.mock('node:fs', async (original) => ({
   watch: fs.watch,
 }));
 
-import cron from '../src/cron/index.js';
 import watcher from '../src/file-watcher/index.js';
 
 const cleanup: Array<() => unknown> = [];
@@ -65,10 +64,7 @@ function host(plugin: Plugin) {
     },
   };
 }
-const profiles = [
-  [cron, 'cron_schedule', 'cron_list', { name: 'job', intervalMs: 1000, action: 'check' }],
-  [watcher, 'watch_start', 'watch_list', { paths: ['.'] }],
-] as const;
+const profiles = [[watcher, 'watch_start', 'watch_list', { paths: ['.'] }]] as const;
 describe('background plugin lifecycle', () => {
   it('opens filesystem watches in the calling project', async () => {
     const loaded = host(watcher);
@@ -104,40 +100,5 @@ describe('background plugin lifecycle', () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(loaded.emit).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
-  });
-  it('does not emit a due job after cancellation during the journal write', async () => {
-    const loaded = host(cron);
-    let finish!: () => void;
-    loaded.append.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    await loaded.call('cron_schedule', { name: 'job', intervalMs: 1000, action: 'check' });
-    vi.setSystemTime(2000);
-    const pending = loaded.beforeIteration({}, 0);
-    await loaded.call('cron_cancel', { name: 'job' });
-    finish();
-    await pending;
-    expect(loaded.emit.mock.calls.some(([event]) => event === 'cron:job_due')).toBe(false);
-  });
-  it('does not deliver the same overdue job to overlapping iteration hooks', async () => {
-    const loaded = host(cron);
-    let finish!: () => void;
-    loaded.append.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    await loaded.call('cron_schedule', { name: 'job', intervalMs: 1000, action: 'check' });
-    vi.setSystemTime(2000);
-    const first = loaded.beforeIteration({}, 0);
-    const second = loaded.beforeIteration({}, 1);
-    expect(loaded.append).toHaveBeenCalledOnce();
-    finish();
-    await Promise.all([first, second]);
-    expect(loaded.emit.mock.calls.filter(([event]) => event === 'cron:job_due')).toHaveLength(1);
   });
 });

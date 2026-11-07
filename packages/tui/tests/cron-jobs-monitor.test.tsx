@@ -14,7 +14,7 @@ const NOW = new Date('2026-07-30T12:00:00.000Z').getTime();
  * does not guarantee ordering against one `setImmediate`. On a contended CI
  * runner the sample can beat the commit and read the initial frame — the
  * exact failure of CI run 32137776491 ('cron offline' assertion saw the
- * pre-commit 'No cron jobs' empty state). Polling the rendered frame until
+ * pre-commit 'No session wakeups' empty state). Polling the rendered frame until
  * it settles removes the ordering assumption entirely.
  */
 async function waitForFrame(
@@ -90,7 +90,7 @@ describe('CronJobsMonitor', () => {
     const view = render(React.createElement(CronJobsMonitor, { getCronJobs }));
     const frame = await waitForFrame(
       view,
-      (f) => f.includes('CRON JOBS') && f.includes('fast-job'),
+      (f) => f.includes('SESSION WAKEUPS') && f.includes('fast-job'),
     );
 
     expect(frame).toContain('2 / 3 jobs');
@@ -141,8 +141,8 @@ describe('CronJobsMonitor', () => {
         }),
       }),
     );
-    const frame = await waitForFrame(view, (f) => f.includes('No cron jobs'));
-    expect(frame).toContain('cron_schedule');
+    const frame = await waitForFrame(view, (f) => f.includes('No session wakeups'));
+    expect(frame).toContain('session_wakeup');
     view.unmount();
   });
 

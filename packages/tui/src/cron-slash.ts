@@ -1,13 +1,15 @@
 /**
- * `/cron` — List all scheduled cron jobs from the cron plugin.
+ * `/cron` — List the session wakeups: timers the agent scheduled for itself
+ * with `session_wakeup` (they replaced the cron plugin's jobs).
  *
- * Reads the cron job list via a getter callback wired to the agent's
- * `cron_list` tool at registration time. Renders a formatted table of
- * job names, intervals, actions, run counts, and overdue status.
+ * Reads the list through the agent's `session_wakeup` tool (action=list) and
+ * maps it onto the job view the slash command and the F-key panel share.
+ * A one-shot wakeup has interval 0 and renders as "once".
  */
 
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
+import { type SessionWakeupView, WAKEUP_MAX_PER_SESSION } from '@wrongstack/tools';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,21 +41,33 @@ export function createCronJobsGetter(
   agent: Pick<Agent, 'ctx' | 'tools'>,
 ): () => Promise<CronListResult> {
   return async () => {
-    const cronListTool = agent.tools.get('cron_list');
-    if (!cronListTool) {
+    const wakeupTool = agent.tools.get('session_wakeup');
+    if (!wakeupTool) {
       return {
         ok: false,
         count: 0,
         maxConcurrent: 0,
         jobs: [],
-        error: 'Cron plugin not loaded (cron_list tool not found)',
+        error: 'session_wakeup tool is not registered',
       };
     }
     try {
-      const result = await cronListTool.execute({}, agent.ctx, {
+      const result = (await wakeupTool.execute({ action: 'list' }, agent.ctx, {
         signal: AbortSignal.timeout(5000),
-      });
-      return result as CronListResult;
+      })) as { wakeups?: SessionWakeupView[] | undefined };
+      const jobs = (result.wakeups ?? []).map(
+        (w): CronJobView => ({
+          name: w.id,
+          intervalMs: (w.every_s ?? 0) * 1000,
+          action: w.prompt,
+          enabled: true,
+          lastRun: w.last_fired_at ?? null,
+          nextRun: w.next_at,
+          runCount: w.fires,
+          overdue: false,
+        }),
+      );
+      return { ok: true, count: jobs.length, maxConcurrent: WAKEUP_MAX_PER_SESSION, jobs };
     } catch (err) {
       return { ok: false, count: 0, maxConcurrent: 0, jobs: [], error: String(err) };
     }
@@ -64,13 +78,13 @@ export function createCronJobsGetter(
 
 const USAGE =
   'Usage:\n' +
-  '  /cron                  — list all scheduled cron jobs\n' +
+  '  /cron                  — list the session wakeups the agent scheduled\n' +
   '  /cron list             — same as /cron';
 
 export function createCronSlashCommand(deps: CronSlashDeps): SlashCommand {
   return {
     name: 'cron',
-    description: 'List all scheduled cron jobs with their status, interval, and run counts.',
+    description: 'List the session wakeups (timers the agent scheduled with session_wakeup).',
     async run(args) {
       const trimmed = args.trim().toLowerCase();
       if (trimmed !== '' && trimmed !== 'list') {
@@ -79,7 +93,7 @@ export function createCronSlashCommand(deps: CronSlashDeps): SlashCommand {
 
       const result = await deps.getCronJobs();
       if (!result.ok) {
-        return { message: `Failed to read cron state: ${result.error ?? 'unknown error'}` };
+        return { message: `Failed to read session wakeups: ${result.error ?? 'unknown error'}` };
       }
 
       return { message: renderCronList(result) };
@@ -90,6 +104,7 @@ export function createCronSlashCommand(deps: CronSlashDeps): SlashCommand {
 // ── Render (exported for testing) ──────────────────────────────────────────
 
 function fmtInterval(ms: number): string {
+  if (ms <= 0) return 'once';
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
   if (ms < 3_600_000) return `${(ms / 60_000).toFixed(1)}m`;
@@ -127,10 +142,10 @@ export function renderCronList(result: CronListResult): string {
 
   if (count === 0) {
     return [
-      '⏱ **Cron jobs** — none scheduled',
+      '⏱ **Session wakeups** — none scheduled',
       '',
-      `  Max concurrent: ${maxConcurrent}`,
-      '  Schedule a job with cron_schedule.',
+      `  Max per session: ${maxConcurrent}`,
+      '  The agent schedules them with session_wakeup.',
     ].join('\n');
   }
 
@@ -139,9 +154,9 @@ export function renderCronList(result: CronListResult): string {
   const totalRuns = jobs.reduce((s, j) => s + j.runCount, 0);
 
   const header = [
-    '⏱ **Cron jobs**',
+    '⏱ **Session wakeups**',
     '',
-    `  ${count} job${count === 1 ? '' : 's'} · ${enabledCount} enabled · ${overdueCount} overdue · ${totalRuns} total runs · max ${maxConcurrent} concurrent`,
+    `  ${count} job${count === 1 ? '' : 's'} · ${enabledCount} enabled · ${overdueCount} overdue · ${totalRuns} total runs · max ${maxConcurrent} per session`,
     '',
   ];
 
@@ -158,5 +173,10 @@ export function renderCronList(result: CronListResult): string {
     return `  ${status}  ${name}  ${interval.padEnd(8)}  runs:${runs.padStart(3)}  next:${next.padEnd(9)}  last:${last.padEnd(9)}  ${action}`;
   });
 
-  return [...header, ...rows, '', '  Use cron_schedule to add, cron_cancel to remove.'].join('\n');
+  return [
+    ...header,
+    ...rows,
+    '',
+    '  The agent adds them with session_wakeup and removes them with action=cancel.',
+  ].join('\n');
 }

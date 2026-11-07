@@ -20,13 +20,25 @@ export function isAutoWakePrompt(text: string): boolean {
   return text.trimStart().startsWith(AUTO_WAKE_PROMPT_MARKER);
 }
 
-/** The runtime line shown before a woken turn. */
-export function formatAutoWakeNotice(delegationIds: readonly string[], chain?: number): string {
-  const n = delegationIds.length;
-  const ids = n > 0 ? ` (${delegationIds.join(', ')})` : '';
+/**
+ * The runtime line shown before a woken turn. `notices` are runtime notices
+ * the model asked for (`timer:w1#2`, `watch:pw1#3`, `process:4242#exit`).
+ */
+export function formatAutoWakeNotice(
+  delegationIds: readonly string[],
+  chain?: number,
+  notices: readonly string[] = [],
+): string {
   const chainNote =
     typeof chain === 'number' && chain > 0 ? ` — woken turn ${chain} without your input` : '';
-  return `Auto-wake: ${n === 1 ? 'a background delegation result' : 'background delegation results'} arrived${ids}; the leader started a new turn${chainNote}.`;
+  const n = delegationIds.length;
+  const ids = n > 0 ? ` (${delegationIds.join(', ')})` : '';
+  const results = n === 1 ? 'a background delegation result' : 'background delegation results';
+  const tail = `; the leader started a new turn${chainNote}.`;
+  if (notices.length === 0) return `Auto-wake: ${results} arrived${ids}${tail}`;
+  const noticePhrase = `${notices.length === 1 ? 'a timer/watch notice you asked for' : 'timer/watch notices you asked for'} (${notices.join(', ')})`;
+  if (n === 0) return `Auto-wake: ${noticePhrase} arrived${tail}`;
+  return `Auto-wake: ${results}${ids} and ${noticePhrase} arrived${tail}`;
 }
 
 /** The notice shown when a delegation result is waiting for the leader. */
@@ -51,12 +63,15 @@ export function formatAutoWakeSuppressedNotice(pending: number): string {
  */
 export function autoWakeNoticeText(text: string): string | undefined {
   if (!isAutoWakePrompt(text)) return undefined;
-  const match = /arrived:\s*([^\n]*?)\.\s*Review and continue/i.exec(text);
-  const ids = match?.[1]
-    ? match[1]
-        .split(',')
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0)
-    : [];
-  return formatAutoWakeNotice(ids);
+  const split = (list: string | undefined): string[] =>
+    list
+      ? list
+          .split(',')
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0)
+      : [];
+  const delegations =
+    /delegation result\(s\) arrived:\s*([^\n;]*?)(?:;|\.\s*Review and continue)/i.exec(text);
+  const notices = /notice\(s\) arrived:\s*([^\n]*?)\.\s*Review and continue/i.exec(text);
+  return formatAutoWakeNotice(split(delegations?.[1]), undefined, split(notices?.[1]));
 }

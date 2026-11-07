@@ -17,7 +17,7 @@ export const PWSH_TOOL_USAGE_HINT =
   '- **Stateless**: No cwd, variables, or functions persist between calls. Use `workdir` to set the directory.\n' +
   '- **Paths & Environs**: Use native Windows paths (`C:\\...`) and read env vars via `$env:NAME`.\n' +
   '- **Exit Codes**: Non-zero exits are reported as `[exit code: N]`. On Windows, a force-killed command settles as exit code 1 (interruption).\n' +
-  '- **Background**: Set `run_in_background: true` for long-running processes; the result carries the PID (stop it with `Stop-Process -Id <pid>`) and the `log_file` its output goes to.\n' +
+  '- **Background**: Set `run_in_background: true` for long-running processes; the result carries the PID (stop it with `Stop-Process -Id <pid>`) and the `log_file` its output goes to. Its exit arrives on its own as a [RUNTIME NOTICE] (`notify_on_exit`, default true); do not poll for it. To react to output lines while it runs, use `process_watch`.\n' +
   '- **Not a sandbox**: Commands run in `FullLanguage` mode with your user privileges. A call refused by permission policy is final — do not retry it with extra fields.';
 
 export const pwshTool: Tool<PwshInput, PwshOutput> = {
@@ -68,6 +68,10 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       background: {
         type: 'boolean',
         description: 'Alias for run_in_background.',
+      },
+      notify_on_exit: {
+        type: 'boolean',
+        description: 'Background: report the exit as a [RUNTIME NOTICE] (default true).',
       },
     },
     required: ['command'],

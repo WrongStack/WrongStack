@@ -6,7 +6,7 @@ tools in an individual session or verified external-service availability.
 
 ## Workspace packages
 
-45 packages, 2 applications, plus the private website.
+46 packages, 2 applications, plus the private website.
 
 | Package | Manifest | Publication |
 |---|---|---|
@@ -36,6 +36,7 @@ tools in an individual session or verified external-service availability.
 | `@wrongstack/plugin-sdk` | [packages/plugin-sdk/package.json](../packages/plugin-sdk/package.json) | private |
 | `@wrongstack/plugins` | [packages/plugins/package.json](../packages/plugins/package.json) | private |
 | `@wrongstack/primitives` | [packages/primitives/package.json](../packages/primitives/package.json) | private |
+| `@wrongstack/project-surfaces` | [packages/project-surfaces/package.json](../packages/project-surfaces/package.json) | private |
 | `@wrongstack/providers` | [packages/providers/package.json](../packages/providers/package.json) | private |
 | `@wrongstack/requirement-intake` | [packages/requirement-intake/package.json](../packages/requirement-intake/package.json) | private |
 | `@wrongstack/requirement-intake-mcp` | [packages/requirement-intake-mcp/package.json](../packages/requirement-intake-mcp/package.json) | private |
@@ -60,9 +61,9 @@ tools in an individual session or verified external-service availability.
 
 ## Built-in tools
 
-78 tool descriptions and executable registrations. Source: [packages/tools/src/builtin.ts](../packages/tools/src/builtin.ts).
+81 tool descriptions and executable registrations. Source: [packages/tools/src/builtin.ts](../packages/tools/src/builtin.ts).
 
-`audit`, `bash`, `browser_click`, `browser_close`, `browser_drag`, `browser_evaluate`, `browser_hover`, `browser_list`, `browser_navigate`, `browser_open`, `browser_press`, `browser_screenshot`, `browser_select`, `browser_snapshot`, `browser_status`, `browser_type`, `browser_upload`, `browser_wait`, `clarify`, `codebase-ast-replace`, `codebase-atlas`, `codebase-context`, `codebase-diff-impact`, `codebase-flow-trace`, `codebase-impact-analysis`, `codebase-incoming-calls`, `codebase-index`, `codebase-invariant-check`, `codebase-onboard`, `codebase-outgoing-calls`, `codebase-read-symbol`, `codebase-repo-map`, `codebase-search`, `codebase-skeleton`, `codebase-stats`, `codebase-targeted-test`, `dead-code-fix`, `dead-code-scan`, `design`, `design_reference`, `diff`, `e2e_plan`, `edit`, `exec`, `fetch`, `format`, `git`, `glob`, `grep`, `install`, `json`, `kanban`, `language`, `language_info`, `language_package`, `lint`, `logs`, `outdated`, `patch`, `plan`, `present_artifact`, `project_kit`, `project_kit_run`, `pwsh`, `read`, `read_url_content`, `replace`, `search`, `security-ast-scan`, `task`, `test`, `todo`, `tool_script`, `tool_search`, `tool_use`, `tree`, `typecheck`, `write`
+`audit`, `bash`, `browser_click`, `browser_close`, `browser_drag`, `browser_evaluate`, `browser_hover`, `browser_list`, `browser_navigate`, `browser_open`, `browser_press`, `browser_screenshot`, `browser_select`, `browser_snapshot`, `browser_status`, `browser_type`, `browser_upload`, `browser_wait`, `clarify`, `codebase-ast-replace`, `codebase-atlas`, `codebase-context`, `codebase-diff-impact`, `codebase-flow-trace`, `codebase-impact-analysis`, `codebase-incoming-calls`, `codebase-index`, `codebase-invariant-check`, `codebase-onboard`, `codebase-outgoing-calls`, `codebase-read-symbol`, `codebase-repo-map`, `codebase-search`, `codebase-skeleton`, `codebase-stats`, `codebase-targeted-test`, `dead-code-fix`, `dead-code-scan`, `design`, `design_reference`, `diff`, `e2e_plan`, `edit`, `exec`, `fetch`, `format`, `git`, `glob`, `grep`, `install`, `json`, `kanban`, `language`, `language_info`, `language_package`, `lint`, `logs`, `outdated`, `patch`, `plan`, `present_artifact`, `process_watch`, `process_watch_control`, `project_kit`, `project_kit_run`, `pwsh`, `read`, `read_url_content`, `replace`, `search`, `security-ast-scan`, `session_wakeup`, `task`, `test`, `todo`, `tool_script`, `tool_search`, `tool_use`, `tree`, `typecheck`, `write`
 
 ## Shell subcommands
 
@@ -128,7 +129,7 @@ this registry. Bench experiment actions are nested actions of `bench`.
 
 ## Plugins
 
-90 official package plugins in [packages/plugins/src/manifest/index.ts](../packages/plugins/src/manifest/index.ts);
+89 official package plugins in [packages/plugins/src/manifest/index.ts](../packages/plugins/src/manifest/index.ts);
 9 host plugins in [packages/plugins/src/plugin-audit-catalog/index.ts](../packages/plugins/src/plugin-audit-catalog/index.ts).
 
 The [feature matrix](feature-matrix.md) maps official plugins to their tools.

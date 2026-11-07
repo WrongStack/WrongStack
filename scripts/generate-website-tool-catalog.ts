@@ -78,6 +78,9 @@ const newToolCategories: Readonly<Record<string, ToolCategory>> = {
   'codebase-diff-impact': 'Discovery & index',
   'codebase-flow-trace': 'Discovery & index',
   'codebase-onboard': 'Discovery & index',
+  process_watch: 'Shell, Git & web',
+  process_watch_control: 'Shell, Git & web',
+  session_wakeup: 'Work & state',
 };
 const newEntries = builtinTools
   .filter((tool) => !websiteNames.has(tool.name) && Object.hasOwn(newToolCategories, tool.name))

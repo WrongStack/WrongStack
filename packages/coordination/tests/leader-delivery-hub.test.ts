@@ -1,14 +1,20 @@
+import assert from 'node:assert/strict';
 import { EventBus } from '@wrongstack/contracts/kernel/events';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DELEGATION_RESULT_MARKER,
+  type DelegationLeaderDelivery,
   delegationDeliveryId,
   type LeaderDelivery,
   LeaderDeliveryHub,
   renderLeaderDeliveryBlock,
 } from '../src/delegation/leader-delivery-hub.js';
 
-function delivery(id: string, over: Partial<LeaderDelivery> = {}, excerpt = 'ok'): LeaderDelivery {
+function delivery(
+  id: string,
+  over: Partial<DelegationLeaderDelivery> = {},
+  excerpt = 'ok',
+): DelegationLeaderDelivery {
   return {
     deliveryId: delegationDeliveryId(id),
     sessionId: 'sess-1',
@@ -31,6 +37,13 @@ function delivery(id: string, over: Partial<LeaderDelivery> = {}, excerpt = 'ok'
   };
 }
 
+function delegationIds(deliveries: LeaderDelivery[]): string[] {
+  return deliveries.map((item) => {
+    assert(item.kind === 'delegation_result');
+    return item.payload.delegationId;
+  });
+}
+
 describe('LeaderDeliveryHub', () => {
   it('is idempotent on deliveryId, even after the item was taken', () => {
     const hub = new LeaderDeliveryHub();
@@ -47,18 +60,15 @@ describe('LeaderDeliveryHub', () => {
     hub.enqueue(delivery('a', { sessionId: 'dir\\sess-1' }));
     hub.enqueue(delivery('b', { sessionId: 'sess-2' }));
     expect(hub.pending('dir/sess-1')).toBe(1);
-    expect(hub.take('sess-2').map((d) => d.payload.delegationId)).toEqual(['b']);
+    expect(delegationIds(hub.take('sess-2'))).toEqual(['b']);
     expect(hub.pending('dir/sess-1')).toBe(1);
   });
 
   it('takes within the item budget and leaves the overflow pending in order', () => {
     const hub = new LeaderDeliveryHub();
     for (const id of ['a', 'b', 'c']) hub.enqueue(delivery(id));
-    expect(hub.take('sess-1', { maxItems: 2 }).map((d) => d.payload.delegationId)).toEqual([
-      'a',
-      'b',
-    ]);
-    expect(hub.take('sess-1').map((d) => d.payload.delegationId)).toEqual(['c']);
+    expect(delegationIds(hub.take('sess-1', { maxItems: 2 }))).toEqual(['a', 'b']);
+    expect(delegationIds(hub.take('sess-1'))).toEqual(['c']);
   });
 
   it('takes within the char budget but always at least one item', () => {
@@ -66,7 +76,7 @@ describe('LeaderDeliveryHub', () => {
     hub.enqueue(delivery('a', {}, 'x'.repeat(3_000)));
     hub.enqueue(delivery('b', {}, 'y'.repeat(3_000)));
     const first = hub.take('sess-1', { maxChars: 10 });
-    expect(first.map((d) => d.payload.delegationId)).toEqual(['a']);
+    expect(delegationIds(first)).toEqual(['a']);
     expect(hub.pending('sess-1')).toBe(1);
   });
 

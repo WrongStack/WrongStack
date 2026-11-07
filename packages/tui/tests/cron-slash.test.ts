@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCronList, type CronListResult } from '../src/cron-slash.js';
+import { type CronListResult, renderCronList } from '../src/cron-slash.js';
 
 function makeJob(
   overrides: Partial<CronListResult['jobs'][number]> = {},
@@ -32,7 +32,15 @@ describe('renderCronList', () => {
     const output = renderCronList(result);
 
     expect(output).toContain('none scheduled');
-    expect(output).toContain('Max concurrent: 5');
+    expect(output).toContain('Max per session: 5');
+    expect(output).toContain('session_wakeup');
+  });
+
+  it('renders a one-shot wakeup (interval 0) as "once"', () => {
+    const output = renderCronList(snapshot([makeJob({ name: 'wk-3', intervalMs: 0 })]));
+    expect(output).toContain('wk-3');
+    expect(output).toContain('once');
+    expect(output).not.toContain('0ms');
   });
 
   it('renders a single active job', () => {

@@ -8,7 +8,7 @@
  * - Keyboard navigation (↑↓ PgUp/PgDn Home/End)
  * - Confirmation prompt for cancel action
  *
- * Data source: `getCronJobs` callback wired to the agent's `cron_list` tool.
+ * Data source: `getCronJobs` callback wired to the agent's `session_wakeup` tool (action=list).
  */
 
 import type React from 'react';
@@ -49,7 +49,7 @@ export interface CronListResult {
 }
 
 interface CronJobsMonitorProps {
-  /** Async callback that returns the current cron list (wired to cron_list tool). */
+  /** Async callback that returns the current wakeup list (session_wakeup action=list). */
   getCronJobs: () => Promise<CronListResult>;
   onCancel?: ((name: string) => Promise<string | null>) | undefined;
 }
@@ -57,6 +57,7 @@ interface CronJobsMonitorProps {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtInterval(ms: number): string {
+  if (ms <= 0) return 'once';
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
   if (ms < 3_600_000) return `${(ms / 60_000).toFixed(1)}m`;
@@ -212,7 +213,7 @@ export function CronJobsMonitor({
     <MonitorShell
       accent={theme.accent}
       icon={glyphs.clock}
-      title="CRON JOBS"
+      title="SESSION WAKEUPS"
       kicker="scheduled tasks"
       right={
         <Text>
@@ -263,8 +264,8 @@ export function CronJobsMonitor({
       {jobs.length === 0 && !fetchError ? (
         <EmptyPanelState
           icon={glyphs.clock}
-          title="No cron jobs"
-          detail="Schedule one with cron_schedule."
+          title="No session wakeups"
+          detail="The agent schedules them with session_wakeup."
           accent={theme.accent}
         />
       ) : null}

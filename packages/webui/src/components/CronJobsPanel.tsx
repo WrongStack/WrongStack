@@ -1,5 +1,6 @@
 /**
- * CronJobsPanel — overlay panel that displays all scheduled cron jobs.
+ * CronJobsPanel — overlay panel that displays the session wakeups (timers the
+ * agent scheduled with `session_wakeup`, which replaced the cron plugin).
  *
  * Reads live data from the Zustand cronStore (populated by cron.snapshot
  * and cron.job_fired WebSocket messages wired in Phase 2). Shows a
@@ -11,17 +12,17 @@
  */
 import { Clock, PauseCircle, PlayCircle, RotateCw } from 'lucide-react';
 import { useCallback } from 'react';
-import { useAppTranslation } from '@/i18n';
-import { useCronStore } from '@/stores';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
-  DialogHeader,
   DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAppTranslation } from '@/i18n';
+import { useCronStore } from '@/stores';
 
 // Jobs are bounded (user-defined), show all without pagination.
 
@@ -35,6 +36,7 @@ interface CronJobsPanelProps {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtInterval(ms: number): string {
+  if (ms <= 0) return 'once';
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
   if (ms < 3_600_000) return `${(ms / 60_000).toFixed(1)}m`;
@@ -154,7 +156,7 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
             <p className="text-sm">{t('activity:cronJobs.emptyTitle')}</p>
             <p className="text-xs">
               {t('activity:cronJobs.emptyUse')}{' '}
-              <code className="rounded bg-muted px-1 py-0.5">cron_schedule</code>{' '}
+              <code className="rounded bg-muted px-1 py-0.5">session_wakeup</code>{' '}
               {t('activity:cronJobs.emptyToAdd')}
             </p>
           </div>
@@ -227,9 +229,9 @@ export function CronJobsPanel({ open, onClose }: CronJobsPanelProps): React.Reac
         {count > 0 && (
           <p className="text-xs text-muted-foreground pt-3 border-t border-border/70">
             {t('activity:cronJobs.footerUse')}{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">cron_schedule</code>{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px]">session_wakeup</code>{' '}
             {t('activity:cronJobs.footerToAdd')}
-            <code className="rounded bg-muted px-1 py-0.5 text-[11px] ml-1">cron_cancel</code>{' '}
+            <code className="rounded bg-muted px-1 py-0.5 text-[11px] ml-1">action=cancel</code>{' '}
             {t('activity:cronJobs.footerToRemove')}
           </p>
         )}

@@ -63,6 +63,9 @@ export async function drainLeaderDeliveries(
       charsLeft -= text.length;
       fold({ type: 'text', text });
       delivered += 1;
+      // Runtime notices (timers, watches, process exits) are session-scoped
+      // and in-process: no tracker entry, no evidence ledger, no journal.
+      if (delivery.kind !== 'delegation_result') continue;
       const p = delivery.payload;
       recordCompletedWorkEvidence(a.ctx, {
         key: `delegation:${p.delegationId}`,

@@ -184,6 +184,7 @@ describe('WebUI leader auto-wake host', () => {
     expect(h.broadcasts.find((m) => m.type === 'delegation.auto_wake_started')?.payload).toEqual({
       sessionId: SESSION,
       delegationIds: ['del_a'],
+      notices: [],
       chain: 1,
     });
   });

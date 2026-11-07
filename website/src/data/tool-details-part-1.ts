@@ -416,4 +416,53 @@ export const toolDetailsPart1: Record<string, ToolDetail> = {
       'Use before running browser E2E tests. The result identifies authoritative configs, package scripts, static server hints, specs, and exact argv.',
     ],
   },
+  read: {
+    longDescription:
+      'Read a project file safely, with optional line ranges and binary-aware output. Use it to inspect source before editing; paths must stay within the project.',
+    params: [
+      {
+        name: 'path',
+        type: 'string',
+        required: true,
+        description: 'Path to the file (relative to project root or absolute within project).',
+      },
+      {
+        name: 'offset',
+        type: 'integer',
+        description: '1-based starting line number. Use together with `limit` for large files.',
+      },
+      {
+        name: 'limit',
+        type: 'integer',
+        description:
+          'Maximum number of lines to return (default 2000). Values above 5000 are clamped to 5000 — page with `offset` for more.',
+      },
+      {
+        name: 'mode',
+        type: "'content' | 'summary'",
+        description:
+          'Return full line-numbered content (default) or a compact file summary with imports/exports/symbols.',
+      },
+      {
+        name: 'includeSymbols',
+        type: 'boolean',
+        description:
+          'When true, include the codebase-index symbol list for this file as a structured `symbols` field in the result. Overrides the advanced-mode meta flag per-call.',
+      },
+      {
+        name: 'pages',
+        type: 'string',
+        description:
+          'PDF only: pages to read, e.g. "3" or "1-5" (at most 20 per call; default the first 20).',
+      },
+    ],
+    doNotUseWhen: ['you need to search many files for matching content.'],
+    useInstead: ['grep'],
+    notes: [
+      'Always read a file before using `edit`, `replace`, or `write` on it (the system often requires it for safety).',
+      'Use `offset` + `limit` for very large files instead of reading everything at once.',
+      'Default limit is generous (2000 lines) but can be increased.',
+      'Output is capped at 256 KiB.',
+    ],
+  },
 };

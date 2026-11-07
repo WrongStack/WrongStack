@@ -36,6 +36,7 @@ import {
   type LeaderDeliveryHub,
   type LeaderDeliveryPendingEvent,
   leaderDeliveryHub,
+  leaderDeliveryRef,
 } from './leader-delivery-hub.js';
 
 /** What a host surface must answer for the controller to wake a session. */
@@ -72,6 +73,8 @@ export interface LeaderAutoWakeStartedEvent {
   sessionId: string;
   deliveryIds: string[];
   delegationIds: string[];
+  /** Runtime notices (`source:handle#seq`) the woken turn will receive. */
+  notices: string[];
   /** 1-based position in the current chain of woken turns. */
   chain: number;
 }
@@ -102,6 +105,13 @@ export interface LeaderAutoWakeControllerOptions {
   hub?: LeaderDeliveryHub | undefined;
   /** Minimum interval between wakes per session. Default 30000. */
   minWakeIntervalMs?: number | undefined;
+  /**
+   * Minimum interval before a wake that carries only runtime notices (timers,
+   * watches, process exits the model asked for). Default 5000.
+   */
+  runtimeMinWakeIntervalMs?: number | undefined;
+  /** Consecutive notice-only woken turns without user input. Default 20. */
+  maxChainedRuntimeWakes?: number | undefined;
   now?: (() => number) | undefined;
   logger?: { warn?: ((msg: string) => void) | undefined } | undefined;
 }
@@ -110,20 +120,44 @@ export const AUTO_WAKE_MARKER = '[AUTO-WAKE]';
 export const DEFAULT_AUTO_WAKE_DEBOUNCE_MS = 1_500;
 export const DEFAULT_MAX_CHAINED_WAKES = 5;
 export const DEFAULT_MIN_WAKE_INTERVAL_MS = 30_000;
+/**
+ * Notice-only wakes were requested by the model itself (a timer it set, a
+ * watch it started), so they get a wider budget than delegation results: a
+ * 30-minute watch must not stall after five events. Still bounded — a model
+ * that keeps rescheduling cannot run unattended forever.
+ */
+export const DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS = 5_000;
+export const DEFAULT_MAX_CHAINED_RUNTIME_WAKES = 20;
 
 /**
- * The woken turn's input. Carries the delegation ids so two wakes are never
- * byte-identical (Agent.run burst-dedupes identical input) and so the model
- * can match the `[DELEGATION RESULT]` blocks that follow. No result content.
+ * The woken turn's input. Carries the delegation ids and notice refs so two
+ * wakes are never byte-identical (Agent.run burst-dedupes identical input)
+ * and so the model can match the `[DELEGATION RESULT]` / `[RUNTIME NOTICE]`
+ * blocks that follow. No result content.
  */
-export function buildAutoWakePrompt(delegationIds: readonly string[]): string {
-  return `${AUTO_WAKE_MARKER} Background delegation result(s) arrived: ${delegationIds.join(', ')}. Review and continue.`;
+export function buildAutoWakePrompt(
+  delegationIds: readonly string[],
+  notices: readonly string[] = [],
+): string {
+  const parts: string[] = [];
+  if (delegationIds.length > 0) {
+    parts.push(`Background delegation result(s) arrived: ${delegationIds.join(', ')}`);
+  }
+  if (notices.length > 0) {
+    parts.push(
+      `${parts.length > 0 ? 'runtime' : 'Runtime'} notice(s) arrived: ${notices.join(', ')}`,
+    );
+  }
+  return `${AUTO_WAKE_MARKER} ${parts.join('; ')}. Review and continue.`;
 }
 
 interface SessionWakeState {
   timer: ReturnType<typeof setTimeout> | null;
   lastWakeAt: number;
   chain: number;
+  /** Consecutive notice-only woken turns (separate budget from `chain`). */
+  noticeChain: number;
+  noticeCapNotified: boolean;
   /** A `startWakeTurn` call has not resolved and no run finished since. */
   inFlight: boolean;
   wakeGeneration: number;
@@ -161,6 +195,7 @@ export class LeaderAutoWakeController {
 
   /** Post-run check: re-run the guards when wake-eligible results wait. */
   onRunFinished(sessionId: string): LeaderWakeDecision {
+    if (this.disposed) return 'disabled';
     const state = this.state(sessionId);
     state.inFlight = false;
     if (this.eligible(sessionId).length === 0) return 'nothing_pending';
@@ -169,15 +204,19 @@ export class LeaderAutoWakeController {
 
   /** A surface started showing the session: release a Q1 hold. */
   onSessionDisplayed(sessionId: string): LeaderWakeDecision {
+    if (this.disposed) return 'disabled';
     if (this.eligible(sessionId).length === 0) return 'nothing_pending';
     return this.evaluate(sessionId);
   }
 
   /** The user submitted input: the next woken turn starts a fresh chain. */
   noteUserInput(sessionId: string): void {
+    if (this.disposed) return;
     const state = this.state(sessionId);
     state.chain = 0;
     state.capNotified = false;
+    state.noticeChain = 0;
+    state.noticeCapNotified = false;
   }
 
   /** Consecutive woken turns since the last user input (diagnostics). */
@@ -233,20 +272,40 @@ export class LeaderAutoWakeController {
       this.warn(`auto-wake guard failed for ${sessionId}: ${String(err)}`);
       return 'busy';
     }
+    // A wake carrying any delegation result follows the delegation budget;
+    // one carrying only runtime notices (requested by the model) follows the
+    // wider notice budget. The two chains are counted separately.
+    const noticeOnly = items.every((item) => item.kind === 'runtime_notice');
     const now = this.now();
-    const interval = Math.max(0, this.opts.minWakeIntervalMs ?? DEFAULT_MIN_WAKE_INTERVAL_MS);
+    const interval = noticeOnly
+      ? Math.max(0, this.opts.runtimeMinWakeIntervalMs ?? DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS)
+      : Math.max(0, this.opts.minWakeIntervalMs ?? DEFAULT_MIN_WAKE_INTERVAL_MS);
     const elapsed = now - state.lastWakeAt;
     if (state.lastWakeAt > 0 && elapsed >= 0 && elapsed < interval) {
       this.schedule(sessionId, interval - elapsed);
       return 'rate_limited';
     }
-    const maxChain = Math.max(0, config.maxChainedWakes ?? DEFAULT_MAX_CHAINED_WAKES);
-    if (state.chain >= maxChain) {
-      if (!state.capNotified) {
-        state.capNotified = true;
-        this.emitSuppressed(sessionId, 'chain_cap', items.length);
+    if (noticeOnly) {
+      const maxNoticeChain = Math.max(
+        0,
+        this.opts.maxChainedRuntimeWakes ?? DEFAULT_MAX_CHAINED_RUNTIME_WAKES,
+      );
+      if (state.noticeChain >= maxNoticeChain) {
+        if (!state.noticeCapNotified) {
+          state.noticeCapNotified = true;
+          this.emitSuppressed(sessionId, 'chain_cap', items.length);
+        }
+        return 'chain_cap';
       }
-      return 'chain_cap';
+    } else {
+      const maxChain = Math.max(0, config.maxChainedWakes ?? DEFAULT_MAX_CHAINED_WAKES);
+      if (state.chain >= maxChain) {
+        if (!state.capNotified) {
+          state.capNotified = true;
+          this.emitSuppressed(sessionId, 'chain_cap', items.length);
+        }
+        return 'chain_cap';
+      }
     }
 
     if (state.timer) {
@@ -254,26 +313,35 @@ export class LeaderAutoWakeController {
       state.timer = null;
     }
     const previousChain = state.chain;
+    const previousNoticeChain = state.noticeChain;
     const previousLastWakeAt = state.lastWakeAt;
-    state.chain += 1;
+    if (noticeOnly) state.noticeChain += 1;
+    else state.chain += 1;
     state.lastWakeAt = now;
     state.inFlight = true;
     const generation = ++state.wakeGeneration;
     const deliveryIds = items.map((item) => item.deliveryId);
-    const delegationIds = items.map((item) => item.payload.delegationId);
+    const delegationIds: string[] = [];
+    const notices: string[] = [];
+    for (const item of items) {
+      (item.kind === 'delegation_result' ? delegationIds : notices).push(leaderDeliveryRef(item));
+    }
     try {
       this.opts.events?.emit('leader.auto_wake_started', {
         sessionId,
         deliveryIds,
         delegationIds,
-        chain: state.chain,
+        notices,
+        chain: noticeOnly ? state.noticeChain : state.chain,
       } satisfies LeaderAutoWakeStartedEvent);
     } catch {
       // Observability must never block the wake.
     }
     let started: Promise<void>;
     try {
-      started = Promise.resolve(port.startWakeTurn(sessionId, buildAutoWakePrompt(delegationIds)));
+      started = Promise.resolve(
+        port.startWakeTurn(sessionId, buildAutoWakePrompt(delegationIds, notices)),
+      );
     } catch (err) {
       started = Promise.reject(err);
     }
@@ -285,7 +353,15 @@ export class LeaderAutoWakeController {
         if (state.wakeGeneration === generation) {
           state.inFlight = false;
           state.chain = previousChain;
+          state.noticeChain = previousNoticeChain;
           state.lastWakeAt = previousLastWakeAt;
+          if (!this.disposed && this.eligible(sessionId).length > 0) {
+            const debounce = Math.max(
+              1,
+              this.readConfig().autoWakeDebounceMs ?? DEFAULT_AUTO_WAKE_DEBOUNCE_MS,
+            );
+            this.schedule(sessionId, debounce);
+          }
         }
         this.warn(`auto-wake turn failed for ${sessionId}: ${String(err)}`);
       },
@@ -330,6 +406,8 @@ export class LeaderAutoWakeController {
         timer: null,
         lastWakeAt: 0,
         chain: 0,
+        noticeChain: 0,
+        noticeCapNotified: false,
         inFlight: false,
         wakeGeneration: 0,
         capNotified: false,

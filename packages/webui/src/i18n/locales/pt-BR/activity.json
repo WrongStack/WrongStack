@@ -2775,8 +2775,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Trabalhos cron",
-    "subtitle": "Tarefas recorrentes agendadas gerenciadas pelo plugin cron.",
+    "heading": "Despertares da sessão",
+    "subtitle": "Timers que o agente agendou para si com session_wakeup; cada um volta para ele como aviso de execução.",
     "statusDisabled": "Desativado",
     "statusOverdue": "Atrasado",
     "statusActive": "Ativo",
@@ -2785,8 +2785,8 @@
     "enabledCount": "{{count}} ativados",
     "overdueCount": "{{count}} atrasados",
     "totalRuns": "{{count}} execuções no total",
-    "maxConcurrent": "máx. {{count}} simultâneos",
-    "emptyTitle": "Nenhum trabalho cron agendado.",
+    "maxConcurrent": "máx. {{count}} por sessão",
+    "emptyTitle": "Nenhum despertar de sessão agendado.",
     "emptyUse": "Use",
     "emptyToAdd": "para adicionar um.",
     "thStatus": "Status",
@@ -3136,7 +3136,7 @@
     "workspaceInspector": "Inspetor do workspace",
     "processMonitor": "Monitor de processos",
     "queue": "Fila",
-    "cronJobs": "Tarefas cron"
+    "cronJobs": "Despertares da sessão"
   },
   "audienceMem": {
     "heading": "Memória por público",

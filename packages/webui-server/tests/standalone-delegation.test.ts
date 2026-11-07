@@ -6,6 +6,7 @@ import type { Config } from '@wrongstack/contracts/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  createStandaloneAutoWake,
   installStandaloneDelegation,
   type StandaloneDelegationInput,
 } from '../src/server/standalone-delegation.js';
@@ -123,6 +124,46 @@ describe('installStandaloneDelegation', () => {
     });
     expect(installStandaloneDelegation(input)).toBeUndefined();
     expect(input.toolRegistry.get('delegate')).toBeUndefined();
+  });
+
+  it('wakes an idle leader for a runtime notice without the delegate tool', async () => {
+    // `delegate` disabled: the engine still owns an auto-wake for timers and watches.
+    const config = {
+      provider: 'p',
+      model: 'm',
+      tools: { disabledTools: ['delegate'] },
+      fleet: { delegate: { autoWakeDebounceMs: 0 } },
+    } as unknown as Config;
+    const events = new EventBus();
+    const autoWake = createStandaloneAutoWake({ events, getConfig: () => config });
+    const started: Array<[string, string]> = [];
+    const wake = autoWake.attachAutoWake({
+      abortControllers: new Map(),
+      pendingConfirms: new Map(),
+      isOpen: (id) => id === 'tab-notice',
+      isDisplayed: (id) => id === 'tab-notice',
+      broadcast: () => undefined,
+    });
+    wake.bindRuntimeTurnStarter(async (sessionId, prompt) => {
+      started.push([sessionId, prompt]);
+      return true;
+    });
+    const { enqueueRuntimeNotice, leaderDeliveryHub } = await import('@wrongstack/coordination');
+    enqueueRuntimeNotice(
+      'tab-notice',
+      { source: 'timer', handle: 'wk-standalone', seq: 1, title: 'fired' },
+      { events },
+    );
+    try {
+      await expect.poll(() => started.length).toBe(1);
+      expect(started[0]).toEqual([
+        'tab-notice',
+        '[AUTO-WAKE] Runtime notice(s) arrived: timer:wk-standalone#1. Review and continue.',
+      ]);
+    } finally {
+      leaderDeliveryHub.take('tab-notice', { maxItems: 10, maxChars: 100_000 });
+      autoWake.dispose();
+    }
   });
 
   it('registers nothing when the engine has no fallback profile manager', () => {

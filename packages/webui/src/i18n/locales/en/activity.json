@@ -2837,8 +2837,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Cron Jobs",
-    "subtitle": "Scheduled recurring tasks managed by the cron plugin.",
+    "heading": "Session Wakeups",
+    "subtitle": "Timers the agent scheduled for itself with session_wakeup; each one comes back to it as a runtime notice.",
     "statusDisabled": "Disabled",
     "statusOverdue": "Overdue",
     "statusActive": "Active",
@@ -2847,8 +2847,8 @@
     "enabledCount": "{{count}} enabled",
     "overdueCount": "{{count}} overdue",
     "totalRuns": "{{count}} total runs",
-    "maxConcurrent": "max {{count}} concurrent",
-    "emptyTitle": "No cron jobs scheduled.",
+    "maxConcurrent": "max {{count}} per session",
+    "emptyTitle": "No session wakeups scheduled.",
     "emptyUse": "Use",
     "emptyToAdd": "to add one.",
     "thStatus": "Status",
@@ -3198,7 +3198,7 @@
     "workspaceInspector": "Workspace Inspector",
     "processMonitor": "Process Monitor",
     "queue": "Queue",
-    "cronJobs": "Cron Jobs"
+    "cronJobs": "Session Wakeups"
   },
   "audienceMem": {
     "heading": "Audience Memory",

@@ -363,10 +363,10 @@ export function AppStatusRegion({
             <CronJobsMonitor
               getCronJobs={getCronJobs}
               onCancel={async (name) => {
-                const tool = agent.tools.get('cron_cancel');
-                if (!tool) return 'Cron plugin not loaded (cron_cancel tool not found).';
+                const tool = agent.tools.get('session_wakeup');
+                if (!tool) return 'session_wakeup tool is not registered.';
                 try {
-                  const result = (await tool.execute({ name }, agent.ctx, {
+                  const result = (await tool.execute({ action: 'cancel', id: name }, agent.ctx, {
                     signal: AbortSignal.timeout(5000),
                   })) as { ok?: boolean | undefined; error?: string | undefined };
                   return result.ok === false ? (result.error ?? `Could not cancel ${name}.`) : null;

@@ -428,6 +428,12 @@ export interface AgentEventMap {
     sessionId: string;
     deliveryIds: string[];
     delegationIds: string[];
+    /**
+     * Runtime notices (`source:handle#seq`) the woken turn receives: a
+     * `session_wakeup` timer, `process_watch` output, or a background process
+     * exit the model asked to hear about.
+     */
+    notices?: string[] | undefined;
     /** 1-based position in the chain of woken turns since the last user input. */
     chain: number;
   };

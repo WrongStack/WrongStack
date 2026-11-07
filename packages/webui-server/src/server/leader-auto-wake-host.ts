@@ -141,10 +141,15 @@ export function createWebuiLeaderAutoWakeHost(
     }),
     opts.events.on('leader.delivery_pending', (e) => {
       const wanted = new Set(e.deliveryIds);
-      const delegationIds = hub
-        .peek(e.sessionId)
-        .filter((item) => wanted.has(item.deliveryId))
-        .map((item) => item.payload.delegationId);
+      const delegationIds: string[] = [];
+      for (const item of hub.peek(e.sessionId)) {
+        if (wanted.has(item.deliveryId) && item.kind === 'delegation_result') {
+          delegationIds.push(item.payload.delegationId);
+        }
+      }
+      // Runtime notices (timers, watches, process exits) are not delegation
+      // results; the woken turn's own notice line names them.
+      if (delegationIds.length === 0) return;
       opts.broadcast({
         type: 'delegation.delivery_pending',
         payload: { sessionId: e.sessionId, count: e.count, delegationIds, wake: e.wake },
@@ -153,7 +158,12 @@ export function createWebuiLeaderAutoWakeHost(
     opts.events.on('leader.auto_wake_started', (e) => {
       opts.broadcast({
         type: 'delegation.auto_wake_started',
-        payload: { sessionId: e.sessionId, delegationIds: e.delegationIds, chain: e.chain },
+        payload: {
+          sessionId: e.sessionId,
+          delegationIds: e.delegationIds,
+          notices: e.notices ?? [],
+          chain: e.chain,
+        },
       });
     }),
     opts.events.on('leader.auto_wake_suppressed', (e) => {

@@ -4,6 +4,8 @@ export interface PwshInput {
   timeout_ms?: number | undefined;
   run_in_background?: boolean | undefined;
   background?: boolean | undefined;
+  /** Background run: report the exit as a runtime notice. Default true. */
+  notify_on_exit?: boolean | undefined;
 }
 
 export interface PwshOutput {

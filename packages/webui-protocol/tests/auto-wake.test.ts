@@ -95,4 +95,20 @@ describe('autoWakeNoticeText', () => {
     );
     expect(autoWakeNoticeText(corePrompt(''))).toBe(formatAutoWakeNotice([]));
   });
+
+  it('reads a notice-only prompt as timer/watch notices, not delegation results', () => {
+    const text = autoWakeNoticeText(
+      `${AUTO_WAKE_PROMPT_MARKER} Runtime notice(s) arrived: timer:wk-1#2, process:4242#exit@1. Review and continue.`,
+    );
+    expect(text).toBe(formatAutoWakeNotice([], undefined, ['timer:wk-1#2', 'process:4242#exit@1']));
+    expect(text).not.toContain('delegation');
+  });
+
+  it('reads a mixed prompt into both lists', () => {
+    expect(
+      autoWakeNoticeText(
+        `${AUTO_WAKE_PROMPT_MARKER} Background delegation result(s) arrived: d1; runtime notice(s) arrived: watch:pw-1#3. Review and continue.`,
+      ),
+    ).toBe(formatAutoWakeNotice(['d1'], undefined, ['watch:pw-1#3']));
+  });
 });

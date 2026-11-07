@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T16:15:50.464Z",
+  "generatedAt": "2026-11-07T16:17:37.181Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6053,
-    "testFiles": 5056,
-    "sourceLines": 1253965,
+    "sourceFiles": 6056,
+    "testFiles": 5055,
+    "sourceLines": 1255031,
     "workspaceEdges": 243,
-    "moduleEdges": 17907,
+    "moduleEdges": 17922,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 291,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1038
+    "testOnlyExports": 1040
   },
   "errors": [],
   "packageCycles": [],
@@ -335,8 +335,8 @@
     {
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
-      "sourceFiles": 190,
-      "testFiles": 186,
+      "sourceFiles": 191,
+      "testFiles": 187,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,7 +354,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 186
+          "testFiles": 187
         }
       ]
     },
@@ -688,8 +688,8 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 152,
-      "testFiles": 133,
+      "sourceFiles": 151,
+      "testFiles": 130,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -707,7 +707,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 133
+          "testFiles": 130
         }
       ]
     },
@@ -1001,8 +1001,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 396,
-      "testFiles": 382,
+      "sourceFiles": 399,
+      "testFiles": 383,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1021,7 +1021,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 382
+          "testFiles": 383
         }
       ]
     },
@@ -9451,6 +9451,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/runtime-notice-wake.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/sealed-subagent.test.ts",
         "projects": [
           "root-node"
@@ -16849,24 +16855,6 @@
         ]
       },
       {
-        "file": "packages/plugins/tests/cron-exec.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/plugins/tests/cron-interval-bound.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/plugins/tests/cron.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
         "file": "packages/plugins/tests/dep-guard-install-spellings.test.ts",
         "projects": [
           "root-node"
@@ -22862,6 +22850,12 @@
       },
       {
         "file": "packages/tools/tests/replace.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/runtime-notices.test.ts",
         "projects": [
           "root-node"
         ]
@@ -34586,7 +34580,7 @@
     },
     {
       "file": "packages/plugins/src/audit/index.ts",
-      "lines": 715,
+      "lines": 708,
       "relativeImports": 0
     },
     {
@@ -34932,11 +34926,6 @@
       "relativeImports": 14
     },
     {
-      "file": "packages/plugins/src/audit/index.ts",
-      "lines": 715,
-      "relativeImports": 0
-    },
-    {
       "file": "packages/tui/src/reducers/panel-pickers.ts",
       "lines": 714,
       "relativeImports": 5
@@ -34965,6 +34954,11 @@
       "file": "packages/core/src/core/agent-tools.ts",
       "lines": 708,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/plugins/src/audit/index.ts",
+      "lines": 708,
+      "relativeImports": 0
     },
     {
       "file": "packages/acp/src/client/acp-session.ts",
@@ -36085,10 +36079,6 @@
     {
       "file": "packages/coordination/src/fleet.ts",
       "name": "EXPLORE_COMPANION_TOOLS"
-    },
-    {
-      "file": "packages/coordination/src/leader-delivery-attach.ts",
-      "name": "isLeaderAgentId"
     },
     {
       "file": "packages/coordination/src/mailbox-attach.ts",
@@ -37931,6 +37921,10 @@
       "name": "killWin32Tree"
     },
     {
+      "file": "packages/tools/src/process-watch.ts",
+      "name": "_resetProcessWatches"
+    },
+    {
       "file": "packages/tools/src/project-kit/advisor.ts",
       "name": "isAdHocScriptCall"
     },
@@ -37953,6 +37947,10 @@
     {
       "file": "packages/tools/src/search.ts",
       "name": "__getSearchCacheSizeForTest"
+    },
+    {
+      "file": "packages/tools/src/session-wakeup.ts",
+      "name": "_resetSessionWakeups"
     },
     {
       "file": "packages/tools/src/tool-diff.ts",
@@ -38613,6 +38611,10 @@
     {
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
       "name": "seedWrongProxyFromConfig"
+    },
+    {
+      "file": "packages/webui-server/src/server/standalone-delegation.ts",
+      "name": "createStandaloneAutoWake"
     },
     {
       "file": "packages/webui-server/src/server/terminal-ws-handler.ts",

@@ -12,7 +12,7 @@
  * git-autocommit, injection-shield, shell-check, token-budget,
  * auto-escalate, semver-bump, branch-guard, format-on-save,
  * accessibility-auditor, session-recap,
- * type-gate, template-engine, todo-listener, llm-cache, cron
+ * type-gate, template-engine, todo-listener, llm-cache
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -83,7 +83,6 @@ const plugins = {
   'type-gate': () => import('../src/type-gate'),
   'todo-listener': () => import('../src/todo-listener'),
   'llm-cache': () => import('../src/llm-cache'),
-  cron: () => import('../src/cron'),
   'template-engine': () => import('../src/template-engine'),
   'agent-handoff': () => import('../src/agent-handoff'),
 };

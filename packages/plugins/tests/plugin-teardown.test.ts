@@ -6,7 +6,6 @@ import costTrackerPlugin from '../src/cost-tracker/index.js';
 // cleanup, not chokidar's API. A separate test (currently skipped due
 // to import-shape subtleties) asserts that FSWatcher.close() is invoked
 // per registered handle; see the audit notes for the trade-off.
-import cronPlugin from '../src/cron/index.js';
 import fileWatcherPlugin from '../src/file-watcher/index.js';
 import gitAutocommitPlugin from '../src/git-autocommit/index.js';
 import semverBumpPlugin from '../src/semver-bump/index.js';
@@ -43,7 +42,7 @@ interface MockApi {
 function makeApi(): MockApi {
   return {
     tools: { register: vi.fn() },
-    config: { extensions: { cron: { maxConcurrentJobs: 5 }, 'file-watcher': { debounceMs: 100 } } },
+    config: { extensions: { 'file-watcher': { debounceMs: 100 } } },
     extensions: { register: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
@@ -67,17 +66,14 @@ function getTool(api: MockApi, name: string): { execute: (input: unknown) => Pro
 /**
  * Regression guard for the H1 audit (2026-06-03):
  *
- *   `plugins/cron/index.ts:teardown` and
- *   `plugins/file-watcher/index.ts:teardown`
- *   were documented no-ops — the `state`, `watches`, and
+ *   `plugins/file-watcher/index.ts:teardown` (and the since-removed cron
+ *   plugin's) were documented no-ops — the `state`, `watches`, and
  *   `debounceTimers` Maps lived inside the setup closure and were
  *   unreachable from teardown, so every setTimeout timer and every
  *   chokidar FSWatcher leaked on plugin reload.
  *
  * After the fix (state promoted to module scope), teardown must:
- *   1. cron: clear every scheduled timer (vi.getTimerCount() === 0)
- *   2. file-watcher: close every FSWatcher handle
- *   3. cron: not throw if called before setup (idempotent teardown)
+ *   - file-watcher: close every FSWatcher handle and clear its timers
  */
 describe('plugin teardown (H1 regression guard)', () => {
   beforeEach(() => {
@@ -86,48 +82,6 @@ describe('plugin teardown (H1 regression guard)', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
-  });
-
-  describe('cron', () => {
-    it('teardown clears every scheduled timer', async () => {
-      const api = makeApi();
-      cronPlugin.setup(api as never as Parameters<typeof cronPlugin.setup>[0]);
-
-      const scheduleTool = getTool(api, 'cron_schedule');
-      await scheduleTool.execute({ name: 'job-a', intervalMs: 60_000, action: 'noop' });
-      await scheduleTool.execute({ name: 'job-b', intervalMs: 60_000, action: 'noop' });
-      await scheduleTool.execute({ name: 'job-c', intervalMs: 60_000, action: 'noop' });
-
-      // Three timers should be alive before teardown
-      expect(vi.getTimerCount()).toBe(3);
-
-      // Act
-      cronPlugin.teardown!(api as never as Parameters<typeof cronPlugin.teardown>[0]);
-
-      // All timers must be cleared — no orphan setTimeout left behind
-      expect(vi.getTimerCount()).toBe(0);
-      // The shutdown log line should fire exactly once
-      expect(api.log.info).toHaveBeenCalledWith('cron plugin unloaded');
-    });
-
-    it('teardown is safe to call after setup has already been called once (reload cycle)', async () => {
-      const api = makeApi();
-      cronPlugin.setup(api as never as Parameters<typeof cronPlugin.setup>[0]);
-      cronPlugin.teardown!(api as never as Parameters<typeof cronPlugin.teardown>[0]);
-
-      // Second cycle — setup clears state, then schedule, then teardown.
-      // The crucial check: the second teardown also reaches 0 timers, even
-      // though state was populated twice. (The pre-fix code would have
-      // fallen through to the `?? { jobs: new Map() }` default and left
-      // every timer alive.)
-      cronPlugin.setup(api as never);
-      const scheduleTool = getTool(api, 'cron_schedule');
-      await scheduleTool.execute({ name: 'job-d', intervalMs: 60_000, action: 'noop' });
-      expect(vi.getTimerCount()).toBe(1);
-
-      cronPlugin.teardown!(api as never as Parameters<typeof cronPlugin.teardown>[0]);
-      expect(vi.getTimerCount()).toBe(0);
-    });
   });
 
   describe('file-watcher', () => {

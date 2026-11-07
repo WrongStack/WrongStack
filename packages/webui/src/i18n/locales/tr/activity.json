@@ -2837,8 +2837,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Zamanlanmış Görevler",
-    "subtitle": "Cron eklentisi tarafından yönetilen zamanlanmış yinelenen görevler.",
+    "heading": "Oturum uyandırmaları",
+    "subtitle": "Ajanın session_wakeup ile kendine kurduğu zamanlayıcılar; her biri ona çalışma zamanı bildirimi olarak döner.",
     "statusDisabled": "Devre dışı",
     "statusOverdue": "Gecikmiş",
     "statusActive": "Etkin",
@@ -2847,8 +2847,8 @@
     "enabledCount": "{{count}} etkin",
     "overdueCount": "{{count}} gecikmiş",
     "totalRuns": "toplam {{count}} çalıştırma",
-    "maxConcurrent": "en fazla {{count}} eşzamanlı",
-    "emptyTitle": "Zamanlanmış görev yok.",
+    "maxConcurrent": "oturum başına en fazla {{count}}",
+    "emptyTitle": "Planlanmış oturum uyandırması yok.",
     "emptyUse": "Eklemek için",
     "emptyToAdd": "kullanın.",
     "thStatus": "Durum",
@@ -3198,7 +3198,7 @@
     "workspaceInspector": "Çalışma Alanı Denetçisi",
     "processMonitor": "Süreç İzleyici",
     "queue": "Kuyruk",
-    "cronJobs": "Cron Görevleri"
+    "cronJobs": "Oturum uyandırmaları"
   },
   "audienceMem": {
     "heading": "Hedef Kitle Belleği",

@@ -266,7 +266,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'automation.manage',
     pack: 'admin',
     exposure: 'on-demand',
-    tools: ['cron_schedule', 'cron_list', 'cron_cancel', 'watch_start', 'watch_list', 'watch_stop'],
+    tools: ['watch_start', 'watch_list', 'watch_stop'],
   },
   {
     id: 'context.pin',

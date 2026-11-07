@@ -147,7 +147,6 @@ const PLUGIN_FILES = [
   ['shell-check', '../src/shell-check/index.ts'],
   ['cost-tracker', '../src/cost-tracker/index.ts'],
   ['file-watcher', '../src/file-watcher/index.ts'],
-  ['cron', '../src/cron/index.ts'],
   ['template-engine', '../src/template-engine/index.ts'],
   ['semver-bump', '../src/semver-bump/index.ts'],
 ] as const;
@@ -250,8 +249,8 @@ describe('@wrongstack/plugins — smoke tests', () => {
   }
 
   describe('plugin count', () => {
-    it('has exactly 8 plugin files', () => {
-      expect(PLUGIN_FILES).toHaveLength(8);
+    it('has exactly 7 plugin files', () => {
+      expect(PLUGIN_FILES).toHaveLength(7);
     });
   });
 

@@ -1,4 +1,9 @@
 import type { EventBus } from '@wrongstack/contracts/kernel';
+import {
+  listSessionWakeups,
+  onSessionWakeupsChanged,
+  WAKEUP_MAX_PER_SESSION,
+} from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
@@ -92,16 +97,38 @@ export function registerSetupEventsPatternHandlers(options: {
         payload: sessionPayload({ event: eventName, ...(payload as Record<string, unknown>) }),
       });
     }),
-    events.onPattern('cron:state_snapshot', (_eventName, payload) => {
+    // The scheduled-jobs panel shows `session_wakeup` timers (the cron plugin
+    // it was built for was replaced by them). The frame names stay `cron.*`
+    // so the WebUI store and panel are unchanged.
+    onSessionWakeupsChanged((change) => {
+      if (change.kind === 'fired') {
+        broadcast(clients, {
+          type: 'cron.job_fired',
+          payload: projectWide({
+            name: change.id,
+            action: change.prompt,
+            runCount: change.fires,
+            ts: change.ts,
+          }),
+        } as never as WSServerMessage);
+      }
+      const wakeups = listSessionWakeups();
       broadcast(clients, {
         type: 'cron.snapshot',
-        payload: projectWide(payload),
-      } as never as WSServerMessage);
-    }),
-    events.onPattern('cron:job_fired', (_eventName, payload) => {
-      broadcast(clients, {
-        type: 'cron.job_fired',
-        payload: projectWide(payload),
+        payload: projectWide({
+          count: wakeups.length,
+          maxConcurrent: WAKEUP_MAX_PER_SESSION,
+          jobs: wakeups.map((w) => ({
+            name: w.id,
+            intervalMs: (w.every_s ?? 0) * 1000,
+            action: w.prompt,
+            enabled: true,
+            lastRun: w.last_fired_at ?? null,
+            nextRun: w.next_at,
+            runCount: w.fires,
+            overdue: false,
+          })),
+        }),
       } as never as WSServerMessage);
     }),
   ];

@@ -10,7 +10,6 @@
 | git-autocommit | 0.3.0 | ^0.1.10 | `@wrongstack/plugins/git-autocommit` | AI-powered git staging and conventional commit message generation |
 | auto-doc | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/auto-doc` | Auto-generates JSDoc/TSDoc comments for functions, classes, types, and interfaces |
 | shell-check | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/shell-check` | Runs shellcheck analysis on bash/shell scripts and surfaces issues with severity levels |
-| cron | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/cron` | Schedules recurring tasks using beforeIteration/afterIteration extension hooks |
 | template-engine | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/template-engine` | Expands file templates with variable substitution, conditionals, and loops |
 | semver-bump | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/semver-bump` | Conventional-commit-driven semver version bumps with changelog generation |
 | secret-scanner | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/secret-scanner` | Pre-tool hook that blocks (or optionally redacts) tools whose arguments contain plaintext credentials |

@@ -45,13 +45,6 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     canDisable: true,
   },
   {
-    name: 'cron',
-    risk: 'medium',
-    summary: 'Schedules recurring tasks using beforeIteration/afterIteration extension hooks',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-  {
     name: 'template-engine',
     risk: 'medium',
     summary: 'Expands file templates with variable substitution, conditionals, and loops',

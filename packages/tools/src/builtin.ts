@@ -47,6 +47,7 @@ import { outdatedTool } from './outdated.js';
 import { patchTool } from './patch.js';
 import { planTool } from './plan.js';
 import { presentArtifactTool } from './present-artifact.js';
+import { processWatchControlTool, processWatchTool } from './process-watch.js';
 import { projectKitRunTool, projectKitTool } from './project-kit.js';
 import { pwshTool } from './pwsh.js';
 import { readTool } from './read.js';
@@ -54,6 +55,7 @@ import { readUrlContentTool } from './read-url-content.js';
 import { replaceTool } from './replace.js';
 import { searchTool } from './search.js';
 import { securityAstScanTool } from './security-ast-scan-tool.js';
+import { sessionWakeupTool } from './session-wakeup.js';
 import { taskTool } from './task.js';
 import { testTool } from './test.js';
 import { todoTool } from './todo.js';
@@ -78,6 +80,9 @@ const browserTierGate = createSandboxBrowserTierGate();
 const sandboxedBashTool = sandboxWrap(bashTool);
 const sandboxedExecTool = sandboxWrap(execTool);
 const sandboxedGitTool = sandboxWrap(gitTool);
+// process_watch runs an arbitrary shell command, so it passes the same
+// enforced-mode gate (deny / one-call elevation) as bash.
+const sandboxedProcessWatchTool = sandboxWrap(processWatchTool);
 
 /**
  * Provider-facing descriptions for every built-in tool.
@@ -179,6 +184,12 @@ export const BUILTIN_TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = {
   grep: 'Search project text with a bounded regular expression and contextual matches. Use it for exact literals or patterns when semantic codebase search is not appropriate.',
   bash: 'Run a shell command in the project with bounded output and timeout controls. Use it for development commands after checking side effects; background mode returns a process handle.',
   exec: 'Execute a command directly without shell interpretation, preserving every argument. YOLO/YOLO+ permit executables beyond the default roster, filesystem-scoped Git -C and temporary development settings; explicit tools.exec.deny entries still refuse. Prefer it for predictable process invocation.',
+  process_watch:
+    'Run a command and receive its output lines (optionally only those matching a regex `filter`) as [RUNTIME NOTICE]s while it runs, plus its exit; an idle session is woken for them. For log tails, readiness lines and CI loops instead of polling. Returns at once.',
+  process_watch_control:
+    'List this session’s process watches, or stop one by id (or all with id="all").',
+  session_wakeup:
+    'Schedule a prompt to come back to you as a [RUNTIME NOTICE]: once after delay_s, or every every_s (expires after 24h); an idle session is woken for it. Use instead of sleeping or polling while waiting on CI, a deploy or a long build. Also list and cancel.',
   pwsh: 'Execute a PowerShell command in the project with timeout, output, and background controls. Use it for Windows-native project operations and verify commands that can modify state.',
   fetch:
     'Fetch and extract content from an approved HTTP(S) URL for research or integration work. Project origins allowed with /network allow (or /browser allow) are shared with the browser and HTTP reader. Use for a known page or endpoint.',
@@ -314,7 +325,8 @@ export const TIER1_TOOLS: Tool[] = [
 
 /**
  * Tier 2 tool set — standard development tools useful for non-trivial work.
- * Adds 20 tools: replace, exec, pwsh, fetch, git, tree, lint, format,
+ * Adds 23 tools: replace, exec, pwsh, process_watch, process_watch_control,
+ * session_wakeup, fetch, git, tree, lint, format,
  * typecheck, test, languageInfo, language, languagePackage, todo, plan,
  * kanban, task, install, audit, design.
  *
@@ -327,6 +339,9 @@ export const TIER2_TOOLS: Tool[] = [
   toolScriptTool,
   sandboxedExecTool,
   pwshTool,
+  sandboxedProcessWatchTool,
+  processWatchControlTool,
+  sessionWakeupTool,
   fetchTool,
   readUrlContentTool,
   sandboxedGitTool,
@@ -405,6 +420,9 @@ const rawBuiltinTools: Tool[] = [
   sandboxedBashTool,
   sandboxedExecTool,
   pwshTool,
+  sandboxedProcessWatchTool,
+  processWatchControlTool,
+  sessionWakeupTool,
   fetchTool,
   searchTool,
   todoTool,

@@ -5,55 +5,6 @@
 import type { ToolDetail } from './tool-detail-types';
 
 export const toolDetailsPart2: Record<string, ToolDetail> = {
-  read: {
-    longDescription:
-      'Read a project file safely, with optional line ranges and binary-aware output. Use it to inspect source before editing; paths must stay within the project.',
-    params: [
-      {
-        name: 'path',
-        type: 'string',
-        required: true,
-        description: 'Path to the file (relative to project root or absolute within project).',
-      },
-      {
-        name: 'offset',
-        type: 'integer',
-        description: '1-based starting line number. Use together with `limit` for large files.',
-      },
-      {
-        name: 'limit',
-        type: 'integer',
-        description:
-          'Maximum number of lines to return (default 2000). Values above 5000 are clamped to 5000 — page with `offset` for more.',
-      },
-      {
-        name: 'mode',
-        type: "'content' | 'summary'",
-        description:
-          'Return full line-numbered content (default) or a compact file summary with imports/exports/symbols.',
-      },
-      {
-        name: 'includeSymbols',
-        type: 'boolean',
-        description:
-          'When true, include the codebase-index symbol list for this file as a structured `symbols` field in the result. Overrides the advanced-mode meta flag per-call.',
-      },
-      {
-        name: 'pages',
-        type: 'string',
-        description:
-          'PDF only: pages to read, e.g. "3" or "1-5" (at most 20 per call; default the first 20).',
-      },
-    ],
-    doNotUseWhen: ['you need to search many files for matching content.'],
-    useInstead: ['grep'],
-    notes: [
-      'Always read a file before using `edit`, `replace`, or `write` on it (the system often requires it for safety).',
-      'Use `offset` + `limit` for very large files instead of reading everything at once.',
-      'Default limit is generous (2000 lines) but can be increased.',
-      'Output is capped at 256 KiB.',
-    ],
-  },
   read_url_content: {
     longDescription:
       'Fetch content from a URL via HTTP request and convert HTML directly to clean markdown. Use for public docs and web pages without browser overhead.',
@@ -301,6 +252,11 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
         description:
           'If true, skip shell startup files (.bashrc, profile, aliases) and pass only a minimal environment (PATH, HOME, temp, locale).',
       },
+      {
+        name: 'notify_on_exit',
+        type: 'boolean',
+        description: 'Background: report the exit as a [RUNTIME NOTICE] (default true).',
+      },
     ],
     doNotUseWhen: [
       'the command is allowlisted and does not require pipes, redirection, or shell expansion.',
@@ -383,6 +339,11 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
         name: 'background',
         type: 'boolean',
         description: 'Alias for run_in_background.',
+      },
+      {
+        name: 'notify_on_exit',
+        type: 'boolean',
+        description: 'Background: report the exit as a [RUNTIME NOTICE] (default true).',
       },
     ],
     doNotUseWhen: [
@@ -1566,6 +1527,88 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
       '`files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes).',
       '`a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).',
       '`staged: true` → only show staged changes.',
+    ],
+  },
+  tree: {
+    longDescription:
+      'Render a bounded directory tree with depth, file, hidden-file, and ignore controls. Use it for repository orientation without reading every file.',
+    params: [
+      {
+        name: 'path',
+        type: 'string',
+        description: 'Root directory to display the tree from (defaults to project root).',
+      },
+      {
+        name: 'depth',
+        type: 'integer',
+        description: 'Maximum directory depth to traverse (default 3, use 0 for unlimited).',
+      },
+      {
+        name: 'glob',
+        type: 'string',
+        description: 'Only include files matching this glob pattern.',
+      },
+      {
+        name: 'exclude',
+        type: 'string[]',
+        description: 'List of directory names to completely ignore.',
+      },
+      {
+        name: 'show_files',
+        type: 'boolean',
+        description: 'Whether to show individual files (default true).',
+      },
+      {
+        name: 'show_dirs',
+        type: 'boolean',
+        description: 'Whether to show directories (default true).',
+      },
+      {
+        name: 'show_hidden',
+        type: 'boolean',
+        description: 'Show hidden files starting with . (default: false)',
+      },
+      {
+        name: 'max_entries',
+        type: 'integer',
+        description: 'Maximum entries retained in the rendered tree (default 5000).',
+      },
+    ],
+    notes: [
+      'Call early when working with an unfamiliar project or module.',
+      'Tune `depth` (default 3) and use `glob`/`exclude` to focus the view.',
+      'Prefer this over raw `bash find` or `glob` + manual reading when you need a quick structural overview.',
+    ],
+  },
+  lint: {
+    longDescription:
+      'Run the project’s configured linter for a target path or working directory and return diagnostics. Use it after code edits to catch style and static-analysis issues.',
+    params: [
+      {
+        name: 'files',
+        type: 'string',
+        description:
+          'Files/patterns: single path, comma-separated list, or glob (e.g. "src/**/*.ts")',
+      },
+      {
+        name: 'fix',
+        type: 'boolean',
+        description: 'Auto-fix fixable issues (default: false)',
+      },
+      {
+        name: 'linter',
+        type: "'biome' | 'eslint' | 'tslint' | 'auto'",
+        description: 'Linter to use (default: auto-detect)',
+      },
+      {
+        name: 'cwd',
+        type: 'string',
+        description: 'Working directory (default: cwd)',
+      },
+    ],
+    notes: [
+      '`fix: true` will automatically correct what it can.',
+      'Target specific files or globs when you only want to check part of the project.',
     ],
   },
 };

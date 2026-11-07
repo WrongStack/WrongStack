@@ -16,6 +16,11 @@ import {
   createCommandOutputCapture,
   normalizeCommandOutput,
 } from './_util.js';
+import {
+  BACKGROUND_EXIT_NOTICE_HINT,
+  backgroundExitNoticeTarget,
+  reportBackgroundExit,
+} from './background-exit-notice.js';
 import { closeBackgroundLogFd, openBackgroundLog } from './background-log.js';
 import { hermeticEnv } from './bash-hermetic.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
@@ -175,6 +180,7 @@ export async function* executeBashStream(
     }
     closeBackgroundLogFd(bgLog);
     const pid = child.pid;
+    const exitNoticeSession = backgroundExitNoticeTarget(ctx, input.notify_on_exit);
     const stdoutBytes = 0;
     const stderrBytes = 0;
     let telemetryCompleted = false;
@@ -239,6 +245,20 @@ export async function* executeBashStream(
     // while a background dev server kept its pipes open.
     child.on('close', (code, signal) => {
       bgSettled = true;
+      // Registered after the unregister handler above, so the ended-process
+      // record (with its `killed` flag) already exists when this reads it.
+      if (exitNoticeSession && typeof pid === 'number') {
+        reportBackgroundExit({
+          sessionId: exitNoticeSession,
+          tool: 'bash',
+          pid,
+          command: redactCommand(input.command),
+          startedAt,
+          code,
+          signal,
+          ...(bgLog ? { logFile: bgLog.path } : {}),
+        });
+      }
       if (bgErrorOccurred) return;
       const failed = (code !== 0 && code !== null) || !!signal;
       registry.afterCall(Date.now() - startedAt, failed, bypassBreaker);
@@ -262,8 +282,10 @@ export async function* executeBashStream(
       type: 'final',
       output: {
         // A background run's output is in its log file; the pipe-to-shell
-        // caution (when present) is the only thing worth surfacing here.
-        output: pipeToShellNote.trim(),
+        // caution and the exit-notice promise are all worth surfacing here.
+        output: [pipeToShellNote.trim(), exitNoticeSession ? BACKGROUND_EXIT_NOTICE_HINT : '']
+          .filter(Boolean)
+          .join('\n\n'),
         exit_code: null,
         timed_out: false,
         pid,

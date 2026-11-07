@@ -448,6 +448,16 @@ export {
   type PersistentRegistryData,
   resetPersistentProcessRegistry,
 } from './process-registry-persistent.js';
+export {
+  listProcessWatches,
+  type ProcessWatchControlInput,
+  type ProcessWatchInput,
+  type ProcessWatchOutput,
+  type ProcessWatchView,
+  processWatchControlTool,
+  processWatchTool,
+  stopProcessWatch,
+} from './process-watch.js';
 export { listKits as listProjectKits } from './project-kit/catalog.js';
 export { inspectProjectKit } from './project-kit/inspect.js';
 export {
@@ -522,6 +532,17 @@ export {
   rebindSessionKanbanTask,
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
+export {
+  cancelSessionWakeup,
+  listSessionWakeups,
+  onSessionWakeupsChanged,
+  type SessionWakeupChange,
+  type SessionWakeupInput,
+  type SessionWakeupOutput,
+  type SessionWakeupView,
+  sessionWakeupTool,
+  WAKEUP_MAX_PER_SESSION,
+} from './session-wakeup.js';
 export {
   type LoadedResource,
   makeSkillTool,

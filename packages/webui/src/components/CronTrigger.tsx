@@ -1,13 +1,14 @@
 /**
- * CronTrigger — compact topbar button showing active cron count.
+ * CronTrigger — compact topbar button showing how many session wakeups
+ * (`session_wakeup` timers, fed through the `cron.snapshot` frame) are set.
  *
  * Reads the Zustand cronStore snapshot and displays the number of active
  * (enabled + not overdue) jobs. When an overdue job exists, shows a
  * warning-style badge. Clicking the button opens the CronJobsPanel overlay.
  */
 import { RotateCw } from 'lucide-react';
-import { useCronStore, useUIStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { useCronStore, useUIStore } from '@/stores';
 
 export function CronTrigger(): React.ReactElement | null {
   const snapshot = useCronStore((s) => s.snapshot);
@@ -30,7 +31,7 @@ export function CronTrigger(): React.ReactElement | null {
           ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15'
           : 'border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground',
       )}
-      title={`${total} cron job${total !== 1 ? 's' : ''}${overdueCount > 0 ? `, ${overdueCount} overdue` : ''}`}
+      title={`${total} session wakeup${total !== 1 ? 's' : ''}${overdueCount > 0 ? `, ${overdueCount} overdue` : ''}`}
     >
       <RotateCw className="h-3.5 w-3.5" />
       <span className="hidden lg:inline">

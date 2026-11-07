@@ -2775,8 +2775,8 @@
     }
   },
   "cronJobs": {
-    "heading": "Cron-Jobs",
-    "subtitle": "Geplante wiederkehrende Aufgaben, verwaltet vom Cron-Plugin.",
+    "heading": "Sitzungs-Wakeups",
+    "subtitle": "Timer, die sich der Agent mit session_wakeup gestellt hat; jeder kommt als Laufzeitmeldung zu ihm zurück.",
     "statusDisabled": "Deaktiviert",
     "statusOverdue": "Überfällig",
     "statusActive": "Aktiv",
@@ -2785,8 +2785,8 @@
     "enabledCount": "{{count}} aktiviert",
     "overdueCount": "{{count}} überfällig",
     "totalRuns": "{{count}} Läufe gesamt",
-    "maxConcurrent": "max. {{count}} gleichzeitig",
-    "emptyTitle": "Keine Cron-Jobs geplant.",
+    "maxConcurrent": "max. {{count}} pro Sitzung",
+    "emptyTitle": "Keine Sitzungs-Wakeups geplant.",
     "emptyUse": "Zum Hinzufügen",
     "emptyToAdd": "verwenden.",
     "thStatus": "Status",
@@ -3136,7 +3136,7 @@
     "workspaceInspector": "Workspace-Inspektor",
     "processMonitor": "Prozessmonitor",
     "queue": "Warteschlange",
-    "cronJobs": "Cron-Jobs"
+    "cronJobs": "Sitzungs-Wakeups"
   },
   "audienceMem": {
     "heading": "Zielgruppen-Speicher",

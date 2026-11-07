@@ -283,9 +283,10 @@ export async function startWebUI(
 
   const pendingConfirms = new Map<string, PendingConfirm>();
 
-  // A settled background delegation starts a turn for its idle leader through the same
+  // A settled background delegation, or a runtime notice the leader asked for (timer,
+  // watch, background shell exit), starts a turn for its idle leader through the same
   // conversation path a user message takes (bound by the message dispatcher).
-  const autoWake = agentServices.delegation?.attachAutoWake({
+  const autoWake = (agentServices.autoWake ?? agentServices.delegation)?.attachAutoWake({
     abortControllers: _sessionRunLocks,
     pendingConfirms,
     isOpen: (sessionId) =>

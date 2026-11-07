@@ -54,6 +54,51 @@ export interface StandaloneDelegationInput {
   session: SessionWriter;
 }
 
+/**
+ * The engine process's auto-wake: starts a turn for an idle leader when something it was
+ * promised arrives — a background `delegate` result, or a runtime notice it asked for
+ * (`session_wakeup` timer, `process_watch` output, background shell exit). It exists
+ * whether or not `delegate` is enabled: timers and watches need it too.
+ */
+export interface StandaloneAutoWake {
+  /**
+   * Binds the engine's conversation path. Called once the run locks, pending confirms and
+   * client map exist; a second call replaces the first binding.
+   */
+  attachAutoWake(
+    options: Omit<WebuiLeaderAutoWakeHostOptions, 'controller' | 'events'>,
+  ): WebuiLeaderAutoWakeHost;
+  dispose(): void;
+}
+
+/**
+ * The engine process's only auto-wake controller: the CLI never boots this path (it hosts
+ * the WebUI through its own agent and controller), so this cannot double-wake a session.
+ * The engine creates exactly one — through `installStandaloneDelegation` when `delegate`
+ * is installed, otherwise directly in `createAgentServices`.
+ */
+export function createStandaloneAutoWake(input: {
+  events: EventBus;
+  getConfig: () => Config;
+}): StandaloneAutoWake {
+  const controller = new LeaderAutoWakeController({
+    events: input.events,
+    config: () => input.getConfig().fleet?.delegate,
+  });
+  let wakeHost: WebuiLeaderAutoWakeHost | undefined;
+  return {
+    attachAutoWake: (options) => {
+      wakeHost?.dispose();
+      wakeHost = createWebuiLeaderAutoWakeHost({ ...options, controller, events: input.events });
+      return wakeHost;
+    },
+    dispose: () => {
+      wakeHost?.dispose();
+      controller.dispose();
+    },
+  };
+}
+
 export interface StandaloneDelegation {
   host: MultiAgentHost;
   tracker: DelegationTracker;
@@ -204,22 +249,12 @@ export function installStandaloneDelegation(
   );
   toolRegistry.exposeToProvider('delegate');
 
-  // The engine process's only auto-wake controller: the CLI never boots this path (it hosts
-  // the WebUI through its own agent and controller), so this cannot double-wake a session.
-  const controller = new LeaderAutoWakeController({
-    events,
-    config: () => input.getConfig().fleet?.delegate,
-  });
-  let wakeHost: WebuiLeaderAutoWakeHost | undefined;
+  const autoWake = createStandaloneAutoWake({ events, getConfig: input.getConfig });
 
   return {
     host,
     tracker,
-    attachAutoWake: (options) => {
-      wakeHost?.dispose();
-      wakeHost = createWebuiLeaderAutoWakeHost({ ...options, controller, events });
-      return wakeHost;
-    },
+    attachAutoWake: (options) => autoWake.attachAutoWake(options),
     stopSession: (stoppedSessionId, subagentIds) => {
       const director = host.getDirector();
       if (!director) return undefined;
@@ -230,8 +265,7 @@ export function installStandaloneDelegation(
       ]).then(() => undefined);
     },
     dispose: async () => {
-      wakeHost?.dispose();
-      controller.dispose();
+      autoWake.dispose();
       tracker.dispose();
       await host.dispose();
     },

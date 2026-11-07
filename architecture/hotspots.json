@@ -55,7 +55,7 @@
       "relativeImports": 3
     },
     "packages/plugins/src/audit/index.ts": {
-      "lines": 715,
+      "lines": 708,
       "relativeImports": 0
     },
     "packages/project-surfaces/src/atlas/codemap-model.ts": {

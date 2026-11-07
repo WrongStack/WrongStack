@@ -103,11 +103,23 @@ export function useLeaderAutoWake(args: UseLeaderAutoWakeArgs): void {
       events.on('leader.auto_wake_started', (e) => {
         if (!isMine(e.sessionId)) return;
         const n = e.delegationIds.length;
+        const notices = e.notices ?? [];
+        const parts: string[] = [];
+        if (n > 0 || notices.length === 0) {
+          parts.push(
+            `${n} background delegation result${n === 1 ? '' : 's'} (${e.delegationIds.join(', ')})`,
+          );
+        }
+        if (notices.length > 0) {
+          parts.push(
+            `${notices.length} timer/watch notice${notices.length === 1 ? '' : 's'} the agent asked for (${notices.join(', ')})`,
+          );
+        }
         live.current.dispatch({
           type: 'addEntry',
           entry: {
             kind: 'info',
-            text: `⟳ auto-wake: ${n} background delegation result${n === 1 ? '' : 's'} arrived (${e.delegationIds.join(', ')}) — starting a new turn (woken turn ${e.chain} without your input; it spends tokens like any turn).`,
+            text: `⟳ auto-wake: ${parts.join(' and ')} arrived — starting a new turn (woken turn ${e.chain} without your input; it spends tokens like any turn).`,
           },
         });
       }),

@@ -21,7 +21,6 @@ export { default as configMigrationAssistantPlugin } from './config-migration-as
 export { default as configValidatorPlugin } from './config-validator/index.js';
 export { default as contextPinsPlugin } from './context-pins/index.js';
 export { default as costTrackerPlugin } from './cost-tracker/index.js';
-export { default as cronPlugin } from './cron/index.js';
 export { default as decisionJournalPlugin } from './decision-journal/index.js';
 export { default as depGuardPlugin } from './dep-guard/index.js';
 export { default as dependencyDriftDetectorPlugin } from './dependency-drift-detector/index.js';

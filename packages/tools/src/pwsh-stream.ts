@@ -15,6 +15,11 @@ import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { diagnoseBashism, shellArgs } from './_shell-pick.js';
 import { commandOutputPreviewBytes, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { resolvePowerShell } from './_win32-resolve.js';
+import {
+  BACKGROUND_EXIT_NOTICE_HINT,
+  backgroundExitNoticeTarget,
+  reportBackgroundExit,
+} from './background-exit-notice.js';
 import { closeBackgroundLogFd, openBackgroundLog } from './background-log.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
@@ -171,9 +176,23 @@ export async function* executePwshStream(
         ...(bgLog ? { logFile: bgLog.path } : {}),
       });
 
+      const exitNoticeSession = backgroundExitNoticeTarget(ctx, input.notify_on_exit);
       child.on('close', (code, signal) => {
         bgSettled = true;
         registry.unregister(pid);
+        // After unregister: the ended-process record carries the `killed` flag.
+        if (exitNoticeSession) {
+          reportBackgroundExit({
+            sessionId: exitNoticeSession,
+            tool: 'pwsh',
+            pid,
+            command: redactCommand(input.command),
+            startedAt,
+            code,
+            signal,
+            ...(bgLog ? { logFile: bgLog.path } : {}),
+          });
+        }
         if (bgErrorOccurred) return;
         const failed = (code !== 0 && code !== null) || !!signal;
         registry.afterCall(Date.now() - startedAt, failed, isBackground);
@@ -207,7 +226,9 @@ export async function* executePwshStream(
       yield {
         type: 'final',
         output: {
-          output: `Background job started: ${jobId} (PID: ${pid})\nWorking directory: ${targetCwd}`,
+          output:
+            `Background job started: ${jobId} (PID: ${pid})\nWorking directory: ${targetCwd}` +
+            (exitNoticeSession ? `\n${BACKGROUND_EXIT_NOTICE_HINT}` : ''),
           exit_code: null,
           timed_out: false,
           pid,

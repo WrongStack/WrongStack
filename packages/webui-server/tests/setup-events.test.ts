@@ -13,7 +13,8 @@ import { setupEvents } from '../src/server/setup-events.js';
 // connection cache — unreachable from `dispose()` — and the runner then
 // never exits after the last assertion. Every other kanban-touching test in
 // this suite mocks the same boundary for the same reason.
-vi.mock('@wrongstack/kanban', () => ({
+vi.mock('@wrongstack/kanban', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
   bridgeKanbanSupervisor: vi.fn(() => vi.fn()),
   getServerKanbanStore: vi.fn(() => ({ getBoard: vi.fn(), listBoards: vi.fn() })),
   recordTaskFileActivity: vi.fn(async () => false),

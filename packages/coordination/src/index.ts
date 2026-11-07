@@ -142,8 +142,10 @@ export {
   AUTO_WAKE_MARKER,
   buildAutoWakePrompt,
   DEFAULT_AUTO_WAKE_DEBOUNCE_MS,
+  DEFAULT_MAX_CHAINED_RUNTIME_WAKES,
   DEFAULT_MAX_CHAINED_WAKES,
   DEFAULT_MIN_WAKE_INTERVAL_MS,
+  DEFAULT_RUNTIME_MIN_WAKE_INTERVAL_MS,
   type LeaderAutoWakeConfig,
   LeaderAutoWakeController,
   type LeaderAutoWakeControllerOptions,
@@ -156,12 +158,19 @@ export {
 export {
   DELEGATION_RESULT_MARKER,
   type DelegationDeliveryPayload,
+  type DelegationLeaderDelivery,
   delegationDeliveryId,
   type LeaderDelivery,
   LeaderDeliveryHub,
   type LeaderDeliveryPendingEvent,
   leaderDeliveryHub,
+  leaderDeliveryRef,
+  RUNTIME_NOTICE_BODY_MAX_CHARS,
+  RUNTIME_NOTICE_MARKER,
+  type RuntimeNoticeLeaderDelivery,
+  type RuntimeNoticePayload,
   renderLeaderDeliveryBlock,
+  runtimeNoticeDeliveryId,
 } from './delegation/leader-delivery-hub.js';
 export {
   buildDelegationResultExcerpt,
@@ -445,6 +454,11 @@ export {
   type ProjectMailboxOptions,
   RemoteMailbox,
 } from './remote-mailbox.js';
+export {
+  enqueueRuntimeNotice,
+  type RuntimeNoticeInput,
+  resolveRuntimeNoticeTarget,
+} from './runtime-notice.js';
 export { attachSessionNotes } from './session-note-attach.js';
 export {
   postSessionNote,

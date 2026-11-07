@@ -22,7 +22,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     '- Strongly prefer `exec` for known safe commands (git, cargo, go, pytest, node, bun, npm, pnpm, tsc, etc.).\n' +
     '- Use bash only when you genuinely need shell features (pipes, redirection, complex one-liners).\n' +
     '- Prefer single focused commands over huge `&&` chains.\n' +
-    '- Use `background: true` only for long-running processes (dev servers, watchers). Its output goes to the `log_file` in the result; `read` it to see how the process is doing.\n' +
+    '- Use `background: true` only for long-running processes (dev servers, watchers). Its output goes to the `log_file` in the result. Its exit arrives on its own as a [RUNTIME NOTICE] (`notify_on_exit`, default true), so do not poll the log to see whether it finished; to react to specific output lines while it runs, use `process_watch`.\n' +
     '- `timeout_ms: 0` removes the time limit for a long foreground job you must wait on (the user can still interrupt it).\n' +
     '- `hermetic: true` skips shell startup files and runs with a minimal environment, for reproducible results.\n' +
     '- The working directory is the session working dir (the user changes it with `/working_dir`), defaulting to the project root; use `cd` inside the command for a one-off directory.\n' +
@@ -71,6 +71,10 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         type: 'boolean',
         description:
           'If true, skip shell startup files (.bashrc, profile, aliases) and pass only a minimal environment (PATH, HOME, temp, locale).',
+      },
+      notify_on_exit: {
+        type: 'boolean',
+        description: 'Background: report the exit as a [RUNTIME NOTICE] (default true).',
       },
     },
     required: ['command'],

@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { AgentContext } from '@wrongstack/contracts/types/context';
 import type {
@@ -134,7 +135,8 @@ describe('delegate — background mode (default)', () => {
       wake: true,
       payload: { delegationId: launch.delegationId, ok: true, status: 'success', handoffs: 0 },
     });
-    expect(delivery!.payload.excerpt).toContain('done:');
+    assert(delivery?.kind === 'delegation_result');
+    expect(delivery.payload.excerpt).toContain('done:');
     expect(tracker.get(launch.delegationId)?.state).toBe('settled');
   });
 
@@ -202,7 +204,9 @@ describe('delegate — background mode (default)', () => {
     expect(completed).toHaveLength(1);
     expect(completed[0]!.ok).toBe(false);
     expect(done).toEqual(completed);
-    expect(hub.take(SESSION)[0]!.payload.stopReason).toBe('host_timeout');
+    const [timeoutDelivery] = hub.take(SESSION);
+    assert(timeoutDelivery?.kind === 'delegation_result');
+    expect(timeoutDelivery.payload.stopReason).toBe('host_timeout');
   });
 
   it('throws validation errors synchronously and opens no tracker entry', async () => {
@@ -686,7 +690,12 @@ describe('DelegationTracker', () => {
     expect(tracker.rehydrate(SESSION, events)).toBe(2);
     expect(tracker.rehydrate(SESSION, events)).toBe(0);
     const items = hub.take(SESSION);
-    expect(items.map((d) => d.payload.delegationId)).toEqual(['d-a', 'd-b']);
+    expect(
+      items.map((delivery) => {
+        assert(delivery.kind === 'delegation_result');
+        return delivery.payload.delegationId;
+      }),
+    ).toEqual(['d-a', 'd-b']);
     expect(items.every((d) => d.wake === false)).toBe(true);
     expect(items[0]!.payload).toMatchObject({ excerpt: 'EXCERPT A', cause: 'restart', ok: true });
     expect(items[1]!.payload).toMatchObject({ ok: false, status: 'lost', cause: 'restart' });

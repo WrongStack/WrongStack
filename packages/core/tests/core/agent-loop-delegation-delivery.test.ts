@@ -33,8 +33,10 @@ import {
   delegationDeliveryId,
   type LeaderDelivery,
   leaderDeliveryHub,
+  RUNTIME_NOTICE_MARKER,
 } from '../../../coordination/src/delegation/leader-delivery-hub.js';
 import { Director } from '../../../coordination/src/director.js';
+import { enqueueRuntimeNotice } from '../../../coordination/src/runtime-notice.js';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { AGENT_COORDINATION } from '../../src/core/agent-coordination.js';
 import { Context } from '../../src/core/context.js';
@@ -490,5 +492,63 @@ describe('agent loop — leader delivery of background delegation results', () =
     expect(leaderDeliveryHub.pending(sessionId)).toBe(0);
     const events = await journalEvents(sessionStore, sessionId);
     expect(events.filter((e) => e.type === 'delegation_delivered')).toHaveLength(1);
+  });
+
+  it('end-to-end (runtime notice): an idle leader is woken once and reads the notice once', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'timer set; ending my turn' }], stopReason: 'end_turn' },
+      { content: [{ type: 'text', text: 'checked CI' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, session } = await buildAgent(provider, [], { agentId: 'leader' });
+    const sessionId = session.id;
+    const hostEvents = new EventBus();
+    const controller = new LeaderAutoWakeController({
+      events: hostEvents,
+      config: () => ({ autoWakeDebounceMs: 5 }),
+    });
+    cleanups.push(() => controller.dispose());
+    let running = false;
+    const wakeRuns: Array<Promise<unknown>> = [];
+    controller.attachPort({
+      isIdle: () => !running,
+      hasPendingUserInput: () => false,
+      isConfirmPending: () => false,
+      isOpen: (id) => id === sessionId,
+      isDisplayed: (id) => id === sessionId,
+      startWakeTurn: async (_id, prompt) => {
+        running = true;
+        const run = agent.run(prompt).finally(() => {
+          running = false;
+          controller.onRunFinished(sessionId);
+        });
+        wakeRuns.push(run);
+        await run;
+      },
+    });
+
+    running = true;
+    await agent.run('watch CI for me');
+    running = false;
+    controller.onRunFinished(sessionId);
+
+    enqueueRuntimeNotice(sessionId, {
+      source: 'timer',
+      handle: 'wk-e2e',
+      seq: 1,
+      title: 'session_wakeup wk-e2e fired',
+      body: 'prompt: check the CI run',
+    });
+    await expect.poll(() => wakeRuns.length, { timeout: 5_000 }).toBe(1);
+    await wakeRuns[0];
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(wakeRuns).toHaveLength(1);
+    expect(provider.calls).toBe(2);
+    const second = requestText(provider.receivedRequests[1]);
+    expect(second.split(RUNTIME_NOTICE_MARKER).length - 1).toBe(1);
+    expect(second).toContain('prompt: check the CI run');
+    expect(second).toContain(`${AUTO_WAKE_MARKER} Runtime notice(s) arrived: timer:wk-e2e#1`);
+    expect(countMarker(second)).toBe(0);
+    expect(leaderDeliveryHub.pending(sessionId)).toBe(0);
   });
 });
