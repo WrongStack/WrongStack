@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T17:38:32.791Z",
+  "generatedAt": "2026-11-07T17:49:33.507Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6068,
-    "testFiles": 5058,
-    "sourceLines": 1257651,
+    "sourceFiles": 6096,
+    "testFiles": 5076,
+    "sourceLines": 1259662,
     "workspaceEdges": 244,
-    "moduleEdges": 17935,
+    "moduleEdges": 18029,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 291,
+    "testsWithoutTypecheck": 307,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1041
+    "testOnlyExports": 1043
   },
   "errors": [],
   "packageCycles": [],
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 456,
-      "testFiles": 291,
+      "sourceFiles": 484,
+      "testFiles": 307,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1169,7 +1169,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 335,
-      "testFiles": 372,
+      "testFiles": 374,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1204,7 +1204,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 372
+          "testFiles": 374
         }
       ]
     },
@@ -1478,6 +1478,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/brain-message.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/brain-policy-model.test.ts",
         "projects": [
           "root-node"
@@ -1532,6 +1538,18 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/chimera-followup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/chimera-message.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/chimera-model.test.ts",
         "projects": [
           "root-node"
@@ -1581,6 +1599,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/composer-attachments.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/composer-collapse.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1652,7 +1676,19 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/conversation-appearance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/conversation-cards-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-display.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1671,6 +1707,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/conversation-parts-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-shortcut-preference.test.ts",
         "projects": [
           "root-node"
         ]
@@ -1784,6 +1826,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/durable-form-draft.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/editor-comment.test.ts",
         "projects": [
           "root-node"
@@ -1845,6 +1893,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stream-stop.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2078,6 +2132,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/jsdom-window-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "projects": [
           "root-node"
@@ -2252,6 +2312,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/message-pins.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/message-times.test.ts",
         "projects": [
           "root-node"
@@ -2361,6 +2427,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/palette-actions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/parity-cards.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2576,6 +2648,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/recovery-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/recovery-log.test.ts",
         "projects": [
           "root-node"
@@ -2721,6 +2799,24 @@
       },
       {
         "file": "apps/desktop-v2/tests/selection-line-range.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-healing-feedback.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-healing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-health-acknowledgement.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26528,6 +26624,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/connections-native-acknowledgement.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/content-design-request-correlation.test.ts",
         "projects": [
           "root-node"
@@ -26889,6 +26991,12 @@
       },
       {
         "file": "packages/webui-server/tests/goal-ws-handler.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/goal-ws-lifecycle-and-presence-regression.test.ts",
         "projects": [
           "root-node"
         ]
@@ -31855,6 +31963,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/brain-message.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/brain-policy-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31918,6 +32033,20 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/chimera-followup.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/chimera-message.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/chimera-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -31975,6 +32104,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/composer-attachments.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/composer-collapse.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32058,7 +32194,21 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/conversation-appearance.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/conversation-cards-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-display.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32080,6 +32230,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/conversation-parts-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/conversation-shortcut-preference.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32212,6 +32369,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/durable-form-draft.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/editor-comment.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32283,6 +32447,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/engine-state.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/engine-stream-stop.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -32555,6 +32726,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/jsdom-window-runtime.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/kanban-board-dialog.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32758,6 +32936,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/message-pins.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/message-times.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -32885,6 +33070,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/palette-actions.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/parity-cards.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33136,6 +33328,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/recovery-identity.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/recovery-log.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33305,6 +33504,27 @@
       },
       {
         "file": "apps/desktop-v2/tests/selection-line-range.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-healing-feedback.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-healing.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/service-health-acknowledgement.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33959,6 +34179,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ComposerFoldControls.tsx",
+      "specifier": "./conversation-appearance.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ConnectionDiagnostics.tsx",
       "specifier": "./reconnect.css",
       "syntax": "import"
@@ -33974,8 +34199,18 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/ConversationAppearanceSettings.tsx",
+      "specifier": "./conversation-appearance.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ConversationReconnect.tsx",
       "specifier": "./reconnect.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/ConversationWelcome.tsx",
+      "specifier": "./conversation-welcome.css",
       "syntax": "import"
     },
     {
@@ -34713,34 +34948,29 @@
       "relativeImports": 17
     },
     {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 709,
-      "relativeImports": 45
-    },
-    {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2053,
-      "relativeImports": 31
+      "lines": 2063,
+      "relativeImports": 35
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
-      "lines": 936,
-      "relativeImports": 19
+      "lines": 940,
+      "relativeImports": 20
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1586,
+      "lines": 1589,
       "relativeImports": 18
     },
     {
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 788,
+      "lines": 766,
       "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 744,
-      "relativeImports": 10
+      "lines": 723,
+      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectDesignStudio.tsx",
@@ -34749,12 +34979,12 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1078,
+      "lines": 1080,
       "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
-      "lines": 824,
+      "lines": 832,
       "relativeImports": 12
     },
     {
@@ -34769,7 +34999,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 745,
+      "lines": 747,
       "relativeImports": 16
     },
     {
@@ -34784,15 +35014,15 @@
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 903,
-      "relativeImports": 9
+      "lines": 898,
+      "relativeImports": 10
     }
   ],
   "hotspots": [
     {
       "file": "apps/desktop-v2/src/FileWorkspace.tsx",
-      "lines": 2053,
-      "relativeImports": 31
+      "lines": 2063,
+      "relativeImports": 35
     },
     {
       "file": "packages/sage/src/wrongmemory-port.ts",
@@ -34801,7 +35031,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectAgentRoster.tsx",
-      "lines": 1586,
+      "lines": 1589,
       "relativeImports": 18
     },
     {
@@ -34816,7 +35046,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectGoals.tsx",
-      "lines": 1078,
+      "lines": 1080,
       "relativeImports": 11
     },
     {
@@ -34831,18 +35061,18 @@
     },
     {
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
-      "lines": 936,
-      "relativeImports": 19
-    },
-    {
-      "file": "apps/desktop-v2/src/SkillLibrary.tsx",
-      "lines": 903,
-      "relativeImports": 9
+      "lines": 940,
+      "relativeImports": 20
     },
     {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
       "lines": 903,
       "relativeImports": 2
+    },
+    {
+      "file": "apps/desktop-v2/src/SkillLibrary.tsx",
+      "lines": 898,
+      "relativeImports": 10
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
@@ -34851,7 +35081,7 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
-      "lines": 824,
+      "lines": 832,
       "relativeImports": 12
     },
     {
@@ -34870,11 +35100,6 @@
       "relativeImports": 10
     },
     {
-      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
-      "lines": 788,
-      "relativeImports": 11
-    },
-    {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
       "lines": 778,
       "relativeImports": 10
@@ -34883,6 +35108,11 @@
       "file": "packages/webui-server/src/server/memory-handlers.ts",
       "lines": 777,
       "relativeImports": 5
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChimera.tsx",
+      "lines": 766,
+      "relativeImports": 11
     },
     {
       "file": "packages/client/src/client.ts",
@@ -34911,13 +35141,8 @@
     },
     {
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
-      "lines": 745,
+      "lines": 747,
       "relativeImports": 16
-    },
-    {
-      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
-      "lines": 744,
-      "relativeImports": 10
     },
     {
       "file": "packages/tools/src/process-registry.ts",
@@ -34948,6 +35173,11 @@
       "file": "packages/coordination/src/agent-monitor.ts",
       "lines": 724,
       "relativeImports": 1
+    },
+    {
+      "file": "apps/desktop-v2/src/ProjectChronicle.tsx",
+      "lines": 723,
+      "relativeImports": 11
     },
     {
       "file": "packages/tools/src/read.ts",
@@ -34983,11 +35213,6 @@
       "file": "packages/webui-server/src/server/pref-helpers.ts",
       "lines": 712,
       "relativeImports": 3
-    },
-    {
-      "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 709,
-      "relativeImports": 45
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
@@ -35038,6 +35263,11 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
+    },
+    {
+      "file": "packages/coordination/src/provider-status-tracker.ts",
+      "lines": 701,
+      "relativeImports": 4
     }
   ],
   "testOnlyExports": [
@@ -35256,6 +35486,14 @@
     {
       "file": "apps/desktop-v2/src/memory-injections.ts",
       "name": "MEMORY_RUN_LIMIT"
+    },
+    {
+      "file": "apps/desktop-v2/src/message-pins.ts",
+      "name": "readMessagePins"
+    },
+    {
+      "file": "apps/desktop-v2/src/message-pins.ts",
+      "name": "toggleMessagePin"
     },
     {
       "file": "apps/desktop-v2/src/Modal.tsx",

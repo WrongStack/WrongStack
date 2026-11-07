@@ -191,14 +191,16 @@ export async function automationRequest<T>(
   signal?: AbortSignal,
   sessionId?: string,
 ): Promise<T> {
-  const resource = `/api/automation/${route}${sessionId ? `${route.includes('?') ? '&' : '?'}sessionId=${encodeURIComponent(sessionId)}` : ''}`;
+  const cleanRoute = route.replace(/^\/+/, '');
+  const routePath = cleanRoute.split('?')[0]?.replace(/\/+$/, '') ?? '';
+  const resource = `/api/automation/${cleanRoute}${sessionId ? `${cleanRoute.includes('?') ? '&' : '?'}sessionId=${encodeURIComponent(sessionId)}` : ''}`;
   const response = await fetch(resource, {
     method,
     credentials: 'include',
     ...(signal ? { signal } : {}),
     headers: {
       'content-type': 'application/json',
-      ...(route.endsWith('/run') ? { 'idempotency-key': idempotencyKey() } : {}),
+      ...(routePath.endsWith('/run') ? { 'idempotency-key': idempotencyKey() } : {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -209,14 +211,25 @@ export async function automationRequest<T>(
   // let the !response.ok branch report the status; only a SUCCESS response
   // with a non-JSON body is an error, and it says so.
   const text = await response.text();
-  let value: (T & { error?: string }) | undefined;
+  let value: (T & { error?: unknown }) | undefined;
   try {
-    value = text ? (JSON.parse(text) as T & { error?: string }) : undefined;
+    value = text ? (JSON.parse(text) as T & { error?: unknown }) : undefined;
   } catch {
     value = undefined;
   }
-  if (!response.ok)
-    throw new Error(value?.error ?? `Automation request failed (${response.status})`);
+  if (!response.ok) {
+    const rawError = value && typeof value === 'object' ? value.error : undefined;
+    const errorMsg =
+      typeof rawError === 'string' && rawError.trim().length > 0
+        ? rawError
+        : rawError !== null &&
+            typeof rawError === 'object' &&
+            typeof (rawError as { message?: unknown }).message === 'string' &&
+            (rawError as { message: string }).message.trim().length > 0
+          ? (rawError as { message: string }).message
+          : `Automation request failed (${response.status})`;
+    throw new Error(errorMsg);
+  }
   if (value === undefined)
     throw new Error(`Automation request failed (${response.status}): non-JSON response body`);
   return value;

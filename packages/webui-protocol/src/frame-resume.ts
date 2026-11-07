@@ -100,6 +100,13 @@ export class SessionFrameGate<T extends SequencedFrame> {
     return this.release(sessionId);
   }
 
+  /** Clear sequence state for one session when `session.start` has `reset: true`. */
+  resetSession(sessionId: string): void {
+    this.resuming.delete(sessionId);
+    this.held.delete(sessionId);
+    this.applied.delete(sessionId);
+  }
+
   /** Give up on every catch-up still pending (no answer came). */
   releaseAll(): T[] {
     const out: T[] = [];
@@ -215,7 +222,17 @@ export class FrameResume<T extends SequencedFrame & { type: string }> {
       }
     }
     const sessionId = payload.sessionId;
-    if (typeof sessionId !== 'string' || !this.gate.isResuming(sessionId)) return msg;
+    if (typeof sessionId !== 'string') return msg;
+    if (payload.reset === true) {
+      this.gate.resetSession(sessionId);
+      if (this.timer && !this.requested.some((id) => this.gate.isResuming(id))) {
+        timers.clearTimeout(this.timer);
+        this.timer = null;
+        this.requested = [];
+      }
+      return msg;
+    }
+    if (!this.gate.isResuming(sessionId)) return msg;
     const kept = { ...payload };
     for (const field of REPLAY_FIELDS) delete kept[field];
     return { ...msg, payload: kept };

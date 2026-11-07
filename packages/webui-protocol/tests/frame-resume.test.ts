@@ -285,4 +285,21 @@ describe('FrameResume', () => {
     expect(resume.gate.isResuming('s1')).toBe(true);
     expect(texts(applied)).not.toContain('b3-held');
   });
+
+  it('preserves replay fields and resets sequence watermark when session.start has reset: true during resume (F82)', () => {
+    const applied: Frame[] = [];
+    const resume = new FrameResume<Frame>((frames) => applied.push(...frames));
+    resume.onSessionStart(start('s1', { eventEpoch: 'e1' }));
+    resume.gate.accept(f(5, 's1', 'old-5'));
+    resume.request(['s1']);
+    resume.gate.accept(f(7, 's1', 'stale-7'));
+
+    const resetStart = resume.onSessionStart(start('s1', { eventEpoch: 'e1', reset: true }));
+    expect(resetStart.payload['replayMessages']).toHaveLength(1);
+    expect(resume.gate.isResuming('s1')).toBe(false);
+    expect(applied).toEqual([]);
+
+    // Post-reset frames starting at seq=1 must be accepted
+    expect(texts(resume.gate.accept(f(1, 's1', 'post-reset-1')))).toEqual(['post-reset-1']);
+  });
 });

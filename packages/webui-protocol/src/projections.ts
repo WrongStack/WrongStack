@@ -13,7 +13,9 @@ function record(value: unknown): Record<string, unknown> | null {
 }
 
 function text(value: unknown, fallback = ''): string {
-  return typeof value === 'string' ? value : fallback;
+  if (typeof value !== 'string') return fallback;
+  if (fallback !== '' && value.trim().length === 0) return fallback;
+  return value;
 }
 
 function finite(value: unknown, fallback = 0): number {
@@ -167,10 +169,11 @@ export function projectToolMessage(message: ProtocolEnvelope): ToolProjection | 
     };
   }
   if (message.type === 'tool.executed') {
+    const name = text(payload['name'], 'tool');
     return {
       kind: 'executed',
-      id: text(payload['id']),
-      name: text(payload['name']),
+      id: text(payload['id'], name),
+      name,
       ok: payload['ok'] !== false,
       durationMs: finite(payload['durationMs']),
       ...(typeof payload['output'] === 'string' ? { output: payload['output'] } : {}),

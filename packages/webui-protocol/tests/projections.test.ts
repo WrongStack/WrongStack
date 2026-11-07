@@ -517,4 +517,22 @@ describe('projectHqCommandStatusMessage', () => {
     ).toBeNull();
     expect(projectHqCommandStatusMessage({ type: 'hq.command_status' })).toBeNull();
   });
+
+  it('falls back to non-empty defaults when projection string fields are blank or whitespace (F82)', () => {
+    expect(
+      projectSessionMessage(envelope('session.start', { sessionId: 's1', projectName: '   ' }))
+        ?.projectName,
+    ).toBe('Project');
+    expect(projectChatMessage(envelope('error', { message: '' }))).toEqual({
+      kind: 'error',
+      message: 'Run failed',
+    });
+    expect(projectToolMessage(envelope('tool.executed', { id: '', name: '' }))).toEqual({
+      kind: 'executed',
+      id: 'tool',
+      name: 'tool',
+      ok: true,
+      durationMs: 0,
+    });
+  });
 });
