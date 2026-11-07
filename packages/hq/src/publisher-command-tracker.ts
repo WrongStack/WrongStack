@@ -8,6 +8,10 @@ export class CommandTracker {
     string,
     HqPublisherCommandResult | typeof IN_FLIGHT_COMMAND
   >();
+  private readonly inFlightWaiters = new Map<
+    string,
+    { promise: Promise<void>; resolve: () => void }
+  >();
 
   constructor(private readonly maxTrackedCommands = 500) {}
 
@@ -21,15 +25,50 @@ export class CommandTracker {
   ): void {
     this.commandResults.delete(commandId);
     this.commandResults.set(commandId, disposition);
-    while (this.commandResults.size > this.maxTrackedCommands) {
-      const oldest = this.commandResults.keys().next();
-      if (oldest.done === true) break;
-      this.commandResults.delete(oldest.value);
+    if (disposition === IN_FLIGHT_COMMAND) {
+      if (!this.inFlightWaiters.has(commandId)) {
+        let resolve!: () => void;
+        const promise = new Promise<void>((r) => {
+          resolve = r;
+        });
+        this.inFlightWaiters.set(commandId, { promise, resolve });
+      }
+    } else {
+      const waiter = this.inFlightWaiters.get(commandId);
+      if (waiter !== undefined) {
+        this.inFlightWaiters.delete(commandId);
+        waiter.resolve();
+      }
     }
+    while (this.commandResults.size > this.maxTrackedCommands) {
+      let evicted = false;
+      for (const [key, value] of this.commandResults) {
+        if (value !== IN_FLIGHT_COMMAND) {
+          this.commandResults.delete(key);
+          evicted = true;
+          break;
+        }
+      }
+      if (!evicted) break;
+    }
+  }
+
+  waitForInFlight(commandId?: string): Promise<void> | undefined {
+    if (commandId !== undefined) {
+      return this.inFlightWaiters.get(commandId)?.promise;
+    }
+    if (this.inFlightWaiters.size === 0) return undefined;
+    const promises = [...this.inFlightWaiters.values()].map((w) => w.promise);
+    return Promise.all(promises).then(() => undefined);
   }
 
   clear(): void {
     this.commandResults.clear();
+    const waiters = [...this.inFlightWaiters.values()];
+    this.inFlightWaiters.clear();
+    for (const waiter of waiters) {
+      waiter.resolve();
+    }
   }
 }
 
@@ -47,21 +86,56 @@ export async function runCommandBatch(
     advanceCursor: (commandId: string) => void;
   },
 ): Promise<void> {
+  const settledAtArrival = new Map<string, HqPublisherCommandResult>();
+  for (const command of message.commands) {
+    const existing = tracker.get(command.commandId);
+    if (existing !== undefined && existing !== IN_FLIGHT_COMMAND) {
+      settledAtArrival.set(command.commandId, existing);
+    }
+  }
+
   for (const command of message.commands) {
     // Redelivery guard. `lastCommandId` only advances AFTER a command is
     // handled (see below), while `command_poll` fires on a fixed timer — so
     // any handler slower than the poll interval is re-sent the SAME command
     // and, without this, runs it twice. `spawn` and `abort` routinely take
     // seconds; a duplicate there means a second subagent or a second kill.
-    const seen = tracker.get(command.commandId);
-    if (seen !== undefined) {
-      // Still running: the original invocation owns the ack. Already
-      // finished: replay the SAME ack so the server's audit row converges
-      // on the real outcome instead of being overwritten by a placeholder.
-      if (seen !== IN_FLIGHT_COMMAND) hooks.ack(seen);
+    const preSettled = settledAtArrival.get(command.commandId);
+    if (preSettled !== undefined) {
+      // Already finished before this batch arrived: replay the SAME ack so the
+      // server's audit row converges on the real outcome, after any earlier
+      // in-flight command settles.
+      while (tracker.waitForInFlight() !== undefined) {
+        await tracker.waitForInFlight();
+      }
+      hooks.ack(preSettled);
       hooks.advanceCursor(command.commandId);
       continue;
     }
+
+    const seen = tracker.get(command.commandId);
+    if (seen !== undefined) {
+      // Still running (or settled while this batch was waiting behind an
+      // earlier invocation): the original invocation owns both the ack and
+      // cursor advancement. Wait for it to finish before inspecting subsequent
+      // commands in this batch so later commands cannot execute out of order or
+      // advance `lastCommandId` while an earlier command is still in flight.
+      if (seen === IN_FLIGHT_COMMAND) {
+        await tracker.waitForInFlight(command.commandId);
+      }
+      continue;
+    }
+
+    while (tracker.waitForInFlight() !== undefined) {
+      await tracker.waitForInFlight();
+    }
+    if (tracker.get(command.commandId) !== undefined) {
+      if (tracker.get(command.commandId) === IN_FLIGHT_COMMAND) {
+        await tracker.waitForInFlight(command.commandId);
+      }
+      continue;
+    }
+
     tracker.remember(command.commandId, IN_FLIGHT_COMMAND);
     try {
       const result = await handler(command);
@@ -69,24 +143,19 @@ export async function runCommandBatch(
         commandId: command.commandId,
         status: 'accepted',
       };
-      tracker.remember(command.commandId, ack);
       if (result !== undefined) hooks.ack(result);
       else if (command.requiresAck) hooks.ack(ack);
+      hooks.advanceCursor(command.commandId);
+      tracker.remember(command.commandId, ack);
     } catch (err) {
       const ack: HqPublisherCommandResult = {
         commandId: command.commandId,
         status: 'failed',
         message: err instanceof Error ? err.message : String(err),
       };
-      tracker.remember(command.commandId, ack);
       hooks.ack(ack);
+      hooks.advanceCursor(command.commandId);
+      tracker.remember(command.commandId, ack);
     }
-    // Advance the poll cursor only AFTER the command is handled and acked.
-    // Advancing it before `await handler` meant a socket flap mid-handler
-    // left the next command_poll asking for commands AFTER this one — so an
-    // operator command (steer/abort/broadcast) that never ran was silently
-    // skipped and never re-fetched. At-least-once (a possible duplicate on
-    // reconnect, which these commands tolerate) beats losing one outright.
-    hooks.advanceCursor(command.commandId);
   }
 }

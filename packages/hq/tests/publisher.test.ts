@@ -816,6 +816,75 @@ describe('HqPublisher command redelivery', () => {
     }
     publisher.close();
   });
+
+  it('does not advance lastCommandId or execute subsequent commands while an earlier command is still in flight (F61)', async () => {
+    const socket = new FakeSocket();
+    const order: string[] = [];
+    let releaseSlow!: () => void;
+    const slowGate = new Promise<void>((resolve) => {
+      releaseSlow = resolve;
+    });
+    const publisher = new HqPublisher({
+      url: 'http://localhost:3499',
+      client,
+      project,
+      onCommand: async (command) => {
+        order.push(`start:${command.commandId}`);
+        if (command.commandId === 'cmd_slow') {
+          await slowGate;
+        }
+        order.push(`end:${command.commandId}`);
+        return { commandId: command.commandId, status: 'completed' };
+      },
+      socketFactory: () => socket,
+    });
+    publisher.connect();
+    socket.open();
+
+    socket.message(batch('cmd_slow'));
+    await Promise.resolve();
+
+    // Redelivered batch arrives on next poll tick carrying [cmd_slow, cmd_next] while cmd_slow is still running.
+    socket.message(
+      JSON.stringify({
+        type: 'hq.command_batch',
+        commands: [
+          {
+            commandId: 'cmd_slow',
+            type: 'spawn',
+            createdAt: '2026-06-21T12:00:00.000Z',
+            payload: {},
+          },
+          {
+            commandId: 'cmd_next',
+            type: 'steer',
+            createdAt: '2026-06-21T12:00:01.000Z',
+            payload: {},
+          },
+        ],
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    publisher.pollCommands();
+    const midFlightPoll = parseSent(socket)
+      .filter((frame) => (frame as { type?: string }).type === 'client.command_poll')
+      .at(-1) as { afterCommandId?: string } | undefined;
+    expect(midFlightPoll?.afterCommandId).toBeUndefined();
+    expect(order).toEqual(['start:cmd_slow']);
+
+    releaseSlow();
+    await new Promise((r) => setTimeout(r, 15));
+
+    expect(order).toEqual(['start:cmd_slow', 'end:cmd_slow', 'start:cmd_next', 'end:cmd_next']);
+    publisher.pollCommands();
+    const finalPoll = parseSent(socket)
+      .filter((frame) => (frame as { type?: string }).type === 'client.command_poll')
+      .at(-1) as { afterCommandId?: string } | undefined;
+    expect(finalPoll?.afterCommandId).toBe('cmd_next');
+    publisher.close();
+  });
 });
 
 describe('HqPublisher connection re-seed hook', () => {

@@ -438,4 +438,105 @@ describe('startApprovalTelemetryBridge', () => {
     });
     stop();
   });
+
+  it('ignores stale register() disposers after toolUseId reuse and preserves sessionId / user_input.resolved notifications (F62)', () => {
+    const events = new EventBus();
+    const registry = make(events);
+    const spy = vi.fn();
+    const stop = startApprovalTelemetryBridge({
+      registry,
+      publisher: fakePublisher(spy),
+      sessionId: 'sess-1',
+      acceptSession: (sid) => sid === 'sess-1',
+    });
+
+    const finishFirst = registry.register({
+      toolUseId: 'repl:reuse',
+      toolName: 'bash',
+      sessionId: 'sess-1',
+      deadlineAt: Date.now() + 60_000,
+      input: { step: 1 },
+      suggestedPattern: 'bash:first',
+      destructive: false,
+      resolve: vi.fn(),
+    });
+    expect(registry.resolve('repl:reuse', 'yes', 'sess-1')).toBe(true);
+
+    const resolveSecond = vi.fn();
+    const finishSecond = registry.register({
+      toolUseId: 'repl:reuse',
+      toolName: 'bash',
+      sessionId: 'sess-1',
+      deadlineAt: Date.now() + 60_000,
+      input: { step: 2 },
+      suggestedPattern: 'bash:second',
+      destructive: true,
+      resolve: resolveSecond,
+    });
+
+    // Stale finally-block disposer from the first prompt must not delete or refuse the second prompt.
+    finishFirst('no');
+    expect(registry.list()).toHaveLength(1);
+    expect(registry.resolve('repl:reuse', 'always', 'sess-1')).toBe(true);
+    expect(resolveSecond).toHaveBeenCalledWith('always');
+    finishSecond('no');
+
+    // Direct user-input resolver (which does not emit user.input_resolved on the bus) still publishes user_input.resolved.
+    events.emit('user.input_requested', {
+      sessionId: 'sess-1',
+      request: {
+        id: 'req-direct-1',
+        title: 'Continue?',
+        tabs: [
+          {
+            id: 'main',
+            label: 'Question',
+            questions: [{ id: 'q1', prompt: 'Continue?', kind: 'text' }],
+          },
+        ],
+      },
+      resolve: vi.fn(),
+    } as never);
+    expect(
+      registry.resolveUserInput?.(
+        'req-direct-1',
+        {
+          requestId: 'req-direct-1',
+          status: 'submitted',
+          answers: [
+            { questionId: 'q1', selectedOptionIds: [], text: 'yes', usedRecommendation: false },
+          ],
+        },
+        'sess-1',
+      ),
+    ).toBe(true);
+    const inputResolved = spy.mock.calls.filter((c) => c[0].type === 'user_input.resolved');
+    expect(inputResolved).toHaveLength(1);
+
+    // Confirm resolver emitting tool.confirm_resolved without sessionId still inherits held.sessionId ('sess-1').
+    events.emit('tool.confirm_needed', {
+      sessionId: 'sess-1',
+      tool: { name: 'bash' },
+      input: {},
+      toolUseId: 'toolu_no_sid',
+      suggestedPattern: 'bash:ls',
+      deadlineAt: Date.now() + 60_000,
+      resolve: (decision: 'yes' | 'no' | 'always' | 'deny') => {
+        events.emit('tool.confirm_resolved', {
+          toolUseId: 'toolu_no_sid',
+          toolName: 'bash',
+          decision,
+          source: 'user',
+        } as never);
+      },
+    } as never);
+    expect(registry.resolve('toolu_no_sid', 'yes', 'sess-1')).toBe(true);
+    const heldResolved = spy.mock.calls.filter(
+      (c) =>
+        c[0].type === 'approval.resolved' &&
+        (c[0].payload as { toolUseId?: string }).toolUseId === 'toolu_no_sid',
+    );
+    expect(heldResolved).toHaveLength(1);
+    stop();
+  });
 });
