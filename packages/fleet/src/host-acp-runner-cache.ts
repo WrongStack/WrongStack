@@ -21,7 +21,9 @@ export class HostAcpRunnerCache {
     // CLI /spawn and Director fan-out are trusted local agents - grant write/execute access.
     // The session default is read-only for untrusted agents (acp-session.ts:133);
     // buildAcpSubagentRunner passes defaultPermissionPolicy explicitly.
-    const runner = buildAcpSubagentRunner(subagentId, this.resolveOpts?.());
+    const runner = Promise.resolve().then(() =>
+      buildAcpSubagentRunner(subagentId, this.resolveOpts?.()),
+    );
     let cached: Promise<SubagentRunner>;
     cached = runner.catch((error: unknown) => {
       // A transient startup failure must not poison every later cache lookup.

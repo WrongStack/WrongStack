@@ -88,11 +88,12 @@ export function setBoundedLruEntry<T>(
   value: T,
   maxEntries: number,
 ): void {
+  const cap = Number.isFinite(maxEntries) && maxEntries >= 1 ? Math.floor(maxEntries) : 1;
   const existingIdx = order.indexOf(key);
   if (existingIdx !== -1) order.splice(existingIdx, 1);
-  while (order.length >= maxEntries) {
+  while (order.length >= cap) {
     const oldest = order.shift();
-    if (oldest) map.delete(oldest);
+    if (oldest !== undefined) map.delete(oldest);
   }
   map.set(key, value);
   order.push(key);

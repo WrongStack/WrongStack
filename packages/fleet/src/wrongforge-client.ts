@@ -147,6 +147,7 @@ export function wrongForgeCall(ep: WrongForgeEndpoint, doFetch: typeof fetch = f
     signal?: AbortSignal,
   ): Promise<T> => {
     let res: Response;
+    let text: string;
     try {
       res = await doFetch(`${ep.url}${route}`, {
         method,
@@ -157,6 +158,7 @@ export function wrongForgeCall(ep: WrongForgeEndpoint, doFetch: typeof fetch = f
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         ...(signal ? { signal } : {}),
       });
+      text = await res.text();
     } catch (err) {
       if (signal?.aborted) throw new WfAborted();
       throw new WfHttpError(
@@ -165,7 +167,6 @@ export function wrongForgeCall(ep: WrongForgeEndpoint, doFetch: typeof fetch = f
         `WrongForge is not reachable at ${ep.url} (${toErrorMessage(err)}); is \`npm run serve\` running?`,
       );
     }
-    const text = await res.text();
     let parsed: unknown;
     try {
       parsed = text ? JSON.parse(text) : {};
@@ -217,8 +218,15 @@ export async function* followTask(
     }
     for (const ev of page.events) yield ev;
     if (page.status) opts.onPoll?.(page.status);
-    after = page.next_after;
-    if (page.terminal && page.events.length < POLL_LIMIT) return;
+    const lastSeq = page.events.at(-1)?.seq ?? 0;
+    const nextAfter = Math.max(
+      after,
+      Number.isFinite(page.next_after) ? page.next_after : 0,
+      Number.isFinite(lastSeq) ? lastSeq : 0,
+    );
+    const progressed = nextAfter > after;
+    after = nextAfter;
+    if (page.terminal && (page.events.length < POLL_LIMIT || !progressed)) return;
   }
 }
 

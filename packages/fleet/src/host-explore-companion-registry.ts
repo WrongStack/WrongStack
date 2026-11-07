@@ -67,8 +67,14 @@ export interface ExploreCompanionRegistry {
 export function createExploreCompanionRegistry(
   input: ExploreCompanionRegistryInput,
 ): ExploreCompanionRegistry {
-  const max = Math.max(1, input.max ?? DEFAULT_MAX_COMPANIONS);
-  const idleMs = input.idleMs ?? DEFAULT_IDLE_MS;
+  const max =
+    Number.isFinite(input.max) && (input.max as number) >= 1
+      ? Math.floor(input.max as number)
+      : DEFAULT_MAX_COMPANIONS;
+  const idleMs =
+    Number.isFinite(input.idleMs) && (input.idleMs as number) >= 0
+      ? (input.idleMs as number)
+      : DEFAULT_IDLE_MS;
   const now = input.now ?? Date.now;
   /** Insertion order IS recency: `touch` deletes and re-sets. */
   const live = new Map<string, { companion: ExploreCompanion; lastActiveAt: number }>();
@@ -113,15 +119,22 @@ export function createExploreCompanionRegistry(
         live.set(sessionId, existing);
         return;
       }
+      const companion = input.create(sessionId);
+      if (!companion) return;
       while (live.size >= max) {
         const before = live.size;
         evictOldest(sessionId);
         // Nothing evictable (every entry is `keep`, which cannot happen since
         // `keep` is absent here) — refuse rather than spin.
-        if (live.size === before) return;
+        if (live.size === before) {
+          try {
+            companion.stop();
+          } catch {
+            // Teardown of a background helper must never surface to the fleet.
+          }
+          return;
+        }
       }
-      const companion = input.create(sessionId);
-      if (!companion) return;
       live.set(sessionId, { companion, lastActiveAt: now() });
     },
     peek: (sessionId) => live.get(sessionId)?.companion,
