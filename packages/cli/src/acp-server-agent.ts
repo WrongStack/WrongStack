@@ -192,7 +192,9 @@ function wireClientBackedTools(tools: ToolRegistry, api: RunTurnApi): void {
   }
   if (caps.fs?.writeTextFile) {
     swap('write', (base) => makeAcpWrite(base, api));
-    swap('edit', (base) => makeAcpEdit(base, api));
+    if (caps.fs?.readTextFile) {
+      swap('edit', (base) => makeAcpEdit(base, api));
+    }
   }
   if (caps.terminal) {
     swap('bash', (base) => makeAcpBash(base, api));
@@ -330,7 +332,12 @@ export function buildAcpServerAgentFactory(
   let providerBoot: Promise<ProviderBoot> | null = null;
   const bootProvider = (): Promise<ProviderBoot> => {
     if (!providerBoot) {
-      providerBoot = setupProvider({ config, modelsRegistry: deps.modelsRegistry, logger });
+      providerBoot = setupProvider({ config, modelsRegistry: deps.modelsRegistry, logger }).catch(
+        (err) => {
+          providerBoot = null;
+          throw err;
+        },
+      );
     }
     return providerBoot;
   };
@@ -348,6 +355,8 @@ export function buildAcpServerAgentFactory(
   // Agent) because teardown is driven by `session/close`, which reaches this
   // module through `disposeSession` rather than through the Agent.
   const sessionMcp = new Map<string, MCPRegistry>();
+  const sessionGeneration = new Map<string, number>();
+  const disposedSessions = new Set<string>();
 
   const agentFor = async function agentFor(
     sessionId: string,
@@ -355,6 +364,9 @@ export function buildAcpServerAgentFactory(
     api?: RunTurnApi,
     mcpServers?: readonly McpServer[],
   ): Promise<Agent> {
+    disposedSessions.delete(sessionId);
+    const generation = (sessionGeneration.get(sessionId) ?? 0) + 1;
+    sessionGeneration.set(sessionId, generation);
     await container.resolve(TOKENS.MemoryStore).initialize();
     const { provider, providerRegistry } = await bootProvider();
 
@@ -378,9 +390,12 @@ export function buildAcpServerAgentFactory(
     // The client's own MCP servers, connected before the Context below
     // snapshots `listForProvider()` — a tool registered after that snapshot
     // would be missing from the first turn's provider payload.
-    if (mcpServers && mcpServers.length > 0) {
-      const previous = sessionMcp.get(sessionId);
-      if (previous) void previous.stopAll().catch(() => {});
+    const previous = sessionMcp.get(sessionId);
+    if (previous) {
+      sessionMcp.delete(sessionId);
+      void previous.stopAll().catch(() => {});
+    }
+    if (mcpServers && mcpServers.length > 0 && !disposedSessions.has(sessionId)) {
       const mcp = await connectAcpSessionMcpServers({
         servers: mcpServers,
         toolRegistry: tools,
@@ -389,7 +404,15 @@ export function buildAcpServerAgentFactory(
         ...(wpaths.cacheDir ? { cacheDir: wpaths.cacheDir } : {}),
         cwd,
       });
-      if (mcp) sessionMcp.set(sessionId, mcp);
+      if (mcp) {
+        if (disposedSessions.has(sessionId) || sessionGeneration.get(sessionId) !== generation) {
+          void mcp.stopAll().catch((err) => {
+            logger.warn(`ACP session ${sessionId}: MCP teardown failed`, err);
+          });
+        } else {
+          sessionMcp.set(sessionId, mcp);
+        }
+      }
     }
 
     // Permission posture: when the ACP client exposes a permission channel
@@ -473,6 +496,8 @@ export function buildAcpServerAgentFactory(
   } as AcpServerAgentFactory;
 
   agentFor.disposeSession = (sessionId: string): void => {
+    disposedSessions.add(sessionId);
+    sessionGeneration.set(sessionId, (sessionGeneration.get(sessionId) ?? 0) + 1);
     const mcp = sessionMcp.get(sessionId);
     if (!mcp) return;
     sessionMcp.delete(sessionId);

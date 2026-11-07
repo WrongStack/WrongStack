@@ -325,3 +325,108 @@ describe('registerWebuiSignalHandlers', () => {
     expect(() => unregister()).not.toThrow();
   });
 });
+
+describe('runWebuiServerLifecycle', () => {
+  it('cancels queued announceListening on immediate shutdown and detaches signal handlers', async () => {
+    const { EventEmitter } = await import('node:events');
+    const { runWebuiServerLifecycle } = await import('../../src/webui-server-lifecycle.js');
+
+    const sigintBase = process.listenerCount('SIGINT');
+    const sigtermBase = process.listenerCount('SIGTERM');
+
+    const wss = new EventEmitter() as InstanceType<typeof EventEmitter> & {
+      address: () => { port: number } | null;
+      close: (cb: () => void) => void;
+    };
+    wss.address = () => ({ port: 4100 });
+    wss.close = (cb) => cb();
+
+    let activeEventSubscriptions = 0;
+    let onListeningCalls = 0;
+    let memoryStatsAwaited = false;
+    const eventUnsubscribers: Array<() => void> = [];
+    const lifecycleState: {
+      signalShutdown: (() => void) | undefined;
+      embeddedAutoHealDispose: (() => void | Promise<void>) | null;
+    } = {
+      signalShutdown: undefined,
+      embeddedAutoHealDispose: null,
+    };
+
+    const { stopped } = runWebuiServerLifecycle({
+      host: '127.0.0.1',
+      httpPort: 4100,
+      setupEvents: () => {
+        activeEventSubscriptions += 1;
+        eventUnsubscribers.push(() => {
+          activeEventSubscriptions -= 1;
+        });
+      },
+      opts: {
+        agent: {
+          ctx: {
+            session: { id: 's1', flush: async () => {} },
+            messages: [],
+            tokenCounter: { total: () => ({}) },
+          },
+        },
+        session: { id: 's1', flush: async () => {} },
+        onListening: () => {
+          onListeningCalls += 1;
+        },
+      } as never,
+      wsPort: 4100,
+      accessUrl: 'http://127.0.0.1:4100',
+      wsToken: 'tok',
+      wss: wss as never,
+      httpServer: { server: { listening: true, close: () => {} } } as never,
+      requireToken: false,
+      publicHostnames: [],
+      publicWsUrl: undefined,
+      clients: new Map(),
+      currentSessionId: () => 's1',
+      goalHandler: { dispose: () => {} } as never,
+      specsHandler: {} as never,
+      sddBoardHandler: { dispose: () => {} } as never,
+      sddWizardHandler: null,
+      worktreeHandler: { dispose: () => {} } as never,
+      terminalHandler: { dispose: () => {} } as never,
+      rateLimitMax: 60,
+      send: () => {},
+      sessionPayload: (p) => ({ ...p, sessionId: 's1' }),
+      handleMessage: (() => {}) as never,
+      pendingConfirms: new Map(),
+      buildSessionStartPayload: (() => ({})) as never,
+      sessionAgents: { ids: () => ['s1'], closeAll: async () => {} } as never,
+      lifecycleState,
+      abortControllers: new Map(),
+      flushAllStreamBuffers: () => {},
+      eventUnsubscribers,
+      releaseSessionSalvage: () => {},
+      autoWakeHost: undefined,
+      stopEmptySessionCleanup: null,
+      credentialWatcherClose: undefined,
+      kanbanRunMirror: null,
+      kanbanSupervisor: null,
+      stopKanbanSupervisorMemoryStats: async () => {
+        await new Promise<void>((r) => queueMicrotask(r));
+        memoryStatsAwaited = true;
+      },
+      unregisterWebuiClient: () => {},
+      ipv6LoopbackServer: null,
+      registryBaseDir: '.temp_files/test-f14-registry',
+      stopLiveStatusLogger: () => {},
+      terminalLogView: { mutedCount: 0, stop: () => {} } as never,
+    });
+
+    lifecycleState.signalShutdown?.();
+    await stopped;
+    await new Promise<void>((r) => queueMicrotask(r));
+
+    expect(activeEventSubscriptions).toBe(0);
+    expect(onListeningCalls).toBe(0);
+    expect(memoryStatsAwaited).toBe(true);
+    expect(process.listenerCount('SIGINT')).toBe(sigintBase);
+    expect(process.listenerCount('SIGTERM')).toBe(sigtermBase);
+  });
+});

@@ -111,8 +111,10 @@ export function runWebuiServerLifecycle({
 }) {
   const stopped = new Promise<void>((resolve) => {
     let listeningAnnounced = false;
+    let shuttingDown = false;
+    let unregisterSignalHandlers: (() => void) | undefined;
     const announceListening = () => {
-      if (listeningAnnounced) return;
+      if (listeningAnnounced || shuttingDown) return;
       listeningAnnounced = true;
       console.log(`[WebUI] WebSocket server running on ws://${host}:${httpPort}`);
       try {
@@ -175,6 +177,10 @@ export function runWebuiServerLifecycle({
 
     lifecycleState.signalShutdown = createWebuiShutdown({
       abortInFlight: () => {
+        shuttingDown = true;
+        wss.off?.('listening', announceListening);
+        unregisterSignalHandlers?.();
+        unregisterSignalHandlers = undefined;
         // First teardown step: stop the auto-heal watchdog's interval NOW so
         // no new daemon restart begins while the shutdown sequence runs its
         // child-kill sweep. dispose() stops the timer synchronously on its
@@ -186,7 +192,7 @@ export function runWebuiServerLifecycle({
       },
       unsubscribeEvents: () => {
         flushAllStreamBuffers();
-        for (const unsub of eventUnsubscribers) unsub();
+        for (const unsub of eventUnsubscribers.splice(0)) unsub();
       },
       stopOwnedChildren: async () => {
         try {
@@ -229,7 +235,7 @@ export function runWebuiServerLifecycle({
         terminalHandler.dispose();
         kanbanRunMirror?.dispose();
         kanbanSupervisor?.dispose();
-        void stopKanbanSupervisorMemoryStats?.();
+        await stopKanbanSupervisorMemoryStats?.();
         // Drain an in-flight auto-heal restart before the host exits
         // (createWebuiShutdown awaits this, bounded by its dispose timeout).
         await lifecycleState.embeddedAutoHealDispose?.();
@@ -263,7 +269,11 @@ export function runWebuiServerLifecycle({
       },
     });
 
-    registerWebuiSignalHandlers(lifecycleState.signalShutdown);
+    unregisterSignalHandlers = registerWebuiSignalHandlers(lifecycleState.signalShutdown);
+    if (shuttingDown) {
+      unregisterSignalHandlers();
+      unregisterSignalHandlers = undefined;
+    }
   });
   return { stopped };
 }

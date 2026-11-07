@@ -304,6 +304,54 @@ describe('buildAcpServerAgentFactory', () => {
 
     expect(mockSetupProvider).toHaveBeenCalledTimes(1);
   });
+
+  it('evicts a rejected provider boot promise so a transient setup failure does not poison later sessions', async () => {
+    const provider = makeStubProvider();
+    const providerRegistry = { has: () => true } as never as ProviderRegistry;
+    mockSetupProvider
+      .mockRejectedValueOnce(new Error('transient models.dev failure'))
+      .mockResolvedValue({
+        provider,
+        providerRegistry,
+        resolvedProvider: {} as ResolvedProvider,
+      });
+
+    const agentFor = buildAcpServerAgentFactory(makeDeps());
+    await expect(agentFor('sess-1', '/tmp')).rejects.toThrow('transient models.dev failure');
+    await expect(agentFor('sess-2', '/tmp')).resolves.toBeInstanceOf(Agent);
+    await expect(agentFor('sess-3', '/tmp')).resolves.toBeInstanceOf(Agent);
+    expect(mockSetupProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not swap edit to client-backed makeAcpEdit when writeTextFile is set without readTextFile', async () => {
+    const provider = makeStubProvider();
+    mockSetupProvider.mockResolvedValue({
+      provider,
+      providerRegistry: { has: () => true } as never as ProviderRegistry,
+      resolvedProvider: {} as ResolvedProvider,
+    });
+    const readTextFile = vi.fn(async () => {
+      throw new Error('readTextFile not supported by client');
+    });
+    const writeTextFile = vi.fn(async () => {});
+    const api: RunTurnApi = {
+      clientCapabilities: { fs: { writeTextFile: true } },
+      requestPermission: async () => ({ outcome: 'selected', optionId: 'allow_once' }),
+      readTextFile,
+      writeTextFile,
+      runTerminal: async () => ({ output: '', exitCode: 0 }),
+    };
+
+    const deps = makeDeps();
+    const localEdit = deps.toolRegistry?.get('edit');
+    const agent = await buildAcpServerAgentFactory(deps)('s-write-only', '/tmp', api);
+    expect(agent.tools.get('edit')).toBe(localEdit);
+    await agent.tools
+      .get('write')
+      ?.execute({ path: 'x.txt', content: 'ok' }, agent.ctx, {} as never);
+    expect(writeTextFile).toHaveBeenCalledOnce();
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
 });
 
 /**
