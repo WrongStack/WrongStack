@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import * as os from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
 import type { Tool, ToolStreamEvent } from '@wrongstack/contracts/types';
@@ -30,6 +30,30 @@ const DEFAULT_TIMEOUT_MS = 300_000;
 const STREAM_FLUSH_INTERVAL_MS = 200;
 const STREAM_FLUSH_BYTES = 4 * 1024;
 const MAX_QUEUE_CHUNKS = 500;
+const SPAWN_EPERM_RETRIES = 3;
+const SPAWN_EPERM_BACKOFF_MS = 50;
+
+/**
+ * `spawn`, retrying a synchronous EPERM on Windows. PowerShell 7 installed
+ * from the Microsoft Store resolves to an app execution alias under
+ * `%LOCALAPPDATA%\Microsoft\WindowsApps`; CreateProcess on that alias fails
+ * now and then with ERROR_ACCESS_DENIED (EPERM) while other alias launches
+ * are in flight, and the same spawn succeeds a moment later. Without the
+ * retry a busy machine turned a valid command into "spawn failed". The caller
+ * passes the spawn itself so each call site keeps its buildChildEnv-derived env
+ * in view (see spawn-convention.test.ts).
+ */
+async function retrySpawnEperm(launch: () => ChildProcess, isWin: boolean): Promise<ChildProcess> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return launch();
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (!isWin || code !== 'EPERM' || attempt >= SPAWN_EPERM_RETRIES) throw err;
+      await new Promise((resolve) => setTimeout(resolve, SPAWN_EPERM_BACKOFF_MS * (attempt + 1)));
+    }
+  }
+}
 
 /** `pwsh` tool execution: spawn, stream output, and settle the final result. */
 export async function* executePwshStream(
@@ -94,15 +118,19 @@ export async function* executePwshStream(
   if (isBackground) {
     // Output goes to a file the child writes itself (see background-log.ts).
     const bgLog = openBackgroundLog(ctx.projectRoot, 'pwsh', registry.logFiles());
-    let child: ReturnType<typeof spawn>;
+    let child: ChildProcess;
     try {
-      child = spawn(bin, args, {
-        cwd: targetCwd,
-        env,
-        detached,
-        stdio: ['ignore', bgLog?.fd ?? 'ignore', bgLog?.fd ?? 'ignore'],
-        windowsHide: true,
-      });
+      child = await retrySpawnEperm(
+        () =>
+          spawn(bin, args, {
+            cwd: targetCwd,
+            env,
+            detached,
+            stdio: ['ignore', bgLog?.fd ?? 'ignore', bgLog?.fd ?? 'ignore'],
+            windowsHide: true,
+          }),
+        isWin,
+      );
     } catch (err) {
       closeBackgroundLogFd(bgLog);
       // Spawn threw — release the breaker reservation the successful
@@ -246,15 +274,19 @@ export async function* executePwshStream(
   // Foreground / Synchronous execution
   const previewBytes = commandOutputPreviewBytes();
   const spool = createOutputSpool({ tool: 'pwsh', thresholdBytes: previewBytes });
-  let child: ReturnType<typeof spawn>;
+  let child: ChildProcess;
   try {
-    child = spawn(bin, args, {
-      cwd: targetCwd,
-      env,
-      detached,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    });
+    child = await retrySpawnEperm(
+      () =>
+        spawn(bin, args, {
+          cwd: targetCwd,
+          env,
+          detached,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsHide: true,
+        }),
+      isWin,
+    );
   } catch (err) {
     // Spawn threw — release the breaker reservation the successful
     // beforeCall(isBackground) took, mirroring the child 'error' handler.
