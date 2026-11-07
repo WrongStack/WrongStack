@@ -6,7 +6,7 @@ description: |
   "monitoring agent", "fleet watcher", "hoop command", "spike detection".
 version: 1.0.0
 required-capabilities: [coordination.mailbox]
-required-tools: [cron_schedule, mailbox, terminate_subagent]
+required-tools: [mailbox, terminate_subagent]
 optional-capabilities: [fleet.delegate, work.plan]
 ---
 
@@ -26,7 +26,7 @@ when explicitly commanded or when critical anomalies are detected.
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
 │  │ Heartbeat    │  │ FleetBus     │  │ Mailbox Monitor      │ │
 │  │ Scheduler    │  │ Subscriber   │  │ (read/query/broadcast)│ │
-│  │ (cron)       │  │             │  │                      │ │
+│  │ (host timer) │  │             │  │                      │ │
 │  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘ │
 │         │                  │                     │              │
 │         └──────────────────┼─────────────────────┘              │
@@ -73,10 +73,10 @@ when explicitly commanded or when critical anomalies are detected.
 - Report efficiency anomalies
 
 ### 4. Deterministic Scheduling
-- Uses `cron_schedule` for fixed-interval heartbeats
+- The host runs each heartbeat as a one-shot check at a fixed interval (`/shadow start --interval=<ms>`)
 - Configurable interval: `shadow_interval_ms` (default 30000)
 - No randomness — same state always produces same actions
-- Clean startup/shutdown via cron cancel on teardown
+- Clean startup/shutdown: `/shadow stop` cancels the host timer
 
 ### 5. LLM Analysis
 - Uses the configured model without a built-in model default
@@ -192,7 +192,7 @@ interface Anomaly {
 ### Startup
 1. Read persisted ShadowState (if exists)
 2. Subscribe to FleetBus (`onAny` handler for all events)
-3. Schedule heartbeat cron job at configured interval
+3. The host schedules the heartbeat at the configured interval
 4. Send broadcast: `shadow:started { intervalMs, model, startTime }`
 
 ### Heartbeat (every intervalMs)
@@ -229,7 +229,7 @@ On incoming message:
 2. Call `terminate_subagent(target)` for each
 3. Log intervention with timestamp
 4. Send result to mailbox (to=sender)
-5. If target="all": also cancel all pending cron jobs
+5. If target="all": also ask the user to run `/shadow stop`
 
 ## Configuration
 
@@ -245,7 +245,6 @@ On incoming message:
 
 - `fleet-management` — uses fleet (action: status), fleet (action: health), terminate_subagent
 - `mailbox` — uses mailbox tools for monitoring and intervention
-- `cron` — uses cron_schedule for deterministic heartbeats
 - `multi-agent` — for spawning analysis subagents when needed
 - `observability` — for structured logging of anomalies
 
