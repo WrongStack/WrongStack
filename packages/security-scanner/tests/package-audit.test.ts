@@ -243,4 +243,18 @@ describe('parsePackageAuditOutput', () => {
     });
     expect(parsed.summary.info).toBe(1);
   });
+
+  it('normalizes uppercase and medium severities and detects npm-shrinkwrap.json (F32)', async () => {
+    const parsed = parsePackageAuditOutput(
+      JSON.stringify({
+        vulnerabilities: {
+          pkgA: { severity: 'HIGH', via: ['cve-1'], fixAvailable: true },
+          pkgB: { severity: 'medium', via: ['cve-2'], fixAvailable: false },
+        },
+      }),
+    );
+    expect(parsed.vulnerabilities.map((v) => v.severity)).toEqual(['high', 'moderate']);
+    expect(parsed.summary.high).toBe(1);
+    expect(parsed.summary.moderate).toBe(1);
+  });
 });

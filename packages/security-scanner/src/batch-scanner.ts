@@ -266,18 +266,39 @@ export class BatchScanner {
             (item): item is NonNullable<typeof item> => typeof item === 'object' && item !== null,
           )
           .flatMap((item, idx): Finding[] => {
-            const cleanedFile =
+            let cleanedFile =
               typeof item.file === 'string'
                 ? item.file
                     .trim()
                     .replace(/^===\s*(.*?)\s*===$/, '$1')
                     .trim()
                 : '';
+            let lineFromFileSuffix: number | undefined;
+            const lineSuffixMatch = /^(.*?):(\d+)(?::\d+)?$/.exec(cleanedFile);
+            if (lineSuffixMatch?.[1] && !scannedFiles.has(cleanedFile)) {
+              cleanedFile = lineSuffixMatch[1].trim();
+              lineFromFileSuffix = Number.parseInt(lineSuffixMatch[2]!, 10);
+            }
             const rawFile = cleanedFile.length > 0 ? cleanedFile : defaultFile;
-            const relFile = (
-              path.isAbsolute(rawFile) ? path.relative(opts.projectRoot, rawFile) : rawFile
-            ).replace(/\\/g, '/');
-            const normalizedFile = path.posix.normalize(relFile).replace(/^\.\//, '');
+            const candidateFromAbs = path.isAbsolute(rawFile)
+              ? path.posix
+                  .normalize(path.relative(opts.projectRoot, rawFile).replace(/\\/g, '/'))
+                  .replace(/^\.\//, '')
+              : '';
+            let normalizedFile =
+              candidateFromAbs && scannedFiles.has(candidateFromAbs)
+                ? candidateFromAbs
+                : path.posix
+                    .normalize(rawFile.replace(/\\/g, '/').replace(/^(?:\.\/|\/)+/, ''))
+                    .replace(/^\.\//, '');
+            if (!scannedFiles.has(normalizedFile) && !normalizedFile.includes('/')) {
+              const basenameMatches = [...scannedFiles].filter(
+                (f) => f === normalizedFile || f.slice(f.lastIndexOf('/') + 1) === normalizedFile,
+              );
+              if (basenameMatches.length === 1) {
+                normalizedFile = basenameMatches[0]!;
+              }
+            }
             if (!scannedFiles.has(normalizedFile)) return [];
             const category = validCategories.includes(item.category as Finding['category'])
               ? (item.category as Finding['category'])
@@ -289,15 +310,18 @@ export class BatchScanner {
             )
               ? (rawSeverity as Finding['severity'])
               : 'medium';
+            const resolvedLine =
+              typeof item.line === 'number' && Number.isFinite(item.line)
+                ? item.line
+                : lineFromFileSuffix;
             const finding: Finding = {
-              id: `llm-analysis-${normalizedFile}-${item.line ?? 0}-${idx}`,
+              id: `llm-analysis-${normalizedFile}-${resolvedLine ?? 0}-${idx}`,
               severity,
               category,
               title: typeof item.title === 'string' ? item.title : 'Security Finding',
               description: typeof item.description === 'string' ? item.description : '',
               file: normalizedFile,
-              line:
-                typeof item.line === 'number' && Number.isFinite(item.line) ? item.line : undefined,
+              line: resolvedLine,
               snippet: typeof item.snippet === 'string' ? item.snippet : undefined,
               remediation:
                 typeof item.remediation === 'string'

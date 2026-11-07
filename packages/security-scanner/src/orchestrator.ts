@@ -1,4 +1,4 @@
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { Provider, Request } from '@wrongstack/contracts/types';
 import { ConfigError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
@@ -200,12 +200,22 @@ export class SecurityScannerOrchestrator {
         if (this.gitignoreUpdater !== defaultGitignoreUpdater) {
           gitignoreResult = await this.gitignoreUpdater.update();
         } else {
-          const outputDir = reportOptions?.outputDir || 'security-reports';
-          const updater = new GitignoreUpdater({
-            gitignorePath: join(projectRoot, '.gitignore'),
-            entries: [`${outputDir}/`, `${outputDir}/*`],
-          });
-          gitignoreResult = await updater.update();
+          const relOutputDir = relative(resolve(projectRoot), resolve(resolvedOutputDir))
+            .replace(/\\/g, '/')
+            .replace(/^(\.\/|\/)+/, '')
+            .replace(/\/+$/, '');
+          if (
+            relOutputDir &&
+            relOutputDir !== '..' &&
+            !relOutputDir.startsWith('../') &&
+            !isAbsolute(relOutputDir)
+          ) {
+            const updater = new GitignoreUpdater({
+              gitignorePath: join(projectRoot, '.gitignore'),
+              entries: [`${relOutputDir}/`, `${relOutputDir}/*`],
+            });
+            gitignoreResult = await updater.update();
+          }
         }
       }
 

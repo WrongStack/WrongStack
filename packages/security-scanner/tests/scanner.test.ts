@@ -459,5 +459,36 @@ describe('SecurityScanner', () => {
         await fs.rm(tmpDir, { recursive: true, force: true });
       }
     });
+
+    it('matches alphabetic falsePositiveMarkers on token boundaries without suppressing substrings like latestToken (F30)', async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-scanner-f30-'));
+      try {
+        await fs.writeFile(
+          path.join(tmpDir, 'auth.ts'),
+          [
+            'export const latestToken = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";',
+            'export const prodToken = "ghp_1234567890abcdefghijklmnopqrtest1234";',
+            'export const EXAMPLE_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";',
+          ].join('\n'),
+          'utf8',
+        );
+        const patterns: SecurityPattern[] = [
+          {
+            id: 'hardcoded-secrets',
+            name: 'Hardcoded Secrets',
+            severity: 'critical',
+            description: 'Secrets',
+            patterns: [/ghp_[a-zA-Z0-9]{36}/g],
+            fileExtensions: ['.ts'],
+            falsePositiveMarkers: ['example', 'test', 'mock', 'dummy'],
+            remediation: 'Use env vars',
+          },
+        ];
+        const result = await scanner.scan(tmpDir, createMockSkill(patterns), createMockTechStack());
+        expect(result.findings.map((f) => f.line)).toEqual([1, 2]);
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 });

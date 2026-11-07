@@ -138,6 +138,21 @@ describe('batch scanner finding normalization', () => {
       { file: 'app.ts', title: 'DotSlash' },
     ]);
   });
+
+  it('normalizes leading-slash repo paths, :line suffixes, and unique batch basenames (F31)', async () => {
+    const dir = await project({ 'app.ts': 'eval(input);' });
+    const result = await scan(
+      dir,
+      reply([
+        { file: '/app.ts', severity: 'critical', title: 'LeadingSlash' },
+        { file: 'app.ts:7', severity: 'high', title: 'LineSuffix' },
+      ]),
+    );
+    expect(result.findings.map((f) => ({ file: f.file, title: f.title, line: f.line }))).toEqual([
+      { file: 'app.ts', title: 'LeadingSlash', line: undefined },
+      { file: 'app.ts', title: 'LineSuffix', line: 7 },
+    ]);
+  });
 });
 
 describe('scan inputs at the project boundary', () => {

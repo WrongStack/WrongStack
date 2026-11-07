@@ -201,11 +201,13 @@ export class SecurityScanner {
           regex.lastIndex = 0;
 
           if (regex.test(line)) {
-            matchedLines.add(lineNum);
-            // Check false positive markers
+            // Check false positive markers before latching matchedLines so a
+            // false-positive match on an earlier regex does not mask a later
+            // regex on the same line.
             if (this.isFalsePositive(line, pattern.falsePositiveMarkers)) {
               continue;
             }
+            matchedLines.add(lineNum);
 
             findings.push({
               id: `${pattern.id}-${relativePath}-${lineNum + 1}`,
@@ -282,7 +284,16 @@ export class SecurityScanner {
   private isFalsePositive(line: string, markers?: string[]): boolean {
     if (!markers || markers.length === 0) return false;
     for (const marker of markers) {
-      if (line.includes(marker)) {
+      if (!marker) continue;
+      if (/^[a-z]+$/i.test(marker)) {
+        const ciWord = [...marker].map((ch) => `[${ch.toLowerCase()}${ch.toUpperCase()}]`).join('');
+        const tokenPattern = new RegExp(
+          `(?:^|[^A-Za-z0-9]|(?<=[a-z])(?=[A-Z]))${ciWord}(?:$|[^A-Za-z0-9]|(?=[A-Z][a-z]))`,
+        );
+        if (tokenPattern.test(line)) {
+          return true;
+        }
+      } else if (line.includes(marker)) {
         return true;
       }
     }

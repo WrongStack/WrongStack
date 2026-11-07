@@ -71,7 +71,12 @@ export async function detectAuditablePackageManager(
   projectRoot: string,
 ): Promise<AuditablePackageManager | null> {
   if (await exists(join(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (await exists(join(projectRoot, 'package-lock.json'))) return 'npm';
+  if (
+    (await exists(join(projectRoot, 'package-lock.json'))) ||
+    (await exists(join(projectRoot, 'npm-shrinkwrap.json')))
+  ) {
+    return 'npm';
+  }
   return null;
 }
 
@@ -142,12 +147,15 @@ const defaultExecutor: PackageAuditExecutor = (command, args, cwd) =>
   });
 
 function normalizeSeverity(value: unknown): PackageAuditSeverity {
-  return value === 'critical' ||
-    value === 'high' ||
-    value === 'moderate' ||
-    value === 'low' ||
-    value === 'info'
-    ? value
+  if (typeof value !== 'string') return 'unknown';
+  const lower = value.trim().toLowerCase();
+  if (lower === 'medium') return 'moderate';
+  return lower === 'critical' ||
+    lower === 'high' ||
+    lower === 'moderate' ||
+    lower === 'low' ||
+    lower === 'info'
+    ? lower
     : 'unknown';
 }
 
