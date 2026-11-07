@@ -94,6 +94,26 @@ describe('replaySessionEvents', () => {
     expect(entries[0]).toMatchObject({ kind: 'tool', ok: false });
   });
 
+  it('serializes non-string tool_result content when paired directly with tool_use (F85)', () => {
+    const events: SessionEvent[] = [
+      { type: 'tool_use', ts: '2026-01-01T00:00:00Z', name: 'json_tool', id: 'tu-3', input: {} },
+      {
+        type: 'tool_result',
+        ts: '2026-01-01T00:00:01Z',
+        id: 'tu-3',
+        content: [{ type: 'text', text: 'structured output' }] as unknown as string,
+        isError: false,
+      },
+    ];
+    const entries = replaySessionEvents(events, 1);
+    expect(entries[0]).toMatchObject({
+      kind: 'tool',
+      name: 'json_tool',
+      ok: true,
+      output: JSON.stringify([{ type: 'text', text: 'structured output' }]),
+    });
+  });
+
   it('converts compaction events to info entries', () => {
     const events: SessionEvent[] = [
       {

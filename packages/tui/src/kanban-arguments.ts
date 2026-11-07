@@ -60,7 +60,7 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
       const tok = tokens[i] ?? '';
       if (tok === '--column' || tok === '-c') {
         const next = tokens[i + 1];
-        if (next) {
+        if (next && !next.startsWith('-')) {
           column = next;
           i++;
         }
@@ -72,7 +72,7 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
       }
       if (tok === '--desc' || tok === '-d') {
         const next = tokens[i + 1];
-        if (next) {
+        if (next && !next.startsWith('-')) {
           description = next;
           i++;
         }
@@ -102,18 +102,55 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
     return { kind: 'health' };
   }
   if (head === 'boundary' || head === 'scope' || head === 'bounds') {
-    const boardQuery = tokens[1] ?? '';
-    const action = (tokens[2]?.toLowerCase() ?? 'show') as 'show' | 'allow' | 'deny' | 'clear';
+    let taskQuery: string | undefined;
+    let enforcement: string | undefined;
+    let shellAccess: string | undefined;
+    const positional: string[] = [];
+    for (let i = 1; i < tokens.length; i++) {
+      const tok = tokens[i] ?? '';
+      if (tok === '--task') {
+        const next = tokens[i + 1];
+        if (next && !next.startsWith('-')) {
+          taskQuery = next;
+          i++;
+        }
+        continue;
+      }
+      if (tok.startsWith('--task=')) {
+        taskQuery = tok.slice('--task='.length);
+        continue;
+      }
+      if (tok === '--enforcement') {
+        const next = tokens[i + 1];
+        if (next && !next.startsWith('-')) {
+          enforcement = next;
+          i++;
+        }
+        continue;
+      }
+      if (tok.startsWith('--enforcement=')) {
+        enforcement = tok.slice('--enforcement='.length);
+        continue;
+      }
+      if (tok === '--shell') {
+        const next = tokens[i + 1];
+        if (next && !next.startsWith('-')) {
+          shellAccess = next;
+          i++;
+        }
+        continue;
+      }
+      if (tok.startsWith('--shell=')) {
+        shellAccess = tok.slice('--shell='.length);
+        continue;
+      }
+      positional.push(tok);
+    }
+    const boardQuery = positional[0] ?? '';
+    const action = (positional[1]?.toLowerCase() ?? 'show') as 'show' | 'allow' | 'deny' | 'clear';
     if (!boardQuery || !['show', 'allow', 'deny', 'clear'].includes(action)) {
       return { kind: 'help' };
     }
-    const readFlag = (name: string): string | undefined => {
-      const index = tokens.indexOf(name);
-      return index >= 0 ? tokens[index + 1] : undefined;
-    };
-    const taskQuery = readFlag('--task');
-    const enforcement = readFlag('--enforcement');
-    const shellAccess = readFlag('--shell');
     if (enforcement && enforcement !== 'confirm' && enforcement !== 'block') {
       return { kind: 'help' };
     }
@@ -128,9 +165,9 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
         ...(taskQuery ? { taskQuery } : {}),
       };
     }
-    const selectorKind = tokens[3] as KanbanBoundarySelectorKind | undefined;
-    const access = tokens[4] as KanbanBoundaryAccess | undefined;
-    const selectorPath = tokens[5];
+    const selectorKind = positional[2] as KanbanBoundarySelectorKind | undefined;
+    const access = positional[3] as KanbanBoundaryAccess | undefined;
+    const selectorPath = positional[4];
     if (
       !selectorKind ||
       !['file', 'directory', 'package', 'glob'].includes(selectorKind) ||

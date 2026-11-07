@@ -302,7 +302,7 @@ function eventToEntry(
         durationMs: 0, // duration not available from tool_result alone
         ok: !ev.isError,
         input: tu?.input,
-        output: typeof ev.content === 'string' ? ev.content : undefined,
+        output: ev.content === undefined ? undefined : toolOutputText(ev.content),
       };
     }
 

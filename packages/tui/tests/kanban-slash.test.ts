@@ -189,6 +189,27 @@ describe('parseKanbanArgs', () => {
       shellAccess: 'confirm',
     });
     expect(parseKanbanArgs('boundary sprint allow folder write src')).toEqual({ kind: 'help' });
+    expect(
+      parseKanbanArgs(
+        'boundary sprint allow --task abc123 file read src/index.ts --enforcement=block --shell=confirm',
+      ),
+    ).toEqual({
+      kind: 'boundary',
+      boardQuery: 'sprint',
+      action: 'allow',
+      selectorKind: 'file',
+      access: 'read',
+      path: 'src/index.ts',
+      taskQuery: 'abc123',
+      enforcement: 'block',
+      shellAccess: 'confirm',
+    });
+    expect(parseKanbanArgs('add "Fix bug" --column --desc "Important details"')).toEqual({
+      kind: 'add',
+      title: 'Fix bug',
+      column: null,
+      description: 'Important details',
+    });
   });
 
   it('empty input opens the panel', () => {
