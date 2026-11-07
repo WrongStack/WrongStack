@@ -146,7 +146,7 @@ export const useCodemapActivityStore = create<CodemapActivityState>((set, get) =
         history.set(
           activity.filePath,
           entries.map((entry) =>
-            entry.toolUseId === toolUseId
+            entry.status === 'active' && (entry.id === activity.id || entry.toolUseId === toolUseId)
               ? {
                   ...entry,
                   status: completion.ok ? 'completed' : 'failed',
@@ -178,6 +178,8 @@ export const useCodemapActivityStore = create<CodemapActivityState>((set, get) =
           Math.abs(activity.timestamp - entry.timestamp) <= CORRELATION_WINDOW_MS,
       );
       if (recent) {
+        const confirmed =
+          recent.watcherConfirmed || activity.source === 'watcher' || activity.source === 'editor';
         const history = new Map(state.history);
         history.set(
           activity.filePath,
@@ -185,16 +187,28 @@ export const useCodemapActivityStore = create<CodemapActivityState>((set, get) =
             entry.id === recent.id
               ? {
                   ...entry,
-                  watcherConfirmed:
-                    entry.watcherConfirmed ||
-                    activity.source === 'watcher' ||
-                    activity.source === 'editor',
+                  watcherConfirmed: confirmed,
                 }
               : entry,
           ),
         );
         const pulses = new Map(state.pulses);
         pulses.set(activity.filePath, Date.now() + ACTIVITY_TTL_MS);
+        if (recent.toolUseId && state.activeOperations.has(recent.toolUseId)) {
+          const activeOperations = new Map(state.activeOperations);
+          activeOperations.set(
+            recent.toolUseId,
+            (activeOperations.get(recent.toolUseId) ?? []).map((entry) =>
+              entry.id === recent.id || entry.filePath === activity.filePath
+                ? {
+                    ...entry,
+                    watcherConfirmed: Boolean(entry.watcherConfirmed || confirmed),
+                  }
+                : entry,
+            ),
+          );
+          return { history, pulses, activeOperations };
+        }
         return { history, pulses };
       }
       const directOwner = activity.toolUseId
@@ -344,7 +358,8 @@ export const useCodemapActivityStore = create<CodemapActivityState>((set, get) =
           history.set(
             operation.filePath,
             (history.get(operation.filePath) ?? []).map((entry) =>
-              entry.toolUseId === toolUseId
+              entry.status === 'active' &&
+              (entry.id === operation.id || entry.toolUseId === toolUseId)
                 ? {
                     ...entry,
                     status: 'failed',

@@ -309,4 +309,79 @@ describe('KanbanView error banner', () => {
     expect(useKanbanStore.getState().error).toBeNull();
     expect(screen.queryByText('Kanban request failed')).toBeNull();
   });
+
+  it('clears per-board ephemera and verification spinners when active board is deleted or replaced via kanban.create (F75)', () => {
+    const boardA = board('board-a', 'Board A');
+    seedActive(boardA);
+    render(<KanbanView />);
+    act(() => {
+      useKanbanStore.setState({
+        queueHealth: {
+          generatedAt: NOW,
+          boardIds: [boardA.id],
+          counts: {
+            ready: 1,
+            startable: 1,
+            queued: 0,
+            running: 0,
+            review: 0,
+            failed: 0,
+            completed: 0,
+            pending: 0,
+            archived: 0,
+            blocked: 0,
+          },
+          dependencyBlocked: { count: 0, tasks: [] },
+          staleAssignments: { count: 0, tasks: [] },
+          failedRetryable: { count: 0, tasks: [] },
+          heartbeatDue: { count: 0, tasks: [] },
+        },
+        supervisorSnapshot: {
+          boardId: boardA.id,
+          status: 'healthy',
+          mode: 'deterministic',
+          reconciledTaskIds: [],
+          staleRecoveredTaskIds: [],
+          anomalyCount: 0,
+        },
+        verificationActivity: { 'board-a:t1': { startedAt: Date.now() } },
+        boardHistory: [
+          {
+            id: 'hist-1',
+            boardId: boardA.id,
+            boardTitle: boardA.title,
+            type: 'board.created',
+            ts: NOW,
+          },
+        ],
+      });
+    });
+    expect(useKanbanStore.getState().queueHealth?.counts.startable).toBe(1);
+    expect(useKanbanStore.getState().verificationActivity).toHaveProperty('board-a:t1');
+    expect(useKanbanStore.getState().boardHistory).toHaveLength(1);
+
+    act(() => {
+      useKanbanStore.getState().handleResult('kanban.task.remove', {
+        success: true,
+        data: { removed: true, boardId: 'board-a', taskId: 't1' },
+      });
+    });
+    expect(useKanbanStore.getState().verificationActivity).toEqual({});
+
+    act(() => {
+      useKanbanStore.setState({
+        verificationActivity: { 'board-a:t-2': { startedAt: Date.now() } },
+      });
+      useKanbanStore.getState().handleResult('kanban.delete', {
+        success: true,
+        data: { removed: true, boardId: 'board-a' },
+      });
+    });
+    const afterDelete = useKanbanStore.getState();
+    expect(afterDelete.activeBoardId).toBeNull();
+    expect(afterDelete.queueHealth).toBeNull();
+    expect(afterDelete.supervisorSnapshot).toBeNull();
+    expect(afterDelete.verificationActivity).toEqual({});
+    expect(afterDelete.boardHistory).toEqual([]);
+  });
 });

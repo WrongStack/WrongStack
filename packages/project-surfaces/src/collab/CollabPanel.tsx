@@ -259,7 +259,9 @@ export function CollabPanel({
 
   const handleLeave = (): void => {
     client.send('collab.leave', { sessionId });
+    setError(null);
     setJoined(false);
+    setJoinedRole(null);
     setParticipants([]);
   };
 
@@ -346,6 +348,16 @@ export function CollabPanel({
         <span className="text-xs text-destructive">
           {t('activity:collab.errorPrefix', { error })}
         </span>
+        {/* A native host can retain socket membership across a renderer reload.
+            Dismissing the error alone cannot release that previous membership. */}
+        <button
+          type="button"
+          onClick={handleLeave}
+          className="inline-flex items-center gap-1 text-xs underline text-destructive"
+        >
+          <LogOut className="w-3 h-3" />
+          {t('activity:collab.leave')}
+        </button>
         <button
           type="button"
           onClick={() => {

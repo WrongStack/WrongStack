@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── ws-client stub ──────────────────────────────────────────────────────────
 
@@ -277,6 +277,20 @@ describe('useMemoryForFile', () => {
     act(() => result.current.refetch());
     act(() => result.current.refetch());
     expect(handlers.size).toBe(1);
+  });
+
+  it('detaches its handler once the matching response settles so later unrelated errors cannot clobber data', async () => {
+    const { result } = renderHook(() => useMemoryForFile({ filePath: 'src/a.ts' }));
+    expect(handlers.size).toBe(1);
+
+    act(() => emit({ response: response('src/a.ts', { totalCount: 5 }) }));
+    await waitFor(() => expect(result.current.data?.totalCount).toBe(5));
+    expect(handlers.size).toBe(0);
+
+    // A subsequent error from another consumer must not clobber our settled data
+    act(() => emit({ error: 'unrelated failure' }));
+    expect(result.current.data?.totalCount).toBe(5);
+    expect(result.current.error).toBeNull();
   });
 
   it('detaches its handler on unmount', () => {

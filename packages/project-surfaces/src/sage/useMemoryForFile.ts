@@ -103,7 +103,14 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
   sendOptionsRef.current = sendOptions;
 
   const fetchNow = useCallback(() => {
+    // Tear down any previous subscription before installing a new one —
+    // manual `refetch()` would otherwise pile handlers onto the singleton
+    // WS client without ever removing the old ones.
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = null;
+
     if (!filePath) {
+      ++requestSeq.current;
       setData(null);
       setError(null);
       setLoading(false);
@@ -120,12 +127,6 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
       return;
     }
 
-    // Tear down any previous subscription before installing a new one —
-    // manual `refetch()` would otherwise pile handlers onto the singleton
-    // WS client without ever removing the old ones.
-    unsubscribeRef.current?.();
-    unsubscribeRef.current = null;
-
     // Capture the file path this request is for, so a late response from
     // a *different* hook instance (or a previous query for another file)
     // can't cross-wire into this hook's state.
@@ -134,13 +135,22 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
     const unsubscribe = client.on('memory.sage.forFile', (message) => {
       if (seq !== requestSeq.current) return; // stale (re-fired)
       const response = message.payload.response;
+      const payloadFilePath =
+        response?.filePath ??
+        (typeof (message.payload as { filePath?: unknown }).filePath === 'string'
+          ? (message.payload as { filePath: string }).filePath
+          : undefined);
       // Cross-instance guard: even if our seq is current, a response for
       // a different file belongs to a different consumer.
       if (
-        response &&
-        normalizePathForCompare(response.filePath) !== normalizePathForCompare(requestedFilePath)
+        payloadFilePath !== undefined &&
+        normalizePathForCompare(payloadFilePath) !== normalizePathForCompare(requestedFilePath)
       )
         return;
+      unsubscribe();
+      if (unsubscribeRef.current === unsubscribe) {
+        unsubscribeRef.current = null;
+      }
       if (message.payload.error) {
         setError(message.payload.error);
         setData(null);

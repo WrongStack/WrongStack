@@ -198,6 +198,15 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
           ? state.boards.find((board) => board.id === removedBoardId)
           : undefined;
         const removedActive = removedSummary ? isActiveSummary(removedSummary) : undefined;
+        const clearedActive = Boolean(removed && state.activeBoardId === removedBoardId);
+        const verificationActivity =
+          removed && removedBoardId
+            ? Object.fromEntries(
+                Object.entries(state.verificationActivity).filter(
+                  ([key]) => !key.startsWith(`${removedBoardId}:`),
+                ),
+              )
+            : state.verificationActivity;
         return {
           boards: removed
             ? state.boards.filter((board) => board.id !== removedBoardId)
@@ -211,11 +220,13 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
             removedActive === false
               ? Math.max(0, state.orphanedBoardTotal - 1)
               : state.orphanedBoardTotal,
-          activeBoardId:
-            removed && state.activeBoardId === removedBoardId ? null : state.activeBoardId,
+          activeBoardId: clearedActive ? null : state.activeBoardId,
           activeBoard:
             removed && state.activeBoard?.id === removedBoardId ? null : state.activeBoard,
-          boardHistory: removed && state.activeBoardId === removedBoardId ? [] : state.boardHistory,
+          queueHealth: clearedActive ? null : state.queueHealth,
+          supervisorSnapshot: clearedActive ? null : state.supervisorSnapshot,
+          verificationActivity,
+          boardHistory: clearedActive ? [] : state.boardHistory,
           loading: false,
           error: null,
         };
@@ -232,15 +243,34 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       set((state) => {
         const board = isBoard(result?.board) ? result.board : null;
         if (board && state.activeBoardId === board.id) {
+          const remainingIds = new Set(board.tasks.map((task) => task.id));
+          const verificationActivity = Object.fromEntries(
+            Object.entries(state.verificationActivity).filter(([key]) => {
+              if (!key.startsWith(`${board.id}:`)) return true;
+              const taskId = key.slice(board.id.length + 1);
+              if (result?.taskId && taskId === result.taskId) return false;
+              return remainingIds.has(taskId);
+            }),
+          );
           return {
             boards: upsertSummary(state.boards, summarize(board)),
             activeBoard: board,
+            verificationActivity,
             loading: false,
             error: null,
           };
         }
         const boardId = result?.boardId;
         const taskId = result?.taskId;
+        const targetBoardId = boardId ?? state.activeBoard?.id ?? state.activeBoardId;
+        const verificationActivity =
+          result?.removed === true && taskId && targetBoardId
+            ? Object.fromEntries(
+                Object.entries(state.verificationActivity).filter(
+                  ([key]) => key !== `${targetBoardId}:${taskId}`,
+                ),
+              )
+            : state.verificationActivity;
         const activeBoard =
           result?.removed === true &&
           taskId &&
@@ -254,6 +284,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
         return {
           activeBoard,
           boards: activeBoard ? upsertSummary(state.boards, summarize(activeBoard)) : state.boards,
+          verificationActivity,
           loading: false,
           error: null,
         };
@@ -317,7 +348,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     if (isBoardEnvelope(data)) {
       const board = data.board;
       set((state) => ({
-        boards: upsertSummary(state.boards, summarize(board)),
+        ...upsertSummaryWithTotals(state, summarize(board), false),
         activeBoard: state.activeBoardId === board.id ? board : state.activeBoard,
         loading: false,
         error: null,
@@ -345,20 +376,27 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       // edits/moves can arrive after the user has selected a different board.
       if (type !== 'kanban.create' && type !== 'kanban.duplicate' && type !== 'kanban.generate') {
         set((state) => ({
-          boards: upsertSummary(state.boards, summary),
+          ...upsertSummaryWithTotals(state, summary, false),
           activeBoard: state.activeBoardId === data.id ? data : state.activeBoard,
           loading: false,
           error: null,
         }));
         return;
       }
-      set((state) => ({
-        boards: upsertSummary(state.boards, summary),
-        activeBoardId: data.id,
-        activeBoard: data,
-        loading: false,
-        error: null,
-      }));
+      set((state) => {
+        const switched = state.activeBoardId !== data.id;
+        return {
+          ...upsertSummaryWithTotals(state, summary, true),
+          activeBoardId: data.id,
+          activeBoard: data,
+          queueHealth: switched ? null : state.queueHealth,
+          supervisorSnapshot: switched ? null : state.supervisorSnapshot,
+          verificationActivity: switched ? {} : state.verificationActivity,
+          boardHistory: switched ? [] : state.boardHistory,
+          loading: false,
+          error: null,
+        };
+      });
       return;
     }
     if (isTask(data)) {
@@ -478,6 +516,51 @@ function upsertSummary(
 ): KanbanBoardSummary[] {
   const next = boards.filter((board) => board.id !== summary.id);
   return [summary, ...next].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function upsertSummaryWithTotals(
+  state: Pick<KanbanState, 'boards' | 'boardTotal' | 'activeBoardTotal' | 'orphanedBoardTotal'>,
+  summary: KanbanBoardSummary,
+  isCreated: boolean,
+): Pick<KanbanState, 'boards' | 'boardTotal' | 'activeBoardTotal' | 'orphanedBoardTotal'> {
+  const prev = state.boards.find((board) => board.id === summary.id);
+  const boards = upsertSummary(state.boards, summary);
+  const nextActive = isActiveSummary(summary);
+  if (prev) {
+    const prevActive = isActiveSummary(prev);
+    if (prevActive === nextActive) {
+      return {
+        boards,
+        boardTotal: state.boardTotal,
+        activeBoardTotal: state.activeBoardTotal,
+        orphanedBoardTotal: state.orphanedBoardTotal,
+      };
+    }
+    return {
+      boards,
+      boardTotal: state.boardTotal,
+      activeBoardTotal: nextActive
+        ? state.activeBoardTotal + 1
+        : Math.max(0, state.activeBoardTotal - 1),
+      orphanedBoardTotal: nextActive
+        ? Math.max(0, state.orphanedBoardTotal - 1)
+        : state.orphanedBoardTotal + 1,
+    };
+  }
+  if (isCreated || state.boardTotal < boards.length) {
+    return {
+      boards,
+      boardTotal: state.boardTotal + 1,
+      activeBoardTotal: nextActive ? state.activeBoardTotal + 1 : state.activeBoardTotal,
+      orphanedBoardTotal: nextActive ? state.orphanedBoardTotal : state.orphanedBoardTotal + 1,
+    };
+  }
+  return {
+    boards,
+    boardTotal: state.boardTotal,
+    activeBoardTotal: state.activeBoardTotal,
+    orphanedBoardTotal: state.orphanedBoardTotal,
+  };
 }
 
 function upsertTask(board: KanbanBoard, task: KanbanTask): KanbanBoard {

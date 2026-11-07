@@ -493,6 +493,49 @@ describe('codemap-activity-store', () => {
       const history = useCodemapActivityStore.getState().getActivityForFile('D:/repo/src/exact.ts');
       expect(history).toHaveLength(1);
       expect(history[0]?.watcherConfirmed).toBe(true);
+      expect(
+        useCodemapActivityStore.getState().getActiveForFile('D:/repo/src/exact.ts')[0]
+          ?.watcherConfirmed,
+      ).toBe(true);
+    });
+
+    it('does not overwrite earlier completed history entries when a reused toolUseId finishes again', () => {
+      const store = useCodemapActivityStore.getState();
+      store.startActivities([
+        {
+          ...makeActivity('D:/repo/src/reuse.ts', 'write', 1_000),
+          id: 'reuse-1',
+          toolUseId: 'tool-reuse',
+          status: 'active',
+          agentId: 'agent-3',
+        },
+      ]);
+      store.finishTool('tool-reuse', { timestamp: 1_040, durationMs: 40, ok: true });
+      store.startActivities([
+        {
+          ...makeActivity('D:/repo/src/reuse.ts', 'write', 1_100),
+          id: 'reuse-2',
+          toolUseId: 'tool-reuse',
+          status: 'active',
+          agentId: 'agent-3',
+        },
+      ]);
+      store.finishTool('tool-reuse', { timestamp: 1_300, durationMs: 200, ok: false });
+
+      const history = useCodemapActivityStore.getState().getActivityForFile('D:/repo/src/reuse.ts');
+      expect(history).toHaveLength(2);
+      expect(history[0]).toMatchObject({
+        id: 'reuse-2',
+        status: 'failed',
+        ok: false,
+        durationMs: 200,
+      });
+      expect(history[1]).toMatchObject({
+        id: 'reuse-1',
+        status: 'completed',
+        ok: true,
+        durationMs: 40,
+      });
     });
 
     it('correlates a watcher touch to the only active pathless tool', () => {

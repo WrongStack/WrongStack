@@ -147,11 +147,24 @@ describe('kanban.delete', () => {
   });
 
   it('drops the deleted board and clears the active selection', () => {
+    useKanbanStore.setState({
+      queueHealth: { pending: 2 } as never,
+      supervisorSnapshot: { runningAgents: 1 } as never,
+      verificationActivity: {
+        'b1:t1': { startedAt: 10 },
+        'b2:t9': { startedAt: 20 },
+      },
+      boardHistory: [{ id: 'h1' } as never],
+    });
     result('kanban.delete', { removed: true, boardId: 'b1' });
 
     expect(state().boards.map((b) => b.id)).toEqual(['b2']);
     expect(state().activeBoardId).toBeNull();
     expect(state().activeBoard).toBeNull();
+    expect(state().queueHealth).toBeNull();
+    expect(state().supervisorSnapshot).toBeNull();
+    expect(state().boardHistory).toEqual([]);
+    expect(Object.keys(state().verificationActivity)).toEqual(['b2:t9']);
   });
 
   it('keeps a different board selected', () => {
@@ -305,11 +318,28 @@ describe('generic envelopes', () => {
     expect(state().activeBoard?.id).toBe('b1');
   });
 
-  it('a created board becomes the new selection', () => {
-    useKanbanStore.setState({ activeBoardId: 'b1', activeBoard: board('b1') as never });
+  it('a created board becomes the new selection and resets previous board ephemera while incrementing totals', () => {
+    useKanbanStore.setState({
+      boards: [summary('b1')],
+      boardTotal: 1,
+      activeBoardTotal: 0,
+      orphanedBoardTotal: 1,
+      activeBoardId: 'b1',
+      activeBoard: board('b1') as never,
+      queueHealth: { pending: 5 } as never,
+      supervisorSnapshot: { runningAgents: 3 } as never,
+      verificationActivity: { 'b1:t1': { startedAt: 1 } },
+      boardHistory: [{ id: 'h1' } as never],
+    });
     result('kanban.create', board('b9'));
     expect(state().activeBoardId).toBe('b9');
     expect(state().activeBoard?.id).toBe('b9');
+    expect(state().queueHealth).toBeNull();
+    expect(state().supervisorSnapshot).toBeNull();
+    expect(state().verificationActivity).toEqual({});
+    expect(state().boardHistory).toEqual([]);
+    expect(state().boardTotal).toBe(2);
+    expect(state().orphanedBoardTotal).toBe(2);
   });
 
   it.each(['kanban.update', 'kanban.task.move', 'kanban.column.add'])(
