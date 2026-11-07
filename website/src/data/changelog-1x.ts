@@ -14,7 +14,7 @@ import type { ChangelogEntry } from './changelog-types';
 export const changelog1x: ChangelogEntry[] = [
   {
     version: '1.5.0',
-    date: '2026-11-05',
+    date: '2026-11-07',
     tagline: 'Shared project screens and the TUI’s commands on every engine',
     latest: true,
     highlights: [
@@ -27,6 +27,7 @@ export const changelog1x: ChangelogEntry[] = [
       'WrongMemory installs on Linux and macOS, and a linked worktree binds to its own checkout',
       'A planted .git file can no longer share another project’s identity, and permission rules resolve symlink and junction aliases',
       'Unchanged Kanban audits no longer flood the project journal, and three evidence-audit rounds fix defects across the runtime',
+      'The code index publishes and stays fast in a checkout agents keep editing, and Code Atlas loads there and says why when it cannot',
     ],
   },
   {

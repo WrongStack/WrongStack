@@ -77,6 +77,10 @@ home to.
 - **Hardening:** a planted `.git` file can no longer borrow another project's
   identity, permission rules resolve symlink aliases, unchanged Kanban audits
   stop flooding the journal, and three evidence-audit rounds landed.
+- **A code index that keeps up:** in a checkout agents keep editing, full
+  index runs publish again and deleting many files no longer stalls the index
+  server; Code Atlas loads there and names a refreshing or WrongIndex-owned
+  index.
 
 Earlier releases are in the [release history](CHANGELOG.md).
 

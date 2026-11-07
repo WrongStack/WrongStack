@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.5.0] — 2026-11-05
+## [1.5.0] — 2026-11-07
 
 Desktop v2 catches up with the WebUI: it renders the WebUI's own project
 surfaces through a shared package, closes the remaining feature gaps and shows
@@ -39,6 +39,9 @@ its own checkout.
 
 - **SAGE and WrongMemory.** A store WrongMemory adopted stays with WrongMemory while its daemon is down: a durable adoption marker keeps the local server and the inline store from opening it as a second writer. A rename in a linked worktree no longer rewrites anchors shared with the other checkouts. Vector memory mirrors memories written in `wrongmemory` and `auto` mode, not only the first-boot sync. Ranked memory and vector search answer in the WebUI and the desktop (no host passed the memory store to the HTTP server).
 - **WrongIndex.** Projects are registered with the session policy, so the service watches external editor edits exactly when the local server would (`indexing.watchExternal`).
+- **Code index in a busy checkout.** A full run that wrote new Git stamps threw itself away when any file in the checkout changed meanwhile, so a project agents kept editing published no new index generation for hours and every run re-read the whole tree. Stamps are now checked per file and the run publishes. Deleting many files re-resolves their names once instead of once per file (8,000 files with 4,000 deleted: 48 s → 1.7 s); the per-file passes had kept the index server from answering anyone for minutes.
+- **Code Atlas.** The first map load no longer restarts on every index update, so Atlas loads in a project agents are editing. A refreshing index, or one the WrongIndex service owns, is named instead of the advice to run `codebase-index`, and a crowded dependency layer wraps into columns instead of one unreadable strip.
+- **Desktop v2 startup and engine link.** A project opened right after the window starts waits for its services instead of showing a red banner for the rest of the session, and a pending socket operation on Windows (os error 997) no longer drops the engine connection.
 - **Project identity.** A `.git` file maps to its main checkout only when the worktree entry's `gitdir` names this checkout back, so a planted `.git` file or a symlink can no longer share another project's sessions, mail, presence and memory.
 - **Kanban journal volume.** A board's supervisor status is broadcast when its audit finds something new and otherwise at most every five minutes. On a project with 164 boards the unchanged snapshots had been 92 % of the project journal that every new desktop window replays.
 - **Model catalog overlay.** The curated overlay's `_removeProviders` and `_removeModels` directives no longer make the overlay look like an outage, so clients stop silently serving the base catalog only; `sync-models --validate` checks the shipped overlay in CI.
