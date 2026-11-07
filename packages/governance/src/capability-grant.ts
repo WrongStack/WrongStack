@@ -211,6 +211,7 @@ export class GovernanceCapabilityGrantRegistry {
 
   constructor(projectId: string, options: GovernanceCapabilityGrantRegistryOptions = {}) {
     nonEmpty(projectId, 'projectId');
+    if (projectId.length > 512) throw new Error('projectId must contain at most 512 characters.');
     this.projectId = projectId;
     this.now = options.now ?? Date.now;
     this.maxTtlMs = options.maxTtlMs ?? DEFAULT_GOVERNANCE_GRANT_MAX_TTL_MS;
@@ -227,6 +228,9 @@ export class GovernanceCapabilityGrantRegistry {
 
   issue(options: IssueGovernanceCapabilityGrantOptions): IssuedGovernanceCapabilityGrant {
     nonEmpty(options.clientId, 'clientId');
+    if (options.clientId.length > 512) {
+      throw new Error('clientId must contain at most 512 characters.');
+    }
     const issuedBy = options.issuedBy ?? 'trusted-server';
     nonEmpty(issuedBy, 'issuedBy');
     if (issuedBy.length > 512) throw new Error('issuedBy must contain at most 512 characters.');
@@ -316,6 +320,7 @@ export class GovernanceCapabilityGrantRegistry {
     if (!current || current.revokedAtMs !== undefined || current.expiresAtMs <= issuedAtMs) {
       throw new Error('Only an active governance capability grant can be rotated.');
     }
+    this.pruneInactive();
 
     const material = this.tokenMaterial();
     nonEmpty(material.grantId, 'grantId');

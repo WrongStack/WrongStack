@@ -1,3 +1,4 @@
+import { GOVERNANCE_DAEMON_OWNER_ISSUER } from './attachment-broker-controller.js';
 import type {
   GovernanceCapabilityGrantRegistry,
   GovernanceServiceCredential,
@@ -419,6 +420,15 @@ export class AuthenticatedGovernanceProjectService {
     if (request.type === 'rotate_capability_grant') {
       const target = this.grants.getGrant(request.grantId);
       if (
+        target?.issuedBy === GOVERNANCE_DAEMON_OWNER_ISSUER ||
+        target?.capabilities.includes('runtime_attach')
+      ) {
+        return permissionDenied(
+          request.requestId,
+          'Attachment broker grants are managed by the daemon controller.',
+        );
+      }
+      if (
         target?.capabilities.includes('capability_admin') &&
         authentication.grant.grantId !== target.grantId
       ) {
@@ -427,13 +437,19 @@ export class AuthenticatedGovernanceProjectService {
           'An administrator can rotate only its own capability_admin grant.',
         );
       }
+      const isAttachedGrant =
+        this.#attachmentModelGrantByControlGrant.has(request.grantId) ||
+        [...this.#attachmentModelGrantByControlGrant.values()].includes(request.grantId);
+      const ttlMs = isAttachedGrant
+        ? Math.min(request.ttlMs, GOVERNANCE_RUNTIME_ATTACHMENT_MAX_TTL_MS)
+        : request.ttlMs;
       const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
       if (!reservation) return receiptCapacityExceeded(request.requestId);
       try {
         const rotatesCurrentGrant = authentication.grant.grantId === request.grantId;
         const rotated = this.grants.rotate(request.grantId, {
           rotatedBy: authentication.client.clientId,
-          ttlMs: request.ttlMs,
+          ttlMs,
           ...(request.reason ? { reason: request.reason } : {}),
         });
         const attachedModelGrantId = this.#attachmentModelGrantByControlGrant.get(request.grantId);
@@ -467,6 +483,16 @@ export class AuthenticatedGovernanceProjectService {
         return invalidManagementRequest(request.requestId);
       }
     }
+    const revokeTarget = this.grants.getGrant(request.grantId);
+    if (
+      revokeTarget?.issuedBy === GOVERNANCE_DAEMON_OWNER_ISSUER ||
+      revokeTarget?.capabilities.includes('runtime_attach')
+    ) {
+      return permissionDenied(
+        request.requestId,
+        'Attachment broker grants are managed by the daemon controller.',
+      );
+    }
     const reservation = this.receipts.reserve({ input: request, wireInput: input, credential });
     const revokesCurrentGrant = authentication.grant.grantId === request.grantId;
     const reason = (request.reason ?? `revoked by ${authentication.client.clientId}`).slice(0, 512);
@@ -482,6 +508,11 @@ export class AuthenticatedGovernanceProjectService {
         );
         revoked = revoked || modelRevoked;
         this.#attachmentModelGrantByControlGrant.delete(request.grantId);
+      }
+      for (const [controlGrantId, modelGrantId] of this.#attachmentModelGrantByControlGrant) {
+        if (modelGrantId === request.grantId) {
+          this.#attachmentModelGrantByControlGrant.delete(controlGrantId);
+        }
       }
     } catch {
       if (reservation) this.receipts.release(reservation);

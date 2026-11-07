@@ -299,4 +299,115 @@ describe('governance attachment broker controller', () => {
     ).toThrow('less than ttlMs');
     expect(test.order).toEqual([]);
   });
+
+  it('coalesces concurrent stop calls, suppresses published event after stop, reports degraded health when expired, and preserves expired credential lease state on stop (F40)', async () => {
+    const { GovernanceCredentialLeaseController } = await import('../src/index.js');
+    const now = START;
+    let seq = 0;
+    const events: GovernanceAttachmentBrokerLifecycleEvent[] = [];
+    let releasePublish: (() => void) | undefined;
+    let removeCompleted = false;
+
+    const metadata = createGovernanceDaemonMetadata({
+      projectRoot: process.cwd(),
+      projectId: 'project-f40',
+      pid: 1234,
+      instanceId: 'instance-f40',
+      startedAt: new Date(START).toISOString(),
+    });
+
+    const controller = new GovernanceAttachmentBrokerController({
+      projectRoot: process.cwd(),
+      metadata,
+      ttlMs: 60_000,
+      renewBeforeMs: 15_000,
+      retryMs: 5_000,
+      now: () => now,
+      grants: {
+        issueGrant(options) {
+          seq += 1;
+          const grantId = `broker-${seq}`;
+          return {
+            token: `wsg_${grantId}.${SECRET}${seq}`,
+            grant: {
+              grantId,
+              projectId: 'project-f40',
+              clientId: options.clientId,
+              issuedBy: options.issuedBy ?? 'governance-daemon-owner',
+              issuedAt: new Date(now).toISOString(),
+              expiresAt: new Date(now + (options.ttlMs ?? 60_000)).toISOString(),
+              capabilities: [...options.capabilities],
+              status: 'active',
+            },
+          };
+        },
+        revokeGrant: () => true,
+      },
+      publish: async () => {
+        await new Promise<void>((resolve) => {
+          releasePublish = resolve;
+        });
+      },
+      remove: async () => {
+        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+        removeCompleted = true;
+        return true;
+      },
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+
+    const startPromise = controller.start();
+    await Promise.resolve();
+    const stop1 = controller.stop();
+    let stop2FinishedBeforeRemove = false;
+    const stop2 = controller.stop().then((snap) => {
+      if (!removeCompleted) {
+        stop2FinishedBeforeRemove = true;
+      }
+      return snap;
+    });
+    releasePublish?.();
+    await Promise.all([startPromise.catch(() => null), stop1, stop2]);
+
+    expect(stop2FinishedBeforeRemove).toBe(false);
+    const stoppedIdx = events.findIndex((e) => e.type === 'stopped');
+    expect(stoppedIdx).toBeGreaterThanOrEqual(0);
+    expect(events.slice(stoppedIdx + 1).some((e) => e.type === 'published')).toBe(false);
+
+    const expiringTest = harness();
+    await expiringTest.controller.start();
+    expiringTest.setPublishFailure(true);
+    expiringTest.advance(45_000);
+    await expiringTest.controller.rotateNow().catch(() => null);
+    expiringTest.advance(20_000);
+    expect(expiringTest.controller.snapshot().health).toBe('degraded');
+    await expiringTest.controller.stop();
+
+    const leaseController = new GovernanceCredentialLeaseController({
+      projectRoot: process.cwd(),
+      projectId: 'project-f40',
+      grantId: 'admin-f40',
+      expiresAt: new Date(START).toISOString(),
+      credential: {
+        token: `wsg_admin-f40.${SECRET}`,
+        projectId: 'project-f40',
+        clientId: 'admin-client',
+      },
+      rotationTtlMs: 20_000,
+      renewBeforeMs: 5_000,
+      now: () => START,
+      clientFactory: () => ({
+        async request() {
+          throw new Error('unreachable');
+        },
+      }),
+    });
+    const expiredLeaseSnap = leaseController.start();
+    expect(expiredLeaseSnap.state).toBe('expired');
+    const afterStop = leaseController.stop();
+    expect(afterStop.state).toBe('expired');
+    expect(afterStop.stopReason).toBe('credential_expired');
+  });
 });

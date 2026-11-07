@@ -124,6 +124,7 @@ export class GovernanceAttachmentBrokerController {
   #consecutiveFailures = 0;
   #eventSequence = 0;
   #rotationPromise: Promise<GovernanceDaemonAttachmentBrokerRecord> | undefined;
+  #stopPromise: Promise<GovernanceAttachmentBrokerControllerSnapshot> | undefined;
   #started = false;
 
   constructor(options: GovernanceAttachmentBrokerControllerOptions) {
@@ -177,10 +178,18 @@ export class GovernanceAttachmentBrokerController {
     return this.#rotationPromise;
   }
 
-  async stop(): Promise<GovernanceAttachmentBrokerControllerSnapshot> {
-    if (this.#state === 'stopped') return this.snapshot();
+  stop(): Promise<GovernanceAttachmentBrokerControllerSnapshot> {
+    if (this.#stopPromise) return this.#stopPromise;
+    if (this.#state === 'stopped') return Promise.resolve(this.snapshot());
     this.#state = 'stopped';
     this.cancelTimer();
+    this.#stopPromise = this.stopOnce().finally(() => {
+      this.#stopPromise = undefined;
+    });
+    return this.#stopPromise;
+  }
+
+  private async stopOnce(): Promise<GovernanceAttachmentBrokerControllerSnapshot> {
     await this.#rotationPromise?.catch(() => null);
     this.#state = 'stopped';
     this.cancelTimer();
@@ -247,8 +256,8 @@ export class GovernanceAttachmentBrokerController {
       this.revokePending('superseded governance attachment broker');
       if (!stoppedDuringPublication) {
         this.schedule(Math.max(1, expiresAtMs - this.#now() - this.#renewBeforeMs));
+        this.emit(priorFailures > 0 ? 'recovered' : 'published');
       }
-      this.emit(priorFailures > 0 ? 'recovered' : 'published');
       return broker;
     } catch (error) {
       if (issued) {
@@ -311,7 +320,10 @@ export class GovernanceAttachmentBrokerController {
 
   private health(): GovernanceAttachmentBrokerControllerSnapshot['health'] {
     if (this.#state === 'stopped') return 'stopped';
+    const currentExpired =
+      this.#currentGrant !== null && Date.parse(this.#currentGrant.expiresAt) <= this.#now();
     if (
+      currentExpired ||
       this.#consecutiveFailures >= this.#degradedFailureThreshold ||
       this.#pendingRevocations.size > 0 ||
       this.#lastAuditFailure !== undefined

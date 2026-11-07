@@ -158,4 +158,49 @@ describe('plan path scope with dot segments', () => {
     expect(valid('packages/governance/src/plan-version.ts', contract(['**'], ['*']))).toBe(true);
     expect(valid('README.md', contract(['**'], ['*']))).toBe(false);
   });
+
+  it('rejects wildcard and denied-overlapping ancestor step expectedPaths and escaping/shadowed/blank task contracts (F39)', async () => {
+    const { validateTaskContractV1 } = await import('../src/index.js');
+
+    expect(
+      valid(
+        'packages/governance/src/**',
+        contract(['packages/governance/**'], ['packages/governance/src/secrets/**']),
+      ),
+    ).toBe(false);
+    expect(
+      valid(
+        'packages/governance/src',
+        contract(['packages/governance/**'], ['packages/governance/src/secrets/**']),
+      ),
+    ).toBe(false);
+    expect(
+      valid(
+        'packages/governance/src/secrets',
+        contract(['packages/governance/**'], ['packages/governance/src/secrets/token.txt']),
+      ),
+    ).toBe(false);
+
+    const escaping = validateTaskContractV1(contract(['../outside/**'], ['../secret/**']));
+    expect(escaping.valid).toBe(false);
+
+    const shadowed = validateTaskContractV1(
+      contract(['packages/governance/src/secrets/key.ts'], ['packages/governance/src/secrets/**']),
+    );
+    expect(shadowed.valid).toBe(false);
+    if (!shadowed.valid) {
+      expect(shadowed.issues.some((i) => i.code === 'path_scope_conflict')).toBe(true);
+    }
+
+    const base = contract(['   '], ['']);
+    const blankReadOnly = validateTaskContractV1({
+      ...base,
+      autonomy: {
+        ...base.autonomy,
+        tier: 'A1',
+        allowedOperations: ['repository_read'],
+      },
+    });
+    expect(blankReadOnly.valid).toBe(false);
+  });
 });

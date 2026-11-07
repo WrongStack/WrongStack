@@ -234,9 +234,12 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
   stop(): GovernanceCredentialLeaseSnapshot {
     this.stopped = true;
     this.clearTimer();
+    this.nextActionAtMs = undefined;
+    if (this.state === 'expired' || this.stopReason === 'retry_exhausted') {
+      return this.snapshot();
+    }
     this.state = 'stopped';
     this.stopReason = 'stopped_by_owner';
-    this.nextActionAtMs = undefined;
     return this.snapshot();
   }
 

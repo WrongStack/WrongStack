@@ -203,9 +203,28 @@ function pathMatchesPattern(value: string, pattern: string): boolean {
   return path === normalizedPattern;
 }
 
+function containsWildcard(value: string): boolean {
+  return /[*?]/.test(value);
+}
+
+function deniedPatternPrefix(pattern: string): string {
+  const normalizedPattern = normalizePath(pattern);
+  if (normalizedPattern === '**' || normalizedPattern === '*') return '';
+  if (normalizedPattern.endsWith('/**')) return normalizedPattern.slice(0, -3);
+  if (normalizedPattern.endsWith('/*')) return normalizedPattern.slice(0, -2);
+  return normalizedPattern;
+}
+
+function pathOverlapsDeniedPattern(value: string, pattern: string): boolean {
+  if (pathMatchesPattern(value, pattern)) return true;
+  const path = normalizePath(value);
+  const deniedPrefix = deniedPatternPrefix(pattern);
+  return deniedPrefix.length > 0 && deniedPrefix.startsWith(`${path}/`);
+}
+
 function pathIsAllowed(contract: TaskContractV1, value: string): boolean {
-  if (escapesRoot(value)) return false;
-  if (contract.autonomy.deniedPaths.some((pattern) => pathMatchesPattern(value, pattern))) {
+  if (escapesRoot(value) || containsWildcard(value)) return false;
+  if (contract.autonomy.deniedPaths.some((pattern) => pathOverlapsDeniedPattern(value, pattern))) {
     return false;
   }
   return contract.autonomy.allowedPaths.some((pattern) => pathMatchesPattern(value, pattern));

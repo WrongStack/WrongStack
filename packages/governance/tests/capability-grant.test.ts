@@ -1416,4 +1416,130 @@ describe('governance capability grant registry — daemon self-grant exclusion',
 
     authenticated.close();
   });
+
+  it('protects daemon owner broker grants from RPC rotation/revocation, caps attached grant rotation TTL, prunes inactive grant IDs on rotate, and rejects oversized clientId (F41)', async () => {
+    const { GOVERNANCE_DAEMON_OWNER_ISSUER } = await import('../src/index.js');
+    const now = START_TIME;
+    let seq = 0;
+    const registry = new GovernanceCapabilityGrantRegistry('project-1', {
+      now: () => now,
+      tokenMaterial: () => {
+        seq += 1;
+        return { grantId: `grant-f41-${seq}`, secret: `${SECRET}${seq}` };
+      },
+    });
+    const service = openService('project-1');
+    const authenticated = new AuthenticatedGovernanceProjectService(service, registry);
+
+    const broker = registry.issue({
+      clientId: 'governance-attachment-broker-inst1',
+      issuedBy: GOVERNANCE_DAEMON_OWNER_ISSUER,
+      capabilities: ['runtime_attach', 'daemon_status_read'],
+      ttlMs: 60 * 60 * 1_000,
+    });
+    const admin = registry.issue({
+      clientId: 'admin-client',
+      capabilities: ['capability_admin'],
+      ttlMs: 60 * 60 * 1_000,
+    });
+    const adminCred = {
+      token: admin.token,
+      projectId: 'project-1',
+      clientId: 'admin-client',
+    };
+
+    const rotateBrokerResp = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'rot-broker-f41',
+        type: 'rotate_capability_grant',
+        grantId: broker.grant.grantId,
+      },
+      adminCred,
+    );
+    expect(rotateBrokerResp.ok).toBe(false);
+
+    const revokeBrokerResp = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'rev-broker-f41',
+        type: 'revoke_capability_grant',
+        grantId: broker.grant.grantId,
+      },
+      adminCred,
+    );
+    expect(revokeBrokerResp.ok).toBe(false);
+    expect(registry.getGrant(broker.grant.grantId)?.status).toBe('active');
+
+    const attachResp = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'attach-f41',
+        type: 'claim_runtime_attachment',
+        controlClientId: 'attached-ctrl',
+        modelClientId: 'attached-mdl',
+        modelCapabilities: ['task_read'],
+        ttlMs: 60_000,
+      },
+      {
+        token: broker.token,
+        projectId: 'project-1',
+        clientId: 'governance-attachment-broker-inst1',
+      },
+    );
+    if (!attachResp.ok || attachResp.result.type !== 'runtime_attachment_claimed') {
+      authenticated.close();
+      throw new Error('Expected runtime_attachment_claimed');
+    }
+    const rotateAttachedResp = authenticated.handleUnknown(
+      {
+        protocolVersion: GOVERNANCE_SERVICE_PROTOCOL_VERSION,
+        requestId: 'rot-attached-f41',
+        type: 'rotate_capability_grant',
+        grantId: attachResp.result.model.grant.grantId,
+        ttlMs: 24 * 60 * 60 * 1_000,
+      },
+      adminCred,
+    );
+    expect(rotateAttachedResp.ok).toBe(true);
+    if (rotateAttachedResp.ok && rotateAttachedResp.result.type === 'capability_grant_rotated') {
+      const ttl =
+        Date.parse(rotateAttachedResp.result.grant.expiresAt) -
+        Date.parse(rotateAttachedResp.result.grant.issuedAt);
+      expect(ttl).toBeLessThanOrEqual(30 * 60 * 1_000);
+    }
+
+    let reuseStep = 0;
+    const reuseRegistry = new GovernanceCapabilityGrantRegistry('project-1', {
+      now: () => now,
+      tokenMaterial: () => {
+        reuseStep += 1;
+        const id = reuseStep === 1 || reuseStep === 3 ? 'grant-reused' : 'grant-2';
+        return { grantId: id, secret: `${SECRET}${reuseStep}` };
+      },
+    });
+    const g1 = reuseRegistry.issue({
+      clientId: 'client-1',
+      capabilities: ['daemon_status_read'],
+      ttlMs: 60_000,
+    });
+    const g2 = reuseRegistry.issue({
+      clientId: 'client-1',
+      capabilities: ['daemon_status_read'],
+      ttlMs: 60_000,
+    });
+    reuseRegistry.revoke(g1.grant.grantId);
+    const rotatedReuse = reuseRegistry.rotate(g2.grant.grantId, { ttlMs: 10_000 });
+    expect(rotatedReuse.grant.grantId).toBe('grant-reused');
+
+    expect(() =>
+      registry.issue({
+        clientId: 'x'.repeat(1_024),
+        capabilities: ['daemon_status_read'],
+        ttlMs: 60_000,
+      }),
+    ).toThrow('clientId must contain at most 512 characters.');
+
+    authenticated.close();
+  });
 });

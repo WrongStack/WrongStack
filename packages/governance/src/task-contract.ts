@@ -232,6 +232,42 @@ function normalizePath(value: string): string {
     .replace(/\/+$/, '');
 }
 
+function escapesRoot(value: string): boolean {
+  const raw = value.replaceAll('\\', '/').trim();
+  if (raw.length === 0 || raw.startsWith('/') || /^[A-Za-z]:/.test(raw)) {
+    return true;
+  }
+  const normalized = normalizePath(raw);
+  return (
+    normalized.length === 0 ||
+    normalized === '.' ||
+    normalized === '..' ||
+    normalized.startsWith('../') ||
+    normalized.startsWith('/') ||
+    /^[A-Za-z]:/.test(normalized)
+  );
+}
+
+function allowedPathCoveredByDenied(normalizedAllowed: string, normalizedDenied: string): boolean {
+  if (normalizedAllowed === normalizedDenied || normalizedDenied === '**') return true;
+  if (normalizedDenied === '*') {
+    return !normalizedAllowed.includes('/') && normalizedAllowed !== '**';
+  }
+  if (normalizedDenied.endsWith('/**')) {
+    const prefix = normalizedDenied.slice(0, -3);
+    return normalizedAllowed === prefix || normalizedAllowed.startsWith(`${prefix}/`);
+  }
+  if (normalizedDenied.endsWith('/*')) {
+    const prefix = normalizedDenied.slice(0, -2);
+    if (!normalizedAllowed.startsWith(`${prefix}/`) || normalizedAllowed.endsWith('/**')) {
+      return false;
+    }
+    const remainder = normalizedAllowed.slice(prefix.length + 1);
+    return remainder.length > 0 && !remainder.includes('/');
+  }
+  return false;
+}
+
 export function validateTaskContractV1(contract: TaskContractV1): ContractValidationResult {
   const issues: ContractValidationIssue[] = [];
 
@@ -328,12 +364,13 @@ export function validateTaskContractV1(contract: TaskContractV1): ContractValida
   }
 
   const normalizedAllowedPaths = contract.autonomy.allowedPaths
-    .map(normalizePath)
-    .filter((entry) => entry.length > 0 && entry !== '.');
+    .filter((entry) => !escapesRoot(entry))
+    .map(normalizePath);
   if (
-    hasMutatingOperation(contract.autonomy.allowedOperations) &&
-    (contract.autonomy.allowedPaths.length === 0 ||
-      normalizedAllowedPaths.length !== contract.autonomy.allowedPaths.length)
+    (hasMutatingOperation(contract.autonomy.allowedOperations) &&
+      (contract.autonomy.allowedPaths.length === 0 ||
+        normalizedAllowedPaths.length !== contract.autonomy.allowedPaths.length)) ||
+    normalizedAllowedPaths.length !== contract.autonomy.allowedPaths.length
   ) {
     issues.push({
       code: 'path_scope_missing',
@@ -341,10 +378,9 @@ export function validateTaskContractV1(contract: TaskContractV1): ContractValida
       message: 'Mutating operations require at least one allowed path.',
     });
   }
-  const allowedPaths = new Set(normalizedAllowedPaths);
   for (const deniedPath of contract.autonomy.deniedPaths) {
     const normalizedDenied = normalizePath(deniedPath);
-    if (!normalizedDenied || normalizedDenied === '.') {
+    if (escapesRoot(deniedPath) || !normalizedDenied || normalizedDenied === '.') {
       issues.push({
         code: 'required_value_missing',
         path: 'autonomy.deniedPaths',
@@ -352,7 +388,11 @@ export function validateTaskContractV1(contract: TaskContractV1): ContractValida
       });
       continue;
     }
-    if (allowedPaths.has(normalizedDenied)) {
+    if (
+      normalizedAllowedPaths.some((allowed) =>
+        allowedPathCoveredByDenied(allowed, normalizedDenied),
+      )
+    ) {
       issues.push({
         code: 'path_scope_conflict',
         path: 'autonomy.deniedPaths',
