@@ -1,4 +1,6 @@
 {
   "schemaVersion": 1,
-  "entries": {}
+  "entries": {
+    "lint/style/noDescendingSpecificity|production|warning": 6
+  }
 }

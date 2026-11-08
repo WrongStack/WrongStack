@@ -233,7 +233,7 @@ export function reduceComposerPickers(state: State, action: ComposerAction): Sta
       if (!action.on && currentFilter) {
         const previousId = filterThemeOptions(THEME_OPTIONS, currentFilter)[selected]?.id;
         const retained = THEME_OPTIONS.findIndex((o) => o.id === previousId);
-        selected = retained >= 0 ? retained : 0;
+        selected = Math.max(retained, 0);
       }
       return {
         ...state,
@@ -262,7 +262,7 @@ export function reduceComposerPickers(state: State, action: ComposerAction): Sta
         themePicker: {
           ...state.themePicker,
           filter: action.text,
-          selected: retained >= 0 ? retained : 0,
+          selected: Math.max(retained, 0),
           hint: undefined,
         },
       };

@@ -367,6 +367,7 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
         // hunting for the in-bubble copy button.
         if (e.key === 'c' && current) {
           const text =
+            // biome-ignore lint/performance/useDomNodeTextContent: the copy must keep the rendered line breaks; textContent drops them
             current.querySelector<HTMLElement>('.markdown-content')?.innerText ?? current.innerText;
           if (text) {
             void navigator.clipboard?.writeText(text).catch(() => {});

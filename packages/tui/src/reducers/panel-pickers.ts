@@ -127,7 +127,7 @@ export function reducePanelPickers(state: State, action: PanelPickerAction): Sta
         state.statuslinePicker.lines,
       );
       const at = fields.indexOf(state.statuslinePicker.field);
-      const from = at >= 0 ? at : 0;
+      const from = Math.max(at, 0);
       const next = fields[(from + action.delta + fields.length) % fields.length]!;
       return {
         ...state,

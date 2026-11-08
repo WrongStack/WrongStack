@@ -15,7 +15,7 @@
 
 /** Clamp a number into [lo, hi]. */
 function clamp(n: number, lo: number, hi: number): number {
-  return n < lo ? lo : n > hi ? hi : n;
+  return Math.min(Math.max(n, lo), hi);
 }
 
 /** Parse an `oklch(L C H[ / a])` string into [L(0..1), C, H(deg), a(0..1)] or null. */

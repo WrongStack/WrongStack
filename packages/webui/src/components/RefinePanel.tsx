@@ -337,7 +337,7 @@ export function RefinePanel({
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
             {t('activity:refine.countdownHint', {
-              seconds: preRefineCountdown > 0 ? preRefineCountdown : 0,
+              seconds: Math.max(preRefineCountdown, 0),
             })}
           </div>
         </div>

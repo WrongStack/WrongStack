@@ -414,6 +414,7 @@ export class AutoCompactionMiddleware {
       calibrationKey,
     ).total;
     const guardLoad = guardTotal / availableInputTokens;
+    // biome-ignore lint/complexity/useMathMinMax: a NaN guard load (0 / 0) must fall back to the calibrated load; Math.max would return NaN
     return guardLoad > calibratedLoad ? guardLoad : calibratedLoad;
   }
 

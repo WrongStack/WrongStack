@@ -39,7 +39,7 @@
       "relativeImports": 11
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
-      "lines": 703,
+      "lines": 704,
       "relativeImports": 18
     },
     "packages/core/src/storage/file-session-writer.ts": {

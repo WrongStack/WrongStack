@@ -34,7 +34,7 @@ export function nextMatchIndex(
   if (!matches.length) return -1;
   if (direction === 1) {
     const index = matches.findIndex((match) => match.start >= caret);
-    return index < 0 ? 0 : index;
+    return Math.max(index, 0);
   }
   for (let index = matches.length - 1; index >= 0; index--)
     if (matches[index]!.end <= caret) return index;
