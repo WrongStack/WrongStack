@@ -183,6 +183,11 @@ vi.mock('../src/server/model-catalog.js', () => ({
 vi.mock('../src/server/setup-screen.js', () => ({
   resolveSetupProvider: mocks.resolveSetupProvider,
 }));
+// Covered in standalone-acp-leader.test.ts; the ACP leader loads the real acp/fleet packages.
+const registerAcpLeader = vi.hoisted(() => vi.fn());
+vi.mock('../src/server/standalone-acp-leader.js', () => ({
+  registerStandaloneAcpLeaderProvider: registerAcpLeader,
+}));
 vi.mock('../src/server/standalone-session-identity.js', () => ({
   createStandaloneSessionIdentityLifecycle: mocks.createStandaloneSessionIdentityLifecycle,
 }));
@@ -319,6 +324,13 @@ describe('createPreContextServices', () => {
       provider: 'openai',
     });
     expect(touchProject).toHaveBeenCalledWith('D:/repo', 'D:/repo/src');
+    // The ACP leader (`provider: "acp"`) is in the registry before the boot provider resolves.
+    expect(registerAcpLeader).toHaveBeenCalledOnce();
+    expect(registerAcpLeader).toHaveBeenCalledBefore(mocks.resolveSetupProvider);
+    const setupInput = mocks.resolveSetupProvider.mock.calls[0]?.[0] as {
+      providerRegistry: unknown;
+    };
+    expect(registerAcpLeader).toHaveBeenCalledWith(setupInput.providerRegistry, config);
     // session_rename renames through the host's session store.
     expect(toolRegistry.registerDefault).toHaveBeenCalledWith({ name: 'session_rename' });
     const renameOpts = (mocks.createSessionRenameTool.mock.calls as unknown[][])[0]?.[0] as {

@@ -46,6 +46,7 @@ import { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
 import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
+import { bindStandaloneAcpLeaderHost } from './standalone-acp-leader.js';
 import { createStandaloneChimera } from './standalone-chimera.js';
 import { createStandaloneAutoWake, installStandaloneDelegation } from './standalone-delegation.js';
 import { createStandaloneHooks } from './standalone-hooks.js';
@@ -628,6 +629,17 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     onSessionRelease: chimera.release,
   });
   const getAgentForSession = (sessionId?: string): Agent => sessionAgents.get(sessionId);
+  // An ACP agent leading a tab (`acp`): its tool cards, permission requests and fleet tools go
+  // through that tab's own agent (CLI parity: lifecycle-plugins.ts + webui-server.ts).
+  const acpLeader = bindStandaloneAcpLeaderHost({
+    agent,
+    events,
+    projectRoot,
+    stateDir: wpaths.projectDir,
+    getConfig: getLiveConfig,
+    toolRegistry,
+    peekAgent: (sessionId) => sessionAgents.peek(sessionId),
+  });
 
   return {
     collabBus,
@@ -649,6 +661,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     flushSessionJournalsSync: () => sessionAgents.flushAllSync(),
     closeSessionJournals: () => sessionAgents.closeAll(),
     closeChimera: () => chimera.dispose(),
+    closeAcpLeader: () => acpLeader.dispose(),
     closePlugins: async () => {
       try {
         await plugins?.dispose();

@@ -24,6 +24,7 @@
 import type { Provider, ProviderConfig } from '@wrongstack/contracts/types';
 import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import { isHostBuiltLeader } from '@wrongstack/runtime/acp-leader-host';
 import { fanOutProviderRebuild } from './provider-fanout.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
@@ -63,6 +64,9 @@ export function setupWebuiProxyInstantApply(options: WebuiProxyApplyOptions): ()
       // rebuild (stale overlay / stale cfg), and the superseded guard
       // re-checks the live provider so a queued rebuild can never
       // overwrite a newer switch.
+      // An agent leader has no endpoint to reroute; rebuilding it would orphan
+      // the live agent sessions the current instance owns.
+      if (isHostBuiltLeader(providerId)) return;
       await deps.context.runModelTransition(async () => {
         if (deps.context.provider?.id !== providerId) return; // superseded
         const cur = state.getConfig();

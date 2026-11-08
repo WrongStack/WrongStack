@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 505,
-      "typeOnly": 378,
+      "files": 506,
+      "typeOnly": 379,
       "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 204,
-      "typeOnly": 81,
-      "runtimeOrMixed": 126
+      "files": 206,
+      "typeOnly": 82,
+      "runtimeOrMixed": 127
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -344,30 +344,6 @@
       "file": "packages/cli/src/acp-hq-telemetry.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/acp-leader/acp-leader-confirm.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/acp-leader/acp-leader-host-binding.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/acp-leader/acp-leader-host.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/acp-leader/acp-leader-provider.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1526,6 +1502,30 @@
       "file": "packages/providers/tests/tool-use-envelope.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/acp-leader/acp-leader-confirm.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/acp-leader/acp-leader-host-binding.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/acp-leader/acp-leader-host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3048,6 +3048,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/setup-events.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/standalone-acp-leader.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5837,12 +5843,6 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
-      "file": "packages/cli/src/acp-leader/acp-leader-picker.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/acp-mcp-servers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6587,6 +6587,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/src/acp-leader/acp-leader-picker.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6947,6 +6953,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/standalone-acp-leader.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/standalone-chimera.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7022,6 +7034,12 @@
       "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-acp-leader.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -7272,12 +7290,6 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/chronicle/src/session-wiring.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/acp-leader/acp-leader-confirm.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8183,6 +8195,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/acp-leader/acp-leader-confirm.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/automation/github.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8945,12 +8963,6 @@
     },
     {
       "specifier": "@wrongstack/core/skills",
-      "file": "packages/cli/src/acp-leader/acp-leader-skills.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/skills",
       "file": "packages/cli/src/boot/tui-project-switch.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9036,6 +9048,12 @@
     {
       "specifier": "@wrongstack/core/skills",
       "file": "packages/fleet/src/skill-companion-signals.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
+      "file": "packages/runtime/src/acp-leader/acp-leader-skills.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11274,30 +11292,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/chronicle/src/sqlite-journal-schema.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-leader/acp-leader-fleet.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-leader/acp-leader-provider.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-leader/acp-leader-resume.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-leader/acp-leader-stream.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14388,6 +14382,30 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/requirement-intake/src/suggestions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-fleet.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-resume.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/acp-leader/acp-leader-stream.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

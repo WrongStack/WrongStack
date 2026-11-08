@@ -324,9 +324,6 @@
     "packages/chronicle/src/sqlite-compaction.ts": [
       "chronicleSqliteAllocatedBytes"
     ],
-    "packages/cli/src/acp-leader/acp-leader-provider.ts": [
-      "AcpLeaderProvider"
-    ],
     "packages/cli/src/acp-mcp-servers.ts": [
       "acpMcpServerToConfig"
     ],

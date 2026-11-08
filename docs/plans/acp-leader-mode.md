@@ -3,6 +3,11 @@
 Status: phases 1 and 2 built (2026-10-13) — `packages/cli/src/acp-leader/`.
 Phase 3 built (2026-10-14): WebUI parity, the TUI/WebUI confirmations, per-tab
 fleet calls and resume (see below and Resume).
+Moved 2026-11-08 to `@wrongstack/runtime/acp-leader` (`packages/runtime/src/acp-leader/`;
+the CLI files re-export it) so the standalone engine behind WebUI/desktop leads the
+same way: `packages/webui-server/src/server/standalone-acp-leader.ts` registers the
+factory, binds the host per tab and closes the agent sessions on shutdown. The
+process-wide binding alone is the light `@wrongstack/runtime/acp-leader-host` entry.
 
 WebUI, as built: the CLI host lists `acp` with the installed agents beside the
 saved providers (`hostProviders` → `providers.saved`, `provider.models`) and

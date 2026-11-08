@@ -25,6 +25,7 @@ import { type Agent, type Context, createFallbackModelExtension } from '@wrongst
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { createFallbackGate } from '@wrongstack/runtime';
+import { isHostBuiltLeader } from '@wrongstack/runtime/acp-leader-host';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 
 /** Same countdown the CLI uses; `config.fallbackGateSeconds` overrides it. */
@@ -98,14 +99,17 @@ export async function buildConversationProvider(
     : makeProviderFromConfig(providerId, { ...routedCfg, type: factoryType });
   // A freshly constructed provider only has the wire-family baseline, so
   // without the catalog overlay it keeps the previous model's context window
-  // and loses `maxOutput` entirely.
-  const provider = deps.modelsRegistry
-    ? await withCatalogCapabilities(deps.modelsRegistry, providerId, built, {
-        ...routedCfg,
-        type: routedCfg.type ?? providerId,
-        model: modelId,
-      })
-    : built;
+  // and loses `maxOutput` entirely. An agent leader (ACP, WrongForge) has no
+  // catalog entry: the overlay would hand it the unsupported-family defaults
+  // (`streaming: false`) and every leader turn would go to `complete()`.
+  const provider =
+    deps.modelsRegistry && !isHostBuiltLeader(providerId) && !isHostBuiltLeader(factoryType)
+      ? await withCatalogCapabilities(deps.modelsRegistry, providerId, built, {
+          ...routedCfg,
+          type: routedCfg.type ?? providerId,
+          model: modelId,
+        })
+      : built;
   return { provider, routedCfg };
 }
 

@@ -57,6 +57,7 @@ describe('setupWebuiShutdown', () => {
     const closeVectorMemory = vi.fn();
     const closeChimera = vi.fn().mockResolvedValue(undefined);
     const closePlugins = vi.fn().mockRejectedValue(new Error('teardown timed out'));
+    const closeAcpLeader = vi.fn().mockResolvedValue(undefined);
     const primary = {};
     const companion = {};
     const secondary = {};
@@ -84,6 +85,7 @@ describe('setupWebuiShutdown', () => {
         runSageSessionHygiene,
         closeChimera,
         closePlugins,
+        closeAcpLeader,
       } as never,
       mcpRegistry: { stopAll } as never,
       sessionIdentity: { stop: sessionIdentityStop } as never,
@@ -114,6 +116,12 @@ describe('setupWebuiShutdown', () => {
       closePlugins.mock.invocationCallOrder[0]!,
     );
     expect(logger.warn).toHaveBeenCalledWith('plugin disposal failed: teardown timed out');
+    // An ACP leader's agent sessions (and the processes they hold) close on the
+    // way out, while the plugins and hooks they report through are still up.
+    expect(closeAcpLeader).toHaveBeenCalledOnce();
+    expect(closeAcpLeader.mock.invocationCallOrder[0]).toBeLessThan(
+      closePlugins.mock.invocationCallOrder[0]!,
+    );
     expect(disposeKanban).toHaveBeenCalled();
     expect(unregister).toHaveBeenCalled();
     expect(detachTodos).toHaveBeenCalled();

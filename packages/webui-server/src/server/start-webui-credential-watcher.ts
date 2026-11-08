@@ -6,12 +6,15 @@ import {
   unavailableProviderCredentials,
   withCatalogCapabilities,
 } from '@wrongstack/providers';
+import { isHostBuiltLeader } from '@wrongstack/runtime/acp-leader-host';
 import type { WebSocket } from 'ws';
 import { patchConfig } from './boot.js';
+import { withHostProviders } from './provider/host-providers.js';
 import { fanOutProviderRebuild } from './provider-fanout.js';
 import { projectSavedProviders } from './provider-handlers.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
+import { standaloneHostProviders } from './standalone-acp-leader.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 import { broadcast } from './ws-utils.js';
 
@@ -93,7 +96,12 @@ export function setupWebuiCredentialWatcher(options: {
       deps.configStore.replace(nextConfig);
       broadcast(clients, {
         type: 'providers.saved',
-        payload: { providers: projectSavedProviders(nextConfig.providers ?? {}) },
+        payload: {
+          providers: withHostProviders(
+            projectSavedProviders(nextConfig.providers ?? {}),
+            standaloneHostProviders(nextConfig),
+          ),
+        },
       } as WSServerMessage);
       // Display language live-propagation: when config.uiLocale changes in
       // another process, seed context.meta + broadcast prefs.updated so every
@@ -109,6 +117,9 @@ export function setupWebuiCredentialWatcher(options: {
       }
 
       const activeId = deps.context.provider.id;
+      // An agent leader holds no credentials of its own, and a rebuilt one
+      // would orphan the live agent sessions the current instance owns.
+      if (isHostBuiltLeader(activeId)) return;
       const newCfgStr = activeProviderConfigKey(nextConfig, activeId);
       if (newCfgStr === lastActiveCfg && !removedAccount) return;
       lastActiveCfg = newCfgStr;

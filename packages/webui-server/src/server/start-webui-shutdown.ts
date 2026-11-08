@@ -107,6 +107,13 @@ export function setupWebuiShutdown(options: {
     ],
     onPreShutdown: async () => {
       await options.agentServices.closeChimera?.();
+      // An ACP leader's agent (and the MCP servers it started) would otherwise outlive the
+      // engine until the forced exit; bounded, like the CLI's exit path.
+      await options.agentServices
+        .closeAcpLeader?.()
+        .catch((err: unknown) =>
+          options.logger.warn(`ACP leader disposal failed: ${toErrorMessage(err)}`),
+        );
       // Plugins (and their hooks, tools, extensions) go before the journals they write to.
       await options.agentServices
         .closePlugins?.()

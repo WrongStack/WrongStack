@@ -59,6 +59,7 @@ import type { SessionRouteHandlers } from './session-routes.js';
 import { createShellGitRoutes } from './shell-git-route-table.js';
 import type { ShellGitRouteHandlers } from './shell-git-routes.js';
 import type { SpecsRouteHandlers } from './specs-routes.js';
+import { standaloneHostProviders } from './standalone-acp-leader.js';
 import { createSystemPromptRouteAdapter } from './system-prompt-route-adapter.js';
 import { broadcast, send } from './ws-utils.js';
 
@@ -93,6 +94,8 @@ export function buildRoutes(
       state.setConfig(patchConfig(state.getConfig(), { providers }));
     },
     applyModelSwitch: applyModelSwitchCore,
+    // `acp` with the ACP agents installed here: one can lead a conversation.
+    hostProviders: () => standaloneHostProviders(state.getConfig()),
   });
   const modelOperations = createModelOperations({
     context: deps.context,

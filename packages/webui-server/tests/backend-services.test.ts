@@ -174,6 +174,17 @@ vi.mock('../src/server/standalone-provider-tools.js', () => ({
     return { memoryCuratorLlm: undefined, dispose: () => providerTools.dispose() };
   },
 }));
+// Covered in standalone-acp-leader.test.ts; the ACP leader loads the real acp/fleet packages.
+const acpLeader = vi.hoisted(() => ({
+  binds: [] as Array<Record<string, unknown>>,
+  dispose: vi.fn(async () => undefined),
+}));
+vi.mock('../src/server/standalone-acp-leader.js', () => ({
+  bindStandaloneAcpLeaderHost: (input: Record<string, unknown>) => {
+    acpLeader.binds.push(input);
+    return { dispose: acpLeader.dispose };
+  },
+}));
 // The real hook host loads `@wrongstack/runtime/plugin-host`, whose plugin `api.llm`
 // shares the live router and Council registries with the provider tools; that
 // module's tool factories need the real core/tools packages.
@@ -397,6 +408,29 @@ describe('createAgentServices', () => {
     expect((call['getConfig'] as () => unknown)()).toBe(liveConfig);
     services.disposeRealtimeHandlers();
     expect(disposed).toBe(1);
+  });
+
+  it("binds the ACP leader host to the template agent and each tab's own agent", async () => {
+    const input = makeInput();
+    const liveConfig = { ...input.config, model: 'gpt-live' };
+    input.getConfig = () => liveConfig;
+    acpLeader.binds.length = 0;
+    acpLeader.dispose.mockClear();
+
+    const services = await createAgentServices(input);
+
+    expect(acpLeader.binds).toHaveLength(1);
+    const bound = acpLeader.binds[0]!;
+    expect(bound['agent']).toBe(services.agent);
+    expect(bound['events']).toBe(input.events);
+    expect(bound['projectRoot']).toBe('/tmp/proj');
+    expect(bound['stateDir']).toBe('/tmp/proj/.wrongstack');
+    expect(bound['toolRegistry']).toBe(input.toolRegistry);
+    expect((bound['getConfig'] as () => unknown)()).toBe(liveConfig);
+    // A tab is looked up, never created, by the leader host.
+    expect((bound['peekAgent'] as (id: string) => unknown)('no-such-tab')).toBeUndefined();
+    await services.closeAcpLeader?.();
+    expect(acpLeader.dispose).toHaveBeenCalledOnce();
   });
 
   it('resolves the Brain Jev account from the latest host config', async () => {

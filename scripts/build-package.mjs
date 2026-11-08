@@ -399,6 +399,11 @@ const profiles = {
       'system-prompt-contributors': 'src/system-prompt-contributors.ts',
       'dep-watcher': 'src/dep-watcher.ts',
       'hq-host': 'src/hq-host.ts',
+      // Two entries, one binding: the light host entry is what the CLI loads on
+      // every exit; the provider entry pulls in @wrongstack/acp, fleet and mcp.
+      // Their shared state lives on globalThis (acp-leader/acp-leader-host.ts).
+      'acp-leader': 'src/acp-leader.ts',
+      'acp-leader-host': 'src/acp-leader-host.ts',
     },
     external: [
       '@wrongstack/core',

@@ -89,6 +89,14 @@
     "./hq-host": {
       "types": "./dist/hq-host.d.ts",
       "import": "./dist/hq-host.js"
+    },
+    "./acp-leader": {
+      "types": "./dist/acp-leader.d.ts",
+      "import": "./dist/acp-leader.js"
+    },
+    "./acp-leader-host": {
+      "types": "./dist/acp-leader-host.d.ts",
+      "import": "./dist/acp-leader-host.js"
     }
   },
   "files": [
@@ -110,9 +118,11 @@
     "@wrongstack/contracts": "workspace:*",
     "@wrongstack/coordination": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/fleet": "workspace:*",
     "@wrongstack/governance": "workspace:*",
     "@wrongstack/hq": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
+    "@wrongstack/mcp": "workspace:*",
     "@wrongstack/plug-lsp": "workspace:*",
     "@wrongstack/plugins": "workspace:*",
     "@wrongstack/primitives": "workspace:*",

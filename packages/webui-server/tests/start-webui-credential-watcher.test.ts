@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   patchConfig: vi.fn((_config: unknown, patch: unknown) => patch),
   projectSavedProviders: vi.fn((providers: unknown) => providers),
   broadcast: vi.fn(),
+  // Hermetic: the real list depends on which ACP agents are on this machine's PATH.
+  standaloneHostProviders: vi.fn((): unknown[] => []),
 }));
 
 vi.mock('@wrongstack/core/storage', () => ({
@@ -20,6 +22,9 @@ vi.mock('../src/server/provider-handlers.js', () => ({
   projectSavedProviders: mocks.projectSavedProviders,
 }));
 vi.mock('../src/server/ws-utils.js', () => ({ broadcast: mocks.broadcast }));
+vi.mock('../src/server/standalone-acp-leader.js', () => ({
+  standaloneHostProviders: mocks.standaloneHostProviders,
+}));
 
 import { setupWebuiCredentialWatcher } from '../src/server/start-webui-credential-watcher.js';
 
@@ -175,6 +180,51 @@ describe('setupWebuiCredentialWatcher', () => {
     expect(context.provider).toEqual({ id: 'replacement' });
     expect(updateAutoCompactionMaxContext).toHaveBeenCalledWith({ id: 'replacement' });
   });
+  it('keeps the ACP leader listed and its live agent sessions in place on a config reload', async () => {
+    let notify: ((snapshot: Record<string, unknown>) => Promise<void>) | undefined;
+    mocks.watchProviderConfig.mockImplementation((_path, _vault, callback) => {
+      notify = callback;
+      return { close: vi.fn() };
+    });
+    mocks.projectSavedProviders.mockImplementationOnce(() => [{ id: 'zai', models: ['glm-5'] }]);
+    mocks.standaloneHostProviders.mockReturnValueOnce([
+      { id: 'acp', type: 'acp', models: [{ id: 'claude-code' }] },
+    ]);
+    const leader = { id: 'acp', capabilities: { streaming: true } };
+    const context = { provider: leader, meta: {} };
+    const create = vi.fn();
+    const nextConfig = { provider: 'acp', model: 'claude-code', apiKey: 'changed', providers: {} };
+    setupWebuiCredentialWatcher({
+      watchConfigPath: 'config.json',
+      vault: {} as never,
+      logger: { warn: vi.fn() } as never,
+      state: { getConfig: () => nextConfig, setConfig: vi.fn() } as never,
+      deps: {
+        context,
+        configStore: { replace: vi.fn() },
+        providerRegistry: { has: () => true, create },
+      } as never,
+      clients: new Map(),
+      loadConfig: async () => nextConfig as never,
+      updateAutoCompactionMaxContext: vi.fn(async () => {}),
+    });
+    await notify?.({ providers: {} });
+
+    expect(mocks.standaloneHostProviders).toHaveBeenCalledWith(nextConfig);
+    expect(mocks.broadcast).toHaveBeenCalledWith(expect.any(Map), {
+      type: 'providers.saved',
+      payload: {
+        providers: [
+          { id: 'zai', models: ['glm-5'] },
+          expect.objectContaining({ id: 'acp', type: 'acp', models: ['claude-code'] }),
+        ],
+      },
+    });
+    // A rebuilt leader would orphan the agent sessions the live one owns.
+    expect(create).not.toHaveBeenCalled();
+    expect(context.provider).toBe(leader);
+  });
+
   it('blocks removed accounts even with a legacy root key, then recovers on recreation', async () => {
     let notify: ((snapshot: Record<string, unknown>) => Promise<void>) | undefined;
     mocks.watchProviderConfig.mockImplementation((_path, _vault, callback) => {

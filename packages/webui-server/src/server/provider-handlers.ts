@@ -86,6 +86,8 @@ interface ProviderHandlerDeps {
     | ((providers: Record<string, ProviderConfig>) => void | Promise<void>)
     | undefined;
   applyModelSwitch?: ((providerId: string, modelId: string) => Promise<void>) | undefined;
+  /** Providers the engine serves itself (the ACP leader), listed beside the saved ones. */
+  hostProviders?: ProviderOperationsDeps['hostProviders'];
 }
 
 /**
@@ -128,5 +130,6 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
     hasActiveModel: deps.hasActiveModel,
     onProvidersLoaded: deps.onProvidersLoaded,
     applyModelSwitch: deps.applyModelSwitch,
+    hostProviders: deps.hostProviders,
   });
 }

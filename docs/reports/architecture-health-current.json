@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T17:01:58.020Z",
+  "generatedAt": "2026-11-08T17:02:17.689Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6114,
-    "testFiles": 5080,
-    "sourceLines": 1262162,
-    "workspaceEdges": 248,
-    "moduleEdges": 18041,
+    "sourceFiles": 6127,
+    "testFiles": 5082,
+    "sourceLines": 1262560,
+    "workspaceEdges": 250,
+    "moduleEdges": 18058,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 298,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1030
+    "testOnlyExports": 1029
   },
   "errors": [],
   "packageCycles": [],
@@ -819,8 +819,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 87,
-      "testFiles": 44,
+      "sourceFiles": 99,
+      "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -829,9 +829,11 @@
         "@wrongstack/contracts",
         "@wrongstack/coordination",
         "@wrongstack/core",
+        "@wrongstack/fleet",
         "@wrongstack/governance",
         "@wrongstack/hq",
         "@wrongstack/kanban",
+        "@wrongstack/mcp",
         "@wrongstack/plug-lsp",
         "@wrongstack/plugins",
         "@wrongstack/primitives",
@@ -852,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 44
+          "testFiles": 45
         }
       ]
     },
@@ -1172,8 +1174,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 343,
-      "testFiles": 381,
+      "sourceFiles": 344,
+      "testFiles": 382,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1208,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 381
+          "testFiles": 382
         }
       ]
     },
@@ -18546,6 +18548,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-leader-host-state.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/automation-cancel-handoff.test.ts",
         "projects": [
           "root-node"
@@ -28218,6 +28226,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-acp-leader.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-agent-sessions-replay.test.ts",
         "projects": [
           "root-node"
@@ -35767,10 +35781,6 @@
     {
       "file": "packages/chronicle/src/sqlite-compaction.ts",
       "name": "chronicleSqliteAllocatedBytes"
-    },
-    {
-      "file": "packages/cli/src/acp-leader/acp-leader-provider.ts",
-      "name": "AcpLeaderProvider"
     },
     {
       "file": "packages/cli/src/acp-mcp-servers.ts",

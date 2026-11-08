@@ -16,6 +16,7 @@ import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/typ
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { createSetupProviderFactory, makeProviderFromConfig } from '@wrongstack/providers';
+import { isHostBuiltLeader } from '@wrongstack/runtime/acp-leader-host';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 
 const UNCONFIGURED_CAPABILITIES: Provider['capabilities'] = {
@@ -126,8 +127,11 @@ export function resolveSetupProvider(opts: ResolveSetupProviderOptions): Resolve
         config.provider,
       );
       const cfgWithType = { ...routedConfig, type: config.provider };
+      // An agent leader's factory is the host's own, not a catalog one: it is
+      // built whether or not the models.dev catalog is on (CLI boot parity).
       const provider: Provider =
-        config.features.modelsRegistry && providerRegistry.has(factoryType)
+        (config.features.modelsRegistry || isHostBuiltLeader(factoryType)) &&
+        providerRegistry.has(factoryType)
           ? providerRegistry.create(cfgWithType, factoryType)
           : makeProviderFromConfig(config.provider, { ...cfgWithType, type: factoryType });
       return { provider, needsSetup: false };

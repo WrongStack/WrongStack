@@ -147,6 +147,8 @@ export interface AgentServices {
   closeSessionJournals?: () => Promise<void>;
   /** Join review producers and workers before journals/fleet close. */
   closeChimera?: () => Promise<void>;
+  /** Close the ACP leader's agent sessions and unbind its host services. */
+  closeAcpLeader?: () => Promise<void>;
   /** Dispose the plugin host and stop the user-hook hot reload and lifecycle bridge. */
   closePlugins?: () => Promise<void>;
   permissionPolicy: PermissionPolicy;
