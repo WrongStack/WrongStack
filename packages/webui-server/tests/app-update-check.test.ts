@@ -26,7 +26,10 @@ function cacheFile(content?: Record<string, unknown>): string {
 }
 
 const release = (tag: string) =>
-  vi.fn(async () => new Response(JSON.stringify({ tag_name: tag }), { status: 200 }));
+  vi.fn(
+    async (_url: string | URL | Request, _init?: RequestInit) =>
+      new Response(JSON.stringify({ tag_name: tag }), { status: 200 }),
+  );
 
 describe('app update check', () => {
   it('compares versions as releases do', () => {
