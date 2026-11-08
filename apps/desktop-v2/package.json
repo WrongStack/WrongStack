@@ -19,6 +19,8 @@
     "test": "bun --bun run vitest run --config vitest.config.ts",
     "test:native": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
     "test:native-ui": "bun tests/native-smoke.mjs",
+    "test:native-update": "bun tests/native-engine-update.mjs",
+    "test:native-installer": "bun tests/native-installer-hook.mjs",
     "test:engine-concurrency": "bun tests/engine-concurrency.mjs",
     "check:native": "cargo check --manifest-path src-tauri/Cargo.toml"
   },
