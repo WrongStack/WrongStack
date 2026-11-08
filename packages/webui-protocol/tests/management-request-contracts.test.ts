@@ -113,6 +113,16 @@ describe('automation HTTP request contract', () => {
     stub(503, {});
     await expect(automationRequest('state')).rejects.toThrow('Automation request failed (503)');
   });
+  it('shows the message of an error object and falls back when it is blank or absent', async () => {
+    stub(422, { error: { message: 'Schedule is invalid', code: 'bad_schedule' } });
+    await expect(automationRequest('jobs')).rejects.toThrow('Schedule is invalid');
+    stub(422, { error: { message: '   ' } });
+    await expect(automationRequest('jobs')).rejects.toThrow('Automation request failed (422)');
+    stub(500, { error: { code: 'internal' } });
+    await expect(automationRequest('jobs')).rejects.toThrow('Automation request failed (500)');
+    stub(500, { error: null });
+    await expect(automationRequest('jobs')).rejects.toThrow('Automation request failed (500)');
+  });
   it('reports the status for a non-JSON failure body instead of a JSON parse error', async () => {
     // A reverse-proxy HTML error page used to reject with a bare SyntaxError
     // from response.json(), losing both the status and the server error.

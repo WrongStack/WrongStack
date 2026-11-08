@@ -302,4 +302,32 @@ describe('FrameResume', () => {
     // Post-reset frames starting at seq=1 must be accepted
     expect(texts(resume.gate.accept(f(1, 's1', 'post-reset-1')))).toEqual(['post-reset-1']);
   });
+
+  it('adopts the epoch of a session.start without a session id and passes it through', () => {
+    const resume = new FrameResume<Frame>(() => undefined);
+    const bare: Frame = { type: 'session.start', payload: { eventEpoch: 'e9' } };
+    expect(resume.onSessionStart(bare)).toBe(bare);
+    resume.gate.accept(f(1, 's1'));
+    expect(resume.gate.cursors(['s1'])).toEqual({ eventEpoch: 'e9', cursors: { s1: 1 } });
+  });
+
+  it('keeps the resume timer when a reset leaves another requested session resuming', () => {
+    vi.useFakeTimers();
+    const applied: Frame[] = [];
+    const resume = new FrameResume<Frame>((frames) => applied.push(...frames));
+    resume.onSessionStart(start('s1', { eventEpoch: 'e1' }));
+    resume.onSessionStart(start('s2', { eventEpoch: 'e1' }));
+    resume.gate.accept(f(2, 's1', 'a2'));
+    resume.gate.accept(f(2, 's2', 'b2'));
+    resume.request(['s1', 's2']);
+    resume.gate.accept(f(4, 's2', 'b4-held'));
+
+    // s1 restarts; s2 is still catching up, so the timer that releases it stays.
+    resume.onSessionStart(start('s1', { eventEpoch: 'e1', reset: true }));
+    expect(resume.gate.isResuming('s1')).toBe(false);
+    expect(resume.gate.isResuming('s2')).toBe(true);
+    vi.advanceTimersByTime(5_000);
+    expect(resume.gate.isResuming('s2')).toBe(false);
+    expect(texts(applied)).toContain('b4-held');
+  });
 });
