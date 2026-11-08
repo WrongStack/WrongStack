@@ -320,7 +320,7 @@ function explicitMode(cfg: Record<string, unknown>): string | undefined {
  * suites that do not isolate the user's environment) registers its project
  * with the real daemon.
  */
-export async function chooseWrongMemoryAfterInstall(
+async function chooseWrongMemoryAfterInstall(
   file: string,
 ): Promise<{ mode: string; changed: boolean; configFile: string }> {
   // A missing file reads as {}; corrupt JSON also reads as {} here, and the
@@ -502,14 +502,38 @@ export async function runSageServiceCommand(
         dataRoot: serviceOf(deps).dataRoot ?? process.env.WRONGMEMORY_HOME,
         io,
       });
-      const choice = args.includes('--keep-mode')
-        ? undefined
-        : await chooseWrongMemoryAfterInstall(activeProfileConfigPath(deps.paths, deps.config));
-      if (json) out(JSON.stringify({ ...report, ...(choice ? { mode: choice } : {}) }, null, 2));
-      else {
+      // The binaries are in place at this point: a config that cannot be
+      // updated is reported, not turned into a failed install.
+      let choice: Awaited<ReturnType<typeof chooseWrongMemoryAfterInstall>> | undefined;
+      let modeError: string | undefined;
+      if (!args.includes('--keep-mode')) {
+        try {
+          choice = await chooseWrongMemoryAfterInstall(
+            activeProfileConfigPath(deps.paths, deps.config),
+          );
+        } catch (error) {
+          modeError = toErrorMessage(error);
+        }
+      }
+      if (json) {
+        out(
+          JSON.stringify(
+            {
+              ...report,
+              ...(choice ? { mode: choice } : {}),
+              ...(modeError ? { modeError } : {}),
+            },
+            null,
+            2,
+          ),
+        );
+      } else {
         out(`WrongMemory installed from ${String(report.source)}`);
         if (report.prefix) out(`  into ${String(report.prefix)}`);
-        if (choice?.changed) {
+        if (modeError) {
+          out(`  SAGE memory service not changed: ${modeError}`);
+          out('  Fix the profile config, then run: wstack sage service use wrongmemory');
+        } else if (choice?.changed) {
           out(`  SAGE memory service: wrongmemory (set in ${choice.configFile})`);
           out(
             '  Projects are registered on first use; to back a project store up and hand it over now, run in that project: wstack sage service use wrongmemory --yes',
