@@ -4582,6 +4582,7 @@
     "noKey": "Kayıtlı API anahtarı yok. Motor yerel ya da ortam kimlik doğrulamasını kullanabilir.",
     "removeConnectionLabel": "{{provider}} bağlantısını kaldır",
     "removeConnection": "Bağlantıyı kaldır",
+    "hostServed": "Bu motor, burada kurulu ACP ajanlarından sağlıyor; eklenecek anahtar ya da kaldırılacak bağlantı yok.",
     "confirmLabel": "Bağlantı değişikliğini onayla",
     "deleteKeyAsk": "{{provider}} için kayıtlı “{{label}}” anahtarı silinsin mi? Etkin anahtar kaldırıldığında motor başka bir kayıtlı anahtarı seçer.",
     "removeAsk": "{{provider}}, kayıtlı anahtarları ve model tanımlarıyla birlikte bu profilden kaldırılsın mı? Mevcut çalıştırmalar yeniden başlatılana kadar şu anki bağlantıyı koruyabilir.",

@@ -17,6 +17,22 @@ const draft: ProviderDraft = {
   supportsTools: false,
 };
 describe('native provider setup', () => {
+  it('marks a provider the engine serves itself, which has nothing saved to remove', () => {
+    const state = {
+      ...emptyEngineState,
+      results: {
+        'providers.saved': {
+          providers: [
+            { id: 'acp', type: 'acp', models: ['claude-code'], hostServed: true, apiKeys: [] },
+            { id: 'openai', type: 'openai', models: [], apiKeys: [] },
+          ],
+        },
+      },
+    };
+    const [acp, openai] = providerChoices(state);
+    expect(acp).toMatchObject({ id: 'acp', saved: true, hostServed: true });
+    expect(openai?.hostServed).toBeUndefined();
+  });
   it('persists explicit image-input capability without assuming support for an unknown endpoint', () => {
     for (const vision of [true, false]) {
       expect(

@@ -4582,6 +4582,7 @@
     "noKey": "Kein gespeicherter API-Schlüssel. Die Engine kann lokale oder Umgebungs-Authentifizierung nutzen.",
     "removeConnectionLabel": "Verbindung {{provider}} entfernen",
     "removeConnection": "Verbindung entfernen",
+    "hostServed": "Von dieser Engine aus den hier installierten ACP-Agenten bereitgestellt; es gibt keinen Schlüssel hinzuzufügen und keine Verbindung zu entfernen.",
     "confirmLabel": "Verbindungsänderung bestätigen",
     "deleteKeyAsk": "Gespeicherten Schlüssel „{{label}}“ von {{provider}} löschen? Wird der aktive Schlüssel entfernt, wählt die Engine einen anderen gespeicherten Schlüssel.",
     "removeAsk": "{{provider}} samt gespeicherten Schlüsseln und Modelldefinitionen aus diesem Profil entfernen? Laufende Läufe behalten ihre Verbindung womöglich bis zum Neustart.",

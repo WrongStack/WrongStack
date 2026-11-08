@@ -106,3 +106,24 @@ describe('ProviderSavedProfiles — disable provider toggle', () => {
     ).toBe('true');
   });
 });
+
+describe('ProviderSavedProfiles — a provider the host serves itself', () => {
+  afterEach(cleanup);
+
+  it('offers no key to add and no connection to remove for the ACP leader', () => {
+    const acp: SavedProvider = {
+      id: 'acp',
+      type: 'acp',
+      family: 'acp',
+      models: ['claude-code'],
+      hostServed: true,
+      apiKeys: [],
+    };
+    render(<ProviderSavedProfiles {...baseProps({ savedProviders: [acp, provider] })} />);
+    expect(screen.getByText('settings:provider.hostServed')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Remove provider acp' })).toBeNull();
+    // A saved provider beside it keeps its controls.
+    expect(screen.getByRole('button', { name: 'Remove provider openai' })).toBeTruthy();
+    expect(screen.getAllByText('settings:provider.addKey')).toHaveLength(1);
+  });
+});

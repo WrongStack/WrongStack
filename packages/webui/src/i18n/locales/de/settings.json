@@ -188,6 +188,7 @@
     "apiKeysLabel": "API-Schlüssel",
     "addKey": "Schlüssel hinzufügen",
     "noKeys": "Keine Schlüssel konfiguriert",
+    "hostServed": "Von diesem Host aus den hier installierten ACP-Agenten bereitgestellt; es gibt keinen Schlüssel hinzuzufügen und keine Verbindung zu entfernen.",
     "active": "Aktiv",
     "setActive": "Als aktiv setzen",
     "keyLabelPlaceholder": "Schlüsselbezeichnung (z.B. default, production)",

@@ -4582,6 +4582,7 @@
     "noKey": "Nenhuma chave de API salva. O motor pode usar autenticação local ou do ambiente.",
     "removeConnectionLabel": "Remover a conexão {{provider}}",
     "removeConnection": "Remover a conexão",
+    "hostServed": "Fornecido por este motor a partir dos agentes ACP instalados aqui; não há chave para adicionar nem conexão para remover.",
     "confirmLabel": "Confirmar a alteração da conexão",
     "deleteKeyAsk": "Excluir a chave salva “{{label}}” de {{provider}}? O motor escolhe outra chave salva quando a ativa é removida.",
     "removeAsk": "Remover {{provider}} com as chaves e definições de modelo salvas deste perfil? Execuções em andamento podem manter a conexão até reiniciar.",

@@ -309,36 +309,38 @@ export function ProviderSavedProfiles({
                 </div>
               </div>
               <div className="flex gap-2 sm:justify-end">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  disabled={saving}
-                  onClick={() =>
-                    void save(
-                      async () => {
-                        if (
-                          !(await confirmModal({
-                            title: t('settings:provider.removeProfileConfirm', {
-                              alias: sp.id,
-                            }),
-                            message: t('settings:provider.removeProfileBody'),
-                            confirmLabel: t('common:action.delete'),
-                            danger: true,
-                            defaultAction: 'cancel',
-                          }))
-                        )
-                          return false;
-                        return onRemoveProvider(sp.id);
-                      },
-                      () => {},
-                    )
-                  }
-                  aria-label={`Remove provider ${sp.id}`}
-                  title={`Remove provider ${sp.id}`}
-                  className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                {!sp.hostServed && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={saving}
+                    onClick={() =>
+                      void save(
+                        async () => {
+                          if (
+                            !(await confirmModal({
+                              title: t('settings:provider.removeProfileConfirm', {
+                                alias: sp.id,
+                              }),
+                              message: t('settings:provider.removeProfileBody'),
+                              confirmLabel: t('common:action.delete'),
+                              danger: true,
+                              defaultAction: 'cancel',
+                            }))
+                          )
+                            return false;
+                          return onRemoveProvider(sp.id);
+                        },
+                        () => {},
+                      )
+                    }
+                    aria-label={`Remove provider ${sp.id}`}
+                    title={`Remove provider ${sp.id}`}
+                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -380,20 +382,24 @@ export function ProviderSavedProfiles({
                       {t('settings:provider.keyCount', { count: sp.apiKeys.length })}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setShowAddKeyForm(showAddKeyForm === sp.id ? null : sp.id)}
-                    className="h-8 px-2 text-xs"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t('settings:provider.addKey')}
-                  </Button>
+                  {!sp.hostServed && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowAddKeyForm(showAddKeyForm === sp.id ? null : sp.id)}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {t('settings:provider.addKey')}
+                    </Button>
+                  )}
                 </div>
 
                 {sp.apiKeys.length === 0 && !showAddKeyForm && (
                   <p className="mt-3 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                    {t('settings:provider.noKeys')}
+                    {sp.hostServed
+                      ? t('settings:provider.hostServed')
+                      : t('settings:provider.noKeys')}
                   </p>
                 )}
 

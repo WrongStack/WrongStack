@@ -188,6 +188,7 @@
     "apiKeysLabel": "Chiavi API",
     "addKey": "Aggiungi chiave",
     "noKeys": "Nessuna chiave configurata",
+    "hostServed": "Fornito da questo host dagli agenti ACP installati qui; non c’è alcuna chiave da aggiungere né connessione da rimuovere.",
     "active": "Attiva",
     "setActive": "Imposta come attiva",
     "keyLabelPlaceholder": "Etichetta chiave (es. default, production)",

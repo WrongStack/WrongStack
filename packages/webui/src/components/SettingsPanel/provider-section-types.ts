@@ -14,6 +14,8 @@ export interface CatalogProvider {
 
 export interface SavedProvider {
   id: string;
+  /** Served by the host itself (the ACP leader): no saved record, keys or connection to remove. */
+  hostServed?: boolean | undefined;
   type?: string | undefined;
   family?: string | undefined;
   baseUrl?: string | undefined;

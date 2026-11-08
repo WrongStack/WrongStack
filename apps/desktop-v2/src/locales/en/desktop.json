@@ -4582,6 +4582,7 @@
     "noKey": "No saved API key. The engine may use local or environment authentication.",
     "removeConnectionLabel": "Remove connection {{provider}}",
     "removeConnection": "Remove connection",
+    "hostServed": "Provided by this engine from the ACP agents installed here; there is no key to add or connection to remove.",
     "confirmLabel": "Confirm connection change",
     "deleteKeyAsk": "Delete saved key “{{label}}” from {{provider}}? The engine selects another saved key when the active key is removed.",
     "removeAsk": "Remove {{provider}} and its saved keys and model definitions from this profile? Existing runs may retain their current connection until restarted.",

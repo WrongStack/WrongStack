@@ -360,20 +360,26 @@ export function ProviderSettings({
                         </div>
                       ))
                     ) : (
-                      <p className="provider-hint">{t('providerSettings.noKey')}</p>
+                      <p className="provider-hint">
+                        {provider.hostServed
+                          ? t('providerSettings.hostServed')
+                          : t('providerSettings.noKey')}
+                      </p>
                     )}
-                    <button
-                      type="button"
-                      className="provider-remove-button"
-                      disabled={pending}
-                      aria-label={t('providerSettings.removeConnectionLabel', {
-                        provider: provider.id,
-                      })}
-                      onClick={() => setConfirmation({ providerId: provider.id })}
-                    >
-                      <Trash2 size={13} />
-                      {t('providerSettings.removeConnection')}
-                    </button>
+                    {!provider.hostServed && (
+                      <button
+                        type="button"
+                        className="provider-remove-button"
+                        disabled={pending}
+                        aria-label={t('providerSettings.removeConnectionLabel', {
+                          provider: provider.id,
+                        })}
+                        onClick={() => setConfirmation({ providerId: provider.id })}
+                      >
+                        <Trash2 size={13} />
+                        {t('providerSettings.removeConnection')}
+                      </button>
+                    )}
                     {confirmation?.providerId === provider.id && (
                       <fieldset
                         className="provider-management-confirm"

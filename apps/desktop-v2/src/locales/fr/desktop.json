@@ -4582,6 +4582,7 @@
     "noKey": "Aucune clé d’API enregistrée. Le moteur peut utiliser une authentification locale ou d’environnement.",
     "removeConnectionLabel": "Retirer la connexion {{provider}}",
     "removeConnection": "Retirer la connexion",
+    "hostServed": "Fourni par ce moteur à partir des agents ACP installés ici ; il n’y a ni clé à ajouter ni connexion à supprimer.",
     "confirmLabel": "Confirmer le changement de connexion",
     "deleteKeyAsk": "Supprimer la clé enregistrée « {{label}} » de {{provider}} ? Le moteur choisit une autre clé enregistrée quand la clé active est retirée.",
     "removeAsk": "Retirer {{provider}} ainsi que ses clés et définitions de modèles enregistrées de ce profil ? Les exécutions en cours peuvent garder leur connexion jusqu’au redémarrage.",
