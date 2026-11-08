@@ -435,10 +435,6 @@
       "makeHeadlessPromptDelegate",
       "makePromptDelegate"
     ],
-    "packages/cli/src/plugin-management.ts": [
-      "renderConfiguredPlugins",
-      "renderPluginAuditReport"
-    ],
     "packages/cli/src/project-picker.ts": [
       "effectiveVisibleHeight",
       "filterItems"
@@ -1295,7 +1291,6 @@
       "createRuntimeHostFromParts"
     ],
     "packages/runtime/src/portable-commands/tuneup-report.ts": [
-      "checkAutonomy",
       "checkConfigDoctor",
       "checkHooks",
       "checkMcp",

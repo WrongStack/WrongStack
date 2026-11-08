@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-08T23:50:57.154Z
+**Generated:** 2026-11-08T23:54:30.824Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,9 +21,7 @@
 
 ## Verification result
 
-- packages/cli/src/plugin-management.ts: "renderConfiguredPlugins" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/cli/src/plugin-management.ts: "renderPluginAuditReport" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/runtime/src/portable-commands/tuneup-report.ts: "checkAutonomy" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
