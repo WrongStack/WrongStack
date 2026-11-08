@@ -114,9 +114,26 @@ jobs:
 
       # Compiles the engine for this runner's target, bundles it into the
       # application and writes the platform installers.
+      # Tauri downloads its bundler tools (NSIS and its plugins) from GitHub
+      # release assets while packaging; those downloads fail with a 5xx now and
+      # then (v1.5.1's Windows installers failed three runs on `http status:
+      # 504`). Retry only that failure; the compiled crates are reused, so a
+      # retry repeats the packaging, not the build.
       - name: Build desktop installers
         working-directory: apps/desktop-v2
-        run: bun scripts/launch.ts build --skip-workspace-build
+        shell: bash
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if bun scripts/launch.ts build --skip-workspace-build 2>&1 | tee "$RUNNER_TEMP/desktop-build.log"; then
+              exit 0
+            fi
+            if ! grep -Eq 'http status: 5[0-9][0-9]' "$RUNNER_TEMP/desktop-build.log" || [ "$attempt" = 3 ]; then
+              exit 1
+            fi
+            echo "::warning::A bundler tool download failed with an HTTP 5xx; retrying in 90 s (attempt $attempt of 3)."
+            sleep 90
+          done
 
       - name: Collect installers
         shell: bash
