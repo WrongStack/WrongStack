@@ -27,7 +27,7 @@ function cacheFile(content?: Record<string, unknown>): string {
 
 const release = (tag: string) =>
   vi.fn(
-    async (_input: Parameters<typeof fetch>[0], _init?: Parameters<typeof fetch>[1]) =>
+    async (_url: string | URL | Request, _init?: RequestInit) =>
       new Response(JSON.stringify({ tag_name: tag }), { status: 200 }),
   );
 
