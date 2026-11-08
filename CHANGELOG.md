@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tools.sandbox` is enforced.** The exec sandbox policy in `config.tools.sandbox` was declared in the wrong config block and never handed to the sandbox, so a configured mode or tier changed nothing. The CLI and the WebUI/desktop engine now apply it when they register their tools.
+- **ACP agents lead desktop conversations.** A profile whose provider is `acp` (for example after `/model acp/claude-code` in the CLI) made the desktop engine exit at boot. The engine now registers the ACP leader as the CLI does: `acp` appears in the model pickers, switching to it works, tool approvals reach the conversation's tab, and the agent sessions close when the engine shuts down.
+
 ## [1.5.2] — 2026-11-08
 
 The desktop engine now does what the CLI host does. Desktop v2's pages were
