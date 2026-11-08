@@ -211,12 +211,13 @@ export function parseAlt(
   budget: Budget,
   foldCase: boolean,
   dotAll: boolean,
+  unicode: boolean,
 ): Ast | null {
-  const first = parseSeq(c, budget, foldCase, dotAll);
+  const first = parseSeq(c, budget, foldCase, dotAll, unicode);
   if (first === null) return null;
   const parts: Ast[] = [first];
   while (c.eat('|')) {
-    const p = parseSeq(c, budget, foldCase, dotAll);
+    const p = parseSeq(c, budget, foldCase, dotAll, unicode);
     if (p === null) return null;
     parts.push(p);
   }
@@ -228,6 +229,7 @@ export function parseSeq(
   budget: Budget,
   foldCase: boolean,
   dotAll: boolean,
+  unicode: boolean,
 ): Ast | null {
   const parts: Ast[] = [];
   for (;;) {
@@ -249,15 +251,15 @@ export function parseSeq(
           return null; // lookaround or (?X — outside the subset
         }
       }
-      const node = parseAlt(c, budget, foldCase, dotAll);
+      const node = parseAlt(c, budget, foldCase, dotAll, unicode);
       if (node === null || !c.eat(')')) return null;
       atom = node;
     } else if (ch === '[') {
-      const set = parseClass(c, foldCase);
+      const set = parseClass(c, foldCase, unicode);
       if (set === null) return null;
       atom = { k: 'cls', set };
     } else if (ch === '\\') {
-      const t = parseEscape(c);
+      const t = parseEscape(c, unicode);
       if (t === null) return null;
       atom = { k: 'cls', set: foldCase ? foldForCompare(t) : t };
     } else if (ch === '.') {
@@ -266,14 +268,21 @@ export function parseSeq(
     } else if (ch === '^' || ch === '$' || ch === '{' || ch === '*' || ch === '+' || ch === '?') {
       return null; // anchors / dangling quantifiers — outside the subset
     } else {
-      // Astral literals are surrogate PAIRS: read from the full source at
-      // c.i (codePointAt combines the pair there) and advance by the code
-      // point's UTF-16 width — one unit modeled the low surrogate as a
-      // phantom atom and hid raw-vs-escape branch identity (round-6 sibling
-      // of df8040684).
-      const cp = c.s.codePointAt(c.i)!;
+      // Unicode mode combines surrogate pairs into one atom. Legacy mode must
+      // keep code units separate: a following quantifier applies only to the low
+      // surrogate, not the whole astral character.
+      const cp = unicode ? c.s.codePointAt(c.i)! : c.s.charCodeAt(c.i);
       c.i += cp > 0xffff ? 2 : 1;
       atom = { k: 'cls', set: foldCase ? foldForCompare([[cp, cp]]) : [[cp, cp]] };
+    }
+    // Complements, named classes and dot use shared code-point tables. Legacy
+    // regexes can consume only UTF-16 units; phantom supplementary members must
+    // not supply a witness for an ambiguity that the real engine cannot have.
+    if (!unicode && atom.k === 'cls' && atom.set.some(([, hi]) => hi > 0xffff)) {
+      atom = {
+        k: 'cls',
+        set: atom.set.filter(([lo]) => lo <= 0xffff).map(([lo, hi]) => [lo, Math.min(hi, 0xffff)]),
+      };
     }
     const q = c.peek();
     if (q === '*') {
@@ -316,7 +325,7 @@ export function parseSeq(
       : { k: 'seq', parts };
 }
 
-export function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
+export function parseClass(c: Cursor, foldCase: boolean, unicode: boolean): CharSet | null {
   const s = c.s;
   let i = c.i + 1;
   let negated = false;
@@ -329,12 +338,11 @@ export function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
   // written through in 2026-09-02's DIGIT_SET corruption. The tables are
   // frozen now too, so a reintroduced write throws instead of leaking.
   const ranges: (readonly [number, number])[] = [];
-  let first = true;
-  while (i < s.length && (s[i] !== ']' || first)) {
-    first = false;
+  // ECMAScript closes even an empty class at its first unescaped `]`.
+  while (i < s.length && s[i] !== ']') {
     let lo: number;
     if (s[i] === '\\') {
-      const t = escapeAt(s, i);
+      const t = escapeAt(s, i, unicode);
       if (t === null) return null;
       if (typeof t !== 'number') {
         // No `as [number, number][]` cast (it hid both the mutability and the
@@ -347,24 +355,23 @@ export function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
         continue;
       }
       lo = t;
-      i += escapeWidth(s, i);
+      i += escapeWidth(s, i, unicode);
     } else {
-      // Astral literals are surrogate PAIRS: read from the full class text
-      // at i and advance by the code point's UTF-16 width (round-6 sibling
-      // of df8040684) — applies to the range hi endpoint below too.
-      lo = s.codePointAt(i)!;
+      // A legacy character class contains the two surrogate code units;
+      // Unicode classes contain the combined code point (including range ends).
+      lo = unicode ? s.codePointAt(i)! : s.charCodeAt(i);
       i += lo > 0xffff ? 2 : 1;
     }
     if (s[i] === '-' && s[i + 1] !== ']' && s[i + 1] !== undefined) {
       i++;
       let hi: number;
       if (s[i] === '\\') {
-        const t = escapeAt(s, i);
+        const t = escapeAt(s, i, unicode);
         if (t === null || typeof t !== 'number') return null;
         hi = t;
-        i += escapeWidth(s, i);
+        i += escapeWidth(s, i, unicode);
       } else {
-        hi = s.codePointAt(i)!;
+        hi = unicode ? s.codePointAt(i)! : s.charCodeAt(i);
         i += hi > 0xffff ? 2 : 1;
       }
       if (hi < lo) return null;
@@ -375,7 +382,7 @@ export function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
   }
   if (s[i] !== ']') return null;
   c.i = i + 1;
-  if (ranges.length === 0) return null;
+  if (ranges.length === 0) return negated ? complementOf([]) : [];
   // Private copies before sorting/merging — `ranges` can hold tuples borrowed
   // from the module-level NAMED_SETS (`\d` -> DIGIT, `\w` -> WORD, …) via the
   // spread in the escape branch above. Widening `last[1]` in place there grew
@@ -396,7 +403,22 @@ export function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
   return negated ? complementOf(final) : final;
 }
 
-export function escapeWidth(s: string, i: number): number {
+// Only adjacent fixed-width Unicode escapes combine; braced escapes and
+// group boundaries deliberately leave their surrogate values separate.
+function surrogateEscapePair(s: string, i: number, unicode: boolean): number | null {
+  if (
+    !unicode ||
+    !/^\\u[dD][89aAbB][0-9a-fA-F]{2}\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(s.slice(i, i + 12))
+  ) {
+    return null;
+  }
+  const high = Number.parseInt(s.slice(i + 2, i + 6), 16);
+  const low = Number.parseInt(s.slice(i + 8, i + 12), 16);
+  return 0x10000 + (high - 0xd800) * 0x400 + low - 0xdc00;
+}
+
+export function escapeWidth(s: string, i: number, unicode = false): number {
+  if (surrogateEscapePair(s, i, unicode) !== null) return 12;
   const ch = s[i + 1];
   if (ch === 'x') return 4;
   if (ch === 'u') return s[i + 2] === '{' ? s.indexOf('}', i + 3) - i + 1 : 6;
@@ -413,7 +435,9 @@ export function escapeWidth(s: string, i: number): number {
   return 2;
 }
 
-export function escapeAt(s: string, i: number): number | string | null {
+export function escapeAt(s: string, i: number, unicode = false): number | string | null {
+  const pair = surrogateEscapePair(s, i, unicode);
+  if (pair !== null) return pair;
   const ch = s[i + 1];
   if (ch === undefined) return null;
   if (NAMED_SETS[ch] !== undefined) return ch;
@@ -456,10 +480,10 @@ export function escapeAt(s: string, i: number): number | string | null {
   return ch.codePointAt(0)!;
 }
 
-export function parseEscape(c: Cursor): CharSet | null {
-  const t = escapeAt(c.s, c.i);
+export function parseEscape(c: Cursor, unicode = false): CharSet | null {
+  const t = escapeAt(c.s, c.i, unicode);
   if (t === null) return null;
-  const w = escapeWidth(c.s, c.i);
+  const w = escapeWidth(c.s, c.i, unicode);
   c.i += w;
   return typeof t === 'number' ? [[t, t]] : NAMED_SETS[t]!;
 }

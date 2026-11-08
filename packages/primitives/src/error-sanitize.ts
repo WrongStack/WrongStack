@@ -91,6 +91,10 @@ export function scrubErrorText(text: string): string {
   let out = scrubber.scrub(text);
   const home = safeHomedir();
   if (home && home.length > 2) {
+    // Serialized provider errors double Windows separators; mask that spelling first.
+    if (home.includes('\\')) {
+      out = replaceAllCaseInsensitive(out, home.replace(/\\/g, '\\\\'), '~');
+    }
     out = replaceAllCaseInsensitive(out, home, '~');
     // Windows paths reach us in both separator forms depending on whether the
     // producer went through `path.join` or a shell.

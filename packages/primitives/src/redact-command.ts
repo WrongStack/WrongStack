@@ -69,11 +69,11 @@ export interface RedactionProfile {
 }
 
 /**
- * `--flag`, `-password`/`-p`/`-a`/`-t`/`-u`, or an env-var / header name. The
+ * `--flag`, `-password`/`-p`/`-a`/`-t`/`-u`/`-b`, or an env-var / header name. The
  * bare name admits `-` so a header (`X-Api-Key: …`) is read whole: stopping at
  * the hyphen put `-` where the separator test looks and rendered `Ap[REDACTED]`.
  */
-const FLAG_NAME = /^--[\w-]+|^-(?:password|p|a|t|u)|^[A-Za-z_][\w-]*/i;
+const FLAG_NAME = /^--[\w-]+|^-(?:password|p|a|t|u|b)|^[A-Za-z_][\w-]*/i;
 /**
  * Characters that may introduce a sensitive flag's value. `,` and `:` are
  * included because the pattern lists accept them as separators; leaving either
@@ -132,7 +132,15 @@ const HIGH_ENTROPY_FLAG_PATTERN =
  * command line, and no flag name marks it. The match starts at the header
  * name, so the separator rule renders `Authorization:[REDACTED]`.
  */
-const AUTHORIZATION_HEADER_PATTERN = /\bAuthorization\s*:\s*(?:[A-Za-z]+\s+)?[^\s"',]+/gi;
+// HTTP credentials may be token68 or a comma-separated auth-param list (Digest,
+// AWS SigV4). Quoted parameter values can themselves contain commas and escapes.
+const HTTP_AUTH_TOKEN = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
+const HTTP_AUTH_PARAM_VALUE = String.raw`(?:"(?:[^"\\\r\n]|\\[^\r\n])*"|[^\s"',]+)`;
+const HTTP_AUTH_PARAM = `${HTTP_AUTH_TOKEN}[ \\t]*=[ \\t]*${HTTP_AUTH_PARAM_VALUE}`;
+const AUTHORIZATION_HEADER_PATTERN = new RegExp(
+  String.raw`\bAuthorization\s*:\s*(?:${HTTP_AUTH_TOKEN}\s+)?(?:${HTTP_AUTH_PARAM}(?:[ \t]*,[ \t]*${HTTP_AUTH_PARAM})*|[^\s"',]+)`,
+  'gi',
+);
 /**
  * Shared: a session cookie is the other everyday credential on a curl line —
  * the `Cookie:` header (every `name=value; …` pair) and curl's `--cookie`
@@ -141,12 +149,17 @@ const AUTHORIZATION_HEADER_PATTERN = /\bAuthorization\s*:\s*(?:[A-Za-z]+\s+)?[^\
 const COOKIE_HEADER_PATTERN =
   /\bCookie\s*:\s*[^\s=;"']+\s*=\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s"';]*)(?:;\s*[^\s=;"']+\s*=\s*(?:"[^"\n]*"|'[^'\n]*'|[^\s"';]*))*/gi;
 const COOKIE_FLAG_PATTERN = /--cookie(?![\w-])[=\s]+(?:"[^"\n]*"|'[^'\n]*'|[^\s]+)/gi;
+// Curl's short alias is sensitive only with inline cookie data, not a filename
+// or an ordinary `git checkout -b branch` argument.
+const SHORT_COOKIE_FLAG_PATTERN =
+  /(?<![-\w])-b\s*(?:"[^"\n]*=[^"\n]*"|'[^'\n]*=[^'\n]*'|[^\s"'=]+=[^\s]+)/g;
 /**
  * Shared: the password in URL userinfo (`https://user:TOKEN@host`,
  * `postgres://app:PW@db`). Look-arounds keep `scheme://` and `@host` out of the
  * match, so it renders as `user:[REDACTED]` and the URL stays readable.
  */
-const URL_USERINFO_PASSWORD_PATTERN = /(?<=:\/\/)[^\s/:@]+:[^\s/@]+(?=@)/g;
+// Password-only userinfo (for example Redis default-user auth) has no username.
+const URL_USERINFO_PASSWORD_PATTERN = /(?<=:\/\/)[^\s/:@]*:[^\s/@]+(?=@)/g;
 /**
  * Shared: a token used ALONE as URL userinfo (`git clone https://ghp_…@github.com/…`,
  * GitLab `glpat-…`) — no `:` so the pattern above never sees it. Known token
@@ -174,8 +187,9 @@ const USER_CREDENTIAL_PATTERN =
  * A shell-escaped body (`\"password\":\"…\"`) is covered too.
  * The bare-value class excludes `[` so a second pass leaves `[REDACTED]` alone.
  */
+// Each quoted branch must end on its own delimiter, not on a quote inside the value.
 const JSON_SECRET_FIELD_PATTERN =
-  /(?<=["'][\w-]*(?:password|passwd|pwd|secret|token|api[-_]?key|auth|credential|private[-_]?key|access[-_]?key|bearer|jwt|passphrase)\\?["']\s*):\s*(?:\\?["'](?:[^"'\\\n]|\\[^"'\n])*\\?["']|[^\s,{}[\]"'\\]+)/gi;
+  /(?<=["'][\w-]*(?:password|passwd|pwd|secret|token|api[-_]?key|auth|credential|private[-_]?key|access[-_]?key|bearer|jwt|passphrase)\\?["']\s*):\s*(?:\\?"(?:[^"\\\n]|\\[^"\n])*\\?"|\\?'(?:[^'\\\n]|\\[^'\n])*\\?'|[^\s,{}[\]"'\\]+)/gi;
 
 /**
  * Secret keywords are matched as the FINAL hyphen-separated segment of a
@@ -217,6 +231,7 @@ const COMMAND_PATTERNS: readonly RegExp[] = [
   AUTHORIZATION_HEADER_PATTERN,
   COOKIE_HEADER_PATTERN,
   COOKIE_FLAG_PATTERN,
+  SHORT_COOKIE_FLAG_PATTERN,
   URL_USERINFO_PASSWORD_PATTERN,
   URL_USERINFO_TOKEN_PATTERN,
   USER_CREDENTIAL_PATTERN,
@@ -248,6 +263,7 @@ const OUTBOUND_PATTERNS: readonly RegExp[] = [
   AUTHORIZATION_HEADER_PATTERN,
   COOKIE_HEADER_PATTERN,
   COOKIE_FLAG_PATTERN,
+  SHORT_COOKIE_FLAG_PATTERN,
   URL_USERINFO_PASSWORD_PATTERN,
   URL_USERINFO_TOKEN_PATTERN,
   USER_CREDENTIAL_PATTERN,
@@ -370,6 +386,9 @@ export function redactCommandArgs(
     if (attachedCookie) {
       return `${attachedCookie[1]}[REDACTED]`;
     }
+    if (typeof a === 'string' && a.startsWith('-b') && a.slice(2).includes('=')) {
+      return '-b[REDACTED]';
+    }
     const equals = typeof a === 'string' ? a.indexOf('=') : -1;
     // An argv value can contain unquoted whitespace; it is already one token.
     if (equals > 0 && BARE_SENSITIVE_LONG_FLAG.test(a.slice(0, equals))) {
@@ -395,6 +414,8 @@ export function redactCommandArgs(
       !flag.includes('[REDACTED]');
     // Only redact the following arg if it looks like a value, not another flag.
     if (isBareSensitive && !next.startsWith('-')) {
+      redactedArgs[i + 1] = '[REDACTED]';
+    } else if (flag === '-b' && next.includes('=')) {
       redactedArgs[i + 1] = '[REDACTED]';
     } else if (BARE_USER_CREDENTIAL_FLAG.test(flag) && next.includes(':')) {
       redactedArgs[i + 1] = '[REDACTED]';

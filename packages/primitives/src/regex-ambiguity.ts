@@ -377,8 +377,8 @@ function decompositionAmbiguity(
  *
  * `flags` selects which RegExp flag semantics the analysis models: `i`
  * case-folds charsets (an ASCII under-approximation of full folding), `s`
- * widens dot to every code point. Other flags do not change branch
- * languages; unrecognized flags are ignored.
+ * widens dot, and `u`/`v` selects code points rather than legacy UTF-16
+ * code units for raw literals and classes. Unrecognized flags are ignored.
  */
 export function detectQuantifiedAmbiguity(content: string, flags = ''): AmbiguityResult {
   const foldCase = /i/.test(flags);
@@ -394,7 +394,7 @@ export function detectQuantifiedAmbiguity(content: string, flags = ''): Ambiguit
   }
   const budget = new Budget();
   const cursor = new Cursor(content);
-  const ast = parseAlt(cursor, budget, foldCase, dotAll);
+  const ast = parseAlt(cursor, budget, foldCase, dotAll, /[uv]/.test(flags));
   if (ast === null || cursor.i !== content.length) return { verdict: 'unparsable' };
   const nfa = new Nfa();
   const frag = nfa.build(ast, budget);

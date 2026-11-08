@@ -30,7 +30,7 @@ export interface GitIsolationOptions {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_LISTING_BYTES = 1024 * 1024;
-const FILTER_COMMAND_RE = /^filter\..+\.(?:clean|smudge|process)$/;
+const FILTER_COMMAND_RE = /^filter\..*\.(?:clean|smudge|process)$/;
 /** The user's own config. Anything else (`local`, `worktree`, a file the repository includes) is the repository's. */
 const TRUSTED_SCOPES: ReadonlySet<string> = new Set(['system', 'global']);
 

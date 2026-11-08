@@ -51,15 +51,22 @@ function isOpaqueMediaType(mediaType: string | undefined): boolean {
 
 /** Standard base64 payload, allowing omitted padding but rejecting impossible lengths. */
 export function isStandardBase64Payload(value: string): boolean {
-  return value.length % 4 !== 1 && /^[A-Za-z0-9+/]+={0,2}$/.test(value);
+  return (
+    value.length % 4 !== 1 &&
+    // Omitted padding is allowed; present padding must complete a four-character group.
+    (!value.endsWith('=') || value.length % 4 === 0) &&
+    /^[A-Za-z0-9+/]+={0,2}$/.test(value)
+  );
 }
 
 function isBase64DataUrl(value: string, mediaPrefix: string): boolean {
   const comma = value.indexOf(',');
   if (comma < 0) return false;
   const header = value.slice(0, comma).toLowerCase();
+  // Families end with '/'; an exact MIME type must end before its parameters.
+  const prefix = `data:${mediaPrefix}${mediaPrefix.endsWith('/') ? '' : ';'}`;
   return (
-    header.startsWith(`data:${mediaPrefix}`) &&
+    header.startsWith(prefix) &&
     header.endsWith(';base64') &&
     isStandardBase64Payload(value.slice(comma + 1))
   );

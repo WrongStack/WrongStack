@@ -10,11 +10,16 @@ export function safeParse<T = unknown>(input: string, maxBytes = 5_000_000): Saf
   if (typeof input !== 'string') {
     return { ok: false, error: 'Input must be a string' };
   }
+  const effectiveMaxBytes =
+    typeof maxBytes === 'number' && Number.isFinite(maxBytes) && maxBytes >= 0
+      ? maxBytes
+      : 5_000_000;
   if (
-    input.length > maxBytes ||
-    (input.length * 3 > maxBytes && Buffer.byteLength(input, 'utf8') > maxBytes)
+    input.length > effectiveMaxBytes ||
+    (input.length * 3 > effectiveMaxBytes &&
+      new TextEncoder().encode(input).byteLength > effectiveMaxBytes)
   ) {
-    return { ok: false, error: `Input exceeds limit (${maxBytes} bytes)` };
+    return { ok: false, error: `Input exceeds limit (${effectiveMaxBytes} bytes)` };
   }
   try {
     return { ok: true, value: JSON.parse(input) as T };
@@ -39,8 +44,12 @@ export function safeStringify(value: unknown, pretty = false): string {
       }
     }
     if (typeof v === 'object' && v !== null) {
-      const rawVal =
-        typeof this === 'object' && this !== null ? (this as Record<string, unknown>)[_k] : v;
+      // Recover pre-toJSON identity for data properties without invoking accessors twice.
+      const descriptor =
+        typeof this === 'object' && this !== null
+          ? Object.getOwnPropertyDescriptor(this, _k)
+          : undefined;
+      const rawVal: unknown = descriptor && 'value' in descriptor ? descriptor.value : v;
       const rawObj =
         typeof rawVal === 'object' && rawVal !== null ? (rawVal as object) : (v as object);
       if (stack.includes(v as object) || rawStack.includes(rawObj)) {
@@ -116,25 +125,25 @@ export function sanitizeJsonString(s: string): string | null {
 export function stripCodeFences(s: string): string | null {
   if (typeof s !== 'string') return null;
   const trimmed = s.trim();
-  // Whole-payload fence: ```lang? … ```? (closer optional for truncation)
-  const opener = /^```[\w+-]*[ \t]*(\r?\n)?/.exec(trimmed);
-  if (opener) {
+  // Closing fences must be at least as long as the opening backtick run.
+  // The closer remains optional for truncated provider output.
+  const opener = /^(`{3,})[\w+-]*[ \t]*(\r?\n)?/.exec(trimmed);
+  if (opener?.[1]) {
     const body = trimmed.slice(opener[0].length);
-    const closer = opener[1]
-      ? /(?:^|\r?\n)[ \t]*```[ \t]*(?:\r?\n|$)/.exec(body)
-      : /[ \t]*```[ \t]*(?:\r?\n|$)/.exec(body);
+    const fencePattern = opener[1] + '`*';
+    const lineStart = opener[2] ? '(?:^|\\r?\\n)' : '';
+    const closer = new RegExp(`${lineStart}[ \\t]*${fencePattern}[ \\t]*(?:\\r?\\n|$)`).exec(body);
     const rawInner = closer
       ? body.slice(0, closer.index)
-      : body.replace(/(\r?\n)?[ \t]*```[ \t]*$/, '');
+      : body.replace(new RegExp(`(\\r?\\n)?[ \\t]*${fencePattern}[ \\t]*$`), '');
     const inner = rawInner.trim();
     return inner.length > 0 ? inner : null;
   }
   // Fence embedded in prose: extract the first complete fenced block.
-  const embedded = /```[\w+-]*[ \t]*(?:\r?\n([\s\S]*?)\r?\n|[ \t]+([^\n`]*?))[ \t]*```/.exec(
-    trimmed,
-  );
+  const embedded =
+    /(?<!`)(`{3,})[\w+-]*[ \t]*(?:\r?\n([\s\S]*?)\r?\n|[ \t]+([^\n`]*?))[ \t]*\1`*/.exec(trimmed);
   if (embedded) {
-    const inner = (embedded[1] ?? embedded[2] ?? '').trim();
+    const inner = (embedded[2] ?? embedded[3] ?? '').trim();
     return inner.length > 0 ? inner : null;
   }
   return null;
@@ -286,7 +295,12 @@ function stripJsonComments(s: string): string {
     }
 
     if (c === '/' && s.charAt(i + 1) === '/') {
-      while (i < s.length && s.charAt(i) !== '\n') i++;
+      while (i < s.length && !/[\n\r\u2028\u2029]/.test(s.charAt(i))) i++;
+      // ECMAScript's Unicode line terminators end comments, but are not JSON whitespace.
+      if (s.charAt(i) === '\u2028' || s.charAt(i) === '\u2029') {
+        chars.push('\n');
+        i++;
+      }
       continue;
     }
 
@@ -297,6 +311,8 @@ function stripJsonComments(s: string): string {
         chars.push(s.slice(i));
         break;
       }
+      // A comment separates tokens: `1/**/2` must not turn into `12`.
+      chars.push(' ');
       i = end + 2;
       continue;
     }

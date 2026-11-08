@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { safeParse, sanitizeJsonString } from '../src/safe-json.js';
 import { truncate } from '../src/string.js';
 
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
@@ -71,5 +72,13 @@ describe('truncate', () => {
     expect(truncate('😀abc', 1.9)).toBe('…');
     expect(truncate('😀abc', 2.9)).toBe('…');
     expect(truncate('😀abc', 3.9)).toBe('😀…');
+  });
+
+  it('strips CR-only line comments in sanitizeJsonString and normalizes invalid maxBytes in safeParse (F130)', () => {
+    const crJson = sanitizeJsonString('{\r// comment\r"a": 1\r}');
+    expect(crJson).not.toBeNull();
+    expect(JSON.parse(crJson!)).toEqual({ a: 1 });
+    expect(safeParse('{"a":1}', -10)).toEqual({ ok: true, value: { a: 1 } });
+    expect(safeParse('{"a":1}', Number.NaN)).toEqual({ ok: true, value: { a: 1 } });
   });
 });

@@ -345,10 +345,10 @@ export function matchesEmptyToken(branch: string): boolean {
 }
 
 /** Parse `[...]` (the branch must be exactly one class) into a char set.
- * Supports negation, ranges, named and literal escapes, a leading literal
- * `]`, and literal `-` at the edges; anything else yields null. */
+ * Supports negation, ranges, named and literal escapes, empty classes, and
+ * literal `-` at the edges; anything else yields null. */
 export function parseCharClass(s: string, unicode = false): CharSet | null {
-  if (!s.startsWith('[') || !s.endsWith(']') || s.length < 3) return null;
+  if (!s.startsWith('[') || !s.endsWith(']') || s.length < 2) return null;
   let i = 1;
   let negated = false;
   if (s[i] === '^') {
@@ -360,9 +360,8 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
   // through them. The removed `as [number, number][]` cast is exactly what
   // let the 2026-09-02 DIGIT_SET corruption compile.
   const ranges: (readonly [number, number])[] = [];
-  // A `]` immediately after `[` (or `[^`) is a literal member.
-  let first = true;
-  while (i < s.length - 1) {
+  // An unescaped `]` closes a class, including `[]` and `[^]`.
+  while (i < s.length - 1 && s[i] !== ']') {
     const ch = s[i] as string;
     let lo: number;
     let width: number;
@@ -380,7 +379,6 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
         if (shared === undefined) return null;
         ranges.push(...shared);
         i = tok.next;
-        first = false;
         continue; // named classes cannot be range endpoints
       }
       lo = tok.cp;
@@ -395,7 +393,7 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
       width = cp > 0xffff ? 2 : 1;
     }
     const nextCh = s[i + width];
-    if (nextCh === '-' && i + width + 1 < s.length - 1) {
+    if (nextCh === '-' && i + width + 1 < s.length - 1 && s[i + width + 1] !== ']') {
       // range: lo-hi where hi is a single literal/escape member
       const hiStart = i + width + 1;
       let hi: number;
@@ -415,10 +413,9 @@ export function parseCharClass(s: string, unicode = false): CharSet | null {
       ranges.push([lo, lo]);
       i += width;
     }
-    first = false;
-    void first; // leading `]`-literal handled by the loop bound (s.length-1)
   }
-  if (ranges.length === 0) return null;
+  if (i !== s.length - 1) return null; // a class followed by more tokens
+  if (ranges.length === 0) return negated ? complementOf([]) : [];
   const merged = mergeRanges(ranges);
   return negated ? complementOf(merged) : merged;
 }

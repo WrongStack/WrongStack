@@ -83,6 +83,25 @@ describe('gitIsolationEnv', () => {
     expect(fs.existsSync(marker())).toBe(false);
   });
 
+  it.each(['async', 'sync'])('blocks an empty-name repository filter (%s)', async (mode) => {
+    fs.writeFileSync(path.join(repo, '.gitattributes'), '*.ts filter=\n');
+    git('config', 'filter..clean', 'echo ran > filter-ran.txt; cat');
+    git('hash-object', '--path=a.ts', 'a.ts');
+    expect(fs.existsSync(marker())).toBe(true); // the empty-name filter is reachable
+    fs.unlinkSync(marker());
+
+    const env = mode === 'async' ? await gitIsolationEnv(repo) : gitIsolationEnvSync(repo);
+    if (!env) throw new Error('Expected a readable isolation environment');
+    execFileSync('git', ['hash-object', '--path=a.ts', 'a.ts'], {
+      cwd: repo,
+      env: { ...process.env, ...env },
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    expect(fs.existsSync(marker())).toBe(false);
+    expect(overrides(env)).toMatchObject({ 'filter..clean': '' });
+  });
+
   it('counts an included file as the repository, and an lfs override too', async () => {
     fs.writeFileSync(path.join(repo, 'inc.cfg'), '[filter "inc"]\n\tclean = y\n');
     git('config', 'include.path', '../inc.cfg');
@@ -142,6 +161,17 @@ describe('gitConfigEnv', () => {
 });
 
 describe('untrustedGitFilterKeys', () => {
+  it('recognizes empty names for each command while preserving trusted scopes', () => {
+    const keys = ['filter..clean', 'filter..smudge', 'filter..process'];
+    const scoped = keys.flatMap((key) => ['local', key]).join('\0') + '\0';
+    expect(untrustedGitFilterKeys(scoped, true)).toEqual(keys);
+    expect(untrustedGitFilterKeys(keys.join('\0') + '\0', false)).toEqual(keys);
+    expect(
+      untrustedGitFilterKeys('global\0filter..clean\0system\0filter..process\0', true),
+    ).toEqual([]);
+    expect(untrustedGitFilterKeys('filter..required\0filter.clean\0', false)).toEqual([]);
+  });
+
   it('keeps system/global, drops non-command keys, blanks all without scopes', () => {
     const scoped = [
       'system',
