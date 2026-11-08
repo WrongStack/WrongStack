@@ -125,7 +125,8 @@ describe('Kanban IPC ownership boundary', () => {
   });
 
   it('uses daemon events instead of production filesystem watchers', () => {
-    const hqSync = read('packages/cli/src/kanban-hq-sync.ts');
+    // The sync lives in the shared HQ host module; the CLI file only re-exports it.
+    const hqSync = read('packages/runtime/src/hq-host/kanban-hq-sync.ts');
     const watcher = read('packages/webui-server/src/server/kanban-board-watcher.ts');
     expect(hqSync).not.toMatch(/from ['"]node:fs/);
     expect(hqSync).toContain('bridgeKanbanSupervisor');

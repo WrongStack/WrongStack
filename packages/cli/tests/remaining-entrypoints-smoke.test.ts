@@ -125,6 +125,9 @@ describe('large CLI entrypoint guards', () => {
       setupLifecycleAndPlugins({
         flags: {},
         config: {},
+        // The prompt-journal recorder is installed on userInput before the
+        // hooks, so the registry is built after the pipelines are touched.
+        pipelines: { userInput: { use: vi.fn() } },
       } as never),
     ).rejects.toThrow('hook registry unavailable');
   });

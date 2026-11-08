@@ -33,8 +33,8 @@ export type {
 } from '../session-catalog/session-registry.js';
 /**
  * @deprecated Test/migration adapter; production ownership uses SessionRegistry
- * above. Remove once `packages/webui-server/tests/standalone-session-identity.test.ts`
- * migrates to the canonical subpath import (tracked for the 0.320 major).
+ * above. Remove once the `packages/webui-server/tests/standalone-session-identity*.test.ts`
+ * suites migrate to the canonical subpath import (tracked for the 0.320 major).
  */
 export { SessionRegistry as LegacySessionRegistry } from '../session-catalog/session-registry.js';
 export type { VcsAdapter, VcsKind, VcsOptions } from '../vcs/vcs-adapter.js';
