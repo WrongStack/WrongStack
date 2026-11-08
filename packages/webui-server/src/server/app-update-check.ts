@@ -41,6 +41,13 @@ export interface AppUpdateCheck {
   refresh(): Promise<void>;
   /** Refreshes now and then periodically; returns the stop function. */
   start(): () => void;
+  /** `/tuneup`'s version line: refreshes (cache-first) and reports the CLI's update shape. */
+  tuneupInfo(): Promise<{
+    current: string;
+    latest: string;
+    outdated: boolean;
+    checkFailed: boolean;
+  }>;
 }
 
 type Semver = { core: [number, number, number]; pre: string };
@@ -141,6 +148,15 @@ export function createAppUpdateCheck(options: AppUpdateCheckOptions): AppUpdateC
       updateCheckFailed: failed,
     }),
     refresh,
+    tuneupInfo: async () => {
+      await refresh();
+      return {
+        current: options.currentVersion,
+        latest: latest ?? options.currentVersion,
+        outdated: latest !== undefined && isNewerVersion(latest, options.currentVersion),
+        checkFailed: failed,
+      };
+    },
     start: () => {
       void refresh();
       const timer = setInterval(() => void refresh(), options.intervalMs ?? 6 * 60 * 60 * 1000);

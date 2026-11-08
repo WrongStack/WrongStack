@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page.
+- **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page. `/tuneup` in the desktop reports it as well.
 - **Fleet gauge in the desktop.** Beside a conversation's agent tabs the desktop shows how many workers run against the concurrency ceiling and how many spawns the fleet budget has left, as the WebUI's fleet summary does. The desktop engine now sends `fleet.concurrency_update`, from the same code the CLI-hosted WebUI uses.
 
 ### Fixed
 
+- **Commit safety knows the desktop's edits.** The desktop engine records which agent wrote which file, as the CLI does, so commit safety can attribute a file the desktop's leader created or edited. Both hosts now share that recording.
+- **The desktop's prompt journal records delegations and questions.** The desktop engine journaled only what the user typed; clarify questions, delegations and autonomous continues, which the CLI records, were missing. Both hosts now use one recorder.
+- **OTLP metrics from the desktop and the standalone WebUI.** With `observability` metrics export on, the standalone engine started the exporter but gave it no metrics to send. It now feeds a bounded metrics sink from its events, as the CLI does; traces were already exported.
 - **No phantom remove button for the ACP leader.** Provider settings in the desktop and the WebUI listed `acp` as a saved connection with "no key" and a Remove connection button that had nothing to remove. It is now marked as provided by the host, without key or remove controls.
 - **Every subagent gets an agent tab in the desktop.** A conversation's tabs listed only the subagents that had streamed transcript messages, so workers the fleet roster knew from their lifecycle events never appeared beside the leader. Each one now has its tab, with its transcript or, failing that, its output so far.
 - **`tools.sandbox` is enforced.** The exec sandbox policy in `config.tools.sandbox` was declared in the wrong config block and never handed to the sandbox, so a configured mode or tier changed nothing. The CLI and the WebUI/desktop engine now apply it when they register their tools.

@@ -156,6 +156,36 @@ describe('standalone model-runtime middleware', () => {
       await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     }
   });
+  it('journals delegations and clarify questions from the toolCall pipeline, as the CLI does', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'standalone-journal-tools-'));
+    try {
+      const { pipelines } = setup(undefined);
+      const ctx = {
+        projectRoot: root,
+        session: { id: 'tools-session' },
+        model: 'fixture',
+        provider: { id: 'local' },
+        meta: {},
+      };
+      for (const toolUse of [
+        { id: 't1', name: 'delegate', input: { task: 'Audit the parser', role: 'reviewer' } },
+        { id: 't2', name: 'clarify', input: { question: 'Which branch?' } },
+        { id: 't3', name: 'read', input: { path: 'a.ts' } },
+      ])
+        await pipelines.toolCall.run({ toolUse, ctx } as never);
+      await expect
+        .poll(
+          async () =>
+            (await getPromptJournalEntries(root, { sessionId: 'tools-session' }))
+              .map((entry) => `${entry.category}:${entry.content}`)
+              .sort(),
+          { timeout: 1500 },
+        )
+        .toEqual(['clarify_interaction:Which branch?', 'subagent_delegation:Audit the parser']);
+    } finally {
+      await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
+  });
   it("applies the reasoning effort by the profile of the request's own model", async () => {
     const { send } = setup({ reasoning: { mode: 'on', effort: 'high' } });
 

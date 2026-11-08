@@ -8,7 +8,11 @@
  * (Phase 1b/1a), WS + HTTP server creation, and graceful shutdown.
  */
 import type { Config } from '@wrongstack/contracts/types';
-import { fleetBudgetFromDirector } from '@wrongstack/coordination';
+import {
+  fileAuthorStorageDir,
+  fleetBudgetFromDirector,
+  recordToolFileAuthor,
+} from '@wrongstack/coordination';
 import { ensureSessionShell } from '@wrongstack/tools';
 import { createAppUpdateCheck } from './app-update-check.js';
 import { patchConfig } from './boot.js';
@@ -332,6 +336,15 @@ export async function startWebUI(
       getBudget: () => fleetBudgetFromDirector(delegation.host.getDirector()),
     });
 
+  // Which agent wrote which file, for commit safety, as the CLI records it.
+  events.on('tool.executed', (event) => {
+    void recordToolFileAuthor(
+      { storageDir: fileAuthorStorageDir(wpaths), projectRoot },
+      event as never,
+      event.sessionId ?? session.id,
+    );
+  });
+
   // One gate per host, shared by session transitions and run setup.
   const sessionTransitionGate = createSessionTransitionGate();
 
@@ -436,6 +449,8 @@ export async function startWebUI(
     wssPrimary,
     wssSecondary,
     autoWake,
+    // `/tuneup` reports a newer release from the same check the update notice uses.
+    ...(appUpdate ? { tuneupHooks: { checkForUpdate: () => appUpdate.tuneupInfo() } } : {}),
   });
 
   const cb: WebuiCallbacks = createWebuiCallbacks({

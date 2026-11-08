@@ -272,11 +272,13 @@ export {
   type FileAuthorEntry,
   type FileAuthorLog,
   type FileAuthorTrackerOptions,
+  fileAuthorStorageDir,
   getFileHistory,
   getFilesByAgent,
   getFullLog,
   getLastAuthor,
   recordFileAction,
+  recordToolFileAuthor,
 } from './file-author-tracker.js';
 export {
   ACP_AGENTS,

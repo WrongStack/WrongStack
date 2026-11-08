@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T19:12:13.745Z",
+  "generatedAt": "2026-11-08T19:39:40.525Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6131,
-    "testFiles": 5085,
-    "sourceLines": 1262991,
+    "sourceFiles": 6133,
+    "testFiles": 5086,
+    "sourceLines": 1263084,
     "workspaceEdges": 250,
-    "moduleEdges": 18065,
+    "moduleEdges": 18066,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -336,7 +336,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 192,
-      "testFiles": 187,
+      "testFiles": 188,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,7 +354,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 187
+          "testFiles": 188
         }
       ]
     },
@@ -819,7 +819,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 99,
+      "sourceFiles": 101,
       "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -9075,6 +9075,12 @@
       },
       {
         "file": "packages/coordination/tests/explore-companion.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/file-author-tool-record.test.ts",
         "projects": [
           "root-node"
         ]

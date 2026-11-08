@@ -1,5 +1,9 @@
 import type { Config } from '@wrongstack/contracts/types';
-import { startOtlpExport } from '@wrongstack/core/observability';
+import {
+  InMemoryMetricsSink,
+  startOtlpExport,
+  wireMetricsToEvents,
+} from '@wrongstack/core/observability';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import { createAgentServices } from './backend-services.js';
 import { setupWebUiGovernance } from './governance-runtime.js';
@@ -105,6 +109,14 @@ export async function createStandaloneAgentServices(
       : undefined;
   const installToolBoundary = opts.installToolBoundary ?? governanceHandle?.installToolBoundary;
   const otlpExport = startOtlpExport(config.observability, { logger });
+  // OTLP metrics read a sink the engine's events feed, as the CLI's metrics wiring builds it;
+  // without one the exporter ran with nothing to send. Attached before the events are wired,
+  // so nothing reaches the sink ahead of the exporter. Bounded: labels can carry ids.
+  if (otlpExport?.wantsMetrics) {
+    const metricsSink = new InMemoryMetricsSink({ maxSeriesPerMetric: 500 });
+    otlpExport.exportMetrics(metricsSink);
+    wireMetricsToEvents(events, metricsSink);
+  }
   const agentPipelines = createStandaloneAgentPipelines({
     getConfig,
     getProvider: () => context.provider,

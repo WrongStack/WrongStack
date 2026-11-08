@@ -20,6 +20,7 @@ import {
   installPipelineErrorBoundaries,
 } from '@wrongstack/core/agent';
 import { createModelRuntimeMiddleware } from '@wrongstack/core/execution';
+import { createPromptJournalToolCallRecorder } from '@wrongstack/runtime/prompt-journal';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import { createStandalonePromptJournalRecorder } from './standalone-prompt-journal.js';
 
@@ -36,6 +37,8 @@ export function createStandaloneAgentPipelines(deps: StandalonePipelineDeps): Ag
   const pipelines = createDefaultPipelines();
   installPipelineErrorBoundaries(pipelines, deps);
   pipelines.userInput.use(createStandalonePromptJournalRecorder());
+  // Clarify questions, delegations and autonomous continues, as the CLI journals them.
+  pipelines.toolCall.use(createPromptJournalToolCallRecorder());
   pipelines.request.use(createStandaloneModelRuntimeMiddleware(deps));
   return pipelines;
 }

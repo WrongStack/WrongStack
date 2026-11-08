@@ -398,6 +398,7 @@ const profiles = {
       'provider-utility-tools': 'src/provider-utility-tools.ts',
       'system-prompt-contributors': 'src/system-prompt-contributors.ts',
       'dep-watcher': 'src/dep-watcher.ts',
+      'prompt-journal': 'src/prompt-journal.ts',
       'hq-host': 'src/hq-host.ts',
       // Two entries, one binding: the light host entry is what the CLI loads on
       // every exit; the provider entry pulls in @wrongstack/acp, fleet and mcp.

@@ -8,7 +8,7 @@
  * and enable focused testing.
  */
 import { wireChronicleSession } from '@wrongstack/chronicle';
-import { recordFileAction } from '@wrongstack/coordination';
+import { fileAuthorStorageDir, recordToolFileAuthor } from '@wrongstack/coordination';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -140,27 +140,12 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
         outputLines: e.outputLines,
       });
 
-      // ── File-author tracking ──────────────────────────────────────────────
-      if (
-        e.ok &&
-        (e.name === 'write' || e.name === 'edit' || e.name === 'replace' || e.name === 'patch')
-      ) {
-        const filePath = (e.input as Record<string, unknown>)?.path as string | undefined;
-        if (filePath) {
-          void recordFileAction(
-            { storageDir: `${wpaths.globalRoot}/projects/${wpaths.projectSlug}`, projectRoot },
-            {
-              filePath,
-              action: e.name === 'write' ? 'create' : 'edit',
-              agentId: 'leader',
-              agentName: 'Leader',
-              sessionId: currentSessionId(),
-            },
-          ).catch(() => {
-            /* best-effort */
-          });
-        }
-      }
+      // ── File-author tracking (shared with the standalone engine) ──────────
+      void recordToolFileAuthor(
+        { storageDir: fileAuthorStorageDir(wpaths), projectRoot },
+        e,
+        currentSessionId(),
+      );
     },
   );
 
