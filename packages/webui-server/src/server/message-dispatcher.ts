@@ -598,6 +598,7 @@ export function createMessageDispatcher(
       fleet: () => deps.fleetCommands,
       getProfileConfigPath: () => deps.profileConfigPath,
       getMcpRegistry: () => deps.mcpRegistry,
+      tuneup: deps.tuneupHooks,
       send,
     }),
     getKanbanContext: kanbanContext,

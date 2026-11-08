@@ -130,4 +130,19 @@ describe('app update check', () => {
     await check.refresh();
     expect(check.info()).toMatchObject({ updateAvailable: false, updateCheckFailed: true });
   });
+
+  it("answers /tuneup's version line in the CLI's update shape", async () => {
+    const check = createAppUpdateCheck({
+      currentVersion: '1.5.2',
+      cacheFile: cacheFile(),
+      fetchImpl: release('1.5.3'),
+      now: () => 1,
+    });
+    expect(await check.tuneupInfo()).toEqual({
+      current: '1.5.2',
+      latest: '1.5.3',
+      outdated: true,
+      checkFailed: false,
+    });
+  });
 });

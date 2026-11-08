@@ -436,6 +436,8 @@ export async function startWebUI(
     wssPrimary,
     wssSecondary,
     autoWake,
+    // `/tuneup` reports a newer release from the same check the update notice uses.
+    ...(appUpdate ? { tuneupHooks: { checkForUpdate: () => appUpdate.tuneupInfo() } } : {}),
   });
 
   const cb: WebuiCallbacks = createWebuiCallbacks({

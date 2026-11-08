@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page.
+- **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page. `/tuneup` in the desktop reports it as well.
 - **Fleet gauge in the desktop.** Beside a conversation's agent tabs the desktop shows how many workers run against the concurrency ceiling and how many spawns the fleet budget has left, as the WebUI's fleet summary does. The desktop engine now sends `fleet.concurrency_update`, from the same code the CLI-hosted WebUI uses.
 
 ### Fixed
