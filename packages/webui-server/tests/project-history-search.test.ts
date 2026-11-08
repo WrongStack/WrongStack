@@ -45,12 +45,18 @@ describe('project retained conversation search', () => {
     });
     await writer.close();
     // This tests retained-file discovery/search, not hundreds of create/close fsyncs.
-    // Seed actual writer-format transcripts and let the production store discover them.
+    // Seed what the writer leaves on disk (transcript plus its close-time summary
+    // manifest) and let the production store discover them. Without the manifests,
+    // list() rebuilds and re-hardens 505 of them, and on Windows each 0o600 write
+    // spawns icacls: hundreds of process launches that dominate the test.
     const template = await readFile(join(h.dir, 'paged-newer-0.jsonl'), 'utf8');
+    const summaryTemplate = await readFile(join(h.dir, 'paged-newer-0.summary.json'), 'utf8');
     for (let index = 1; index < 506; index++) {
+      const id = `paged-newer-${index}`;
+      await writeFile(join(h.dir, `${id}.jsonl`), template.replaceAll('paged-newer-0', id));
       await writeFile(
-        join(h.dir, `paged-newer-${index}.jsonl`),
-        template.replaceAll('paged-newer-0', `paged-newer-${index}`),
+        join(h.dir, `${id}.summary.json`),
+        summaryTemplate.replaceAll('paged-newer-0', id),
       );
     }
     const pool = await h.store.list(1000);

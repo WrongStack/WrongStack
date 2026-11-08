@@ -87,6 +87,12 @@ describe('standalone installer migration', () => {
   );
   const kinds =
     process.platform === 'win32' && existsSync(gitBash) ? ['native', 'posix'] : ['native'];
+  // Git Bash emulates fork() by launching and copying a whole Windows process, so
+  // the posix harness's dozens of subshells and commands cost one process launch
+  // each. On a loaded Windows host a launch can take 0.3-1 s, which pushes the
+  // harness past 30 s without anything hanging; give that combination headroom.
+  const harnessTimeoutMs = (kind: string) =>
+    process.platform === 'win32' && kind === 'posix' ? 120_000 : 30_000;
   it.each(
     [
       { mode: 'success', status: 0, removals: 8 },
@@ -197,7 +203,7 @@ function bun { Invoke-FixturePm 'bun' $args }
               WSTACK_TEST_INSTALLER: installer,
             },
             encoding: 'utf8',
-            timeout: 30_000,
+            timeout: harnessTimeoutMs(kind),
             windowsHide: true,
           },
         );
@@ -229,5 +235,7 @@ function bun { Invoke-FixturePm 'bun' $args }
         rmSync(dir, { recursive: true, force: true });
       }
     },
+    // Above the harness budget, so a real hang still fails on spawnSync's ETIMEDOUT.
+    Math.max(...kinds.map(harnessTimeoutMs)) + 30_000,
   );
 });
