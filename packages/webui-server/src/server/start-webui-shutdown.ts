@@ -105,6 +105,12 @@ export function setupWebuiShutdown(options: {
     ],
     onPreShutdown: async () => {
       await options.agentServices.closeChimera?.();
+      // Plugins (and their hooks, tools, extensions) go before the journals they write to.
+      await options.agentServices
+        .closePlugins?.()
+        .catch((err: unknown) =>
+          options.logger.warn(`plugin disposal failed: ${toErrorMessage(err)}`),
+        );
       await options.stopEmptySessionCleanup.dispose();
       const disposeKanban = options.getKanbanSupervisorDispose();
       await disposeKanban?.();

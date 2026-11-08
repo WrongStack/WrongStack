@@ -166,6 +166,7 @@ export async function startWebUI(
       // Runs start only after the server listens, when `clients` exists.
       broadcastToClients: (message) => broadcast(clients, message),
       updateGlobalConfig,
+      vault,
     });
   const { peekAgent, toolExecutor, permissionPolicy, brain, updateAutoCompactionMaxContext } =
     agentServices;

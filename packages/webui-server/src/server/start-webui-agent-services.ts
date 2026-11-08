@@ -40,6 +40,8 @@ export interface StandaloneAgentServicesInput {
     mutate: (cfg: Record<string, unknown>) => void,
     errorLabel: string,
   ) => Promise<void>;
+  /** Handed to plugins (the sync plugin encrypts its token with it). */
+  vault?: AgentServicesInput['vault'];
 }
 
 /**
@@ -145,6 +147,9 @@ export async function createStandaloneAgentServices(
     isDisplayed,
     sessionReader,
     annotationsStore,
+    vault: input.vault,
+    // A caller that injected its own tool registry owns the plugins on it.
+    hostPlugins: !opts.services?.toolRegistry,
     // Brain settings persist to the GLOBAL config only (config.brain is on
     // the in-project deny list), serialized behind the shared write lock.
     persistBrainConfig: (brainConfig) =>

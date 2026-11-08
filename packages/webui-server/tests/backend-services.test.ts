@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Heavy mocking: backend-services constructs ~20 core modules.
 // We mock the constructor-level imports so the factory body runs.
+const toolExecutorOptions = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 const brainMonitorOptions = vi.hoisted(
   () =>
     [] as Array<{
@@ -117,7 +118,11 @@ vi.mock('@wrongstack/core/execution', () => ({
     ledger: { enabled: false },
     fallbackModels: [],
   })),
-  ToolExecutor: class {},
+  ToolExecutor: class {
+    constructor(_registry: unknown, options: Record<string, unknown>) {
+      toolExecutorOptions.push(options);
+    }
+  },
 }));
 
 vi.mock('@wrongstack/core/design', () => ({
@@ -152,6 +157,11 @@ const runMirror = vi.hoisted(() => ({
 vi.mock('../src/server/standalone-delegation.js', () => ({
   installStandaloneDelegation: () => undefined,
   createStandaloneAutoWake: () => ({ attachAutoWake: vi.fn(), dispose: vi.fn() }),
+}));
+// Covered in standalone-plugins.test.ts; loading the real plugin set needs the real host.
+const pluginHost = vi.hoisted(() => ({ attach: vi.fn(), dispose: vi.fn(async () => undefined) }));
+vi.mock('../src/server/standalone-plugins.js', () => ({
+  loadStandalonePlugins: vi.fn(async () => pluginHost),
 }));
 vi.mock('../src/server/kanban-run-mirror.js', () => ({
   createKanbanRunMirror: (deps: unknown) => {
@@ -231,6 +241,7 @@ import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { createAgentServices } from '../src/server/backend-services.js';
 import { installConversationFallback } from '../src/server/conversation-fallback.js';
 import { resolveProviderModelMetadata } from '../src/server/model-catalog.js';
+import { loadStandalonePlugins } from '../src/server/standalone-plugins.js';
 
 function makeInput(): any {
   return {
@@ -529,6 +540,53 @@ describe('createAgentServices', () => {
     expect(vi.mocked(makeLightSubagentFactory)).toHaveBeenCalledWith(
       expect.objectContaining({ statusTracker: tracker }),
     );
+  });
+
+  it('loads the host plugin set onto the leader registry that also holds the user hooks', async () => {
+    const input = makeInput();
+    input.config.hooks = {
+      // Exit code 2 forces a block.
+      PreToolUse: [{ matcher: 'bash', command: 'node -e "process.exit(2)"', policy: true }],
+    };
+    input.vault = { encrypt: vi.fn() };
+    vi.mocked(loadStandalonePlugins).mockClear();
+    pluginHost.dispose.mockClear();
+
+    const services = await createAgentServices(input);
+
+    expect(loadStandalonePlugins).toHaveBeenCalledOnce();
+    const args = vi.mocked(loadStandalonePlugins).mock.calls[0]![0];
+    expect(args.agent).toBe(services.agent);
+    expect(args.vault).toBe(input.vault);
+    expect(args.safeMode).toBe(false);
+    // One registry: the user's policy hook, the WrongTrace gate, and whatever plugins add.
+    expect(args.hookRegistry.list('PreToolUse').map((entry) => entry.kind)).toEqual([
+      'shell',
+      'inprocess',
+    ]);
+    expect(args.hookRegistry.countByOwner('wrongtrace-gate')).toBe(2);
+    // Every tab's executor runs the user's policy hook; Goal / SDD workers keep the
+    // WrongTrace-only runner, as the CLI's workers do.
+    const env = { cwd: process.cwd() };
+    const leaderRunner = toolExecutorOptions.at(-1)!['hookRunner'] as NonNullable<
+      Parameters<typeof makeLightSubagentFactory>[0]['hookRunner']
+    >;
+    expect((await leaderRunner.preToolUse('bash', {}, env)).block).toBe(true);
+    const workerRunner = vi.mocked(makeLightSubagentFactory).mock.calls.at(-1)![0].hookRunner;
+    expect(workerRunner).not.toBe(leaderRunner);
+    expect((await workerRunner!.preToolUse('bash', {}, env)).block).toBeFalsy();
+
+    await services.closePlugins?.();
+    expect(pluginHost.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('leaves plugins to a caller that injected its own tool registry', async () => {
+    const input = makeInput();
+    input.hostPlugins = false;
+    vi.mocked(loadStandalonePlugins).mockClear();
+    const services = await createAgentServices(input);
+    expect(loadStandalonePlugins).not.toHaveBeenCalled();
+    await expect(services.closePlugins?.()).resolves.toBeUndefined();
   });
 
   it('mirrors Goal runs into Kanban only when it can reach the clients', async () => {

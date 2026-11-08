@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T09:58:08.976Z",
+  "generatedAt": "2026-11-08T11:25:23.523Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6075,
-    "testFiles": 5065,
-    "sourceLines": 1258932,
-    "workspaceEdges": 244,
-    "moduleEdges": 17969,
+    "sourceFiles": 6083,
+    "testFiles": 5067,
+    "sourceLines": 1259614,
+    "workspaceEdges": 247,
+    "moduleEdges": 17973,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 292,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1040
+    "testOnlyExports": 1032
   },
   "errors": [],
   "packageCycles": [],
@@ -819,7 +819,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 66,
+      "sourceFiles": 71,
       "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -832,9 +832,12 @@
         "@wrongstack/governance",
         "@wrongstack/hq",
         "@wrongstack/kanban",
+        "@wrongstack/plug-lsp",
+        "@wrongstack/plugins",
         "@wrongstack/primitives",
         "@wrongstack/sage",
         "@wrongstack/security-scanner",
+        "@wrongstack/telegram",
         "@wrongstack/tools",
         "@wrongstack/vector-memory",
         "@wrongstack/webui-protocol"
@@ -1168,8 +1171,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 336,
-      "testFiles": 373,
+      "sourceFiles": 339,
+      "testFiles": 375,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1204,7 +1207,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 373
+          "testFiles": 375
         }
       ]
     },
@@ -28184,7 +28187,19 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-pipelines.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/standalone-plugins.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35751,10 +35766,6 @@
       "name": "projectGovernanceHqSnapshot"
     },
     {
-      "file": "packages/cli/src/hooks-wiring.ts",
-      "name": "HookBlockedError"
-    },
-    {
       "file": "packages/cli/src/hq-publisher.ts",
       "name": "createCliHqPublisher"
     },
@@ -36057,38 +36068,6 @@
     {
       "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
       "name": "renderAtlasBrief"
-    },
-    {
-      "file": "packages/cli/src/wiring/external-plugins.ts",
-      "name": "hashPluginClosure"
-    },
-    {
-      "file": "packages/cli/src/wiring/external-plugins.ts",
-      "name": "resolveExternalPluginTrustMode"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "_resetDeprecatedWarningsForTests"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "BUILTIN_PLUGIN_NAME_HINTS"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "builtinPluginNameFromSpec"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "DEPRECATED_PLUGIN_NAMES"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "pluginNameFromSpec"
-    },
-    {
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "name": "warnIfDeprecatedPluginName"
     },
     {
       "file": "packages/cli/src/wiring/provider-runtime-setup.ts",
@@ -38685,6 +38664,10 @@
     {
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
       "name": "seedWrongProxyFromConfig"
+    },
+    {
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "name": "STANDALONE_HOST_OWNED_PLUGINS"
     },
     {
       "file": "packages/webui-server/src/server/terminal-ws-handler.ts",

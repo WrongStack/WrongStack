@@ -55,6 +55,8 @@ describe('setupWebuiShutdown', () => {
     const runSageSessionHygiene = vi.fn().mockRejectedValue(new Error('sage failed'));
     const disposeMemory = vi.fn().mockRejectedValue(new Error('memory failed'));
     const closeVectorMemory = vi.fn();
+    const closeChimera = vi.fn().mockResolvedValue(undefined);
+    const closePlugins = vi.fn().mockRejectedValue(new Error('teardown timed out'));
     const primary = {};
     const companion = {};
     const secondary = {};
@@ -77,7 +79,12 @@ describe('setupWebuiShutdown', () => {
       governanceHandle: { close: governanceClose },
       logger: logger as never,
       brainMonitor: { stop: brainStop } as never,
-      agentServices: { brainLedger: { stop: brainLedgerStop }, runSageSessionHygiene } as never,
+      agentServices: {
+        brainLedger: { stop: brainLedgerStop },
+        runSageSessionHygiene,
+        closeChimera,
+        closePlugins,
+      } as never,
       mcpRegistry: { stopAll } as never,
       sessionIdentity: { stop: sessionIdentityStop } as never,
       eventArming: { getDispose: () => disposeEvents } as never,
@@ -100,6 +107,13 @@ describe('setupWebuiShutdown', () => {
     );
     expect(closeSession).toHaveBeenCalled();
     expect(disposeEmptySessions).toHaveBeenCalled();
+    // Plugins go after Chimera's reviews drain and before the journals close; a
+    // plugin that fails to tear down is reported, never fatal to shutdown.
+    expect(closePlugins).toHaveBeenCalledOnce();
+    expect(closeChimera.mock.invocationCallOrder[0]).toBeLessThan(
+      closePlugins.mock.invocationCallOrder[0]!,
+    );
+    expect(logger.warn).toHaveBeenCalledWith('plugin disposal failed: teardown timed out');
     expect(disposeKanban).toHaveBeenCalled();
     expect(unregister).toHaveBeenCalled();
     expect(detachTodos).toHaveBeenCalled();

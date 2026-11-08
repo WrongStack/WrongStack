@@ -400,9 +400,6 @@
     "packages/cli/src/governance-hq-telemetry.ts": [
       "projectGovernanceHqSnapshot"
     ],
-    "packages/cli/src/hooks-wiring.ts": [
-      "HookBlockedError"
-    ],
     "packages/cli/src/hq-publisher.ts": [
       "createCliHqPublisher"
     ],
@@ -562,18 +559,6 @@
     "packages/cli/src/wiring/atlas-prompt-contributor.ts": [
       "DEFAULT_BRIEF_MAX_TOKENS",
       "renderAtlasBrief"
-    ],
-    "packages/cli/src/wiring/external-plugins.ts": [
-      "hashPluginClosure",
-      "resolveExternalPluginTrustMode"
-    ],
-    "packages/cli/src/wiring/plugins.ts": [
-      "_resetDeprecatedWarningsForTests",
-      "BUILTIN_PLUGIN_NAME_HINTS",
-      "builtinPluginNameFromSpec",
-      "DEPRECATED_PLUGIN_NAMES",
-      "pluginNameFromSpec",
-      "warnIfDeprecatedPluginName"
     ],
     "packages/cli/src/wiring/provider-runtime-setup.ts": [
       "serializeProviderRuntimeSnapshot"
@@ -1985,6 +1970,9 @@
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
+    ],
+    "packages/webui-server/src/server/standalone-plugins.ts": [
+      "STANDALONE_HOST_OWNED_PLUGINS"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"

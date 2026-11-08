@@ -394,6 +394,7 @@ const profiles = {
       probe: 'src/local-llm-probe.ts',
       'jev-checks': 'src/jev-checks.ts',
       'tool-registration': 'src/tool-registration.ts',
+      'plugin-host': 'src/plugin-host.ts',
     },
     external: [
       '@wrongstack/core',

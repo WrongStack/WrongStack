@@ -2,27 +2,22 @@
 
 import type {
   Config,
-  CouncilProfileConfig,
-  CouncilToolConfig,
   ModelsRegistry,
-  OneShotModelRouter,
   Provider,
   ResolvedProvider,
 } from '@wrongstack/contracts/types';
 import type { ProviderModelStatusTracker } from '@wrongstack/coordination';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
-import {
-  type CouncilPersonaRegistry,
-  type CouncilProfileRegistry,
-  createCouncilPersonaRegistry,
-  createCouncilProfileRegistry,
-  OneShotOrchestrator,
-} from '@wrongstack/core/execution';
+import { OneShotOrchestrator } from '@wrongstack/core/execution';
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
-import { ModelRouter } from '@wrongstack/core/models';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import { buildCouncilRegistries, createLiveModelRouter } from '@wrongstack/runtime/plugin-host';
 import { createImageGenerateTool, imageTargetsFromCatalog } from '@wrongstack/tools';
 import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/tools/management';
+
+// The live model router and the Council registries moved to
+// `@wrongstack/runtime/plugin-host`: plugin `api.llm` uses them on every host.
+export { buildCouncilRegistries, createLiveModelRouter };
 
 interface ProviderUtilityToolsInput {
   toolRegistry: ToolRegistry;
@@ -56,68 +51,6 @@ export async function adoptResumedProvider(input: {
     input.logger.warn(
       `Resume: could not switch to the session's model ${provider}/${model} (${error}); continuing with ${current.provider}/${current.model}.`,
     );
-  }
-}
-
-/**
- * A router that reads the LIVE config on every pick.
- *
- * `ModelRouter` snapshots `modelMatrix` and the provider list at construction,
- * but `/setmodel` and credential edits change both mid-session. Rebuilding per
- * call keeps role routing consistent with what the user last configured; the
- * router itself does no I/O, so this is a plain object construction.
- */
-export function createLiveModelRouter(getConfig: () => Config): OneShotModelRouter {
-  return {
-    pickForTask(role, description) {
-      const config = getConfig();
-      const router = new ModelRouter({
-        ...(config.modelMatrix ? { matrix: config.modelMatrix } : {}),
-        config: {
-          provider: config.provider,
-          model: config.model,
-          ...(config.providers ? { providers: config.providers } : {}),
-        },
-      });
-      return router.pickForTask(role, description);
-    },
-  };
-}
-
-/**
- * Build the Council tool's persona/profile registries from configuration.
- *
- * `createCouncilPersonaRegistry` / `createCouncilProfileRegistry` shipped from
- * day one but no host ever called them, so the tool was pinned to the built-in
- * lenses and panels with no way to add either. A malformed entry must not take
- * the whole tool registration down with it — a bad panel definition degrades to
- * the built-ins and is reported, exactly like an unresolvable Brain pool entry.
- */
-export function buildCouncilRegistries(cfg: CouncilToolConfig | undefined): {
-  personas?: CouncilPersonaRegistry | undefined;
-  profiles?: CouncilProfileRegistry | undefined;
-  defaultProfile?: string | undefined;
-  maxConcurrency?: number | undefined;
-} {
-  const base = {
-    ...(cfg?.defaultProfile ? { defaultProfile: cfg.defaultProfile } : {}),
-    ...(cfg?.maxConcurrency !== undefined ? { maxConcurrency: cfg.maxConcurrency } : {}),
-  };
-  if (!cfg?.personas?.length && !cfg?.profiles?.length) return base;
-  try {
-    const personas = createCouncilPersonaRegistry(cfg.personas ?? []);
-    const profiles = createCouncilProfileRegistry(
-      (cfg.profiles ?? []) as CouncilProfileConfig[],
-      personas,
-    );
-    return { ...base, personas, profiles };
-  } catch (error) {
-    console.warn(
-      `Council tool: ignoring tools.council personas/profiles — ${
-        error instanceof Error ? error.message : String(error)
-      }. Falling back to the built-in lenses and panels.`,
-    );
-    return base;
   }
 }
 

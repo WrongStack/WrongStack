@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 497,
-      "typeOnly": 373,
-      "runtimeOrMixed": 156
+      "files": 502,
+      "typeOnly": 376,
+      "runtimeOrMixed": 158
     },
     "@wrongstack/core/boot": {
       "files": 5,
@@ -39,9 +39,9 @@
       "runtimeOrMixed": 16
     },
     "@wrongstack/core/execution": {
-      "files": 109,
+      "files": 110,
       "typeOnly": 25,
-      "runtimeOrMixed": 98
+      "runtimeOrMixed": 99
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -49,14 +49,14 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/extension": {
-      "files": 8,
+      "files": 11,
       "typeOnly": 6,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/hooks": {
-      "files": 18,
+      "files": 20,
       "typeOnly": 3,
-      "runtimeOrMixed": 15
+      "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
       "files": 68,
@@ -74,9 +74,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/notifications": {
-      "files": 6,
+      "files": 7,
       "typeOnly": 4,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/observability": {
       "files": 13,
@@ -89,8 +89,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 22,
-      "typeOnly": 11,
+      "files": 25,
+      "typeOnly": 14,
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/prompts": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 198,
+      "files": 200,
       "typeOnly": 80,
-      "runtimeOrMixed": 121
+      "runtimeOrMixed": 123
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 192,
+      "files": 194,
       "typeOnly": 55,
-      "runtimeOrMixed": 170
+      "runtimeOrMixed": 172
     },
     "@wrongstack/core/tasking": {
       "files": 45,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 961,
-      "typeOnly": 71,
-      "runtimeOrMixed": 924
+      "files": 964,
+      "typeOnly": 73,
+      "runtimeOrMixed": 925
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -491,12 +491,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/hooks-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/kanban-dispatch-route.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -776,12 +770,6 @@
       "file": "packages/cli/src/wiring/pipeline.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1578,6 +1566,24 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/plugin-host/host-hooks.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -3047,9 +3053,21 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/standalone-hooks.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/standalone-pipelines.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3191,9 +3209,21 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/tests/standalone-pipelines.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3713,12 +3743,6 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
-      "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/wiring/pipeline.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3977,6 +4001,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/sage/src/consolidation/curator-llm.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -4198,6 +4228,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/execution/refine-decisions",
       "file": "packages/webui/src/components/ChatInput/refine-panel-host.tsx",
       "typeOnly": 0,
@@ -4208,18 +4244,6 @@
       "file": "packages/webui/src/hooks/ws-handlers/misc-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/extension",
-      "file": "packages/cli/src/hooks-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/extension",
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/extension",
@@ -4241,6 +4265,18 @@
     },
     {
       "specifier": "@wrongstack/core/extension",
+      "file": "packages/runtime/src/plugin-host/host-hooks.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
       "file": "packages/runtime/tests/host.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4253,7 +4289,25 @@
     },
     {
       "specifier": "@wrongstack/core/extension",
+      "file": "packages/webui-server/src/server/standalone-plugin-extensions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
       "file": "packages/webui-server/tests/standalone-chimera.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
+      "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4265,12 +4319,6 @@
     },
     {
       "specifier": "@wrongstack/core/hooks",
-      "file": "packages/cli/src/hooks-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hooks",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4278,12 +4326,6 @@
     {
       "specifier": "@wrongstack/core/hooks",
       "file": "packages/cli/src/wiring/pipeline.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/hooks",
-      "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4343,19 +4385,43 @@
     },
     {
       "specifier": "@wrongstack/core/hooks",
+      "file": "packages/runtime/src/plugin-host/host-hooks.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
       "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hooks",
-      "file": "packages/webui-server/src/server/backend-services.ts",
+      "file": "packages/webui-server/src/server/standalone-delegation.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hooks",
-      "file": "packages/webui-server/src/server/standalone-delegation.ts",
+      "file": "packages/webui-server/src/server/standalone-hooks.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4853,12 +4919,6 @@
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/models",
       "file": "packages/cli/tests/alibaba-token-plan-catalog-overlay-sync.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4961,6 +5021,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/webui-server/src/server/backend-services-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5057,12 +5123,6 @@
     },
     {
       "specifier": "@wrongstack/core/notifications",
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/notifications",
       "file": "packages/plugins/src/notify-hub/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5081,9 +5141,21 @@
     },
     {
       "specifier": "@wrongstack/core/notifications",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/notifications",
       "file": "packages/telegram/src/notification-channel.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/notifications",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/observability",
@@ -5195,12 +5267,6 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
-      "file": "packages/cli/src/wiring/external-plugins.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5209,7 +5275,7 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -5233,6 +5299,24 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/plugin-sdk/src/index.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-host/external-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -5312,6 +5396,12 @@
       "file": "packages/webui-server/src/server/standalone-chimera.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/prompts",
@@ -5892,12 +5982,6 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/wiring/pipeline.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/registry",
-      "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6497,6 +6581,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/src/tool-registration.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6845,6 +6935,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6906,6 +7002,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/tests/standalone-delegation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10286,6 +10388,18 @@
       "file": "packages/webui-server/tests/setup-events.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -14273,6 +14387,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16295,6 +16415,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/standalone-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/start-webui-chronicle.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16488,6 +16614,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/session-swap-lifecycle.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/standalone-plugins.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -111,6 +111,13 @@ export interface AgentServicesInput {
   persistBrainConfig?:
     | ((config: import('@wrongstack/contracts/types').BrainConfig) => Promise<void>)
     | undefined;
+  /** Secret vault handed to plugins (the sync plugin encrypts its token with it). */
+  vault?: import('@wrongstack/contracts/types').SecretVault | undefined;
+  /**
+   * Load the host plugin set (default true). False when the caller injected its
+   * own tool registry (`opts.services`) and so owns the plugins on it.
+   */
+  hostPlugins?: boolean | undefined;
 }
 
 export interface AgentServices {
@@ -137,6 +144,8 @@ export interface AgentServices {
   closeSessionJournals?: () => Promise<void>;
   /** Join review producers and workers before journals/fleet close. */
   closeChimera?: () => Promise<void>;
+  /** Dispose the plugin host and stop the user-hook hot reload and lifecycle bridge. */
+  closePlugins?: () => Promise<void>;
   permissionPolicy: PermissionPolicy;
   pipelines: AgentPipelines;
   brain: ObservableBrainArbiter;

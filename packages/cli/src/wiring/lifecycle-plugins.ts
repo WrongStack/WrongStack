@@ -21,14 +21,7 @@ import {
 } from '@wrongstack/contracts/types';
 import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/coordination';
 import { installDesignTurnGate } from '@wrongstack/core/design';
-import { CouncilOrchestrator, OneShotOrchestrator } from '@wrongstack/core/execution';
-import {
-  bridgeLifecycleHooks,
-  countShellHooks,
-  HookRegistry,
-  HookRunner,
-  shellHooksEqual,
-} from '@wrongstack/core/hooks';
+import { bridgeLifecycleHooks, type HookRegistry, type HookRunner } from '@wrongstack/core/hooks';
 import { resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
 import { NotifierImpl } from '@wrongstack/core/notifications';
 import type { PluginHostHandle } from '@wrongstack/core/plugin';
@@ -54,6 +47,12 @@ import {
   MCPRegistry,
   MCPVaultTokenStore,
 } from '@wrongstack/mcp';
+import {
+  createLifecycleHooksExtension,
+  createPluginLlm,
+  installHostHooks,
+  pluginHostPaths,
+} from '@wrongstack/runtime/plugin-host';
 import { bindAcpLeaderHost } from '../acp-leader/acp-leader-host.js';
 import { createAcpLeaderHost } from '../acp-leader/acp-leader-host-binding.js';
 import { openBrowser } from '../auth-menu/loopback-server.js';
@@ -61,10 +60,6 @@ import type { EventWiring } from '../boot/event-wiring.js';
 import { effectiveMcpServers, parseLaunchMcpServers } from '../boot/mcp-config-flag.js';
 import { isRestrictedMode } from '../boot/restricted-mode.js';
 import { isSafeMode } from '../boot/safe-mode.js';
-import {
-  createLifecycleHooksExtension,
-  createUserPromptSubmitMiddleware,
-} from '../hooks-wiring.js';
 import { makeConfirmAwaiter } from '../permission-prompt.js';
 import { installVibeProtocol } from '../vibe-protocol-wiring.js';
 import { installDesignStudio } from './design-studio.js';
@@ -76,7 +71,6 @@ import {
   createPromptJournalRecorder,
   createPromptJournalToolCallRecorder,
 } from './prompt-journal-recorder.js';
-import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import { recordGateDecision } from './wrongtrace-gate-counters.js';
 import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
 
@@ -198,21 +192,6 @@ export async function setupLifecycleAndPlugins(
   // ── Lifecycle hooks ──────────────────────────────────────────────────────
   const safeMode = isSafeMode(flags);
   const hooksEnabled = flags['no-hooks'] !== true && !safeMode;
-  const hookRegistry = new HookRegistry();
-  // `--no-hooks` disables ordinary automation, not trusted enforcement.
-  // Explicit `policy: true` hooks remain active and never ask for approval;
-  // they only allow/mutate silently or deny with a model-visible reason.
-  hookRegistry.loadShellHooks(config.hooks, { policyOnly: !hooksEnabled });
-  container.bind(TOKENS.HookRegistry, () => hookRegistry);
-  const hookRunner = new HookRunner({
-    registry: hookRegistry,
-    logger,
-    allowNonPolicy: hooksEnabled,
-    sessionId: () => session.id,
-  });
-  // Install the dispatch points even under --no-hooks: ordinary entries are
-  // filtered by HookRunner, while policy hooks may be registered later by a
-  // plugin and still need a live UserPromptSubmit interception point.
   // The prompt-journal recorder must run BEFORE the hook middleware: a
   // blocking hook short-circuits the chain, so a recorder registered after it
   // would never consume the raw marker (stale misclassification on the next
@@ -220,7 +199,19 @@ export async function setupLifecycleAndPlugins(
   // as submitted user input. Recording first journals exactly what the user
   // submitted, and always consumes the marker.
   pipelines.userInput.use(createPromptJournalRecorder());
-  pipelines.userInput.use(createUserPromptSubmitMiddleware(hookRunner));
+  // `config.hooks` the way every host loads them (shared with the standalone
+  // WebUI host): `--no-hooks` keeps only `policy: true` enforcement hooks, the
+  // UserPromptSubmit dispatch point is installed either way, and edits to the
+  // hooks block hot-reload under the same policy filter.
+  const { hookRegistry, hookRunner } = installHostHooks({
+    config,
+    hooksEnabled,
+    pipelines,
+    logger,
+    sessionId: () => session.id,
+    configStore,
+  });
+  container.bind(TOKENS.HookRegistry, () => hookRegistry);
 
   // WrongTrace guardrail: in-process hooks on the shared executor path.
   // preToolUse denies edits to files locked by another owner (peer agent)
@@ -264,22 +255,6 @@ export async function setupLifecycleAndPlugins(
   // tools that produce them. Every executed tool call flows through this
   // pipeline, so a single middleware covers all three emission points.
   pipelines.toolCall?.use(createPromptJournalToolCallRecorder());
-
-  // Hot-reload configured hooks, preserving the --no-hooks policy filter.
-  configStore.watch((next: Config, prev: Config) => {
-    if (!shellHooksEqual(next.hooks, prev.hooks)) {
-      try {
-        hookRegistry.replaceShellHooks(next.hooks, { policyOnly: !hooksEnabled });
-        logger.info(
-          `Hooks reloaded (${countShellHooks(next.hooks)} configured entries across ${
-            Object.keys(next.hooks ?? {}).length
-          } events)`,
-        );
-      } catch (err) {
-        logger.warn(`Hook hot-reload failed: ${(err as Error).message ?? String(err)}`);
-      }
-    }
-  });
 
   // VIBE protocol — synthesize/coder input contract + final-response audit.
   installVibeProtocol(pipelines);
@@ -565,31 +540,28 @@ export async function setupLifecycleAndPlugins(
   );
   const notifier = new NotifierImpl();
   const getLiveConfig = (): Config => configStore.get();
-  const fallbackProfileManager = container.resolve(TOKENS.FallbackProfileManager);
-  const statusTracker = container.resolve(TOKENS.ProviderModelStatusTracker);
-  const buildUtilityProvider = (providerId: string): Provider =>
-    buildProviderForIdRuntimeFn({ config: getLiveConfig(), providerRegistry, logger }, providerId);
-  const pluginOneShot = new OneShotOrchestrator({
-    buildProvider: buildUtilityProvider,
+  const pluginLlm = createPluginLlm({
+    provider,
+    model: config.model,
+    getProvider: () => context.provider,
+    getModel: () => context.model,
+    createProvider: (name: string) =>
+      buildProviderForIdRuntimeFn({ config: configStore.get(), providerRegistry }, name),
     getConfig: getLiveConfig,
-    fallbackProfileManager,
-    statusTracker,
-    modelRouter: createLiveModelRouter(getLiveConfig),
+    buildProvider: (providerId: string): Provider =>
+      buildProviderForIdRuntimeFn(
+        { config: getLiveConfig(), providerRegistry, logger },
+        providerId,
+      ),
+    fallbackProfileManager: container.resolve(TOKENS.FallbackProfileManager),
+    statusTracker: container.resolve(TOKENS.ProviderModelStatusTracker),
     logger,
     // Route plugin completions through the same extension chain the agent loop
-    // uses. `prompt-firewall` (credential redaction), `llm-cache`,
-    // `model-router` and the token budgeter all live on `wrapProviderRunner`,
-    // and `api.llm` reached the provider without any of them. Resolved per
-    // call so a plugin enabled mid-session joins the chain.
+    // uses. Resolved per call so a plugin enabled mid-session joins the chain.
     wrapProviderCall: (request, inner) =>
       agent.extensions.wrapProviderRunner((_ctx, req) => inner(req), {
         exclude: ['fallback-model'],
       })(agent.ctx, request),
-  });
-  const pluginCouncil = new CouncilOrchestrator({
-    caller: pluginOneShot,
-    fallbackProfileManager,
-    ...buildCouncilRegistries(getLiveConfig().tools?.council),
   });
 
   const pluginHost = await setupPlugins({
@@ -614,32 +586,11 @@ export async function setupLifecycleAndPlugins(
     safeMode,
     configStore,
     vault,
-    paths: {
-      globalRoot: wpaths.globalRoot,
-      configDir: wpaths.configDir,
-      globalConfig: wpaths.profileConfig(config.activeProfile ?? 'default'),
-      globalSkills: wpaths.globalSkills,
-      globalPrompts: wpaths.globalPrompts,
-      globalMemory: wpaths.globalMemory,
-      historyFile: wpaths.historyFile,
-      syncConfig: wpaths.syncConfig,
-      projectDir: wpaths.projectDir,
-      projectGoal: wpaths.projectGoal,
-      projectRoot: wpaths.projectRoot,
-    },
+    paths: pluginHostPaths(wpaths, config.activeProfile),
     hookRegistry,
     mailbox: brainMailbox,
     notifier,
-    llm: {
-      provider,
-      model: config.model,
-      getProvider: () => context.provider,
-      getModel: () => context.model,
-      createProvider: (name: string) =>
-        buildProviderForIdRuntimeFn({ config: configStore.get(), providerRegistry }, name),
-      oneShot: (input) => pluginOneShot.call(input),
-      council: (question) => pluginCouncil.ask(question),
-    },
+    llm: pluginLlm,
   });
 
   return {

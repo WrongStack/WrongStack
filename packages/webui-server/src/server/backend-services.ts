@@ -13,7 +13,6 @@ import {
   createStrategyCompactor,
   ToolExecutor,
 } from '@wrongstack/core/execution';
-import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
 import {
   CONTEXT_MANAGER_TOOL_NAME,
   createContextManagerTool,
@@ -35,12 +34,6 @@ import {
   setupSage,
 } from '@wrongstack/sage';
 import { installVibeProtocol } from '@wrongstack/sdd';
-import {
-  createWrongTraceHookPair,
-  persistWrongTraceGateCounters,
-  recordGateDecision,
-  snapshotGateDecisions,
-} from '@wrongstack/wrongtrace';
 import { createBackendBrain } from './backend-brain.js';
 import type { AgentServices, AgentServicesInput } from './backend-services-types.js';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
@@ -61,6 +54,8 @@ import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 import { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import { createStandaloneChimera } from './standalone-chimera.js';
 import { createStandaloneAutoWake, installStandaloneDelegation } from './standalone-delegation.js';
+import { createStandaloneHooks } from './standalone-hooks.js';
+import { loadStandalonePlugins, type StandalonePlugins } from './standalone-plugins.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { errMessage } from './ws-utils.js';
@@ -99,6 +94,18 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // are routed to the kernel.
   const collabBus = new CollaborationBusCtor();
   const pipelines = input.pipelines;
+  // The user's `config.hooks` (policy hooks included), the plugins' hooks and the
+  // WrongTrace gate on one registry, as in the CLI. First on `userInput` after
+  // the prompt-journal recorder the pipelines were built with.
+  const hooks = createStandaloneHooks({
+    config,
+    configStore: container.safeResolve(TOKENS.ConfigStore),
+    pipelines,
+    events,
+    logger,
+    projectRoot,
+    context,
+  });
   // Phase 4 — collab-inject. Install it first, then prepend collab-pause
   // ahead of it so a controller can pause + inject before the next tool result
   // flows through the pipeline.
@@ -290,51 +297,6 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   const secretScrubber = container.resolve(TOKENS.SecretScrubber);
   const renderer = container.has(TOKENS.Renderer) ? container.resolve(TOKENS.Renderer) : undefined;
   const permissionPolicy = container.resolve(TOKENS.PermissionPolicy);
-  // WrongTrace guardrail: dedicated lock-gate runner for the standalone
-  // server, mirroring the CLI's lifecycle-plugins.ts registration (same
-  // events, matcher, owner id). Owner identity = THIS process's active
-  // session id — startWebUI is its own process, never a copied CLI-leader
-  // closure; when the CLI hosts WebUI in-process, dispatch-webui routes
-  // through the CLI agent and its already-gated executor instead.
-  const wrongTraceHookRegistry = new HookRegistry();
-  // Per-runner pair: pre/post share one lock set, so this server's release
-  // can never free an SDD-wizard worker's active claim (see hooks.ts
-  // concurrency note). Owner identity = THIS process's active session id —
-  // startWebUI is its own process, never a copied CLI-leader closure.
-  const wrongTraceHooks = createWrongTraceHookPair(() => context.session.id, {
-    baseDir: () => context.cwd,
-    emit: (event) => {
-      events.emit('wrongtrace.gate.decision', event);
-      // Shared counters contract (see adapter gate-counters.ts): this
-      // process's tally is persisted per gate decision — the standalone
-      // server has no single session-end hook, and last writer wins
-      // against the CLI's session-end persist. `wstack proxy-status`
-      // reads whatever the latest writer left.
-      recordGateDecision(event);
-      void persistWrongTraceGateCounters(projectRoot, snapshotGateDecisions());
-    },
-  });
-  wrongTraceHookRegistry.registerInProcess(
-    'PreToolUse',
-    'edit|write|replace|patch|codebase-ast-replace',
-    wrongTraceHooks.preToolUse,
-    'wrongtrace-gate',
-  );
-  wrongTraceHookRegistry.registerInProcess(
-    'PostToolUse',
-    'edit|write|replace|patch|codebase-ast-replace',
-    wrongTraceHooks.postToolUse,
-    'wrongtrace-gate',
-    // Also on a denied / rejected / failed call: release the lock PreToolUse took.
-    { runWhenToolSkipped: true },
-  );
-  const wrongTraceHookRunner = new HookRunner({
-    registry: wrongTraceHookRegistry,
-    sessionId: () => context.session.id,
-    // Coordination, not enforcement: these hooks are fail-open by
-    // construction and must run regardless of shell-hook gating.
-    allowNonPolicy: true,
-  });
   const toolExecutor = new ToolExecutor(toolRegistry, {
     permissionPolicy,
     secretScrubber,
@@ -345,7 +307,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     perIterationOutputCapBytes:
       config.tools?.perIterationOutputCapBytes ?? DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
     tracer: input.tracer,
-    hookRunner: wrongTraceHookRunner,
+    hookRunner: hooks.hookRunner,
     // Off unless the operator opts in. The WebUI drives the same agent as the
     // CLI, so it must resolve this identically — a surface-dependent gate
     // would mean the same repo governs under `wstack` and not in the browser.
@@ -419,6 +381,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     toolExecutor,
     tracer: input.tracer,
   });
+  hooks.attach(agent);
+  hooks.bridge(compactor);
   // Design Studio — hold a turn whose UI changes were not inspected rendered.
   installDesignTurnGate({
     pipelines,
@@ -490,7 +454,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     session: input.sessionGetter(),
     projectRoot,
     statusTracker: container.safeResolve(TOKENS.ProviderModelStatusTracker),
-    hookRunner: wrongTraceHookRunner,
+    hookRunner: hooks.workerHookRunner,
     ...(input.installToolBoundary ? { installToolBoundary: input.installToolBoundary } : {}),
   });
   // Goal and SDD runs mirror into project boards, so a run can be followed and steered from Kanban.
@@ -611,6 +575,34 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     ensureDirector: async () => delegation?.host.ensureDirector() ?? null,
   });
   chimera.attach(agent);
+  // The CLI's plugin set (injection-shield, secret-scanner, dep-guard, …), same gates.
+  const plugins: StandalonePlugins | undefined =
+    input.hostPlugins === false
+      ? undefined
+      : await loadStandalonePlugins({
+          config,
+          getConfig: getLiveConfig,
+          container,
+          events,
+          pipelines,
+          toolRegistry,
+          providerRegistry,
+          modelsRegistry,
+          mcpRegistry: input.mcpRegistry,
+          hookRegistry: hooks.hookRegistry,
+          logger,
+          wpaths,
+          agent,
+          getSession: input.sessionGetter,
+          skillLoader: input.skillLoader,
+          vault: input.vault,
+          safeMode: hooks.safeMode,
+        });
+  const onAgentCreated = (created: Agent): void => {
+    chimera.attach(created);
+    hooks.attach(created);
+    plugins?.attach(created);
+  };
   const MAX_CONCURRENT_SESSION_AGENTS = 4;
   /**
    * One Agent per open tab.
@@ -638,7 +630,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     toolExecutor,
     logger,
     updateMaxContext: updateAutoCompactionMaxContext,
-    onAgentCreated: chimera.attach,
+    onAgentCreated,
     onSessionEnd: chimera.finish,
     onSessionRelease: chimera.release,
   });
@@ -664,6 +656,13 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     flushSessionJournalsSync: () => sessionAgents.flushAllSync(),
     closeSessionJournals: () => sessionAgents.closeAll(),
     closeChimera: () => chimera.dispose(),
+    closePlugins: async () => {
+      try {
+        await plugins?.dispose();
+      } finally {
+        hooks.dispose();
+      }
+    },
     permissionPolicy,
     pipelines,
     brain,
