@@ -27,6 +27,12 @@ export interface WSClientMessage {
 }
 
 export interface WebUIOptions {
+  /**
+   * The version of the released executable this server runs in (the desktop engine). When given,
+   * the server checks GitHub releases for a newer one, once a day through the profile's update
+   * cache, and reports both in `session.start` (`appVersion`, `latestVersion`, `updateAvailable`).
+   */
+  appVersion?: string | undefined;
   /** Runtime surface label used by instance registration and memory diagnostics. */
   surface?: 'webui' | 'vibeui' | undefined;
   /** Policy authority for terminal/process/native-shell actions. */

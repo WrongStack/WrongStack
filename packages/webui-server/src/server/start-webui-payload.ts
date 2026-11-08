@@ -1,5 +1,6 @@
 import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/contracts/types';
+import type { AppUpdateInfo } from './app-update-check.js';
 import type { WebuiMutableState } from './routes.js';
 import { createSessionStartPayload } from './server-runtime.js';
 
@@ -27,6 +28,8 @@ export function createStartWebuiSessionPayloadHelper(params: {
    * builder accepts rather than by the full Agent surface.
    */
   peekAgent?: ((sessionId: string) => { ctx?: SessionStartContext } | undefined) | undefined;
+  /** The host's version and the newest release, when the host checks for one. */
+  getAppUpdate?: (() => AppUpdateInfo) | undefined;
 }) {
   const {
     getConfig,
@@ -39,9 +42,10 @@ export function createStartWebuiSessionPayloadHelper(params: {
     stateGetter,
     modelsRegistry,
     peekAgent,
+    getAppUpdate,
   } = params;
 
-  return createSessionStartPayload({
+  const build = createSessionStartPayload({
     getConfig,
     getSessionId,
     getProjectRoot,
@@ -54,4 +58,10 @@ export function createStartWebuiSessionPayloadHelper(params: {
     modelsRegistry,
     getSessionContext: (sessionId: string) => peekAgent?.(sessionId)?.ctx,
   });
+  if (!getAppUpdate) return build;
+  // The same fields the CLI hands its WebUI: the WebUI's update banner and the desktop read them.
+  return (async (...args: Parameters<typeof build>) => ({
+    ...(await build(...args)),
+    ...getAppUpdate(),
+  })) as typeof build;
 }

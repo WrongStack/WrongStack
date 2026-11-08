@@ -918,6 +918,8 @@
     "costUnavailable": "{{model}} için maliyet tahmini yok.",
     "thisModel": "bu model",
     "costUnavailableHint": "Fiyatı model kataloğunda yok; token sayıları yine de kaydediliyor.",
+    "updateAvailable": "WrongStack {{latest}} çıktı (bu uygulama {{current}}).",
+    "updateAvailableHint": "wstack desktop update komutunu çalıştırın ya da kurulum dosyasını github.com/WrongStack/WrongStack/releases adresinden indirin.",
     "alwaysAllowed": "Her zaman izin verildi: {{label}}.",
     "denied": "Reddedildi: {{label}}.",
     "idsSuffix": " ({{ids}})",

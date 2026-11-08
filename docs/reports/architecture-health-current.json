@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T17:55:38.896Z",
+  "generatedAt": "2026-11-08T18:13:24.001Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6127,
-    "testFiles": 5082,
-    "sourceLines": 1262628,
+    "sourceFiles": 6128,
+    "testFiles": 5084,
+    "sourceLines": 1262822,
     "workspaceEdges": 250,
-    "moduleEdges": 18058,
+    "moduleEdges": 18060,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 298,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1029
+    "testOnlyExports": 1031
   },
   "errors": [],
   "packageCycles": [],
@@ -1174,8 +1174,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 344,
-      "testFiles": 382,
+      "sourceFiles": 345,
+      "testFiles": 384,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 382
+          "testFiles": 384
         }
       ]
     },
@@ -26354,6 +26354,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/app-update-check.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/architecture/err-message-parity.test.ts",
         "projects": [
           "root-node"
@@ -28347,6 +28353,12 @@
       },
       {
         "file": "packages/webui-server/tests/start-webui-module-load.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/start-webui-payload-update.test.ts",
         "projects": [
           "root-node"
         ]
@@ -38717,6 +38729,14 @@
     {
       "file": "packages/vibeui/src/lib/use-panel-requests.ts",
       "name": "acceptsPanelReply"
+    },
+    {
+      "file": "packages/webui-server/src/server/app-update-check.ts",
+      "name": "isNewerVersion"
+    },
+    {
+      "file": "packages/webui-server/src/server/app-update-check.ts",
+      "name": "RELEASES_LATEST_URL"
     },
     {
       "file": "packages/webui-server/src/server/chimera-routes.ts",

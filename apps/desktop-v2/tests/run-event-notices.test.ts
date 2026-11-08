@@ -12,6 +12,48 @@ const text = (type: string, payload: Record<string, unknown>) =>
   conversationNotice(type, payload, 'n1', 0)?.text;
 
 describe('run events the WebUI announces', () => {
+  it('tells once per conversation that a newer WrongStack release is out', () => {
+    expect(
+      text('session.start', { appVersion: '1.5.2', latestVersion: '1.5.3', updateAvailable: true }),
+    ).toBe('WrongStack 1.5.3 is available (this app is 1.5.2).');
+    expect(
+      conversationNotice(
+        'session.start',
+        { appVersion: '1.5.2', latestVersion: '1.5.3', updateAvailable: true },
+        'n1',
+        0,
+      ),
+    ).toMatchObject({
+      severity: 'info',
+      once: true,
+      hint: expect.stringContaining('wstack desktop update'),
+    });
+    expect(
+      text('session.start', {
+        appVersion: '1.5.2',
+        latestVersion: '1.5.2',
+        updateAvailable: false,
+      }),
+    ).toBeUndefined();
+    expect(text('session.start', { updateAvailable: true })).toBeUndefined();
+
+    let state: EngineState = { ...emptyEngineState, sessionId: 's' };
+    const start = {
+      type: 'session.start',
+      payload: {
+        sessionId: 's',
+        appVersion: '1.5.2',
+        latestVersion: '1.5.3',
+        updateAvailable: true,
+      },
+    };
+    state = reduceEngine(state, start);
+    state = reduceEngine(state, start);
+    expect(
+      state.notices.filter((notice) => notice.text.startsWith('WrongStack 1.5.3')),
+    ).toHaveLength(1);
+  });
+
   it('words each event as the WebUI does', () => {
     expect(text('provider.stream_error', { eventType: 'ping', message: 'bad frame' })).toBe(
       'Provider stream warning (ping): bad frame.',

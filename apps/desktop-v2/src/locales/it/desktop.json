@@ -918,6 +918,8 @@
     "costUnavailable": "Stima dei costi non disponibile per {{model}}.",
     "thisModel": "questo modello",
     "costUnavailableHint": "Il suo prezzo non è nel catalogo dei modelli; il conteggio dei token viene comunque registrato.",
+    "updateAvailable": "WrongStack {{latest}} è disponibile (questa app è la {{current}}).",
+    "updateAvailableHint": "Esegui wstack desktop update oppure scarica il programma di installazione da github.com/WrongStack/WrongStack/releases.",
     "alwaysAllowed": "Sempre consentito: {{label}}.",
     "denied": "Negato: {{label}}.",
     "idsSuffix": " ({{ids}})",

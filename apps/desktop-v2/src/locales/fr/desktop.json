@@ -918,6 +918,8 @@
     "costUnavailable": "Estimation du coût indisponible pour {{model}}.",
     "thisModel": "ce modèle",
     "costUnavailableHint": "Son prix ne figure pas dans le catalogue des modèles ; le nombre de jetons est tout de même enregistré.",
+    "updateAvailable": "WrongStack {{latest}} est disponible (cette application est en {{current}}).",
+    "updateAvailableHint": "Lancez wstack desktop update ou téléchargez le programme d’installation sur github.com/WrongStack/WrongStack/releases.",
     "alwaysAllowed": "Toujours autorisé : {{label}}.",
     "denied": "Refusé : {{label}}.",
     "idsSuffix": " ({{ids}})",

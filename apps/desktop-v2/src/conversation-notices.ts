@@ -1,5 +1,5 @@
-import english from './locales/en/desktop.json';
 import { displayDecimal } from './display-dates';
+import english from './locales/en/desktop.json';
 
 /**
  * Notice wording kept apart from the display language: engine text shown as it came, a catalog
@@ -101,6 +101,22 @@ interface NoticeWords {
  * background delegation results, and an MCP server that dropped or came back.
  */
 function runEventNotice(type: string, payload: Record<string, unknown>): NoticeWords | null {
+  // The engine read a newer WrongStack release than the one it runs: once per conversation.
+  if (
+    type === 'session.start' &&
+    payload['updateAvailable'] === true &&
+    str(payload['latestVersion']) &&
+    str(payload['appVersion'])
+  )
+    return {
+      severity: 'info',
+      message: line('updateAvailable', {
+        latest: str(payload['latestVersion']),
+        current: str(payload['appVersion']),
+      }),
+      detail: line('updateAvailableHint'),
+      once: true,
+    };
   if (type === 'provider.stream_error')
     return {
       severity: 'warning',

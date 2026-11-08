@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page.
+
 ### Fixed
 
+- **Every subagent gets an agent tab in the desktop.** A conversation's tabs listed only the subagents that had streamed transcript messages, so workers the fleet roster knew from their lifecycle events never appeared beside the leader. Each one now has its tab, with its transcript or, failing that, its output so far.
 - **`tools.sandbox` is enforced.** The exec sandbox policy in `config.tools.sandbox` was declared in the wrong config block and never handed to the sandbox, so a configured mode or tier changed nothing. The CLI and the WebUI/desktop engine now apply it when they register their tools.
 - **ACP agents lead desktop conversations.** A profile whose provider is `acp` (for example after `/model acp/claude-code` in the CLI) made the desktop engine exit at boot. The engine now registers the ACP leader as the CLI does: `acp` appears in the model pickers, switching to it works, tool approvals reach the conversation's tab, and the agent sessions close when the engine shuts down.
 
