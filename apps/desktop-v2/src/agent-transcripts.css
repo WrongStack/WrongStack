@@ -121,3 +121,11 @@
 .native-chat-messages[hidden] {
   display: none;
 }
+
+.agent-tabs .agent-gauge {
+  margin-left: auto;
+  align-self: center;
+  white-space: nowrap;
+  font-size: 0.8em;
+  color: var(--muted);
+}

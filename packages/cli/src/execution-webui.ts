@@ -1,4 +1,4 @@
-import { LeaderAutoWakeController } from '@wrongstack/coordination';
+import { fleetBudgetFromDirector, LeaderAutoWakeController } from '@wrongstack/coordination';
 import { runWebUIDispatch } from './boot/dispatch-webui.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
@@ -135,32 +135,7 @@ export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
       // — the explore companion's poll timer and the shadow reviewer's
       // bookkeeping — which nobody is watching any more.
       ...(releaseSessionHelpers ? { onSessionRetired: releaseSessionHelpers } : {}),
-      getFleetBudget: () => {
-        const d = getDirector?.() ?? null;
-        if (!d) return null;
-        const snap = d.fleetManager?.budgetSnapshot?.();
-        const maxSpawns = snap?.maxSpawns ?? d.maxSpawns;
-        const usedSpawns = snap?.usedSpawns ?? d.spawnCount;
-        const remainingSpawns =
-          snap?.remainingSpawns ??
-          Math.max(
-            0,
-            (Number.isFinite(maxSpawns) ? maxSpawns : Number.POSITIVE_INFINITY) - usedSpawns,
-          );
-        const activeAgents = d
-          .status()
-          .subagents.filter((s) => s.status === 'running' || s.status === 'idle').length;
-        return {
-          maxSpawns,
-          usedSpawns,
-          remainingSpawns,
-          activeAgents,
-          ...(snap?.checkpointMaxSpawns !== undefined
-            ? { checkpointMaxSpawns: snap.checkpointMaxSpawns }
-            : {}),
-          ...(snap?.ceilingMismatch ? { ceilingMismatch: true } : {}),
-        };
-      },
+      getFleetBudget: () => fleetBudgetFromDirector(getDirector?.() ?? null),
       ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
       tuneupHooks: cliTuneupHooks,
       hostCommands: () =>
