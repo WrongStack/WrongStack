@@ -92,6 +92,75 @@ mod service_version_tests {
         );
     }
     #[test]
+    fn engines_run_from_a_private_copy_so_installers_can_replace_the_bundled_one() {
+        let dir = std::env::temp_dir().join(format!("desktop-engine-stage-{}", Uuid::new_v4()));
+        let install = dir.join("install");
+        std::fs::create_dir_all(&install).unwrap();
+        let bundled = install.join(ENGINE_FILE_NAME);
+        std::fs::write(&bundled, b"engine-v1").unwrap();
+        let data = dir.join("data");
+        let adopted = stage_engine(&data, &bundled).unwrap();
+        let (_, started) = stage_session_host(&data, Some(&bundled)).unwrap();
+        let started = started.unwrap();
+        if cfg!(windows) {
+            for (staged, kind) in [(&adopted, "engines"), (&started, "hosts")] {
+                assert!(staged.starts_with(data.join(kind)), "{}", staged.display());
+                assert_eq!(staged.file_name().unwrap(), ENGINE_FILE_NAME);
+                assert_eq!(std::fs::read(staged).unwrap(), b"engine-v1");
+            }
+            assert!(started
+                .parent()
+                .unwrap()
+                .join(SESSION_HOST_FILE_NAME)
+                .is_file());
+        } else {
+            assert_eq!(adopted, bundled);
+            assert_eq!(started, bundled);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[cfg(windows)]
+    #[test]
+    fn a_new_host_removes_the_copies_of_exited_hosts_and_keeps_live_ones() {
+        let data = std::env::temp_dir().join(format!("desktop-host-prune-{}", Uuid::new_v4()));
+        let bin = |name: &str| {
+            let bin = data.join("hosts").join(name);
+            std::fs::create_dir_all(&bin).unwrap();
+            bin
+        };
+        // A live host: Windows will not delete its running executable.
+        let live = bin("live");
+        let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32");
+        std::fs::copy(system.join("PING.EXE"), live.join(SESSION_HOST_FILE_NAME)).unwrap();
+        std::fs::write(live.join(ENGINE_FILE_NAME), b"engine").unwrap();
+        let mut running = Command::new(live.join(SESSION_HOST_FILE_NAME))
+            .args(["-n", "30", "127.0.0.1"])
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let exited = bin("exited");
+        std::fs::write(exited.join(SESSION_HOST_FILE_NAME), b"host").unwrap();
+        std::fs::write(exited.join(ENGINE_FILE_NAME), b"engine").unwrap();
+        // Left behind when an exited host's engine was still running at the last launch.
+        let orphaned = bin("orphaned");
+        std::fs::write(orphaned.join(ENGINE_FILE_NAME), b"engine").unwrap();
+        let adopted = stage_engine(&data, &live.join(ENGINE_FILE_NAME)).unwrap();
+
+        let (host, _) = stage_session_host(&data, None).unwrap();
+        let _ = running.kill();
+        let _ = running.wait();
+        assert!(live.join(SESSION_HOST_FILE_NAME).is_file());
+        assert!(live.join(ENGINE_FILE_NAME).is_file());
+        assert!(!exited.exists());
+        assert!(!orphaned.exists());
+        assert!(
+            adopted.is_file(),
+            "an engine handed to a running host stays"
+        );
+        assert!(host.is_file());
+        std::fs::remove_dir_all(data).unwrap();
+    }
+    #[test]
     fn does_not_reuse_project_services_from_a_different_engine_build() {
         assert!(can_share_services(
             &json!({"projectApi":1,"engineBuild":engine_build()})
@@ -227,23 +296,65 @@ pub fn protect_dir(dir: &std::path::Path) -> Result<()> {
     }
     Ok(())
 }
-/// The executable the persistent session host runs from.
+/// The executables the persistent session host, and the engines it spawns, run from.
 ///
-/// Windows locks a running executable, so the host runs from a private copy: dev rebuilds and
-/// installer updates can then replace the application while sessions stay alive. Unix keeps
-/// the old inode alive for a running process, and a copy taken out of a macOS bundle would
-/// carry the bundle's quarantine attribute without its code-signing context, so the host runs
-/// the installed executable directly there.
-fn session_host_executable(dir: &Path) -> Result<PathBuf> {
+/// Windows locks a running executable, so both run from a private copy: dev rebuilds and
+/// installer updates can then replace the application and its bundled `wrongstack-engine.exe`
+/// while sessions stay alive. Unix keeps the old inode alive for a running process, and a copy
+/// taken out of a macOS bundle would carry the bundle's quarantine attribute without its
+/// code-signing context, so the installed executables run directly there.
+fn stage_session_host(dir: &Path, engine: Option<&Path>) -> Result<(PathBuf, Option<PathBuf>)> {
     let current = std::env::current_exe().map_err(err)?;
     if !cfg!(windows) {
-        return Ok(current);
+        return Ok((current, engine.map(Path::to_path_buf)));
     }
-    let host_bin = dir.join("hosts").join(Uuid::new_v4().to_string());
-    std::fs::create_dir_all(&host_bin).map_err(err)?;
-    let host_exe = host_bin.join("wrongstack-session-host.exe");
+    prune_exited_hosts(dir);
+    let host_bin = private_bin_dir(dir, "hosts")?;
+    let host_exe = host_bin.join(SESSION_HOST_FILE_NAME);
     std::fs::copy(current, &host_exe).map_err(err)?;
-    Ok(host_exe)
+    let engine = engine
+        .map(|engine| stage_engine_in(&host_bin, engine))
+        .transpose()?;
+    Ok((host_exe, engine))
+}
+const SESSION_HOST_FILE_NAME: &str = "wrongstack-session-host.exe";
+/// Removes the private copies left by hosts that have exited, so each launch does not leave
+/// another copy of the application and its engine behind. Windows refuses to delete a running
+/// executable: a host copy that cannot be deleted belongs to a live host, and its folder, with
+/// the engine copy that host's next session starts from, is left alone. Once the host copy is
+/// gone, a folder whose engine copy is still running is retried by a later launch. Runs under
+/// `host.lock`, so no other launch is staging a host in this data folder meanwhile.
+fn prune_exited_hosts(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir.join("hosts")) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let bin = entry.path();
+        let host = bin.join(SESSION_HOST_FILE_NAME);
+        if host.is_file() && std::fs::remove_file(&host).is_err() {
+            continue;
+        }
+        let _ = std::fs::remove_dir_all(&bin);
+    }
+}
+fn private_bin_dir(dir: &Path, kind: &str) -> Result<PathBuf> {
+    let bin = dir.join(kind).join(Uuid::new_v4().to_string());
+    std::fs::create_dir_all(&bin).map_err(err)?;
+    Ok(bin)
+}
+fn stage_engine_in(bin: &Path, engine: &Path) -> Result<PathBuf> {
+    let staged = bin.join(ENGINE_FILE_NAME);
+    std::fs::copy(engine, &staged).map_err(err)?;
+    Ok(staged)
+}
+/// The engine a running host adopts, staged like [`stage_session_host`] stages a new host's.
+/// It lives outside `hosts/`: nothing beside it shows whether its host is still running.
+/// Adoption only happens to a host started from a build output without an engine.
+fn stage_engine(dir: &Path, engine: &Path) -> Result<PathBuf> {
+    if !cfg!(windows) {
+        return Ok(engine.to_path_buf());
+    }
+    stage_engine_in(&private_bin_dir(dir, "engines")?, engine)
 }
 impl Client {
     pub fn connect(engine: Option<&Path>) -> Result<Self> {
@@ -253,7 +364,7 @@ impl Client {
     pub fn connect_at(engine: Option<&Path>, dir: &Path) -> Result<Self> {
         protect_dir(&dir)?;
         if let Ok(c) = Self::load(&dir) {
-            c.hand_over_engine(engine)?;
+            c.hand_over_engine(engine, dir)?;
             return Ok(c);
         }
         // OS file lock prevents two concurrently launched desktop windows from electing two hosts.
@@ -273,7 +384,8 @@ impl Client {
             .append(true)
             .open(dir.join("host.log"))
             .map_err(err)?;
-        let mut command = Command::new(session_host_executable(dir)?);
+        let (host_exe, engine) = stage_session_host(dir, engine)?;
+        let mut command = Command::new(host_exe);
         if let Some(engine) = engine {
             command
                 .env("WRONGSTACK_DESKTOP_ENGINE", engine)
@@ -314,12 +426,13 @@ impl Client {
     }
     /// A running host that was started without an engine takes this launch's engine. Hosts
     /// that predate the `engine` field report nothing and are left as they are.
-    fn hand_over_engine(&self, engine: Option<&Path>) -> Result<()> {
+    fn hand_over_engine(&self, engine: Option<&Path>, dir: &Path) -> Result<()> {
         let Some(engine) = engine else {
             return Ok(());
         };
         if self.call("ping", json!({}))?["engine"] == false {
-            self.call("engine.adopt", json!({"path": engine.to_string_lossy()}))?;
+            let staged = stage_engine(dir, engine)?;
+            self.call("engine.adopt", json!({"path": staged.to_string_lossy()}))?;
         }
         Ok(())
     }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T19:35:03.921Z",
+  "generatedAt": "2026-11-08T19:39:37.294Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,14 +13,14 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6133,
-    "testFiles": 5086,
+    "testFiles": 5087,
     "sourceLines": 1263086,
     "workspaceEdges": 250,
     "moduleEdges": 18066,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 298,
+    "testsWithoutTypecheck": 299,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1031
   },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 468,
-      "testFiles": 298,
+      "testFiles": 299,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2049,6 +2049,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/input-form-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/installer-hooks.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32688,6 +32694,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/input-form-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/installer-hooks.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
