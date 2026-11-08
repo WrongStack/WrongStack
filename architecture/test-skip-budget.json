@@ -92,6 +92,11 @@
       "fingerprint": "c8f782b6a36ba78c"
     },
     {
+      "file": "packages/cli/tests/sage-service-install.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "c6a92a84b078211d"
+    },
+    {
       "file": "packages/cli/tests/sage-subcommand.test.ts",
       "kind": "skipIf",
       "fingerprint": "194a93407536d4a1"
