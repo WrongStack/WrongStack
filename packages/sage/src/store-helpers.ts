@@ -267,6 +267,7 @@ export function mergeLiveCounterFields(previousData: string | undefined, next: S
       merged[key] = previousStamp;
       continue;
     }
+    // biome-ignore lint/complexity/useMathMinMax: ISO timestamp strings; Math.max would coerce them to NaN
     merged[key] = previousStamp >= nextStamp ? previousStamp : nextStamp;
   }
   return merged;

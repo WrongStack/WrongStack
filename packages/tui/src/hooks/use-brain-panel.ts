@@ -34,9 +34,7 @@ import {
 /** Step through a fixed enum ladder, wrapping in both directions. */
 function cycleEnum<T extends string>(values: readonly T[], current: T, delta: number): T {
   const at = values.indexOf(current);
-  return values[
-    ((((at >= 0 ? at : 0) + delta) % values.length) + values.length) % values.length
-  ] as T;
+  return values[(((Math.max(at, 0) + delta) % values.length) + values.length) % values.length] as T;
 }
 
 const TERMINAL_POLICIES: readonly BrainTerminalPolicyValue[] = [

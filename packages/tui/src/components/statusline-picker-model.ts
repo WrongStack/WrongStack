@@ -79,7 +79,7 @@ export const STREAM_CHIP_KEYS: StatuslineItem[] = ['brain', 'mailbox', 'enhance'
 export function nextDensity(current: StatuslineDensity, delta = 1): StatuslineDensity {
   const index = STATUSLINE_DENSITY_CYCLE.indexOf(current);
   const size = STATUSLINE_DENSITY_CYCLE.length;
-  const at = (index < 0 ? 0 : index) + delta;
+  const at = Math.max(index, 0) + delta;
   return STATUSLINE_DENSITY_CYCLE[((at % size) + size) % size]!;
 }
 

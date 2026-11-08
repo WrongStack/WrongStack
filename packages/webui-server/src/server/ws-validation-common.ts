@@ -16,5 +16,5 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function clampLimit(value: unknown, def: number, max: number): number {
   const n = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : def;
   if (n < 1) return 1;
-  return n > max ? max : n;
+  return Math.min(n, max);
 }

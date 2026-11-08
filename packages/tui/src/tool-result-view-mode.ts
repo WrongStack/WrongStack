@@ -18,7 +18,7 @@ export function cycleToolResultViewMode(
   delta: number,
 ): ToolResultViewMode {
   const index = TOOL_RESULT_VIEW_MODES.indexOf(mode);
-  const base = index < 0 ? 0 : index;
+  const base = Math.max(index, 0);
   return (
     TOOL_RESULT_VIEW_MODES[
       (base + delta + TOOL_RESULT_VIEW_MODES.length) % TOOL_RESULT_VIEW_MODES.length

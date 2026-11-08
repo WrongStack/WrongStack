@@ -1,20 +1,25 @@
-# `/cron` — Session cron monitor
+# `/cron` — Session wakeup monitor
 
-In the TUI, bare `/cron` opens the live cron monitor. `/cron list` uses the
-registered cron list handler, backed by the plugin's `cron_list` tool. Missing
-plugin state is reported as unavailable rather than an empty successful list.
+`/cron` lists the session wakeups: timers the agent scheduled for itself with
+the built-in `session_wakeup` tool ("check the deploy in ten minutes", "look
+at CI every five minutes"). They replaced the cron plugin's jobs. In the TUI,
+bare `/cron` opens the live monitor; `/cron list` prints the same list. The
+list is read through `session_wakeup` (action `list`) with a five-second
+deadline; if the tool is not registered, the list is reported as unavailable
+rather than empty.
 
-The list contains job name, action, enabled state, interval, last/next run,
-run count and overdue status, plus the concurrency limit. The shared loader
-uses a five-second deadline. The slash view reads jobs; scheduling and removal
-use the `cron_schedule` and `cron_cancel` plugin tools.
+Each row shows the wakeup id, its prompt, the interval (`once` for a one-shot
+wakeup), the last and next fire time and how often it fired, plus the
+per-session limit of 10 wakeups. The slash view only reads: the agent
+schedules and cancels wakeups with `session_wakeup` (actions `schedule` and
+`cancel`).
 
-Cron is an opt-in plugin and its scheduling/iteration hooks live with the
-current host. For jobs that survive sessions, use
-[persistent automation](../subcommands/automation.md). Opening a cron monitor
-does not make a session job durable.
+When a wakeup fires, its prompt reaches the agent as a runtime notice: a
+running loop receives it at the next iteration, and an idle session is woken
+for it. Wakeups are session-only and in-process: they never keep the CLI
+alive, die with the process, and recurring ones expire after 24 hours. For
+jobs that survive sessions, use [persistent automation](../subcommands/automation.md).
 
 Sources: [`cron-slash.ts`](../../packages/tui/src/cron-slash.ts),
 [`resource overrides`](../../packages/tui/src/hooks/use-resource-slash-commands.ts),
-[`cron plugin`](../../packages/plugins/src/cron/index.ts).
-See [plugin enablement](plugin.md).
+[`session-wakeup.ts`](../../packages/tools/src/session-wakeup.ts).

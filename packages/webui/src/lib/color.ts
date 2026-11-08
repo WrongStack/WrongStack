@@ -10,7 +10,7 @@
  */
 
 function clamp(n: number, lo: number, hi: number): number {
-  return n < lo ? lo : n > hi ? hi : n;
+  return Math.min(Math.max(n, lo), hi);
 }
 
 function parseOklch(value: string): [number, number, number] | null {

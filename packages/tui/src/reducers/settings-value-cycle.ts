@@ -52,7 +52,7 @@ export function cycleSettingsValue(inputs: {
       // Field 0: autonomy mode (cycle SETTINGS_MODES)
       if (f === 0) {
         const i = SETTINGS_MODES.indexOf(sp.mode);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + SETTINGS_MODES.length) % SETTINGS_MODES.length;
         return {
           ...state,
@@ -62,7 +62,7 @@ export function cycleSettingsValue(inputs: {
       // Field 1: delay presets
       if (f === 1) {
         const j = DELAY_PRESETS_MS.indexOf(sp.delayMs);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next = (base + action.delta + DELAY_PRESETS_MS.length) % DELAY_PRESETS_MS.length;
         return {
           ...state,
@@ -83,7 +83,7 @@ export function cycleSettingsValue(inputs: {
       // Field 4: fleet-chat verbosity (off | compact | full) — enum cycle
       if (f === 4) {
         const i = FLEET_CHAT_MODES.indexOf(sp.fleetChat);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + FLEET_CHAT_MODES.length) % FLEET_CHAT_MODES.length;
         return {
           ...state,
@@ -138,7 +138,7 @@ export function cycleSettingsValue(inputs: {
         const i = TOKEN_SAVING_TIERS.indexOf(
           sp.tokenSavingTier as (typeof TOKEN_SAVING_TIERS)[number],
         );
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + TOKEN_SAVING_TIERS.length) % TOKEN_SAVING_TIERS.length;
         return {
           ...state,
@@ -163,7 +163,7 @@ export function cycleSettingsValue(inputs: {
       // Field 15: max iterations (cycle presets)
       if (f === 15) {
         const j = MAX_ITERATIONS_PRESETS.indexOf(sp.maxIterations);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + MAX_ITERATIONS_PRESETS.length) % MAX_ITERATIONS_PRESETS.length;
         return {
@@ -178,7 +178,7 @@ export function cycleSettingsValue(inputs: {
       // Field 16: auto-proceed max iterations (cycle presets)
       if (f === 16) {
         const aj = AUTO_PROCEED_MAX_PRESETS.indexOf(sp.autoProceedMaxIterations);
-        const abase = aj < 0 ? 0 : aj;
+        const abase = Math.max(aj, 0);
         const anext =
           (abase + action.delta + AUTO_PROCEED_MAX_PRESETS.length) %
           AUTO_PROCEED_MAX_PRESETS.length;
@@ -194,7 +194,7 @@ export function cycleSettingsValue(inputs: {
       // Field 17: enhance delay (cycle presets)
       if (f === 17) {
         const ej = ENHANCE_DELAY_PRESETS.indexOf(sp.enhanceDelayMs);
-        const ebase = ej < 0 ? 0 : ej;
+        const ebase = Math.max(ej, 0);
         const enext =
           (ebase + action.delta + ENHANCE_DELAY_PRESETS.length) % ENHANCE_DELAY_PRESETS.length;
         return {
@@ -215,7 +215,7 @@ export function cycleSettingsValue(inputs: {
       // Field 19: enhance language (cycle original/english)
       if (f === 19) {
         const i = ENHANCE_LANGUAGES.indexOf(sp.enhanceLanguage);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + ENHANCE_LANGUAGES.length) % ENHANCE_LANGUAGES.length;
         return {
           ...state,
@@ -236,7 +236,7 @@ export function cycleSettingsValue(inputs: {
       // the summary footer; positive values set the minimum file count.
       if (f === 21) {
         const j = MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS.indexOf(sp.multiDiffSummaryThreshold);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS.length) %
           MULTI_DIFF_SUMMARY_THRESHOLD_PRESETS.length;
@@ -256,7 +256,7 @@ export function cycleSettingsValue(inputs: {
           ? [...THINKING_WORD_PRESETS]
           : [cur, ...THINKING_WORD_PRESETS];
         const i = list.indexOf(cur);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + list.length) % list.length;
         return {
           ...state,
@@ -267,7 +267,7 @@ export function cycleSettingsValue(inputs: {
       // Field 23: reasoning mode (cycle auto/on/off)
       if (f === 23) {
         const i = REASONING_MODES.indexOf(sp.reasoningMode as (typeof REASONING_MODES)[number]);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + REASONING_MODES.length) % REASONING_MODES.length;
         return {
           ...state,
@@ -323,7 +323,7 @@ export function cycleSettingsValue(inputs: {
       // Field 26: cache TTL (cycle default/5m/1h)
       if (f === 26) {
         const i = CACHE_TTLS.indexOf(sp.cacheTtl as (typeof CACHE_TTLS)[number]);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + CACHE_TTLS.length) % CACHE_TTLS.length;
         return {
           ...state,
@@ -340,7 +340,7 @@ export function cycleSettingsValue(inputs: {
       // Field 28: compactor strategy (cycle)
       if (f === 28) {
         const i = COMPACTOR_STRATEGIES.indexOf(sp.contextStrategy);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next =
           (base + action.delta + COMPACTOR_STRATEGIES.length) % COMPACTOR_STRATEGIES.length;
         return {
@@ -355,7 +355,7 @@ export function cycleSettingsValue(inputs: {
       // Field 29: context mode (cycle)
       if (f === 29) {
         const i = CONTEXT_MODES.indexOf(sp.contextMode);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + CONTEXT_MODES.length) % CONTEXT_MODES.length;
         return {
           ...state,
@@ -370,7 +370,7 @@ export function cycleSettingsValue(inputs: {
       // Field 30: max concurrent (cycle presets)
       if (f === 30) {
         const j = MAX_CONCURRENT_PRESETS.indexOf(sp.maxConcurrent);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + MAX_CONCURRENT_PRESETS.length) % MAX_CONCURRENT_PRESETS.length;
         const maxConcurrent = expectDefined(MAX_CONCURRENT_PRESETS[next]);
@@ -387,7 +387,7 @@ export function cycleSettingsValue(inputs: {
       // Field 31: log level (cycle)
       if (f === 31) {
         const i = LOG_LEVELS.indexOf(sp.logLevel);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + LOG_LEVELS.length) % LOG_LEVELS.length;
         return {
           ...state,
@@ -397,7 +397,7 @@ export function cycleSettingsValue(inputs: {
       // Field 32: audit level (cycle)
       if (f === 32) {
         const i = AUDIT_LEVELS.indexOf(sp.auditLevel);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + AUDIT_LEVELS.length) % AUDIT_LEVELS.length;
         return {
           ...state,
@@ -428,7 +428,7 @@ export function cycleSettingsValue(inputs: {
       // Field 35: config scope (cycle global/project)
       if (f === 35) {
         const i = CONFIG_SCOPES.indexOf(sp.configScope);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next = (base + action.delta + CONFIG_SCOPES.length) % CONFIG_SCOPES.length;
         return {
           ...state,
@@ -442,7 +442,7 @@ export function cycleSettingsValue(inputs: {
       // Field 36: animation style (cycle ANIMATION_STYLE_CHOICES)
       if (f === 36) {
         const i = ANIMATION_STYLE_CHOICES.indexOf(sp.animationStyle as AnimationStyleChoice);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next =
           (base + action.delta + ANIMATION_STYLE_CHOICES.length) % ANIMATION_STYLE_CHOICES.length;
         return {
@@ -464,7 +464,7 @@ export function cycleSettingsValue(inputs: {
       // Field 38: breaker auto kill/reset timeout (cycle presets)
       if (f === 38) {
         const j = BREAKER_TIMEOUT_PRESETS.indexOf(sp.breakerAutoKillResetMs);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + BREAKER_TIMEOUT_PRESETS.length) % BREAKER_TIMEOUT_PRESETS.length;
         return {
@@ -500,7 +500,7 @@ export function cycleSettingsValue(inputs: {
           fleetPos === 'sidebar' ? 'sidebar' : sp.showAgentSwarmPanel;
         const SWARM_CYCLE = ['bottom', 'sidebar', 'off'] as const;
         const j = SWARM_CYCLE.indexOf(currentDerived);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           SWARM_CYCLE[(base + action.delta + SWARM_CYCLE.length) % SWARM_CYCLE.length] ?? 'bottom';
         return {
@@ -519,7 +519,7 @@ export function cycleSettingsValue(inputs: {
       // Field 41: pre-refine countdown (cycle presets [0, 2, 3, 5, 8, 10])
       if (f === 41) {
         const j = PRE_REFINE_SECONDS_PRESETS.indexOf(sp.preRefineSeconds);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + PRE_REFINE_SECONDS_PRESETS.length) %
           PRE_REFINE_SECONDS_PRESETS.length;
@@ -551,7 +551,7 @@ export function cycleSettingsValue(inputs: {
       // Field 44: sageMemoryInjectThreshold (cycle SAGE_THRESHOLD_PRESETS)
       if (f === 44) {
         const j = SAGE_THRESHOLD_PRESETS.indexOf(sp.sageMemoryInjectThreshold);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           (base + action.delta + SAGE_THRESHOLD_PRESETS.length) % SAGE_THRESHOLD_PRESETS.length;
         return {
@@ -638,7 +638,7 @@ export function cycleSettingsValue(inputs: {
       // keeps the prompt (and tool surface) it was built with.
       if (f === 66) {
         const i = SYSTEM_PROMPT_CHOICES.indexOf(sp.nextSystemPromptVariant);
-        const base = i < 0 ? 0 : i;
+        const base = Math.max(i, 0);
         const next =
           SYSTEM_PROMPT_CHOICES[
             (base + action.delta + SYSTEM_PROMPT_CHOICES.length) % SYSTEM_PROMPT_CHOICES.length
@@ -666,7 +666,7 @@ export function cycleSettingsValue(inputs: {
         const panelId = PANEL_IDS[f - PANEL_POSITION_FIELD_START]!;
         const current = sp.panelPositions[panelId];
         const j = PANEL_POSITION_CYCLE.indexOf(current);
-        const base = j < 0 ? 0 : j;
+        const base = Math.max(j, 0);
         const next =
           PANEL_POSITION_CYCLE[
             (base + action.delta + PANEL_POSITION_CYCLE.length) % PANEL_POSITION_CYCLE.length

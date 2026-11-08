@@ -76,11 +76,7 @@ export function outdentLines(text: string, start: number, end: number, unit: str
     .slice(first, stop)
     .split('\n')
     .map((line, index) => {
-      const cut = line.startsWith('\t')
-        ? 1
-        : /^ */.exec(line)![0].length >= width
-          ? width
-          : /^ */.exec(line)![0].length;
+      const cut = line.startsWith('\t') ? 1 : Math.min(/^ */.exec(line)![0].length, width);
       if (index === 0) removedBeforeStart = Math.min(cut, start - offset);
       removed += cut;
       offset += line.length + 1;

@@ -28,7 +28,7 @@ async function runModePicker(modeStore: ModeStore, reader: InputReader): Promise
   const active = await modeStore.getActiveMode();
   const activeIdx = modes.findIndex((m) => m.id === active?.id);
 
-  let cursor = activeIdx >= 0 ? activeIdx : 0;
+  let cursor = Math.max(activeIdx, 0);
 
   const render = (currentCursor: number) => {
     const lines: string[] = [];

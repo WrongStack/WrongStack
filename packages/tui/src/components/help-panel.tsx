@@ -117,7 +117,7 @@ export function HelpPanel({
 
   const rows = buildRows(filtered);
   const selectedRowIdx = rows.findIndex((r) => r.type === 'item' && r.index === focus);
-  const win = windowRows(rows, selectedRowIdx < 0 ? 0 : selectedRowIdx, bodyHeight);
+  const win = windowRows(rows, Math.max(selectedRowIdx, 0), bodyHeight);
   const { rows: visible, start, end, contextHeader } = win;
   const hiddenAbove = start;
   const hiddenBelow = rows.length - end;

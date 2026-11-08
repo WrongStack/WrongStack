@@ -195,7 +195,7 @@ export function pruneToolInput(value: unknown, depth = 0): unknown {
  */
 export function firstSelectable(items: ProjectPickerItem[]): number {
   const idx = items.findIndex((it) => it.key !== '__divider__');
-  return idx >= 0 ? idx : 0;
+  return Math.max(idx, 0);
 }
 
 /**

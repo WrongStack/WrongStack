@@ -234,6 +234,7 @@ export class BrowserSessionManager {
           .locator('body')
           .ariaSnapshot({ timeout: this.operationTimeoutMs });
       } catch {
+        // biome-ignore lint/performance/useDomNodeTextContent: Playwright's rendered text, not the DOM property; textContent() would add hidden and script text
         return await session.page.locator('body').innerText({ timeout: this.operationTimeoutMs });
       }
     });

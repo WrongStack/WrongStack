@@ -488,7 +488,7 @@ export const LIFECYCLE_TOKENS = new Set([
 ]);
 
 export function clamp01(n: number): number {
-  return n < 0 ? 0 : n > 1 ? 1 : n;
+  return Math.min(Math.max(n, 0), 1);
 }
 
 export function round3(n: number): number {

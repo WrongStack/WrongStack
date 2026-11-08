@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-08T21:11:14.880Z
+**Generated:** 2026-11-08T21:54:12.401Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6133 |
-| Production source lines | 1263086 |
+| Production source lines | 1263084 |
 | Test files | 5087 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18066 |
@@ -137,7 +137,7 @@ None.
 | 707 | `packages/acp/src/client/acp-session.ts` |
 | 706 | `packages/chronicle/src/project-server.ts` |
 | 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
-| 703 | `packages/core/src/execution/auto-compaction-middleware.ts` |
+| 704 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 703 | `packages/tools/src/codebase-index/ast-symbol-mutator.ts` |
 | 703 | `packages/tui/src/reducers/settings-value-cycle.ts` |
 

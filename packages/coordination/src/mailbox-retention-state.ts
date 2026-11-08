@@ -48,6 +48,7 @@ export function resolveMailboxRetentionState(
   return {
     completed: true,
     // Retention starts only after the last intended recipient completed.
+    // biome-ignore lint/complexity/useMathMinMax: ISO timestamp strings; Math.max would coerce them to NaN
     completedAt: completionTimes.reduce((latest, time) => (time > latest ? time : latest)),
   };
 }

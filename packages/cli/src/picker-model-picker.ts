@@ -142,7 +142,7 @@ export async function runLiveModelPicker(
   setOutputLineGuard(null);
   let state: ProviderPickerState = {
     query: '',
-    selected: defaultIdx >= 0 ? defaultIdx : 0,
+    selected: Math.max(defaultIdx, 0),
     status: 'typing',
   };
   const order = (filtered: ModelsDevModel[]): ModelsDevModel[] => [...filtered].sort(byNewest);

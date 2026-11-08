@@ -48,7 +48,7 @@ export function SlashMenu({
     maxRows === undefined
       ? MAX_VISIBLE_ITEMS
       : Math.max(1, Math.min(MAX_VISIBLE_ITEMS, maxRows - (compact ? 6 : 8)));
-  const visible = windowRows(rows, selectedRowIdx < 0 ? 0 : selectedRowIdx, limit);
+  const visible = windowRows(rows, Math.max(selectedRowIdx, 0), limit);
 
   const hiddenAbove = visible.start;
   const hiddenBelow = rows.length - visible.end;

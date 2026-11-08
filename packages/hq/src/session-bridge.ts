@@ -202,12 +202,11 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
     const summary = toAgentSummary(agent);
     agentsLru.set(summary.id, summary);
   }
-  let lastActivityAt = agentsLru
-    .values()
-    .reduce(
-      (latest, agent) => (agent.lastActivityAt > latest ? agent.lastActivityAt : latest),
-      startedAt,
-    );
+  let lastActivityAt = agentsLru.values().reduce(
+    // biome-ignore lint/complexity/useMathMinMax: ISO timestamp strings; Math.max would coerce them to NaN
+    (latest, agent) => (agent.lastActivityAt > latest ? agent.lastActivityAt : latest),
+    startedAt,
+  );
   let lastSnapshotHash = '';
   let lastPublishedAtMs = Date.now();
   let disposed = false;
