@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.2 → 1.0.0).
+// Changelog — 1.x era (1.5.3 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.3',
+    date: '2026-11-08',
+    tagline: 'Every agent, the fleet gauge and ACP leaders in the desktop',
+    latest: true,
+    highlights: [
+      'Every worker of a desktop conversation gets its agent tab beside the leader, with a fleet gauge of running workers and spawns left',
+      'An ACP agent such as Claude Code can lead a desktop conversation, as in the CLI',
+      'The desktop says once when a newer WrongStack is out, and /tuneup reports it',
+      'tools.sandbox is enforced: the configured exec sandbox policy now reaches the sandbox in every host',
+      'The desktop engine records file authors for commit safety, journals delegations and clarify questions, and exports OTLP metrics',
+    ],
+  },
+  {
     version: '1.5.2',
     date: '2026-11-08',
     tagline: 'The desktop engine does what the CLI host does',
-    latest: true,
     highlights: [
       'Session Story fills in for desktop conversations: they are now recorded in Chronicle',
       'The desktop engine loads the CLI’s plugins, injection-shield and secret-scanner included, and runs config.hooks with policy hooks',

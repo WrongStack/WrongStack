@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] — 2026-11-08
+
+The desktop catches up on the rest of what the CLI host does: every worker
+gets its agent tab, the fleet gauge and a new-release notice appear, an ACP
+agent can lead a conversation, and the engine records file authors, journal
+categories and OTLP metrics as the CLI does. A configured exec sandbox is now
+enforced in every host.
+
 ### Added
 
 - **The desktop tells you when a newer WrongStack is out.** The desktop engine checks GitHub releases once a day (sharing the CLI's update cache) and a conversation shows, once, which version is available and how to get it: `wstack desktop update` or the installer from the releases page. `/tuneup` in the desktop reports it as well.
