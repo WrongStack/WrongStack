@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Diagnóstico del flujo",
       "description": "Registra diagnósticos adicionales del streaming del proveedor mientras investigas un problema."
+    },
+    "enhanceDelayMs": {
+      "label": "Retraso del refinamiento",
+      "description": "Cuánto tiempo muestra la interfaz de terminal un prompt refinado antes de enviarlo por sí sola. El escritorio y la WebUI esperan tu elección."
+    },
+    "enhanceCountdownMs": {
+      "label": "Cuenta atrás del refinamiento",
+      "description": "Espera antes de que empiece un refinamiento abierto al enviar; hasta entonces el prompt se puede enviar tal como está escrito. 0 lo inicia de inmediato. Se guarda al momento en este equipo."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "del entorno",
       "hint": "Los valores del perfil reemplazan los del entorno. Los valores vacíos usan el entorno. Las credenciales se gestionan aparte.",
       "save": "Guardar los ajustes de la nube"
+    },
+    "replace": {
+      "button": "Reemplazar clave",
+      "buttonLabel": "Reemplazar la clave {{label}} de {{provider}}",
+      "newKey": "Nueva clave de API",
+      "hint": "La clave {{label}} conserva su etiqueta y su elección activa; solo cambia el secreto guardado.",
+      "cancel": "Cancelar",
+      "save": "Guardar la nueva clave",
+      "missing": "Introduce la nueva clave de API.",
+      "done": "Se reemplazó la clave {{label}} de {{provider}}."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "¿Terminar el PID {{pid}}?",
     "singleBody": "Esto detiene el comando seguido seleccionado y su árbol de procesos hijos. Puede perderse el trabajo sin guardar dentro de ese comando.",
     "keepOne": "Mantener el proceso en ejecución",
-    "confirmSingle": "Confirmar la terminación del proceso"
+    "confirmSingle": "Confirmar la terminación del proceso",
+    "killAll": {
+      "button": "Terminar todos…",
+      "title": "Terminar todos los procesos",
+      "ask_one": "¿Terminar el proceso en ejecución ({{count}})?",
+      "ask": "¿Terminar los {{count}} procesos en ejecución?",
+      "body": "Cada comando que sigue el motor de esta conversación se detiene junto con su árbol de procesos hijos. Los comandos de otras conversaciones siguen ejecutándose. Se puede perder el trabajo no guardado de estos comandos.",
+      "confirm": "Terminar todos",
+      "done": "{{message}} Al actualizar se comprueba si alguno sigue registrado."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} tarea",
@@ -8336,7 +8363,15 @@
     "syncWait": "Esperando a que se sincronice el historial de la sesión",
     "sending": "Enviando…",
     "syncing": "Sincronizando el historial…",
-    "approve": "Aprobar y enviar"
+    "approve": "Aprobar y enviar",
+    "countdown": {
+      "label": "Cuenta atrás del refinamiento",
+      "status_one": "Refinando en {{count}} segundo…",
+      "status": "Refinando en {{count}} segundos…",
+      "hint": "El prompt aún se puede enviar tal como está escrito. La duración de la cuenta atrás se ajusta en la configuración de refinamiento de prompts.",
+      "sendAsIs": "Enviar tal cual",
+      "startNow": "Refinar ahora"
+    }
   },
   "savedRefine": {
     "conflict": "Otra ventana cambió la revisión de refinamiento guardada.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Agentes del proyecto",
     "tabsLabel": "Vistas de agentes"
+  },
+  "notificationCenter": {
+    "title": "Notificaciones",
+    "unreadTitle_one": "Notificaciones ({{count}} sin leer)",
+    "unreadTitle": "Notificaciones ({{count}} sin leer)",
+    "unread_one": "{{count}} sin leer",
+    "unread": "{{count}} sin leer",
+    "markAllRead": "Marcar todas como leídas",
+    "clearAll": "Borrar todas",
+    "show": "Mostrar",
+    "filter": {
+      "important": "Advertencias y errores",
+      "all": "Todos los tipos",
+      "error": "Errores",
+      "warn": "Advertencias",
+      "success": "Éxitos",
+      "info": "Información"
+    },
+    "tabs": "Estado de lectura",
+    "tab": {
+      "all": "Todas ({{n}})",
+      "unread": "Sin leer ({{n}})"
+    },
+    "attention_one": "{{count}} conversación requiere atención",
+    "attention": "{{count}} conversaciones requieren atención",
+    "empty": "No hay notificaciones",
+    "emptyHint": "Los errores, las conversaciones interrumpidas y los avisos del motor aparecen aquí.",
+    "emptyFiltered": "No hay notificaciones coincidentes",
+    "emptyFilteredHint": "Elige otro tipo para ver más notificaciones.",
+    "allRead": "Todo leído",
+    "allReadHint": "Se leyeron todas las notificaciones de este tipo.",
+    "markRead": "Marcar como leída",
+    "remove": "Quitar notificación",
+    "justNow": "Ahora mismo",
+    "secondsAgo_one": "hace {{count}} segundo",
+    "secondsAgo": "hace {{count}} segundos",
+    "minutesAgo_one": "hace {{count}} minuto",
+    "minutesAgo": "hace {{count}} minutos",
+    "hoursAgo_one": "hace {{count}} hora",
+    "hoursAgo": "hace {{count}} horas",
+    "daysAgo_one": "hace {{count}} día",
+    "daysAgo": "hace {{count}} días",
+    "session": {
+      "failed": "{{title}} se detuvo con un error.",
+      "failedWith": "{{title}} se detuvo con un error: {{error}}",
+      "interrupted": "{{title}} se interrumpió.",
+      "stopped": "{{title}} se detuvo."
+    }
+  },
+  "sandbox": {
+    "title": "Modo de sandbox {{mode}} · nivel {{tier}} · backend {{backend}}",
+    "chip": {
+      "off": "Sandbox desactivado",
+      "readOnly": "Sandbox · solo lectura",
+      "workspaceWrite": "Sandbox · escritura en el espacio de trabajo",
+      "full": "Sandbox · acceso completo"
+    }
+  },
+  "toolStats": {
+    "title": "Llamadas a herramientas",
+    "metric": {
+      "calls": "Llamadas",
+      "ok": "Correctas",
+      "failed": "Fallidas",
+      "rate": "Tasa de éxito",
+      "time": "Tiempo de herramientas",
+      "inFlight": "En curso"
+    },
+    "none": "Aún no hay llamadas a herramientas registradas en esta conversación. Aparecen aquí mientras el agente trabaja.",
+    "perTool": "Llamadas por herramienta",
+    "column": {
+      "tool": "Herramienta",
+      "outcome": "Resultado",
+      "calls": "Llamadas",
+      "rate": "Tasa de éxito",
+      "average": "Tiempo medio"
+    },
+    "agents": "Llamadas de agente a agente",
+    "outcome": "{{ok}} correctas · {{failed}} fallidas",
+    "catalogTitle": "En las conversaciones de este proyecto",
+    "catalogRefresh": "Volver a leer las conversaciones del proyecto",
+    "catalogNote": "Recuentos que el catálogo de sesiones guarda para las últimas {{n}} conversaciones del proyecto.",
+    "catalogReading": "Leyendo las conversaciones del proyecto…",
+    "catalogNone": "Ninguna conversación de este proyecto ha registrado aún llamadas a herramientas.",
+    "catalogTotals": "{{calls}} llamadas · {{failed}} fallidas · {{rate}} de éxito · conversaciones con llamadas a herramientas: {{sessions}}",
+    "sessionLine": "{{calls}} llamadas · {{failed}} fallidas · {{rate}}",
+    "thisConversation": "esta conversación"
   }
 }

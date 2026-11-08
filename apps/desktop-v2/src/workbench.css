@@ -247,6 +247,27 @@
 .session-stop:hover {
   color: var(--danger);
 }
+/* The conversation engine's sandbox posture, before the stop action at the strip's end. */
+.session-tabs .sandbox-chip {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.session-tabs .sandbox-chip.sandbox-enforced {
+  color: hsl(var(--ws-success));
+  border-color: color-mix(in srgb, hsl(var(--ws-success)) 45%, var(--border));
+}
+.session-tabs .sandbox-chip + .session-stop {
+  margin-left: 0;
+}
 .workspace-tabs {
   padding: 8px 16px;
   gap: 4px;

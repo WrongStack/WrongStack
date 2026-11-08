@@ -6,6 +6,7 @@ import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
 import { ProviderCloudSettings } from './ProviderCloudSettings';
 import { ProviderConnectionWiring } from './ProviderConnectionWiring';
+import { ProviderKeyReplace } from './ProviderKeyReplace';
 import { ProviderOAuth } from './ProviderOAuth';
 import { ProviderProbe } from './ProviderProbe';
 import { buildProviderSave, providerChoices, providerModels } from './provider-settings-model';
@@ -329,6 +330,15 @@ export function ProviderSettings({
                               >
                                 {t('providerSettings.useKey')}
                               </button>
+                            )}
+                            {key.authMethod !== 'oauth' && (
+                              <ProviderKeyReplace
+                                providerId={provider.id}
+                                label={key.label}
+                                disabled={pending || !state.connected}
+                                command={command}
+                                onStatus={setStatus}
+                              />
                             )}
                             <button
                               type="button"

@@ -4,6 +4,7 @@ import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { Modal } from './Modal';
+import { ProcessKillAll } from './ProcessKillAll';
 import { ProcessPreviewLinks } from './ProcessPreviewLinks';
 import {
   batchTermination,
@@ -265,6 +266,18 @@ export function SessionProcesses({
             <RefreshCw size={14} />
             {t('processes.refresh')}
           </button>
+          <ProcessKillAll
+            sessionId={sessionId}
+            running={processes.filter((proc) => proc.status === 'running').length}
+            connected={connected}
+            busy={pending}
+            command={command}
+            onDone={(result) => {
+              setNotice(result.ok ? result.message : '');
+              setError(result.ok ? '' : result.message);
+              void refresh();
+            }}
+          />
         </div>
       </header>
       <div className="process-summary">

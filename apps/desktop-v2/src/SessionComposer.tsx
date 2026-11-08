@@ -120,6 +120,7 @@ export function SessionComposer({
       draftAtOpen: string;
       freshContext?: boolean;
       restored?: RefinementDraft;
+      auto?: boolean;
     } | null>(null),
     [restore, setRestore] = useState<{
       text: string;
@@ -407,7 +408,8 @@ export function SessionComposer({
       }
       if ((forceRefine || enhanceEnabled) && text.trim()) {
         refineOwnsSaved.current = false;
-        setRefine({ original: text, mode: selected, draftAtOpen, freshContext });
+        const auto = !forceRefine; // review-on-submit waits the refine countdown first
+        setRefine({ original: text, mode: selected, draftAtOpen, freshContext, auto });
         return;
       }
       await deliver(text, selected, draftAtOpen, undefined, freshContext);
@@ -953,6 +955,7 @@ export function SessionComposer({
           command={command}
           state={state}
           restored={refine.restored}
+          countdown={refine.auto === true}
           onReview={(review) => {
             const { restored } = refine;
             // Reopening a saved review unchanged keeps its original time.

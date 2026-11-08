@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Akış tanılama",
       "description": "Bir sorunu incelerken sağlayıcı akışı için ek tanılama kaydet."
+    },
+    "enhanceDelayMs": {
+      "label": "İyileştirme gecikmesi",
+      "description": "Terminal arayüzünün iyileştirilmiş bir istemi kendiliğinden göndermeden önce ne kadar gösterdiği. Masaüstü ve WebUI senin seçimini bekler."
+    },
+    "enhanceCountdownMs": {
+      "label": "İyileştirme geri sayımı",
+      "description": "Gönderirken açılan bir iyileştirme başlamadan önceki bekleme süresi; bu sürede istem yazıldığı gibi gönderilebilir. 0 hemen başlatır. Bu bilgisayara hemen kaydedilir."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "ortamdan",
       "hint": "Profil değerleri ortam varsayılanlarını geçersiz kılar. Boş değerler ortamı kullanır. Kimlik bilgileri ayrı yönetilir.",
       "save": "Bulut ayarlarını kaydet"
+    },
+    "replace": {
+      "button": "Anahtarı değiştir",
+      "buttonLabel": "{{provider}} için {{label}} anahtarını değiştir",
+      "newKey": "Yeni API anahtarı",
+      "hint": "{{label}} anahtarı etiketini ve etkin seçimini korur; yalnızca saklanan gizli değer değişir.",
+      "cancel": "Vazgeç",
+      "save": "Yeni anahtarı kaydet",
+      "missing": "Yeni API anahtarını gir.",
+      "done": "{{provider}} için {{label}} anahtarı değiştirildi."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "PID {{pid}} sonlandırılsın mı?",
     "singleBody": "Bu, seçili izlenen komutu ve alt süreç ağacını durdurur. O komuttaki kaydedilmemiş işler kaybolabilir.",
     "keepOne": "Süreci çalışır durumda tut",
-    "confirmSingle": "Süreç sonlandırmayı onayla"
+    "confirmSingle": "Süreç sonlandırmayı onayla",
+    "killAll": {
+      "button": "Tümünü sonlandır…",
+      "title": "Tüm süreçleri sonlandır",
+      "ask_one": "Çalışan {{count}} süreç sonlandırılsın mı?",
+      "ask": "Çalışan {{count}} sürecin tümü sonlandırılsın mı?",
+      "body": "Bu konuşmanın motorunun izlediği her komut, alt süreç ağacıyla birlikte durdurulur. Diğer konuşmaların komutları çalışmaya devam eder. Bu komutlardaki kaydedilmemiş işler kaybolabilir.",
+      "confirm": "Tümünü sonlandır",
+      "done": "{{message}} Hâlâ izlenen bir süreç olup olmadığını yenileme doğrular."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} görev",
@@ -8336,7 +8363,15 @@
     "syncWait": "Oturum geçmişinin eşitlenmesi bekleniyor",
     "sending": "Gönderiliyor…",
     "syncing": "Geçmiş eşitleniyor…",
-    "approve": "Onayla ve gönder"
+    "approve": "Onayla ve gönder",
+    "countdown": {
+      "label": "İyileştirme geri sayımı",
+      "status_one": "{{count}} saniye içinde iyileştiriliyor…",
+      "status": "{{count}} saniye içinde iyileştiriliyor…",
+      "hint": "İstem hâlâ yazıldığı gibi gönderilebilir. Geri sayımın süresi istem iyileştirme ayarlarında belirlenir.",
+      "sendAsIs": "Yazıldığı gibi gönder",
+      "startNow": "Şimdi iyileştir"
+    }
   },
   "savedRefine": {
     "conflict": "Başka bir pencere kayıtlı iyileştirme incelemesini değiştirdi.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Proje ajanları",
     "tabsLabel": "Ajan görünümleri"
+  },
+  "notificationCenter": {
+    "title": "Bildirimler",
+    "unreadTitle_one": "Bildirimler ({{count}} okunmamış)",
+    "unreadTitle": "Bildirimler ({{count}} okunmamış)",
+    "unread_one": "{{count}} okunmamış",
+    "unread": "{{count}} okunmamış",
+    "markAllRead": "Tümünü okundu say",
+    "clearAll": "Tümünü temizle",
+    "show": "Göster",
+    "filter": {
+      "important": "Uyarılar ve hatalar",
+      "all": "Her tür",
+      "error": "Hatalar",
+      "warn": "Uyarılar",
+      "success": "Başarılı",
+      "info": "Bilgi"
+    },
+    "tabs": "Okunma durumu",
+    "tab": {
+      "all": "Tümü ({{n}})",
+      "unread": "Okunmamış ({{n}})"
+    },
+    "attention_one": "{{count}} konuşma ilgi bekliyor",
+    "attention": "{{count}} konuşma ilgi bekliyor",
+    "empty": "Bildirim yok",
+    "emptyHint": "Hatalar, kesintiye uğrayan konuşmalar ve motor bildirimleri burada görünür.",
+    "emptyFiltered": "Eşleşen bildirim yok",
+    "emptyFilteredHint": "Daha fazla bildirim görmek için başka bir tür seç.",
+    "allRead": "Hepsi okundu",
+    "allReadHint": "Bu türdeki her bildirim okundu.",
+    "markRead": "Okundu say",
+    "remove": "Bildirimi kaldır",
+    "justNow": "Az önce",
+    "secondsAgo_one": "{{count}} saniye önce",
+    "secondsAgo": "{{count}} saniye önce",
+    "minutesAgo_one": "{{count}} dakika önce",
+    "minutesAgo": "{{count}} dakika önce",
+    "hoursAgo_one": "{{count}} saat önce",
+    "hoursAgo": "{{count}} saat önce",
+    "daysAgo_one": "{{count}} gün önce",
+    "daysAgo": "{{count}} gün önce",
+    "session": {
+      "failed": "{{title}} bir hatayla durdu.",
+      "failedWith": "{{title}} bir hatayla durdu: {{error}}",
+      "interrupted": "{{title}} kesintiye uğradı.",
+      "stopped": "{{title}} durdu."
+    }
+  },
+  "sandbox": {
+    "title": "Korumalı alan kipi {{mode}} · seviye {{tier}} · arka uç {{backend}}",
+    "chip": {
+      "off": "Korumalı alan kapalı",
+      "readOnly": "Korumalı alan · salt okunur",
+      "workspaceWrite": "Korumalı alan · çalışma alanına yazma",
+      "full": "Korumalı alan · tam erişim"
+    }
+  },
+  "toolStats": {
+    "title": "Araç çağrıları",
+    "metric": {
+      "calls": "Çağrı",
+      "ok": "Başarılı",
+      "failed": "Başarısız",
+      "rate": "Başarı oranı",
+      "time": "Araç süresi",
+      "inFlight": "Sürüyor"
+    },
+    "none": "Bu konuşmada henüz araç çağrısı kaydedilmedi. Ajan çalıştıkça burada görünürler.",
+    "perTool": "Araç başına çağrılar",
+    "column": {
+      "tool": "Araç",
+      "outcome": "Sonuç",
+      "calls": "Çağrı",
+      "rate": "Başarı oranı",
+      "average": "Ortalama süre"
+    },
+    "agents": "Ajandan ajana çağrılar",
+    "outcome": "{{ok}} başarılı · {{failed}} başarısız",
+    "catalogTitle": "Bu projenin konuşmalarında",
+    "catalogRefresh": "Projenin konuşmalarını yeniden oku",
+    "catalogNote": "Oturum kataloğunun projenin son {{n}} konuşması için tuttuğu sayılar.",
+    "catalogReading": "Projenin konuşmaları okunuyor…",
+    "catalogNone": "Bu projede henüz araç çağrısı kaydeden bir konuşma yok.",
+    "catalogTotals": "{{calls}} çağrı · {{failed}} başarısız · {{rate}} başarı · araç çağrısı olan konuşmalar: {{sessions}}",
+    "sessionLine": "{{calls}} çağrı · {{failed}} başarısız · {{rate}}",
+    "thisConversation": "bu konuşma"
   }
 }

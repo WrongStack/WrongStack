@@ -1,0 +1,65 @@
+.tool-stats h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tool-stats-ratio {
+  display: flex;
+  width: 100%;
+  min-width: 56px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+.tool-stats-ratio .ok {
+  background: hsl(var(--ws-success));
+}
+.tool-stats-ratio .failed {
+  background: var(--danger);
+}
+.tool-stats-failed {
+  color: var(--danger);
+}
+.tool-stats table td,
+.tool-stats table th {
+  font-variant-numeric: tabular-nums;
+}
+.tool-stats-catalog {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tool-stats-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.tool-stats-rows li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(56px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 11px;
+}
+.tool-stats-rows li > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-stats-rows li > :last-child {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tool-stats-breakdown {
+  color: var(--muted);
+  font-family: var(--user-font-code, monospace);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}

@@ -6,6 +6,7 @@ import { useDesktopText } from './desktop-i18n';
 import { EngineWorkspace } from './EngineWorkspace';
 import { isLive } from './model';
 import { request } from './platform';
+import { SandboxChip } from './SandboxChip';
 import { requestSettingsSection } from './settings-section-request';
 import './draft-conflict.css';
 
@@ -74,6 +75,9 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
         >
           <Plus size={15} />
         </button>
+        {session.kind === 'agent' && isLive(session) && (
+          <SandboxChip key={session.id} sessionId={session.id} />
+        )}
         {isLive(session) && (
           <button
             type="button"

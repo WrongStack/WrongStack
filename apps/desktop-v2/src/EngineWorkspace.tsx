@@ -600,6 +600,7 @@ export function EngineWorkspace({
             command={command}
             onBack={() => setTab('chat')}
             delegations={state.delegations}
+            toolActivity={state}
           />
         </Suspense>
       ) : tab === 'story' ? (

@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Diagnostic du flux",
       "description": "Enregistre des diagnostics de streaming supplémentaires du fournisseur pendant l'analyse d'un problème."
+    },
+    "enhanceDelayMs": {
+      "label": "Délai d’affinage",
+      "description": "Durée pendant laquelle l’interface du terminal affiche un prompt affiné avant de l’envoyer d’elle-même. Le bureau et la WebUI attendent votre choix."
+    },
+    "enhanceCountdownMs": {
+      "label": "Compte à rebours d’affinage",
+      "description": "Délai avant le démarrage d’un affinage ouvert à l’envoi ; jusque-là, le prompt peut être envoyé tel qu’écrit. 0 le démarre aussitôt. Enregistré immédiatement sur cet ordinateur."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "depuis l’environnement",
       "hint": "Les valeurs du profil remplacent celles de l’environnement. Les valeurs vides utilisent l’environnement. Les identifiants sont gérés à part.",
       "save": "Enregistrer les réglages cloud"
+    },
+    "replace": {
+      "button": "Remplacer la clé",
+      "buttonLabel": "Remplacer la clé {{label}} de {{provider}}",
+      "newKey": "Nouvelle clé API",
+      "hint": "La clé {{label}} garde son nom et son choix actif ; seul le secret enregistré change.",
+      "cancel": "Annuler",
+      "save": "Enregistrer la nouvelle clé",
+      "missing": "Saisissez la nouvelle clé API.",
+      "done": "La clé {{label}} de {{provider}} a été remplacée."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "Arrêter le PID {{pid}} ?",
     "singleBody": "Cela arrête la commande suivie sélectionnée et son arbre de processus enfants. Le travail non enregistré dans cette commande peut être perdu.",
     "keepOne": "Laisser le processus tourner",
-    "confirmSingle": "Confirmer l’arrêt du processus"
+    "confirmSingle": "Confirmer l’arrêt du processus",
+    "killAll": {
+      "button": "Tout arrêter…",
+      "title": "Arrêter tous les processus",
+      "ask_one": "Arrêter le processus en cours ({{count}}) ?",
+      "ask": "Arrêter les {{count}} processus en cours ?",
+      "body": "Chaque commande suivie par le moteur de cette conversation est arrêtée avec son arbre de processus enfants. Les commandes des autres conversations continuent. Le travail non enregistré dans ces commandes peut être perdu.",
+      "confirm": "Tout arrêter",
+      "done": "{{message}} L’actualisation vérifie si l’un d’eux est encore suivi."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} tâche",
@@ -8336,7 +8363,15 @@
     "syncWait": "En attente de la synchronisation de l’historique de session",
     "sending": "Envoi…",
     "syncing": "Synchronisation de l’historique…",
-    "approve": "Approuver et envoyer"
+    "approve": "Approuver et envoyer",
+    "countdown": {
+      "label": "Compte à rebours de l’affinage",
+      "status_one": "Affinage dans {{count}} seconde…",
+      "status": "Affinage dans {{count}} secondes…",
+      "hint": "Le prompt peut encore être envoyé tel qu’écrit. La durée du compte à rebours se règle dans les paramètres d’affinage des prompts.",
+      "sendAsIs": "Envoyer tel quel",
+      "startNow": "Affiner maintenant"
+    }
   },
   "savedRefine": {
     "conflict": "Une autre fenêtre a modifié la relecture de raffinage enregistrée.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Agents du projet",
     "tabsLabel": "Vues des agents"
+  },
+  "notificationCenter": {
+    "title": "Notifications",
+    "unreadTitle_one": "Notifications ({{count}} non lue)",
+    "unreadTitle": "Notifications ({{count}} non lues)",
+    "unread_one": "{{count}} non lue",
+    "unread": "{{count}} non lues",
+    "markAllRead": "Tout marquer comme lu",
+    "clearAll": "Tout effacer",
+    "show": "Afficher",
+    "filter": {
+      "important": "Avertissements et erreurs",
+      "all": "Tous les types",
+      "error": "Erreurs",
+      "warn": "Avertissements",
+      "success": "Réussites",
+      "info": "Informations"
+    },
+    "tabs": "État de lecture",
+    "tab": {
+      "all": "Toutes ({{n}})",
+      "unread": "Non lues ({{n}})"
+    },
+    "attention_one": "{{count}} conversation demande votre attention",
+    "attention": "{{count}} conversations demandent votre attention",
+    "empty": "Aucune notification",
+    "emptyHint": "Les erreurs, les conversations interrompues et les avis du moteur apparaissent ici.",
+    "emptyFiltered": "Aucune notification correspondante",
+    "emptyFilteredHint": "Choisissez un autre type pour voir plus de notifications.",
+    "allRead": "Tout est lu",
+    "allReadHint": "Toutes les notifications de ce type ont été lues.",
+    "markRead": "Marquer comme lue",
+    "remove": "Supprimer la notification",
+    "justNow": "À l’instant",
+    "secondsAgo_one": "il y a {{count}} seconde",
+    "secondsAgo": "il y a {{count}} secondes",
+    "minutesAgo_one": "il y a {{count}} minute",
+    "minutesAgo": "il y a {{count}} minutes",
+    "hoursAgo_one": "il y a {{count}} heure",
+    "hoursAgo": "il y a {{count}} heures",
+    "daysAgo_one": "il y a {{count}} jour",
+    "daysAgo": "il y a {{count}} jours",
+    "session": {
+      "failed": "{{title}} s’est arrêtée sur une erreur.",
+      "failedWith": "{{title}} s’est arrêtée sur une erreur : {{error}}",
+      "interrupted": "{{title}} a été interrompue.",
+      "stopped": "{{title}} s’est arrêtée."
+    }
+  },
+  "sandbox": {
+    "title": "Mode du bac à sable {{mode}} · niveau {{tier}} · moteur {{backend}}",
+    "chip": {
+      "off": "Bac à sable désactivé",
+      "readOnly": "Bac à sable · lecture seule",
+      "workspaceWrite": "Bac à sable · écriture dans l’espace de travail",
+      "full": "Bac à sable · accès complet"
+    }
+  },
+  "toolStats": {
+    "title": "Appels d’outils",
+    "metric": {
+      "calls": "Appels",
+      "ok": "Réussis",
+      "failed": "Échoués",
+      "rate": "Taux de réussite",
+      "time": "Temps des outils",
+      "inFlight": "En cours"
+    },
+    "none": "Aucun appel d’outil n’est encore enregistré dans cette conversation. Ils apparaissent ici pendant que l’agent travaille.",
+    "perTool": "Appels par outil",
+    "column": {
+      "tool": "Outil",
+      "outcome": "Résultat",
+      "calls": "Appels",
+      "rate": "Taux de réussite",
+      "average": "Temps moyen"
+    },
+    "agents": "Appels d’agent à agent",
+    "outcome": "{{ok}} réussis · {{failed}} échoués",
+    "catalogTitle": "Dans les conversations de ce projet",
+    "catalogRefresh": "Relire les conversations du projet",
+    "catalogNote": "Comptes que le catalogue des sessions conserve pour les {{n}} dernières conversations du projet.",
+    "catalogReading": "Lecture des conversations du projet…",
+    "catalogNone": "Aucune conversation de ce projet n’a encore enregistré d’appel d’outil.",
+    "catalogTotals": "{{calls}} appels · {{failed}} échoués · {{rate}} de réussite · conversations avec appels d’outils : {{sessions}}",
+    "sessionLine": "{{calls}} appels · {{failed}} échoués · {{rate}}",
+    "thisConversation": "cette conversation"
   }
 }

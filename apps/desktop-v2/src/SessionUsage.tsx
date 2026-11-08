@@ -5,6 +5,7 @@ import { type DelegationRecord, withWorkerEstimates } from './delegations';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { SessionDelegations } from './SessionDelegations';
+import { SessionToolStats, type ToolActivity } from './SessionToolStats';
 import {
   type PromptUsage,
   type UsageSnapshot,
@@ -109,6 +110,7 @@ export function SessionUsage({
   command,
   onBack,
   delegations = [],
+  toolActivity,
 }: {
   sessionId: string;
   sessionTitle: string;
@@ -117,6 +119,8 @@ export function SessionUsage({
   onBack: () => void;
   /** Worker delegations the engine reported for this conversation. */
   delegations?: DelegationRecord[] | undefined;
+  /** The conversation's tool events, for its per-tool statistics. */
+  toolActivity?: ToolActivity | undefined;
 }) {
   const { t, number, money, ratio } = useUsageFormat();
   const [snapshot, setSnapshot] = useState<UsageSnapshot | null>(null),
@@ -402,6 +406,9 @@ export function SessionUsage({
             <p>{t('usageView.footprintNote')}</p>
           </section>
         </>
+      )}
+      {toolActivity && (
+        <SessionToolStats activity={toolActivity} connected={connected} command={command} />
       )}
       <SessionDelegations delegations={delegations} />
     </section>

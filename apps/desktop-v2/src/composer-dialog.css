@@ -86,3 +86,24 @@
   gap: 9px;
   margin-top: 20px;
 }
+/* The grace period before an automatic refinement starts. */
+.refine-countdown {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
+}
+.refine-countdown > p[role="status"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.refine-countdown .field-help {
+  margin: 0;
+}

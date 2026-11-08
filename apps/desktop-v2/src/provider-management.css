@@ -3,6 +3,20 @@
   gap: 6px;
   margin-left: auto;
 }
+/* Replacing a key opens its form across the whole key row. */
+.saved-key-actions:has(.provider-key-replace) {
+  flex-basis: 100%;
+  flex-wrap: wrap;
+}
+.provider-key-replace {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 6px;
+}
+.provider-key-replace label {
+  display: grid;
+  gap: 4px;
+}
 .saved-provider-list .saved-key-actions button {
   width: auto;
   display: inline-flex;

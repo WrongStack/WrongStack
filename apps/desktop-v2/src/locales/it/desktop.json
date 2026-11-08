@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Diagnostica dello stream",
       "description": "Registra ulteriori diagnostiche di streaming del provider mentre indaghi un problema."
+    },
+    "enhanceDelayMs": {
+      "label": "Ritardo di perfezionamento",
+      "description": "Per quanto tempo l’interfaccia del terminale mostra un prompt perfezionato prima di inviarlo da sola. Il desktop e la WebUI attendono la tua scelta."
+    },
+    "enhanceCountdownMs": {
+      "label": "Conto alla rovescia di perfezionamento",
+      "description": "Attesa prima che parta un perfezionamento aperto all’invio; fino ad allora il prompt può essere inviato così com’è. 0 lo avvia subito. Salvato subito su questo computer."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "dall’ambiente",
       "hint": "I valori del profilo sostituiscono quelli dell’ambiente. I valori vuoti usano l’ambiente. Le credenziali sono gestite a parte.",
       "save": "Salva le impostazioni cloud"
+    },
+    "replace": {
+      "button": "Sostituisci chiave",
+      "buttonLabel": "Sostituisci la chiave {{label}} di {{provider}}",
+      "newKey": "Nuova chiave API",
+      "hint": "La chiave {{label}} mantiene la sua etichetta e la scelta attiva; cambia solo il segreto salvato.",
+      "cancel": "Annulla",
+      "save": "Salva la nuova chiave",
+      "missing": "Inserisci la nuova chiave API.",
+      "done": "La chiave {{label}} di {{provider}} è stata sostituita."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "Terminare il PID {{pid}}?",
     "singleBody": "Questo ferma il comando tracciato selezionato e il suo albero di processi figli. Il lavoro non salvato in quel comando può andare perso.",
     "keepOne": "Lascia in esecuzione il processo",
-    "confirmSingle": "Conferma la terminazione del processo"
+    "confirmSingle": "Conferma la terminazione del processo",
+    "killAll": {
+      "button": "Termina tutti…",
+      "title": "Termina tutti i processi",
+      "ask_one": "Terminare il processo in esecuzione ({{count}})?",
+      "ask": "Terminare tutti i {{count}} processi in esecuzione?",
+      "body": "Ogni comando seguito dal motore di questa conversazione viene fermato insieme al suo albero di processi figli. I comandi delle altre conversazioni continuano. Il lavoro non salvato in questi comandi può andare perso.",
+      "confirm": "Termina tutti",
+      "done": "{{message}} L’aggiornamento verifica se qualcuno è ancora seguito."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} attività",
@@ -8336,7 +8363,15 @@
     "syncWait": "In attesa della sincronizzazione della cronologia della sessione",
     "sending": "Invio…",
     "syncing": "Sincronizzazione della cronologia…",
-    "approve": "Approva e invia"
+    "approve": "Approva e invia",
+    "countdown": {
+      "label": "Conto alla rovescia del perfezionamento",
+      "status_one": "Perfezionamento tra {{count}} secondo…",
+      "status": "Perfezionamento tra {{count}} secondi…",
+      "hint": "Il prompt può ancora essere inviato così com’è scritto. La durata del conto alla rovescia si imposta nelle impostazioni di perfezionamento dei prompt.",
+      "sendAsIs": "Invia così com’è",
+      "startNow": "Perfeziona ora"
+    }
   },
   "savedRefine": {
     "conflict": "Un’altra finestra ha modificato la revisione del raffinamento salvata.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Agenti del progetto",
     "tabsLabel": "Viste degli agenti"
+  },
+  "notificationCenter": {
+    "title": "Notifiche",
+    "unreadTitle_one": "Notifiche ({{count}} non letta)",
+    "unreadTitle": "Notifiche ({{count}} non lette)",
+    "unread_one": "{{count}} non letta",
+    "unread": "{{count}} non lette",
+    "markAllRead": "Segna tutte come lette",
+    "clearAll": "Cancella tutte",
+    "show": "Mostra",
+    "filter": {
+      "important": "Avvisi ed errori",
+      "all": "Ogni tipo",
+      "error": "Errori",
+      "warn": "Avvisi",
+      "success": "Successi",
+      "info": "Informazioni"
+    },
+    "tabs": "Stato di lettura",
+    "tab": {
+      "all": "Tutte ({{n}})",
+      "unread": "Non lette ({{n}})"
+    },
+    "attention_one": "{{count}} conversazione richiede attenzione",
+    "attention": "{{count}} conversazioni richiedono attenzione",
+    "empty": "Nessuna notifica",
+    "emptyHint": "Errori, conversazioni interrotte e avvisi del motore compaiono qui.",
+    "emptyFiltered": "Nessuna notifica corrispondente",
+    "emptyFilteredHint": "Scegli un altro tipo per vedere altre notifiche.",
+    "allRead": "Tutto letto",
+    "allReadHint": "Ogni notifica di questo tipo è stata letta.",
+    "markRead": "Segna come letta",
+    "remove": "Rimuovi notifica",
+    "justNow": "Proprio ora",
+    "secondsAgo_one": "{{count}} secondo fa",
+    "secondsAgo": "{{count}} secondi fa",
+    "minutesAgo_one": "{{count}} minuto fa",
+    "minutesAgo": "{{count}} minuti fa",
+    "hoursAgo_one": "{{count}} ora fa",
+    "hoursAgo": "{{count}} ore fa",
+    "daysAgo_one": "{{count}} giorno fa",
+    "daysAgo": "{{count}} giorni fa",
+    "session": {
+      "failed": "{{title}} si è fermata con un errore.",
+      "failedWith": "{{title}} si è fermata con un errore: {{error}}",
+      "interrupted": "{{title}} è stata interrotta.",
+      "stopped": "{{title}} si è fermata."
+    }
+  },
+  "sandbox": {
+    "title": "Modalità sandbox {{mode}} · livello {{tier}} · backend {{backend}}",
+    "chip": {
+      "off": "Sandbox disattivata",
+      "readOnly": "Sandbox · sola lettura",
+      "workspaceWrite": "Sandbox · scrittura nell’area di lavoro",
+      "full": "Sandbox · accesso completo"
+    }
+  },
+  "toolStats": {
+    "title": "Chiamate agli strumenti",
+    "metric": {
+      "calls": "Chiamate",
+      "ok": "Riuscite",
+      "failed": "Non riuscite",
+      "rate": "Tasso di successo",
+      "time": "Tempo degli strumenti",
+      "inFlight": "In corso"
+    },
+    "none": "In questa conversazione non sono ancora state registrate chiamate agli strumenti. Compaiono qui mentre l’agente lavora.",
+    "perTool": "Chiamate per strumento",
+    "column": {
+      "tool": "Strumento",
+      "outcome": "Esito",
+      "calls": "Chiamate",
+      "rate": "Tasso di successo",
+      "average": "Tempo medio"
+    },
+    "agents": "Chiamate da agente ad agente",
+    "outcome": "{{ok}} riuscite · {{failed}} non riuscite",
+    "catalogTitle": "Nelle conversazioni di questo progetto",
+    "catalogRefresh": "Rileggi le conversazioni del progetto",
+    "catalogNote": "Conteggi che il catalogo delle sessioni conserva per le ultime {{n}} conversazioni del progetto.",
+    "catalogReading": "Lettura delle conversazioni del progetto…",
+    "catalogNone": "Nessuna conversazione di questo progetto ha ancora registrato chiamate agli strumenti.",
+    "catalogTotals": "{{calls}} chiamate · {{failed}} non riuscite · {{rate}} di successo · conversazioni con chiamate agli strumenti: {{sessions}}",
+    "sessionLine": "{{calls}} chiamate · {{failed}} non riuscite · {{rate}}",
+    "thisConversation": "questa conversazione"
   }
 }

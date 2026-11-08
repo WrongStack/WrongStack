@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Stream-Diagnose",
       "description": "Zeichnet zusätzliche Streaming-Diagnosen des Anbieters auf, während du ein Problem untersuchst."
+    },
+    "enhanceDelayMs": {
+      "label": "Verfeinerungsverzögerung",
+      "description": "Wie lange die Terminaloberfläche einen verfeinerten Prompt zeigt, bevor sie ihn selbst sendet. Desktop und WebUI warten auf deine Wahl."
+    },
+    "enhanceCountdownMs": {
+      "label": "Verfeinerungs-Countdown",
+      "description": "Wartezeit, bevor eine beim Senden geöffnete Verfeinerung startet; bis dahin kann der Prompt wie geschrieben gesendet werden. 0 startet sie sofort. Wird sofort auf diesem Computer gespeichert."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "aus der Umgebung",
       "hint": "Profilwerte überschreiben die Vorgaben der Umgebung. Leere Werte nutzen die Umgebung. Zugangsdaten werden getrennt verwaltet.",
       "save": "Cloud-Einstellungen speichern"
+    },
+    "replace": {
+      "button": "Schlüssel ersetzen",
+      "buttonLabel": "Den Schlüssel {{label}} für {{provider}} ersetzen",
+      "newKey": "Neuer API-Schlüssel",
+      "hint": "Der Schlüssel {{label}} behält seine Bezeichnung und Aktiv-Auswahl; nur das gespeicherte Geheimnis ändert sich.",
+      "cancel": "Abbrechen",
+      "save": "Neuen Schlüssel speichern",
+      "missing": "Gib den neuen API-Schlüssel ein.",
+      "done": "Der Schlüssel {{label}} für {{provider}} wurde ersetzt."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "PID {{pid}} beenden?",
     "singleBody": "Dies stoppt den ausgewählten verfolgten Befehl samt Unterprozessbaum. Nicht gespeicherte Arbeit in diesem Befehl kann verloren gehen.",
     "keepOne": "Prozess weiterlaufen lassen",
-    "confirmSingle": "Beenden des Prozesses bestätigen"
+    "confirmSingle": "Beenden des Prozesses bestätigen",
+    "killAll": {
+      "button": "Alle beenden…",
+      "title": "Alle Prozesse beenden",
+      "ask_one": "Den {{count}} laufenden Prozess beenden?",
+      "ask": "Alle {{count}} laufenden Prozesse beenden?",
+      "body": "Jeder Befehl, den die Engine dieser Unterhaltung verfolgt, wird samt Kindprozessbaum gestoppt. Befehle anderer Unterhaltungen laufen weiter. Nicht gespeicherte Arbeit in diesen Befehlen kann verloren gehen.",
+      "confirm": "Alle beenden",
+      "done": "{{message}} Aktualisieren prüft, ob noch einer verfolgt wird."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} Aufgabe",
@@ -8336,7 +8363,15 @@
     "syncWait": "Warten auf die Synchronisierung des Sitzungsverlaufs",
     "sending": "Wird gesendet…",
     "syncing": "Verlauf wird synchronisiert…",
-    "approve": "Bestätigen & senden"
+    "approve": "Bestätigen & senden",
+    "countdown": {
+      "label": "Countdown der Verfeinerung",
+      "status_one": "Verfeinerung in {{count}} Sekunde…",
+      "status": "Verfeinerung in {{count}} Sekunden…",
+      "hint": "Der Prompt kann noch wie geschrieben gesendet werden. Die Länge des Countdowns legst du in den Einstellungen zur Prompt-Verfeinerung fest.",
+      "sendAsIs": "Wie geschrieben senden",
+      "startNow": "Jetzt verfeinern"
+    }
   },
   "savedRefine": {
     "conflict": "Ein anderes Fenster hat die gespeicherte Verfeinerungsprüfung geändert.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Projektagenten",
     "tabsLabel": "Agentenansichten"
+  },
+  "notificationCenter": {
+    "title": "Benachrichtigungen",
+    "unreadTitle_one": "Benachrichtigungen ({{count}} ungelesen)",
+    "unreadTitle": "Benachrichtigungen ({{count}} ungelesen)",
+    "unread_one": "{{count}} ungelesen",
+    "unread": "{{count}} ungelesen",
+    "markAllRead": "Alle als gelesen markieren",
+    "clearAll": "Alle löschen",
+    "show": "Anzeigen",
+    "filter": {
+      "important": "Warnungen und Fehler",
+      "all": "Alle Arten",
+      "error": "Fehler",
+      "warn": "Warnungen",
+      "success": "Erfolg",
+      "info": "Information"
+    },
+    "tabs": "Lesestatus",
+    "tab": {
+      "all": "Alle ({{n}})",
+      "unread": "Ungelesen ({{n}})"
+    },
+    "attention_one": "{{count}} Unterhaltung braucht Aufmerksamkeit",
+    "attention": "{{count}} Unterhaltungen brauchen Aufmerksamkeit",
+    "empty": "Keine Benachrichtigungen",
+    "emptyHint": "Fehler, unterbrochene Unterhaltungen und Engine-Hinweise erscheinen hier.",
+    "emptyFiltered": "Keine passenden Benachrichtigungen",
+    "emptyFilteredHint": "Wähle eine andere Art, um mehr Benachrichtigungen zu sehen.",
+    "allRead": "Alles gelesen",
+    "allReadHint": "Jede Benachrichtigung dieser Art wurde gelesen.",
+    "markRead": "Als gelesen markieren",
+    "remove": "Benachrichtigung entfernen",
+    "justNow": "Gerade eben",
+    "secondsAgo_one": "vor {{count}} Sekunde",
+    "secondsAgo": "vor {{count}} Sekunden",
+    "minutesAgo_one": "vor {{count}} Minute",
+    "minutesAgo": "vor {{count}} Minuten",
+    "hoursAgo_one": "vor {{count}} Stunde",
+    "hoursAgo": "vor {{count}} Stunden",
+    "daysAgo_one": "vor {{count}} Tag",
+    "daysAgo": "vor {{count}} Tagen",
+    "session": {
+      "failed": "{{title}} wurde mit einem Fehler beendet.",
+      "failedWith": "{{title}} wurde mit einem Fehler beendet: {{error}}",
+      "interrupted": "{{title}} wurde unterbrochen.",
+      "stopped": "{{title}} wurde beendet."
+    }
+  },
+  "sandbox": {
+    "title": "Sandbox-Modus {{mode}} · Stufe {{tier}} · Backend {{backend}}",
+    "chip": {
+      "off": "Sandbox aus",
+      "readOnly": "Sandbox · nur lesen",
+      "workspaceWrite": "Sandbox · Arbeitsbereich schreiben",
+      "full": "Sandbox · voller Zugriff"
+    }
+  },
+  "toolStats": {
+    "title": "Werkzeugaufrufe",
+    "metric": {
+      "calls": "Aufrufe",
+      "ok": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "rate": "Erfolgsquote",
+      "time": "Werkzeugzeit",
+      "inFlight": "Laufend"
+    },
+    "none": "In dieser Unterhaltung wurden noch keine Werkzeugaufrufe aufgezeichnet. Sie erscheinen hier, während der Agent arbeitet.",
+    "perTool": "Aufrufe pro Werkzeug",
+    "column": {
+      "tool": "Werkzeug",
+      "outcome": "Ergebnis",
+      "calls": "Aufrufe",
+      "rate": "Erfolgsquote",
+      "average": "Durchschnittliche Zeit"
+    },
+    "agents": "Aufrufe zwischen Agenten",
+    "outcome": "{{ok}} erfolgreich · {{failed}} fehlgeschlagen",
+    "catalogTitle": "Über die Unterhaltungen dieses Projekts",
+    "catalogRefresh": "Die Unterhaltungen des Projekts erneut lesen",
+    "catalogNote": "Zählungen, die der Sitzungskatalog für die letzten {{n}} Unterhaltungen des Projekts führt.",
+    "catalogReading": "Die Unterhaltungen des Projekts werden gelesen…",
+    "catalogNone": "Noch keine Unterhaltung in diesem Projekt hat Werkzeugaufrufe aufgezeichnet.",
+    "catalogTotals": "{{calls}} Aufrufe · {{failed}} fehlgeschlagen · {{rate}} Erfolg · Unterhaltungen mit Werkzeugaufrufen: {{sessions}}",
+    "sessionLine": "{{calls}} Aufrufe · {{failed}} fehlgeschlagen · {{rate}}",
+    "thisConversation": "diese Unterhaltung"
   }
 }

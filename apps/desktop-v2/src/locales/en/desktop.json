@@ -572,6 +572,14 @@
     "debugStream": {
       "label": "Stream diagnostics",
       "description": "Record additional provider streaming diagnostics while investigating a problem."
+    },
+    "enhanceDelayMs": {
+      "label": "Refine delay",
+      "description": "How long the terminal interface shows a refined prompt before sending it by itself. The desktop and the WebUI wait for your choice."
+    },
+    "enhanceCountdownMs": {
+      "label": "Refine countdown",
+      "description": "Grace period before a refinement that opens on submit starts; until then the prompt can be sent as written. 0 starts it at once. Saved on this computer right away."
     }
   },
   "options": {
@@ -4699,6 +4707,16 @@
       "fromEnvironment": "from the environment",
       "hint": "Profile values override environment defaults. Empty values use the environment. Credentials are managed separately.",
       "save": "Save cloud settings"
+    },
+    "replace": {
+      "button": "Replace key",
+      "buttonLabel": "Replace the {{label}} key for {{provider}}",
+      "newKey": "New API key",
+      "hint": "The {{label}} key keeps its label and active choice; only the stored secret changes.",
+      "cancel": "Cancel",
+      "save": "Save new key",
+      "missing": "Enter the new API key.",
+      "done": "The {{label}} key for {{provider}} was replaced."
     }
   },
   "processes": {
@@ -4791,7 +4809,16 @@
     "singleAsk": "Terminate PID {{pid}}?",
     "singleBody": "This stops the selected tracked command and its child process tree. Unsaved work inside that command may be lost.",
     "keepOne": "Keep process running",
-    "confirmSingle": "Confirm process termination"
+    "confirmSingle": "Confirm process termination",
+    "killAll": {
+      "button": "Terminate all…",
+      "title": "Terminate all processes",
+      "ask_one": "Terminate the {{count}} running process?",
+      "ask": "Terminate all {{count}} running processes?",
+      "body": "Every command this conversation’s engine tracks is stopped with its child process tree. Other conversations’ commands keep running. Unsaved work inside these commands may be lost.",
+      "confirm": "Terminate all",
+      "done": "{{message}} Refresh verifies whether any is still tracked."
+    }
   },
   "sddView": {
     "progress_one": "{{status}} · {{completed}} / {{count}} task",
@@ -8336,7 +8363,15 @@
     "syncWait": "Waiting for the session history to sync",
     "sending": "Sending…",
     "syncing": "Syncing history…",
-    "approve": "Approve & send"
+    "approve": "Approve & send",
+    "countdown": {
+      "label": "Refinement countdown",
+      "status_one": "Refining in {{count}} second…",
+      "status": "Refining in {{count}} seconds…",
+      "hint": "The prompt can still be sent as written. The countdown length is set in the prompt refinement settings.",
+      "sendAsIs": "Send as written",
+      "startNow": "Refine now"
+    }
   },
   "savedRefine": {
     "conflict": "Another window changed the saved refinement review.",
@@ -9435,5 +9470,92 @@
   "agentWorkspace": {
     "label": "Project agents",
     "tabsLabel": "Agent views"
+  },
+  "notificationCenter": {
+    "title": "Notifications",
+    "unreadTitle_one": "Notifications ({{count}} unread)",
+    "unreadTitle": "Notifications ({{count}} unread)",
+    "unread_one": "{{count}} unread",
+    "unread": "{{count}} unread",
+    "markAllRead": "Mark all as read",
+    "clearAll": "Clear all",
+    "show": "Show",
+    "filter": {
+      "important": "Warnings and errors",
+      "all": "Every type",
+      "error": "Errors",
+      "warn": "Warnings",
+      "success": "Success",
+      "info": "Information"
+    },
+    "tabs": "Read status",
+    "tab": {
+      "all": "All ({{n}})",
+      "unread": "Unread ({{n}})"
+    },
+    "attention_one": "{{count}} conversation needs attention",
+    "attention": "{{count}} conversations need attention",
+    "empty": "No notifications",
+    "emptyHint": "Errors, interrupted conversations and engine notices appear here.",
+    "emptyFiltered": "No matching notifications",
+    "emptyFilteredHint": "Choose another type to see more notifications.",
+    "allRead": "All caught up",
+    "allReadHint": "Every notification of this type has been read.",
+    "markRead": "Mark as read",
+    "remove": "Remove notification",
+    "justNow": "Just now",
+    "secondsAgo_one": "{{count}} second ago",
+    "secondsAgo": "{{count}} seconds ago",
+    "minutesAgo_one": "{{count}} minute ago",
+    "minutesAgo": "{{count}} minutes ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo": "{{count}} hours ago",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo": "{{count}} days ago",
+    "session": {
+      "failed": "{{title}} stopped with an error.",
+      "failedWith": "{{title}} stopped with an error: {{error}}",
+      "interrupted": "{{title}} was interrupted.",
+      "stopped": "{{title}} stopped."
+    }
+  },
+  "sandbox": {
+    "title": "Sandbox mode {{mode}} · tier {{tier}} · backend {{backend}}",
+    "chip": {
+      "off": "Sandbox off",
+      "readOnly": "Sandbox · read-only",
+      "workspaceWrite": "Sandbox · workspace write",
+      "full": "Sandbox · full access"
+    }
+  },
+  "toolStats": {
+    "title": "Tool calls",
+    "metric": {
+      "calls": "Calls",
+      "ok": "Succeeded",
+      "failed": "Failed",
+      "rate": "Success rate",
+      "time": "Tool time",
+      "inFlight": "In flight"
+    },
+    "none": "No tool calls recorded in this conversation yet. They appear here as the agent works.",
+    "perTool": "Calls per tool",
+    "column": {
+      "tool": "Tool",
+      "outcome": "Outcome",
+      "calls": "Calls",
+      "rate": "Success rate",
+      "average": "Average time"
+    },
+    "agents": "Agent-to-agent calls",
+    "outcome": "{{ok}} succeeded · {{failed}} failed",
+    "catalogTitle": "Across this project’s conversations",
+    "catalogRefresh": "Read the project’s conversations again",
+    "catalogNote": "Counts the session catalog keeps for the project’s latest {{n}} conversations.",
+    "catalogReading": "Reading the project’s conversations…",
+    "catalogNone": "No conversation in this project has recorded tool calls yet.",
+    "catalogTotals": "{{calls}} calls · {{failed}} failed · {{rate}} success · conversations with tool calls: {{sessions}}",
+    "sessionLine": "{{calls}} calls · {{failed}} failed · {{rate}}",
+    "thisConversation": "this conversation"
   }
 }

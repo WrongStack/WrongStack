@@ -1,8 +1,10 @@
-import { Bell, ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
+import { ExternalLink, Moon, Plus, Radio, Sun, X } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import { FleetPanel } from './FleetPanel';
+import { NotificationMenu } from './NotificationMenu';
+import { useNotificationFeed } from './notification-feed';
 import { ProjectViews } from './ProjectViews';
 import { native, openProjectWindow } from './platform';
 import { Sidebar } from './Sidebar';
@@ -42,6 +44,7 @@ export function App() {
     currentSession,
     setSelected,
   } = vm;
+  useNotificationFeed(error, snapshot.sessions);
   const focused = section === 'fleet' && currentSession !== undefined;
   return (
     <div className="app-shell">
@@ -104,21 +107,15 @@ export function App() {
             >
               {vm.mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <button
-              type="button"
-              className="icon-button"
-              title={t('topbar.attention')}
-              aria-label={t('topbar.attention')}
-              onClick={() => {
+            <NotificationMenu
+              attention={attention.length}
+              onAttention={() => {
                 setFilter('attention');
                 setProject(null);
                 setSection('fleet');
                 setSelected(null);
               }}
-            >
-              <Bell size={16} />
-              {attention.length > 0 && <span className="notification-dot" />}
-            </button>
+            />
             <span
               className={`connection-dot ${connected ? 'running' : 'stopped'}`}
               role="status"

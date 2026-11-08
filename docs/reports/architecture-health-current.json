@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T11:51:19.853Z",
+  "generatedAt": "2026-11-08T12:38:52.317Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6090,
-    "testFiles": 5069,
-    "sourceLines": 1260026,
+    "sourceFiles": 6101,
+    "testFiles": 5075,
+    "sourceLines": 1261398,
     "workspaceEdges": 248,
-    "moduleEdges": 17981,
+    "moduleEdges": 18021,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 292,
+    "testsWithoutTypecheck": 298,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1030
   },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 456,
-      "testFiles": 292,
+      "sourceFiles": 467,
+      "testFiles": 298,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2358,6 +2358,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/notification-center.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
         "projects": [
           "root-node"
@@ -2413,6 +2419,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/portable.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/process-kill-all.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2556,6 +2568,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/provider-key-replace.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/provider-pages-i18n.test.ts",
         "projects": [
           "root-node"
@@ -2587,6 +2605,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/recovery-log.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/refine-countdown.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2707,6 +2731,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/sandbox-chip.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3001,6 +3031,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-output-actions.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/tool-stats.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32947,6 +32983,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/notification-center.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/oauth-model.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33011,6 +33054,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/portable.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/process-kill-all.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33178,6 +33228,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/provider-key-replace.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/provider-pages-i18n.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33214,6 +33271,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/recovery-log.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/refine-countdown.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33354,6 +33418,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/sage-model.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/sandbox-chip.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -33697,6 +33768,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/tool-output-actions.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/tool-stats.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -34271,6 +34349,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/NotificationMenu.tsx",
+      "specifier": "./notification-center.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/PdfFrame.tsx",
       "specifier": "./pdf-frame.css",
       "syntax": "import"
@@ -34508,6 +34591,11 @@
     {
       "from": "apps/desktop-v2/src/SessionTodos.tsx",
       "specifier": "./session-todos.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionToolStats.tsx",
+      "specifier": "./tool-stats.css",
       "syntax": "import"
     },
     {
@@ -34791,7 +34879,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 709,
+      "lines": 710,
       "relativeImports": 45
     },
     {
@@ -34856,7 +34944,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1063,
+      "lines": 1066,
       "relativeImports": 37
     },
     {
@@ -34898,7 +34986,7 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1063,
+      "lines": 1066,
       "relativeImports": 37
     },
     {
@@ -35063,7 +35151,7 @@
     },
     {
       "file": "apps/desktop-v2/src/EngineWorkspace.tsx",
-      "lines": 709,
+      "lines": 710,
       "relativeImports": 45
     },
     {

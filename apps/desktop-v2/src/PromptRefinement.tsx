@@ -10,7 +10,9 @@ import type { EngineState } from './engine-state';
 import { MarkdownContent } from './MarkdownContent';
 import { Modal } from './Modal';
 import { ProfileModelPicker } from './ProfileModelPicker';
+import { RefineCountdown } from './RefineCountdown';
 import { RefinementComparison } from './RefinementComparison';
+import { countdownSeconds, readRefineCountdownMs } from './refine-countdown';
 import { type RefinementDraft, refinementDraftResult } from './refinement-draft';
 import { preferredRefinementVariant } from './refinement-policy-model';
 import { type RefinerTarget, refinementRecovery } from './refinement-recovery';
@@ -29,6 +31,7 @@ export function PromptRefinement({
   attachments = [],
   restored,
   onReview,
+  countdown = false,
 }: {
   original: string;
   mode: SubmitMode;
@@ -51,10 +54,19 @@ export function PromptRefinement({
   onReview?:
     | ((review: Pick<RefinementDraft, 'result' | 'variant' | 'edited' | 'pending'>) => void)
     | undefined;
+  /**
+   * An automatic refinement (the composer's review-on-submit): it waits this computer's refine
+   * countdown first, during which the prompt can still be sent as written.
+   */
+  countdown?: boolean;
 }) {
   const { t } = useDesktopText();
+  const [graceSeconds] = useState(() =>
+    countdown && !restored?.result ? countdownSeconds(readRefineCountdownMs()) : 0,
+  );
+  const [waiting, setWaiting] = useState(graceSeconds > 0);
   const [result, setResult] = useState<Record<string, unknown>>(restored?.result ?? {}),
-    [busy, setBusy] = useState(!restored?.result),
+    [busy, setBusy] = useState(!restored?.result && graceSeconds === 0),
     [sending, setSending] = useState(false),
     [error, setError] = useState(''),
     [variant, setVariant] = useState<'original' | 'refined' | 'english'>(
@@ -125,7 +137,7 @@ export function PromptRefinement({
     }
   };
   useEffect(() => {
-    if (!restored?.result) void refine();
+    if (!restored?.result && !waiting) void refine();
     return () => {
       generation.current++;
     };
@@ -143,13 +155,13 @@ export function PromptRefinement({
     text = original;
   }
   const ready = variant === 'original' || typeof result[variant] === 'string';
-  const send = async () => {
+  const send = async (value = text) => {
     setSending(true);
     setError('');
     setFailure(null);
     setStopped(false);
     try {
-      await onSend(text, mode);
+      await onSend(value, mode);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -245,6 +257,21 @@ export function PromptRefinement({
             </button>
           ))}
         </fieldset>
+        {waiting && (
+          <RefineCountdown
+            seconds={graceSeconds}
+            disabled={sending || state.hydrating}
+            onStart={() => {
+              setWaiting(false);
+              void refine();
+            }}
+            onSendAsIs={() => {
+              setWaiting(false);
+              setVariant('original');
+              void send(original);
+            }}
+          />
+        )}
         {busy && (
           <p className="refine-progress" role="status">
             <LoaderCircle size={15} className="spin" /> {t('refineDialog.refining')}

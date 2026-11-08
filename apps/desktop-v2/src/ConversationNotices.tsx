@@ -2,6 +2,7 @@ import { AlertTriangle, Info, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { type ConversationNotice, type NoticeText, noticeText } from './conversation-notices';
 import { useDesktopText } from './desktop-i18n';
+import { forwardConversationNotice } from './notification-feed';
 
 /** How long a passing notice stays before it closes by itself. */
 const TRANSIENT_NOTICE_MS = 8000;
@@ -35,6 +36,16 @@ export function ConversationNotices({
   // Engine reports carry their wording; older ones only their English text.
   const say = (text: NoticeText | undefined, english: string) =>
     text === undefined ? english : noticeText(text, (key, values) => t(`notices.${key}`, values));
+  // Live warnings, errors and passing notices also stay in the notification history.
+  useEffect(() => {
+    for (const notice of notices)
+      forwardConversationNotice(
+        notice,
+        notice.message === undefined
+          ? notice.text
+          : noticeText(notice.message, (key, values) => t(`notices.${key}`, values)),
+      );
+  }, [notices, t]);
   const shown = notices.filter((notice) => !dismissed.includes(notice.id));
   if (!shown.length) return null;
   return (

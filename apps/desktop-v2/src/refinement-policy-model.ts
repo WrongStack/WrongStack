@@ -1,5 +1,31 @@
 import { record } from './engine-values';
+import type { SettingField } from './settings-fields';
 import { sameSetting } from './settings-save-model';
+
+/** The profile's refine delay (`autonomy.enhanceDelayMs`), which the terminal interface uses. */
+export const enhanceDelayField: SettingField = {
+  key: 'enhanceDelayMs',
+  label: 'Refine delay',
+  description:
+    'How long the terminal interface shows a refined prompt before sending it by itself. The desktop and the WebUI wait for your choice.',
+  kind: 'number',
+  unit: 'seconds',
+  scale: 1000,
+  min: 0,
+  max: 600,
+};
+/** This computer's refine countdown before an automatic refinement starts. */
+export const refineCountdownField: SettingField = {
+  key: 'enhanceCountdownMs',
+  label: 'Refine countdown',
+  description:
+    'Grace period before a refinement that opens on submit starts; until then the prompt can be sent as written. 0 starts it at once. Saved on this computer right away.',
+  kind: 'number',
+  unit: 'seconds',
+  scale: 1000,
+  min: 0,
+  max: 10,
+};
 
 const routeKeys = ['refinerProvider', 'refinerModel', 'refinerFallbackProfile'] as const;
 export function refinerRoute(values: Record<string, unknown>) {

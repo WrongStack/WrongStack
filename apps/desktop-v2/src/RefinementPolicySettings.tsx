@@ -5,7 +5,9 @@ import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
-import { refinerRoute } from './refinement-policy-model';
+import { readRefineCountdownMs, writeRefineCountdownMs } from './refine-countdown';
+import { enhanceDelayField, refineCountdownField, refinerRoute } from './refinement-policy-model';
+import { SettingRow } from './SettingRow';
 import { sameSetting } from './settings-save-model';
 import './refinement-policy.css';
 
@@ -21,6 +23,7 @@ export function RefinementPolicySettings({
   command: EngineCommand;
 }) {
   const { t } = useDesktopText();
+  const [countdown, setCountdown] = useState(readRefineCountdownMs);
   const [models, setModels] = useState<{ provider: string; model: string }[]>([]),
     [catalogError, setCatalogError] = useState('');
   const [sample, setSample] = useState(''),
@@ -139,6 +142,16 @@ export function RefinementPolicySettings({
           </select>
         </label>
         <p>{t('refinePolicy.chooseNote')}</p>
+        <SettingRow
+          field={refineCountdownField}
+          value={countdown}
+          onChange={(value) => setCountdown(writeRefineCountdownMs(value))}
+        />
+        <SettingRow
+          field={enhanceDelayField}
+          value={draft['enhanceDelayMs']}
+          onChange={(value) => change('enhanceDelayMs', value)}
+        />
       </article>
       <article>
         <h3>{t('refinePolicy.routeTitle')}</h3>

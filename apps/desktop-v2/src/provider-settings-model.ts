@@ -73,6 +73,23 @@ export function providerModels(
     .filter((model) => typeof model['id'] === 'string')
     .map((model) => ({ id: String(model['id']), name: String(model['name'] ?? model['id']) }));
 }
+/** How the engine masks a stored key in `providers.saved`, to recognise a replacement. */
+export function maskedApiKey(key: string): string {
+  if (!key) return '—';
+  if (key.length <= 8) return '•'.repeat(key.length);
+  return `${key.slice(0, 4)}…${key.slice(-4)}`;
+}
+/** The `key.update` request that replaces the secret of one saved key, keeping its label. */
+export function buildKeyUpdate(
+  providerId: string,
+  label: string,
+  apiKey: string,
+  missing = 'Enter the new API key.',
+): { type: 'key.update'; payload: { providerId: string; label: string; apiKey: string } } {
+  const secret = apiKey.trim();
+  if (!secret) throw new Error(missing);
+  return { type: 'key.update', payload: { providerId, label, apiKey: secret } };
+}
 export interface ProviderDraft {
   mode: 'preset' | 'custom';
   id: string;
