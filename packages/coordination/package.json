@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/coordination",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "license": "MIT",
   "description": "WrongStack multi-agent coordination: director, fleet and supervisor, delegation, dispatcher, collaboration bus, the project mailbox with its per-project daemon, and the composition attach modules behind the AGENT_COORDINATION port. Built on @wrongstack/core.",

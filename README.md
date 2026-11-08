@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.3
+
+- **Every agent visible in the desktop:** each worker of a conversation gets
+  its tab beside the leader, with a fleet gauge (running workers, spawns
+  left).
+- **ACP agents lead desktop conversations:** `acp/claude-code` works in the
+  desktop as in the CLI.
+- **Release notice in the desktop:** a conversation says once when a newer
+  WrongStack is out, and `/tuneup` reports it.
+- **`tools.sandbox` is enforced** in the CLI and the desktop engine.
+
 ### What's new in 1.5.2
 
 - **The desktop engine catches up with the CLI:** Session Story records

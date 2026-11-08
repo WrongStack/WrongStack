@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/wrongmemory-client",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "license": "MIT",
   "description": "Vendored TypeScript client for the WrongMemory daemon (from WrongMemory packages/client-ts @ 7f35326).",
