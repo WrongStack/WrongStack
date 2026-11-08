@@ -6,7 +6,7 @@ import {
   parseAppearance,
   resolvedMode,
 } from './appearance';
-import { textZoom } from './appearance-fonts';
+import { stepTextSize, textSizeStep, textZoom } from './appearance-fonts';
 import { native, request } from './platform';
 
 const cacheKey = 'wrongstack.desktop.appearance';
@@ -89,5 +89,18 @@ export function useAppearance(
     },
     [onError],
   );
+  useEffect(() => {
+    // Ctrl/Cmd with + (or =), - and 0 change the text size like a browser's zoom keys; the
+    // webview's own zoom hotkeys are off, so the setting stays the one source of the zoom.
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const step = textSizeStep(event.key);
+      if (step === null) return;
+      event.preventDefault();
+      changeAppearance({ textSize: stepTextSize(latest.current.textSize, step) });
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [changeAppearance]);
   return { appearance, changeAppearance, mode: resolvedMode(appearance, systemDark) };
 }

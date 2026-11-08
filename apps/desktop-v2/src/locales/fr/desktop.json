@@ -780,7 +780,8 @@
     "textSize": {
       "title": "Taille du texte",
       "body": "Met à l’échelle toute la fenêtre, éditeurs et terminaux compris.",
-      "percent": "{{n}} %"
+      "percent": "{{n}} %",
+      "shortcut": "Ctrl (⌘ sur macOS) avec + ou − la modifie ; avec 0, elle revient à 100 %."
     },
     "ligatures": {
       "title": "Ligatures du code",

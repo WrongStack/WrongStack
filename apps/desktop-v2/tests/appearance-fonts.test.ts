@@ -8,7 +8,9 @@ import {
   DEFAULT_CODE_STACK,
   fontFamilyName,
   parseFontAppearance,
+  stepTextSize,
   subscribeCodeFont,
+  textSizeStep,
   textZoom,
   uiFontStack,
 } from '../src/appearance-fonts';
@@ -59,6 +61,24 @@ describe('appearance typography', () => {
     expect(codeFontStack({ codeFont: 'custom' })).toBeNull();
     expect(textZoom({})).toBe(1);
     expect(textZoom({ textSize: 110 })).toBe(1.1);
+  });
+
+  it('offers sizes large enough for a 4K screen and steps through them with the zoom keys', () => {
+    expect(parseFontAppearance({ textSize: 200 })).toEqual({ textSize: 200 });
+    expect(textZoom({ textSize: 175 })).toBe(1.75);
+    // 90 → 100 (unset) → 110 → … → 200, clamped at both ends; 0 resets.
+    expect(stepTextSize(undefined, 1)).toBe(110);
+    expect(stepTextSize(125, 1)).toBe(150);
+    expect(stepTextSize(200, 1)).toBe(200);
+    expect(stepTextSize(110, -1)).toBeUndefined();
+    expect(stepTextSize(undefined, -1)).toBe(90);
+    expect(stepTextSize(90, -1)).toBe(90);
+    expect(stepTextSize(175, 0)).toBeUndefined();
+    expect(textSizeStep('=')).toBe(1);
+    expect(textSizeStep('+')).toBe(1);
+    expect(textSizeStep('-')).toBe(-1);
+    expect(textSizeStep('0')).toBe(0);
+    expect(textSizeStep('a')).toBeNull();
   });
 
   it('writes the choice onto the document and tells the editors', () => {

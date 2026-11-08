@@ -780,7 +780,8 @@
     "textSize": {
       "title": "Metin boyutu",
       "body": "Düzenleyiciler ve terminaller dahil tüm pencereyi ölçekler.",
-      "percent": "%{{n}}"
+      "percent": "%{{n}}",
+      "shortcut": "Ctrl (macOS'ta ⌘) ile + veya − boyutu değiştirir; 0 ile %100'e döner."
     },
     "ligatures": {
       "title": "Kod ligatürleri",

@@ -19,7 +19,8 @@ export interface FontAppearance {
 
 export const uiFonts = ['system', 'custom'] as const;
 export const codeFonts = ['cascadia-mono', 'consolas', 'custom'] as const;
-export const textSizes = [90, 110, 125] as const;
+/** Sizes besides the default 100; the top end keeps text readable on a 4K screen at 100% scaling. */
+export const textSizes = [90, 110, 125, 150, 175, 200] as const;
 
 export const DEFAULT_UI_STACK = '"Geist Variable", "Segoe UI", sans-serif';
 export const DEFAULT_CODE_STACK = '"Cascadia Code", Consolas, monospace';
@@ -70,6 +71,28 @@ export function codeFontStack(fonts: FontAppearance): string | null {
 /** The window zoom for a text size. */
 export function textZoom(fonts: FontAppearance): number {
   return (fonts.textSize ?? 100) / 100;
+}
+
+/**
+ * The text size one step larger (`1`) or smaller (`-1`) than `current`, clamped to the range;
+ * `undefined` is the default 100%. `0` returns the default.
+ */
+export function stepTextSize(
+  current: FontAppearance['textSize'],
+  step: -1 | 0 | 1,
+): FontAppearance['textSize'] {
+  if (step === 0) return undefined;
+  const ladder = [textSizes[0], 100, ...textSizes.slice(1)];
+  const index = ladder.indexOf(current ?? 100);
+  const next = ladder[Math.min(ladder.length - 1, Math.max(0, (index < 0 ? 1 : index) + step))];
+  return next === 100 ? undefined : (next as FontAppearance['textSize']);
+}
+/** The text-size step a zoom key asks for, or null for any other key. */
+export function textSizeStep(key: string): -1 | 0 | 1 | null {
+  if (key === '+' || key === '=') return 1;
+  if (key === '-' || key === '_') return -1;
+  if (key === '0') return 0;
+  return null;
 }
 
 /**

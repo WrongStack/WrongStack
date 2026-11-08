@@ -780,7 +780,8 @@
     "textSize": {
       "title": "Dimensione del testo",
       "body": "Ridimensiona l’intera finestra, editor e terminali inclusi.",
-      "percent": "{{n}}%"
+      "percent": "{{n}}%",
+      "shortcut": "Ctrl (⌘ su macOS) con + o − la modifica; con 0 torna al 100%."
     },
     "ligatures": {
       "title": "Legature del codice",

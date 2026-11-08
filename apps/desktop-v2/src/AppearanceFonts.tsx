@@ -134,12 +134,13 @@ export function AppearanceFonts({
         <div>
           <h3>{t('appearance.textSize.title')}</h3>
           <p>{t('appearance.textSize.body')}</p>
+          <p>{t('appearance.textSize.shortcut')}</p>
         </div>
         <fieldset
           className="appearance-modes appearance-sizes"
           aria-label={t('appearance.textSize.title')}
         >
-          {[textSizes[0], undefined, textSizes[1], textSizes[2]].map((size) => (
+          {[textSizes[0], undefined, ...textSizes.slice(1)].map((size) => (
             <button
               type="button"
               key={size ?? 100}

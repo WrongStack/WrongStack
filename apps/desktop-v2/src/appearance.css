@@ -228,3 +228,11 @@ body {
     gap: 10px;
   }
 }
+/* Seven text sizes share a row or two instead of the three-column mode grid. */
+.appearance-modes.appearance-sizes {
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+}
+.appearance-modes.appearance-sizes button {
+  justify-content: center;
+  padding: 12px 8px;
+}
