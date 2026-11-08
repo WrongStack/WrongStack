@@ -15,6 +15,10 @@ import {
   type WebuiDeps,
   type WebuiMutableState,
 } from './routes.js';
+import {
+  type StandaloneHostServices,
+  startStandaloneHostServices,
+} from './standalone-host-services.js';
 import { setupWebuiCredentialWatcher } from './start-webui-credential-watcher.js';
 import { createWebuiDeps } from './start-webui-deps.js';
 import { setupWebuiTerminalLogging } from './start-webui-logging.js';
@@ -74,7 +78,9 @@ export interface StandaloneWebuiWiringInput {
  * and graceful-shutdown registration. Session reads go through `state`, the
  * same live bindings `startWebUI` reassigns.
  */
-export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): void {
+export function wireStandaloneWebuiRuntime(
+  input: StandaloneWebuiWiringInput,
+): Pick<StandaloneHostServices, 'switchProject'> {
   const {
     opts,
     state,
@@ -237,6 +243,7 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
       const data = await state.getSessionStore().load(state.getSession().id);
       return { messages: data.messages, events: data.events, usage: data.usage };
     },
+    loadAgentSessions: deps.loadAgentSessions,
     clients,
     pendingConfirms,
     onSecurityRejection: (ev) =>
@@ -252,6 +259,16 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
   });
   wssPrimary.on('connection', handleConnection);
   if (wssSecondary) wssSecondary.on('connection', handleConnection);
+
+  // HQ control + presence and the dependency watcher's audits (CLI parity).
+  const hostServices = startStandaloneHostServices({
+    state,
+    deps,
+    preContext,
+    agentServices,
+    runLockControl,
+    paths: configPaths,
+  });
 
   setupWebuiShutdown({
     stopTelemetryExport: otlpExport ? () => otlpExport.stop() : undefined,
@@ -269,6 +286,7 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
       },
     },
     getKanbanSupervisorDispose: () => kanbanSupervisorDispose,
+    stopHostServices: () => hostServices.dispose(),
     todosCheckpoint,
     stopHeapWatchdog,
     stopLiveStatusLogger,
@@ -294,6 +312,7 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
     closeSessionJournals: agentServices.closeSessionJournals,
     globalConfigPath,
   });
+  return { switchProject: (projectRoot) => hostServices.switchProject(projectRoot) };
 }
 
 /**
@@ -435,9 +454,11 @@ export function buildStandaloneWebuiDeps(input: {
     brainRuntime,
     brainLog,
     ...(input.autoWake ? { autoWake: input.autoWake } : {}),
-    // The engine's fleet host starts the workers `/spawn` and `/delegate` ask for.
+    // The engine's fleet host starts the workers `/spawn` and `/delegate` ask for, and its
+    // agent monitor gives a reopened conversation its workers' transcripts back.
     ...(agentServices.delegation
       ? {
+          loadAgentSessions: agentServices.delegation.loadAgentSessions,
           fleetCommands: fleetSpawnCallbacks({
             host: agentServices.delegation.host,
             getDirector: () => agentServices.delegation?.host.getDirector(),

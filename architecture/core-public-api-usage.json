@@ -59,8 +59,8 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
-      "files": 69,
-      "typeOnly": 9,
+      "files": 68,
+      "typeOnly": 8,
       "runtimeOrMixed": 63
     },
     "@wrongstack/core/kernel": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 203,
+      "files": 204,
       "typeOnly": 81,
-      "runtimeOrMixed": 125
+      "runtimeOrMixed": 126
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 195,
+      "files": 196,
       "typeOnly": 55,
-      "runtimeOrMixed": 173
+      "runtimeOrMixed": 174
     },
     "@wrongstack/core/tasking": {
       "files": 45,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 966,
-      "typeOnly": 73,
-      "runtimeOrMixed": 927
+      "files": 968,
+      "typeOnly": 74,
+      "runtimeOrMixed": 928
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -4517,12 +4517,6 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
-      "file": "packages/cli/src/wiring/dep-watcher.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7028,6 +7022,12 @@
       "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-agent-sessions-replay.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -10451,6 +10451,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/standalone-session-identity-hq.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/tests/standalone-session-identity.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11627,12 +11633,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/hq-command-controller.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11868,12 +11868,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/sage-connect.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/sage-hq-sync.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14435,6 +14429,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/hq-host/command-controller.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/hq-host/sage-hq-sync.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16682,6 +16688,18 @@
       "file": "packages/webui-server/tests/session-swap-lifecycle.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/standalone-agent-sessions-replay.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/standalone-hq-presence.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

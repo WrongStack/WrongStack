@@ -70,6 +70,11 @@ export interface WebuiClientPresenceDeps {
         approvals: ApprovalRegistry,
       ) => NonNullable<CreateHqPublisherOptions['onCommand']>)
     | undefined;
+  /**
+   * Told each publisher this presence connects with, and `undefined` when it unregisters, so
+   * a host whose only HQ connection is this one can bind its engine-wide bridges to it.
+   */
+  onPublisher?: ((publisher: HqPublisher | undefined) => void) | undefined;
 }
 
 export interface WebuiClientPresence {
@@ -135,6 +140,11 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         onConnect: (publisher) => {
           if (registrationGeneration !== generation) return;
           activePublisher = publisher;
+          try {
+            deps.onPublisher?.(publisher);
+          } catch {
+            /* the host's own bridges are optional telemetry */
+          }
           stopApprovalBridge?.();
           stopApprovalBridge = undefined;
           if (approvals !== undefined) {
@@ -235,6 +245,13 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
     approvals = undefined;
     hqConnection?.stop();
     hqConnection = undefined;
+    if (activePublisher !== undefined) {
+      try {
+        deps.onPublisher?.(undefined);
+      } catch {
+        /* best-effort */
+      }
+    }
     activePublisher = undefined;
     const previousClientId = clientId;
     const previousMailbox = mailbox;

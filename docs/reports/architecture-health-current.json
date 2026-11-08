@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T12:38:52.317Z",
+  "generatedAt": "2026-11-08T12:57:06.846Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6101,
-    "testFiles": 5075,
-    "sourceLines": 1261398,
+    "sourceFiles": 6114,
+    "testFiles": 5080,
+    "sourceLines": 1262046,
     "workspaceEdges": 248,
-    "moduleEdges": 18021,
+    "moduleEdges": 18041,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 631,
-      "testFiles": 690,
+      "testFiles": 689,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 690
+          "testFiles": 689
         }
       ]
     },
@@ -819,8 +819,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 77,
-      "testFiles": 43,
+      "sourceFiles": 87,
+      "testFiles": 44,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -852,7 +852,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 43
+          "testFiles": 44
         }
       ]
     },
@@ -1172,8 +1172,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 340,
-      "testFiles": 376,
+      "sourceFiles": 343,
+      "testFiles": 381,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1208,7 +1208,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 376
+          "testFiles": 381
         }
       ]
     },
@@ -5905,12 +5905,6 @@
       },
       {
         "file": "packages/cli/tests/hq-public-origin.test.ts",
-        "projects": [
-          "root-node"
-        ]
-      },
-      {
-        "file": "packages/cli/tests/hq-publisher.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18720,6 +18714,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/hq-host-connection.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/light-subagent-factory-status-tracker.test.ts",
         "projects": [
           "root-node"
@@ -28218,6 +28218,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-agent-sessions-replay.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-chimera.test.ts",
         "projects": [
           "root-node"
@@ -28230,7 +28236,25 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-dep-watcher.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-hooks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/standalone-host-services.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/standalone-hq-presence.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28249,6 +28273,12 @@
       },
       {
         "file": "packages/webui-server/tests/standalone-provider-tools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/standalone-session-identity-hq.test.ts",
         "projects": [
           "root-node"
         ]

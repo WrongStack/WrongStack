@@ -138,6 +138,8 @@ export async function startWebUI(
   // `createAgentServices`, because the session-agent registry consults it
   // before evicting an agent.
   const _sessionRunLocks = new Map<string, AbortController>();
+  /** HQ presence follows a project switch; bound once the runtime is wired. */
+  let hostServices: { switchProject(projectRoot: string): void } | undefined;
   /**
    * Late-bound view of "which sessions are on someone's screen".
    *
@@ -362,6 +364,7 @@ export async function startWebUI(
     getProjectRoot: () => projectRoot,
     setProjectRoot: (next) => {
       chronicle?.switchProject(next);
+      hostServices?.switchProject(next);
       projectRoot = next;
     },
     getWorkingDir: () => workingDir,
@@ -425,7 +428,7 @@ export async function startWebUI(
     prefSnapshot,
   });
 
-  wireStandaloneWebuiRuntime({
+  hostServices = wireStandaloneWebuiRuntime({
     opts,
     state,
     deps,

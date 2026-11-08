@@ -4,10 +4,10 @@ import * as path from 'node:path';
 import type { HqSocketLike } from '@wrongstack/hq';
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile, writeHqRuntimeFile } from '@wrongstack/hq';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { startCliHqConnection } from '../src/hq-publisher.js';
-import { createSageHqSync } from '../src/sage-hq-sync.js';
+import { startHqHostConnection } from '../src/hq-host/connection.js';
+import { createSageHqSync } from '../src/hq-host/sage-hq-sync.js';
 
-vi.mock('../src/sage-hq-sync.js', () => ({
+vi.mock('../src/hq-host/sage-hq-sync.js', () => ({
   createSageHqSync: vi.fn(() => ({ handleRemote: vi.fn(), stop: vi.fn() })),
 }));
 
@@ -55,10 +55,10 @@ class FakeSocket implements HqSocketLike {
   }
 }
 
-describe('CLI HQ publisher connection', () => {
+describe('host HQ connection (CLI and standalone engine)', () => {
   it('can explicitly own SAGE without Kanban and forwards its configured directory', () => {
     vi.mocked(createSageHqSync).mockClear();
-    const connection = startCliHqConnection({
+    const connection = startHqHostConnection({
       projectRoot: '/copy/custom',
       clientKind: 'cli',
       config: { enabled: true, url: 'http://127.0.0.1:3499' },
@@ -85,8 +85,8 @@ describe('CLI HQ publisher connection', () => {
       config: { enabled: true, url: 'http://127.0.0.1:3499', projectAlias: 'sage-project' },
       socketFactory: () => new FakeSocket(),
     };
-    const primary = startCliHqConnection(options);
-    const auxiliary = startCliHqConnection({ ...options, ownKanbanSync: false });
+    const primary = startHqHostConnection(options);
+    const auxiliary = startHqHostConnection({ ...options, ownKanbanSync: false });
     expect(createSageHqSync).toHaveBeenCalledTimes(1);
     const sync = vi.mocked(createSageHqSync).mock.results[0]!.value;
     primary.stop();
@@ -105,12 +105,12 @@ describe('CLI HQ publisher connection', () => {
       },
       retryIntervalMs: 60_000,
     };
-    const a = startCliHqConnection({
+    const a = startHqHostConnection({
       ...base,
       projectRoot: '/copy/a',
       socketFactory: () => socketA,
     });
-    const b = startCliHqConnection({
+    const b = startHqHostConnection({
       ...base,
       projectRoot: '/copy/b',
       socketFactory: () => socketB,
@@ -128,7 +128,7 @@ describe('CLI HQ publisher connection', () => {
 
     let socket: FakeSocket | undefined;
     const onConnect = vi.fn();
-    const conn = startCliHqConnection({
+    const conn = startHqHostConnection({
       clientKind: 'tui',
       projectRoot: dataDir,
       projectName: 'Late HQ',
@@ -181,7 +181,7 @@ describe('CLI HQ publisher connection', () => {
 
     const urls: string[] = [];
     const onConnect = vi.fn();
-    const conn = startCliHqConnection({
+    const conn = startHqHostConnection({
       clientKind: 'tui',
       projectRoot: dataDir,
       projectName: 'Repoint HQ',
@@ -234,7 +234,7 @@ describe('CLI HQ publisher connection', () => {
     await writeHqRuntimeFile(dataDir, { url: 'http://127.0.0.1:45680', pid: process.pid });
 
     const urls: string[] = [];
-    const conn = startCliHqConnection({
+    const conn = startHqHostConnection({
       clientKind: 'tui',
       projectRoot: dataDir,
       projectName: 'Late token',
@@ -277,7 +277,7 @@ describe('CLI HQ publisher connection', () => {
     };
     const onConnect = vi.fn();
     const onDisconnect = vi.fn();
-    const connection = startCliHqConnection({
+    const connection = startHqHostConnection({
       clientKind: 'cli',
       projectRoot: '/repo',
       appConfig: live as never,
@@ -319,7 +319,7 @@ describe('CLI HQ publisher connection', () => {
     delete process.env['WRONGSTACK_HQ_ENABLED'];
     delete process.env['WRONGSTACK_HQ_URL'];
     let live: { hq?: { enabled?: boolean; url?: string } } = { hq: { enabled: false } };
-    const connection = startCliHqConnection({
+    const connection = startHqHostConnection({
       clientKind: 'cli',
       projectRoot: '/repo',
       appConfig: live as never,
@@ -335,7 +335,7 @@ describe('CLI HQ publisher connection', () => {
   });
 
   it('an auxiliary connection does not start a second Kanban sync', () => {
-    const connection = startCliHqConnection({
+    const connection = startHqHostConnection({
       clientKind: 'repl',
       projectRoot: '/repo',
       config: { enabled: true, url: 'http://127.0.0.1:3499' },

@@ -70,6 +70,64 @@ describe('subagent transcripts', () => {
     ).toEqual({});
   });
 
+  it('brings a reopened conversation’s agents back from its replay', () => {
+    const replayed = {
+      subagentId: 'a1',
+      agentName: 'Ada',
+      status: 'completed',
+      task: 'Audit',
+      transcript: [
+        { id: 'e1', ts: 't1', kind: 'text', content: 'Found two issues.', iteration: 1 },
+        { id: 'e2', ts: 't2', kind: 'mystery', content: 'dropped', iteration: 1 },
+      ],
+    };
+    const state = reduceEngine(
+      { ...emptyEngineState, sessionId: 's' },
+      {
+        type: 'session.start',
+        payload: {
+          sessionId: 's',
+          reset: true,
+          agentSessions: [replayed, { subagentId: 'leader' }],
+        },
+      },
+    );
+    expect(state.agents).toEqual({
+      a1: {
+        id: 'a1',
+        name: 'Ada',
+        status: 'completed',
+        task: 'Audit',
+        entries: [
+          {
+            id: 'e1',
+            subagentId: 'a1',
+            agentName: 'Ada',
+            kind: 'text',
+            content: 'Found two issues.',
+            iteration: 1,
+            ts: 't1',
+          },
+        ],
+      },
+    });
+    // A replay of the same conversation does not double what the panel already holds; the
+    // live status wins over the replayed one.
+    const live = reduceEngine(
+      state,
+      timeline({ kind: 'text', content: 'More.', ts: 't3', iteration: 2 }),
+    );
+    const again = reduceEngine(live, {
+      type: 'session.start',
+      payload: { sessionId: 's', agentSessions: [{ ...replayed, status: 'running' }] },
+    });
+    expect(again.agents['a1']?.entries.map((entry) => entry.content)).toEqual([
+      'Found two issues.',
+      'More.',
+    ]);
+    expect(again.agents['a1']?.status).toBe('completed');
+  });
+
   it('shows a tab per agent once the conversation has one', () => {
     function Tabs({ agents }: { agents: typeof emptyEngineState.agents }) {
       return useAgentTabs(agents, () => {}).bar;

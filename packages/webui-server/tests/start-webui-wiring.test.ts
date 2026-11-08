@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   security: vi.fn(),
   managementTools: vi.fn(),
   applyModelSwitch: vi.fn(),
+  hostServices: vi.fn(),
 }));
 vi.mock('@wrongstack/core/utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/core/utils')>()),
@@ -46,6 +47,9 @@ vi.mock('../src/server/start-webui-security.js', () => ({
 vi.mock('../src/server/management-tools.js', () => ({
   registerEngineManagementTools: mocks.managementTools,
 }));
+vi.mock('../src/server/standalone-host-services.js', () => ({
+  startStandaloneHostServices: mocks.hostServices,
+}));
 vi.mock('../src/server/model-switch-core.js', () => ({
   createApplyModelSwitch: vi.fn(() => mocks.applyModelSwitch),
   createSessionContextResolver: vi.fn(() => vi.fn()),
@@ -72,6 +76,7 @@ beforeEach(() => {
   mocks.dispatcher.mockReturnValue(vi.fn());
   mocks.connection.mockReturnValue(vi.fn());
   mocks.deps.mockImplementation((input) => input);
+  mocks.hostServices.mockReturnValue({ switchProject: vi.fn(), dispose: vi.fn() });
 });
 
 describe('standalone WebUI runtime wiring', () => {
@@ -100,10 +105,24 @@ describe('standalone WebUI runtime wiring', () => {
       wssSecondary: { on: vi.fn() },
       getDisposeVectorMirror: () => undefined,
     };
-    wireStandaloneWebuiRuntime(
+    const runtime = wireStandaloneWebuiRuntime(
       input as unknown as Parameters<typeof wireStandaloneWebuiRuntime>[0],
     );
     const connection = mocks.connection.mock.results[0]!.value;
+    // HQ control + presence and the dependency watcher start with the runtime (CLI parity),
+    // stop with the shutdown, and follow a project switch.
+    expect(mocks.hostServices).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: input.state,
+        preContext: input.preContext,
+        runLockControl: input.runLockControl,
+      }),
+    );
+    const hostServices = mocks.hostServices.mock.results[0]!.value;
+    mocks.shutdown.mock.calls[0]![0].stopHostServices();
+    expect(hostServices.dispose).toHaveBeenCalledOnce();
+    runtime.switchProject('/other');
+    expect(hostServices.switchProject).toHaveBeenCalledWith('/other');
     // The leader's management tools are registered with the per-tab model switch.
     expect(mocks.managementTools).toHaveBeenCalledWith(
       expect.objectContaining({ switchModel: mocks.applyModelSwitch }),

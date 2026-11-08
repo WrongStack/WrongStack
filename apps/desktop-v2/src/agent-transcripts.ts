@@ -99,6 +99,73 @@ export function reduceAgentTranscripts(
   };
 }
 
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+function transcriptEntry(id: string, name: string, value: unknown): AgentTranscriptEntry | null {
+  const line = record(value);
+  const kind = KINDS.find((candidate) => candidate === line['kind']);
+  if (!kind || typeof line['content'] !== 'string') return null;
+  const ts = text(line['ts']);
+  return {
+    id: text(line['id']) || `${id}:${kind}:${ts}`,
+    subagentId: id,
+    agentName: text(line['agentName']).trim() || name,
+    kind,
+    content: line['content'],
+    iteration: typeof line['iteration'] === 'number' ? line['iteration'] : 0,
+    ts,
+    ...(typeof line['toolName'] === 'string' ? { toolName: line['toolName'] } : {}),
+    ...(typeof line['toolOk'] === 'boolean' ? { toolOk: line['toolOk'] } : {}),
+    ...(typeof line['costUsd'] === 'number' ? { costUsd: line['costUsd'] } : {}),
+  };
+}
+
+/**
+ * Brings back the subagents a reopened conversation had, from the `agentSessions` its
+ * `session.start` replay carries, as the WebUI's fleet store hydrates them: an agent the live
+ * frames already know keeps its status, and replayed entries it already holds are not doubled.
+ */
+export function hydrateAgentTranscripts(
+  agents: AgentTranscripts,
+  sessions: unknown,
+): AgentTranscripts {
+  if (!Array.isArray(sessions) || sessions.length === 0) return agents;
+  let next = agents;
+  for (const value of sessions) {
+    const session = record(value);
+    const id = text(session['subagentId']);
+    if (!id || id === 'leader') continue;
+    const known = next[id];
+    const name = known?.name ?? (text(session['agentName']).trim() || id);
+    const task = known?.task || text(session['task']) || undefined;
+    const replayed = Array.isArray(session['transcript'])
+      ? session['transcript'].flatMap((line) => transcriptEntry(id, name, line) ?? [])
+      : [];
+    const current = known?.entries ?? [];
+    const fresh = replayed.filter(
+      (entry) =>
+        !current.some(
+          (held) =>
+            held.id === entry.id ||
+            (held.ts === entry.ts && held.content === entry.content && held.kind === entry.kind),
+        ),
+    );
+    next = {
+      ...next,
+      [id]: {
+        id,
+        name,
+        status: known?.status ?? (text(session['status']) || 'completed'),
+        ...(task ? { task } : {}),
+        // Replayed entries are older than anything a live frame added since.
+        entries: [...fresh, ...current].slice(-MAX_ENTRIES),
+      },
+    };
+  }
+  return next;
+}
+
 /** A transcript step for display: a tool call is joined with its result. */
 export type TranscriptStep =
   | { kind: 'entry'; entry: AgentTranscriptEntry }

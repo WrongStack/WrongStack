@@ -198,6 +198,11 @@ export interface WebuiDeps {
         'onSpawn' | 'onFleetSpawn' | 'onDirector'
       >
     | undefined;
+  /**
+   * A replayed conversation's subagents (see `session-agent-sessions.ts`); absent without the
+   * fleet, and then replays carry no `agentSessions`.
+   */
+  loadAgentSessions?: import('./session-agent-sessions.js').LoadAgentSessions | undefined;
 }
 
 /**

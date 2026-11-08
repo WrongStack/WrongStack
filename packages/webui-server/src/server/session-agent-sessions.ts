@@ -16,8 +16,9 @@
  * So the journal supplies the roster and the monitor fills in the bodies.
  */
 
+import { basename, dirname, join } from 'node:path';
 import type { SessionEvent } from '@wrongstack/contracts/types';
-import { deriveSessionAgents } from '@wrongstack/core/storage';
+import { deriveSessionAgents, type SessionAgentRecord } from '@wrongstack/core/storage';
 
 /** Reserved id the leader's own interleaved events are stamped with. */
 const LEADER_AGENT_ID = 'leader';
@@ -59,9 +60,60 @@ export interface AgentSessionPayload {
   transcript?: AgentTranscriptLine[] | undefined;
 }
 
+/**
+ * Read back the transcripts of the named subagents. `roster` is the journal's
+ * view of the same agents, for loaders that need more than the id to find a
+ * transcript (see {@link createAgentSessionsLoader}).
+ */
 export type LoadAgentSessions = (
   subagentIds: readonly string[],
+  roster?: readonly SessionAgentRecord[],
 ) => Promise<AgentVirtualSessionLike[]>;
+
+/** The read side of `AgentMonitorService` a loader needs. */
+export interface AgentTranscriptSource {
+  loadSessionsFromDisk(only?: readonly string[]): Promise<AgentVirtualSessionLike[]>;
+}
+
+/**
+ * A loader that also finds transcripts written by an EARLIER process.
+ *
+ * The agent monitor writes each worker's transcript under the fleet root of the
+ * process that ran it (`<fleetRoot>/subagents/transcripts/<id>/transcript.jsonl`),
+ * and a host's fleet root is named after its boot session. After a restart the
+ * host boots a new session, so its monitor's directory holds none of the
+ * transcripts a reopened conversation names. The journal still knows where each
+ * worker's own session file went (`<fleetRoot>/subagents/<runId>/<id>.jsonl`,
+ * from `agent_session_linked`), and the transcript sits two levels up from it.
+ *
+ * `live` answers first (its ring is newer than any file); `openDir` reads one
+ * foreign transcripts directory. A `transcriptPath` that is not a worker's own
+ * file — an agent that wrote to its parent's journal — is ignored.
+ */
+export function createAgentSessionsLoader(
+  live: AgentTranscriptSource,
+  openDir: (transcriptsDir: string) => AgentTranscriptSource,
+): LoadAgentSessions {
+  return async (subagentIds, roster) => {
+    const rows = await live.loadSessionsFromDisk(subagentIds);
+    const found = new Set(rows.map((row) => row.subagentId));
+    const byDir = new Map<string, string[]>();
+    for (const agent of roster ?? []) {
+      if (found.has(agent.agentId) || !agent.transcriptPath) continue;
+      if (basename(agent.transcriptPath) !== `${agent.agentId}.jsonl`) continue;
+      const dir = join(dirname(dirname(agent.transcriptPath)), 'transcripts');
+      byDir.set(dir, [...(byDir.get(dir) ?? []), agent.agentId]);
+    }
+    for (const [dir, ids] of byDir) {
+      try {
+        rows.push(...(await openDir(dir).loadSessionsFromDisk(ids)));
+      } catch {
+        // A foreign directory is best-effort; the roster still lists the agent.
+      }
+    }
+    return rows;
+  };
+}
 
 /**
  * Build the `agentSessions` field of a `session.start` payload.
@@ -91,7 +143,10 @@ export async function buildAgentSessionsPayload(
 
   let bodies: AgentVirtualSessionLike[] = [];
   try {
-    bodies = await load(roster.map((agent) => agent.agentId));
+    bodies = await load(
+      roster.map((agent) => agent.agentId),
+      roster,
+    );
   } catch {
     // Transcript bodies are best-effort: a roster with no bodies still brings
     // the fleet panel back, which is strictly better than an empty one.

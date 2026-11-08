@@ -397,6 +397,8 @@ const profiles = {
       'plugin-host': 'src/plugin-host.ts',
       'provider-utility-tools': 'src/provider-utility-tools.ts',
       'system-prompt-contributors': 'src/system-prompt-contributors.ts',
+      'dep-watcher': 'src/dep-watcher.ts',
+      'hq-host': 'src/hq-host.ts',
     },
     external: [
       '@wrongstack/core',

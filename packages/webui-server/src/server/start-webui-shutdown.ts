@@ -27,6 +27,8 @@ export function setupWebuiShutdown(options: {
   wssSecondary?: WebSocketServer | null | undefined;
   stopEmptySessionCleanup: { dispose: () => Promise<void> };
   getKanbanSupervisorDispose: () => (() => void | Promise<void>) | null;
+  /** HQ presence and the dependency watcher: stopped before the fleet host they use. */
+  stopHostServices?: (() => void) | undefined;
   todosCheckpoint: { detach: () => Promise<void> };
   stopHeapWatchdog: () => Promise<void>;
   /** Push buffered OTLP spans/metrics and stop the exporter timers. */
@@ -114,6 +116,11 @@ export function setupWebuiShutdown(options: {
       await options.stopEmptySessionCleanup.dispose();
       const disposeKanban = options.getKanbanSupervisorDispose();
       await disposeKanban?.();
+      try {
+        options.stopHostServices?.();
+      } catch (err) {
+        options.logger.warn(`host services disposal failed: ${toErrorMessage(err)}`);
+      }
     },
     onShutdown: async () => {
       unregister();

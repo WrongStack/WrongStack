@@ -81,6 +81,14 @@
     "./plugin-host": {
       "types": "./dist/plugin-host.d.ts",
       "import": "./dist/plugin-host.js"
+    },
+    "./dep-watcher": {
+      "types": "./dist/dep-watcher.d.ts",
+      "import": "./dist/dep-watcher.js"
+    },
+    "./hq-host": {
+      "types": "./dist/hq-host.d.ts",
+      "import": "./dist/hq-host.js"
     }
   },
   "files": [

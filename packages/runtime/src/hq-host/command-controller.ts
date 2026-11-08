@@ -1,0 +1,609 @@
+/**
+ * HQ command controller — the client-side dispatch surface for Phase 4 of the
+ * HQ command center. A mutable holder (mirroring the established
+ * `interruptController` pattern in cli-main.ts) that the `onCommand` handler
+ * on the HQ publisher reads lazily, because several of its targets
+ * (`director`, the rebound `interruptLeader`) are not yet defined at HQ-connect
+ * time.
+ *
+ * Conversational commands route through the agent's own decision loop or the
+ * project mailbox; Kanban commands route through its project IPC owner, so
+ * both inherit existing guardrails. `run-command` (raw
+ * shell) is deliberately NOT wired here — it requires a separately-audited
+ * escalation policy (operator flag + per-token `control.execute` + allowlist)
+ * and is left as a stub that rejects until that policy exists.
+ *
+ * @module hq-command-controller
+ */
+
+import type { UserInputResponse } from '@wrongstack/contracts/types';
+import type { RemoteMailbox } from '@wrongstack/coordination';
+import { toErrorMessage } from '@wrongstack/core/utils';
+import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/hq';
+import { parseHqStartSession } from '@wrongstack/hq';
+
+/**
+ * Mutable holder for the command dispatch targets. Each field is populated
+ * lazily as the corresponding subsystem comes online (director on
+ * `onDirectorReady`, interruptLeader rebound by the REPL/TUI, …). The
+ * `onCommand` handler reads these at dispatch time, not at construction.
+ */
+export interface HqCommandController {
+  /** Project mailbox used to deliver steer/broadcast messages. */
+  steerMailbox?: RemoteMailbox | undefined;
+  /**
+   * Abort the leader run of `sessionId`. Returns true if a run was aborted.
+   *
+   * The session is the one the command named, already resolved against this
+   * controller's default. A host that owns several sessions at once (the WebUI
+   * gives every open tab its own) MUST honour it rather than aborting whatever
+   * it considers the leader — that is how an operator who picked tab 3 in HQ
+   * ended up stopping tab 1.
+   */
+  interruptLeader: (sessionId?: string) => boolean;
+  /** Terminate a specific subagent by id. Returns true if terminated. */
+  terminateAgent?: (subagentId: string, sessionId?: string) => boolean | Promise<boolean>;
+  /** Stop the entire fleet of `sessionId` (all running/idle subagents). */
+  killFleet?: (sessionId?: string) => number | Promise<number>;
+  /** Spawn a subagent of the given role, owned by `sessionId`. */
+  spawnAgent?: (
+    role: string,
+    task?: string,
+    maxIterations?: number,
+    sessionId?: string,
+  ) => Promise<string>;
+  /** Derive the session-unique mailbox tag for addressing (e.g. `leader@<tag>`). */
+  sessionTag: () => string;
+  /**
+   * The session HQ is speaking for, live.
+   *
+   * Steering addresses the bare `leader` alias, which EVERY leader in the
+   * project answers to — a second terminal on the same project consumes the
+   * same message (unread state is per reader, so both get it). Stamping the
+   * session id makes `acceptMailboxMessageForSession` drop it at every other
+   * leader, so an operator who picked one session in HQ reaches exactly that
+   * session. Optional: without it the message stays project-wide, which is
+   * the pre-existing behaviour rather than a silent drop.
+   */
+  sessionId?: (() => string | undefined) | undefined;
+  /**
+   * Does this host currently own `sessionId`?
+   *
+   * A command that names a session this process no longer has must be
+   * REJECTED, never silently redirected to the default: the operator picked a
+   * specific terminal, and steering a different one is worse than not steering
+   * at all. Absent means the host has a single session and the default check
+   * (equality with `sessionId()`) applies.
+   */
+  ownsSession?: ((sessionId: string) => boolean) | undefined;
+  /** Whether raw shell execution is explicitly opted-in by the operator. */
+  allowRunCommand: () => boolean;
+  /**
+   * Open a new headless session in this host's project (HQ `start-session`).
+   * Absent on hosts that cannot; only consulted when `allowRunCommand()` holds.
+   */
+  startSession?: ((prompt: string) => { pid: number | undefined }) | undefined;
+  /**
+   * Answer a permission prompt that is live on this host.
+   *
+   * Returns false when the prompt is no longer pending — it was answered at
+   * the keyboard, aborted, or timed out. HQ mirrors prompts rather than owning
+   * them, so losing the race is the normal case and must be reported back
+   * instead of silently swallowed.
+   *
+   * Bound to the process-wide approval registry
+   * (`createApprovalRegistry` in `@wrongstack/core/hq`), which is the only
+   * holder of the resolver closures.
+   */
+  resolveApproval?:
+    | ((
+        toolUseId: string,
+        decision:
+          | 'yes'
+          | 'no'
+          | 'always'
+          | 'always-exact'
+          | 'always-command'
+          | 'always-tool'
+          | 'deny',
+        sessionId?: string | undefined,
+      ) => boolean)
+    | undefined;
+  resolveUserInput?:
+    | ((requestId: string, response: UserInputResponse, sessionId?: string | undefined) => boolean)
+    | undefined;
+  /** Apply a lifecycle transition through the project's Kanban IPC client. */
+  kanbanTransition?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        to: 'backlog' | 'todo' | 'running' | 'review' | 'done';
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+  /** Assign a card through the project owner while preserving active leases. */
+  kanbanAssign?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        agentId: string;
+        assignee: string;
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+  /** Claim and dispatch one ready card through this host's canonical Director path. */
+  kanbanDispatch?:
+    | ((input: {
+        boardId: string;
+        taskId: string;
+        comment: string;
+        sessionId?: string | undefined;
+      }) => Promise<string>)
+    | undefined;
+}
+
+/** Bind HQ transitions to the same project-scoped IPC path every other client uses. */
+export function createProjectKanbanTransitionHandler(
+  projectRoot: string,
+): NonNullable<HqCommandController['kanbanTransition']> {
+  return async (input) => {
+    const { transitionTask } = await import('@wrongstack/kanban');
+    const result = await transitionTask(projectRoot, input.boardId, input.taskId, {
+      to: input.to,
+      actor: 'hq-operator',
+      comment: input.comment,
+      sessionId: input.sessionId ?? 'hq-mobile',
+    });
+    if (result === null) throw new Error(`kanban task not found: ${input.taskId}`);
+    return `task ${input.taskId} transitioned to ${input.to}`;
+  };
+}
+
+/** Bind guarded HQ assignment to the canonical project-scoped Kanban owner. */
+export function createProjectKanbanAssignHandler(
+  projectRoot: string,
+): NonNullable<HqCommandController['kanbanAssign']> {
+  return async (input) => {
+    const { assignTask } = await import('@wrongstack/kanban');
+    const result = await assignTask(
+      projectRoot,
+      input.boardId,
+      input.taskId,
+      {
+        agentId: input.agentId,
+        name: input.assignee,
+        assignee: input.assignee,
+        status: 'assigned',
+        protectActiveAssignment: true,
+      },
+      {
+        actor: 'hq-operator',
+        note: input.comment,
+        sessionId: input.sessionId ?? 'hq-mobile',
+      },
+    );
+    if (result === null) throw new Error(`kanban task not found: ${input.taskId}`);
+    return `task ${input.taskId} assigned to ${input.assignee}`;
+  };
+}
+
+/**
+ * Build the `onCommand` handler for an HQ publisher. The handler validates
+ * the command, dispatches through the controller, and returns an ack result
+ * (or throws to produce a `failed` ack — the publisher's `handleCommandBatch`
+ * wraps it). Best-effort: a dispatch failure never breaks the host.
+ */
+export function createHqCommandDispatcher(
+  controller: HqCommandController,
+): (command: {
+  commandId: string;
+  type: string;
+  payload: unknown;
+}) => Promise<HqPublisherCommandResult> {
+  return async (command) => {
+    const cmd = command as { commandId: string; type: string; payload: Record<string, unknown> };
+    try {
+      const result = await dispatch(
+        controller,
+        cmd.commandId,
+        cmd.type as HqCommand['type'],
+        cmd.payload,
+      );
+      return result;
+    } catch (err) {
+      return {
+        commandId: command.commandId,
+        status: 'failed',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  };
+}
+
+/**
+ * The session a command is for: the one it named, else this controller's own.
+ */
+function resolveCommandSessionId(
+  controller: HqCommandController,
+  payload: Record<string, unknown>,
+): string | undefined {
+  const named = payload['sessionId'];
+  if (typeof named === 'string' && named.length > 0) return named;
+  return controller.sessionId?.();
+}
+
+/**
+ * Reject a command addressed to a session this host does not own.
+ *
+ * Returns the rejection to send back, or null when the command may proceed.
+ */
+function rejectUnknownSession(
+  controller: HqCommandController,
+  commandId: string,
+  sessionId: string | undefined,
+): HqPublisherCommandResult | null {
+  const named = sessionId;
+  if (named === undefined) return null;
+  const owns =
+    controller.ownsSession?.(named) ??
+    (controller.sessionId === undefined ? true : controller.sessionId() === named);
+  if (owns) return null;
+  return {
+    commandId,
+    status: 'rejected',
+    message: `session ${named} is not active on this client`,
+  };
+}
+
+/**
+ * Session-affinity stamp for a leader-addressed message.
+ *
+ * Only the bare `leader` alias is scoped. An explicit address
+ * (`leader@<tag>`, a subagent id) already names one agent, and a subagent
+ * delegated from another tab carries that tab's owning session — stamping it
+ * with the leader's session would drop the message at the receiver instead of
+ * narrowing it.
+ */
+function leaderSessionAffinity(
+  to: string,
+  sessionId: string | undefined,
+): { sessionAffinity: { sessionId: string } } | Record<string, never> {
+  if (to.trim().toLowerCase() !== 'leader') return {};
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return {};
+  return { sessionAffinity: { sessionId } };
+}
+
+async function dispatch(
+  controller: HqCommandController,
+  commandId: string,
+  type: HqCommand['type'],
+  payload: Record<string, unknown>,
+): Promise<HqPublisherCommandResult> {
+  // Resolved once: every branch below acts on the session the operator picked,
+  // and a command naming a session this host does not own is refused rather
+  // than redirected to the default.
+  const sessionId = resolveCommandSessionId(controller, payload);
+  const namedSession = typeof payload['sessionId'] === 'string' ? payload['sessionId'] : undefined;
+  if (type !== 'broadcast') {
+    const rejected = rejectUnknownSession(controller, commandId, namedSession);
+    if (rejected !== null) return rejected;
+  }
+  switch (type) {
+    case 'steer': {
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ steer';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({
+        from,
+        to,
+        type: 'steer',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(to, sessionId),
+      });
+      return { commandId, status: 'accepted', message: `steered ${to}` };
+    }
+
+    case 'btw': {
+      // Non-urgent FYI. Same targeting as steer, but delivered as a `btw`
+      // mailbox message so the receiving agent absorbs it as context instead
+      // of treating it as a course-correction. Lands in the mailbox file
+      // regardless of whether a loop is currently running.
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ note';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({
+        from,
+        to,
+        type: 'btw',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(to, sessionId),
+      });
+      return { commandId, status: 'accepted', message: `noted ${to}` };
+    }
+
+    case 'queue': {
+      // Queue a prompt/note for the target. Delivered as a plain `note` the
+      // agent picks up before its next step — used when the prompt should
+      // wait its turn rather than steer the current operation. Like steer/btw,
+      // this only writes to the mailbox; no live loop is required.
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ prompt';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({
+        from,
+        to,
+        type: 'note',
+        subject,
+        body,
+        priority,
+        ...leaderSessionAffinity(to, sessionId),
+      });
+      return { commandId, status: 'accepted', message: `queued for ${to}` };
+    }
+
+    case 'broadcast': {
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ broadcast';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({ from, to: 'all', type: 'broadcast', subject, body, priority });
+      return { commandId, status: 'accepted', message: 'broadcast sent' };
+    }
+
+    case 'abort': {
+      const target = typeof payload['target'] === 'string' ? payload['target'] : 'leader';
+      if (target === 'leader') {
+        const aborted = controller.interruptLeader(sessionId);
+        return {
+          commandId,
+          status: aborted ? 'completed' : 'accepted',
+          message: aborted ? 'leader aborted' : 'no active leader run',
+        };
+      }
+      if (target === 'fleet') {
+        // A host without fleet control must say so. Reporting
+        // "fleet stopped (0 agents)" told the operator their workers were
+        // gone while they kept running.
+        if (controller.killFleet === undefined) {
+          return {
+            commandId,
+            status: 'rejected',
+            message: 'this client does not manage a fleet',
+          };
+        }
+        const killed = await controller.killFleet(sessionId);
+        return {
+          commandId,
+          status: 'completed',
+          message: `fleet stopped (${killed} agents)`,
+        };
+      }
+      // Specific subagent id.
+      if (controller.terminateAgent === undefined) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not manage subagents',
+        };
+      }
+      const terminated = await controller.terminateAgent(target, sessionId);
+      return {
+        commandId,
+        status: terminated ? 'completed' : 'rejected',
+        message: terminated ? `agent ${target} terminated` : `agent ${target} not found`,
+      };
+    }
+
+    case 'spawn': {
+      const role = typeof payload['role'] === 'string' ? payload['role'] : '';
+      const task = typeof payload['task'] === 'string' ? payload['task'] : undefined;
+      const maxIterations =
+        typeof payload['maxIterations'] === 'number' ? payload['maxIterations'] : undefined;
+      if (controller.spawnAgent === undefined) {
+        return { commandId, status: 'rejected', message: 'no director active' };
+      }
+      const subagentId = await controller.spawnAgent(role, task, maxIterations, sessionId);
+      return { commandId, status: 'completed', message: `spawned ${subagentId}` };
+    }
+
+    case 'kanban-transition': {
+      if (controller.kanbanTransition === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban control is unavailable' };
+      }
+      const message = await controller.kanbanTransition({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        to: payload['to'] as 'backlog' | 'todo' | 'running' | 'review' | 'done',
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
+    }
+
+    case 'kanban-assign': {
+      if (controller.kanbanAssign === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban assignment is unavailable' };
+      }
+      const message = await controller.kanbanAssign({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        agentId: payload['agentId'] as string,
+        assignee: payload['assignee'] as string,
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
+    }
+
+    case 'kanban-dispatch': {
+      if (controller.kanbanDispatch === undefined) {
+        return { commandId, status: 'rejected', message: 'kanban dispatch is unavailable' };
+      }
+      const message = await controller.kanbanDispatch({
+        boardId: payload['boardId'] as string,
+        taskId: payload['taskId'] as string,
+        comment: payload['comment'] as string,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+      });
+      return { commandId, status: 'completed', message };
+    }
+
+    case 'approve': {
+      const resolveApproval = controller.resolveApproval;
+      if (resolveApproval === undefined) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not mirror approvals',
+        };
+      }
+      const toolUseId = typeof payload['toolUseId'] === 'string' ? payload['toolUseId'] : '';
+      const decision = payload['decision'];
+      if (
+        toolUseId.length === 0 ||
+        (decision !== 'yes' &&
+          decision !== 'no' &&
+          decision !== 'always' &&
+          decision !== 'always-exact' &&
+          decision !== 'always-command' &&
+          decision !== 'always-tool' &&
+          decision !== 'deny')
+      ) {
+        return { commandId, status: 'rejected', message: 'malformed approve command' };
+      }
+      // `sessionId` (not `namedSession`): a prompt always belongs to a
+      // session, so checking against this host's default when the operator
+      // named none keeps a single-session host honest too.
+      const applied = resolveApproval(toolUseId, decision, sessionId);
+      if (!applied) {
+        return {
+          commandId,
+          status: 'rejected',
+          // Says WHY, because "rejected" alone reads as a failure the operator
+          // should retry — and retrying a settled prompt does nothing.
+          message: `approval ${toolUseId} is no longer pending (already answered, aborted or timed out)`,
+        };
+      }
+      return { commandId, status: 'completed', message: `approval ${decision}` };
+    }
+
+    case 'answer-input': {
+      const resolver = controller.resolveUserInput;
+      if (!resolver)
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'this client does not mirror user input forms',
+        };
+      const requestId = typeof payload['requestId'] === 'string' ? payload['requestId'] : '';
+      const response = payload['response'] as UserInputResponse | undefined;
+      if (!requestId || !response || !Array.isArray(response.answers))
+        return { commandId, status: 'rejected', message: 'malformed answer-input command' };
+      if (!resolver(requestId, response, sessionId))
+        return {
+          commandId,
+          status: 'rejected',
+          message: `user input ${requestId} is no longer pending`,
+        };
+      return { commandId, status: 'completed', message: 'user input submitted' };
+    }
+
+    case 'run-command': {
+      // RCE gate: require explicit operator opt-in. Without it, reject every
+      // run-command so a stolen client token can never gain shell access.
+      if (!controller.allowRunCommand()) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'run-command requires operator opt-in (--hq-allow-exec)',
+        };
+      }
+      // Even with opt-in, we do NOT exec shell directly — we route through the
+      // agent as a steer so the agent's own permission policy still applies.
+      // A full direct-exec path is deferred until a separately-audited
+      // escalation policy + allowlist exists.
+      const mailbox = controller.steerMailbox;
+      const command = typeof payload['command'] === 'string' ? payload['command'] : '';
+      if (mailbox !== undefined && command.length > 0) {
+        const from = `hq@${controller.sessionTag()}`;
+        await mailbox.send({
+          from,
+          to: 'leader',
+          type: 'steer',
+          subject: 'Run command (HQ)',
+          body: `Run the following shell command:\n\n\`\`\`\n${command}\n\`\`\``,
+          priority: 'high',
+          ...leaderSessionAffinity('leader', sessionId),
+        });
+        return { commandId, status: 'accepted', message: 'run-command routed to leader as steer' };
+      }
+      return { commandId, status: 'rejected', message: 'cannot route run-command (no mailbox)' };
+    }
+
+    case 'start-session': {
+      // Same operator opt-in as run-command: starting a session launches a
+      // process on this machine.
+      if (!controller.allowRunCommand()) {
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'start-session requires operator opt-in (--hq-allow-exec)',
+        };
+      }
+      if (controller.startSession === undefined) {
+        return { commandId, status: 'rejected', message: 'this client cannot start sessions' };
+      }
+      // Re-checked here: this process launches something, so it does not
+      // trust that the server validated the payload.
+      const parsed = parseHqStartSession(payload);
+      if (parsed === null) {
+        return { commandId, status: 'rejected', message: 'start-session needs a prompt' };
+      }
+      try {
+        const { pid } = controller.startSession(parsed.prompt);
+        return {
+          commandId,
+          status: 'completed',
+          message: pid === undefined ? 'session started' : `session started (pid ${pid})`,
+        };
+      } catch (err) {
+        return { commandId, status: 'failed', message: toErrorMessage(err) };
+      }
+    }
+
+    default:
+      return { commandId, status: 'rejected', message: `unknown command type: ${type}` };
+  }
+}

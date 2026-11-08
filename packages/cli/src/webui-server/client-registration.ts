@@ -1,24 +1,10 @@
-import { mailboxSessionTag } from '@wrongstack/coordination';
 import type { HqClientCapability } from '@wrongstack/hq';
+import { createWebuiHqCommandHandler, type WebuiHqControlHooks } from '@wrongstack/runtime/hq-host';
 import { createWebuiClientPresence } from '@wrongstack/webui-server';
-import {
-  createHqCommandDispatcher,
-  createProjectKanbanAssignHandler,
-  createProjectKanbanTransitionHandler,
-  type HqCommandController,
-} from '../hq-command-controller.js';
 import { startCliHqConnection } from '../hq-publisher.js';
 import { CLI_VERSION } from '../version.js';
 
-export interface WebuiHqControlHooks {
-  interruptLeader: (sessionId?: string) => boolean;
-  allowRunCommand: () => boolean;
-  /** Does this host currently own the named session (an open tab)? */
-  ownsSession?: ((sessionId: string) => boolean) | undefined;
-  spawnAgent?: HqCommandController['spawnAgent'];
-  killFleet?: HqCommandController['killFleet'];
-  terminateAgent?: HqCommandController['terminateAgent'];
-}
+export type { WebuiHqControlHooks };
 
 export interface WebuiClientRegistrationDeps {
   projectRoot: string | undefined;
@@ -66,42 +52,14 @@ export function createWebuiClientRegistration(
         // this project's Kanban boards; a second sync is a second writer.
         ownKanbanSync: false,
       }),
+    // The same HQ command handler the standalone engine (desktop) installs.
     ...(control
       ? {
-          createCommandHandler: (mailbox, approvals) =>
-            createHqCommandDispatcher({
-              steerMailbox: mailbox,
-              interruptLeader: control.interruptLeader,
-              allowRunCommand: control.allowRunCommand,
-              // Same registry the approval bridge publishes from, so every
-              // prompt HQ shows is one this handler can actually answer.
-              resolveApproval: (toolUseId, decision, sessionId) =>
-                approvals.resolve(toolUseId, decision, sessionId),
-              // Same registry again: it publishes `user_input.requested`, so
-              // it has to be the one that answers `answer-input`.
-              resolveUserInput: (requestId, response, sessionId) =>
-                approvals.resolveUserInput?.(requestId, response, sessionId) ?? false,
-              ...(deps.projectRoot
-                ? {
-                    kanbanTransition: createProjectKanbanTransitionHandler(deps.projectRoot),
-                    kanbanAssign: createProjectKanbanAssignHandler(deps.projectRoot),
-                  }
-                : {}),
-              // The session HQ actually SHOWS for this client — the boot
-              // session the telemetry bridge publishes under and the only one
-              // `interruptLeader` speaks for. `getSessionId` follows whichever
-              // browser tab is in front, which is a different session HQ has
-              // no view of and cannot control.
-              sessionTag: () => mailboxSessionTag(deps.hqSessionId),
-              // The session HQ falls back to when a command names none — the
-              // boot tab. A command that DOES name one is honoured (and
-              // refused when this host no longer has it) via `ownsSession`.
-              sessionId: () => deps.hqSessionId,
-              ...(control.ownsSession ? { ownsSession: control.ownsSession } : {}),
-              ...(control.spawnAgent ? { spawnAgent: control.spawnAgent } : {}),
-              ...(control.killFleet ? { killFleet: control.killFleet } : {}),
-              ...(control.terminateAgent ? { terminateAgent: control.terminateAgent } : {}),
-            }),
+          createCommandHandler: createWebuiHqCommandHandler({
+            control,
+            projectRoot: deps.projectRoot,
+            hqSessionId: deps.hqSessionId,
+          }),
         }
       : {}),
   });

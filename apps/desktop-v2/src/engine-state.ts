@@ -18,7 +18,11 @@ import {
   parseNextSteps,
   projectNextStepsToolInput,
 } from '@wrongstack/webui-protocol';
-import { type AgentTranscripts, reduceAgentTranscripts } from './agent-transcripts';
+import {
+  type AgentTranscripts,
+  hydrateAgentTranscripts,
+  reduceAgentTranscripts,
+} from './agent-transcripts';
 import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
 import {
   type ContextUsage,
@@ -371,6 +375,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       next.notices = [];
       next.delegations = [];
     }
+    // A reopened conversation brings its subagents' transcripts back with its replay.
+    next.agents = hydrateAgentTranscripts(next.agents, p['agentSessions']);
     if ((!state.messages.length || p['reset'] === true) && Array.isArray(p['replayMessages'])) {
       if (p['reset'] === true) {
         next.running = false;

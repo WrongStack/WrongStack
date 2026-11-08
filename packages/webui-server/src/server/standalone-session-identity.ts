@@ -3,7 +3,14 @@ import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, Logger } from '@wrongstack/contracts/types';
 import { AgentStatusTracker, FleetNotifier } from '@wrongstack/coordination';
 import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/storage';
-import { WebSocket } from '../ws-runtime.js';
+import {
+  type HqPublisher,
+  startBrainTelemetryBridge,
+  startCostTelemetryBridge,
+  startFleetTelemetryBridge,
+  startToolTelemetryBridge,
+  startWorktreeTelemetryBridge,
+} from '@wrongstack/hq';
 import { errMessage } from './ws-utils.js';
 
 interface StandaloneSessionIdentityPaths {
@@ -20,7 +27,10 @@ interface StandaloneSessionIdentityOptions {
   workingDir: string;
   initialSessionId: string;
   sessionRegistry?: SessionIdentityRegistry | undefined;
-  /** Test/embedding escape hatch; production defaults to enabled. */
+  /**
+   * Test/embedding escape hatch: `false` keeps the engine-wide HQ bridges off even when a
+   * publisher is bound. Production defaults to enabled.
+   */
   enableHqTelemetry?: boolean | undefined;
 }
 
@@ -46,6 +56,11 @@ export interface StandaloneSessionIdentityLifecycle {
   /** Reserve a selected session before its writer is opened. */
   claim(sessionId: string, target?: SessionIdentityTarget): Promise<() => Promise<void>>;
   activate(sessionId: string, target?: SessionIdentityTarget): Promise<void>;
+  /**
+   * The engine's HQ publisher, or `undefined` when it goes away. The engine-wide telemetry
+   * bridges follow it, stamped with the active session.
+   */
+  bindHqPublisher(publisher: HqPublisher | undefined): void;
   stop(): Promise<void>;
 }
 
@@ -133,117 +148,55 @@ export async function createStandaloneSessionIdentityLifecycle(
   }
   statusTracker.start();
 
+  // HQ: this lifecycle no longer opens a connection of its own. The engine's client presence
+  // (`standalone-hq-presence.ts`) owns the one connection — control, approvals and one session
+  // stream per open conversation — and hands its publisher here, where the engine-wide bridges
+  // (fleet, Brain, worktrees, tools, cost) are stamped with the active session.
   let stopHqBridges = (): void => {};
-  let closeHqPublisher = (): void => {};
-  let restartHqBridges = (_sessionId: string): void => {};
-  if (opts.enableHqTelemetry !== false) {
-    try {
-      const core = await import('@wrongstack/hq');
-      type HqPublisher = NonNullable<ReturnType<typeof core.createHqPublisherFromEnv>>;
-      let publisher: HqPublisher | undefined;
-
-      const createPublisher = (target: SessionIdentityTarget): HqPublisher | undefined => {
-        const next = core.createHqPublisherFromEnv({
-          clientKind: 'webui',
-          projectRoot: target.projectRoot,
-          projectName: target.projectName,
-          appConfig: opts.config as never as Parameters<
-            typeof core.createHqPublisherFromEnv
-          >[0]['appConfig'],
-          socketFactory: (url: string) =>
-            new WebSocket(url) as unknown as import('@wrongstack/hq').HqSocketLike,
-        });
-        next?.connect();
-        return next;
-      };
-
-      closeHqPublisher = () => {
-        publisher?.close();
-        publisher = undefined;
-      };
-      restartHqBridges = (sessionId: string) => {
-        stopHqBridges();
-        if (publisher?.project.projectRoot !== activeTarget.projectRoot) {
-          closeHqPublisher();
-          publisher = createPublisher(activeTarget);
+  let hqPublisher: HqPublisher | undefined;
+  const startHqBridges = (sessionId: string): void => {
+    stopHqBridges();
+    const publisher = hqPublisher;
+    if (!publisher || opts.enableHqTelemetry === false) return;
+    const stops: Array<() => void> = [];
+    const add = (start: () => () => void): void => {
+      try {
+        stops.push(start());
+      } catch {
+        /* optional bridge */
+      }
+    };
+    add(() => startFleetTelemetryBridge({ events, publisher, runId: sessionId, sessionId }));
+    add(() => startBrainTelemetryBridge({ events, publisher, sessionId }));
+    add(() => startWorktreeTelemetryBridge({ events, publisher, sessionId }));
+    add(() =>
+      startToolTelemetryBridge({
+        events,
+        publisher,
+        projectRoot: activeTarget.projectRoot,
+        sessionId,
+      }),
+    );
+    add(() => startCostTelemetryBridge({ events, publisher, sessionId }));
+    stopHqBridges = () => {
+      for (const stop of stops.splice(0)) {
+        try {
+          stop();
+        } catch {
+          /* best effort */
         }
-        const activePublisher = publisher;
-        if (!activePublisher) return;
-
-        const stops: Array<() => void> = [];
-        const add = (start: () => () => void): void => {
-          try {
-            stops.push(start());
-          } catch {
-            /* optional bridge */
-          }
-        };
-        add(() =>
-          core.startSessionTelemetryBridge({
-            publisher: activePublisher,
-            events,
-            sessionId,
-            projectRoot: activeTarget.projectRoot,
-            projectName: activeTarget.projectName,
-            globalRoot: paths.globalRoot,
-            initialAgents: statusTracker.getAgents(),
-            startedAt: new Date().toISOString(),
-          }),
-        );
-        add(() =>
-          core.startFleetTelemetryBridge({
-            events,
-            publisher: activePublisher,
-            runId: sessionId,
-            sessionId,
-          }),
-        );
-        add(() =>
-          core.startBrainTelemetryBridge({
-            events,
-            publisher: activePublisher,
-            sessionId,
-          }),
-        );
-        add(() =>
-          core.startWorktreeTelemetryBridge({
-            events,
-            publisher: activePublisher,
-            sessionId,
-          }),
-        );
-        add(() =>
-          core.startToolTelemetryBridge({
-            events,
-            publisher: activePublisher,
-            projectRoot: activeTarget.projectRoot,
-            sessionId,
-          }),
-        );
-        add(() =>
-          core.startCostTelemetryBridge({
-            events,
-            publisher: activePublisher,
-            sessionId,
-          }),
-        );
-        stopHqBridges = () => {
-          for (const stop of stops.splice(0)) {
-            try {
-              stop();
-            } catch {
-              /* best effort */
-            }
-          }
-        };
-      };
-
-      publisher = createPublisher(activeTarget);
-      restartHqBridges(activeSessionId);
+      }
+    };
+  };
+  const bindHqPublisher = (publisher: HqPublisher | undefined): void => {
+    if (stopped) return;
+    hqPublisher = publisher;
+    try {
+      startHqBridges(activeSessionId);
     } catch (err) {
       logger.debug?.(`WebUI HQ telemetry unavailable: ${errorMessage(err)}`);
     }
-  }
+  };
 
   const activate = async (
     sessionId: string,
@@ -277,7 +230,7 @@ export async function createStandaloneSessionIdentityLifecycle(
       activeTarget = target;
       fleetNotifier.setProjectRoot(target.projectRoot);
       try {
-        restartHqBridges(sessionId);
+        startHqBridges(sessionId);
       } catch (err) {
         logger.debug?.(`WebUI HQ session swap failed: ${errorMessage(err)}`);
       }
@@ -338,7 +291,7 @@ export async function createStandaloneSessionIdentityLifecycle(
     await transition.catch(() => undefined);
     statusTracker.stop();
     stopHqBridges();
-    closeHqPublisher();
+    hqPublisher = undefined;
     fleetNotifier.dispose();
     try {
       await registry.markClosing();
@@ -348,7 +301,7 @@ export async function createStandaloneSessionIdentityLifecycle(
     }
   };
 
-  return { statusTracker, claim, activate, stop };
+  return { statusTracker, claim, activate, bindHqPublisher, stop };
 }
 
 function errorMessage(err: unknown): string {

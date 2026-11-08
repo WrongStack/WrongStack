@@ -12,6 +12,7 @@ import type { GoalWebSocketHandler } from './goal-ws-handler.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
+import { buildAgentSessionsPayload, type LoadAgentSessions } from './session-agent-sessions.js';
 import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { ConnectedClient, WSClientMessage } from './types.js';
@@ -30,6 +31,11 @@ interface ConnectionHandlerOptions {
         usage?: Usage | undefined;
       } | null>)
     | undefined;
+  /**
+   * The replayed session's subagents (see `session-agent-sessions.ts`). Absent on a host
+   * without a fleet: the connect payload then carries no `agentSessions`.
+   */
+  loadAgentSessions?: LoadAgentSessions | undefined;
   clients: Map<WebSocket, ConnectedClient>;
   pendingConfirms: Map<string, PendingConfirm>;
   goalHandler: GoalWebSocketHandler;
@@ -157,8 +163,10 @@ export function createConnectionHandler(
       ) {
         payload['lastInputTokens'] = options.context.lastRequestTokens;
       }
+      let replayEvents: readonly SessionEvent[] | undefined;
       try {
         const replay = await options.loadReplay?.();
+        replayEvents = replay?.events;
         // No durable store wired: fall back to the live conversation, which has
         // no event stream behind it — markers are simply absent in that mode.
         Object.assign(
@@ -171,6 +179,17 @@ export function createConnectionHandler(
         );
       } catch {
         // Replay is best-effort; the client may still hydrate local state.
+      }
+      try {
+        // Scoped to the agents THIS session's journal names (CLI parity:
+        // `cli/src/webui-server/connection-handler.ts`).
+        const agentSessions = await buildAgentSessionsPayload(
+          replayEvents,
+          options.loadAgentSessions,
+        );
+        if (agentSessions.length > 0) payload['agentSessions'] = agentSessions;
+      } catch {
+        // Worker replay is independently best-effort.
       }
       return payload;
     },

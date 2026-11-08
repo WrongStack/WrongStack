@@ -8,6 +8,7 @@ import type {
   Tracer,
 } from '@wrongstack/contracts/types';
 import {
+  createAgentMonitorService,
   createDelegateTool,
   createSystemOneTierSuggester,
   DelegationTracker,
@@ -31,6 +32,7 @@ import {
   type WebuiLeaderAutoWakeHost,
   type WebuiLeaderAutoWakeHostOptions,
 } from './leader-auto-wake-host.js';
+import { createAgentSessionsLoader, type LoadAgentSessions } from './session-agent-sessions.js';
 
 /** Tools that mutate a single target file; same matcher as the leader's gate. */
 const WRONGTRACE_MATCHER = 'edit|write|replace|patch|codebase-ast-replace';
@@ -116,6 +118,12 @@ export interface StandaloneDelegation {
    * reaches another tab's workers.
    */
   stopSession(sessionId: string, subagentIds?: readonly string[]): Promise<void> | undefined;
+  /**
+   * A replayed conversation's workers, read back from the agent monitor's transcripts (CLI
+   * parity: `route-contexts.ts` `loadAgentSessions`), including ones an earlier engine process
+   * ran.
+   */
+  loadAgentSessions: LoadAgentSessions;
   dispose(): Promise<void>;
 }
 
@@ -141,6 +149,17 @@ export function installStandaloneDelegation(
   const fleetRoot = sessionScopedPath(input.projectSessionsDir, sessionId, '');
   const sessionsRoot = join(fleetRoot, 'subagents');
   const budget = resolveFleetBudgetSources({ config });
+  // Each worker's own conversation (CLI parity: `director-setup.ts`). The monitor is what emits
+  // `agent.timeline.message` / `agent.status_changed`, and what writes the transcripts a
+  // reopened conversation reads back; the host starts it with the director and closes it on
+  // dispose.
+  const agentMonitor = createAgentMonitorService({
+    events,
+    sessionId,
+    transcriptsDir: join(sessionsRoot, 'transcripts'),
+    maxEntriesPerAgent: 500,
+    streamEnabled: false,
+  });
 
   // Workers get only the fail-open WrongTrace lock gate, never the leader's shell hooks.
   const hookRegistry = new HookRegistry();
@@ -198,6 +217,7 @@ export function installStandaloneDelegation(
       fleetRoot,
       stateCheckpointPath: join(fleetRoot, 'director-state.json'),
       sessionWriter: input.session,
+      agentMonitor,
       ...(config.fleet?.budget
         ? {
             directorBudget: {
@@ -264,6 +284,11 @@ export function installStandaloneDelegation(
         ...shown.map((id) => director.terminate(id).catch(() => undefined)),
       ]).then(() => undefined);
     },
+    // A transcripts directory of an earlier process is only ever read: a monitor that is
+    // never started writes and emits nothing.
+    loadAgentSessions: createAgentSessionsLoader(agentMonitor, (transcriptsDir) =>
+      createAgentMonitorService({ events, transcriptsDir, maxEntriesPerAgent: 500 }),
+    ),
     dispose: async () => {
       autoWake.dispose();
       tracker.dispose();
