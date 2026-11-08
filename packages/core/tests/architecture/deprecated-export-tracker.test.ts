@@ -28,7 +28,10 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL('../../../..', import.meta.
 const STORAGE_INDEX = path.resolve(REPO_ROOT, 'packages/core/src/storage/index.ts');
 const SNAPSHOT = path.resolve(REPO_ROOT, 'architecture/core-public-api-snapshot.json');
 
-const CONSUMER_FILES = ['packages/webui-server/tests/standalone-session-identity.test.ts'];
+const CONSUMER_FILES = [
+  'packages/webui-server/tests/standalone-session-identity.test.ts',
+  'packages/webui-server/tests/standalone-session-identity-hq.test.ts',
+];
 
 async function grepRepoForConsumer(): Promise<string[]> {
   const consumers: string[] = [];
