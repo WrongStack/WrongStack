@@ -181,6 +181,7 @@ export const sageCmd: SubcommandHandler = async (rawArgs, deps) => {
     'release',
     'from',
     'stop-daemon',
+    'keep-mode',
   ]);
   const words = positionals(args, ['origin', 'command', 'fix']);
   const sub = words[0];

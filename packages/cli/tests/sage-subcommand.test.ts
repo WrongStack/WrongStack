@@ -8,6 +8,11 @@ vi.mock('@wrongstack/sage-mcp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/sage-mcp')>()),
   serveAttachedSageMcpStdio,
 }));
+const runSageServiceCommand = vi.hoisted(() => vi.fn(async () => 0));
+vi.mock('../src/subcommands/handlers/sage-service.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/subcommands/handlers/sage-service.js')>()),
+  runSageServiceCommand,
+}));
 
 import { findExecutableOnPath, sageCmd } from '../src/subcommands/handlers/sage.js';
 
@@ -109,6 +114,17 @@ describe('wstack sage', () => {
       directory: 'custom-sage',
       origin: 'codex',
     });
+  });
+
+  it('service install gets its flags back from the parsed flags, --keep-mode included', async () => {
+    // The dispatcher strips every flag into deps.flags; `sage` restores the ones it knows.
+    const { deps } = makeDeps(root, { 'keep-mode': true, from: 'build-dir', 'stop-daemon': true });
+    expect(await sageCmd(['service', 'install'], deps)).toBe(0);
+    const [args] = runSageServiceCommand.mock.calls.at(-1) as unknown as [string[]];
+    expect(args[0]).toBe('install');
+    expect(args).toEqual(
+      expect.arrayContaining(['--keep-mode', '--stop-daemon', '--from', 'build-dir']),
+    );
   });
 
   it('findExecutableOnPath resolves an explicit path and misses an absent command', () => {

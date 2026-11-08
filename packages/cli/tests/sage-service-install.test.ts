@@ -1,8 +1,23 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { installWrongMemory, type ServiceIo } from '../src/subcommands/handlers/sage-service.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  installWrongMemory,
+  runSageServiceCommand,
+  type ServiceIo,
+} from '../src/subcommands/handlers/sage-service.js';
+import type { SubcommandDeps } from '../src/subcommands/contracts.js';
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const BODY: Record<string, string> = {
@@ -140,5 +155,112 @@ describe('installWrongMemory', () => {
         installWrongMemory({ platform, arch, stopDaemon: false, io: fakeIo({}) }),
       ).rejects.toThrow(/Windows x64, Linux x64 and macOS arm64/);
     }
+  });
+});
+
+const SHIPPED = ['win32-x64', 'linux-x64', 'darwin-arm64'].includes(
+  `${process.platform}-${process.arch}`,
+);
+
+describe.skipIf(!SHIPPED)('wstack sage service install: the memory service mode', () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  /** A local build directory (`--from`), a profile config path and deps. */
+  const setup = (profileContent?: string) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'wm-install-cmd-'));
+    dirs.push(dir);
+    const build = path.join(dir, 'build');
+    const profileDir = path.join(dir, 'profile');
+    const profile = path.join(profileDir, 'config.json');
+    const suffix = process.platform === 'win32' ? '.exe' : '';
+    mkdirSync(build, { recursive: true });
+    mkdirSync(profileDir, { recursive: true });
+    for (const exe of ['wrongmemory', 'wrongmemoryd']) {
+      writeFileSync(path.join(build, `${exe}${suffix}`), 'bytes');
+    }
+    if (profileContent !== undefined) writeFileSync(profile, profileContent);
+    const write = vi.fn();
+    const deps = {
+      config: {},
+      renderer: { write, writeError: vi.fn() },
+      paths: { profileConfig: () => profile },
+      projectRoot: dir,
+      cwd: dir,
+      userHome: dir,
+    } as never as SubcommandDeps;
+    const output = () => write.mock.calls.map((c) => String(c[0])).join('');
+    const read = () => JSON.parse(readFileSync(profile, 'utf8'));
+    return { build, profile, profileDir, deps, output, read, io: fakeIo({}) };
+  };
+
+  it('makes WrongMemory the memory service of a profile without a mode, keeping its other settings', async () => {
+    const t = setup(
+      JSON.stringify({
+        model: 'm',
+        Sage: { storage: { directory: '.wrongstack/memories' }, service: { startPolicy: 'never' } },
+      }),
+    );
+    expect(await runSageServiceCommand(['install', '--from', t.build], t.deps, t.io)).toBe(0);
+    expect(t.io.ran).toHaveLength(1);
+    expect(t.read()).toEqual({
+      model: 'm',
+      Sage: {
+        storage: { directory: '.wrongstack/memories' },
+        service: { startPolicy: 'never', mode: 'wrongmemory' },
+      },
+    });
+    // The previous content is kept as a config backup.
+    expect(JSON.parse(readFileSync(`${t.profile}.last`, 'utf8'))).toMatchObject({ model: 'm' });
+    expect(t.output()).toContain(`SAGE memory service: wrongmemory (set in ${t.profile})`);
+  });
+
+  it('creates the profile config when there is none yet', async () => {
+    const t = setup();
+    expect(await runSageServiceCommand(['install', '--from', t.build], t.deps, t.io)).toBe(0);
+    expect(t.read()).toEqual({ Sage: { service: { mode: 'wrongmemory' } } });
+  });
+
+  it('never overwrites a mode the profile chose, local included, and leaves the file untouched', async () => {
+    for (const mode of ['local', 'auto', 'wrongmemory']) {
+      const text = JSON.stringify({ Sage: { service: { mode } } });
+      const t = setup(text);
+      const before = statSync(t.profile).mtimeMs;
+      expect(
+        await runSageServiceCommand(['install', '--from', t.build, '--json'], t.deps, t.io),
+      ).toBe(0);
+      expect(JSON.parse(t.output())).toMatchObject({
+        mode: { mode, changed: false, configFile: t.profile },
+      });
+      expect(readFileSync(t.profile, 'utf8')).toBe(text);
+      expect(statSync(t.profile).mtimeMs).toBe(before);
+      expect(readdirSync(t.profileDir)).toEqual(['config.json']);
+    }
+  });
+
+  it('leaves the config alone with --keep-mode', async () => {
+    const t = setup();
+    expect(
+      await runSageServiceCommand(['install', '--from', t.build, '--keep-mode'], t.deps, t.io),
+    ).toBe(0);
+    expect(existsSync(t.profile)).toBe(false);
+    expect(t.output()).toContain('Next: wstack sage service use wrongmemory');
+  });
+
+  it('reports a corrupt profile config without overwriting it or failing the finished install', async () => {
+    const t = setup('{ not json');
+    expect(await runSageServiceCommand(['install', '--from', t.build], t.deps, t.io)).toBe(0);
+    expect(t.io.ran).toHaveLength(1);
+    expect(readFileSync(t.profile, 'utf8')).toBe('{ not json');
+    expect(t.output()).toMatch(/SAGE memory service not changed: .*not valid JSON/);
+  });
+
+  it('does not touch the config when the install fails', async () => {
+    const t = setup();
+    expect(
+      await runSageServiceCommand(['install', '--from', t.build], t.deps, fakeIo({ status: 1 })),
+    ).toBe(1);
+    expect(existsSync(t.profile)).toBe(false);
   });
 });

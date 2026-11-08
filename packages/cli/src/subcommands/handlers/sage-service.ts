@@ -2,7 +2,7 @@
  * `wstack sage service` — choose and set up the memory service for SAGE.
  *
  *   wstack sage service status [--json]
- *   wstack sage service install [--release <v>] [--from <dir>] [--stop-daemon] [--json]
+ *   wstack sage service install [--release <v>] [--from <dir>] [--stop-daemon] [--keep-mode] [--json]
  *   wstack sage service use <local|wrongmemory|auto> [--yes] [--json]
  *
  * `local` (the default) keeps SAGE's built-in store. `wrongmemory` routes every
@@ -15,7 +15,9 @@
  * SHA256SUMS (and GitHub's recorded asset digest), then runs WrongMemory's own
  * `install`, which places them in `%LOCALAPPDATA%\WrongMemory\bin` on Windows
  * and `~/.local/share/wrongmemory/bin` on Linux and macOS. `--from <dir>`
- * installs from a local build.
+ * installs from a local build. When the active profile has not chosen a
+ * mode, `install` then sets it to `wrongmemory`; an explicit mode (including
+ * `local`) is kept, and `--keep-mode` leaves the config alone.
  *
  * `use` prints its plan unless `--yes` is given. Switching to `wrongmemory`
  * backs the project store up, hands it to the service (the local SAGE server
@@ -29,7 +31,12 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { buildChildEnv, toErrorMessage, updateJsonObjectFile } from '@wrongstack/core/utils';
+import {
+  buildChildEnv,
+  readJsonObjectFile,
+  toErrorMessage,
+  updateJsonObjectFile,
+} from '@wrongstack/core/utils';
 import { backupCurrent } from '../../config-history.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { downloadReleaseAsset, downloadReleaseAssetToFile } from '../../release-asset-download.js';
@@ -290,6 +297,61 @@ async function setMode(deps: SubcommandDeps, mode: Mode): Promise<string> {
   return file;
 }
 
+/** `Sage.service.mode` as written in a profile config object, if any. */
+function explicitMode(cfg: Record<string, unknown>): string | undefined {
+  const sage = cfg.Sage;
+  if (!sage || typeof sage !== 'object') return undefined;
+  const service = (sage as Record<string, unknown>).service;
+  if (!service || typeof service !== 'object') return undefined;
+  const mode = (service as Record<string, unknown>).mode;
+  return typeof mode === 'string' ? mode : undefined;
+}
+
+/**
+ * After an install: make WrongMemory the profile's memory service unless the
+ * profile already chose one. An explicit `Sage.service.mode` (including
+ * `local`) is the user's choice and is never overwritten; only an unset mode,
+ * which means the built-in `local` default, becomes `wrongmemory`. The file is
+ * not touched when nothing changes.
+ *
+ * Deliberately decided here, at install time, and not by probing for an
+ * installed WrongMemory on every start: a probe would turn any machine with
+ * WrongMemory installed into one where every wstack run (including test
+ * suites that do not isolate the user's environment) registers its project
+ * with the real daemon.
+ */
+async function chooseWrongMemoryAfterInstall(
+  file: string,
+): Promise<{ mode: string; changed: boolean; configFile: string }> {
+  // A missing file reads as {}; corrupt JSON also reads as {} here, and the
+  // update below then refuses to overwrite it.
+  const current = explicitMode(await readJsonObjectFile(file));
+  if (current !== undefined) return { mode: current, changed: false, configFile: file };
+  let changed = false;
+  let mode = 'wrongmemory';
+  await updateJsonObjectFile(file, async (cfg) => {
+    // Re-checked under the file lock: a mode written meanwhile wins.
+    const raced = explicitMode(cfg);
+    if (raced !== undefined) {
+      mode = raced;
+      return cfg;
+    }
+    await backupCurrent(undefined, file);
+    const sage = (cfg.Sage && typeof cfg.Sage === 'object' ? cfg.Sage : {}) as Record<
+      string,
+      unknown
+    >;
+    const service = (
+      sage.service && typeof sage.service === 'object' ? sage.service : {}
+    ) as Record<string, unknown>;
+    sage.service = { ...service, mode: 'wrongmemory' };
+    cfg.Sage = sage;
+    changed = true;
+    return cfg;
+  });
+  return { mode, changed, configFile: file };
+}
+
 async function useMode(
   deps: SubcommandDeps,
   sage: Sage,
@@ -440,11 +502,49 @@ export async function runSageServiceCommand(
         dataRoot: serviceOf(deps).dataRoot ?? process.env.WRONGMEMORY_HOME,
         io,
       });
-      if (json) out(JSON.stringify(report, null, 2));
-      else {
+      // The binaries are in place at this point: a config that cannot be
+      // updated is reported, not turned into a failed install.
+      let choice: Awaited<ReturnType<typeof chooseWrongMemoryAfterInstall>> | undefined;
+      let modeError: string | undefined;
+      if (!args.includes('--keep-mode')) {
+        try {
+          choice = await chooseWrongMemoryAfterInstall(
+            activeProfileConfigPath(deps.paths, deps.config),
+          );
+        } catch (error) {
+          modeError = toErrorMessage(error);
+        }
+      }
+      if (json) {
+        out(
+          JSON.stringify(
+            {
+              ...report,
+              ...(choice ? { mode: choice } : {}),
+              ...(modeError ? { modeError } : {}),
+            },
+            null,
+            2,
+          ),
+        );
+      } else {
         out(`WrongMemory installed from ${String(report.source)}`);
         if (report.prefix) out(`  into ${String(report.prefix)}`);
-        out('  Next: wstack sage service use wrongmemory');
+        if (modeError) {
+          out(`  SAGE memory service not changed: ${modeError}`);
+          out('  Fix the profile config, then run: wstack sage service use wrongmemory');
+        } else if (choice?.changed) {
+          out(`  SAGE memory service: wrongmemory (set in ${choice.configFile})`);
+          out(
+            '  Projects are registered on first use; to back a project store up and hand it over now, run in that project: wstack sage service use wrongmemory --yes',
+          );
+          out('  Restart running wstack sessions to pick it up.');
+        } else if (choice) {
+          out(`  SAGE memory service stays "${choice.mode}" (set in ${choice.configFile})`);
+          if (choice.mode !== 'wrongmemory') out('  Switch with: wstack sage service use wrongmemory');
+        } else {
+          out('  Next: wstack sage service use wrongmemory');
+        }
       }
       return 0;
     }
@@ -470,7 +570,7 @@ export async function runSageServiceCommand(
       return 0;
     }
     out(
-      'Usage: wstack sage service [status|install [--release <v>] [--from <dir>] [--stop-daemon]|use <local|wrongmemory|auto> [--yes]] [--json]',
+      'Usage: wstack sage service [status|install [--release <v>] [--from <dir>] [--stop-daemon] [--keep-mode]|use <local|wrongmemory|auto> [--yes]] [--json]',
     );
     return 2;
   } catch (error) {
