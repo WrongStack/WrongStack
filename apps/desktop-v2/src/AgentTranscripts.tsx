@@ -1,6 +1,12 @@
+import type { FleetFold } from '@wrongstack/project-surfaces/office/fleet-fold';
 import { Brain, Wrench } from 'lucide-react';
-import { useState } from 'react';
-import { type AgentTranscript, type AgentTranscripts, transcriptSteps } from './agent-transcripts';
+import { useMemo, useState } from 'react';
+import {
+  type AgentTranscript,
+  type AgentTranscripts,
+  agentTabList,
+  transcriptSteps,
+} from './agent-transcripts';
 import { useDesktopText } from './desktop-i18n';
 import { MarkdownContent } from './MarkdownContent';
 import './agent-transcripts.css';
@@ -16,12 +22,19 @@ const led = (status: string) =>
 
 /**
  * The WebUI's agent tabs: once a conversation has subagents, a row of tabs over the transcript
- * switches between the conversation and each agent's own read-only transcript. Returns the tab row
- * and, while an agent is chosen, its transcript to show in place of the conversation.
+ * switches between the conversation and each agent's own read-only transcript. Every subagent the
+ * fleet roster knows gets a tab, as in the WebUI, not only those that sent transcript frames.
+ * Returns the tab row and, while an agent is chosen, its transcript to show in place of the
+ * conversation.
  */
-export function useAgentTabs(agents: AgentTranscripts, onLink: (href: string) => void) {
+export function useAgentTabs(
+  transcripts: AgentTranscripts,
+  fleet: Pick<FleetFold, 'agents' | 'leaderId' | 'agentTranscripts'>,
+  onLink: (href: string) => void,
+) {
   const { t } = useDesktopText();
   const [selected, setSelected] = useState<string | null>(null);
+  const agents = useMemo(() => agentTabList(transcripts, fleet), [transcripts, fleet]);
   const list = Object.values(agents);
   const current = selected ? agents[selected] : undefined;
   return {

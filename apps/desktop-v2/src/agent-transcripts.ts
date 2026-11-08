@@ -1,6 +1,8 @@
+import type { FleetFold } from '@wrongstack/project-surfaces/office/fleet-fold';
 import type {
   AgentTranscriptEntry,
   AgentTranscriptKind,
+  SubagentView,
 } from '@wrongstack/project-surfaces/office/types';
 
 /**
@@ -164,6 +166,59 @@ export function hydrateAgentTranscripts(
     };
   }
   return next;
+}
+
+/**
+ * The agents a conversation's tabs list, as the WebUI's agent tabs list them: every subagent the
+ * fleet roster knows (from `subagent.event`), not only the ones that have sent transcript frames.
+ * A worker that has not streamed a timeline message yet, or whose host never emits one, still gets
+ * its tab, showing the fleet's own record of it: its transcript there, else its output so far.
+ */
+export function agentTabList(
+  agents: AgentTranscripts,
+  fleet: Pick<FleetFold, 'agents' | 'leaderId' | 'agentTranscripts'>,
+): AgentTranscripts {
+  let next = agents;
+  for (const view of fleet.agents.values()) {
+    if (view.isLeader || view.id === 'leader' || view.id === fleet.leaderId) continue;
+    const known = next[view.id];
+    if (known) {
+      if (!known.task && view.description)
+        next = { ...next, [view.id]: { ...known, task: view.description } };
+      continue;
+    }
+    next = {
+      ...next,
+      [view.id]: {
+        id: view.id,
+        name: view.name || view.id,
+        status: view.status,
+        ...(view.description ? { task: view.description } : {}),
+        entries: fleetEntries(view, fleet.agentTranscripts.get(view.id)),
+      },
+    };
+  }
+  return next;
+}
+
+function fleetEntries(
+  view: SubagentView,
+  transcript: readonly AgentTranscriptEntry[] | undefined,
+): AgentTranscriptEntry[] {
+  if (transcript?.length) return transcript.slice(-MAX_ENTRIES);
+  const output = view.finalText || view.partialText;
+  if (!output) return [];
+  return [
+    {
+      id: `${view.id}:fleet-output`,
+      subagentId: view.id,
+      agentName: view.name || view.id,
+      kind: 'text',
+      content: output,
+      iteration: view.iteration,
+      ts: new Date(view.completedAt ?? view.startedAt).toISOString(),
+    },
+  ];
 }
 
 /** A transcript step for display: a tool call is joined with its result. */

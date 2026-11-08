@@ -1,8 +1,9 @@
+import { EMPTY_FLEET_FOLD } from '@wrongstack/project-surfaces/office/fleet-fold';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { useAgentTabs } from '../src/AgentTranscripts';
-import { transcriptSteps } from '../src/agent-transcripts';
+import { agentTabList, transcriptSteps } from '../src/agent-transcripts';
 import { emptyEngineState, reduceEngine } from '../src/engine-state';
 
 const timeline = (payload: Record<string, unknown>) => ({
@@ -130,7 +131,7 @@ describe('subagent transcripts', () => {
 
   it('shows a tab per agent once the conversation has one', () => {
     function Tabs({ agents }: { agents: typeof emptyEngineState.agents }) {
-      return useAgentTabs(agents, () => {}).bar;
+      return useAgentTabs(agents, EMPTY_FLEET_FOLD, () => {}).bar;
     }
     expect(renderToStaticMarkup(createElement(Tabs, { agents: {} }))).toBe('');
     const html = renderToStaticMarkup(
@@ -143,5 +144,77 @@ describe('subagent transcripts', () => {
     expect(html).toContain(
       '<span class="agent-led running" aria-hidden="true"></span>Ada<small>Running</small>',
     );
+  });
+
+  it('lists every subagent the fleet roster knows, as the WebUI tabs do', () => {
+    const subagent = (payload: Record<string, unknown>, at: number) => ({
+      type: 'subagent.event',
+      payload: { sessionId: 's', ...payload },
+      at,
+    });
+    let state = { ...emptyEngineState, sessionId: 's' };
+    for (const frame of [
+      subagent({ kind: 'leader_updated', subagentId: 'lead', name: 'Lead' }, 1000),
+      subagent({ kind: 'spawned', subagentId: 'w1', name: 'Bob', description: 'Map it' }, 2000),
+      subagent(
+        { kind: 'tool_executed', subagentId: 'w1', toolName: 'read', ok: true, durationMs: 5 },
+        3000,
+      ),
+      subagent({ kind: 'spawned', subagentId: 'w2', name: 'Cy', description: 'Test it' }, 3500),
+      subagent({ kind: 'spawned', subagentId: 'a1', name: 'Ada', description: 'Audit' }, 3600),
+    ])
+      state = reduceEngine(state, frame);
+    // `a1` also streamed its own timeline: it keeps that transcript, gains its task, once.
+    state = reduceEngine(state, timeline({ kind: 'text', content: 'Looking.' }));
+
+    const tabs = agentTabList(state.agents, state.fleet);
+    expect(Object.keys(tabs).sort()).toEqual(['a1', 'w1', 'w2']);
+    expect(tabs['a1']).toMatchObject({ name: 'Ada', task: 'Audit' });
+    expect(tabs['a1']?.entries.map((entry) => entry.content)).toEqual(['Looking.']);
+    expect(tabs['w1']).toMatchObject({ name: 'Bob', status: 'running', task: 'Map it' });
+    expect(tabs['w1']?.entries.map((entry) => entry.kind)).toEqual(['system', 'tool_result']);
+
+    function Tabs() {
+      return useAgentTabs(state.agents, state.fleet, () => {}).bar;
+    }
+    const html = renderToStaticMarkup(createElement(Tabs));
+    expect(html).toContain('title="Bob: Map it"');
+    expect(html).toContain('title="Cy: Test it"');
+    expect(html).not.toContain('Lead');
+  });
+
+  it('shows a fleet worker’s output when the roster holds no transcript for it', () => {
+    const tabs = agentTabList(
+      {},
+      {
+        leaderId: undefined,
+        agentTranscripts: new Map(),
+        agents: new Map([
+          [
+            'w1',
+            {
+              id: 'w1',
+              name: 'Bob',
+              status: 'completed',
+              iteration: 3,
+              toolCalls: 0,
+              costUsd: 0,
+              ctxPct: 0,
+              ctxTokens: 0,
+              maxContext: 0,
+              extensions: 0,
+              startedAt: 1000,
+              completedAt: 2000,
+              finalText: 'Two issues found.',
+              toolLog: [],
+              sparklineBins: [],
+            },
+          ],
+        ]),
+      },
+    );
+    expect(tabs['w1']?.entries).toEqual([
+      expect.objectContaining({ kind: 'text', content: 'Two issues found.', iteration: 3 }),
+    ]);
   });
 });
