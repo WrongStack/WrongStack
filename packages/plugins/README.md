@@ -41,8 +41,9 @@ advice and implementation boundaries are documented individually.
 |---|---|---|
 | `web-search` (removed in `e03e39d1`) | Built-in `search` + `fetch` tools in `@wrongstack/tools` | The built-in tools have native caching, dedup, ranking, DNS-pinned SSRF protection, TurndownService markdown, binary-content rejection, and structured errors. |
 | `json-path` (removed in `e03e39d1`) | Built-in `json` tool in `@wrongstack/tools` (action: `query` \| `validate` \| `transform` \| `merge`) | The built-in `json` tool already supports JMESPath queries, schema validation, transforms, and deep-merge via a single `action` parameter. |
+| `cron` (removed with the session wakeup change, `fa3cfd77e`) | Built-in `session_wakeup` tool in `@wrongstack/tools` (action: `schedule` \| `list` \| `cancel`); `/cron` lists the wakeups | Wakeups come back to the agent as runtime notices and wake an idle session, which the plugin's `beforeIteration` timers could not. They are session-only and in-process, and recurring ones expire after 24 hours; for jobs that survive sessions use persistent automation. |
 
-If a user lists either name in `config.plugins`, the loader emits a
+If a user lists any of these names in `config.plugins`, the loader emits a
 one-shot `log.warn` and skips loading. See
 [`DEPRECATED_PLUGIN_NAMES`](../cli/src/wiring/plugins.ts)
 in `packages/cli/src/wiring/plugins.ts` for the canonical list and
@@ -119,16 +120,7 @@ scope. The CLI hooks these events to the per-project mailbox via
 the `dep-watcher` bridge so dependency-manifest changes
 (`package.json`, `go.mod`, etc.) trigger tech-stack audits.
 
-### 6. `cron` — in-session recurring tasks
-
-**Tools**: `cron_schedule`, `cron_list`, `cron_cancel`
-
-Schedules timers with `api.extensions.register('beforeIteration', ...)`.
-All timers are tracked in module-scope state and torn down on plugin
-unload so a hot-reload cycle doesn't leak `setTimeout` handles
-(audited 2026-06-03, see "H1 audit pattern" below).
-
-### 7. `template-engine` — file templates
+### 6. `template-engine` — file templates
 
 **Tools**: `template_expand`, `template_render`, `template_create`, `template_list`
 
@@ -136,7 +128,7 @@ Three template forms: `{{var}}` substitution, `{{#if var}}…{{/if}}`
 conditionals, `{{#each items}}…{{/each}}` loops. The store is in-memory
 and module-scoped (audited 2026-06-03).
 
-### 8. `semver-bump` — conventional commits → version
+### 7. `semver-bump` — conventional commits → version
 
 **Tools**: `semver_bump`, `semver_current`, `semver_changelog`
 
@@ -145,7 +137,7 @@ Reads the git log since the last tag, infers the next version
 tag the new commit. `changelog` generates a markdown changelog
 between two refs.
 
-### 9. `secret-scanner` — credential blocker + output leak detector
+### 8. `secret-scanner` — credential blocker + output leak detector
 
 **Tools**: `secret_scanner_status`, `secret_scanner_test`
 **Hooks**:
@@ -221,7 +213,7 @@ The `high_entropy_env` pattern from the output scrubber is
 intentionally omitted — too slow and too false-positive prone
 for a synchronous pre-tool gate.
 
-### 10. `token-budget` — per-session token enforcement
+### 9. `token-budget` — per-session token enforcement
 
 **Tools**: `token_budget_status`
 **Hooks**: `Stop` + `PostToolUse` (matcher `*`)
@@ -248,7 +240,7 @@ crosses `stopPercent`, the `Stop` hook blocks the agent loop.
 `token_budget_status` tool reports the exact consumed/remaining
 breakdown.
 
-### 11. `lint-gate` — pre-write lint enforcement
+### 10. `lint-gate` — pre-write lint enforcement
 
 **Tools**: `lint_gate_status`
 **Hooks**: `PreToolUse` (matcher `write|edit`)
@@ -292,7 +284,7 @@ result is linted.
 }
 ```
 
-### 12. `branch-guard` — protected branch enforcement
+### 11. `branch-guard` — protected branch enforcement
 
 **Tools**: `branch_guard_status`
 **Hooks**: `PreToolUse` (matcher `bash|git_autocommit`)
@@ -323,7 +315,7 @@ git stash → git checkout -b feat/my-change → git stash pop → git commit ..
 Each operation type can be individually toggled. `git_autocommit`
 tool calls are treated as commits.
 
-### 13. `diff-summary` — post-write/edit diff injection
+### 12. `diff-summary` — post-write/edit diff injection
 
 **Tools**: `diff_summary_status`
 **Hooks**: `PostToolUse` (matcher `write|edit`)
@@ -354,7 +346,7 @@ and showing surrounding context.
 For untracked/new files: uses `git diff --no-index /dev/null <path>`.
 For non-git repos: silent fallback (no injection). Skips on tool errors.
 
-### 14. `commit-validator` — conventional-commit enforcement
+### 13. `commit-validator` — conventional-commit enforcement
 
 **Tools**: `commit_validator_status`
 **Hooks**: `PreToolUse` (matcher `bash|git_autocommit`)
@@ -390,7 +382,7 @@ conventional-commit format:
 Standard types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`,
 `test`, `build`, `ci`, `chore`, `revert`.
 
-### 15. `format-on-save` — automatic biome formatting
+### 14. `format-on-save` — automatic biome formatting
 
 **Tools**: `format_on_save_status`
 **Hooks**: `PostToolUse` (matcher `write|edit`)
@@ -418,7 +410,7 @@ hook is a silent no-op. Works alongside [`lint-gate`](./src/lint-gate)
 (which shows the diff AFTER) — together they form a complete write
 pipeline: lint → write → format → diff.
 
-### 16. `test-runner-gate` — automatic test execution
+### 15. `test-runner-gate` — automatic test execution
 
 **Tools**: `test_gate_status`
 **Hooks**: `PostToolUse` (matcher `write|edit`)

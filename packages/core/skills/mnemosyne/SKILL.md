@@ -44,7 +44,7 @@ Use only surfaces that are actually registered in the current session:
 | `memory_update` | Apply non-terminal corrections: text, classification, confidence, relationships, or `stale` status |
 | `memory_candidates` | File and inspect non-destructive review proposals; explicit resolution is a separate user-authorized action |
 | `skill` | Load this body and `instructions/agent-prompt.md` in progressive mode |
-| cron_schedule / cron_cancel | Optional in-session recurrence when the cron plugin is available |
+| `session_wakeup` | Optional in-session recurrence: a timer the agent sets for itself (`schedule`, `list`, `cancel`) |
 | mail_send / mailbox | Optional report delivery when mailbox tools are available |
 
 There is currently no standalone `/mnemosyne` slash command, implicit startup
@@ -119,7 +119,7 @@ the later `memory_candidates({ action: "resolve", ... })` decision.
 
 Return a concise report containing:
 
-- Trigger (`on_demand` or `cron`).
+- Trigger (`on_demand` or `scheduled`).
 - Examined, deduplicated, verified, staled, and superseded counts.
 - Semantic findings and safe corrections applied.
 - Review proposals filed, grouped by suggested action.
@@ -131,20 +131,22 @@ active. Never invent a successful broadcast or scheduled cycle.
 ## Optional Recurrence
 
 Recurring curation is explicitly opt-in and session-scoped. When
-cron_schedule is registered, schedule a plain-language action that causes a
-future agent turn to run this workflow, for example:
+`session_wakeup` is registered, schedule a prompt that brings this workflow
+back as a runtime notice, for example:
 
 ```text
-cron_schedule({
-  name: "mnemosyne-review",
-  intervalMs: 21600000,
-  action: "Run the bundled mnemosyne workflow: deterministic hygiene first, then bounded semantic review, propose-only for delete/archive."
+session_wakeup({
+  action: "schedule",
+  every_s: 21600,
+  prompt: "Run the bundled mnemosyne workflow: deterministic hygiene first, then bounded semantic review, propose-only for delete/archive."
 })
 ```
 
-Do not describe this as a persistent daemon: cron jobs belong to the live
-runtime and must be inspected or cancelled through the cron tools. If those
-tools are absent, run on demand instead.
+A recurring wakeup repeats at most every 30 seconds, expires after 24 hours,
+and a session holds at most 10. Do not describe it as a persistent daemon:
+wakeups belong to the live session, die with the process, and are inspected
+with `session_wakeup` (`action: "list"`) and removed with `action: "cancel"`
+(an `id`, or `"all"`). If the tool is absent, run on demand instead.
 
 ## Guardrails
 
@@ -164,8 +166,8 @@ tools are absent, run on demand instead.
 - **Don't re-author untouched memories to bump timestamps.** A memory that passes review stays as it is. Bumping timestamps corrupts recency signals and churns the store.
 - **Don't skip the deterministic pass.** Hygiene, anchor verification, and supersede/stale marking are run before any LLM analysis. The LLM is a bounded second pass over deterministic results, not a replacement.
 - **Don't infer absence from a missing search result.** A search miss is not proof a memory doesn't exist. Report what was searched; let deterministic checks carry the absence claim.
-- **Don't claim a successful broadcast or scheduled cycle that didn't run.** If the mailbox or cron tools are absent, say so. Never invent a successful delivery or a scheduled job.
-- **Don't describe cron as a persistent daemon.** Cron jobs belong to the live runtime; they must be inspected and cancelled through the cron tools. The skill is session-scoped.
+- **Don't claim a successful broadcast or scheduled cycle that didn't run.** If the mailbox or `session_wakeup` tools are absent, say so. Never invent a successful delivery or a scheduled job.
+- **Don't describe a wakeup as a persistent daemon.** Session wakeups belong to the live session; they must be inspected and cancelled through `session_wakeup`. The skill is session-scoped.
 - **Don't bypass store protections with `force`.** Permanent and high-importance memories receive extra scrutiny. Bypassing protections is a bug, not a feature.
 - **Don't use it as a generic memory CRUD layer.** Mnemosyne is the curation workflow. Direct memory creation/update without going through the workflow is the wrong lane.
 

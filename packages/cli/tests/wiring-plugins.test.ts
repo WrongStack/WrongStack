@@ -629,6 +629,14 @@ describe('plugin deprecation policy', () => {
       expect(DEPRECATED_PLUGIN_NAMES['web-search']).toContain('fetch');
       expect(DEPRECATED_PLUGIN_NAMES['json-path']).toContain('json');
     });
+
+    it('lists cron, which session_wakeup replaced, so a config naming it warns and skips', () => {
+      expect(DEPRECATED_PLUGIN_NAMES.cron).toContain('session_wakeup');
+      const log = fakeLogger();
+      expect(warnIfDeprecatedPluginName('cron', log)).toBe(true);
+      expect(log.warn).toHaveBeenCalledTimes(1);
+      expect((log.warn as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toContain('cron');
+    });
   });
 
   describe('pluginNameFromSpec', () => {

@@ -73,6 +73,8 @@ export const DEPRECATED_PLUGIN_NAMES: Record<string, string> = {
   'todo-tracker': 'use the built-in `todo` tool and the Kanban board',
   'smart-rename': 'use the built-in `replace` tool',
   'code-metrics': 'removed — it reported numbers nothing acted on',
+  // Replaced by the built-in session_wakeup tool; `/cron` lists the wakeups.
+  cron: 'removed — use the built-in `session_wakeup` tool (`/cron` lists the wakeups)',
 };
 
 // Per-process dedupe so we don't spam the log if a user lists the
