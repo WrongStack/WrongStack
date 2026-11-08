@@ -86,6 +86,10 @@
       "types": "./dist/dep-watcher.d.ts",
       "import": "./dist/dep-watcher.js"
     },
+    "./prompt-journal": {
+      "types": "./dist/prompt-journal.d.ts",
+      "import": "./dist/prompt-journal.js"
+    },
     "./hq-host": {
       "types": "./dist/hq-host.d.ts",
       "import": "./dist/hq-host.js"

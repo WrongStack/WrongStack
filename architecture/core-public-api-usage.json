@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 506,
-      "typeOnly": 379,
+      "files": 507,
+      "typeOnly": 380,
       "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
@@ -94,9 +94,9 @@
       "runtimeOrMixed": 12
     },
     "@wrongstack/core/prompts": {
-      "files": 10,
+      "files": 11,
       "typeOnly": 0,
-      "runtimeOrMixed": 10
+      "runtimeOrMixed": 11
     },
     "@wrongstack/core/quota": {
       "files": 59,
@@ -1590,6 +1590,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/portable-commands/security.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/prompt-journal/tool-call-recorder.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5436,6 +5442,12 @@
     {
       "specifier": "@wrongstack/core/prompts",
       "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/runtime/src/prompt-journal/tool-call-recorder.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
