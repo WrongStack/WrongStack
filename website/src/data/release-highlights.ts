@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.5.2',
-  title: 'The desktop engine does what the CLI host does.',
+  version: '1.5.3',
+  title: 'The desktop catches up on the rest of what the CLI does.',
   summary:
-    'Desktop v2’s pages were complete, but the engine behind them skipped work only the CLI started. Desktop conversations are now recorded for Session Story, the CLI’s plugins and hooks run in the desktop, and the WebUI’s notification center and tool statistics come with them. Every release also carries the desktop installers, and wstack desktop installs and opens them.',
+    'Every worker of a desktop conversation gets its agent tab beside the leader, with a fleet gauge showing how many run and how many spawns are left. An ACP agent such as Claude Code can lead a conversation, the desktop says once when a newer WrongStack is out, and a configured exec sandbox is now enforced in every host.',
   socialDescription:
-    'WrongStack 1.5.2: the desktop engine records Session Story history, runs the CLI’s plugins and hooks, and brings the WebUI’s notification center and tool statistics to the desktop.',
+    'WrongStack 1.5.3: every agent of a desktop conversation gets its tab with a fleet gauge, ACP agents lead desktop conversations, and a configured exec sandbox is enforced.',
   cards: [
     {
-      title: 'History that survives the desktop',
-      body: 'Desktop conversations are recorded in Chronicle, so Session Story fills in for them, and subagent transcripts are still there after a reopen. HQ can steer desktop sessions.',
-      href: '/interfaces',
-      linkLabel: 'Compare the interfaces',
+      title: 'Every agent gets its tab',
+      body: 'A conversation’s workers each get an agent tab beside the leader, with their transcript or, failing that, their output so far. A fleet gauge shows how many workers run against the ceiling and how many spawns the fleet budget has left.',
+      href: '/fleet',
+      linkLabel: 'See the fleet',
     },
     {
-      title: 'The CLI’s plugins and hooks, in the desktop',
-      body: 'The desktop engine loads the CLI’s plugins, the injection shield and secret scanner included, runs config.hooks with policy hooks, and builds the same autonomy, plan and Code Atlas prompt sections.',
-      href: '/plugins',
-      linkLabel: 'Browse the plugins',
+      title: 'ACP agents lead desktop conversations',
+      body: 'A profile whose provider is acp, for example after /model acp/claude-code, now opens in the desktop. The ACP leader appears in the model pickers, tool approvals reach its tab, and its agent sessions close with the engine.',
+      href: '/acp',
+      linkLabel: 'Explore ACP',
     },
     {
-      title: 'Desktop installers on every release',
-      body: 'Each release ships a Windows setup.exe, a macOS .dmg and Linux .deb and .rpm packages with the engine bundled. wstack desktop install downloads, verifies and runs the one for this platform.',
-      href: '/getting-started',
-      linkLabel: 'Get started',
+      title: 'tools.sandbox is enforced',
+      body: 'The exec sandbox policy in config.tools.sandbox was declared in the wrong config block and never reached the sandbox. The CLI, the WebUI and the desktop engine now apply the configured mode and tier when they register their tools.',
+      href: '/security',
+      linkLabel: 'Read about security',
     },
   ],
 } as const;

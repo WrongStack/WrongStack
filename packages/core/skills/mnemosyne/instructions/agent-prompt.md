@@ -186,7 +186,7 @@ Compile a structured report:
   "id": "mnem_report_<timestamp>",
   "startedAt": "<ISO>",
   "completedAt": "<ISO>",
-  "trigger": "cron" | "on_demand",
+  "trigger": "scheduled" | "on_demand",
   "reviewThresholds": { "shortLivedDays": 30, "unusedInjections": 10, "unusedDays": 30 },
   "stats": {
     "examined": <number>,
