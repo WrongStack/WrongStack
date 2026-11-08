@@ -55,6 +55,14 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.1
+
+- **`wstack desktop`:** opens WrongStack Desktop from the CLI, and
+  `wstack desktop install` / `update` download, verify and run this
+  platform's installer (Linux prints the apt/dnf command).
+- **Desktop installers on every release:** Windows `setup.exe`, macOS `.dmg`
+  and Linux `.deb`/`.rpm`, each with the engine bundled.
+
 ### What's new in 1.5.0
 
 - **One set of project screens:** Desktop v2 renders the WebUI's SAGE memory,

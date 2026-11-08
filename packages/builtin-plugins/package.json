@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/builtin-plugins",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "license": "MIT",
   "description": "Built-in WrongStack plugins: chimera and auto-review with their finding, report and claim stores, skills, prompts, sync, cloud-config sync and specialist triggers. Built on @wrongstack/core.",

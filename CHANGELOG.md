@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-11-08
+
+WrongStack Desktop gets a command-line way in: `wstack desktop` opens,
+installs and updates it, and every release now carries the desktop
+installers for all six platforms.
+
+### Added
+
+- **`wstack desktop`.** Opens the installed WrongStack Desktop, or this checkout's portable build, and refuses a copy whose engine is not beside the application, so the app and its engine are never launched apart. `wstack desktop install` and `wstack desktop update` download this platform's installer for the CLI's release (or `--version <x>`), verify it against `DESKTOP-SHA256SUMS`, and run it on Windows (`--silent` for an unattended install), open the disk image on macOS, or print the `sudo apt install` / `sudo dnf install` command on Linux. `wstack desktop path` prints the application and engine paths for shortcuts and scripts.
+
+### Fixed
+
+- **Desktop installers on the release.** The Linux installer check refused packages that carried the engine correctly (`dpkg-deb` lists `usr/bin/...` without `./`, and `grep -q` in a pipe tripped `pipefail`), which kept every desktop installer off the 1.5.0 release; the check now reads each listing whole and prints it. The release's `DESKTOP-SHA256SUMS` drops the binary-mode marker Windows runners write, which would have refused the attach step. The 1.5.0 installers were attached afterwards.
+- **Linux test portability.** The `source-map-js` advisory guard follows the dependency that still installs it after jsdom 31 dropped `css-tree`, and the ancestor-casing check expects distinct project ids on a case-sensitive file system.
+
 ## [1.5.0] — 2026-11-07
 
 Desktop v2 catches up with the WebUI: it renders the WebUI's own project

@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.0 → 1.0.0).
+// Changelog — 1.x era (1.5.1 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,21 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.1',
+    date: '2026-11-08',
+    tagline: 'wstack desktop and desktop installers on every release',
+    latest: true,
+    highlights: [
+      'wstack desktop opens WrongStack Desktop and refuses a copy whose engine is not beside it',
+      'wstack desktop install and update download, verify and run this platform’s installer; Linux prints the apt or dnf command',
+      'Every release carries the desktop installers: Windows setup.exe, macOS .dmg and Linux .deb and .rpm with the engine bundled',
+      'The Linux installer check and the desktop checksum file no longer keep the installers off a release',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-11-07',
     tagline: 'Shared project screens and the TUI’s commands on every engine',
-    latest: true,
     highlights: [
       'Desktop v2 renders the WebUI’s SAGE memory, Kanban board, Code Atlas, agent office, Session Story and analytics from the shared @wrongstack/project-surfaces package',
       'The TUI’s slash commands run on the engine: /git, /commit, /push, /security, /spawn, /delegate, /acp, /tuneup and the skill and prompt libraries work from the desktop composer and the WebUI chat',
