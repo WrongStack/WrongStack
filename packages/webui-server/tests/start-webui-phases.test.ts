@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   touch: vi.fn(),
   governance: vi.fn(),
   otlp: vi.fn(),
+  wireMetrics: vi.fn(),
   pipelines: vi.fn(),
   agents: vi.fn(),
 }));
@@ -41,7 +42,13 @@ vi.mock('../src/server/start-webui-todos.js', () => ({
 }));
 vi.mock('../src/server/start-webui-project.js', () => ({ touchProjectEntry: mocks.touch }));
 vi.mock('../src/server/governance-runtime.js', () => ({ setupWebUiGovernance: mocks.governance }));
-vi.mock('@wrongstack/core/observability', () => ({ startOtlpExport: mocks.otlp }));
+vi.mock('@wrongstack/core/observability', () => ({
+  startOtlpExport: mocks.otlp,
+  wireMetricsToEvents: mocks.wireMetrics,
+  InMemoryMetricsSink: class {
+    constructor(readonly options: unknown) {}
+  },
+}));
 vi.mock('../src/server/standalone-pipelines.js', () => ({
   createStandaloneAgentPipelines: mocks.pipelines,
 }));
@@ -203,5 +210,30 @@ describe('standalone WebUI startup phases', () => {
     } as unknown as Parameters<typeof createStandaloneAgentServices>[0]);
     expect(mocks.governance).not.toHaveBeenCalled();
     expect(mocks.agents.mock.calls[0]![0].installToolBoundary).toBe(installToolBoundary);
+  });
+
+  it('feeds OTLP metrics from a sink the engine events fill, only when OTLP wants metrics', async () => {
+    const exportMetrics = vi.fn();
+    mocks.otlp.mockReturnValueOnce({ wantsMetrics: true, exportMetrics, tracer: undefined });
+    const base = {
+      opts: { installToolBoundary: vi.fn() },
+      config: {},
+      preContext: preContext(),
+      wpaths: {},
+      logger,
+    } as unknown as Parameters<typeof createStandaloneAgentServices>[0];
+    await createStandaloneAgentServices(base);
+    const sink = exportMetrics.mock.calls[0]?.[0];
+    expect(sink).toMatchObject({ options: { maxSeriesPerMetric: 500 } });
+    // The exporter gets the sink before the events are wired into it.
+    expect(exportMetrics.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.wireMetrics.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(mocks.wireMetrics).toHaveBeenCalledWith(base.preContext.events, sink);
+
+    mocks.wireMetrics.mockClear();
+    mocks.otlp.mockReturnValueOnce({ wantsMetrics: false, exportMetrics, tracer: undefined });
+    await createStandaloneAgentServices(base);
+    expect(mocks.wireMetrics).not.toHaveBeenCalled();
   });
 });
