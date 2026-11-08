@@ -293,6 +293,11 @@ export {
   SECURITY_SCANNER_AGENT,
 } from './fleet.js';
 export {
+  type FleetBudget,
+  type FleetBudgetDirector,
+  fleetBudgetFromDirector,
+} from './fleet-budget.js';
+export {
   FleetBus,
   type FleetEvent,
   type FleetHandler,

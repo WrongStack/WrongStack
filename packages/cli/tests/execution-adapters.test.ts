@@ -22,7 +22,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@wrongstack/core/agent', () => ({ effectiveFallbackChain: mocks.fallbackChain }));
 vi.mock('@wrongstack/builtin-plugins', () => ({ updateReviewReportEvidence: mocks.evidence }));
 vi.mock('@wrongstack/worktree', () => ({ listGitWorktrees: mocks.worktrees }));
-vi.mock('@wrongstack/coordination', () => ({
+vi.mock('@wrongstack/coordination', async () => ({
+  // The gauge's budget arithmetic is the real one: the test checks what the WebUI receives.
+  fleetBudgetFromDirector: (
+    await vi.importActual<typeof import('@wrongstack/coordination')>('@wrongstack/coordination')
+  ).fleetBudgetFromDirector,
   LeaderAutoWakeController: class {
     constructor(options: unknown) {
       mocks.wakeOptions(options);

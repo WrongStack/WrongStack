@@ -6895,6 +6895,8 @@
   },
   "agentTabs": {
     "label": "Konuşma ve ajanları",
+    "gauge": "{{active}}/{{max}} çalışıyor",
+    "spawnsLeft": "{{max}} başlatmadan {{remaining}} kaldı",
     "conversation": "Konuşma",
     "transcript": "{{name}} dökümü",
     "readOnly": "Salt okunur: gönderdiğin şey konuşmanın liderine gider.",

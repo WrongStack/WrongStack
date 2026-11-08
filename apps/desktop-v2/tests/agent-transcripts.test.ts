@@ -131,7 +131,7 @@ describe('subagent transcripts', () => {
 
   it('shows a tab per agent once the conversation has one', () => {
     function Tabs({ agents }: { agents: typeof emptyEngineState.agents }) {
-      return useAgentTabs(agents, EMPTY_FLEET_FOLD, () => {}).bar;
+      return useAgentTabs({ agents, fleet: EMPTY_FLEET_FOLD }, () => {}).bar;
     }
     expect(renderToStaticMarkup(createElement(Tabs, { agents: {} }))).toBe('');
     const html = renderToStaticMarkup(
@@ -175,7 +175,7 @@ describe('subagent transcripts', () => {
     expect(tabs['w1']?.entries.map((entry) => entry.kind)).toEqual(['system', 'tool_result']);
 
     function Tabs() {
-      return useAgentTabs(state.agents, state.fleet, () => {}).bar;
+      return useAgentTabs(state, () => {}).bar;
     }
     const html = renderToStaticMarkup(createElement(Tabs));
     expect(html).toContain('title="Bob: Map it"');
@@ -216,5 +216,51 @@ describe('subagent transcripts', () => {
     expect(tabs['w1']?.entries).toEqual([
       expect.objectContaining({ kind: 'text', content: 'Two issues found.', iteration: 3 }),
     ]);
+  });
+
+  it('shows the engine fleet gauge beside the agent tabs', () => {
+    const subagent = {
+      type: 'subagent.event',
+      payload: { sessionId: 's', kind: 'spawned', subagentId: 'w1', name: 'Bob' },
+      at: 1,
+    };
+    let state = reduceEngine({ ...emptyEngineState, sessionId: 's' }, subagent);
+    state = reduceEngine(state, {
+      type: 'fleet.concurrency_update',
+      payload: {
+        fleetConcurrency: 1,
+        fleetConcurrencyMax: 4,
+        maxSpawns: 10,
+        usedSpawns: 3,
+        remainingSpawns: 7,
+      },
+    });
+    expect(state.fleetGauge).toEqual({
+      active: 1,
+      max: 4,
+      maxSpawns: 10,
+      usedSpawns: 3,
+      remainingSpawns: 7,
+    });
+    function Tabs() {
+      return useAgentTabs(state, () => {}).bar;
+    }
+    expect(renderToStaticMarkup(createElement(Tabs))).toContain(
+      '<span class="agent-gauge">1/4 running · 7 of 10 spawns left</span>',
+    );
+    // An unlimited spawn budget (null on the wire) shows only the running count.
+    state = reduceEngine(state, {
+      type: 'fleet.concurrency_update',
+      payload: {
+        fleetConcurrency: 0,
+        fleetConcurrencyMax: 4,
+        maxSpawns: null,
+        remainingSpawns: null,
+      },
+    });
+    expect(state.fleetGauge).toEqual({ active: 0, max: 4 });
+    expect(renderToStaticMarkup(createElement(Tabs))).toContain(
+      '<span class="agent-gauge">0/4 running</span>',
+    );
   });
 });

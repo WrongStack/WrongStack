@@ -6895,6 +6895,8 @@
   },
   "agentTabs": {
     "label": "A conversa e seus agentes",
+    "gauge": "{{active}}/{{max}} em execução",
+    "spawnsLeft": "restam {{remaining}} de {{max}} inicializações",
     "conversation": "Conversa",
     "transcript": "Transcrição de {{name}}",
     "readOnly": "Somente leitura: o que você envia vai para o líder da conversa.",

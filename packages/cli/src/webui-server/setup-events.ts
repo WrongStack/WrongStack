@@ -5,6 +5,7 @@ import type { Context } from '@wrongstack/core/agent';
 import type { JournalEntry } from '@wrongstack/goal';
 import {
   createEternalSubscription,
+  installFleetConcurrencyFrames,
   type PendingConfirm,
   setupEvents as setupCanonicalEvents,
 } from '@wrongstack/webui-server';
@@ -64,38 +65,6 @@ export interface SetupEventsDeps {
 
 /** CLI adapter around the canonical EventBus→WebSocket subscription graph. */
 export function createSetupEvents(deps: SetupEventsDeps): () => void {
-  let fleetConcurrency = 0;
-  let fleetConcurrencyMax = 4;
-  const emitConcurrency = (): void => {
-    const budget = deps.getFleetBudget?.() ?? null;
-    deps.broadcast({
-      type: 'fleet.concurrency_update',
-      // Deliberately UNSTAMPED. The spawn/concurrency budget is one ceiling
-      // for the whole process — every tab draws from it and the client keeps
-      // it in a single global store — so this is a project-wide fact, not a
-      // conversation's. Stamping it with the runtime's session made it a
-      // conversation's by accident: `clientWantsSession` then dropped it for
-      // any page whose declared tabs did not include that session, and the
-      // fleet gauges froze the moment the boot tab was closed.
-      payload: {
-        fleetConcurrency: budget?.activeAgents ?? fleetConcurrency,
-        fleetConcurrencyMax: budget?.maxConcurrent ?? fleetConcurrencyMax,
-        ...(budget
-          ? {
-              maxSpawns: budget.maxSpawns,
-              usedSpawns: budget.usedSpawns,
-              remainingSpawns: budget.remainingSpawns,
-              maxSpawnsSource: budget.maxSpawnsSource,
-              maxConcurrentSource: budget.maxConcurrentSource,
-              effectiveSource: budget.effectiveSource,
-              checkpointMaxSpawns: budget.checkpointMaxSpawns,
-              ceilingMismatch: budget.ceilingMismatch,
-            }
-          : {}),
-      },
-    });
-  };
-
   return function setupEvents(): void {
     for (const unsubscribe of deps.eventUnsubscribers) unsubscribe();
     deps.eventUnsubscribers.length = 0;
@@ -150,22 +119,13 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
         status: 'running',
       }),
     });
-    emitConcurrency();
-
-    deps.eventUnsubscribers.push(
-      deps.events.on('concurrency.changed', (event) => {
-        fleetConcurrencyMax = Math.max(1, event.n);
-        emitConcurrency();
-      }),
-      deps.events.on('subagent.spawned', () => {
-        fleetConcurrency += 1;
-        emitConcurrency();
-      }),
-      deps.events.on('subagent.task_completed', () => {
-        fleetConcurrency = Math.max(0, fleetConcurrency - 1);
-        emitConcurrency();
-      }),
-    );
+    // The fleet gauge, shared with the standalone engine: sent now and on every change.
+    const concurrency = installFleetConcurrencyFrames({
+      events: deps.events,
+      broadcast: (message) => deps.broadcast(message),
+      getBudget: deps.getFleetBudget,
+    });
+    deps.eventUnsubscribers.push(() => concurrency.dispose());
 
     if (deps.subscribeEternalIteration) {
       const subscription = createEternalSubscription(

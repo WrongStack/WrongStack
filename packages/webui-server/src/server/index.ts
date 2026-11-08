@@ -189,6 +189,7 @@ export {
   handleFilesWrite,
 } from './file-handlers.js';
 export { isHiddenEntry, rankFiles, SKIP_DIRS } from './file-picker.js';
+export { installFleetConcurrencyFrames } from './fleet-concurrency.js';
 export {
   type EnsureDistDeps,
   ensureDistDir,

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-08T19:11:11.646Z
+**Generated:** 2026-11-08T19:12:13.745Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6128 |
-| Production source lines | 1262843 |
-| Test files | 5084 |
+| Production source files | 6131 |
+| Production source lines | 1262991 |
+| Test files | 5085 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18060 |
+| Relative module edges | 18065 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -36,9 +36,9 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/client | 7 | 4 | @wrongstack/webui-protocol |
 | @wrongstack/codebase-index-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/contracts | 129 | 4 | @wrongstack/kanban, @wrongstack/primitives |
-| @wrongstack/coordination | 191 | 187 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/coordination | 192 | 187 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 640 | 700 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/desktop-v2 | 467 | 298 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/desktop-v2 | 468 | 298 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/fleet | 60 | 3 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 23 | 24 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
@@ -70,7 +70,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/vibeui | 69 | 24 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 782 | 519 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
-| @wrongstack/webui-server | 345 | 384 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 346 | 385 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/wrongmemory-client | 6 | 1 | — |
 | @wrongstack/wrongtrace | 11 | 10 | — |

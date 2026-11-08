@@ -6895,6 +6895,8 @@
   },
   "agentTabs": {
     "label": "Unterhaltung und ihre Agenten",
+    "gauge": "{{active}}/{{max}} laufen",
+    "spawnsLeft": "{{remaining}} von {{max}} Starts übrig",
     "conversation": "Unterhaltung",
     "transcript": "Verlauf von {{name}}",
     "readOnly": "Nur lesen: Was du sendest, geht an den Leiter der Unterhaltung.",

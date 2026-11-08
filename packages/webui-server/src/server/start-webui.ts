@@ -8,10 +8,12 @@
  * (Phase 1b/1a), WS + HTTP server creation, and graceful shutdown.
  */
 import type { Config } from '@wrongstack/contracts/types';
+import { fleetBudgetFromDirector } from '@wrongstack/coordination';
 import { ensureSessionShell } from '@wrongstack/tools';
 import { createAppUpdateCheck } from './app-update-check.js';
 import { patchConfig } from './boot.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
+import { installFleetConcurrencyFrames } from './fleet-concurrency.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import {
   persistPrefsToConfig as persistPrefsToConfigImpl,
@@ -320,6 +322,15 @@ export async function startWebUI(
     broadcast: (message) => broadcast(clients, message),
     logger: { warn: (message) => logger.warn(message) },
   });
+
+  // The fleet gauge (running workers, spawn budget), sent as the CLI-hosted WebUI sends it.
+  const delegation = agentServices.delegation;
+  if (delegation)
+    installFleetConcurrencyFrames({
+      events,
+      broadcast: (message) => broadcast(clients, message),
+      getBudget: () => fleetBudgetFromDirector(delegation.host.getDirector()),
+    });
 
   // One gate per host, shared by session transitions and run setup.
   const sessionTransitionGate = createSessionTransitionGate();

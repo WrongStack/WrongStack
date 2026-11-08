@@ -8,6 +8,7 @@ import {
   transcriptSteps,
 } from './agent-transcripts';
 import { useDesktopText } from './desktop-i18n';
+import type { FleetGauge } from './fleet-gauge';
 import { MarkdownContent } from './MarkdownContent';
 import './agent-transcripts.css';
 
@@ -28,8 +29,15 @@ const led = (status: string) =>
  * conversation.
  */
 export function useAgentTabs(
-  transcripts: AgentTranscripts,
-  fleet: Pick<FleetFold, 'agents' | 'leaderId' | 'agentTranscripts'>,
+  {
+    agents: transcripts,
+    fleet,
+    fleetGauge: gauge,
+  }: {
+    agents: AgentTranscripts;
+    fleet: Pick<FleetFold, 'agents' | 'leaderId' | 'agentTranscripts'>;
+    fleetGauge?: FleetGauge | undefined;
+  },
   onLink: (href: string) => void,
 ) {
   const { t } = useDesktopText();
@@ -56,6 +64,13 @@ export function useAgentTabs(
             <small>{t(`agentTabs.status.${agent.status}`, { defaultValue: agent.status })}</small>
           </button>
         ))}
+        {gauge && (
+          <span className="agent-gauge">
+            {t('agentTabs.gauge', { active: gauge.active, max: gauge.max })}
+            {gauge.remainingSpawns !== undefined &&
+              ` · ${t('agentTabs.spawnsLeft', { remaining: gauge.remainingSpawns, max: gauge.maxSpawns })}`}
+          </span>
+        )}
       </nav>
     ) : null,
     view: current ? <AgentTranscriptView agent={current} onLink={onLink} /> : null,

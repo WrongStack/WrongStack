@@ -266,7 +266,7 @@ export function EngineWorkspace({
     'tab' in target ? setTab(target.tab) : onOpen(target);
   const shortcuts = useConversationShortcuts(navigate);
   useRunSounds(state);
-  const agentTabs = useAgentTabs(state.agents, state.fleet, openLink);
+  const agentTabs = useAgentTabs(state, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,
     enabled: tab === 'chat' && !agentTabs.view,

@@ -40,6 +40,7 @@ import {
 import { reduceCouncil } from './council-decisions.js';
 import { appendDelegation, type DelegationRecord, delegationRecord } from './delegations.js';
 import { contentText, entries, record } from './engine-values.js';
+import { type FleetGauge, fleetGauge } from './fleet-gauge.js';
 import { parseInputRequest } from './input-form-model.js';
 import {
   appendMemoryRun,
@@ -147,6 +148,8 @@ export interface EngineState {
   council: CouncilLog;
   /** This conversation's subagent fleet, folded from `subagent.event` frames as the WebUI does. */
   fleet: FleetFold;
+  /** The engine's fleet gauge (`fleet.concurrency_update`); absent until the engine sends one. */
+  fleetGauge?: FleetGauge | undefined;
   nextSteps: ParsedNextStep[];
   /** The engine's worktree lifecycle log, oldest first, for the worktree timeline. */
   worktreeEvents: WorktreeTimelineEvent[];
@@ -660,6 +663,8 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
   }
   if (event.type === 'provider.response') next.activeTextMessageId = null;
   next.agents = reduceAgentTranscripts(next.agents, event.type, p);
+  if (event.type === 'fleet.concurrency_update')
+    next.fleetGauge = fleetGauge(p) ?? state.fleetGauge;
   if (event.type === 'subagent.event') {
     const options = {
       now: event.at ?? (state.lastAt || Date.now()),
