@@ -10,6 +10,7 @@ import {
   buildPluginCommands,
   buildPortableCommands,
   type FleetCommandHost,
+  type PermissionsCommandHost,
   type PluginCommandHost,
   type PortableCommandHost,
   type TuneupHooks,
@@ -53,6 +54,12 @@ export function portableCommandRoute(host: {
   vault?: PluginCommandHost['vault'];
   /** How the engine starts workers (`/spawn`, `/delegate`, `/director`); absent without a fleet. */
   fleet?: (() => FleetCallbacks | undefined) | undefined;
+  /** The policy and tools `/permissions` lists, explains and names. */
+  getPermissionPolicy?: (() => PermissionsCommandHost['permissionPolicy']) | undefined;
+  getToolRegistry?: (() => PermissionsCommandHost['toolRegistry']) | undefined;
+  /** `/plugin`: back the profile config up before a write, and apply a change live. */
+  backupConfig?: PortableCommandHost['backupConfig'];
+  applyConfigPatch?: PortableCommandHost['applyConfigPatch'];
   /** Commands the hosting process runs itself; they replace the engine's of the same name. */
   hostCommands?: (() => readonly SlashCommand[]) | undefined;
   /** The active profile's config file, which `/tuneup fix` writes. */
@@ -99,6 +106,14 @@ export function portableCommandRoute(host: {
       return host.fleet?.()?.onDirector;
     },
     getFleetSupervisor: getActiveFleetSupervisor,
+    get permissionPolicy() {
+      return host.getPermissionPolicy?.();
+    },
+    get toolRegistry() {
+      return host.getToolRegistry?.();
+    },
+    backupConfig: host.backupConfig,
+    applyConfigPatch: host.applyConfigPatch,
     get paths() {
       return host.getPaths?.();
     },

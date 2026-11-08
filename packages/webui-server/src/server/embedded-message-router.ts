@@ -1,3 +1,4 @@
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
@@ -512,6 +513,8 @@ export function createEmbeddedMessageRouter(
         ? (mutate) => deps.introspectionCtx.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
       hostCommands: opts.hostCommands,
+      getPermissionPolicy: () => opts.agent.container?.safeResolve?.(TOKENS.PermissionPolicy),
+      getToolRegistry: () => opts.agent.tools,
       getProfileConfigPath: () => opts.profileConfigPath,
       getMcpRegistry: () => opts.mcpRegistry,
       tuneup: opts.tuneupHooks,

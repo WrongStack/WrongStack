@@ -1,5 +1,12 @@
 import type { runOneAcpTask } from '@wrongstack/acp';
-import type { Config, ConfigStore, Provider, SessionStore } from '@wrongstack/contracts/types';
+import type {
+  Config,
+  ConfigStore,
+  PermissionPolicy,
+  Provider,
+  SessionStore,
+  Tool,
+} from '@wrongstack/contracts/types';
 import type { DispatchClassifier, FleetSupervisor } from '@wrongstack/coordination';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuneupUpdateInfo } from './tuneup-types.js';
@@ -137,8 +144,31 @@ export interface GitIdCommandHost {
     | undefined;
 }
 
+/** `/permissions`: the policy whose rules it lists and explains, and the tools it names. */
+export interface PermissionsCommandHost {
+  permissionPolicy?:
+    | (Pick<PermissionPolicy, 'listRules' | 'explain'> & {
+        getYolo?: (() => boolean) | undefined;
+      })
+    | undefined;
+  toolRegistry?: { get(name: string): Tool | undefined } | undefined;
+}
+
+/** `/plugin`: the profile config it writes and how the running engine takes the change. */
+export interface PluginManagementCommandHost {
+  configStore?: ConfigStore | undefined;
+  getProfileConfigPath?: (() => string | undefined) | undefined;
+  paths?: WstackPaths | undefined;
+  /** Back the profile config up before a write. */
+  backupConfig?: ((configPath: string) => Promise<void>) | undefined;
+  /** Apply the written change to the live config (default: `configStore.update`). */
+  applyConfigPatch?: ((patch: Partial<Config>) => void) | undefined;
+}
+
 export interface PortableCommandHost
   extends SessionCommandHost,
+    PermissionsCommandHost,
+    PluginManagementCommandHost,
     InitCommandHost,
     GitCommandHost,
     GitIdCommandHost,

@@ -1,5 +1,8 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { SlashCommand } from '@wrongstack/contracts/types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import { type CommandRouteContext, handleCommandRoute } from '../src/server/command-routes.js';
 import { portableCommandRoute } from '../src/server/portable-command-route.js';
@@ -79,6 +82,90 @@ describe('command bridge', () => {
       'broken',
     ]);
     expect(await handleCommandRoute(ctx, ws, { type: 'stats.get' })).toBe(false);
+  });
+
+  it('runs /permissions on the asking conversation with the engine’s policy and tools', async () => {
+    const sent: Array<{ payload: Record<string, unknown> }> = [];
+    const appended: unknown[] = [];
+    const conversations: Record<string, { meta: Record<string, unknown>; session: unknown }> = {
+      'tab-1': {
+        meta: {},
+        session: { id: 'tab-1', append: vi.fn(async (event: unknown) => appended.push(event)) },
+      },
+    };
+    const tools = new Map([['read', { name: 'read' }]]);
+    const ctx = portableCommandRoute({
+      getSessionStore: () => undefined,
+      getProjectRoot: () => process.cwd(),
+      getContext: (sessionId) => (sessionId ? conversations[sessionId] : undefined),
+      getConfigStore: () => undefined,
+      getPermissionPolicy: () => ({ listRules: async () => [], explain: undefined }) as never,
+      getToolRegistry: () => ({ get: (name: string) => tools.get(name) as never }),
+      send: (_ws, message) => sent.push(message as never),
+    });
+    expect((await ctx.getCommands()).map((command) => command.name)).toContain('permissions');
+
+    const run = (args: string) =>
+      handleCommandRoute(ctx, ws, {
+        type: 'command.run',
+        payload: { name: 'permissions', args, sessionId: 'tab-1' },
+      });
+    await run('allow read src/*');
+    expect(sent.at(-1)?.payload['message']).toMatch(/^Session rule added: allow read src\/\*/);
+    expect(conversations['tab-1']?.meta['permissionOverrides']).toEqual([
+      { effect: 'allow', tool: 'read', pattern: 'src/*' },
+    ]);
+    expect(appended).toEqual([expect.objectContaining({ type: 'permission_overrides' })]);
+
+    await run('deny nope');
+    expect(sent.at(-1)?.payload['message']).toMatch(/Unknown tool: "nope"/);
+    await run('');
+    expect(sent.at(-1)?.payload['message']).toContain('1. allow read src/*');
+    await run('clear');
+    expect(conversations['tab-1']?.meta['permissionOverrides']).toEqual([]);
+  });
+
+  it('runs /plugin against the profile config, backs it up and applies the change live', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'engine-plugin-'));
+    try {
+      const configPath = join(root, 'config.json');
+      let live = { provider: 'p', model: 'm', plugins: [] as unknown[] } as Record<string, unknown>;
+      const backups: string[] = [];
+      const patches: unknown[] = [];
+      const sent: Array<{ payload: Record<string, unknown> }> = [];
+      const ctx = portableCommandRoute({
+        getSessionStore: () => undefined,
+        getProjectRoot: () => root,
+        getContext: () => undefined,
+        getConfigStore: () => ({ get: () => live, update: vi.fn() }) as never,
+        getProfileConfigPath: () => configPath,
+        getPaths: () => ({ globalRoot: root }) as never,
+        backupConfig: async (file) => {
+          backups.push(file);
+        },
+        applyConfigPatch: (patch) => {
+          patches.push(patch);
+          live = { ...live, ...patch };
+        },
+        send: (_ws, message) => sent.push(message as never),
+      });
+      const run = (args: string) =>
+        handleCommandRoute(ctx, ws, { type: 'command.run', payload: { name: 'plugin', args } });
+
+      await run('add format-on-save');
+      expect(sent.at(-1)?.payload['message']).toMatch(/format-on-save/);
+      expect(sent.at(-1)?.payload['message']).toContain('Restart WrongStack');
+      const written = JSON.parse(await readFile(configPath, 'utf8')) as { plugins: unknown[] };
+      expect(written.plugins).toEqual(['format-on-save']);
+      expect(backups).toEqual([configPath]);
+      expect(patches).toEqual([expect.objectContaining({ plugins: ['format-on-save'] })]);
+      expect(live['plugins']).toEqual(['format-on-save']);
+
+      await run('list');
+      expect(sent.at(-1)?.payload['message']).toContain('format-on-save');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it('serves the portable commands with the engine’s current session store', async () => {

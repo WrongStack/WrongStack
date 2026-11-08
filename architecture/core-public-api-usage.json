@@ -209,8 +209,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 32,
-      "typeOnly": 1,
+      "files": 33,
+      "typeOnly": 2,
       "runtimeOrMixed": 31
     },
     "@wrongstack/core/vcs": {
@@ -479,12 +479,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/permission-rules-view.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/repl-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -588,12 +582,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/slash-commands/mode.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/slash-commands/permissions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1584,6 +1572,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/portable-commands/permission-rules-view.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/portable-commands/permissions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5291,12 +5291,6 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
-      "file": "packages/cli/src/plugin-management.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5347,6 +5341,12 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-management/management.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -7445,12 +7445,6 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/permission-rules-view.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/provider-config-utils.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7500,12 +7494,6 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/nextsteps-mode.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/slash-commands/permissions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8232,6 +8220,18 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/kanban-ports.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/portable-commands/permission-rules-view.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/portable-commands/permissions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11777,30 +11777,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/plugin-config.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/plugin-llm-command.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/plugin-management.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/plugin-package-install.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/pre-launch/first-run.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12258,12 +12234,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/openai-quota.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/slash-commands/permissions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14501,6 +14471,30 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/plugin-management/config.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/plugin-management/llm-command.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/plugin-management/management.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/plugin-management/package-install.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14550,6 +14544,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/init.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/permissions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -17207,12 +17207,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
-      "file": "packages/cli/src/plugin-package-install.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/cli/src/slash-commands/dev.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17222,6 +17216,12 @@
       "file": "packages/cli/tests/chimera-cascade-evidence.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/cli/tests/plugin-package-install-timeout.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
@@ -17292,6 +17292,12 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/plugins/tests/runtime.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/runtime/src/plugin-management/package-install.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

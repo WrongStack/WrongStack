@@ -9,7 +9,12 @@ vi.mock('node:child_process', async (importOriginal) => ({
   execFile: execFileMock,
 }));
 const treeKillSpy = vi.hoisted(() => vi.fn());
-vi.mock('@wrongstack/core/utils/tree-kill', () => ({ treeKill: treeKillSpy }));
+vi.mock('@wrongstack/core/utils/tree-kill', async (importOriginal) => ({
+  // Partial: the installer now loads through the runtime, whose process
+  // registry reads the module's other exports at import.
+  ...(await importOriginal<typeof import('@wrongstack/core/utils/tree-kill')>()),
+  treeKill: treeKillSpy,
+}));
 
 const { installPluginPackage } = await import('../src/plugin-package-install.js');
 

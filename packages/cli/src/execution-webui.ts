@@ -6,8 +6,20 @@ import { createHqFleetControl } from './hq-fleet-control.js';
 import { cliTuneupHooks } from './tuneup-hooks.js';
 import type { UpdateInfo } from './update-check.js';
 
-/** The fleet commands the WebUI runs from this process's registry, over the CLI's fleet host. */
-const HOST_FLEET_COMMANDS = ['spawn', 'delegate', 'director', 'supervisor', 'acp', 'ensemble'];
+/**
+ * Commands the WebUI runs from this process's registry: the fleet commands over
+ * the CLI's fleet host, and `/plugin`, which writes through the CLI's config
+ * (with its backups) and live-applies to this process.
+ */
+const HOST_FLEET_COMMANDS = [
+  'spawn',
+  'delegate',
+  'director',
+  'supervisor',
+  'acp',
+  'ensemble',
+  'plugin',
+];
 
 export async function runExecutionWebui(deps: ExecuteDeps): Promise<number> {
   const {

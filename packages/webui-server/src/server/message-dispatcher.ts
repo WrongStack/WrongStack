@@ -19,10 +19,11 @@
 
 import path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { backupConfigFile, resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
+import { patchConfig } from './boot.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
@@ -598,6 +599,17 @@ export function createMessageDispatcher(
         ? (mutate) => opts.updateGlobalConfig!(mutate, 'gitid')
         : undefined,
       fleet: () => deps.fleetCommands,
+      getPermissionPolicy: () => deps.permissionPolicy,
+      getToolRegistry: () => deps.toolRegistry,
+      // `/plugin` writes the profile config with the engine's own backups and
+      // applies the change live, as the management tools do.
+      backupConfig: (configPath) =>
+        backupConfigFile(configPath, { globalRoot: deps.wpaths.globalRoot }),
+      applyConfigPatch: (patch) => {
+        const next = patchConfig(state.getConfig(), patch);
+        state.setConfig(next);
+        deps.configStore.replace(next);
+      },
       getProfileConfigPath: () => deps.profileConfigPath,
       getMcpRegistry: () => deps.mcpRegistry,
       tuneup: deps.tuneupHooks,

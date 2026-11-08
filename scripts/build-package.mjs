@@ -405,6 +405,7 @@ const profiles = {
       // Their shared state lives on globalThis (acp-leader/acp-leader-host.ts).
       'acp-leader': 'src/acp-leader.ts',
       'acp-leader-host': 'src/acp-leader-host.ts',
+      'plugin-management': 'src/plugin-management.ts',
     },
     external: [
       '@wrongstack/core',

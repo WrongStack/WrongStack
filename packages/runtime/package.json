@@ -101,6 +101,10 @@
     "./acp-leader-host": {
       "types": "./dist/acp-leader-host.d.ts",
       "import": "./dist/acp-leader-host.js"
+    },
+    "./plugin-management": {
+      "types": "./dist/plugin-management.d.ts",
+      "import": "./dist/plugin-management.js"
     }
   },
   "files": [

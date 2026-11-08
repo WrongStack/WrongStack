@@ -21,6 +21,8 @@ import {
 import { buildGitIdCommand } from './portable-commands/gitid.js';
 import type { PortableCommandHost } from './portable-commands/host.js';
 import { buildInitCommand } from './portable-commands/init.js';
+import { buildPermissionsCommand } from './portable-commands/permissions.js';
+import { buildPluginManagementCommand } from './portable-commands/plugin.js';
 import { buildPruneCommand } from './portable-commands/prune.js';
 import { buildSandboxCommand } from './portable-commands/sandbox.js';
 import { buildScoutStatsCommand } from './portable-commands/scout-stats.js';
@@ -58,6 +60,8 @@ export type {
   GitCommandHost,
   GitIdCommandHost,
   InitCommandHost,
+  PermissionsCommandHost,
+  PluginManagementCommandHost,
   PortableCommandHost,
   SessionCommandHost,
   SpawnCommandOptions,
@@ -65,6 +69,19 @@ export type {
   TuneupHooks,
 } from './portable-commands/host.js';
 export { buildInitCommand } from './portable-commands/init.js';
+export {
+  type ExplainedCall,
+  explainCall,
+  formatExplainedCall,
+  formatPermissionRules,
+} from './portable-commands/permission-rules-view.js';
+export { buildPermissionsCommand } from './portable-commands/permissions.js';
+export {
+  buildPluginManagementCommand,
+  PLUGIN_COMMAND_ARGS_HINT,
+  PLUGIN_COMMAND_DESCRIPTION,
+  PLUGIN_COMMAND_HELP,
+} from './portable-commands/plugin.js';
 export {
   buildPluginCommands,
   type PluginCommandHost,
@@ -113,5 +130,7 @@ export function buildPortableCommands(host: PortableCommandHost): SlashCommand[]
     buildAcpCommand(host),
     buildEnsembleCommand(host),
     buildTuneupCommand(host),
+    buildPermissionsCommand(host),
+    buildPluginManagementCommand(host),
   ];
 }
