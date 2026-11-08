@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/chronicle",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "license": "MIT",
   "description": "WrongStack Chronicle: the per-project event journal, its SQLite metrics projection and the project daemon that owns them. Built on @wrongstack/core; core reaches it only through contracts ports.",

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/hq",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "license": "MIT",
   "description": "WrongStack HQ: the machine-wide control plane — wire protocol, telemetry publisher, auth/exposure stores and bridges. Built on @wrongstack/core; core reaches it only through the mailbox publisher port.",

@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.2
+
+- **The desktop engine catches up with the CLI:** Session Story records
+  desktop conversations, plugins (injection-shield, secret-scanner and the
+  rest) and your hooks run, `llm`/`council`/`image_generate`/`jev` are
+  available, subagent transcripts survive a reopen, and HQ can steer
+  desktop sessions.
+- **More of the WebUI in the desktop:** notification center, tool
+  statistics, replacing a saved API key, terminate-all processes, sandbox
+  status and text sizes up to 200%.
+
 ### What's new in 1.5.1
 
 - **`wstack desktop`:** opens WrongStack Desktop from the CLI, and

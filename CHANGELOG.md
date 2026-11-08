@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] — 2026-11-08
+
+The desktop engine now does what the CLI host does. Desktop v2's pages were
+complete, but the engine behind them skipped work only the CLI started:
+history was never recorded, plugins and hooks never ran, and several tools
+were missing. Both hosts now share that setup.
+
+### Added
+
+- **Desktop features from the WebUI.** A notification center behind the bell (history, type filter, unread, mark read, clear); a Tool calls card in Usage with per-tool calls, outcomes and timing for the conversation and totals across the project; replacing a saved API key in place; terminating all of a conversation's processes; a sandbox status chip; a refine countdown for review-on-submit (default 3 s) and the enhance delay as a profile setting.
+- **Larger desktop text.** Text size goes up to 200%, and Ctrl/⌘ with +, − and 0 change and reset it.
+
 ### Changed
 
 - **Installing WrongMemory makes it SAGE's memory service.** `wstack sage service install` now sets `Sage.service.mode` to `wrongmemory` in the active profile when the profile has not chosen a mode, so one WrongMemory daemon serves every project instead of a SAGE server per project. A mode the profile already sets, `local` included, is kept, and `--keep-mode` leaves the config alone. Projects are registered on first use; `wstack sage service use wrongmemory --yes` in a project still backs its store up and hands it over at once. The choice is made at install time rather than by detecting WrongMemory on every start, which would register any project (test runs included) with the machine's daemon.
+
+### Fixed
+
+- **Session Story in the desktop.** Desktop conversations are recorded in Chronicle, so Context window over time, Models, Tools and Files fill in. Conversations from earlier builds were never recorded and stay empty.
+- **Plugins and hooks in the desktop.** The desktop engine loads the same plugins as the CLI (injection-shield, secret-scanner, dep-guard, error-lens, context-pins and the rest) with the same enable switches, and runs `config.hooks`, policy hooks included. The plugin toggles take effect after an engine restart.
+- **Desktop tools and prompt.** `llm`, `council`, `image_generate`, `jev` and `jev_status` are registered in the desktop engine, and its system prompt carries the same autonomy, session plan, WrongTrace, Atlas and glossary sections as the CLI's. `tools.disabledTools` now applies to `llm`, `council` and `image_generate` in every host. Eternal autonomy is greyed out in the desktop with an explanation: only the CLI's REPL and TUI run the eternal loop.
+- **Subagents, HQ and dependency audits in the desktop.** The desktop engine records worker transcripts, so agent tabs fill while workers run and come back when a conversation is reopened. It registers with HQ per conversation, so HQ and mobile can steer, interrupt, approve and spawn for desktop sessions (run-command stays refused). Editing a package manifest triggers the tech-stack audit, as in the CLI.
+- **Release pipeline.** The desktop installer build retries when a bundler tool download from GitHub returns a 5xx, and the coverage lock's process probe is covered on every OS, so the Linux release gate measures the same lines as Windows.
 
 ## [1.5.1] — 2026-11-08
 

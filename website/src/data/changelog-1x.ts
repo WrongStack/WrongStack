@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.1 → 1.0.0).
+// Changelog — 1.x era (1.5.2 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.2',
+    date: '2026-11-08',
+    tagline: 'The desktop engine does what the CLI host does',
+    latest: true,
+    highlights: [
+      'Session Story fills in for desktop conversations: they are now recorded in Chronicle',
+      'The desktop engine loads the CLI’s plugins, injection-shield and secret-scanner included, and runs config.hooks with policy hooks',
+      'llm, council, image_generate and jev run in the desktop, and its prompt carries the CLI’s autonomy, plan, WrongTrace, Atlas and glossary sections',
+      'Subagent transcripts survive a reopen, HQ can steer desktop sessions, and manifest edits trigger the tech-stack audit',
+      'Notification center, tool statistics, saved API key replacement, terminate-all, sandbox status and text up to 200% in the desktop',
+    ],
+  },
+  {
     version: '1.5.1',
     date: '2026-11-08',
     tagline: 'wstack desktop and desktop installers on every release',
-    latest: true,
     highlights: [
       'wstack desktop opens WrongStack Desktop and refuses a copy whose engine is not beside it',
       'wstack desktop install and update download, verify and run this platform’s installer; Linux prints the apt or dnf command',
