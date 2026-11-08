@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} Aufrufe · {{failed}} fehlgeschlagen · {{rate}} Erfolg · Unterhaltungen mit Werkzeugaufrufen: {{sessions}}",
     "sessionLine": "{{calls}} Aufrufe · {{failed}} fehlgeschlagen · {{rate}}",
     "thisConversation": "diese Unterhaltung"
+  },
+  "pluginInstaller": {
+    "title": "Plugins hinzufügen oder entfernen",
+    "intro": "Registriere ein Plugin in diesem Profil über seinen offiziellen Alias oder Paketnamen. Die Änderung wird in die Profilkonfiguration geschrieben und sofort angewendet; Plugin-Code wird beim nächsten Start der Engine geladen. Eine Installation über den Namen startet nie einen Paketmanager.",
+    "placeholder": "Alias oder Paketname",
+    "install": "Installieren",
+    "remove": "Entfernen",
+    "showConfigured": "Konfigurierte Plugins",
+    "showOfficial": "Offizielle Plugins",
+    "specInvalid": "Gib einen Alias oder Paketnamen ohne Leerzeichen und Optionen ein.",
+    "working": "Wird ausgeführt…"
+  },
+  "sessionPermissions": {
+    "title": "Berechtigungsregeln dieser Unterhaltung",
+    "intro": "Diese Regeln gelten nur für diese Unterhaltung und werden mit ihr gespeichert, nicht in einer Konfiguration. Ein Verbot gilt vor jeder Erlaubnis, und eine Erlaubnis deckt nie einen zerstörerischen Aufruf oder das Lesen von Zugangsdaten ab.",
+    "empty": "Keine Regeln für diese Unterhaltung.",
+    "allow": "Erlauben",
+    "deny": "Verbieten",
+    "anyInput": "jede Eingabe",
+    "effect": "Erlauben oder verbieten",
+    "tool": "Toolname oder Muster, z. B. mcp__github__*",
+    "pattern": "Eingabemuster (optional)",
+    "add": "Regel hinzufügen",
+    "remove": "Regel {{n}} entfernen",
+    "showRules": "Alle Regeln in Prüfreihenfolge",
+    "clear": "Alle löschen",
+    "toolInvalid": "Gib einen Toolnamen oder ein Muster ohne Leerzeichen ein.",
+    "menu": "Berechtigungsregeln",
+    "close": "Berechtigungsregeln schließen"
   }
 }

@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} çağrı · {{failed}} başarısız · {{rate}} başarı · araç çağrısı olan konuşmalar: {{sessions}}",
     "sessionLine": "{{calls}} çağrı · {{failed}} başarısız · {{rate}}",
     "thisConversation": "bu konuşma"
+  },
+  "pluginInstaller": {
+    "title": "Eklenti ekle veya kaldır",
+    "intro": "Bir eklentiyi resmî takma adıyla veya paket adıyla bu profile kaydedin. Değişiklik profil yapılandırmasına yazılır ve hemen uygulanır; eklenti kodu motor bir sonraki başlayışında yüklenir. Ada göre kurulum hiçbir zaman paket yöneticisi çalıştırmaz.",
+    "placeholder": "Takma ad veya paket adı",
+    "install": "Kur",
+    "remove": "Kaldır",
+    "showConfigured": "Yapılandırılmış eklentiler",
+    "showOfficial": "Resmî eklentiler",
+    "specInvalid": "Boşluk veya seçenek içermeyen bir takma ad ya da paket adı girin.",
+    "working": "Çalışıyor…"
+  },
+  "sessionPermissions": {
+    "title": "Bu konuşmanın izin kuralları",
+    "intro": "Bu kurallar yalnızca bu konuşma için geçerlidir ve hiçbir yapılandırmaya değil, konuşmanın kendisine kaydedilir. Reddetme kuralı her izinden önce gelir; izin kuralı yıkıcı bir çağrıyı veya kimlik bilgisi okumayı hiçbir zaman kapsamaz.",
+    "empty": "Bu konuşma için kural yok.",
+    "allow": "İzin ver",
+    "deny": "Reddet",
+    "anyInput": "her girdi",
+    "effect": "İzin ver veya reddet",
+    "tool": "Araç adı veya desen, örn. mcp__github__*",
+    "pattern": "Girdi deseni (isteğe bağlı)",
+    "add": "Kural ekle",
+    "remove": "{{n}}. kuralı kaldır",
+    "showRules": "Tüm kurallar, denetim sırasıyla",
+    "clear": "Tümünü temizle",
+    "toolInvalid": "Boşluk içermeyen bir araç adı veya desen girin.",
+    "menu": "İzin kuralları",
+    "close": "İzin kurallarını kapat"
   }
 }

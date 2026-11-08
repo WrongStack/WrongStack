@@ -1,0 +1,38 @@
+.plugin-installer {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  border-radius: 7px;
+  padding: 18px 22px;
+}
+.plugin-installer h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  margin: 0;
+}
+.plugin-installer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.plugin-installer-row input[type="text"] {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.plugin-installer-output {
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}

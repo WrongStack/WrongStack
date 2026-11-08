@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} chiamate · {{failed}} non riuscite · {{rate}} di successo · conversazioni con chiamate agli strumenti: {{sessions}}",
     "sessionLine": "{{calls}} chiamate · {{failed}} non riuscite · {{rate}}",
     "thisConversation": "questa conversazione"
+  },
+  "pluginInstaller": {
+    "title": "Aggiungi o rimuovi plugin",
+    "intro": "Registra un plugin in questo profilo con il suo alias ufficiale o il nome del pacchetto. La modifica viene scritta nella configurazione del profilo e applicata subito; il codice del plugin viene caricato al prossimo avvio del motore. L'installazione per nome non esegue mai un gestore di pacchetti.",
+    "placeholder": "Alias o nome del pacchetto",
+    "install": "Installa",
+    "remove": "Rimuovi",
+    "showConfigured": "Plugin configurati",
+    "showOfficial": "Plugin ufficiali",
+    "specInvalid": "Inserisci un alias o un nome di pacchetto, senza spazi né opzioni.",
+    "working": "In corso…"
+  },
+  "sessionPermissions": {
+    "title": "Regole di autorizzazione di questa conversazione",
+    "intro": "Queste regole valgono solo per questa conversazione e vengono salvate con essa, non in alcuna configurazione. Un divieto prevale su ogni consenso, e un consenso non copre mai una chiamata distruttiva né la lettura di credenziali.",
+    "empty": "Nessuna regola per questa conversazione.",
+    "allow": "Consenti",
+    "deny": "Nega",
+    "anyInput": "qualsiasi input",
+    "effect": "Consenti o nega",
+    "tool": "Nome dello strumento o pattern, es. mcp__github__*",
+    "pattern": "Pattern di input (facoltativo)",
+    "add": "Aggiungi regola",
+    "remove": "Rimuovi la regola {{n}}",
+    "showRules": "Tutte le regole, in ordine di verifica",
+    "clear": "Cancella tutto",
+    "toolInvalid": "Inserisci un nome di strumento o un pattern, senza spazi.",
+    "menu": "Regole di autorizzazione",
+    "close": "Chiudi le regole di autorizzazione"
   }
 }

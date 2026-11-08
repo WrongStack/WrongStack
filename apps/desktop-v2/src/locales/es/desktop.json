@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} llamadas · {{failed}} fallidas · {{rate}} de éxito · conversaciones con llamadas a herramientas: {{sessions}}",
     "sessionLine": "{{calls}} llamadas · {{failed}} fallidas · {{rate}}",
     "thisConversation": "esta conversación"
+  },
+  "pluginInstaller": {
+    "title": "Añadir o quitar plugins",
+    "intro": "Registra un plugin en este perfil con su alias oficial o el nombre del paquete. El cambio se guarda en la configuración del perfil y se aplica al instante; el código del plugin se carga la próxima vez que arranque el motor. Instalar por nombre nunca ejecuta un gestor de paquetes.",
+    "placeholder": "Alias o nombre del paquete",
+    "install": "Instalar",
+    "remove": "Quitar",
+    "showConfigured": "Plugins configurados",
+    "showOfficial": "Plugins oficiales",
+    "specInvalid": "Introduce un alias o un nombre de paquete, sin espacios ni opciones.",
+    "working": "Trabajando…"
+  },
+  "sessionPermissions": {
+    "title": "Reglas de permisos de esta conversación",
+    "intro": "Estas reglas solo valen para esta conversación y se guardan con ella, no en ninguna configuración. Una denegación prevalece sobre cualquier permiso, y un permiso nunca cubre una llamada destructiva ni la lectura de credenciales.",
+    "empty": "No hay reglas para esta conversación.",
+    "allow": "Permitir",
+    "deny": "Denegar",
+    "anyInput": "cualquier entrada",
+    "effect": "Permitir o denegar",
+    "tool": "Nombre de herramienta o patrón, p. ej. mcp__github__*",
+    "pattern": "Patrón de entrada (opcional)",
+    "add": "Añadir regla",
+    "remove": "Quitar la regla {{n}}",
+    "showRules": "Todas las reglas en orden de comprobación",
+    "clear": "Borrar todas",
+    "toolInvalid": "Introduce un nombre de herramienta o patrón, sin espacios.",
+    "menu": "Reglas de permisos",
+    "close": "Cerrar las reglas de permisos"
   }
 }

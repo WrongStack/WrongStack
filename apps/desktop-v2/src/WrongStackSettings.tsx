@@ -41,6 +41,7 @@ import { prepareExecutionPolicyPatch } from './execution-policy-model';
 import { FleetPolicySettings } from './FleetPolicySettings';
 import { fleetPolicyIssue } from './fleet-policy-model';
 import { IntegrationSettings } from './IntegrationSettings';
+import { PluginInstaller } from './PluginInstaller';
 import { PluginToggles } from './PluginToggles';
 import { RefinementPolicySettings } from './RefinementPolicySettings';
 import { prepareRefinementPolicyPatch } from './refinement-policy-model';
@@ -678,6 +679,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   </button>
                 </div>
               </form>
+              {section === 'capabilities' && <PluginInstaller command={command} />}
             </>
           ) : null}
         </div>

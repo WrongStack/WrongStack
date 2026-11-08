@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} appels · {{failed}} échoués · {{rate}} de réussite · conversations avec appels d’outils : {{sessions}}",
     "sessionLine": "{{calls}} appels · {{failed}} échoués · {{rate}}",
     "thisConversation": "cette conversation"
+  },
+  "pluginInstaller": {
+    "title": "Ajouter ou retirer des plugins",
+    "intro": "Enregistrez un plugin dans ce profil par son alias officiel ou le nom du paquet. La modification est écrite dans la configuration du profil et appliquée aussitôt ; le code du plugin se charge au prochain démarrage du moteur. Une installation par nom ne lance jamais de gestionnaire de paquets.",
+    "placeholder": "Alias ou nom du paquet",
+    "install": "Installer",
+    "remove": "Retirer",
+    "showConfigured": "Plugins configurés",
+    "showOfficial": "Plugins officiels",
+    "specInvalid": "Saisissez un alias ou un nom de paquet, sans espace ni option.",
+    "working": "En cours…"
+  },
+  "sessionPermissions": {
+    "title": "Règles d'autorisation de cette conversation",
+    "intro": "Ces règles ne valent que pour cette conversation et sont enregistrées avec elle, dans aucune configuration. Un refus l'emporte sur toute autorisation, et une autorisation ne couvre jamais un appel destructeur ni la lecture d'identifiants.",
+    "empty": "Aucune règle pour cette conversation.",
+    "allow": "Autoriser",
+    "deny": "Refuser",
+    "anyInput": "toute entrée",
+    "effect": "Autoriser ou refuser",
+    "tool": "Nom d'outil ou motif, p. ex. mcp__github__*",
+    "pattern": "Motif d'entrée (facultatif)",
+    "add": "Ajouter la règle",
+    "remove": "Retirer la règle {{n}}",
+    "showRules": "Toutes les règles, dans l'ordre de vérification",
+    "clear": "Tout effacer",
+    "toolInvalid": "Saisissez un nom d'outil ou un motif, sans espace.",
+    "menu": "Règles d'autorisation",
+    "close": "Fermer les règles d'autorisation"
   }
 }

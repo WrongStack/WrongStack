@@ -56,6 +56,7 @@ import type { ProjectFormDraftStorage } from './requirement-draft';
 import { SessionAgentPlan } from './SessionAgentPlan';
 import { SessionContextPanel } from './SessionContextPanel';
 import { SessionModelControls } from './SessionModelControls';
+import { SessionPermissionsOption } from './SessionPermissionsOption';
 import { TurnFollowUps } from './TurnFollowUps';
 import { useComposerInput } from './useComposerInput';
 import { useDetailsDismiss } from './useDetailsDismiss';
@@ -791,6 +792,7 @@ export function SessionComposer({
                   <Split size={14} />
                   {t('composer.agentPlan')}
                 </button>
+                <SessionPermissionsOption state={state} command={command} />
                 <button
                   type="button"
                   disabled={!canSend || !draft.trim()}

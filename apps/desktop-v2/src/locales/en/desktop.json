@@ -9562,5 +9562,34 @@
     "catalogTotals": "{{calls}} calls · {{failed}} failed · {{rate}} success · conversations with tool calls: {{sessions}}",
     "sessionLine": "{{calls}} calls · {{failed}} failed · {{rate}}",
     "thisConversation": "this conversation"
+  },
+  "pluginInstaller": {
+    "title": "Add or remove plugins",
+    "intro": "Register a plugin in this profile by its official alias or package name. The change is saved to the profile config and applied right away; plugin code loads the next time the engine starts. Installing by name never runs a package manager.",
+    "placeholder": "Alias or package name",
+    "install": "Install",
+    "remove": "Remove",
+    "showConfigured": "Configured plugins",
+    "showOfficial": "Official plugins",
+    "specInvalid": "Enter an alias or a package name, without spaces or options.",
+    "working": "Working…"
+  },
+  "sessionPermissions": {
+    "title": "Permission rules for this conversation",
+    "intro": "These rules apply to this conversation only and are saved with it, not in any config. A deny wins over every allow, and an allow never covers a destructive call or a read of credentials.",
+    "empty": "No rules for this conversation.",
+    "allow": "Allow",
+    "deny": "Deny",
+    "anyInput": "any input",
+    "effect": "Allow or deny",
+    "tool": "Tool name or glob, e.g. mcp__github__*",
+    "pattern": "Input pattern (optional)",
+    "add": "Add rule",
+    "remove": "Remove rule {{n}}",
+    "showRules": "All rules in check order",
+    "clear": "Clear all",
+    "toolInvalid": "Enter a tool name or glob, without spaces.",
+    "menu": "Permission rules",
+    "close": "Close permission rules"
   }
 }

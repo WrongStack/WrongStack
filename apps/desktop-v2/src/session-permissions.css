@@ -1,0 +1,69 @@
+.modal:has(.session-permissions) {
+  width: min(680px, calc(100vw - 32px));
+  margin: auto;
+  max-height: calc(100dvh - 48px);
+}
+.session-permissions {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.session-permissions > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.session-permissions h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  margin: 0;
+}
+.session-permissions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.session-permissions-row input[type="text"] {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.session-permissions-rules {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.session-permissions-rules li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.session-permissions-rules li[data-effect="deny"] strong {
+  color: var(--danger, #c0392b);
+}
+.session-permissions-rules li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted, inherit);
+}
+.session-permissions-output {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
