@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Installing WrongMemory makes it SAGE's memory service.** `wstack sage service install` now sets `Sage.service.mode` to `wrongmemory` in the active profile when the profile has not chosen a mode, so one WrongMemory daemon serves every project instead of a SAGE server per project. A mode the profile already sets, `local` included, is kept, and `--keep-mode` leaves the config alone. Projects are registered on first use; `wstack sage service use wrongmemory --yes` in a project still backs its store up and hands it over at once. The choice is made at install time rather than by detecting WrongMemory on every start, which would register any project (test runs included) with the machine's daemon.
+
 ## [1.5.1] — 2026-11-08
 
 WrongStack Desktop gets a command-line way in: `wstack desktop` opens,

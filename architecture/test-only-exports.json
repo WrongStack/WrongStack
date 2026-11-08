@@ -537,6 +537,7 @@
       "subcommandsWithFocusedHelp"
     ],
     "packages/cli/src/subcommands/handlers/sage-service.ts": [
+      "chooseWrongMemoryAfterInstall",
       "installWrongMemory"
     ],
     "packages/cli/src/subcommands/handlers/sage.ts": [
