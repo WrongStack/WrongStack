@@ -94,6 +94,14 @@ export interface PrefsHandlerContext {
    * eternal mode.
    */
   setAutonomy?: ((mode: string, sessionId?: string | undefined) => void) | undefined;
+  /**
+   * Why a conversation cannot switch to `mode` now (eternal autonomy without
+   * a goal, or while another conversation runs it), or undefined when it can.
+   * Asked before anything is saved, so a refused switch changes nothing.
+   */
+  checkAutonomy?:
+    | ((mode: string, sessionId?: string | undefined) => Promise<string | undefined>)
+    | undefined;
   applyConfigPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
   setAutoCompact?: ((enabled: boolean) => void) | undefined;
   setLogLevel?: ((level: 'debug' | 'info' | 'warn' | 'error') => void) | undefined;
@@ -670,28 +678,4 @@ export async function handlePrefsUpdate(
       payload: sessionId ? { ...scoped, sessionId } : scoped,
     });
   }
-}
-
-export async function handleAutonomySwitch(
-  ctx: PrefsHandlerContext,
-  ws: WebSocket,
-  mode: string,
-  sessionId?: string,
-): Promise<void> {
-  try {
-    await ctx.persist({ autonomy: mode });
-  } catch (err) {
-    sendResult(ctx, ws, false, `Autonomy mode was not saved: ${toErrorMessage(err)}`);
-    handlePrefsGet(ctx, ws, sessionId);
-    return;
-  }
-  // Autonomy is per-tab: a tab left running on `eternal` must not drag the
-  // tab the user is typing in along with it.
-  (ctx.metaFor?.(sessionId) ?? ctx.meta)['autonomy'] = mode;
-  ctx.setAutonomy?.(mode, sessionId);
-  sendResult(ctx, ws, true, `Autonomy mode set to "${mode}"`);
-  ctx.broadcast({
-    type: 'prefs.updated',
-    payload: { autonomy: mode, ...(sessionId ? { sessionId } : {}) },
-  });
 }

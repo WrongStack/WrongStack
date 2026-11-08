@@ -92,6 +92,11 @@ export interface RouteContextsParams {
    */
   autoWake?: import('@wrongstack/webui-server').WebuiLeaderAutoWakeHost | undefined;
   /**
+   * Eternal autonomy driver: runs the loop for the tab that switches to an
+   * eternal mode, through the conversation path.
+   */
+  eternal?: import('@wrongstack/webui-server').WebuiEternalDriver | undefined;
+  /**
    * Stop the subagents one session spawned, when that session is aborted.
    * The optional ids are workers this screen still lists.
    */
@@ -129,6 +134,7 @@ export function createWebuiRouteContexts({
   clients,
   onSessionsUndisplayed,
   autoWake,
+  eternal,
   stopSessionFleet,
   send,
   broadcast,
@@ -273,7 +279,18 @@ export function createWebuiRouteContexts({
       ),
     persist: persistPrefs,
     setYolo: opts.onYoloSwitch,
-    setAutonomy: opts.onAutonomySwitch,
+    // The CLI's own switch moves the leader's mode ref (the system prompt's
+    // eternal block); the driver runs the loop itself.
+    setAutonomy: (mode, sessionId) => {
+      opts.onAutonomySwitch?.(mode, sessionId);
+      eternal?.setMode(sessionId ?? opts.agent.ctx.session?.id ?? opts.session.id, mode);
+    },
+    ...(eternal
+      ? {
+          checkAutonomy: (mode: string, sessionId?: string) =>
+            eternal.check(sessionId ?? opts.agent.ctx.session?.id ?? opts.session.id, mode),
+        }
+      : {}),
     applyWrongProxyPrefs: opts.onWrongProxyPrefsChange,
     pendingConfirms,
     configStore: opts.agent.container?.safeResolve?.(TOKENS.ConfigStore),
@@ -366,6 +383,7 @@ export function createWebuiRouteContexts({
     // A project switch re-roots the whole server; it is the one announcement
     // that must reach connections which are displaying something else.
     ...(broadcastEveryone ? { broadcastEveryone } : {}),
+    ...(eternal ? { eternal } : {}),
     log: (m) => console.log(m),
   };
 
@@ -458,6 +476,7 @@ export function createWebuiRouteContexts({
     abortControllers,
     pendingConfirms,
     ...(autoWake ? { autoWake } : {}),
+    ...(eternal ? { eternal } : {}),
     ...(stopSessionFleet ? { stopSessionFleet } : {}),
     send,
     broadcast,

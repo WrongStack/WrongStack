@@ -459,7 +459,7 @@ describe('composer.warm', () => {
       send: (_ws, message) => sent.push(message),
       notifyAbort: vi.fn(),
     });
-    return { routes, warm, agentFor, sent, finish: () => finishRun?.() };
+    return { routes, warm, agentFor, run, sent, finish: () => finishRun?.() };
   }
 
   it("warms the tab's own session provider for its model, silently", async () => {
@@ -483,12 +483,65 @@ describe('composer.warm', () => {
     expect(h.sent).toEqual([]);
 
     const turn = h.routes.userMessage(ws, { type: 'user_message', payload: { content: 'hi' } });
-    await vi.waitFor(() => expect(h.agentFor).toHaveBeenCalled());
+    // Running means `agent.run` was entered, not just that the agent was looked up.
+    await vi.waitFor(() => expect(h.run).toHaveBeenCalled());
     await h.routes.warmProvider?.(ws, { type: 'composer.warm', payload: {} });
     expect(h.warm).not.toHaveBeenCalled();
     h.finish();
     await turn;
     await h.routes.warmProvider?.(ws, { type: 'composer.warm', payload: {} });
     expect(h.warm).toHaveBeenCalledOnce();
+  });
+
+  describe('runRuntimeTurn', () => {
+    it('runs to the end through the run lock with the loop options and hands back the result', async () => {
+      const h = harness();
+      const external = new AbortController();
+      const outcome = await h.routes.runRuntimeTurn('session-live', 'eternal directive', {
+        signal: external.signal,
+        autonomousContinue: true,
+        maxIterations: 3,
+        resultOrigin: 'eternal',
+      });
+      expect(outcome).toEqual({
+        started: true,
+        result: { status: 'completed', iterations: 2, finalText: 'done' },
+      });
+      expect(h.begin).toHaveBeenCalledWith(undefined, 'session-live');
+      expect(h.end).toHaveBeenCalledTimes(1);
+      expect(h.run).toHaveBeenCalledWith(
+        'eternal directive',
+        expect.objectContaining({
+          signal: h.controller.signal,
+          inputOrigin: 'runtime',
+          autonomousContinue: true,
+          // The loop's cap replaces the session ceiling (7).
+          maxIterations: 3,
+        }),
+      );
+    });
+
+    it('reports a busy conversation as not started without an error', async () => {
+      const h = harness({ busy: true });
+      expect(await h.routes.runRuntimeTurn('session-live', 'directive')).toEqual({
+        started: false,
+      });
+      expect(h.run).not.toHaveBeenCalled();
+      expect(h.sent).toEqual([]);
+    });
+
+    it('aborts the run lock when the loop stops, and stops listening afterwards', async () => {
+      const h = harness();
+      const external = new AbortController();
+      h.run.mockImplementationOnce(async () => {
+        external.abort();
+        return { status: 'aborted', iterations: 0, finalText: '' };
+      });
+      const outcome = await h.routes.runRuntimeTurn('session-live', 'directive', {
+        signal: external.signal,
+      });
+      expect(h.controller.signal.aborted).toBe(true);
+      expect(outcome.result?.status).toBe('aborted');
+    });
   });
 });

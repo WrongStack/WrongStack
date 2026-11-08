@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Eternal autonomy runs in the desktop and the WebUI.** Choosing *Eternal* or *Eternal, parallel* in the desktop, `wstack webui` or `wstack --webui` used to save the preference and run nothing: only the CLI's REPL and TUI drove the eternal engine. Both WebUI hosts now run the loop for the conversation that switches, and every iteration goes through the same path as a typed message (run lock, transcript, journal), so a message typed meanwhile waits its turn. The switch is refused, with the reason, when the project has no goal, the goal is completed or another conversation already runs it; as in the CLI it turns on that conversation's YOLO. The conversation returns to `auto` when the goal is done and to `off` when its run is stopped. Hosts that drive the loop advertise `autonomy.eternal-loop`, which the desktop already required before offering the two modes.
+
 ## [1.5.3] — 2026-11-08
 
 The desktop catches up on the rest of what the CLI host does: every worker

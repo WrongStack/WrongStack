@@ -249,6 +249,10 @@ export interface EmbeddedConversationContext extends EmbeddedHostTransport {
     | undefined;
   /** The sessions directory the host-owned prompt queue persists in (see `session-prompt-queue.ts`). */
   promptQueueSessionsDir?: string | undefined;
+  /** Eternal autonomy: runs each directive through this conversation path. */
+  eternal?:
+    | Pick<import('./webui-eternal-driver.js').WebuiEternalDriver, 'bindTurnRunner'>
+    | undefined;
 }
 
 export function createEmbeddedConversationRoutes(
@@ -335,6 +339,7 @@ export function createEmbeddedConversationRoutes(
   // A woken turn goes through `startRuntimeTurn` — the same run lock, gate,
   // journaling and broadcasts as a user message, with runtime origin.
   ctx.autoWake?.bindRuntimeTurnStarter(operations.startRuntimeTurn);
+  ctx.eternal?.bindTurnRunner(operations.runRuntimeTurn);
   return operations;
 }
 
@@ -608,6 +613,10 @@ export interface EmbeddedProjectContext extends EmbeddedHostTransport {
    * switch announces one no client has had a chance to subscribe to.
    */
   broadcastEveryone?: ((message: WSServerMessage) => void) | undefined;
+  /** Eternal autonomy: a loop on the previous project's goal stops on a switch. */
+  eternal?:
+    | Pick<import('./webui-eternal-driver.js').WebuiEternalDriver, 'projectChanged'>
+    | undefined;
 }
 
 export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): ProjectRouteHandlers {
@@ -624,6 +633,7 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
     getProjectRoot: () => opts.projectRoot ?? actx.projectRoot,
     getSession: () => ctx.getForegroundSession?.() ?? actx.session ?? opts.session,
     setProjectRoot: (projectRoot) => {
+      if (projectRoot !== opts.projectRoot) ctx.eternal?.projectChanged();
       opts.projectRoot = projectRoot;
     },
     setWorkingDir: (workingDir) => {

@@ -14,6 +14,7 @@ export {
   createAutonomyRouteHandlers,
   handleAutonomyRoute,
 } from './autonomy-routes.js';
+export { handleAutonomySwitch } from './autonomy-switch.js';
 export { bootConfig, patchConfig } from './boot.js';
 export {
   type BrainHandlerContext,
@@ -399,7 +400,6 @@ export {
   prefSnapshot,
 } from './pref-helpers.js';
 export {
-  handleAutonomySwitch,
   handlePrefsGet,
   handlePrefsUpdate,
   handleSystemPromptGet,
@@ -599,6 +599,11 @@ export {
   getCostRates,
   type TokenUsage,
 } from './usage-cost.js';
+export {
+  createWebuiEternalDriver,
+  type WebuiEternalDriver,
+  type WebuiEternalDriverOptions,
+} from './webui-eternal-driver.js';
 export {
   buildSessionRows,
   formatSessionRowsBlock,

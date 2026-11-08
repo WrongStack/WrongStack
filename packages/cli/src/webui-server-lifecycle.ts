@@ -40,6 +40,7 @@ export function runWebuiServerLifecycle({
   eventUnsubscribers,
   releaseSessionSalvage,
   autoWakeHost,
+  eternalDriver,
   stopEmptySessionCleanup,
   credentialWatcherClose,
   kanbanRunMirror,
@@ -93,6 +94,10 @@ export function runWebuiServerLifecycle({
   eventUnsubscribers: (() => void)[];
   releaseSessionSalvage: () => void;
   autoWakeHost: import('@wrongstack/webui-server').WebuiLeaderAutoWakeHost | undefined;
+  /** Stopped before runs are aborted, so a shutdown does not read as the user stopping the loop. */
+  eternalDriver?:
+    | Pick<import('@wrongstack/webui-server').WebuiEternalDriver, 'dispose'>
+    | undefined;
   stopEmptySessionCleanup: { dispose: () => Promise<void>; runNow: () => Promise<unknown> } | null;
   credentialWatcherClose: (() => void) | undefined;
   kanbanRunMirror: import('@wrongstack/webui-server').KanbanRunMirror | null;
@@ -187,6 +192,7 @@ export function runWebuiServerLifecycle({
         // first line and is idempotent — disposeResources still awaits it to
         // drain any restart already in flight.
         void lifecycleState.embeddedAutoHealDispose?.();
+        eternalDriver?.dispose();
         for (const c of abortControllers.values()) c.abort();
         abortControllers.clear();
       },

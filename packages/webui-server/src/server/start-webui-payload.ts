@@ -30,6 +30,8 @@ export function createStartWebuiSessionPayloadHelper(params: {
   peekAgent?: ((sessionId: string) => { ctx?: SessionStartContext } | undefined) | undefined;
   /** The host's version and the newest release, when the host checks for one. */
   getAppUpdate?: (() => AppUpdateInfo) | undefined;
+  /** Host capabilities added to `protocolCapabilities`. */
+  getHostCapabilities?: (() => readonly string[]) | undefined;
 }) {
   const {
     getConfig,
@@ -43,6 +45,7 @@ export function createStartWebuiSessionPayloadHelper(params: {
     modelsRegistry,
     peekAgent,
     getAppUpdate,
+    getHostCapabilities,
   } = params;
 
   const build = createSessionStartPayload({
@@ -57,6 +60,7 @@ export function createStartWebuiSessionPayloadHelper(params: {
       needsSetup && !(stateGetter().getConfig().provider && stateGetter().getConfig().model),
     modelsRegistry,
     getSessionContext: (sessionId: string) => peekAgent?.(sessionId)?.ctx,
+    ...(getHostCapabilities ? { getHostCapabilities } : {}),
   });
   if (!getAppUpdate) return build;
   // The same fields the CLI hands its WebUI: the WebUI's update banner and the desktop read them.

@@ -16,9 +16,11 @@ import {
 export function createLiveSessionStartPayloadBuilder<T extends SessionStartPayloadDeps>(
   opts: T,
   getSessionAgents: () => SessionAgentRegistry | undefined,
+  hostCapabilities?: readonly string[],
 ): BuildSessionStartPayload {
   return createSessionStartPayloadBuilder({
     ...opts,
+    ...(hostCapabilities ? { hostCapabilities } : {}),
     // Read through to the live `opts`, do NOT snapshot: `projects.select`
     // re-roots the host by assigning `opts.projectRoot` / `opts.session` on
     // this very object. A spread copy froze both at boot, so every

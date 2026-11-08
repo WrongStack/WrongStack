@@ -340,6 +340,7 @@ export function buildStandaloneWebuiDeps(input: {
   wssSecondary: WebuiDeps['wssSecondary'];
   autoWake?: WebuiDeps['autoWake'];
   tuneupHooks?: WebuiDeps['tuneupHooks'];
+  eternal?: WebuiDeps['eternal'];
 }): WebuiDeps {
   const {
     preContext,
@@ -456,6 +457,7 @@ export function buildStandaloneWebuiDeps(input: {
     brainLog,
     ...(input.autoWake ? { autoWake: input.autoWake } : {}),
     ...(input.tuneupHooks ? { tuneupHooks: input.tuneupHooks } : {}),
+    ...(input.eternal ? { eternal: input.eternal } : {}),
     // The engine's fleet host starts the workers `/spawn` and `/delegate` ask for, and its
     // agent monitor gives a reopened conversation its workers' transcripts back.
     ...(agentServices.delegation

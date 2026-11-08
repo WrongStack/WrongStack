@@ -1,28 +1,18 @@
-import { TOKENS } from '@wrongstack/contracts/kernel';
-import type { ContentBlock, UserInputResponse } from '@wrongstack/contracts/types';
-import type { Agent } from '@wrongstack/core/agent';
+import type { UserInputResponse } from '@wrongstack/contracts/types';
+import type { Agent, RunResult } from '@wrongstack/core/agent';
 import { startFreshTopicContext, TopicShiftAdvisor } from '@wrongstack/core/execution';
 import { PROMPT_JOURNAL_RAW_MARKER } from '@wrongstack/core/prompts';
 import { typeSafeJudgeFromContainer } from '@wrongstack/core/typesafe';
-import {
-  buildUserContentBlocks,
-  IncomingImageError,
-  type IncomingImagePayload,
-  mergeCustomModelDefs,
-  parseIncomingAttachments,
-  providerIdentities,
-} from '@wrongstack/core/utils';
-import { capabilitiesFor, catalogProviderIdFor } from '@wrongstack/providers';
-import {
-  createToolVisionAdapters,
-  ImageInputUnsupportedError,
-  routeImagesForModel,
-  VisionUrlBlockedError,
-} from '@wrongstack/runtime/vision';
+import { IncomingImageError } from '@wrongstack/core/utils';
+import { ImageInputUnsupportedError, VisionUrlBlockedError } from '@wrongstack/runtime/vision';
 import type { WebSocket } from 'ws';
 import type { ConversationRouteHandlers } from './conversation-routes.js';
+import {
+  buildTurnInput,
+  type RuntimeTurnOptions,
+  type TurnPayload,
+} from './conversation-turn-input.js';
 import { correlatedReply } from './correlated-reply.js';
-import { pdfPromptBlocks } from './incoming-documents.js';
 import type { ConfirmDecision, PendingConfirm } from './pending-confirms.js';
 import {
   createSessionPromptQueue,
@@ -42,16 +32,7 @@ type OutboundMessage = { type: string; payload: unknown };
  */
 export type ConversationTurnOrigin = 'user' | 'runtime' | 'queue';
 
-interface TurnPayload {
-  journalRaw?: string;
-  id?: unknown;
-  content?: unknown;
-  freshContext?: unknown;
-  images?: IncomingImagePayload[] | undefined;
-  imageBase64?: string | undefined;
-  /** The turn's content, already built (a queued prompt); replaces `content` and `images`. */
-  blocks?: ContentBlock[] | undefined;
-}
+export type { RuntimeTurnOptions } from './conversation-turn-input.js';
 
 export interface ConversationRunControl {
   /**
@@ -132,6 +113,19 @@ export interface ConversationOperations extends ConversationRouteHandlers {
    * itself continues after the promise resolves.
    */
   startRuntimeTurn(sessionId: string, prompt: string): Promise<boolean>;
+  /**
+   * Run a runtime-origin turn to its end through the same path, for a host
+   * loop that needs the outcome (eternal autonomy). Resolves `{ started:
+   * false }` when the session was busy or not ready, otherwise `{ started:
+   * true, result }` once the run finished; `result` is missing when the run
+   * threw (the error already went to the session). Aborting `signal` aborts
+   * the run like a Stop does.
+   */
+  runRuntimeTurn(
+    sessionId: string,
+    prompt: string,
+    options?: RuntimeTurnOptions,
+  ): Promise<{ started: boolean; result?: RunResult | undefined }>;
   /** The host-owned queue of prompts waiting for each session's run to end. */
   readonly promptQueue: SessionPromptQueue;
 }
@@ -210,6 +204,10 @@ export function createConversationOperations(
     origin: ConversationTurnOrigin;
     /** Setup finished: the lock was claimed and the run starts (`true`), or not (`false`). */
     onSettled?: ((started: boolean) => void) | undefined;
+    /** A runtime loop's run options (runtime turns only). */
+    runOptions?: RuntimeTurnOptions | undefined;
+    /** The finished run's result, before `run.result` goes out. */
+    onResult?: ((result: RunResult) => void) | undefined;
   }): Promise<void> => {
     const { ws, originSessionId, payload, origin } = turn;
     const requestId = typeof payload.id === 'string' ? payload.id : undefined;
@@ -251,6 +249,7 @@ export function createConversationOperations(
     // Set when the turn was refused for a reason that already answered the
     // client, so the generic "already processing" reply below stays quiet.
     let refusedWithReason = false;
+    let unlinkSignal: (() => void) | undefined;
     try {
       const prepared = await gate(async () => {
         const claimed = ctx.runControl.begin(ws, originSessionId);
@@ -298,63 +297,7 @@ export function createConversationOperations(
           return null;
         }
         if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
-        const content = typeof payload.content === 'string' ? payload.content : '';
-        let input: string | ContentBlock[] = content;
-        const attached = payload.blocks
-          ? { images: [], pdfs: [] }
-          : parseIncomingAttachments(payload.images, payload.imageBase64);
-        // PDFs lead, then images, then the text; the provider runner decides
-        // per model whether a PDF travels as the file or as its text.
-        const blocks = payload.blocks ?? [
-          ...(await pdfPromptBlocks(attached.pdfs)),
-          ...buildUserContentBlocks(content, attached.images),
-        ];
-        if (attached.pdfs.length > 0 || payload.blocks) input = blocks;
-        if (blocks.some((block) => block.type === 'image')) {
-          let supportsVision = Boolean(agent.ctx.provider.capabilities.vision);
-          if (!supportsVision && agent.container?.has(TOKENS.ModelsRegistry)) {
-            try {
-              const registry = agent.container.resolve(TOKENS.ModelsRegistry);
-              const cfg = agent.container.has(TOKENS.ConfigStore)
-                ? agent.container.resolve(TOKENS.ConfigStore).get()
-                : undefined;
-              const providerCfg = cfg?.providers?.[agent.ctx.provider.id];
-              const boundCatalogId = providerIdentities(agent.ctx.provider)[1];
-              const caps = await capabilitiesFor(
-                registry,
-                agent.ctx.provider.id,
-                agent.ctx.model,
-                mergeCustomModelDefs(providerCfg?.customModels, cfg?.models),
-                {
-                  catalogProviderId: catalogProviderIdFor(
-                    agent.ctx.provider.id,
-                    boundCatalogId ?? providerCfg?.type,
-                  ),
-                },
-              );
-              supportsVision = Boolean(caps.vision);
-              if (supportsVision) {
-                Object.defineProperty(agent.ctx.provider, 'capabilities', {
-                  value: { ...agent.ctx.provider.capabilities, vision: true, pdf: caps.pdf },
-                  writable: true,
-                  configurable: true,
-                  enumerable: true,
-                });
-              }
-            } catch {
-              /* keep provider baseline on lookup failure */
-            }
-          }
-          const routed = await routeImagesForModel(blocks, {
-            supportsVision,
-            adapters: () => createToolVisionAdapters(agent.tools),
-            ctx: agent.ctx,
-            signal: claimed.signal,
-            providerId: agent.ctx.provider.id,
-            model: agent.ctx.model,
-          });
-          input = routed.blocks;
-        }
+        const input = await buildTurnInput(agent, payload, claimed.signal);
         return { agent, input, signal: claimed.signal };
       });
       if (!prepared) {
@@ -385,11 +328,26 @@ export function createConversationOperations(
       // `ran = true` — an unset ran would skip onRunEnded in the finally
       // below, leaving the auto-wake host's turn bookkeeping dangling so its
       // scheduler re-enters the same prompt.
-      let maxIterations: number | undefined;
-      try {
-        maxIterations = ctx.getMaxIterations?.(originSessionId);
-      } catch {
-        maxIterations = undefined;
+      let maxIterations: number | undefined = turn.runOptions?.maxIterations;
+      if (maxIterations === undefined) {
+        try {
+          maxIterations = ctx.getMaxIterations?.(originSessionId);
+        } catch {
+          maxIterations = undefined;
+        }
+      }
+      // A host loop's own stop reaches the run the way a Stop does: through
+      // the run lock's controller, so the lock, fleet stop and abort notice
+      // behave exactly as for a user Stop.
+      const external = turn.runOptions?.signal;
+      if (external && controller) {
+        const claimedController = controller;
+        const onAbort = (): void => claimedController.abort();
+        if (external.aborted) onAbort();
+        else {
+          external.addEventListener('abort', onAbort, { once: true });
+          unlinkSignal = () => external.removeEventListener('abort', onAbort);
+        }
       }
       ran = true;
       journalMeta = agent.ctx.meta;
@@ -403,7 +361,13 @@ export function createConversationOperations(
         signal: prepared.signal,
         inputOrigin: origin === 'user' ? 'user' : 'runtime',
         ...(maxIterations !== undefined ? { maxIterations } : {}),
+        ...(turn.runOptions?.autonomousContinue ? { autonomousContinue: true } : {}),
       });
+      try {
+        turn.onResult?.(runResult);
+      } catch {
+        // Host bookkeeping must never break a turn.
+      }
       // The result goes to the session, not to the socket that asked. That
       // socket may have dropped while the run went on: its page reconnects
       // on a new socket, and a result sent to the old one was lost, together
@@ -419,7 +383,7 @@ export function createConversationOperations(
           status: runResult.status,
           iterations: runResult.iterations,
           finalText: runResult.finalText,
-          ...(origin === 'runtime' ? { origin: 'auto_wake' } : {}),
+          ...(origin === 'runtime' ? { origin: turn.runOptions?.resultOrigin ?? 'auto_wake' } : {}),
           error: runResult.error
             ? {
                 code: runResult.error.code,
@@ -456,6 +420,7 @@ export function createConversationOperations(
         });
       }
     } finally {
+      unlinkSignal?.();
       if (journalMeta) {
         delete journalMeta[STANDALONE_JOURNAL_ORIGIN];
         delete journalMeta[PROMPT_JOURNAL_RAW_MARKER];
@@ -537,8 +502,31 @@ export function createConversationOperations(
       });
     });
 
+  const runRuntimeTurn = (
+    sessionId: string,
+    prompt: string,
+    options?: RuntimeTurnOptions,
+  ): Promise<{ started: boolean; result?: RunResult | undefined }> => {
+    let started = false;
+    let result: RunResult | undefined;
+    return runTurn({
+      ws: undefined,
+      originSessionId: sessionId,
+      payload: { content: prompt },
+      origin: 'runtime',
+      runOptions: options,
+      onSettled: (value) => {
+        started = value;
+      },
+      onResult: (value) => {
+        result = value;
+      },
+    }).then(() => (started ? { started, result } : { started }));
+  };
+
   return {
     startRuntimeTurn,
+    runRuntimeTurn,
     promptQueue,
     queue: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, msg.type)) return;

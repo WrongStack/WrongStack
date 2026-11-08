@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
-import { handleAutonomySwitch, type PrefsHandlerContext } from './prefs-handlers.js';
+import { handleAutonomySwitch } from './autonomy-switch.js';
+import type { PrefsHandlerContext } from './prefs-handlers.js';
 import type { WSClientMessage } from './types.js';
 import { validateAutonomySwitchPayload } from './ws-payload-validation.js';
 import { sendResult } from './ws-utils.js';

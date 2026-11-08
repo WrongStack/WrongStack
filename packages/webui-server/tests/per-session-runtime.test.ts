@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
-import { handleAutonomySwitch, handlePrefsUpdate } from '../src/server/prefs-handlers.js';
+import { handleAutonomySwitch } from '../src/server/autonomy-switch.js';
+import { handlePrefsUpdate } from '../src/server/prefs-handlers.js';
 import { createSessionStartPayload } from '../src/server/server-runtime.js';
 
 /**

@@ -193,6 +193,11 @@ export interface WebuiDeps {
   autoWake?: import('./leader-auto-wake-host.js').WebuiLeaderAutoWakeHost | undefined;
   /** `/tuneup`'s view of the host: its release check, where it has one. */
   tuneupHooks?: import('@wrongstack/runtime/commands').TuneupHooks | undefined;
+  /**
+   * Drives eternal / eternal-parallel autonomy for a conversation that switches
+   * to them (standalone engine). Absent: those modes only store the preference.
+   */
+  eternal?: import('./webui-eternal-driver.js').WebuiEternalDriver | undefined;
   /** How `/spawn`, `/delegate` and `/director` start workers; absent without the fleet. */
   fleetCommands?:
     | Pick<

@@ -133,6 +133,11 @@ function buildStandalone(): void {
         onSessionsDisplayed: vi.fn(),
         bindRuntimeTurnStarter: vi.fn(),
       },
+      eternal: {
+        bindTurnRunner: vi.fn(),
+        check: vi.fn(async () => undefined),
+        setMode: vi.fn(),
+      },
     },
     {},
   );

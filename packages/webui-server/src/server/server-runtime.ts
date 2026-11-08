@@ -111,6 +111,12 @@ interface SessionStartPayloadGetters {
    * describe the runtime's current session for every tab.
    */
   getSessionContext?: ((sessionId: string) => SessionRuntimeContext | undefined) | undefined;
+  /**
+   * Capabilities of this host beyond the surface protocol, added to
+   * `protocolCapabilities` (e.g. `autonomy.eternal-loop` when it drives the
+   * eternal engine).
+   */
+  getHostCapabilities?: (() => readonly string[]) | undefined;
 }
 
 /** The slice of a session Context this payload reads. */
@@ -264,6 +270,12 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
       ...protocolAdvertisement(),
       ...(overrides ?? {}),
     };
+    const hostCapabilities = g.getHostCapabilities?.() ?? [];
+    if (hostCapabilities.length > 0) {
+      result.protocolCapabilities = [
+        ...new Set([...result.protocolCapabilities, ...hostCapabilities]),
+      ];
+    }
     if (reasoningEffortLevels) result.reasoningEffortLevels = reasoningEffortLevels;
     if (effortSupported !== undefined) result.effortSupported = effortSupported;
     // Display-only hint: the project-wide effort the composer's auto option

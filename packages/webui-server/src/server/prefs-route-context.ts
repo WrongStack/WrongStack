@@ -55,6 +55,17 @@ export function createPrefsAndAutonomyRoutes(
     setSubagentModelPlan: (plan, sessionId) =>
       setSessionSubagentModelPlan(sessionContext(sessionId), normalizeSubagentModelPlan(plan)),
     persist: cb.persistPrefsToConfig,
+    // Eternal autonomy: the driver runs the loop for the tab that switched,
+    // and refuses a switch it cannot honour before anything is saved.
+    ...(deps.eternal
+      ? {
+          checkAutonomy: (mode: string, sessionId?: string) =>
+            deps.eternal?.check(sessionId ?? state.getSession().id, mode) ??
+            Promise.resolve(undefined),
+          setAutonomy: (mode: string, sessionId?: string) =>
+            deps.eternal?.setMode(sessionId ?? state.getSession().id, mode),
+        }
+      : {}),
     pendingConfirms: deps.pendingConfirms,
     configStore: deps.configStore,
     systemPrompt: systemPromptAdapter,

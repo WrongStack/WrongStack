@@ -44,6 +44,8 @@ export interface SessionStartPayloadDeps {
   modeId?: string | undefined;
   projectRoot?: string | undefined;
   updateInfo?: BootUpdateInfo | undefined;
+  /** Host capabilities added to `protocolCapabilities` (e.g. `autonomy.eternal-loop`). */
+  hostCapabilities?: readonly string[] | undefined;
 }
 
 export type BuildSessionStartPayload = (
@@ -109,6 +111,11 @@ export function createSessionStartPayloadBuilder(
         ? ctx.lastRequestTokens
         : 0;
 
+    const advertisement = protocolAdvertisement();
+    const protocolCapabilities: readonly string[] =
+      deps.hostCapabilities && deps.hostCapabilities.length > 0
+        ? [...new Set<string>([...advertisement.protocolCapabilities, ...deps.hostCapabilities])]
+        : advertisement.protocolCapabilities;
     return {
       sessionId: targetSessionId,
       ...(startedAt ? { startedAt } : {}),
@@ -132,7 +139,8 @@ export function createSessionStartPayloadBuilder(
       latestVersion: updateInfo?.latest,
       updateAvailable: updateInfo?.outdated ?? false,
       updateCheckFailed: updateInfo?.checkFailed ?? false,
-      ...protocolAdvertisement(),
+      ...advertisement,
+      protocolCapabilities,
       ...overrides,
     };
   };

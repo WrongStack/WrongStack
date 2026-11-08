@@ -55,9 +55,9 @@ export type SurfaceProtocolCapability = (typeof SURFACE_PROTOCOL_CAPABILITIES)[n
  * capabilities) only by a host that DRIVES eternal / eternal-parallel autonomy: one that runs
  * the eternal engine's iterations when a conversation switches to those modes. Choosing them
  * on any other host only stores the preference, so a client offers them only when this is
- * present. Today the eternal loop is driven by the CLI's REPL and TUI main loops; neither
- * WebUI host (`wstack --webui`, the standalone engine behind the desktop) runs it, so neither
- * advertises this.
+ * present. The CLI's REPL and TUI main loops drive the eternal loop, and both WebUI hosts
+ * (the standalone engine behind the desktop and `wstack webui`, and the CLI-hosted
+ * `wstack --webui`) drive it through their conversation path and advertise this.
  */
 export const HOST_CAPABILITY_ETERNAL_AUTONOMY = 'autonomy.eternal-loop' as const;
 

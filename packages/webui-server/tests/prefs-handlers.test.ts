@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
+import { handleAutonomySwitch } from '../src/server/autonomy-switch.js';
 import {
-  handleAutonomySwitch,
   handlePrefsGet,
   handlePrefsUpdate,
   type PrefsHandlerContext,
@@ -240,5 +240,57 @@ describe('canonical preference handlers', () => {
     await handleAutonomySwitch(state.context, ws, 'eternal', 'sess_2');
 
     expect(state.setAutonomy).toHaveBeenCalledWith('eternal', 'sess_2');
+  });
+
+  it('turns on the tab YOLO when a host that drives the loop starts eternal, as the CLI does', async () => {
+    const state = makeContext();
+    state.context.metaFor = () => state.meta;
+    state.context.checkAutonomy = vi.fn(async () => undefined);
+
+    await handleAutonomySwitch(state.context, ws, 'eternal', 'sess_2');
+
+    expect(state.meta['yolo']).toBe(true);
+    expect(state.setYolo).toHaveBeenCalledWith(true, 'sess_2');
+    // Before the loop starts, so its first tool call does not wait for approval.
+    expect(state.setYolo.mock.invocationCallOrder[0]).toBeLessThan(
+      state.setAutonomy.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(state.broadcasts).toContainEqual({
+      type: 'prefs.updated',
+      payload: { autonomy: 'eternal', yolo: true, sessionId: 'sess_2' },
+    });
+    // YOLO stays the tab's: nothing is written to the saved defaults for it.
+    expect(state.persist).toHaveBeenCalledWith({ autonomy: 'eternal' });
+  });
+
+  it('leaves YOLO alone without an eternal driver and for the other modes', async () => {
+    const withoutDriver = makeContext();
+    await handleAutonomySwitch(withoutDriver.context, ws, 'eternal', 'sess_2');
+    expect(withoutDriver.setYolo).not.toHaveBeenCalled();
+
+    const otherMode = makeContext();
+    otherMode.context.checkAutonomy = vi.fn(async () => undefined);
+    await handleAutonomySwitch(otherMode.context, ws, 'auto', 'sess_2');
+    expect(otherMode.setYolo).not.toHaveBeenCalled();
+    expect(otherMode.meta['yolo']).toBeUndefined();
+  });
+
+  it('changes nothing when the host refuses the switch, and says why', async () => {
+    const state = makeContext();
+    state.meta['autonomy'] = 'auto';
+    const checkAutonomy = vi.fn(async () => 'Eternal autonomy needs a goal.');
+    state.context.checkAutonomy = checkAutonomy;
+
+    await handleAutonomySwitch(state.context, ws, 'eternal', 'sess_2');
+
+    expect(checkAutonomy).toHaveBeenCalledWith('eternal', 'sess_2');
+    expect(state.persist).not.toHaveBeenCalled();
+    expect(state.setAutonomy).not.toHaveBeenCalled();
+    expect(state.meta['autonomy']).toBe('auto');
+    expect(state.sent).toContainEqual(
+      expect.objectContaining({
+        payload: { success: false, message: 'Eternal autonomy needs a goal.' },
+      }),
+    );
   });
 });

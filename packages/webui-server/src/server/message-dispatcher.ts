@@ -317,6 +317,8 @@ export function createMessageDispatcher(
       : {}),
   });
   deps.autoWake?.bindRuntimeTurnStarter(conversationRoutes.startRuntimeTurn);
+  // Eternal autonomy runs each directive through the same conversation path.
+  deps.eternal?.bindTurnRunner(conversationRoutes.runRuntimeTurn);
   const completionRoutes: CompletionRouteHandlers = {
     request: (ws, msg) =>
       handleCompletionRequest(ws, msg, {

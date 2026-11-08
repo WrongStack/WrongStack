@@ -13,6 +13,7 @@
  * Public surface: `runWebUI` plus WS message shapes.
  */
 import * as path from 'node:path';
+import { TOKENS } from '@wrongstack/contracts/kernel';
 import type { SessionWriter } from '@wrongstack/contracts/types';
 import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { addFatalSalvageHook } from '@wrongstack/core/utils';
@@ -20,6 +21,7 @@ import {
   buildWebUIAccessUrl,
   type CustomModeStore,
   createCustomModeStore,
+  createWebuiEternalDriver,
   createWebuiLeaderAutoWakeHost,
   envFlag,
   findFreePort,
@@ -156,9 +158,31 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
    * leader's.
    */
   let sessionAgentsRef: SessionAgentRegistry | undefined;
+  /**
+   * Eternal / eternal-parallel autonomy. Nothing in this host ran the eternal
+   * engine (only the REPL and TUI loops do), so choosing those modes in the
+   * browser only moved the leader's mode ref. The driver runs the loop for the
+   * tab that switches, through the conversation path, and `session.start`
+   * says so. The conversation routes bind its turn runner.
+   */
+  const eternalDriver = createWebuiEternalDriver({
+    getProjectRoot: () =>
+      opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string }).projectRoot ?? process.cwd(),
+    getAgent: (sessionId) => sessionAgentsRef?.get(sessionId) ?? opts.agent,
+    isSessionOpen: (sessionId) =>
+      sessionId === opts.session.id || sessionAgentsRef?.isLive(sessionId) === true,
+    broadcast,
+    persistAutonomy: (mode) => persistPrefs({ autonomy: mode }),
+    events: opts.events,
+    logger: consoleLogger,
+    compactor: opts.agent.container?.safeResolve?.(TOKENS.Compactor),
+    brain: opts.brain,
+    subagentFactory: opts.sddSubagentFactory,
+  });
   const buildSessionStartPayload = createLiveSessionStartPayloadBuilder(
     opts,
     () => sessionAgentsRef,
+    [eternalDriver.capability],
   );
 
   const { register: registerWebuiClient, unregister: unregisterWebuiClient } =
@@ -366,6 +390,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     peekSessionAgent: (sessionId) => sessionAgents.peek(sessionId),
     onSessionsUndisplayed: retireUndisplayedSessions,
     ...(autoWakeHost ? { autoWake: autoWakeHost } : {}),
+    eternal: eternalDriver,
     isSessionLive: (sessionId) => sessionAgents.isLive(sessionId),
     getForegroundSession: () => foregroundSession,
     setForegroundSession: (next) => {
@@ -454,6 +479,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     eventUnsubscribers,
     releaseSessionSalvage,
     autoWakeHost,
+    eternalDriver,
     stopEmptySessionCleanup,
     credentialWatcherClose,
     kanbanRunMirror,
@@ -466,5 +492,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     terminalLogView,
   });
 
-  return stopped.finally(() => terminalLogView.stop());
+  return stopped.finally(() => {
+    eternalDriver.dispose();
+    terminalLogView.stop();
+  });
 }

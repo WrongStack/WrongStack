@@ -46,6 +46,7 @@ import { createWebuiMutableState } from './start-webui-state.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
 import { buildStandaloneWebuiDeps, wireStandaloneWebuiRuntime } from './start-webui-wiring.js';
 import type { WebUIOptions } from './types.js';
+import { createWebuiEternalDriver } from './webui-eternal-driver.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
 
 export { createStandaloneTodosCheckpointLifecycle };
@@ -179,6 +180,26 @@ export async function startWebUI(
     });
   const { peekAgent, toolExecutor, permissionPolicy, brain, updateAutoCompactionMaxContext } =
     agentServices;
+
+  // Eternal / eternal-parallel autonomy: this host drives the engine for the
+  // conversation that switches to them (the message dispatcher binds the turn
+  // runner), and says so in `session.start`. A host that injects its own
+  // eternal stream (`subscribeEternalIteration`) drives the engine itself.
+  const eternalDriver = opts.subscribeEternalIteration
+    ? undefined
+    : createWebuiEternalDriver({
+        getProjectRoot: () => projectRoot,
+        getAgent: (sessionId) => agentServices.getAgent?.(sessionId) ?? agentServices.agent,
+        isSessionOpen: (sessionId) =>
+          sessionId === session.id || agentServices.isSessionLive?.(sessionId) === true,
+        broadcast: (message) => broadcast(clients, message),
+        persistAutonomy: (mode) => persistPrefsToConfig({ autonomy: mode }),
+        events,
+        logger,
+        compactor: agentServices.compactor,
+        brain,
+        subagentFactory: agentServices.subagentFactory,
+      });
   preContext.mcpRegistry.setTaskRecoveryContext?.(() => peekAgent?.(session.id)?.ctx ?? context);
   if (typeof context.meta['yolo'] === 'boolean') {
     permissionPolicy.setYolo?.(context.meta['yolo']);
@@ -208,6 +229,7 @@ export async function startWebUI(
     modelsRegistry,
     peekAgent,
     getAppUpdate: appUpdate?.info,
+    ...(eternalDriver ? { getHostCapabilities: () => [eternalDriver.capability] } : {}),
   });
 
   const watcherMetricsRef: FileWatcherMetrics = createDefaultFileWatcherMetrics();
@@ -292,6 +314,9 @@ export async function startWebUI(
       broadcast,
       () => clients,
     );
+  } else if (eternalDriver) {
+    // The driver's engines stop with the other eternal plumbing at shutdown.
+    eternalSubscription = { dispose: () => eternalDriver.dispose() };
   }
 
   /**
@@ -399,6 +424,7 @@ export async function startWebUI(
     setProjectRoot: (next) => {
       chronicle?.switchProject(next);
       hostServices?.switchProject(next);
+      if (next !== projectRoot) eternalDriver?.projectChanged();
       projectRoot = next;
     },
     getWorkingDir: () => workingDir,
@@ -451,6 +477,7 @@ export async function startWebUI(
     autoWake,
     // `/tuneup` reports a newer release from the same check the update notice uses.
     ...(appUpdate ? { tuneupHooks: { checkForUpdate: () => appUpdate.tuneupInfo() } } : {}),
+    ...(eternalDriver ? { eternal: eternalDriver } : {}),
   });
 
   const cb: WebuiCallbacks = createWebuiCallbacks({

@@ -74,6 +74,12 @@ export function setupWebuiShutdown(options: {
   globalConfigPath: string;
 }): () => void {
   let unregister = (): void => {};
+  const disposeEternal = (): void => {
+    const eternalSub = options.getEternalSubscription();
+    if (!eternalSub) return;
+    eternalSub.dispose();
+    options.clearEternalSubscription();
+  };
   const releaseSalvage = addFatalSalvageHook(() => {
     try {
       options.getSession().flushSync?.();
@@ -106,6 +112,10 @@ export function setupWebuiShutdown(options: {
       ...(options.wssSecondary ? [options.wssSecondary] : []),
     ],
     onPreShutdown: async () => {
+      // First: an eternal loop stops before anything aborts its turn, so the
+      // shutdown is not read as the user stopping it (which would move the
+      // tab and the saved default autonomy to `off`).
+      disposeEternal();
       await options.agentServices.closeChimera?.();
       // An ACP leader's agent (and the MCP servers it started) would otherwise outlive the
       // engine until the forced exit; bounded, like the CLI's exit path.
@@ -155,11 +165,7 @@ export function setupWebuiShutdown(options: {
       await options.mcpRegistry.stopAll().catch(() => undefined);
       await options.sessionIdentity.stop();
       options.eventArming.getDispose()?.();
-      const eternalSub = options.getEternalSubscription();
-      if (eternalSub) {
-        eternalSub.dispose();
-        options.clearEternalSubscription();
-      }
+      disposeEternal();
       options.codebaseIndexing.dispose();
       // After the agents and MCP servers stopped: their last events are recorded.
       await options

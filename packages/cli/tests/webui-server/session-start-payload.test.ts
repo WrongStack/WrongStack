@@ -132,4 +132,24 @@ describe('createSessionStartPayloadBuilder', () => {
     const payload = await buildPayload();
     expect(payload.startedAt).toBe('2026-07-25T10:00:00.000Z');
   });
+
+  it('adds host capabilities to the advertised protocol capabilities', async () => {
+    const { createSessionStartPayloadBuilder } = await import(
+      '../../src/webui-server/session-start-payload.js'
+    );
+    const { HOST_CAPABILITY_ETERNAL_AUTONOMY, protocolAdvertisement } = await import(
+      '@wrongstack/webui-protocol'
+    );
+    const plain = await createSessionStartPayloadBuilder(mockDeps())();
+    expect(plain.protocolCapabilities).toEqual(protocolAdvertisement().protocolCapabilities);
+    expect(plain.protocolCapabilities).not.toContain(HOST_CAPABILITY_ETERNAL_AUTONOMY);
+
+    const payload = await createSessionStartPayloadBuilder(
+      mockDeps({ hostCapabilities: [HOST_CAPABILITY_ETERNAL_AUTONOMY] }),
+    )();
+    expect(payload.protocolCapabilities).toEqual([
+      ...protocolAdvertisement().protocolCapabilities,
+      HOST_CAPABILITY_ETERNAL_AUTONOMY,
+    ]);
+  });
 });
