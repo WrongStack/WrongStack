@@ -164,9 +164,9 @@
       "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils": {
-      "files": 960,
+      "files": 961,
       "typeOnly": 71,
-      "runtimeOrMixed": 923
+      "runtimeOrMixed": 924
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -5087,13 +5087,13 @@
     },
     {
       "specifier": "@wrongstack/core/observability",
-      "file": "packages/cli/src/boot/boot-auto-thin.ts",
+      "file": "packages/chronicle/src/session-wiring.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/observability",
-      "file": "packages/cli/src/session-event-wiring.ts",
+      "file": "packages/cli/src/boot/boot-auto-thin.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7103,6 +7103,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/chronicle/src/session-wiring.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/acp-leader/acp-leader-confirm.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7254,12 +7260,6 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/provider-config-utils.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/session-event-wiring.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11063,6 +11063,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/chronicle/src/session-wiring.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/chronicle/src/sqlite-compaction.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -11742,12 +11748,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/statusline-config.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/session-event-wiring-types.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16290,6 +16290,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/standalone-delegation.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/start-webui-chronicle.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

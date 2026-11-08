@@ -7,29 +7,8 @@
  * Extracted from cli-main.ts's monolithic main() to reduce cognitive load
  * and enable focused testing.
  */
-import type {
-  ChronicleEventJournalHandle,
-  ChronicleEventSink,
-  ChronicleFileObserver,
-} from '@wrongstack/chronicle';
-import {
-  createChronicleContext,
-  createChronicleCounterSink,
-  resolveChronicleDetail,
-  startChronicleFileObserver,
-  startChronicleHealthMonitor,
-  wireDecisionsToChronicle,
-  wireDomainEventsToChronicle,
-  wireProcessesToChronicle,
-  wireProviderAttemptsToChronicle,
-  wireProviderStreamsToChronicle,
-  wireReviewFindingsToChronicle,
-  wireRollupsToChronicle,
-  wireToolsToChronicle,
-} from '@wrongstack/chronicle';
+import { wireChronicleSession } from '@wrongstack/chronicle';
 import { recordFileAction } from '@wrongstack/coordination';
-import { startNetworkTelemetryMonitor } from '@wrongstack/core/observability';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -37,11 +16,6 @@ import type {
   ErrorEntry,
   WireSessionEventsDeps,
   WireSessionEventsResult,
-} from './session-event-wiring-types.js';
-import {
-  chronicleLimit,
-  resolveChronicleRetentionDays,
-  tryCreateChronicleJournal,
 } from './session-event-wiring-types.js';
 
 // ── Exported wiring ────────────────────────────────────────────────────────
@@ -85,183 +59,31 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   // ── Error ring ──────────────────────────────────────────────────────────
   const errorRing: ErrorEntry[] = [];
 
-  // ── Chronicle durable provider-attempt journal ─────────────────────────
-  let chronicleJournal: ChronicleEventSink | undefined;
-  let chronicleHandle: ChronicleEventJournalHandle | undefined;
-  let unsubscribeChronicle: (() => void) | undefined;
-  let chronicleFileObserver: Promise<ChronicleFileObserver> | undefined;
-  let stopChronicleHealth: (() => void) | undefined;
-  let stopNetworkTelemetry: (() => void) | undefined;
-  let disposeCounterSink: (() => Promise<void>) | undefined;
-  // Chronicle refuses to run in-process unless asked, so a missing build now
-  // raises instead of silently giving this session a private hash chain. That
-  // is the right call for the journal's integrity but the wrong call for the
-  // session: telemetry is not load-bearing, and a user should never be unable
-  // to work because a daemon binary is absent. Degrade loudly to no telemetry.
-  if (deps.events && wpaths.projectDir) {
-    const retentionDays = resolveChronicleRetentionDays(config);
-    chronicleHandle = tryCreateChronicleJournal({
-      projectRoot,
-      retentionDays,
-      // Undefined means "whatever the daemon already runs with": these only
-      // take effect for the client that wins the spawn race, so passing an
-      // explicit fallback here would imply a control this layer does not have.
-      maxEvents: chronicleLimit(config, 'maxEvents'),
-      maxBytes: chronicleLimit(config, 'maxBytes'),
-      metricsRowRetentionDays: chronicleLimit(config, 'metricsRowRetentionDays'),
-      projectPaths: {
-        globalRoot: wpaths.globalRoot,
-        projectId: wpaths.projectHash ?? wpaths.projectSlug,
-        projectDir: wpaths.projectDir,
-        workspaceId: wpaths.projectSlug,
-      },
+  // ── Chronicle durable event journal ────────────────────────────────────
+  // The same producer path the standalone WebUI host (the desktop engine)
+  // runs: `wireChronicleSession` opens the project journal and subscribes
+  // every adapter. A missing daemon build degrades to no telemetry, loudly.
+  const onChroniclePersistError = (error: unknown): void => {
+    errorRing.push({
+      ts: new Date().toISOString(),
+      phase: 'chronicle.persist',
+      code: 'CHRONICLE_PERSIST_FAILED',
+      message: toErrorMessage(error),
     });
-  }
-
-  if (chronicleHandle && deps.events) {
-    // Collection policy sits between the adapters and the journal rather than
-    // inside any one of them: every adapter already writes through the sink,
-    // so one decorator covers all of them and cannot drift per-adapter. At
-    // `full` the decorator still runs, but route() keeps everything, so the
-    // cost is one predictable branch per append.
-    const counterSink = createChronicleCounterSink({
-      inner: chronicleHandle.journal,
-      level: resolveChronicleDetail(config),
-    });
-    chronicleJournal = counterSink;
-    disposeCounterSink = () => counterSink.dispose();
-    const location = chronicleHandle.identity;
-    const chronicleContext = createChronicleContext(
-      {
-        installationId: location.installationId,
-        machineId: location.machineId,
-        projectId: location.projectId,
-        workspaceId: wpaths.projectSlug,
-        sessionId: currentSessionId(),
-      },
-      (context as { traceId?: string | undefined }).traceId,
-    );
-    const onChroniclePersistError = (error: unknown): void => {
-      const message = toErrorMessage(error);
-      errorRing.push({
-        ts: new Date().toISOString(),
-        phase: 'chronicle.persist',
-        code: 'CHRONICLE_PERSIST_FAILED',
-        message,
-      });
-      if (errorRing.length > 5) errorRing.shift();
-    };
-    const unsubscribeProviderChronicle = wireProviderAttemptsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeStreamChronicle = wireProviderStreamsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeToolChronicle = wireToolsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      scrubber: new DefaultSecretScrubber(),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeProcessChronicle = wireProcessesToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      scrubber: new DefaultSecretScrubber(),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeDecisionChronicle = wireDecisionsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeDomainChronicle = wireDomainEventsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeRollups = wireRollupsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    const unsubscribeReviewFindings = wireReviewFindingsToChronicle({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    unsubscribeChronicle = () => {
-      unsubscribeProviderChronicle();
-      unsubscribeStreamChronicle();
-      unsubscribeToolChronicle();
-      unsubscribeProcessChronicle();
-      unsubscribeDecisionChronicle();
-      unsubscribeDomainChronicle();
-      unsubscribeRollups();
-      unsubscribeReviewFindings();
-    };
-    if (!chronicleHandle.serverBacked) {
-      chronicleFileObserver = startChronicleFileObserver({
-        projectRoot,
-        journal: chronicleJournal,
+    if (errorRing.length > 5) errorRing.shift();
+  };
+  const chronicle = deps.events
+    ? wireChronicleSession({
         events: deps.events,
-        excludedPaths: [location.chronicleDirectory],
-        context: () => ({
-          ...chronicleContext,
-          scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-        }),
-        onError: onChroniclePersistError,
-      });
-      // The observer is optional on filesystems where recursive fs.watch is not
-      // available. The error is already surfaced through the Chronicle ring.
-      void chronicleFileObserver.catch(() => {});
-    }
-    stopChronicleHealth = startChronicleHealthMonitor({
-      events: deps.events,
-      journal: chronicleJournal,
-      context: () => ({
-        ...chronicleContext,
-        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
-      }),
-      onPersistError: onChroniclePersistError,
-    });
-    stopNetworkTelemetry = startNetworkTelemetryMonitor();
-  }
+        config,
+        projectRoot,
+        paths: wpaths,
+        sessionId: currentSessionId,
+        traceId: (context as { traceId?: string | undefined }).traceId,
+        onPersistError: onChroniclePersistError,
+      })
+    : undefined;
+
   evOn('error', (e: { sessionId?: string | undefined; phase: string; err: unknown }) => {
     const err = e.err as unknown;
     const code =
@@ -615,21 +437,14 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   );
 
   const disposeChronicle = async (): Promise<void> => {
-    stopChronicleHealth?.();
-    stopNetworkTelemetry?.();
-    unsubscribeChronicle?.();
-    // Before the handle closes: draining emits the final counter windows, and
-    // they have to reach a journal that is still open.
-    await disposeCounterSink?.();
-    if (chronicleFileObserver) {
-      try {
-        await (await chronicleFileObserver).close();
-      } catch {
-        // Start failures were already recorded by onChroniclePersistError.
-      }
-    }
-    await chronicleHandle?.dispose();
+    await chronicle?.dispose();
   };
 
-  return { errorRing, sessionBridge, appendSessionEvent, chronicleJournal, disposeChronicle };
+  return {
+    errorRing,
+    sessionBridge,
+    appendSessionEvent,
+    chronicleJournal: chronicle?.journal,
+    disposeChronicle,
+  };
 }

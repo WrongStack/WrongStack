@@ -67,6 +67,7 @@
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
         "@vitejs/plugin-react": "6.2.1",
+        "@wrongstack/chronicle": "workspace:*",
         "tailwindcss": "4.3.4",
         "typescript": "^7.0.2",
         "vite": "8.3.6",

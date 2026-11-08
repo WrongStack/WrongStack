@@ -55,6 +55,8 @@ export function setupWebuiShutdown(options: {
   vectorMemoryStore: { close(): void } | undefined;
   /** Detaches the live SAGE→vector event mirror before the store closes. */
   disposeVectorMirror?: (() => void) | undefined;
+  /** Unsubscribes the Chronicle producers and closes the project journal. */
+  disposeChronicle?: (() => Promise<void>) | undefined;
   /**
    * Drain every open tab's journal synchronously. Registered as a fatal-exit
    * salvage hook: this host had none at all, so a crash truncated the buffered
@@ -139,6 +141,12 @@ export function setupWebuiShutdown(options: {
         options.clearEternalSubscription();
       }
       options.codebaseIndexing.dispose();
+      // After the agents and MCP servers stopped: their last events are recorded.
+      await options
+        .disposeChronicle?.()
+        .catch((err: unknown) =>
+          options.logger.warn(`chronicle disposal failed: ${toErrorMessage(err)}`),
+        );
       await options.agentServices
         .runSageSessionHygiene()
         .catch((err: unknown) =>

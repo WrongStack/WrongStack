@@ -23,6 +23,7 @@ import { createDefaultFileWatcherMetrics, type FileWatcherMetrics } from './setu
 import { projectModelRuntimePrefs } from './standalone-pipelines.js';
 import { createStandaloneAgentServices } from './start-webui-agent-services.js';
 import { bindSharedHttpServer } from './start-webui-bind.js';
+import { wireStandaloneChronicle } from './start-webui-chronicle.js';
 import { setupCompanionServer } from './start-webui-companion.js';
 import { prepareWebuiConfig } from './start-webui-config.js';
 import { createWebuiCallbacks } from './start-webui-deps.js';
@@ -101,6 +102,17 @@ export async function startWebUI(
   let sessionStartedAt = preContext.sessionStartedAt;
   let modeId = preContext.modeId;
   const needsSetup = preContext.needsSetup;
+  // Before any agent runs: the Session Story, Chronicle dashboard and metrics
+  // read only what this records (the desktop engine is this host).
+  const chronicle = wireStandaloneChronicle({
+    opts,
+    events,
+    config,
+    projectRoot,
+    wpaths,
+    getSessionId: () => session.id,
+    logger,
+  });
 
   // Pref keys + snapshot + persistence live in ./pref-helpers.ts (Phase 1c).
   // Thin closures below keep the original signatures the route layer expects
@@ -348,6 +360,7 @@ export async function startWebUI(
     },
     getProjectRoot: () => projectRoot,
     setProjectRoot: (next) => {
+      chronicle?.switchProject(next);
       projectRoot = next;
     },
     getWorkingDir: () => workingDir,
@@ -444,6 +457,7 @@ export async function startWebUI(
     memoryStore,
     vectorMemoryStore,
     getDisposeVectorMirror: () => disposeVectorMirror,
+    disposeChronicle: chronicle ? () => chronicle.dispose() : undefined,
     globalConfigPath,
     configPaths: wpaths,
   });

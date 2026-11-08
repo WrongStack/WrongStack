@@ -89,6 +89,14 @@ export {
 } from './review-adapter.js';
 export { wireRollupsToChronicle, type ChronicleRollupAdapterOptions } from './rollup-adapter.js';
 export {
+  chronicleLimit,
+  resolveChronicleRetentionDays,
+  tryCreateChronicleJournal,
+  wireChronicleSession,
+  type ChronicleSessionWiring,
+  type ChronicleSessionWiringOptions,
+} from './session-wiring.js';
+export {
   CHRONICLE_DETAIL_LEVELS,
   DEFAULT_CHRONICLE_DETAIL,
   isChronicleDetailLevel,

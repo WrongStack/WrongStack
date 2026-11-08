@@ -62,6 +62,7 @@ export interface StandaloneWebuiWiringInput {
   memoryStore: ShutdownOptions['memoryStore'];
   vectorMemoryStore: ShutdownOptions['vectorMemoryStore'];
   getDisposeVectorMirror: () => (() => void) | undefined;
+  disposeChronicle?: ShutdownOptions['disposeChronicle'];
   globalConfigPath: string;
   configPaths: import('@wrongstack/core/utils').WstackPaths;
 }
@@ -105,6 +106,7 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
     memoryStore,
     vectorMemoryStore,
     getDisposeVectorMirror,
+    disposeChronicle,
     globalConfigPath,
     configPaths,
   } = input;
@@ -287,6 +289,7 @@ export function wireStandaloneWebuiRuntime(input: StandaloneWebuiWiringInput): v
     memoryStore,
     vectorMemoryStore,
     disposeVectorMirror: () => getDisposeVectorMirror()?.(),
+    disposeChronicle,
     flushSessionJournalsSync: agentServices.flushSessionJournalsSync,
     closeSessionJournals: agentServices.closeSessionJournals,
     globalConfigPath,
