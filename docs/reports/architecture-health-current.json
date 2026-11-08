@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T09:30:13.717Z",
+  "generatedAt": "2026-11-08T09:54:15.380Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6073,
-    "testFiles": 5062,
-    "sourceLines": 1258837,
+    "sourceFiles": 6075,
+    "testFiles": 5065,
+    "sourceLines": 1258932,
     "workspaceEdges": 244,
-    "moduleEdges": 17952,
+    "moduleEdges": 17969,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 291,
+    "testsWithoutTypecheck": 292,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1040
   },
@@ -184,8 +184,8 @@
     {
       "name": "@wrongstack/chronicle",
       "dir": "packages/chronicle",
-      "sourceFiles": 52,
-      "testFiles": 43,
+      "sourceFiles": 53,
+      "testFiles": 44,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -201,7 +201,7 @@
         {
           "path": "packages/chronicle/tsconfig.test.json",
           "error": null,
-          "testFiles": 43
+          "testFiles": 44
         }
       ]
     },
@@ -387,7 +387,7 @@
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
       "sourceFiles": 456,
-      "testFiles": 291,
+      "testFiles": 292,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1168,8 +1168,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 335,
-      "testFiles": 372,
+      "sourceFiles": 336,
+      "testFiles": 373,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1204,7 +1204,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 372
+          "testFiles": 373
         }
       ]
     },
@@ -1743,6 +1743,12 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-slash-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-story-chronicle.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4269,6 +4275,12 @@
       },
       {
         "file": "packages/chronicle/tests/rollup-gauge-window.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/chronicle/tests/session-wiring.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28208,6 +28220,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/start-webui-chronicle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/start-webui-companion.test.ts",
         "projects": [
           "root-node"
@@ -32188,6 +32206,13 @@
       },
       {
         "file": "apps/desktop-v2/tests/desktop-slash-parity.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/desktop-story-chronicle.test.ts",
         "runtimeProjects": [
           "root-node"
         ],

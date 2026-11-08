@@ -420,6 +420,51 @@ describe('defaultCheckProcessAlive', () => {
     // PID 999999 is vanishingly unlikely to exist
     expect(defaultCheckProcessAlive(999999)).toBe(false);
   });
+
+  // Both branches run on every OS so the scripts coverage gate measures the
+  // same lines on Windows and Linux CI.
+  it('treats only the Windows probe exit 42 as dead and anything else as alive', () => {
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const execFile = (status?: number) => (file: string, args: string[]) => {
+      calls.push({ file, args });
+      if (status !== undefined) throw Object.assign(new Error('probe'), { status });
+      return Buffer.alloc(0);
+    };
+    const env = { SystemRoot: 'D:\\Win' };
+    expect(defaultCheckProcessAlive(4321, { platform: 'win32', env, execFile: execFile() })).toBe(
+      true,
+    );
+    expect(calls[0]?.file).toBe('D:\\Win\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
+    expect(calls[0]?.args.slice(0, 3)).toEqual([
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+    ]);
+    expect(defaultCheckProcessAlive(4321, { platform: 'win32', env, execFile: execFile(42) })).toBe(
+      false,
+    );
+    expect(defaultCheckProcessAlive(4321, { platform: 'win32', env, execFile: execFile(1) })).toBe(
+      true,
+    );
+    const before = calls.length;
+    expect(defaultCheckProcessAlive(0, { platform: 'win32', env, execFile: execFile() })).toBe(
+      false,
+    );
+    expect(
+      defaultCheckProcessAlive(2 ** 31, { platform: 'win32', env, execFile: execFile() }),
+    ).toBe(true);
+    expect(calls.length).toBe(before);
+  });
+
+  it('asks the POSIX signal 0 probe on other platforms', () => {
+    const kill = vi.fn((pid: number) => {
+      if (pid === 7) throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
+      return true;
+    });
+    expect(defaultCheckProcessAlive(6, { platform: 'linux', kill })).toBe(true);
+    expect(defaultCheckProcessAlive(7, { platform: 'linux', kill })).toBe(false);
+    expect(kill).toHaveBeenCalledWith(6, 0);
+  });
 });
 
 describe('coverage runner script', () => {

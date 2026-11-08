@@ -32,20 +32,36 @@ const DEFAULT_MAX_WAIT_MS = 60 * 60 * 1000;
  * On POSIX, `process.kill(pid, 0)` works correctly (throws ESRCH for dead PIDs).
  *
  * @param pid Process ID to check.
+ * @param deps Platform, environment, probe and signal calls; injected so both
+ *   branches run (and are covered) on every OS.
  * @returns `true` if the process is running (or probe failed), `false` if dead.
  */
-function defaultCheckProcessAlive(pid) {
-  if (process.platform === 'win32') {
+function defaultCheckProcessAlive(
+  pid,
+  {
+    platform = process.platform,
+    env = process.env,
+    execFile = execFileSync,
+    kill = process.kill,
+  } = {},
+) {
+  if (platform === 'win32') {
     if (!Number.isSafeInteger(pid) || pid <= 0) return false;
     // Process.GetProcessById takes Int32; an unsupported ID stays unknown/live.
     if (pid > 0x7fffffff) return true;
-    const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT'] ?? 'C:\\Windows';
-    const probe = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    const systemRoot = env['SystemRoot'] ?? env['SYSTEMROOT'] ?? 'C:\\Windows';
+    const probe = path.win32.join(
+      systemRoot,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    );
     // Only our explicit 42 means dead. Startup/syntax/tool failures (including
     // ordinary exit 1) must never authorize breaking another writer's lock.
     const script = `$ErrorActionPreference='Stop'; try { $targetProcess=[System.Diagnostics.Process]::GetProcessById(${pid}); try { if($targetProcess.HasExited){exit 42}; exit 0 } finally { $targetProcess.Dispose() } } catch { $probeError=$_.Exception; while($probeError.InnerException){$probeError=$probeError.InnerException}; if($probeError -is [System.ArgumentException]){exit 42}; exit 43 }`;
     try {
-      execFileSync(
+      execFile(
         probe,
         [
           '-NoProfile',
@@ -65,7 +81,7 @@ function defaultCheckProcessAlive(pid) {
     }
   }
   try {
-    process.kill(pid, 0);
+    kill(pid, 0);
     return true;
   } catch {
     return false;
