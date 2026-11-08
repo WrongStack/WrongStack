@@ -1914,6 +1914,10 @@
     "packages/vibeui/src/lib/use-panel-requests.ts": [
       "acceptsPanelReply"
     ],
+    "packages/webui-server/src/server/app-update-check.ts": [
+      "isNewerVersion",
+      "RELEASES_LATEST_URL"
+    ],
     "packages/webui-server/src/server/chimera-routes.ts": [
       "isPendingChimeraReport"
     ],

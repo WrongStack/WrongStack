@@ -39,6 +39,7 @@ export function withHostProviders(
         family: provider.type,
         models: provider.models.map((model) => model.id),
         pickedModelId: provider.models[0]?.id,
+        hostServed: true,
         apiKeys: [],
       }),
     );

@@ -9,6 +9,7 @@
  */
 import type { Config } from '@wrongstack/contracts/types';
 import { ensureSessionShell } from '@wrongstack/tools';
+import { createAppUpdateCheck } from './app-update-check.js';
 import { patchConfig } from './boot.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import type { PendingConfirm } from './pending-confirms.js';
@@ -181,6 +182,14 @@ export async function startWebUI(
   // Centralised so initial connect, post-/new, and post-model.switch all
   // broadcast the same shape — frontend treats this as the single source of
   // truth for everything in the status bar (model, context window, project).
+  // A released executable (the desktop engine) asks GitHub for a newer release itself.
+  const appUpdate = opts.appVersion
+    ? createAppUpdateCheck({
+        currentVersion: opts.appVersion,
+        cacheFile: wpaths.profileUpdateCache(wpaths.profileName),
+      })
+    : undefined;
+  appUpdate?.start();
   const sessionStartPayload = createStartWebuiSessionPayloadHelper({
     getConfig: () => config,
     getSessionId: () => session.id,
@@ -192,6 +201,7 @@ export async function startWebUI(
     stateGetter: () => state,
     modelsRegistry,
     peekAgent,
+    getAppUpdate: appUpdate?.info,
   });
 
   const watcherMetricsRef: FileWatcherMetrics = createDefaultFileWatcherMetrics();

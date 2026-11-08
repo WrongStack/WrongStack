@@ -22,6 +22,11 @@ export interface SavedProviderView {
   customModels?: ProviderConfig['customModels'] | undefined;
   /** First entry of `models`, or undefined when the list is empty/unset. */
   pickedModelId?: string | undefined;
+  /**
+   * A provider the host serves itself (the ACP leader): there is no saved record behind it, so
+   * no key to add and no connection to remove.
+   */
+  hostServed?: true | undefined;
   apiKeys: Array<{
     label: string;
     maskedKey: string;

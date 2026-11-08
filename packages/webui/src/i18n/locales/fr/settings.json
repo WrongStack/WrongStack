@@ -188,6 +188,7 @@
     "apiKeysLabel": "Clés API",
     "addKey": "Ajouter une clé",
     "noKeys": "Aucune clé configurée",
+    "hostServed": "Fourni par cet hôte à partir des agents ACP installés ici ; il n’y a ni clé à ajouter ni connexion à supprimer.",
     "active": "Active",
     "setActive": "Définir comme active",
     "keyLabelPlaceholder": "Libellé de la clé (ex. default, production)",

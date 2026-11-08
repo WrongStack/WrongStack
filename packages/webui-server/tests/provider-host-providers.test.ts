@@ -70,6 +70,7 @@ describe('host providers in the WebUI pickers', () => {
       type: 'acp',
       models: ['claude-code'],
       pickedModelId: 'claude-code',
+      hostServed: true,
       apiKeys: [],
     });
   });

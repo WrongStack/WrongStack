@@ -6,6 +6,8 @@ export interface ProviderChoice {
   name: string;
   family: string;
   saved: boolean;
+  /** Served by the engine itself (installed ACP agents): nothing saved to manage or remove. */
+  hostServed?: boolean | undefined;
   keys: Array<{
     label: string;
     maskedKey: string;
@@ -42,6 +44,7 @@ export function providerChoices(state: EngineState): ProviderChoice[] {
       name: known?.name ?? row['id'],
       family: String(row['family'] ?? known?.family ?? ''),
       saved: true,
+      ...(row['hostServed'] === true ? { hostServed: true } : {}),
       models: Array.isArray(row['models'])
         ? row['models'].filter((model): model is string => typeof model === 'string')
         : null,

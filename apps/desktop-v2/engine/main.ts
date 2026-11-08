@@ -45,6 +45,10 @@ await startWebUI({
   requireToken: true,
   distDir,
   open: false,
+  // A built engine (it carries the release build's stamp) reports newer releases; dev runs do not.
+  appVersion: (globalThis as Record<symbol, unknown>)[Symbol.for('wrongstack.standalone-build')]
+    ? version
+    : undefined,
 });
 if (restoreId && readyFile) {
   const { writeFile } = await import('node:fs/promises');

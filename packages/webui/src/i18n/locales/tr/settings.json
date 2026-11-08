@@ -188,6 +188,7 @@
     "activeKeyCount_other": "{{count}} etkin anahtar",
     "addKey": "Anahtar Ekle",
     "noKeys": "Yapılandırılmış anahtar yok",
+    "hostServed": "Bu sunucu, burada kurulu ACP ajanlarından sağlıyor; eklenecek anahtar ya da kaldırılacak bağlantı yok.",
     "active": "Etkin",
     "setActive": "Etkin Yap",
     "keyLabelPlaceholder": "Anahtar etiketi (örn. default, production)",

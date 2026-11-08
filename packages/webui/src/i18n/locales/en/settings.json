@@ -243,6 +243,7 @@
     "activeKeyCount_other": "{{count}} active keys",
     "addKey": "Add Key",
     "noKeys": "No keys configured",
+    "hostServed": "Provided by this host from the ACP agents installed here; there is no key to add or connection to remove.",
     "active": "Active",
     "setActive": "Set Active",
     "keyLabelPlaceholder": "Key label (e.g. default, production)",
