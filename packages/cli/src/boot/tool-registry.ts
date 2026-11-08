@@ -21,6 +21,8 @@ import {
 } from '@wrongstack/coordination';
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { SandboxConfig } from '@wrongstack/core/sandbox';
+import { configureSandboxPolicy } from '@wrongstack/core/sandbox';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { configureChildEnvGitIdentity } from '@wrongstack/core/utils';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
@@ -48,6 +50,7 @@ interface RegisterBuiltinToolsDeps {
                 danger?: { bypass?: string[] | undefined } | undefined;
               }
             | undefined;
+          sandbox?: Partial<SandboxConfig> | undefined;
         }
       | undefined;
     git?:
@@ -115,6 +118,10 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
   // any in-project repo config before this point.
   configureExecPolicy(deps.config.tools?.exec ?? {});
   configureDangerBypass(deps.config.tools?.exec?.danger ?? {});
+  // The exec-family sandbox reads its policy from this injection point at call
+  // time; without it `tools.sandbox` (mode/tier/backend/writableRoots) was
+  // documented but never enforced, and every host stayed at mode `off`.
+  configureSandboxPolicy(deps.config.tools?.sandbox);
   // Autonomous goal verification honors the same trusted exec.allow opt-ins
   // (added to goal's narrower base), so non-JS projects (go/cargo/…) can
   // run their verify command without confirmation when the user allowed it.

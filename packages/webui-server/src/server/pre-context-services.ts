@@ -54,6 +54,7 @@ import { DefaultPromptLoader, DefaultSkillLoader } from '@wrongstack/core/execut
 import { DefaultTokenCounter, resolveMcpServerConfig } from '@wrongstack/core/infrastructure';
 import { DefaultModelsRegistry, DefaultModeStore, startCatalog } from '@wrongstack/core/models';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import { configureSandboxPolicy } from '@wrongstack/core/sandbox';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import {
   AnnotationsStore,
@@ -357,6 +358,10 @@ export async function createPreContextServices(
   }
   configureExecPolicy(config.tools?.exec ?? {});
   configureDangerBypass(config.tools?.exec?.danger ?? {});
+  // The exec-family sandbox reads its policy from this injection point at call
+  // time; without it `tools.sandbox` (mode/tier/backend/writableRoots) was
+  // documented but never enforced, and every host stayed at mode `off`.
+  configureSandboxPolicy(config.tools?.sandbox);
   // Commit identity for every git-touching child process. Trusted-config-only:
   // the loader strips `git` from repo-committed in-project configs.
   configureChildEnvGitIdentity(config.git?.identity ?? null);

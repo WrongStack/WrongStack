@@ -1,3 +1,4 @@
+import { getResolvedSandboxConfig, resetSandboxPolicy } from '@wrongstack/core/sandbox';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -244,7 +245,10 @@ describe('createPreContextServices', () => {
         prompts: false,
         tokenSavingMode: 'balanced',
       },
-      tools: { exec: { danger: { enabled: false } } },
+      tools: {
+        exec: { danger: { enabled: false } },
+        sandbox: { mode: 'enforced', tier: 'read-only' },
+      },
       context: { mode: 'balanced' },
       git: { identity: { name: 'WrongStack', email: 'bot@example.test' } },
     };
@@ -304,6 +308,9 @@ describe('createPreContextServices', () => {
     expect(mocks.registerCanonicalHostTools).not.toHaveBeenCalled();
     expect(mocks.configureExecPolicy).toHaveBeenCalledWith(config.tools.exec);
     expect(mocks.configureDangerBypass).toHaveBeenCalledWith(config.tools.exec.danger);
+    // The configured sandbox policy reaches the exec choke point.
+    expect(getResolvedSandboxConfig()).toMatchObject({ mode: 'enforced', tier: 'read-only' });
+    resetSandboxPolicy();
     expect(mocks.configureChildEnvGitIdentity).toHaveBeenCalledWith(config.git.identity);
     expect(sessionStore.create).toHaveBeenCalledWith({
       id: '',

@@ -54,6 +54,15 @@ export interface ToolsConfig {
    */
   autoThin?: AutoThinConfig | undefined;
   /**
+   * Sandbox enforcement for the exec-family tools (bash, exec, git,
+   * process_watch). Default `mode: "off"` passes every call through; hosts
+   * hand this to `configureSandboxPolicy` at boot (plan 28,
+   * docs/specs/sandboxed-execution-tiers-sdd.md). A repo-committed config may
+   * set only mode/tier; the in-project policy strips backend, image and
+   * writableRoots.
+   */
+  sandbox?: SandboxConfig | undefined;
+  /**
    * When true, the agent automatically extends its iteration limit by 100 each
    * time it is hit, up to `maxAutoExtensions` times. Default **false**: a
    * configured `maxIterations` is a hard stop.
@@ -419,10 +428,4 @@ export interface AutoThinConfig {
    * regardless of this flag. Default: false.
    */
   applyOnBoot?: boolean | undefined;
-  /**
-   * Sandbox enforcement for the exec-family tools (bash, exec, git).
-   * Default `mode: "off"` preserves current behavior exactly; hosts opt in
-   * per plan 28 (docs/specs/sandboxed-execution-tiers-sdd.md).
-   */
-  sandbox?: SandboxConfig | undefined;
 }

@@ -100,6 +100,30 @@ describe('registerBuiltinTools', () => {
     expect(calls.some((c) => c.kind === 'default')).toBe(true);
   });
 
+  it('hands the configured exec sandbox policy to the sandbox choke point', async () => {
+    const { getResolvedSandboxConfig, resetSandboxPolicy } = await import(
+      '@wrongstack/core/sandbox'
+    );
+    resetSandboxPolicy();
+    try {
+      const { registry } = makeFakeToolRegistry();
+      registerBuiltinTools({
+        toolRegistry: registry as never,
+        compactor: {},
+        config: {
+          features: { memory: false },
+          tools: { sandbox: { mode: 'enforced', tier: 'read-only' } },
+        } as never,
+        memoryStore: null,
+        events: makeEvents() as never,
+        wpaths: makeWpaths() as never,
+      });
+      expect(getResolvedSandboxConfig()).toMatchObject({ mode: 'enforced', tier: 'read-only' });
+    } finally {
+      resetSandboxPolicy();
+    }
+  });
+
   it('registers the skill tool the progressive manifest points at when given a skill loader', () => {
     // Regression: this registration was lost with a deleted wiring module, so
     // the default prompt told the model to "call the `skill` tool" that no host

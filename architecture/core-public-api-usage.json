@@ -119,9 +119,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/sandbox": {
-      "files": 14,
-      "typeOnly": 0,
-      "runtimeOrMixed": 14
+      "files": 18,
+      "typeOnly": 1,
+      "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
       "files": 263,
@@ -7091,6 +7091,12 @@
     },
     {
       "specifier": "@wrongstack/core/sandbox",
+      "file": "packages/cli/src/boot/tool-registry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/sandbox",
       "file": "packages/cli/src/cli-main-orchestration.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7098,6 +7104,12 @@
     {
       "specifier": "@wrongstack/core/sandbox",
       "file": "packages/cli/src/slash-commands/fleet.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/sandbox",
+      "file": "packages/cli/tests/boot/tool-registry.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7170,6 +7182,18 @@
     {
       "specifier": "@wrongstack/core/sandbox",
       "file": "packages/webui-server/src/server/http-server/api-router.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/sandbox",
+      "file": "packages/webui-server/src/server/pre-context-services.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/sandbox",
+      "file": "packages/webui-server/tests/pre-context-services-behavior.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
