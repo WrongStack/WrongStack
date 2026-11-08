@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 507,
-      "typeOnly": 380,
+      "files": 510,
+      "typeOnly": 383,
       "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
@@ -39,9 +39,9 @@
       "runtimeOrMixed": 16
     },
     "@wrongstack/core/execution": {
-      "files": 110,
+      "files": 111,
       "typeOnly": 25,
-      "runtimeOrMixed": 99
+      "runtimeOrMixed": 100
     },
     "@wrongstack/core/execution/refine-decisions": {
       "files": 2,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 968,
+      "files": 971,
       "typeOnly": 74,
-      "runtimeOrMixed": 928
+      "runtimeOrMixed": 931
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -2777,6 +2777,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/conversation-turn-input.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/create-session-agent-manager.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 4
@@ -3155,6 +3161,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/webui-eternal-driver.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/worklist-session-context.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3260,6 +3272,12 @@
       "file": "packages/webui-server/tests/system-prompt-rebuild-variant-scope.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/webui-eternal-driver.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -4226,6 +4244,12 @@
       "file": "packages/webui-server/src/server/start-webui-remediation.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/webui-server/src/server/webui-eternal-driver.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -15959,6 +15983,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/autonomy-switch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/backend-brain.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16098,6 +16128,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/conversation-operations.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/conversation-turn-input.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16626,6 +16662,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/user-instructions-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/webui-eternal-driver.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

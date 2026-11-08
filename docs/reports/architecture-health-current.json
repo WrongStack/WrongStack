@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T22:13:25.908Z",
+  "generatedAt": "2026-11-08T23:50:57.154Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,23 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6133,
-    "testFiles": 5087,
-    "sourceLines": 1263086,
+    "sourceFiles": 6151,
+    "testFiles": 5092,
+    "sourceLines": 1264425,
     "workspaceEdges": 250,
-    "moduleEdges": 18066,
+    "moduleEdges": 18108,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 299,
+    "testsWithoutTypecheck": 303,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1031
+    "testOnlyExports": 1028
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/plugin-management.ts: \"renderConfiguredPlugins\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/cli/src/plugin-management.ts: \"renderPluginAuditReport\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change",
+    "packages/runtime/src/portable-commands/tuneup-report.ts: \"checkAutonomy\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -386,8 +390,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 468,
-      "testFiles": 299,
+      "sourceFiles": 474,
+      "testFiles": 303,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -819,7 +823,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 101,
+      "sourceFiles": 110,
       "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -1174,8 +1178,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 346,
-      "testFiles": 385,
+      "sourceFiles": 349,
+      "testFiles": 386,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1214,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 385
+          "testFiles": 386
         }
       ]
     },
@@ -2414,6 +2418,18 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/plugin-installer-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/plugin-installer.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/plugin-toggles.test.ts",
         "projects": [
           "root-node"
@@ -2835,6 +2851,18 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-panels-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-permissions-i18n.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-permissions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28532,6 +28560,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/webui-eternal-driver.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/webui-status-logger-heartbeat-unref.test.ts",
         "projects": [
           "root-node"
@@ -33120,6 +33154,20 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/plugin-installer-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/plugin-installer.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/plugin-toggles.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -33611,6 +33659,20 @@
       },
       {
         "file": "apps/desktop-v2/tests/session-panels-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-permissions-i18n.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
+        "file": "apps/desktop-v2/tests/session-permissions.test.ts",
         "runtimeProjects": [
           "root-node"
         ],
@@ -34440,6 +34502,11 @@
       "syntax": "import"
     },
     {
+      "from": "apps/desktop-v2/src/PluginInstaller.tsx",
+      "specifier": "./plugin-installer.css",
+      "syntax": "import"
+    },
+    {
       "from": "apps/desktop-v2/src/ProfileModelPicker.tsx",
       "specifier": "./composer-dialog.css",
       "syntax": "import"
@@ -34632,6 +34699,11 @@
     {
       "from": "apps/desktop-v2/src/SessionMcpTasks.tsx",
       "specifier": "./session-mcp-tasks.css",
+      "syntax": "import"
+    },
+    {
+      "from": "apps/desktop-v2/src/SessionPermissionRules.tsx",
+      "specifier": "./session-permissions.css",
       "syntax": "import"
     },
     {
@@ -35025,8 +35097,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1066,
-      "relativeImports": 37
+      "lines": 1068,
+      "relativeImports": 38
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -35067,8 +35139,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1066,
-      "relativeImports": 37
+      "lines": 1068,
+      "relativeImports": 38
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -36006,14 +36078,6 @@
     {
       "file": "packages/cli/src/permission-prompt.ts",
       "name": "makePromptDelegate"
-    },
-    {
-      "file": "packages/cli/src/plugin-management.ts",
-      "name": "renderConfiguredPlugins"
-    },
-    {
-      "file": "packages/cli/src/plugin-management.ts",
-      "name": "renderPluginAuditReport"
     },
     {
       "file": "packages/cli/src/project-picker.ts",
@@ -37634,10 +37698,6 @@
     {
       "file": "packages/runtime/src/host.ts",
       "name": "createRuntimeHostFromParts"
-    },
-    {
-      "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
-      "name": "checkAutonomy"
     },
     {
       "file": "packages/runtime/src/portable-commands/tuneup-report.ts",
