@@ -160,6 +160,57 @@ mod service_version_tests {
         assert!(host.is_file());
         std::fs::remove_dir_all(data).unwrap();
     }
+    #[cfg(windows)]
+    #[test]
+    fn a_new_build_also_cleans_the_folders_of_earlier_builds_unless_one_is_staging() {
+        let data = std::env::temp_dir().join(format!("desktop-sibling-prune-{}", Uuid::new_v4()));
+        let build = |name: &str| data.join(COMPANION_ROOT).join(name);
+        let host_copy = |dir: &Path, name: &str, live: bool| {
+            let bin = dir.join("hosts").join(name);
+            std::fs::create_dir_all(&bin).unwrap();
+            std::fs::write(dir.join("host.lock"), b"").unwrap();
+            let exe = bin.join(SESSION_HOST_FILE_NAME);
+            if live {
+                let system = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
+                std::fs::copy(system.join("System32").join("PING.EXE"), &exe).unwrap();
+                return Some(
+                    Command::new(&exe)
+                        .args(["-n", "30", "127.0.0.1"])
+                        .stdout(Stdio::null())
+                        .spawn()
+                        .unwrap(),
+                );
+            }
+            std::fs::write(&exe, b"host").unwrap();
+            None
+        };
+        host_copy(&data, "main-exited", false);
+        host_copy(&build("old"), "old-exited", false);
+        let mut running = host_copy(&build("older"), "older-live", true).unwrap();
+        host_copy(&build("staging"), "staging-fresh", false);
+        let staging_lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(build("staging").join("host.lock"))
+            .unwrap();
+        staging_lock.lock().unwrap();
+        let current = build("current");
+        std::fs::create_dir_all(&current).unwrap();
+
+        let (host, _) = stage_session_host(&current, None).unwrap();
+        let _ = running.kill();
+        let _ = running.wait();
+        drop(staging_lock);
+        assert!(!data.join("hosts").join("main-exited").exists());
+        assert!(!build("old").join("hosts").join("old-exited").exists());
+        assert!(build("older").join("hosts").join("older-live").is_dir());
+        assert!(build("staging")
+            .join("hosts")
+            .join("staging-fresh")
+            .is_dir());
+        assert!(host.is_file());
+        std::fs::remove_dir_all(data).unwrap();
+    }
     #[test]
     fn does_not_reuse_project_services_from_a_different_engine_build() {
         assert!(can_share_services(
@@ -309,6 +360,7 @@ fn stage_session_host(dir: &Path, engine: Option<&Path>) -> Result<(PathBuf, Opt
         return Ok((current, engine.map(Path::to_path_buf)));
     }
     prune_exited_hosts(dir);
+    prune_sibling_builds(dir);
     let host_bin = private_bin_dir(dir, "hosts")?;
     let host_exe = host_bin.join(SESSION_HOST_FILE_NAME);
     std::fs::copy(current, &host_exe).map_err(err)?;
@@ -337,6 +389,40 @@ fn prune_exited_hosts(dir: &Path) {
         let _ = std::fs::remove_dir_all(&bin);
     }
 }
+/// Every desktop build keeps its own project-services host folder
+/// (`project-services-v1/<engine build>`) beside the main one, and a build only ever stages in
+/// its own, so the copies an earlier build left would never be cleaned by it. Each sibling
+/// folder is pruned too, unless its `host.lock` is held: that launch is staging a host right
+/// now and its fresh folder must not be taken for an exited one.
+fn prune_sibling_builds(dir: &Path) {
+    let base = match dir.parent() {
+        Some(parent) if parent.file_name().is_some_and(|n| n == COMPANION_ROOT) => {
+            parent.parent().unwrap_or(dir)
+        }
+        _ => dir,
+    };
+    let companions = std::fs::read_dir(base.join(COMPANION_ROOT))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path());
+    for sibling in std::iter::once(base.to_path_buf()).chain(companions) {
+        if sibling == dir {
+            continue;
+        }
+        let Ok(lock) = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(sibling.join("host.lock"))
+        else {
+            continue;
+        };
+        if lock.try_lock().is_ok() {
+            prune_exited_hosts(&sibling);
+        }
+    }
+}
+const COMPANION_ROOT: &str = "project-services-v1";
 fn private_bin_dir(dir: &Path, kind: &str) -> Result<PathBuf> {
     let bin = dir.join(kind).join(Uuid::new_v4().to_string());
     std::fs::create_dir_all(&bin).map_err(err)?;
