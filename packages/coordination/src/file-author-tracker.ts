@@ -122,6 +122,50 @@ export async function recordFileAction(
   });
 }
 
+/** The file-writing tools whose successful calls are recorded as the leader's edits. */
+const AUTHORED_TOOLS: Readonly<Record<string, FileAuthorEntry['action']>> = {
+  write: 'create',
+  edit: 'edit',
+  replace: 'edit',
+  patch: 'edit',
+};
+
+/**
+ * Records a finished `tool.executed` call in the file-author log when it wrote a file, as every
+ * host does for its leader (the CLI, and the standalone engine behind the desktop), so commit
+ * safety can tell which agent touched which file. Best effort: a failed write is ignored.
+ */
+export function recordToolFileAuthor(
+  opts: FileAuthorTrackerOptions,
+  event: {
+    name: string;
+    ok?: boolean | undefined;
+    input?: unknown;
+    sessionId?: string | undefined;
+  },
+  sessionId: string,
+  record: typeof recordFileAction = recordFileAction,
+): Promise<void> | undefined {
+  const action = AUTHORED_TOOLS[event.name];
+  if (!event.ok || !action) return undefined;
+  const filePath = (event.input as Record<string, unknown> | undefined)?.['path'];
+  if (typeof filePath !== 'string' || !filePath) return undefined;
+  return record(opts, {
+    filePath,
+    action,
+    agentId: 'leader',
+    agentName: 'Leader',
+    sessionId,
+  }).catch(() => {
+    /* best-effort */
+  });
+}
+
+/** The project's file-author log directory (`~/.wrongstack/projects/<slug>`). */
+export function fileAuthorStorageDir(paths: { globalRoot: string; projectSlug: string }): string {
+  return `${paths.globalRoot}/projects/${paths.projectSlug}`;
+}
+
 /**
  * Get the most recent author entry for a given file path.
  * Returns undefined if no entry exists.

@@ -12,7 +12,17 @@ vi.mock('@wrongstack/core/storage', () => ({
   createSessionEventBridge,
   resolveSessionLoggingConfig,
 }));
-vi.mock('@wrongstack/coordination', () => ({ recordFileAction }));
+vi.mock('@wrongstack/coordination', async () => {
+  // The real filter, recording through the mock: the test checks what reaches the log.
+  const actual = await vi.importActual<typeof import('@wrongstack/coordination')>(
+    '@wrongstack/coordination',
+  );
+  return {
+    fileAuthorStorageDir: actual.fileAuthorStorageDir,
+    recordToolFileAuthor: (...args: Parameters<typeof actual.recordToolFileAuthor>) =>
+      actual.recordToolFileAuthor(args[0], args[1], args[2], recordFileAction),
+  };
+});
 
 const { wireSessionEvents } = await import('../src/session-event-wiring.js');
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Commit safety knows the desktop's edits.** The desktop engine records which agent wrote which file, as the CLI does, so commit safety can attribute a file the desktop's leader created or edited. Both hosts now share that recording.
 - **No phantom remove button for the ACP leader.** Provider settings in the desktop and the WebUI listed `acp` as a saved connection with "no key" and a Remove connection button that had nothing to remove. It is now marked as provided by the host, without key or remove controls.
 - **Every subagent gets an agent tab in the desktop.** A conversation's tabs listed only the subagents that had streamed transcript messages, so workers the fleet roster knew from their lifecycle events never appeared beside the leader. Each one now has its tab, with its transcript or, failing that, its output so far.
 - **`tools.sandbox` is enforced.** The exec sandbox policy in `config.tools.sandbox` was declared in the wrong config block and never handed to the sandbox, so a configured mode or tier changed nothing. The CLI and the WebUI/desktop engine now apply it when they register their tools.
