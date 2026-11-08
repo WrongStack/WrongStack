@@ -14,6 +14,12 @@ export interface CoverageLock {
 
 export function isDirectRun(metaUrl?: string, argvEntry?: string): boolean;
 export function sleep(ms: number): Promise<void>;
-export function defaultCheckProcessAlive(pid: number): boolean;
+export interface ProcessProbeDeps {
+  platform?: NodeJS.Platform;
+  env?: NodeJS.ProcessEnv;
+  execFile?: (file: string, args: string[], options?: object) => unknown;
+  kill?: (pid: number, signal?: number | NodeJS.Signals) => unknown;
+}
+export function defaultCheckProcessAlive(pid: number, deps?: ProcessProbeDeps): boolean;
 export function createCoverageLock(options?: CoverageLockOptions): CoverageLock;
 export function executeCoverageLock(options?: CoverageLockOptions): Promise<number>;
