@@ -14,6 +14,10 @@ vi.mock('@wrongstack/core/agent', () => ({
   providerToolsForVariant: (registry: { listForProvider(): unknown }) => registry.listForProvider(),
 }));
 vi.mock('@wrongstack/core/utils', () => ({ resolveWstackPaths: mocks.resolveWstackPaths }));
+// Its own coverage: cli/tests/system-prompt-host-sections-parity.test.ts.
+vi.mock('@wrongstack/runtime/system-prompt-contributors', () => ({
+  createHostSystemPromptSections: () => ({ planPath: () => undefined, contributors: [] }),
+}));
 vi.mock('../src/server/mode-routes.js', () => ({
   createModeRouteHandlers: mocks.createModeRouteHandlers,
 }));

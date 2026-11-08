@@ -4,7 +4,7 @@ import {
   type BugHuntMode,
 } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
 import { agentModes } from './AgentModeControl';
-import { AUTONOMY_MODES, sessionAutonomy } from './autonomy-model';
+import { AUTONOMY_MODES, autonomyModeAvailable, sessionAutonomy } from './autonomy-model';
 import {
   type DesktopCommandContext,
   type DesktopCommandOutcome,
@@ -54,6 +54,10 @@ function runAutonomy(argument: string, context: DesktopCommandContext): DesktopC
   }
   const mode = modes.find((id) => id === wanted);
   if (!mode) return refused(`Unknown continuation mode “${argument}”. Use ${modes.join(', ')}.`);
+  if (!autonomyModeAvailable(mode, context.state.results['session.start']))
+    return refused(
+      `This engine cannot run “${mode}”: nothing here drives the eternal loop, so the mode would only be saved. Eternal autonomy runs in the terminal (wstack).`,
+    );
   void context.command('autonomy.switch', { mode }, ['key.operation_result']).then(
     () => context.notify(`Continuation mode → ${mode}.`),
     (error) => context.fail(reason(error)),

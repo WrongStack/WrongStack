@@ -117,6 +117,7 @@ export async function createStandaloneAgentServices(
     trustBoundary,
     config,
     getConfig,
+    configStore: preContext.configStore,
     wpaths,
     logger,
     projectRoot,

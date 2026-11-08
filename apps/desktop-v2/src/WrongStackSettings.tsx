@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { AvailabilitySettings } from './AvailabilitySettings';
+import { unavailableAutonomyModes } from './autonomy-model';
 import { availabilityIssue } from './availability-model';
 import { availabilityWords } from './availability-words';
 import { BrainPolicySettings } from './BrainPolicySettings';
@@ -595,6 +596,14 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                         field={field}
                         value={settingValue(draft, field.key)}
                         onChange={(value) => change(...settingChange(draft, field.key, value))}
+                        unavailableOptions={
+                          field.key === 'autonomy'
+                            ? unavailableAutonomyModes(
+                                state.results['session.start'],
+                                t('autonomyControl.eternalUnavailable'),
+                              )
+                            : undefined
+                        }
                       />
                     ))}
                   {section === 'routing' && (

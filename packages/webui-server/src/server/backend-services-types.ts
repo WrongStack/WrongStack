@@ -2,6 +2,7 @@ import type { Container, EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Compactor,
   Config,
+  ConfigStore,
   Logger,
   MemoryPort,
   ModelsRegistry,
@@ -51,6 +52,8 @@ export interface AgentServicesInput {
   config: Config;
   /** The LIVE config (`config` is the boot snapshot); new session agents seed from it. */
   getConfig?: (() => Config) | undefined;
+  /** Followed by config-driven tool registrations (`jev` appears once TypeSafe is configured). */
+  configStore?: ConfigStore | undefined;
   wpaths: WstackPaths;
   logger: Logger;
   projectRoot: string;

@@ -163,6 +163,24 @@ const pluginHost = vi.hoisted(() => ({ attach: vi.fn(), dispose: vi.fn(async () 
 vi.mock('../src/server/standalone-plugins.js', () => ({
   loadStandalonePlugins: vi.fn(async () => pluginHost),
 }));
+// Covered in standalone-provider-tools.test.ts; the tool factories need the real core/tools packages.
+const providerTools = vi.hoisted(() => ({
+  calls: [] as Array<Record<string, unknown>>,
+  dispose: (() => undefined) as () => void,
+}));
+vi.mock('../src/server/standalone-provider-tools.js', () => ({
+  installStandaloneProviderTools: (input: Record<string, unknown>) => {
+    providerTools.calls.push(input);
+    return { memoryCuratorLlm: undefined, dispose: () => providerTools.dispose() };
+  },
+}));
+// The real hook host loads `@wrongstack/runtime/plugin-host`, whose plugin `api.llm`
+// shares the live router and Council registries with the provider tools; that
+// module's tool factories need the real core/tools packages.
+vi.mock('@wrongstack/runtime/provider-utility-tools', () => ({
+  buildCouncilRegistries: vi.fn(() => ({})),
+  createLiveModelRouter: vi.fn(() => ({ pickForTask: vi.fn() })),
+}));
 vi.mock('../src/server/kanban-run-mirror.js', () => ({
   createKanbanRunMirror: (deps: unknown) => {
     runMirror.created.push(deps);
@@ -353,6 +371,32 @@ describe('createAgentServices', () => {
     expect(deps?.container).toBe(input.container);
     expect(deps?.events).toBe(input.events);
     expect(deps?.logger).toBe(input.logger);
+  });
+
+  it('installs the provider utility and Jev tools on the template agent with the live config', async () => {
+    const input = makeInput();
+    const liveConfig = { ...input.config, model: 'gpt-live' };
+    input.getConfig = () => liveConfig;
+    input.configStore = { get: () => liveConfig, watch: vi.fn() };
+    providerTools.calls.length = 0;
+    let disposed = 0;
+    providerTools.dispose = () => {
+      disposed++;
+    };
+
+    const services = await createAgentServices(input);
+
+    expect(providerTools.calls).toHaveLength(1);
+    const call = providerTools.calls[0]!;
+    expect(call['agent']).toBe(services.agent);
+    expect(call['toolRegistry']).toBe(input.toolRegistry);
+    expect(call['providerRegistry']).toBe(input.providerRegistry);
+    expect(call['modelsRegistry']).toBe(input.modelsRegistry);
+    expect(call['compactor']).toBe(services.compactor);
+    expect(call['configStore']).toBe(input.configStore);
+    expect((call['getConfig'] as () => unknown)()).toBe(liveConfig);
+    services.disposeRealtimeHandlers();
+    expect(disposed).toBe(1);
   });
 
   it('resolves the Brain Jev account from the latest host config', async () => {

@@ -6688,6 +6688,7 @@
       "eternal": "Fortlaufend",
       "eternal-parallel": "Fortlaufend, parallel"
     },
+    "eternalUnavailable": "Hier nicht verfügbar: Diese Engine führt die fortlaufende Schleife nicht aus, die Auswahl würde nur die Einstellung speichern. Fortlaufende Autonomie läuft im Terminal (wstack).",
     "yoloLabel": "YOLO-Stufe",
     "yolo": {
       "off": "Freigaben an",

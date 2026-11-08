@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 502,
-      "typeOnly": 376,
-      "runtimeOrMixed": 158
+      "files": 505,
+      "typeOnly": 378,
+      "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
       "files": 5,
@@ -59,9 +59,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
-      "files": 68,
+      "files": 69,
       "typeOnly": 9,
-      "runtimeOrMixed": 62
+      "runtimeOrMixed": 63
     },
     "@wrongstack/core/kernel": {
       "files": 1,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 200,
-      "typeOnly": 80,
-      "runtimeOrMixed": 123
+      "files": 203,
+      "typeOnly": 81,
+      "runtimeOrMixed": 125
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 194,
+      "files": 195,
       "typeOnly": 55,
-      "runtimeOrMixed": 172
+      "runtimeOrMixed": 173
     },
     "@wrongstack/core/tasking": {
       "files": 45,
@@ -159,14 +159,14 @@
       "runtimeOrMixed": 27
     },
     "@wrongstack/core/typesafe": {
-      "files": 32,
+      "files": 33,
       "typeOnly": 10,
-      "runtimeOrMixed": 24
+      "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 964,
+      "files": 966,
       "typeOnly": 73,
-      "runtimeOrMixed": 925
+      "runtimeOrMixed": 927
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -791,12 +791,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/replay.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -1134,6 +1128,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/slash-worktree.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/system-prompt-host-sections-parity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1592,6 +1592,18 @@
       "file": "packages/runtime/src/portable-commands/security.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/system-prompt/host-sections.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3077,6 +3089,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/standalone-provider-tools.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/start-webui-remediation.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3605,12 +3623,6 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
-      "file": "packages/cli/src/boot/system-prompt-builder.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/boot/tui-coordinator-setup.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3744,12 +3756,6 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/wiring/pipeline.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/execution",
-      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4002,6 +4008,18 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/runtime/src/system-prompt/host-sections.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4511,12 +4529,6 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
-      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/src/wiring/runtime-picker-deps.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4727,6 +4739,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/runtime/tests/tool-registration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4824,6 +4842,12 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/webui-server/tests/session-agent-fallback-model.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/webui-server/tests/standalone-provider-tools.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5021,7 +5045,7 @@
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5999,12 +6023,6 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
-      "file": "packages/cli/src/wiring/provider-utility-tools.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/wiring/provider.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6264,6 +6282,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/subcommands/permissions.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/system-prompt-host-sections-parity.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6582,6 +6606,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6941,6 +6971,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/standalone-provider-tools.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7008,6 +7044,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/tests/standalone-plugins.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-provider-tools.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9677,6 +9719,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/system-prompt-host-sections-parity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/tui-project-switch-identity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10870,6 +10918,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/typesafe",
+      "file": "packages/webui-server/tests/standalone-provider-tools.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/utils",
       "file": "apps/desktop-v2/engine/main.ts",
       "typeOnly": 0,
@@ -11388,12 +11442,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/boot/structured-output.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/boot/system-prompt-builder.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12857,12 +12905,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/command-host-adapters.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13388,6 +13430,12 @@
       "file": "packages/cli/tests/subcommands/remote.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/system-prompt-host-sections-parity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14478,6 +14526,24 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/tuneup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/provider-utility-tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/system-prompt/atlas-prompt-contributor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/system-prompt/host-sections.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

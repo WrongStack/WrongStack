@@ -6688,6 +6688,7 @@
       "eternal": "Continua",
       "eternal-parallel": "Continua, in parallelo"
     },
+    "eternalUnavailable": "Non disponibile qui: questo motore non esegue il ciclo continuo, quindi sceglierlo salverebbe solo la preferenza. L’autonomia continua si esegue nel terminale (wstack).",
     "yoloLabel": "Livello YOLO",
     "yolo": {
       "off": "Approvazioni attive",

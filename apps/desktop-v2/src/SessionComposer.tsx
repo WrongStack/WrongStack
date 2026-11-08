@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AgentModeControl } from './AgentModeControl';
-import { AutonomyControl } from './AutonomyControl';
+import { AutonomyControl, autonomyControlInputs } from './AutonomyControl';
 import { BtwReceipts } from './BtwReceipts';
 import { btwReceiptKey, btwReceipts, type SavedBtwReceipts } from './btw-receipts';
 import {
@@ -748,7 +748,7 @@ export function SessionComposer({
             <JournalRecallLoader projectId={projectId} onLoad={onRecallLoad} />
           )}
           <AutonomyControl
-            prefs={state.results['prefs.updated']}
+            {...autonomyControlInputs(state.results)}
             command={command}
             disabled={!state.connected || state.needsSetup}
           />

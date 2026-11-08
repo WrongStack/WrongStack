@@ -181,6 +181,7 @@ export type {
   ProtocolEnvelope,
 } from './types.js';
 export {
+  HOST_CAPABILITY_ETERNAL_AUTONOMY,
   negotiateProtocol,
   type ProtocolAdvertisement,
   type ProtocolNegotiation,

@@ -51,16 +51,9 @@
 //     helper with fakes that satisfy the local interfaces.
 
 import type { TokenSavingTier } from '@wrongstack/contracts/types';
-import {
-  DefaultSystemPromptBuilder,
-  isUnattendedAutonomy,
-  type SystemInstructionVariant,
-} from '@wrongstack/core/agent';
-import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
-import { sessionScopedPath } from '@wrongstack/core/utils';
+import { DefaultSystemPromptBuilder, type SystemInstructionVariant } from '@wrongstack/core/agent';
+import { createHostSystemPromptSections } from '@wrongstack/runtime/system-prompt-contributors';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
-import { createAtlasPromptContributor } from '../wiring/atlas-prompt-contributor.js';
-import { createWrongTracePromptContributor } from '../wiring/wrongtrace-prompt-contributor.js';
 
 export interface MutableRef<T> {
   current: T | undefined;
@@ -207,12 +200,6 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
         // full-shape interfaces; the helper just needs the
         // passthrough.
         memoryStore: deps.memoryStore as never,
-        // Thread the narrow domain-term adapter so the builder emits a
-        // compact `[Project Jargon Dictionary]` block. `deps.domainGlossary`
-        // is an optional closure over the resolved SAGE `memoryStore`
-        // that returns only entries tagged `domain-term`; when omitted
-        // (e.g. in tests or subagent prompts) the builder emits no block.
-        domainGlossary: deps.domainGlossary as never,
         // SAGE's turn middleware is the single memory-injection channel.
         // Disable the builder's static "# Relevant Memory" section so memories
         // are injected once, per-turn, relevance-scored — not duplicated here.
@@ -235,55 +222,19 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
           projectDir: deps.paths.inProjectInstructions,
           systemVariant: deps.systemPromptVariant,
         },
-        planPath: () =>
-          deps.sessionRef.current
-            ? sessionScopedPath(
-                deps.paths.projectSessions,
-                deps.sessionRef.current.id,
-                '.plan.json',
-              )
-            : undefined,
-        contributors: [
-          // Injects the ETERNAL AUTONOMY block when the
-          // user has activated a long-running autonomy
-          // engine. Without this, the per-iteration
-          // directive is the only place the model sees the
-          // rules \u2014 compaction can drop it and the model
-          // forgets it's in autonomy mode.
-          makeAutonomyPromptContributor({
-            goalPath: deps.paths.projectGoal,
-            // The CONVERSATION's mode first. `autonomyModeRef` is one ref for
-            // the whole process — right for the CLI and the TUI, and with four
-            // WebUI tabs it is whichever tab last switched, so reading it
-            // alone put the eternal-autonomy block into the prompt of every
-            // conversation the moment one of them went eternal.
-            enabled: (ctx) => isUnattendedAutonomy(ctx.autonomy, deps.autonomyModeRef.current),
-          }),
-          // Consumes the WrongTrace observability helpers: when the daemon
-          // is reachable, the leader prompt carries a compact atlas digest +
-          // friction summary block. Fail-open and deadline-bounded (<1s), so
-          // an absent/slow daemon never stalls the boot prompt.
-          createWrongTracePromptContributor({
-            tokenSavingMode: deps.tokenSavingMode,
-          }),
-          // Puts the repository's shape — its packages, its hub files, and
-          // (when the concept layer has run) what each subsystem is for — in
-          // front of the agent, instead of leaving it to be rediscovered by
-          // search every session. Fail-open and deadline-bounded: no index,
-          // or a slow one, simply contributes nothing.
-          ...(deps.projectRoot === undefined
-            ? []
-            : [
-                createAtlasPromptContributor({
-                  projectRoot: deps.projectRoot,
-                  enabled: deps.atlas?.injectOnSessionStart ?? true,
-                  ...(deps.atlas?.briefMaxTokens !== undefined
-                    ? { maxTokens: deps.atlas.briefMaxTokens }
-                    : {}),
-                  tokenSavingMode: deps.tokenSavingMode,
-                }),
-              ]),
-        ],
+        // Plan, contributors and glossary: the host-owned sections, shared
+        // with the standalone engine behind WebUI/desktop so both surfaces
+        // compose the same prompt from the same state.
+        ...createHostSystemPromptSections({
+          goalPath: deps.paths.projectGoal,
+          projectSessionsDir: deps.paths.projectSessions,
+          getSessionId: () => deps.sessionRef.current?.id,
+          getProcessAutonomy: () => deps.autonomyModeRef.current,
+          tokenSavingMode: deps.tokenSavingMode,
+          projectRoot: deps.projectRoot,
+          atlas: deps.atlas,
+          domainGlossary: deps.domainGlossary,
+        }),
       }),
   );
 }

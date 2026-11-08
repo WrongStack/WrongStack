@@ -1,4 +1,4 @@
-import type { ParsedNextStep } from '@wrongstack/webui-protocol';
+import { HOST_CAPABILITY_ETERNAL_AUTONOMY, type ParsedNextStep } from '@wrongstack/webui-protocol';
 import { record } from './engine-values';
 
 export const AUTONOMY_MODES = [
@@ -9,6 +9,33 @@ export const AUTONOMY_MODES = [
   ['eternal-parallel', 'Eternal, parallel'],
 ] as const;
 export type AutonomyMode = (typeof AUTONOMY_MODES)[number][0];
+
+/** Modes only a host that drives the eternal engine can run. */
+const ETERNAL_MODES: ReadonlySet<string> = new Set(['eternal', 'eternal-parallel']);
+
+/**
+ * Whether the engine can run `mode`. Eternal and eternal-parallel need a host that drives the
+ * eternal engine's iterations, which the engine announces in `session.start`; without it,
+ * choosing them would only store a preference while nothing runs.
+ */
+export function autonomyModeAvailable(mode: string, sessionStart: unknown): boolean {
+  if (!ETERNAL_MODES.has(mode)) return true;
+  const capabilities = record(sessionStart)['protocolCapabilities'];
+  return Array.isArray(capabilities) && capabilities.includes(HOST_CAPABILITY_ETERNAL_AUTONOMY);
+}
+
+/** The modes the engine cannot run, each with the reason to show, for a select of modes. */
+export function unavailableAutonomyModes(
+  sessionStart: unknown,
+  reason: string,
+): ReadonlyMap<string, string> {
+  return new Map(
+    AUTONOMY_MODES.filter(([id]) => !autonomyModeAvailable(id, sessionStart)).map(([id]) => [
+      id,
+      reason,
+    ]),
+  );
+}
 
 /** Seconds between the end of a turn and an automatic continuation (WebUI parity). */
 export const AUTO_CONTINUE_SECONDS = 5;

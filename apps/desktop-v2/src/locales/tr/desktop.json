@@ -6688,6 +6688,7 @@
       "eternal": "Sürekli",
       "eternal-parallel": "Sürekli, paralel"
     },
+    "eternalUnavailable": "Burada kullanılamaz: bu motor sürekli döngüyü çalıştırmaz, seçmek yalnızca tercihi kaydeder. Sürekli özerklik terminalde (wstack) çalışır.",
     "yoloLabel": "YOLO düzeyi",
     "yolo": {
       "off": "Onaylar açık",

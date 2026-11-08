@@ -651,11 +651,11 @@
         "@wrongstack/tools": "workspace:*",
         "@wrongstack/vector-memory": "workspace:*",
         "@wrongstack/webui-protocol": "workspace:*",
+        "@wrongstack/wrongtrace": "workspace:*",
         "cron-parser": "^5.10.3",
       },
       "devDependencies": {
         "@types/node": "^26.6.6",
-        "@wrongstack/wrongtrace": "workspace:*",
         "typescript": "^7.0.2",
       },
     },

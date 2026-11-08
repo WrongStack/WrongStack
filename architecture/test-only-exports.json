@@ -556,10 +556,6 @@
       "fetchLatestFromNpm",
       "getUpdateNotification"
     ],
-    "packages/cli/src/wiring/atlas-prompt-contributor.ts": [
-      "DEFAULT_BRIEF_MAX_TOKENS",
-      "renderAtlasBrief"
-    ],
     "packages/cli/src/wiring/provider-runtime-setup.ts": [
       "serializeProviderRuntimeSnapshot"
     ],

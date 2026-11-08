@@ -11,10 +11,13 @@ export function SettingRow({
   field,
   value,
   onChange,
+  unavailableOptions,
 }: {
   field: SettingField;
   value: unknown;
   onChange: (value: unknown) => void;
+  /** Select options the engine cannot honor: listed, not choosable, with the reason as tooltip. */
+  unavailableOptions?: ReadonlyMap<string, string> | undefined;
 }) {
   const { t } = useDesktopText();
   const text = (part: string, english: string) =>
@@ -69,7 +72,12 @@ export function SettingRow({
               {t('row.choose')}
             </option>
             {[...new Set([...options, ...(selected ? [selected] : [])])].map((option) => (
-              <option key={option} value={option}>
+              <option
+                key={option}
+                value={option}
+                disabled={unavailableOptions?.has(option)}
+                title={unavailableOptions?.get(option)}
+              >
                 {optionLabel(option)}
               </option>
             ))}

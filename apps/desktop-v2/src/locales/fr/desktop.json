@@ -6688,6 +6688,7 @@
       "eternal": "Continu",
       "eternal-parallel": "Continu, en parallèle"
     },
+    "eternalUnavailable": "Indisponible ici : ce moteur n’exécute pas la boucle continue, le choisir ne ferait qu’enregistrer la préférence. L’autonomie continue s’exécute dans le terminal (wstack).",
     "yoloLabel": "Niveau YOLO",
     "yolo": {
       "off": "Approbations activées",

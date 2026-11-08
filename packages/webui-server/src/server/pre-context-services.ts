@@ -105,6 +105,7 @@ import {
   createStandaloneSessionIdentityLifecycle,
   type StandaloneSessionIdentityLifecycle,
 } from './standalone-session-identity.js';
+import { standaloneSystemPromptSections } from './system-prompt-rebuild.js';
 import type { WebUIOptions } from './types.js';
 
 const GITHUB_PROVIDERS_OVERLAY_URL =
@@ -570,6 +571,15 @@ export async function createPreContextServices(
     },
     userInstructionsFile: config.systemPrompt?.includeGlobalAgents === false ? false : undefined,
     projectInstructions: config.systemPrompt?.includeProjectAgents !== false,
+    // CLI parity: plan, autonomy block, WrongTrace digest, Atlas brief, glossary.
+    ...standaloneSystemPromptSections({
+      paths: wpaths,
+      projectRoot,
+      memoryStore,
+      getSessionId: () => context?.session?.id ?? session.id,
+      tokenSavingMode: tokenSavingTier,
+      config,
+    }),
   });
   if (container.has(TOKENS.SystemPromptBuilder)) {
     container.override(TOKENS.SystemPromptBuilder, () => systemPromptBuilder, { owner: 'webui' });

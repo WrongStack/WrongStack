@@ -27,12 +27,7 @@ import { SessionMemoryConsolidator } from '@wrongstack/core/storage';
 import { resolveTypeSafeJudge } from '@wrongstack/core/typesafe';
 import { estimateRequestTokensCalibrated, resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
-import {
-  createMemoryCuratorLlmCall,
-  getSageService,
-  type LlmCallFn,
-  setupSage,
-} from '@wrongstack/sage';
+import { getSageService, type LlmCallFn, setupSage } from '@wrongstack/sage';
 import { installVibeProtocol } from '@wrongstack/sdd';
 import { createBackendBrain } from './backend-brain.js';
 import type { AgentServices, AgentServicesInput } from './backend-services-types.js';
@@ -47,7 +42,6 @@ import { createKanbanRunMirror } from './kanban-run-mirror.js';
 import { registerLeaderEffortTool } from './leader-effort-tool.js';
 import { createMaxContextUpdater, positiveWindow } from './max-context-updater.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
-import { buildSavedProvider } from './saved-provider.js';
 import { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
 import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
@@ -56,6 +50,7 @@ import { createStandaloneChimera } from './standalone-chimera.js';
 import { createStandaloneAutoWake, installStandaloneDelegation } from './standalone-delegation.js';
 import { createStandaloneHooks } from './standalone-hooks.js';
 import { loadStandalonePlugins, type StandalonePlugins } from './standalone-plugins.js';
+import { installStandaloneProviderTools } from './standalone-provider-tools.js';
 import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { errMessage } from './ws-utils.js';
@@ -413,23 +408,20 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       }),
     );
   }
-  // SAGE background passes (daily consolidation, triage) on the
+  // `llm`, `council`, `image_generate`, `jev`/`jev_status` and the SAGE
   // `memory-curator` route, through the agent's provider chain (CLI parity:
-  // cli-main-boot.ts). Providers are built with the Brain's saved-config rule.
-  const fallbackProfileManager = container.safeResolve(TOKENS.FallbackProfileManager);
-  if (fallbackProfileManager) {
-    memoryCuratorLlm = createMemoryCuratorLlmCall({
-      buildProvider: (providerId) => buildSavedProvider(providerRegistry, input.config, providerId),
-      getConfig: () => input.config,
-      fallbackProfileManager,
-      statusTracker: container.safeResolve(TOKENS.ProviderModelStatusTracker),
-      wrapProviderCall: (request, inner) =>
-        agent.extensions.wrapProviderRunner(
-          (_ctx: typeof agent.ctx, wrapped: typeof request) => inner(wrapped),
-          { exclude: ['fallback-model'] },
-        )(agent.ctx, request),
-    });
-  }
+  // cli-main-boot.ts + cli-infrastructure.ts, same shared registrations).
+  const providerTools = installStandaloneProviderTools({
+    agent,
+    container,
+    toolRegistry,
+    providerRegistry,
+    modelsRegistry,
+    compactor,
+    getConfig: getLiveConfig,
+    configStore: input.configStore,
+  });
+  memoryCuratorLlm = providerTools.memoryCuratorLlm;
   console.log('[WebUI] Agent initialized');
 
   const brainServices = createBackendBrain({
@@ -554,6 +546,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       logger.warn('delegation host dispose failed', { err: errMessage(err) });
     });
     autoWakeWithoutDelegation?.dispose();
+    providerTools.dispose();
   };
 
   const chimera = createStandaloneChimera({

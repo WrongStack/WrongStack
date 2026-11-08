@@ -65,6 +65,14 @@
       "types": "./dist/tool-registration.d.ts",
       "import": "./dist/tool-registration.js"
     },
+    "./provider-utility-tools": {
+      "types": "./dist/provider-utility-tools.d.ts",
+      "import": "./dist/provider-utility-tools.js"
+    },
+    "./system-prompt-contributors": {
+      "types": "./dist/system-prompt-contributors.d.ts",
+      "import": "./dist/system-prompt-contributors.js"
+    },
     "./package.json": "./package.json",
     "./jev-checks": {
       "types": "./dist/jev-checks.d.ts",
@@ -106,11 +114,11 @@
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
+    "@wrongstack/wrongtrace": "workspace:*",
     "cron-parser": "^5.10.3"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "@wrongstack/wrongtrace": "workspace:*",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

@@ -395,6 +395,8 @@ const profiles = {
       'jev-checks': 'src/jev-checks.ts',
       'tool-registration': 'src/tool-registration.ts',
       'plugin-host': 'src/plugin-host.ts',
+      'provider-utility-tools': 'src/provider-utility-tools.ts',
+      'system-prompt-contributors': 'src/system-prompt-contributors.ts',
     },
     external: [
       '@wrongstack/core',

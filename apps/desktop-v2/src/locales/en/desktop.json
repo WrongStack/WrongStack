@@ -6688,6 +6688,7 @@
       "eternal": "Eternal",
       "eternal-parallel": "Eternal, parallel"
     },
+    "eternalUnavailable": "Not available here: this engine does not run the eternal loop, so choosing it would only save the preference. Eternal autonomy runs in the terminal (wstack).",
     "yoloLabel": "YOLO level",
     "yolo": {
       "off": "Approvals on",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T11:25:23.523Z",
+  "generatedAt": "2026-11-08T11:51:19.853Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6083,
-    "testFiles": 5067,
-    "sourceLines": 1259614,
-    "workspaceEdges": 247,
-    "moduleEdges": 17973,
+    "sourceFiles": 6090,
+    "testFiles": 5069,
+    "sourceLines": 1260026,
+    "workspaceEdges": 248,
+    "moduleEdges": 17981,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 292,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1032
+    "testOnlyExports": 1030
   },
   "errors": [],
   "packageCycles": [],
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 631,
-      "testFiles": 689,
+      "testFiles": 690,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 689
+          "testFiles": 690
         }
       ]
     },
@@ -819,7 +819,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 71,
+      "sourceFiles": 77,
       "testFiles": 43,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -840,7 +840,8 @@
         "@wrongstack/telegram",
         "@wrongstack/tools",
         "@wrongstack/vector-memory",
-        "@wrongstack/webui-protocol"
+        "@wrongstack/webui-protocol",
+        "@wrongstack/wrongtrace"
       ],
       "tsconfigs": [
         {
@@ -1171,8 +1172,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 339,
-      "testFiles": 375,
+      "sourceFiles": 340,
+      "testFiles": 376,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1207,7 +1208,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 375
+          "testFiles": 376
         }
       ]
     },
@@ -7806,6 +7807,12 @@
       },
       {
         "file": "packages/cli/tests/suggestion-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/system-prompt-host-sections-parity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -28205,6 +28212,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/standalone-provider-tools.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/standalone-session-identity.test.ts",
         "projects": [
           "root-node"
@@ -36060,14 +36073,6 @@
     {
       "file": "packages/cli/src/update-check.ts",
       "name": "getUpdateNotification"
-    },
-    {
-      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
-      "name": "DEFAULT_BRIEF_MAX_TOKENS"
-    },
-    {
-      "file": "packages/cli/src/wiring/atlas-prompt-contributor.ts",
-      "name": "renderAtlasBrief"
     },
     {
       "file": "packages/cli/src/wiring/provider-runtime-setup.ts",

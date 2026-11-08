@@ -1,20 +1,24 @@
 import { useState } from 'react';
-import { AUTONOMY_MODES, sessionAutonomy } from './autonomy-model';
+import { AUTONOMY_MODES, autonomyModeAvailable, sessionAutonomy } from './autonomy-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 
 /**
  * The conversation's continuation mode, changed only by the user (`autonomy.switch`). The
  * engine also saves the choice as the default for new conversations. Beside it, the
- * conversation's YOLO level, as the WebUI's session panel offers it.
+ * conversation's YOLO level, as the WebUI's session panel offers it. Modes the engine cannot
+ * run (eternal ones, unless it announces an eternal driver) stay listed but cannot be chosen.
  */
 export function AutonomyControl({
   prefs,
+  sessionStart,
   command,
   disabled,
 }: {
   /** The conversation's preferences as the engine last reported them (`prefs.updated`). */
   prefs: Record<string, unknown> | undefined;
+  /** The engine's `session.start`, which says which modes it can run. */
+  sessionStart?: unknown;
   command: EngineCommand;
   disabled: boolean;
 }) {
@@ -24,7 +28,16 @@ export function AutonomyControl({
     [error, setError] = useState('');
   return (
     <>
-      <label className="composer-chip effort-control" title={error || t('autonomyControl.title')}>
+      <label
+        className="composer-chip effort-control"
+        title={
+          error ||
+          // A conversation already on a mode this engine cannot run says why it does nothing.
+          (mode && !autonomyModeAvailable(mode, sessionStart)
+            ? t('autonomyControl.eternalUnavailable')
+            : t('autonomyControl.title'))
+        }
+      >
         <select
           aria-label={t('autonomyControl.label')}
           value={mode}
@@ -40,16 +53,32 @@ export function AutonomyControl({
           }}
         >
           {mode === '' && <option value="">{t('autonomyControl.placeholder')}</option>}
-          {AUTONOMY_MODES.map(([id, label]) => (
-            <option key={id} value={id}>
-              {t(`autonomyControl.mode.${id}`, { defaultValue: label })}
-            </option>
-          ))}
+          {AUTONOMY_MODES.map(([id, label]) => {
+            const available = autonomyModeAvailable(id, sessionStart);
+            return (
+              <option
+                key={id}
+                value={id}
+                disabled={!available}
+                title={available ? undefined : t('autonomyControl.eternalUnavailable')}
+              >
+                {t(`autonomyControl.mode.${id}`, { defaultValue: label })}
+              </option>
+            );
+          })}
         </select>
       </label>
       <YoloControl prefs={prefs ?? {}} command={command} disabled={disabled} />
     </>
   );
+}
+
+/** What the control reads from the engine: the conversation's preferences and `session.start`. */
+export function autonomyControlInputs(results: Readonly<Record<string, Record<string, unknown>>>): {
+  prefs: Record<string, unknown> | undefined;
+  sessionStart: unknown;
+} {
+  return { prefs: results['prefs.updated'], sessionStart: results['session.start'] };
 }
 
 const YOLO_LEVELS = [

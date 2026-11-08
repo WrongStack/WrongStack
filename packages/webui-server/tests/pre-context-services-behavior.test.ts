@@ -36,6 +36,13 @@ const mocks = vi.hoisted(() => {
     systemPromptBuild: vi.fn(),
     mcpRegistryOptions: [] as Record<string, unknown>[],
     elicitViaUserInput: vi.fn(),
+    builderOptions: [] as Record<string, unknown>[],
+    hostSections: {
+      planPath: () => 'host-plan',
+      contributors: [async () => []],
+      domainGlossary: { list: async () => [] },
+    },
+    createHostSystemPromptSections: vi.fn(),
   };
 });
 
@@ -50,7 +57,9 @@ vi.mock('@wrongstack/core/agent', () => ({
     }
   },
   DefaultSystemPromptBuilder: class DefaultSystemPromptBuilderMock {
-    constructor(readonly options: Record<string, unknown>) {}
+    constructor(readonly options: Record<string, unknown>) {
+      mocks.builderOptions.push(options);
+    }
     build = mocks.systemPromptBuild;
   },
   providerToolsForVariant: (registry: { listForProvider(): unknown }) => registry.listForProvider(),
@@ -145,6 +154,10 @@ vi.mock('@wrongstack/providers', () => ({
   installCatalogModelOutputLimits: mocks.installCatalogModelOutputLimits,
 }));
 vi.mock('@wrongstack/runtime', () => ({ createDefaultContainer: mocks.createDefaultContainer }));
+// Its own coverage: cli/tests/system-prompt-host-sections-parity.test.ts.
+vi.mock('@wrongstack/runtime/system-prompt-contributors', () => ({
+  createHostSystemPromptSections: mocks.createHostSystemPromptSections,
+}));
 vi.mock('@wrongstack/runtime/tool-registration', () => ({
   registerCanonicalHostTools: mocks.registerCanonicalHostTools,
 }));
@@ -179,6 +192,8 @@ describe('createPreContextServices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mcpRegistryOptions.length = 0;
+    mocks.builderOptions.length = 0;
+    mocks.createHostSystemPromptSections.mockReturnValue(mocks.hostSections);
     mocks.memoryStore.initialize.mockResolvedValue(undefined);
     mocks.buildProviderFactoriesFromRegistry.mockResolvedValue([{ id: 'provider-factory' }]);
     mocks.discoverAndMergeWebuiProviders.mockResolvedValue(undefined);
@@ -313,6 +328,19 @@ describe('createPreContextServices', () => {
       model: 'gpt-5.6',
       onlineAgents: [{ agentId: 'worker-1', status: 'online' }],
     });
+    // CLI parity: the boot builder carries the host-owned sections (plan, autonomy block,
+    // WrongTrace digest, Atlas brief, glossary) from the assembly the CLI binds.
+    expect(mocks.builderOptions[0]).toMatchObject(mocks.hostSections);
+    const sectionsInput = mocks.createHostSystemPromptSections.mock.calls[0]?.[0] as {
+      getSessionId(): string | undefined;
+    };
+    expect(sectionsInput).toMatchObject({
+      projectSessionsDir: 'D:/repo/.wstack/sessions',
+      projectRoot: 'D:/repo',
+      memoryStore: mocks.memoryStore,
+      tokenSavingMode: 'balanced',
+    });
+    expect(sectionsInput.getSessionId()).toBe('session-1');
     expect(mocks.setMeta).toHaveBeenCalledWith(
       'plan.path',
       'D:/repo/.wstack/sessions/session-1.plan.json',

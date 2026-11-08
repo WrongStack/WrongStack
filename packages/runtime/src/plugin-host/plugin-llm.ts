@@ -1,84 +1,10 @@
-import type {
-  Config,
-  CouncilProfileConfig,
-  CouncilToolConfig,
-  OneShotModelRouter,
-  OneShotOrchestratorOptions,
-  Provider,
-} from '@wrongstack/contracts/types';
+import type { Config, OneShotOrchestratorOptions, Provider } from '@wrongstack/contracts/types';
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
-import {
-  CouncilOrchestrator,
-  type CouncilPersonaRegistry,
-  type CouncilProfileRegistry,
-  createCouncilPersonaRegistry,
-  createCouncilProfileRegistry,
-  OneShotOrchestrator,
-} from '@wrongstack/core/execution';
-import { ModelRouter } from '@wrongstack/core/models';
+import { CouncilOrchestrator, OneShotOrchestrator } from '@wrongstack/core/execution';
 import type { PluginAPIInit } from '@wrongstack/core/plugin';
-
-/**
- * A router that reads the LIVE config on every pick.
- *
- * `ModelRouter` snapshots `modelMatrix` and the provider list at construction,
- * but `/setmodel` and credential edits change both mid-session. Rebuilding per
- * call keeps role routing consistent with what the user last configured; the
- * router itself does no I/O, so this is a plain object construction.
- */
-export function createLiveModelRouter(getConfig: () => Config): OneShotModelRouter {
-  return {
-    pickForTask(role, description) {
-      const config = getConfig();
-      const router = new ModelRouter({
-        ...(config.modelMatrix ? { matrix: config.modelMatrix } : {}),
-        config: {
-          provider: config.provider,
-          model: config.model,
-          ...(config.providers ? { providers: config.providers } : {}),
-        },
-      });
-      return router.pickForTask(role, description);
-    },
-  };
-}
-
-/**
- * Build the Council tool's persona/profile registries from configuration.
- *
- * `createCouncilPersonaRegistry` / `createCouncilProfileRegistry` shipped from
- * day one but no host ever called them, so the tool was pinned to the built-in
- * lenses and panels with no way to add either. A malformed entry must not take
- * the whole tool registration down with it — a bad panel definition degrades to
- * the built-ins and is reported, exactly like an unresolvable Brain pool entry.
- */
-export function buildCouncilRegistries(cfg: CouncilToolConfig | undefined): {
-  personas?: CouncilPersonaRegistry | undefined;
-  profiles?: CouncilProfileRegistry | undefined;
-  defaultProfile?: string | undefined;
-  maxConcurrency?: number | undefined;
-} {
-  const base = {
-    ...(cfg?.defaultProfile ? { defaultProfile: cfg.defaultProfile } : {}),
-    ...(cfg?.maxConcurrency !== undefined ? { maxConcurrency: cfg.maxConcurrency } : {}),
-  };
-  if (!cfg?.personas?.length && !cfg?.profiles?.length) return base;
-  try {
-    const personas = createCouncilPersonaRegistry(cfg.personas ?? []);
-    const profiles = createCouncilProfileRegistry(
-      (cfg.profiles ?? []) as CouncilProfileConfig[],
-      personas,
-    );
-    return { ...base, personas, profiles };
-  } catch (error) {
-    console.warn(
-      `Council tool: ignoring tools.council personas/profiles — ${
-        error instanceof Error ? error.message : String(error)
-      }. Falling back to the built-in lenses and panels.`,
-    );
-    return base;
-  }
-}
+// One implementation of the live router and the Council registries: the
+// `llm` / `council` tools and plugin `api.llm` route the same way.
+import { buildCouncilRegistries, createLiveModelRouter } from '../provider-utility-tools.js';
 
 export interface PluginLlmOptions {
   /** The host session's provider and model at plugin setup. */

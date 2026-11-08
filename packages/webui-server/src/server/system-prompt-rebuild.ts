@@ -17,6 +17,7 @@ import {
   type ModeStore,
   resolveTokenSavingTier,
   type SkillLoader,
+  type TokenSavingTier,
 } from '@wrongstack/contracts/types';
 import {
   type Context,
@@ -25,7 +26,11 @@ import {
   type SystemInstructionVariant,
 } from '@wrongstack/core/agent';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, type WstackPaths } from '@wrongstack/core/utils';
+import {
+  createHostSystemPromptSections,
+  type HostSystemPromptSections,
+} from '@wrongstack/runtime/system-prompt-contributors';
 
 type ModelCapabilities = NonNullable<
   ConstructorParameters<typeof DefaultSystemPromptBuilder>[0]
@@ -38,7 +43,10 @@ export interface SystemPromptRebuildDeps {
   modelCapabilities: ModelCapabilities;
   context: Context;
   toolRegistry: ToolRegistry;
-  getConfig: () => Pick<Config, 'provider' | 'model' | 'systemPrompt' | 'features' | 'skills'>;
+  getConfig: () => Pick<
+    Config,
+    'provider' | 'model' | 'systemPrompt' | 'features' | 'skills' | 'indexing'
+  >;
   projectRoot: string;
   globalRoot: string;
   /**
@@ -51,6 +59,35 @@ export interface SystemPromptRebuildDeps {
    * the user just moved away from.
    */
   container?: Container | undefined;
+}
+
+/**
+ * The host-owned prompt sections of this engine — session plan, ETERNAL
+ * AUTONOMY block, WrongTrace digest, Atlas brief and domain glossary — from the
+ * same shared assembly the CLI binds (`bindSystemPromptBuilder`).
+ *
+ * Both of this engine's builders (the boot one in `pre-context-services.ts` and
+ * every rebuild below) take their sections from here, so a mode or identity
+ * switch never swaps in a builder that lost them. No process-wide autonomy:
+ * each conversation's own mode (`ctx.autonomy`) decides the autonomy block.
+ */
+export function standaloneSystemPromptSections(input: {
+  paths: Pick<WstackPaths, 'projectGoal' | 'projectSessions'>;
+  projectRoot: string;
+  memoryStore: MemoryPort | undefined;
+  getSessionId: () => string | undefined;
+  tokenSavingMode: TokenSavingTier | boolean | undefined;
+  config: Pick<Config, 'indexing'>;
+}): HostSystemPromptSections {
+  return createHostSystemPromptSections({
+    goalPath: input.paths.projectGoal,
+    projectSessionsDir: input.paths.projectSessions,
+    getSessionId: input.getSessionId,
+    tokenSavingMode: input.tokenSavingMode,
+    projectRoot: input.projectRoot,
+    atlas: input.config.indexing?.atlas,
+    memoryStore: input.memoryStore,
+  });
 }
 
 /**
@@ -97,6 +134,18 @@ export async function rebuildSystemPrompt(
   });
   const config = deps.getConfig();
   const variant = variantForContext(deps.context, config);
+  // Resolve `'auto'` here rather than handing the sentinel to the builder,
+  // for the same reason boot does: the tool registry was tiered once, at
+  // boot, from this same function and this same window. Passing the raw
+  // sentinel would let a rebuilt prompt land on a different tier than the
+  // tool surface it is describing. Concrete tiers pass through verbatim.
+  const tokenSavingMode = resolveTokenSavingTier(
+    config.features?.tokenSavingMode,
+    (typeof deps.modelCapabilities === 'function'
+      ? deps.modelCapabilities()
+      : deps.modelCapabilities
+    )?.maxContextTokens,
+  );
   const builder = new DefaultSystemPromptBuilder({
     memoryStore: deps.memoryStore,
     injectMemory: false,
@@ -107,18 +156,7 @@ export async function rebuildSystemPrompt(
     modeId,
     modePrompt,
     modelCapabilities: deps.modelCapabilities,
-    // Resolve `'auto'` here rather than handing the sentinel to the builder,
-    // for the same reason boot does: the tool registry was tiered once, at
-    // boot, from this same function and this same window. Passing the raw
-    // sentinel would let a rebuilt prompt land on a different tier than the
-    // tool surface it is describing. Concrete tiers pass through verbatim.
-    tokenSavingMode: resolveTokenSavingTier(
-      config.features?.tokenSavingMode,
-      (typeof deps.modelCapabilities === 'function'
-        ? deps.modelCapabilities()
-        : deps.modelCapabilities
-      )?.maxContextTokens,
-    ),
+    tokenSavingMode,
     instructionPaths: {
       globalDir: paths.globalInstructions,
       projectDir: paths.inProjectInstructions,
@@ -126,6 +164,15 @@ export async function rebuildSystemPrompt(
     },
     userInstructionsFile: config.systemPrompt?.includeGlobalAgents === false ? false : undefined,
     projectInstructions: config.systemPrompt?.includeProjectAgents !== false,
+    // The rebuilt context's own session plan, not the boot tab's.
+    ...standaloneSystemPromptSections({
+      paths,
+      projectRoot: deps.projectRoot,
+      memoryStore: deps.memoryStore,
+      getSessionId: () => deps.context.session?.id,
+      tokenSavingMode,
+      config,
+    }),
   });
   const tools = providerToolsForVariant(
     deps.toolRegistry,
@@ -142,6 +189,10 @@ export async function rebuildSystemPrompt(
     catalogTools: deps.toolRegistry.list(),
     provider: config.provider,
     model: config.model,
+    // The conversation's own autonomy, as the per-turn refresh passes it.
+    ...(typeof deps.context.meta['autonomy'] === 'string'
+      ? { autonomy: deps.context.meta['autonomy'] }
+      : {}),
   });
   if (deps.container?.has(TOKENS.SystemPromptBuilder)) {
     deps.container.override(TOKENS.SystemPromptBuilder, () => builder, {

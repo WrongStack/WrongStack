@@ -1,3 +1,4 @@
+import { HOST_CAPABILITY_ETERNAL_AUTONOMY } from '@wrongstack/webui-protocol';
 import { describe, expect, it, vi } from 'vitest';
 import { type DesktopCommandContext, runDesktopCommand } from '../src/desktop-command-runner';
 import {
@@ -140,6 +141,30 @@ describe('running desktop commands', () => {
     ]);
     await settle();
     expect(context.notify).toHaveBeenLastCalledWith('Continuation mode → auto.');
+  });
+
+  it('refuses eternal modes unless the engine announces an eternal driver', async () => {
+    const context = contextWith({ autonomy: 'auto' });
+    for (const mode of ['eternal', 'eternal-parallel']) {
+      expect(run(`/autonomy ${mode}`, context)).toMatchObject({
+        kind: 'refused',
+        message: expect.stringContaining('cannot run'),
+      });
+    }
+    expect(context.command).not.toHaveBeenCalled();
+
+    const driving = contextWith({ autonomy: 'auto' });
+    driving.state = {
+      ...driving.state,
+      results: {
+        ...driving.state.results,
+        'session.start': { protocolCapabilities: [HOST_CAPABILITY_ETERNAL_AUTONOMY] },
+      },
+    };
+    run('/autonomy eternal', driving);
+    expect(driving.command).toHaveBeenCalledWith('autonomy.switch', { mode: 'eternal' }, [
+      'key.operation_result',
+    ]);
   });
 
   it('lists agent modes, or switches to one and reports a refusal', async () => {

@@ -26,6 +26,29 @@ function row(item: SettingField, value: unknown) {
   return { host, onChange };
 }
 
+describe('select options the engine cannot honor', () => {
+  it('lists them disabled with the reason, keeping the rest choosable', () => {
+    const autonomy = field('autonomy')!;
+    const host = document.createElement('div');
+    act(() =>
+      createRoot(host).render(
+        createElement(SettingRow, {
+          field: autonomy,
+          value: 'auto',
+          onChange: vi.fn(),
+          unavailableOptions: new Map([['eternal', 'Not here']]),
+        }),
+      ),
+    );
+    const option = (value: string) =>
+      host.querySelector<HTMLOptionElement>(`option[value="${value}"]`)!;
+    expect(option('eternal').disabled).toBe(true);
+    expect(option('eternal').title).toBe('Not here');
+    expect(option('eternal-parallel').disabled).toBe(false);
+    expect(option('auto').disabled).toBe(false);
+  });
+});
+
 describe('engine settings the WebUI already offered', () => {
   it('lists each new setting in its section', () => {
     const keys = (id: string) =>

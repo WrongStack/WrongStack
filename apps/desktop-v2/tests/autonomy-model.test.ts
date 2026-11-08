@@ -1,13 +1,16 @@
+import { HOST_CAPABILITY_ETERNAL_AUTONOMY } from '@wrongstack/webui-protocol';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { agentModes } from '../src/AgentModeControl';
 import { AutoContinue } from '../src/AutoContinue';
-import { AutonomyControl } from '../src/AutonomyControl';
+import { AutonomyControl, autonomyControlInputs } from '../src/AutonomyControl';
 import {
   autoContinueStep,
+  autonomyModeAvailable,
   DEFAULT_AUTO_CONTINUE_LIMIT,
   sessionAutonomy,
+  unavailableAutonomyModes,
 } from '../src/autonomy-model';
 
 const steps = [
@@ -67,6 +70,62 @@ describe('conversation continuation', () => {
     );
     expect(plus).toContain('yolo-plus');
     expect(plus).toContain('title="Every call runs and nothing asks; deny rules still refuse."');
+  });
+});
+
+describe('eternal modes need an engine that drives them', () => {
+  const driving = { protocolCapabilities: [HOST_CAPABILITY_ETERNAL_AUTONOMY] };
+  const disabledOptions = (html: string) =>
+    [...html.matchAll(/<option value="([^"]*)" disabled=""[^>]*>/g)].map((match) => match[1]);
+
+  it('is available only when session.start announces the eternal driver', () => {
+    for (const mode of ['off', 'suggest', 'auto'])
+      expect(autonomyModeAvailable(mode, undefined)).toBe(true);
+    for (const mode of ['eternal', 'eternal-parallel']) {
+      expect(autonomyModeAvailable(mode, undefined)).toBe(false);
+      expect(autonomyModeAvailable(mode, { protocolCapabilities: ['session.user-ack'] })).toBe(
+        false,
+      );
+      expect(autonomyModeAvailable(mode, driving)).toBe(true);
+    }
+    expect([...unavailableAutonomyModes(undefined, 'why').entries()]).toEqual([
+      ['eternal', 'why'],
+      ['eternal-parallel', 'why'],
+    ]);
+    expect(unavailableAutonomyModes(driving, 'why').size).toBe(0);
+  });
+
+  it('lists eternal modes but does not let them be chosen, saying why', () => {
+    const command = async () => ({});
+    const html = renderToStaticMarkup(
+      createElement(AutonomyControl, { prefs: { autonomy: 'auto' }, command, disabled: false }),
+    );
+    expect(disabledOptions(html)).toEqual(['eternal', 'eternal-parallel']);
+    expect(html).toContain('title="Not available here: this engine does not run the eternal loop');
+    const offered = renderToStaticMarkup(
+      createElement(AutonomyControl, {
+        prefs: { autonomy: 'auto' },
+        sessionStart: driving,
+        command,
+        disabled: false,
+      }),
+    );
+    expect(disabledOptions(offered)).toEqual([]);
+    // The composer hands the control both engine reports it reads.
+    expect(
+      autonomyControlInputs({ 'prefs.updated': { autonomy: 'auto' }, 'session.start': driving }),
+    ).toEqual({ prefs: { autonomy: 'auto' }, sessionStart: driving });
+  });
+
+  it('explains a conversation already left on an eternal mode', () => {
+    const html = renderToStaticMarkup(
+      createElement(AutonomyControl, {
+        prefs: { autonomy: 'eternal' },
+        command: async () => ({}),
+        disabled: false,
+      }),
+    );
+    expect(html).toMatch(/<label class="composer-chip effort-control" title="Not available here/);
   });
 });
 

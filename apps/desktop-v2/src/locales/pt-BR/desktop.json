@@ -6688,6 +6688,7 @@
       "eternal": "Contínuo",
       "eternal-parallel": "Contínuo, em paralelo"
     },
+    "eternalUnavailable": "Indisponível aqui: este motor não executa o ciclo contínuo, então escolhê-lo só salvaria a preferência. A autonomia contínua roda no terminal (wstack).",
     "yoloLabel": "Nível YOLO",
     "yolo": {
       "off": "Aprovações ativadas",
