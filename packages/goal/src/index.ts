@@ -61,6 +61,11 @@ export {
 } from './goal-planner.js';
 export { GoalRunPersistence, prepareGoalGraphForResume } from './goal-run-lifecycle.js';
 export {
+  canTransitionGoalRun,
+  type GoalRunState,
+  transitionGoalRun,
+} from './goal-run-state.js';
+export {
   createGoalRunnerFromTaskGraph,
   GoalRunner,
   type GoalRunnerOptions,
