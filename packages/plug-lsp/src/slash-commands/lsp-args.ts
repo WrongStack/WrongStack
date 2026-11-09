@@ -38,11 +38,12 @@ export function parseArgs(args: string): LspSubcommand {
       return { type: 'install', language: name };
     }
     const values = optionValues(parts.slice(2));
-    const command = values.single.get('command');
+    const command = values.single.get('command')?.trim();
     const languages = splitCsv(values.single.get('languages'));
     if (!command || languages.length === 0 || values.invalid) return { type: 'help' };
-    const timeout = Number.parseInt(values.single.get('timeout') ?? '15000', 10);
-    if (!Number.isInteger(timeout) || timeout <= 0) return { type: 'help' };
+    const rawTimeout = values.single.get('timeout')?.trim() ?? '15000';
+    const timeout = /^\d+$/.test(rawTimeout) ? Number(rawTimeout) : Number.NaN;
+    if (!Number.isSafeInteger(timeout) || timeout <= 0) return { type: 'help' };
     const extensions = values.multi.get('extension') ?? [];
     const fileExtensions = extensionMappings(extensions);
     if (extensions.length > 0 && !fileExtensions) return { type: 'help' };
@@ -104,14 +105,29 @@ export function optionValues(parts: string[]): {
   const single = new Map<string, string>();
   const multi = new Map<string, string[]>();
   let invalid = false;
-  for (let index = 0; index < parts.length; index += 2) {
-    const flag = parts[index];
-    const value = parts[index + 1];
-    if (!flag?.startsWith('--') || value === undefined) {
+  let index = 0;
+  while (index < parts.length) {
+    const token = parts[index];
+    if (!token?.startsWith('--')) {
       invalid = true;
       break;
     }
-    const key = flag.slice(2);
+    const eqIndex = token.indexOf('=');
+    let key: string;
+    let value: string | undefined;
+    if (eqIndex !== -1) {
+      key = token.slice(2, eqIndex);
+      value = token.slice(eqIndex + 1);
+      index += 1;
+    } else {
+      key = token.slice(2);
+      value = parts[index + 1];
+      if (value === undefined) {
+        invalid = true;
+        break;
+      }
+      index += 2;
+    }
     if (key === 'arg' || key === 'root' || key === 'extension') {
       multi.set(key, [...(multi.get(key) ?? []), value]);
     } else if (key === 'command' || key === 'languages' || key === 'timeout') {

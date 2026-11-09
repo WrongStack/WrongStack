@@ -305,6 +305,10 @@ describe('registry completion coverage', () => {
     const server = {
       name: 'fake',
       state: 'failed',
+      transition: (next: string) => {
+        server.state = next;
+        return true;
+      },
       start: vi.fn(async () => {
         server.state = 'ready';
       }),

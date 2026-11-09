@@ -278,8 +278,8 @@ export class LSPRegistry {
       this.ctx.log.warn(`LSP ${server.name} reconnect attempts exhausted`);
       return;
     }
+    if (!server.transition('reconnecting')) return;
     this.reconnectAttempts.set(server.name, attempt + 1);
-    server.state = 'reconnecting';
     const timer = setTimeout(() => {
       this.reconnectTimers.delete(server.name);
       const current = this.servers.get(server.name);
@@ -304,7 +304,7 @@ export class LSPRegistry {
             return;
           }
           this.ctx.log.warn(`LSP ${server.name} reconnect attempt ${attempt + 1} failed`, err);
-          server.state = 'failed';
+          server.transition('failed');
           this.scheduleReconnect(server);
         });
       /* v8 ignore stop */

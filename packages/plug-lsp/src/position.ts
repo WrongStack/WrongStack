@@ -77,5 +77,5 @@ export function splitLines(content: string): string[] {
 
 function clamp(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.min(max, n));
+  return Math.max(min, Math.min(max, Math.trunc(n)));
 }

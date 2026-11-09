@@ -9,6 +9,7 @@ export async function promiseWithTimeout<T>(
     void promise.catch(() => {});
     throw abortError(signal);
   }
+  const safeMs = typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : 15_000;
   let timer: NodeJS.Timeout | undefined;
   return await new Promise<T>((resolve, reject) => {
     const cleanup = () => {
@@ -21,8 +22,8 @@ export async function promiseWithTimeout<T>(
     };
     timer = setTimeout(() => {
       cleanup();
-      reject(new LSPError(LSPErrorCode.RequestTimeout, `LSP request timed out after ${ms}ms`));
-    }, ms);
+      reject(new LSPError(LSPErrorCode.RequestTimeout, `LSP request timed out after ${safeMs}ms`));
+    }, safeMs);
     signal?.addEventListener('abort', onAbort, { once: true });
     promise.then(
       (value) => {

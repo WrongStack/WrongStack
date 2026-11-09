@@ -34,6 +34,7 @@ import { resolveSpawnCommand, safeSpawn } from '../utils/safe-spawn.js';
 import { pathToUri, uriKey, uriToPath } from '../utils/uri.js';
 import { Connection } from './connection.js';
 import { initializeServer } from './initialize.js';
+import { canTransition } from './lifecycle.js';
 
 interface ServerContext {
   cwd: string;
@@ -75,7 +76,22 @@ export class LSPServer {
     readonly config: ServerConfig,
     private readonly ctx: ServerContext,
   ) {
-    if (config.enabled === false) this.state = 'disabled';
+    if (config.enabled === false) this.transition('disabled');
+  }
+
+  /**
+   * The only production writer of `state`. An edge missing from the lifecycle
+   * table is refused and logged instead of applied, so no caller — this class,
+   * the registry's reconnect loop — can push the machine into a state the
+   * table never allows. Returns whether the move happened.
+   */
+  transition(next: ServerState): boolean {
+    if (!canTransition(this.state, next)) {
+      this.ctx.log.warn(`LSP ${this.name} refused lifecycle move ${this.state} -> ${next}`);
+      return false;
+    }
+    this.state = next;
+    return true;
   }
 
   get rootPath(): string {
@@ -96,7 +112,7 @@ export class LSPServer {
       return;
     }
     if (this.config.enabled === false) {
-      this.state = 'disabled';
+      this.transition('disabled');
       return;
     }
     const inflight = this.startOnce(signal);
@@ -109,7 +125,7 @@ export class LSPServer {
   }
 
   private async startOnce(signal: AbortSignal): Promise<void> {
-    this.state = 'starting';
+    this.transition('starting');
     const generation = ++this.lifecycleGeneration;
     this.clearDiagnostics();
     this.processReachedReady = false;
@@ -128,7 +144,7 @@ export class LSPServer {
     } catch (error) {
       // `safeSpawn` is synchronous and never reaches back into this server, so
       // the ownership check above still holds: no shutdown can interleave.
-      this.state = 'failed';
+      this.transition('failed');
       this.ctx.events.emit('lsp.server.crashed', {
         name: this.name,
         error: toErrorMessage(error),
@@ -151,7 +167,7 @@ export class LSPServer {
       this.connection = null;
       this.child = null;
       if (this.state !== 'shutting_down' && this.state !== 'exited') {
-        this.state = 'failed';
+        this.transition('failed');
         this.ctx.events.emit('lsp.server.crashed', {
           name: this.name,
           error: `process exited code=${code ?? 'null'} signal=${sig ?? 'null'}`,
@@ -166,7 +182,7 @@ export class LSPServer {
       /* v8 ignore next -- stale-child error after a restart is defensive; spawn failure is covered. */
       if (this.child !== child) return;
       const shouldReconnect = this.processReachedReady;
-      this.state = 'failed';
+      this.transition('failed');
       this.clearDiagnostics();
       this.ctx.events.emit('lsp.server.crashed', { name: this.name, error: err.message });
       if (shouldReconnect) this.ctx.onCrash?.(this);
@@ -197,11 +213,11 @@ export class LSPServer {
     });
     this.connection.onClose(() => {
       if (this.child !== child) return;
-      if (this.state === 'ready') this.state = 'failed';
+      if (this.state === 'ready') this.transition('failed');
       this.clearDiagnostics();
     });
 
-    this.state = 'initializing';
+    this.transition('initializing');
     const startup = startupFailure(child);
     try {
       const capabilities = await Promise.race([
@@ -227,7 +243,7 @@ export class LSPServer {
         );
       }
       this.capabilities = capabilities;
-      this.state = 'ready';
+      this.transition('ready');
       this.processReachedReady = true;
       this.ctx.events.emit('lsp.server.ready', {
         name: this.name,
@@ -236,7 +252,7 @@ export class LSPServer {
     } catch (err) {
       startup.cancel();
       if (generation !== this.lifecycleGeneration || this.child !== child) throw err;
-      this.state = 'failed';
+      this.transition('failed');
       this.clearDiagnostics();
       connection.close();
       treeKill(child);
@@ -248,7 +264,7 @@ export class LSPServer {
   async shutdown(): Promise<void> {
     if (this.state === 'exited' || this.state === 'disabled') return;
     this.lifecycleGeneration++;
-    this.state = 'shutting_down';
+    this.transition('shutting_down');
     this.clearDiagnostics();
     try {
       if (this.connection) {
@@ -268,7 +284,7 @@ export class LSPServer {
       if (this.child && !this.child.killed) treeKill(this.child);
       this.child = null;
       this.processReachedReady = false;
-      this.state = 'exited';
+      this.transition('exited');
       this.clearDiagnostics();
     }
   }
