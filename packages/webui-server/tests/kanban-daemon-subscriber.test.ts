@@ -180,4 +180,75 @@ describe('subscribeKanbanDaemonEvents', () => {
       payload: { success: true, data: { removed: true, boardId: 'board-deleted' } },
     });
   });
+
+  it('F69: drops out-of-order older getBoard reads and avoids phantom delete for boards created during reconnect listBoards()', async () => {
+    listBoards.mockResolvedValueOnce([{ id: 'board-1', updatedAt: '2026-07-29T00:00:00.000Z' }]);
+
+    let resolveReconnectList!: (value: Array<{ id: string; updatedAt: string }>) => void;
+    listBoards.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolveReconnectList = r;
+        }),
+    );
+
+    let resolveSlowReadV1!: (value: unknown) => void;
+    let board1Reads = 0;
+    getBoard.mockImplementation((boardId: string) => {
+      if (boardId === 'board-new') {
+        return Promise.resolve({
+          id: 'board-new',
+          title: 'Brand New Board',
+          updatedAt: '2026-07-29T00:05:00.000Z',
+        });
+      }
+      board1Reads += 1;
+      if (board1Reads === 1) {
+        return new Promise((r) => {
+          resolveSlowReadV1 = r;
+        });
+      }
+      return Promise.resolve({
+        id: 'board-1',
+        title: 'Fresh v2',
+        updatedAt: '2026-07-29T00:02:00.000Z',
+      });
+    });
+
+    const broadcast = vi.fn();
+    const stop = subscribeKanbanDaemonEvents('C:\\project', broadcast);
+    await daemonOptions?.onConnected?.();
+
+    const reconnectPromise = Promise.resolve(daemonOptions?.onConnected?.());
+    await Promise.resolve();
+
+    vi.useFakeTimers();
+    try {
+      await daemonHandler?.({ event: 'board.created', data: { boardId: 'board-new' } });
+      await daemonHandler?.({ event: 'task.added', data: { boardId: 'board-1' } });
+      await vi.advanceTimersByTimeAsync(350);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    resolveReconnectList([{ id: 'board-1', updatedAt: '2026-07-29T00:01:00.000Z' }]);
+    await reconnectPromise;
+
+    resolveSlowReadV1({
+      id: 'board-1',
+      title: 'Stale v1',
+      updatedAt: '2026-07-29T00:01:00.000Z',
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    stop();
+
+    const deleteCalls = broadcast.mock.calls.filter(([msg]) => msg.type === 'kanban.delete');
+    expect(deleteCalls).toEqual([]);
+
+    const board1Titles = broadcast.mock.calls
+      .filter(([msg]) => msg.type === 'kanban.get' && msg.payload.data.board.id === 'board-1')
+      .map(([msg]) => msg.payload.data.board.title);
+    expect(board1Titles).toEqual(['Fresh v2']);
+  });
 });

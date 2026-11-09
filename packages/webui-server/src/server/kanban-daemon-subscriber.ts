@@ -42,7 +42,7 @@ export function subscribeKanbanDaemonEvents(
 
   const broadcastBoard = async (boardId: string): Promise<void> => {
     if (disposed) return;
-    const generation = boardGenerations.get(boardId) ?? 0;
+    const generation = bumpGeneration(boardId);
     const board = await store.getBoard(boardId);
     if (disposed || (boardGenerations.get(boardId) ?? 0) !== generation) return;
     if (!board) {
@@ -55,20 +55,40 @@ export function subscribeKanbanDaemonEvents(
 
   const reconcileAfterConnect = async (): Promise<void> => {
     if (disposed) return;
+    const knownBeforeList = new Map(knownRevisions);
+    const generationsBeforeList = new Map(boardGenerations);
     const summaries = await store.listBoards();
     if (disposed) return;
     connectionCount++;
     if (connectionCount === 1) {
-      for (const summary of summaries) knownRevisions.set(summary.id, summary.updatedAt);
+      for (const summary of summaries) {
+        if (
+          (boardGenerations.get(summary.id) ?? 0) ===
+            (generationsBeforeList.get(summary.id) ?? 0) &&
+          !knownRevisions.has(summary.id)
+        ) {
+          knownRevisions.set(summary.id, summary.updatedAt);
+        }
+      }
       return;
     }
     const present = new Set(summaries.map((summary) => summary.id));
     for (const boardId of [...knownRevisions.keys()]) {
-      if (!present.has(boardId)) broadcastDeleted(boardId);
+      if (
+        !present.has(boardId) &&
+        knownBeforeList.has(boardId) &&
+        (boardGenerations.get(boardId) ?? 0) === (generationsBeforeList.get(boardId) ?? 0)
+      ) {
+        broadcastDeleted(boardId);
+      }
     }
     for (const summary of summaries) {
       if (disposed) return;
-      if (knownRevisions.get(summary.id) !== summary.updatedAt) {
+      const changedDuringList =
+        knownRevisions.get(summary.id) !== knownBeforeList.get(summary.id) ||
+        (!knownRevisions.has(summary.id) &&
+          (boardGenerations.get(summary.id) ?? 0) !== (generationsBeforeList.get(summary.id) ?? 0));
+      if (!changedDuringList && knownRevisions.get(summary.id) !== summary.updatedAt) {
         await broadcastBoard(summary.id);
       }
     }

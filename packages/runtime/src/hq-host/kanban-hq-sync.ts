@@ -157,9 +157,14 @@ export function createKanbanHqSync(
   };
 
   const schedulePublish = (boardId: string | null): void => {
-    if (stopped || applyingRemote || publisher === undefined) return;
+    if (stopped || publisher === undefined) return;
     if (boardId === null) fullRescanPending = true;
     else pendingBoardIds.add(boardId);
+    // During a remote apply only record the change. Dropping it here lost a
+    // genuine local edit that landed in that window; the apply's own writes
+    // echo through here as well, but `publishLocal` skips a board whose
+    // revision already matches the state the apply recorded.
+    if (applyingRemote) return;
     if (timer !== undefined || localPublishActive) coalescedLocalRefreshes++;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
@@ -388,6 +393,7 @@ export function createKanbanHqSync(
       await writeState(projectRoot, state);
     } finally {
       applyingRemote = false;
+      if (!stopped && (fullRescanPending || pendingBoardIds.size > 0)) scheduleNext();
     }
   };
 
