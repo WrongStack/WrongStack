@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 510,
-      "typeOnly": 383,
+      "files": 511,
+      "typeOnly": 384,
       "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
@@ -3168,6 +3168,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/worklist-session-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/backend-services.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
