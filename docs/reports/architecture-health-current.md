@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-09T00:00:21.436Z
+**Generated:** 2026-11-09T00:01:28.782Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-- packages/vibeui/src/lib/use-session.ts: hotspot shrunk from 762 to 753 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
