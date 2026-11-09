@@ -133,7 +133,13 @@
           "lastActivityAt": {
             "type": "string"
           },
+          "model": {
+            "type": "string"
+          },
           "name": {
+            "type": "string"
+          },
+          "provider": {
             "type": "string"
           },
           "status": {

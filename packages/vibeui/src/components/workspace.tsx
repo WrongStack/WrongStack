@@ -32,6 +32,7 @@ import { uiVersion } from '../lib/build-info';
 import { escapeClosesPanels } from '../lib/component-guards';
 import { groupTranscript } from '../lib/transcript-view';
 import { useSession } from '../lib/use-session';
+import { AcpRuntime } from './acp-runtime';
 import { ArtifactNavigation } from './artifact-navigation';
 import { AssistantContent } from './assistant-content';
 import { CommandPalette, type WorkspaceCommand } from './command-palette';
@@ -928,7 +929,16 @@ export function Workspace() {
                 onSettings={setProvidersOpen}
                 onRefresh={refreshModels}
               />
-              <EffortSelect state={state} disabled={locked} onChange={controller.setEffort} />
+              {state.provider === 'acp' ? (
+                <AcpRuntime
+                  state={state}
+                  disabled={locked}
+                  send={controller.send}
+                  subscribe={controller.subscribe}
+                />
+              ) : (
+                <EffortSelect state={state} disabled={locked} onChange={controller.setEffort} />
+              )}
             </div>
             <button
               type="button"

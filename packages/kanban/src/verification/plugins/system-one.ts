@@ -123,6 +123,9 @@ export class SystemOneVerifierPlugin implements VerifierPlugin {
     if (!verdict) return undecided('System One gave no judgment; dispatch an agent.');
 
     const p = verdict.probability;
+    if (typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 1) {
+      return undecided('System One returned an invalid probability; dispatch an agent.');
+    }
     const backingRefs: KanbanBackingRef[] = changedFiles.slice(0, 10).map((path) => ({
       kind: 'diff',
       path,

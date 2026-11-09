@@ -12,6 +12,7 @@ import type { HqRedactionPolicy } from './tool.js';
 export type HqClientKind = 'tui' | 'repl' | 'webui' | 'cli' | 'acp' | 'mailbox' | 'unknown';
 
 export type HqClientCapability =
+  | 'acp.config'
   | 'telemetry.publish'
   | 'session.summary'
   | 'fleet.summary'
@@ -47,6 +48,8 @@ export interface HqClientHelloPayload {
    * A current server turns it into the `session.start` capability.
    */
   startsSessions?: boolean;
+  /** Additive hello flag: older servers can still accept this client. */
+  acpSettings?: boolean;
 }
 
 export interface HqClientHeartbeatPayload {
@@ -93,6 +96,7 @@ export interface HqClientCommandPollMessage {
 }
 
 export interface HqClientCommandAckMessage {
+  acpConfig?: import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeOptionsResult;
   type: 'client.command_ack';
   clientId: string;
   projectId: string;

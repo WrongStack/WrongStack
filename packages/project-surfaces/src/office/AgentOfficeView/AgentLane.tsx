@@ -1,6 +1,7 @@
 import { Activity, Check, Clock3, Code2, ListTodo, Mail } from 'lucide-react';
 import { useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
+import { AgentRuntimeBadge } from '../../ui/AgentRuntimeBadge';
 import type { SelectedAction } from '../AgentOfficeDetails.js';
 import { fmtCost, fmtTok } from '../format';
 import { agentModelLabel } from '../OfficeMapCanvas/model-label.js';
@@ -165,13 +166,25 @@ export function AgentLane({
         <div className="agent-office__agent-meta">
           <span>{client.branch ? `⎇ ${client.branch}` : client.type.toUpperCase()}</span>
           <span>{t('activity:agentOffice.callsCount', { count: agent.toolCalls })}</span>
-          {agentModelLabel(agent.provider, agent.model) && (
-            <span
-              className="agent-office__model-chip"
-              title={agentModelLabel(agent.provider, agent.model)}
-            >
-              {agentModelLabel(agent.provider, agent.model)}
-            </span>
+          {agent.provider === 'acp' ? (
+            <AgentRuntimeBadge
+              provider={agent.provider}
+              model={agent.model}
+              executionRole={
+                agent.serverId === 'leader' || agent.serverId.startsWith('leader@')
+                  ? 'leader'
+                  : 'subagent'
+              }
+            />
+          ) : (
+            agentModelLabel(agent.provider, agent.model) && (
+              <span
+                className="agent-office__model-chip"
+                title={agentModelLabel(agent.provider, agent.model)}
+              >
+                {agentModelLabel(agent.provider, agent.model)}
+              </span>
+            )
           )}
         </div>
         {agent.currentTask && (

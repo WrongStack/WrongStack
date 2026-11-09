@@ -14,6 +14,7 @@
  * InspectorPanel, which reuses this card for the "Agents" tab.
  */
 
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Cpu, Crown, Loader2, Wrench, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AgentTranscript } from '@/components/AgentTranscript';
@@ -177,6 +178,11 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
       </div>
 
       {/* Model / provider */}
+      <AgentRuntimeBadge
+        provider={agent.provider}
+        model={agent.model}
+        executionRole={isLeader ? 'leader' : 'subagent'}
+      />
       {(agent.provider || agent.model) && (
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <Cpu className="h-3 w-3" />

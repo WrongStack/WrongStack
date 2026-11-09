@@ -3,8 +3,8 @@
   "thresholdLines": 701,
   "files": {
     "packages/acp/src/client/acp-session.ts": {
-      "lines": 707,
-      "relativeImports": 23
+      "lines": 752,
+      "relativeImports": 25
     },
     "packages/chronicle/src/project-server-client.ts": {
       "lines": 719,
@@ -49,6 +49,10 @@
     "packages/fleet/src/host-skill-companion.ts": {
       "lines": 756,
       "relativeImports": 3
+    },
+    "packages/hq/src/commands.ts": {
+      "lines": 708,
+      "relativeImports": 4
     },
     "packages/mailbox-mcp/src/adapter.ts": {
       "lines": 719,
@@ -111,8 +115,8 @@
       "relativeImports": 12
     },
     "packages/vibeui/src/components/workspace.tsx": {
-      "lines": 1206,
-      "relativeImports": 34
+      "lines": 1216,
+      "relativeImports": 35
     },
     "packages/vibeui/src/lib/session.ts": {
       "lines": 815,
@@ -135,8 +139,16 @@
       "relativeImports": 5
     },
     "packages/webui-server/src/server/pref-helpers.ts": {
-      "lines": 712,
+      "lines": 713,
       "relativeImports": 3
+    },
+    "packages/webui-server/src/server/prefs-handlers.ts": {
+      "lines": 703,
+      "relativeImports": 7
+    },
+    "packages/webui-server/src/server/provider-routes.ts": {
+      "lines": 720,
+      "relativeImports": 5
     },
     "apps/desktop-v2/src/AutomationWorkspace.tsx": {
       "lines": 853,
@@ -187,8 +199,8 @@
       "relativeImports": 16
     },
     "apps/desktop-v2/src/RosterRuntimeEditor.tsx": {
-      "lines": 778,
-      "relativeImports": 10
+      "lines": 800,
+      "relativeImports": 11
     },
     "apps/desktop-v2/src/SessionComposer.tsx": {
       "lines": 1072,

@@ -1,10 +1,22 @@
 // Core types browser surfaces name, re-exported so they reach core only
+export type {
+  AcpRuntimeOption,
+  AcpRuntimeOptionsResult,
+  AcpRuntimeSelections,
+  AcpRuntimeValues,
+} from '@wrongstack/contracts/types/acp-runtime';
 // through this package.
+
 export type {
   BrowserElementSelection,
   Message,
   SessionMarker,
 } from '@wrongstack/contracts/types';
+export {
+  acpAgentName,
+  agentRuntimeLabel,
+  isAcpProvider,
+} from '@wrongstack/contracts/types/agent-identity';
 // One automatic-resume policy for every surface after a provider failure, so
 // VibeUI cannot drift from the TUI, REPL and WebUI.
 export {

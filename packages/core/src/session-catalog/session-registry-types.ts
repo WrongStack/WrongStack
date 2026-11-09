@@ -100,6 +100,7 @@ export interface AgentEntry {
   ctxPct?: number | undefined;
   /** Model id this agent is running on, when known. */
   model?: string | undefined;
+  provider?: string | undefined;
   /**
    * Tail of the assistant text currently being streamed (capped, throttled).
    * Lets a cross-process watcher see the response form in near-real-time

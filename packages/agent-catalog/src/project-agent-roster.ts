@@ -48,6 +48,11 @@ export function applyProjectAgentConfig(
   if (projectConfig.skillNames !== undefined) result.skillNames = [...projectConfig.skillNames];
   if (projectConfig.provider !== undefined) result.provider = projectConfig.provider;
   if (projectConfig.model !== undefined) result.model = projectConfig.model;
+  if (projectConfig.modelRuntime !== undefined)
+    result.modelRuntime = {
+      ...result.modelRuntime,
+      ...structuredClone(projectConfig.modelRuntime),
+    };
   if (projectConfig.modelPolicy !== undefined) {
     result.modelPolicy = {
       allowed: projectConfig.modelPolicy.allowed.map((target) => ({ ...target })),

@@ -75,6 +75,7 @@ export interface HqSessionAgentSummary {
   tokensOut?: number;
   ctxPct?: number;
   model?: string;
+  provider?: string;
   /** Throttled tail of the response currently streaming, when known. */
   partialText?: string;
   lastActivityAt: string;

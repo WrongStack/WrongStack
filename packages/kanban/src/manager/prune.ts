@@ -1,6 +1,11 @@
-import type { KanbanTask } from '../types.js';
 import { deleteBoard, listBoardSummaries, mutateBoard, readBoard, writeBoard } from '../storage.js';
+import type { KanbanTask } from '../types.js';
 import { nowIso, stampAtomicityAssessment } from './_internal.js';
+
+/** Persisted policy values must authorize a positive, finite retention window. */
+function isRetentionDuration(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
 
 /**
  * Cards kept on a live session mirror once they reach a terminal state.
@@ -207,7 +212,7 @@ export async function pruneSessionBoards(
     // 'archive' — checking the guard first is what made this state terminal.
     if (kind === 'archive') {
       const archived = summary.retention;
-      if (!archived?.archivedAt || !archived.purgeAfterArchiveMs) {
+      if (!archived?.archivedAt || !isRetentionDuration(archived.purgeAfterArchiveMs)) {
         // No purge opted in: keep it, but say so.
         if (archived?.archivedAt) result.archivedRetained.push(summary.id);
         else result.skipped.push(summary.id);
@@ -230,7 +235,7 @@ export async function pruneSessionBoards(
     }
 
     const retention = summary.retention;
-    if (!retention || retention.mode === 'keep' || !retention.ttlMs) {
+    if (!retention || retention.mode === 'keep' || !isRetentionDuration(retention.ttlMs)) {
       result.skipped.push(summary.id);
       continue;
     }
@@ -240,7 +245,7 @@ export async function pruneSessionBoards(
     if (retention.archivedAt) {
       const archivedAtMs = Date.parse(retention.archivedAt);
       if (
-        retention.purgeAfterArchiveMs &&
+        isRetentionDuration(retention.purgeAfterArchiveMs) &&
         Number.isFinite(archivedAtMs) &&
         nowMs - archivedAtMs >= retention.purgeAfterArchiveMs
       ) {
@@ -275,7 +280,8 @@ export async function pruneSessionBoards(
         continue;
       }
       const retention = board.retention;
-      if (!retention || retention.mode === 'keep' || !retention.ttlMs) continue;
+      if (!retention || retention.mode === 'keep' || !isRetentionDuration(retention.ttlMs))
+        continue;
       board.kind = 'archive';
       board.retention = {
         mode: retention.mode,

@@ -54,6 +54,7 @@ export interface HqPublisherRef {
 }
 
 interface SetupHqTelemetryDeps {
+  getAgentContext?: (() => unknown) | undefined;
   events: EventBus;
   session: SessionWriter;
   config: Config;
@@ -210,6 +211,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
 
   const bindSessionScope = (publisher: HqPublisher): void => {
     stopSessionScope();
+    tracker?.syncLeaderIdentity?.(deps.getAgentContext?.());
     const writer = liveSession();
     const sessionId = writer.id;
     const root = liveProjectRoot();
@@ -319,6 +321,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
       appConfig: config,
       ...(deps.getConfig !== undefined ? { getAppConfig: deps.getConfig } : {}),
       onCommand: hqOnCommand,
+      acpSettings: true,
       capabilities: [
         'telemetry.publish',
         'mailbox.summary',
@@ -362,6 +365,7 @@ export function setupHqTelemetry(deps: SetupHqTelemetryDeps): HqTelemetryResult 
   // carry — the old one is stopped, so its session ends on HQ.
   const scopeWatcher = setInterval(() => {
     try {
+      tracker?.syncLeaderIdentity?.(deps.getAgentContext?.());
       const root = liveProjectRoot();
       if (root !== boundProjectRoot) {
         boundProjectRoot = root;

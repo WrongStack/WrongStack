@@ -213,6 +213,29 @@ describe('VerifierRegistry', () => {
     expect(result.status).toBe('passed');
   });
 
+  it('rejects escalation approval whose only reference has an empty path', async () => {
+    const plugin: VerifierPlugin = {
+      id: 'agent',
+      kind: 'escalation',
+      canHandle: (type) => type === 'agent',
+      verify: async (check) => ({
+        checkId: check.id,
+        description: check.description,
+        type: check.type,
+        status: 'passed',
+        evidence: {},
+        backingRefs: [
+          { kind: 'file', path: '', summary: 'Added login handler with input validation' },
+        ],
+      }),
+    };
+    const result = await new VerifierRegistry()
+      .register(plugin)
+      .verify(makeCheck({ type: 'agent' }), makeContext());
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('path');
+  });
+
   it('verify escalation=council uses stricter evidence rules', async () => {
     const reg = new VerifierRegistry();
     // Register a mock escalation plugin with weak evidence

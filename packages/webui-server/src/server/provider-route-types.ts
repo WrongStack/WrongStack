@@ -86,6 +86,9 @@ export interface ProviderMutationHandlers {
 }
 
 export interface ProviderRouteHandlers {
+  acpConfigOptions?:
+    | ((agentId: string, values: Record<string, string>) => Promise<unknown>)
+    | undefined;
   listProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listSavedProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listProviderModels: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;

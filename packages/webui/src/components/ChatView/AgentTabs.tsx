@@ -8,6 +8,7 @@
  * detail sections — can jump straight into an agent's chat view.
  */
 
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Bot, CheckCircle2, Crown, Loader2, Square, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { HueChip } from '@/components/ui/hue-chip';
@@ -81,6 +82,12 @@ function SubagentTabButton({
         aria-hidden="true"
       />
       <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{agent.name}</span>
+      <AgentRuntimeBadge
+        provider={agent.provider}
+        model={agent.model}
+        showName={false}
+        className="shrink-0"
+      />
       {onRemove && (
         <button
           type="button"

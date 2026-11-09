@@ -11,6 +11,17 @@ const session = {
   lastHeartbeatAt: '2026-10-28T00:01:00Z',
   agents: [{ id: 'leader', name: 'Leader', status: 'idle', iterations: 2, toolCalls: 3 }],
 };
+it('preserves the external agent identity for graph, list and detail badges', () => {
+  const [result] = projectFleet(
+    [{ ...session, agents: [{ ...session.agents[0], provider: 'acp', model: 'pi-acp' }] }],
+    session.projectRoot,
+    '',
+  );
+  expect(result?.agents[0]).toMatchObject({ provider: 'acp', model: 'pi-acp' });
+  expect(projectFleet([session], session.projectRoot, '')[0]?.agents[0]).not.toHaveProperty(
+    'provider',
+  );
+});
 it('uses exact normalized project ownership and excludes the private service carrier', () => {
   const rows = projectFleet(
     [

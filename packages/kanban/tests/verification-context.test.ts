@@ -173,6 +173,40 @@ describe('VerificationContext command security', () => {
     expect(invocation.argv).toHaveLength(4);
   });
 
+  it.each([
+    ['text', 0, 0, 0],
+    ['text', 1, 0, 1],
+    ['text', 1, 2, 2],
+    ['text', 0, 2, 2],
+    ['json', 0, 0, 0],
+    ['json', 1, 0, 1],
+  ] as const)(
+    'preserves runner failure for %s output, exit %i and reported failures %i',
+    async (format, exitCode, reportedFailures, expectedFailures) => {
+      const root = await mkdtemp(join(tmpdir(), 'verification-context-runner-exit-'));
+      roots.push(root);
+      const runnerDir = join(root, 'node_modules', 'vitest');
+      await mkdir(runnerDir, { recursive: true });
+      await writeFile(join(root, 'package.json'), '{"scripts":{"test":"vitest"}}');
+      await writeFile(
+        join(runnerDir, 'package.json'),
+        '{"name":"vitest","type":"module","bin":"runner.mjs"}',
+      );
+      const output =
+        format === 'json'
+          ? JSON.stringify({ numPassedTests: 1, numFailedTests: reportedFailures })
+          : `1 passed, ${reportedFailures} failed`;
+      await writeFile(
+        join(runnerDir, 'runner.mjs'),
+        `console.log(${JSON.stringify(output)}); process.exitCode = ${exitCode};`,
+      );
+
+      const result = await (await context(root)).runTest('tests/example.test.ts');
+      expect(result).toMatchObject({ passed: 1, failed: expectedFailures });
+      if (exitCode !== 0) expect(result.failureOutput).toContain(output);
+    },
+  );
+
   it('accepts counter-only JSON after unrelated objects', { timeout: 5000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'verification-context-counter-json-'));
     roots.push(root);

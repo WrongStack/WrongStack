@@ -245,7 +245,8 @@ function globToRegExp(pattern: string): RegExp {
       source += char.replace(/[|\\{}()[\]^$+?.]/g, '\\$&');
     }
   }
-  return new RegExp(`${source}$`);
+  // Filename characters include Unicode line separators; globstars must span them too.
+  return new RegExp(`${source}$`, 's');
 }
 
 function accessMatches(selectorAccess: KanbanBoundaryAccess, requested: 'read' | 'write'): boolean {

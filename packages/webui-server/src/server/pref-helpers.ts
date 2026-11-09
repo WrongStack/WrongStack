@@ -150,6 +150,7 @@ export const PREF_KEYS = [
   // Session-scoped subagent model lanes. Never persisted to config.json: the
   // plan belongs to one conversation and is journaled with its session.
   'subagentModelPlan',
+  'acpRuntime',
 ] as const;
 
 /**

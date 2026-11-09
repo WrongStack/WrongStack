@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { writeBoard } from '../src/storage.js';
 import {
   createBoard,
   getBoard,
@@ -16,7 +17,75 @@ beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-presence-'));
 });
 
+afterEach(async () => {
+  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
 describe('Kanban board presence', () => {
+  it.each([
+    [
+      { sessionId: 'a:b', agentId: 'c' },
+      { sessionId: 'a', agentId: 'b:c' },
+    ],
+    [
+      { sessionId: 'a:b', agentId: 'c' },
+      { sessionId: 'a%3Ab', agentId: 'c' },
+    ],
+  ])('keeps distinct identity pairs %j and %j separate', async (first, second) => {
+    const board = await createBoard(tmpDir, { title: 'Distinct presence' });
+    const seenAt = '2026-07-16T10:00:00.000Z';
+    await touchKanbanPresence(tmpDir, board.id, { ...first, agentName: 'First', seenAt });
+    await touchKanbanPresence(tmpDir, board.id, { ...second, agentName: 'Second', seenAt });
+    await touchKanbanPresence(tmpDir, board.id, {
+      ...first,
+      taskId: 'new-task',
+      seenAt: '2026-07-16T10:00:30.000Z',
+    });
+    const rows = (await getBoard(tmpDir, board.id))?.presence ?? [];
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(2);
+    expect(
+      rows.find((row) => row.sessionId === first.sessionId && row.agentId === first.agentId),
+    ).toMatchObject({ ...first, agentName: 'First', firstSeenAt: seenAt, taskId: 'new-task' });
+    expect(
+      rows.find((row) => row.sessionId === second.sessionId && row.agentId === second.agentId),
+    ).toMatchObject({ ...second, agentName: 'Second', firstSeenAt: seenAt });
+  });
+
+  it('refreshes legacy identity rows without duplicates or lost first-seen metadata', async () => {
+    const board = await createBoard(tmpDir, { title: 'Legacy presence' });
+    const times = {
+      firstSeenAt: '2026-07-16T10:00:00.000Z',
+      lastSeenAt: '2026-07-16T10:00:00.000Z',
+      activeUntil: '2026-07-16T10:01:00.000Z',
+      active: true,
+    };
+    await writeBoard(tmpDir, {
+      ...board,
+      presence: [
+        { ...times, id: 'a:b:c', sessionId: 'a:b', agentId: 'c', agentName: 'First' },
+        { ...times, id: 'a%3Ab:c', sessionId: 'a%3Ab', agentId: 'c', agentName: 'Second' },
+      ],
+    });
+    await touchKanbanPresence(tmpDir, board.id, {
+      sessionId: 'a:b',
+      agentId: 'c',
+      seenAt: '2026-07-16T10:00:30.000Z',
+    });
+    const rows = (await getBoard(tmpDir, board.id))?.presence ?? [];
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(2);
+    expect(rows.find((row) => row.sessionId === 'a:b')).toMatchObject({
+      id: 'a%3Ab:c',
+      agentName: 'First',
+      firstSeenAt: times.firstSeenAt,
+    });
+    expect(rows.find((row) => row.sessionId === 'a%3Ab')).toMatchObject({
+      id: 'a%253Ab:c',
+      agentName: 'Second',
+    });
+  });
+
   it('records one live row per session and agent and refreshes last-seen metadata', async () => {
     const board = await createBoard(tmpDir, { title: 'Presence' });
     await touchKanbanPresence(tmpDir, board.id, {

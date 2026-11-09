@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T17:55:09.938Z",
+  "generatedAt": "2026-11-09T20:08:39.221Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6192,
-    "testFiles": 5143,
-    "sourceLines": 1268987,
+    "sourceFiles": 6210,
+    "testFiles": 5169,
+    "sourceLines": 1271316,
     "workspaceEdges": 250,
-    "moduleEdges": 18252,
+    "moduleEdges": 18296,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 1,
+    "typeModuleCycles": 2,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1035
   },
-  "errors": [],
+  "errors": [
+    "1 unexcepted module cycle(s)"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -92,8 +94,8 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 54,
-      "testFiles": 62,
+      "sourceFiles": 56,
+      "testFiles": 66,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +111,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 62
+          "testFiles": 66
         }
       ]
     },
@@ -117,7 +119,7 @@
       "name": "@wrongstack/agent-catalog",
       "dir": "packages/agent-catalog",
       "sourceFiles": 44,
-      "testFiles": 12,
+      "testFiles": 13,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/persistence",
@@ -132,7 +134,7 @@
         {
           "path": "packages/agent-catalog/tsconfig.test.json",
           "error": null,
-          "testFiles": 12
+          "testFiles": 13
         }
       ]
     },
@@ -209,7 +211,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 633,
-      "testFiles": 693,
+      "testFiles": 697,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +263,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 693
+          "testFiles": 697
         }
       ]
     },
@@ -313,7 +315,7 @@
     {
       "name": "@wrongstack/contracts",
       "dir": "packages/contracts",
-      "sourceFiles": 129,
+      "sourceFiles": 131,
       "testFiles": 4,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -336,7 +338,7 @@
       "name": "@wrongstack/coordination",
       "dir": "packages/coordination",
       "sourceFiles": 192,
-      "testFiles": 188,
+      "testFiles": 190,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -354,7 +356,7 @@
         {
           "path": "packages/coordination/tsconfig.test.json",
           "error": null,
-          "testFiles": 188
+          "testFiles": 190
         }
       ]
     },
@@ -386,7 +388,7 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 504,
+      "sourceFiles": 505,
       "testFiles": 321,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -408,7 +410,7 @@
     {
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
-      "sourceFiles": 60,
+      "sourceFiles": 61,
       "testFiles": 3,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -481,8 +483,8 @@
     {
       "name": "@wrongstack/hq",
       "dir": "packages/hq",
-      "sourceFiles": 72,
-      "testFiles": 50,
+      "sourceFiles": 73,
+      "testFiles": 51,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -498,15 +500,15 @@
         {
           "path": "packages/hq/tsconfig.test.json",
           "error": null,
-          "testFiles": 50
+          "testFiles": 51
         }
       ]
     },
     {
       "name": "@wrongstack/hq-next",
       "dir": "packages/hq-next",
-      "sourceFiles": 190,
-      "testFiles": 66,
+      "sourceFiles": 193,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -523,7 +525,7 @@
         {
           "path": "packages/hq-next/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 67
         }
       ]
     },
@@ -531,7 +533,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 108,
-      "testFiles": 88,
+      "testFiles": 98,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -545,7 +547,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 88
+          "testFiles": 98
         }
       ]
     },
@@ -733,7 +735,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 252,
+      "sourceFiles": 255,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -819,7 +821,7 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 110,
+      "sourceFiles": 112,
       "testFiles": 45,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -1096,7 +1098,7 @@
     {
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
-      "sourceFiles": 69,
+      "sourceFiles": 70,
       "testFiles": 24,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
@@ -1117,8 +1119,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 782,
-      "testFiles": 519,
+      "sourceFiles": 784,
+      "testFiles": 521,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1146,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 519
+          "testFiles": 521
         }
       ]
     },
@@ -1175,7 +1177,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 350,
-      "testFiles": 389,
+      "testFiles": 390,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1212,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 389
+          "testFiles": 390
         }
       ]
     },
@@ -1307,6 +1309,13 @@
       {
         "kind": "type-module-cycle",
         "members": [
+          "packages/acp/src/client/acp-runtime-options.ts",
+          "packages/acp/src/client/acp-session.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
           "packages/contracts/src/types/blocks.ts",
           "packages/contracts/src/types/context.ts",
           "packages/contracts/src/types/conversation-state.ts",
@@ -1323,7 +1332,15 @@
     "matchedExceptions": [
       "ARCH-CYCLE-TYPE-12"
     ],
-    "unexcepted": []
+    "unexcepted": [
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/acp/src/client/acp-runtime-options.ts",
+          "packages/acp/src/client/acp-session.ts"
+        ]
+      }
+    ]
   },
   "testOwnership": {
     "runtimeAssignments": [
@@ -3308,13 +3325,31 @@
         ]
       },
       {
+        "file": "packages/acp/tests/acp-launch-compat.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-loopback.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/acp/tests/acp-mcp-legacy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/acp-registry-fetch.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-runtime-options.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3339,6 +3374,12 @@
       },
       {
         "file": "packages/acp/tests/acp-session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-shell-compat.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3627,6 +3668,12 @@
       },
       {
         "file": "packages/acp/tests/ws-bridge-transport.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/agent-catalog/tests/acp-runtime-config.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4622,6 +4669,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/acp-parallel-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/acp-permission-bridge.test.ts",
         "projects": [
           "root-node"
@@ -4635,6 +4688,18 @@
       },
       {
         "file": "packages/cli/tests/acp-quota-reading.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-runtime-discovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-runtime-flags.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5799,6 +5864,12 @@
       },
       {
         "file": "packages/cli/tests/host-event-bridge.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/hq-acp-config-roundtrip.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9326,6 +9397,12 @@
         ]
       },
       {
+        "file": "packages/coordination/tests/idle-leader-identity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/coordination/tests/inter-agent-messaging.test.ts",
         "projects": [
           "root-node"
@@ -9711,6 +9788,12 @@
       },
       {
         "file": "packages/coordination/tests/sealed-subagent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/coordination/tests/session-acp-runtime.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14504,6 +14587,12 @@
         ]
       },
       {
+        "file": "packages/hq-next/tests/acp-settings-request.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq-next/tests/alerts-model.test.ts",
         "projects": [
           "root-node"
@@ -14978,6 +15067,12 @@
         ]
       },
       {
+        "file": "packages/hq/tests/command-acp-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/hq/tests/command-latency.test.ts",
         "projects": [
           "root-node"
@@ -15266,7 +15361,19 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/atomicity-weight-range.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/atomicity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/batch-creation-atomicity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15285,6 +15392,12 @@
       },
       {
         "file": "packages/kanban/tests/boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/check-identity-boundary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15350,6 +15463,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/contract-graph-task-prefix.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/contract-graph.test.ts",
         "projects": [
           "root-node"
@@ -15381,6 +15500,18 @@
       },
       {
         "file": "packages/kanban/tests/dispatch-service.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/done-goal-metric-contract.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/duplicate-board-requirements.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15423,6 +15554,12 @@
       },
       {
         "file": "packages/kanban/tests/gap-storage-mock.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/goal-metric-id-boundary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15560,6 +15697,18 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/requirement-scope-normalization.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/retention-duration-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/round-1-invalid-check-status.test.ts",
         "projects": [
           "root-node"
@@ -15615,6 +15764,12 @@
       },
       {
         "file": "packages/kanban/tests/task-graph-import-parent-remap.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/task-graph-manual-dependencies.test.ts",
         "projects": [
           "root-node"
         ]
@@ -26648,6 +26803,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/acp-runtime-settings.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/agent-roster-handlers-extended.test.ts",
         "projects": [
           "root-node"
@@ -29019,6 +29180,18 @@
       },
       {
         "file": "packages/webui/tests/components/ModelSchemaEditor.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/acp-agent-identity.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/acp-runtime-controls.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -35295,8 +35468,8 @@
   "hotspotCandidates": [
     {
       "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 707,
-      "relativeImports": 23
+      "lines": 752,
+      "relativeImports": 25
     },
     {
       "file": "packages/chronicle/src/project-server-client.ts",
@@ -35352,6 +35525,11 @@
       "file": "packages/fleet/src/host-skill-companion.ts",
       "lines": 756,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/hq/src/commands.ts",
+      "lines": 708,
+      "relativeImports": 4
     },
     {
       "file": "packages/mailbox-mcp/src/adapter.ts",
@@ -35430,8 +35608,8 @@
     },
     {
       "file": "packages/vibeui/src/components/workspace.tsx",
-      "lines": 1206,
-      "relativeImports": 34
+      "lines": 1216,
+      "relativeImports": 35
     },
     {
       "file": "packages/vibeui/src/lib/session.ts",
@@ -35460,8 +35638,18 @@
     },
     {
       "file": "packages/webui-server/src/server/pref-helpers.ts",
-      "lines": 712,
+      "lines": 713,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/webui-server/src/server/prefs-handlers.ts",
+      "lines": 703,
+      "relativeImports": 7
+    },
+    {
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "lines": 720,
+      "relativeImports": 5
     },
     {
       "file": "apps/desktop-v2/src/AutomationWorkspace.tsx",
@@ -35525,8 +35713,8 @@
     },
     {
       "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
-      "lines": 778,
-      "relativeImports": 10
+      "lines": 800,
+      "relativeImports": 11
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
@@ -35552,8 +35740,8 @@
     },
     {
       "file": "packages/vibeui/src/components/workspace.tsx",
-      "lines": 1206,
-      "relativeImports": 34
+      "lines": 1216,
+      "relativeImports": 35
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
@@ -35606,6 +35794,11 @@
       "relativeImports": 5
     },
     {
+      "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
+      "lines": 800,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/vibeui/src/components/resource-hub.tsx",
       "lines": 800,
       "relativeImports": 12
@@ -35619,11 +35812,6 @@
       "file": "packages/client/src/client.ts",
       "lines": 785,
       "relativeImports": 4
-    },
-    {
-      "file": "apps/desktop-v2/src/RosterRuntimeEditor.tsx",
-      "lines": 778,
-      "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/memory-handlers.ts",
@@ -35649,6 +35837,11 @@
       "file": "apps/desktop-v2/src/ProjectSdd.tsx",
       "lines": 755,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/acp/src/client/acp-session.ts",
+      "lines": 752,
+      "relativeImports": 25
     },
     {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
@@ -35701,6 +35894,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "lines": 720,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/chronicle/src/project-server-client.ts",
       "lines": 719,
       "relativeImports": 5
@@ -35727,7 +35925,7 @@
     },
     {
       "file": "packages/webui-server/src/server/pref-helpers.ts",
-      "lines": 712,
+      "lines": 713,
       "relativeImports": 3
     },
     {
@@ -35746,14 +35944,14 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/hq/src/commands.ts",
+      "lines": 708,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/plugins/src/audit/index.ts",
       "lines": 708,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/acp/src/client/acp-session.ts",
-      "lines": 707,
-      "relativeImports": 23
     },
     {
       "file": "packages/chronicle/src/project-server.ts",
@@ -35779,16 +35977,6 @@
       "file": "packages/tui/src/reducers/settings-value-cycle.ts",
       "lines": 703,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/coordination/src/provider-status-tracker.ts",
-      "lines": 701,
-      "relativeImports": 4
-    },
-    {
-      "file": "packages/coordination/src/fleet-manager.ts",
-      "lines": 700,
-      "relativeImports": 9
     }
   ],
   "testOnlyExports": [

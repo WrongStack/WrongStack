@@ -493,6 +493,8 @@ export {
   SUBAGENT_MODEL_PLAN_META_KEY,
   type SubagentSlot,
   type SubagentSlotClaim,
+  sessionAcpRuntime,
+  setSessionAcpRuntime,
   setSessionSubagentModelPlan,
   setSessionSubagentModelPlanForSession,
   subagentSlotOccupancy,

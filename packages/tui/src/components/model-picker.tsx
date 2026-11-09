@@ -167,7 +167,9 @@ export function ModelPicker({
                 >
                   {isSelected ? '› ' : '  '}
                   <Text bold color={isSelected ? undefined : famColor}>
-                    {p.id.padEnd(split ? Math.max(1, listWidth - 23) : 28)}
+                    {(p.id === 'acp' ? 'ACP coding agents' : p.id).padEnd(
+                      split ? Math.max(1, listWidth - 23) : 28,
+                    )}
                   </Text>
                   <Text color={isSelected ? undefined : famColor} dimColor={!isSelected}>
                     {' '}
@@ -175,7 +177,8 @@ export function ModelPicker({
                   </Text>
                   <Text dimColor>
                     {' '}
-                    {p.models.length} model{p.models.length === 1 ? '' : 's'}
+                    {p.models.length} {p.id === 'acp' ? 'agent' : 'model'}
+                    {p.models.length === 1 ? '' : 's'}
                   </Text>
                 </Text>
               );
@@ -310,7 +313,9 @@ export function ModelPicker({
           : `━━ ${title} — Step 2/2: Pick model (${pickedProviderId}${searchHint}) ━━`}
       </Text>
       <Text dimColor wrap="truncate-end">
-        {navHint}
+        {pickedProviderId === 'acp'
+          ? `/acp config ${focusedModel ?? '<agent>'} · model / effort`
+          : navHint}
       </Text>
       {total === 0 ? (
         <Text dimColor>
@@ -333,7 +338,7 @@ export function ModelPicker({
               >
                 {isSelected ? '› ' : '  '}
                 {truncateDisplay(
-                  id,
+                  pickedProviderId === 'acp' ? `ACP · ${id}` : id,
                   Math.max(
                     1,
                     (split ? modelListWidth : columns) - 6 - (isSelected ? effortChipWidth : 0),

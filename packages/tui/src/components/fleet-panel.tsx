@@ -1,8 +1,8 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type React from 'react';
 import type { FleetEntry } from '../app-state.js';
-import { Box, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { fmtRatioPct } from './status-bar-format.js';
@@ -232,7 +232,7 @@ export function buildSwarmGrid(
     return {
       id: entry.id,
       index: isLeaderEntry(entry) ? '00' : String(subagentIndex).padStart(2, '0'),
-      name: truncToWidth(rawName, nameWidth),
+      name: truncToWidth(entry.provider === 'acp' ? `ACP · ${rawName}` : rawName, nameWidth),
       meter: swarmMeter(entry, now),
       activity: truncToWidth(activityText(entry, now), activityWidth),
       metrics,

@@ -19,6 +19,7 @@
  * scrolling up releases the pin so long histories can be read in place.
  */
 
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Bot, Maximize2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
@@ -92,7 +93,8 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
         <span className="max-w-[9rem] shrink-0 truncate font-semibold text-foreground">
           {agent?.name ?? agentId}
         </span>
-        {(agent?.provider || agent?.model) && (
+        <AgentRuntimeBadge provider={agent?.provider} model={agent?.model} />
+        {(agent?.provider || agent?.model) && agent?.provider !== 'acp' && (
           <span
             className="max-w-[16rem] shrink-0 truncate font-mono text-[10px] text-muted-foreground"
             title={`${agent.provider ?? '?'}/${agent.model ?? '?'}`}

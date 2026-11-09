@@ -1,3 +1,5 @@
+import { AcpAgentNotice } from '@wrongstack/project-surfaces/ui/AcpAgentNotice';
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { ArrowRight, Cpu, Filter, Search, Star, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -289,6 +291,16 @@ export function SubagentModelPickerDialog({
           </button>
         </div>
 
+        <AcpAgentNotice
+          count={modelsByProvider.acp?.length ?? 0}
+          selected={providerFilter === 'acp'}
+          onShowAgents={() => {
+            setProviderFilter(providerFilter === 'acp' ? null : 'acp');
+            setQuery('');
+            setFavoritesOnly(false);
+            setSelected(0);
+          }}
+        />
         {/* Legacy tier/profile lanes carry no provider/model. Surfacing the
             pin as a sticky banner so the user knows picking a model will
             replace the tier/profile with a concrete provider/model pair. */}
@@ -368,6 +380,7 @@ export function SubagentModelPickerDialog({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5 break-words">
+                      <AgentRuntimeBadge provider={c.provider} model={c.model} showName={false} />
                       <span className="text-muted-foreground">{c.provider}</span>
                       <span className="text-muted-foreground/65">·</span>
                       <span>{c.modelName}</span>

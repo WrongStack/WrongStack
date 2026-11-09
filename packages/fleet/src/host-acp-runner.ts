@@ -130,6 +130,8 @@ export async function spawnACP(
     name: subagentId,
     role: subagentId,
     provider: 'acp',
+    model: subagentId,
+    ...(config.modelRuntime?.acp ? { modelRuntime: { acp: config.modelRuntime.acp } } : {}),
   });
   await coordinator.assign({
     id: taskId,
@@ -145,7 +147,7 @@ export async function spawnACP(
     taskId,
     name: subagentId,
     provider: 'acp',
-    model: undefined,
+    model: subagentId,
     description: task,
   });
 

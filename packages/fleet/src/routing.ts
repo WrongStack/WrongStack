@@ -10,6 +10,7 @@ import {
   type Director,
   makeAgentSubagentRunner,
   NULL_FLEET_BUS,
+  sessionAcpRuntime,
 } from '@wrongstack/coordination';
 import { expectDefined } from '@wrongstack/core/utils';
 import { runWithQuotaHold } from './acp-quota-hold.js';
@@ -45,11 +46,39 @@ export function buildRoutingRunner(config: Config, host: RoutingRunnerHost): Sub
       });
     }
     if (subCfg.provider === 'acp') {
-      const cacheKey = subCfg.role ?? subCfg.name ?? expectDefined(subCfg.id);
+      // Picker/lane routes encode the external agent in `model`; the role is
+      // still the task's role (e.g. general/reviewer), not an executable id.
+      // Legacy WrongForge workers use model for their server's upstream model.
+      const legacyKey = subCfg.role ?? subCfg.name;
+      const cacheKey =
+        legacyKey === WRONGFORGE_AGENT_ID
+          ? legacyKey
+          : subCfg.model?.trim() || legacyKey || expectDefined(subCfg.id);
       // A spent agent is not started again until its quota resets.
       return runWithQuotaHold(cacheKey, async () => {
         const runner = await host.buildACPRunner(cacheKey);
-        return runner(task, ctx);
+        const defaults = {
+          ...config.modelRuntime?.acp?.[cacheKey],
+          ...sessionAcpRuntime(ctx.sessionId)[cacheKey],
+        };
+        return runner(
+          task,
+          Object.keys(defaults).length
+            ? {
+                ...ctx,
+                config: {
+                  ...subCfg,
+                  modelRuntime: {
+                    ...subCfg.modelRuntime,
+                    acp: {
+                      ...subCfg.modelRuntime?.acp,
+                      [cacheKey]: { ...defaults, ...subCfg.modelRuntime?.acp?.[cacheKey] },
+                    },
+                  },
+                },
+              }
+            : ctx,
+        );
       });
     }
     return standardRunner(task, ctx);

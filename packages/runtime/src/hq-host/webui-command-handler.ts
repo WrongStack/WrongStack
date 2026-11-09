@@ -15,6 +15,7 @@ import {
 
 /** What a WebUI host lets HQ do to its conversations. */
 export interface WebuiHqControlHooks {
+  acpConfig?: HqCommandController['acpConfig'];
   interruptLeader: (sessionId?: string) => boolean;
   allowRunCommand: () => boolean;
   /** Does this host currently own the named session (an open tab)? */
@@ -42,6 +43,7 @@ export function createWebuiHqCommandHandler(input: {
     createHqCommandDispatcher({
       steerMailbox: mailbox,
       interruptLeader: control.interruptLeader,
+      ...(control.acpConfig ? { acpConfig: control.acpConfig } : {}),
       allowRunCommand: control.allowRunCommand,
       // Same registry the approval bridge publishes from, so every
       // prompt HQ shows is one this handler can actually answer.

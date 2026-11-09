@@ -67,6 +67,21 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('SubagentModelPickerDialog', () => {
+  it('makes installed ACP agents discoverable and filters without changing their route', () => {
+    openDialog();
+    act(() => {
+      listeners['providers.saved']?.({ payload: { providers: [{ id: 'openai' }, { id: 'acp' }] } });
+      listeners['provider.models']?.({
+        payload: { provider: 'acp', models: [{ id: 'pi-acp', name: 'Pi' }] },
+      });
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Show agents/ }));
+    expect(screen.getByText('Pi')).toBeTruthy();
+    expect(screen.queryByText('GPT Mini')).toBeNull();
+    expect(screen.getByRole('button', { name: /Show agents/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+  });
   it('filters candidates by search text', () => {
     openDialog();
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'mini' } });

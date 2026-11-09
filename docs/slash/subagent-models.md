@@ -24,6 +24,11 @@ Opus, agent 2 on GPT-5, agent 3 on GLM…".
 /subagent-models resolve [role]               Preview what the next spawn gets
 ```
 
+Installed ACP agents can occupy a lane, for example
+`/subagent-models set 1 acp/pi-acp`. In graphical pickers, use **Show agents** to
+filter to installed ACP coding agents; pinned lanes and running workers retain
+their ACP identity badge. The raw `acp/<agent-id>` route remains the saved value.
+
 Bare `/subagent-models` opens the interactive lane panel in the TUI (↑↓ move,
 Enter picks a model through the shared `/model` overlay, `c` clears, `l` toggles
 the lock, `s` toggles "use my model", space toggles the plan, Esc closes). On

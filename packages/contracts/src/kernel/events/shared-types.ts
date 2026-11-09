@@ -32,6 +32,7 @@ export interface TrackedAgentSnapshot {
   tokensOut?: number | undefined;
   ctxPct?: number | undefined;
   model?: string | undefined;
+  provider?: string | undefined;
   partialText?: string | undefined;
   todos?:
     | Array<{

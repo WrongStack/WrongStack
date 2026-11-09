@@ -1,3 +1,4 @@
+import type { FrameResume } from '@wrongstack/webui-protocol';
 import { safeId } from '@/lib/utils';
 import type {
   WSClientMessage,
@@ -5,7 +6,6 @@ import type {
   WSServerMessage,
   WSUserMessageImage,
 } from '../types';
-import type { FrameResume } from '@wrongstack/webui-protocol';
 import type { WSSendOptions } from './ws-client-contracts';
 import type { EventHandler, PendingConfirm } from './ws-client-utils';
 
@@ -261,7 +261,7 @@ export const sessionMethods: WsClientSessionMethods = {
     this: WsClientSessionHost,
     provider: string,
     model: string,
-    timeoutMs = 8_000,
+    timeoutMs = provider === 'acp' ? 60_000 : 8_000,
   ): Promise<WSModelSwitchResult['payload']> {
     const requestId = safeId();
     return new Promise((resolve) => {

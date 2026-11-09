@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import { acpRuntimeValuesError } from '@wrongstack/contracts/types/acp-runtime';
 import { parseNativeCloudSettings } from '@wrongstack/core/cloud-provider';
 import { modelsDevModelSchema } from '@wrongstack/core/models';
 import { getAllProviderQuota, withQuotaPace } from '@wrongstack/core/quota';
@@ -196,7 +197,11 @@ export async function handleProviderRoute(
 ): Promise<boolean> {
   if (msg.type === 'providers.list')
     ws = correlatedReply(ws, msg.payload, ['provider.catalog', 'key.operation_result']).socket;
-  else if (msg.type === 'providers.saved' || msg.type === 'provider.models')
+  else if (
+    msg.type === 'providers.saved' ||
+    msg.type === 'provider.models' ||
+    msg.type === 'acp.config_options'
+  )
     ws = correlatedReply(ws, msg.payload, [msg.type, 'key.operation_result']).socket;
   else if (msg.type.startsWith('auth.oauth.'))
     ws = correlatedReply(ws, msg.payload, [
@@ -232,6 +237,44 @@ async function dispatchProviderRoute(
   routes: ProviderRouteHandlers,
 ): Promise<boolean> {
   switch (msg.type) {
+    case 'acp.config_options': {
+      const payload = asPayloadRecord(msg);
+      const agentId = payload && requiredString(payload, 'agentId');
+      const values = payload?.['values'] ?? {};
+      if (!agentId || acpRuntimeValuesError(values)) {
+        send(ws, {
+          type: 'acp.config_options',
+          payload: {
+            ok: false,
+            error: acpRuntimeValuesError(values) ?? 'An ACP agent id is required',
+          },
+        });
+        return true;
+      }
+      try {
+        if (!routes.acpConfigOptions) throw new Error('ACP settings are unavailable in this host');
+        send(ws, {
+          type: 'acp.config_options',
+          payload: {
+            ok: true,
+            ...((await routes.acpConfigOptions(
+              agentId,
+              values as Record<string, string>,
+            )) as object),
+          },
+        });
+      } catch (error) {
+        send(ws, {
+          type: 'acp.config_options',
+          payload: {
+            ok: false,
+            agentId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+      return true;
+    }
     case 'providers.list':
       await routes.listProviders(ws, msg);
       return true;

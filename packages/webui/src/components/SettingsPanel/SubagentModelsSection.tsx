@@ -1,5 +1,8 @@
+import { AcpRuntimeControls } from '@wrongstack/project-surfaces/ui/AcpRuntimeControls';
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Split, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { requestAcpRuntime } from '@/lib/acp-runtime';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import { SubagentModelPickerDialog } from '../ChatInput/subagent-model-picker-dialog.js';
 import { Button } from '../ui/button';
@@ -144,8 +147,30 @@ export function SubagentModelsSection({
                 aria-label={`Lane ${index + 1} model${pinned ? `: ${value}` : ''}`}
                 className="h-8 min-w-0 flex-1 truncate rounded-md border bg-background px-2 text-left font-mono text-xs hover:border-primary/40 disabled:cursor-not-allowed"
               >
-                {pinned ? value : 'inherit — routing / session'}
+                {lane.provider === 'acp' ? (
+                  <AgentRuntimeBadge provider={lane.provider} model={lane.model} />
+                ) : pinned ? (
+                  value
+                ) : (
+                  'inherit — routing / session'
+                )}
               </button>
+              {lane.provider === 'acp' && lane.model && (
+                <AcpRuntimeControls
+                  agentId={lane.model}
+                  request={requestAcpRuntime}
+                  values={lane.modelRuntime?.acp?.[lane.model]}
+                  onChange={(values) =>
+                    setLane(index, {
+                      ...lane,
+                      modelRuntime: {
+                        ...lane.modelRuntime,
+                        acp: { ...lane.modelRuntime?.acp, [lane.model!]: values },
+                      },
+                    })
+                  }
+                />
+              )}
               <Button
                 type="button"
                 variant="ghost"

@@ -519,6 +519,7 @@ export class HqPublisher {
       commandId: result.commandId,
       status: result.status,
       ...(result.message !== undefined ? { message: result.message } : {}),
+      ...(result.acpConfig !== undefined ? { acpConfig: result.acpConfig } : {}),
     });
   }
 
@@ -532,6 +533,7 @@ export class HqPublisher {
         capabilities: this.capabilities,
         redactionPolicy: this.resolvedRedactionPolicy,
         ...(this.options.startsSessions === true ? { startsSessions: true } : {}),
+        ...(this.options.acpSettings === true ? { acpSettings: true } : {}),
       },
     };
   }

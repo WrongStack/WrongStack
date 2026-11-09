@@ -3,6 +3,10 @@ import type { SessionScopedPayload } from './protocol-core.js';
 import type { ProviderCustomModelWire } from './provider-custom-model-wire.js';
 import type { OAuthKind } from './system.js';
 export type ClientMessageSettings =
+  | {
+      type: 'acp.config_options';
+      payload: { agentId: string; values: Record<string, string>; requestId: string };
+    }
   | { type: 'providers.list' }
   | {
       type: 'provider.models';

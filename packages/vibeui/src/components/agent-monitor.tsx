@@ -1,5 +1,6 @@
 'use client';
 
+import { agentRuntimeLabel, isAcpProvider } from '@wrongstack/webui-protocol';
 import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { isActiveAgent as active, hasAgentWork } from '../lib/agent-state';
@@ -67,8 +68,11 @@ export function AgentMonitor({ agents, connected }: { agents: AgentEntry[]; conn
           </span>
           <span>
             <strong>{item.name}</strong>
+            {isAcpProvider(item.provider) && (
+              <span className="acp-runtime-badge">ACP subagent</span>
+            )}
             <small>{item.task || item.currentTool || 'Waiting for task details'}</small>
-            <small>{item.model || 'Model not reported'}</small>
+            <small>{agentRuntimeLabel(item.provider, item.model) || 'Model not reported'}</small>
           </span>
           <span
             className={`agent-state ${active(item.status) ? 'agent-state-active' : ['failed', 'error'].includes(item.status) ? 'agent-state-error' : ''}`}
@@ -95,7 +99,9 @@ export function AgentMonitor({ agents, connected }: { agents: AgentEntry[]; conn
             <div className="agent-summary">
               <span className={`status-dot ${active(agent.status) ? 'busy' : ''}`} />
               <small>{agent.status}</small>
-              <strong>{agent.model || 'Model not reported'}</strong>
+              <strong>
+                {agentRuntimeLabel(agent.provider, agent.model) || 'Model not reported'}
+              </strong>
               {agent.provider && <small>{agent.provider}</small>}
             </div>
             <div className="agent-task">

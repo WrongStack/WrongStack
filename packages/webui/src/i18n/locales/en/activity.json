@@ -1,4 +1,17 @@
 {
+  "acp": {
+    "agent": "ACP agent",
+    "subagent": "ACP subagent",
+    "leader": "ACP leader",
+    "available": "Installed coding agents can also work as subagents.",
+    "showAgents": "Show agents",
+    "runtimeTitle": "ACP · Model / effort",
+    "runtimeHint": "Applies on the next turn or subagent start.",
+    "runtimeLoading": "Reading agent settings…",
+    "runtimeUnsupported": "This agent does not expose model or effort settings through ACP.",
+    "runtimeRefresh": "Refresh",
+    "runtimeDefaults": "Use defaults"
+  },
   "myGoals": {
     "phaseIsolation": "Use separate checkouts for phases",
     "goalIsolation": "Each goal runs on its own branch for review before integration.",

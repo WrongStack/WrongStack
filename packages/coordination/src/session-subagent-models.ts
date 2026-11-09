@@ -27,6 +27,8 @@
  * event so `/resume` restores the plan with the session.
  */
 
+import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
+import { acpRuntimeSelectionsError } from '@wrongstack/contracts/types/acp-runtime';
 import type { ModelMatrixEntry } from '@wrongstack/contracts/types/config';
 import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
 
@@ -227,6 +229,26 @@ export async function setSessionSubagentModelPlan(
   }
 }
 
+const acpRuntimeBySession = new Map<string, AcpRuntimeSelections>();
+export function sessionAcpRuntime(sessionId: string | undefined): AcpRuntimeSelections {
+  return structuredClone(sessionId ? (acpRuntimeBySession.get(sessionId) ?? {}) : {});
+}
+export async function setSessionAcpRuntime(
+  ctx: PlanContext,
+  settings: AcpRuntimeSelections,
+): Promise<void> {
+  const error = acpRuntimeSelectionsError(settings);
+  if (error) throw new Error(error);
+  if (ctx.session)
+    await ctx.session.append({
+      type: 'acp_runtime_settings',
+      ts: new Date().toISOString(),
+      settings,
+    });
+  if (ctx.session) acpRuntimeBySession.set(ctx.session.id, structuredClone(settings));
+  if (ctx.meta) ctx.meta['acpRuntime'] = structuredClone(settings);
+}
+
 /** Replay the journal's last plan event into the live registry (resume path). */
 export function restoreSessionSubagentModelPlan(
   ctx: PlanContext,
@@ -234,6 +256,14 @@ export function restoreSessionSubagentModelPlan(
 ): void {
   let plan: SessionSubagentModelPlan | undefined;
   for (const event of events ?? []) {
+    if (event.type === 'acp_runtime_settings' && !acpRuntimeSelectionsError(event.settings)) {
+      if (ctx.meta) ctx.meta['acpRuntime'] = structuredClone(event.settings);
+      if (ctx.session)
+        acpRuntimeBySession.set(
+          ctx.session.id,
+          structuredClone(event.settings as AcpRuntimeSelections),
+        );
+    }
     if (event.type === 'subagent_model_plan') plan = normalizeSubagentModelPlan(event.plan);
   }
   if (!plan) return;
@@ -244,6 +274,7 @@ export function restoreSessionSubagentModelPlan(
 /** Drop the plan and all lane bookkeeping for a session. */
 export function resetSessionSubagentModelPlan(sessionId: string | undefined): void {
   if (!sessionId) return;
+  acpRuntimeBySession.delete(sessionId);
   plans.delete(sessionId);
   laneCounts.delete(sessionId);
   for (const [subagentId, bound] of boundLanes) {
@@ -401,6 +432,7 @@ export function subagentSlotOccupancy(
 
 /** Test seam: wipe every session's plan and lane bookkeeping. */
 export function __resetAllSessionSubagentModelPlans(): void {
+  acpRuntimeBySession.clear();
   plans.clear();
   laneCounts.clear();
   boundLanes.clear();

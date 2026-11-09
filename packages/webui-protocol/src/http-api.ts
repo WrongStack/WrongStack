@@ -22,6 +22,8 @@ export interface ApiSessionAgent {
   name: string;
   status: AgentLiveStatus;
   currentTool?: string | undefined;
+  provider?: string | undefined;
+  model?: string | undefined;
   iterations: number;
   toolCalls: number;
   lastActivityAt: string;

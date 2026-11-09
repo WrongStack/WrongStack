@@ -1,3 +1,4 @@
+import { createHqAcpConfigHandler, onHqAcpConfigSaved } from '@wrongstack/runtime/hq-host';
 import { type SessionAgentRegistry, startWebUILiveStatusLogger } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
 import { createWebuiClientRegistration } from './webui-server/client-registration.js';
@@ -48,7 +49,7 @@ export function createEmbeddedClientRegistration(
     opts.interruptController.abortLeader = () =>
       interruptSession(opts.agent.ctx.session?.id ?? opts.session.id);
   }
-  return createWebuiClientRegistration({
+  const registration = createWebuiClientRegistration({
     projectRoot: opts.projectRoot,
     appConfig: opts.appConfig,
     events: opts.events,
@@ -75,7 +76,21 @@ export function createEmbeddedClientRegistration(
     // The tab's own journal, so HQ takes its turns from the write path
     // instead of tailing the file.
     getSessionWriter: (sessionId: string) => getSessionAgents()?.peek(sessionId)?.ctx.session,
+    getSessionContext: (sessionId) =>
+      opts.agent.ctx.session.id === sessionId
+        ? opts.agent.ctx
+        : getSessionAgents()?.peek(sessionId)?.ctx,
     hqControl: {
+      acpConfig: createHqAcpConfigHandler({
+        getConfig: () => {
+          if (!opts.appConfig) throw Error('ACP configuration is unavailable');
+          return opts.appConfig;
+        },
+        context: (sessionId) =>
+          opts.agent.ctx.session.id === sessionId
+            ? opts.agent.ctx
+            : getSessionAgents()?.peek(sessionId)?.ctx,
+      }),
       interruptLeader: interruptSession,
       ...(opts.hqFleetControl
         ? {
@@ -92,6 +107,31 @@ export function createEmbeddedClientRegistration(
         sessionId === opts.session.id || getSessionAgents()?.has(sessionId) === true,
     },
   });
+  let stop: (() => void) | undefined;
+  return {
+    register: () => {
+      stop ??= onHqAcpConfigSaved((ctx, settings) => {
+        if (opts.agent.ctx !== ctx && getSessionAgents()?.peek(ctx.session.id)?.ctx !== ctx) return;
+        for (const socket of clients.keys())
+          if (socket.readyState === 1) {
+            try {
+              socket.send(
+                JSON.stringify({
+                  type: 'prefs.updated',
+                  payload: { sessionId: ctx.session.id, acpRuntime: settings },
+                }),
+              );
+            } catch {}
+          }
+      });
+      return registration.register();
+    },
+    unregister: () => {
+      stop?.();
+      stop = undefined;
+      registration.unregister();
+    },
+  };
 }
 
 export function startEmbeddedLiveStatusLogger(

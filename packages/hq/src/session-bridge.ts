@@ -16,8 +16,7 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import type { EventBus, TrackedAgentSnapshot } from '@wrongstack/contracts/kernel/events';
 import type { SessionEvent, SessionWriter } from '@wrongstack/contracts/types/session';
-import { sessionScopedPath } from '@wrongstack/core/utils';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
 import { LruMap } from './lru.js';
 import type {
   HqSessionAgentLiveStatus,
@@ -119,6 +118,7 @@ function toAgentSummary(a: TrackedAgentSnapshot): HqSessionAgentSummary {
     ...(a.tokensOut !== undefined ? { tokensOut: a.tokensOut } : {}),
     ...(a.ctxPct !== undefined ? { ctxPct: a.ctxPct } : {}),
     ...(a.model !== undefined ? { model: a.model } : {}),
+    ...(a.provider !== undefined ? { provider: a.provider } : {}),
     ...(a.partialText !== undefined ? { partialText: a.partialText } : {}),
   };
 }

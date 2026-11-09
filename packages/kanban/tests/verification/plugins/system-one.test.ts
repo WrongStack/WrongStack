@@ -69,6 +69,24 @@ describe('SystemOneVerifierPlugin', () => {
     expect((await createDefaultRegistry().verify(check(), context([]))).status).toBe('skipped');
   });
 
+  it.each([1.5, -0.1, Number.POSITIVE_INFINITY, Number.NaN])(
+    'leaves invalid probability %s open rather than issuing a verdict',
+    async (probability) => {
+      setKanbanCriterionJudge(() => async () => ({ probability }));
+      const result = await createDefaultRegistry().verify(check(), context(['a.ts']));
+      expect(result.status).toBe('skipped');
+      expect(result.backingRefs).toBeUndefined();
+    },
+  );
+
+  it.each([
+    [0, 'failed'],
+    [1, 'passed'],
+  ] as const)('accepts boundary probability %s', async (probability, status) => {
+    setKanbanCriterionJudge(() => async () => ({ probability }));
+    expect((await createDefaultRegistry().verify(check(), context(['a.ts']))).status).toBe(status);
+  });
+
   it('does not re-judge a preset status or invent verification from it', async () => {
     const judge = vi.fn(async () => ({ probability: 0.01 }));
     setKanbanCriterionJudge(() => judge);

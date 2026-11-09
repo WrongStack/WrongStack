@@ -145,6 +145,72 @@ await server.start();
 See `scripts/acp-smoke-test.mts` for a complete Node harness that walks a
 full v1 session and asserts on every response.
 
+## Local agent compatibility
+
+Installed agents appear under the `acp` provider in model and subagent pickers.
+The ACP badge distinguishes an external coding agent from an ordinary API model;
+worker cards, transcripts, Office/topology views and terminal monitors keep that
+identity visible during execution. The picker also offers a dedicated agent
+filter. A badge identifies the runtime, not a capability certification: connection,
+permission and model errors still appear as task results.
+
+Put machine-specific commands in the active user profile's `acp.agents`, and list
+the agents offered by the leader picker in `acp.bridge.agents`. Keep adapter
+packages in a managed local installation with a lockfile rather than pointing
+at an evictable package-manager cache. `acp.leader.sideModel` selects the ordinary
+provider/model used for auxiliary requests such as titles and summaries.
+
+Some ACP agents put a whole shell line in `terminal/create.command` without an
+`args` array. WrongStack normally treats `command` as an executable, so a value
+such as `bun --version` fails with ENOENT. The optional compatibility proxy turns
+only those requests into explicit POSIX-shell argv:
+
+```powershell
+bun scripts/acp-shell-compat.mjs --shell "C:/Program Files/Git/bin/bash.exe" -- grok agent stdio
+bun scripts/acp-shell-compat.mjs --shell "C:/Program Files/Git/bin/bash.exe" -- goose acp
+```
+
+Use this launcher only for an agent that needs shell-line compatibility. It
+preserves explicit argv and existing executable paths (including paths with
+spaces). The host sees the rewritten shell and full arguments before applying
+its usual permission checks; it does not enable shell execution globally.
+
+For `pi-acp` on Windows, set its `PI_ACP_PI_COMMAND` environment variable to the
+installed Pi executable when the installation provides `pi.exe` instead of the
+adapter's default `pi.cmd`.
+
+An agent whose MCP client cannot complete modern discovery can opt into the
+legacy handshake proxy. It wraps only that agent's stdio MCP servers; HTTP/SSE
+servers and other agents keep their original negotiation:
+
+```powershell
+bun scripts/acp-mcp-legacy.mjs --agent -- goose acp
+```
+
+The proxy answers `server/discover` with method-not-found, allowing the client
+to use the real server's `initialize` handshake. Combine it outside the shell
+proxy when both are needed. Single and parallel ACP tasks receive the same
+project root and project MCP setup, including an explicitly disabled bridge.
+
+Copilot (`copilot` or `github-copilot-cli`) receives the same per-task MCP
+definitions through its native `--additional-mcp-config` startup option. The
+temporary config retains worker/session arguments and transport headers and is
+removed when the ACP process closes, including initialization failures.
+
+The `pi-acp` adapter does not itself wire session MCP definitions into Pi. For a
+Pi runtime supporting `registerMcpServer`, opt into the supplied native extension:
+set `PI_ACP_PI_COMMAND` to a launcher running `scripts/pi-acp-rpc-launch.mjs`,
+`WRONGSTACK_PI_REAL_COMMAND` to the installed Pi executable, and
+`WRONGSTACK_PI_MCP_EXTENSION` to `scripts/pi-acp-mcp-extension.mjs`. Use absolute,
+durable paths in the profile. WrongStack then passes the current task's server
+definitions in the child environment; the extension registers them for that
+session without changing global Pi settings. Common project read tools are
+directly exposed; the remaining tools use Pi's deferred discovery.
+
+Bridge guidance uses each client's exposed MCP tool identifiers. Claude keeps
+its native namespace examples; other clients receive server and tool names with
+instructions to discover their actual callable identifiers.
+
 ## Code reference
 
 - `packages/cli/src/subcommands/handlers/acp.ts` — the CLI handler
@@ -156,3 +222,46 @@ full v1 session and asserts on every response.
 - `packages/acp/src/agent/{protocol-handler,wrongstack-acp-agent,server-agent-turn}.ts` — the v1 server
 - [ACP Ensemble Architecture](../acp-ensemble.md) — top-level design
 - [`/ensemble` slash command](../slash/ensemble.md) — the in-REPL counterpart
+## Internal model and effort settings
+
+Selecting `acp/pi-acp` selects the external coding agent. Its internal model and
+effort are separate settings, discovered from that agent's ACP session options.
+The WebUI composer, quick model switcher, session lanes and role routing expose
+an **ACP · Model / effort** disclosure. Desktop exposes the same controls for
+the session, lane/role plan and roster runtime editor. VibeUI exposes the session
+control. Open it to read the installed agent's current option vocabulary.
+
+Changes are validated in a private agent session, then applied before the next
+leader turn or worker prompt. Changing a model refreshes dependent effort
+choices. An unconfirmed value is an error; no canonical API effort is silently
+substituted. Agents without advertised selectors show an explicit unsupported
+state. Permission and autonomy modes are excluded from these controls.
+
+Session defaults are journaled and restored by resume. Explicit lane or role
+settings take precedence. Profile defaults can also live under
+`modelRuntime.acp[agentId]`; a lane/route uses the same structure in its own
+`modelRuntime`. Session selections never write the profile config.
+
+Terminal interfaces:
+
+```text
+/acp config codex-cli
+/acp config codex-cli reasoning_effort low
+/acp config pi-acp --lane=1 thought_level high
+/acp config codex-cli --role=reviewer reasoning_effort high
+/acp config codex-cli reset
+wstack acp config codex-cli --json
+wstack acp spawn codex-cli --acp-option=reasoning_effort=low "Review the change"
+wstack acp spawn codex-cli --acp-options='{"model":"gpt-6.1-sol","reasoning_effort":"low"}' "Review the change"
+```
+
+Option ids and values vary by installed agent and model; read them before
+setting them. Settings affect the next turn/spawn, never an in-flight prompt.
+HQ's Console exposes **ACP · Model / effort** for an ACP session leader on a
+connected client that advertises `acp.config`. Reads and writes use the existing
+authenticated command queue and wait for the machine's acknowledgement. Saving
+checks the previously read values, validates the agent's current vocabulary,
+then journals the selection. A stale selection, foreign session, unsupported
+client or missing control permission is refused explicitly. Other local surfaces
+on the same host receive the saved session preference immediately. An old client
+must restart with the updated build before the remote panel can operate.

@@ -13,15 +13,16 @@
  * Uses computeAgentStats for all formatted display values.
  */
 
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { ChevronDown, Crown, Wrench, Zap } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AgentDetailSection } from '@/components/agents/AgentDetailSection';
+import { ContextFillBar } from '@/components/ContextBar';
+import { SparklineChart } from '@/components/ui/sparkline';
 import { useAppTranslation } from '@/i18n';
+import { computeAgentStats } from '@/lib/agent-status';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { computeAgentStats } from '@/lib/agent-status';
-import { SparklineChart } from '@/components/ui/sparkline';
-import { ContextFillBar } from '@/components/ContextBar';
-import { AgentDetailSection } from '@/components/agents/AgentDetailSection';
 
 interface AgentRosterCardProps {
   agent: SubagentView;
@@ -129,7 +130,13 @@ export function AgentRosterCard({
 
         {/* Row 2: Model badge + iteration/tool counts + elapsed time */}
         <div className="flex items-center gap-1.5 min-w-0">
-          {agent.model ? (
+          {agent.provider === 'acp' ? (
+            <AgentRuntimeBadge
+              provider={agent.provider}
+              model={agent.model}
+              executionRole={isLeader ? 'leader' : 'subagent'}
+            />
+          ) : agent.model ? (
             <span className="truncate rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground max-w-[10rem]">
               {agent.model}
             </span>

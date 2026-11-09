@@ -297,6 +297,7 @@ export async function reserveKanbanDispatch(
       ...(r?.role !== undefined ? { role: r.role } : {}),
       ...(r?.provider !== undefined ? { provider: r.provider } : {}),
       ...(r?.model !== undefined ? { model: r.model } : {}),
+      ...(r?.modelRouting !== undefined ? { modelRouting: r.modelRouting } : {}),
       ...(r?.fallbackProfile !== undefined ? { fallbackProfile: r.fallbackProfile } : {}),
       ...(r?.fallbackModels !== undefined ? { fallbackModels: r.fallbackModels } : {}),
       ...(r?.skills !== undefined ? { skills: r.skills } : {}),

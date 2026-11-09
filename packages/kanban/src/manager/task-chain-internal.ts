@@ -21,6 +21,7 @@ export function findGoalMetric(
   metrics: readonly KanbanGoalMetric[],
   metricId: string,
 ): KanbanGoalMetric | undefined {
+  if (!metricId?.trim()) return undefined;
   const exact = metrics.find((metric) => metric.id === metricId);
   if (exact) return exact;
   const matches = metrics.filter((metric) => metric.id.startsWith(metricId));

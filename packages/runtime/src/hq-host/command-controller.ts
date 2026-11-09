@@ -20,7 +20,7 @@ import type { UserInputResponse } from '@wrongstack/contracts/types';
 import type { RemoteMailbox } from '@wrongstack/coordination';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/hq';
-import { parseHqStartSession } from '@wrongstack/hq';
+import { parseHqAcpConfig, parseHqStartSession } from '@wrongstack/hq';
 
 /**
  * Mutable holder for the command dispatch targets. Each field is populated
@@ -29,6 +29,7 @@ import { parseHqStartSession } from '@wrongstack/hq';
  * `onCommand` handler reads these at dispatch time, not at construction.
  */
 export interface HqCommandController {
+  acpConfig?: ReturnType<typeof import('./acp-config.js').createHqAcpConfigHandler> | undefined;
   /** Project mailbox used to deliver steer/broadcast messages. */
   steerMailbox?: RemoteMailbox | undefined;
   /**
@@ -291,6 +292,25 @@ async function dispatch(
     if (rejected !== null) return rejected;
   }
   switch (type) {
+    case 'acp-config': {
+      const parsed = parseHqAcpConfig(payload);
+      if (!parsed || !controller.acpConfig)
+        return {
+          commandId,
+          status: 'rejected',
+          message: 'ACP model settings are unavailable or the request is malformed',
+        };
+      const acpConfig = await controller.acpConfig(parsed);
+      return {
+        commandId,
+        status: 'completed',
+        message:
+          parsed.action === 'set'
+            ? 'ACP settings saved for the next turn/spawn'
+            : 'ACP settings loaded',
+        acpConfig,
+      };
+    }
     case 'steer': {
       const mailbox = controller.steerMailbox;
       if (mailbox === undefined) {

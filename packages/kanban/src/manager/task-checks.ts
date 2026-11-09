@@ -95,7 +95,8 @@ export async function updateCheckOnTask(
     assertManagementWrite(board, [task], eventContext);
     const before = { ...check };
     const acceptedTask = structuredClone(task);
-    Object.assign(check, patch);
+    // Untyped/structural patches can carry id despite Omit; references must stay stable.
+    Object.assign(check, patch, { id: before.id });
     assertAcceptedContractUnchanged(board, acceptedTask, task);
     const definitionChanged =
       check.description !== before.description ||

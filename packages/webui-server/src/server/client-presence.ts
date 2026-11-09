@@ -34,6 +34,8 @@ export type WebuiHqConnectionOptions = Omit<CreateHqPublisherOptions, 'socketFac
 };
 
 export interface WebuiClientPresenceDeps {
+  getSessionContext?: ((sessionId: string) => unknown) | undefined;
+  acpSettings?: boolean | undefined;
   projectRoot: string | undefined;
   appConfig: Config | undefined;
   events: EventBus;
@@ -136,6 +138,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
         projectName,
         appConfig: deps.appConfig,
         capabilities,
+        ...(deps.acpSettings ? { acpSettings: true } : {}),
         ...(onCommand ? { onCommand } : {}),
         onConnect: (publisher) => {
           if (registrationGeneration !== generation) return;
@@ -185,6 +188,7 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
               ? { isOwnedElsewhere: deps.isSessionOwnedElsewhere }
               : {}),
             ...(deps.getSessionWriter ? { getWriter: deps.getSessionWriter } : {}),
+            ...(deps.getSessionContext ? { getContext: deps.getSessionContext } : {}),
           });
           sessionTelemetry.sync();
         },

@@ -25,6 +25,7 @@ import { providerChoices } from './provider-settings-model';
 import { RuntimeGate } from './RuntimeGate';
 import { useProfileEngine } from './useEngine';
 import './composer-dialog.css';
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 
 interface Props {
   session: EngineState;
@@ -364,6 +365,12 @@ function LiveProfileModelPicker({
                 }
                 onClick={() => (comparing ? toggle(model) : void choose(model.id))}
               >
+                <AgentRuntimeBadge
+                  provider={provider}
+                  model={model.id}
+                  executionRole="agent"
+                  showName={false}
+                />
                 <strong>{model.name}</strong>
                 {comparing && compared.some((entry) => entry.key === comparedKey(model.id)) && (
                   <span>{t('modelPicker.comparing')}</span>

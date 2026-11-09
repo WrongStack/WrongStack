@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/contracts/kernel/events';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   HqSessionEndedPayload,
@@ -10,7 +11,6 @@ import type {
 } from '../src/protocol.js';
 import type { HqPublisher } from '../src/publisher.js';
 import { startSessionTelemetryBridge } from '../src/session-bridge.js';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 let globalRoot: string;
 let projectRoot: string;
@@ -107,6 +107,7 @@ describe('session telemetry bridge', () => {
           iterations: 2,
           toolCalls: 1,
           model: 'openai/gpt-5',
+          provider: 'openai',
           ctxPct: 33,
           partialText: 'working',
           lastActivityAt: '2026-06-23T11:01:00Z',
@@ -123,6 +124,7 @@ describe('session telemetry bridge', () => {
           id: 'leader',
           status: 'streaming',
           model: 'openai/gpt-5',
+          provider: 'openai',
           ctxPct: 33,
           partialText: 'working',
         },

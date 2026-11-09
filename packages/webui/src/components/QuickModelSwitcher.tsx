@@ -1,3 +1,5 @@
+import { AcpAgentNotice } from '@wrongstack/project-surfaces/ui/AcpAgentNotice';
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { ArrowRight, Cpu, Filter, Search, Star } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/components/Toaster';
@@ -17,6 +19,7 @@ import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { memorySessionSnapshots } from '@/stores/session-store';
 import type { WSServerMessage } from '@/types';
+import { SessionAcpRuntime } from './ChatInput/session-acp-runtime';
 import { buildModelCandidates } from './QuickModelSwitcher.filter';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 
@@ -376,48 +379,62 @@ export function QuickModelSwitcher() {
               : '↑↓ · Enter · Esc'}
           </span>
         </div>
+        <AcpAgentNotice
+          count={modelsByProvider.acp?.length ?? 0}
+          selected={providerFilter === 'acp'}
+          onShowAgents={() => {
+            setProviderFilter(providerFilter === 'acp' ? null : 'acp');
+            setQuery('');
+            setFavoritesOnly(false);
+            setSelected(0);
+          }}
+        />
         {/* Per-session reasoning effort for the active model. Writes the
             session-scoped reasoningEffort pref — the same trip the Settings →
             Agent select makes (local set + prefs.update). */}
-        <div className="flex items-center gap-2 border-b px-3 py-1.5">
-          <label
-            htmlFor="quick-model-effort"
-            className="text-[11px] text-muted-foreground shrink-0"
-          >
-            {t('settings:agent.reasoningEffortLabel')}
-          </label>
-          <select
-            id="quick-model-effort"
-            value={reasoningEffort}
-            onChange={(e) => {
-              const value = e.target.value;
-              useLocalPrefs.getState().set({ reasoningEffort: value });
-              updatePrefs({ reasoningEffort: value });
-            }}
-            className="bg-transparent text-xs outline-none cursor-pointer border-0"
-          >
-            {effortOptions.map((level) => (
-              <option key={level} value={level}>
-                {t(effortLabelKey(level))}
-              </option>
-            ))}
-          </select>
-          {effortNotAdvertised(effortLevels, reasoningEffort) && (
-            <span
-              className="text-[10px] text-warning truncate min-w-0"
-              title={t('settings:agent.reasoningEffortUnsupported', {
-                levels: (effortLevels ?? []).join(', '),
-              })}
+        {currentProvider === 'acp' ? (
+          <SessionAcpRuntime agentId={currentModel ?? ''} />
+        ) : (
+          <div className="flex items-center gap-2 border-b px-3 py-1.5">
+            <label
+              htmlFor="quick-model-effort"
+              className="text-[11px] text-muted-foreground shrink-0"
             >
-              {t('settings:agent.reasoningEffortUnsupported', {
-                levels: (effortLevels ?? []).join(', '),
-              })}
-            </span>
-          )}
-          {autoHint && (
-            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{autoHint}</span>
-          )}
-        </div>
+              {t('settings:agent.reasoningEffortLabel')}
+            </label>
+            <select
+              id="quick-model-effort"
+              value={reasoningEffort}
+              onChange={(e) => {
+                const value = e.target.value;
+                useLocalPrefs.getState().set({ reasoningEffort: value });
+                updatePrefs({ reasoningEffort: value });
+              }}
+              className="bg-transparent text-xs outline-none cursor-pointer border-0"
+            >
+              {effortOptions.map((level) => (
+                <option key={level} value={level}>
+                  {t(effortLabelKey(level))}
+                </option>
+              ))}
+            </select>
+            {effortNotAdvertised(effortLevels, reasoningEffort) && (
+              <span
+                className="text-[10px] text-warning truncate min-w-0"
+                title={t('settings:agent.reasoningEffortUnsupported', {
+                  levels: (effortLevels ?? []).join(', '),
+                })}
+              >
+                {t('settings:agent.reasoningEffortUnsupported', {
+                  levels: (effortLevels ?? []).join(', '),
+                })}
+              </span>
+            )}
+            {autoHint && (
+              <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{autoHint}</span>
+            )}
+          </div>
+        )}
         <div className="min-h-0 max-h-[50dvh] overflow-y-auto overscroll-contain py-1">
           {candidates.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -454,6 +471,12 @@ export function QuickModelSwitcher() {
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5 break-words">
+                    <AgentRuntimeBadge
+                      provider={c.provider}
+                      model={c.model}
+                      executionRole="agent"
+                      showName={false}
+                    />
                     <span className="text-muted-foreground">{c.provider}</span>
                     <span className="text-muted-foreground/65">·</span>
                     <span>{c.modelName}</span>

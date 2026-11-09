@@ -10,6 +10,7 @@ import { resolveTokenSavingTier, type SessionWriter } from '@wrongstack/contract
 import {
   normalizeSubagentModelPlan,
   seedSessionSubagentPolicy,
+  setSessionAcpRuntime,
   setSessionSubagentModelPlan,
   setSessionSubagentPolicy,
   subagentPolicyModeFrom,
@@ -278,6 +279,8 @@ export function createWebuiRouteContexts({
         normalizeSubagentModelPlan(plan),
       ),
     persist: persistPrefs,
+    setAcpRuntime: (settings, sessionId) =>
+      setSessionAcpRuntime(sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx, settings),
     setYolo: opts.onYoloSwitch,
     // The CLI's own switch moves the leader's mode ref (the system prompt's
     // eternal block); the driver runs the loop itself.

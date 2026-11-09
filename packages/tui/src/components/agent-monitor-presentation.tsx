@@ -1,3 +1,4 @@
+import { acpAgentName } from '@wrongstack/contracts/types/agent-identity';
 import type { AgentTimelineEntry } from '@wrongstack/coordination';
 
 import type { FleetEntry } from '../app-state.js';
@@ -67,8 +68,10 @@ export function rosterGlyph(entry: FleetEntry): { icon: string; color: string } 
 
 /** Where the agent runs: `provider:model`, or what an external ACP worker is. */
 export function formatAgentModel(entry: FleetEntry): string {
-  if (entry.provider === 'acp')
-    return entry.model ? `ACP · ${entry.model}` : 'external agent (ACP)';
+  if (entry.provider === 'acp') {
+    const label = entry.id === 'leader' || entry.name === 'LEADER' ? 'ACP leader' : 'ACP subagent';
+    return entry.model ? `${label} · ${acpAgentName(entry.model)}` : label;
+  }
   if (!entry.model && !entry.provider) return '';
   const model = entry.model
     ? entry.model.includes('/')

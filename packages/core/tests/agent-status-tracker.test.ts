@@ -60,6 +60,25 @@ describe('AgentStatusTracker', () => {
 
   // ── Leader events ──────────────────────────────────────────────────
 
+  it('keeps the provider and external agent id in cross-process worker snapshots', () => {
+    tracker.start();
+    events.emit('subagent.spawned', {
+      subagentId: 'external-worker',
+      provider: 'acp',
+      model: 'pi-acp',
+    });
+    events.emit('subagent.tool_started', {
+      subagentId: 'external-worker',
+      id: 'call-1',
+      name: 'read',
+    });
+    const worker = registry.updateAgents.mock.calls
+      .at(-1)?.[0]
+      .find((agent) => agent.id === 'external-worker');
+    expect(worker).toMatchObject({ provider: 'acp', model: 'pi-acp', currentTool: 'read' });
+    tracker.stop();
+  });
+
   it('sets leader to running on agent.run.started', () => {
     tracker.start();
     events.emit('agent.run.started', { at: '2026-06-24T10:00:00.000Z' });

@@ -149,6 +149,18 @@ describe('wrongstackBridgeSetup', () => {
     expect(bridgeTaskKickoff(['sage'])).not.toContain('wrongstack-mailbox');
   });
 
+  it('lets other ACP clients resolve their own MCP namespaces', () => {
+    for (const id of ['pi-acp', 'copilot', 'oh-my-pi', 'opencode']) {
+      const setup = wrongstackBridgeSetup(id, ROOT, { agents: [id] })!(task, ctx);
+      const note = (setup.meta as { systemPrompt: { append: string } }).systemPrompt.append;
+      for (const text of [setup.promptPrefix!, note]) {
+        expect(text).not.toContain('mcp__');
+        expect(text).toContain('memory_search on wrongstack-sage');
+        expect(text).toContain('exact callable names exposed by your MCP client');
+      }
+    }
+  });
+
   it('appends the same note for every task and worker, so the prompt cache holds', () => {
     const bridge = wrongstackBridgeSetup('claude-code', ROOT, undefined)!;
     const other = { ...ctx, subagentId: 'w-other' } as unknown as SubagentRunContext;

@@ -1,4 +1,17 @@
 {
+  "acp": {
+    "agent": "ACP-Agent",
+    "subagent": "ACP-Unteragent",
+    "leader": "ACP-Leiter",
+    "available": "Installierte Coding-Agenten können auch als Unteragenten arbeiten.",
+    "showAgents": "Agenten anzeigen",
+    "runtimeTitle": "ACP · Modell / Aufwand",
+    "runtimeHint": "Gilt ab dem nächsten Schritt oder Start eines Unteragenten.",
+    "runtimeLoading": "Agenteneinstellungen werden gelesen…",
+    "runtimeUnsupported": "Dieser Agent bietet über ACP keine Modell- oder Aufwandseinstellungen an.",
+    "runtimeRefresh": "Aktualisieren",
+    "runtimeDefaults": "Standardwerte verwenden"
+  },
   "myGoals": {
     "phaseIsolation": "Use separate checkouts for phases",
     "goalIsolation": "Each goal runs on its own branch for review before integration.",

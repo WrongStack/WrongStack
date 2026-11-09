@@ -9,6 +9,7 @@ import {
   completeKanbanDispatch,
   createBoard,
   failKanbanDispatch,
+  getBoard,
   heartbeatKanbanDispatch,
   reserveKanbanDispatch,
   startKanbanDispatch,
@@ -67,6 +68,52 @@ describe('reserveKanbanDispatch', () => {
     expect(result!.lease.leaseExpiresAt).toBeDefined();
     expect(result!.task.assignment?.leaseId).toBe(result!.lease.leaseId);
     expect(result!.task.assignment?.status).toBe('queued');
+  });
+
+  it.each(['session', 'fixed', 'fallback_profile', 'tier'] as const)(
+    'preserves explicit routing mode %s in the reservation and persisted assignment',
+    async (modelRouting) => {
+      const board = await createBoard(tmpDir, {
+        title: 'Routing override',
+        tasks: [
+          {
+            title: 'Ready work',
+            status: 'ready',
+            assignment: { status: 'assigned', modelRouting: 'fixed' },
+          },
+        ],
+      });
+      const result = await reserveKanbanDispatch(tmpDir, {
+        boardId: board.id,
+        routing: { provider: 'test-provider', model: 'test-model', modelRouting },
+      });
+      expect(result).not.toBeNull();
+      expect(result?.task.assignment).toMatchObject({
+        provider: 'test-provider',
+        model: 'test-model',
+        modelRouting,
+      });
+      const persisted = await getBoard(tmpDir, board.id);
+      expect(persisted?.tasks[0]?.assignment?.modelRouting).toBe(modelRouting);
+    },
+  );
+
+  it('preserves the existing routing mode when no override is supplied', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Routing control',
+      tasks: [
+        {
+          title: 'Ready work',
+          status: 'ready',
+          assignment: { status: 'assigned', modelRouting: 'fixed' },
+        },
+      ],
+    });
+    const result = await reserveKanbanDispatch(tmpDir, { boardId: board.id });
+    expect(result).not.toBeNull();
+    expect(result?.task.assignment?.modelRouting).toBe('fixed');
+    const persisted = await getBoard(tmpDir, board.id);
+    expect(persisted?.tasks[0]?.assignment?.modelRouting).toBe('fixed');
   });
 
   it('returns null when no ready task exists', async () => {

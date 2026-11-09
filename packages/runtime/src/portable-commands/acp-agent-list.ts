@@ -75,6 +75,7 @@ export function formatAcpAgentList(opts: {
     const idWidth = Math.max(16, ...rows.map((a) => a.id.length));
     const lines: string[] = [
       `Official ACP registry — ${live.agents.length} agents (synced ${when}).`,
+      'ACP coding agents can lead a session or run as WrongStack subagents.',
       'Spawn ids below are what `/acp <id> <task>` and `/acp <id> --bg` accept.',
       '',
     ];
@@ -111,6 +112,7 @@ export function formatAcpAgentList(opts: {
   const installed = detected.filter((a) => a.installed);
   const missing = detected.filter((a) => !a.installed);
   const lines: string[] = [
+    'ACP coding agents — use as WrongStack subagents or session leaders.',
     'Bundled offline catalog (not the official registry).',
     'Run `/acp sync` to replace this list with agentclientprotocol/registry.',
     '',

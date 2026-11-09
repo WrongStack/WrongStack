@@ -4735,3 +4735,22 @@ kbd {
 .quota-window :where(progress)::-moz-progress-bar {
   background: var(--accent);
 }
+/* Execution identity stays visible independently of run/status colors. */
+.acp-runtime-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 2px 5px;
+  color: var(--accent, oklch(0.72 0.12 190));
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.acp-runtime-controls { min-width: 0; max-width: 100%; border: 1px solid var(--border); padding: 6px 8px; font-size: 12px; }
+.acp-runtime-controls summary { cursor: pointer; }
+.acp-runtime-controls label, .acp-runtime-controls small, .acp-runtime-controls [role="status"] { display: block; margin: 8px 0; }
+.acp-runtime-controls select { max-width: 100%; color: inherit; background: var(--background); }

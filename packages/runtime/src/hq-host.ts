@@ -4,6 +4,8 @@
  * the fleet controls and the WebUI command handler. One implementation for the CLI and the
  * standalone engine behind WebUI/desktop.
  */
+
+export * from './hq-host/acp-config.js';
 export * from './hq-host/command-controller.js';
 export * from './hq-host/connection.js';
 export * from './hq-host/fleet-control.js';

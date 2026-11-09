@@ -383,8 +383,15 @@ export function wrongstackBridgeSetup(
       ? wstackToolsCommand()
       : undefined;
   const attached = indexCli ? servers.filter((s) => s !== 'codebase-index') : servers;
+  // Tool namespace encoding belongs to the client (Pi, Copilot and Claude differ).
+  const adaptNames = (text: string): string =>
+    agentId === 'claude-code' || agentId === 'claude-acp'
+      ? text
+      : text.replace(/mcp__(wrongstack-[a-z]+)__([a-z_]+)/g, '$2 on $1') +
+        '\nUse the exact callable names exposed by your MCP client; discover them when necessary. ' +
+        'These are MCP tools, not skills or resources. Never guess a client-specific prefix.';
   return (_task, ctx) => ({
-    promptPrefix: bridgeTaskKickoff(servers, indexCli),
+    promptPrefix: adaptNames(bridgeTaskKickoff(servers, indexCli)),
     mcpServers: attached.map((server): StdioServer => {
       const launch = wstackLaunch(serverArgs(server, projectRoot, ctx));
       return { name: SERVER_NAMES[server], ...launch, env: [] };
@@ -392,10 +399,11 @@ export function wrongstackBridgeSetup(
     meta: {
       systemPrompt: {
         // `@session` only reaches someone when a WrongStack session delegated the task.
-        append:
+        append: adaptNames(
           role === 'leader'
             ? leaderBridgeNote(servers, indexCli)
             : bridgeNote(servers, ctx.sessionId !== undefined, indexCli),
+        ),
       },
     },
   });

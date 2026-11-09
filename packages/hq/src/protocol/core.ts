@@ -1,3 +1,4 @@
+import { isHqAcpConfigResult } from '../command-acp-config.js';
 import type {
   HqClientCapability,
   HqClientCommandAckMessage,
@@ -118,6 +119,7 @@ const HQ_CLIENT_KINDS = new Set<HqClientKind>([
 ]);
 const HQ_WORKSPACE_KINDS = new Set<HqWorkspaceKind>(['git', 'directory', 'unknown']);
 const HQ_CLIENT_CAPABILITIES = new Set<HqClientCapability>([
+  'acp.config',
   'telemetry.publish',
   'session.summary',
   'fleet.summary',
@@ -195,7 +197,8 @@ function isHqClientHelloPayload(x: unknown): x is HqClientHelloPayload {
         HQ_CLIENT_CAPABILITIES.has(capability as HqClientCapability),
     ) &&
     (v.redactionPolicy === undefined || isHqRedactionPolicy(v.redactionPolicy)) &&
-    (v.startsSessions === undefined || typeof v.startsSessions === 'boolean')
+    (v.startsSessions === undefined || typeof v.startsSessions === 'boolean') &&
+    (v.acpSettings === undefined || typeof v.acpSettings === 'boolean')
   );
 }
 
@@ -236,7 +239,8 @@ function isHqClientCommandAckMessage(x: unknown): x is HqClientCommandAckMessage
     typeof v.commandId === 'string' &&
     typeof v.status === 'string' &&
     HQ_COMMAND_ACK_STATUSES.has(v.status as HqClientCommandAckMessage['status']) &&
-    (v.message === undefined || typeof v.message === 'string')
+    (v.message === undefined || typeof v.message === 'string') &&
+    (v.acpConfig === undefined || isHqAcpConfigResult(v.acpConfig))
   );
 }
 
@@ -339,6 +343,7 @@ export function parseHqFrame(raw: string | Buffer): HqParseResult {
           commandId: obj.commandId,
           status: obj.status as HqClientCommandAckMessage['status'],
           ...(typeof obj.message === 'string' ? { message: obj.message } : {}),
+          ...(obj.acpConfig !== undefined ? { acpConfig: obj.acpConfig } : {}),
         },
       };
     case 'client.resume':

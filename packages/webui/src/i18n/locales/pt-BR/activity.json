@@ -1,4 +1,17 @@
 {
+  "acp": {
+    "agent": "Agente ACP",
+    "subagent": "Subagente ACP",
+    "leader": "Líder ACP",
+    "available": "Os agentes de programação instalados também podem atuar como subagentes.",
+    "showAgents": "Mostrar agentes",
+    "runtimeTitle": "ACP · Modelo / esforço",
+    "runtimeHint": "Aplica no próximo turno ou ao iniciar um subagente.",
+    "runtimeLoading": "Lendo as configurações do agente…",
+    "runtimeUnsupported": "Este agente não oferece ajustes de modelo ou esforço via ACP.",
+    "runtimeRefresh": "Atualizar",
+    "runtimeDefaults": "Usar padrões"
+  },
   "myGoals": {
     "phaseIsolation": "Use separate checkouts for phases",
     "goalIsolation": "Each goal runs on its own branch for review before integration.",

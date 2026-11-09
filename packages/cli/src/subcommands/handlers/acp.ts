@@ -16,6 +16,7 @@ import {
   listACPAgents,
   parallelACPAgents,
   probeACPAgents,
+  readACPAgentConfig,
   spawnACPAgent,
   syncACPRegistry,
 } from './acp-agents.js';
@@ -44,6 +45,7 @@ Usage:
   wstack acp              Start WrongStack as an ACP server (blocks)
   wstack acp server       Same as above
   wstack acp list         List available ACP agents
+  wstack acp config <id>  Read an agent's model/effort options (--json supported)
   wstack acp sync         Pull the official agentclientprotocol/registry into cache
   wstack acp spawn <id> <task>
                         Spawn an ACP agent as a subagent and wait for result
@@ -98,6 +100,7 @@ parallel:
   if (sub === 'spawn') {
     return spawnACPAgent(args.slice(1), deps);
   }
+  if (sub === 'config') return readACPAgentConfig(args.slice(1), deps);
 
   if (sub === 'parallel') {
     return parallelACPAgents(args.slice(1), deps);

@@ -1,5 +1,7 @@
+import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
 import { ArrowDown, ArrowUp, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { AcpRuntimeSettings } from './AcpRuntimeSettings';
 import { localizedText, useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { emptyEngineState } from './engine-state';
@@ -234,6 +236,26 @@ export function RosterRuntimeEditor({
               <div className="roster-form-grid">
                 <div>
                   <span className="field-label">{t('rosterEdit.roleModel')}</span>
+                  {draft['provider'] === 'acp' && typeof draft['model'] === 'string' && (
+                    <AcpRuntimeSettings
+                      agentId={draft['model']}
+                      command={command}
+                      values={
+                        (
+                          record(draft['modelRuntime'])['acp'] as AcpRuntimeSelections | undefined
+                        )?.[draft['model']]
+                      }
+                      onChange={(values) =>
+                        field('modelRuntime', {
+                          ...record(draft['modelRuntime']),
+                          acp: {
+                            ...record(record(draft['modelRuntime'])['acp']),
+                            [String(draft['model'])]: values,
+                          },
+                        })
+                      }
+                    />
+                  )}
                   <button
                     type="button"
                     className="button secondary"

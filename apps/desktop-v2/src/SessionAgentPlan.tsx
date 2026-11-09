@@ -1,5 +1,7 @@
+import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
 import { Check, LoaderCircle, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { AcpRuntimeSettings } from './AcpRuntimeSettings';
 import { effortNames } from './composer-model';
 import { localizedText, useDesktopText } from './desktop-i18n';
 import type { FormDraftStorage } from './durable-form-draft';
@@ -156,15 +158,41 @@ export function SessionAgentPlan({
     }
   };
   const editRoute = (label: string, value: Route, target: { index?: number; role?: string }) => (
-    <AgentRoute
-      key={label}
-      label={label}
-      value={value}
-      disabled={busy || (plan?.followSessionModel === true && target.role === undefined)}
-      catalogs={catalogId}
-      onChange={(next) => updateRoute(target, next)}
-      onPick={() => setPicker(target)}
-    />
+    <div key={label}>
+      <AgentRoute
+        key={label}
+        label={label}
+        value={value}
+        disabled={busy || (plan?.followSessionModel === true && target.role === undefined)}
+        catalogs={catalogId}
+        onChange={(next) => updateRoute(target, next)}
+        onPick={() => setPicker(target)}
+      />
+      {value['provider'] === 'acp' && typeof value['model'] === 'string' && (
+        <AcpRuntimeSettings
+          agentId={value['model']}
+          command={command}
+          disabled={busy || (plan?.followSessionModel === true && target.role === undefined)}
+          values={
+            (record(value['modelRuntime'])['acp'] as AcpRuntimeSelections | undefined)?.[
+              value['model']
+            ]
+          }
+          onChange={(values) =>
+            updateRoute(target, {
+              ...value,
+              modelRuntime: {
+                ...record(value['modelRuntime']),
+                acp: {
+                  ...record(record(value['modelRuntime'])['acp']),
+                  [String(value['model'])]: values,
+                },
+              },
+            })
+          }
+        />
+      )}
+    </div>
   );
   return (
     <>
@@ -585,50 +613,52 @@ function AgentRoute({
           {t('agentPlan.route.choose')}
         </button>
       )}
-      <details>
-        <summary>{t('agentPlan.route.reasoning')}</summary>
-        <label>
-          {t('agentPlan.route.mode')}
-          <select
-            aria-label={t('agentPlan.route.modeField', { route: label })}
-            value={String(reasoning['mode'] ?? '')}
-            onChange={(event) => changeReasoning('mode', event.target.value)}
-          >
-            {['', 'auto', 'on', 'off'].map((mode) => (
-              <option key={mode} value={mode}>
-                {mode ? t(`agentPlan.route.reasoningMode.${mode}`) : t('agentPlan.route.inherit')}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('agentPlan.route.effort')}
-          <select
-            aria-label={t('agentPlan.route.effortField', { route: label })}
-            value={String(reasoning['effort'] ?? '')}
-            onChange={(event) => changeReasoning('effort', event.target.value)}
-          >
-            <option value="">{t('agentPlan.route.inherit')}</option>
-            {Object.entries(effortNames).map(([id, name]) => (
-              <option key={id} value={id}>
-                {t(`options.${id}`, { defaultValue: name })}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t('agentPlan.route.preserve')}
-          <select
-            aria-label={t('agentPlan.route.preserveField', { route: label })}
-            value={reasoning['preserve'] === undefined ? '' : String(reasoning['preserve'])}
-            onChange={(event) => changeReasoning('preserve', event.target.value)}
-          >
-            <option value="">{t('agentPlan.route.inherit')}</option>
-            <option value="true">{t('agentPlan.route.keep')}</option>
-            <option value="false">{t('agentPlan.route.drop')}</option>
-          </select>
-        </label>
-      </details>
+      {value['provider'] !== 'acp' && (
+        <details>
+          <summary>{t('agentPlan.route.reasoning')}</summary>
+          <label>
+            {t('agentPlan.route.mode')}
+            <select
+              aria-label={t('agentPlan.route.modeField', { route: label })}
+              value={String(reasoning['mode'] ?? '')}
+              onChange={(event) => changeReasoning('mode', event.target.value)}
+            >
+              {['', 'auto', 'on', 'off'].map((mode) => (
+                <option key={mode} value={mode}>
+                  {mode ? t(`agentPlan.route.reasoningMode.${mode}`) : t('agentPlan.route.inherit')}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('agentPlan.route.effort')}
+            <select
+              aria-label={t('agentPlan.route.effortField', { route: label })}
+              value={String(reasoning['effort'] ?? '')}
+              onChange={(event) => changeReasoning('effort', event.target.value)}
+            >
+              <option value="">{t('agentPlan.route.inherit')}</option>
+              {Object.entries(effortNames).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {t(`options.${id}`, { defaultValue: name })}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('agentPlan.route.preserve')}
+            <select
+              aria-label={t('agentPlan.route.preserveField', { route: label })}
+              value={reasoning['preserve'] === undefined ? '' : String(reasoning['preserve'])}
+              onChange={(event) => changeReasoning('preserve', event.target.value)}
+            >
+              <option value="">{t('agentPlan.route.inherit')}</option>
+              <option value="true">{t('agentPlan.route.keep')}</option>
+              <option value="false">{t('agentPlan.route.drop')}</option>
+            </select>
+          </label>
+        </details>
+      )}
     </fieldset>
   );
 }

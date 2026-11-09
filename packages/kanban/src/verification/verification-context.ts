@@ -536,10 +536,11 @@ export class VerificationContext {
 
     const passMatch = result.stdout.match(/(\d+)\s+passed/);
     const failMatch = result.stdout.match(/(\d+)\s+failed/);
+    const reportedFailed = failMatch ? parseInt(failMatch[1]!, 10) : 0;
     return {
       testPattern: pattern,
       passed: passMatch ? parseInt(passMatch[1]!, 10) : 0,
-      failed: failMatch ? parseInt(failMatch[1]!, 10) : result.exitCode === 0 ? 0 : 1,
+      failed: result.exitCode !== 0 && reportedFailed === 0 ? 1 : reportedFailed,
       skipped: 0,
       durationMs: Date.now() - start,
       failureOutput:

@@ -8,6 +8,7 @@ export * from './acp-live-steer.js';
 export * from './acp-permission-bridge.js';
 export * from './acp-quota-hold.js';
 export * from './acp-quota-reading.js';
+export * from './acp-runtime-config.js';
 export * from './acp-turn-reminders.js';
 export * from './acp-wrongstack-bridge.js';
 export * from './budget-source.js';

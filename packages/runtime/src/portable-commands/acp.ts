@@ -12,6 +12,7 @@ import {
   runOneAcpTask,
 } from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/contracts/types';
+import { sessionAcpRuntime } from '@wrongstack/coordination';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { formatAcpAgentList } from './acp-agent-list.js';
 import {
@@ -19,6 +20,7 @@ import {
   loadCachedAcpRegistry,
   refreshAcpRegistry,
 } from './acp-registry-cache.js';
+import { configureAcpRuntime } from './acp-runtime-config.js';
 import { askingSessionId } from './fleet.js';
 import type { AcpCommandHost } from './host.js';
 
@@ -50,12 +52,17 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
     category: 'Agent',
     description:
       'Discover and assign tasks to installed ACP coding agents (claude-code, codex-cli, gemini-cli, …).',
-    argsHint: '[list | probe | <agent-id> [--bg] <task> | parallel <csv> [--bg] <task>]',
+    argsHint:
+      '[list | config <agent> [--lane=N|--role=name] [option value|reset] | probe | <agent-id> [--bg] <task>]',
     help: [
       'Use the ACP-supporting CLIs already installed on this machine as',
       'subagents — they run with their own login, so no API key is spent here.',
       '',
       'Usage:',
+      '  /acp config <agent>           Read the agent model/effort selectors',
+      '  /acp config <agent> <id> <value>  Validate and save a session setting',
+      '  /acp config <agent> reset     Clear this session override',
+      '  Add --lane=1 or --role=reviewer to configure a lane/role instead.',
       '  /acp                          List detected agents (✓ installed / ✗ missing)',
       '  /acp <agent-id> <task>        Run a task on ONE agent, inline + streamed',
       '  /acp <agent-id> --bg <task>   Run it as a background fleet subagent (/agents)',
@@ -97,6 +104,7 @@ export function buildAcpCommand(opts: AcpCommandHost): SlashCommand {
       const rest = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
 
       if (head === 'probe') return probeAgents(rest, overrides, live, opts);
+      if (head === 'config') return configureAcpRuntime(rest, opts, ctx);
       if (head === 'bench') return benchAgents(rest, overrides, live, opts);
       const originSessionId = askingSessionId(ctx);
       if (head === 'parallel') return parallelAgents(rest, overrides, live, opts, originSessionId);
@@ -325,7 +333,17 @@ async function parallelAgents(
     const result = await runEnsemble({
       agentIds: idsCsv,
       task,
-      resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, liveById),
+      resolveCmd: (id) => {
+        const cmd = resolveAcpAgentCommand(id, overrides, liveById);
+        return cmd
+          ? {
+              ...cmd,
+              cwd: opts.projectRoot,
+              projectRoot: opts.projectRoot,
+              sessionSetup: opts.acpSessionSetup?.(id, opts.projectRoot, readBridgeConfig(opts)),
+            }
+          : null;
+      },
     });
     return { message: renderEnsembleText(result) };
   } catch (err) {
@@ -400,6 +418,10 @@ async function runSingle(
       projectRoot: opts.projectRoot,
       sessionId,
       permissionPolicy: defaultPermissionPolicy,
+      runtimeValues: {
+        ...opts.configStore?.get().modelRuntime?.acp?.[agentId],
+        ...sessionAcpRuntime(originSessionId)[agentId],
+      },
       sessionSetup: opts.acpSessionSetup?.(agentId, opts.projectRoot, readBridgeConfig(opts)),
       onProgress: (event) => {
         const line = formatProgress(event);

@@ -433,7 +433,7 @@ describe('F3 row presentation', () => {
 
   it('names an external ACP worker instead of an unknown model', () => {
     expect(formatAgentModel(entry({ id: 'c', status: 'running', provider: 'acp' }))).toBe(
-      'external agent (ACP)',
+      'ACP subagent',
     );
     expect(
       formatAgentModel(entry({ id: 'o', status: 'running', provider: 'openai', model: 'x/gpt-5' })),

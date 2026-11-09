@@ -1,3 +1,4 @@
+import type { AcpRuntimeSelections } from '../acp-runtime.js';
 import type { CacheTtl, ReasoningEffort } from '../provider.js';
 
 export interface ModelRuntimeReasoningConfig {
@@ -38,6 +39,8 @@ export interface ModelRuntimeCacheConfig {
  * that reads these and mutates the outgoing `Request`.
  */
 export interface ModelRuntimeConfig {
+  /** Per-agent ACP-native settings. The outer model continues to identify the ACP agent. */
+  acp?: AcpRuntimeSelections | undefined;
   reasoning?: ModelRuntimeReasoningConfig | undefined;
   cache?: ModelRuntimeCacheConfig | undefined;
   /** Stream watchdog budgets applied to every HTTP+SSE provider. */

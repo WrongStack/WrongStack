@@ -277,6 +277,8 @@ export function handleClient(
       if (payload.startsSessions === true && canPublishTelemetry) {
         acceptedCapabilities.push('session.start');
       }
+      if (payload.acpSettings === true && acceptedCapabilities.includes('control.receive'))
+        acceptedCapabilities.push('acp.config');
       const declaredRedactionPolicy = resolveHqRedactionPolicy(payload.redactionPolicy);
 
       const supersededLeaders: ConnectedClient[] = [];
@@ -493,6 +495,9 @@ export function handleClient(
           acknowledgedAt: Date.now(),
           ackStatus: frame.status,
           ...(frame.message !== undefined ? { ackMessage: frame.message } : {}),
+          ...(frame.acpConfig !== undefined && auditLog?.get(frame.commandId)?.type === 'acp-config'
+            ? { acpConfig: frame.acpConfig }
+            : {}),
           ackedAt: new Date().toISOString(),
         });
         if (updated === true) {

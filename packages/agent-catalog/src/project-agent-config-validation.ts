@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import { acpRuntimeSelectionsError } from '@wrongstack/contracts/types/acp-runtime';
 import type { ProjectAgentConfig } from './project-agent-identity-types.js';
 
 const PROJECT_AGENT_CONFIG_KEYS = new Set([
@@ -7,6 +8,7 @@ const PROJECT_AGENT_CONFIG_KEYS = new Set([
   'budget',
   'provider',
   'model',
+  'modelRuntime',
   'allowedCapabilities',
   'modelPolicy',
   'fallbackProfile',
@@ -79,6 +81,15 @@ export function validateProjectAgentConfig(value: unknown): ProjectAgentConfig {
   }
 
   if (value.modelPolicy !== undefined) validateProjectAgentModelPolicy(value.modelPolicy);
+  if (value.modelRuntime !== undefined) {
+    if (
+      !isPlainRecord(value.modelRuntime) ||
+      Object.keys(value.modelRuntime).some((key) => key !== 'acp')
+    )
+      throw new Error('Project agent modelRuntime supports ACP settings only.');
+    const error = acpRuntimeSelectionsError(value.modelRuntime.acp ?? {});
+    if (error) throw new Error(error);
+  }
   if (value.availability !== undefined) validateProjectAgentAvailability(value.availability);
 
   if (value.budget !== undefined) {

@@ -1,5 +1,7 @@
+import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
 import { ChevronDown, TriangleAlert, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { AcpRuntimeSettings } from './AcpRuntimeSettings';
 import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand, EngineSend } from './engine-operations';
@@ -92,7 +94,30 @@ export function SessionModelControls({
         </span>
         <ChevronDown size={11} />
       </button>
-      {!effort.hidden && (
+      {state.provider === 'acp' && (
+        <AcpRuntimeSettings
+          key={state.model}
+          agentId={state.model}
+          command={command}
+          disabled={!state.connected || busy}
+          values={
+            (state.results['prefs.updated']?.['acpRuntime'] as AcpRuntimeSelections | undefined)?.[
+              state.model
+            ]
+          }
+          onChange={async (values) => {
+            const settings = state.results['prefs.updated']?.['acpRuntime'] as
+              | AcpRuntimeSelections
+              | undefined;
+            const next = { ...settings, [state.model]: values };
+            await command('prefs.update', { acpRuntime: next }, ['key.operation_result']);
+            const actual = await command('prefs.get', {}, ['prefs.updated']);
+            if (JSON.stringify(actual['acpRuntime']) !== JSON.stringify(next))
+              throw Error(t('modelControls.notConfirmed'));
+          }}
+        />
+      )}
+      {state.provider !== 'acp' && !effort.hidden && (
         <label
           className="composer-chip effort-control"
           title={effort.reason || t('modelControls.effortTitle')}
@@ -121,7 +146,7 @@ export function SessionModelControls({
           </select>
         </label>
       )}
-      {reasoning && !reasoning.alwaysOn && (
+      {state.provider !== 'acp' && reasoning && !reasoning.alwaysOn && (
         <label className="composer-chip effort-control" title={t('modelControls.reasoningTitle')}>
           <select
             aria-label={t('modelControls.reasoningLabel')}

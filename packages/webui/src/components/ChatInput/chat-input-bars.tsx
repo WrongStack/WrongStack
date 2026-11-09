@@ -1,3 +1,4 @@
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { BookOpen, ChevronDown, Cpu, FileText, History, SlidersHorizontal } from 'lucide-react';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { cn } from '@/lib/utils';
@@ -13,6 +14,7 @@ import {
 } from '../ui/dropdown-menu.js';
 import { CompanionsButton } from './companions-button.js';
 import { type ImageAttachment, isPdfAttachment } from './image-attachments.js';
+import { SessionAcpRuntime } from './session-acp-runtime.js';
 import { SessionEffortSelect } from './session-effort-select.js';
 import { SubagentModelsButton } from './subagent-models-button.js';
 import type { PasteHintState } from './use-paste-drop.js';
@@ -257,6 +259,12 @@ export function ModelAndPromptBar({
         title={t('chat:header.changeModelTitle')}
       >
         <Cpu className="h-3.5 w-3.5 shrink-0" />
+        <AgentRuntimeBadge
+          provider={sessionProvider ?? fallbackProvider}
+          model={sessionModel ?? fallbackModel}
+          executionRole="leader"
+          showName={false}
+        />
         <span className="truncate font-mono">
           {(sessionProvider ?? fallbackProvider) || t('chat:header.noProvider')}
           {' / '}
@@ -264,7 +272,11 @@ export function ModelAndPromptBar({
         </span>
       </button>
       <div className="hidden md:contents">
-        <SessionEffortSelect />
+        {(sessionProvider ?? fallbackProvider) === 'acp' ? (
+          <SessionAcpRuntime agentId={sessionModel ?? fallbackModel ?? ''} />
+        ) : (
+          <SessionEffortSelect />
+        )}
         <SubagentModelsButton />
         <CompanionsButton />
       </div>
@@ -286,7 +298,11 @@ export function ModelAndPromptBar({
         >
           <DialogTitle className="text-base">{t('chat:input.runSettings')}</DialogTitle>
           <div className="ws-mobile-run-settings grid gap-3">
-            <SessionEffortSelect />
+            {(sessionProvider ?? fallbackProvider) === 'acp' ? (
+              <SessionAcpRuntime agentId={sessionModel ?? fallbackModel ?? ''} />
+            ) : (
+              <SessionEffortSelect />
+            )}
             <SubagentModelsButton />
             <CompanionsButton />
           </div>

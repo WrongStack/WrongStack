@@ -55,6 +55,13 @@ export class EvidenceValidator {
     const reasons: string[] = [];
     const refs = result.backingRefs ?? [];
 
+    // A summary without a reference target is still an unsupported opinion.
+    for (const ref of refs) {
+      if (typeof ref.path !== 'string' || ref.path.trim().length === 0) {
+        reasons.push(`Evidence reference "${ref.kind}" requires a non-blank path.`);
+      }
+    }
+
     // Reject bare verdict without evidence
     if (this.rules.rejectBareVerdict && refs.length === 0) {
       reasons.push(

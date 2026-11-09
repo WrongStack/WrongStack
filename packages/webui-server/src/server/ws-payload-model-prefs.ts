@@ -1,3 +1,4 @@
+import { acpRuntimeSelectionsError } from '@wrongstack/contracts/types/acp-runtime';
 import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,6 +25,10 @@ export function validateModelRuntimeValue(
   modelRuntime: Record<string, unknown>,
   path: string,
 ): string | null {
+  if (modelRuntime['acp'] !== undefined) {
+    const error = acpRuntimeSelectionsError(modelRuntime['acp']);
+    if (error) return `${path}.acp: ${error}`;
+  }
   const reasoning = modelRuntime['reasoning'];
   if (reasoning !== undefined) {
     if (!isRecord(reasoning)) return `${path}.reasoning must be an object when provided`;

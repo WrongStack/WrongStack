@@ -1,6 +1,8 @@
+import { AcpRuntimeControls } from '@wrongstack/project-surfaces/ui/AcpRuntimeControls';
 import { Layers } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { requestAcpRuntime } from '@/lib/acp-runtime';
 import {
   formatModelMatrixRouteLabel,
   MODEL_MATRIX_DEFAULT_ROUTE,
@@ -349,68 +351,89 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
                     {t('common:action.remove')}
                   </Button>
                 </div>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <select
-                    aria-label={t('settings:agent.routingReasoningModeFor', { key })}
-                    value={entry.modelRuntime?.reasoning?.mode ?? ''}
-                    onChange={(e) =>
-                      updateModelRouteReasoning(
-                        key,
-                        'mode',
-                        e.target.value as RouteReasoningModeControl,
-                      )
+                {entry.provider === 'acp' && entry.model && (
+                  <AcpRuntimeControls
+                    agentId={entry.model}
+                    request={requestAcpRuntime}
+                    values={entry.modelRuntime?.acp?.[entry.model]}
+                    onChange={(values) =>
+                      setModelMatrix({
+                        ...localPrefs.modelMatrix,
+                        [key]: {
+                          ...entry,
+                          modelRuntime: {
+                            ...entry.modelRuntime,
+                            acp: { ...entry.modelRuntime?.acp, [entry.model!]: values },
+                          },
+                        },
+                      })
                     }
-                    className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
-                  >
-                    {ROUTE_REASONING_MODES.map((opt) => (
-                      <option key={opt.value || 'inherit'} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label={t('settings:agent.routingReasoningEffortFor', { key })}
-                    value={entry.modelRuntime?.reasoning?.effort ?? ''}
-                    onChange={(e) =>
-                      updateModelRouteReasoning(
-                        key,
-                        'effort',
-                        e.target.value as RouteReasoningEffortControl,
-                      )
-                    }
-                    className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
-                  >
-                    {ROUTE_REASONING_EFFORTS.map((opt) => (
-                      <option key={opt.value || 'inherit'} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label={t('settings:agent.routingReasoningPreserveFor', { key })}
-                    value={
-                      entry.modelRuntime?.reasoning?.preserve === undefined
-                        ? ''
-                        : entry.modelRuntime.reasoning.preserve
-                          ? 'on'
-                          : 'off'
-                    }
-                    onChange={(e) =>
-                      updateModelRouteReasoning(
-                        key,
-                        'preserve',
-                        e.target.value as RoutePreserveControl,
-                      )
-                    }
-                    className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
-                  >
-                    {ROUTE_PRESERVE_OPTIONS.map((opt) => (
-                      <option key={opt.value || 'inherit'} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  />
+                )}
+                {entry.provider !== 'acp' && (
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <select
+                      aria-label={t('settings:agent.routingReasoningModeFor', { key })}
+                      value={entry.modelRuntime?.reasoning?.mode ?? ''}
+                      onChange={(e) =>
+                        updateModelRouteReasoning(
+                          key,
+                          'mode',
+                          e.target.value as RouteReasoningModeControl,
+                        )
+                      }
+                      className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
+                    >
+                      {ROUTE_REASONING_MODES.map((opt) => (
+                        <option key={opt.value || 'inherit'} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label={t('settings:agent.routingReasoningEffortFor', { key })}
+                      value={entry.modelRuntime?.reasoning?.effort ?? ''}
+                      onChange={(e) =>
+                        updateModelRouteReasoning(
+                          key,
+                          'effort',
+                          e.target.value as RouteReasoningEffortControl,
+                        )
+                      }
+                      className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
+                    >
+                      {ROUTE_REASONING_EFFORTS.map((opt) => (
+                        <option key={opt.value || 'inherit'} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label={t('settings:agent.routingReasoningPreserveFor', { key })}
+                      value={
+                        entry.modelRuntime?.reasoning?.preserve === undefined
+                          ? ''
+                          : entry.modelRuntime.reasoning.preserve
+                            ? 'on'
+                            : 'off'
+                      }
+                      onChange={(e) =>
+                        updateModelRouteReasoning(
+                          key,
+                          'preserve',
+                          e.target.value as RoutePreserveControl,
+                        )
+                      }
+                      className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
+                    >
+                      {ROUTE_PRESERVE_OPTIONS.map((opt) => (
+                        <option key={opt.value || 'inherit'} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             ))
         )}

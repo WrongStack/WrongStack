@@ -19,6 +19,7 @@ import { VList } from 'virtua';
 import { agentNameMap } from '@/features/transcript/model';
 import { TranscriptTurn } from '@/features/transcript/turn';
 import { consoleHref } from './model';
+import { RuntimeBadge } from './runtime-badge';
 
 export function PeekPanel({
   node,
@@ -72,6 +73,7 @@ export function PeekPanel({
           <h2 id={titleId} className="truncate font-display text-lg font-semibold">
             {node.label}
           </h2>
+          <RuntimeBadge provider={node.agent?.provider} model={node.agent?.model} />
           <p className="truncate text-sm text-muted-foreground">
             {session !== undefined
               ? `${session.projectName} · ${session.hostname ?? session.machineId} · ${session.clientKind.toUpperCase()}`

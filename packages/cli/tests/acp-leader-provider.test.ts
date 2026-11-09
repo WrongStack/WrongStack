@@ -14,6 +14,7 @@ const acp = vi.hoisted(() => ({
   prompts: [] as string[],
   steers: [] as string[],
   closes: [] as Array<{ graceMs?: number }>,
+  runtime: [] as Array<Record<string, string>>,
   startError: undefined as Error | undefined,
   turn: undefined as
     | ((onProgress: (e: unknown) => void) => Promise<Record<string, unknown>>)
@@ -21,6 +22,10 @@ const acp = vi.hoisted(() => ({
 }));
 
 vi.mock('@wrongstack/acp', () => ({
+  applyAcpRuntimeValues: async (_session: unknown, values: Record<string, string>) => {
+    acp.runtime.push({ ...values });
+    return [];
+  },
   textContent: (text: string) => ({ type: 'text', text }),
   findAgentDescriptor: (id: string) =>
     id === 'claude-code' ? { id, contextWindow: 1_000_000 } : undefined,
@@ -120,6 +125,7 @@ beforeEach(() => {
   acp.prompts.length = 0;
   acp.steers.length = 0;
   acp.closes.length = 0;
+  acp.runtime.length = 0;
   acp.startError = undefined;
   acp.turn = undefined;
 });
@@ -186,6 +192,41 @@ describe('the leader context window', () => {
 });
 
 describe('a leader turn', () => {
+  it('applies session-specific ACP options before each turn and resets removed overrides', async () => {
+    const context = {
+      meta: { acpRuntime: { 'claude-code': { model: 'fable', effort: 'low' } } } as Record<
+        string,
+        unknown
+      >,
+    };
+    bindAcpLeaderHost({
+      events: new EventBus(),
+      projectRoot: '/proj',
+      getConfig: () => CONFIG,
+      permission: () => ({ evaluate: async () => ({ permission: 'auto' }) }) as never,
+      context: () => context as never,
+      getTool: () => undefined,
+      runTool: async () => ({ content: '', isError: false }),
+    });
+    const provider = new AcpLeaderProvider({ bootConfig: CONFIG, buildProvider: () => undefined });
+    acp.turn = async () => {
+      expect(acp.runtime).toHaveLength(acp.prompts.length);
+      return {
+        text: 'ok',
+        stopReason: 'end_turn',
+        toolCalls: [],
+        diffs: [],
+        thoughts: '',
+        hasText: true,
+      };
+    };
+    await collect(provider.stream(leaderRequest('first') as never, { signal: SIGNAL }));
+    context.meta['acpRuntime'] = {};
+    await collect(provider.stream(leaderRequest('second') as never, { signal: SIGNAL }));
+    expect(acp.runtime).toEqual([{ model: 'fable', effort: 'low' }, {}]);
+    expect(acp.starts).toHaveLength(1);
+    await closeAcpLeaderSessions();
+  });
   it('includes a pending /btw note in the next ACP prompt', async () => {
     const context = { meta: {} };
     setBtwNote(context as never, 'check the latest note');

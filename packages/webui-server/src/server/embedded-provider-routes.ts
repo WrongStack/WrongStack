@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
+import { inspectAcpRuntime } from '@wrongstack/fleet';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { applyEmbeddedModelSwitch } from './embedded-host-adapters.js';
 import type { EmbeddedMessageRouterDeps } from './embedded-message-router-types.js';
@@ -72,6 +73,11 @@ export function createEmbeddedProviderRoutes(
   });
 
   const provider: ProviderRouteHandlers = {
+    acpConfigOptions: async (agentId, values) => {
+      const config = deps.agentConfigCtx.getConfig?.();
+      if (!config) throw new Error('ACP agent configuration is unavailable.');
+      return inspectAcpRuntime(config, opts.projectRoot ?? process.cwd(), agentId, values);
+    },
     listProviders: (ws) => providerOperations.handleProvidersList(ws),
     listSavedProviders: (ws) => providerOperations.handleProvidersSaved(ws),
     listProviderModels: (ws, msg) =>

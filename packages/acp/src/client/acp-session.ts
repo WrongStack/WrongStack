@@ -8,6 +8,8 @@
  * Spec: https://agentclientprotocol.com/protocol/v1/overview
  * Design: see ./acp-session.design.md in this directory.
  */
+
+import type { AcpRuntimeOption } from '@wrongstack/contracts/types/acp-runtime';
 import { type ACPClientTransport, ClientTransport } from '../agent/stdio-transport.js';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
@@ -21,7 +23,9 @@ import {
 } from '../types/acp-v1.js';
 import { ACP_PACKAGE_VERSION } from '../version.js';
 import { cancelLateAcpSession } from './acp-late-session.js';
+import { prepareAcpLaunch } from './acp-launch-compat.js';
 import { type PendingRequest, rejectPendingRequests, type State } from './acp-request-state.js';
+import { acpRuntimeOptions } from './acp-runtime-options.js';
 import {
   type AcpSessionAuthHost,
   authenticate as delegateAuthenticate,
@@ -103,6 +107,12 @@ export class ACPSession {
   private nextId = 1;
   /** True after close() has been called. */
   private closed = false;
+  private disposeLaunch: (() => Promise<void>) | undefined;
+  private configOptions: AcpRuntimeOption[] = [];
+
+  getConfigOptions(): AcpRuntimeOption[] {
+    return structuredClone(this.configOptions);
+  }
 
   // Agent-provided info from the initialize handshake
   private agentCapabilities: AgentCapabilities = {};
@@ -192,17 +202,22 @@ export class ACPSession {
    * message dispatch, and return a ready session.
    */
   static async start(opts: ACPSessionOptions): Promise<ACPSession> {
+    const prepared = prepareAcpLaunch(opts);
+    const launch = 'then' in prepared ? await prepared : prepared;
     const transportOpts: ConstructorParameters<typeof ClientTransport>[0] = {
       command: opts.command,
-      args: opts.args ? [...opts.args] : [],
+      args: launch.args,
       handshakeTimeoutMs: 30_000,
       skipHandshakeMarker: true,
     };
-    if (opts.env !== undefined) transportOpts.env = opts.env;
+    if (launch.env !== undefined) transportOpts.env = launch.env;
     if (opts.cwd !== undefined) transportOpts.cwd = opts.cwd;
     const transport = new ClientTransport(transportOpts);
     try {
-      return await ACPSession.attach(opts, transport, `failed to spawn ${opts.command}`);
+      const session = await ACPSession.attach(opts, transport, `failed to spawn ${opts.command}`);
+      session.disposeLaunch = launch.dispose;
+      if (session.closed) await launch.dispose();
+      return session;
     } catch (err) {
       try {
         transport.stop();
@@ -210,6 +225,7 @@ export class ACPSession {
       } catch {
         // best effort
       }
+      await launch.dispose();
       throw err;
     }
   }
@@ -508,6 +524,9 @@ export class ACPSession {
     } catch {
       // best effort
     }
+    const dispose = this.disposeLaunch;
+    this.disposeLaunch = undefined;
+    await dispose?.();
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -561,7 +580,23 @@ export class ACPSession {
       };
       const entry: PendingRequest = {
         method,
-        resolve: resolve as (v: unknown) => void,
+        resolve: (value: unknown) => {
+          if (['session/new', 'session/load', 'session/resume'].includes(method))
+            this.configOptions = [];
+          if (
+            ['session/new', 'session/load', 'session/resume', 'session/set_config_option'].includes(
+              method,
+            ) &&
+            value &&
+            typeof value === 'object' &&
+            Array.isArray((value as { configOptions?: unknown }).configOptions)
+          ) {
+            this.configOptions = acpRuntimeOptions(
+              (value as { configOptions: unknown }).configOptions,
+            );
+          }
+          resolve(value);
+        },
         reject,
         timeoutMs: effectiveTimeout,
         timeoutHandle: setTimeout(expire, effectiveTimeout),
@@ -623,6 +658,16 @@ export class ACPSession {
   }
 
   private handleMessage(msg: ACPMessage): void {
+    if (msg.method === 'session/update') {
+      const params = msg.params as
+        | { sessionId?: string; update?: { sessionUpdate?: string; configOptions?: unknown } }
+        | undefined;
+      if (
+        params?.sessionId === this.sessionId &&
+        params.update?.sessionUpdate === 'config_option_update'
+      )
+        this.configOptions = acpRuntimeOptions(params.update.configOptions);
+    }
     handleMessageFromHost.call(this.acpSessionMessagesHost(), msg);
   }
 

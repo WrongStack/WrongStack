@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { cn } from '@/lib/cn';
 import { buildFleetTree, consoleHref, isLiveStatus } from './model';
+import { RuntimeBadge } from './runtime-badge';
 
 export const TONE_DOT: Record<HqTone, string> = {
   active: 'bg-success',
@@ -144,6 +145,10 @@ export function FleetList({
                                     <Dot status={agent.status} />
                                     <span className="min-w-0 flex-1 truncate text-sm">
                                       <span className="font-medium">{agent.label}</span>
+                                      <RuntimeBadge
+                                        provider={agent.agent?.provider}
+                                        model={agent.agent?.model}
+                                      />
                                       <span className="text-muted-foreground">
                                         {' · '}
                                         {tool !== undefined && isLiveStatus(agent.status)

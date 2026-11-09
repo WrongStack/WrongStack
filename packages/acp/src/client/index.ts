@@ -6,6 +6,7 @@ export type {
 export { ClientTransport } from '../agent/stdio-transport.js';
 export type { ACPSubagentRunnerOptions } from '../integration/acp-subagent-runner.js';
 export { makeACPSubagentRunner } from '../integration/acp-subagent-runner.js';
+export { acpRuntimeOptions, applyAcpRuntimeValues } from './acp-runtime-options.js';
 export type {
   ACPCapturedDiff,
   ACPCapturedToolCall,

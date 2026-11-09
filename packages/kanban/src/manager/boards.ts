@@ -84,7 +84,6 @@ export async function createBoard(
         order: task.order ?? index,
       });
       initializeAndValidateManagedTask(board, created);
-      if (task.atomicityAssessment === undefined) stampAtomicityAssessment(board, created);
       return created;
     });
 
@@ -109,6 +108,10 @@ export async function createBoard(
     for (const chainId of chainIds) {
       normalizeChainMetadata(board, chainId);
     }
+    // Derived assessments must see the resolved dependency graph, not the stripped inputs.
+    board.tasks.forEach((task, index) => {
+      if (rawTasks[index]?.atomicityAssessment === undefined) stampAtomicityAssessment(board, task);
+    });
   }
 
   await writeBoard(projectRoot, board);
@@ -294,6 +297,16 @@ export async function duplicateBoard(
   });
 
   if (input.includeTasks !== false) {
+    // Cloned requirement mappings must retain their board-level coverage contract.
+    if (source.requiredRequirementIds !== undefined) {
+      board.requiredRequirementIds = [...source.requiredRequirementIds];
+    }
+    if (source.requirementScopes !== undefined) {
+      board.requirementScopes = source.requirementScopes.map((scope) => ({
+        ...scope,
+        requirementIds: [...scope.requirementIds],
+      }));
+    }
     const sourceTasks = source.tasks.filter(
       (task) => input.includeCompletedTasks !== false || task.status !== 'completed',
     );

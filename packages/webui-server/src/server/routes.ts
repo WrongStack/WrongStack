@@ -1,3 +1,4 @@
+import { inspectAcpRuntime } from '@wrongstack/fleet';
 import { handleJevRoute } from './jev-routes.js';
 /**
  * WebUI route-table construction.
@@ -125,6 +126,8 @@ export function buildRoutes(
     ? createProviderStatusPersistence(statusTracker, deps.profileConfigPath)
     : undefined;
   const providerRoutes: ProviderRouteHandlers = {
+    acpConfigOptions: (agentId, values) =>
+      inspectAcpRuntime(state.getConfig(), state.getProjectRoot(), agentId, values),
     statusTracker,
     ...(statusPersistence
       ? {

@@ -19,6 +19,7 @@ export const SESSION_SCOPED_PREFS = [
   'subagentCompanionsAllowed',
   'subagentsPolicyLocked',
   'subagentModelPlan',
+  'acpRuntime',
   'autonomy',
   'autonomyDelayMs',
   'autoProceedMaxIterations',

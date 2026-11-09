@@ -97,6 +97,7 @@ export class AgentStatusTracker {
   private leaderTokensOut = 0;
   private leaderCtxPct: number | undefined;
   private leaderModel: string | undefined;
+  private leaderProvider: string | undefined;
   private leaderPartialText = '';
   private leaderStartedAt: string | undefined;
   private leaderRecentTools: AgentRecentTool[] = [];
@@ -515,6 +516,7 @@ export class AgentStatusTracker {
       tokensOut: this.leaderTokensOut,
       ctxPct: this.leaderCtxPct,
       model: this.leaderModel,
+      ...(this.leaderProvider ? { provider: this.leaderProvider } : {}),
       partialText: this.leaderPartialText || undefined,
       recentTools: this.leaderRecentTools,
       recentMail: this.leaderRecentMail,
@@ -591,6 +593,13 @@ export class AgentStatusTracker {
     this.leaderStartedAt = startedAt ?? new Date().toISOString();
   }
 
+  /** Seed idle sessions and follow explicit model changes without inventing a run. */
+  syncLeaderIdentity(ctx: unknown): void {
+    const before = `${this.leaderProvider}/${this.leaderModel}`;
+    this.captureLeaderContext(ctx);
+    if (`${this.leaderProvider}/${this.leaderModel}` !== before) this.flush();
+  }
+
   private captureLeaderContext(ctx: unknown): void {
     if (typeof ctx !== 'object' || ctx === null) return;
     const c = ctx as {
@@ -598,9 +607,11 @@ export class AgentStatusTracker {
       lastRequestTokens?: unknown;
       todos?: unknown;
       meta?: Record<string, unknown> | undefined;
-      provider?: { capabilities?: { maxContext?: unknown } | undefined } | undefined;
+      provider?: { id?: unknown; capabilities?: { maxContext?: unknown } | undefined } | undefined;
     };
     if (typeof c.model === 'string' && c.model.length > 0) this.leaderModel = c.model;
+    if (typeof c.provider?.id === 'string' && c.provider.id.length > 0)
+      this.leaderProvider = c.provider.id;
     const todos = compactTodos(c.todos);
     if (todos !== undefined) this.leaderTodos = todos;
 

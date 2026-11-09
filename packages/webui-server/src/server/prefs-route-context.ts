@@ -1,6 +1,7 @@
 import {
   normalizeSubagentModelPlan,
   seedSessionSubagentPolicy,
+  setSessionAcpRuntime,
   setSessionSubagentModelPlan,
   setSessionSubagentPolicy,
   subagentPolicyModeFrom,
@@ -54,6 +55,8 @@ export function createPrefsAndAutonomyRoutes(
       ),
     setSubagentModelPlan: (plan, sessionId) =>
       setSessionSubagentModelPlan(sessionContext(sessionId), normalizeSubagentModelPlan(plan)),
+    setAcpRuntime: (settings, sessionId) =>
+      setSessionAcpRuntime(sessionContext(sessionId), settings),
     persist: cb.persistPrefsToConfig,
     // Eternal autonomy: the driver runs the loop for the tab that switched,
     // and refuses a switch it cannot honour before anything is saved.

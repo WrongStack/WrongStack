@@ -11,8 +11,8 @@
  * - validate checks required reference kinds
  */
 import { describe, expect, it } from 'vitest';
-import { EvidenceValidator } from '../../src/verification/evidence-validator.js';
 import type { KanbanVerificationCheckResult } from '../../src/types.js';
+import { EvidenceValidator } from '../../src/verification/evidence-validator.js';
 
 function makeResult(
   overrides: Partial<KanbanVerificationCheckResult> = {},
@@ -73,6 +73,22 @@ describe('EvidenceValidator', () => {
       expect(result.valid).toBe(true);
       expect(result.reasons).toEqual([]);
     });
+
+    it.each(['file', 'test', 'command', 'diff'] as const)(
+      'rejects empty and blank %s reference paths even when summary checking is disabled',
+      (kind) => {
+        const validator = new EvidenceValidator({ rejectVagueSummary: false });
+        for (const path of ['', ' \t\n']) {
+          const result = validator.validate(
+            makeResult({
+              backingRefs: [{ kind, path, summary: 'Added login handler with input validation' }],
+            }),
+          );
+          expect(result.valid).toBe(false);
+          expect(result.reasons.join(' ')).toContain('path');
+        }
+      },
+    );
 
     it('rejects when ref count is below minRefs', () => {
       const v = new EvidenceValidator({ minRefs: 3 });

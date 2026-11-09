@@ -4,6 +4,7 @@ import { Bot, Cpu, Mail, Maximize2, Monitor, Terminal } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { displayDecimal, useAppTranslation } from '../../lib/i18n';
 import { cn } from '../../lib/utils';
+import { AgentRuntimeBadge } from '../../ui/AgentRuntimeBadge';
 import { AgentTranscript } from '../AgentTranscript';
 import { SessionWatchPanel } from '../SessionWatchPanel';
 import type { AgentTranscriptEntry, MailboxMessage } from '../types';
@@ -105,7 +106,15 @@ export function SelectedNodeDetailPanel({
                   {t('activity:officeText.providerModel')}
                 </span>
                 <span className="min-w-0 break-all text-right font-mono text-primary">
-                  {agentModelLabel(d.provider, d.model)}
+                  {d.provider === 'acp' ? (
+                    <AgentRuntimeBadge
+                      provider={d.provider}
+                      model={d.model}
+                      executionRole="agent"
+                    />
+                  ) : (
+                    agentModelLabel(d.provider, d.model)
+                  )}
                 </span>
               </div>
             )}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.5] — 2026-11-09
+
+ACP file permissions follow the real target outside the project, ordinary edits
+inside a linked project keep their original path, and the macOS installer build
+reads the signed engine’s entitlements correctly.
+
 ### Fixed
 
 - **ACP file access outside the project is decided on the real target.** When
@@ -15,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the path it really leads to and the file server then opens exactly that
   path. A write through an in-project link to agent state no longer passes as
   an in-project write.
+- **Ordinary ACP edits inside a linked project keep their original path.** Only
+  paths that leave the project are replaced with their resolved target for
+  permission checks. A symlinked project root, such as `/var` on macOS, or a
+  Windows short path no longer makes an ordinary in-project write look like
+  an outside-project write.
+- **The macOS installer build reads engine entitlements before parsing them.**
+  Python’s plist reader can seek its input, which a pipe does not support. The
+  release check now reads the signed entitlement bytes first, so a correctly
+  signed engine is not rejected as missing `allow-jit`. The entitlement and
+  engine boot checks remain required.
 
 ## [1.5.4] — 2026-11-09
 

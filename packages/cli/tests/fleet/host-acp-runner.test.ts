@@ -173,6 +173,7 @@ describe('spawnACP', () => {
       name: 'fixture-agent',
       role: 'fixture-agent',
       provider: 'acp',
+      model: 'fixture-agent',
     });
     expect(h.coordinator.assign).toHaveBeenCalledWith({
       id: taskId,
@@ -185,7 +186,7 @@ describe('spawnACP', () => {
       taskId,
       name: 'fixture-agent',
       provider: 'acp',
-      model: undefined,
+      model: 'fixture-agent',
       description: 'Review the change',
     });
     expect(h.emit.mock.invocationCallOrder[0]).toBeGreaterThan(

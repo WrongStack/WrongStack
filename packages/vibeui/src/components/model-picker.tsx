@@ -1,5 +1,6 @@
 'use client';
 
+import { isAcpProvider } from '@wrongstack/webui-protocol';
 import { Check, ChevronDown, RefreshCw, Search, Settings2, Sparkles, Zap } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -80,6 +81,7 @@ export const ModelPicker = memo(function ModelPicker({
         <span className="model-symbol">
           <Sparkles size={13} />
         </span>
+        {isAcpProvider(provider) && <span className="acp-runtime-badge">ACP agent</span>}
         <span>{pending ? 'Switching model…' : model || 'Choose a model'}</span>
         <ChevronDown size={13} />
       </Popover.Trigger>
@@ -137,6 +139,9 @@ export const ModelPicker = memo(function ModelPicker({
               >
                 <span>
                   <strong>{entry.name}</strong>
+                  {isAcpProvider(entry.provider) && (
+                    <span className="acp-runtime-badge">ACP agent</span>
+                  )}
                   <small>
                     {entry.label} ·{' '}
                     {entry.contextWindow

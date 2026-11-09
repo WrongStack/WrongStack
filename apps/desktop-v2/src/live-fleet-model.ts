@@ -71,6 +71,8 @@ export function projectFleet(
           iterations: Number(agent['iterations']),
           toolCalls: Number(agent['toolCalls']),
           lastActivityAt: String(agent['lastActivityAt'] ?? ''),
+          ...(typeof agent['provider'] === 'string' ? { provider: agent['provider'] } : {}),
+          ...(typeof agent['model'] === 'string' ? { model: agent['model'] } : {}),
           ...(typeof agent['currentTool'] === 'string'
             ? { currentTool: agent['currentTool'] }
             : {}),

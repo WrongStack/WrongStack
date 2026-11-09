@@ -30,6 +30,7 @@ export interface HqSocketLike {
 export type HqSocketFactory = (url: string, init: { token?: string }) => HqSocketLike;
 
 export interface HqPublisherCommandResult {
+  acpConfig?: import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeOptionsResult;
   commandId: string;
   status: 'accepted' | 'completed' | 'failed' | 'rejected';
   message?: string;
@@ -47,6 +48,7 @@ export interface HqPublisherOptions {
   capabilities?: readonly HqClientCapability[];
   /** Announce that this client opens sessions on HQ's `start-session` (hello `startsSessions`). */
   startsSessions?: boolean;
+  acpSettings?: boolean;
   socketFactory?: HqSocketFactory;
   now?: () => string;
   idFactory?: () => string;

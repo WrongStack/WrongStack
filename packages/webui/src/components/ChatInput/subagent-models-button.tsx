@@ -1,7 +1,10 @@
+import { AcpRuntimeControls } from '@wrongstack/project-surfaces/ui/AcpRuntimeControls';
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Split, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { requestAcpRuntime } from '@/lib/acp-runtime';
 import { cn } from '@/lib/utils';
 import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
@@ -142,6 +145,9 @@ export function SubagentModelsButton() {
         className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-xs text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-accent/50 hover:text-foreground"
       >
         <Split className="h-3.5 w-3.5 shrink-0" />
+        {lanes.some((lane) => lane.provider === 'acp') && (
+          <AgentRuntimeBadge provider="acp" showName={false} />
+        )}
         <span className="whitespace-nowrap">
           {t('activity:chatInput.subagentsPrefix')} <span className="font-mono">{summary}</span>
         </span>
@@ -234,8 +240,31 @@ export function SubagentModelsButton() {
                     })}
                     className="h-7 min-w-0 flex-1 truncate rounded border bg-background px-2 text-left font-mono text-[10px] hover:border-primary/40 disabled:cursor-not-allowed"
                   >
-                    {pinned ? value : t('activity:chatInput.subagentModelsInherit')}
+                    {lane.provider === 'acp' ? (
+                      <AgentRuntimeBadge provider={lane.provider} model={lane.model} />
+                    ) : pinned ? (
+                      value
+                    ) : (
+                      t('activity:chatInput.subagentModelsInherit')
+                    )}
                   </button>
+                  {lane.provider === 'acp' && lane.model && (
+                    <AcpRuntimeControls
+                      agentId={lane.model}
+                      request={requestAcpRuntime}
+                      disabled={following}
+                      values={lane.modelRuntime?.acp?.[lane.model]}
+                      onChange={(values) =>
+                        setLane(index, {
+                          ...lane,
+                          modelRuntime: {
+                            ...lane.modelRuntime,
+                            acp: { ...lane.modelRuntime?.acp, [lane.model!]: values },
+                          },
+                        })
+                      }
+                    />
+                  )}
                   <button
                     type="button"
                     disabled={following || !pinned}

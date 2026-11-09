@@ -168,6 +168,32 @@ describe('Kanban boundaries', () => {
     );
   });
 
+  it.each([
+    ['secrets/**', 'secrets/line<break>break.txt'],
+    ['**/key.pem', 'secrets/line<break>break/key.pem'],
+    ['**', 'secrets/line<break>break.txt'],
+  ])('matches globstar %s across filename line separators', (pattern, template) => {
+    for (const separator of ['\n', '\r', '\u2028', '\u2029']) {
+      const target = template.replace('<break>', separator);
+      const selector = { kind: 'glob', path: pattern, access: 'read_write' } as const;
+      const policy: KanbanBoundaryPolicy = {
+        enabled: true,
+        enforcement: 'block',
+        shellAccess: 'block',
+        allow: [],
+        deny: [selector],
+      };
+      const denied = resolveKanbanBoundaryLayers({ boundary: policy });
+      const allowed = resolveKanbanBoundaryLayers({
+        boundary: { ...policy, allow: [selector], deny: [] },
+      });
+      for (const access of ['read', 'write'] as const) {
+        expect(evaluateKanbanBoundaryPath(denied, target, access).decision).toBe('block');
+        expect(evaluateKanbanBoundaryPath(allowed, target, access).decision).toBe('allow');
+      }
+    }
+  });
+
   it('rejects absolute and upward-traversal selectors', () => {
     expect(() =>
       normalizeKanbanBoundaryPolicy({

@@ -120,7 +120,7 @@ describe('F3 layout at real terminal sizes', () => {
       view.stdin.write('\u001B[B');
       await settle(40);
       let frame = view.lastFrame();
-      expect(frame).toContain('external agent (ACP)');
+      expect(frame).toContain('ACP subagent');
       expect(frame).toContain('task refactor the ACP session');
       expect(frame).not.toContain('ctx unknown');
       for (let i = 0; i < 2; i++) {

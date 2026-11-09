@@ -293,11 +293,16 @@ function applyDeclaredRequirementScope(
     return;
   }
 
-  const nextIds = uniqueStrings(graph.requiredRequirementIds);
+  // Persist the same canonical identities accepted by the coverage validator.
+  const nextIds = uniqueStrings(
+    graph.requiredRequirementIds.map((id) => id.trim()).filter(Boolean),
+  );
   const previous = index >= 0 ? scopes[index] : undefined;
   if (previous && !allowShrink) {
     const next = new Set(nextIds);
-    const removed = previous.requirementIds.filter((id) => !next.has(id));
+    const removed = previous.requirementIds
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0 && !next.has(id));
     const unresolved = removed.filter((requirementId) => {
       const coveringTasks = board.tasks.filter(
         (task) =>

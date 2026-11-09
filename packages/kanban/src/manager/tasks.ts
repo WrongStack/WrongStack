@@ -523,6 +523,7 @@ export async function addGoalMetricToTask(
     const task = findTask(board, taskId);
     if (!task) return null;
     assertManagementWrite(board, [task], eventContext);
+    const acceptedTask = structuredClone(task);
     const now = nowIso();
     const nextMetric: KanbanGoalMetric = {
       id: randomUUID(),
@@ -536,6 +537,7 @@ export async function addGoalMetricToTask(
       ...(metric.notes !== undefined ? { notes: metric.notes } : {}),
     };
     task.goalMetrics = [...(task.goalMetrics ?? []), nextMetric];
+    assertAcceptedContractUnchanged(board, acceptedTask, task);
     task.updatedAt = now;
     board.updatedAt = now;
     event = createKanbanEvent(board.id, task, 'task.metric.added', {
@@ -562,6 +564,7 @@ export async function updateGoalMetricOnTask(
     const metric = task ? findGoalMetric(task.goalMetrics ?? [], metricId) : undefined;
     if (!task || !metric) return null;
     assertManagementWrite(board, [task], eventContext);
+    const acceptedTask = structuredClone(task);
     const before = { ...metric };
     if (patch.name !== undefined)
       metric.name = requireNonBlank(patch.name, 'Kanban goal metric name');
@@ -571,6 +574,7 @@ export async function updateGoalMetricOnTask(
     if (patch.direction !== undefined) metric.direction = patch.direction;
     if (patch.unit !== undefined) metric.unit = patch.unit;
     if (patch.notes !== undefined) metric.notes = patch.notes;
+    assertAcceptedContractUnchanged(board, acceptedTask, task);
     const now = nowIso();
     metric.updatedAt = now;
     task.updatedAt = now;

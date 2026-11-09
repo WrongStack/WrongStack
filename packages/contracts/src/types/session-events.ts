@@ -120,6 +120,7 @@ type SessionEventVariant =
       ts: string;
       plan: unknown; // Untrusted journal payload; normalized by the coordination layer.
     }
+  | { type: 'acp_runtime_settings'; ts: string; settings: unknown }
   /**
    * The session was moved to another checkout: a git worktree of the same
    * repository (same store), or another project's store, in which case

@@ -164,7 +164,7 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 975,
+      "files": 976,
       "typeOnly": 74,
       "runtimeOrMixed": 935
     },
@@ -14041,7 +14041,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/hq/src/session-bridge.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14610,6 +14610,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/acp-registry-cache.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/acp-runtime-config.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

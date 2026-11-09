@@ -141,6 +141,8 @@ function labelForEvent(e: SessionEvent): string {
       return `Subagents ${e.allowed ? 'allowed' : e.companions ? 'blocked (companions allowed)' : 'blocked'}`;
     case 'permission_overrides':
       return 'Session permission rules changed';
+    case 'acp_runtime_settings':
+      return 'ACP model settings changed';
     case 'subagent_model_plan':
       return 'Subagent model plan updated';
     case 'leader_effort':
@@ -281,6 +283,8 @@ function detailForEvent(e: SessionEvent): string {
       if (!rec) return 'reset to the user setting';
       return rec.reason ? `${rec.effort} — ${rec.reason}` : rec.effort;
     }
+    case 'acp_runtime_settings':
+      return 'ACP model / effort';
     case 'subagent_model_plan': {
       const plan = normalizeSubagentModelPlan(e.plan);
       const pinned = plan.slots.filter(

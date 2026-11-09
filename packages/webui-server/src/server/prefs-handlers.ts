@@ -67,6 +67,12 @@ export interface PrefsHandlerContext {
   setSubagentModelPlan?:
     | ((plan: Record<string, unknown>, sessionId?: string | undefined) => Promise<void>)
     | undefined;
+  setAcpRuntime?:
+    | ((
+        settings: import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeSelections,
+        sessionId?: string,
+      ) => Promise<void>)
+    | undefined;
   pendingConfirms: Map<string, PendingConfirm>;
   configStore?: ConfigStore | undefined;
   /**
@@ -450,6 +456,20 @@ export async function handlePrefsUpdate(
       return;
     }
   }
+  if (payload['acpRuntime'] !== undefined) {
+    try {
+      if (!ctx.setAcpRuntime) throw new Error('Session ACP settings are unavailable.');
+      await ctx.setAcpRuntime(
+        payload[
+          'acpRuntime'
+        ] as import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeSelections,
+        sessionId,
+      );
+    } catch (error) {
+      sendResult(ctx, ws, false, toErrorMessage(error));
+      return;
+    }
+  }
   // Session-scoped keys land on the CALLING tab's context; the rest stay
   // process-wide. Both still go to `persist`, which keeps the config file as
   // the default a newly opened tab starts from.
@@ -461,6 +481,7 @@ export async function handlePrefsUpdate(
     // The plan belongs to one conversation and is journaled with its session;
     // writing it to config.json would leak one tab's lanes into every new one.
     subagentModelPlan: _plan,
+    acpRuntime: _acpRuntime,
     ...durablePayload
   } = payload;
   // Scout picked in a scratch folder is that session's choice, not the profile

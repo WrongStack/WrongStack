@@ -29,6 +29,7 @@ import type { HqPublisher } from '@wrongstack/hq';
 import { startSessionTelemetryBridge } from '@wrongstack/hq';
 
 export interface WebuiHqSessionTelemetryOptions {
+  getContext?: ((sessionId: string) => unknown) | undefined;
   events: EventBus;
   projectRoot: string;
   projectName: string;
@@ -92,6 +93,7 @@ export function startWebuiHqSessionTelemetry(
       sessionId,
     });
     tracker.start();
+    if (options.getContext) tracker.syncLeaderIdentity(options.getContext(sessionId));
     let stopBridge: () => void;
     try {
       const writer = options.getWriter?.(sessionId);
@@ -146,6 +148,8 @@ export function startWebuiHqSessionTelemetry(
     }
     for (const sessionId of wanted) {
       if (!entries.has(sessionId)) start(sessionId);
+      else if (options.getContext)
+        entries.get(sessionId)!.tracker.syncLeaderIdentity(options.getContext(sessionId));
     }
   };
 

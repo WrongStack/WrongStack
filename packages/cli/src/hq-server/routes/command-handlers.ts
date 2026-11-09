@@ -99,6 +99,15 @@ export async function handleApiCommand(
     res.end(JSON.stringify({ error: 'unrecognized or malformed command', type: body.type }));
     return;
   }
+  if (validated.type === 'acp-config' && !target.capabilities.includes('acp.config')) {
+    res.writeHead(409, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        error: 'client does not support ACP model settings; restart with a current build',
+      }),
+    );
+    return;
+  }
 
   // Approving a tool call remotely is a stronger act than steering one:
   // `always` and `deny` write persistent policy, and `yes` can release a

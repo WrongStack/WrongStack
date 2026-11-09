@@ -57,6 +57,8 @@ export function startStandaloneHostServices(input: {
     ownsSession: (sessionId) =>
       agentServices.isSessionLive?.(sessionId) === true || deps.hasSession?.(sessionId) === true,
     getSessionWriter: (sessionId) => deps.peekAgent?.(sessionId)?.ctx.session,
+    getSessionContext: (sessionId) =>
+      deps.agent.ctx.session.id === sessionId ? deps.agent.ctx : deps.peekAgent?.(sessionId)?.ctx,
     ...(host ? { getDirector: () => host.getDirector() } : {}),
     onPublisher: (publisher) => preContext.sessionIdentity.bindHqPublisher(publisher),
   });

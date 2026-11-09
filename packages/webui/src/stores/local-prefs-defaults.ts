@@ -1,4 +1,6 @@
 import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
+import type { AcpRuntimeSelections } from '@wrongstack/contracts/types/acp-runtime';
+import type { ModelRuntimeConfig } from '@wrongstack/contracts/types/config';
 
 import { detectLocale } from '@/i18n/languages';
 
@@ -9,6 +11,7 @@ import { detectLocale } from '@/i18n/languages';
  * these via WS events when connected.
  */
 export interface LocalPrefs {
+  acpRuntime: AcpRuntimeSelections;
   /** Allow delegated and autonomous subagents in this session. */
   subagentsAllowed: boolean;
   /**
@@ -81,6 +84,7 @@ export interface LocalPrefs {
     /** Run every plain subagent on the session's own model; outranks the lanes. */
     followSessionModel?: boolean;
     slots: Array<{
+      modelRuntime?: ModelRuntimeConfig;
       provider?: string;
       model?: string;
       tier?: string;
@@ -89,7 +93,13 @@ export interface LocalPrefs {
     }>;
     roles?: Record<
       string,
-      { provider?: string; model?: string; tier?: string; fallbackProfile?: string }
+      {
+        provider?: string;
+        model?: string;
+        tier?: string;
+        fallbackProfile?: string;
+        modelRuntime?: ModelRuntimeConfig;
+      }
     >;
   };
   /** Per-role/phase/default model routing matrix. */
@@ -100,6 +110,7 @@ export interface LocalPrefs {
       model?: string;
       fallbackProfile?: string;
       modelRuntime?: {
+        acp?: AcpRuntimeSelections;
         reasoning?: { mode?: 'auto' | 'on' | 'off'; effort?: string; preserve?: boolean };
         cache?: { ttl?: '5m' | '1h' };
         parameters?: Record<string, unknown>;
@@ -455,6 +466,7 @@ export const DEFAULTS: LocalPrefsData = {
   favoriteModelsOnly: false,
   modelMatrix: {},
   subagentModelPlan: { enabled: true, lock: true, followSessionModel: false, slots: [] },
+  acpRuntime: {},
   modelTiers: {},
   limits: {},
   streamTimeouts: {},

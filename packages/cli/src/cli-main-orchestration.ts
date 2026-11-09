@@ -167,6 +167,7 @@ export async function wireCliOrchestration(
   });
 
   const { hqCommandController } = setupHqTelemetry({
+    getAgentContext: () => agent.ctx,
     events,
     session,
     config: state.config,
@@ -247,6 +248,7 @@ export async function wireCliOrchestration(
     },
     getDirector: () => run.director,
     hqCommandController,
+    getAgentContext: () => agent.ctx,
     hqMultiConversation: resolveExecutionMode(positional, flags) === 'webui',
     multiAgentHost,
     events,

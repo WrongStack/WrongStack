@@ -12,7 +12,8 @@ import {
   runEnsemble,
   runOneAcpTask,
 } from '@wrongstack/acp';
-import { wrongstackBridgeSetup } from '@wrongstack/fleet';
+import { acpRuntimeValuesError } from '@wrongstack/contracts/types/acp-runtime';
+import { inspectAcpRuntime, wrongstackBridgeSetup } from '@wrongstack/fleet';
 import { formatAcpAgentList } from '../../acp-agent-list.js';
 import {
   type LoadedAcpRegistry,
@@ -66,7 +67,43 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
     return 1;
   }
 
-  const task = taskParts.join(' ');
+  const runtimeValues = { ...deps.config.modelRuntime?.acp?.[subagentId] };
+  const jsonOptions = deps.flags?.['acp-options'];
+  if (typeof jsonOptions === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(jsonOptions);
+      const error = acpRuntimeValuesError(parsed);
+      if (error) throw new Error(error);
+      Object.assign(runtimeValues, parsed);
+    } catch (error) {
+      deps.renderer.writeError(
+        `Invalid --acp-options JSON: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      return 1;
+    }
+  }
+  if (typeof deps.flags?.['acp-option'] === 'string')
+    taskParts.push(`--acp-option=${deps.flags['acp-option']}`);
+  const taskWords: string[] = [];
+  for (const part of taskParts) {
+    if (!part.startsWith('--acp-option=')) {
+      taskWords.push(part);
+      continue;
+    }
+    const pair = part.slice('--acp-option='.length);
+    const split = pair.indexOf('=');
+    if (split <= 0) {
+      deps.renderer.writeError('Use --acp-option=<option-id>=<value>\n');
+      return 1;
+    }
+    Object.defineProperty(runtimeValues, pair.slice(0, split), {
+      value: pair.slice(split + 1),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  const task = taskWords.join(' ');
   if (!task) {
     deps.renderer.writeError('Usage: wstack acp spawn <agent-id> <task>\n');
     deps.renderer.write('Task description is required.\n');
@@ -93,6 +130,7 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
   try {
     deps.renderer.writeInfo('Running task…\n');
     const result = await runOneAcpTask({
+      ...(Object.keys(runtimeValues).length ? { runtimeValues } : {}),
       command: cmd.command,
       ...(cmd.args !== undefined ? { args: cmd.args } : {}),
       ...(cmd.env !== undefined ? { env: cmd.env } : {}),
@@ -129,6 +167,28 @@ export async function spawnACPAgent(args: string[], deps: SubcommandDeps): Promi
   } finally {
     process.off('SIGINT', cleanup);
     process.off('SIGTERM', cleanup);
+  }
+}
+
+export async function readACPAgentConfig(args: string[], deps: SubcommandDeps): Promise<number> {
+  const agentId = args[0];
+  if (!agentId || args.slice(1).some((x) => x !== '--json')) {
+    deps.renderer.writeError('Usage: wstack acp config <agent-id> [--json]\n');
+    return 1;
+  }
+  try {
+    const result = await inspectAcpRuntime(deps.config, deps.projectRoot, agentId);
+    deps.renderer.write(
+      args.includes('--json') || deps.flags?.['json'] === true
+        ? `${JSON.stringify(result)}\n`
+        : `${result.options.map((x) => `${x.id}: ${x.currentValue}\n  ${x.options.map((y) => y.value).join(' | ')}`).join('\n') || 'No model or effort settings advertised.'}\n`,
+    );
+    return 0;
+  } catch (error) {
+    deps.renderer.writeError(
+      `ACP settings failed: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return 1;
   }
 }
 
@@ -182,7 +242,17 @@ export async function parallelACPAgents(args: string[], deps: SubcommandDeps): P
     const result = await runEnsemble({
       agentIds: csv,
       task,
-      resolveCmd: (id) => resolveAcpAgentCommand(id, overrides, live?.byId),
+      resolveCmd: (id) => {
+        const cmd = resolveAcpAgentCommand(id, overrides, live?.byId);
+        return cmd
+          ? {
+              ...cmd,
+              cwd: deps.projectRoot,
+              projectRoot: deps.projectRoot,
+              sessionSetup: wrongstackBridgeSetup(id, deps.projectRoot, deps.config.acp?.bridge),
+            }
+          : null;
+      },
       signal: ac.signal,
       onProgress: (agentId, event) => {
         const line = formatProgress(event);

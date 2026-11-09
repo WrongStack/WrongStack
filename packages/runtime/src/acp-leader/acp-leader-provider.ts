@@ -101,6 +101,7 @@ const CAPABILITIES: Capabilities = {
 type AcpModule = typeof import('@wrongstack/acp');
 
 interface LeaderSession {
+  runtimeConfigured?: boolean;
   agentId: string;
   session: ACPSession;
   context: LeaderContext;
@@ -261,6 +262,18 @@ export class AcpLeaderProvider implements Provider {
 
     yield { type: 'message_start', model: agentId };
     const hostContext = acpLeaderHost()?.context(key) as Context | undefined;
+    const selectedRuntime = hostContext?.meta?.['acpRuntime'] as
+      | import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeSelections
+      | undefined;
+    const desiredRuntime = {
+      ...this.config().modelRuntime?.acp?.[agentId],
+      ...selectedRuntime?.[agentId],
+    };
+    if (Object.keys(desiredRuntime).length || leader.runtimeConfigured) {
+      leader.runtimeConfigured = true;
+      await acp.applyAcpRuntimeValues(leader.session, desiredRuntime);
+      leader.runtimeConfigured = Object.keys(desiredRuntime).length > 0;
+    }
     const stopReminders =
       leader.session.canSteer() && hostContext?.meta
         ? startAcpTurnReminders({

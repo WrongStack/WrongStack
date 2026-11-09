@@ -1,3 +1,4 @@
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import type { ApiSession } from '@wrongstack/webui-protocol';
 import { Background, Controls, type Edge, type Node, ReactFlow } from '@xyflow/react';
 import { Network, RefreshCw, Search, Users } from 'lucide-react';
@@ -203,6 +204,7 @@ export function ProjectLiveFleet({
             label: (
               <div>
                 <strong>{agent.name}</strong>
+                <AgentRuntimeBadge provider={agent.provider} model={agent.model} />
                 <small>
                   {status(agent.status)}
                   {agent.currentTool ? ` · ${agent.currentTool}` : ''}
@@ -436,6 +438,7 @@ export function ProjectLiveFleet({
                       }
                     >
                       <strong>{agent.name}</strong>
+                      <AgentRuntimeBadge provider={agent.provider} model={agent.model} />
                       <span>
                         {status(agent.status)}
                         {agent.currentTool ? ` · ${agent.currentTool}` : ''}
@@ -488,7 +491,13 @@ export function ProjectLiveFleet({
                 {selectedAgent && (
                   <>
                     <dt>{t('liveFleet.field.agent')}</dt>
-                    <dd>{selectedAgent.id}</dd>
+                    <dd>
+                      {selectedAgent.id}{' '}
+                      <AgentRuntimeBadge
+                        provider={selectedAgent.provider}
+                        model={selectedAgent.model}
+                      />
+                    </dd>
                     <dt>{t('liveFleet.field.activity')}</dt>
                     <dd>{selectedAgent.currentTool ?? t('liveFleet.noTool')}</dd>
                     <dt>{t('liveFleet.field.counters')}</dt>

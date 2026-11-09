@@ -14,7 +14,10 @@ export interface TouchKanbanPresenceInput {
 }
 
 function presenceId(input: Pick<TouchKanbanPresenceInput, 'sessionId' | 'agentId'>): string {
-  return `${input.sessionId}:${input.agentId}`;
+  // Escape the delimiter and escape character; ordinary IDs remain unchanged.
+  return [input.sessionId, input.agentId]
+    .map((part) => part.replaceAll('%', '%25').replaceAll(':', '%3A'))
+    .join(':');
 }
 
 function normalizePresence(
@@ -47,7 +50,9 @@ export async function touchKanbanPresence(
   ).toISOString();
   const id = presenceId(input);
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
-    const current = board.presence?.find((entry) => entry.id === id);
+    // Re-key legacy rows before matching so refreshes preserve their metadata.
+    const entries = (board.presence ?? []).map((entry) => ({ ...entry, id: presenceId(entry) }));
+    const current = entries.find((entry) => entry.id === id);
     const entry: KanbanBoardPresence = {
       id,
       sessionId: input.sessionId,
@@ -64,7 +69,7 @@ export async function touchKanbanPresence(
         ? { runTaskId: input.runTaskId ?? current?.runTaskId }
         : {}),
     };
-    board.presence = [...(board.presence ?? []).filter((candidate) => candidate.id !== id), entry];
+    board.presence = [...entries.filter((candidate) => candidate.id !== id), entry];
     return entry;
   });
   return updated ? withLiveKanbanPresence(updated.board, new Date(seenAt)) : null;

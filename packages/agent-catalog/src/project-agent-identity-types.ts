@@ -1,4 +1,7 @@
+import type { ModelRuntimeConfig } from '@wrongstack/contracts/types/config';
 export interface ProjectAgentConfig {
+  /** Internal ACP model/effort choices for this roster role. */
+  modelRuntime?: Pick<ModelRuntimeConfig, 'acp'> | undefined;
   /**
    * Static tool allowlist override. When set, replaces the catalog tools
    * entirely (not merged). Omit to keep catalog defaults.

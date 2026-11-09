@@ -1,3 +1,4 @@
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Bot, Crown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
@@ -192,7 +193,15 @@ export function AgentTree({
             )}
             title={route}
           >
-            {route ?? t('activity:agents.pending')}
+            {agent.provider === 'acp' ? (
+              <AgentRuntimeBadge
+                provider={agent.provider}
+                model={agent.model}
+                executionRole={isLeader ? 'leader' : 'subagent'}
+              />
+            ) : (
+              (route ?? t('activity:agents.pending'))
+            )}
           </span>
         </span>
       </div>

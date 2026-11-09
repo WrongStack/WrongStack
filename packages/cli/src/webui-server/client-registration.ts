@@ -7,6 +7,7 @@ import { CLI_VERSION } from '../version.js';
 export type { WebuiHqControlHooks };
 
 export interface WebuiClientRegistrationDeps {
+  getSessionContext?: ((sessionId: string) => unknown) | undefined;
   projectRoot: string | undefined;
   appConfig: import('@wrongstack/contracts/types').Config | undefined;
   events: import('@wrongstack/contracts/kernel').EventBus;
@@ -36,8 +37,10 @@ export function createWebuiClientRegistration(
     projectRoot: deps.projectRoot,
     appConfig: deps.appConfig,
     events: deps.events,
+    acpSettings: !!control?.acpConfig,
     hqSessionId: deps.hqSessionId,
     getSessionId: deps.getSessionId,
+    ...(deps.getSessionContext ? { getSessionContext: deps.getSessionContext } : {}),
     clientVersion: CLI_VERSION,
     ...(deps.listSessions ? { listSessions: deps.listSessions } : {}),
     ...(deps.isSessionOwnedElsewhere

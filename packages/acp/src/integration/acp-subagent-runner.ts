@@ -129,6 +129,7 @@ export async function makeACPSubagentRunnerWithStop(
   let shared: Promise<ACPSession> | null = null;
   // Turns on the shared session run one at a time (it takes one prompt).
   let turns: Promise<unknown> = Promise.resolve();
+  const runtimeConfigured = new WeakSet<ACPSession>();
 
   const startSession = async (setup: AcpSessionSetup | undefined): Promise<ACPSession> => {
     const mcpServers =
@@ -204,7 +205,17 @@ export async function makeACPSubagentRunnerWithStop(
       const prompt = setup?.promptPrefix
         ? `${setup.promptPrefix}\n\n${task.description}`
         : task.description;
-      const turn = () => session.prompt([textContent(prompt)], ctx.signal, onProgress);
+      const turn = async () => {
+        const settings = ctx.config.modelRuntime?.acp?.[options.role ?? ''];
+        if (settings || runtimeConfigured.has(session)) {
+          runtimeConfigured.add(session);
+          const { applyAcpRuntimeValues } = await import('../client/acp-runtime-options.js');
+          await applyAcpRuntimeValues(session, settings ?? {});
+          if (settings && Object.keys(settings).length) runtimeConfigured.add(session);
+          else runtimeConfigured.delete(session);
+        }
+        return session.prompt([textContent(prompt)], ctx.signal, onProgress);
+      };
       const run = persistent ? turns.then(turn, turn) : turn();
       if (persistent) turns = run;
       result = await run;

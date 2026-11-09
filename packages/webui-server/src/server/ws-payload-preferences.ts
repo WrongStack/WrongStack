@@ -6,6 +6,7 @@ import {
   limitValueError,
   streamWatchdogMsError,
 } from '@wrongstack/contracts/types';
+import { acpRuntimeSelectionsError } from '@wrongstack/contracts/types/acp-runtime';
 import { FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 import {
   CACHE_TTL_VALUES,
@@ -128,6 +129,7 @@ const MODEL_MATRIX_PREF_KEYS = new Set(['modelMatrix']);
  * into the registry, so unknown extra fields are tolerated on purpose.
  */
 const SUBAGENT_MODEL_PLAN_PREF_KEYS = new Set(['subagentModelPlan']);
+const ACP_RUNTIME_PREF_KEYS = new Set(['acpRuntime']);
 /**
  * Deterministic cost tiers (`Config.modelTiers`).
  *
@@ -346,6 +348,7 @@ const ENUM_PREF_KEYS: Record<string, Set<string>> = {
 };
 
 function validatePreferenceValue(key: string, value: unknown): string | null {
+  if (ACP_RUNTIME_PREF_KEYS.has(key)) return acpRuntimeSelectionsError(value) ?? null;
   if (BOOLEAN_PREF_KEYS.has(key)) {
     return typeof value === 'boolean' ? null : `prefs.update payload.${key} must be a boolean`;
   }
@@ -542,6 +545,7 @@ export const VALIDATED_PREF_KEYS: ReadonlySet<string> = new Set<string>([
   ...LIMITS_PREF_KEYS,
   ...STREAM_TIMEOUTS_PREF_KEYS,
   ...SUBAGENT_MODEL_PLAN_PREF_KEYS,
+  ...ACP_RUNTIME_PREF_KEYS,
   ...TELEGRAM_CHAT_ID_PREF_KEYS,
   ...Object.keys(ENUM_PREF_KEYS),
 ]);

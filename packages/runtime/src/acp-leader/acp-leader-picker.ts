@@ -5,6 +5,7 @@
  */
 import { findAgentDescriptor } from '@wrongstack/acp';
 import type { Config, Provider, ProviderConfig } from '@wrongstack/contracts/types';
+import { acpAgentName } from '@wrongstack/contracts/types/agent-identity';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import { installedBridgeAgents } from '@wrongstack/fleet';
 import { ACP_LEADER_PROVIDER_ID, isHostBuiltLeader } from './acp-leader-host.js';
@@ -35,8 +36,8 @@ export function acpLeaderPickable(config: Config | undefined): PickableHostProvi
         const descriptor = findAgentDescriptor(id);
         return {
           id,
-          name: descriptor?.displayName ?? id,
-          description: 'ACP agent leading the session',
+          name: descriptor?.displayName ?? acpAgentName(id),
+          description: 'Installed coding agent · session leader or subagent',
           ...(descriptor?.contextWindow ? { contextWindow: descriptor.contextWindow } : {}),
         };
       }),

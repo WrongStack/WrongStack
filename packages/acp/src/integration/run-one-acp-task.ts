@@ -15,6 +15,7 @@ import {
 } from './acp-subagent-runner.js';
 
 export interface RunOneAcpTaskOptions {
+  runtimeValues?: import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeValues | undefined;
   command: string;
   args?: string[] | undefined;
   env?: Record<string, string> | undefined;
@@ -69,7 +70,14 @@ export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneA
     budget.start();
     const ctx: SubagentRunContext = {
       subagentId: role,
-      config: { id: role, name: role, role, provider: 'acp', prompt: '' },
+      config: {
+        id: role,
+        name: role,
+        role,
+        provider: 'acp',
+        prompt: '',
+        ...(opts.runtimeValues ? { modelRuntime: { acp: { [role]: opts.runtimeValues } } } : {}),
+      },
       budget,
       signal: opts.signal ?? new AbortController().signal,
       ...(opts.sessionId !== undefined ? { sessionId: opts.sessionId } : {}),

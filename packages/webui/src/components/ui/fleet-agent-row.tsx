@@ -8,11 +8,12 @@
  * original FleetMonitor implementation.
  */
 
+import { AgentRuntimeBadge } from '@wrongstack/project-surfaces/ui/AgentRuntimeBadge';
 import { Crown, Zap } from 'lucide-react';
-import { SparklineChart } from '@/components/ui/sparkline';
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
 import { fmtCost } from '@/components/dashboard-primitives';
+import { SparklineChart } from '@/components/ui/sparkline';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 
 const FLEET_ROW_STATUS_META: Record<
@@ -63,6 +64,13 @@ export function FleetAgentRow({ agent, isSelected, isLeader, onClick }: FleetAge
       <div className="flex items-center gap-1 min-w-0">
         <span className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')} />
         <span className="truncate font-medium">{agent.name}</span>
+        <AgentRuntimeBadge
+          provider={agent.provider}
+          model={agent.model}
+          executionRole={isLeader ? 'leader' : 'subagent'}
+          showName={false}
+          className="shrink-0"
+        />
         {isLeader && (
           <Crown
             className="h-3 w-3 shrink-0 text-warning"

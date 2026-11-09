@@ -37,6 +37,7 @@ import { agentNameMap } from '@/features/transcript/model';
 import { TranscriptTurn } from '@/features/transcript/turn';
 import { cn } from '@/lib/cn';
 import { useScopedSnapshot } from '@/lib/use-scope';
+import { AcpSessionSettings } from './acp-session-settings';
 import { type AgentFacts, agentFacts } from './model';
 import { SessionNavigator } from './session-navigator';
 import {
@@ -114,6 +115,7 @@ export function ConsoleView(): ReactNode {
     [snapshot, sessionId, agentId],
   );
   const control = useConsoleControl(target, chat.entries);
+  const acpLeader = target?.session.agents.find((agent) => agent.id === 'leader');
   const agentNames = useMemo(() => agentNameMap(target?.session.agents), [target?.session.agents]);
   const [interruptOpen, setInterruptOpen] = useState(false);
   const [includeSubagents, setIncludeSubagents] = useState(false);
@@ -183,6 +185,19 @@ export function ConsoleView(): ReactNode {
               </p>
             )}
             {facts !== null && <AgentFactsLine facts={facts} />}
+            {agentId === null &&
+              acpLeader?.provider === 'acp' &&
+              acpLeader.model &&
+              target?.client && (
+                <AcpSessionSettings
+                  key={`${target.client.clientId}/${target.session.sessionId}/${acpLeader.model}`}
+                  clientId={target.client.clientId}
+                  sessionId={target.session.sessionId}
+                  agentId={acpLeader.model}
+                  connected={target.client.connected}
+                  supported={target.client.capabilities.includes('acp.config')}
+                />
+              )}
           </div>
           {sessionId !== null && (
             <dl className="flex gap-5 text-sm">

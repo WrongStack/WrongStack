@@ -55,6 +55,17 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.5
+
+- **ACP permissions check the real file target:** reads and writes outside the
+  project, including links inside it, are authorized against the resolved
+  target and then open that same path.
+- **Edits inside linked projects keep working:** a symlinked project root or a
+  Windows short path no longer makes an ordinary ACP write look like an
+  outside-project write.
+- **The macOS installer check reads signed entitlements correctly**, while
+  still requiring the bundled engine’s JIT entitlement and a successful boot.
+
 ### What's new in 1.5.4
 
 - **WrongStack as an ACP agent for any editor:** `wstack acp` starts without
@@ -220,7 +231,7 @@ irm https://wrongstack.com/install.ps1 | iex
 The installers download the build for your OS/CPU (musl is detected on
 Linux), verify it against the release `SHA256SUMS`, and install `wstack` plus a
 `wrongstack` alias into `~/.wrongstack/bin`. The musl builds need the C++
-runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.5.0` to pin a
+runtime (`apk add libstdc++ libgcc` on Alpine). Set `WSTACK_VERSION=1.5.4` to pin a
 release or `WSTACK_INSTALL_DIR` to install elsewhere. You can also download a
 `wstack-<os>-<arch>` file from the
 [releases page](https://github.com/WrongStack/WrongStack/releases) and put it on
@@ -442,7 +453,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 ## Status
 
-- **v1.5.0** — current release; versions follow semver
+- Release notes: **v1.5.5**; versions follow semver
 - Distribution: GitHub Releases only (standalone `wstack` binaries); npm packages are not published
 - Full release verification: `bun run release:check` before pushing the `vX.Y.Z` release tag
 - Coverage thresholds (root Vitest): ≥76% lines / ≥75% functions / ≥66% branches / ≥75% statements

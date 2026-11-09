@@ -69,7 +69,7 @@ export function assessAtomicity(
     });
 
   let criteria = scoreAgainst(config);
-  let totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
+  const totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
   if (totalWeight === 0) {
     // Every criterion weight was overridden to zero. Scoring 1 here — which is
     // what the previous `totalWeight > 0 ? … : 1` fallback did — returned the
@@ -82,9 +82,13 @@ export function assessAtomicity(
     // fall back to the built-in ones and produce a real assessment. Those are
     // all positive, so this cannot recurse into the same state.
     criteria = scoreAgainst({ ...config, weights: {} });
-    totalWeight = criteria.reduce((sum, entry) => sum + entry.weight, 0);
   }
-  const score = criteria.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / totalWeight;
+  // Ratios preserve the weighted mean without overflowing sums or underflowing products.
+  const weightScale = criteria.reduce((max, entry) => Math.max(max, entry.weight), 0);
+  const normalizedTotal = criteria.reduce((sum, entry) => sum + entry.weight / weightScale, 0);
+  const score =
+    criteria.reduce((sum, entry) => sum + entry.score * (entry.weight / weightScale), 0) /
+    normalizedTotal;
 
   let verdict: AtomicityVerdict;
   if (score >= resolved.atomicThreshold) verdict = 'atomic';

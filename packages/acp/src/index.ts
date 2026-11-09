@@ -21,6 +21,7 @@ export { ClientTransport, StdioTransport } from './agent/stdio-transport.js';
 export { ACPToolsRegistry } from './agent/tools-registry.js';
 export type { WrongStackACPServerOptions } from './agent/wrongstack-acp-agent.js';
 export { WrongStackACPServer } from './agent/wrongstack-acp-agent.js';
+export { acpRuntimeOptions, applyAcpRuntimeValues } from './client/acp-runtime-options.js';
 export type {
   ACPCapturedDiff,
   ACPCapturedToolCall,

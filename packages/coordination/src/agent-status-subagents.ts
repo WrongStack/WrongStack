@@ -63,6 +63,7 @@ export function subscribeSubagentStatus(
             subagentId?: string;
             name?: string;
             model?: string;
+            provider?: string;
             taskId?: string;
             description?: string;
           }
@@ -71,6 +72,7 @@ export function subscribeSubagentStatus(
       const entry = touch(p.subagentId);
       entry.name = p.name?.trim() || entry.name;
       if (p.model) entry.model = p.model;
+      if (p.provider) entry.provider = p.provider;
       if (p.taskId) entry.taskId = p.taskId;
       if (p.description?.trim()) entry.currentTask = boundedText(p.description, TASK_TEXT_CAP);
       /* v8 ignore next -- touch() always sets startedAt on creation */

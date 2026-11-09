@@ -33,6 +33,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/cn';
 import { TONE_DOT } from './fleet-list';
 import { consoleHref, isLiveStatus } from './model';
+import { RuntimeBadge } from './runtime-badge';
 
 const NODE_WIDTH = 236;
 const NODE_HEIGHT = 92;
@@ -80,6 +81,7 @@ function FleetNodeCard({ data, selected }: NodeProps<FleetNode>): ReactNode {
           {tool !== undefined && isLiveStatus(data.status) ? tool : data.sub}
         </p>
       )}
+      <RuntimeBadge provider={data.agent?.provider} model={data.agent?.model} />
       <Handle type="source" position={Position.Right} className="!size-2 !border-0 !bg-border" />
     </div>
   );

@@ -68,6 +68,7 @@ export const CLIENT_CONFIGURATION_MESSAGE_TYPES = [
   'provider.custom_models.remove',
   'provider.custom_models.set',
   'provider.models',
+  'acp.config_options',
   'provider.models.search',
   'provider.probe',
   'provider.quota.get',

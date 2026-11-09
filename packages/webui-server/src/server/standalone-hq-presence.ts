@@ -3,8 +3,10 @@ import type { Config, SessionWriter } from '@wrongstack/contracts/types';
 import type { Director } from '@wrongstack/coordination';
 import type { HqClientCapability, HqPublisher, HqSocketLike } from '@wrongstack/hq';
 import {
+  createHqAcpConfigHandler,
   createHqFleetControl,
   createWebuiHqCommandHandler,
+  onHqAcpConfigSaved,
   startHqHostConnection,
 } from '@wrongstack/runtime/hq-host';
 import type { WebSocket as WsSocket } from 'ws';
@@ -29,6 +31,11 @@ export interface StandaloneHqPresenceInput {
   /** Does this engine hold the session (an open conversation)? */
   ownsSession: (sessionId: string) => boolean;
   getSessionWriter: (sessionId: string) => SessionWriter | undefined;
+  getSessionContext?:
+    | ((
+        sessionId: string,
+      ) => import('@wrongstack/contracts/types/context').AgentContext | undefined)
+    | undefined;
   /** The engine's fleet director; absent when `delegate` is disabled. */
   getDirector?: (() => Director | undefined) | undefined;
   /** Receives the connection's publisher for the engine-wide bridges (session identity). */
@@ -76,6 +83,14 @@ export function startStandaloneHqPresence(input: StandaloneHqPresenceInput): Sta
       )
     : undefined;
   const control = {
+    ...(input.getSessionContext
+      ? {
+          acpConfig: createHqAcpConfigHandler({
+            getConfig: input.getConfig,
+            context: input.getSessionContext,
+          }),
+        }
+      : {}),
     // Each open conversation has its own run: the command's session is the one stopped,
     // never every tab (the CLI's `interruptSession`).
     interruptLeader: (sessionId?: string): boolean => {
@@ -101,11 +116,13 @@ export function startStandaloneHqPresence(input: StandaloneHqPresenceInput): Sta
     createWebuiClientPresence({
       projectRoot,
       appConfig: input.getConfig(),
+      acpSettings: !!control.acpConfig,
       events: input.events,
       hqSessionId: input.bootSessionId,
       getSessionId: input.getSessionId,
       listSessions: () => displayedSessions(input.clients),
       getSessionWriter: input.getSessionWriter,
+      ...(input.getSessionContext ? { getSessionContext: input.getSessionContext } : {}),
       startHqConnection: (options) =>
         startHqHostConnection({
           ...options,
@@ -122,6 +139,22 @@ export function startStandaloneHqPresence(input: StandaloneHqPresenceInput): Sta
     });
 
   let presence = create(input.projectRoot);
+  const stopAcpSettings = input.getSessionContext
+    ? onHqAcpConfigSaved((ctx, settings) => {
+        if (input.getSessionContext?.(ctx.session.id) !== ctx) return;
+        for (const socket of input.clients.keys())
+          if (socket.readyState === 1) {
+            try {
+              socket.send(
+                JSON.stringify({
+                  type: 'prefs.updated',
+                  payload: { sessionId: ctx.session.id, acpRuntime: settings },
+                }),
+              );
+            } catch {}
+          }
+      })
+    : () => {};
   let disposed = false;
   void presence.register();
   return {
@@ -132,6 +165,7 @@ export function startStandaloneHqPresence(input: StandaloneHqPresenceInput): Sta
       void presence.register();
     },
     dispose: () => {
+      stopAcpSettings();
       disposed = true;
       presence.unregister();
     },

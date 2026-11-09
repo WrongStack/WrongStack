@@ -1,4 +1,17 @@
 {
+  "acp": {
+    "agent": "ACP ajanı",
+    "subagent": "ACP alt ajanı",
+    "leader": "ACP lideri",
+    "available": "Kurulu kodlama ajanları alt ajan olarak da çalışabilir.",
+    "showAgents": "Ajanları göster",
+    "runtimeTitle": "ACP · Model / efor",
+    "runtimeHint": "Sonraki turda veya alt ajan başlatıldığında uygulanır.",
+    "runtimeLoading": "Ajan ayarları okunuyor…",
+    "runtimeUnsupported": "Bu ajan ACP üzerinden model veya efor ayarı sunmuyor.",
+    "runtimeRefresh": "Yenile",
+    "runtimeDefaults": "Varsayılanları kullan"
+  },
   "myGoals": {
     "phaseIsolation": "Fazları ayrı çalışma alanlarında çalıştır",
     "goalIsolation": "Her hedef ayrı dalda çalışır; inceleme sonrası birleştirilir.",

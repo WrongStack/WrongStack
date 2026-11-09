@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ModelCandidate } from '../kanban/kanban-host';
 import { useAppTranslation } from '../lib/i18n';
 import { cn } from '../lib/utils';
+import { AgentRuntimeBadge } from './AgentRuntimeBadge';
 import { AnchoredPopover } from './anchored-popover';
 
 /**
@@ -87,6 +88,12 @@ export function ModelPicker({
         className="flex w-full items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1.5 text-left text-xs transition-colors hover:border-primary/45 hover:bg-muted/80"
       >
         <Cpu className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <AgentRuntimeBadge
+          provider={provider}
+          model={value}
+          executionRole="agent"
+          showName={false}
+        />
         <span
           className={cn(
             'min-w-0 flex-1 break-words',
@@ -164,7 +171,14 @@ export function ModelPicker({
                     <span className="w-3 shrink-0" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1">
+                    <span className="flex flex-wrap items-center gap-1">
+                      <AgentRuntimeBadge
+                        provider={c.provider}
+                        providerType={c.providerType}
+                        model={c.model}
+                        executionRole="agent"
+                        showName={false}
+                      />
                       <span className="break-words">{c.label}</span>
                       {c.isFavorite && (
                         <Star className="h-3 w-3 fill-warning text-warning shrink-0" />

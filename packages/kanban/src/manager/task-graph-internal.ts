@@ -182,9 +182,11 @@ export function applyTaskGraphRelationships(
     else if (!sessionMirror) delete task.childTaskIds;
 
     const graphDeps = uniqueStrings(graphDepsByTaskId.get(taskId) ?? []);
+    // Provenance distinguishes manual edges even between cards from the same graph.
+    // Keep the conservative membership fallback for legacy imports without it.
     const manualDeps = options.preserveManualDependencies
       ? (task.dependsOn ?? []).filter((depId) =>
-          sessionMirror
+          sessionMirror || task.origin?.sourceDependencyTaskIds !== undefined
             ? !(task.origin?.sourceDependencyTaskIds ?? []).includes(depId)
             : !syncedTaskIds.has(depId),
         )

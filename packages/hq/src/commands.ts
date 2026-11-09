@@ -20,6 +20,10 @@
  */
 
 import type { UserInputResponse } from '@wrongstack/contracts/types/user-input';
+import { type HqAcpConfigCommand, parseHqAcpConfig } from './command-acp-config.js';
+
+export type { HqAcpConfigCommand } from './command-acp-config.js';
+
 import { type HqStartSessionCommand, parseHqStartSession } from './command-start-session.js';
 import type { HqQueuedCommand } from './protocol/fleet.js';
 
@@ -27,6 +31,7 @@ import type { HqQueuedCommand } from './protocol/fleet.js';
 
 /** HQ_COMMAND_TYPES — the full set of recognized command `type` strings. */
 export const HQ_COMMAND_TYPES = [
+  'acp-config',
   'steer',
   'btw',
   'queue',
@@ -241,6 +246,7 @@ export interface HqKanbanDispatchCommand {
 }
 
 export type HqCommand =
+  | HqAcpConfigCommand
   | HqSteerCommand
   | HqBtwCommand
   | HqQueueCommand
@@ -289,6 +295,8 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
   const p = queued.payload as Record<string, unknown>;
   if (p === null || typeof p !== 'object') return null;
   switch (queued.type as HqCommandType) {
+    case 'acp-config':
+      return parseHqAcpConfig(p);
     case 'steer': {
       if (
         typeof p['to'] !== 'string' ||
@@ -501,6 +509,7 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
 // ── Audit log ───────────────────────────────────────────────────────────────
 
 export interface HqCommandAuditEntry {
+  acpConfig?: import('@wrongstack/contracts/types/acp-runtime').AcpRuntimeOptionsResult;
   commandId: string;
   type: HqCommandType;
   clientId: string;

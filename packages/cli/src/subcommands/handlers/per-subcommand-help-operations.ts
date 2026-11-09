@@ -67,10 +67,14 @@ export const OPERATIONS_HELP_ENTRIES: Record<string, PerSubcommandHelp> = {
       'Run WrongStack as an ACP server (stdio) for editor clients (Zed, JetBrains, ' +
       'VS Code ACP), or orchestrate external ACP agents through spawn, probe, bench, ' +
       'and parallel fan-out.',
-    usage: 'wstack acp [server|list|sync|spawn|parallel|probe|bench] [...]',
+    usage: 'wstack acp [server|list|config|sync|spawn|parallel|probe|bench] [...]',
     subcommands: [
       { name: 'server / serve', description: 'Start WrongStack as an ACP stdio server (default).' },
       { name: 'list', description: 'List available ACP agents from the cache.' },
+      {
+        name: 'config <id> [--json]',
+        description: 'Read native model and effort options from an installed agent.',
+      },
       { name: 'sync', description: 'Sync the official ACP agent registry into local cache.' },
       { name: 'spawn <id> <task>', description: 'Spawn an ACP agent and wait for results.' },
       {

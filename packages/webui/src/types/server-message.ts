@@ -195,6 +195,7 @@ export interface WSCodeAssistResult {
 }
 
 export type WSServerMessage =
+  | { type: 'acp.config_options'; payload: Record<string, unknown> }
   | {
       type: 'model.tier_proposed';
       payload: {

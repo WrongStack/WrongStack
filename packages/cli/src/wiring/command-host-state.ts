@@ -28,6 +28,7 @@ import type {
 } from '@wrongstack/core/statusline';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MultiAgentHost } from '@wrongstack/fleet';
+import { createHqAcpConfigHandler } from '@wrongstack/runtime/hq-host';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { createGoalHost } from '../goal-host.js';
 import type { HqCommandController } from '../hq-command-controller.js';
@@ -54,6 +55,7 @@ import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 type CoordinatorController = NonNullable<BuiltinSlashCommandDeps['coordinatorController']>;
 
 interface CommandHostStateInput {
+  getAgentContext?: (() => import('@wrongstack/contracts/types/context').AgentContext) | undefined;
   getConfig: () => Config;
   setConfig: (config: Config) => void;
   getDirector: () => Director | null;
@@ -107,6 +109,14 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   // every one of them.
   const liveSessionId = (): string => input.sessionRef.current?.id ?? input.session.id;
   input.hqCommandController.sessionId = liveSessionId;
+  if (input.getAgentContext)
+    input.hqCommandController.acpConfig = createHqAcpConfigHandler({
+      getConfig: input.getConfig,
+      context: (sessionId) => {
+        const ctx = input.getAgentContext!();
+        return ctx.session.id === sessionId ? ctx : undefined;
+      },
+    });
   input.hqCommandController.sessionTag = () => mailboxSessionTag(liveSessionId());
   // Session-scoped: in the WebUI host a Stop aimed at one tab's fleet used to
   // sweep every tab's workers, because the named session was ignored.

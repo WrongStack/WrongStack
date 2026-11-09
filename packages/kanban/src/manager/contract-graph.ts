@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { requireSessionId } from '@wrongstack/primitives';
-import { assertManagementWrite } from '../management-fence.js';
 import {
   createEmptyContractGraph,
   evaluateContractGraph,
   taskContractEndpoint,
 } from '../contract-graph.js';
+import { assertManagementWrite } from '../management-fence.js';
 import { mutateBoard, readBoard } from '../storage.js';
 import type { KanbanBoard, KanbanEvent, KanbanEventContext, KanbanTask } from '../types.js';
 import type {
@@ -334,8 +334,9 @@ export async function evaluateTaskContractGraph(
   taskId: string,
 ): Promise<{ board: KanbanBoard; evaluation: KanbanContractGraphEvaluation } | null> {
   const board = await readBoard(projectRoot, boardId);
-  if (!board || !findTask(board, taskId)) return null;
-  return { board, evaluation: evaluateContractGraph(board, taskId) };
+  const task = board ? findTask(board, taskId) : undefined;
+  if (!board || !task) return null;
+  return { board, evaluation: evaluateContractGraph(board, task.id) };
 }
 
 /** Remove task-owned nodes and every incident edge when a task is deleted. */

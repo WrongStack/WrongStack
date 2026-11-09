@@ -1,4 +1,4 @@
-import { Server } from 'lucide-react';
+import { Bot, Server } from 'lucide-react';
 import { useState } from 'react';
 import { resolveProviderBrand } from '../lib/provider-brand';
 import { cn } from '../lib/utils';
@@ -37,6 +37,8 @@ export function ProviderLogo({
           className="h-full w-full object-contain"
           onError={() => setFailedSource(brand.src)}
         />
+      ) : providerId === 'acp' || providerType === 'acp' ? (
+        <Bot className="h-5 w-5" />
       ) : (
         <Server className="h-5 w-5" />
       )}
