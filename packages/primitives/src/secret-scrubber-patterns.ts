@@ -355,9 +355,10 @@ export const PATTERNS: Pattern[] = [
   },
   {
     type: 'slack_webhook',
+    // Fold only the URL origin; paths and other combined credential patterns stay case-sensitive.
     regex:
-      /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_-]+\/B[A-Za-z0-9_-]+\/[A-Za-z0-9]{16,}/g,
-    anchor: 'hooks.slack.com',
+      /[Hh][Tt][Tt][Pp][Ss]:\/\/[Hh][Oo][Oo][Kk][Ss]\.[Ss][Ll][Aa][Cc][Kk]\.[Cc][Oo][Mm]\/services\/T[A-Za-z0-9_-]+\/B[A-Za-z0-9_-]+\/[A-Za-z0-9]{16,}/g,
+    anchor: '/services/',
   },
   {
     // The credential is the last path segment: no userinfo, no query, and a

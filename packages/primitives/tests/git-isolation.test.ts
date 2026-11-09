@@ -102,6 +102,35 @@ describe('gitIsolationEnv', () => {
     expect(overrides(env)).toMatchObject({ 'filter..clean': '' });
   });
 
+  it.each([
+    ['async', '\u2028'],
+    ['async', '\u2029'],
+    ['sync', '\u2028'],
+    ['sync', '\u2029'],
+  ])('blocks a Unicode line-separator filter (%s, %j)', async (mode, separator) => {
+    const name = `line${separator}separator`;
+    fs.writeFileSync(path.join(repo, '.gitattributes'), `*.ts filter=${name}\n`);
+    git('config', `filter.${name}.clean`, 'echo ran > filter-ran.txt; cat');
+    execFileSync('git', ['hash-object', '--path=a.ts', 'a.ts'], {
+      cwd: repo,
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    expect(fs.existsSync(marker())).toBe(true);
+    fs.unlinkSync(marker());
+
+    const env = mode === 'async' ? await gitIsolationEnv(repo) : gitIsolationEnvSync(repo);
+    if (!env) throw new Error('Expected a readable isolation environment');
+    execFileSync('git', ['hash-object', '--path=a.ts', 'a.ts'], {
+      cwd: repo,
+      env: { ...process.env, ...env },
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    expect(fs.existsSync(marker())).toBe(false);
+    expect(overrides(env)).toMatchObject({ [`filter.${name}.clean`]: '' });
+  });
+
   it('counts an included file as the repository, and an lfs override too', async () => {
     fs.writeFileSync(path.join(repo, 'inc.cfg'), '[filter "inc"]\n\tclean = y\n');
     git('config', 'include.path', '../inc.cfg');
@@ -161,6 +190,17 @@ describe('gitConfigEnv', () => {
 });
 
 describe('untrustedGitFilterKeys', () => {
+  it.each(['\u2028', '\u2029'])(
+    'recognizes all filter commands with %j in the name',
+    (separator) => {
+      const keys = ['clean', 'smudge', 'process'].map((cmd) => `filter.a${separator}b.${cmd}`);
+      const scoped = keys.flatMap((key) => ['local', key]).join('\0') + '\0';
+      expect(untrustedGitFilterKeys(scoped, true)).toEqual(keys);
+      expect(untrustedGitFilterKeys(keys.join('\0') + '\0', false)).toEqual(keys);
+      expect(untrustedGitFilterKeys(`global\0${keys[0]}\0system\0${keys[1]}\0`, true)).toEqual([]);
+    },
+  );
+
   it('recognizes empty names for each command while preserving trusted scopes', () => {
     const keys = ['filter..clean', 'filter..smudge', 'filter..process'];
     const scoped = keys.flatMap((key) => ['local', key]).join('\0') + '\0';

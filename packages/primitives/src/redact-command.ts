@@ -175,8 +175,9 @@ const URL_USERINFO_TOKEN_PATTERN =
  * holding a `:` matches, so a bare user name (`sudo -u root`, `ps -u alice`)
  * stays readable.
  */
+// Commas are credential data, not delimiters within a user:password argument.
 const USER_CREDENTIAL_PATTERN =
-  /(?<![-\w])(?:-u|--(?:[\w-]+-)?user)(?:[=\s]+)?(?:"[^"\n]*:[^"\n]*"|'[^'\n]*:[^'\n]*'|[^\s,"']*:[^\s,]+)/g;
+  /(?<![-\w])(?:-u|--(?:[\w-]+-)?user)(?:[=\s]+)?(?:"[^"\n]*:[^"\n]*"|'[^'\n]*:[^'\n]*'|[^\s"']*:[^\s]+)/g;
 
 /**
  * Shared: a JSON field holding a secret (`curl -d '{"password":"…"}'`,

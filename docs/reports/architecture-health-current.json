@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T00:01:28.782Z",
+  "generatedAt": "2026-11-09T00:42:24.924Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6151,
-    "testFiles": 5109,
-    "sourceLines": 1264500,
+    "testFiles": 5111,
+    "sourceLines": 1264503,
     "workspaceEdges": 250,
     "moduleEdges": 18108,
     "nonCommandSlashImports": 0,
@@ -715,7 +715,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 25,
-      "testFiles": 37,
+      "testFiles": 39,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -726,7 +726,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 37
+          "testFiles": 39
         }
       ]
     },
@@ -17684,6 +17684,12 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/redaction-user-credential-commas.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/redaction-user-credentials.test.ts",
         "projects": [
           "root-node"
@@ -17769,6 +17775,12 @@
       },
       {
         "file": "packages/primitives/tests/safe-json-getter-reads.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/scrubber-webhook-origin-case.test.ts",
         "projects": [
           "root-node"
         ]

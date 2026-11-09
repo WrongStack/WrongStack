@@ -11,7 +11,11 @@ beforeEach(() => {
 
 describe('error sanitization masks JSON-escaped Windows home paths', () => {
   it.each([false, true])('preserves serialized JSON with pretty=%s', (pretty) => {
-    const input = JSON.stringify({ path: `${fixture.home}\\work\\file.json` }, null, pretty ? 2 : undefined);
+    const input = JSON.stringify(
+      { path: `${fixture.home}\\work\\file.json` },
+      null,
+      pretty ? 2 : undefined,
+    );
     expect(JSON.parse(scrubErrorText(input))).toEqual({ path: '~\\work\\file.json' });
   });
 
@@ -43,6 +47,8 @@ describe('error sanitization masks JSON-escaped Windows home paths', () => {
 
   it('retains POSIX home masking', () => {
     fixture.home = '/home/fixture-user';
-    expect(scrubErrorText(JSON.stringify({ path: `${fixture.home}/work` }))).toBe('{"path":"~/work"}');
+    expect(scrubErrorText(JSON.stringify({ path: `${fixture.home}/work` }))).toBe(
+      '{"path":"~/work"}',
+    );
   });
 });
