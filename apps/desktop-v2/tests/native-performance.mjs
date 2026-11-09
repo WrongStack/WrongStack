@@ -197,8 +197,17 @@ export async function exerciseNativePerformance({
       .getByLabel('Composer options', { exact: true });
     const refine = page.getByRole('checkbox', { name: 'Refine before sending', exact: true });
     await options.click();
-    if (await refine.isChecked()) await refine.uncheck();
-    await waitFor(async () => !(await refine.isChecked()), `${title} direct send`);
+    // An unchecked box may only mean the profile's value has not streamed in yet. Switch it on
+    // and off through the composer, which holds a confirmed choice until the stream reports it,
+    // and wait for each save to finish (the box is disabled while it runs).
+    const settled = async (checked) =>
+      (await refine.isChecked()) === checked && (await refine.isEnabled());
+    if (!(await refine.isChecked())) {
+      await refine.check();
+      await waitFor(() => settled(true), `${title} refinement saved on`);
+    }
+    await refine.uncheck();
+    await waitFor(() => settled(false), `${title} direct send`);
     await options.click();
     return { session, composer };
   };

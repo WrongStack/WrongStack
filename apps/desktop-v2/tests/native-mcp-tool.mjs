@@ -102,12 +102,22 @@ export async function exerciseNativeMcpTool({
     const before = providerFixture.calls.length;
     await draft.fill('[native-mcp-tool-followup] What did the tool say?');
     await draft.press('Enter');
-    const keep = page.getByRole('button', { name: 'Keep original draft', exact: true });
+    // The profile refines before sending, so the message may open the refinement review first.
+    // Send it as written: during the countdown with "Send as written", after it with the
+    // Original version and "Approve & send". "Keep original draft" only closes the review and
+    // leaves the message unsent in the composer.
+    const review = page.locator('dialog .refine-dialog');
+    const asWritten = review.getByRole('button', { name: 'Send as written', exact: true });
+    const original = review.getByRole('button', { name: 'Original', exact: true });
+    const approve = review.getByRole('button', { name: 'Approve & send', exact: true });
     await waitFor(
       async () => {
         if (providerFixture.calls.slice(before).some((call) => call.userRunMcpTool)) return true;
-        // Prompt refinement may review the message first; send it as written.
-        if ((await keep.count()) > 0) await keep.first().click();
+        if (await asWritten.isVisible()) await asWritten.click();
+        else if ((await original.isVisible()) && (await original.isEnabled())) {
+          await original.click();
+          if (await approve.isEnabled()) await approve.click();
+        }
         return false;
       },
       'Next provider request carries the user-run tool result',

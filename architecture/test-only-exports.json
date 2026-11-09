@@ -206,6 +206,9 @@
     "apps/desktop-v2/src/useDesktop.ts": [
       "PROJECT_PAGES"
     ],
+    "apps/desktop-v2/src/usePendingPreference.ts": [
+      "PREFERENCE_ECHO_TIMEOUT_MS"
+    ],
     "apps/desktop-v2/src/usePersistedFields.tsx": [
       "fieldsCodec"
     ],
@@ -336,6 +339,9 @@
     ],
     "packages/cli/src/acp-server-agent.ts": [
       "ACPClientPermissionPolicy"
+    ],
+    "packages/cli/src/acp-server-runtime.ts": [
+      "ACP_LOGIN_HINT"
     ],
     "packages/cli/src/arg-parser.ts": [
       "BOOLEAN_FLAGS"

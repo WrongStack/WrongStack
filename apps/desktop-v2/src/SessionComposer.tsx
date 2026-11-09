@@ -60,6 +60,7 @@ import { SessionPermissionsOption } from './SessionPermissionsOption';
 import { TurnFollowUps } from './TurnFollowUps';
 import { useComposerInput } from './useComposerInput';
 import { useDetailsDismiss } from './useDetailsDismiss';
+import { usePendingPreference } from './usePendingPreference';
 import { SavedRefinementNotice, useRefinementDraft } from './useRefinementDraft';
 import './composer.css';
 import './composer-resources.css';
@@ -130,7 +131,6 @@ export function SessionComposer({
       attachments?: ComposerAttachment[];
     } | null>(null),
     [queueBusy, setQueueBusy] = useState(false),
-    [enhanceDraft, setEnhanceDraft] = useState<boolean | null>(null),
     [prefBusy, setPrefBusy] = useState(false);
   const [promptWorkspace, setPromptWorkspace] = useState<'library' | 'journal' | null>(null),
     [contextPanel, setContextPanel] = useState<
@@ -188,10 +188,13 @@ export function SessionComposer({
   // closing a new request before its reply leaves an older saved review untouched.
   const refineOwnsSaved = useRef(false);
   const queueSupported = supportsQueue(state);
-  const enhanceEnabled =
-    enhanceDraft ?? state.results['prefs.updated']?.['enhanceEnabled'] === true;
+  const enhance = usePendingPreference(
+    state.results['prefs.updated']?.['enhanceEnabled'] === true,
+    prefBusy,
+  );
+  const enhanceEnabled = enhance.value;
   const setEnhance = async (value: boolean) => {
-    setEnhanceDraft(value);
+    enhance.setPending(value);
     setPrefBusy(true);
     setError('');
     try {
@@ -202,9 +205,10 @@ export function SessionComposer({
           'The profile did not confirm the refinement preference. Refresh before retrying.',
         );
     } catch (e) {
+      // A refused save shows the engine's value again; a confirmed one stays until it streams.
+      enhance.setPending(null);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setEnhanceDraft(null);
       setPrefBusy(false);
     }
   };

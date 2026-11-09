@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T10:18:26.490Z",
+  "generatedAt": "2026-11-09T13:24:48.676Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6189,
-    "testFiles": 5138,
-    "sourceLines": 1268228,
+    "sourceFiles": 6191,
+    "testFiles": 5141,
+    "sourceLines": 1268420,
     "workspaceEdges": 250,
-    "moduleEdges": 18244,
+    "moduleEdges": 18248,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
-    "testsWithoutTypecheck": 320,
+    "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1031
+    "testOnlyExports": 1033
   },
   "errors": [],
   "packageCycles": [],
@@ -93,7 +93,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 54,
-      "testFiles": 60,
+      "testFiles": 61,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 60
+          "testFiles": 61
         }
       ]
     },
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 631,
-      "testFiles": 691,
+      "sourceFiles": 632,
+      "testFiles": 692,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 691
+          "testFiles": 692
         }
       ]
     },
@@ -386,8 +386,8 @@
     {
       "name": "@wrongstack/desktop-v2",
       "dir": "apps/desktop-v2",
-      "sourceFiles": 503,
-      "testFiles": 320,
+      "sourceFiles": 504,
+      "testFiles": 321,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -2480,6 +2480,12 @@
         ]
       },
       {
+        "file": "apps/desktop-v2/tests/pending-preference.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop-v2/tests/persisted-fields.test.ts",
         "projects": [
           "root-node"
@@ -3333,6 +3339,12 @@
       },
       {
         "file": "packages/acp/tests/acp-session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/acp/tests/acp-shell-compat.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4617,6 +4629,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-agent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-server-runtime.test.ts",
         "projects": [
           "root-node"
         ]
@@ -33503,6 +33521,13 @@
         "typecheckProjects": []
       },
       {
+        "file": "apps/desktop-v2/tests/pending-preference.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      },
+      {
         "file": "apps/desktop-v2/tests/persisted-fields.test.ts",
         "runtimeProjects": [
           "root-node"
@@ -35493,8 +35518,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1068,
-      "relativeImports": 38
+      "lines": 1072,
+      "relativeImports": 39
     },
     {
       "file": "apps/desktop-v2/src/SkillLibrary.tsx",
@@ -35530,8 +35555,8 @@
     },
     {
       "file": "apps/desktop-v2/src/SessionComposer.tsx",
-      "lines": 1068,
-      "relativeImports": 38
+      "lines": 1072,
+      "relativeImports": 39
     },
     {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
@@ -36088,6 +36113,10 @@
       "name": "PROJECT_PAGES"
     },
     {
+      "file": "apps/desktop-v2/src/usePendingPreference.ts",
+      "name": "PREFERENCE_ECHO_TIMEOUT_MS"
+    },
+    {
       "file": "apps/desktop-v2/src/usePersistedFields.tsx",
       "name": "fieldsCodec"
     },
@@ -36306,6 +36335,10 @@
     {
       "file": "packages/cli/src/acp-server-agent.ts",
       "name": "ACPClientPermissionPolicy"
+    },
+    {
+      "file": "packages/cli/src/acp-server-runtime.ts",
+      "name": "ACP_LOGIN_HINT"
     },
     {
       "file": "packages/cli/src/arg-parser.ts",
