@@ -87,7 +87,42 @@ export async function exerciseNativeProviderHealth({
       name: 'Quota native-quota-good default',
       exact: true,
     });
-    await card.getByText('30% used', { exact: true }).waitFor({ timeout: 60000 });
+    try {
+      await card.getByText('30% used', { exact: true }).waitFor({ timeout: 60000 });
+    } catch (error) {
+      // Preserve only fixture shape metadata, never credentials, if an account read is absent.
+      const diagnostic = { reads, providers: [], savedProviderIds: [], quota: null };
+      try {
+        const current = JSON.parse(await readFile(configPath, 'utf8'));
+        diagnostic.providers = ids.map((id, index) => {
+          const configured = current.providers?.[id];
+          return {
+            id,
+            configured: !!configured,
+            quotaEndpointPresent: !!configured?.quotaEndpoint,
+            endpointMatchesFixture:
+              configured?.quotaEndpoint?.url ===
+              `http://127.0.0.1:${server.port}/${index ? 'fail' : 'quota'}`,
+            keyCount: Array.isArray(configured?.apiKeys) ? configured.apiKeys.length : 0,
+            directKeyPresent: typeof configured?.apiKey === 'string' && !!configured.apiKey,
+          };
+        });
+        const saved = await call('providers.saved');
+        diagnostic.savedProviderIds = (saved.providers ?? []).map((entry) => entry.id);
+        const quota = await call('provider.quota.get');
+        diagnostic.quota = {
+          snapshots: (quota.snapshots ?? []).filter((entry) => ids.includes(entry.providerId)),
+          refreshed: quota.refreshed ?? [],
+        };
+      } catch (failure) {
+        diagnostic.diagnosticError = failure instanceof Error ? failure.message : String(failure);
+      }
+      await writeFile(
+        join(artifactDir, 'native-provider-health-diagnostic.json'),
+        JSON.stringify(diagnostic, null, 2),
+      );
+      throw error;
+    }
     await card.getByText('$12.50', { exact: true }).waitFor();
     assert.doesNotMatch(await card.innerText(), /Reset: Not reported/);
     assert.equal(reads, 2, 'Both providers use the actual authenticated account-reader path');

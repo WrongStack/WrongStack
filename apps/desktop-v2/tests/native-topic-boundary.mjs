@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 export async function exerciseNativeTopicBoundary({
   page,
@@ -128,10 +129,7 @@ export async function exerciseNativeTopicBoundary({
       false,
       'Prior-topic user text is excluded from the actual request',
     );
-    await page
-      .locator('.chat-message.user')
-      .filter({ hasText: '[native-composer-topic-same]' })
-      .waitFor();
+    await findConversationMessages(page, '[native-composer-topic-same]', 1);
     assert.equal(await input().inputValue(), '');
   } finally {
     await call('prefs.update', { enhanceEnabled: originalPrefs.enhanceEnabled ?? false }, [

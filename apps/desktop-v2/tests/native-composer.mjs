@@ -5,6 +5,7 @@ import { exerciseNativePasteHint } from './native-paste-hint.mjs';
 import { exerciseNativeProfileModelPolicy } from './native-profile-model-policy.mjs';
 import { exerciseNativeSessionAgentPlan } from './native-session-agent-plan.mjs';
 import { exerciseNativeTopicBoundary } from './native-topic-boundary.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 /** Actual Tauri composer -> native IPC -> production engine -> isolated provider. */
 export async function exerciseNativeComposer({
@@ -63,10 +64,36 @@ export async function exerciseNativeComposer({
     configPath,
   });
   await exerciseNativePasteHint({ page });
+  let completionOffset = 0;
+  let completionType = '';
   const idle = () =>
     waitFor(
-      async () => !(await page.getByRole('button', { name: 'Stop run', exact: true }).count()),
-      'Composer run completion',
+      async () => {
+        // The fixture provider can start/finish between renderer polls. A missing Stop button
+        // alone can describe the preceding aborted turn, not the newly accepted instruction.
+        for (;;) {
+          const previous = completionOffset;
+          const batch = await rpc('engine.events', { id: agent.id, offset: completionOffset });
+          completionOffset = batch.offset;
+          for (const event of batch.events) {
+            if (
+              typeof event.payload?.sessionId === 'string' &&
+              event.payload.sessionId !== identity.sessionId
+            )
+              continue;
+            if (['desktop.user_message', 'iteration.started', 'run.result'].includes(event.type))
+              completionType = event.type;
+          }
+          const more =
+            batch.hasMore ?? (batch.events.length === 200 || completionOffset - previous >= 262144);
+          if (!more || completionOffset === previous) break;
+        }
+        return (
+          (!completionType || completionType === 'run.result') &&
+          !(await page.getByRole('button', { name: 'Stop run', exact: true }).count())
+        );
+      },
+      'Composer engine and renderer run completion',
       60000,
     );
   const send = async (text, mode = 'btw') => {
@@ -181,14 +208,7 @@ export async function exerciseNativeComposer({
   );
   await idle();
   assert.equal((await call('queue.get', {}, ['queue.state'])).items.length, 0);
-  assert.equal(
-    await page
-      .locator('.chat-message.user')
-      .filter({ hasText: '[native-composer-queued]' })
-      .count(),
-    1,
-    'Drained prompt appears exactly once after reload',
-  );
+  await findConversationMessages(page, '[native-composer-queued]', 1);
   assert.ok(
     !providerFixture.calls.some((c) => c.composerPrompt.includes('[native-composer-remove]')),
     'Removed prompt never reaches the provider',

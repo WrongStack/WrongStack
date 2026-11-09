@@ -5,6 +5,7 @@ import { DefaultSessionStore } from '../../../packages/core/dist/storage/index.j
 import { resolveWstackPaths, sessionScopedPath } from '../../../packages/core/dist/utils/index.js';
 import { exerciseNativeHistoryPaging } from './native-history-paging.mjs';
 import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 export async function exerciseNativeProjectHistory({
   page,
@@ -536,7 +537,7 @@ export async function exerciseNativeProjectHistory({
     await page
       .getByRole('textbox', { name: 'Message WrongStack', exact: true })
       .waitFor({ timeout: 100000 });
-    await page.getByText('Recorded opening prompt.', { exact: false }).first().waitFor();
+    await findConversationMessages(page, 'Recorded opening prompt.', 1);
     return { opened, identity };
   };
   const fork = await restoreThroughUi('fork');

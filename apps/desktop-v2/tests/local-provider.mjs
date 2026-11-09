@@ -13,6 +13,8 @@ export function nativeComposerCalls(calls) {
   );
 }
 export const fixtureText = 'Native provider connection verified.';
+export const fixtureChimeraText =
+  '## 🦂 Chimera Review\nNative generated reviewer fixture.\n\n### Medium (1)\n1. [BUG] README.md:1 — Assist edit lacks use\n   The Native Code Assist edit lacks a use note.\n   → Add a use note.';
 export const fixtureMarkdown = `${fixtureText}
 
 ## Native result
@@ -128,6 +130,13 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
       const refiner = (body.messages ?? []).some(
         (m) => m.role === 'system' && String(m.content).includes('You are a request refiner'),
       );
+      const chimeraReview = (body.messages ?? []).some(
+        (message) =>
+          message.role === 'system' &&
+          String(message.content).includes(
+            'You are Chimera, a high-precision post-session code quality reviewer.',
+          ),
+      );
       const topicAdvisor = (body.messages ?? []).some(
         (m) =>
           m.role === 'system' &&
@@ -154,26 +163,43 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
               /^\[native-composer-/.test(text.trim()) ||
               text.includes('[native-composer-nextstep-selected]'),
           ) ?? '';
-      const answer = topicAdvisor
-        ? JSON.stringify({
-            decision: /new topic|yeni konu/i.test(topicPrompt) ? 'new_context' : 'same_context',
-            confidence: 0.99,
-            reason: 'The isolated fixture identified a different goal.',
-            nextTopic: 'Native topic boundary proof',
-          })
-        : refiner
-          ? 'Build the desktop composer and preserve the requested session boundaries.\n---\nImplement the desktop composer while keeping the requested session boundaries.'
-          : composerInstruction.trim().startsWith('[native-composer-long-reply]')
-            ? longReply()
-            : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
-              ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
-              : // A leader turn without either marker gets a priced next-steps side request;
-                // usage proofs count exactly one provider answer per prompt.
-                /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
-                    (userTexts.at(-1) ?? '').trim(),
-                  )
-                ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
-                : fixtureMarkdown;
+      const officeLeader =
+        !refiner && !topicAdvisor && !chimeraReview && body.model === fixtureModel
+          ? userTexts
+              .findLast((text) => /^\[native-office-(alpha|beta|gamma)\]/.test(text.trim()))
+              ?.match(/^\[native-office-(alpha|beta|gamma)\]/)?.[1]
+          : undefined;
+      const officeWorker =
+        !refiner && !topicAdvisor && !chimeraReview && body.model === 'alternate-refiner'
+          ? userTexts.join('\n').match(/\[native-office-worker-(alpha|beta|gamma)\]/)?.[1]
+          : undefined;
+      const baseAnswer = chimeraReview
+        ? fixtureChimeraText
+        : topicAdvisor
+          ? JSON.stringify({
+              decision: /new topic|yeni konu/i.test(topicPrompt) ? 'new_context' : 'same_context',
+              confidence: 0.99,
+              reason: 'The isolated fixture identified a different goal.',
+              nextTopic: 'Native topic boundary proof',
+            })
+          : refiner
+            ? 'Build the desktop composer and preserve the requested session boundaries.\n---\nImplement the desktop composer while keeping the requested session boundaries.'
+            : composerInstruction.trim().startsWith('[native-composer-long-reply]')
+              ? longReply()
+              : composerInstruction.trim().startsWith('[native-composer-nextsteps]')
+                ? `${fixtureMarkdown}\n\n<nextsteps>\n1. [native-composer-nextstep-selected] Inspect the result\n2. Run the checks\n</nextsteps>`
+                : // A leader turn without either marker gets a priced next-steps side request;
+                  // usage proofs count exactly one provider answer per prompt.
+                  /^\[native-(?:usage-(?:cold|warm)|tier-proposal)\]/.test(
+                      (userTexts.at(-1) ?? '').trim(),
+                    )
+                  ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
+                  : fixtureMarkdown;
+      const answer = officeWorker
+        ? `${fixtureMarkdown}\n\nOffice worker ${officeWorker} result.\n\n<nextsteps-complete/>`
+        : officeLeader
+          ? `${fixtureMarkdown}\n\n<nextsteps-complete/>`
+          : baseAnswer;
       // A refinement of a draft marked slow waits, so a test can restart the window meanwhile.
       if (refiner && userTexts.some((text) => text.includes('[native-refine-slow]')))
         await new Promise((resolve) => setTimeout(resolve, 8000));
@@ -185,6 +211,12 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
         stream: body.stream,
         refiner,
         topicAdvisor,
+        chimeraReview,
+        officeLeader,
+        officeWorker,
+        reviewTools: chimeraReview
+          ? (body.tools ?? []).map((tool) => tool.function?.name)
+          : undefined,
         instructionMarkers: [...new Set(composerInstruction.match(/\[native-[^\]]+\]/g) ?? [])],
         kanbanContext: (body.messages ?? []).some(
           (message) =>
@@ -235,6 +267,7 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
               prompt_tokens_details: { cached_tokens: 480 },
             }
           : { prompt_tokens: 100, completion_tokens: 5, total_tokens: 105 };
+      if (officeLeader || officeWorker) calls.at(-1).providerUsage = usage;
       // The real engine appends runtime blocks as user-role messages after tool output
       // (the leader's mission anchor, the fleet pulse); they quote the running task,
       // marker included. Only a message that starts with the marker is the prompt.
@@ -357,7 +390,7 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           'The engine must offer the real leader_tier_set tool',
         );
       // An editing Code Assist run writes one known file through the real write tool.
-      const assistEditUser =
+      const chimeraLeaderUser =
         body.messages?.findLastIndex(
           (message) =>
             message.role === 'user' &&
@@ -366,15 +399,38 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
               : (message.content ?? [])
                   .filter((part) => part.type === 'text')
                   .map((part) => part.text ?? '')
-            ).some((text) => text.includes('[native-code-assist-edit]')),
+            ).some((text) =>
+              text.trim().startsWith('[native-code-assist-edit] [native-chimera-producer]'),
+            ),
         ) ?? -1;
+      const assistEditUser =
+        chimeraLeaderUser >= 0
+          ? chimeraLeaderUser
+          : (body.messages?.findLastIndex(
+              (message) =>
+                message.role === 'user' &&
+                (typeof message.content === 'string'
+                  ? [message.content]
+                  : (message.content ?? [])
+                      .filter((part) => part.type === 'text')
+                      .map((part) => part.text ?? '')
+                ).some((text) => text.includes('[native-code-assist-edit]')),
+            ) ?? -1);
       const assistEditCallId = `native-code-assist-edit-${assistEditUser}`;
       const assistEditReply =
         assistEditUser >= 0 &&
         body.messages
           .slice(assistEditUser + 1)
           .find((message) => message.role === 'tool' && message.tool_call_id === assistEditCallId);
-      const needsAssistEdit = !refiner && !topicAdvisor && assistEditUser >= 0 && !assistEditReply;
+      const needsAssistEdit =
+        !refiner && !topicAdvisor && !chimeraReview && assistEditUser >= 0 && !assistEditReply;
+      const chimeraReadCallId = `native-chimera-read-${assistEditUser}`;
+      const needsChimeraRead =
+        needsAssistEdit &&
+        userTexts.some((text) => text.includes('[native-chimera-producer]')) &&
+        !body.messages
+          .slice(assistEditUser + 1)
+          .some((message) => message.role === 'tool' && message.tool_call_id === chimeraReadCallId);
       if (needsAssistEdit)
         assert.ok(
           body.tools?.some((tool) => tool.function?.name === 'write'),
@@ -387,93 +443,148 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
           body.tools?.some((tool) => tool.function?.name === 'exec'),
           'Real exec tool must be offered by the engine',
         );
-      const toolCall = needsForm
+      const officeCallId = `native-office-delegate-${officeLeader}`;
+      const needsOfficeDelegate =
+        officeLeader &&
+        !body.messages.some(
+          (message) => message.role === 'tool' && message.tool_call_id === officeCallId,
+        );
+      if (needsOfficeDelegate)
+        assert.ok(
+          body.tools?.some((tool) => tool.function?.name === 'delegate'),
+          'The real delegate tool must be available to the owning leader',
+        );
+      const toolCall = needsOfficeDelegate
         ? {
             index: 0,
-            id: `desktop-clarify-${challenge}`,
+            id: officeCallId,
             type: 'function',
             function: {
-              name: 'clarify',
-              arguments: JSON.stringify(
-                challenge === 'submit'
-                  ? inputFixture
-                  : {
-                      title: 'Native optional decision',
-                      question: 'Should this request continue?',
-                      options: ['Continue', 'Stop'],
-                    },
-              ),
+              name: 'delegate',
+              arguments: JSON.stringify({
+                name: `Office ${officeLeader}`,
+                provider: 'desktop-local',
+                model: 'alternate-refiner',
+                task: `[native-office-worker-${officeLeader}] Return the isolated worker fixture response.`,
+                scope: 'Return one short status for this isolated acceptance task.',
+                outOfScope: [
+                  'Do not read or write files.',
+                  'Do not call tools or spawn other workers.',
+                ],
+                wait: true,
+                timeoutMs: 600000,
+                maxIterations: 1,
+                maxHandoffs: 0,
+              }),
             },
           }
-        : needsApproval
+        : needsChimeraRead
           ? {
               index: 0,
-              id: approvalId,
+              id: chimeraReadCallId,
               type: 'function',
-              function: {
-                name: 'exec',
-                arguments: JSON.stringify({
-                  command: 'git',
-                  args:
-                    approvalChallenge === 'allow' || approvalChallenge === 'deny'
-                      ? ['config', '--local', 'desktopfixture.first', 'yes']
-                      : ['config', '--local', 'desktopfixture.second', 'yes'],
-                  cwd: '.',
-                }),
-              },
+              function: { name: 'read', arguments: JSON.stringify({ path: 'README.md' }) },
             }
-          : needsMcpTask
+          : needsForm
             ? {
                 index: 0,
-                id: mcpTaskCallId,
+                id: `desktop-clarify-${challenge}`,
                 type: 'function',
-                function: { name: 'mcp__native_tasks__build', arguments: '{}' },
+                function: {
+                  name: 'clarify',
+                  arguments: JSON.stringify(
+                    challenge === 'submit'
+                      ? inputFixture
+                      : {
+                          title: 'Native optional decision',
+                          question: 'Should this request continue?',
+                          options: ['Continue', 'Stop'],
+                        },
+                  ),
+                },
               }
-            : needsProcess
+            : needsApproval
               ? {
                   index: 0,
-                  id: processCallId,
+                  id: approvalId,
                   type: 'function',
                   function: {
-                    name: 'bash',
+                    name: 'exec',
                     arguments: JSON.stringify({
-                      // Unquoted: the session shell may be PowerShell, where a quoted path
-                      // followed by arguments is a parse error; this path has no spaces.
-                      command: `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -Command "Write-Output 'native-process-output-ready'; Write-Output 'Local: http://localhost:5173/'; Start-Sleep -Seconds 240"`,
-                      background: true,
-                      hermetic: true,
+                      command: 'git',
+                      args:
+                        approvalChallenge === 'allow' || approvalChallenge === 'deny'
+                          ? ['config', '--local', 'desktopfixture.first', 'yes']
+                          : ['config', '--local', 'desktopfixture.second', 'yes'],
+                      cwd: '.',
                     }),
                   },
                 }
-              : needsAssistEdit
+              : needsMcpTask
                 ? {
                     index: 0,
-                    id: assistEditCallId,
+                    id: mcpTaskCallId,
                     type: 'function',
-                    function: {
-                      name: 'write',
-                      arguments: JSON.stringify({
-                        path: 'README.md',
-                        content: '# Native Code Assist edit\n',
-                      }),
-                    },
+                    function: { name: 'mcp__native_tasks__build', arguments: '{}' },
                   }
-                : needsTier
+                : needsProcess
                   ? {
                       index: 0,
-                      id: tierCallId,
+                      id: processCallId,
                       type: 'function',
                       function: {
-                        name: 'leader_tier_set',
+                        name: 'bash',
                         arguments: JSON.stringify({
-                          action: 'set',
-                          tier: 'budget',
-                          reason: 'Mechanical edits from here.',
+                          // Unquoted: the session shell may be PowerShell, where a quoted path
+                          // followed by arguments is a parse error; this path has no spaces.
+                          command: `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -NonInteractive -Command "Write-Output 'native-process-output-ready'; Write-Output 'Local: http://localhost:5173/'; Start-Sleep -Seconds 240"`,
+                          background: true,
+                          hermetic: true,
                         }),
                       },
                     }
-                  : undefined;
+                  : needsAssistEdit
+                    ? {
+                        index: 0,
+                        id: assistEditCallId,
+                        type: 'function',
+                        function: {
+                          name: 'write',
+                          arguments: JSON.stringify({
+                            path: 'README.md',
+                            content: '# Native Code Assist edit\n',
+                          }),
+                        },
+                      }
+                    : needsTier
+                      ? {
+                          index: 0,
+                          id: tierCallId,
+                          type: 'function',
+                          function: {
+                            name: 'leader_tier_set',
+                            arguments: JSON.stringify({
+                              action: 'set',
+                              tier: 'budget',
+                              reason: 'Mechanical edits from here.',
+                            }),
+                          },
+                        }
+                      : undefined;
       if (!body.stream) {
+        if (officeWorker) {
+          const hold = `office-${officeWorker}`;
+          await new Promise((resolve) => {
+            holds.set(hold, resolve);
+            response.once('close', () => {
+              if (!response.writableEnded) canceledHolds.add(hold);
+              holds.delete(hold);
+              resolve();
+            });
+          });
+          holds.delete(hold);
+          if (response.destroyed) return;
+        }
         response.setHeader('content-type', 'application/json');
         response.end(
           JSON.stringify({
@@ -509,13 +620,23 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
       chunk([
         {
           index: 0,
-          delta: { role: 'assistant', content: refiner || topicAdvisor ? '' : 'Native provider ' },
+          delta: {
+            role: 'assistant',
+            content: refiner || topicAdvisor || chimeraReview ? '' : 'Native provider ',
+          },
           finish_reason: null,
         },
       ]);
-      const hold =
-        !refiner && composerInstruction.trim().match(/^\[native-composer-hold-([a-z]+)\]/)?.[1];
+      const hold = officeWorker
+        ? `office-${officeWorker}`
+        : !refiner && composerInstruction.trim().match(/^\[native-composer-hold-([a-z]+)\]/)?.[1];
       if (hold) {
+        const heartbeat = officeWorker
+          ? setInterval(() => {
+              if (!response.destroyed)
+                chunk([{ index: 0, delta: { content: '.' }, finish_reason: null }]);
+            }, 5000)
+          : undefined;
         await new Promise((resolve) => {
           holds.set(hold, resolve);
           response.once('close', () => {
@@ -524,10 +645,13 @@ export async function startLocalProvider({ models = [fixtureModel] } = {}) {
             resolve();
           });
         });
+        if (heartbeat) clearInterval(heartbeat);
         holds.delete(hold);
         if (response.destroyed) return;
       }
-      const rest = answer.slice(refiner || topicAdvisor ? 0 : 'Native provider '.length);
+      const rest = answer.slice(
+        refiner || topicAdvisor || chimeraReview ? 0 : 'Native provider '.length,
+      );
       // A long answer streams in many small deltas, like a real provider.
       for (let start = 0; start < rest.length; start += 2048)
         chunk([

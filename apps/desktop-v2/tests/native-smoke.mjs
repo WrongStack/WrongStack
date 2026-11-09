@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { WIN32_TASKKILL_BACKSTOP_MS } from '@wrongstack/core/utils/tree-kill';
 import { createSqliteMemoryPort, getSageSurface } from '../../../packages/sage/dist/index.js';
 import { portableDirectory } from '../scripts/portable.ts';
 import { fixtureKey, fixtureModel, fixtureText, startLocalProvider } from './local-provider.mjs';
@@ -19,6 +20,7 @@ import { exerciseNativeAttachments } from './native-attachments.mjs';
 import { exerciseNativeAutomationManagement } from './native-automation-management.mjs';
 import { exerciseNativeBrainPolicy } from './native-brain-policy.mjs';
 import { exerciseNativeChimera } from './native-chimera.mjs';
+import { exerciseNativeGeneratedChimera } from './native-chimera-generated.mjs';
 import { exerciseNativeChronicleExport } from './native-chronicle-export.mjs';
 import { seedNativeChronicle } from './native-chronicle-fixture.mjs';
 import { exerciseNativeChronicleInsights } from './native-chronicle-insights.mjs';
@@ -28,6 +30,7 @@ import { exerciseNativeComposerResources } from './native-composer-resources.mjs
 import { exerciseNativeConversation } from './native-conversation.mjs';
 import { exerciseNativeDeadCode } from './native-dead-code.mjs';
 import { exerciseNativeDesignStudio } from './native-design-studio.mjs';
+import { exerciseNativeDisplayPrefs } from './native-display-prefs.mjs';
 import { exerciseNativeDraftConflict } from './native-draft-conflict.mjs';
 import { exerciseNativeEvidence } from './native-evidence.mjs';
 import { exerciseNativeExecutionPolicy } from './native-execution-policy.mjs';
@@ -49,6 +52,9 @@ import { exerciseNativeModelProfiles } from './native-model-profiles.mjs';
 import { exerciseNativeMultiWindow } from './native-multi-window.mjs';
 import { exerciseNativeNewSurfaces } from './native-new-surfaces.mjs';
 import { exerciseNativeNextSteps } from './native-next-steps.mjs';
+import { exerciseNativeOfficeStory } from './native-office-story.mjs';
+import { exerciseNativeParityCards } from './native-parity-cards.mjs';
+import { exerciseNativeParityFinish } from './native-parity-finish.mjs';
 import { exerciseNativePerformance } from './native-performance.mjs';
 import { exerciseNativeProcesses } from './native-processes.mjs';
 import { exerciseNativeProjectHistory } from './native-project-history.mjs';
@@ -61,6 +67,7 @@ import { exerciseNativeReviewPolicy } from './native-review-policy.mjs';
 import { exerciseNativeSage } from './native-sage.mjs';
 import { exerciseNativeSageValidity } from './native-sage-validity.mjs';
 import { exerciseNativeSdd } from './native-sdd.mjs';
+import { exerciseNativeServiceHealing } from './native-service-healing.mjs';
 import { exerciseNativeSessionRecovery } from './native-session-recovery.mjs';
 import { exerciseNativeSessionUsage } from './native-session-usage.mjs';
 import { exerciseNativeSettingsManagement } from './native-settings-management.mjs';
@@ -108,88 +115,106 @@ const multiOnly = process.argv.includes('--multi');
 const perfOnly = process.argv.includes('--perf');
 const a11yOnly = process.argv.includes('--a11y');
 const gapsOnly = process.argv.includes('--gaps');
+const parityCardsOnly = process.argv.includes('--parity-cards');
+const displayPrefsOnly = process.argv.includes('--display-prefs');
+const serviceHealingOnly = process.argv.includes('--service-healing');
+const chimeraGeneratedOnly = process.argv.includes('--chimera-generated');
+const parityFinishOnly = process.argv.includes('--parity-finish');
+const officeStoryOnly = process.argv.includes('--office-story');
 const artifactDir = resolve(
   root,
   '.temp_files/desktop-v2-native',
-  a11yOnly
-    ? 'accessibility'
-    : perfOnly
-      ? 'performance'
-      : multiOnly
-        ? 'multi-window'
-        : surfacesOnly
-          ? 'new-surfaces'
-          : skillsOnly
-            ? 'skills'
-            : modelProfilesOnly
-              ? 'model-profiles'
-              : modelDraftRestartOnly
-                ? 'model-draft-restart'
-                : usageOnly
-                  ? 'session-usage'
-                  : sageOnly
-                    ? 'sage-validity'
-                    : refinementPolicyOnly
-                      ? 'refinement-policy'
-                      : executionPolicyOnly
-                        ? 'execution-policy'
-                        : brainPolicyOnly
-                          ? 'brain-policy'
-                          : fleetPolicyOnly
-                            ? 'fleet-policy'
-                            : atlasOnly
-                              ? 'atlas-boundaries'
-                              : fleetOnly
-                                ? 'fleet'
-                                : processesOnly
-                                  ? 'processes'
-                                  : mcpTasksOnly
-                                    ? 'mcp-tasks'
-                                    : mcpOnly
-                                      ? 'mcp'
-                                      : automationOnly
-                                        ? 'automation'
-                                        : rosterOnly
-                                          ? 'roster'
-                                          : filesOnly
-                                            ? 'files'
-                                            : settingsOnly
-                                              ? 'settings'
-                                              : historyOnly
-                                                ? companion
-                                                  ? 'history-companion'
-                                                  : 'history'
-                                                : recoveryOnly
-                                                  ? 'recovery'
-                                                  : chimeraOnly
-                                                    ? 'chimera'
-                                                    : designOnly
-                                                      ? 'design'
-                                                      : deadCodeOnly
-                                                        ? 'deadcode'
-                                                        : techstackOnly
-                                                          ? 'techstack'
-                                                          : kitOnly
-                                                            ? 'kit'
-                                                            : mailboxOnly
-                                                              ? 'mailbox'
-                                                              : modelsOnly
-                                                                ? 'models'
-                                                                : sddOnly
-                                                                  ? 'sdd'
-                                                                  : goalsOnly
-                                                                    ? 'goals'
-                                                                    : chronicleOnly
-                                                                      ? 'chronicle'
-                                                                      : composerOnly
-                                                                        ? companion
-                                                                          ? 'composer-companion'
-                                                                          : 'composer'
-                                                                        : companion
-                                                                          ? 'companion'
-                                                                          : gapsOnly
-                                                                            ? 'gap-close'
-                                                                            : '.',
+  officeStoryOnly
+    ? 'office-story'
+    : parityFinishOnly
+      ? 'parity-finish'
+      : chimeraGeneratedOnly
+        ? 'chimera-generated'
+        : serviceHealingOnly
+          ? 'service-healing'
+          : displayPrefsOnly
+            ? 'display-prefs'
+            : parityCardsOnly
+              ? 'parity-cards'
+              : a11yOnly
+                ? 'accessibility'
+                : perfOnly
+                  ? 'performance'
+                  : multiOnly
+                    ? 'multi-window'
+                    : surfacesOnly
+                      ? 'new-surfaces'
+                      : skillsOnly
+                        ? 'skills'
+                        : modelProfilesOnly
+                          ? 'model-profiles'
+                          : modelDraftRestartOnly
+                            ? 'model-draft-restart'
+                            : usageOnly
+                              ? 'session-usage'
+                              : sageOnly
+                                ? 'sage-validity'
+                                : refinementPolicyOnly
+                                  ? 'refinement-policy'
+                                  : executionPolicyOnly
+                                    ? 'execution-policy'
+                                    : brainPolicyOnly
+                                      ? 'brain-policy'
+                                      : fleetPolicyOnly
+                                        ? 'fleet-policy'
+                                        : atlasOnly
+                                          ? 'atlas-boundaries'
+                                          : fleetOnly
+                                            ? 'fleet'
+                                            : processesOnly
+                                              ? 'processes'
+                                              : mcpTasksOnly
+                                                ? 'mcp-tasks'
+                                                : mcpOnly
+                                                  ? 'mcp'
+                                                  : automationOnly
+                                                    ? 'automation'
+                                                    : rosterOnly
+                                                      ? 'roster'
+                                                      : filesOnly
+                                                        ? 'files'
+                                                        : settingsOnly
+                                                          ? 'settings'
+                                                          : historyOnly
+                                                            ? companion
+                                                              ? 'history-companion'
+                                                              : 'history'
+                                                            : recoveryOnly
+                                                              ? 'recovery'
+                                                              : chimeraOnly
+                                                                ? 'chimera'
+                                                                : designOnly
+                                                                  ? 'design'
+                                                                  : deadCodeOnly
+                                                                    ? 'deadcode'
+                                                                    : techstackOnly
+                                                                      ? 'techstack'
+                                                                      : kitOnly
+                                                                        ? 'kit'
+                                                                        : mailboxOnly
+                                                                          ? 'mailbox'
+                                                                          : modelsOnly
+                                                                            ? 'models'
+                                                                            : sddOnly
+                                                                              ? 'sdd'
+                                                                              : goalsOnly
+                                                                                ? 'goals'
+                                                                                : chronicleOnly
+                                                                                  ? 'chronicle'
+                                                                                  : composerOnly
+                                                                                    ? companion
+                                                                                      ? 'composer-companion'
+                                                                                      : 'composer'
+                                                                                    : companion
+                                                                                      ? 'companion'
+                                                                                      : gapsOnly
+                                                                                        ? 'gap-close'
+                                                                                        : '.',
 );
 await mkdir(artifactDir, { recursive: true });
 if (modelDraftRestartOnly || modelProfilesOnly)
@@ -258,6 +283,7 @@ const env = {
   ...process.env,
   WRONGSTACK_DESKTOP_DATA: dir,
   WRONGSTACK_HOME: join(dir, 'wrongstack'),
+  ...(serviceHealingOnly ? { WRONGSTACK_AUTO_HEAL_SERVICES: '1' } : {}),
   WRONGSTACK_DESKTOP_BUN: process.execPath,
   WRONGSTACK_DESKTOP_ENTRY: resolve(root, 'apps/desktop-v2/engine/main.ts'),
   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
@@ -267,6 +293,20 @@ await writeFile(
   join(dir, 'wrongstack/profiles/default/config.json'),
   JSON.stringify({
     skills: { readClaudeSkills: false, foreignSources: false },
+    ...(chimeraGeneratedOnly
+      ? {
+          extensions: {
+            'wstack-auto-review': {
+              enabled: true,
+              provider: 'desktop-local',
+              model: fixtureModel,
+              debounceMs: 15000,
+              cascadeOn: 'off',
+            },
+            'wstack-chimera': { enabled: false },
+          },
+        }
+      : {}),
     // The product default continues suggested next steps on its own (`auto` with YOLO); the
     // harness drives every turn itself, so its conversations start in manual mode.
     autonomy: {
@@ -482,23 +522,34 @@ const cleanupOwnedProcesses = async () => {
   assert.ok(basename(dir).startsWith('wrongstack-desktop-v2-'));
   const code =
     "$pattern=[regex]::Escape($env:WRONGSTACK_DESKTOP_TEST_DIR); Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe' OR Name='wrongstack-engine.exe' OR Name='wrongstack-session-host.exe'\" | Where-Object { $_.CommandLine -match $pattern } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+  let cleanupError = '';
   const cleanup = spawn(
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
     ['-NoProfile', '-NonInteractive', '-Command', code],
     {
       env: { ...process.env, WRONGSTACK_DESKTOP_TEST_DIR: dir },
       windowsHide: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 'ignore', 'pipe'],
     },
   );
+  cleanup.stderr.on('data', (data) => {
+    cleanupError = (cleanupError + String(data)).slice(-4096);
+  });
   await bounded(
     new Promise((resolve, reject) => {
       cleanup.once('exit', (code) =>
-        code === 0 ? resolve() : reject(Error(`Owned process cleanup failed: ${code}`)),
+        code === 0
+          ? resolve()
+          : reject(
+              Error(
+                `Owned process cleanup failed: ${code}${cleanupError ? `: ${cleanupError.trim()}` : ''}`,
+              ),
+            ),
       );
       cleanup.once('error', reject);
     }),
     'Owned native process cleanup',
+    30000,
   );
 };
 const restartForModelDrafts = async (cold, beforeLaunch) => {
@@ -526,6 +577,7 @@ const restartForModelDrafts = async (cold, beforeLaunch) => {
         kill.once('error', reject);
       }),
       'Owned host termination',
+      WIN32_TASKKILL_BACKSTOP_MS + 5000,
     );
     await cleanupOwnedProcesses();
     await assert.rejects(rpc('ping'), 'Old host endpoint is closed');
@@ -678,6 +730,12 @@ try {
     usageOnly ||
     surfacesOnly ||
     gapsOnly ||
+    parityCardsOnly ||
+    displayPrefsOnly ||
+    serviceHealingOnly ||
+    chimeraGeneratedOnly ||
+    parityFinishOnly ||
+    officeStoryOnly ||
     multiOnly ||
     perfOnly
   )
@@ -1393,6 +1451,141 @@ try {
     result = {
       result: 'PASS',
       scope: 'accessibility',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (officeStoryOnly) {
+    const officeStory = await exerciseNativeOfficeStory({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      otherProject: b,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      providerFixture,
+      configPath: join(dir, 'wrongstack/profiles/default/config.json'),
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'office-story',
+      officeStory,
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (parityFinishOnly) {
+    const parityFinish = await exerciseNativeParityFinish({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      configPath: join(dir, 'wrongstack/profiles/default/config.json'),
+      sessionIds: sessions,
+      providerFixture,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'parity-finish',
+      parityFinish,
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (chimeraGeneratedOnly) {
+    const generatedReview = await exerciseNativeGeneratedChimera({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      providerFixture,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'chimera-generated',
+      generatedReview,
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (serviceHealingOnly) {
+    const automaticRecovery = await exerciseNativeServiceHealing({
+      page,
+      rpc: workspaceRpc,
+      waitFor,
+      artifactDir,
+      wrongstackHome: env.WRONGSTACK_HOME,
+      nativeDataDir: dir,
+      scenario: 'success',
+    });
+    await restartForModelDrafts(true);
+    const failedRecovery = await exerciseNativeServiceHealing({
+      page,
+      rpc: workspaceRpc,
+      waitFor,
+      artifactDir,
+      wrongstackHome: env.WRONGSTACK_HOME,
+      nativeDataDir: dir,
+      scenario: 'failure',
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'service-healing',
+      automaticRecovery,
+      failedRecovery,
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (displayPrefsOnly) {
+    await exerciseNativeDisplayPrefs({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      nativeDataDir: dir,
+      providerFixture,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'display-prefs',
+      portableIdentity,
+      bundledEngine: bundled,
+      portableChecksumsVerified: bundled,
+      artifacts: artifactDir,
+    };
+  } else if (parityCardsOnly) {
+    await exerciseNativeParityCards({
+      page,
+      rpc: workspaceRpc,
+      project: a,
+      waitFor,
+      artifactDir,
+      sessionIds: sessions,
+      providerFixture,
+      wrongstackHome: env.WRONGSTACK_HOME,
+      nativeDataDir: dir,
+    });
+    assert.deepEqual(errors, []);
+    result = {
+      result: 'PASS',
+      scope: 'parity-cards',
       portableIdentity,
       bundledEngine: bundled,
       portableChecksumsVerified: bundled,

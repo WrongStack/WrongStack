@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fixtureText } from './local-provider.mjs';
+import { openProjectView } from './native-project-navigation.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 /**
  * The 2026-11-05 round that closed the desktop's last WebUI and TUI gaps, through the real
@@ -63,7 +66,7 @@ export async function exerciseNativeGapClose({
   // The analytics page, opened by its command.
   await composer.fill('/analytics ');
   await composer.press('Enter');
-  await page.getByRole('heading', { name: 'Analytics Dashboard', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Analytics', level: 1, exact: true }).waitFor();
   await shot('native-analytics.png');
   console.log('PASS: /analytics opens the shared analytics dashboard');
 
@@ -164,7 +167,7 @@ export async function exerciseNativeGapClose({
   await page.getByRole('navigation', { name: 'WrongStack settings sections' }).waitFor();
   assert.equal(await quota.evaluate((button) => button.classList.contains('active')), false);
   await quota.click();
-  await page.getByRole('heading', { name: 'Plan Quota', exact: true }).waitFor({ timeout: 60000 });
+  await page.getByRole('heading', { name: 'Plan quota', exact: true }).waitFor({ timeout: 60000 });
   await waitFor(
     () => quota.evaluate((button) => button.classList.contains('active')),
     'The rail marks the quota shortcut',
@@ -200,4 +203,53 @@ export async function exerciseNativeGapClose({
     'PASS: the sidebar stops a running session, keeps it listed and removes it after asking',
   );
   assert.equal(modelCalls(), before, 'Nothing in this round reached the model');
+
+  // Real user turn through the native engine, then a pin survives renderer reload.
+  await page.locator('.tree-session').filter({ hasText: 'Native engine commands' }).click();
+  await composer.waitFor({ timeout: 60000 });
+  await composer.fill('[native-parity-pins] Verify the native conversation.');
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const review = page.getByRole('dialog', { name: 'Refine your prompt', exact: true });
+  await review.waitFor({ timeout: 60000 });
+  await waitFor(
+    () => review.getByRole('button', { name: 'Approve & send', exact: true }).isEnabled(),
+    'The refinement result is ready',
+  );
+  await review.getByRole('button', { name: 'Original', exact: true }).click();
+  await review.getByRole('button', { name: 'Approve & send', exact: true }).click();
+  await page
+    .locator('.chat-message.assistant')
+    .filter({ hasText: fixtureText })
+    .last()
+    .waitFor({ timeout: 60000 });
+  // The user row is virtualized out while following a tall answer; scroll to it first.
+  await findConversationMessages(page, '[native-parity-pins]', 1);
+  const user = page.locator('.chat-message.user').last();
+  await user.waitFor();
+  const sentText = (await user.locator('.user-chat-body').textContent())?.trim();
+  assert.equal(sentText, '[native-parity-pins] Verify the native conversation.');
+  await user.getByRole('button', { name: 'Pin message', exact: true }).click();
+  await page.locator('.transcript-pins').waitFor();
+  await waitFor(async () => {
+    const snapshot = await rpc('snapshot');
+    return JSON.parse(snapshot.layout || '{}').selected === session.id;
+  }, 'The selected native conversation is saved');
+  await page.reload();
+  await page
+    .getByRole('textbox', { name: 'Message WrongStack', exact: true })
+    .waitFor({ timeout: 60000 });
+  const pinned = page.locator('.transcript-pins');
+  await pinned.waitFor();
+  await pinned.locator('summary').click();
+  await pinned.getByRole('button', { name: sentText.slice(0, 120), exact: true }).click();
+  await user.getByRole('button', { name: 'Unpin message', exact: true }).click();
+  await pinned.waitFor({ state: 'detached' });
+  await shot('native-message-pins.png');
+  console.log('PASS: a real conversation message pins, survives reload, navigates and unpins');
+
+  await page.locator('.project-item').filter({ hasText: project.name }).click();
+  await openProjectView(page, project, 'Engine diagnostics');
+  await page.getByText('Host and journal session match.', { exact: true }).first().waitFor();
+  await shot('native-recovery-identity.png');
+  console.log('PASS: native recovery diagnostics compare host and journal Core identity');
 }

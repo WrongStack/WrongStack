@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { fixtureText } from './local-provider.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 /** Uses the production engine and its actual clarify tool, not injected renderer events. */
 export async function exerciseNativeConversation({
@@ -73,6 +74,7 @@ export async function exerciseNativeConversation({
     'Pending questions receive the conversation area',
   );
   await page.getByRole('button', { name: 'Review conversation', exact: true }).click();
+  await findConversationMessages(page, fixtureText, 1);
   await assistant.getByRole('heading', { name: 'Native result', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Focus questions', exact: true }).click();
   assert.equal(await page.locator('.chat-message').count(), 0);

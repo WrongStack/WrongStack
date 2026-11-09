@@ -3,6 +3,7 @@ import { appendFile, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { resolveWstackPaths, sessionScopedPath } from '../../../packages/core/dist/utils/index.js';
 import { fixtureKey, fixtureModel, fixtureText } from './local-provider.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 export async function exerciseNativeSessionRecovery({
   page,
@@ -186,7 +187,7 @@ export async function exerciseNativeSessionRecovery({
     screen.getByRole('button', { name: `Review rewind to prompt ${firstIndex}`, exact: true });
   await waitFor(async () => await review().isEnabled(), 'Stable checkpoint available');
   await screen.getByRole('button', { name: 'Back to conversation', exact: true }).click();
-  assert.equal(await page.getByText(fixtureText, { exact: true }).count(), 2);
+  await findConversationMessages(page, fixtureText, 2);
   await input.fill('Keep my separate composer draft');
   const draftRpc = (method, params) =>
     page.evaluate(
@@ -366,7 +367,7 @@ export async function exerciseNativeSessionRecovery({
     fullPage: true,
   });
   await screen.getByRole('button', { name: 'Back to conversation', exact: true }).click();
-  assert.equal(await page.getByText(fixtureText, { exact: true }).count(), 0);
+  await findConversationMessages(page, fixtureText, 0);
   assert.equal(await input.inputValue(), 'Keep my separate composer draft');
   assert.equal(
     (await draftRpc('draft.get', { id: target.id })).text,

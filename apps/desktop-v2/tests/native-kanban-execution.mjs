@@ -47,14 +47,14 @@ async function exerciseBoundary({ page, scope, title, deny, stored, waitFor }) {
   await editor.getByRole('checkbox', { name: 'Enable this boundary layer', exact: true }).check();
   await editor.getByLabel('Deny selectors').fill(`directory:read_write:${deny}`);
   await editor.getByRole('button', { name: 'Save boundary', exact: true }).click();
-  await summary.getByText('confirm · 0 allow · shell confirm', { exact: true }).waitFor();
+  await summary.getByText(/^confirm · 0 allow · shell confirm$/i).waitFor();
   await waitFor(
     async () =>
       (await editor.getByLabel('Deny selectors').inputValue()) === `directory:read_write:${stored}`,
     `${title} saved through the engine with a normalized path`,
   );
   await editor.getByRole('button', { name: 'Remove layer', exact: true }).click();
-  await summary.getByText('unrestricted', { exact: true }).waitFor();
+  await summary.getByText(/^unrestricted$/i).waitFor();
   await summary.click();
 }
 

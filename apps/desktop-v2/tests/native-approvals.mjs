@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 /** Real provider tool call -> engine permission policy -> desktop decision -> real tool result. */
 export async function exerciseNativeApprovals({
@@ -50,7 +51,7 @@ export async function exerciseNativeApprovals({
   assert.equal(actualPrefs.yolo, false, 'The isolated session must actually ask for permission');
   const send = async (kind) => {
     await idle();
-    const latest = page.getByRole('button', { name: 'Jump to latest', exact: true });
+    const latest = page.getByRole('button', { name: /^Jump to latest(?: · \d+ new)?$/ });
     // The button leaves once the view is following again; gone means already at the latest.
     if (await latest.count()) await latest.click({ timeout: 2000 }).catch(() => {});
     await page.getByRole('combobox', { name: 'Message delivery mode' }).selectOption('btw');
@@ -102,9 +103,17 @@ export async function exerciseNativeApprovals({
   await card().waitFor({ state: 'detached' });
   assert.match(await result('allow'), /exit_code.?[=:]\s*0|"exitCode"\s*:\s*0/i);
   // The finished turn keeps its tool work with its answer, and it opens the activity view.
-  const turnTools = page.locator('.native-chat-messages .turn-tools').last();
+  await findConversationMessages(page, '[native-composer-approval-allow]', 1);
+  const turnTools = page
+    .locator('.transcript-row')
+    .filter({
+      has: page
+        .locator('.chat-message.user')
+        .filter({ hasText: '[native-composer-approval-allow]' }),
+    })
+    .locator('.chat-run-activity');
   const turnSummary = turnTools.locator(':scope > summary');
-  await turnSummary.filter({ hasText: /Worked with \d+ tool calls?/ }).waitFor();
+  await turnSummary.filter({ hasText: /Run activity.*\d+ tool calls?/ }).waitFor();
   await turnSummary.click();
   await turnTools.locator('.activity-entry').first().waitFor();
   await turnSummary.click();

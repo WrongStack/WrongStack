@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { exerciseNativeLiveDictation } from './native-dictation-live.mjs';
 import { openProjectView, revealProjectTools } from './native-project-navigation.mjs';
 
 /**
@@ -22,7 +23,7 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   await page.getByRole('textbox', { name: 'Message WrongStack', exact: true }).waitFor({
     timeout: 100000,
   });
-  // Dictation follows what the platform reports; the test never opens the microphone.
+  // Automated runs check availability; the opt-in manual scenario also accepts real speech.
   const speech = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('speech_status'));
   console.log(`Dictation status: ${JSON.stringify(speech)}`);
   const dictate = page.getByRole('button', { name: 'Dictate', exact: true });
@@ -42,6 +43,9 @@ export async function exerciseNativeNewSurfaces({ page, rpc, project, artifactDi
   console.log(
     `PASS: the dictation button matches the platform (${speech.available ? `available, ${speech.language}` : speech.reason})`,
   );
+  if (process.env.WRONGSTACK_DESKTOP_MICROPHONE_ACCEPTANCE === '1') {
+    await exerciseNativeLiveDictation({ page, artifactDir, speech });
+  }
   await page
     .getByRole('navigation', { name: 'Agent workspace views' })
     .getByRole('button', { name: 'Tools', exact: true })

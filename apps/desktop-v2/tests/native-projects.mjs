@@ -132,7 +132,7 @@ export async function exerciseNativeProjects({
   await openProjectView(page, project, 'Kanban');
   const kanban = page.locator('.kanban-surface');
   const boardItem = (title) =>
-    kanban.getByRole('button').filter({ hasText: new RegExp(`^${title}\\s*\\d+ tasks`) });
+    kanban.getByRole('button').filter({ has: page.getByText(title, { exact: true }) });
   const boardHeading = (title) =>
     kanban.getByRole('heading', { level: 1, name: title, exact: true });
   const cardButton = (title) =>
@@ -178,7 +178,13 @@ export async function exerciseNativeProjects({
     .waitFor();
   await page.screenshot({ path: join(artifactDir, 'native-project-kanban.png'), fullPage: true });
   await cardButton('Build project memory map').press('Enter');
-  await inspector.getByLabel('Title', { exact: true }).fill('Build a shared project memory map');
+  const titleInput = inspector.getByLabel('Title', { exact: true });
+  await waitFor(
+    async () => (await titleInput.inputValue()) === 'Build project memory map',
+    'Task editor hydrated',
+  );
+  await titleInput.fill('Build a shared project memory map');
+  assert.equal(await titleInput.inputValue(), 'Build a shared project memory map');
   await saveContract();
   const shared = 'Build a shared project memory map';
   await cardButton(shared).waitFor();

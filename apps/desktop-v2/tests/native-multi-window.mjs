@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 /**
  * Two project windows run conversations at the same time: each holds a turn at the provider and
@@ -178,14 +179,9 @@ export async function exerciseNativeMultiWindow({
       order(`[native-composer-${lane.tag}-two]`) < order(`[native-composer-${lane.tag}-three]`),
       `${lane.title} queue drained in order`,
     );
-    const transcript = lane.page.locator('.native-chat-messages');
-    await transcript.getByText(`${lane.title} three.`).first().waitFor({ timeout: 60000 });
+    await findConversationMessages(lane.page, `${lane.title} three.`, 1);
     const other = lanes.find((candidate) => candidate !== lane);
-    assert.equal(
-      await transcript.getByText(other.title, { exact: false }).count(),
-      0,
-      `${lane.title} shows none of ${other.title}`,
-    );
+    await findConversationMessages(lane.page, other.title, 0);
   }
   // Approvals under the same load: both conversations ask at once, and each window answers
   // only its own conversation's request.

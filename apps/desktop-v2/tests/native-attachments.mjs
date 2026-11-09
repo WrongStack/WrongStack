@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { makePdf } from '../../../packages/tools/tests/pdf-fixture.ts';
 import { nativeComposerCalls } from './local-provider.mjs';
+import { findConversationMessages } from './transcript-test-helpers.mjs';
 
 export async function exerciseNativeAttachments({
   page,
@@ -168,12 +169,29 @@ export async function exerciseNativeAttachments({
   const bubble = page
     .locator('.chat-message.user')
     .filter({ hasText: '[native-composer-attachment-direct]' });
-  const reply = bubble.locator('xpath=following-sibling::article[1]');
-  await reply.getByRole('heading', { name: 'Native result', exact: true }).waitFor();
+  await idle();
+  const latest = page.locator('.chat-message.assistant').last();
+  await latest.getByRole('heading', { name: 'Native result', exact: true }).waitFor();
+  const replyId = await latest.getAttribute('data-message-id');
+  const [userId] = await findConversationMessages(page, '[native-composer-attachment-direct]', 1);
+  // A virtual row wrapper separates messages; verify retained document order, not sibling tags.
+  await page.locator('.native-chat-messages').evaluate((pane) => {
+    pane.scrollTop = pane.scrollHeight;
+  });
+  const reply = page.locator('[data-message-id=' + JSON.stringify(replyId) + ']');
+  await reply.waitFor();
   assert.ok(
-    (await reply.getAttribute('class')).includes('assistant'),
-    'The reply belongs after this user turn, not in an older assistant bubble',
+    await reply.evaluate((answer, userId) => {
+      const user = [...document.querySelectorAll('[data-message-id]')].find(
+        (row) => row.getAttribute('data-message-id') === userId,
+      );
+      return (
+        user && (user.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+      );
+    }, userId),
+    'The latest reply follows this user turn, not an older assistant bubble',
   );
+  await bubble.scrollIntoViewIfNeeded();
   await bubble.getByText('brief.pdf').waitFor();
   await bubble.getByRole('button', { name: 'Preview screen.png', exact: true }).click();
   const preview = page.getByRole('dialog', { name: 'screen.png', exact: true });
@@ -315,14 +333,7 @@ export async function exerciseNativeAttachments({
   await input().fill('[native-composer-attachment-queued] Review after the current turn.');
   await page.getByRole('button', { name: 'Send Queue attachments', exact: true }).click();
   await page.locator('.composer-queue summary').filter({ hasText: '1 queued' }).waitFor();
-  assert.equal(
-    await page
-      .locator('.chat-message.user')
-      .filter({ hasText: '[native-composer-attachment-queued]' })
-      .count(),
-    0,
-    'Queued media is not accepted as a new human turn before drain',
-  );
+  await findConversationMessages(page, '[native-composer-attachment-queued]', 0);
   assert.equal(calls().length, heldCalls, 'Attachment-aware BTW does not interrupt or use mailbox');
   await waitFor(
     async () => (await savedDraft()).attachments?.length === 0,
@@ -340,6 +351,7 @@ export async function exerciseNativeAttachments({
   providerFixture.releaseHold('media');
   const queued = await accepted('[native-composer-attachment-queued]');
   assert.ok(queued.composerPrompt.includes('data:image/png;base64,'));
+  await findConversationMessages(page, '[native-composer-attachment-queued]', 1);
   await page
     .locator('.chat-message.user')
     .filter({ hasText: 'attachment-queued' })

@@ -43,7 +43,7 @@ export async function exerciseNativeMailbox({
     await openProjectView(page, owner, 'Mailbox');
     await page
       .getByRole('region', { name: 'Project mailbox' })
-      .getByRole('textbox', { name: 'Search mailbox messages', exact: true })
+      .getByRole('searchbox', { name: 'Search mailbox messages', exact: true })
       .waitFor({ timeout: 60000 });
   };
   const count = (await rpc('snapshot')).sessions.length;
