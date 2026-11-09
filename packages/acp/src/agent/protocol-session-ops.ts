@@ -139,6 +139,13 @@ export function parseMcpServers(raw: unknown, onSkipped?: (reason: string) => vo
       ? e.args.filter((a): a is string => typeof a === 'string')
       : undefined;
     const env = parseNameValuePairs(e.env);
+    // ACP 1.14 rejects duplicate env names: which value wins is undefined, so
+    // the server would start with an environment nobody chose.
+    const duplicate = env?.find((v, i) => env.findIndex((w) => w.name === v.name) !== i);
+    if (duplicate) {
+      onSkipped?.(`"${name}": env name "${duplicate.name}" is given more than once`);
+      continue;
+    }
     out.push({
       name,
       command: e.command,

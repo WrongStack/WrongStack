@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, resolve } from 'node:path';
 import {
+  ACP_ERROR,
   type ACPMessage,
   type AuthGateResult,
   type ClientCapabilities,
@@ -274,7 +275,7 @@ export class ACPProtocolHandler {
     params: unknown,
   ): Promise<boolean> {
     if (method !== 'initialize' && !this.initialized) {
-      await this.sendError(id, -32000, 'Not initialized');
+      await this.sendError(id, ACP_ERROR.INVALID_REQUEST, 'Not initialized');
       return false;
     }
 
@@ -382,9 +383,14 @@ export class ACPProtocolHandler {
     if (result.ok) return true;
     // Same shape as the SDK's `RequestError.authRequired`: clients key on the
     // code, and most show only the message, so the login hint goes in it.
-    await this.sendError(id, -32000, `Authentication required: ${result.message}`, {
-      details: result.message,
-    });
+    await this.sendError(
+      id,
+      ACP_ERROR.AUTH_REQUIRED,
+      `Authentication required: ${result.message}`,
+      {
+        details: result.message,
+      },
+    );
     return false;
   }
 
@@ -404,16 +410,20 @@ export class ACPProtocolHandler {
   private async handleSessionClose(id: string | number, params: unknown): Promise<boolean> {
     const p = (params ?? {}) as { sessionId?: unknown };
     const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    const session = sessionId ? this.sessions.get(sessionId) : undefined;
-
+    if (sessionId === null) {
+      await this.sendError(id, ACP_ERROR.INVALID_PARAMS, 'sessionId is required');
+      return false;
+    }
+    const session = this.sessions.get(sessionId);
+    // Closing is idempotent: an unknown or already-closed session is closed.
     if (!session) {
-      await this.sendError(id, -32000, `session not found: ${sessionId}`);
+      await this.sendResult(id, {});
       return false;
     }
 
     session.abort.abort();
-    this.sessions.delete(sessionId!);
-    this.disposeSession(sessionId!);
+    this.sessions.delete(sessionId);
+    this.disposeSession(sessionId);
 
     await this.sendResult(id, {});
     return false;
@@ -424,7 +434,7 @@ export class ACPProtocolHandler {
     const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
 
     if (!sessionId) {
-      await this.sendError(id, -32000, `session not found: ${sessionId}`);
+      await this.sendError(id, ACP_ERROR.INVALID_PARAMS, 'sessionId is required');
       return false;
     }
 
@@ -450,7 +460,7 @@ export class ACPProtocolHandler {
   private async handleProvidersSet(id: string | number, _params: unknown): Promise<boolean> {
     await this.sendError(
       id,
-      -32000,
+      ACP_ERROR.METHOD_NOT_FOUND,
       'provider configuration not available through ACP; use wstack auth',
     );
     return false;
@@ -462,14 +472,21 @@ export class ACPProtocolHandler {
   }
 
   private async handleMcpMessage(id: string | number, _params: unknown): Promise<boolean> {
-    await this.sendError(id, -32000, 'MCP message routing not available through ACP');
+    await this.sendError(
+      id,
+      ACP_ERROR.METHOD_NOT_FOUND,
+      'MCP message routing not available through ACP',
+    );
     return false;
   }
 
   private async handleSessionList(id: string | number, params: unknown): Promise<boolean> {
     const p = (params ?? {}) as { cwd?: unknown; cursor?: unknown };
-    if ((p.cwd != null && (typeof p.cwd !== 'string' || !isAbsolute(p.cwd))) || p.cursor != null) {
-      await this.sendError(id, -32602, 'invalid cwd or cursor');
+    // One page holds every session, so no cursor is ever issued; the only
+    // valid one is the empty string, which the spec defines as the start.
+    const badCursor = p.cursor != null && p.cursor !== '';
+    if ((p.cwd != null && (typeof p.cwd !== 'string' || !isAbsolute(p.cwd))) || badCursor) {
+      await this.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid cwd or cursor');
       return false;
     }
     const known = new Map<string, Partial<SessionState>>(this.sessions);

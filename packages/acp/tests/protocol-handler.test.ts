@@ -472,7 +472,7 @@ describe('ACPProtocolHandler', () => {
       const { handler, transport } = makeHandler();
       await handler.handleMessage({ id: 1, method: 'session/new', params: { cwd: CWD_X } });
       const resp = transport.sent[0] as { error?: { code: number; message: string } };
-      expect(resp.error?.code).toBe(-32000);
+      expect(resp.error?.code).toBe(-32600);
       expect(resp.error?.message).toBe('Not initialized');
     });
 
@@ -626,7 +626,7 @@ describe('ACPProtocolHandler', () => {
         method: 'session/fork',
         params: { sessionId: 'missing' },
       });
-      expect((transport.sent.at(-1) as { error?: { code?: number } }).error?.code).toBe(-32000);
+      expect((transport.sent.at(-1) as { error?: { code?: number } }).error?.code).toBe(-32002);
     });
   });
 
@@ -662,7 +662,7 @@ describe('ACPProtocolHandler', () => {
         params: { sessionId: 'sess_nonexist', cwd: CWD_X },
       });
       const resp = transport.sent[0] as { error?: { code: number } };
-      expect(resp.error?.code).toBe(-32000);
+      expect(resp.error?.code).toBe(-32002);
     });
   });
 
@@ -697,7 +697,7 @@ describe('ACPProtocolHandler', () => {
         params: { sessionId: 'sess_nonexist', cwd: CWD_X },
       });
       const resp = transport.sent[0] as { error?: { code: number } };
-      expect(resp.error?.code).toBe(-32000);
+      expect(resp.error?.code).toBe(-32002);
     });
   });
 
@@ -722,7 +722,7 @@ describe('ACPProtocolHandler', () => {
       expect(listResp.result?.sessions).toHaveLength(0);
     });
 
-    it('returns error for a non-existent session', async () => {
+    it('succeeds for an unknown session (closing is idempotent)', async () => {
       const { handler, transport } = makeHandler();
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       transport.sent.length = 0;
@@ -731,8 +731,8 @@ describe('ACPProtocolHandler', () => {
         method: 'session/close',
         params: { sessionId: 'sess_nonexist' },
       });
-      const resp = transport.sent[0] as { error?: { code: number } };
-      expect(resp.error?.code).toBe(-32000);
+      const resp = transport.sent[0] as { result?: unknown; error?: unknown };
+      expect(resp).toMatchObject({ id: 2, result: {} });
     });
   });
 
@@ -882,7 +882,7 @@ describe('ACPProtocolHandler', () => {
         params: { prompt: [{ type: 'text', text: 'hi' }] },
       });
       const resp = transport.sent[0] as { error?: { code: number; message: string } };
-      expect(resp.error?.code).toBe(-32000);
+      expect(resp.error?.code).toBe(-32602);
     });
   });
 
@@ -1107,7 +1107,7 @@ describe('ACPProtocolHandler', () => {
         params: { sessionId, modeId: 'bogus' },
       });
       const resp = transport.sent[0] as { error?: { code: number } };
-      expect(resp.error?.code).toBe(-32602);
+      expect(resp.error?.code).toBe(-32002);
     });
   });
 
@@ -1854,7 +1854,7 @@ describe('ACPProtocolHandler', () => {
       });
       expect(transport.sent.at(-1)).toMatchObject({
         id: 4,
-        error: { code: -32000, message: 'cannot reload a session while a prompt is running' },
+        error: { code: -31002, message: 'cannot reload a session while a prompt is running' },
       });
 
       release();

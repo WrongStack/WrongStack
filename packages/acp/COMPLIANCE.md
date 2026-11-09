@@ -25,6 +25,7 @@ through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 |---|---|
 | Initialization | v1 negotiation; an `agent`-type login (`wrongstack-config`) always advertised, as the ACP registry requires; terminal login (`wrongstack-auth`) only for `clientCapabilities.auth.terminal` or the legacy `_meta["terminal-auth"]`; `agentInfo.version` is the host's release version; no root `modes`/`configOptions`; no false logout capability |
 | Authentication | `authenticate` and session-opening requests consult the host's credential gate and answer `auth_required` (-32000) until it passes; no unconditional success |
+| Errors | Codes follow the v1 error reference: `-32000` only for `auth_required`; unknown session `-32002` with `data.sessionId` (prompt, set_mode, set_config_option, load, resume, fork); request before `initialize` `-32600`; unadvertised unstable methods `-32601`; `session/close` of an unknown session succeeds. WrongStack-only conditions use codes outside the reserved ranges: session limit `-31001`, busy session `-31002` |
 | Session setup | `modes: {currentModeId, availableModes}` in new/load/resume/fork responses, accepted by the official SDK |
 | Load/resume | Warm and persisted sessions; load replays conversation, resume seeds model context without replaying UI history |
 | List/delete | Includes persisted sessions when the store supplies `list`; filters by cwd; durable deletion when the store supplies `delete`; unknown deletes succeed |

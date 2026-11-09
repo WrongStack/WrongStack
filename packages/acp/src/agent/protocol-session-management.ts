@@ -1,4 +1,5 @@
 import {
+  ACP_ERROR,
   type ClientCapabilities,
   type ContentBlock,
   configOptionValues,
@@ -54,7 +55,11 @@ export async function handleSessionNewOp(
   params: unknown,
 ): Promise<boolean> {
   if (ctx.sessions.size >= ctx.maxSessions) {
-    await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+    await ctx.sendError(
+      id,
+      ACP_ERROR.SESSION_LIMIT,
+      `active session limit reached (${ctx.maxSessions})`,
+    );
     return false;
   }
   const p = (params ?? {}) as { cwd?: unknown; mcpServers?: unknown };
@@ -72,7 +77,11 @@ export async function handleSessionNewOp(
   const configOptions = await openSessionConfigOptions(ctx);
   // cwd validation yields; another request may have filled the last slot.
   if (ctx.sessions.size >= ctx.maxSessions) {
-    await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+    await ctx.sendError(
+      id,
+      ACP_ERROR.SESSION_LIMIT,
+      `active session limit reached (${ctx.maxSessions})`,
+    );
     return false;
   }
   const sessionId = `sess_${ctx.allocId()}`;
@@ -125,7 +134,11 @@ export async function handleSessionLoadOp(
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
       if (ctx.sessions.size >= ctx.maxSessions) {
-        await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+        await ctx.sendError(
+          id,
+          ACP_ERROR.SESSION_LIMIT,
+          `active session limit reached (${ctx.maxSessions})`,
+        );
         return false;
       }
       if (loadCwd !== undefined && (await resolveSessionCwd(loadCwd)) === null) {
@@ -150,11 +163,15 @@ export async function handleSessionLoadOp(
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
       if ((await ctx.store.load(sessionId)) === null) {
-        await ctx.sendError(id, -32000, `session not found: ${sessionId}`);
+        await sendSessionNotFound(ctx, id, sessionId);
         return false;
       }
       if (ctx.sessions.size >= ctx.maxSessions) {
-        await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+        await ctx.sendError(
+          id,
+          ACP_ERROR.SESSION_LIMIT,
+          `active session limit reached (${ctx.maxSessions})`,
+        );
         return false;
       }
       const restoredMcpServers = Array.isArray(p.mcpServers)
@@ -202,7 +219,11 @@ export async function handleSessionLoadOp(
 
   if (existing) {
     if (existing.prompting) {
-      await ctx.sendError(id, -32000, 'cannot reload a session while a prompt is running');
+      await ctx.sendError(
+        id,
+        ACP_ERROR.SESSION_BUSY,
+        'cannot reload a session while a prompt is running',
+      );
       return false;
     }
     let nextCwd = existing.cwd;
@@ -216,7 +237,11 @@ export async function handleSessionLoadOp(
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
       if (existing.prompting) {
-        await ctx.sendError(id, -32000, 'cannot reload a session while a prompt is running');
+        await ctx.sendError(
+          id,
+          ACP_ERROR.SESSION_BUSY,
+          'cannot reload a session while a prompt is running',
+        );
         return false;
       }
       nextCwd = resolvedCwd;
@@ -273,7 +298,7 @@ export async function handleSessionLoadOp(
     return false;
   }
 
-  await ctx.sendError(id, -32000, `session not found: ${sessionId}`);
+  await sendSessionNotFound(ctx, id, sessionId);
   return false;
 }
 
@@ -286,11 +311,15 @@ export async function handleSessionForkOp(
   const sourceId = typeof p.sessionId === 'string' ? p.sessionId : null;
   const source = sourceId ? ctx.sessions.get(sourceId) : undefined;
   if (!sourceId || !source) {
-    await ctx.sendError(id, -32000, `session not found: ${sourceId}`);
+    await sendSessionNotFound(ctx, id, sourceId);
     return false;
   }
   if (ctx.sessions.size >= ctx.maxSessions) {
-    await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+    await ctx.sendError(
+      id,
+      ACP_ERROR.SESSION_LIMIT,
+      `active session limit reached (${ctx.maxSessions})`,
+    );
     return false;
   }
 
@@ -304,7 +333,7 @@ export async function handleSessionForkOp(
     forkCwd = resolved;
   }
   if (ctx.sessions.get(sourceId) !== source) {
-    await ctx.sendError(id, -32000, `session not found: ${sourceId}`);
+    await sendSessionNotFound(ctx, id, sourceId);
     return false;
   }
   const forkSkipped: string[] = [];
@@ -316,7 +345,11 @@ export async function handleSessionForkOp(
   const forkMcpServers = Array.isArray(p.mcpServers) ? forkRequested : source.mcpServers;
 
   if (ctx.sessions.size >= ctx.maxSessions) {
-    await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
+    await ctx.sendError(
+      id,
+      ACP_ERROR.SESSION_LIMIT,
+      `active session limit reached (${ctx.maxSessions})`,
+    );
     return false;
   }
   const now = new Date().toISOString();
@@ -360,7 +393,7 @@ export async function handleSessionPromptOp(
   const p = (params ?? {}) as { sessionId?: unknown; prompt?: unknown };
   const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
   if (!sessionId || !ctx.sessions.has(sessionId)) {
-    await ctx.sendError(id, -32000, 'unknown or missing sessionId');
+    await sendSessionNotFound(ctx, id, sessionId);
     return false;
   }
   if (!Array.isArray(p.prompt)) {
@@ -369,7 +402,7 @@ export async function handleSessionPromptOp(
   }
   const session = ctx.sessions.get(sessionId)!;
   if (session.prompting) {
-    await ctx.sendError(id, -32000, 'a prompt is already running for this session');
+    await ctx.sendError(id, ACP_ERROR.SESSION_BUSY, 'a prompt is already running for this session');
     return false;
   }
   session.prompting = true;
@@ -460,8 +493,12 @@ export async function handleSetModeOp(
   const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
   const modeId = typeof p.modeId === 'string' ? p.modeId : null;
   const session = sessionId ? ctx.sessions.get(sessionId) : undefined;
-  if (!session || !modeId || !ctx.modes.some((m) => m.id === modeId)) {
-    await ctx.sendError(id, -32602, 'invalid sessionId or modeId');
+  if (!session) {
+    await sendSessionNotFound(ctx, id, sessionId);
+    return false;
+  }
+  if (!modeId || !ctx.modes.some((m) => m.id === modeId)) {
+    await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid modeId');
     return false;
   }
   session.modeId = modeId;
@@ -494,13 +531,12 @@ export async function handleSetConfigOptionOp(
   const session = sessionId ? ctx.sessions.get(sessionId) : undefined;
   const options = session?.configOptions ?? structuredClone([...ctx.configOptions]);
   const option = optionId ? options.find((o) => o.id === optionId) : undefined;
-  if (
-    !session ||
-    !option ||
-    value === null ||
-    !configOptionValues(option).some((o) => o.value === value)
-  ) {
-    await ctx.sendError(id, -32602, 'invalid sessionId, configId, or value');
+  if (!session) {
+    await sendSessionNotFound(ctx, id, sessionId);
+    return false;
+  }
+  if (!option || value === null || !configOptionValues(option).some((o) => o.value === value)) {
+    await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'invalid configId or value');
     return false;
   }
   option.currentValue = value;
@@ -548,4 +584,22 @@ async function reportSkippedMcpServers(
   } catch {
     // best-effort
   }
+}
+
+/**
+ * Unknown or inactive session: `-32002` with the requested id, as the ACP
+ * error reference asks. Never `-32000`, which clients read as "log in".
+ */
+async function sendSessionNotFound(
+  ctx: ProtocolSessionContext,
+  id: string | number,
+  sessionId: string | null,
+): Promise<void> {
+  if (sessionId === null) {
+    await ctx.sendError(id, ACP_ERROR.INVALID_PARAMS, 'sessionId is required');
+    return;
+  }
+  await ctx.sendError(id, ACP_ERROR.RESOURCE_NOT_FOUND, `session not found: ${sessionId}`, {
+    sessionId,
+  });
 }

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-09T13:57:29.150Z
+**Generated:** 2026-11-09T14:13:39.793Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6192 |
-| Production source lines | 1268749 |
-| Test files | 5144 |
+| Production source lines | 1268851 |
+| Test files | 5146 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18251 |
 | Non-command slash imports | 0 |
@@ -21,14 +21,13 @@
 
 ## Verification result
 
-- packages/cli/src/acp-model-option.ts: "acpModelValue" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/cli/src/acp-model-option.ts: "parseAcpModelValue" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
 | Package | Sources | Tests | Workspace dependencies |
 |---|---:|---:|---|
-| @wrongstack/acp | 54 | 62 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
+| @wrongstack/acp | 54 | 64 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/agent-catalog | 44 | 12 | @wrongstack/contracts, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/bench | 32 | 65 | @wrongstack/core |
 | @wrongstack/builtin-plugins | 33 | 28 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives |

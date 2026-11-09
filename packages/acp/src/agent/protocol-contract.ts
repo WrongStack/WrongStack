@@ -79,6 +79,30 @@ export interface RunTurnPermissionRequest {
   options: PermissionOption[];
 }
 
+/**
+ * Error codes the agent answers with, per the ACP v1 error reference.
+ *
+ * `-32000` means "authentication required" and nothing else: clients (and
+ * WrongStack's own ACP client) turn it into a login prompt, so a session limit
+ * or a busy session must never use it. Conditions ACP does not name get codes
+ * outside the ranges JSON-RPC and ACP reserve (-32768..-32000, -32899..-32800).
+ */
+export const ACP_ERROR = {
+  /** Malformed request, or any request other than `initialize` before it. */
+  INVALID_REQUEST: -32600,
+  /** Not implemented, or a capability-gated method we did not advertise. */
+  METHOD_NOT_FOUND: -32601,
+  INVALID_PARAMS: -32602,
+  INTERNAL: -32603,
+  AUTH_REQUIRED: -32000,
+  /** Unknown session (with `data.sessionId`), file or terminal. */
+  RESOURCE_NOT_FOUND: -32002,
+  /** WrongStack: the handler already holds its maximum number of sessions. */
+  SESSION_LIMIT: -31001,
+  /** WrongStack: the session is running a prompt and cannot take this request. */
+  SESSION_BUSY: -31002,
+} as const;
+
 /** Outcome of `ProtocolHandlerOptions.authGate`. */
 export type AuthGateResult = { ok: true } | { ok: false; message: string };
 

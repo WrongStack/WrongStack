@@ -337,6 +337,10 @@
     "packages/cli/src/acp-mcp-servers.ts": [
       "acpMcpServerToConfig"
     ],
+    "packages/cli/src/acp-model-option.ts": [
+      "acpModelValue",
+      "parseAcpModelValue"
+    ],
     "packages/cli/src/acp-server-agent.ts": [
       "ACPClientPermissionPolicy"
     ],
