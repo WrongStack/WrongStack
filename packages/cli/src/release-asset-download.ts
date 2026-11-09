@@ -34,6 +34,19 @@ function retryAfterMs(res: Response): number {
   return Number.isFinite(ms) ? Math.min(Math.max(ms, 0), MAX_RETRY_AFTER_MS) : 0;
 }
 
+/**
+ * Release a response's connection without reading it. Best effort: a body
+ * without `cancel`, or one whose `cancel` throws, must not replace the error
+ * the caller is about to report.
+ */
+async function releaseBody(res: Response): Promise<void> {
+  try {
+    await res.body?.cancel?.();
+  } catch {
+    // The connection is dropped with the response either way.
+  }
+}
+
 async function requestAsset(url: string, signal: AbortSignal): Promise<Response> {
   let res: Response;
   try {
@@ -48,7 +61,7 @@ async function requestAsset(url: string, signal: AbortSignal): Promise<Response>
   }
   if (res.ok) return res;
   // Release the connection before the next attempt.
-  await res.body?.cancel().catch(() => undefined);
+  await releaseBody(res);
   const error = new Error(`download ${url} responded ${res.status}`);
   if (res.status >= 500 || res.status === 408 || res.status === 429) {
     throw new TransientDownloadError(error, retryAfterMs(res));
@@ -113,7 +126,7 @@ export async function downloadReleaseAsset(
     const declared = Number(res.headers.get('content-length') ?? '0');
     if (declared > maxBytes) {
       // Release the connection before rejecting the oversized asset.
-      await res.body?.cancel().catch(() => undefined);
+      await releaseBody(res);
       throw new Error(`download ${url} is too large`);
     }
     if (!res.body) return Buffer.alloc(0);
@@ -161,7 +174,7 @@ export async function downloadReleaseAssetToFile(
     const declared = Number(res.headers.get('content-length') ?? '0');
     if (declared > options.maxBytes) {
       // Release the connection before rejecting the oversized asset.
-      await res.body?.cancel().catch(() => undefined);
+      await releaseBody(res);
       throw new Error(`download ${url} is too large`);
     }
 
