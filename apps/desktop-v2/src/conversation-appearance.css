@@ -1,0 +1,40 @@
+.conversation-appearance-toggles {
+  display: grid;
+  gap: 14px;
+  max-width: 620px;
+}
+.conversation-appearance-toggles label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.conversation-appearance-toggles label input {
+  margin-top: 4px;
+}
+.conversation-appearance-toggles label span {
+  display: grid;
+  gap: 3px;
+}
+.conversation-appearance-toggles small {
+  color: var(--subtle);
+  line-height: 1.5;
+}
+.composer-fold-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 4px 22px;
+}
+.composer-fold-controls .button {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+.composer-fold-draft {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--subtle);
+  font-size: 12px;
+}

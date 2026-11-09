@@ -106,7 +106,7 @@ body {
   margin: 12px 0;
 }
 .appearance-settings p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--muted);
   margin: 7px 0;
@@ -145,7 +145,7 @@ body {
   padding: 20px 14px;
   border-radius: 7px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
 }
 .appearance-modes button > svg:last-child:not(:first-child) {
   margin-left: auto;
@@ -185,14 +185,14 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 3px 5px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .theme-label strong {
   font-weight: 550;
 }
 .theme-choices small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 0 3px 5px;
   display: block;
 }
@@ -202,7 +202,7 @@ body {
   gap: 9px;
   padding: 24px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   flex-wrap: wrap;
 }
 .settings-host small {
@@ -227,6 +227,32 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
+}
+
+/* Every choice row has the same tile height: the fieldset stretched to its description's
+   height, so text-only rows grew to ~100 px while the icon row stayed at ~80 px. */
+.appearance-modes {
+  align-self: start;
+  align-content: start;
+}
+.appearance-modes button {
+  min-height: 52px;
+  padding: 12px 14px;
+}
+
+/* Light mode only. The shared hover rule (brightness 1.1) bleached pale accent fills — the
+   selected settings or sidebar item under the pointer all but vanished — and lightened white
+   text on blue buttons. Darken slightly instead. */
+:root:not([data-mode="dark"]) button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+/* Disabled controls stay legible on a light page (0.4 left white-on-pale-blue at ~1.5:1). */
+:root:not([data-mode="dark"]) button:disabled {
+  opacity: 0.55;
+}
+/* A lighter scrim over a light page. */
+:root:not([data-mode="dark"]) :is(.modal, .tools-dialog)::backdrop {
+  background: color-mix(in srgb, var(--text) 32%, transparent);
 }
 /* Seven text sizes share a row or two instead of the three-column mode grid. */
 .appearance-modes.appearance-sizes {

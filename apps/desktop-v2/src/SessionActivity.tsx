@@ -1,3 +1,4 @@
+import { ToolCallOverview } from '@wrongstack/project-surfaces/tools/ToolCallOverview';
 import {
   Activity,
   Brain,
@@ -10,11 +11,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import { type ReactNode, Suspense, useMemo, useState } from 'react';
+import { I18nextProvider } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
 import { GeneratedImages } from './GeneratedImages';
 import { activityRows } from './session-activity-model';
+import { surfaceI18n } from './surface-i18n';
 import { StructuredToolValue } from './ToolApprovalCard';
 import { ToolInputView } from './ToolInputView';
 import { ToolOutputActions } from './ToolOutputActions';
@@ -38,12 +41,14 @@ export function SessionActivity({
   events,
   onOpenFile,
   compact = false,
+  showThinkingLogs = true,
   command,
   collab,
 }: {
   events: readonly EngineEvent[];
   onOpenFile: (path: string) => void;
   compact?: boolean;
+  showThinkingLogs?: boolean | undefined;
   /** The conversation's engine, to show the pictures an `image_generate` call saved. */
   command?: EngineCommand | undefined;
   /** The conversation's collaboration bar, shown under the full run log's header. */
@@ -53,7 +58,12 @@ export function SessionActivity({
   const [filter, setFilter] = useState<'all' | 'tool' | 'reasoning' | 'run'>('all');
   const rows = useMemo(() => activityRows(events), [events]);
   const shown = rows.filter(
-    (row) => filter === 'all' || row.kind === filter || (filter === 'run' && row.kind === 'retry'),
+    (row) =>
+      (showThinkingLogs || row.kind !== 'reasoning') &&
+      (filter === 'all' ||
+        (!showThinkingLogs && filter === 'reasoning') ||
+        row.kind === filter ||
+        (filter === 'run' && row.kind === 'retry')),
   );
   return (
     <section
@@ -68,16 +78,18 @@ export function SessionActivity({
             <p>{t('runLog.body')}</p>
           </div>
           <nav aria-label={t('runLog.filters')}>
-            {(['all', 'tool', 'reasoning', 'run'] as const).map((kind) => (
-              <button
-                type="button"
-                key={kind}
-                aria-pressed={filter === kind}
-                onClick={() => setFilter(kind)}
-              >
-                {t(`runLog.filter.${kind}`)}
-              </button>
-            ))}
+            {(['all', 'tool', 'reasoning', 'run'] as const)
+              .filter((kind) => showThinkingLogs || kind !== 'reasoning')
+              .map((kind) => (
+                <button
+                  type="button"
+                  key={kind}
+                  aria-pressed={filter === kind}
+                  onClick={() => setFilter(kind)}
+                >
+                  {t(`runLog.filter.${kind}`)}
+                </button>
+              ))}
           </nav>
         </header>
       )}
@@ -139,6 +151,20 @@ export function SessionActivity({
               ) : null}
             </summary>
             <div className="activity-entry-body">
+              {row.kind === 'tool' && (
+                <I18nextProvider i18n={surfaceI18n}>
+                  <div className="ws-surfaces">
+                    <ToolCallOverview
+                      message={{
+                        toolName: row.title,
+                        toolInput: row.input,
+                        toolResult: row.output,
+                        toolOutputBytes: row.outputBytes,
+                      }}
+                    />
+                  </div>
+                </I18nextProvider>
+              )}
               {row.input !== undefined && (
                 <section className="approval-arguments" aria-label={t('runLog.inputLabel')}>
                   <strong>{t('runLog.input')}</strong>

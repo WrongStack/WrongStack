@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { AppearanceFonts } from './AppearanceFonts';
 import { AppearanceStatusChips } from './AppearanceStatusChips';
 import { accentThemes } from './appearance';
+import { ConversationAppearanceSettings } from './ConversationAppearanceSettings';
 import { useDesktopText } from './desktop-i18n';
 import { SurfaceLanguageSync } from './SurfaceLanguageSync';
 import { displayLanguage } from './surface-i18n';
@@ -129,6 +130,7 @@ export function AppearanceSettings({ vm }: { vm: DesktopController }) {
           ))}
         </fieldset>
       </div>
+      <ConversationAppearanceSettings appearance={appearance} changeAppearance={changeAppearance} />
       <AppearanceFonts appearance={appearance} changeAppearance={changeAppearance} />
       <AppearanceStatusChips appearance={appearance} changeAppearance={changeAppearance} />
       <div className="appearance-section">

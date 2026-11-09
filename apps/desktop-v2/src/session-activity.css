@@ -17,7 +17,7 @@
 }
 .session-activity-header p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin: 0;
 }
 .session-activity-header nav {
@@ -30,7 +30,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .session-activity-header nav button[aria-pressed="true"] {
   background: var(--accent-soft);
@@ -71,13 +71,13 @@
   flex: 1;
 }
 .activity-entry-label strong {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .activity-entry-label small,
 .activity-metric {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .activity-metric {
   display: flex;
@@ -91,12 +91,12 @@
 .activity-entry-body {
   border-top: 1px solid var(--border);
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .activity-entry-body h4 {
   margin: 10px 0 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -142,7 +142,7 @@
 .chat-run-activity > summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 900px) {
   .activity-entry > summary {
@@ -164,12 +164,12 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
 }
 .tool-input-files {
   margin: 0;
   padding-left: 18px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .activity-output-heading {
   display: flex;
@@ -191,7 +191,7 @@
 }
 .tool-exit {
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: 11px;
   border: 1px solid var(--border);
   border-radius: 4px;
 }
@@ -205,4 +205,17 @@
 /* The collaboration bar sits under the run log's header, above its rows. */
 .session-collab {
   margin: 0 0 12px;
+}
+
+/* Inside a run-activity entry the tool's overview card is the one framed box; the raw input and
+   output under it are plain tinted blocks, as in the WebUI's tool card, instead of a third and
+   fourth bordered box nested in the entry. */
+.activity-entry-body > .ws-surfaces {
+  margin-bottom: 10px;
+}
+.activity-entry-body .approval-arguments {
+  border: 0;
+  border-radius: 6px;
+  margin: 6px 0;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }

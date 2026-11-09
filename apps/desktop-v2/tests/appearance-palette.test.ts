@@ -22,7 +22,8 @@ describe('the colour palette choice', () => {
       connected: true,
     } as unknown as DesktopController;
     const host = document.createElement('div');
-    await act(async () => createRoot(host).render(createElement(AppearanceSettings, { vm })));
+    const root = createRoot(host);
+    await act(async () => root.render(createElement(AppearanceSettings, { vm })));
     const labels = [...host.querySelectorAll('.theme-choices .theme-label')];
     expect(labels.map((label) => label.querySelector('strong')?.textContent)).toEqual(
       accentThemes.map((theme) => theme.name),
@@ -32,5 +33,6 @@ describe('the colour palette choice', () => {
     expect(checked.map((label) => label.querySelector('strong')?.textContent)).toEqual([
       chosen.name,
     ]);
+    await act(async () => root.unmount());
   });
 });

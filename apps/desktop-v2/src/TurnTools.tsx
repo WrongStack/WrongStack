@@ -2,10 +2,15 @@ import type { TFunction } from 'i18next';
 import { LoaderCircle, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatTokens, type TurnStats } from './context-usage';
+import {
+  type ConversationDisplay,
+  conversationAppearanceDefaults,
+} from './conversation-appearance';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineEvent } from './engine-state';
 import { SessionActivity } from './SessionActivity';
+import { activityRows } from './session-activity-model';
 import { turnToolSummary } from './turn-tools';
 import './session-status.css';
 
@@ -15,12 +20,14 @@ import './session-status.css';
  * shows.
  */
 export function TurnTools({
+  display = conversationAppearanceDefaults,
   events,
   stats,
   onOpenFile,
   command,
 }: {
   events: readonly EngineEvent[];
+  display?: ConversationDisplay | undefined;
   stats?: TurnStats | undefined;
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
@@ -32,16 +39,31 @@ export function TurnTools({
   return (
     <>
       {meta && <p className="chat-turn-meta">{meta}</p>}
-      {summary.calls > 0 && (
-        <details className="chat-run-activity turn-tools">
-          <summary>
-            <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
-            {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
-            {summary.text}
-          </summary>
-          <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />
-        </details>
-      )}
+      {summary.calls > 0 &&
+        (display.groupToolCalls ? (
+          <details className="chat-run-activity turn-tools">
+            <summary>
+              <Wrench size={12} /> {t('turn.workedWith', { calls: toolCalls(summary.calls, t) })}
+              {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''} ·{' '}
+              {summary.text}
+            </summary>
+            <SessionActivity
+              compact
+              showThinkingLogs={display.showThinkingLogs}
+              events={events}
+              onOpenFile={onOpenFile}
+              command={command}
+            />
+          </details>
+        ) : (
+          <SessionActivity
+            compact
+            showThinkingLogs={display.showThinkingLogs}
+            events={events}
+            onOpenFile={onOpenFile}
+            command={command}
+          />
+        ))}
     </>
   );
 }
@@ -101,18 +123,31 @@ export function AgentWorking({
  * summary, with thinking and retries in order.
  */
 export function LiveRunActivity({
+  display = conversationAppearanceDefaults,
   events,
   onOpenFile,
   command,
   live = true,
 }: {
   events: readonly EngineEvent[];
+  display?: ConversationDisplay | undefined;
   onOpenFile: (path: string) => void;
   command?: EngineCommand | undefined;
   live?: boolean | undefined;
 }) {
   const { t } = useDesktopText();
-  if (!events.length) return null;
+  if (!activityRows(events).some((row) => display.showThinkingLogs || row.kind !== 'reasoning'))
+    return null;
+  if (!display.groupToolCalls)
+    return (
+      <SessionActivity
+        compact
+        showThinkingLogs={display.showThinkingLogs}
+        events={events}
+        onOpenFile={onOpenFile}
+        command={command}
+      />
+    );
   const summary = turnToolSummary(events);
   const calls = new Set(
     events
@@ -128,7 +163,13 @@ export function LiveRunActivity({
         {summary.failed ? ` · ${t('turn.failed', { count: summary.failed })}` : ''}
         {summary.text ? ` · ${summary.text}` : ''}
       </summary>
-      <SessionActivity compact events={events} onOpenFile={onOpenFile} command={command} />
+      <SessionActivity
+        compact
+        showThinkingLogs={display.showThinkingLogs}
+        events={events}
+        onOpenFile={onOpenFile}
+        command={command}
+      />
     </details>
   );
 }

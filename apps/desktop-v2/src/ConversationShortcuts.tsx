@@ -8,11 +8,18 @@ import { ShortcutsOverlay } from './ShortcutsOverlay';
  * panels show, Ctrl+/ focuses the composer, and `?` or F1 lists every shortcut. Returns the
  * overlay to render.
  */
-export function useConversationShortcuts(navigate: (target: DesktopNavigation) => void) {
+export function useConversationShortcuts(
+  navigate: (target: DesktopNavigation) => void,
+  enabled = true,
+  focusComposer?: () => void,
+) {
   const [open, setOpen] = useState(false);
   const go = useRef(navigate);
   go.current = navigate;
+  const focus = useRef(focusComposer);
+  focus.current = focusComposer;
   useEffect(() => {
+    if (!enabled) return;
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
       // A modal dialog owns the keyboard.
@@ -31,11 +38,12 @@ export function useConversationShortcuts(navigate: (target: DesktopNavigation) =
       } else if ((event.ctrlKey || event.metaKey) && event.key === '/') {
         event.preventDefault();
         // By its container, not its accessible name: that name follows the display language.
-        document.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus();
+        if (focus.current) focus.current();
+        else document.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus();
       }
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, []);
+  }, [enabled]);
   return open ? <ShortcutsOverlay onClose={() => setOpen(false)} /> : null;
 }

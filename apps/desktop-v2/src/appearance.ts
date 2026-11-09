@@ -10,6 +10,10 @@ import {
   brandNeutrals,
   brandPalettes,
 } from './brand-palettes';
+import {
+  type ConversationAppearance,
+  parseConversationAppearance,
+} from './conversation-appearance';
 import './density.css';
 import './fonts.css';
 
@@ -17,7 +21,7 @@ export const appearanceModes = ['system', 'light', 'dark'] as const;
 /** System follows the OS "more contrast" preference; "more" forces stronger text and borders. */
 export const contrastModes = ['system', 'standard', 'more'] as const;
 export const accentThemes = brandPalettes;
-export interface Appearance extends FontAppearance, StatusAppearance {
+export interface Appearance extends FontAppearance, StatusAppearance, ConversationAppearance {
   mode: (typeof appearanceModes)[number];
   accent: BrandPaletteId;
   contrast: (typeof contrastModes)[number];
@@ -53,6 +57,7 @@ export function parseAppearance(raw: string | null | undefined): Appearance {
         contrastModes.find((mode) => mode === candidate['contrast']) ?? defaultAppearance.contrast,
       ...(candidate['density'] === 'compact' ? { density: 'compact' as const } : {}),
       ...(candidate['sound'] === 'on' ? { sound: 'on' as const } : {}),
+      ...parseConversationAppearance(candidate),
       ...parseFontAppearance(candidate),
       ...parseStatusAppearance(candidate),
     };
