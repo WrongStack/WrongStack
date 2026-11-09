@@ -145,7 +145,9 @@ export class Run implements AsyncIterable<RunEvent> {
   /** @internal */
   push(event: RunEvent): void {
     if (this.settled) return;
-    if (event.type === 'provider.text_delta') this.streamed += event.payload.text;
+    if (event.type === 'provider.text_delta' && typeof event.payload?.text === 'string') {
+      this.streamed += event.payload.text;
+    }
     const waiter = this.waiters.shift();
     if (waiter) waiter({ value: event, done: false });
     else this.queue.push(event);

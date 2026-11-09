@@ -79,10 +79,12 @@ export function openSocket(
     let opened = false;
     let settled = false;
     const early: Frame[] = [];
+    const timeoutMs =
+      Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : 15_000;
     const timer = setTimeout(() => {
       fail(new WrongStackError({ kind: 'timeout', code: 'connect', retryable: true }));
       socket.close();
-    }, options.timeoutMs);
+    }, timeoutMs);
     const fail = (error: WrongStackError): void => {
       settled = true;
       clearTimeout(timer);
@@ -95,7 +97,7 @@ export function openSocket(
       if (settled || opened) return;
       settled = true;
       clearTimeout(timer);
-      void handshakeFailure(options.url, options.token, options.timeoutMs).then(reject);
+      void handshakeFailure(options.url, options.token, timeoutMs).then(reject);
     };
     socket.addEventListener('open', () => {
       opened = true;

@@ -352,7 +352,13 @@ const ECOSYSTEM_FETCHERS: Readonly<Record<string, EcosystemFetcher>> = {
       for (const ver of versions) {
         const version = ver.version as string;
         // Composer stability is case-insensitive and ignores build metadata.
-        if (version && !/dev|alpha|beta|rc/.test(version.replace(/\+.*$/, '').toLowerCase())) {
+        // Its alpha/beta aliases (a, b) may have no separator or numeric suffix.
+        if (
+          version &&
+          !/dev|alpha|beta|rc|[ab](?:[.-]?\d+(?:[.-]\d+)*)?$/.test(
+            version.replace(/\+.*$/, '').toLowerCase(),
+          )
+        ) {
           if (!latestStable || compareRegistryVersions(version, latestStable) > 0) {
             latestStable = version;
           }

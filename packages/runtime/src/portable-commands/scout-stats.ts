@@ -143,8 +143,14 @@ export function summarizeVariantUsage(
         run.requests++;
         run.variant ??= event.systemVariant;
       } else if (event.type === 'llm_response') {
-        run.inputTokens += event.usage.input;
-        run.outputTokens += event.usage.output;
+        const input = event.usage?.input;
+        const output = event.usage?.output;
+        if (typeof input === 'number' && Number.isFinite(input) && input > 0) {
+          run.inputTokens += input;
+        }
+        if (typeof output === 'number' && Number.isFinite(output) && output > 0) {
+          run.outputTokens += output;
+        }
       } else if (event.type === 'tool_call_start') {
         run.toolCalls++;
         if (DELEGATION_TOOLS.has(event.name)) run.delegations++;

@@ -82,8 +82,14 @@ export function currentPlatformKey(
 
 /** `./foo/bar` → `bar`; leaves bare names untouched. */
 function basename(cmd: string): string {
-  const cleaned = cmd.replace(/^\.\//, '').replace(/\\/g, '/');
+  const cleaned = cmd.trim().replace(/^\.\//, '').replace(/\\/g, '/').replace(/\/+$/, '');
   return cleaned.slice(cleaned.lastIndexOf('/') + 1);
+}
+
+function isValidLauncherSpec(spec: string | undefined): spec is string {
+  if (typeof spec !== 'string') return false;
+  const trimmed = spec.trim();
+  return trimmed.length > 0 && !trimmed.startsWith('-');
 }
 
 /**
@@ -94,30 +100,34 @@ export function mapRegistryEntry(
   entry: RegistryAgentEntry,
   platformKey: string = currentPlatformKey(),
 ): ACPAgentDescriptor | null {
-  if (!entry || typeof entry.id !== 'string' || entry.id.length === 0) return null;
+  if (!entry || typeof entry.id !== 'string' || entry.id.trim().length === 0) return null;
+  const id = entry.id.trim();
   const dist = entry.distribution;
   let acp: { command: string; args?: string[]; env?: Record<string, string> } | null = null;
 
-  if (dist?.npx?.package) {
+  if (isValidLauncherSpec(dist?.npx?.package)) {
     acp = {
       command: 'npx',
-      args: ['-y', dist.npx.package, ...(dist.npx.args ?? [])],
+      args: ['-y', dist.npx.package.trim(), ...(dist.npx.args ?? [])],
       ...(dist.npx.env ? { env: dist.npx.env } : {}),
     };
-  } else if (dist?.uvx?.package) {
+  } else if (isValidLauncherSpec(dist?.uvx?.package)) {
     acp = {
       command: 'uvx',
-      args: [dist.uvx.package, ...(dist.uvx.args ?? [])],
+      args: [dist.uvx.package.trim(), ...(dist.uvx.args ?? [])],
       ...(dist.uvx.env ? { env: dist.uvx.env } : {}),
     };
-  } else if (dist?.binary) {
+  } else if (dist?.binary && Object.hasOwn(dist.binary, platformKey)) {
     const target = dist.binary[platformKey];
-    if (target?.cmd) {
-      acp = {
-        command: basename(target.cmd),
-        args: [...(target.args ?? [])],
-        ...(target.env ? { env: target.env } : {}),
-      };
+    if (typeof target?.cmd === 'string' && !target.cmd.trim().endsWith('/')) {
+      const binCmd = basename(target.cmd);
+      if (isValidLauncherSpec(binCmd)) {
+        acp = {
+          command: binCmd,
+          args: [...(target.args ?? [])],
+          ...(target.env ? { env: target.env } : {}),
+        };
+      }
     }
   }
   if (!acp) return null;
@@ -127,8 +137,8 @@ export function mapRegistryEntry(
   const probeCmd = acp.command === 'npx' ? 'npx' : acp.command === 'uvx' ? 'uvx' : acp.command;
 
   return {
-    id: entry.id,
-    displayName: entry.name ?? entry.id,
+    id,
+    displayName: entry.name?.trim() || id,
     vendor: inferVendor(entry),
     probe: { command: probeCmd, args: ['--version'] },
     acp,

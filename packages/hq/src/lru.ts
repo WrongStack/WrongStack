@@ -74,11 +74,16 @@ export class LruMap<K, V> {
   private readonly now: () => number;
 
   constructor(opts: LruMapOptions) {
-    if (!Number.isFinite(opts.maxEntries) || opts.maxEntries < 1) {
+    if (!Number.isInteger(opts.maxEntries) || opts.maxEntries < 1) {
       throw new Error(`LruMap: maxEntries must be a positive integer; got ${opts.maxEntries}`);
     }
     this.maxEntries = opts.maxEntries;
-    this.freshnessFloorMs = opts.freshnessFloorMs ?? 0;
+    this.freshnessFloorMs =
+      typeof opts.freshnessFloorMs === 'number' &&
+      Number.isFinite(opts.freshnessFloorMs) &&
+      opts.freshnessFloorMs > 0
+        ? opts.freshnessFloorMs
+        : 0;
     this.touchOnGet = opts.touchOnGet ?? true;
     this.now = opts.now ?? Date.now;
   }

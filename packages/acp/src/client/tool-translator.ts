@@ -109,7 +109,21 @@ export class ToolTranslator {
   >();
 
   constructor(opts: ToolTranslatorOptions = {}) {
-    this.opts = { ...DEFAULT_OPTIONS, ...opts };
+    this.opts = {
+      asyncTools: opts.asyncTools ?? DEFAULT_OPTIONS.asyncTools,
+      pollIntervalMs:
+        typeof opts.pollIntervalMs === 'number' &&
+        Number.isFinite(opts.pollIntervalMs) &&
+        opts.pollIntervalMs > 0
+          ? opts.pollIntervalMs
+          : DEFAULT_OPTIONS.pollIntervalMs,
+      totalTimeoutMs:
+        typeof opts.totalTimeoutMs === 'number' &&
+        Number.isFinite(opts.totalTimeoutMs) &&
+        opts.totalTimeoutMs > 0
+          ? opts.totalTimeoutMs
+          : DEFAULT_OPTIONS.totalTimeoutMs,
+    };
   }
 
   /**
@@ -121,22 +135,40 @@ export class ToolTranslator {
     send: (msg: ACPMessage) => Promise<void>;
   }): void {
     transport.onMessage((msg) => {
-      if (msg.method === 'tools/call' && msg.id !== undefined) {
-        const pending = this.pending.get(msg.id);
-        if (pending) {
-          clearTimeout(pending.timeout);
-          this.pending.delete(expectDefined(msg.id));
-          pending.resolve(msg as never as ACPToolCallResponse);
-        }
-      }
+      if (msg.id === undefined) return;
 
       // Handle cancellation notifications
-      if (msg.method === 'cancel' && msg.id !== undefined) {
+      if (msg.method === 'cancel') {
         const pending = this.pending.get(msg.id);
         if (pending) {
           clearTimeout(pending.timeout);
           this.pending.delete(expectDefined(msg.id));
           pending.reject(new Error('Call cancelled by client'));
+        }
+        return;
+      }
+
+      const errField = (msg as { error?: { message?: unknown } | unknown }).error;
+      const hasResult = (msg as { result?: unknown }).result !== undefined;
+      if (
+        msg.method === 'tools/call' ||
+        (msg.method === undefined && (hasResult || errField !== undefined))
+      ) {
+        const pending = this.pending.get(msg.id);
+        if (pending) {
+          clearTimeout(pending.timeout);
+          this.pending.delete(expectDefined(msg.id));
+          if (errField !== undefined && !hasResult) {
+            const errMsg =
+              typeof errField === 'object' &&
+              errField !== null &&
+              typeof (errField as { message?: unknown }).message === 'string'
+                ? (errField as { message: string }).message
+                : String(errField);
+            pending.reject(new Error(errMsg));
+          } else {
+            pending.resolve(msg as never as ACPToolCallResponse);
+          }
         }
       }
     });

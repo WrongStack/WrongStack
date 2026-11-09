@@ -259,6 +259,20 @@ describe('parseUnifiedDiffPreview (rich, TUI-promoted)', () => {
   it('truncMid leaves short strings untouched', () => {
     expect(truncMid('short', 100)).toBe('short');
     expect(truncMid('abcdef', 4)).toBe('abc…');
+    expect(truncMid('abcdef', 0)).toBe('');
+    expect(truncMid('abcdef', -5)).toBe('');
+    expect(truncMid('abcdef', 1)).toBe('…');
+  });
+
+  it('parseUnifiedDiffPreview treats negative or NaN maxLines as 0 visible rows (F138)', () => {
+    const diff = '@@ -1,2 +1,2 @@\n-old\n+new';
+    const neg = parseUnifiedDiffPreview(diff, -2);
+    expect(neg.rows).toHaveLength(0);
+    expect(neg.hidden).toBe(3);
+
+    const nanCap = parseUnifiedDiffPreview(diff, Number.NaN);
+    expect(nanCap.rows).toHaveLength(0);
+    expect(nanCap.hidden).toBe(3);
   });
 
   describe('truncMid surrogate pairs', () => {

@@ -197,7 +197,10 @@ const RULES: readonly HqAlertRule[] = [
       const machines = snapshot.machines ?? [];
       if (machines.length === 0) return null;
       const cutoff = now - config.staleMachineSeconds * 1000;
-      const stale = machines.filter((m) => Date.parse(m.lastActivityAt) < cutoff);
+      const stale = machines.filter((m) => {
+        const ts = Date.parse(m.lastActivityAt);
+        return !Number.isFinite(ts) || ts < cutoff;
+      });
       if (stale.length === machines.length) {
         return `All ${machines.length} machine(s) silent for ${config.staleMachineSeconds}s`;
       }
@@ -292,9 +295,19 @@ export class HqAlertEngine {
     maxSnoozeMs?: number | undefined;
   }) {
     this.onAlert = opts.onAlert;
-    this.maxHistory = opts.maxHistory ?? 500;
+    this.maxHistory =
+      typeof opts.maxHistory === 'number' &&
+      Number.isFinite(opts.maxHistory) &&
+      opts.maxHistory >= 0
+        ? Math.floor(opts.maxHistory)
+        : 500;
     this.onPersist = opts.onPersist;
-    this.maxSnoozeMs = opts.maxSnoozeMs ?? DEFAULT_MAX_SNOOZE_MS;
+    this.maxSnoozeMs =
+      typeof opts.maxSnoozeMs === 'number' &&
+      Number.isFinite(opts.maxSnoozeMs) &&
+      opts.maxSnoozeMs > 0
+        ? opts.maxSnoozeMs
+        : DEFAULT_MAX_SNOOZE_MS;
   }
 
   /**

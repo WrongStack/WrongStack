@@ -816,5 +816,64 @@ describe('ChronicleQueryEngine', () => {
       expect(result.events.map((event) => event.eventId)).toEqual(['in-window']);
       await expect(stat(path.join(dir, 'range-cache.json'))).rejects.toThrow();
     });
+
+    it('normalizes inverted resource line ranges, blocks prototype path traversal, and ignores negative token/cost values (F117)', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-f117-'));
+      tempDirs.push(dir);
+      const partition = path.join(dir, '2026-07-18.events.jsonl');
+      const journal = new ChronicleJournal({ filePath: partition });
+      const context = createChronicleContext(
+        { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+        'trace',
+      );
+      await journal.append({
+        eventType: 'provider.attempt.completed',
+        scope: context.scope,
+        correlation: context.correlation,
+        resource: { kind: 'file', id: 'f1', path: 'src/a.ts', lineStart: 25, lineEnd: 10 },
+        occurredAt: '2026-07-18T10:00:00.000Z',
+        attributes: {
+          tool: { name: 'read' },
+          usage: { input: 100, output: 50, cacheRead: 10, cacheWrite: 5 },
+        },
+      });
+      await journal.append({
+        eventType: 'provider.attempt.completed',
+        scope: context.scope,
+        correlation: context.correlation,
+        occurredAt: '2026-07-18T10:01:00.000Z',
+        attributes: {
+          usage: { input: -80, output: -20, cacheRead: -10, cacheWrite: -5 },
+        },
+      });
+      await journal.append({
+        eventType: 'token.accounted',
+        scope: context.scope,
+        correlation: context.correlation,
+        occurredAt: '2026-07-18T10:02:00.000Z',
+        attributes: { cost: { total: 0.45 } },
+      });
+      await journal.append({
+        eventType: 'token.accounted',
+        scope: context.scope,
+        correlation: context.correlation,
+        occurredAt: '2026-07-18T10:03:00.000Z',
+        attributes: { cost: { total: -0.2 } },
+      });
+
+      const engine = await ChronicleQueryEngine.fromFiles([partition]);
+      const lineMatch = await engine.query({ line: 15 });
+      expect(lineMatch.events).toHaveLength(1);
+
+      const protoQuery = await engine.query({ attributes: { 'tool.toString': 'anything' } });
+      expect(protoQuery.events).toHaveLength(0);
+
+      const { summary } = await engine.query({});
+      expect(summary.inputTokens).toBe(100);
+      expect(summary.outputTokens).toBe(50);
+      expect(summary.cacheReadTokens).toBe(10);
+      expect(summary.cacheWriteTokens).toBe(5);
+      expect(summary.estimatedCostUsd).toBe(0.45);
+    });
   });
 });

@@ -324,4 +324,25 @@ describe('AdaptiveConcurrencyController', () => {
     expect(c.getState().current).toBe(3);
     expect(setMax).toHaveBeenCalledTimes(1);
   });
+
+  it('normalizes inverted min/max bounds, invalid decreaseFactor, and fractional or NaN decrease targets (F121)', () => {
+    const bus = makeFleetBus();
+    const setMax = vi.fn();
+    const c = new AdaptiveConcurrencyController(bus, setMax, {
+      enabled: true,
+      minConcurrent: 2,
+      maxConcurrent: 8,
+      decreaseFactor: 0.5,
+    });
+    c.decrease(3.7);
+    expect(c.getState().current).toBe(3);
+    c.decrease(Number.NaN);
+    expect(c.getState().current).toBe(2);
+
+    c.updateConfig({ minConcurrent: 10, maxConcurrent: 4, decreaseFactor: -1 });
+    const s = c.getState();
+    expect(s.min).toBe(10);
+    expect(s.max).toBe(10);
+    expect(s.current).toBe(10);
+  });
 });

@@ -252,7 +252,9 @@ export const DIFF_LINE_SAFETY_CAP = 4000;
 
 /** Truncate the middle-out: keep the head, append an ellipsis, past `max`. */
 export function truncMid(s: string, max: number): string {
+  if (!Number.isFinite(max) || max <= 0) return '';
   if (s.length <= max) return s;
+  if (max === 1) return '…';
   // Never cut a surrogate pair: a lone high surrogate renders as a replacement glyph.
   let end = max - 1;
   if (end > 0) {
@@ -329,11 +331,17 @@ export function parseUnifiedDiffPreview(
   if (all.length === 0) {
     return { rows: [], hidden: 0, added: 0, removed: 0, hiddenAdded: 0, hiddenRemoved: 0 };
   }
-  if (all.length <= maxLines) {
+  const safeMaxLines =
+    maxLines === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : Number.isFinite(maxLines) && maxLines > 0
+        ? Math.floor(maxLines)
+        : 0;
+  if (all.length <= safeMaxLines) {
     return { rows: all, hidden: 0, added, removed, hiddenAdded: 0, hiddenRemoved: 0 };
   }
-  const rows = all.slice(0, maxLines);
-  const hiddenRows = all.slice(maxLines);
+  const rows = all.slice(0, safeMaxLines);
+  const hiddenRows = all.slice(safeMaxLines);
   return {
     rows,
     hidden: hiddenRows.length,

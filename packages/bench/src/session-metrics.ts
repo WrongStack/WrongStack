@@ -53,7 +53,8 @@ export async function readToolMetrics(opts: {
     const type = event['type'];
     if (type === 'tool_call_end') {
       metrics.totalCalls++;
-      const name = typeof event['name'] === 'string' ? event['name'].toLowerCase() : '';
+      const name =
+        typeof event['name'] === 'string' ? event['name'].toLowerCase().replace(/-/g, '_') : '';
       if (EDIT_TOOLS.has(name)) {
         metrics.editCalls++;
         if (event['ok'] === false) metrics.editErrors++;

@@ -115,20 +115,22 @@ export async function withTransientPrivateOrigin<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   const key = resolve(root);
+  const parsed = parsePrivateOriginAllowlist(origin);
+  const canonicalOrigin = parsed.length === 1 ? parsed[0]! : origin.trim();
   const counts = transientOrigins.get(key) ?? new Map<string, number>();
   transientOrigins.set(key, counts);
-  counts.set(origin, (counts.get(origin) ?? 0) + 1);
+  counts.set(canonicalOrigin, (counts.get(canonicalOrigin) ?? 0) + 1);
   const live = browserPrivateOrigins(key);
-  const added = !live.includes(origin);
-  if (added) live.push(origin);
+  const added = !live.includes(canonicalOrigin);
+  if (added) live.push(canonicalOrigin);
   try {
     return await fn();
   } finally {
-    const remaining = (counts.get(origin) ?? 0) - 1;
+    const remaining = (counts.get(canonicalOrigin) ?? 0) - 1;
     if (remaining > 0) {
-      counts.set(origin, remaining);
+      counts.set(canonicalOrigin, remaining);
     } else {
-      counts.delete(origin);
+      counts.delete(canonicalOrigin);
       if (counts.size === 0) transientOrigins.delete(key);
       // Re-derive the live array so persistently allowed origins (policy file,
       // env var) and any other in-flight transient origins survive this cleanup.
@@ -138,7 +140,7 @@ export async function withTransientPrivateOrigin<T>(
         // If the policy file became unreadable mid-cleanup, fall back to a
         // targeted splice of exactly what this call added.
         if (added) {
-          const index = live.indexOf(origin);
+          const index = live.indexOf(canonicalOrigin);
           if (index >= 0) live.splice(index, 1);
         }
       }

@@ -60,15 +60,19 @@ function topLevelDirectories(projectRoot: string): Set<string> {
 
 /** Normalize one cited token to a repo-relative path, or `undefined` if it is not one. */
 function asRepoPath(token: string, roots: ReadonlySet<string>): string | undefined {
-  let candidate = token.trim().replace(/\\/g, '/');
+  let candidate = token
+    .trim()
+    .replace(/^[([{<]+/, '')
+    .replace(/[)\]}>,.;:]+$/, '')
+    .replace(/\\/g, '/');
   if (!candidate || candidate.includes('://') || /\s/.test(candidate)) return undefined;
   if (candidate.startsWith('@') || candidate.startsWith('.')) return undefined;
   if (GLOB_OR_PLACEHOLDER.test(candidate)) return undefined;
-  // `packages/sdd/src/index.ts:43`, `index.ts#L10-L20`, and `foo.ts:buildProvider`
-  // → the file; a trailing slash names a directory.
+  // `packages/sdd/src/index.ts:43`, `index.ts:10-20`, `index.ts#L10-L20`, and
+  // `foo.ts:buildProvider` → the file; a trailing slash names a directory.
   candidate = candidate
     .replace(/#L\d+(?:-L?\d+)?$/i, '')
-    .replace(/:[\w$.]+(?::\d+)?$/, '')
+    .replace(/:[\w$.-]+(?::\d+(?:-\d+)?)?$/, '')
     .replace(/[),.;:]+$/, '')
     .replace(/\/+$/, '');
   const segments = candidate.split('/');

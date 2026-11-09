@@ -41,6 +41,46 @@ const DEFAULT_CONFIG: InternalConfig = Object.freeze({
   recoveryIntervalMs: 30_000,
 });
 
+function normalizeConfig(
+  config: Partial<AdaptiveConcurrencyConfig>,
+  base: InternalConfig = DEFAULT_CONFIG,
+): InternalConfig {
+  const minRaw = config.minConcurrent;
+  const minConcurrent =
+    typeof minRaw === 'number' && Number.isFinite(minRaw) && minRaw >= 1
+      ? Math.floor(minRaw)
+      : base.minConcurrent;
+  const maxRaw = config.maxConcurrent;
+  const parsedMax =
+    typeof maxRaw === 'number' && Number.isFinite(maxRaw) && maxRaw >= 1
+      ? Math.floor(maxRaw)
+      : base.maxConcurrent;
+  const maxConcurrent = Math.max(minConcurrent, parsedMax);
+  const factorRaw = config.decreaseFactor;
+  const decreaseFactor =
+    typeof factorRaw === 'number' && Number.isFinite(factorRaw) && factorRaw > 0
+      ? factorRaw
+      : base.decreaseFactor;
+  const threshRaw = config.successThreshold;
+  const successThreshold =
+    typeof threshRaw === 'number' && Number.isFinite(threshRaw) && threshRaw >= 1
+      ? Math.floor(threshRaw)
+      : base.successThreshold;
+  const recRaw = config.recoveryIntervalMs;
+  const recoveryIntervalMs =
+    typeof recRaw === 'number' && Number.isFinite(recRaw) && recRaw >= 0
+      ? recRaw
+      : base.recoveryIntervalMs;
+  return {
+    enabled: config.enabled ?? base.enabled,
+    minConcurrent,
+    maxConcurrent,
+    decreaseFactor,
+    successThreshold,
+    recoveryIntervalMs,
+  };
+}
+
 /**
  * Adaptive Concurrency Controller
  *
@@ -68,14 +108,7 @@ export class AdaptiveConcurrencyController {
   ) {
     this.logger = logger;
     // Apply config with defaults
-    this.config = {
-      enabled: config.enabled ?? DEFAULT_CONFIG.enabled,
-      minConcurrent: config.minConcurrent ?? DEFAULT_CONFIG.minConcurrent,
-      maxConcurrent: config.maxConcurrent ?? DEFAULT_CONFIG.maxConcurrent,
-      decreaseFactor: config.decreaseFactor ?? DEFAULT_CONFIG.decreaseFactor,
-      successThreshold: config.successThreshold ?? DEFAULT_CONFIG.successThreshold,
-      recoveryIntervalMs: config.recoveryIntervalMs ?? DEFAULT_CONFIG.recoveryIntervalMs,
-    };
+    this.config = normalizeConfig(config);
 
     this.state = {
       current: this.config.maxConcurrent,
@@ -236,9 +269,11 @@ export class AdaptiveConcurrencyController {
   decrease(target?: number): void {
     if (!this.config.enabled) return;
 
+    const validTarget =
+      typeof target === 'number' && Number.isFinite(target) ? Math.floor(target) : undefined;
     const newConcurrent = Math.max(
       this.config.minConcurrent,
-      target ?? Math.floor(this.state.current * this.config.decreaseFactor),
+      validTarget ?? Math.floor(this.state.current * this.config.decreaseFactor),
     );
 
     if (newConcurrent < this.state.current) {
@@ -274,24 +309,8 @@ export class AdaptiveConcurrencyController {
     const wasEnabled = this.config.enabled;
     const previousCurrent = this.state.current;
 
-    if (config.enabled !== undefined) {
-      this.config.enabled = config.enabled;
-    }
-    if (config.minConcurrent !== undefined) {
-      this.config.minConcurrent = config.minConcurrent;
-    }
-    if (config.maxConcurrent !== undefined) {
-      this.config.maxConcurrent = config.maxConcurrent;
-    }
-    if (config.decreaseFactor !== undefined) {
-      this.config.decreaseFactor = config.decreaseFactor;
-    }
-    if (config.successThreshold !== undefined) {
-      this.config.successThreshold = config.successThreshold;
-    }
-    if (config.recoveryIntervalMs !== undefined) {
-      this.config.recoveryIntervalMs = config.recoveryIntervalMs;
-    }
+    const next = normalizeConfig(config, this.config);
+    Object.assign(this.config, next);
 
     // Ensure current is within bounds
     this.state.current = Math.max(

@@ -321,5 +321,20 @@ describe('HqAlertEngine', () => {
       expect(engine.recentAlerts(0)).toEqual([]);
       expect(engine.recentAlerts(-1)).toEqual([]);
     });
+
+    it('treats invalid machine lastActivityAt as stale and sanitizes NaN maxSnoozeMs/maxHistory (F124)', () => {
+      const engine = new HqAlertEngine({
+        onAlert: () => undefined,
+        maxHistory: Number.NaN,
+        maxSnoozeMs: Number.NaN,
+      });
+      const now = 2_000_000;
+      const old = new Date(now - 200_000).toISOString();
+      const snap = snapshot({}, [{ lastActivityAt: old }, { lastActivityAt: 'bad-timestamp' }]);
+      const fired = engine.evaluate(snap, { staleMachineSeconds: 120 }, now);
+      expect(fired.some((a) => a.ruleId === 'all-machines-stale')).toBe(true);
+      const snooze = engine.snooze('all-machines-stale', now + 999_999_999, now);
+      expect(snooze.clamped).toBe(true);
+    });
   });
 });

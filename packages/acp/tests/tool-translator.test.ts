@@ -262,4 +262,41 @@ describe('ToolTranslator', () => {
     const t = new ToolTranslator({ asyncTools: false, pollIntervalMs: 100, totalTimeoutMs: 200 });
     expect(t).toBeInstanceOf(ToolTranslator);
   });
+
+  it('guards undefined/NaN totalTimeoutMs, rejects JSON-RPC error responses, and resolves standard JSON-RPC responses without method (F113)', async () => {
+    const undefT = new ToolTranslator({ totalTimeoutMs: undefined });
+    const transport1 = makeTransport();
+    undefT.attachToTransport(transport1);
+    let timedOut = false;
+    const p1 = undefT.callTool(transport1, 'work', {}, 'u-1').catch((err: unknown) => {
+      if (String(err).includes('timed out')) timedOut = true;
+    });
+    await new Promise((r) => setTimeout(r, 15));
+    undefT.cancelAll();
+    await p1;
+    expect(timedOut).toBe(false);
+
+    const t = new ToolTranslator({ totalTimeoutMs: 500 });
+    const transport2 = makeTransport();
+    t.attachToTransport(transport2);
+    const errPromise = t.callTool(transport2, 'boom', {}, 'err-1');
+    await flush();
+    transport2.emit({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      id: 'err-1',
+      error: { code: -32603, message: 'Tool crashed' },
+    } as never);
+    await expect(errPromise).rejects.toThrow('Tool crashed');
+
+    const stdPromise = t.callTool(transport2, 'std', {}, 'std-1');
+    await flush();
+    transport2.emit({
+      jsonrpc: '2.0',
+      id: 'std-1',
+      result: { content: [{ type: 'text', text: 'ok' }] },
+    } as never);
+    const stdRes = await stdPromise;
+    expect(parseToolResponse('t-1', 's-1', stdRes).result).toBe('ok');
+  });
 });

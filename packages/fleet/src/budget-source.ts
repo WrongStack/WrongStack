@@ -17,7 +17,10 @@ interface ResolvedFleetBudget {
 }
 
 function positiveInt(raw: unknown): number | undefined {
-  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return Math.floor(raw);
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    const floored = Math.floor(raw);
+    return floored > 0 ? floored : undefined;
+  }
   if (typeof raw === 'string' && raw.trim() !== '') {
     const value = raw.trim();
     if (!/^\d+$/.test(value)) return undefined;
@@ -39,8 +42,8 @@ export function resolveFleetBudgetSources(input: {
   const flags = input.flags ?? {};
   const env = input.env ?? process.env;
   const config = input.config;
-  const defaultMaxConcurrent = input.defaultMaxConcurrent ?? 4;
-  const defaultMaxSpawns = input.defaultMaxSpawns ?? DEFAULT_MAX_FLEET_SPAWNS;
+  const defaultMaxConcurrent = positiveInt(input.defaultMaxConcurrent) ?? 4;
+  const defaultMaxSpawns = positiveInt(input.defaultMaxSpawns) ?? DEFAULT_MAX_FLEET_SPAWNS;
 
   const maxConcurrentFlag = positiveInt(flags['max-concurrent']);
   const maxConcurrentEnv = positiveInt(env['WRONGSTACK_MAX_CONCURRENT']);

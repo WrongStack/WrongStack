@@ -326,7 +326,12 @@ export class WrongStackClient {
         {
           url: this.options.url,
           token: this.options.token,
-          timeoutMs: this.options.timeoutMs ?? 15_000,
+          timeoutMs:
+            typeof this.options.timeoutMs === 'number' &&
+            Number.isFinite(this.options.timeoutMs) &&
+            this.options.timeoutMs > 0
+              ? this.options.timeoutMs
+              : 15_000,
           onSocket: (sock) => {
             this.openingSocket = sock;
           },
@@ -456,7 +461,12 @@ export class WrongStackClient {
 
   /** The next frame that matches, or a timeout. */
   private next(match: (frame: Frame) => boolean): Promise<Frame> {
-    const timeoutMs = this.options.timeoutMs ?? 15_000;
+    const timeoutMs =
+      typeof this.options.timeoutMs === 'number' &&
+      Number.isFinite(this.options.timeoutMs) &&
+      this.options.timeoutMs > 0
+        ? this.options.timeoutMs
+        : 15_000;
     return new Promise<Frame>((resolve, reject) => {
       const waiter = {
         match,
@@ -501,17 +511,26 @@ export class WrongStackClient {
       '';
 
     if (frame.type === 'session.start') {
-      const info = frame.payload as SessionInfo;
-      this.sessions.set(info.sessionId, info);
-      if (info.sessionId === this.current?.sessionId) this.current = info;
+      const info = frame.payload as SessionInfo | undefined;
+      if (
+        info &&
+        typeof info === 'object' &&
+        typeof info.sessionId === 'string' &&
+        info.sessionId
+      ) {
+        this.sessions.set(info.sessionId, info);
+        if (info.sessionId === this.current?.sessionId) this.current = info;
+      }
     } else if (frame.type === 'run.result') {
-      const result = frame.payload as ServerPayload<'run.result'>;
-      const run = result.requestId
-        ? this.runs.get(result.requestId)?.run
-        : this.pendingRun(sessionId);
-      if (run) {
-        this.runs.delete(run.id);
-        run.finish(result);
+      const result = frame.payload as ServerPayload<'run.result'> | undefined;
+      if (result && typeof result === 'object') {
+        const run = result.requestId
+          ? this.runs.get(result.requestId)?.run
+          : this.pendingRun(sessionId);
+        if (run) {
+          this.runs.delete(run.id);
+          run.finish(result);
+        }
       }
     } else if (frame.type === 'error') {
       this.failRunOn(sessionId, frame.payload as ServerPayload<'error'>);
@@ -530,10 +549,9 @@ export class WrongStackClient {
       }
     }
 
-    for (const waiter of this.waiters) {
+    for (const waiter of [...this.waiters]) {
       if (waiter.match(frame)) {
         waiter.resolve(frame);
-        break;
       }
     }
     for (const listener of this.listeners.get(frame.type) ?? []) {
@@ -570,12 +588,14 @@ export class WrongStackClient {
    * without a request id; it belongs to the session's pending run.
    */
   private failRunOn(sessionId: string, payload: ServerPayload<'error'>): void {
+    if (!payload || typeof payload !== 'object') return;
     if (payload.phase !== 'user_message' && payload.phase !== 'agent.run') return;
+    const message = typeof payload.message === 'string' ? payload.message : '';
     // A busy refusal answers the prompt just sent, not the run still going.
     // The same test decides retryability: both hosts' busy wordings
     // ("already processing" standalone, "already in progress" embedded) mean
     // "send it again once the current run ends".
-    const busy = BUSY_REFUSAL.test(payload.message);
+    const busy = BUSY_REFUSAL.test(message);
     const run = busy ? this.newestPendingRun(sessionId) : this.pendingRun(sessionId);
     if (!run) return;
     this.runs.delete(run.id);
@@ -583,7 +603,7 @@ export class WrongStackClient {
       new WrongStackError({
         kind: 'server',
         code: payload.code ?? payload.phase,
-        detail: payload.message,
+        detail: message,
         retryable: payload.code === 'session_not_ready' || busy,
       }),
     );
@@ -596,7 +616,7 @@ export class WrongStackClient {
    * down, and its result is no longer in the server's log.
    */
   private settleLostRuns(state: ServerPayload<'session.run_state'>): void {
-    if (state.isRunning || !state.sessionId) return;
+    if (!state || typeof state !== 'object' || state.isRunning || !state.sessionId) return;
     this.failRuns(
       (pending) => pending.run.sessionId === state.sessionId && pending.socket < this.socketNumber,
       new WrongStackError({
@@ -609,6 +629,9 @@ export class WrongStackClient {
   }
 
   private autoConfirm(request: ConfirmRequest, sessionId: string): void {
+    if (!request || typeof request !== 'object' || typeof request.id !== 'string' || !request.id) {
+      return;
+    }
     const handler = this.options.onConfirm;
     // The server re-sends open confirmations to a new socket; one already
     // answered or currently being evaluated here is not asked again.

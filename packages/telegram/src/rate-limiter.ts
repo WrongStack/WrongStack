@@ -58,8 +58,16 @@ export interface TokenBucket {
  * ```
  */
 export function createTokenBucket(opts?: RateLimiterOptions): TokenBucket {
-  const tokensPerSecond = opts?.tokensPerSecond ?? 0.33;
-  const burst = opts?.burst ?? 4;
+  const tokensPerSecond =
+    typeof opts?.tokensPerSecond === 'number' &&
+    Number.isFinite(opts.tokensPerSecond) &&
+    opts.tokensPerSecond !== 0
+      ? opts.tokensPerSecond
+      : 0.33;
+  const burst =
+    typeof opts?.burst === 'number' && Number.isFinite(opts.burst) && opts.burst >= 0
+      ? opts.burst
+      : 4;
 
   let tokens = burst;
   let lastRefill = Date.now();

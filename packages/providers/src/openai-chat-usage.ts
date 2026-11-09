@@ -78,14 +78,15 @@ export function normalizeOpenAIChatUsage(u: OpenAIChatUsageWire, previous: Usage
   // prompt = total − completion recovers the input count instead of leaving it
   // at 0. Ordered after the explicit prompt fields.
   const hasPromptTotal = u.prompt_tokens !== undefined;
-  const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
+  const freshInputDelta = !hasPromptTotal ? optionalNonNegative(u.input_tokens) : undefined;
+  const totalTokens = optionalNonNegative(u.total_tokens);
   const cacheMiss = optionalNonNegative(u.prompt_cache_miss_tokens);
   const reportedPromptTotal = hasPromptTotal
     ? nonNegative(u.prompt_tokens)
     : hasDeepSeekCacheFields
       ? nonNegative(u.prompt_cache_hit_tokens) + nonNegative(u.prompt_cache_miss_tokens)
-      : u.total_tokens !== undefined
-        ? Math.max(0, u.total_tokens - completion)
+      : totalTokens !== undefined
+        ? Math.max(0, totalTokens - completion)
         : previous.input + retainedCacheRead + retainedCacheWrite;
   // Hybrid gateways use Anthropic/MiniMax delta semantics in an OpenAI-shaped
   // envelope: `input_tokens` is fresh-only and the cache counts are separate.
@@ -98,8 +99,8 @@ export function normalizeOpenAIChatUsage(u: OpenAIChatUsageWire, previous: Usage
   const next: Usage = {
     input:
       cacheMiss ??
-      (hasFreshInputDelta
-        ? Math.max(0, u.input_tokens ?? 0)
+      (freshInputDelta !== undefined
+        ? freshInputDelta
         : Math.max(0, promptTotal - retainedCacheRead - retainedCacheWrite)),
     output: completion,
     cacheRead: cached || previous.cacheRead,

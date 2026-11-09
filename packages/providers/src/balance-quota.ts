@@ -46,10 +46,11 @@ function amount(value: unknown): number | undefined {
 const SYMBOL: Readonly<Record<string, string>> = { USD: '$', CNY: '¥' };
 
 export function formatBalance(value: number, currency: string): string {
-  const rounded = Math.round(value * 100) / 100;
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const rounded = Math.round(safeValue * 100) / 100;
   const sign = rounded < 0 ? '-' : '';
   const abs = Math.abs(rounded).toFixed(2);
-  const symbol = SYMBOL[currency];
+  const symbol = Object.hasOwn(SYMBOL, currency) ? SYMBOL[currency] : undefined;
   return symbol ? `${sign}${symbol}${abs}` : `${sign}${abs} ${currency}`;
 }
 
@@ -148,8 +149,12 @@ export async function reportBalanceQuota(
   opts: BalanceReportOptions,
 ): Promise<ProviderQuotaSnapshot[]> {
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : 10_000;
   try {
+    const timeout = AbortSignal.timeout(timeoutMs);
     const res = await doFetch(endpoint.url, {
       headers: { accept: 'application/json', authorization: `Bearer ${opts.apiKey}` },
       signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,

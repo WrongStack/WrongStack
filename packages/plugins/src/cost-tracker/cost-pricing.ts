@@ -147,6 +147,11 @@ export function estimateCost(
   completionTokens: number,
   cachedTokens = 0,
 ): number {
+  const safeFresh = Number.isFinite(freshTokens) && freshTokens > 0 ? freshTokens : 0;
+  const safeCompletion =
+    Number.isFinite(completionTokens) && completionTokens > 0 ? completionTokens : 0;
+  const safeCached = Number.isFinite(cachedTokens) && cachedTokens > 0 ? cachedTokens : 0;
+
   // Cache the lowercased key to avoid redundant .toLowerCase() calls.
   let key = modelKeyCache.get(model);
   if (!key) {
@@ -164,9 +169,9 @@ export function estimateCost(
     ownValue(PRICING, unnamespaced) ??
     DEFAULT_PRICING;
   const inputCost =
-    (freshTokens / 1_000_000) * pricing.input +
-    (cachedTokens / 1_000_000) * (pricing.cacheRead ?? pricing.input);
-  const outputCost = (completionTokens / 1_000_000) * pricing.output;
+    (safeFresh / 1_000_000) * pricing.input +
+    (safeCached / 1_000_000) * (pricing.cacheRead ?? pricing.input);
+  const outputCost = (safeCompletion / 1_000_000) * pricing.output;
   return inputCost + outputCost;
 }
 
@@ -185,14 +190,16 @@ export function applyPricingOverrides(rawConfig: Record<string, unknown> | undef
       const input = v['input'];
       const output = v['output'];
       if (typeof input !== 'number' || typeof output !== 'number') continue;
-      // A non-finite rate (JSON `1e999` parses to Infinity) would make every
-      // cost for this model non-finite — reject the whole entry.
-      if (!Number.isFinite(input) || !Number.isFinite(output)) continue;
+      // A non-finite or negative rate (JSON `1e999` parses to Infinity) would make
+      // costs for this model non-finite or negative — reject the whole entry.
+      if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) continue;
       const cacheRead = v['cacheRead'];
       setOwnValue(pricingOverrides, model.toLowerCase(), {
         input,
         output,
-        ...(typeof cacheRead === 'number' && Number.isFinite(cacheRead) ? { cacheRead } : {}),
+        ...(typeof cacheRead === 'number' && Number.isFinite(cacheRead) && cacheRead >= 0
+          ? { cacheRead }
+          : {}),
       });
     }
   }
@@ -233,12 +240,16 @@ export async function hydrateRegistryPricing(api: PluginAPI): Promise<void> {
             typeof cost.input === 'number' &&
             typeof cost.output === 'number' &&
             Number.isFinite(cost.input) &&
-            Number.isFinite(cost.output)
+            Number.isFinite(cost.output) &&
+            cost.input >= 0 &&
+            cost.output >= 0
           ) {
             setOwnValue(bundledFromRegistry, modelId.toLowerCase(), {
               input: cost.input,
               output: cost.output,
-              ...(typeof cost.cache_read === 'number' && Number.isFinite(cost.cache_read)
+              ...(typeof cost.cache_read === 'number' &&
+              Number.isFinite(cost.cache_read) &&
+              cost.cache_read >= 0
                 ? { cacheRead: cost.cache_read }
                 : {}),
             });

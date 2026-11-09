@@ -391,6 +391,21 @@ export async function run(input, ctx) {
     );
   });
 
+  it('rejects inverted schema bounds and bounds non-positive/NaN kitHistory limits', async () => {
+    const f = await fixture();
+    await f.run('verify');
+    expect(await kitHistory(f.root, 'strings.unique', -1)).toEqual([]);
+    expect(await kitHistory(f.root, 'strings.unique', 0)).toEqual([]);
+    expect(await kitHistory(f.root, 'strings.unique', Number.NaN)).toHaveLength(1);
+
+    f.manifest.inputSchema.properties.values.minItems = 5;
+    f.manifest.inputSchema.properties.values.maxItems = 2;
+    await writeFile(path.join(f.kitDir, 'kit.json'), JSON.stringify(f.manifest));
+    await expect(loadKit(f.root, 'strings.unique')).rejects.toThrow(
+      'minItems cannot exceed maxItems',
+    );
+  });
+
   it('rejects symlinked project stores', async () => {
     const f = await fixture();
     const other = await mkdtemp(path.join(os.tmpdir(), 'wrongstack-kit-outside-'));

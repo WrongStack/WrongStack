@@ -13,6 +13,7 @@
  * @module file-author-tracker
  */
 
+import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
@@ -64,8 +65,8 @@ async function loadLog(storageDir: string, projectRoot: string): Promise<FileAut
     const raw = await fs.readFile(logPath(storageDir), 'utf-8');
     const parsed = JSON.parse(raw) as FileAuthorLog;
     // Validate basic shape
-    if (!parsed.entries || !Array.isArray(parsed.entries)) {
-      return { projectRoot, entries: [] };
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.entries)) {
+      throw new SyntaxError('Invalid file-author log: expected an object with an entries array');
     }
     return parsed;
   } catch (err) {
@@ -93,7 +94,17 @@ async function mutateLog(
   mutate: (log: FileAuthorLog) => void,
 ): Promise<void> {
   await withFileLock(logPath(storageDir), async () => {
-    const log = await loadLog(storageDir, projectRoot);
+    let log: FileAuthorLog;
+    try {
+      log = await loadLog(storageDir, projectRoot);
+    } catch (err) {
+      if (!(err instanceof SyntaxError)) throw err;
+      // Keep the exact damaged bytes for recovery. Only reset under the write
+      // lock, and only after the backup succeeds; I/O failures must still surface.
+      const source = logPath(storageDir);
+      await fs.copyFile(source, `${source}.corrupt-${randomUUID()}`, fs.constants.COPYFILE_EXCL);
+      log = { projectRoot, entries: [] };
+    }
     mutate(log);
     await saveLog(storageDir, log);
   });

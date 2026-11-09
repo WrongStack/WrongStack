@@ -4,6 +4,7 @@ import { Socket } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { classifyStatus } from '../src/policy/status.js';
 import { clearRegistryCache } from '../src/registry/client.js';
+import { parsePurl } from '../src/registry/purl.js';
 import { runEnrichPhase } from '../src/service/enrich-phase.js';
 import type { DependencyObservation, Snapshot } from '../src/types.js';
 
@@ -45,8 +46,15 @@ describe('status classification of observed versions', () => {
     [{ locked: '2.0.0', installed: '1.0.0' }, '2.0.0', 'current'],
     [{ installed: '1.0.0-alpha.1' }, '1.0.0', 'update_available_safe'],
     [{ installed: '1.0.0', requested: undefined }, '1.1.0', 'update_available_safe'],
+    [{ installed: '0.2.3', requested: ' ^0.2.0 ' }, '0.3.0', 'update_available_breaking'],
+    [{ installed: '1.0.0', requested: 'v1.0.0' }, '2.0.0', 'update_available_breaking'],
   ] as const)('classifies %j against %s as %s', (versions, latestStable, expected) => {
     expect(classifyStatus(observation(versions), { latestStable })).toBe(expected);
+  });
+
+  it('rejects malformed PURL types containing spaces or invalid characters (F136)', () => {
+    expect(parsePurl('pkg:bad type!/react@1.0.0')).toBeUndefined();
+    expect(parsePurl('pkg:123/react@1.0.0')).toBeUndefined();
   });
 
   it.each([

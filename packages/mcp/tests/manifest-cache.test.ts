@@ -62,6 +62,32 @@ describe('manifestConfigHash', () => {
       else process.env[key] = previous;
     }
   });
+
+  it('invalidates ${VAR} env placeholders in connection fields and deduplicates undefined keys in renderStructuredResult (F127)', async () => {
+    const { renderStructuredResult } = await import('../src/structured-result.js');
+    const key = 'WRONGSTACK_MANIFEST_PLACEHOLDER_TOKEN_F127';
+    const previous = process.env[key];
+    const cfg = {
+      transport: 'sse',
+      url: `https://mcp.example.com/\${${key}}/sse`,
+      headers: { Authorization: `Bearer \${${key}:-fallback}` },
+    };
+    try {
+      process.env[key] = 'token-one';
+      const first = manifestConfigHash(cfg);
+      process.env[key] = 'token-two';
+      expect(manifestConfigHash(cfg)).not.toBe(first);
+    } finally {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    }
+
+    const structured: Record<string, unknown> = { city: 'Oslo', celsius: 3, note: undefined };
+    const text = JSON.stringify(structured);
+    expect(renderStructuredResult(text, [{ type: 'text', text }], structured, undefined)).toBe(
+      text,
+    );
+  });
 });
 
 describe('readManifest / writeManifest', () => {

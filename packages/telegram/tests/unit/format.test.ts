@@ -37,6 +37,11 @@ describe('fmtDuration', () => {
     expect(fmtDuration(180_000)).toBe('3m');
     expect(fmtDuration(5_400_000)).toBe('1.5h');
   });
+
+  it('clamps negative or non-finite durations to 0s (F137)', () => {
+    expect(fmtDuration(-5_000)).toBe('0s');
+    expect(fmtDuration(Number.NaN)).toBe('0s');
+  });
 });
 
 describe('formatDelegateCompleted', () => {
@@ -302,5 +307,15 @@ describe('formatSessionEnded', () => {
       cacheWrite: -2,
     });
     expect(msg).not.toContain('📦');
+  });
+
+  it('never splits a surrogate pair when truncating a session id at 8 UTF-16 units (F137)', () => {
+    const msg = formatSessionEnded({
+      id: 'abcdefg🚀hij',
+      inputTokens: 10,
+      outputTokens: 20,
+    });
+    expect(msg.isWellFormed()).toBe(true);
+    expect(msg).toContain('🏁 Session abcdefg ended');
   });
 });

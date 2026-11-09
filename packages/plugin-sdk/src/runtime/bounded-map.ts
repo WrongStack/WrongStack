@@ -46,7 +46,10 @@ export class BoundedMap<K, V> {
   constructor(options: BoundedMapOptions) {
     const normalizedMax = Math.floor(options.max);
     this.max = Number.isSafeInteger(normalizedMax) ? Math.max(1, normalizedMax) : 1;
-    this.ttlMs = options.ttlMs;
+    this.ttlMs =
+      typeof options.ttlMs === 'number' && Number.isFinite(options.ttlMs) && options.ttlMs > 0
+        ? options.ttlMs
+        : undefined;
     this.now = options.now ?? Date.now;
   }
 
@@ -75,7 +78,11 @@ export class BoundedMap<K, V> {
    */
   peek(key: K): V | undefined {
     const entry = this.map.get(key);
-    if (entry === undefined || this.expired(entry)) return undefined;
+    if (entry === undefined) return undefined;
+    if (this.expired(entry)) {
+      this.map.delete(key);
+      return undefined;
+    }
     return entry.value;
   }
 

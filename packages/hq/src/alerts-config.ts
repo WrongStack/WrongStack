@@ -113,6 +113,12 @@ export async function readHqAlertsConfig(dataDir: string): Promise<HqAlertsConfi
         'Fix the file or delete it to start with an empty alerts state.',
     );
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(
+      `HQ alerts-config at ${file} is not a JSON object. ` +
+        'Fix the file or delete it to start with an empty alerts state.',
+    );
+  }
   if (parsed.version !== HQ_ALERTS_CONFIG_VERSION) {
     throw new Error(
       `HQ alerts-config at ${file} has unsupported version ${String(parsed.version)} ` +
@@ -262,7 +268,12 @@ export function watchHqAlertsConfig(
   });
 
   watcher.on('change', (eventType: string, filename: string | Buffer | null) => {
-    const name = typeof filename === 'string' ? filename : '';
+    const name =
+      typeof filename === 'string'
+        ? filename
+        : Buffer.isBuffer(filename)
+          ? filename.toString('utf8')
+          : '';
     // Windows reports a deleted watched directory as an endless 'rename' storm
     // of its own absolute path (never error/close). Stop instead of spinning.
     if (path.isAbsolute(name)) {

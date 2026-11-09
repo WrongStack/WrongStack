@@ -92,6 +92,24 @@ export function checkSchema(
     )
       throw new Error(`${location}: invalid ${key}`);
   }
+  if (
+    schema.minimum !== undefined &&
+    schema.maximum !== undefined &&
+    schema.minimum > schema.maximum
+  )
+    throw new Error(`${location}: minimum cannot exceed maximum`);
+  if (
+    schema.minLength !== undefined &&
+    schema.maxLength !== undefined &&
+    schema.minLength > schema.maxLength
+  )
+    throw new Error(`${location}: minLength cannot exceed maxLength`);
+  if (
+    schema.minItems !== undefined &&
+    schema.maxItems !== undefined &&
+    schema.minItems > schema.maxItems
+  )
+    throw new Error(`${location}: minItems cannot exceed maxItems`);
   if (schema.enum !== undefined && (!Array.isArray(schema.enum) || !schema.enum.length))
     throw new Error(`${location}: enum must be nonempty`);
   if (Object.hasOwn(schema, 'default')) assertValue(schema.default, schema, `${location}.default`);

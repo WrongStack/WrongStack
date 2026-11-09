@@ -464,4 +464,20 @@ describe('CircuitBreaker', () => {
     cb.afterCall(0, false);
     expect(cb.snapshot().state).toBe('half-open');
   });
+
+  it('falls back to defaults for non-finite or non-positive config options and sanitizes negative/NaN durationMs (F138)', () => {
+    const cb = new CircuitBreaker({
+      maxConsecutiveFailures: 0,
+      slowCallThresholdMs: Number.NaN,
+      maxSlowCalls: -1,
+      maxCallsPerWindow: 0,
+      windowMs: Number.NaN,
+      cooldownMs: -500,
+    });
+    cb.afterCall(Number.NaN, false);
+    cb.afterCall(-100, false);
+    expect(cb.snapshot().state).toBe('closed');
+    expect(cb.snapshot().callsInWindow).toBe(2);
+    expect(cb.snapshot().slowCallsInWindow).toBe(0);
+  });
 });

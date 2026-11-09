@@ -70,7 +70,12 @@ export interface SearchRaceOptions {
 
 function previewText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 1) + '…';
+  let end = maxLen - 1;
+  if (end > 0) {
+    const last = text.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  }
+  return `${text.slice(0, end)}…`;
 }
 
 /**
@@ -160,6 +165,8 @@ export async function runSearchRace(
     { sageId: string; vectorScore: number; preview: string }
   >();
   for (const hit of vectorHits) {
+    if (!Number.isFinite(hit.score) && threshold > 0) continue;
+    if (threshold > 0 && hit.score < threshold) continue;
     const rawSageId = (hit.entry.metadata as Record<string, unknown> | undefined)?.['sageId'];
     if (typeof rawSageId !== 'string') continue;
     const sageId = rawSageId.trim();

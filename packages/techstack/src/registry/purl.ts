@@ -162,8 +162,9 @@ export function parsePurl(purl: string): PurlParts | undefined {
 
   // Split type
   const slashIdx = main.indexOf('/');
-  if (slashIdx < 0) return undefined;
+  if (slashIdx <= 0) return undefined;
   const type = main.slice(0, slashIdx).toLowerCase();
+  if (!/^[a-z][a-z0-9.+-]*$/.test(type)) return undefined;
   const remainder = main.slice(slashIdx + 1);
 
   // Check for namespace (second /)

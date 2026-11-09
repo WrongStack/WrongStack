@@ -16,6 +16,16 @@ describe('createTokenBucket.isFull', () => {
     expect(bucket.fill()).toBe(4);
   });
 
+  it('falls back to safe defaults for NaN, zero tokensPerSecond, or negative burst (F137)', () => {
+    const nanBucket = createTokenBucket({ tokensPerSecond: Number.NaN, burst: Number.NaN });
+    expect(nanBucket.fill()).toBe(4);
+    expect(nanBucket.isFull()).toBe(true);
+
+    const zeroRateBucket = createTokenBucket({ tokensPerSecond: 0, burst: -1 });
+    expect(zeroRateBucket.fill()).toBe(4);
+    expect(zeroRateBucket.isFull()).toBe(true);
+  });
+
   it('is not full once a token is consumed', async () => {
     vi.useFakeTimers();
     const bucket = createTokenBucket({ tokensPerSecond: 1, burst: 4 });

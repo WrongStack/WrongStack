@@ -56,7 +56,8 @@ export async function kitHistory(root: string, name: string, limit = 20): Promis
     .sort()
     .reverse();
   const records: KitRunRecord[] = [];
-  for (const entry of entries.slice(0, Math.min(100, limit))) {
+  const boundedLimit = Number.isFinite(limit) ? Math.min(100, Math.max(0, Math.trunc(limit))) : 20;
+  for (const entry of entries.slice(0, boundedLimit)) {
     try {
       const record = await kitPath(root, `${KIT_HISTORY_DIRECTORY}/${name}/${entry}/record.json`);
       records.push(JSON.parse(await readFile(record, 'utf8')) as KitRunRecord);

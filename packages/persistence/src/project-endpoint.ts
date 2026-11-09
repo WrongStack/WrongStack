@@ -160,6 +160,10 @@ function probeProjectEndpoint(
   endpoint: string,
   timeoutMs: number = PROBE_TIMEOUT_MS,
 ): Promise<EndpointProbeState> {
+  const safeTimeoutMs =
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : PROBE_TIMEOUT_MS;
   return new Promise<EndpointProbeState>((resolve) => {
     let settled = false;
     let probe: net.Socket;
@@ -174,7 +178,7 @@ function probeProjectEndpoint(
       probe.destroy();
       resolve(state);
     };
-    const timer = setTimeout(() => finish('unknown'), timeoutMs);
+    const timer = setTimeout(() => finish('unknown'), safeTimeoutMs);
     timer.unref?.();
     probe.once('connect', () => {
       clearTimeout(timer);

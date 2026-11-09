@@ -773,4 +773,24 @@ describe('non-finite usage and pricing guards', () => {
     const result = await getSummary(api);
     expect(result.usage.totalCostUsd).toBeCloseTo(0.0125, 7);
   });
+
+  it('rejects negative pricing overrides and sanitizes invalid config fields (F129)', async () => {
+    const api = makeApi();
+    api.config.extensions['cost-tracker'] = {
+      budgetLimit: -10,
+      warningThreshold: -5,
+      mailboxDigestEveryN: Number.POSITIVE_INFINITY,
+      mailboxDigestTo: '   ',
+      pricingOverrides: {
+        'gpt-4o': { input: -5, output: 15 },
+      },
+    };
+    await costTrackerPlugin.setup(api as any);
+    expect((await costTrackerPlugin.health!()).overrideCount).toBe(0);
+
+    await respond(api, { usage: { input: 1000, output: 500 }, ctx: { model: 'gpt-4o' } });
+    const result = await getSummary(api);
+    expect(result.budgetStatus).toBeNull();
+    expect(result.usage.totalCostUsd).toBeCloseTo(0.0125, 7);
+  });
 });

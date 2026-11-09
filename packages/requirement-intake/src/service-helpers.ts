@@ -349,7 +349,7 @@ export function markUserSources(record: RequirementIntakeRecord, changedKeys: st
     providedContext: 'provided_context',
   };
   for (const key of changedKeys) {
-    const sourceField = mapping[key];
+    const sourceField = Object.hasOwn(mapping, key) ? mapping[key] : undefined;
     if (sourceField) {
       const clearedOptional =
         (key === 'businessGoal' || key === 'expectedOutcome' || key === 'scopeNotes') &&
@@ -451,7 +451,9 @@ export function applyAnswerToRecord(
     markQuestionAnswered(record, validated.field, validated.answer);
   }
   syncVibeFromAnswer(record, validated.answer, now);
-  const mapping = ANSWER_FIELD_MAPPING[validated.field];
+  const mapping = Object.hasOwn(ANSWER_FIELD_MAPPING, validated.field)
+    ? ANSWER_FIELD_MAPPING[validated.field]
+    : undefined;
   if (mapping) {
     const before = mapping.list?.(record).slice();
     mapping.set(record, validated.answer);
@@ -499,7 +501,9 @@ export function applyAnswerUpdateToRecord(
     }
   }
   syncVibeFromAnswer(record, newAnswer, now);
-  const mapping = ANSWER_FIELD_MAPPING[answer.field];
+  const mapping = Object.hasOwn(ANSWER_FIELD_MAPPING, answer.field)
+    ? ANSWER_FIELD_MAPPING[answer.field]
+    : undefined;
   const list = mapping?.list?.(record);
   let contribution: string[] | undefined;
   if (list) {
@@ -510,7 +514,10 @@ export function applyAnswerUpdateToRecord(
     const contributed = answer.contributedItems ?? splitItems(previous);
     const kept = new Set(splitItems(newAnswer));
     const otherAnswers = record.answers.filter(
-      (other) => other !== answer && ANSWER_FIELD_MAPPING[other.field]?.list?.(record) === list,
+      (other) =>
+        other !== answer &&
+        Object.hasOwn(ANSWER_FIELD_MAPPING, other.field) &&
+        ANSWER_FIELD_MAPPING[other.field]?.list?.(record) === list,
     );
     const stillGiven = new Set(otherAnswers.flatMap((other) => splitItems(other.answer)));
     for (const item of contributed) {

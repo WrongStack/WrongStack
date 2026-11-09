@@ -35,19 +35,37 @@ function serveVersions(versions: Array<Record<string, unknown>>): void {
   });
 }
 
-it.each(['beta1', 'BETA1', 'Beta1', 'ALPHA1', 'Alpha1', 'DEV', 'dEv', 'Rc1', 'RC1', 'rc1'])(
-  'excludes the Composer preview label %s from latestStable',
-  async (label) => {
-    serveVersions([
-      { version: `v2.0.0-${label}`, license: ['MIT'] },
-      { version: 'v1.9.0' },
-      { version: 'v1.10.0' },
-    ]);
-    const entry = await lookupRegistry('composer', 'vendor/example');
-    expect(entry?.license).toBe('MIT');
-    expect(entry?.latestStable).toBe('v1.10.0');
-  },
-);
+it.each([
+  'beta1',
+  'BETA1',
+  'Beta1',
+  'ALPHA1',
+  'Alpha1',
+  'DEV',
+  'dEv',
+  'Rc1',
+  'RC1',
+  'rc1',
+  'a',
+  'a1',
+  'a.1',
+  'a-1',
+  'A1',
+  'b',
+  'b1',
+  'b.1',
+  'b-1',
+  'B1',
+])('excludes the Composer preview label %s from latestStable', async (label) => {
+  serveVersions([
+    { version: `v2.0.0-${label}`, license: ['MIT'] },
+    { version: 'v1.9.0' },
+    { version: 'v1.10.0' },
+  ]);
+  const entry = await lookupRegistry('composer', 'vendor/example');
+  expect(entry?.license).toBe('MIT');
+  expect(entry?.latestStable).toBe('v1.10.0');
+});
 
 it('keeps stable version spelling and selects numerically rather than lexically', async () => {
   serveVersions([{ version: 'V1.9.0', license: ['MIT'] }, { version: 'V1.10.0' }]);
@@ -67,6 +85,23 @@ it('reports no stable release for uppercase preview-only metadata', async () => 
   serveVersions([{ version: 'v2.0.0-BETA1', license: ['MIT'] }]);
   expect((await lookupRegistry('composer', 'vendor/example'))?.latestStable).toBeUndefined();
 });
+
+it.each(['a1', 'b1', '-a', '-b', '-A.1', '-B.1'])(
+  'reports no stable release for abbreviated preview-only suffix %s',
+  async (suffix) => {
+    serveVersions([{ version: `v2.0.0${suffix}`, license: ['MIT'] }]);
+    expect((await lookupRegistry('composer', 'vendor/example'))?.latestStable).toBeUndefined();
+  },
+);
+
+it.each(['a1', 'b1'])(
+  'keeps a stable release with alias-shaped build metadata %s',
+  async (metadata) => {
+    const version = `v2.0.0+${metadata}`;
+    serveVersions([{ version, license: ['MIT'] }, { version: 'v1.10.0' }]);
+    expect((await lookupRegistry('composer', 'vendor/example'))?.latestStable).toBe(version);
+  },
+);
 
 it('handles an empty versions collection without fabricating a stable release', async () => {
   serveVersions([]);

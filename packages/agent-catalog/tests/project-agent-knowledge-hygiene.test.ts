@@ -314,4 +314,13 @@ describe('F45 regressions', () => {
   it('rejects Windows drive-relative paths in validateProjectAgentConfig', () => {
     expect(() => validateProjectAgentConfig({ cwd: 'C:subpath' })).toThrow(/must stay inside/);
   });
+
+  it('strips line-range suffixes (:10-20) and surrounding brackets/parentheses in stale path detection (F114)', () => {
+    const checker = createStalePathChecker(projectRoot);
+    expect(
+      checker.stalePaths(
+        'Check `packages/core/src/live.ts:10-20`, [packages/core/src/live.ts#L10-L20], and `packages/core/src/gone.ts:10-20`.',
+      ),
+    ).toEqual(['packages/core/src/gone.ts']);
+  });
 });

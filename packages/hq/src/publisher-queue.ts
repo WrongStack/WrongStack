@@ -74,7 +74,13 @@ export class PublisherQueue {
 
   enqueue(serialized: string, coalesceKey?: string): boolean {
     const bytes = Buffer.byteLength(serialized, 'utf8');
-    if (bytes > this.maxQueuedBytes) {
+    if (
+      !Number.isFinite(this.maxQueuedMessages) ||
+      this.maxQueuedMessages <= 0 ||
+      !Number.isFinite(this.maxQueuedBytes) ||
+      this.maxQueuedBytes <= 0 ||
+      bytes > this.maxQueuedBytes
+    ) {
       this.droppedFrames += 1;
       this.droppedBytes += bytes;
       process.emitWarning(
@@ -120,7 +126,12 @@ export class PublisherQueue {
   }
 
   spliceBatch(batchSize = 50): QueuedFrame[] {
-    const batch = this.queue.splice(0, batchSize);
+    const count =
+      typeof batchSize === 'number' && Number.isFinite(batchSize) && batchSize > 0
+        ? Math.floor(batchSize)
+        : 0;
+    if (count === 0) return [];
+    const batch = this.queue.splice(0, count);
     for (const frame of batch) {
       this.queueBytes -= frame.bytes;
     }

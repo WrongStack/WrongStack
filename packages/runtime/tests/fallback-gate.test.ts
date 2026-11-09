@@ -1,5 +1,7 @@
 import { EventBus, type EventMap } from '@wrongstack/contracts/kernel';
 import { describe, expect, it } from 'vitest';
+import { evaluateGitHubFilters } from '../src/automation/github-filters.js';
+import { previewSchedule } from '../src/automation/schedule.js';
 import { createFallbackGate } from '../src/index.js';
 
 const params = (events: EventBus, requestId: string, autoSwitchSeconds = 5) => ({
@@ -53,5 +55,28 @@ describe('createFallbackGate (runtime)', () => {
       events.emit('provider.fallback_choice', { requestId: payload.requestId, autoSwitch: true });
     });
     await expect(createFallbackGate(events)(params(events, 'r2'))).resolves.toBeNull();
+  });
+
+  it('ignores blank fallback choices and validates schedule intervals and string GitHub labels (F133)', async () => {
+    expect(() => previewSchedule({ intervalMs: -1000 }, 5000, 2)).toThrow(
+      'Invalid schedule interval',
+    );
+    expect(() => previewSchedule({ intervalMs: 1000 }, Number.NaN, 2)).toThrow(
+      'Invalid schedule timestamp',
+    );
+    expect(evaluateGitHubFilters({ label: 'bug' }, { issue: { labels: ['bug'] } })).toEqual({
+      matches: true,
+      reasons: [],
+    });
+
+    const events = new EventBus();
+    events.on('provider.fallback_pending', (payload) => {
+      events.emit('provider.fallback_choice', {
+        requestId: payload.requestId,
+        providerId: '   ',
+        model: '',
+      });
+    });
+    await expect(createFallbackGate(events)(params(events, 'r-blank', 0.01))).resolves.toBeNull();
   });
 });

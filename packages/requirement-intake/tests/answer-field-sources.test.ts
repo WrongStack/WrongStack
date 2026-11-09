@@ -5,6 +5,7 @@ import {
   buildNewIntakeRecord,
 } from '../src/service-helpers.js';
 import type { IntakeContext } from '../src/types.js';
+import { deriveVibeState } from '../src/vibe.js';
 
 describe('Requirement intake answer fieldSources canonical mapping', () => {
   it('maps alias fields to canonical fieldSources keys and preserves priority source on invalid priority answers', () => {
@@ -236,5 +237,34 @@ describe('Requirement intake answer fieldSources canonical mapping', () => {
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  it('guards ANSWER_FIELD_MAPPING against Object.prototype keys and sanitizes non-finite timestamps in deriveVibeState (F132)', () => {
+    const ctx: IntakeContext = {
+      id: 'user-1',
+      type: 'user',
+      projectId: 'proj-1',
+    };
+    const record = buildNewIntakeRecord(
+      {
+        projectId: 'proj-1',
+        originalRequest: 'Add SSO login support',
+        requestedBy: 'user-1',
+      },
+      ctx,
+      1_000,
+      [],
+    );
+    const ans = applyAnswerToRecord(
+      record,
+      { field: 'constructor', answer: 'initial' },
+      'user-1',
+      1_100,
+    );
+    expect(() => applyAnswerUpdateToRecord(record, ans.id, 'updated')).not.toThrow();
+    expect(ans.answer).toBe('updated');
+
+    const vibe = deriveVibeState('[VIBE] Build feature', undefined, Number.NaN);
+    expect(Number.isSafeInteger(vibe?.detectedAt)).toBe(true);
   });
 });

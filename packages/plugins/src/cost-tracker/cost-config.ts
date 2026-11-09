@@ -33,12 +33,18 @@ export function readCostTrackerConfig(raw: Record<string, unknown> | undefined):
     raw?.['warnThreshold'] ??
     raw?.['warn_threshold'] ??
     raw?.['threshold'];
+  const trimmedDigestTo = typeof digestTo === 'string' ? digestTo.trim() : '';
   return {
-    budgetLimit: typeof rawBudget === 'number' ? rawBudget : 0,
-    warningThreshold: typeof rawThreshold === 'number' ? rawThreshold : 80,
+    budgetLimit:
+      typeof rawBudget === 'number' && Number.isFinite(rawBudget) && rawBudget >= 0 ? rawBudget : 0,
+    warningThreshold:
+      typeof rawThreshold === 'number' && Number.isFinite(rawThreshold) && rawThreshold > 0
+        ? rawThreshold
+        : 80,
     mailboxDigestEveryN:
-      typeof digestEveryN === 'number' && digestEveryN >= 0 ? Math.floor(digestEveryN) : 0,
-    mailboxDigestTo:
-      typeof digestTo === 'string' && digestTo.length > 0 ? digestTo : 'cost-tracker',
+      typeof digestEveryN === 'number' && Number.isFinite(digestEveryN) && digestEveryN >= 0
+        ? Math.floor(digestEveryN)
+        : 0,
+    mailboxDigestTo: trimmedDigestTo.length > 0 ? trimmedDigestTo : 'cost-tracker',
   };
 }

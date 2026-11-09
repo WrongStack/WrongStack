@@ -60,12 +60,13 @@ export interface SessionEndedLike {
 
 /** Compact human duration: `42s`, `3m`, `1.5h`. */
 export function fmtDuration(ms: number): string {
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
   // Promote on the ROUNDED value: 59.5 s is "1m", not "60s"; 59.5 min is "1.0h".
-  const secs = Math.round(ms / 1000);
+  const secs = Math.round(safeMs / 1000);
   if (secs < 60) return `${secs}s`;
-  const mins = Math.round(ms / 60_000);
+  const mins = Math.round(safeMs / 60_000);
   if (mins < 60) return `${mins}m`;
-  return `${(ms / 3_600_000).toFixed(1)}h`;
+  return `${(safeMs / 3_600_000).toFixed(1)}h`;
 }
 
 /**
@@ -165,7 +166,7 @@ export function formatToolExecuted(e: ToolExecutedLike): string {
  *   Cache: 1,200 read · 800 written
  */
 export function formatSessionEnded(e: SessionEndedLike): string {
-  const id = e.id.length > 8 ? e.id.slice(0, 8) : e.id;
+  const id = e.id.length > 8 ? sliceUtf16Safe(e.id, 8) : e.id;
   const total = e.inputTokens + e.outputTokens;
 
   const lines = [

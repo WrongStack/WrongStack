@@ -22,11 +22,17 @@ import { LruMap } from '../src/lru.js';
  */
 
 describe('LruMap (W3 #17)', () => {
-  it('rejects non-positive maxEntries at construction', () => {
+  it('rejects non-positive or non-integer maxEntries at construction and sanitizes NaN freshnessFloorMs (F124)', () => {
     expect(() => new LruMap({ maxEntries: 0 })).toThrow();
     expect(() => new LruMap({ maxEntries: -1 })).toThrow();
+    expect(() => new LruMap({ maxEntries: 1.5 })).toThrow();
     expect(() => new LruMap({ maxEntries: Number.NaN })).toThrow();
     expect(() => new LruMap({ maxEntries: Number.POSITIVE_INFINITY })).toThrow();
+
+    const m = new LruMap<string, number>({ maxEntries: 1, freshnessFloorMs: Number.NaN });
+    expect(m.set('a', 1)).toBe(true);
+    expect(m.set('b', 2)).toBe(true);
+    expect(m.get('b')).toBe(2);
   });
 
   it('supports basic set/get/delete', () => {

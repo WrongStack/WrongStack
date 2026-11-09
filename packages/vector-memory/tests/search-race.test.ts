@@ -276,4 +276,23 @@ describe('runSearchRace — zero-score vector hits', () => {
     expect(race.overlap[0]!.preview.endsWith('…')).toBe(true);
     expect(race.vectorOnly.map((r) => r.id)).toEqual(['v-only-1']);
   });
+
+  it('preserves UTF-16 surrogate pairs in 140-char previews and filters vector hits below threshold (F140)', async () => {
+    const emojiBoundaryText = `${'a'.repeat(138)}🚀${'b'.repeat(20)}`;
+    const lexical = [{ id: 'm1', text: emojiBoundaryText }] as unknown as Sage[];
+    const store = {
+      search: async () =>
+        [
+          {
+            entry: { id: 'v1', text: emojiBoundaryText, metadata: { sageId: 'm1' } },
+            score: 0.2,
+          },
+        ] as unknown as VectorSearchHit[],
+    } as unknown as VectorMemoryStore;
+
+    const race = await runSearchRace('query', lexical, store, { limit: 5, threshold: 0.5 });
+    expect(race.overlap).toEqual([]);
+    expect(race.lexicalOnly).toHaveLength(1);
+    expect(race.lexicalOnly[0]!.preview.isWellFormed()).toBe(true);
+  });
 });

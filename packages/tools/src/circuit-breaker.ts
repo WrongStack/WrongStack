@@ -80,6 +80,16 @@ export interface CircuitBreakerSnapshot {
   lastSlowAt: number | null;
 }
 
+function positiveIntOption(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1
+    ? Math.floor(value)
+    : fallback;
+}
+
+function positiveMsOption(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export class CircuitBreaker {
   private readonly maxConsecutiveFailures: number;
   private readonly slowCallThresholdMs: number;
@@ -134,12 +144,21 @@ export class CircuitBreaker {
   onReset?: (() => void) | undefined;
 
   constructor(config: CircuitBreakerConfig = {}) {
-    this.maxConsecutiveFailures = config.maxConsecutiveFailures ?? DEFAULT_MAX_CONSECUTIVE_FAILURES;
-    this.slowCallThresholdMs = config.slowCallThresholdMs ?? DEFAULT_SLOW_CALL_THRESHOLD_MS;
-    this.maxSlowCalls = config.maxSlowCalls ?? DEFAULT_MAX_SLOW_CALLS;
-    this.windowMs = config.windowMs ?? DEFAULT_WINDOW_MS;
-    this.maxCallsPerWindow = config.maxCallsPerWindow ?? DEFAULT_MAX_CALLS_PER_WINDOW;
-    this.cooldownMs = config.cooldownMs ?? DEFAULT_COOLDOWN_MS;
+    this.maxConsecutiveFailures = positiveIntOption(
+      config.maxConsecutiveFailures,
+      DEFAULT_MAX_CONSECUTIVE_FAILURES,
+    );
+    this.slowCallThresholdMs = positiveMsOption(
+      config.slowCallThresholdMs,
+      DEFAULT_SLOW_CALL_THRESHOLD_MS,
+    );
+    this.maxSlowCalls = positiveIntOption(config.maxSlowCalls, DEFAULT_MAX_SLOW_CALLS);
+    this.windowMs = positiveMsOption(config.windowMs, DEFAULT_WINDOW_MS);
+    this.maxCallsPerWindow = positiveIntOption(
+      config.maxCallsPerWindow,
+      DEFAULT_MAX_CALLS_PER_WINDOW,
+    );
+    this.cooldownMs = positiveMsOption(config.cooldownMs, DEFAULT_COOLDOWN_MS);
   }
 
   /** Toggle the master enable. Disabling resets to a clean `closed` state. */
@@ -233,13 +252,14 @@ export class CircuitBreaker {
     if (this.state === 'open') return;
 
     const now = Date.now();
+    const safeDurationMs = Number.isFinite(durationMs) && durationMs >= 0 ? durationMs : 0;
 
     if (this.state === 'half-open') {
       if (!this.halfOpenProbeInFlight && !this.halfOpenProbeAdmitted) return;
       // Only the probe decides. A call admitted before the last trip that is
       // only now finishing says nothing about recovery, and letting its
       // success close the breaker re-admitted the burst mid-probe.
-      if (this.lastTripAt !== null && now - durationMs < this.lastTripAt) return;
+      if (this.lastTripAt !== null && now - safeDurationMs < this.lastTripAt) return;
       // First call through after cooldown — if it failed, go back to open.
       if (failed) {
         this._trip();
@@ -253,7 +273,7 @@ export class CircuitBreaker {
     // Prune old records outside the sliding window.
     this._pruneWindow(now);
 
-    const slow = durationMs >= this.slowCallThresholdMs;
+    const slow = safeDurationMs >= this.slowCallThresholdMs;
     this.window.push({ at: now, failed, slow });
 
     if (failed) {

@@ -356,6 +356,34 @@ describe('gitignore-guard PostToolUse hook', () => {
     expect(matchGitignorePattern('logs/a', 'log[!s]/')).toBe(false);
   });
 
+  it.each([
+    ['cache/b.tmp', '[z-a].tmp'],
+    ['cache/b.tmp', '/cache/[z-a].tmp'],
+    ['cache/b/file.tmp', '[z-a]/'],
+    ['cache/b/file.tmp', '/cache/[z-a]/'],
+  ])('treats invalid bracket ranges as non-matches: %s against %s', (path, pattern) => {
+    expect(matchGitignorePattern(path, pattern)).toBe(false);
+  });
+
+  it('preserves valid bracket ranges', () => {
+    expect(matchGitignorePattern('cache/b.tmp', '[a-z].tmp')).toBe(true);
+    expect(matchGitignorePattern('cache/1.tmp', '[a-z].tmp')).toBe(false);
+    expect(matchGitignorePattern('cache/1.tmp', '[!a-z].tmp')).toBe(true);
+  });
+
+  it('continues checking coverage after an invalid range in .gitignore', async () => {
+    seedGitignore(rootGitignore, '[z-a]\ndist/\n');
+    const api = makeApi();
+    await plugin.setup(api as never);
+    const hook = getHook(api);
+
+    expect(await hook(writeInput('dist/bundle.js'))).toBeUndefined();
+    expect((await hook(writeInput('coverage/lcov.info')))?.additionalContext).toContain(
+      "'coverage/'",
+    );
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
   it('respects ignorePatterns opt-outs', async () => {
     const api = makeApi({
       extensions: {

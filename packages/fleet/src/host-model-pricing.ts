@@ -11,17 +11,21 @@ export async function resolveHostModelPrice(
     ?.cost;
   const custom =
     deps.configStore.get().providers?.[provider]?.customModels?.[model]?.modelsDev?.['cost'];
+  const catalogCost =
+    catalog && typeof catalog === 'object' && !Array.isArray(catalog)
+      ? (catalog as Record<string, unknown>)
+      : {};
   const overrides =
     custom && typeof custom === 'object' && !Array.isArray(custom)
       ? (custom as Record<string, unknown>)
       : {};
-  const cost = { ...catalog, ...overrides };
   const rate = (value: unknown) =>
     typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
-  const input = rate(cost['input']),
-    output = rate(cost['output']);
-  const cacheRead = rate(cost['cache_read'] ?? input),
-    cacheWrite = rate(cost['cache_write'] ?? input);
+  const pick = (key: string) => rate(overrides[key]) ?? rate(catalogCost[key]);
+  const input = pick('input'),
+    output = pick('output');
+  const cacheRead = pick('cache_read') ?? input,
+    cacheWrite = pick('cache_write') ?? input;
   if ([input, output, cacheRead, cacheWrite].every((value) => value === undefined))
     return undefined;
   return { input, output, cacheRead, cacheWrite };

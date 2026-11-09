@@ -318,6 +318,23 @@ describe('parseChimeraReviewReport — edge cases', () => {
       line: 19,
     });
   });
+
+  it('parses line-range (:42-50) and line:col (:42:10) citations and closes severity sections on non-severity headings (F116)', () => {
+    const report = [
+      '### High (2)',
+      '1. [BUG] `src/app.ts:42-50` — Missing await on async call.',
+      '2. [BUG] src/app.ts:42:10 — Unhandled rejection.',
+      '',
+      '### Summary',
+      '1. All checks completed.',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(2);
+    expect(result.findings[0]!.location).toEqual({ file: 'src/app.ts', line: 42 });
+    expect(result.findings[0]!.title).toBe('Missing await on async call.');
+    expect(result.findings[1]!.location).toEqual({ file: 'src/app.ts', line: 42 });
+    expect(result.findings[1]!.title).toBe('Unhandled rejection.');
+  });
 });
 
 // ── Structured JSON contract (P0-1) ────────────────────────────────

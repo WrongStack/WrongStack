@@ -111,17 +111,43 @@ export async function defaultRun(gitBin: string, args: string[], cwd: string): P
  */
 export function parseConflictPaths(output: string): string[] {
   const paths = new Set<string>();
-  for (const line of output.split('\n')) {
-    const m = line.match(/^CONFLICT \([^)]*\): Merge conflict in (.+?)\s*$/);
-    if (m?.[1]) paths.add(m[1]);
+  for (const rawLine of output.split('\n')) {
+    const line = rawLine.replace(/\r$/, '');
+    const contentMatch = line.match(/^CONFLICT \([^)]*\): Merge conflict in (.+?)\s*$/);
+    if (contentMatch?.[1]) {
+      paths.add(contentMatch[1]);
+      continue;
+    }
+    const modDelMatch = line.match(
+      /^CONFLICT \(modify\/delete\): (.+?) deleted in .+ and modified in /,
+    );
+    if (modDelMatch?.[1]) {
+      paths.add(modDelMatch[1]);
+      continue;
+    }
+    const renDelMatch = line.match(
+      /^CONFLICT \(rename\/delete\): (.+?) renamed to (.+?) in .+?, but deleted in /,
+    );
+    if (renDelMatch?.[2]) {
+      paths.add(renDelMatch[2]);
+      continue;
+    }
+    const fileDirMatch = line.match(
+      /^CONFLICT \(file\/directory\): There is a directory with name (.+?) in /,
+    );
+    if (fileDirMatch?.[1]) {
+      paths.add(fileDirMatch[1]);
+    }
   }
   return [...paths];
 }
 
 /** Throw if `dir` resolves outside `projectRoot`. */
 export function assertSafePath(dir: string, projectRoot: string): void {
-  const root = resolve(projectRoot);
-  const abs = resolve(dir);
+  const norm = (p: string): string =>
+    process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p);
+  const root = norm(projectRoot);
+  const abs = norm(dir);
   if (abs !== root && !abs.startsWith(root + sep)) {
     throw new Error(`worktree path escapes project root: ${dir}`);
   }

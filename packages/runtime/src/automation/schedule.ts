@@ -43,6 +43,14 @@ export function previewSchedule(
 ): number[] {
   if (!Number.isSafeInteger(count) || count < 1 || count > 10)
     throw new Error('Invalid preview count');
+  if (!Number.isFinite(now)) throw new Error('Invalid schedule timestamp');
+  if (
+    !job.schedule &&
+    job.intervalMs !== undefined &&
+    (typeof job.intervalMs !== 'number' || !Number.isFinite(job.intervalMs) || job.intervalMs <= 0)
+  ) {
+    throw new Error('Invalid schedule interval');
+  }
   const times: number[] = [];
   let cursor = now;
   for (let i = 0; i < count; i++) {

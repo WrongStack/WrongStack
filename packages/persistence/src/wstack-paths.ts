@@ -374,7 +374,11 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
   // Claude skills live in their real home, but tests pass `userHome` to keep
   // both `.wrongstack` and `.claude` under a temp dir.
   const homeDir = explicitUserHome ?? os.homedir();
-  const projectRoot = path.resolve(opts.projectRoot);
+  const rawProjectRoot =
+    typeof opts.projectRoot === 'string' && opts.projectRoot.trim().length > 0
+      ? opts.projectRoot.trim()
+      : process.cwd();
+  const projectRoot = path.resolve(rawProjectRoot);
   const profileName = safeProfileName(opts.profileName ?? bootstrapProfileName(globalRoot));
   const profileDir = path.join(globalRoot, 'profiles', profileName);
   const hash = projectHash(projectRoot);

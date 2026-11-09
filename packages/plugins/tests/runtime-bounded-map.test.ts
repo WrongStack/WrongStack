@@ -126,6 +126,22 @@ describe('BoundedMap — TTL', () => {
     clock = 150; // 70ms after the refresh — still live
     expect(m.get('k')).toBe('v2');
   });
+
+  it('ignores non-positive or non-finite ttlMs and drops expired entries on peek() (F129)', () => {
+    for (const invalidTtl of [-50, 0, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const m = new BoundedMap<string, number>({ max: 5, ttlMs: invalidTtl, now: () => 100 });
+      m.set('a', 42);
+      expect(m.get('a')).toBe(42);
+      expect(m.prune()).toBe(0);
+    }
+
+    let clock = 0;
+    const m = new BoundedMap<string, number>({ max: 5, ttlMs: 50, now: () => clock });
+    m.set('k', 99);
+    clock = 100;
+    expect(m.peek('k')).toBeUndefined();
+    expect(m.prune()).toBe(0);
+  });
 });
 
 describe('BoundedMap — Map-compatible surface', () => {

@@ -91,7 +91,7 @@ export class BrowserArtifactStore {
   ): Promise<BrowserArtifact> {
     const id = ulid();
     const dir = path.join(this.root, safeSegment(sessionId));
-    const target = path.join(dir, `${id}.${extension.replace(/^\./, '')}`);
+    const target = path.join(dir, `${id}.${safeExtension(extension)}`);
     await atomicWrite(target, content, { mode: 0o600 });
     return this.record(id, sessionId, kind, target, mimeType);
   }
@@ -142,7 +142,7 @@ export class BrowserArtifactStore {
     const id = ulid();
     return {
       id,
-      path: path.join(this.root, safeSegment(sessionId), `${id}.${extension.replace(/^\./, '')}`),
+      path: path.join(this.root, safeSegment(sessionId), `${id}.${safeExtension(extension)}`),
     };
   }
 
@@ -168,5 +168,15 @@ async function hashFile(target: string): Promise<string> {
 }
 
 function safeSegment(value: string): string {
-  return value.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
+  const cleaned = value.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
+  return cleaned.replace(/^_+$/, '') ? cleaned : 'default';
+}
+
+function safeExtension(extension: string): string {
+  const base = path.posix.basename(extension.replace(/\\/g, '/'));
+  const cleaned = base
+    .replace(/^\.+/, '')
+    .replace(/[^A-Za-z0-9._-]/g, '')
+    .replace(/^\.+|\.+$/g, '');
+  return cleaned || 'bin';
 }

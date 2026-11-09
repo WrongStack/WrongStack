@@ -152,13 +152,15 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
     const config = configStore.get();
     const modelsRegistry = deps.modelsRegistry ?? deps.container.safeResolve(TOKENS.ModelsRegistry);
 
-    const matrixTarget = subCfg.model
+    const pinProvider = subCfg.provider?.trim() || undefined;
+    const pinModel = subCfg.model?.trim() || undefined;
+    const matrixTarget = pinModel
       ? undefined
       : resolveSubagentModelTarget(config, subCfg.role, {
           ...(deps.statusTracker ? { statusTracker: deps.statusTracker } : {}),
         });
-    let effProvider = subCfg.provider ?? matrixTarget?.provider ?? config.provider;
-    let effModel = subCfg.model ?? matrixTarget?.model ?? config.model;
+    let effProvider = pinProvider ?? matrixTarget?.provider ?? config.provider;
+    let effModel = pinModel ?? matrixTarget?.model ?? config.model;
     const fallbackProfile = subCfg.fallbackProfile ?? matrixTarget?.fallbackProfile;
     let provider: ReturnType<ProviderRegistry['create']>;
     try {

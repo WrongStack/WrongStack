@@ -16,6 +16,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { mcpEnvPlaceholders } from './config-env.js';
 import type { MCPTool } from './contracts.js';
 import {
   type MCPPrompt,
@@ -72,6 +73,7 @@ export function manifestConfigHash(cfg: {
   bearerTokenEnv?: string | undefined;
   passthroughEnv?: string[] | undefined;
 }): string {
+  const placeholders = mcpEnvPlaceholders(cfg);
   const basis = JSON.stringify({
     transport: cfg.transport,
     command: cfg.command ?? null,
@@ -82,6 +84,7 @@ export function manifestConfigHash(cfg: {
     bearerTokenEnv: cfg.bearerTokenEnv ?? null,
     ...(cfg.bearerTokenEnv ? { bearerToken: process.env[cfg.bearerTokenEnv.trim()] ?? null } : {}),
     passthroughEnv: passthroughEntries(cfg.passthroughEnv),
+    ...(placeholders.length > 0 ? { placeholderEnv: passthroughEntries(placeholders) } : {}),
   });
   return createHash('sha256').update(basis).digest('hex').slice(0, 16);
 }

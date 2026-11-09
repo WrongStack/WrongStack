@@ -1,5 +1,10 @@
+import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { describe, expect, it } from 'vitest';
-import { aggregateCell, median } from '../src/aggregate.js';
+import { aggregateCell, median, rowTokenTotal } from '../src/aggregate.js';
+import { readToolMetrics } from '../src/session-metrics.js';
 import type { ModelCell, TaskResult } from '../src/types.js';
 
 const cell: ModelCell = { label: 'opus', provider: 'anthropic', model: 'claude-opus-4-8' };
@@ -295,5 +300,62 @@ describe('aggregateCell', () => {
     expect(agg.incompleteCount).toBe(1);
     expect(agg.flakyTaskCount).toBe(1);
     expect(agg.totalRateLimitRetries).toBe(2);
+  });
+
+  it('guards rowTokenTotal and finiteSum against NaN/negative values and normalizes hyphenated tool names in readToolMetrics (F115)', async () => {
+    const partialNaN = result({
+      taskId: 'nan-row',
+      passed: true,
+      run: {
+        status: 'completed',
+        finalText: null,
+        iterations: 1,
+        tokensIn: 1000,
+        tokensOut: Number.NaN,
+        costUsd: -10,
+        elapsedMs: 100,
+        exitCode: 0,
+      },
+      tokens: {
+        input: 1000,
+        cacheRead: 0,
+        cacheWrite: 0,
+        output: 0,
+        requests: 1,
+        subagentTotal: -50,
+        total: Number.NaN,
+      },
+    });
+    expect(rowTokenTotal(partialNaN)).toBe(1000);
+    const agg = aggregateCell(cell, [partialNaN]);
+    expect(agg.avgTokensTotal).toBe(1000);
+    expect(agg.avgCostUsd).toBe(0);
+    expect(agg.avgSubagentTokens).toBe(0);
+
+    const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-f115-test-'));
+    try {
+      const workdir = path.join(tmpDir, 'work');
+      const homeDir = path.join(tmpDir, 'home');
+      const sessionsDir = resolveWstackPaths({
+        projectRoot: workdir,
+        globalRoot: homeDir,
+      }).projectSessions;
+      await fsp.mkdir(sessionsDir, { recursive: true });
+      await fsp.writeFile(
+        path.join(sessionsDir, 'sess_1.jsonl'),
+        `${[
+          JSON.stringify({ type: 'tool_call_end', name: 'str-replace', ok: false }),
+          JSON.stringify({ type: 'tool_call_end', name: 'apply-patch', ok: true }),
+          JSON.stringify({ type: 'tool_call_end', name: 'spawn-subagent', ok: true }),
+        ].join('\n')}\n`,
+        'utf8',
+      );
+      const metrics = await readToolMetrics({ homeDir, workdir });
+      expect(metrics.editCalls).toBe(2);
+      expect(metrics.editErrors).toBe(1);
+      expect(metrics.subagentSpawns).toBe(1);
+    } finally {
+      await fsp.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });

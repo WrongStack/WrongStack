@@ -55,4 +55,12 @@ describe('withTransientPrivateOrigin', () => {
     ).rejects.toThrow('boom');
     expect(browserPrivateOrigins(root)).not.toContain(origin);
   });
+
+  it('canonicalizes uppercase or trailing-slash transient origins', async () => {
+    await withTransientPrivateOrigin(root, 'HTTP://LOCALHOST:45125/', async () => {
+      expect(browserPrivateOrigins(root)).toContain('http://localhost:45125');
+      expect(browserPrivateOrigins(root)).not.toContain('HTTP://LOCALHOST:45125/');
+    });
+    expect(browserPrivateOrigins(root)).not.toContain('http://localhost:45125');
+  });
 });

@@ -178,6 +178,15 @@ export class ParallelEternalEngine {
     this.state = 'stopped';
   }
 
+  /**
+   * The engine ended itself (goal gone, completed or cleared). Moves `state`
+   * along with the loop flag: REPL/TUI drivers stop on `currentState`.
+   */
+  private halt(): void {
+    this.stopRequested = true;
+    this.state = 'stopped';
+  }
+
   async prime(): Promise<void> {
     this.stopRequested = false;
     this.state = 'running';
@@ -236,12 +245,14 @@ export class ParallelEternalEngine {
 
     const goal = await this.loadGoal();
     if (!goal) {
-      this.stopRequested = true;
+      this.halt();
       emit({ phase: 'stopped' });
       return false;
     }
     if (goal.goalState !== 'active') {
-      this.stopRequested = true;
+      // Paused only ends this pass; the engine stays 'running' for /goal resume.
+      if (goal.goalState === 'paused') this.stopRequested = true;
+      else this.halt();
       emit({ phase: 'stopped' });
       return false;
     }
@@ -313,8 +324,7 @@ export class ParallelEternalEngine {
     });
 
     if (fanOut.goalComplete) {
-      this.stopRequested = true;
-      this.state = 'stopped';
+      this.halt();
       emit({ phase: 'stopped' });
       return true;
     }

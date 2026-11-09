@@ -70,12 +70,17 @@ export function deriveVibeState(
   now: number = Date.now(),
 ): VibeProtocolState | undefined {
   const containsTag = hasVibeTag(rawText);
+  const safeNow = Number.isFinite(now) && now >= 0 ? Math.floor(now) : Date.now();
 
   if (existingState?.isVibeMode) {
     // Preserve existing mode and accumulated stages across refinements
     return {
       ...existingState,
       isVibeMode: true,
+      detectedAt:
+        Number.isFinite(existingState.detectedAt) && existingState.detectedAt >= 0
+          ? Math.floor(existingState.detectedAt)
+          : safeNow,
       ...(existingState.auditNotes !== undefined
         ? { auditNotes: [...existingState.auditNotes] }
         : {}),
@@ -85,7 +90,7 @@ export function deriveVibeState(
   if (containsTag) {
     return {
       isVibeMode: true,
-      detectedAt: now,
+      detectedAt: safeNow,
       stage: 'synthesizer',
     };
   }

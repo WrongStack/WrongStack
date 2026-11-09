@@ -120,6 +120,22 @@ describe('matchSpecialistTriggers', () => {
     const two = matchSpecialistTriggers(['m/migrations/a.sql', 'm/migrations/b.sql'], [rule()]);
     expect(specialistFireKey(one[0] as never)).not.toBe(specialistFireKey(two[0] as never));
   });
+
+  it('deduplicates matched paths after POSIX normalization and filters blank role/match entries in usableRules (F116)', () => {
+    const resolved = resolveSpecialistTriggerConfig({
+      enabled: true,
+      rules: [
+        { role: '   ', match: ['**/*.sql'], reason: 'blank role' },
+        { role: 'database', match: ['**/*.sql', '' as never], reason: 'Migration changed.' },
+      ],
+    });
+    expect(resolved.rules).toHaveLength(1);
+    const matches = matchSpecialistTriggers(
+      ['db\\migrations\\001.sql', 'db/migrations/001.sql'],
+      resolved.rules,
+    );
+    expect(matches[0]?.paths).toEqual(['db/migrations/001.sql']);
+  });
 });
 
 describe('the shipped rules', () => {

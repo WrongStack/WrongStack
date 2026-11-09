@@ -175,7 +175,6 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
   private nextActionAtMs: number | undefined;
   private stopReason: GovernanceCredentialLeaseStopReason | undefined;
   private lastFailure: string | undefined;
-  private stopped = false;
   private inFlight: Promise<GovernanceCredentialLeaseSnapshot> | undefined;
 
   constructor(options: GovernanceCredentialLeaseControllerOptions) {
@@ -225,17 +224,25 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
     this.client = this.clientFactory(this.credential);
   }
 
+  /**
+   * `stopped` and `expired` are the terminal states: once either is reached no
+   * timer or rotation may move the lease again. Derived from `state` so there
+   * is a single source of truth — a separate `stopped` flag used to shadow it.
+   */
+  private get terminal(): boolean {
+    return this.state === 'stopped' || this.state === 'expired';
+  }
+
   start(): GovernanceCredentialLeaseSnapshot {
-    if (this.stopped || this.state !== 'idle') return this.snapshot();
+    if (this.state !== 'idle') return this.snapshot();
     this.scheduleRenewal();
     return this.snapshot();
   }
 
   stop(): GovernanceCredentialLeaseSnapshot {
-    this.stopped = true;
     this.clearTimer();
     this.nextActionAtMs = undefined;
-    if (this.state === 'expired' || this.stopReason === 'retry_exhausted') {
+    if (this.terminal) {
       return this.snapshot();
     }
     this.state = 'stopped';
@@ -249,7 +256,7 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
   }
 
   rotateNow(): Promise<GovernanceCredentialLeaseSnapshot> {
-    if (this.stopped || this.state === 'expired') return Promise.resolve(this.snapshot());
+    if (this.terminal) return Promise.resolve(this.snapshot());
     if (this.inFlight) return this.inFlight;
     this.clearTimer();
     const operation = this.rotateOnce().finally(() => {
@@ -312,7 +319,7 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
       this.rotationAttempt = 0;
       this.cycleRequestId = undefined;
       this.lastFailure = undefined;
-      if (this.stopped) {
+      if (this.terminal) {
         this.state = 'stopped';
         return this.snapshot();
       }
@@ -325,7 +332,7 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
 
   private handleFailure(message: string): GovernanceCredentialLeaseSnapshot {
     this.lastFailure = message;
-    if (this.stopped) {
+    if (this.terminal) {
       this.state = 'stopped';
       return this.snapshot();
     }
@@ -335,7 +342,6 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
       return this.snapshot();
     }
     if (this.rotationAttempt >= this.maxAttempts) {
-      this.stopped = true;
       this.state = 'stopped';
       this.stopReason = 'retry_exhausted';
       this.nextActionAtMs = undefined;
@@ -390,7 +396,6 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
 
   private expire(): void {
     this.clearTimer();
-    this.stopped = true;
     this.state = 'expired';
     this.stopReason = 'credential_expired';
     this.nextActionAtMs = undefined;

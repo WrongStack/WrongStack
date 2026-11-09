@@ -189,15 +189,31 @@ function positiveInteger(value: unknown, fallback: number): number {
 /** A rule missing either half of `role`/`match` can only misfire. Drop it. */
 function usableRules(rules: unknown): SpecialistTriggerRule[] {
   if (!Array.isArray(rules)) return [];
-  return rules.filter(
-    (rule): rule is SpecialistTriggerRule =>
-      !!rule &&
-      typeof rule === 'object' &&
-      typeof (rule as SpecialistTriggerRule).role === 'string' &&
-      (rule as SpecialistTriggerRule).role.length > 0 &&
-      Array.isArray((rule as SpecialistTriggerRule).match) &&
-      (rule as SpecialistTriggerRule).match.length > 0,
-  );
+  const out: SpecialistTriggerRule[] = [];
+  for (const rule of rules) {
+    if (!rule || typeof rule !== 'object') continue;
+    const candidate = rule as Partial<SpecialistTriggerRule>;
+    const role = typeof candidate.role === 'string' ? candidate.role.trim() : '';
+    const reason =
+      typeof candidate.reason === 'string' && candidate.reason.trim().length > 0
+        ? candidate.reason
+        : candidate.reason === undefined
+          ? ''
+          : '';
+    if (!role || !Array.isArray(candidate.match)) continue;
+    const match = candidate.match
+      .filter((m): m is string => typeof m === 'string')
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0);
+    if (match.length === 0) continue;
+    out.push({
+      ...(candidate as SpecialistTriggerRule),
+      role,
+      match,
+      reason,
+    });
+  }
+  return out;
 }
 
 /**
@@ -245,7 +261,7 @@ export function matchSpecialistTriggers(
   changedPaths: string[],
   rules: readonly SpecialistTriggerRule[],
 ): SpecialistTriggerMatch[] {
-  const posix = changedPaths.map(toPosixPath);
+  const posix = [...new Set(changedPaths.map(toPosixPath))];
   const out: SpecialistTriggerMatch[] = [];
   for (const rule of rules) {
     const paths = posix.filter((candidate) => matchAny(rule.match, candidate)).sort();

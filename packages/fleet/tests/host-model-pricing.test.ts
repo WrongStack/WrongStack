@@ -1,5 +1,7 @@
 import type { Config, ModelsRegistry } from '@wrongstack/contracts/types';
 import { describe, expect, it } from 'vitest';
+import { runWithQuotaHold } from '../src/acp-quota-hold.js';
+import { resolveFleetBudgetSources } from '../src/budget-source.js';
 import { resolveHostModelPrice } from '../src/host-model-pricing.js';
 
 describe('configured worker model pricing', () => {
@@ -75,5 +77,42 @@ describe('configured worker model pricing', () => {
     expect(
       await resolveHostModelPrice(deps(undefined, undefined), 'local', 'worker'),
     ).toBeUndefined();
+  });
+
+  it('retains valid catalog rates when custom overrides are invalid, rejects <1 fractional budgets, and holds quota on 0/NaN backoffMs (F122)', async () => {
+    expect(
+      await resolveHostModelPrice(
+        deps(
+          { input: 3, output: 10, cache_read: 0.5 },
+          { input: 'bad', output: 4, cache_read: -1 },
+        ),
+        'local',
+        'worker',
+      ),
+    ).toEqual({ input: 3, output: 4, cacheRead: 0.5, cacheWrite: 3 });
+
+    const budget = resolveFleetBudgetSources({
+      config: { maxConcurrent: 0.5 } as Config,
+      env: {},
+      defaultMaxConcurrent: 4,
+    });
+    expect(budget.maxConcurrent).toBe(4);
+    expect(budget.maxConcurrentSource).toBe('default');
+
+    let starts = 0;
+    const now = () => 5_000_000;
+    for (let i = 0; i < 2; i++) {
+      await expect(
+        runWithQuotaHold(
+          'agent-f122-zero',
+          async () => {
+            starts += 1;
+            throw { kind: 'provider_quota', message: 'Quota hit', backoffMs: 0 };
+          },
+          now,
+        ),
+      ).rejects.toMatchObject({ kind: 'provider_quota' });
+    }
+    expect(starts).toBe(1);
   });
 });

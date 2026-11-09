@@ -26,6 +26,7 @@ interface HoldMarker {
 }
 
 const inProcessHolds = new Map<string, number>();
+const holdGenerations = new Map<string, number>();
 
 function holdKey(dir: string): string {
   const abs = resolve(dir);
@@ -38,8 +39,14 @@ function markerPath(worktreesRoot: string, dir: string): string {
 
 async function readMarker(file: string): Promise<HoldMarker | null> {
   try {
-    const parsed = JSON.parse(await fsp.readFile(file, 'utf8')) as Partial<HoldMarker>;
-    return typeof parsed.pid === 'number' && typeof parsed.ownerId === 'string'
+    const parsed = JSON.parse(await fsp.readFile(file, 'utf8')) as Partial<HoldMarker> | null;
+    return parsed !== null &&
+      typeof parsed === 'object' &&
+      typeof parsed.pid === 'number' &&
+      Number.isSafeInteger(parsed.pid) &&
+      parsed.pid > 0 &&
+      typeof parsed.ownerId === 'string' &&
+      parsed.ownerId.trim().length > 0
       ? (parsed as HoldMarker)
       : null;
   } catch {
@@ -57,6 +64,8 @@ export async function holdManagedWorktree(
   ownerId: string,
 ): Promise<() => Promise<void>> {
   const key = holdKey(dir);
+  const gen = (holdGenerations.get(key) ?? 0) + 1;
+  holdGenerations.set(key, gen);
   inProcessHolds.set(key, (inProcessHolds.get(key) ?? 0) + 1);
   const file = markerPath(worktreesRoot, dir);
   try {
@@ -78,7 +87,7 @@ export async function holdManagedWorktree(
     }
     inProcessHolds.delete(key);
     const current = await readMarker(file);
-    if ((inProcessHolds.get(key) ?? 0) > 0) return;
+    if ((inProcessHolds.get(key) ?? 0) > 0 || holdGenerations.get(key) !== gen) return;
     if (current?.pid === process.pid) await fsp.unlink(file).catch(() => undefined);
   };
 }

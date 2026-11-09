@@ -106,6 +106,18 @@ describe('wrongtrace 100% coverage suite', () => {
       await fsp.writeFile(filePath, JSON.stringify({ deny: 'not-a-number' }));
       expect(await loadWrongTraceGateCounters(tmpDir)).toBeNull();
 
+      await fsp.writeFile(
+        filePath,
+        JSON.stringify({
+          deny: -1,
+          allowFragile: 0,
+          lockAcquired: 0,
+          lockConflictRace: 0,
+          lockReleased: 0,
+        }),
+      );
+      expect(await loadWrongTraceGateCounters(tmpDir)).toBeNull();
+
       let _renameAttempts = 0;
       const origRename = _fsOps.rename;
       _fsOps.rename = async () => {
@@ -367,6 +379,31 @@ describe('wrongtrace 100% coverage suite', () => {
       } as never;
       const recent = await getRecentActivity(actClient, 'f1.ts');
       expect(recent).toHaveLength(2);
+
+      // F144: null friction matrix in getRecentActivity and non-finite/negative counts in digestAtlas/getCrossAgentRisk
+      const nullMatrixClient: WrongTraceClient = {
+        isAvailable: true,
+        getFrictionMatrix: async () => null as never,
+        getRecentEvents: async () => [
+          {
+            file_path: 'f1.ts',
+            event_time: '2026-08-01T12:00:00Z',
+            author_model: 'agent-c',
+            action: 'MODIFIED',
+          },
+        ],
+      } as never;
+      expect(await getRecentActivity(nullMatrixClient, 'f1.ts')).toHaveLength(1);
+      expect(
+        digestAtlas({
+          workspaces: ['ws1'],
+          packages: [
+            { name: 'pkg-nan', fragile_files_count: Number.NaN } as never,
+            { name: 'pkg-neg', fragile_files_count: -3, is_fragile: true } as never,
+            { name: 'pkg-ok', fragile_files_count: 2 } as never,
+          ],
+        })?.fragileFileCount,
+      ).toBe(3);
     });
   });
 

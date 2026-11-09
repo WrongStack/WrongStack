@@ -183,7 +183,7 @@ export function parsePackageAuditOutput(output: string): {
   summary: PackageAuditSummary;
 } {
   const parsed: unknown = JSON.parse(output);
-  if (typeof parsed !== 'object' || parsed === null)
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
     throw new Error('Audit output is not a JSON object');
   const root = parsed as Record<string, unknown>;
   if (root.error) {
@@ -255,7 +255,9 @@ export function parsePackageAuditOutput(output: string): {
   const summary: PackageAuditSummary = {
     critical: numberField(rawSummary, 'critical'),
     high: numberField(rawSummary, 'high'),
-    moderate: numberField(rawSummary, 'moderate'),
+    moderate:
+      numberField(rawSummary, 'moderate') ||
+      numberField(rawSummary, 'medium' as keyof PackageAuditSummary),
     low: numberField(rawSummary, 'low'),
     info: numberField(rawSummary, 'info'),
     total: numberField(rawSummary, 'total'),

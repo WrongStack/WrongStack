@@ -91,6 +91,22 @@ describe('allowRequest', () => {
     expect(cb.snapshot().state).toBe('closed');
     expect(cb.snapshot().consecutiveFailures).toBe(0);
   });
+
+  it('falls back to safe defaults when failureThreshold or cooldownMs is NaN or invalid', () => {
+    const clock = mockNow();
+    const cb = new IndexCircuitBreaker({
+      now: clock.now,
+      failureThreshold: Number.NaN,
+      cooldownMs: Number.NaN,
+    });
+    cb.recordFailure(new Error('1'));
+    cb.recordFailure(new Error('2'));
+    expect(cb.snapshot().state).toBe('closed');
+    cb.recordFailure(new Error('3'));
+    expect(cb.snapshot().state).toBe('open');
+    expect(cb.snapshot().cooldownRemainingMs).toBe(60_000);
+    expect(cb.allowRequest()).toBe(false);
+  });
 });
 
 // ─── recordSuccess ──────────────────────────────────────────────────────────

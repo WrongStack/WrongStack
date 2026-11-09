@@ -343,6 +343,9 @@ describe('isProjectEndpointLive', () => {
     expect(path.isAbsolute(relPaths.projectRoot)).toBe(true);
     expect(path.isAbsolute(relPaths.inProjectConfig)).toBe(true);
     expect(path.isAbsolute(relPaths.globalRoot)).toBe(true);
+    const paddedPaths = resolveWstackPaths({ projectRoot: `  ${process.cwd()}  ` });
+    expect(paddedPaths.projectRoot).toBe(path.resolve(process.cwd()));
+    expect(await isProjectEndpointLive('', Number.NaN)).toBe(false);
 
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'f684-lock-'));
     try {

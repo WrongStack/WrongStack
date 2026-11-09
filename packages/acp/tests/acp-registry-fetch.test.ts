@@ -140,6 +140,16 @@ describe('mapRegistryEntry', () => {
         'host',
       ),
     ).toBeNull();
+    expect(
+      mapRegistryEntry(
+        { id: 'trailing-slash-cmd', distribution: { binary: { host: { cmd: './bin/agent/' } } } },
+        'host',
+      ),
+    ).toBeNull();
+    expect(
+      mapRegistryEntry({ id: 'flag-npx', distribution: { npx: { package: '--call=evil' } } }),
+    ).toBeNull();
+    expect(mapRegistryEntry({ id: '   ', distribution: { npx: { package: 'agent' } } })).toBeNull();
   });
 });
 

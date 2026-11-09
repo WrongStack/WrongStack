@@ -9,6 +9,7 @@ vi.mock('@wrongstack/acp', () => ({
   resolveAcpAgentCommand: () => ({ command: 'gemini', args: ['--acp'] }),
   runOneAcpTask: (...args: unknown[]) => runOneAcpTask(...args),
   defaultPermissionPolicy: { evaluate: () => ({ permission: 'auto' }) },
+  REGISTRY_ID_ALIASES: {},
 }));
 
 const { buildAcpCommand } = await import('../src/portable-commands/acp.js');
@@ -91,5 +92,50 @@ describe('/acp on an engine', () => {
       'fix -v and --frozen-lockfile flags',
       expect.any(Array),
     );
+  });
+
+  it('filters malformed entries in loadCachedAcpRegistry and guards non-finite usage in summarizeVariantUsage (F156)', async () => {
+    const fs = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { loadCachedAcpRegistry } = await import(
+      '../src/portable-commands/acp-registry-cache.js'
+    );
+    const { formatAcpAgentList } = await import('../src/portable-commands/acp-agent-list.js');
+    const { summarizeVariantUsage } = await import('../src/portable-commands/scout-stats.js');
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'acp-f156-'));
+    try {
+      await fs.writeFile(
+        path.join(tmpDir, 'acp-registry.json'),
+        JSON.stringify({
+          fetchedAt: '2026-11-08T00:00:00Z',
+          agents: [
+            null,
+            { id: 'broken', displayName: 'Broken' },
+            {
+              id: 'codex',
+              displayName: 'Codex',
+              acp: { command: 'npx', args: ['-y', '@openai/codex'] },
+            },
+          ],
+        }),
+        'utf8',
+      );
+      const loaded = await loadCachedAcpRegistry({ cacheDir: tmpDir } as never);
+      expect(loaded?.agents).toHaveLength(1);
+      expect(formatAcpAgentList({ live: loaded, detected: [] })).toContain('Codex');
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+    const usage = summarizeVariantUsage([
+      [
+        { type: 'user_input', ts: 't', text: 'hi' } as never,
+        { type: 'llm_request', ts: 't', systemVariant: 'scout' } as never,
+        { type: 'llm_response', ts: 't', usage: { input: 100, output: 50 } } as never,
+        { type: 'llm_response', ts: 't', usage: { input: undefined, output: Number.NaN } } as never,
+      ],
+    ]);
+    expect(usage[0]?.inputTokens).toBe(100);
+    expect(usage[0]?.outputTokens).toBe(50);
   });
 });

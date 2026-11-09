@@ -2,7 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BoundedSet, collectSourceFiles, collectSourceFilesAsync } from '../src/runtime/index.js';
+import {
+  BoundedSet,
+  collectSourceFiles,
+  collectSourceFilesAsync,
+  matchesExtension,
+} from '../src/runtime/index.js';
 
 let root = '';
 const expected = () => ['alpha.ts', 'Beta.ts', 'zeta.ts'].map((name) => join(root, name));
@@ -63,5 +68,16 @@ describe('source collection locale order', () => {
     expect(set.has('hot')).toBe(true);
     expect(set.has('cold')).toBe(false);
     expect(set.has('newest')).toBe(true);
+  });
+
+  it('matches compound extensions like .d.ts and .test.ts and normalizes non-finite maxDepth (F129)', async () => {
+    expect(matchesExtension('src/types.d.ts', ['.d.ts'])).toBe(true);
+    expect(matchesExtension('src/foo.test.ts', ['test.ts'])).toBe(true);
+    expect(matchesExtension('src/foo.ts', ['.d.ts'])).toBe(false);
+    expect(matchesExtension('.d.ts', ['.d.ts'])).toBe(false);
+    expect(collectSourceFiles(root, { extensions: ['.ts'], maxDepth: -1 })).toEqual(expected());
+    expect(await collectSourceFilesAsync(root, { extensions: ['.ts'], maxDepth: -1 })).toEqual(
+      expected(),
+    );
   });
 });

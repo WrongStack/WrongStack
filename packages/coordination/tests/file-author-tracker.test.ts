@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   compactLog,
   type FileAuthorTrackerOptions,
@@ -11,6 +11,11 @@ import {
   getLastAuthor,
   recordFileAction,
 } from '../src/file-author-tracker.js';
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, copyFile: vi.fn(actual.copyFile) };
+});
 
 describe('file-author-tracker', () => {
   let tmpDir: string;
@@ -23,6 +28,51 @@ describe('file-author-tracker', () => {
 
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it.each(['', '{"entries":[', '{"entries":[]}\ntrailing', 'null', '{}', '{"entries":"bad"}'])(
+    'preserves malformed logs before recording a new action (%j)',
+    async (raw) => {
+      await fs.writeFile(path.join(tmpDir, 'file-authors.json'), raw);
+
+      await recordFileAction(opts, { filePath: 'package.json', action: 'edit', agentId: 'leader' });
+
+      expect(await getLastAuthor(opts, 'package.json')).toMatchObject({ agentId: 'leader' });
+      const backups = (await fs.readdir(tmpDir)).filter((name) =>
+        name.startsWith('file-authors.json.corrupt-'),
+      );
+      expect(backups).toHaveLength(1);
+      expect(await fs.readFile(path.join(tmpDir, backups[0] ?? ''), 'utf8')).toBe(raw);
+      await recordFileAction(opts, { filePath: 'other.ts', action: 'create', agentId: 'leader' });
+      expect((await getFullLog(opts)).entries).toHaveLength(2);
+      expect(
+        (await fs.readdir(tmpDir)).filter((name) => name.startsWith('file-authors.json.corrupt-')),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('preserves the original and rejects when the corruption backup fails', async () => {
+    const source = path.join(tmpDir, 'file-authors.json');
+    const raw = '{"entries":[';
+    await fs.writeFile(source, raw);
+    const failure = new Error('backup unavailable');
+    const copy = vi.spyOn(fs, 'copyFile').mockRejectedValueOnce(failure);
+    try {
+      await expect(
+        recordFileAction(opts, { filePath: 'a.ts', action: 'edit', agentId: 'leader' }),
+      ).rejects.toBe(failure);
+      expect(await fs.readFile(source, 'utf8')).toBe(raw);
+    } finally {
+      copy.mockRestore();
+    }
+  });
+
+  it('does not replace a log that cannot be read', async () => {
+    await fs.mkdir(path.join(tmpDir, 'file-authors.json'));
+    await expect(
+      recordFileAction(opts, { filePath: 'a.ts', action: 'edit', agentId: 'leader' }),
+    ).rejects.toThrow();
+    expect((await fs.stat(path.join(tmpDir, 'file-authors.json'))).isDirectory()).toBe(true);
   });
 
   it('records a create action and retrieves it', async () => {

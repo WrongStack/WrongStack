@@ -45,7 +45,7 @@ export interface AdvisoryStatusData {
  * Check if a version string looks like a valid semver.
  */
 function isValidSemver(version: string): boolean {
-  return /^\d+\.\d+\.\d+/.test(version);
+  return /^[vV]?\d+\.\d+\.\d+/.test(version);
 }
 
 /**
@@ -194,6 +194,7 @@ function comparePep440(a: string, b: string): number | undefined {
  * Returns the expression boundary characters for comparison purposes.
  */
 function isSimpleConstraint(constraint: string): boolean {
+  constraint = constraint.trim();
   return (
     constraint.startsWith('^') ||
     constraint.startsWith('~') ||
@@ -205,7 +206,7 @@ function isSimpleConstraint(constraint: string): boolean {
     hyphenRangeUpperBound(constraint) !== undefined ||
     isValidSemver(constraint) ||
     // An exact pin spelled with an operator: Python `==2.31.0`, npm `=2.31.0`.
-    /^={1,3}\s*\d+\.\d+\.\d+/.test(constraint)
+    /^={1,3}\s*[vV]?\d+\.\d+\.\d+/.test(constraint)
   );
 }
 

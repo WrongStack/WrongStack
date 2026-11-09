@@ -177,6 +177,10 @@ export function persistWrongTraceGateCounters(
   return persistChain;
 }
 
+function isValidCounterValue(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
 export async function loadWrongTraceGateCounters(
   projectRoot: string,
 ): Promise<WrongTraceGateCounterSnapshot | null> {
@@ -186,11 +190,11 @@ export async function loadWrongTraceGateCounters(
       at?: string;
     };
     if (
-      typeof parsed.deny !== 'number' ||
-      typeof parsed.allowFragile !== 'number' ||
-      typeof parsed.lockAcquired !== 'number' ||
-      typeof parsed.lockConflictRace !== 'number' ||
-      typeof parsed.lockReleased !== 'number'
+      !isValidCounterValue(parsed.deny) ||
+      !isValidCounterValue(parsed.allowFragile) ||
+      !isValidCounterValue(parsed.lockAcquired) ||
+      !isValidCounterValue(parsed.lockConflictRace) ||
+      !isValidCounterValue(parsed.lockReleased)
     ) {
       return null;
     }

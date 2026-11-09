@@ -164,4 +164,85 @@ describe('WrongStackClient control waiters on socket drop with reconnect', () =>
       await new Promise<void>((r) => server.close(() => r()));
     }
   });
+
+  it('resolves all matching concurrent waiters, ignores null frame payloads, and sanitizes non-finite timeoutMs (F119)', async () => {
+    let listCount = 0;
+    const server = http.createServer((req, res) => {
+      if (req.url?.startsWith('/ws-auth')) {
+        const ok = req.headers['x-ws-token'] === 'secret';
+        res.writeHead(ok ? 200 : 401).end(ok ? 'ok' : 'Unauthorized');
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    const wss = new WebSocketServer({
+      server,
+      verifyClient: (
+        info: { req: http.IncomingMessage },
+        done: (ok: boolean, code?: number) => void,
+      ) => {
+        const token = new URL(info.req.url ?? '/', 'http://x').searchParams.get('token');
+        if (token && token !== 'secret') done(false, 401);
+        else done(true);
+      },
+    });
+    wss.on('connection', (socket) => {
+      socket.on('message', (raw) => {
+        const frame = JSON.parse(String(raw)) as { type: string };
+        if (frame.type === 'sessions.list') {
+          listCount += 1;
+          if (listCount === 2) {
+            socket.send(
+              JSON.stringify({
+                type: 'sessions.list',
+                payload: { sessions: [{ id: 'sess_1', title: 'Main', updatedAt: 1 }] },
+              }),
+            );
+          }
+        }
+      });
+      socket.send(
+        JSON.stringify({
+          type: 'session.start',
+          payload: { sessionId: 'sess_1', provider: 'p', model: 'm', eventEpoch: 'e1' },
+        }),
+      );
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+    try {
+      const client = await WrongStackClient.connect({
+        url,
+        token: 'secret',
+        timeoutMs: 250,
+      });
+      const [r1, r2] = await Promise.all([client.listSessions(10), client.listSessions(10)]);
+      expect(r1).toHaveLength(1);
+      expect(r2).toHaveLength(1);
+
+      const run = client.send('hello');
+      for (const wsClient of wss.clients) {
+        wsClient.send(JSON.stringify({ type: 'error', payload: null }));
+        wsClient.send(JSON.stringify({ type: 'provider.text_delta', payload: {} }));
+        wsClient.send(
+          JSON.stringify({
+            type: 'run.result',
+            payload: { requestId: run.id, status: 'done', iterations: 1, sessionId: 'sess_1' },
+          }),
+        );
+      }
+      await expect(run.result).resolves.toMatchObject({ text: '' });
+
+      await expect(
+        WrongStackClient.connect({ url, token: 'wrong-token', timeoutMs: Number.NaN }),
+      ).rejects.toMatchObject({ kind: 'auth' });
+      client.close();
+    } finally {
+      for (const c of wss.clients) c.terminate();
+      await new Promise<void>((r) => wss.close(() => r()));
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
 });

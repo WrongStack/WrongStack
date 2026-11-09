@@ -281,4 +281,36 @@ describe('dispatch outcomes', () => {
     expect(Object.hasOwn(summary.totals.bySource, 'toString')).toBe(false);
     expect(Object.hasOwn(summary.totals.byMethod, 'valueOf')).toBe(false);
   });
+
+  it('deduplicates runner-up alternatives, ignores non-finite confidence, and ignores negative outcome costUsd (F114)', () => {
+    const root = newRoot();
+    recordDispatch(
+      entry({
+        role: 'coder',
+        method: 'heuristic',
+        confidence: Number.NaN,
+        alternatives: ['debugger', 'debugger', 'coder'],
+        subagentId: 'sub-f114',
+      }),
+      root,
+    );
+    writeFileSync(
+      dispatchLogPath(root),
+      `${readFileSync(dispatchLogPath(root), 'utf8')}${JSON.stringify({
+        kind: 'outcome',
+        at: '2026-10-20T10:00:00.000Z',
+        subagentId: 'sub-f114',
+        role: 'coder',
+        status: 'success',
+        costUsd: -5,
+      })}\n`,
+      'utf8',
+    );
+    const summary = summarizeDispatchLog(root);
+    const debuggerRole = summary.roles.find((r) => r.role === 'debugger');
+    const coderRole = summary.roles.find((r) => r.role === 'coder');
+    expect(debuggerRole?.runnerUp).toBe(1);
+    expect(coderRole?.avgConfidence).toBeNull();
+    expect(coderRole?.costUsd).toBe(0);
+  });
 });

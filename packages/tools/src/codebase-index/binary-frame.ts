@@ -97,6 +97,14 @@ function normalizeUndefined(value: unknown): unknown {
   // string), Map/Set encode sparsely (JSON delivers {}), Error loses all
   // diagnostics. RegExp/URL stringify to their canonical source/href form;
   // Buffer converts via toJSON() — byte-identical with JSON framing.
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    return Object.is(value, -0) ? 0 : value;
+  }
+  if (typeof value === 'bigint') {
+    const num = Number(value);
+    return Number.isSafeInteger(num) ? num : value.toString();
+  }
   if (value instanceof Date) {
     // An invalid Date (NaN time) stringifies as null in JSON framing; the
     // binary path must agree — toISOString() throws "Invalid time value"
@@ -115,7 +123,9 @@ function normalizeUndefined(value: unknown): unknown {
   if (Buffer.isBuffer(value)) return { type: 'Buffer', data: [...value] };
   // Arrays of plain objects are the standard response shape (`SearchResult[]`
   // carries `lspKind: undefined`) — recurse element-wise, preserving the array.
-  if (Array.isArray(value)) return value.map((entry) => normalizeUndefined(entry));
+  if (Array.isArray(value)) {
+    return value.map((entry) => (entry === undefined ? null : normalizeUndefined(entry)));
+  }
   if (!isPlainObject(value)) return value;
   const out: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {

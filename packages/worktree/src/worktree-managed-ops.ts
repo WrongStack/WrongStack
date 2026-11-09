@@ -10,7 +10,7 @@
  *
  * @module worktree/worktree-managed-ops
  */
-import { resolve, sep } from 'node:path';
+import { basename, resolve, sep } from 'node:path';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { GitRunner } from './worktree-git.js';
 import { isManagedWorktreeHeld } from './worktree-hold.js';
@@ -43,13 +43,31 @@ function isUnderRoot(dir: string, root: string): boolean {
   return d !== r && d.startsWith(r + sep);
 }
 
+function protectManagedBranches(
+  target: Set<string>,
+  rec: { dir: string; branch?: string | undefined },
+): void {
+  if (rec.branch) target.add(rec.branch);
+  const slug = basename(resolve(rec.dir));
+  if (slug) target.add(`wstack/ap/${slug}`);
+}
+
 export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ removed: number }> {
   const root = resolve(ctx.worktreesRoot);
   let removed = 0;
   const failedDirs = new Set<string>();
   const survivingBranches = new Set<string>();
+  let listSucceeded = false;
   try {
     const listed = await ctx.runGit(['worktree', 'list', '--porcelain'], ctx.projectRoot);
+    if (listed.code === 0) {
+      listSucceeded = true;
+    } else {
+      for (const h of ctx.handles.values()) {
+        failedDirs.add(managedPathKey(h.dir));
+        protectManagedBranches(survivingBranches, h);
+      }
+    }
     // Porcelain emits blank-line-separated records with `worktree <abs-path>`
     // and optional `branch refs/heads/<name>`. Match checkouts under our root.
     let curDir: string | null = null;
@@ -65,21 +83,23 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
       curDir = null;
       curBranch = undefined;
     };
-    for (const line of listed.stdout.split('\n')) {
-      const m = line.match(/^worktree\s+(.+?)\s*$/);
-      if (m?.[1]) {
-        flush();
-        curDir = m[1];
-      } else if (line.startsWith('branch ')) {
-        curBranch = line
-          .slice('branch '.length)
-          .trim()
-          .replace(/^refs\/heads\//, '');
-      } else if (line.trim() === '') {
-        flush();
+    if (listSucceeded) {
+      for (const line of listed.stdout.split('\n')) {
+        const m = line.match(/^worktree\s+(.+?)\s*$/);
+        if (m?.[1]) {
+          flush();
+          curDir = m[1];
+        } else if (line.startsWith('branch ')) {
+          curBranch = line
+            .slice('branch '.length)
+            .trim()
+            .replace(/^refs\/heads\//, '');
+        } else if (line.trim() === '') {
+          flush();
+        }
       }
+      flush();
     }
-    flush();
 
     for (const rec of records) {
       // A checkout held by a live owner (a running isolated Goal, here or in
@@ -87,7 +107,7 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
       // like a checkout whose removal failed.
       if (await isManagedWorktreeHeld(root, rec.dir)) {
         failedDirs.add(managedPathKey(rec.dir));
-        if (rec.branch) survivingBranches.add(rec.branch);
+        protectManagedBranches(survivingBranches, rec);
         continue;
       }
       try {
@@ -96,15 +116,18 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
           removed++;
         } else {
           failedDirs.add(managedPathKey(rec.dir));
-          if (rec.branch) survivingBranches.add(rec.branch);
+          protectManagedBranches(survivingBranches, rec);
         }
       } catch {
         failedDirs.add(managedPathKey(rec.dir));
-        if (rec.branch) survivingBranches.add(rec.branch);
+        protectManagedBranches(survivingBranches, rec);
       }
     }
   } catch {
-    // best-effort
+    for (const h of ctx.handles.values()) {
+      failedDirs.add(managedPathKey(h.dir));
+      protectManagedBranches(survivingBranches, h);
+    }
   }
   for (const h of ctx.handles.values()) {
     if (failedDirs.has(managedPathKey(h.dir))) {
@@ -113,21 +136,26 @@ export async function cleanupAllManaged(ctx: ManagedOpsContext): Promise<{ remov
   }
   // Delete every wstack/ap/* branch (covers branches whose worktree was already
   // gone, e.g. a merged task whose checkout was released but branch lingered),
-  // except branches belonging to checkouts whose removal failed.
-  try {
-    const branches = await ctx.runGit(
-      ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
-      ctx.projectRoot,
-    );
-    for (const b of branches.stdout
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean)) {
-      if (survivingBranches.has(b) || b.startsWith('-')) continue;
-      await ctx.runGit(['branch', '-D', '--', b], ctx.projectRoot);
+  // except branches belonging to checkouts whose removal failed. Only sweep
+  // branches when `worktree list` succeeded so held checkouts could be identified.
+  if (listSucceeded) {
+    try {
+      const branches = await ctx.runGit(
+        ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
+        ctx.projectRoot,
+      );
+      if (branches.code === 0) {
+        for (const b of branches.stdout
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean)) {
+          if (survivingBranches.has(b) || b.startsWith('-')) continue;
+          await ctx.runGit(['branch', '-D', '--', b], ctx.projectRoot);
+        }
+      }
+    } catch {
+      // best-effort
     }
-  } catch {
-    // best-effort
   }
   await ctx.runGit(['worktree', 'prune'], ctx.projectRoot).catch(() => undefined);
   // Drop in-memory handles whose checkouts actually came off disk; preserve
@@ -169,33 +197,35 @@ export async function listManaged(ctx: ManagedOpsContext): Promise<{
   const worktrees: Array<{ dir: string; branch?: string | undefined }> = [];
   try {
     const listed = await ctx.runGit(['worktree', 'list', '--porcelain'], ctx.projectRoot);
-    // Porcelain emits blank-line-separated records: `worktree <dir>` then
-    // optional `HEAD <sha>` / `branch refs/heads/<name>` lines.
-    let curDir: string | null = null;
-    let curBranch: string | undefined;
-    const flush = (): void => {
-      if (curDir) {
-        if (isUnderRoot(curDir, root)) {
-          worktrees.push({ dir: curDir, branch: curBranch });
+    if (listed.code === 0) {
+      // Porcelain emits blank-line-separated records: `worktree <dir>` then
+      // optional `HEAD <sha>` / `branch refs/heads/<name>` lines.
+      let curDir: string | null = null;
+      let curBranch: string | undefined;
+      const flush = (): void => {
+        if (curDir) {
+          if (isUnderRoot(curDir, root)) {
+            worktrees.push({ dir: curDir, branch: curBranch });
+          }
+        }
+        curDir = null;
+        curBranch = undefined;
+      };
+      for (const line of listed.stdout.split('\n')) {
+        if (line.startsWith('worktree ')) {
+          flush();
+          curDir = line.slice('worktree '.length).trim();
+        } else if (line.startsWith('branch ')) {
+          curBranch = line
+            .slice('branch '.length)
+            .trim()
+            .replace(/^refs\/heads\//, '');
+        } else if (line.trim() === '') {
+          flush();
         }
       }
-      curDir = null;
-      curBranch = undefined;
-    };
-    for (const line of listed.stdout.split('\n')) {
-      if (line.startsWith('worktree ')) {
-        flush();
-        curDir = line.slice('worktree '.length).trim();
-      } else if (line.startsWith('branch ')) {
-        curBranch = line
-          .slice('branch '.length)
-          .trim()
-          .replace(/^refs\/heads\//, '');
-      } else if (line.trim() === '') {
-        flush();
-      }
+      flush();
     }
-    flush();
   } catch {
     // best-effort
   }
@@ -205,10 +235,12 @@ export async function listManaged(ctx: ManagedOpsContext): Promise<{
       ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
       ctx.projectRoot,
     );
-    branches = b.stdout
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    if (b.code === 0) {
+      branches = b.stdout
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
   } catch {
     // best-effort
   }
@@ -291,6 +323,9 @@ export async function cleanupStale(
   const heldBranches = new Set<string>();
   try {
     const listed = await ctx.runGit(['worktree', 'list', '--porcelain'], ctx.projectRoot);
+    if (listed.code !== 0) {
+      return { removed: 0, detected: 0 };
+    }
     let curDir: string | null = null;
     let curBranch: string | undefined;
     const records: Array<{ dir: string; branch?: string | undefined }> = [];
@@ -322,7 +357,7 @@ export async function cleanupStale(
 
     for (const rec of records) {
       if (await isManagedWorktreeHeld(root, rec.dir)) {
-        if (rec.branch) heldBranches.add(rec.branch);
+        protectManagedBranches(heldBranches, rec);
       } else {
         detected++;
       }
@@ -342,10 +377,12 @@ export async function cleanupStale(
         ['branch', '--list', '--format=%(refname:short)', 'wstack/ap/*'],
         ctx.projectRoot,
       );
-      detected += branches.stdout
-        .split('\n')
-        .map((s) => s.trim())
-        .filter((b) => Boolean(b) && !heldBranches.has(b)).length;
+      if (branches.code === 0) {
+        detected += branches.stdout
+          .split('\n')
+          .map((s) => s.trim())
+          .filter((b) => Boolean(b) && !heldBranches.has(b)).length;
+      }
     } catch {
       // best-effort
     }

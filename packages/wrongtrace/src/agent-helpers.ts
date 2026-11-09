@@ -134,7 +134,11 @@ async function scoreFromHealth(
     reasons.push(`health_score below 70 (${health.health_score})`);
   }
 
-  if (health.recent_thrashing_count > 3) {
+  if (
+    typeof health.recent_thrashing_count === 'number' &&
+    Number.isFinite(health.recent_thrashing_count) &&
+    health.recent_thrashing_count > 3
+  ) {
     const thrashPenalty = Math.min(25, (health.recent_thrashing_count - 3) * 5);
     risk = Math.min(100, risk + thrashPenalty);
     reasons.push(
@@ -323,10 +327,10 @@ export async function getRecentActivity(
   if (safeLimit === 0) return [];
 
   // Friction's recent_collisions plus any dedicated recent-events feed exposed by the daemon.
-  const matrix = (await getFrictionRaw(wt, limit * 5)) as EventsReport;
+  const matrix = (await getFrictionRaw(wt, limit * 5)) as EventsReport | null | undefined;
   const recentFeed = await wt.getRecentEvents?.({ filePath, limit: safeLimit });
-  const collisions = Array.isArray(matrix.recent_collisions) ? matrix.recent_collisions : [];
-  const events = Array.isArray(matrix.events) ? matrix.events : [];
+  const collisions = Array.isArray(matrix?.recent_collisions) ? matrix.recent_collisions : [];
+  const events = Array.isArray(matrix?.events) ? matrix.events : [];
   const feed = Array.isArray(recentFeed) ? (recentFeed as RecentEvent[]) : [];
 
   const all = [...feed, ...events, ...collisions];
@@ -420,12 +424,18 @@ export function digestAtlas(atlas: WrongTraceAtlasSummary | AtlasShape | null): 
       for (const f of files) {
         if ((f.health_score ?? 100) < 40 || f.is_fragile === true) fragileFileCount++;
         const thrash = f.recent_thrashing_count ?? 0;
-        if (thrash > 5) thrashCounts.set(pkg.name, (thrashCounts.get(pkg.name) ?? 0) + 1);
+        if (Number.isFinite(thrash) && thrash > 5) {
+          thrashCounts.set(pkg.name, (thrashCounts.get(pkg.name) ?? 0) + 1);
+        }
       }
     } else {
       const summaryPkg = pkg as { fragile_files_count?: number; is_fragile?: boolean };
-      if (typeof summaryPkg.fragile_files_count === 'number') {
-        fragileFileCount += summaryPkg.fragile_files_count;
+      if (
+        typeof summaryPkg.fragile_files_count === 'number' &&
+        Number.isFinite(summaryPkg.fragile_files_count) &&
+        summaryPkg.fragile_files_count >= 0
+      ) {
+        fragileFileCount += Math.trunc(summaryPkg.fragile_files_count);
       } else if (summaryPkg.is_fragile === true) {
         fragileFileCount++;
       }

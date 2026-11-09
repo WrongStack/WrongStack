@@ -176,7 +176,9 @@ async function benchOne(
     // 4. Optional fs callback check.
     if (opts.checkFs) {
       const fileToken = `FILE_${opts.marker}`;
-      const fileName = `acp-bench-${opts.marker}.txt`;
+      const safeId = agentId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeMarker = opts.marker.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `acp-bench-${safeId}-${safeMarker}.txt`;
       const filePath = path.join(opts.projectRoot, fileName);
       let fsOk = false;
       let fsDetail: string | undefined;

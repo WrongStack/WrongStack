@@ -324,12 +324,14 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
       if (unit.startsWith('h')) {
         if (num <= 24) return Math.round(num * 3_600_000);
       } else if (unit.startsWith('ms') || unit.startsWith('milli')) {
-        return Math.round(num);
+        const ms = Math.max(1, Math.round(num));
+        if (ms <= 24 * 3_600_000) return ms;
       } else if (unit.startsWith('m')) {
         if (num <= 180) return Math.round(num * 60_000);
       } else {
         // seconds (default when unit is seconds, secs, s, or omitted)
-        return Math.round(num * 1_000);
+        const ms = Math.max(1, Math.round(num * 1_000));
+        if (ms <= 24 * 3_600_000) return ms;
       }
     }
   }
@@ -410,7 +412,8 @@ export function miniMaxBaseRespError(
   const code = Number(value['status_code']);
   if (!Number.isInteger(code) || code === 0) return undefined;
   const msg = stringOf(value['status_msg']) ?? 'MiniMax error';
-  return { code, type: MINIMAX_STATUS_TYPE[code], message: `${msg} (${code})` };
+  const type = Object.hasOwn(MINIMAX_STATUS_TYPE, code) ? MINIMAX_STATUS_TYPE[code] : undefined;
+  return { code, type, message: `${msg} (${code})` };
 }
 
 function stringOf(v: unknown): string | undefined {

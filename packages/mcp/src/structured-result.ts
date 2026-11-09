@@ -17,6 +17,7 @@ function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') {
     const entries = Object.keys(value as Record<string, unknown>)
+      .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
       .sort()
       .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`);
     return `{${entries.join(',')}}`;

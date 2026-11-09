@@ -41,7 +41,8 @@ export function truncateForTelegram(text: string, maxLen = 4000): string {
   // binding contract, but it is clamped at Telegram's hard 4096-char
   // limit so a misconfigured `maxLen > 4096` cannot silently produce
   // output that the platform will reject.
-  const effectiveMaxLen = Math.min(maxLen, MAX_TELEGRAM_MESSAGE_LENGTH);
+  const safeMaxLen = Number.isFinite(maxLen) ? maxLen : 4000;
+  const effectiveMaxLen = Math.min(safeMaxLen, MAX_TELEGRAM_MESSAGE_LENGTH);
   if (text.length <= effectiveMaxLen) return text;
 
   // Reserve room for truncation suffix

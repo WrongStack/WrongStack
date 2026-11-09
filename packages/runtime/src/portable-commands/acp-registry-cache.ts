@@ -39,15 +39,29 @@ export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedA
     const env = JSON.parse(raw) as CacheEnvelope;
     if (!Array.isArray(env.agents)) return null;
     const byId: AcpLiveCatalog = Object.create(null);
+    const validAgents: ACPAgentDescriptor[] = [];
     for (const a of env.agents) {
-      if (!a?.id || !a.acp?.command) continue;
+      if (
+        !a ||
+        typeof a.id !== 'string' ||
+        !a.id.trim() ||
+        typeof a.acp?.command !== 'string' ||
+        !a.acp.command.trim()
+      ) {
+        continue;
+      }
       byId[a.id] = {
         command: a.acp.command,
-        args: a.acp.args ?? [],
+        args: Array.isArray(a.acp.args) ? a.acp.args : [],
         ...(a.acp.env ? { env: a.acp.env } : {}),
       };
+      validAgents.push(a);
     }
-    return { fetchedAt: env.fetchedAt ?? '', byId, agents: env.agents };
+    return {
+      fetchedAt: typeof env.fetchedAt === 'string' ? env.fetchedAt : '',
+      byId,
+      agents: validAgents,
+    };
   } catch {
     return null;
   }

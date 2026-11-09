@@ -118,7 +118,11 @@ function runGate(
         return;
       }
       if (typeof p.providerId === 'string' && typeof p.model === 'string') {
-        finish({ providerId: p.providerId, model: p.model });
+        const providerId = p.providerId.trim();
+        const model = p.model.trim();
+        if (providerId.length > 0 && model.length > 0) {
+          finish({ providerId, model });
+        }
       }
     };
     events.on('provider.fallback_choice', handler);
@@ -139,8 +143,10 @@ function runGate(
     // The 1.5× deadline is kept as the outer safety net for a UI that
     // acknowledged the countdown but dropped the reply.
     // Both are scheduled BEFORE emit so cleanup has them assigned on same-tick.
-    timer = setTimeout(() => finish(null), Math.round(autoSwitchSeconds * 1000));
-    deadline = setTimeout(() => finish(null), Math.round(autoSwitchSeconds * 1500));
+    const safeAutoSwitchSeconds =
+      Number.isFinite(autoSwitchSeconds) && autoSwitchSeconds > 0 ? autoSwitchSeconds : 0;
+    timer = setTimeout(() => finish(null), Math.round(safeAutoSwitchSeconds * 1000));
+    deadline = setTimeout(() => finish(null), Math.round(safeAutoSwitchSeconds * 1500));
 
     // ── Emit the pending event so all UI surfaces show the modal ──
     events.emit('provider.fallback_pending', {

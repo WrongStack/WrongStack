@@ -435,6 +435,29 @@ describe('framing parity: both framings deliver the same normalized tree (bf-2)'
     expect((binaryDecoded['inner'] as Record<string, unknown>)['d']).toBeNull();
   });
 
+  it('normalizes non-finite numbers, -0, undefined array elements, and BigInt identically across framings', () => {
+    const payload = {
+      nanVal: Number.NaN,
+      posInf: Number.POSITIVE_INFINITY,
+      negInf: Number.NEGATIVE_INFINITY,
+      negZero: -0,
+      safeBig: 42n,
+      hugeBig: 9007199254740993123n,
+      arr: [1, undefined, Number.NaN, -0, 99n],
+    };
+    const binaryDecoded = binaryFrameModule.decodeBinaryFrame(
+      encodeBinaryFrame(payload).subarray(5),
+    ) as Record<string, unknown>;
+    const jsonDecoded = JSON.parse(encodeJsonFrame(payload)) as Record<string, unknown>;
+    expect(binaryDecoded).toEqual(jsonDecoded);
+    expect(binaryDecoded['nanVal']).toBeNull();
+    expect(binaryDecoded['posInf']).toBeNull();
+    expect(binaryDecoded['negInf']).toBeNull();
+    expect(Object.is(binaryDecoded['negZero'], -0)).toBe(false);
+    expect(binaryDecoded['safeBig']).toBe(42);
+    expect(binaryDecoded['hugeBig']).toBe('9007199254740993123');
+  });
+
   it('PRODUCTION encoder: encodeProjectServerMessage delivers normalized data', () => {
     // prod fix pin: the server and client write JSON frames through
     // encodeProjectServerMessage, NOT through encodeJsonFrame. When it used

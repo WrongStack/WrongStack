@@ -42,7 +42,16 @@ function globToSource(glob: string): string {
       const close = glob.indexOf(']', j);
       if (close === -1) return '(?!)';
       const body = glob.slice(negated ? i + 2 : i + 1, close).replace(/[\\\]^]/g, '\\$&');
-      out += negated ? `[^/${body}]` : `(?!/)[${body}]`;
+      const characterClass = negated ? `[^/${body}]` : `(?!/)[${body}]`;
+      try {
+        // User-authored ranges such as [z-a] must not crash coverage checks.
+        // Treat malformed classes as non-matches, like unterminated brackets.
+        new RegExp(characterClass);
+      } catch (error) {
+        if (error instanceof SyntaxError) return '(?!)';
+        throw error;
+      }
+      out += characterClass;
       i = close + 1;
       continue;
     }

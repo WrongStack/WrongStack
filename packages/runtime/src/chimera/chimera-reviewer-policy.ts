@@ -20,10 +20,16 @@ export function resolveReviewerFallbackModels(
   /** Append session ref as a final fallback chain entry. */
   sessionRef?: string,
 ): string[] {
-  const base =
-    reviewFallbackModels && reviewFallbackModels.length > 0 ? [...reviewFallbackModels] : [];
-  if (sessionRef && !base.includes(sessionRef)) {
-    base.push(sessionRef);
+  const base: string[] = [];
+  if (reviewFallbackModels && reviewFallbackModels.length > 0) {
+    for (const ref of reviewFallbackModels) {
+      const trimmed = typeof ref === 'string' ? ref.trim() : '';
+      if (trimmed && !base.includes(trimmed)) base.push(trimmed);
+    }
+  }
+  const trimmedSession = typeof sessionRef === 'string' ? sessionRef.trim() : '';
+  if (trimmedSession && !base.includes(trimmedSession)) {
+    base.push(trimmedSession);
   }
   return base;
 }
@@ -37,7 +43,8 @@ let reviewerRoundRobinCursor = 0;
 
 /** Test hook — reset the process-local reviewer round-robin cursor. */
 export function __resetReviewerRoundRobinCursor(value = 0): void {
-  reviewerRoundRobinCursor = value;
+  reviewerRoundRobinCursor =
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
 }
 
 /**
@@ -70,9 +77,11 @@ export function assignReviewerModels(
       fallbackModels: [...fallbackModels],
     };
   }
+  const rawRandom = selection === 'random' ? random() : 0;
+  const safeRandom = Number.isFinite(rawRandom) ? Math.max(0, rawRandom) : 0;
   const cursor =
     selection === 'random'
-      ? Math.min(pool.length - 1, Math.floor(Math.max(0, random()) * pool.length))
+      ? Math.min(pool.length - 1, Math.floor(safeRandom * pool.length))
       : reviewerRoundRobinCursor;
   const assignment = selectRoundRobinReviewerAssignment(
     pool,
@@ -188,7 +197,10 @@ export function buildReviewerAttemptLadder(input: {
   const sessionKey = key(input.session.provider, input.session.model);
   push(input.session.provider, input.session.model, [], 'session');
 
-  const cap = Math.max(1, Math.floor(input.maxAttempts ?? MAX_REVIEWER_ATTEMPTS));
+  const cap =
+    typeof input.maxAttempts === 'number' && Number.isFinite(input.maxAttempts)
+      ? Math.max(1, Math.floor(input.maxAttempts))
+      : MAX_REVIEWER_ATTEMPTS;
   if (rungs.length <= cap) return rungs;
 
   const trimmed = rungs.slice(0, cap);
@@ -221,7 +233,10 @@ export function buildMutatingAgentLadder(input: {
   session: { provider: string; model: string };
   maxAttempts?: number | undefined;
 }): ReviewerAttempt[] {
-  const cap = Math.max(1, Math.floor(input.maxAttempts ?? MAX_MUTATING_ATTEMPTS));
+  const cap =
+    typeof input.maxAttempts === 'number' && Number.isFinite(input.maxAttempts)
+      ? Math.max(1, Math.floor(input.maxAttempts))
+      : MAX_MUTATING_ATTEMPTS;
   const inherit: ReviewerAttempt = {
     provider: '',
     model: '',
@@ -267,8 +282,18 @@ export function reviewerAttemptTimeoutMs(
   attemptTimeoutMs: number = REVIEWER_ATTEMPT_TIMEOUT_MS,
   minAttemptMs: number = REVIEWER_MIN_ATTEMPT_MS,
 ): number {
-  if (remainingMs < minAttemptMs) return 0;
-  return Math.min(attemptTimeoutMs, Math.floor(remainingMs));
+  const effMin =
+    typeof minAttemptMs === 'number' && Number.isFinite(minAttemptMs) && minAttemptMs >= 0
+      ? minAttemptMs
+      : REVIEWER_MIN_ATTEMPT_MS;
+  if (!Number.isFinite(remainingMs) || remainingMs < effMin) return 0;
+  const effAttempt =
+    typeof attemptTimeoutMs === 'number' &&
+    Number.isFinite(attemptTimeoutMs) &&
+    attemptTimeoutMs > 0
+      ? Math.floor(attemptTimeoutMs)
+      : REVIEWER_ATTEMPT_TIMEOUT_MS;
+  return Math.min(effAttempt, Math.floor(remainingMs));
 }
 
 /**

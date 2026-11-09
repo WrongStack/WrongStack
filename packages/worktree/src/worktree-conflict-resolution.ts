@@ -152,29 +152,36 @@ export async function diffSummary(
     // `"\305\237ema.ts"`). A -z rename record leaves the path empty and names
     // the old and new paths in the next two fields.
     const numstat = await host.runGit(['diff', '--numstat', '-z', 'HEAD'], dir);
-    const fields = numstat.stdout.split('\0');
-    for (let i = 0; i < fields.length; i++) {
-      const m = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(fields[i]!);
-      if (!m) continue;
-      let filePath = m[3]!;
-      if (filePath === '') {
-        i += 2;
-        filePath = fields[i] ?? '';
+    if (numstat.code === 0) {
+      const fields = numstat.stdout.split('\0');
+      for (let i = 0; i < fields.length; i++) {
+        const m = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(fields[i]!);
+        if (!m) continue;
+        let filePath = m[3]!;
+        if (filePath === '') {
+          i += 2;
+          filePath = fields[i] ?? '';
+        }
+        if (!filePath) continue;
+        const ins = m[1] === '-' ? 0 : Number(m[1]);
+        const del = m[2] === '-' ? 0 : Number(m[2]);
+        files.push({ path: filePath, insertions: ins, deletions: del });
+        insertions += ins;
+        deletions += del;
       }
-      if (!filePath) continue;
-      const ins = m[1] === '-' ? 0 : Number(m[1]);
-      const del = m[2] === '-' ? 0 : Number(m[2]);
-      files.push({ path: filePath, insertions: ins, deletions: del });
-      insertions += ins;
-      deletions += del;
     }
   } catch {
     // best-effort
   }
   try {
-    const base = baseBranch ?? (await host.detectBaseBranch());
-    const count = await host.runGit(['rev-list', '--count', `${base}..HEAD`], dir);
-    commits = Number(count.stdout.trim()) || 0;
+    const base = (baseBranch ?? (await host.detectBaseBranch())).trim();
+    if (base && !base.startsWith('-')) {
+      const count = await host.runGit(['rev-list', '--count', `${base}..HEAD`], dir);
+      if (count.code === 0) {
+        const parsedCount = Number(count.stdout.trim());
+        commits = Number.isFinite(parsedCount) && parsedCount > 0 ? Math.trunc(parsedCount) : 0;
+      }
+    }
   } catch {
     // best-effort
   }

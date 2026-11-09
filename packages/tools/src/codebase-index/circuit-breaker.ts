@@ -79,8 +79,18 @@ export class IndexCircuitBreaker {
   private probeInFlight = false;
 
   constructor(opts: CircuitBreakerOptions = {}) {
-    this.failureThreshold = opts.failureThreshold ?? 3;
-    this.cooldownMs = opts.cooldownMs ?? 60_000;
+    this.failureThreshold =
+      typeof opts.failureThreshold === 'number' &&
+      Number.isFinite(opts.failureThreshold) &&
+      opts.failureThreshold >= 1
+        ? Math.trunc(opts.failureThreshold)
+        : 3;
+    this.cooldownMs =
+      typeof opts.cooldownMs === 'number' &&
+      Number.isFinite(opts.cooldownMs) &&
+      opts.cooldownMs >= 0
+        ? opts.cooldownMs
+        : 60_000;
     this.now = opts.now ?? Date.now;
   }
 

@@ -11,7 +11,7 @@ function collectDependencies(
 ): void {
   if (!isRecord(value)) return;
   for (const [name, version] of Object.entries(value)) {
-    if (typeof version !== 'string' || !name.trim()) continue;
+    if (typeof version !== 'string' || !name.trim() || !version.trim()) continue;
     collected.set(name, { name, version, isDev });
   }
 }

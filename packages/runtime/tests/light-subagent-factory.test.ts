@@ -633,4 +633,66 @@ describe('makeLightSubagentFactory — worker disposal', () => {
     await workers[0]?.dispose?.();
     expect(live.size).toBe(0);
   });
+
+  it('resolves matrixTarget when subCfg.provider/model are empty strings from inherit rungs and guards chimera ladder numeric inputs (F155, F156)', async () => {
+    const {
+      assignReviewerModels,
+      buildMutatingAgentLadder,
+      buildReviewerAttemptLadder,
+      resolveReviewerFallbackModels,
+      reviewerAttemptTimeoutMs,
+    } = await import('../src/chimera/chimera-reviewer-policy.js');
+    const deps = makeDeps(true, {
+      provider: 'openai',
+      model: 'leader-m',
+      modelMatrix: {
+        coder: { provider: 'anthropic', model: 'coder-m' },
+      },
+    } as Partial<Config>);
+    const factory = makeLightSubagentFactory(deps);
+    const built = await factory({
+      id: 'w-inh',
+      name: 'w-inh',
+      role: 'coder',
+      provider: '',
+      model: '',
+    });
+    expect(built.agent.ctx.model).toBe('coder-m');
+    expect(built.agent.ctx.provider.id).toBe('anthropic');
+    await built.dispose?.();
+
+    const nanLadder = buildReviewerAttemptLadder({
+      assigned: {
+        provider: 'openai',
+        model: 'gpt-5',
+        fallbackModels: ['anthropic/claude-sonnet-4-6', 'xai/grok-4', 'mistral/mistral-large'],
+      },
+      session: { provider: 'google', model: 'gemini-3-pro' },
+      maxAttempts: Number.NaN,
+    });
+    expect(nanLadder).toHaveLength(4);
+    expect(Object.hasOwn(nanLadder, '-1')).toBe(false);
+    expect(
+      buildMutatingAgentLadder({
+        profileChain: ['anthropic/claude-sonnet-4-6'],
+        session: { provider: 'google', model: 'gemini-3-pro' },
+        maxAttempts: Number.NaN,
+      }),
+    ).toHaveLength(2);
+    expect(reviewerAttemptTimeoutMs(Number.NaN, 900_000, 120_000)).toBe(0);
+    expect(reviewerAttemptTimeoutMs(500_000, Number.NaN, 120_000)).toBe(500_000);
+    expect(
+      assignReviewerModels(
+        'openai',
+        'gpt-5',
+        ['anthropic/claude-sonnet-4-6'],
+        'random',
+        undefined,
+        () => Number.NaN,
+      ).provider,
+    ).toBeTruthy();
+    expect(resolveReviewerFallbackModels(['', '  openai/gpt-5  '], 'openai/gpt-5')).toEqual([
+      'openai/gpt-5',
+    ]);
+  });
 });

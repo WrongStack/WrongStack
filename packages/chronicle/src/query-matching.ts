@@ -67,7 +67,17 @@ function normalize(value: string | undefined): string | undefined {
 function lineContains(event: ChronicleEvent, line: number): boolean {
   const start = event.resource?.lineStart;
   const end = event.resource?.lineEnd ?? start;
-  return start !== undefined && end !== undefined && line >= start && line <= end;
+  if (
+    start === undefined ||
+    end === undefined ||
+    !Number.isFinite(line) ||
+    !Number.isFinite(start) ||
+    !Number.isFinite(end)
+  )
+    return false;
+  const lo = Math.min(start, end);
+  const hi = Math.max(start, end);
+  return line >= lo && line <= hi;
 }
 
 function objectContains(
@@ -85,7 +95,7 @@ export function readPath(value: Record<string, unknown>, key: string): unknown {
     .split('.')
     .reduce<unknown>(
       (current, part) =>
-        current && typeof current === 'object'
+        current && typeof current === 'object' && Object.hasOwn(current, part)
           ? (current as Record<string, unknown>)[part]
           : undefined,
       value,

@@ -56,7 +56,11 @@ export function evaluateGitHubFilters(
   if (
     filters.label &&
     (!Array.isArray(issue['labels']) ||
-      !issue['labels'].some((label) => record(label)['name'] === filters.label))
+      !issue['labels'].some((label) =>
+        typeof label === 'string'
+          ? label === filters.label
+          : record(label)['name'] === filters.label,
+      ))
   )
     reasons.push('label');
   if (filters.branch) {

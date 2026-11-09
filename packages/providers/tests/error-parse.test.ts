@@ -1,6 +1,7 @@
 import type { ProviderErrorBody } from '@wrongstack/contracts/types';
 import { ProviderError, SAFETY_POLICY_GUIDANCE } from '@wrongstack/contracts/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { formatBalance, reportBalanceQuota } from '../src/balance-quota.js';
 import {
   type HeadersLike,
   miniMaxBaseRespError,
@@ -9,6 +10,7 @@ import {
   retryAfterMsFromBody,
   retryAfterMsFromHeaders,
 } from '../src/error-parse.js';
+import { normalizeOpenAIChatUsage } from '../src/openai-chat-usage.js';
 
 function fakeHeaders(entries: Record<string, string>): HeadersLike {
   const lower = Object.fromEntries(Object.entries(entries).map(([k, v]) => [k.toLowerCase(), v]));
@@ -568,5 +570,39 @@ describe('MiniMax base_resp envelope', () => {
     expect(unknown.status).toBe(500);
     expect(unknown.kind).toBe('server');
     expect(unknown.retryable).toBe(true);
+  });
+
+  it('sanitizes non-finite total_tokens/input_tokens, prototype currency keys, invalid balance timeoutMs, and retryAfterMs bounds (F131)', async () => {
+    const u1 = normalizeOpenAIChatUsage(
+      { total_tokens: Number.NaN, completion_tokens: 20 },
+      { input: 10, output: 5 },
+    );
+    expect(u1.input).toBe(10);
+
+    const u2 = normalizeOpenAIChatUsage(
+      { input_tokens: Number.POSITIVE_INFINITY, completion_tokens: 20 },
+      { input: 10, output: 5 },
+    );
+    expect(u2.input).toBe(10);
+
+    expect(formatBalance(10, 'constructor')).toBe('10.00 constructor');
+    await expect(
+      reportBalanceQuota(
+        'deepseek',
+        {
+          url: 'https://api.deepseek.com/user/balance',
+          label: 'DeepSeek',
+          parse: () => undefined,
+        },
+        {
+          apiKey: 'test-key',
+          timeoutMs: -1,
+          fetchImpl: (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch,
+        },
+      ),
+    ).resolves.toEqual([]);
+
+    expect(retryAfterMsFromBody({ message: 'wait 0.2 ms' })).toBe(1);
+    expect(retryAfterMsFromBody({ message: 'retry after 999999999 seconds' })).toBeUndefined();
   });
 });

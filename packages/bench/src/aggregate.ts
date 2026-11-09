@@ -207,14 +207,26 @@ function counterSum<T>(items: T[], pick: (item: T) => number | undefined): numbe
  * metrics existed fall back to the CLI's fresh-only usage block.
  */
 export function rowTokenTotal(r: TaskResult): number {
-  return r.tokens?.total ?? r.run.tokensIn + r.run.tokensOut;
+  const explicitTotal = r.tokens?.total;
+  if (typeof explicitTotal === 'number' && Number.isFinite(explicitTotal) && explicitTotal >= 0) {
+    return explicitTotal;
+  }
+  const tokensIn =
+    typeof r.run.tokensIn === 'number' && Number.isFinite(r.run.tokensIn) && r.run.tokensIn > 0
+      ? r.run.tokensIn
+      : 0;
+  const tokensOut =
+    typeof r.run.tokensOut === 'number' && Number.isFinite(r.run.tokensOut) && r.run.tokensOut > 0
+      ? r.run.tokensOut
+      : 0;
+  return tokensIn + tokensOut;
 }
 
 function finiteSum<T>(items: T[], pick: (item: T) => number): number {
   let total = 0;
   for (const item of items) {
     const v = pick(item);
-    if (Number.isFinite(v)) total += v;
+    if (Number.isFinite(v) && v > 0) total += v;
   }
   return total;
 }

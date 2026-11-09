@@ -2,7 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PackageAuditRunner } from '../src/package-audit.js';
+import { parseNodeDependencies } from '../src/manifest-parser.js';
+import { PackageAuditRunner, parsePackageAuditOutput } from '../src/package-audit.js';
 import { createSecuritySlashCommand } from '../src/slash-command.js';
 
 let projectRoot: string | undefined;
@@ -70,5 +71,17 @@ describe('/security audit integration', () => {
         summary: expect.objectContaining({ high: 1, total: 1 }),
       }),
     );
+  });
+
+  it('rejects non-object audit JSON, maps metadata.vulnerabilities.medium to moderate, and ignores blank dependency versions (F136)', () => {
+    expect(() => parsePackageAuditOutput('[]')).toThrow('Audit output is not a JSON object');
+    const parsed = parsePackageAuditOutput(
+      JSON.stringify({
+        vulnerabilities: {},
+        metadata: { vulnerabilities: { medium: 3, total: 3 } },
+      }),
+    );
+    expect(parsed.summary.moderate).toBe(3);
+    expect(parseNodeDependencies(JSON.stringify({ dependencies: { lodash: '   ' } }))).toEqual([]);
   });
 });

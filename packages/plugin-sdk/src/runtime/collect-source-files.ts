@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // File-collection helpers (shared across multiple plugin source-scan tools)
@@ -15,6 +15,12 @@ export interface CollectOptions {
 }
 
 const DEFAULT_EXCLUDE_DIRS = ['node_modules', 'dist', '.git', 'coverage'];
+
+function normalizeMaxDepth(maxDepth: number | undefined): number | undefined {
+  if (maxDepth === undefined) return undefined;
+  if (!Number.isFinite(maxDepth)) return undefined;
+  return Math.max(0, Math.floor(maxDepth));
+}
 
 /**
  * Recursively collect files under `root` whose extension is in
@@ -45,13 +51,14 @@ export function collectSourceFiles(root: string, opts: CollectOptions): string[]
   if (!s.isDirectory()) return files;
   const exclude = opts.excludeDirs ?? DEFAULT_EXCLUDE_DIRS;
   const excludeSet = new Set(exclude); // O(1) lookup instead of O(n) includes()
+  const maxDepth = normalizeMaxDepth(opts.maxDepth);
   const visitedInodes = new Set<string>();
   if (s.dev !== undefined && s.ino !== undefined && (s.dev !== 0 || s.ino !== 0)) {
     visitedInodes.add(`${s.dev}:${s.ino}`);
   }
 
   function walk(dir: string, depth: number) {
-    if (opts.maxDepth !== undefined && depth > opts.maxDepth) return;
+    if (maxDepth !== undefined && depth > maxDepth) return;
     let entries: string[];
     try {
       entries = readdirSync(dir);
@@ -115,9 +122,10 @@ export async function collectSourceFilesAsync(
 
   const exclude = opts.excludeDirs ?? DEFAULT_EXCLUDE_DIRS;
   const excludeSet = new Set(exclude);
+  const maxDepth = normalizeMaxDepth(opts.maxDepth);
 
   async function walk(dir: string, depth: number): Promise<void> {
-    if (opts.maxDepth !== undefined && depth > opts.maxDepth) return;
+    if (maxDepth !== undefined && depth > maxDepth) return;
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
@@ -149,10 +157,15 @@ export async function collectSourceFilesAsync(
 export function matchesExtension(p: string, exts: string[]): boolean {
   const fileExt = extname(p).toLowerCase();
   if (!fileExt) return false;
+  const base = basename(p).toLowerCase();
   return exts.some((ext) => {
     if (!ext || typeof ext !== 'string') return false;
     const trimmed = ext.trim().toLowerCase();
+    if (!trimmed) return false;
     const normalized = trimmed.startsWith('.') ? trimmed : `.${trimmed}`;
+    if (normalized.indexOf('.', 1) !== -1) {
+      return base.length > normalized.length && base.endsWith(normalized);
+    }
     return normalized === fileExt;
   });
 }

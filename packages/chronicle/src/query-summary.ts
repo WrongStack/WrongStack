@@ -151,7 +151,7 @@ export function updateSummary(acc: SummaryAcc, event: ChronicleEvent): void {
   // cost sum covers both instead of silently dropping every subagent.
   if (event.eventType === 'token.accounted' || event.eventType === 'subagent.token_accounted') {
     const cost = readPath(event.attributes ?? {}, 'cost.total');
-    if (typeof cost === 'number' && Number.isFinite(cost)) {
+    if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
       const key = scopeKey(event);
       const existing = acc.costByScope.get(key);
       if (!existing || compareEvents(event, existing.event) > 0) {
@@ -216,7 +216,7 @@ export function finalizeSummary(acc: SummaryAcc): ChronicleSummary {
 
 function numberAt(event: ChronicleEvent, dotPath: string): number {
   const value = readPath(event.attributes ?? {}, dotPath);
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 function durationMs(event: ChronicleEvent): number {

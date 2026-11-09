@@ -124,9 +124,12 @@ export function dispatchLogPath(projectRoot?: string): string {
   return path.join(agentsDir(projectRoot), 'dispatch-log.jsonl');
 }
 
-function trimList(values: string[] | undefined): string[] | undefined {
+function trimList(values: string[] | undefined, exclude?: string): string[] | undefined {
   if (!values || values.length === 0) return undefined;
-  return values.slice(0, MAX_LIST_ITEMS);
+  const deduped = [
+    ...new Set(values.filter((v): v is string => typeof v === 'string' && v !== exclude)),
+  ].slice(0, MAX_LIST_ITEMS);
+  return deduped.length > 0 ? deduped : undefined;
 }
 
 /**
@@ -137,15 +140,19 @@ export function recordDispatch(entry: DispatchLogEntry, projectRoot?: string): v
   try {
     const filePath = dispatchLogPath(projectRoot);
     mkdirSync(path.dirname(filePath), { recursive: true });
-    const alternatives = trimList(entry.alternatives);
+    const alternatives = trimList(entry.alternatives, entry.role);
     const matched = trimList(entry.matched);
+    const validConfidence =
+      typeof entry.confidence === 'number' && Number.isFinite(entry.confidence)
+        ? Math.max(0, Math.min(1, entry.confidence))
+        : undefined;
     const line = `${JSON.stringify({
       at: entry.at,
       role: entry.role,
       source: entry.source,
       ...(entry.method ? { method: entry.method } : {}),
-      ...(typeof entry.confidence === 'number'
-        ? { confidence: Math.round(entry.confidence * 1000) / 1000 }
+      ...(validConfidence !== undefined
+        ? { confidence: Math.round(validConfidence * 1000) / 1000 }
         : {}),
       ...(alternatives ? { alternatives } : {}),
       ...(matched ? { matched } : {}),
@@ -375,13 +382,19 @@ export function summarizeDispatchLog(projectRoot?: string): DispatchSummary {
       row.byMethod[entry.method] += 1;
       summary.totals.byMethod[entry.method] += 1;
     }
-    if (typeof entry.confidence === 'number') {
-      row.confidenceSum += entry.confidence;
+    if (typeof entry.confidence === 'number' && Number.isFinite(entry.confidence)) {
+      row.confidenceSum += Math.max(0, Math.min(1, entry.confidence));
       row.decided += 1;
     }
     if (entry.rosterMiss) summary.totals.rosterMisses += 1;
+    const seenAlt = new Set<string>();
     for (const alternative of entry.alternatives ?? []) {
-      if (typeof alternative === 'string' && alternative !== entry.role) {
+      if (
+        typeof alternative === 'string' &&
+        alternative !== entry.role &&
+        !seenAlt.has(alternative)
+      ) {
+        seenAlt.add(alternative);
         accumulator(alternative).runnerUp += 1;
       }
     }
@@ -397,7 +410,13 @@ export function summarizeDispatchLog(projectRoot?: string): DispatchSummary {
     summary.totals.outcomes += 1;
     const row = accumulator(role);
     row.outcomes[outcome.status] += 1;
-    if (typeof outcome.costUsd === 'number') row.costUsd += outcome.costUsd;
+    if (
+      typeof outcome.costUsd === 'number' &&
+      Number.isFinite(outcome.costUsd) &&
+      outcome.costUsd > 0
+    ) {
+      row.costUsd += outcome.costUsd;
+    }
     if (outcome.model) {
       const label = outcome.provider ? `${outcome.provider}/${outcome.model}` : outcome.model;
       row.models[label] = (Object.hasOwn(row.models, label) ? row.models[label]! : 0) + 1;

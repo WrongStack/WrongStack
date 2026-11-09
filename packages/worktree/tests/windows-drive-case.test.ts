@@ -4,7 +4,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WorktreeManager } from '../src/index.js';
+import { assertSafePath, WorktreeManager } from '../src/index.js';
 
 let root: string;
 const exists = (p: string) =>
@@ -37,12 +37,15 @@ describe.runIf(process.platform === 'win32')(
   () => {
     it('lists, adopts and sweeps them', async () => {
       const projectRoot = lowerDrive(root);
+      const upperRoot = (root[0] ?? '').toUpperCase() + root.slice(1);
+      assertSafePath(path.join(upperRoot, '.wrongstack', 'worktrees', 'goal-1'), projectRoot);
       const handle = await new WorktreeManager({ projectRoot }).allocate('goal:1', {
         slugHint: 'goal-1',
       });
       expect((await new WorktreeManager({ projectRoot }).listManaged()).worktrees).toHaveLength(1);
+      const upperHandleDir = (handle.dir[0] ?? '').toUpperCase() + handle.dir.slice(1);
       const adopted = await new WorktreeManager({ projectRoot }).adopt('goal:1', {
-        dir: handle.dir,
+        dir: upperHandleDir,
         branch: handle.branch,
         baseBranch: handle.baseBranch,
       });

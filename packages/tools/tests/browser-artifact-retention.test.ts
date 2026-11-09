@@ -120,4 +120,21 @@ describe('browser artifact retention', () => {
     expect(() => new BrowserArtifactStore(missing)).not.toThrow();
     await settle();
   });
+
+  it('routes empty or dot-only sessionIds to a default subdirectory and sanitizes extensions', async () => {
+    const store = new BrowserArtifactStore(root);
+    const derived = store.pathFor('', '..//../evil.png');
+    expect(path.dirname(derived.path)).toBe(path.join(root, 'default'));
+    expect(derived.path.endsWith('.evil.png')).toBe(true);
+
+    const written = await store.write(
+      '...',
+      'screenshot',
+      '...',
+      'image/png',
+      new Uint8Array([1, 2]),
+    );
+    expect(path.dirname(written.path)).toBe(path.join(root, 'default'));
+    expect(written.path.endsWith('.bin')).toBe(true);
+  });
 });

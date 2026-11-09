@@ -232,13 +232,19 @@ export function parseChimeraReviewReport(
     const line = lines[i]!;
 
     // Check for severity heading
-    const headingMatch = line.trim().match(/^###\s+(critical|high|medium|low)\b/i);
+    const trimmedLine = line.trim();
+    const headingMatch = trimmedLine.match(/^###\s+(critical|high|medium|low)\b/i);
     if (headingMatch) {
       // Flush previous section
       flushSection();
 
       currentSeverity = headingMatch[1]!.toLowerCase() as FindingSeverity;
       continue;
+    }
+
+    // Any other Markdown heading or horizontal rule ends the current severity section
+    if (/^(?:#{1,6}\s|-{3,}\s*$)/.test(trimmedLine)) {
+      flushSection();
     }
 
     // Check for duration line
@@ -343,7 +349,7 @@ function parseFindingSegment(
   let desc = remaining;
 
   const refMatch = remaining.match(
-    /^([a-zA-Z_./\\@][a-zA-Z0-9_./\\@+[\]()-]*\.\w+)(?::(\d+))?\s+(?:[—–]|-)\s+(.+)$/,
+    /^([a-zA-Z_./\\@][a-zA-Z0-9_./\\@+[\]()-]*\.\w+)(?::(\d+)(?:[-:]\d+)?)?\s+(?:[—–]|-)\s+(.+)$/,
   );
   if (refMatch) {
     file = refMatch[1]!.trim();
@@ -355,7 +361,9 @@ function parseFindingSegment(
 
   // Fallback: if the remaining text contains a colon-separated path, extract
   if (!file) {
-    const pathMatch = remaining.match(/^([a-zA-Z_./\\@][a-zA-Z0-9_./\\@+[\]()-]*\.\w+)(?::(\d+))?/);
+    const pathMatch = remaining.match(
+      /^([a-zA-Z_./\\@][a-zA-Z0-9_./\\@+[\]()-]*\.\w+)(?::(\d+)(?:[-:]\d+)?)?/,
+    );
     if (pathMatch) {
       file = pathMatch[1]!.trim();
       if (pathMatch[2] !== undefined) {
