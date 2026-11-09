@@ -93,13 +93,14 @@ export async function handleAcpFsRequest(
     await sender.sendErrorResponse(id, -32602, 'path is required');
     return;
   }
-  // When the file server serves paths outside the project, the decision is
-  // made on where the path really leads (a symlinked file or directory inside
-  // the project resolves to its target), and the read or write then goes to
+  // When the file server serves paths outside the project, one that leaves it
+  // (by its spelling or through a symlinked file or directory inside it) is
+  // decided on where it really leads, and the read or write then goes to
   // exactly that target, so the host's sensitive-path and agent-state rules
-  // see what is opened, not the spelling the agent sent.
+  // see what is opened. A path inside keeps the spelling it came with: the
+  // canonical form of a symlinked project root would read as outside it.
   const located = fileServer.servesOutsideRoot ? await fileServer.locate(params.path) : null;
-  const target = located?.target ?? params.path;
+  const target = located?.outside === true ? located.target : params.path;
   if (msg.method === 'fs/write_text_file') {
     // A missing/null content is a malformed request, not "write an empty
     // file": defaulting it to '' truncated the target once authorized.

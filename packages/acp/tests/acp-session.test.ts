@@ -934,12 +934,12 @@ describe('ACPSession', () => {
       },
     });
     const t = lastTransport();
-    const write = async (id: number) => {
+    const write = async (id: number, p = path.join(link, 'config.json')) => {
       t.emit({
         jsonrpc: '2.0',
         id,
         method: 'fs/write_text_file',
-        params: { sessionId: 'sess_abc', path: path.join(link, 'config.json'), content: 'x' },
+        params: { sessionId: 'sess_abc', path: p, content: 'x' },
       } as never as ACPMessage);
       await new Promise((r) => setTimeout(r, 50));
       return t.sent.find((m) => m.id === id);
@@ -955,6 +955,13 @@ describe('ACPSession', () => {
       const ok = await write(49);
       expect(ok?.error).toBeUndefined();
       expect(await fsp.readFile(realTarget, 'utf8')).toBe('x');
+
+      // A write inside the project is asked about as it was spelled.
+      const plain = path.join(PROJECT_ROOT, 'plain-write.txt');
+      const inside = await write(50, plain);
+      expect(inside?.error).toBeUndefined();
+      expect(asked.at(-1)).toEqual({ kind: 'edit', path: plain });
+      await fsp.rm(plain, { force: true });
     } finally {
       await session.close();
       await fsp.rm(link, { recursive: false, force: true });
