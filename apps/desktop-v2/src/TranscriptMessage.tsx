@@ -1,15 +1,28 @@
 import { parseBugHuntMessage } from '@wrongstack/project-surfaces/lib/bug-hunt-message';
+import {
+  PERF_RUN_METRIC_LABELS,
+  PERF_RUN_MODE_LABELS,
+  parsePerfRunMessage,
+} from '@wrongstack/project-surfaces/lib/perf-run-message';
 import { stripNextStepsBlock } from '@wrongstack/webui-protocol';
-import { Code2, Pencil, RotateCcw } from 'lucide-react';
+import { Code2, Pencil, Pin, PinOff, RotateCcw } from 'lucide-react';
 import { lazy, type ReactNode, Suspense, useState } from 'react';
+import { BrainMessageCard } from './BrainMessageCard';
+import { replayedBrainMessage } from './brain-message';
+import { ChimeraMessageCard } from './ChimeraMessageCard';
 import { AttachmentPreview } from './ComposerAttachments';
 import { CopyButton } from './CopyButton';
 import { referenceKey, referenceLabel, splitReferenceMessage } from './composer-resources-model';
+import {
+  type ConversationDisplay,
+  conversationAppearanceDefaults,
+} from './conversation-appearance';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { HuntRoundCard } from './HuntRounds';
 import { MarkdownContent } from './MarkdownContent';
+import type { MessageAction } from './message-action';
 import { LiveRunActivity, TurnTools } from './TurnTools';
 import './transcript-message.css';
 
@@ -17,8 +30,7 @@ const CouncilCard = lazy(() => import('./CouncilCard'));
 
 type Message = EngineState['messages'][number];
 
-/** An action on a message: enabled with `run`, or shown disabled with the reason. */
-export type MessageAction = { run: () => void } | { reason: string };
+export type { MessageAction } from './message-action';
 
 /**
  * One message of the conversation with its actions: copy; a prompt can be taken back into the
@@ -26,6 +38,7 @@ export type MessageAction = { run: () => void } | { reason: string };
  */
 export function TranscriptMessage({
   message,
+  display = conversationAppearanceDefaults,
   state,
   onLink,
   onOpenFile,
@@ -35,8 +48,12 @@ export function TranscriptMessage({
   mark,
   day,
   activityLive = false,
+  chimeraAction,
+  pin,
+  onOpenChimera,
 }: {
   message: Message;
+  display?: ConversationDisplay | undefined;
   state: Pick<EngineState, 'turnActivity' | 'turnStats'>;
   onLink: (href: string) => void;
   onOpenFile: (path: string) => void;
@@ -51,11 +68,16 @@ export function TranscriptMessage({
   /** A day separator to show before the message. */
   day?: string | undefined;
   activityLive?: boolean | undefined;
+  chimeraAction?: MessageAction | undefined;
+  pin?: { active: boolean; toggle: () => void } | undefined;
+  onOpenChimera?: (() => void) | undefined;
 }) {
   const { t } = useDesktopText();
   const [source, setSource] = useState(false);
   const user = message.role === 'user';
-  const answer = !user && !message.council;
+  const brain =
+    !user && !message.council ? (message.brain ?? replayedBrainMessage(message.text)) : null;
+  const answer = !user && !message.council && !message.chimera && !brain;
   return (
     <>
       {day && (
@@ -83,6 +105,18 @@ export function TranscriptMessage({
             )}
           </span>
           <span className="message-actions">
+            {pin && (
+              <button
+                type="button"
+                className="copy-button"
+                aria-pressed={pin.active}
+                onClick={pin.toggle}
+                title={t(pin.active ? 'messagePins.unpin' : 'messagePins.pin')}
+              >
+                {pin.active ? <PinOff size={12} /> : <Pin size={12} />}
+                <span>{t(pin.active ? 'messagePins.unpin' : 'messagePins.pin')}</span>
+              </button>
+            )}
             {edit && (
               <ActionButton action={edit} label={t('message.edit')} title={t('message.editTitle')}>
                 <Pencil size={12} />
@@ -113,10 +147,19 @@ export function TranscriptMessage({
           </span>
         </header>
         <div className={user ? 'user-chat-body' : undefined}>
-          {message.council ? (
+          {message.chimera ? (
+            <ChimeraMessageCard
+              reportId={message.chimera.reportId}
+              text={message.text}
+              action={chimeraAction}
+              onOpen={onOpenChimera}
+            />
+          ) : message.council ? (
             <Suspense fallback={<MarkdownContent text={message.text} onLink={onLink} />}>
               <CouncilCard decision={message.council} />
             </Suspense>
+          ) : brain ? (
+            <BrainMessageCard decision={brain} />
           ) : answer && source ? (
             <pre className="message-source">{message.text}</pre>
           ) : answer ? (
@@ -128,6 +171,7 @@ export function TranscriptMessage({
         </div>
         {state.turnStats[message.id] && (
           <TurnTools
+            display={display}
             events={[]}
             stats={state.turnStats[message.id]}
             onOpenFile={onOpenFile}
@@ -137,6 +181,7 @@ export function TranscriptMessage({
       </article>
       {!!message.activityAfter?.length && (
         <LiveRunActivity
+          display={display}
           events={message.activityAfter}
           live={activityLive}
           onOpenFile={onOpenFile}
@@ -175,6 +220,17 @@ function UserComposerMessage({ text }: { text: string }) {
   const { t } = useDesktopText();
   const hunt = parseBugHuntMessage(text);
   if (hunt) return <HuntRoundCard round={hunt} />;
+  const perf = parsePerfRunMessage(text);
+  if (perf)
+    return (
+      <section className="hunt-round-card" aria-label={t('parityUi.performance')}>
+        <strong>{PERF_RUN_MODE_LABELS[perf.mode]}</strong>
+        <p>
+          {perf.scope || t('parityUi.wholeProject')}
+          {perf.metric ? ` · ${PERF_RUN_METRIC_LABELS[perf.metric]}` : ''}
+        </p>
+      </section>
+    );
   const view = splitReferenceMessage(text);
   return (
     <>

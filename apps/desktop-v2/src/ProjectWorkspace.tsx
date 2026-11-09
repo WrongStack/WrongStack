@@ -153,7 +153,13 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
       ) : vm.projectPage === 'office' ? (
         <ProjectOffice project={project} sessions={projectSessions} http={http} />
       ) : vm.projectPage === 'diagnostics' ? (
-        <ProjectDiagnostics projectId={project.id} http={http} sessions={projectSessions} />
+        <ProjectDiagnostics
+          projectId={project.id}
+          http={http}
+          sessions={projectSessions}
+          layout={vm.snapshot.layout}
+          draftDiagnostics={vm.draftDiagnostics}
+        />
       ) : vm.projectPage === 'analytics' ? (
         <ProjectAnalytics projectId={project.id} http={http} />
       ) : vm.projectPage === 'roster' || vm.projectPage === 'live-fleet' ? (
@@ -244,6 +250,11 @@ function ProjectContent({ project, vm }: { project: Project; vm: DesktopControll
         >
           <ProjectChimera
             key={project.id}
+            focusReportId={
+              vm.projectReportTarget?.projectId === project.id
+                ? vm.projectReportTarget.reportId
+                : ''
+            }
             command={command}
             projectId={project.id}
             events={state.results}

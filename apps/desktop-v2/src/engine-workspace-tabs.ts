@@ -1,0 +1,16 @@
+export type EngineTab =
+  | 'chat'
+  | 'activity'
+  | 'history'
+  | 'mcp-tasks'
+  | 'processes'
+  | 'side-effects'
+  | 'usage'
+  | 'story'
+  | 'context'
+  | 'plan'
+  | 'files'
+  | 'changes'
+  | 'skills'
+  | 'mailbox'
+  | 'kanban';

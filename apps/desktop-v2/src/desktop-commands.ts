@@ -23,7 +23,7 @@ export type ConversationTab =
  */
 export type DesktopNavigation =
   | { tab: ConversationTab }
-  | { page: ProjectPage }
+  | { page: ProjectPage; reportId?: string }
   | { settings: SettingsTarget }
   | { start: 'agent' | 'terminal' };
 

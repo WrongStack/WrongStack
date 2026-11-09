@@ -129,6 +129,7 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
           </div>
         ) : session.kind === 'agent' ? (
           <EngineWorkspace
+            appearance={vm.appearance}
             key={session.id}
             id={session.id}
             sessionTitle={session.title}
@@ -153,7 +154,8 @@ export function SessionWorkbench({ vm }: { vm: DesktopController }) {
             onInputDraftChange={vm.setInputDraft}
             onSettings={() => vm.openWrongStackSettings(session.id)}
             onOpen={(target) => {
-              if ('page' in target) vm.openProjectPage(session.projectId, target.page);
+              if ('page' in target)
+                vm.openProjectPage(session.projectId, target.page, target.reportId);
               else if ('start' in target) vm.newSession(session.projectId, target.start);
               else {
                 requestSettingsSection(target.settings);

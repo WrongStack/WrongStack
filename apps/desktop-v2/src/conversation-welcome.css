@@ -1,0 +1,117 @@
+/* The empty conversation: a hero card and four starting points, the WebUI's welcome shape. */
+.native-chat-welcome.conversation-welcome {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 14px;
+  max-width: 860px;
+  min-height: 0;
+  margin: 24px auto 8px;
+  padding: 0;
+}
+.conversation-welcome-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 28px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 7%, var(--raised)),
+    var(--raised) 60%
+  );
+}
+.conversation-welcome-eyebrow {
+  color: var(--muted);
+  font: 500 11px / 1 var(--user-font-code, "Cascadia Code", Consolas, monospace);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.native-chat-welcome.conversation-welcome h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 30px;
+  font-weight: 560;
+  letter-spacing: -0.8px;
+}
+.native-chat-welcome.conversation-welcome p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.conversation-welcome-hero dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 4px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.conversation-welcome-hero dl > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.conversation-welcome-hero dt {
+  color: var(--subtle);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.conversation-welcome-hero dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font: 13px / 1.4 var(--user-font-code, "Cascadia Code", Consolas, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-welcome-starters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 10px;
+}
+.conversation-welcome-starter {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.conversation-welcome-starter:hover {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--raised));
+}
+.conversation-welcome-starter > svg {
+  margin-top: 1px;
+  color: var(--accent);
+}
+.conversation-welcome-starter > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.conversation-welcome-starter strong {
+  font-size: 14px;
+  font-weight: 560;
+}
+.conversation-welcome-starter small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

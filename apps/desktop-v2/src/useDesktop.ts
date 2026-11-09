@@ -1,68 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type ComposerAttachment, validateAttachments } from './composer-attachments';
+import type { ComposerAttachment } from './composer-attachments';
+import { validateAttachments } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
-import {
-  type ComposerFileReference,
-  validReferenceLines,
-  validSnippet,
-} from './composer-resources-model';
+import type { ComposerFileReference } from './composer-resources-model';
+import { conversationDisplay } from './conversation-appearance';
 import { DraftWriter } from './draft-storage';
 import type { InputDraft } from './input-form-model';
 import { initialSnapshot, isLive, type Session, type Snapshot, visibleSessions } from './model';
 import { getSnapshot, layoutKey, native, request } from './platform';
+import { type DraftRevisions, type SavedDraft, validateSavedDraft } from './saved-draft';
 import { nextSessionAfterDetach, restoreSessionTabs } from './session-layout';
 import { useAppearance } from './useAppearance';
 
 type Section = 'fleet' | 'projects' | 'activity' | 'engine' | 'project' | 'wrongstack';
-type DraftRevisions = Record<'text' | 'references' | 'attachments' | 'mode', number>;
-interface SavedDraft {
-  text: string;
-  references: ComposerFileReference[];
-  attachments: ComposerAttachment[];
-  mode: SubmitMode;
-  revisions: DraftRevisions;
-}
-function validateSavedDraft(value: SavedDraft): SavedDraft {
-  if (typeof value.text !== 'string') throw Error('Saved draft text is invalid.');
-  if (
-    !Array.isArray(value.references) ||
-    value.references.some(
-      (ref) =>
-        !ref ||
-        typeof ref.path !== 'string' ||
-        !ref.path ||
-        (ref.lines !== undefined && !validReferenceLines(ref.lines)) ||
-        (ref.snippet !== undefined && !validSnippet(ref.snippet)),
-    )
-  )
-    throw Error('Saved file references are invalid.');
-  if (
-    !Array.isArray(value.attachments) ||
-    value.attachments.some(
-      (item) =>
-        !item ||
-        typeof item.id !== 'string' ||
-        typeof item.name !== 'string' ||
-        typeof item.data !== 'string' ||
-        typeof item.mediaType !== 'string' ||
-        typeof item.bytes !== 'number',
-    )
-  )
-    throw Error('Saved attachments are invalid.');
-  validateAttachments(value.attachments);
-  if (!['btw', 'queue', 'steer'].includes(value.mode))
-    throw Error('Saved delivery mode is invalid.');
-  if (
-    !value.revisions ||
-    ['text', 'references', 'attachments', 'mode'].some(
-      (key) =>
-        !Number.isSafeInteger(value.revisions[key as keyof DraftRevisions]) ||
-        value.revisions[key as keyof DraftRevisions] < 0,
-    )
-  )
-    throw Error('Saved draft revisions are invalid.');
-  return value;
-}
 /** Every page a project can show; a saved page outside this list is ignored. */
 export const PROJECT_PAGES = [
   'overview',
@@ -189,7 +139,12 @@ export function useDesktop() {
   );
   const [projectPage, setProjectPage] = useState<ProjectPage>('overview');
   const [settingsReturnSession, setSettingsReturnSession] = useState<string | null>(null);
-  const openProjectPage = (id: string, page: ProjectPage = 'overview') => {
+  const [projectReportTarget, setProjectReportTarget] = useState<{
+    projectId: string;
+    reportId: string;
+  } | null>(null);
+  const openProjectPage = (id: string, page: ProjectPage = 'overview', reportId?: string) => {
+    setProjectReportTarget(reportId ? { projectId: id, reportId } : null);
     setProject(id);
     setProjectPage(page);
     setSection('project');
@@ -341,8 +296,11 @@ export function useDesktop() {
   }, [project, selected, openSessionIds, section, projectPage, restored, reportError]);
   // Read by the key handler below, which is installed once.
   const shortcutActions = useRef({ newSession: () => {}, openTab: (_index: number) => {} });
+  const shortcutsEnabled = useRef(true);
+  shortcutsEnabled.current = conversationDisplay(appearance.appearance).keyboardShortcuts;
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
+      if (!shortcutsEnabled.current && event.key !== 'Escape') return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setDialog((d) => (d === 'palette' ? null : 'palette'));
@@ -628,6 +586,18 @@ export function useDesktop() {
     projectPage,
     setProjectPage,
     openProjectPage,
+    projectReportTarget,
+    draftDiagnostics: (id: string) => ({
+      revisions: {
+        text: draftWriter.revision(id),
+        references: referenceWriter.revision(id),
+        attachments: attachmentWriter.revision(id),
+        mode: modeWriter.revision(id),
+      },
+      pending: [draftWriter, referenceWriter, attachmentWriter, modeWriter].some((writer) =>
+        writer.isPending(id),
+      ),
+    }),
     openWrongStackSettings,
     settingsReturnSession,
     setSettingsReturnSession,

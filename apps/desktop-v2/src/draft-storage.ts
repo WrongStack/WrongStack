@@ -14,6 +14,9 @@ export class DraftWriter {
   async drain(id: string): Promise<void> {
     await this.pending.get(id)?.catch(() => {});
   }
+  isPending(id: string): boolean {
+    return this.pending.has(id);
+  }
   revision(id: string): number | undefined {
     return this.revisions.get(id);
   }

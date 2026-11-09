@@ -35,6 +35,7 @@ export function ProjectChimera({
   onPrepare,
   onNewSession,
   onOpenFile,
+  focusReportId = '',
 }: {
   command: EngineCommand;
   projectId: string;
@@ -43,35 +44,7 @@ export function ProjectChimera({
   onPrepare: (id: string, text: string) => Promise<boolean>;
   onNewSession: () => void;
   onOpenFile: (path: string, line?: number) => void;
-}) {
-  return (
-    <ChimeraContent
-      command={command}
-      projectId={projectId}
-      events={events}
-      sessions={sessions}
-      onPrepare={onPrepare}
-      onNewSession={onNewSession}
-      onOpenFile={onOpenFile}
-    />
-  );
-}
-function ChimeraContent({
-  command,
-  projectId,
-  events,
-  sessions,
-  onPrepare,
-  onNewSession,
-  onOpenFile,
-}: {
-  command: EngineCommand;
-  projectId: string;
-  events: Record<string, Record<string, unknown>>;
-  sessions: Session[];
-  onPrepare: (id: string, text: string) => Promise<boolean>;
-  onNewSession: () => void;
-  onOpenFile: (path: string, line?: number) => void;
+  focusReportId?: string;
 }) {
   const { t, i18n } = useDesktopText();
   // Engine values are named per language; unknown ones read as reviewLabel shows them.
@@ -167,6 +140,9 @@ function ChimeraContent({
     setFindingStatus('');
     void read(id, true);
   };
+  useEffect(() => {
+    if (focusReportId) select(focusReportId);
+  }, [focusReportId]);
   const report = record(detail?.['report']);
   const findings = entries(detail?.['findings']);
   const visibleFindings = findings.filter(
@@ -327,16 +303,19 @@ function ChimeraContent({
               disabled={busy}
               onClick={() => select(String(item['reportId']))}
             >
-              <header>
-                <strong>{String(item['reportId']).slice(0, 16)}</strong>
-                <span>{named(item['lifecycleStatus'])}</span>
+              {/* The card leads with what the review found; the report and session ids stay
+                  in its name and tooltip instead of heading every card. */}
+              <header title={String(item['sessionId'] ?? '')}>
+                <strong>
+                  {t('reviews.findingsCount', { count: Number(item['totalFindings']) })}
+                </strong>
+                <span data-status={String(item['lifecycleStatus'] ?? '')}>
+                  {named(item['lifecycleStatus'])}
+                </span>
               </header>
               <p>{String(item['reviewerModel'] ?? t('reviews.noModel'))}</p>
               <small>{dateTimeText(item['reviewedAt'], i18n.language)}</small>
               <div className="review-report-counts">
-                <strong>
-                  {t('reviews.findingsCount', { count: Number(item['totalFindings']) })}
-                </strong>
                 {['critical', 'high', 'medium', 'low']
                   .filter((key) => Number(record(item['counts'])[key]) > 0)
                   .map((key) => (
@@ -348,7 +327,6 @@ function ChimeraContent({
                     </span>
                   ))}
               </div>
-              <small>{String(item['sessionId'])}</small>
               {item['reviewStatus'] === 'failed' && (
                 <strong className="review-failed">{t('reviews.executionFailed')}</strong>
               )}

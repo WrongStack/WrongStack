@@ -4,22 +4,22 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.native-chat-messages > .chat-message {
+.native-chat-messages .transcript-row > .chat-message {
   padding-block: 20px;
 }
-.native-chat-messages > .chat-run-activity {
+.native-chat-messages .transcript-row > .chat-run-activity {
   max-width: 850px;
   margin: 0 0 16px;
   padding: 0;
   border-left: 2px solid var(--accent-border);
   background: var(--raised);
 }
-.native-chat-messages > .chat-run-activity > summary {
+.native-chat-messages .transcript-row > .chat-run-activity > summary {
   padding: 11px 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.native-chat-messages > .chat-run-activity[open] > summary {
+.native-chat-messages .transcript-row > .chat-run-activity[open] > summary {
   border-bottom: 1px solid var(--border);
 }
 .message-actions > .copy-button:disabled {
@@ -34,7 +34,7 @@
   max-height: 40rem;
   margin: 0;
   overflow: auto;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -60,7 +60,7 @@
   align-items: center;
   gap: 10px;
   margin: 8px 0 18px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .chat-day::before,

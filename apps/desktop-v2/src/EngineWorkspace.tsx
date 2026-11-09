@@ -9,10 +9,13 @@ import {
   Settings2,
   Square,
 } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAgentTabs } from './AgentTranscripts';
+import { ComposerFoldControls } from './ComposerFoldControls';
 import { ConversationNotices } from './ConversationNotices';
 import { useConversationShortcuts } from './ConversationShortcuts';
+import { ConversationWelcome } from './ConversationWelcome';
+import { chimeraFollowup, chimeraFollowupState } from './chimera-followup';
 import type { ComposerAttachment } from './composer-attachments';
 import type { SubmitMode } from './composer-model';
 import {
@@ -21,15 +24,19 @@ import {
   splitReferenceMessage,
   withReference,
 } from './composer-resources-model';
+import { type ConversationAppearance, conversationDisplay } from './conversation-appearance';
 import type { AppNavigation, DesktopNavigation } from './desktop-commands';
 import { useDesktopText } from './desktop-i18n';
 import { EngineDataView } from './EngineDataView';
+import { EngineSessionPanels, isEngineSessionPanel } from './EngineSessionPanels';
+import type { EngineTab } from './engine-workspace-tabs';
 import { FallbackPicker } from './FallbackPicker';
 import { failedRun } from './failed-run-model';
 import { workspaceFilePath } from './file-model';
 import { InputRequestCard } from './InputRequestCard';
 import type { InputDraft } from './input-form-model';
 import { markdownTarget } from './markdown-target';
+import { useMessagePins } from './message-pins';
 import { ProjectSessionTools } from './ProjectSessionTools';
 import { ProviderWaitingRoom } from './ProviderWaitingRoom';
 import { openExternal, projectFormDraftStorage, sessionObjectDraftStorage } from './platform';
@@ -47,60 +54,22 @@ import { SessionWorklist } from './SessionWorklist';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import { useTranscriptFind } from './TranscriptFind';
 import { type MessageAction, TranscriptMessage } from './TranscriptMessage';
+import { type TranscriptHandle, TranscriptVirtualizer } from './TranscriptVirtualizer';
 import { AgentWorking, LiveRunActivity } from './TurnTools';
+import { useTranscriptFollowHandlers } from './transcript-follow';
+import { useComposerCollapse } from './useComposerCollapse';
 import { useEngine } from './useEngine';
 import { WorkspaceTools } from './WorkspaceTools';
 
-const SessionMcpTasks = lazy(() =>
-  import('./SessionMcpTasks').then((module) => ({ default: module.SessionMcpTasks })),
-);
-const SessionProcesses = lazy(() =>
-  import('./SessionProcesses').then((module) => ({ default: module.SessionProcesses })),
-);
-const SessionSideEffects = lazy(() =>
-  import('./SessionSideEffects').then((module) => ({ default: module.SessionSideEffects })),
-);
-const SessionPlanTemplates = lazy(() =>
-  import('./SessionPlanTemplates').then((module) => ({ default: module.SessionPlanTemplates })),
-);
-const SessionUsage = lazy(() =>
-  import('./SessionUsage').then((module) => ({ default: module.SessionUsage })),
-);
 const SessionCollab = lazy(() => import('./SessionCollab'));
-const SessionStory = lazy(() =>
-  import('./SessionStory').then((module) => ({ default: module.SessionStory })),
-);
-const SessionContextDashboard = lazy(() =>
-  import('./SessionContextDashboard').then((module) => ({
-    default: module.SessionContextDashboard,
-  })),
-);
-export type EngineTab =
-  | 'chat'
-  | 'activity'
-  | 'history'
-  | 'mcp-tasks'
-  | 'processes'
-  | 'side-effects'
-  | 'usage'
-  | 'story'
-  | 'context'
-  | 'plan'
-  | 'files'
-  | 'changes'
-  | 'skills'
-  | 'mailbox'
-  | 'kanban';
-export type { EngineSend } from './engine-operations';
 
-import {
-  dayLabel,
-  hiddenMessageCount,
-  replayProgress,
-  TRANSCRIPT_WINDOW,
-} from './transcript-window';
+export type { EngineSend } from './engine-operations';
+export type { EngineTab } from './engine-workspace-tabs';
+
+import { dayLabel, replayProgress } from './transcript-window';
 
 export function EngineWorkspace({
+  appearance,
   id,
   sessionTitle,
   onError,
@@ -122,6 +91,7 @@ export function EngineWorkspace({
   projectId,
   projectRoot,
 }: {
+  appearance?: ConversationAppearance | undefined;
   id: string;
   sessionTitle: string;
   onError: (error: unknown) => void;
@@ -144,6 +114,20 @@ export function EngineWorkspace({
   projectRoot: string;
 }) {
   const { state, send, command } = useEngine(id, onError);
+  const display = conversationDisplay(appearance);
+  const composerFold = useComposerCollapse({
+    sessionId: id,
+    hasMessages: state.messages.length > 0,
+    enabled: display.autoCollapseInput,
+    running: state.running,
+    blocked: !!draft.trim() || attachments.length > 0 || references.length > 0 || draftConflict,
+  });
+  const focusComposer = () => {
+    composerFold.expand();
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLTextAreaElement>('.composer-input textarea')?.focus(),
+    );
+  };
   const { t } = useDesktopText();
   const [fileTarget, setFileTarget] = useState('');
   const [tab, setTab] = useState<EngineTab>('chat');
@@ -171,15 +155,22 @@ export function EngineWorkspace({
   };
   const end = useRef<HTMLDivElement>(null);
   const chatPane = useRef<HTMLDivElement>(null);
+  const transcript = useRef<TranscriptHandle>(null);
+  const pins = useMessagePins(`${projectId}:${id}`, onError);
   const following = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
   // Messages there were when the reader scrolled away from the end, to count what arrived since.
   const leftAt = useRef(0);
+  const pauseFollowing = () => {
+    if (following.current) leftAt.current = state.messages.length;
+    following.current = false;
+    setShowLatest(true);
+  };
+  const followHandlers = useTranscriptFollowHandlers(following, pauseFollowing, () => {
+    following.current = true;
+    setShowLatest(false);
+  });
   const [showConversation, setShowConversation] = useState(false);
-  // Long conversations render their newest messages; earlier ones load on request.
-  const [shownMessages, setShownMessages] = useState(TRANSCRIPT_WINDOW);
-  useEffect(() => setShownMessages(TRANSCRIPT_WINDOW), [id]);
-  const hiddenMessages = hiddenMessageCount(state.messages.length, shownMessages);
   const hadQuestions = useRef(false);
   useEffect(() => {
     if (state.inputs.length) {
@@ -236,6 +227,21 @@ export function EngineWorkspace({
       ['key.operation_result'],
     );
   };
+  const chimeraAction = (reportId: string): MessageAction => {
+    const blocked = draftConflict
+      ? 'draft'
+      : chimeraFollowupState(state, reportId, draft, references.length + attachments.length);
+    if (blocked) return { reason: t(`chimeraMessage.${blocked}`) };
+    return {
+      run: async () => {
+        try {
+          await onDraftChange(chimeraFollowup(reportId));
+        } catch (error) {
+          onError(String(error));
+        }
+      },
+    };
+  };
   const editAction = (message: { role: string; text: string }): MessageAction | undefined => {
     if (message.role !== 'user' || parseBugHuntMessage(message.text)) return undefined;
     if (draft.trim() || references.length) return { reason: t('chatView.reason.editDraft') };
@@ -264,17 +270,15 @@ export function EngineWorkspace({
   );
   const navigate = (target: DesktopNavigation) =>
     'tab' in target ? setTab(target.tab) : onOpen(target);
-  const shortcuts = useConversationShortcuts(navigate);
+  const shortcuts = useConversationShortcuts(navigate, display.keyboardShortcuts, focusComposer);
   useRunSounds(state);
   const agentTabs = useAgentTabs(state, openLink);
   const finder = useTranscriptFind({
     messages: state.messages,
     enabled: tab === 'chat' && !agentTabs.view,
     reveal: (index) => {
-      following.current = false;
-      if (index < hiddenMessages) setShownMessages(state.messages.length - index);
-      const target = `[data-message-id="${CSS.escape(state.messages[index]?.id ?? '')}"]`;
-      setTimeout(() => document.querySelector(target)?.scrollIntoView({ block: 'center' }), 50);
+      pauseFollowing();
+      transcript.current?.scrollToMessage(index);
     },
   });
   return (
@@ -395,105 +399,142 @@ export function EngineWorkspace({
           {agentTabs.bar}
           {agentTabs.view}
           {finder.bar}
+          {pins.ids.length > 0 && (
+            <details className="transcript-pins">
+              <summary>{t('messagePins.list', { count: pins.ids.length })}</summary>
+              {pins.ids.map((messageId) => {
+                const index = state.messages.findIndex((message) => message.id === messageId);
+                return (
+                  <div key={messageId}>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      disabled={index < 0}
+                      onClick={() => {
+                        pauseFollowing();
+                        transcript.current?.scrollToMessage(index);
+                      }}
+                    >
+                      {index < 0
+                        ? t('messagePins.unavailable')
+                        : state.messages[index]!.text.slice(0, 120)}
+                    </button>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => pins.toggle(messageId)}
+                    >
+                      {t('messagePins.unpin')}
+                    </button>
+                  </div>
+                );
+              })}
+            </details>
+          )}
           <div
             ref={chatPane}
             hidden={agentTabs.view !== null}
             className="native-chat-messages"
             aria-live="polite"
-            onScroll={(event) => {
-              const pane = event.currentTarget;
-              const near = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 80;
-              if (following.current !== near) {
-                following.current = near;
-                if (!near) leftAt.current = state.messages.length;
-                setShowLatest(!near);
-              }
-            }}
+            {...followHandlers}
           >
-            {/* A conversation read for the first time appears once read to its end, not
+            <TranscriptVirtualizer
+              ref={transcript}
+              scrollRef={chatPane}
+              following={following}
+              messages={
+                state.synced && (!state.inputs.length || showConversation) ? state.messages : []
+              }
+              header={
+                <>
+                  {/* A conversation read for the first time appears once read to its end, not
                 message by message from its first prompt as if it were starting over. */}
-            {!state.synced && (
-              <div className="native-chat-welcome" role="status">
-                <LoaderCircle size={18} className="spin" />
-                <p>{t('chatView.loading')}</p>
-                {state.replay && <small>{replayProgress(state.replay)}</small>}
-              </div>
-            )}
-            {state.synced && !state.messages.length && !state.inputs.length && (
-              <div className="native-chat-welcome">
-                <h2>{t('chatView.welcome')}</h2>
-                {!state.connected && <LoaderCircle size={18} className="spin" />}
-              </div>
-            )}
-            {state.synced && (!state.inputs.length || showConversation) && hiddenMessages > 0 && (
-              <button
-                type="button"
-                className="button secondary small chat-earlier"
-                onClick={() => {
-                  // Keep the reader's place: loading earlier messages must not jump to the end.
-                  following.current = false;
-                  setShownMessages((count) => count + TRANSCRIPT_WINDOW);
-                }}
-              >
-                {t('chatView.showEarlier', {
-                  count: Math.min(TRANSCRIPT_WINDOW, hiddenMessages),
-                  hidden: hiddenMessages,
-                })}
-              </button>
-            )}
-            {state.synced && hiddenMessages === 0 && (!state.inputs.length || showConversation) && (
-              <LiveRunActivity
-                events={state.leadingActivity}
-                live={state.running && !state.messages.length}
-                command={command}
-                onOpenFile={openFile}
-              />
-            )}
-            {state.synced &&
-              (!state.inputs.length || showConversation) &&
-              state.messages
-                .slice(hiddenMessages)
-                .map((message, index, shown) => (
-                  <TranscriptMessage
-                    key={message.id}
-                    message={message}
-                    state={state}
-                    activityLive={state.running && index === shown.length - 1}
-                    onLink={openLink}
-                    onOpenFile={openFile}
-                    command={command}
-                    edit={editAction(message)}
-                    mark={finder.mark(message.id)}
-                    day={dayLabel(message, index ? shown[index - 1] : undefined)}
-                    askAgain={
-                      index === shown.length - 1 && message.role === 'assistant'
-                        ? askAgainAction()
-                        : undefined
-                    }
-                  />
-                ))}
-            {state.inputs.map((request) => (
-              <InputRequestCard
-                key={request.id}
-                request={request}
-                draft={inputDrafts[`${id}:${request.id}`]}
-                onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
-                send={send}
-                connected={state.connected}
-              />
-            ))}
-            {state.approvals.map((approval) => (
-              <ToolApprovalCard
-                key={String(approval['id'])}
-                approval={approval}
-                send={send}
-                connected={state.connected}
-              />
-            ))}
-            {state.running && (
-              <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
-            )}
-            <div ref={end} />
+                  {!state.synced && (
+                    <div className="native-chat-welcome" role="status">
+                      <LoaderCircle size={18} className="spin" />
+                      <p>{t('chatView.loading')}</p>
+                      {state.replay && <small>{replayProgress(state.replay)}</small>}
+                    </div>
+                  )}
+                  {state.synced && !state.messages.length && !state.inputs.length && (
+                    <ConversationWelcome
+                      projectRoot={projectRoot}
+                      provider={state.provider}
+                      model={state.model}
+                      connected={state.connected}
+                      onStart={(prompt) => void onDraftChange(prompt).then(focusComposer)}
+                    />
+                  )}
+                  {state.synced && (!state.inputs.length || showConversation) && (
+                    <LiveRunActivity
+                      display={display}
+                      events={state.leadingActivity}
+                      live={state.running && !state.messages.length}
+                      command={command}
+                      onOpenFile={openFile}
+                    />
+                  )}
+                </>
+              }
+              footer={
+                <>
+                  {state.inputs.map((request) => (
+                    <InputRequestCard
+                      key={request.id}
+                      request={request}
+                      draft={inputDrafts[`${id}:${request.id}`]}
+                      onChange={(value) => onInputDraftChange(`${id}:${request.id}`, value)}
+                      send={send}
+                      connected={state.connected}
+                    />
+                  ))}
+                  {state.approvals.map((approval) => (
+                    <ToolApprovalCard
+                      key={String(approval['id'])}
+                      approval={approval}
+                      send={send}
+                      connected={state.connected}
+                    />
+                  ))}
+                  {state.running && (
+                    <AgentWorking waiting={state.inputs.length > 0} since={state.runStartAt} />
+                  )}
+                  <div ref={end} />
+                </>
+              }
+              renderMessage={(message, index) => (
+                <TranscriptMessage
+                  key={message.id}
+                  message={message}
+                  display={display}
+                  state={state}
+                  activityLive={state.running && index === state.messages.length - 1}
+                  onLink={openLink}
+                  onOpenFile={openFile}
+                  command={command}
+                  edit={editAction(message)}
+                  pin={{
+                    active: pins.ids.includes(message.id),
+                    toggle: () => pins.toggle(message.id),
+                  }}
+                  chimeraAction={
+                    message.chimera ? chimeraAction(message.chimera.reportId) : undefined
+                  }
+                  onOpenChimera={
+                    message.chimera
+                      ? () => onOpen({ page: 'reviews', reportId: message.chimera!.reportId })
+                      : undefined
+                  }
+                  mark={finder.mark(message.id)}
+                  day={dayLabel(message, index ? state.messages[index - 1] : undefined)}
+                  askAgain={
+                    index === state.messages.length - 1 && message.role === 'assistant'
+                      ? askAgainAction()
+                      : undefined
+                  }
+                />
+              )}
+            />
           </div>
           {showLatest && !state.inputs.length && (
             <div className="chat-follow-control">
@@ -507,7 +548,7 @@ export function EngineWorkspace({
               >
                 {t('chatView.jumpToLatest')}
                 {state.messages.length > leftAt.current &&
-                  ` · ${t('chatView.newMessages', { count: state.messages.length - leftAt.current })}`}
+                  ` \u00b7 ${t('chatView.newMessages', { count: state.messages.length - leftAt.current })}`}
               </button>
             </div>
           )}
@@ -544,9 +585,19 @@ export function EngineWorkspace({
               </button>
             </div>
           )}
+          {state.messages.length > 0 && !state.inputs.length && (
+            <ComposerFoldControls
+              collapsed={composerFold.collapsed}
+              running={state.running}
+              draft={draft}
+              onExpand={focusComposer}
+              onCollapse={composerFold.collapse}
+              onStop={() => perform('abort')}
+            />
+          )}
           {/* Hidden, not unmounted, while a form waits: an open refinement review or other
               composer state must survive the question. */}
-          <div hidden={state.inputs.length > 0} className="composer-host">
+          <div hidden={state.inputs.length > 0 || composerFold.collapsed} className="composer-host">
             <SessionComposer
               key={id}
               state={state}
@@ -571,82 +622,17 @@ export function EngineWorkspace({
             />
           </div>
         </>
-      ) : tab === 'side-effects' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.sideEffects')}</p>}>
-          <SessionSideEffects
-            key={state.sessionId}
-            sessionId={state.sessionId}
-            connected={state.connected}
-            command={command}
-            onBack={() => setTab('chat')}
-          />
-        </Suspense>
-      ) : tab === 'plan' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.planTemplates')}</p>}>
-          <SessionPlanTemplates
-            key={state.sessionId}
-            command={command}
-            running={state.running}
-            onBack={() => setTab('chat')}
-          />
-        </Suspense>
-      ) : tab === 'usage' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.usage')}</p>}>
-          <SessionUsage
-            key={state.sessionId}
-            sessionId={state.sessionId}
-            sessionTitle={sessionTitle}
-            connected={state.connected}
-            command={command}
-            onBack={() => setTab('chat')}
-            delegations={state.delegations}
-            toolActivity={state}
-          />
-        </Suspense>
-      ) : tab === 'story' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.story')}</p>}>
-          <SessionStory
-            key={state.sessionId}
-            projectId={projectId}
-            projectRoot={projectRoot}
-            state={state}
-            send={send}
-            command={command}
-            onBack={backToChat}
-          />
-        </Suspense>
-      ) : tab === 'context' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.context')}</p>}>
-          <SessionContextDashboard
-            key={state.sessionId}
-            projectId={projectId}
-            projectRoot={projectRoot}
-            state={state}
-            command={command}
-            onBack={backToChat}
-          />
-        </Suspense>
-      ) : tab === 'processes' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.processes')}</p>}>
-          <SessionProcesses
-            key={state.sessionId}
-            sessionId={state.sessionId}
-            connected={state.connected}
-            command={command}
-            onBack={() => setTab('chat')}
-          />
-        </Suspense>
-      ) : tab === 'mcp-tasks' ? (
-        <Suspense fallback={<p role="status">{t('chatView.opening.mcpTasks')}</p>}>
-          <SessionMcpTasks
-            key={state.sessionId}
-            sessionId={state.sessionId}
-            connected={state.connected}
-            command={command}
-            pendingReviews={state.approvals.length + state.inputs.length}
-            onBack={() => setTab('chat')}
-          />
-        </Suspense>
+      ) : isEngineSessionPanel(tab) ? (
+        <EngineSessionPanels
+          tab={tab}
+          state={state}
+          sessionTitle={sessionTitle}
+          projectId={projectId}
+          projectRoot={projectRoot}
+          send={send}
+          command={command}
+          onBack={backToChat}
+        />
       ) : tab === 'history' ? (
         <SessionRecovery
           key={state.sessionId}
