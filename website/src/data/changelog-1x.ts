@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.4 → 1.0.0).
+// Changelog — 1.x era (1.5.5 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,20 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.5',
+    date: '2026-11-09',
+    tagline: 'ACP permissions follow the real file target',
+    latest: true,
+    highlights: [
+      'ACP reads and writes outside the project, including symlinks inside it, check permission on the resolved target and then open that same path',
+      'Ordinary ACP writes inside a linked project keep their original path, avoiding unnecessary outside-project permission prompts on macOS and Windows short paths',
+      'The macOS installer build reads signed engine entitlements before parsing them, so a pipe that cannot seek no longer rejects a correctly signed engine',
+    ],
+  },
+  {
     version: '1.5.4',
     date: '2026-11-09',
     tagline: 'WrongStack as an ACP agent for any editor',
-    latest: true,
     highlights: [
       'wstack acp starts without a configured provider and offers a login, so an editor can install WrongStack and sign in from the editor',
       'Editors pick the session’s model from their own model picker; the choice survives session/load',

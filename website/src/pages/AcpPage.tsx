@@ -33,17 +33,21 @@ export function AcpPage() {
                 'Full v1 client state machine: init→new→prompt→stream',
                 'Answer fs/read_text_file, fs/write_text_file, terminal/create, session/request_permission',
                 'session/cancel notification on abort',
-                'Each agent uses its own tools, models, and permissions',
+                'Each agent uses its own tools and models; host file access follows WrongStack permission rules',
+                'Outside-project reads and writes check the resolved target and open that same path',
+                'In-project writes keep their original path, including linked project roots',
               ],
             },
             {
               icon: Network,
               title: 'ACP Server',
               items: [
-                '17 request methods incl. providers/* and mcp/message',
+                'Starts without a configured provider and offers login before opening a session',
                 'initialize, authenticate, logout, session/new, session/prompt',
                 'session/load, session/resume, session/close, session/delete, session/fork',
-                'session/set_mode, session/set_config_option, session/list, providers/list, providers/set, providers/disable, mcp/message',
+                'session/set_mode, session/set_config_option and session/list',
+                'Per-session model selection from the editor, saved across session/load',
+                'Authentication-required errors are reserved for missing authentication',
                 'session/update notifications streamed to the client per turn',
                 'Per-session concurrency with proper AbortController cancellation',
               ],
@@ -149,20 +153,20 @@ export function AcpPage() {
             <div className="mt-5 space-y-3">
               {[
                 {
-                  label: '/acp server',
+                  label: 'wstack acp',
                   body: 'Start WrongStack as an ACP server on stdio. External editors connect and drive it.',
                 },
                 {
                   label: 'Spec compliance',
-                  body: 'Full v1 method set. Smoke-tested. JSON-RPC 2.0. Proper cancel propagation.',
+                  body: 'JSON-RPC 2.0 with cancellation and ACP error codes. Unadvertised providers/set and mcp/message requests return method-not-found.',
                 },
                 {
                   label: 'Editor integration',
                   body: 'Zed, JetBrains Junie, VS Code ACP can all drive WrongStack. No adapter needed.',
                 },
                 {
-                  label: 'Tool registry',
-                  body: 'WrongStack tools are exposed as ACP ToolDefinitions. External editors can call any permitted tool.',
+                  label: 'File access policy',
+                  body: 'ACP agents driven by WrongStack follow features.allowOutsideProjectRoot and the session’s permission rules. Reads and writes that leave the project are checked on the resolved target, including links. Probe and bench stay project-only.',
                 },
               ].map(({ label, body }) => (
                 <div key={label} className="rounded-lg border border-line bg-bg p-4">
