@@ -8,7 +8,7 @@ import type { WebSocket } from 'ws';
 import { correlatedReply } from './correlated-reply.js';
 import type { ProviderRouteHandlers } from './provider-route-types.js';
 import type { WSClientMessage } from './types.js';
-import { runWithOperationRequest, send, sendResult } from './ws-utils.js';
+import { errMessage, runWithOperationRequest, send, sendResult } from './ws-utils.js';
 
 export type { ProviderMutationHandlers, ProviderRouteHandlers } from './provider-route-types.js';
 
@@ -269,7 +269,7 @@ async function dispatchProviderRoute(
           payload: {
             ok: false,
             agentId,
-            error: error instanceof Error ? error.message : String(error),
+            error: errMessage(error),
           },
         });
       }

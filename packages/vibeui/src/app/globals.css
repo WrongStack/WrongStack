@@ -4750,7 +4750,24 @@ kbd {
   font-weight: 600;
   white-space: nowrap;
 }
-.acp-runtime-controls { min-width: 0; max-width: 100%; border: 1px solid var(--border); padding: 6px 8px; font-size: 12px; }
-.acp-runtime-controls summary { cursor: pointer; }
-.acp-runtime-controls label, .acp-runtime-controls small, .acp-runtime-controls [role="status"] { display: block; margin: 8px 0; }
-.acp-runtime-controls select { max-width: 100%; color: inherit; background: var(--background); }
+.acp-runtime-controls {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.acp-runtime-controls summary {
+  cursor: pointer;
+}
+.acp-runtime-controls label,
+.acp-runtime-controls small,
+.acp-runtime-controls [role="status"] {
+  display: block;
+  margin: 8px 0;
+}
+.acp-runtime-controls select {
+  max-width: 100%;
+  color: inherit;
+  background: var(--background);
+}

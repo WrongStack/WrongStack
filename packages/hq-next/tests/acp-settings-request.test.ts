@@ -32,27 +32,23 @@ it('waits for this client acknowledgement rather than reporting a queued command
   useHqStore.getState().applyCommandStatus(status());
   await Promise.resolve();
   expect(done).toBe(false);
-  useHqStore
-    .getState()
-    .applyCommandStatus(
-      status({
-        clientId: 'different',
-        status: 'acked',
-        ackStatus: 'completed',
-        acpConfig: { agentId: 'fixture', options: [], applied: {} },
-      }),
-    );
+  useHqStore.getState().applyCommandStatus(
+    status({
+      clientId: 'different',
+      status: 'acked',
+      ackStatus: 'completed',
+      acpConfig: { agentId: 'fixture', options: [], applied: {} },
+    }),
+  );
   await Promise.resolve();
   expect(done).toBe(false);
-  useHqStore
-    .getState()
-    .applyCommandStatus(
-      status({
-        status: 'acked',
-        ackStatus: 'completed',
-        acpConfig: { agentId: 'fixture', options: [], applied: { thought: 'ultra' } },
-      }),
-    );
+  useHqStore.getState().applyCommandStatus(
+    status({
+      status: 'acked',
+      ackStatus: 'completed',
+      acpConfig: { agentId: 'fixture', options: [], applied: { thought: 'ultra' } },
+    }),
+  );
   await expect(pending).resolves.toMatchObject({ applied: { thought: 'ultra' } });
 });
 it('observes a response that arrived before the HTTP enqueue response was consumed', async () => {

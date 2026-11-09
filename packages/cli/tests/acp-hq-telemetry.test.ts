@@ -25,7 +25,12 @@ class FakeTracker {
     return [];
   }
 }
-vi.mock('@wrongstack/coordination', () => ({ AgentStatusTracker: FakeTracker }));
+// Only the tracker is faked: the HQ host also reaches @wrongstack/fleet,
+// which needs the rest of coordination's exports.
+vi.mock('@wrongstack/coordination', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wrongstack/coordination')>()),
+  AgentStatusTracker: FakeTracker,
+}));
 
 const bridges: { sessionId: string; projectRoot: string; events: unknown; stopped: boolean }[] = [];
 

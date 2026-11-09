@@ -122,7 +122,7 @@ describe('acp in the WebUI pickers', () => {
         models: [
           expect.objectContaining({
             id: 'claude-code',
-            description: 'ACP agent leading the session',
+            description: 'Installed coding agent · session leader or subagent',
           }),
         ],
       },

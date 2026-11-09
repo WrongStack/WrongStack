@@ -206,7 +206,7 @@ export async function makeACPSubagentRunnerWithStop(
         ? `${setup.promptPrefix}\n\n${task.description}`
         : task.description;
       const turn = async () => {
-        const settings = ctx.config.modelRuntime?.acp?.[options.role ?? ''];
+        const settings = ctx.config?.modelRuntime?.acp?.[options.role ?? ''];
         if (settings || runtimeConfigured.has(session)) {
           runtimeConfigured.add(session);
           const { applyAcpRuntimeValues } = await import('../client/acp-runtime-options.js');

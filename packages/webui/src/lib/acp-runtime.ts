@@ -2,6 +2,7 @@ import type {
   AcpRuntimeOptionsResult,
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
+import { safeId } from './utils';
 import { getWSClient } from './ws-client';
 
 export function saveSessionAcpRuntime(
@@ -11,7 +12,7 @@ export function saveSessionAcpRuntime(
   const client = getWSClient();
   if (!sessionId || client.status.state !== 'open')
     return Promise.reject(new Error('ACP settings require a connected session.'));
-  const requestId = crypto.randomUUID();
+  const requestId = safeId();
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       off();
@@ -46,7 +47,7 @@ export function requestAcpRuntime(
   const client = getWSClient();
   if (client.status.state !== 'open')
     return Promise.reject(new Error('ACP settings require a connected session.'));
-  const requestId = crypto.randomUUID();
+  const requestId = safeId();
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       off();
