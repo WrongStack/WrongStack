@@ -4,6 +4,7 @@
     "packages/kanban-mcp/src/cli.ts",
     "packages/vibeui/src/app/layout.tsx",
     "packages/vibeui/src/app/page.tsx",
+    "packages/vibeui/src/components/acp-runtime.tsx",
     "packages/vibeui/src/components/agent-monitor.tsx",
     "packages/vibeui/src/components/assistant-content.tsx",
     "packages/vibeui/src/components/code-panel.tsx",

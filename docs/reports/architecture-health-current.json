@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T21:29:12.394Z",
+  "generatedAt": "2026-11-09T22:13:17.838Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6211,
-    "testFiles": 5171,
+    "testFiles": 5173,
     "sourceLines": 1271357,
     "workspaceEdges": 250,
     "moduleEdges": 18298,
@@ -820,7 +820,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 112,
-      "testFiles": 45,
+      "testFiles": 46,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 45
+          "testFiles": 46
         }
       ]
     },
@@ -1097,7 +1097,7 @@
       "name": "@wrongstack/vibeui",
       "dir": "packages/vibeui",
       "sourceFiles": 71,
-      "testFiles": 24,
+      "testFiles": 25,
       "workspaceDependencies": [
         "@wrongstack/webui-protocol"
       ],
@@ -1110,7 +1110,7 @@
         {
           "path": "packages/vibeui/tsconfig.test.json",
           "error": null,
-          "testFiles": 24
+          "testFiles": 25
         }
       ]
     },
@@ -19022,6 +19022,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/acp-runtime-config.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/automation-cancel-handoff.test.ts",
         "projects": [
           "root-node"
@@ -26589,6 +26595,12 @@
       },
       {
         "file": "packages/vibeui/tests/diff.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/vibeui/tests/error-text.test.ts",
         "projects": [
           "root-node"
         ]
