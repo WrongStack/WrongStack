@@ -324,6 +324,29 @@ describe('registry completion coverage', () => {
     state.scheduleReconnect(server);
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('attempts exhausted'));
   });
+
+  it('schedules nothing when the lifecycle table refuses the reconnecting transition', () => {
+    // `ready` may only go to `shutting_down` or `failed`; a reconnect requested
+    // for it must neither arm a timer nor spend one of the three attempts.
+    vi.useFakeTimers();
+    const { value } = registry();
+    const state = value as unknown as {
+      reconnectAttempts: Map<string, number>;
+      reconnectTimers: Map<string, NodeJS.Timeout>;
+      scheduleReconnect: (server: unknown) => void;
+    };
+    const server = {
+      name: 'refused',
+      state: 'ready',
+      transition: vi.fn(() => false),
+      start: vi.fn(),
+    };
+    state.scheduleReconnect(server);
+    expect(server.transition).toHaveBeenCalledWith('reconnecting');
+    expect(state.reconnectTimers.has('refused')).toBe(false);
+    expect(state.reconnectAttempts.has('refused')).toBe(false);
+    expect(server.start).not.toHaveBeenCalled();
+  });
 });
 
 describe('runtime server mutation', () => {
