@@ -17,7 +17,9 @@ const brainHostInstances = vi.hoisted(() => ({
   ledgers: [] as any[],
 }));
 
-vi.mock('@wrongstack/core/agent', () => ({
+vi.mock('@wrongstack/core/agent', async (importOriginal) => ({
+  // Partial: `@wrongstack/tools` reads constants (MAX_PENDING_NEXT_STEPS) from this entry.
+  ...(await importOriginal<typeof import('@wrongstack/core/agent')>()),
   createEventUserInputAwaiter: vi.fn(() => vi.fn(async () => undefined)),
   Agent: class FakeAgent {
     ctx: any;
