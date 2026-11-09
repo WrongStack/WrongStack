@@ -5,7 +5,7 @@ Updated: 2026-11-05. This is the handoff for the next implementation agent.
 ## 1.5.0 status (2026-11-05)
 
 Desktop v2 is code-complete against the WebUI, TUI and CLI comparison in
-[`desktop-v2-vs-webui.md`](../desktop-v2-vs-webui.md):
+[`desktop-v2-vs-webui.md`](desktop-v2-vs-webui.md):
 
 - The project surfaces the WebUI also shows (SAGE memory, Kanban, Code Atlas, agent office,
   Brain council cards, Session Story, context and analytics dashboards, engine diagnostics, plan
