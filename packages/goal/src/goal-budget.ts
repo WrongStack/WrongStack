@@ -61,14 +61,19 @@ export function parseGoalBudget(value: unknown): GoalBudget | undefined {
     typeof field === 'number' && Number.isFinite(field) && field > 0 && field <= max
       ? field
       : undefined;
-  const maxTasks = limit(raw['maxTasks'], MAX_TASKS);
+  const intLimit = (field: unknown, max: number) => {
+    if (typeof field !== 'number' || !Number.isFinite(field)) return undefined;
+    const floored = Math.floor(field);
+    return floored >= 1 && floored <= max ? floored : undefined;
+  };
+  const maxTasks = intLimit(raw['maxTasks'], MAX_TASKS);
   const maxMinutes = limit(raw['maxMinutes'], MAX_MINUTES);
-  const maxTokens = limit(raw['maxTokens'], MAX_TOKENS);
+  const maxTokens = intLimit(raw['maxTokens'], MAX_TOKENS);
   const maxCostUsd = limit(raw['maxCostUsd'], MAX_COST_USD);
   const budget: GoalBudget = {
-    ...(maxTasks !== undefined ? { maxTasks: Math.floor(maxTasks) } : {}),
+    ...(maxTasks !== undefined ? { maxTasks } : {}),
     ...(maxMinutes !== undefined ? { maxMinutes } : {}),
-    ...(maxTokens !== undefined ? { maxTokens: Math.floor(maxTokens) } : {}),
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
     ...(maxCostUsd !== undefined ? { maxCostUsd } : {}),
   };
   return Object.keys(budget).length ? budget : undefined;
@@ -79,17 +84,33 @@ export function goalBudgetExceeded(
   budget: GoalBudget | undefined,
   usage: GoalBudgetUsage,
 ): string | undefined {
-  if (budget?.maxTasks !== undefined && usage.tasks >= budget.maxTasks)
+  if (
+    budget?.maxTasks !== undefined &&
+    (!Number.isFinite(usage.tasks) || usage.tasks >= budget.maxTasks)
+  )
     return `Budget reached: ${usage.tasks} of ${budget.maxTasks} tasks started.`;
-  if (budget?.maxMinutes !== undefined && usage.elapsedMs >= budget.maxMinutes * 60_000)
+  if (
+    budget?.maxMinutes !== undefined &&
+    (!Number.isFinite(usage.elapsedMs) || usage.elapsedMs >= budget.maxMinutes * 60_000)
+  )
     return `Budget reached: ${Math.floor(usage.elapsedMs / 60_000)} of ${budget.maxMinutes} minutes of run time used.`;
-  if (budget?.maxTokens !== undefined && (usage.tokens ?? 0) >= budget.maxTokens)
+  if (
+    budget?.maxTokens !== undefined &&
+    ((usage.tokens !== undefined && !Number.isFinite(usage.tokens)) ||
+      (usage.tokens ?? 0) >= budget.maxTokens)
+  )
     return `Budget reached: ${(usage.tokens ?? 0).toLocaleString('en-US')} of ${budget.maxTokens.toLocaleString('en-US')} provider tokens used.`;
   if (budget?.maxCostUsd !== undefined) {
-    if ((usage.unpricedResponses ?? 0) > 0)
+    if (
+      (usage.unpricedResponses !== undefined && !Number.isFinite(usage.unpricedResponses)) ||
+      (usage.unpricedResponses ?? 0) > 0
+    )
       return `Budget reached: the cost of ${usage.unpricedResponses} provider responses is unknown, so the $${budget.maxCostUsd} cost limit cannot be checked.`;
-    if ((usage.costUsd ?? 0) >= budget.maxCostUsd)
-      return `Budget reached: an estimated $${(usage.costUsd ?? 0).toFixed(4)} of $${budget.maxCostUsd} spent.`;
+    if (
+      (usage.costUsd !== undefined && !Number.isFinite(usage.costUsd)) ||
+      (usage.costUsd ?? 0) >= budget.maxCostUsd
+    )
+      return `Budget reached: an estimated $${Number.isFinite(usage.costUsd ?? 0) ? (usage.costUsd ?? 0).toFixed(4) : String(usage.costUsd)} of $${budget.maxCostUsd} spent.`;
   }
   return undefined;
 }

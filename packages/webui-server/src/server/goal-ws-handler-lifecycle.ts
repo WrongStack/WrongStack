@@ -1,5 +1,6 @@
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
+import { moveGoalRun } from './goal-run-state-sync.js';
 import type { GoalWsHandlerInternals, WSClient } from './goal-ws-handler-internals.js';
 
 /**
@@ -8,6 +9,11 @@ import type { GoalWsHandlerInternals, WSClient } from './goal-ws-handler-interna
  * that stops in-flight work and releases the run lease.
  */
 export function attachGoalClient(self: GoalWsHandlerInternals, ws: WebSocket): void {
+  const readyState = (ws as { readyState?: unknown }).readyState;
+  if (self.disposed || readyState === 2 || readyState === 3) return;
+  for (const existing of self.clients) {
+    if (existing.ws === ws) return;
+  }
   const onClose = () => {
     self.clients.delete(client);
     client.cleanup();
@@ -20,8 +26,13 @@ export function attachGoalClient(self: GoalWsHandlerInternals, ws: WebSocket): v
     ws,
     id: crypto.randomUUID(),
     cleanup: () => {
-      ws.off?.('close', onClose);
-      ws.off?.('error', onClose);
+      if (typeof ws.off === 'function') {
+        ws.off('close', onClose);
+        ws.off('error', onClose);
+      } else if (typeof ws.removeListener === 'function') {
+        ws.removeListener('close', onClose);
+        ws.removeListener('error', onClose);
+      }
     },
   };
   self.clients.add(client);
@@ -65,7 +76,7 @@ export function disposeGoalHandler(self: GoalWsHandlerInternals): void {
     await setupPromise?.catch(() => undefined);
     await runPromise?.catch(() => undefined);
     if (self.graph && self.releaseRunLease) {
-      self.graph.runState = 'stopped';
+      moveGoalRun(self, self.graph, 'stopped');
       await self.persistence.save(self.graph).catch((err) => {
         self.logger.warn(`[Goal] Failed to save during disposal: ${toErrorMessage(err)}`);
       });

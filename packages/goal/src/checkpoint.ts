@@ -1,6 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
+import { transitionGoalRun } from './goal-run-state.js';
 import type { PhaseStore } from './phase-store.js';
 import type { PhaseGraph, PhaseNode } from './types.js';
 
@@ -51,8 +52,18 @@ export class CheckpointManager {
 
   constructor(opts: CheckpointManagerOptions) {
     this.store = opts.store;
-    this.maxCheckpoints = opts.maxCheckpoints ?? 10;
-    this.maxCheckpointAgeMs = opts.maxCheckpointAgeMs ?? 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.maxCheckpoints =
+      typeof opts.maxCheckpoints === 'number' &&
+      Number.isFinite(opts.maxCheckpoints) &&
+      opts.maxCheckpoints >= 1
+        ? Math.floor(opts.maxCheckpoints)
+        : 10;
+    this.maxCheckpointAgeMs =
+      typeof opts.maxCheckpointAgeMs === 'number' &&
+      Number.isFinite(opts.maxCheckpointAgeMs) &&
+      opts.maxCheckpointAgeMs > 0
+        ? opts.maxCheckpointAgeMs
+        : 7 * 24 * 60 * 60 * 1000; // 7 days
     this.baseDir = opts.baseDir ?? path.join(opts.store.baseDir, '.checkpoints');
     // Directory creation is lazy — happens on first save
   }
@@ -222,20 +233,30 @@ export class CheckpointManager {
     graph.completedPhaseIds = allPhases.filter((p) => p.status === 'completed').map((p) => p.id);
     graph.failedPhaseIds = allPhases.filter((p) => p.status === 'failed').map((p) => p.id);
     graph.activePhaseIds = allPhases.filter((p) => p.status === 'running').map((p) => p.id);
-    if (
-      allPhases.length === 0 ||
-      !allPhases.every((p) => p.status === 'completed' || p.status === 'skipped')
-    ) {
+    const isGraphComplete =
+      allPhases.length > 0 &&
+      allPhases.every((p) => p.status === 'completed' || p.status === 'skipped');
+    if (!isGraphComplete) {
       graph.completedAt = undefined;
       graph.finalVerification = undefined;
+      if (graph.runState === 'completed') {
+        transitionGoalRun(graph, undefined);
+      }
     }
-    if (graph.failedPhaseIds.length === 0 && graph.runState === 'failed') {
-      graph.runState =
-        checkpoint.phaseStatus === 'running'
-          ? 'running'
-          : checkpoint.phaseStatus === 'paused'
-            ? 'paused'
-            : undefined;
+    if (
+      graph.failedPhaseIds.length === 0 &&
+      (graph.runState === 'failed' || (!isGraphComplete && graph.runState === undefined))
+    ) {
+      if (checkpoint.phaseStatus === 'running') {
+        transitionGoalRun(graph, 'running');
+      } else if (checkpoint.phaseStatus === 'paused') {
+        if (graph.runState === undefined) {
+          transitionGoalRun(graph, 'running');
+        }
+        transitionGoalRun(graph, 'paused');
+      } else {
+        transitionGoalRun(graph, undefined);
+      }
       graph.runError = undefined;
     }
 

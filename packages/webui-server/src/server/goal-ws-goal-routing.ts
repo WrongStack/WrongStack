@@ -1,5 +1,5 @@
-import { summarizeGoal } from '@wrongstack/goal';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { summarizeGoal } from '@wrongstack/goal';
 import type { WebSocket } from 'ws';
 import type { GoalWSMessage, GoalWsHandlerInternals } from './goal-ws-handler-internals.js';
 
@@ -63,7 +63,13 @@ export async function routeToSelectedGoal(
         : graph.runState === 'failed'
           ? 'failed'
           : 'stopped';
-    } else if (await host.store.load(selectedId)) {
+    } else if (
+      await host.store.load(selectedId).catch((err: unknown) => {
+        host.goals.delete(selectedId);
+        goal?.dispose();
+        throw err;
+      })
+    ) {
       host.goals.delete(selectedId);
       goal.dispose();
       throw new Error('This Goal id already exists. Resume it or start a new id.');
@@ -120,11 +126,12 @@ export async function routeToSelectedGoal(
 
 /** Broadcast the saved-graph list plus live Goal summaries to every client. */
 export async function broadcastGoalCatalog(host: GoalWsHandlerInternals): Promise<void> {
-  if (host.catalogInFlight) return;
+  if (host.disposed || host.catalogInFlight) return;
   host.catalogInFlight = true;
   try {
     const graphs = await host.store.list();
     const goals = await host.store.listGoals();
+    if (host.disposed) return;
     for (const [id, handler] of host.goals) {
       if (!handler.graph || (!handler.runPromise && !handler.startInFlight)) continue;
       const summary = summarizeGoal(

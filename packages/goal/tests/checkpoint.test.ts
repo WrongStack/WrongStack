@@ -471,4 +471,68 @@ describe('CheckpointManager', () => {
     expect(rp1?.metadata?.['integrationStatus']).toBeUndefined();
     expect(rp2?.metadata?.['integrationStatus']).toBeUndefined();
   });
+
+  it('reopens completed runState on restoreCheckpoint and clears integrationStatus on requeuePhaseTask (F123)', async () => {
+    const { requeuePhaseTask } = await import('../src/phase-board-mutations.js');
+    const { summarizeGoal } = await import('../src/goal-summary.js');
+    const { DefaultTaskStore, TaskTracker } = await import('@wrongstack/core/tasking');
+
+    const graph = await new PhaseGraphBuilder({
+      title: 'F123 Checkpoint & Board',
+      phases: [
+        {
+          name: 'Phase 1',
+          description: 'First',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'T1', description: 'd', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+    }).build();
+    const phase = Array.from(graph.phases.values())[0]!;
+    phase.status = 'running';
+    graph.runState = 'running';
+    const cp = await manager.saveCheckpoint(graph, 'running-cp');
+
+    phase.status = 'completed';
+    for (const t of phase.taskGraph.nodes.values()) t.status = 'completed';
+    graph.completedPhaseIds = [phase.id];
+    graph.completedAt = Date.now();
+    graph.runState = 'completed';
+    await store.save(graph);
+
+    const restored = await manager.restoreCheckpoint(cp.id);
+    expect(restored?.runState).toBe('running');
+    expect(restored?.completedAt).toBeUndefined();
+
+    phase.status = 'completed';
+    phase.metadata = { integrationStatus: 'merge_failed', keepMe: true };
+    const taskId = Array.from(phase.taskGraph.nodes.keys())[0]!;
+    requeuePhaseTask(
+      {
+        graph,
+        trackerCache: new Map(),
+        taskRetryCounts: new Map(),
+        phaseWorktrees: new Map(),
+        getTrackerForPhase: (p) => {
+          const ts = new DefaultTaskStore();
+          const tr = new TaskTracker({ store: ts });
+          (tr as unknown as { graph: typeof p.taskGraph }).graph = p.taskGraph;
+          return tr;
+        },
+        updatePhaseStatus: (p, st) => {
+          p.status = st;
+        },
+        emit: () => {},
+      },
+      taskId,
+    );
+    expect(phase.metadata).toEqual({ keepMe: true });
+    expect(summarizeGoal(graph).blockers.some((b) => b.includes('integration needs review'))).toBe(
+      false,
+    );
+  });
 });

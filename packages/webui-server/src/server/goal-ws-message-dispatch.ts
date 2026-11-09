@@ -1,5 +1,6 @@
 import { PhaseOrchestrator } from '@wrongstack/goal';
 import type { WebSocket } from 'ws';
+import { setGoalRunState } from './goal-run-state-sync.js';
 import type { GoalWSMessage, GoalWsHandlerInternals } from './goal-ws-handler-internals.js';
 
 /**
@@ -20,25 +21,32 @@ export async function dispatchGoalMessage(
       await host.handleStart(msg.payload);
       break;
     case 'goal.pause':
-      host.orchestrator?.pause();
-      if (host.orchestrator) {
-        host.runStatus = 'paused';
-        if (host.graph) {
-          host.graph.runState = 'paused';
+      // A finished run keeps `host.orchestrator`; the lifecycle table refuses
+      // completed/failed -> paused, so a late pause no longer rewrites the
+      // finished Goal as paused.
+      // A refused pause answers with the authoritative state only — announcing
+      // `goal.paused` for a finished run made clients flash "paused".
+      if (host.orchestrator && host.graph) {
+        if (setGoalRunState(host, host.graph, 'paused')) {
+          host.orchestrator.pause();
           host.persistDetached(host.graph);
+          host.broadcast({ type: 'goal.paused', payload: {} });
         }
+        host.broadcastState();
+        break;
       }
       host.broadcast({ type: 'goal.paused', payload: {} });
       if (host.orchestrator) host.broadcastState();
       break;
     case 'goal.resume':
-      if (host.orchestrator && host.runStatus === 'paused') {
+      if (
+        host.orchestrator &&
+        host.runStatus === 'paused' &&
+        host.graph &&
+        setGoalRunState(host, host.graph, 'running')
+      ) {
         host.orchestrator.resume();
-        host.runStatus = 'running';
-        if (host.graph) {
-          host.graph.runState = 'running';
-          host.persistDetached(host.graph);
-        }
+        host.persistDetached(host.graph);
         host.broadcast({ type: 'goal.resumed', payload: {} });
         host.broadcastState();
       } else {

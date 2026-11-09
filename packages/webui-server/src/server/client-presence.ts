@@ -172,7 +172,8 @@ export function createWebuiClientPresence(deps: WebuiClientPresenceDeps): WebuiC
             projectRoot,
             projectName,
             globalRoot: wstackGlobalRoot(),
-            getPublisher: () => hqConnection?.getPublisher() ?? activePublisher,
+            getPublisher: () =>
+              hqConnection !== undefined ? hqConnection.getPublisher() : activePublisher,
             listSessions: () => {
               const live = deps.listSessions?.() ?? [];
               // Nothing on screen yet (no browser attached, or a surface that

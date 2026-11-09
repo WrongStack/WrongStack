@@ -1,3 +1,4 @@
+import type { Logger } from '@wrongstack/contracts/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   GoalRunLeaseBusyError,
@@ -11,9 +12,11 @@ import {
 } from '@wrongstack/goal';
 import { WorktreeManager } from '@wrongstack/worktree';
 import { isGitWorkTree } from './git-process.js';
+import { moveGoalRun } from './goal-run-state-sync.js';
 import { commitsSince } from './goal-ws-run-controls-contracts.js';
 export interface GoalWsRunControlsHost {
   readonly goalId?: string | undefined;
+  readonly logger: Logger;
   startInFlight: boolean;
   orchestrator: PhaseOrchestrator | null;
   stopping: boolean;
@@ -87,11 +90,12 @@ export async function handleStart(
     }
     await host.startRun(payload);
   } catch (err) {
-    host.runStatus = host.stopping ? 'stopped' : 'failed';
+    const outcome = host.stopping ? 'stopped' : 'failed';
+    host.runStatus = outcome;
     // Only persist when this start actually replaced the graph; a graph left
     // over from a previous completed/stopped run must keep its durable state.
     if (host.graph && host.graph !== priorGraph) {
-      host.graph.runState = host.runStatus;
+      moveGoalRun(host, host.graph, outcome);
       host.graph.runError = host.stopping ? undefined : toErrorMessage(err);
       await host.persistence.save(host.graph).catch(() => undefined);
     }
@@ -209,8 +213,10 @@ export async function handleStop(host: GoalWsRunControlsHost): Promise<void> {
   host.stopBroadcast();
   await setupPromise?.catch(() => undefined);
   await runPromise?.catch(() => undefined);
+  // A run that completed but still holds its lease (final save in flight)
+  // stays completed: the lifecycle table refuses completed -> stopped.
   if (host.graph && (host.releaseRunLease || wasStarting)) {
-    host.graph.runState = 'stopped';
+    moveGoalRun(host, host.graph, 'stopped');
     await host.persistence.save(host.graph).catch(() => undefined);
   }
   if (host.runPromise === runPromise) host.runPromise = null;

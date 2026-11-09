@@ -32,6 +32,7 @@ import {
   prepareGoalGraphForResume,
   prepareGoalWorkspace,
   releaseGoalWorkspaceHold,
+  transitionGoalRun,
   verifyGoalProject,
 } from '@wrongstack/goal';
 
@@ -83,6 +84,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
   let starting = false;
   let startingAbort: AbortController | null = null;
   const log = deps.log ?? (() => {});
+  const refused = (message: string) => log(`⚠ ${message}`);
   const worktreeHost = createWorktreeCommandHost({
     projectRoot: deps.projectRoot,
     events: deps.events,
@@ -168,13 +170,13 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
     };
     const onDone = (payload: unknown) => {
       if ((payload as { graphId?: string })?.graphId !== graph.id) return;
-      graph.runState = 'completed';
+      transitionGoalRun(graph, 'completed', refused);
       log(`🎉 Goal complete: ${graph.title}`);
       void finalize();
     };
     const onFailed = (payload: unknown) => {
       if ((payload as { graphId?: string })?.graphId !== graph.id) return;
-      graph.runState = 'failed';
+      transitionGoalRun(graph, 'failed', refused);
       void finalize();
     };
     const bus = deps.events as unknown as {
@@ -231,7 +233,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         }).build();
         planningGraph.id = goalId;
         planningGraph.sessionId = ownerSessionId;
-        planningGraph.runState = 'planning';
+        transitionGoalRun(planningGraph, 'planning', refused);
         planningGraph.leaseScope = isolated ? 'goal' : 'project';
         await persist(planningGraph);
         // Stable per-run worker identities, so the board can show "who is on what".
@@ -279,7 +281,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         }).build();
         graph.sessionId = ownerSessionId;
         graph.id = goalId;
-        graph.runState = 'running';
+        transitionGoalRun(graph, 'running', refused);
         graph.leaseScope = isolated ? 'goal' : 'project';
         planningGraph = graph;
         if (abort.signal.aborted) return { ok: false, error: 'Goal start was stopped.' };
@@ -316,7 +318,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         if (worktrees) graph.runBase = (await worktrees.currentBase()) ?? undefined;
         await persist(graph);
         if (abort.signal.aborted) {
-          graph.runState = 'stopped';
+          transitionGoalRun(graph, 'stopped', refused);
           await persist(graph);
           return { ok: false, error: 'Goal start was stopped.' };
         }
@@ -430,7 +432,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         };
       } finally {
         if (releaseRunLease && planningGraph) {
-          planningGraph.runState = abort.signal.aborted ? 'stopped' : 'failed';
+          transitionGoalRun(planningGraph, abort.signal.aborted ? 'stopped' : 'failed', refused);
           await persist(planningGraph);
         }
         starting = false;
@@ -439,20 +441,19 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       }
     },
 
+    // A pause/resume that lands after the orchestrator reported completion,
+    // while the run is still finalizing, is refused by the lifecycle table —
+    // otherwise finalize would persist the finished Goal as paused/running.
     onGoalPause() {
-      active?.orchestrator.pause();
-      if (active) {
-        active.graph.runState = 'paused';
-        void persist(active.graph);
-      }
+      if (!active || !transitionGoalRun(active.graph, 'paused')) return;
+      active.orchestrator.pause();
+      void persist(active.graph);
     },
 
     onGoalResume() {
-      active?.orchestrator.resume();
-      if (active) {
-        active.graph.runState = 'running';
-        void persist(active.graph);
-      }
+      if (!active || !transitionGoalRun(active.graph, 'running')) return;
+      active.orchestrator.resume();
+      void persist(active.graph);
     },
 
     onGoalResumeFromGraph: async (graph: PhaseGraph): Promise<GoalStartResult> => {
@@ -498,12 +499,12 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         }
         await prepareGoalGraphForResume(graph, worktrees);
         if (abort.signal.aborted) return { ok: false, error: 'Goal resume was stopped.' };
-        graph.runState = 'running';
+        transitionGoalRun(graph, 'running', refused);
         await persist(graph);
         // `/goal stop` may land during that save; activating anyway ran the
         // tasks the user just stopped (the start path re-checks here too).
         if (abort.signal.aborted) {
-          graph.runState = 'stopped';
+          transitionGoalRun(graph, 'stopped', refused);
           await persist(graph);
           return { ok: false, error: 'Goal resume was stopped.' };
         }
@@ -615,7 +616,8 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       startingAbort?.abort();
       if (!active) return;
       const stopped = active;
-      stopped.graph.runState = 'stopped';
+      // A completed run stays completed; the teardown below is still safe.
+      transitionGoalRun(stopped.graph, 'stopped');
       stopped.abort.abort();
       stopped.orchestrator.stop();
       stopped.unsubscribe();

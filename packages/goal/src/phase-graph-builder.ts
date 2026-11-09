@@ -157,7 +157,12 @@ export class PhaseGraphBuilder {
       tasksPerPhase?: number | undefined;
     },
   ): Promise<PhaseGraph> {
-    const tasksPerPhase = options.tasksPerPhase ?? 5;
+    const tasksPerPhase =
+      typeof options.tasksPerPhase === 'number' &&
+      Number.isFinite(options.tasksPerPhase) &&
+      options.tasksPerPhase >= 1
+        ? Math.floor(options.tasksPerPhase)
+        : 5;
     const nodes = Array.from(taskGraph.nodes.values());
     // Only edges between tasks that exist. An edge from a deleted task used to
     // raise its target's in-degree with nothing ever able to lower it, so the

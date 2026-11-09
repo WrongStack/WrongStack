@@ -18,6 +18,7 @@ import {
 } from '@wrongstack/goal';
 import { WorktreeManager } from '@wrongstack/worktree';
 import { isGitWorkTree } from './git-process.js';
+import { moveGoalRun } from './goal-run-state-sync.js';
 
 /**
  * Derive a short, single-line heading from a (possibly multi-paragraph) goal
@@ -134,7 +135,7 @@ export async function startGoalRun(
       phases: [],
     }).build();
     planningGraph.id = host.goalId;
-    planningGraph.runState = 'planning';
+    moveGoalRun(host, planningGraph, 'planning');
     planningGraph.leaseScope = 'goal';
     planningGraph.sessionId = ownerSessionId;
     host.graph = planningGraph;
@@ -156,7 +157,7 @@ export async function startGoalRun(
   // may not have interrupted the in-flight LLM call promptly, so the `stopping`
   // flag is the authoritative guard for the resolve-after-stop window.
   if (host.stopping || runAbort.signal.aborted) {
-    if (host.graph) host.graph.runState = 'stopped';
+    if (host.graph) moveGoalRun(host, host.graph, 'stopped');
     host.broadcast({ type: 'goal.stopped', payload: { title } });
     return;
   }
@@ -165,8 +166,9 @@ export async function startGoalRun(
   if (!resumeGraph && (phases.length === 0 || taskCount === 0)) {
     host.abort = null;
     host.runStatus = 'failed';
-    if (host.graph) {
-      host.graph.runState = 'failed';
+    // Without a goal id `host.graph` may still be the previous run's graph; the
+    // lifecycle table keeps a completed one from being overwritten as failed.
+    if (host.graph && moveGoalRun(host, host.graph, 'failed')) {
       await host.persistence.save(host.graph);
     }
     host.broadcast({
@@ -198,7 +200,7 @@ export async function startGoalRun(
     }).build());
   if (host.goalId && !resumeGraph) graph.id = host.goalId;
   graph.sessionId = ownerSessionId;
-  graph.runState = 'running';
+  moveGoalRun(host, graph, 'running');
   graph.leaseScope = host.goalId && !resumeGraph ? 'goal' : graph.leaseScope;
   host.graph = graph;
   const runRoot =
@@ -251,7 +253,7 @@ export async function startGoalRun(
   if (host.stopping || runAbort.signal.aborted) {
     // A resume sets 'running' after its own awaits, possibly after the stop.
     host.runStatus = 'stopped';
-    graph.runState = 'stopped';
+    moveGoalRun(host, graph, 'stopped');
     await host.persistence.save(graph);
     host.broadcast({ type: 'goal.stopped', payload: { title } });
     return;
@@ -393,8 +395,8 @@ export async function startGoalRun(
   host.runPromise = runPromise;
   /** A run its budget stopped ends `stopped` with the reason, not completed or failed. */
   const finishBudgetStop = async (reason: string) => {
-    graph.runState = 'stopped';
     host.runStatus = 'stopped';
+    moveGoalRun(host, graph, 'stopped');
     await host.persistence.save(graph).catch((saveErr: unknown) => {
       host.logger.warn(`[Goal] Failed to save budget stop: ${toErrorMessage(saveErr)}`);
     });
@@ -410,10 +412,13 @@ export async function startGoalRun(
       if (host.orchestrator !== orchestrator) return;
       accrue();
       if (budgetStop) return finishBudgetStop(budgetStop);
-      graph.runState =
+      moveGoalRun(
+        host,
+        graph,
         graph.failedPhaseIds.length > 0 || graph.finalVerification?.status === 'failed'
           ? 'failed'
-          : 'completed';
+          : 'completed',
+      );
       let saveError: string | undefined;
       try {
         await host.persistence.save(graph);
@@ -427,8 +432,9 @@ export async function startGoalRun(
         graph.failedPhaseIds.length > 0 ||
         graph.finalVerification?.status === 'failed' ||
         saveError !== undefined;
+      // A failed final save reports the run failed, but the graph itself did
+      // complete — the lifecycle table keeps it 'completed'.
       host.runStatus = failed ? 'failed' : 'completed';
-      graph.runState = host.runStatus;
       host.broadcast(
         failed
           ? { type: 'goal.failed', payload: { title, error: saveError } }
@@ -444,12 +450,13 @@ export async function startGoalRun(
       accrue();
       if (budgetStop) return finishBudgetStop(budgetStop);
       host.logger.error(`[Goal] Aborted: ${toErrorMessage(err)}`);
+      // Flip before saving: saving first persisted the aborted run as 'running'.
+      host.runStatus = 'failed';
+      moveGoalRun(host, graph, 'failed');
       await host.persistence.save(graph).catch((saveErr: unknown) => {
         host.logger.warn(`[Goal] Failed to save aborted run: ${toErrorMessage(saveErr)}`);
       });
       if (host.orchestrator !== orchestrator) return;
-      host.runStatus = 'failed';
-      graph.runState = 'failed';
       host.stopBroadcast();
       host.broadcast({ type: 'goal.failed', payload: { title, error: String(err) } });
       host.abort = null;

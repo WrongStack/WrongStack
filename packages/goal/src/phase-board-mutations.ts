@@ -1,5 +1,6 @@
 import type { TaskNode } from '@wrongstack/contracts/types/task-graph';
 import type { TaskTracker } from '@wrongstack/core/tasking';
+import { transitionGoalRun } from './goal-run-state.js';
 import type { PhaseGraph, PhaseNode, PhaseStatus } from './types.js';
 
 type PhaseBoardEmit =
@@ -156,7 +157,20 @@ export function addPhaseTask(
   return node.id;
 }
 
+function clearPhaseIntegrationMetadata(phase: PhaseNode): void {
+  if (!phase.metadata) return;
+  const nextMeta = { ...phase.metadata };
+  delete nextMeta['integrationStatus'];
+  delete nextMeta['integrationBranch'];
+  delete nextMeta['integrationWorktreeDir'];
+  delete nextMeta['integrationConflictFiles'];
+  delete nextMeta['integrationError'];
+  delete nextMeta['integrationUpdatedAt'];
+  phase.metadata = Object.keys(nextMeta).length > 0 ? nextMeta : undefined;
+}
+
 function reopenPhaseForPendingWork(ctx: PhaseBoardMutationContext, phase: PhaseNode): void {
+  clearPhaseIntegrationMetadata(phase);
   if (
     phase.status === 'completed' ||
     phase.status === 'failed' ||
@@ -179,7 +193,7 @@ function reopenPhaseForPendingWork(ctx: PhaseBoardMutationContext, phase: PhaseN
   if (!anyFailedPhase) {
     ctx.graph.runError = undefined;
     if (ctx.graph.runState === 'failed' || ctx.graph.runState === 'completed') {
-      ctx.graph.runState = undefined;
+      transitionGoalRun(ctx.graph, undefined);
     }
   }
 }

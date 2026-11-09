@@ -79,4 +79,13 @@ describe('goal cost budget', () => {
       undefined,
     );
   });
+  it('rejects fractional integer limits < 1 and fails closed on NaN usage fields (F123)', () => {
+    expect(parseGoalBudget({ maxTasks: 0.5, maxTokens: 0.9 })).toBeUndefined();
+    expect(
+      goalBudgetExceeded({ maxCostUsd: 10 }, { tasks: 1, elapsedMs: 0, costUsd: Number.NaN }),
+    ).toMatch(/Budget reached/);
+    expect(
+      goalBudgetExceeded({ maxTokens: 100 }, { tasks: 1, elapsedMs: 0, tokens: Number.NaN }),
+    ).toMatch(/Budget reached/);
+  });
 });
