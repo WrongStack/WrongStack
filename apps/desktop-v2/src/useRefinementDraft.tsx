@@ -34,9 +34,8 @@ export function useRefinementDraft(storage: FormDraftStorage | undefined) {
     /** False when the draft was not taken: a new request never replaces a saved reply. */
     save: (draft: RefinementDraft): boolean => {
       const target = writable();
-      if (draft.pending && target?.snapshot().value?.result) return false;
-      if (target && JSON.stringify(target.snapshot().value) !== JSON.stringify(draft))
-        target.edit(draft);
+      if (!target || (draft.pending && target.snapshot().value?.result)) return false;
+      if (JSON.stringify(target.snapshot().value) !== JSON.stringify(draft)) target.edit(draft);
       return true;
     },
     clear: () => {

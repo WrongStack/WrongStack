@@ -44,6 +44,8 @@ export class DurableFormDraft<T> {
   private pending: Promise<void> | null = null;
   private loading: Promise<void> | null = null;
   private blocked = false;
+  /** The version whose save failed for a non-conflict reason; the next edit retries it. */
+  private failedVersion: number | null = null;
   private version = 0;
   constructor(
     private storage: FormDraftStorage,
@@ -98,12 +100,15 @@ export class DurableFormDraft<T> {
       while (this.state.dirty && !this.blocked && !this.state.review) {
         const { value, revision } = this.state,
           version = this.version;
+        // A transient failure is retried by the next edit, not in a tight loop.
+        if (this.failedVersion === version) break;
         try {
           const next = await this.storage.save(
             value === null ? null : this.codec.serialize(value),
             revision,
           );
           if (next !== revision + 1) throw Error('Invalid draft save acknowledgement.');
+          this.failedVersion = null;
           this.update({
             revision: next,
             updatedAt: Date.now(),
@@ -111,23 +116,37 @@ export class DurableFormDraft<T> {
             error: '',
           });
         } catch (error) {
-          this.blocked = true;
-          this.update({
-            error: 'This draft is not saved. Your values are kept here; review the saved version.',
-          });
           if (String(error).includes('DRAFT_CONFLICT')) {
+            this.blocked = true;
+            this.update({
+              error:
+                'This draft is not saved. Your values are kept here; review the saved version.',
+            });
             try {
               this.update({ review: this.read(await this.storage.get()) });
             } catch (readError) {
               this.update({ error: String(readError) });
             }
+          } else {
+            this.failedVersion = version;
+            this.update({
+              error: `This draft is not saved yet: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            });
           }
         }
       }
     })().finally(() => {
       this.pending = null;
       this.update({ saving: false });
-      if (this.state.dirty && !this.blocked && !this.state.review) void this.flush();
+      if (
+        this.state.dirty &&
+        !this.blocked &&
+        !this.state.review &&
+        this.failedVersion !== this.version
+      )
+        void this.flush();
     });
     return this.pending;
   };

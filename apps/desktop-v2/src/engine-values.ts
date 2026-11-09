@@ -55,7 +55,20 @@ export function markdownExcerpt(markdown: string, max = 100): string {
       const title = trimHeadingEnd(start.replace(/^#+/, '').trim());
       lines[i] = /[.:!?]$/.test(title) ? title : `${title} ·`;
     }
-    if (line.trim()) textFollows = true;
+    if (lines[i]?.trim()) textFollows = true;
+  }
+  // A "Label: value" line after other text starts a new field, not the same sentence:
+  // "Manifest: package.json · File: package.json · Event: change".
+  let before = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    if (
+      before &&
+      /^[A-Z][\w ]{0,30}: \S/.test(line.trim()) &&
+      !/[·.:!?]\s*$/.test(lines[i - 1] ?? '')
+    )
+      lines[i] = `· ${line.trim()}`;
+    if (line.trim()) before = true;
   }
   const plain = lines
     .join('\n')
@@ -66,7 +79,14 @@ export function markdownExcerpt(markdown: string, max = 100): string {
     .replace(/\|/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return plain.length > max ? `${plain.slice(0, max - 1).trimEnd()}…` : plain;
+  const limit =
+    typeof max === 'number' && Number.isFinite(max) ? Math.max(0, Math.trunc(max)) : 100;
+  if (limit === 0) return '';
+  return plain.length > limit
+    ? limit === 1
+      ? '…'
+      : `${plain.slice(0, limit - 1).trimEnd()}…`
+    : plain;
 }
 
 /** A preview reads only the start of a long message. */
@@ -82,6 +102,7 @@ function trimHeadingEnd(title: string): string {
 
 /** A byte count in binary units with the display language's digits ("64 MiB", "1.5 KiB", "512 B"). */
 export function byteText(value: number, locale?: string): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return '—';
   const units: Array<[unit: string, size: number]> = [
     ['GiB', 1024 ** 3],
     ['MiB', 1024 ** 2],

@@ -119,5 +119,16 @@ describe('text ranges inside a message', () => {
         { messageIndex: 3, blockIndex: 0, start: 0, end: 7 },
       ]),
     ).toBe(1198);
+    // Choosing a user message expands its paired assistant message before dropping ranges or subtracting tokens.
+    expect(
+      editProposal(snapshot, new Set([0]), [{ messageIndex: 1, start: 0, end: 6 }]).removals,
+    ).toEqual([{ messageIndex: 0 }, { messageIndex: 1 }]);
+    expect(removalProposal(snapshot, new Set([0])).removals).toEqual([
+      { messageIndex: 0 },
+      { messageIndex: 1 },
+    ]);
+    expect(
+      draftTokenEstimate(snapshot, new Set([0]), [{ messageIndex: 1, start: 0, end: 6 }]),
+    ).toBe(1200 - 5 - 9);
   });
 });

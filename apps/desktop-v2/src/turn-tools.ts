@@ -10,7 +10,8 @@ export function turnToolSummary(events: readonly EngineEvent[]): {
   let failed = 0;
   for (const event of events) {
     if (event.type !== 'tool.executed') continue;
-    const name = typeof event.payload['name'] === 'string' ? event.payload['name'] : 'tool';
+    const rawName = typeof event.payload['name'] === 'string' ? event.payload['name'].trim() : '';
+    const name = rawName || 'tool';
     counts.set(name, (counts.get(name) ?? 0) + 1);
     if (event.payload['ok'] === false) failed += 1;
   }

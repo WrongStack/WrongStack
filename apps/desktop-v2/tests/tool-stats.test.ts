@@ -56,6 +56,11 @@ describe('tool statistics of one conversation', () => {
   it('rounds the success rate and has none before anything finishes', () => {
     expect(successRate(2, 1)).toBe(67);
     expect(successRate(0, 0)).toBeNull();
+    expect(successRate(2, -1)).toBe(100);
+    expect(successRate(Number.NaN, 0)).toBeNull();
+    expect(
+      conversationToolStats([{ type: 'tool.started', payload: { name: '   ' } }]).tools[0]?.name,
+    ).toBe('tool');
   });
 });
 

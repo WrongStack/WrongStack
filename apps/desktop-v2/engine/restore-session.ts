@@ -2,8 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 /** Private boot connection; never runs a model turn or exposes transport credentials. */
 export async function restoreEngineSession(port: number, token: string, id: string): Promise<void> {
+  const targetId = typeof id === 'string' ? id.trim() : '';
+  const targetToken = typeof token === 'string' ? token.trim() : '';
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || !targetToken || !targetId) {
+    throw Error('Recorded conversation startup requires a valid port, token, and session id.');
+  }
   await new Promise<void>((resolve, reject) => {
-    const socket = new WebSocket(`ws://127.0.0.1:${port}/?token=${encodeURIComponent(token)}`);
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/?token=${encodeURIComponent(targetToken)}`,
+    );
     const requestId = randomUUID();
     let replayed = false;
     let settled = false;
@@ -20,7 +27,7 @@ export async function restoreEngineSession(port: number, token: string, id: stri
       60000,
     );
     socket.onopen = () =>
-      socket.send(JSON.stringify({ type: 'session.resume', payload: { id, requestId } }));
+      socket.send(JSON.stringify({ type: 'session.resume', payload: { id: targetId, requestId } }));
     socket.onerror = () => finish(Error('Recorded conversation startup connection failed.'));
     socket.onclose = () => finish(Error('Recorded conversation startup connection closed.'));
     socket.onmessage = (event) => {
@@ -28,7 +35,8 @@ export async function restoreEngineSession(port: number, token: string, id: stri
         const frame = JSON.parse(String(event.data));
         if (
           frame.type === 'session.start' &&
-          frame.payload?.sessionId === id &&
+          typeof frame.payload?.sessionId === 'string' &&
+          frame.payload.sessionId.trim() === targetId &&
           frame.payload?.reset === true
         )
           replayed = true;

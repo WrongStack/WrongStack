@@ -35,10 +35,11 @@ export function conversationToolStats(events: readonly EngineEvent[]): ToolStats
   };
   for (const event of events) {
     if (event.type !== 'tool.started' && event.type !== 'tool.executed') continue;
-    const name = typeof event.payload['name'] === 'string' ? event.payload['name'] : 'tool';
+    const rawName = typeof event.payload['name'] === 'string' ? event.payload['name'].trim() : '';
+    const name = rawName || 'tool';
     const agent =
-      typeof event.payload['agentName'] === 'string' && event.payload['agentName']
-        ? event.payload['agentName']
+      typeof event.payload['agentName'] === 'string' && event.payload['agentName'].trim()
+        ? event.payload['agentName'].trim()
         : '';
     const targets = [bucket(tools, name), ...(agent ? [bucket(agents, agent)] : [])];
     for (const target of targets) {
@@ -125,6 +126,8 @@ export function catalogToolStats(reply: Record<string, unknown>): CatalogToolSta
 
 /** Completed-call success percentage, or null while nothing has completed. */
 export function successRate(ok: number, failed: number): number | null {
-  const done = ok + failed;
-  return done > 0 ? Math.round((ok / done) * 100) : null;
+  const safeOk = count(ok);
+  const safeFailed = count(failed);
+  const done = safeOk + safeFailed;
+  return done > 0 ? Math.round((safeOk / done) * 100) : null;
 }

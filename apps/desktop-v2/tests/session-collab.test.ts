@@ -92,7 +92,7 @@ describe('conversation collaboration', () => {
     const join = [...host.querySelectorAll('button')].find(
       (button) => button.textContent?.trim() === 'Observer',
     );
-    expect(join).toBeDefined();
+    expect(join, 'The observer join control is rendered').toBeDefined();
     await act(async () => join?.click());
     expect(fake.sent[0]).toEqual(['collab.join', { sessionId: 's1', role: 'observer' }]);
     await act(async () =>
@@ -111,5 +111,52 @@ describe('conversation collaboration', () => {
     expect(host.textContent).toContain('Leave');
     await act(async () => root.unmount());
     host.remove();
+  });
+
+  it('explicitly releases retained host membership after a reload join is refused', async () => {
+    const fake = fakeStream();
+    const client = collabClient(fake.stream, 0);
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await surfaceI18n.changeLanguage('en');
+    try {
+      await act(async () => {
+        root.render(
+          createElement(
+            I18nextProvider,
+            { i18n: surfaceI18n },
+            createElement(CollabPanel, { sessionId: 'reload-recovery', client, pendingTools: [] }),
+          ),
+        );
+      });
+      const button = (label: string) =>
+        [...host.querySelectorAll('button')].find((item) => item.textContent?.trim() === label);
+      await act(async () => button('Observer')?.click());
+      await act(async () =>
+        fake.emit({
+          type: 'error',
+          payload: {
+            phase: 'collab',
+            message: 'collab.join requires leaving the current session first',
+          },
+          at: 1,
+        }),
+      );
+      expect(fake.sent).toHaveLength(1); // No implicit leave or automatic retry.
+      expect(button('Leave')).toBeDefined();
+      await act(async () => button('Leave')?.click());
+      expect(fake.sent.at(-1)).toEqual(['collab.leave', { sessionId: 'reload-recovery' }]);
+      expect(host.textContent).not.toContain('requires leaving');
+      expect(host.textContent).toContain('No live observers');
+      await act(async () => button('Observer')?.click());
+      expect(fake.sent.at(-1)).toEqual([
+        'collab.join',
+        { sessionId: 'reload-recovery', role: 'observer' },
+      ]);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
   });
 });

@@ -21,6 +21,8 @@ export const WRITE_PREVIEW_LINES = 40;
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 const count = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+const positiveCount = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.trunc(value) : undefined;
 
 /** A shell argument shown as typed: quoted only when it would otherwise split or mislead. */
 function shellArg(arg: string): string {
@@ -71,8 +73,8 @@ export function toolInputView(name: string, input: unknown): ToolInputView {
     };
   }
   if (name === 'read' && path) {
-    const offset = count(value['offset']);
-    const limit = count(value['limit']);
+    const offset = positiveCount(value['offset']);
+    const limit = positiveCount(value['limit']);
     const range =
       offset !== undefined && limit !== undefined
         ? `lines ${offset}–${offset + limit - 1}`

@@ -79,3 +79,22 @@ it('shows the scan state before the engine answers', () => {
   expect(markup).toContain('No run in this engine is using a worktree.');
   expect(markup).toContain('Scanning managed worktrees');
 });
+
+it('falls back blank branch names, filters blank/non-string conflict files, and rejects array summaries (F104)', () => {
+  expect(mergeOutcome({ ok: true, branch: '   ' })).toBe('Merged the checkout.');
+  expect(
+    mergeOutcome({
+      ok: false,
+      branch: 'feat/x',
+      conflict: true,
+      conflictFiles: [null, '   ', 'src/a.ts'],
+    }),
+  ).toBe('feat/x was not merged: conflicts in src/a.ts.');
+  expect(
+    worktreeViews({
+      baseBranch: 'main',
+      worktrees: [{ handleId: 'h1', conflictFiles: [undefined, '  ', 'src/b.ts'] }],
+    }).worktrees[0]?.conflictFiles,
+  ).toEqual(['src/b.ts']);
+  expect(diffSummary({ dir: '/d', summary: [] }).summary).toBeNull();
+});

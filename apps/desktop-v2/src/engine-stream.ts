@@ -48,6 +48,10 @@ export class BackendStream {
   ) {
     this.operations = new EngineOperations(this.send);
   }
+  /** Stable storage scope for window-local surface state. */
+  get identity(): string {
+    return this.key();
+  }
   /** Whether a view keeps this reader running now. */
   get open(): boolean {
     return !this.stopped;
@@ -125,6 +129,9 @@ export class BackendStream {
           });
           for (const subscriber of this.subscribers) subscriber.changed();
         }
+        // changed() may unsubscribe the last view and stop this reader. Arming
+        // the next poll after that starts a read nobody is watching.
+        if (run !== this.run || this.stopped) return;
         this.timer = setTimeout(poll, hasMore ? 0 : 100);
       } catch (error) {
         if (run === this.run && !this.stopped) {

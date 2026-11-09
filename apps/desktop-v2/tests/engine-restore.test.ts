@@ -78,4 +78,20 @@ describe('private engine history bootstrap', () => {
       'replay was not verified',
     );
   });
+  it('trims padded session ids and tokens and rejects invalid arguments early (F104)', async () => {
+    const server = await peer(true, true);
+    await restoreEngineSession(server.port, ' private ', ' recorded ');
+    expect(server.requests).toEqual([
+      { type: 'session.resume', payload: { id: 'recorded', requestId: expect.any(String) } },
+    ]);
+    await expect(restoreEngineSession(0, 'private', 'recorded')).rejects.toThrow(
+      'requires a valid',
+    );
+    await expect(restoreEngineSession(server.port, '   ', 'recorded')).rejects.toThrow(
+      'requires a valid',
+    );
+    await expect(restoreEngineSession(server.port, 'private', '   ')).rejects.toThrow(
+      'requires a valid',
+    );
+  });
 });

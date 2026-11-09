@@ -67,3 +67,32 @@ it('names facts by a stable id and writes missing values in the given words', ()
     right: '1+ (liste kesildi)',
   });
 });
+it('falls back to notRecorded when createdAt or numeric metrics are non-finite (F145)', () => {
+  const facts = Object.fromEntries(
+    runFacts(
+      run('nan-run', {
+        createdAt: Number.NaN,
+        exitCode: Number.NaN,
+        result: {
+          ...result(['a.ts']),
+          durationMs: Number.NaN,
+          usage: {
+            inputTokens: Number.NaN,
+            outputTokens: Number.POSITIVE_INFINITY,
+            iterations: Number.NaN,
+            costUsd: Number.NaN,
+            costSource: 'unknown',
+          },
+        },
+      }),
+      run('ok-run'),
+    ).map((fact) => [fact.id, fact.left]),
+  );
+  expect(facts.created).toBe('Not recorded');
+  expect(facts.duration).toBe('Not recorded');
+  expect(facts.inputTokens).toBe('Not recorded');
+  expect(facts.outputTokens).toBe('Not recorded');
+  expect(facts.iterations).toBe('Not recorded');
+  expect(facts.cost).toBe('Not recorded');
+  expect(facts.exitCode).toBe('Not recorded');
+});

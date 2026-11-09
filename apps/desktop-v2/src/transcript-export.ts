@@ -16,7 +16,15 @@ export function transcriptMarkdown(
   return lines.join('\n');
 }
 
-const folderName = (root: string) => root.split(/[\\/]/).filter(Boolean).pop() ?? '';
+const folderName = (root: string) => {
+  const leaf =
+    root
+      .split(/[\\/]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .pop() ?? '';
+  return leaf === '.' || leaf === '..' || /^[a-zA-Z]:$/.test(leaf) ? '' : leaf;
+};
 
 /** The heading of an exported conversation: the project folder's name. */
 export const transcriptTitle = (projectRoot: string) => folderName(projectRoot) || 'Conversation';
@@ -24,7 +32,8 @@ export const transcriptTitle = (projectRoot: string) => folderName(projectRoot) 
 /** `name-chat-2026-11-04-10-30-00.md`: the folder name and the export time, safe for any disk. */
 export function transcriptFileName(projectRoot: string, exportedAt: string): string {
   const folder = folderName(projectRoot);
-  const name = folder.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'conversation';
+  const cleaned = folder.replace(/[^\w.-]+/g, '-').replace(/^[.-]+|[.-]+$/g, '');
+  const name = cleaned && cleaned !== '.' && cleaned !== '..' ? cleaned : 'conversation';
   const stamp = exportedAt.slice(0, 19).replace(/[:T]/g, '-');
   return `${name}-chat-${stamp}.md`;
 }

@@ -53,6 +53,11 @@ describe('read, search, replace and exec views', () => {
       path: 'a.ts',
       range: 'lines 10–14',
     });
+    expect(toolInputView('read', { path: 'a.ts', offset: 10, limit: 0 })).toEqual({
+      kind: 'read',
+      path: 'a.ts',
+      range: 'from line 10',
+    });
     expect(toolInputView('read', { path: 'a.ts' })).toMatchObject({ range: 'whole file' });
   });
 

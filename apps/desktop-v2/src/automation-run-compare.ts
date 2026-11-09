@@ -47,24 +47,36 @@ export function runFacts(
 ): RunFact[] {
   const unknown = words.notRecorded;
   const tokens = (value: number | null | undefined) =>
-    value === null || value === undefined ? unknown : value.toLocaleString(displayLocale());
+    value === null || value === undefined || !Number.isFinite(value)
+      ? unknown
+      : value.toLocaleString(displayLocale());
   const read = (run: AutomationRunRecord): Record<RunFactId, string> => {
     const result = run.result;
+    const createdDate = new Date(run.createdAt);
+    const created = Number.isNaN(createdDate.getTime()) ? unknown : createdDate.toISOString();
     return {
       status: run.status,
       trigger: run.trigger,
-      created: new Date(run.createdAt).toISOString(),
-      duration: result ? `${displayDecimal(result.durationMs / 1000, 1)} s` : unknown,
+      created,
+      duration:
+        result && Number.isFinite(result.durationMs)
+          ? `${displayDecimal(result.durationMs / 1000, 1)} s`
+          : unknown,
       agentStatus: result?.agentStatus ?? unknown,
       verification: result?.validation.status ?? unknown,
       inputTokens: tokens(result?.usage.inputTokens),
       outputTokens: tokens(result?.usage.outputTokens),
       iterations: tokens(result?.usage.iterations),
       cost:
-        result?.usage.costUsd === null || result?.usage.costUsd === undefined
+        result?.usage.costUsd === null ||
+        result?.usage.costUsd === undefined ||
+        !Number.isFinite(result.usage.costUsd)
           ? unknown
           : `$${displayDecimal(result.usage.costUsd, 4)}`,
-      exitCode: run.exitCode === undefined ? unknown : String(run.exitCode),
+      exitCode:
+        run.exitCode === undefined || !Number.isFinite(run.exitCode)
+          ? unknown
+          : String(run.exitCode),
       changedFiles: result
         ? `${result.changedFiles.length}${result.changedFilesTruncated ? words.truncated : ''}`
         : unknown,

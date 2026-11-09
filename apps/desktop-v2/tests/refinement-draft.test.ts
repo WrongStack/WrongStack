@@ -1,9 +1,17 @@
+// @vitest-environment jsdom
+
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { describe, expect, it } from 'vitest';
+import type { FormDraftSnapshot, FormDraftStorage } from '../src/durable-form-draft';
 import {
   type RefinementDraft,
   refinementDraftCodec,
   refinementDraftResult,
 } from '../src/refinement-draft';
+import { useRefinementDraft } from '../src/useRefinementDraft';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const draft: RefinementDraft = {
   original: 'fix the parser',
@@ -66,5 +74,39 @@ describe('refinement review draft', () => {
     expect(() =>
       refinementDraftCodec.parse({ version: 1, ...draft, result: null } as never),
     ).toThrow(/unsupported format/);
+  });
+
+  it('returns false from save when storage is not ready or in conflict so closing a pending dialog preserves a saved reply', async () => {
+    const pending = { ...draft, result: null, pending: true as const, edited: null };
+    let resolveLoad!: (snap: FormDraftSnapshot) => void;
+    let persisted: unknown = refinementDraftCodec.serialize(draft);
+    const storage: FormDraftStorage = {
+      get: () =>
+        new Promise<FormDraftSnapshot>((resolve) => {
+          resolveLoad = resolve;
+        }),
+      save: async (value, rev) => {
+        persisted = value;
+        return rev + 1;
+      },
+    };
+    let current!: ReturnType<typeof useRefinementDraft>;
+    function Harness() {
+      current = useRefinementDraft(storage);
+      return null;
+    }
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(createElement(Harness));
+    });
+    expect(current.save(pending)).toBe(false);
+    await act(async () => {
+      resolveLoad({ revision: 1, value: persisted });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(current.saved?.result?.refined).toBe(draft.result?.refined);
+    expect(current.save(pending)).toBe(false);
+    act(() => root.unmount());
   });
 });

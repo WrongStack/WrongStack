@@ -26,6 +26,13 @@ export interface WorktreeOrphan {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
 const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+const stringList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
 
 function latestActivity(value: unknown) {
   const last = entries(value).at(-1);
@@ -47,7 +54,7 @@ export function worktreeViews(payload: unknown): { baseBranch: string; worktrees
       insertions: count(row['insertions']),
       deletions: count(row['deletions']),
       files: count(row['files']),
-      conflictFiles: Array.isArray(row['conflictFiles']) ? row['conflictFiles'].map(String) : [],
+      conflictFiles: stringList(row['conflictFiles']),
       lastError: text(row['lastError']),
       allocatedAt: count(row['allocatedAt']),
       latest: latestActivity(row['recentActivity']),
@@ -104,17 +111,15 @@ export function cleanupOutcome(payload: unknown, say: WorktreeSay = english): st
 /** One line for a merge result (`worktree.merge_result`), naming conflicts when reported. */
 export function mergeOutcome(payload: unknown, say: WorktreeSay = english): string {
   const result = record(payload);
-  const branch = text(result['branch']);
+  const branch = text(result['branch']).trim() || say('theCheckout');
   if (result['ok'] === true) return say('merged', { branch });
-  const conflicts = Array.isArray(result['conflictFiles'])
-    ? result['conflictFiles'].map(String)
-    : [];
+  const conflicts = stringList(result['conflictFiles']);
   if (result['conflict'] === true || conflicts.length)
     return say('conflicts', {
       branch,
       files: conflicts.length ? conflicts.join(', ') : say('theCheckout'),
     });
-  return say('notMerged', { branch, reason: text(result['reason']) || say('refused') });
+  return say('notMerged', { branch, reason: text(result['reason']).trim() || say('refused') });
 }
 
 /** The changes summary for one checkout (`worktree.diff_result`), or null when unavailable. */
@@ -129,7 +134,8 @@ export function diffSummary(payload: unknown): {
 } {
   const result = record(payload);
   const raw = result['summary'];
-  if (!raw || typeof raw !== 'object') return { dir: text(result['dir']), summary: null };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    return { dir: text(result['dir']), summary: null };
   const summary = record(raw);
   return {
     dir: text(result['dir']),

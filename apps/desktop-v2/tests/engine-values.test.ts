@@ -22,6 +22,18 @@ describe('engine values in words', () => {
       'snake_case_name and 2*3*4 stay',
     );
     expect(markdownExcerpt('x'.repeat(200), 10)).toBe(`${'x'.repeat(9)}…`);
+    expect(markdownExcerpt('## Final Section\n```')).toBe('Final Section');
+    expect(markdownExcerpt('Hello world', 0)).toBe('');
+  });
+
+  it('keeps "Label: value" lines apart and leaves wrapped prose joined', () => {
+    expect(markdownExcerpt('Manifest: package.json\nFile: package.json\nEvent: change')).toBe(
+      'Manifest: package.json · File: package.json · Event: change',
+    );
+    expect(markdownExcerpt('Chimera completed with no actionable\nfindings in the diff')).toBe(
+      'Chimera completed with no actionable findings in the diff',
+    );
+    expect(markdownExcerpt('Done.\nNext: ship it')).toBe('Done. Next: ship it');
   });
 
   it('states sizes in binary units and spans in the largest unit', () => {
@@ -29,6 +41,8 @@ describe('engine values in words', () => {
     expect(byteText(1024, 'en')).toBe('1 KiB');
     expect(byteText(64 * 1024 * 1024, 'en')).toBe('64 MiB');
     expect(byteText(1536, 'de')).toBe('1,5 KiB');
+    expect(byteText(Number.NaN, 'en')).toBe('—');
+    expect(byteText(-512, 'en')).toBe('—');
     expect(durationText(600_000, 'en')).toBe('10 min');
     expect(durationText(10_000, 'en')).toBe('10 sec');
   });

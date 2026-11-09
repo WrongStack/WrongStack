@@ -66,10 +66,11 @@ export function removalProposal(
   removals: { messageIndex: number }[];
   allowRepair: true;
 } {
-  const indices = [...removed].sort((a, b) => a - b);
+  const whole = removalSet(snapshot, removed);
+  const indices = [...whole].sort((a, b) => a - b);
   return {
     baseRevision: snapshot.revision,
-    messages: structuredClone(snapshot.messages.filter((_, index) => !removed.has(index))),
+    messages: structuredClone(snapshot.messages.filter((_, index) => !whole.has(index))),
     removals: indices.map((messageIndex) => ({ messageIndex })),
     allowRepair: true,
   };
@@ -155,7 +156,7 @@ export function rangePlan(
   removed: ReadonlySet<number>,
   ranges: readonly ContextTextRange[],
 ) {
-  const whole = new Set(removed);
+  const whole = removalSet(snapshot, removed);
   for (const range of ranges)
     if (snapshot.rows[range.messageIndex]?.role === 'user')
       for (const pair of snapshot.rows[range.messageIndex]?.paired ?? []) whole.add(pair);

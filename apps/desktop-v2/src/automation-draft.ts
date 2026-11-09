@@ -46,10 +46,14 @@ export const automationDraftCodec: FormDraftCodec<SavedAutomationDrafts> = {
     if (value === null) return null;
     const saved = value as Record<string, unknown>;
     const drafts = isRecord(saved) ? saved['drafts'] : undefined;
+    const active = isRecord(saved) ? saved['active'] : undefined;
     const valid =
       isRecord(saved) &&
       saved['version'] === 1 &&
-      typeof saved['active'] === 'string' &&
+      typeof active === 'string' &&
+      active.trim().length > 0 &&
+      active.length <= 200 &&
+      !UNSAFE.includes(active) &&
       isRecord(drafts) &&
       Object.keys(drafts).length <= MAX_DRAFTS &&
       JSON.stringify(saved).length <= MAX_BYTES &&
@@ -64,7 +68,7 @@ export const automationDraftCodec: FormDraftCodec<SavedAutomationDrafts> = {
       });
     if (!valid) throw Error('Saved automation drafts have an unsupported format.');
     return structuredClone({
-      active: saved['active'] as string,
+      active: active as string,
       drafts: drafts as Record<string, AutomationDraft>,
     });
   },

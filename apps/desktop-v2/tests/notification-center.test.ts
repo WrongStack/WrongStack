@@ -122,12 +122,13 @@ describe('what reaches the history', () => {
   });
 
   it('forwards a live warning or a passing notice once, never an old replayed one', () => {
+    const liveAt = Date.now() + 1000;
     const notice = (over: Partial<ConversationNotice>): ConversationNotice => ({
       id: 'n1',
       severity: 'warning',
       text: 'Compaction failed',
       hint: '',
-      at: Date.now() + 1000,
+      at: liveAt,
       ...over,
     });
     expect(forwardConversationNotice(notice({}), 'Compaction failed')).toBe(true);

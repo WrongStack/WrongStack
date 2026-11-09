@@ -42,6 +42,8 @@ describe('automation draft envelope', () => {
       { version: 2, active: NEW_AUTOMATION, drafts: { [NEW_AUTOMATION]: draft } },
       { version: 1, active: NEW_AUTOMATION, drafts: [] },
       { version: 1, active: 1, drafts: {} },
+      { version: 1, active: '', drafts: { [NEW_AUTOMATION]: draft } },
+      { version: 1, active: '__proto__', drafts: { [NEW_AUTOMATION]: draft } },
       // A job draft must be stored under its own job id; a new draft has no saved record.
       { version: 1, active: 'job-2', drafts: { 'job-2': { ...draft, selected: record } } },
       {
