@@ -183,6 +183,52 @@ describe('makeACPServerAgentTurn', () => {
     expect(turn.replay(sessionId)).toEqual([]);
   });
 
+  it('applies the session config selections before every turn, and fails the turn when they cannot be applied', async () => {
+    // The model picker is a config option; the host puts the agent on the
+    // selected model here. Running on the previous model after a failed
+    // switch would answer from a model the user did not pick.
+    const agent = makeFakeAgent('answer');
+    const applied: string[] = [];
+    let fail = false;
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () => agent as never as Agent,
+      applyConfigOptions: async (a, options, sessionId) => {
+        expect(a).toBe(agent);
+        expect(sessionId).toBe('cfg');
+        if (fail) throw new Error('cannot build provider x');
+        applied.push(options[0]!.currentValue);
+      },
+    });
+    const signal = new AbortController().signal;
+    const option = (currentValue: string) => ({
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue,
+      options: [
+        { value: 'a/one', name: 'one' },
+        { value: 'b/two', name: 'two' },
+      ],
+    });
+    const prompt = [{ type: 'text' as const, text: 'hi' }];
+    await turn({ sessionId: 'cfg', prompt, signal, configOptions: [option('a/one')] }, () => {});
+    await turn({ sessionId: 'cfg', prompt, signal, configOptions: [option('b/two')] }, () => {});
+    expect(applied).toEqual(['a/one', 'b/two']);
+    expect(agent.run).toHaveBeenCalledTimes(2);
+
+    fail = true;
+    await expect(
+      turn({ sessionId: 'cfg', prompt, signal, configOptions: [option('a/one')] }, () => {}),
+    ).rejects.toThrow('cannot build provider x');
+    expect(agent.run).toHaveBeenCalledTimes(2);
+
+    // No options, no call: hosts without a picker are unaffected.
+    fail = false;
+    await turn({ sessionId: 'cfg', prompt, signal }, () => {});
+    expect(applied).toEqual(['a/one', 'b/two']);
+  });
+
   it('bounds in-memory replay history per session', async () => {
     const turn = makeACPServerAgentTurn({
       agentFor: async () => makeFakeAgent('answer') as never as Agent,

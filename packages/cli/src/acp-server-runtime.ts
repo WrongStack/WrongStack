@@ -12,13 +12,19 @@
  */
 
 import * as path from 'node:path';
-import type { AuthGateResult, McpServer, RunTurnApi } from '@wrongstack/acp/agent';
+import type {
+  AuthGateResult,
+  McpServer,
+  RunTurnApi,
+  SessionConfigOption,
+} from '@wrongstack/acp/agent';
 import type { Config } from '@wrongstack/contracts/types';
 import type { Agent } from '@wrongstack/core/agent';
 import { flagsToConfigPatch } from '@wrongstack/core/boot';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultConfigLoader } from '@wrongstack/core/storage';
 import { type AcpHqTelemetry, startAcpHqTelemetry } from './acp-hq-telemetry.js';
+import { buildAcpModelOption, selectedAcpModel } from './acp-model-option.js';
 import {
   type AcpServerAgentFactory,
   AcpServerConfigError,
@@ -40,6 +46,16 @@ export interface AcpServerRuntime {
    * the Agent, then stop the MCP servers the client supplied for the session.
    */
   composeDispose(disposeTurn: (sessionId: string) => void): (sessionId: string) => void;
+  /**
+   * The model picker for a new session (`ProtocolHandlerOptions.sessionConfigOptions`):
+   * empty until a provider is configured.
+   */
+  sessionConfigOptions(): Promise<SessionConfigOption[]>;
+  /**
+   * Put a session's agent on the model its picker selects
+   * (`ACPServerAgentTurnOptions.applyConfigOptions`).
+   */
+  applyConfigOptions(agent: Agent, configOptions: readonly SessionConfigOption[]): Promise<void>;
   /** Whether a provider is configured and the real agent is built. */
   ready(): boolean;
   /** Provider/model the agent runs with, once ready. */
@@ -51,6 +67,8 @@ export interface AcpServerRuntime {
 export interface AcpServerRuntimeOptions {
   /** Re-read the saved configuration. Defaults to the CLI's config loader. */
   reloadConfig?: (() => Promise<Config>) | undefined;
+  /** Test seam for the model picker; defaults to `buildAcpModelOption`. */
+  buildModelOption?: typeof buildAcpModelOption | undefined;
 }
 
 interface Built {
@@ -144,6 +162,10 @@ export function createAcpServerRuntime(
       disposeSession(sessionId: string): void {
         built?.raw.disposeSession(sessionId);
       },
+      async selectModel(agent: Agent, providerId: string, modelId: string): Promise<void> {
+        if (!built) throw new AcpServerConfigError(ACP_LOGIN_HINT);
+        await built.raw.selectModel(agent, providerId, modelId);
+      },
     },
   ) as AcpServerAgentFactory;
 
@@ -157,6 +179,19 @@ export function createAcpServerRuntime(
       } finally {
         built?.raw.disposeSession(sessionId);
       }
+    },
+    sessionConfigOptions: async () => {
+      if (!built) return [];
+      const option = await (options.buildModelOption ?? buildAcpModelOption)({
+        config: built.config,
+        modelsRegistry: deps.modelsRegistry,
+      });
+      return option ? [option] : [];
+    },
+    applyConfigOptions: async (agent, configOptions) => {
+      const selected = selectedAcpModel(configOptions);
+      if (!selected) return;
+      await agentFor.selectModel(agent, selected.providerId, selected.modelId);
     },
     ready: () => built !== undefined,
     describe: () => (built ? `${built.config.provider}/${built.config.model}` : undefined),

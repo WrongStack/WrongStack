@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 512,
+      "files": 513,
       "typeOnly": 385,
-      "runtimeOrMixed": 159
+      "runtimeOrMixed": 160
     },
     "@wrongstack/core/boot": {
       "files": 6,
@@ -344,6 +344,12 @@
       "file": "packages/cli/src/acp-hq-telemetry.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/acp-model-option.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",

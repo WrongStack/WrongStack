@@ -3,9 +3,12 @@ import * as path from 'node:path';
 import {
   ACP_PROTOCOL_VERSION,
   type ClientCapabilities,
+  configOptionValues,
   type McpServer,
+  type ProtocolHandlerOptions,
   type RequestPermissionOutcome,
   type RunTurnApi,
+  type SessionConfigOption,
   type SessionMode,
 } from './protocol-contract.js';
 
@@ -52,6 +55,36 @@ export const DEFAULT_MODES: readonly SessionMode[] = [
     description: 'Default agent mode for code-generation tasks.',
   },
 ];
+
+/**
+ * The config options a session opens with: the static list plus the host's
+ * per-session ones. With `persisted` (a cold `session/load`), each option keeps
+ * its saved selection when that value is still offered. Without a per-session
+ * builder the persisted list is restored as saved, as before.
+ */
+export async function openSessionConfigOptions(
+  ctx: {
+    configOptions: readonly SessionConfigOption[];
+    sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
+  },
+  persisted?: readonly SessionConfigOption[] | undefined,
+): Promise<SessionConfigOption[]> {
+  if (!ctx.sessionConfigOptions) return structuredClone([...(persisted ?? ctx.configOptions)]);
+  let dynamic: readonly SessionConfigOption[] = [];
+  try {
+    dynamic = await ctx.sessionConfigOptions();
+  } catch {
+    // A picker that cannot be built must not keep the session from opening.
+  }
+  const fresh = structuredClone([...ctx.configOptions, ...dynamic]);
+  for (const option of fresh) {
+    const saved = persisted?.find((p) => p.id === option.id);
+    if (saved && configOptionValues(option).some((v) => v.value === saved.currentValue)) {
+      option.currentValue = saved.currentValue;
+    }
+  }
+  return fresh;
+}
 
 /**
  * Validate the `mcpServers` array a client sends with `session/new`,

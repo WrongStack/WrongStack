@@ -29,7 +29,8 @@ through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 | Load/resume | Warm and persisted sessions; load replays conversation, resume seeds model context without replaying UI history |
 | List/delete | Includes persisted sessions when the store supplies `list`; filters by cwd; durable deletion when the store supplies `delete`; unknown deletes succeed |
 | Prompt/cancel | Stdio continues reading while a prompt runs; concurrent prompts in one session rejected; session cancellation and request-ID cancellation abort active prompts and their client callbacks |
-| Configuration | Select values isolated per session, copied on fork and persisted; current mode and config supplied to custom `runTurn` implementations |
+| Configuration | Select values (flat or grouped) isolated per session, copied on fork and persisted; hosts may add per-session options when a session opens, rebuilt on cold load keeping the saved value while it is offered; current mode and config supplied to custom `runTurn` implementations |
+| Model picker | The CLI agent offers a `category: "model"` select (`model`) grouped by provider, from the same list as `/model`; the selection is applied to the session's agent before each turn, and a model that cannot be built fails the turn instead of running on the previous one |
 | Content | Text, resource links, images and embedded text; unsaved embedded text survives text-only prompts and replay; client gates optional prompt content on negotiated capabilities |
 | Progress | Text, official `agent_thought_chunk` (legacy alias tolerated), plans, tool calls, diffs and usage collected; raw updates available to hosts |
 | Permissions | Requests routed to host policy; cancellation returns `{outcome:{outcome:"cancelled"}}`; CLI agent routes side effects through the editor |
@@ -39,8 +40,9 @@ through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 | Unsupported client requests | Explicit method-not-found errors, including elicitation; no empty success that falsely claims support |
 | Cleanup | Session close/delete releases cached agents and CLI MCP registries |
 
-The CLI has one built-in `code` mode and no model/config selector. Embedders can
-supply modes/config options, but their `runTurn` must apply the selected values.
+The CLI has one built-in `code` mode and a model picker (see above). Embedders can
+supply modes/config options, but their `runTurn` (or `applyConfigOptions` on
+`makeACPServerAgentTurn`) must apply the selected values.
 No-op provider-management methods are legacy compatibility surfaces, not standard
 ACP provider configuration. Configure providers through `wstack auth`.
 
@@ -96,8 +98,10 @@ coverage and `release:check` were not run.
   before `initialize` without a provider and offered no auth method to a client
   that does not announce `auth.terminal`. The fix below has to ship in a release
   before an entry is submitted.
-- Draft v2, structured elicitation, boolean config options, additional workspace
-  roots and an editor model selector are not advertised or implemented.
+- Draft v2, structured elicitation, boolean config options and additional workspace
+  roots are not advertised or implemented. The model picker lists the providers
+  configured when the agent was built; a provider added later needs an agent
+  restart to appear.
 - Terminal authentication is exposed by the agent to capable clients. WrongStack's
   client gives manual login guidance; it does not advertise interactive terminal
   authentication support or launch a login UI automatically.

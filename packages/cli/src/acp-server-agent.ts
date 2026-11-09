@@ -33,10 +33,12 @@ import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import { withCatalogCapabilities } from '@wrongstack/providers';
 import { createDefaultContainer, wireKanbanPorts } from '@wrongstack/runtime';
 import { connectAcpSessionMcpServers } from './acp-mcp-servers.js';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 import { setupProvider } from './wiring/provider.js';
+import { buildProviderForId, resolveProviderCfgWithProxy } from './wiring/provider-runtime.js';
 
 /**
  * Error thrown when the server cannot start because no model provider is
@@ -90,6 +92,13 @@ export interface AcpServerAgentFactory {
   ): Promise<Agent>;
   /** Stop and forget the MCP servers connected for this ACP session. */
   disposeSession(sessionId: string): void;
+  /**
+   * Run a session's agent on another provider/model, built the way the
+   * `/model` switch builds it (saved credentials, catalog capabilities). A
+   * no-op when the agent already runs it; throws when the provider cannot be
+   * built, leaving the agent on its current model.
+   */
+  selectModel(agent: Agent, providerId: string, modelId: string): Promise<void>;
 }
 
 interface AcpAgentFactoryOptions {
@@ -494,6 +503,27 @@ export function buildAcpServerAgentFactory(
         : {}),
     });
   } as AcpServerAgentFactory;
+
+  agentFor.selectModel = async (agent: Agent, providerId: string, modelId: string) => {
+    const ctx = agent.ctx;
+    if (ctx.provider?.id === providerId && ctx.model === modelId) return;
+    const { providerRegistry } = await bootProvider();
+    await ctx.runModelTransition(async () => {
+      let next = buildProviderForId({ config, providerRegistry, logger }, providerId);
+      if (config.features?.modelsRegistry) {
+        const { cfg } = resolveProviderCfgWithProxy(config, providerId);
+        next = await withCatalogCapabilities(
+          deps.modelsRegistry,
+          providerId,
+          next,
+          { ...cfg, type: cfg.type ?? providerId, model: modelId },
+          logger,
+        );
+      }
+      ctx.provider = next;
+      ctx.model = modelId;
+    });
+  };
 
   agentFor.disposeSession = (sessionId: string): void => {
     disposedSessions.add(sessionId);

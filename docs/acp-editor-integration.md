@@ -120,6 +120,19 @@ The agent advertises this in its `initialize` response:
 Modes and config options come back in the `session/new` (and `load`, `resume`,
 `fork`) responses, not in `initialize`.
 
+### Model picker
+
+Every session carries a `model` config option with `category: "model"`, which
+editors show as their model selector. It lists the same models as `/model`: the
+providers with a usable credential, their models from the catalog, grouped by
+provider, without the providers and models switched off in settings. A value is
+`<provider>/<model>` (split at the first slash, so `openrouter/anthropic/claude-x`
+works). `session/set_config_option` stores the choice; the next prompt runs on
+it, built the way `/model` builds a provider. If that provider cannot be built
+the prompt fails with the reason rather than quietly using the old model. The
+choice is saved with the session and restored on `session/load` while the model
+is still offered. It does not change the default model in your config.
+
 A client that advertises `clientCapabilities.fs.{readTextFile,writeTextFile}`
 and/or `terminal: true` lets WrongStack operate on the **editor's** filesystem
 and terminal (see §5).
@@ -189,6 +202,10 @@ configured. ✅ = expected behavior.
       and reports what it skipped as an `agent_message_chunk`.
 - [ ] `session/fork` inherits the parent's servers; passing a new `mcpServers`
       array on `fork` / `load` / `resume` replaces the set.
+
+### Model picker
+- [ ] The editor's model selector lists your configured providers' models, the session's model selected.
+- [ ] Picking another model and sending a prompt answers from that model (the reply names it, or the provider's usage view shows it).
 
 ### Multimodal (B5)
 - [ ] If the editor + your model support vision, attaching an image to a prompt reaches the model (the agent advertises `promptCapabilities.image: true`).

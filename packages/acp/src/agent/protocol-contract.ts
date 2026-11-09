@@ -180,12 +180,44 @@ export interface SessionMode {
   description?: string | undefined;
 }
 
+/** One selectable value of a `select` config option. */
+export interface SessionConfigSelectOption {
+  value: string;
+  name: string;
+  description?: string | undefined;
+}
+
+/** A labelled group of values, e.g. one provider's models. */
+export interface SessionConfigSelectGroup {
+  group: string;
+  name: string;
+  options: SessionConfigSelectOption[];
+}
+
 export interface SessionConfigOption {
   id: string;
   name: string;
+  description?: string | undefined;
+  /**
+   * Semantic hint for client UX (`mode`, `model`, `model_config`,
+   * `thought_level`, or `_custom`). Clients place a `model` option in their
+   * model picker; it is never required for correctness.
+   */
+  category?: string | undefined;
   type: 'select' | string;
   currentValue: string;
-  options: { value: string; name: string; description?: string | undefined }[];
+  /** Flat values, or values grouped under headers (never mixed). */
+  options: SessionConfigSelectOption[] | SessionConfigSelectGroup[];
+}
+
+/** Every selectable value of an option, flattening groups. */
+export function configOptionValues(option: SessionConfigOption): SessionConfigSelectOption[] {
+  const out: SessionConfigSelectOption[] = [];
+  for (const entry of option.options) {
+    if ('group' in entry && Array.isArray(entry.options)) out.push(...entry.options);
+    else out.push(entry as SessionConfigSelectOption);
+  }
+  return out;
 }
 
 export interface ProtocolHandlerOptions {
@@ -203,6 +235,14 @@ export interface ProtocolHandlerOptions {
   modes?: readonly SessionMode[] | undefined;
   /** Static list of config options. */
   configOptions?: readonly SessionConfigOption[] | undefined;
+  /**
+   * Config options computed when a session opens (after `authGate`), appended
+   * to the static list — e.g. a model picker whose values depend on the
+   * configured providers. A cold `session/load` rebuilds them and keeps the
+   * persisted selection where it is still offered. A failing builder yields
+   * no extra options rather than failing the session.
+   */
+  sessionConfigOptions?: (() => Promise<readonly SessionConfigOption[]>) | undefined;
   /** Agent name advertised in initialize. */
   agentName?: string | undefined;
   /**

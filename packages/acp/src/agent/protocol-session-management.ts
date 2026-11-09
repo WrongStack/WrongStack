@@ -1,17 +1,20 @@
-import type {
-  ClientCapabilities,
-  ContentBlock,
-  RunTurn,
-  RunTurnResult,
-  SessionConfigOption,
-  SessionMode,
-  SessionPersistence,
-  SessionState,
+import {
+  type ClientCapabilities,
+  type ContentBlock,
+  configOptionValues,
+  type ProtocolHandlerOptions,
+  type RunTurn,
+  type RunTurnResult,
+  type SessionConfigOption,
+  type SessionMode,
+  type SessionPersistence,
+  type SessionState,
 } from './protocol-contract.js';
 import {
   createRunTurnApi,
   DEFAULT_MODE_ID,
   errorToJsonRpc,
+  openSessionConfigOptions,
   parseMcpServers,
   resolveSessionCwd,
 } from './protocol-session-ops.js';
@@ -22,6 +25,7 @@ export interface ProtocolSessionContext {
   defaultCwd: string;
   modes: readonly SessionMode[];
   configOptions: readonly SessionConfigOption[];
+  sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
   store: SessionPersistence | undefined;
   replayFor:
     | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
@@ -65,6 +69,7 @@ export async function handleSessionNewOp(
   }
   const skipped: string[] = [];
   const mcpServers = parseMcpServers(p.mcpServers, (reason) => skipped.push(reason));
+  const configOptions = await openSessionConfigOptions(ctx);
   // cwd validation yields; another request may have filled the last slot.
   if (ctx.sessions.size >= ctx.maxSessions) {
     await ctx.sendError(id, -32000, `active session limit reached (${ctx.maxSessions})`);
@@ -77,7 +82,7 @@ export async function handleSessionNewOp(
     cwd,
     abort: new AbortController(),
     modeId: ctx.modes[0]?.id ?? DEFAULT_MODE_ID,
-    configOptions: structuredClone([...ctx.configOptions]),
+    configOptions,
     createdAt: now,
     updatedAt: now,
     ...(mcpServers.length > 0 ? { mcpServers } : {}),
@@ -137,6 +142,10 @@ export async function handleSessionLoadOp(
       // none does the persisted (or default) cwd apply.
       const candidateCwd = loadCwd ?? persisted.cwd ?? ctx.defaultCwd;
       const restoredCwd = (await resolveSessionCwd(candidateCwd)) ?? ctx.defaultCwd;
+      // Rebuilt, not trusted from disk: the providers behind a model picker
+      // may have changed since the session was saved. The saved selection
+      // survives wherever it is still offered.
+      const restoredConfig = await openSessionConfigOptions(ctx, persisted.configOptions);
       if (ctx.sessions.has(sessionId)) {
         return handleSessionLoadOp(ctx, id, params, replayHistory);
       }
@@ -156,7 +165,7 @@ export async function handleSessionLoadOp(
         cwd: restoredCwd,
         abort: new AbortController(),
         modeId: persisted.modeId ?? DEFAULT_MODE_ID,
-        configOptions: structuredClone(persisted.configOptions ?? [...ctx.configOptions]),
+        configOptions: restoredConfig,
         createdAt: persisted.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...(persisted.title !== undefined ? { title: persisted.title } : {}),
@@ -485,7 +494,12 @@ export async function handleSetConfigOptionOp(
   const session = sessionId ? ctx.sessions.get(sessionId) : undefined;
   const options = session?.configOptions ?? structuredClone([...ctx.configOptions]);
   const option = optionId ? options.find((o) => o.id === optionId) : undefined;
-  if (!session || !option || value === null || !option.options.some((o) => o.value === value)) {
+  if (
+    !session ||
+    !option ||
+    value === null ||
+    !configOptionValues(option).some((o) => o.value === value)
+  ) {
     await ctx.sendError(id, -32602, 'invalid sessionId, configId, or value');
     return false;
   }

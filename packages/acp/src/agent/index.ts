@@ -7,6 +7,9 @@ export type {
   RunTurnInput,
   RunTurnPermissionRequest,
   RunTurnResult,
+  SessionConfigOption,
+  SessionConfigSelectGroup,
+  SessionConfigSelectOption,
   SessionPersistence,
 } from './protocol-handler.js';
 export { ACPProtocolHandler } from './protocol-handler.js';

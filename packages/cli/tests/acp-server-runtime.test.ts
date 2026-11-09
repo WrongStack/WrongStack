@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const built = vi.hoisted(() => ({
-  factories: [] as Array<{ config: unknown; disposed: string[] }>,
+  factories: [] as Array<{ config: unknown; disposed: string[]; selected: string[] }>,
   telemetryStops: 0,
   detached: [] as string[],
 }));
@@ -16,10 +16,13 @@ vi.mock('../src/acp-server-agent.js', () => {
   return {
     AcpServerConfigError,
     buildAcpServerAgentFactory: (deps: { config: unknown }) => {
-      const record = { config: deps.config, disposed: [] as string[] };
+      const record = { config: deps.config, disposed: [] as string[], selected: [] as string[] };
       built.factories.push(record);
       return Object.assign(async (sessionId: string) => ({ sessionId }) as never, {
         disposeSession: (sessionId: string) => record.disposed.push(sessionId),
+        selectModel: async (_agent: unknown, providerId: string, modelId: string) => {
+          record.selected.push(`${providerId}/${modelId}`);
+        },
       });
     },
   };
@@ -128,6 +131,50 @@ describe('createAcpServerRuntime', () => {
     expect(built.factories[0]?.disposed).toEqual(['s1']);
     runtime.stop();
     expect(built.telemetryStops).toBe(1);
+  });
+
+  it('offers a model picker only once a provider is configured', async () => {
+    const buildModelOption = vi.fn(async () => ({
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue: 'openai/gpt-4o-mini',
+      options: [{ value: 'openai/gpt-4o-mini', name: 'gpt-4o-mini' }],
+    }));
+    const unconfigured = createAcpServerRuntime(deps(), {
+      reloadConfig: async () => ({}) as never,
+      buildModelOption,
+    });
+    expect(await unconfigured.sessionConfigOptions()).toEqual([]);
+    expect(buildModelOption).not.toHaveBeenCalled();
+
+    const runtime = createAcpServerRuntime(deps(CONFIGURED), {
+      reloadConfig: vi.fn(),
+      buildModelOption,
+    });
+    const [option] = await runtime.sessionConfigOptions();
+    expect(option?.category).toBe('model');
+    expect(buildModelOption).toHaveBeenCalledWith(expect.objectContaining({ config: CONFIGURED }));
+  });
+
+  it('puts the agent on the selected model, and ignores options without a model choice', async () => {
+    const runtime = createAcpServerRuntime(deps(CONFIGURED), { reloadConfig: vi.fn() });
+    const agent = {} as never;
+    await runtime.applyConfigOptions(agent, [
+      {
+        id: 'model',
+        name: 'Model',
+        category: 'model',
+        type: 'select',
+        currentValue: 'openrouter/anthropic/claude-x',
+        options: [],
+      },
+    ]);
+    await runtime.applyConfigOptions(agent, [
+      { id: 'size', name: 'Size', type: 'select', currentValue: 'a/b', options: [] },
+    ]);
+    expect(built.factories[0]?.selected).toEqual(['openrouter/anthropic/claude-x']);
   });
 
   it('still runs the turn teardown while unconfigured', () => {

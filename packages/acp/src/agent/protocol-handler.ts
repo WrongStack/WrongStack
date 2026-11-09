@@ -46,6 +46,9 @@ export type {
   RunTurnInput,
   RunTurnPermissionRequest,
   RunTurnResult,
+  SessionConfigOption,
+  SessionConfigSelectGroup,
+  SessionConfigSelectOption,
   SessionPersistence,
   SessionState,
 } from './protocol-contract.js';
@@ -58,6 +61,7 @@ export class ACPProtocolHandler {
   private readonly onSessionNew: (state: SessionState) => void;
   private readonly modes: readonly SessionMode[];
   private readonly configOptions: readonly SessionConfigOption[];
+  private readonly sessionConfigOptions: ProtocolHandlerOptions['sessionConfigOptions'];
   private readonly agentVersion: string;
   private readonly authGate: (() => Promise<AuthGateResult>) | undefined;
   private readonly agentName: string;
@@ -97,6 +101,7 @@ export class ACPProtocolHandler {
     this.onSessionNew = opts.onSessionNew ?? (() => {});
     this.modes = opts.modes ?? DEFAULT_MODES;
     this.configOptions = opts.configOptions ?? [];
+    this.sessionConfigOptions = opts.sessionConfigOptions;
     this.agentName = opts.agentName ?? 'wrongstack';
     this.agentVersion = opts.agentVersion?.trim() || WRONGSTACK_VERSION;
     this.authGate = opts.authGate;
@@ -242,6 +247,7 @@ export class ACPProtocolHandler {
       defaultCwd: this.defaultCwd,
       modes: this.modes,
       configOptions: this.configOptions,
+      sessionConfigOptions: this.sessionConfigOptions,
       store: this.store,
       replayFor: this.replayFor,
       seedFor: this.seedFor,

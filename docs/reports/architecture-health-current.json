@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T13:40:37.548Z",
+  "generatedAt": "2026-11-09T13:57:29.150Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,22 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6191,
-    "testFiles": 5141,
-    "sourceLines": 1268424,
+    "sourceFiles": 6192,
+    "testFiles": 5144,
+    "sourceLines": 1268749,
     "workspaceEdges": 250,
-    "moduleEdges": 18248,
+    "moduleEdges": 18251,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1033
+    "testOnlyExports": 1035
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/acp-model-option.ts: \"acpModelValue\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/cli/src/acp-model-option.ts: \"parseAcpModelValue\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -93,7 +96,7 @@
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
       "sourceFiles": 54,
-      "testFiles": 61,
+      "testFiles": 62,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +112,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 61
+          "testFiles": 62
         }
       ]
     },
@@ -208,8 +211,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 632,
-      "testFiles": 692,
+      "sourceFiles": 633,
+      "testFiles": 694,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +264,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 692
+          "testFiles": 694
         }
       ]
     },
@@ -3506,6 +3509,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/session-config-options.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/session-security.test.ts",
         "projects": [
           "root-node"
@@ -4605,6 +4614,18 @@
       },
       {
         "file": "packages/cli/tests/acp-mcp-servers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-model-option.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-parallel-bridge.test.ts",
         "projects": [
           "root-node"
         ]
@@ -36331,6 +36352,14 @@
     {
       "file": "packages/cli/src/acp-mcp-servers.ts",
       "name": "acpMcpServerToConfig"
+    },
+    {
+      "file": "packages/cli/src/acp-model-option.ts",
+      "name": "acpModelValue"
+    },
+    {
+      "file": "packages/cli/src/acp-model-option.ts",
+      "name": "parseAcpModelValue"
     },
     {
       "file": "packages/cli/src/acp-server-agent.ts",

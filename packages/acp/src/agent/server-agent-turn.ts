@@ -88,6 +88,19 @@ export interface ACPServerAgentTurnOptions {
     mcpServers?: readonly McpServer[],
   ) => Promise<Agent> | Agent;
   /**
+   * Apply the session's current config selections (e.g. the chosen model) to
+   * its agent. Runs before every turn, after the agent is built, with the
+   * values `session/set_config_option` last stored. A throw fails the turn
+   * with its message rather than silently running on the previous settings.
+   */
+  applyConfigOptions?:
+    | ((
+        agent: Agent,
+        configOptions: NonNullable<Parameters<RunTurn>[0]['configOptions']>,
+        sessionId: string,
+      ) => Promise<void> | void)
+    | undefined;
+  /**
    * Hard wall-clock cap for one turn. The agent's own provider
    * timeout is layered under this; this cap is a safety belt.
    * Default 5 minutes.
@@ -298,6 +311,10 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     if (pendingSeed.delete(input.sessionId)) {
       const prior = history.get(input.sessionId);
       if (prior) seedAgentContext(agent, prior);
+    }
+    if (opts.applyConfigOptions && input.configOptions && input.configOptions.length > 0) {
+      await opts.applyConfigOptions(agent, input.configOptions, input.sessionId);
+      if (!alive()) return { stopReason: 'cancelled' };
     }
 
     // This turn's loop injects every result queued so far, so any notice still
