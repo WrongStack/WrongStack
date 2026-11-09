@@ -1,6 +1,6 @@
 [package]
 name = "wrongstack-desktop-v2"
-version = "1.5.4"
+version = "1.5.5"
 edition = "2021"
 default-run = "wrongstack-desktop-native"
 publish = false
