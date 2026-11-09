@@ -194,7 +194,10 @@ export function validateRememberInput(input: RememberSageInput): void {
   // Session-scoped memories MUST carry an owning session ID so retrieval and
   // injection can filter by session. Without this, a session-A memory would
   // leak into session-B search results and automatic injection.
-  if (input.scope === 'session' && !input.ownerSessionId) {
+  if (
+    input.scope === 'session' &&
+    (typeof input.ownerSessionId !== 'string' || !input.ownerSessionId.trim())
+  ) {
     throw new Error(
       "SAGE scope 'session' requires ownerSessionId so the memory can be isolated to its owning session.",
     );
@@ -206,6 +209,9 @@ export function validateRememberInput(input: RememberSageInput): void {
     ['supersedes', input.supersedes],
     ['contradicts', input.contradicts],
   ] as const) {
+    if (values !== undefined && !Array.isArray(values)) {
+      throw new Error(`SAGE ${name} must be an array.`);
+    }
     if (values && values.length > MAX_MEMORY_METADATA_ITEMS) {
       throw new Error(`SAGE ${name} exceeds ${MAX_MEMORY_METADATA_ITEMS} items.`);
     }

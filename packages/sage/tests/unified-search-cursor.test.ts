@@ -2,8 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { validateRememberInput } from '../src/memory-input-validation.js';
 import type { SearchOptions, SearchQuery, SearchRanking } from '../src/service-contract.js';
 import { InvalidSearchCursorError } from '../src/service-contract.js';
+import { computeCursorBinding } from '../src/sqlite-search-cursor.js';
 import { SqliteSageStore } from '../src/sqlite-store.js';
 
 /**
@@ -364,5 +366,37 @@ describe('unifiedSearchService cursor pagination (B3/B4)', () => {
     expect(permissiveIds).toContain(owned.id);
     expect(permissiveIds).not.toContain(seeds.beta.id);
     expect(permissive.totalCandidates).toBe(4); // alpha, gamma, delta, owned
+  });
+
+  it('normalizes audience/anchor key order in cursor binding and rejects blank session ownerSessionId (F134)', () => {
+    const b1 = computeCursorBinding(
+      {
+        text: 'auth',
+        audience: { roles: ['coder', 'reviewer'], modes: ['plan'] },
+        anchor: { type: 'symbol', path: 'src/a.ts', symbol: 'foo' },
+      },
+      ['active'],
+      'relevance',
+      undefined,
+    );
+    const b2 = computeCursorBinding(
+      {
+        text: 'auth',
+        audience: { modes: ['plan'], roles: ['reviewer', 'coder'] },
+        anchor: { symbol: 'foo', type: 'symbol', path: 'src/a.ts' },
+      },
+      ['active'],
+      'relevance',
+      undefined,
+    );
+    expect(b1).toBe(b2);
+
+    expect(() =>
+      validateRememberInput({
+        text: 'Session memory with whitespace ownerSessionId.',
+        scope: 'session',
+        ownerSessionId: '   ',
+      }),
+    ).toThrow(/SAGE scope 'session' requires ownerSessionId/);
   });
 });

@@ -21,11 +21,13 @@ import type { Sage } from '../src/types.js';
 import { WRONGMEMORY_ADOPTION_MARKER_FILE } from '../src/wrongmemory-owner-guard.js';
 import {
   probeWrongMemoryProject,
+  startWrongMemoryDaemon,
   type WrongMemoryClientLike,
   WrongMemoryPort,
   WrongMemoryProjectNotRegisteredError,
   WrongMemoryUnavailableError,
 } from '../src/wrongmemory-port.js';
+import { normalizeRoot } from '../src/wrongmemory-wire.js';
 
 const ROOT = process.platform === 'win32' ? 'C:\\work\\proj' : '/work/proj';
 const PROJECT = {
@@ -758,6 +760,53 @@ describe('WrongMemoryPort mapping', () => {
     port.releaseConnection();
     await port.dispose();
     await expect(port.searchSage('q')).rejects.toBeInstanceOf(WrongMemoryUnavailableError);
+  });
+});
+
+describe('WrongMemoryPort wire boundaries', () => {
+  it('normalizes extended-length roots like their plain forms', () => {
+    expect(normalizeRoot('\\\\?\\UNC\\server\\share\\proj')).toBe(
+      normalizeRoot('\\\\server\\share\\proj'),
+    );
+    expect(normalizeRoot('\\\\?\\C:\\work\\proj')).toBe(normalizeRoot('C:\\work\\proj'));
+  });
+
+  it('maps maintenance status with missing or out-of-range timestamps without throwing', async () => {
+    const { port } = setup((m) =>
+      m === 'maintenance.status'
+        ? {
+            // Enabled without `nextDueMs` (schema drift) and an out-of-range last run.
+            schedule: { enabled: true, cadenceMs: 1_000, lastRunMs: 1e308 },
+            recentJobs: [],
+          }
+        : undefined,
+    );
+    const surface = getSageSurface(port)!;
+    const status = await surface.maintenance!('status');
+    expect(status).toMatchObject({ owner: 'daemon', scheduled: true, intervalMs: 1_000 });
+    expect(status.nextRunAt).toBeUndefined();
+    expect(status.lastRunAt).toBeUndefined();
+  });
+
+  it('rejects a daemon path that cannot be spawned without an unhandled child error', async () => {
+    const tmp = mkdtempSync(path.join(tmpdir(), 'wm-spawn-'));
+    const asDirectory = path.join(tmp, 'wrongmemoryd-as-directory');
+    mkdirSync(asDirectory);
+    try {
+      // A directory passes `existsSync` but cannot be spawned; the failure must
+      // surface as a rejection, not as an unhandled ChildProcess 'error'.
+      await expect(
+        startWrongMemoryDaemon({
+          daemonPath: asDirectory,
+          readyTimeoutMs: 50,
+          connect: async () => {
+            throw new Error('test: daemon never answers');
+          },
+        }),
+      ).rejects.toMatchObject({ name: 'WrongMemoryError' });
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 

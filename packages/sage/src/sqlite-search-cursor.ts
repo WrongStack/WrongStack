@@ -126,6 +126,22 @@ export function computeCursorBinding(
   ranking: SearchRanking,
   options: SearchOptions | undefined,
 ): string {
+  const canonicalAudience = query.audience
+    ? {
+        roles: query.audience.roles ? [...query.audience.roles].sort() : undefined,
+        taskTypes: query.audience.taskTypes ? [...query.audience.taskTypes].sort() : undefined,
+        modes: query.audience.modes ? [...query.audience.modes].sort() : undefined,
+      }
+    : null;
+  const canonicalAnchor = query.anchor
+    ? {
+        type: query.anchor.type ?? null,
+        path: query.anchor.path ?? null,
+        symbol: query.anchor.symbol ?? null,
+        command: query.anchor.command ?? null,
+        role: query.anchor.role ?? null,
+      }
+    : null;
   const canonical = JSON.stringify({
     text: query.text?.trim() ?? '',
     kinds: [...(query.kinds ?? [])].sort(),
@@ -133,8 +149,8 @@ export function computeCursorBinding(
     importanceAtLeast: query.importanceAtLeast ?? null,
     freshnessCreated: query.freshness?.createdAfter ?? null,
     freshnessVerified: query.freshness?.verifiedAfter ?? null,
-    audience: query.audience ?? null,
-    anchor: query.anchor ?? null,
+    audience: canonicalAudience,
+    anchor: canonicalAnchor,
     paths: [...(query.paths ?? [])].sort(),
     statuses: [...statuses].sort(),
     ranking,
