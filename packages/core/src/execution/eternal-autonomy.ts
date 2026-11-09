@@ -22,6 +22,7 @@ import {
 } from './eternal-autonomy-directives.js';
 import { BRAINSTORM_DONE } from './eternal-autonomy-directives-types.js';
 import {
+  compactionDue,
   type DecidedAction,
   type DirectiveOutcome,
   DONE_DELIVERABLE_MARKER,
@@ -112,6 +113,17 @@ export class EternalAutonomyEngine {
     );
   }
 
+  /**
+   * The engine ended itself (goal gone, completed or cleared). Raises the loop
+   * signal AND moves `state`, because REPL/TUI drivers call runOneIteration()
+   * directly and stop on `currentState === 'stopped'` — the loop flag alone
+   * left them re-entering a finished engine forever.
+   */
+  private halt(): void {
+    this.stopRequested = true;
+    this.state = 'stopped';
+  }
+
   /** Synchronously request stop. Resolves once the running iteration aborts. */
   stop(): void {
     this.stopRequested = true;
@@ -197,15 +209,22 @@ export class EternalAutonomyEngine {
     if (!goal) {
       // Goal file disappeared — treat as a graceful stop.
       emit({ phase: 'stopped' });
-      this.stopRequested = true;
+      this.halt();
       return false;
     }
 
-    // Mission-level lifecycle gate.
+    // Mission-level lifecycle gate. A paused mission only ends this pass: the
+    // engine stays 'running' so a driver polling `currentState` keeps waiting
+    // for `/goal resume`. Every other non-active state ends the engine.
     const missionState = goal.goalState ?? 'active';
     if (missionState !== 'active') {
-      emit({ phase: missionState === 'paused' ? 'paused' : 'stopped' });
-      this.stopRequested = true;
+      if (missionState === 'paused') {
+        emit({ phase: 'paused' });
+        this.stopRequested = true;
+      } else {
+        emit({ phase: 'stopped' });
+        this.halt();
+      }
       return false;
     }
 
@@ -347,7 +366,7 @@ export class EternalAutonomyEngine {
       });
       coordinatedProgress = coordinated?.goal.progress;
       if (coordinated?.reached) {
-        this.stopRequested = true;
+        this.halt();
         this.opts.onEternalStop?.();
         return true;
       }
@@ -365,7 +384,7 @@ export class EternalAutonomyEngine {
       // fire onEternalStop so the REPL exits eternal mode. Stronger than
       // just marking completed — the REPL needs both to happen.
       await this.clearGoalManually(finalText);
-      this.stopRequested = true;
+      this.halt();
       return true;
     }
     // Goal-clear detection — model emits `[goal clear]` equivalent to
@@ -373,7 +392,7 @@ export class EternalAutonomyEngine {
     // onEternalStop so the REPL knows to return to normal mode.
     if (GOAL_CLEAR_MARKER.test(finalText)) {
       await this.clearGoalManually(finalText);
-      this.stopRequested = true;
+      this.halt();
       return true;
     }
 
@@ -390,7 +409,7 @@ export class EternalAutonomyEngine {
           { source: action.source, task: action.task, directive: action.directive },
           `progress reached 100%: ${parsed.note ?? 'goal complete'}`,
         );
-        this.stopRequested = true;
+        this.halt();
         return true;
       }
     }
@@ -423,29 +442,9 @@ export class EternalAutonomyEngine {
     const ctx = this.opts.agent.ctx;
     if (!ctx) return;
 
-    const cadence = this.opts.compactEveryNIterations ?? 25;
-    const threshold = this.opts.aggressiveCompactRatio ?? 0.85;
-    const maxCtx = this.opts.maxContextTokens;
-
-    let aggressive = false;
-    let shouldRun = false;
-
-    if (this.iterationsSinceCompact >= cadence) {
-      shouldRun = true;
-    }
-
-    if (maxCtx && maxCtx > 0) {
-      const used = ctx.tokenCounter?.currentRequestTokens?.();
-      if (used) {
-        const total = used.input + used.cacheRead + used.cacheWrite;
-        if (total / maxCtx >= threshold) {
-          shouldRun = true;
-          aggressive = true;
-        }
-      }
-    }
-
-    if (!shouldRun) return;
+    const due = compactionDue(this.opts, ctx, this.iterationsSinceCompact);
+    if (!due) return;
+    const { aggressive } = due;
 
     const report = await compactor.compact(ctx, { aggressive });
     if (ctx.signal?.aborted || !compactionReportStillCurrent(report, ctx)) return;
@@ -510,7 +509,7 @@ export class EternalAutonomyEngine {
             { source: 'brainstorm', task: 'no further work', directive: '' },
             `brainstorm returned DONE ${this.consecutiveBrainstormDone}x in a row${this.opts.brain ? ', brain confirmed' : ''}`,
           );
-          this.stopRequested = true;
+          this.halt();
         } else {
           // Brain says keep going — reset the DONE streak
           this.consecutiveBrainstormDone = 0;

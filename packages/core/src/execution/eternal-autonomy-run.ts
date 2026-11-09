@@ -137,3 +137,29 @@ export function iterationUsageDelta(
       : undefined;
   return { tokens, costUsd };
 }
+
+/**
+ * Whether the engine should compact now: every `compactEveryNIterations`
+ * iterations (default 25), or aggressively once the current request fills
+ * `aggressiveCompactRatio` (default 0.85) of `maxContextTokens`.
+ */
+export function compactionDue(
+  opts: Pick<
+    EternalAutonomyOptions,
+    'compactEveryNIterations' | 'aggressiveCompactRatio' | 'maxContextTokens'
+  >,
+  ctx: EternalAutonomyOptions['agent']['ctx'],
+  iterationsSinceCompact: number,
+): { aggressive: boolean } | null {
+  const maxCtx = opts.maxContextTokens;
+  if (maxCtx && maxCtx > 0) {
+    const used = ctx.tokenCounter?.currentRequestTokens?.();
+    if (used) {
+      const total = used.input + used.cacheRead + used.cacheWrite;
+      if (total / maxCtx >= (opts.aggressiveCompactRatio ?? 0.85)) return { aggressive: true };
+    }
+  }
+  return iterationsSinceCompact >= (opts.compactEveryNIterations ?? 25)
+    ? { aggressive: false }
+    : null;
+}
