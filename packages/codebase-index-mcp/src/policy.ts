@@ -50,7 +50,10 @@ export function selectCodebaseIndexMcpTools(
 const READ_TOOL_WRITE_VARIANTS: Partial<
   Record<CodebaseIndexMcpReadToolName, (args: Record<string, unknown>) => string | null>
 > = {
-  codebase_atlas: (args) => (args['mode'] === 'write' ? 'mode "write"' : null),
+  codebase_atlas: (args) =>
+    typeof args['mode'] === 'string' && args['mode'].trim().toLowerCase() === 'write'
+      ? 'mode "write"'
+      : null,
   codebase_flow_trace: (args) => (args['persist'] === true ? '"persist": true' : null),
   codebase_diff_impact: (args) => (args['persist'] === true ? '"persist": true' : null),
 };

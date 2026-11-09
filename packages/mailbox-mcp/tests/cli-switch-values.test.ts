@@ -23,4 +23,43 @@ describe('mailbox-mcp: privilege switches with an inline value', () => {
     expect(parse(['--admin=false'])).toMatchObject({ admin: false, writable: false });
     expect(parse(['--admin'])).toMatchObject({ admin: true, writable: true });
   });
+
+  it('allows later =false switches to revoke --admin/--writable and rejects non-object args, empty ack_many, and sub-ms credentialOptions.ttlMs (F126)', async () => {
+    const { MailboxEventEmitter } = await import('@wrongstack/coordination');
+    const { createMailboxMcpToolHost } = await import('../src/adapter.js');
+
+    expect(
+      parse(['--admin', '--admin=false', '--writable=false', '--http=false', '--help=false']),
+    ).toMatchObject({
+      admin: false,
+      writable: false,
+      transport: 'stdio',
+      help: false,
+    });
+
+    const host = createMailboxMcpToolHost(
+      {
+        ackMany: async () => [],
+        credentialRotate: async () => null,
+      } as never,
+      new MailboxEventEmitter(),
+      { actor: 'agent-1', writable: true, admin: true },
+    );
+    const nullRes = await host.callTool('mailbox_read', null as unknown as Record<string, unknown>);
+    expect(nullRes.isError).toBe(true);
+    expect(String(nullRes.content)).toMatch(/plain object/);
+
+    const emptyAck = await host.callTool('mailbox_manage', {
+      action: 'ack_many',
+      messageIds: [],
+    });
+    expect(emptyAck.isError).toBe(true);
+
+    const subMsCred = await host.callTool('mailbox_admin', {
+      action: 'credential_rotate',
+      credentialId: 'cred-1',
+      credentialOptions: { ttlMs: 0.5 },
+    });
+    expect(subMsCred.isError).toBe(true);
+  });
 });

@@ -26,4 +26,10 @@ describe('sage-mcp: privilege switches with an inline value', () => {
     expect(parsed.httpToken).toBe('env-token-123');
     expect(parsed.tokenMissing).toBe(false);
   });
+
+  it('allows --writable=false / --writable=0 to override an earlier --writable flag (F134)', () => {
+    expect(parse(['--writable', '--writable=false']).writable).toBe(false);
+    expect(parse(['--writable=1', '--writable=0']).writable).toBe(false);
+    expect(parse(['--writable=false', '--writable=true']).writable).toBe(true);
+  });
 });

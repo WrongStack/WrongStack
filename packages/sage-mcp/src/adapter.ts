@@ -137,6 +137,13 @@ export function createSageMcpToolHost(
           throw signal.reason instanceof Error ? signal.reason : new Error('SAGE call cancelled');
         }
 
+        if (!args || typeof args !== 'object' || Array.isArray(args)) {
+          return {
+            content: 'input: expected an object',
+            isError: true,
+          };
+        }
+
         // For `remember`, force no_auto_audience=true. SAGE's auto-audience
         // detection reads `ctx.meta['agentRole']`/`ctx.meta['mode']`; MCP
         // callers do not supply a role/mode so we cannot infer one.

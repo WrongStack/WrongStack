@@ -3,6 +3,7 @@
  * `--writable=false` granted the tier it was written to deny.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { createRequirementIntakeMcpToolHost } from '../src/adapter.js';
 import { main, parseArgs } from '../src/main.js';
 
 vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -49,5 +50,23 @@ describe('requirement-intake-mcp: privilege switches with an inline value', () =
 
     expect(process.listenerCount('SIGINT')).toBe(sigintBefore);
     expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore);
+  });
+
+  it('allows --writable=false to disable an earlier --writable flag and rejects non-object tool args (F132)', async () => {
+    expect(parse(['--writable', '--writable=false']).writable).toBe(false);
+    expect(parse(['--writable', '--writable=0']).writable).toBe(false);
+
+    const host = createRequirementIntakeMcpToolHost('/tmp/p', {
+      writable: true,
+      dependencies: {
+        resolveProjectId: async () => 'proj-1',
+        service: { listIntakes: async () => [] } as any,
+      },
+    });
+    const res = await host.callTool(
+      'requirement_intake_list',
+      [] as unknown as Record<string, unknown>,
+    );
+    expect(res.isError).toBe(true);
   });
 });

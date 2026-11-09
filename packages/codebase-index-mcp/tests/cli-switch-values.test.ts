@@ -3,7 +3,9 @@
  * `--writable=false` granted the tier it was written to deny.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { createCodebaseIndexMcpToolHost } from '../src/adapter.js';
 import { parseArgs } from '../src/main.js';
+import { codebaseIndexMcpWriteVariant } from '../src/policy.js';
 
 vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 const parse = (argv: string[]) =>
@@ -23,5 +25,24 @@ describe('codebase-index-mcp: privilege switches with an inline value', () => {
     expect(parse(['--watch=false']).watch).toBe(false);
     expect(parse(['--watch=0']).watch).toBe(false);
     expect(parse(['--watch=yes-please']).watch).toBe(false);
+  });
+
+  it('allows later --writable=false / --watch=0 to clear an earlier switch, honors --http=false / --help=false, and rejects non-object tool args (F120)', async () => {
+    expect(parse(['--writable', '--writable=false']).writable).toBe(false);
+    expect(parse(['--watch', '--watch=0']).watch).toBe(false);
+    expect(parse(['--http=false']).transport).toBe('stdio');
+    expect(parse(['--help=false']).help).toBe(false);
+    expect(codebaseIndexMcpWriteVariant('codebase_atlas', { mode: ' WRITE ' })).toMatch(
+      /writes files/,
+    );
+    const host = createCodebaseIndexMcpToolHost('C:/project', {
+      dependencies: { packageGraph: async () => ({ nodes: [], edges: [] }) },
+    });
+    await expect(
+      host.callTool('codebase_package_graph', [] as unknown as Record<string, unknown>),
+    ).resolves.toMatchObject({ isError: true });
+    await expect(
+      host.callTool('codebase_package_graph', null as unknown as Record<string, unknown>),
+    ).resolves.toMatchObject({ isError: true });
   });
 });

@@ -284,6 +284,12 @@ export function createKanbanMcpToolHost(
           isError: true,
         };
       }
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        return {
+          content: `${name}: arguments must be a plain object`,
+          isError: true,
+        };
+      }
 
       const signal = callOptions?.signal ?? new AbortController().signal;
       if (name === 'kanban_watch') {

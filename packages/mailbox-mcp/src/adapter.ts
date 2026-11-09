@@ -448,9 +448,10 @@ async function executeManage(
       const messageIds = args['messageIds'];
       if (
         !Array.isArray(messageIds) ||
+        messageIds.length === 0 ||
         messageIds.some((id) => typeof id !== 'string' || !id.trim())
       ) {
-        throw new Error('messageIds must be an array of non-empty message ids');
+        throw new Error('messageIds must be a non-empty array of non-empty message ids');
       }
       // `ackMany` applies the whole batch inside one `BEGIN IMMEDIATE` with a
       // lookup per entry, so an unbounded array here holds the project's only
@@ -653,6 +654,12 @@ export function createMailboxMcpToolHost(
       if (!allowed.has(name as MailboxMcpToolName)) {
         return {
           content: `Tool "${name}" is not exposed by this Mailbox MCP server`,
+          isError: true,
+        };
+      }
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        return {
+          content: `${name}: arguments must be a plain object`,
           isError: true,
         };
       }

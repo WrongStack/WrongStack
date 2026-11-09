@@ -184,6 +184,12 @@ export function createRequirementIntakeMcpToolHost(
           isError: true,
         };
       }
+      if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+        return {
+          content: 'Tool arguments must be a JSON object',
+          isError: true,
+        };
+      }
       try {
         const signal = callOptions?.signal;
         throwIfAborted(signal);

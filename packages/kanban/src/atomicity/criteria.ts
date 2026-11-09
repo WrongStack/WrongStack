@@ -59,14 +59,26 @@ export const DEFAULT_ATOMICITY_CONFIG: ResolvedAtomicityConfig = {
 };
 
 export function resolveAtomicityConfig(config?: AtomicityRuleSetConfig): ResolvedAtomicityConfig {
+  const nonNeg = (val: number | undefined, fallback: number): number =>
+    typeof val === 'number' && Number.isFinite(val) && val >= 0 ? val : fallback;
+  const unit = (val: number | undefined, fallback: number): number =>
+    typeof val === 'number' && Number.isFinite(val) && val >= 0 && val <= 1 ? val : fallback;
   return {
-    maxEstimatedHours: config?.maxEstimatedHours ?? DEFAULT_ATOMICITY_CONFIG.maxEstimatedHours,
-    maxExpectedFileChanges:
-      config?.maxExpectedFileChanges ?? DEFAULT_ATOMICITY_CONFIG.maxExpectedFileChanges,
-    maxDependencies: config?.maxDependencies ?? DEFAULT_ATOMICITY_CONFIG.maxDependencies,
-    maxScopeMarkers: config?.maxScopeMarkers ?? DEFAULT_ATOMICITY_CONFIG.maxScopeMarkers,
-    atomicThreshold: config?.atomicThreshold ?? DEFAULT_ATOMICITY_CONFIG.atomicThreshold,
-    decomposeThreshold: config?.decomposeThreshold ?? DEFAULT_ATOMICITY_CONFIG.decomposeThreshold,
+    maxEstimatedHours: nonNeg(
+      config?.maxEstimatedHours,
+      DEFAULT_ATOMICITY_CONFIG.maxEstimatedHours,
+    ),
+    maxExpectedFileChanges: nonNeg(
+      config?.maxExpectedFileChanges,
+      DEFAULT_ATOMICITY_CONFIG.maxExpectedFileChanges,
+    ),
+    maxDependencies: nonNeg(config?.maxDependencies, DEFAULT_ATOMICITY_CONFIG.maxDependencies),
+    maxScopeMarkers: nonNeg(config?.maxScopeMarkers, DEFAULT_ATOMICITY_CONFIG.maxScopeMarkers),
+    atomicThreshold: unit(config?.atomicThreshold, DEFAULT_ATOMICITY_CONFIG.atomicThreshold),
+    decomposeThreshold: unit(
+      config?.decomposeThreshold,
+      DEFAULT_ATOMICITY_CONFIG.decomposeThreshold,
+    ),
     weights: config?.weights ?? {},
   };
 }
@@ -114,7 +126,9 @@ export function buildDefaultRuleSet(config?: AtomicityRuleSetConfig): AtomicityC
   const resolved = resolveAtomicityConfig(config);
   const weightOf = (id: AtomicityCriterionId, fallback: number): number => {
     const override = resolved.weights[id];
-    return typeof override === 'number' && override >= 0 ? override : fallback;
+    return typeof override === 'number' && Number.isFinite(override) && override >= 0
+      ? override
+      : fallback;
   };
 
   const criteria: AtomicityCriterion[] = [

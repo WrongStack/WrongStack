@@ -345,6 +345,12 @@ export function createCodebaseIndexMcpToolHost(
           isError: true,
         };
       }
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        return {
+          content: `Tool "${name}" arguments must be a JSON object`,
+          isError: true,
+        };
+      }
 
       const toolName = name as CodebaseIndexMcpToolName;
       const validationError = validateArgs(toolName, args);

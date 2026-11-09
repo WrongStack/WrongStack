@@ -233,8 +233,8 @@ export function credentialOptions(
   }
   const ttlMs = options['ttlMs'];
   if (ttlMs !== undefined) {
-    if (typeof ttlMs !== 'number' || !Number.isFinite(ttlMs) || ttlMs <= 0) {
-      throw new Error('credentialOptions.ttlMs must be a positive number');
+    if (typeof ttlMs !== 'number' || !Number.isFinite(ttlMs) || ttlMs < 1) {
+      throw new Error('credentialOptions.ttlMs must be at least 1');
     }
     result['ttlMs'] = ttlMs;
   }

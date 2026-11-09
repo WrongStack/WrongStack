@@ -131,15 +131,14 @@ export function parseArgs(
       return trimmed;
     };
     // A switch takes no value, but `--writable=false` used to GRANT the tier it
-    // was written to deny. `true`/`1` keep the switch; any other value leaves it off.
-    const switchOn = (): boolean => {
+    // was written to deny. `true`/`1` set the switch; `false`/`0` clear it.
+    const parseSwitch = (current: boolean): boolean => {
       if (inlineValue === undefined) return true;
       const flag = inlineValue.trim().toLowerCase();
       if (flag === 'true' || flag === '1') return true;
-      if (flag !== 'false' && flag !== '0') {
-        warn('mcp_cli_flag_invalid_switch', `${arg} takes no value; ignoring it.`);
-      }
-      return false;
+      if (flag === 'false' || flag === '0') return false;
+      warn('mcp_cli_flag_invalid_switch', `${arg} takes no value; ignoring it.`);
+      return current;
     };
     switch (arg) {
       case '--project-root': {
@@ -148,10 +147,10 @@ export function parseArgs(
         break;
       }
       case '--stdio':
-        parsed.transport = 'stdio';
+        if (parseSwitch(parsed.transport === 'stdio')) parsed.transport = 'stdio';
         break;
       case '--http':
-        parsed.transport = 'http';
+        if (parseSwitch(parsed.transport === 'http')) parsed.transport = 'http';
         break;
       case '--port': {
         const next = value();
@@ -182,17 +181,17 @@ export function parseArgs(
         break;
       }
       case '--writable':
-        if (switchOn()) parsed.writable = true;
+        parsed.writable = parseSwitch(parsed.writable);
         break;
-      case '--destructive':
-        if (switchOn()) {
-          parsed.destructive = true;
-          parsed.writable = true;
-        }
+      case '--destructive': {
+        const nextDestructive = parseSwitch(parsed.destructive);
+        parsed.destructive = nextDestructive;
+        if (nextDestructive) parsed.writable = true;
         break;
+      }
       case '-h':
       case '--help':
-        parsed.help = true;
+        parsed.help = parseSwitch(parsed.help);
         break;
       default:
         if (arg?.startsWith('-')) warn('mcp_cli_unknown_option', `unknown option ${arg} ignored.`);
