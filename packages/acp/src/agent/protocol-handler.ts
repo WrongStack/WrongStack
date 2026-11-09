@@ -7,6 +7,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { isAbsolute, resolve } from 'node:path';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   ACP_ERROR,
   type ACPMessage,
@@ -378,7 +379,7 @@ export class ACPProtocolHandler {
     try {
       result = await this.authGate();
     } catch (err) {
-      result = { ok: false, message: err instanceof Error ? err.message : String(err) };
+      result = { ok: false, message: toErrorMessage(err) };
     }
     if (result.ok) return true;
     // Same shape as the SDK's `RequestError.authRequired`: clients key on the

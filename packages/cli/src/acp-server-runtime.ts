@@ -23,6 +23,7 @@ import type { Agent } from '@wrongstack/core/agent';
 import { flagsToConfigPatch } from '@wrongstack/core/boot';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultConfigLoader } from '@wrongstack/core/storage';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { type AcpHqTelemetry, startAcpHqTelemetry } from './acp-hq-telemetry.js';
 import { buildAcpModelOption, selectedAcpModel } from './acp-model-option.js';
 import {
@@ -124,7 +125,7 @@ export function createAcpServerRuntime(
     try {
       config = await reloadConfig();
     } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err);
+      const reason = toErrorMessage(err);
       return {
         ok: false,
         message: `${ACP_LOGIN_HINT} (configuration could not be read: ${reason})`,
