@@ -213,6 +213,15 @@ export function useSession() {
           }
         }
         if (stopping.current && next.id && stopping.current !== next.id) stopping.current = '';
+        // A confirmed stop holds the stopped view only until another run starts
+        // (any new active run releases it, user-initiated or external).
+        if (
+          stopping.current &&
+          frame.type === 'session.run_state' &&
+          p.isRunning === true &&
+          next.id === stopping.current
+        )
+          stopping.current = '';
         if (stopping.current && stopping.current === next.id) return holdStopped(next);
         return next;
       });

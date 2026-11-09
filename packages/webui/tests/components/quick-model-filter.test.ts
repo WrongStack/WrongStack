@@ -71,6 +71,27 @@ describe('buildModelCandidates — flattening', () => {
     const out = buildModelCandidates([{ id: 'openai' }], noNames, '', undefined, undefined);
     expect(out[0]?.modelName).toBe('gpt-5');
   });
+
+  it('ignores inherited model-map keys instead of iterating them', () => {
+    // A custom provider may legally be named `toString` (the server only blocks
+    // `__proto__`/`prototype`/`constructor`); the map lookup must not resolve
+    // `Object.prototype` members and iterate them as models.
+    for (const id of ['toString', 'valueOf', 'hasOwnProperty', '__proto__', 'constructor']) {
+      expect(buildModelCandidates([{ id }], models, '', undefined, undefined)).toEqual([]);
+    }
+  });
+
+  it('ignores an own non-array model-map value', () => {
+    expect(
+      buildModelCandidates(
+        [{ id: 'broken' }],
+        { broken: 'not-an-array' } as unknown as Record<string, CatalogModelLite[]>,
+        '',
+        undefined,
+        undefined,
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe('buildModelCandidates — filter (the user-reported bug surface)', () => {

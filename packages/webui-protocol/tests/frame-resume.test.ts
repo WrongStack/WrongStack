@@ -67,6 +67,13 @@ describe('FrameResume gate', () => {
     expect(gate.cursors(['tab', 'subagent'])).toEqual({ eventEpoch: 'e1', cursors: { tab: 1 } });
   });
 
+  it('falls back to payload.sessionId when stream is empty or whitespace (F141)', () => {
+    const gate = newGate();
+    gate.adoptEpoch('e1');
+    gate.accept({ ...f(3, 's1'), stream: '   ' });
+    expect(gate.cursors(['s1'])).toEqual({ eventEpoch: 'e1', cursors: { s1: 3 } });
+  });
+
   it('forgets every cursor when the server process changed', () => {
     const gate = newGate();
     gate.adoptEpoch('e1');

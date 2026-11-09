@@ -320,6 +320,10 @@ function validateBlock(
         );
         return undefined;
       }
+      if (thinking.length > MAX_STRING_LENGTH) {
+        error(errors, `${path}/thinking`, 'THINKING_TOO_LARGE', 'thinking.thinking is too large.');
+        return undefined;
+      }
       if (signature !== undefined && typeof signature !== 'string') {
         error(
           errors,
@@ -421,7 +425,13 @@ export function validateContextEditorMessages(
     error(errors, '/messages', 'INVALID_MESSAGES', 'messages must be an array.');
     return { messages, errors };
   }
-  if (value.length > currentMessageCount + MAX_MESSAGE_COUNT_GROWTH) {
+  const baselineCount =
+    typeof currentMessageCount === 'number' &&
+    Number.isFinite(currentMessageCount) &&
+    currentMessageCount >= 0
+      ? Math.trunc(currentMessageCount)
+      : 0;
+  if (value.length > baselineCount + MAX_MESSAGE_COUNT_GROWTH) {
     error(
       errors,
       '/messages',

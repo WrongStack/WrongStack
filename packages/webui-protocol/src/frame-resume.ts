@@ -25,12 +25,14 @@ function frameSeq(msg: SequencedFrame): { sessionId: string; seq: number } | nul
   if (typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq < 0) return null;
   const payload = msg.payload as { sessionId?: unknown } | undefined;
   const sessionId =
-    typeof msg.stream === 'string'
-      ? msg.stream
+    typeof msg.stream === 'string' && msg.stream.trim().length > 0
+      ? msg.stream.trim()
       : payload && typeof payload === 'object'
         ? payload.sessionId
         : undefined;
-  return typeof sessionId === 'string' && sessionId ? { sessionId, seq } : null;
+  return typeof sessionId === 'string' && sessionId.trim().length > 0
+    ? { sessionId: sessionId.trim(), seq }
+    : null;
 }
 
 export class SessionFrameGate<T extends SequencedFrame> {

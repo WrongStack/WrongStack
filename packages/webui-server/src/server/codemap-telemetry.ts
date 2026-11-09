@@ -96,7 +96,9 @@ export function extractCodeMapFileTargets(
 ): CodeMapFileTarget[] {
   if (typeof toolName !== 'string') return [];
   const normalizedTool = toolName.trim().toLowerCase();
-  const operation = TOOL_OPERATION[normalizedTool];
+  const operation = Object.hasOwn(TOOL_OPERATION, normalizedTool)
+    ? TOOL_OPERATION[normalizedTool]
+    : undefined;
   if (!operation || !rawInput || typeof rawInput !== 'object' || Array.isArray(rawInput)) return [];
   const input = rawInput as Record<string, unknown>;
   const rawPaths: string[] = [];

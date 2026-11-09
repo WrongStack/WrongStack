@@ -54,7 +54,10 @@ interface CompletionCacheKeyInput {
 
 export function getLanguage(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
-  return LANG_MAP[ext] ?? 'plaintext';
+  // An own entry only: `LANG_MAP` is a plain object, so `constructor` or
+  // `__proto__` would otherwise resolve to an inherited member.
+  const language = Object.hasOwn(LANG_MAP, ext) ? LANG_MAP[ext] : undefined;
+  return language ?? 'plaintext';
 }
 
 export function currentToken(linePrefix: string): string {

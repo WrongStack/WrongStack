@@ -218,6 +218,12 @@ describe('bucketActivity', () => {
     expect(result).toHaveLength(5);
     expect(result[4]).toBe(2);
   });
+
+  it('falls back to safe defaults for non-positive or NaN bins and binMs (F141)', () => {
+    const result = bucketActivity([1000, Number.NaN], 2000, -2, 0);
+    expect(result).toHaveLength(12);
+    expect(result[11]).toBe(1);
+  });
 });
 
 // ── sparkline ──────────────────────────────────────────────────────────
@@ -225,6 +231,11 @@ describe('bucketActivity', () => {
 describe('sparkline', () => {
   it('returns empty string for empty input', () => {
     expect(sparkline([])).toBe('');
+  });
+
+  it('sanitizes NaN values and non-positive or NaN width (F141)', () => {
+    expect(sparkline([0, 5, 10], Number.NaN)).toBe('▁▅█');
+    expect(sparkline([0, Number.NaN, 10])).toBe('▁▁█');
   });
 
   it('returns sparkline characters for values', () => {

@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { extractCodeMapFileTargets, normalizeCodeMapFileTarget } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 describe('CodeMap tool telemetry', () => {
   const projectRoot = path.resolve('D:/repo');
@@ -42,6 +42,8 @@ describe('CodeMap tool telemetry', () => {
   it('does not invent file targets for pathless or unknown tools', () => {
     expect(extractCodeMapFileTargets(projectRoot, 'bash', { command: 'pnpm test' })).toEqual([]);
     expect(extractCodeMapFileTargets(projectRoot, 'unknown', { path: 'src/a.ts' })).toEqual([]);
+    expect(extractCodeMapFileTargets(projectRoot, 'constructor', { path: 'src/a.ts' })).toEqual([]);
+    expect(extractCodeMapFileTargets(projectRoot, '__proto__', { path: 'src/a.ts' })).toEqual([]);
   });
 
   it('normalizes deterministic file_changed targets independently of tool name', () => {

@@ -44,10 +44,13 @@ describe('a calm workspace by default', () => {
           guidance: 0,
           collections: 'made-up',
           mascot: 'made-up',
-          hiddenIntros: [4, null, 'files', 'x'.repeat(80)],
+          hiddenIntros: [4, null, '', '   ', 'files', 'x'.repeat(80)],
         }),
       ),
     ).toEqual({ ...DEFAULT_WORKSPACE_PREFERENCES, shortcuts: false, hiddenIntros: ['files'] });
     expect(readWorkspacePreferences('{"view":"studio"}').view).toBe('studio');
+    expect(readWorkspacePreferences(null).hiddenIntros).not.toBe(
+      DEFAULT_WORKSPACE_PREFERENCES.hiddenIntros,
+    );
   });
 });

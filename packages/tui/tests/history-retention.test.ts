@@ -326,4 +326,30 @@ describe('bounded TUI display history', () => {
     expect(state.historyBudget).toBeUndefined();
     expect(state.autoProceedHold).toBe(false);
   });
+
+  it('clamps NaN and non-positive budgets to keep the newest entry and preserves surrogate pairs in 1024-char banner fields (F139)', () => {
+    const entries = infoEntries(2);
+    const retained = retainTuiHistory(entries, {
+      maxEntries: 0,
+      maxBytes: Number.NaN,
+    });
+    expect(retained.at(-1)).toMatchObject({ id: 2, text: 'entry-2' });
+
+    const banner: HistoryEntry = {
+      id: 0,
+      kind: 'banner',
+      version: '1.0.0',
+      provider: `${'p'.repeat(1023)}🚀tail`,
+      model: 'm',
+      cwd: 'x'.repeat(70_000),
+    };
+    const [compactBanner] = retainTuiHistory([banner], {
+      maxBytes: 100_000,
+      maxEntryBytes: 10_000,
+    });
+    expect(compactBanner?.kind).toBe('banner');
+    if (compactBanner?.kind === 'banner') {
+      expect(compactBanner.provider.isWellFormed()).toBe(true);
+    }
+  });
 });

@@ -44,11 +44,13 @@ const SPARK_CHARS = ' ▁▂▃▄▅▆▇█';
  *  round(v/max * 4) over a 5-char palette. */
 export function sparkline(values: number[], width = 40): string {
   if (values.length === 0) return '';
-  const max = Math.max(1, ...values);
-  const step = Math.max(1, Math.floor(values.length / width));
+  const sanitized = values.map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
+  const max = Math.max(1, ...sanitized);
+  const safeWidth = Number.isFinite(width) && width > 0 ? Math.floor(width) : 40;
+  const step = Math.max(1, Math.floor(sanitized.length / safeWidth));
   const sampled: number[] = [];
-  for (let i = 0; i < values.length; i += step) {
-    sampled.push(values[i]!);
+  for (let i = 0; i < sanitized.length; i += step) {
+    sampled.push(sanitized[i]!);
   }
   return sampled
     .map((v) => {
@@ -65,13 +67,16 @@ export function bucketActivity(
   bins = 12,
   binMs = 2000,
 ): number[] {
-  const out = new Array<number>(bins).fill(0);
-  const windowStart = now - bins * binMs;
+  const safeBins = Number.isFinite(bins) && bins >= 1 ? Math.floor(bins) : 12;
+  const safeBinMs = Number.isFinite(binMs) && binMs > 0 ? binMs : 2000;
+  const out = new Array<number>(safeBins).fill(0);
+  if (!Number.isFinite(now)) return out;
+  const windowStart = now - safeBins * safeBinMs;
   for (const at of timestamps) {
-    if (at < windowStart || at > now) continue;
-    let idx = Math.floor((at - windowStart) / binMs);
+    if (!Number.isFinite(at) || at < windowStart || at > now) continue;
+    let idx = Math.floor((at - windowStart) / safeBinMs);
     if (idx < 0) idx = 0;
-    if (idx >= bins) idx = bins - 1;
+    if (idx >= safeBins) idx = safeBins - 1;
     out[idx] = (out[idx] ?? 0) + 1;
   }
   return out;

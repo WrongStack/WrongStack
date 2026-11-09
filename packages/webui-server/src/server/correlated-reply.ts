@@ -10,15 +10,31 @@ export function correlatedReply(ws: WebSocket, payload: unknown, types: readonly
         get(target, key) {
           if (key === 'send')
             return (...args: unknown[]) => {
-              if (typeof args[0] === 'string') {
-                const frame = JSON.parse(args[0]) as {
-                  type?: string;
-                  payload?: Record<string, unknown>;
-                };
-                if (frame.type && types.includes(frame.type)) {
-                  frame.payload = { ...frame.payload, requestId };
-                  args[0] = JSON.stringify(frame);
-                  replied = true;
+              if (!replied && typeof args[0] === 'string') {
+                try {
+                  const frame = JSON.parse(args[0]) as {
+                    type?: unknown;
+                    payload?: unknown;
+                  } | null;
+                  if (
+                    frame &&
+                    typeof frame === 'object' &&
+                    !Array.isArray(frame) &&
+                    typeof frame.type === 'string' &&
+                    types.includes(frame.type)
+                  ) {
+                    const existingPayload =
+                      frame.payload &&
+                      typeof frame.payload === 'object' &&
+                      !Array.isArray(frame.payload)
+                        ? (frame.payload as Record<string, unknown>)
+                        : {};
+                    frame.payload = { ...existingPayload, requestId };
+                    args[0] = JSON.stringify(frame);
+                    replied = true;
+                  }
+                } catch {
+                  /* pass through non-JSON frames */
                 }
               }
               return Reflect.apply(target.send, target, args);

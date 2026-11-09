@@ -25,8 +25,11 @@ export function restoreFlags(
   const flags = deps.flags;
   if (!flags) return args;
 
+  const dashDashIdx = args.indexOf('--');
+  const preDashArgs = dashDashIdx === -1 ? args : args.slice(0, dashDashIdx);
+
   const alreadyPresent = new Set(
-    args
+    preDashArgs
       .filter((a) => a.startsWith('-'))
       .map((a) => a.replace(/^-+/, '').split('=')[0])
       .filter((a): a is string => a !== undefined && a.length > 0),
@@ -44,5 +47,8 @@ export function restoreFlags(
     else restored.push(token, value);
   }
 
-  return restored.length > 0 ? [...args, ...restored] : args;
+  if (restored.length === 0) return args;
+  return dashDashIdx === -1
+    ? [...args, ...restored]
+    : [...preDashArgs, ...restored, ...args.slice(dashDashIdx)];
 }

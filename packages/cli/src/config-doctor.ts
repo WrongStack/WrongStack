@@ -353,15 +353,17 @@ export function diagnoseConfig(
             fix: 'removed (built-in default applies)',
           });
           delete autonomy[key];
-        } else if (n < 0 || n !== v) {
+        } else {
           const repaired = Math.max(0, Math.round(n));
-          findings.push({
-            path: `autonomy.${key}`,
-            problem: `expected a non-negative number (ms), got ${JSON.stringify(v)}`,
-            severity: 'error',
-            fix: `set to ${repaired}`,
-          });
-          autonomy[key] = repaired;
+          if (repaired !== v) {
+            findings.push({
+              path: `autonomy.${key}`,
+              problem: `expected a non-negative number (ms), got ${JSON.stringify(v)}`,
+              severity: 'error',
+              fix: `set to ${repaired}`,
+            });
+            autonomy[key] = repaired;
+          }
         }
       }
       if ('thinkingWord' in autonomy) {
@@ -393,11 +395,15 @@ export function diagnoseConfig(
       const entries = fixed['plugins'] as unknown[];
       const kept: unknown[] = [];
       entries.forEach((entry, i) => {
-        if (typeof entry === 'string') {
+        if (typeof entry === 'string' && entry.trim() !== '') {
           kept.push(entry);
           return;
         }
-        if (isPlainObject(entry) && typeof entry['name'] === 'string') {
+        if (
+          isPlainObject(entry) &&
+          typeof entry['name'] === 'string' &&
+          entry['name'].trim() !== ''
+        ) {
           if ('enabled' in entry && typeof entry['enabled'] !== 'boolean') {
             const coerced = coerceBoolean(entry['enabled']);
             findings.push({
@@ -505,9 +511,10 @@ export function diagnoseConfig(
         const section = extensions[plugin.name];
         if (!plugin.configSchema || !isPlainObject(section)) continue;
         const result = validateAgainstSchema(section, plugin.configSchema);
+        const removedProps = new Set<string>();
         for (const err of result.errors) {
           const prop = err.path.split('.')[0]?.replace(/\[\d+\]$/, '');
-          if (prop && prop !== '<root>' && prop in section) {
+          if (prop && prop !== '<root>' && (prop in section || removedProps.has(prop))) {
             findings.push({
               path: `extensions.${plugin.name}.${err.path}`,
               problem: err.message,
@@ -515,6 +522,7 @@ export function diagnoseConfig(
               fix: `removed "${prop}" (plugin default applies)`,
             });
             delete section[prop];
+            removedProps.add(prop);
           } else {
             findings.push({
               path: `extensions.${plugin.name}${err.path === '<root>' ? '' : `.${err.path}`}`,
@@ -582,6 +590,12 @@ export function diagnoseConfig(
 }
 
 function scanPlaintextSecrets(node: unknown, prefix: string, findings: DoctorFinding[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((item, index) => {
+      scanPlaintextSecrets(item, `${prefix}[${index}]`, findings);
+    });
+    return;
+  }
   if (!isPlainObject(node)) return;
   for (const [key, value] of Object.entries(node)) {
     const path = prefix ? `${prefix}.${key}` : key;
@@ -594,7 +608,7 @@ function scanPlaintextSecrets(node: unknown, prefix: string, findings: DoctorFin
           severity: 'warning',
         });
       }
-    } else if (isPlainObject(value)) {
+    } else if (isPlainObject(value) || Array.isArray(value)) {
       scanPlaintextSecrets(value, path, findings);
     }
   }

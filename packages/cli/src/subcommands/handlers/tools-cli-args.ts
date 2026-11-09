@@ -187,9 +187,10 @@ export function parseBatchLines(text: string): BatchLine[] {
       continue;
     }
     const id = parsed['id'];
-    const tool = parsed['tool'];
+    const rawTool = parsed['tool'];
+    const tool = typeof rawTool === 'string' ? rawTool.trim() : '';
     const input = parsed['input'] ?? {};
-    if (typeof tool !== 'string' || tool === '') {
+    if (tool === '') {
       entries.push({ line, id, error: `line ${line} needs a "tool" name` });
     } else if (!isPlainObject(input)) {
       entries.push({ line, id, error: `line ${line}: "input" must be a JSON object` });
@@ -253,12 +254,29 @@ function coerce(value: string, schema: JSONSchema, label: string): unknown {
       if (value === 'false') return false;
       throw new ToolsCliUsageError(`${label} expects true or false, got "${value}"`);
     case 'array': {
-      if (value.trim().startsWith('[')) return parseJsonValue(value, label);
       const items = ((schema as { items?: JSONSchema }).items ?? {}) as JSONSchema;
+      if (value.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (err) {
+          if (primaryType(items) !== 'string') {
+            throw new ToolsCliUsageError(`${label} expects JSON: ${toErrorMessage(err)}`);
+          }
+        }
+        if (primaryType(items) !== 'string') {
+          throw new ToolsCliUsageError(`${label} expects a JSON array`);
+        }
+      }
       return [coerce(value, items, label)];
     }
-    case 'object':
-      return parseJsonValue(value, label);
+    case 'object': {
+      const parsed = parseJsonValue(value, label);
+      if (!isPlainObject(parsed)) {
+        throw new ToolsCliUsageError(`${label} expects a JSON object, got ${kindOf(parsed)}`);
+      }
+      return parsed;
+    }
     default: {
       // Untyped / union field: take JSON when it parses, else the raw string.
       try {

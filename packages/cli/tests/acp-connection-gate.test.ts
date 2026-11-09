@@ -10,12 +10,13 @@
  * handler wiring rather than calling it, so it would not have caught this. These
  * exercise the gate directly.
  */
-import type { IncomingMessage } from 'node:http';
-import { describe, expect, it } from 'vitest';
-import { createAcpConnectionGate } from '../src/subcommands/handlers/acp-connection-gate.js';
+
 import { readFileSync } from 'node:fs';
+import type { IncomingMessage } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import { createAcpConnectionGate } from '../src/subcommands/handlers/acp-connection-gate.js';
 
 const HOST = '127.0.0.1';
 const PORT = 8889;
@@ -101,6 +102,27 @@ describe('ACP WebSocket connection gate', () => {
     const verdict = capped.check(withToken(), 2);
     expect(verdict.ok).toBe(false);
     expect(verdict.code).toBe(1013);
+  });
+
+  it('rejects Host headers with userinfo/path/query/fragment and clamps non-finite maxConnections (F154)', () => {
+    const nanGate = createAcpConnectionGate({
+      host: HOST,
+      port: PORT,
+      token: TOKEN,
+      maxConnections: Number.NaN,
+    });
+    for (const badHost of [
+      `evil.example.com@127.0.0.1:${PORT}/path`,
+      `evil.example.com#@127.0.0.1:${PORT}`,
+      `127.0.0.1:${PORT}?foo=bar`,
+    ]) {
+      const verdict = nanGate.check(req({ host: badHost }, `/?token=${TOKEN}`), 0);
+      expect(verdict.ok).toBe(false);
+      expect(verdict.reason).toBe('untrusted host header');
+    }
+    expect(nanGate.check(withToken(), 8).ok).toBe(false);
+    const emptyGate = createAcpConnectionGate({ host: HOST, port: PORT, token: '' });
+    expect(emptyGate.check(req({ host: `${HOST}:${PORT}` }, '/?token='), 0).ok).toBe(false);
   });
 });
 

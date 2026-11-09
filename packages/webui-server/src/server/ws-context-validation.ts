@@ -16,7 +16,7 @@ function validateContextModeIdPayload(
   if (typeof id !== 'string' || id.trim().length === 0) {
     return { ok: false, message: `${type} payload.id must be a non-empty string` };
   }
-  return { ok: true, value: { id } };
+  return { ok: true, value: { id: id.trim() } };
 }
 
 export function validateContextModeSwitchPayload(
@@ -95,8 +95,8 @@ export function validateContextModeCreatePayload(
   return {
     ok: true,
     value: {
-      id,
-      name,
+      id: id.trim(),
+      name: name.trim(),
       description,
       thresholds: { warn: thresholds['warn'], soft: thresholds['soft'], hard: thresholds['hard'] },
       preserveK,
@@ -126,10 +126,10 @@ export function validateContextModeUpdatePayload(
   }
 
   const name = payload['name'];
-  if (name !== undefined && typeof name !== 'string') {
+  if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) {
     return {
       ok: false,
-      message: 'context.mode.update payload.name must be a string when provided',
+      message: 'context.mode.update payload.name must be a non-empty string when provided',
     };
   }
 
@@ -185,8 +185,8 @@ export function validateContextModeUpdatePayload(
   return {
     ok: true,
     value: {
-      id,
-      ...(typeof name === 'string' ? { name } : {}),
+      id: id.trim(),
+      ...(typeof name === 'string' ? { name: name.trim() } : {}),
       ...(typeof description === 'string' ? { description } : {}),
       ...(validatedThresholds !== undefined ? { thresholds: validatedThresholds } : {}),
       ...(typeof preserveK === 'number' ? { preserveK } : {}),

@@ -100,13 +100,16 @@ export function buildReplayPayload(source: ReplaySource): ReplayPayloadFields {
   }
 
   const usage = source.usage;
-  if (usage && usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) > 0) {
-    out.replayUsage = {
-      input: usage.input,
-      output: usage.output,
-      cacheRead: usage.cacheRead ?? 0,
-      cacheWrite: usage.cacheWrite ?? 0,
-    };
+  if (usage) {
+    const safeCount = (v: unknown): number =>
+      typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+    const input = safeCount(usage.input);
+    const output = safeCount(usage.output);
+    const cacheRead = safeCount(usage.cacheRead);
+    const cacheWrite = safeCount(usage.cacheWrite);
+    if (input + output + cacheRead + cacheWrite > 0) {
+      out.replayUsage = { input, output, cacheRead, cacheWrite };
+    }
   }
 
   return out;

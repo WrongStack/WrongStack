@@ -48,4 +48,18 @@ describe('correlated direct replies', () => {
     const { ws } = socket();
     expect(correlatedReply(ws, {}, ['prefs.updated']).socket).toBe(ws);
   });
+  it('stamps only the first matching reply and passes through non-JSON or null frames safely', () => {
+    const { ws, frames } = socket();
+    const reply = correlatedReply(ws, { requestId: 'once-only' }, ['mcp.operation_result']);
+    reply.socket.send('plain-text');
+    reply.socket.send('null');
+    reply.socket.send(JSON.stringify({ type: 'mcp.operation_result', payload: { success: true } }));
+    reply.socket.send(
+      JSON.stringify({ type: 'mcp.operation_result', payload: { success: false } }),
+    );
+    expect(frames[0]).toBe('plain-text');
+    expect(frames[1]).toBe('null');
+    expect(JSON.parse(frames[2]!).payload.requestId).toBe('once-only');
+    expect(JSON.parse(frames[3]!).payload.requestId).toBeUndefined();
+  });
 });

@@ -316,4 +316,32 @@ describe('wstack tools run', () => {
       expect(io.out).toContain('hello.txt');
     }
   });
+
+  it('validates object/array schema args, rejects blank batch tool names, and restores flags before -- (F154)', async () => {
+    const { restoreFlags } = await import('../src/subcommands/flags.js');
+    const { parseBatchLines, parseSchemaArgs } = await import(
+      '../src/subcommands/handlers/tools-cli-args.js'
+    );
+    expect(() =>
+      parseSchemaArgs(['--filter', '[1,2]'], {
+        type: 'object',
+        properties: { filter: { type: 'object' } },
+      }),
+    ).toThrow(/expects a JSON object/);
+    expect(
+      parseSchemaArgs(['--patterns', '[a-z]+'], {
+        type: 'object',
+        properties: { patterns: { type: 'array', items: { type: 'string' } } },
+      }),
+    ).toEqual({ patterns: ['[a-z]+'] });
+    const batch = parseBatchLines('{"tool":"   ","input":{}}\n{"tool":"  read  ","input":{}}');
+    expect('error' in (batch[0] ?? {})).toBe(true);
+    expect(batch[1]).toMatchObject({ tool: 'read' });
+    expect(
+      restoreFlags(['run', 'grep', '--', '--json'], { flags: { json: true, yolo: true } }, [
+        'json',
+        'yolo',
+      ]),
+    ).toEqual(['run', 'grep', '--json', '--yolo', '--', '--json']);
+  });
 });

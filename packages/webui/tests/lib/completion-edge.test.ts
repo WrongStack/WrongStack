@@ -4,8 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  getLanguage,
   buildCompletionCacheKey,
+  getLanguage,
   shouldAllowCompletionLlm,
   shouldAskCompletionServer,
 } from '../../src/lib/completion';
@@ -19,6 +19,12 @@ describe('getLanguage — fallback branch', () => {
 
   it('returns plaintext for empty string', () => {
     expect(getLanguage('')).toBe('plaintext');
+  });
+
+  it('falls back for extension names that collide with Object.prototype', () => {
+    for (const ext of ['constructor', 'CONSTRUCTOR', '__proto__', 'valueOf', 'hasOwnProperty']) {
+      expect(getLanguage(`src/file.${ext}`)).toBe('plaintext');
+    }
   });
 });
 

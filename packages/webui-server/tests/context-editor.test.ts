@@ -348,6 +348,18 @@ describe('validateContextEditorMessages', () => {
     for (let i = 0; i < 100; i++) huge.push({ role: 'user', content: `msg ${i}` });
     const result = validateContextEditorMessages(huge, 0);
     expect(result.errors.some((e) => e.code === 'TOO_MANY_MESSAGES')).toBe(true);
+    const nanBaseline = validateContextEditorMessages(huge, Number.NaN);
+    expect(nanBaseline.errors.some((e) => e.code === 'TOO_MANY_MESSAGES')).toBe(true);
+  });
+
+  it('rejects oversized thinking blocks', () => {
+    const oversized = validateContextEditorMessages([
+      {
+        role: 'assistant',
+        content: [{ type: 'thinking', thinking: 'x'.repeat(8 * 1024 * 1024 + 1) }],
+      },
+    ]);
+    expect(oversized.errors).toEqual([expect.objectContaining({ code: 'THINKING_TOO_LARGE' })]);
   });
 });
 

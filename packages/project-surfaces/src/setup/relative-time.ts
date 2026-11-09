@@ -4,6 +4,7 @@ export function formatSetupRelativeTime(
 ): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+  if (!Number.isFinite(diffMs)) return t('setup:screen.time.justNow');
   const diffSec = Math.floor(diffMs / 1000);
   if (diffSec < 10) return t('setup:screen.time.justNow');
   if (diffSec < 60) return t('setup:screen.time.secondsAgo', { count: diffSec });

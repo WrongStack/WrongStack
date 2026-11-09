@@ -137,6 +137,21 @@ function boundedToolInput(input: unknown, maxBytes: number): unknown {
  * Common text entries keep a readable prefix; unusual oversized structured
  * entries degrade to a small marker rather than retaining an unbounded graph.
  */
+function slicePrefixUtf16Safe(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  let end = maxChars;
+  if (end > 0) {
+    const last = value.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  }
+  return `${value.slice(0, end)}…`;
+}
+
+function clampHistoryBudget(value: number | undefined, fallback: number): number {
+  if (value === undefined || Number.isNaN(value)) return fallback;
+  return Math.max(1, Math.floor(value));
+}
+
 function retainTuiHistoryEntry(
   entry: HistoryEntry,
   maxBytes = TUI_HISTORY_MAX_ENTRY_BYTES,
@@ -149,10 +164,7 @@ function retainTuiHistoryEntry(
       entry.output !== undefined && entry.copyOutput === undefined
         ? { ...entry, copyOutput: entry.output }
         : entry;
-    const name =
-      copyableEntry.name.length > 1024
-        ? `${copyableEntry.name.slice(0, 1024)}…`
-        : copyableEntry.name;
+    const name = slicePrefixUtf16Safe(copyableEntry.name, 1024);
     const input = boundedToolInput(
       copyableEntry.input,
       Math.floor(maxBytes / TOOL_INPUT_BUDGET_DIVISOR),
@@ -193,15 +205,13 @@ function retainTuiHistoryEntry(
         entry,
       );
     case 'banner': {
-      const truncate = (value: string): string =>
-        value.length > 1024 ? `${value.slice(0, 1024)}…` : value;
       const compact: HistoryEntry = {
         id: entry.id,
         kind: 'banner',
-        version: truncate(entry.version),
-        provider: truncate(entry.provider),
-        model: truncate(entry.model),
-        cwd: truncate(entry.cwd),
+        version: slicePrefixUtf16Safe(entry.version, 1024),
+        provider: slicePrefixUtf16Safe(entry.provider, 1024),
+        model: slicePrefixUtf16Safe(entry.model, 1024),
+        cwd: slicePrefixUtf16Safe(entry.cwd, 1024),
       };
       return entryBytes(compact) <= maxBytes ? compact : oversizedEntryMarker(entry);
     }
@@ -249,11 +259,11 @@ export function retainTuiHistory(
   entries: HistoryEntry[],
   budget: TuiHistoryBudget = {},
 ): HistoryEntry[] {
-  const maxEntries = Math.max(1, Math.floor(budget.maxEntries ?? TUI_HISTORY_MAX_ENTRIES));
-  const maxBytes = Math.max(1, Math.floor(budget.maxBytes ?? TUI_HISTORY_MAX_BYTES));
+  const maxEntries = clampHistoryBudget(budget.maxEntries, TUI_HISTORY_MAX_ENTRIES);
+  const maxBytes = clampHistoryBudget(budget.maxBytes, TUI_HISTORY_MAX_BYTES);
   const maxEntryBytes = Math.min(
     maxBytes,
-    Math.max(1, Math.floor(budget.maxEntryBytes ?? TUI_HISTORY_MAX_ENTRY_BYTES)),
+    clampHistoryBudget(budget.maxEntryBytes, TUI_HISTORY_MAX_ENTRY_BYTES),
   );
   let banner: HistoryEntry | undefined;
   let previouslyOmitted = 0;

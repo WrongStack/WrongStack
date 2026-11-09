@@ -234,6 +234,23 @@ describe('proxy-probe soft-signal active flag', () => {
     await runner.poke();
     expect(getProxyConfig().active).toBe(false);
   });
+
+  it('falls back to default timeoutMs and intervalMs when non-positive or NaN (F153)', async () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      if (init?.signal?.aborted) throw new Error('aborted');
+      return okResponse();
+    });
+    const runner: ProbeRunner = startProxyProbe({
+      ...NO_INTERVAL,
+      fetchImpl,
+      intervalMs: Number.NaN,
+      timeoutMs: 0,
+    });
+    expect(await runner.poke()).toBe(true);
+    expect(getProxyConfig().active).toBe(true);
+  });
 });
 
 describe('proxy-probe transition logging', () => {

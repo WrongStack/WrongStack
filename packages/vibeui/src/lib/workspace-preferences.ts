@@ -22,7 +22,10 @@ export function readWorkspacePreferences(raw: string | null): WorkspacePreferenc
   try {
     const value: unknown = JSON.parse(raw || 'null');
     if (!value || typeof value !== 'object' || Array.isArray(value))
-      return { ...DEFAULT_WORKSPACE_PREFERENCES };
+      return {
+        ...DEFAULT_WORKSPACE_PREFERENCES,
+        hiddenIntros: [...DEFAULT_WORKSPACE_PREFERENCES.hiddenIntros],
+      };
     const item = value as Record<string, unknown>;
     return {
       view: item.view === 'focus' || item.view === 'studio' ? item.view : 'cozy',
@@ -35,13 +38,17 @@ export function readWorkspacePreferences(raw: string | null): WorkspacePreferenc
         ? [
             ...new Set(
               item.hiddenIntros.filter(
-                (id): id is string => typeof id === 'string' && id.length < 80,
+                (id): id is string =>
+                  typeof id === 'string' && id.trim().length > 0 && id.length < 80,
               ),
             ),
           ].slice(0, 30)
         : [],
     };
   } catch {
-    return { ...DEFAULT_WORKSPACE_PREFERENCES };
+    return {
+      ...DEFAULT_WORKSPACE_PREFERENCES,
+      hiddenIntros: [...DEFAULT_WORKSPACE_PREFERENCES.hiddenIntros],
+    };
   }
 }

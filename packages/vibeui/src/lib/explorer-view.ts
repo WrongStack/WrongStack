@@ -55,5 +55,7 @@ export function memoryKindLabel(kind: unknown) {
     summary: 'Summary',
     fact: 'Fact',
   };
-  return labels[text(kind)] || text(kind).replaceAll('_', ' ') || 'Knowledge';
+  const key = text(kind).trim();
+  if (Object.hasOwn(labels, key)) return labels[key]!;
+  return key.replaceAll('_', ' ').trim() || 'Knowledge';
 }

@@ -54,6 +54,14 @@ describe('buildFKeysCommand', () => {
     expect(res?.message).toMatch(/Unknown F-key: xyz/);
   });
 
+  it('rejects Object.prototype keys like constructor and __proto__ (F153)', async () => {
+    const cmd = buildFKeysCommand(makeOpts());
+    for (const protoKey of ['constructor', '__proto__', 'toString']) {
+      const res = await cmd.run(protoKey);
+      expect(res?.message).toContain(`Unknown F-key: ${protoKey}`);
+    }
+  });
+
   it('handles all 12 F-keys', async () => {
     const labels = [
       'project switcher',

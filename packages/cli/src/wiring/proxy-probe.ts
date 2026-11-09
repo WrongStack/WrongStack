@@ -74,8 +74,14 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
     scheduleImmediateProbe(activeRunner);
     return activeRunner;
   }
-  const intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL_MS;
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const intervalMs =
+    typeof opts.intervalMs === 'number' && Number.isFinite(opts.intervalMs) && opts.intervalMs > 0
+      ? opts.intervalMs
+      : DEFAULT_INTERVAL_MS;
+  const timeoutMs =
+    typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : DEFAULT_TIMEOUT_MS;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const setIntervalImpl = opts.setIntervalImpl ?? setInterval;
   const clearIntervalImpl = opts.clearIntervalImpl ?? clearInterval;

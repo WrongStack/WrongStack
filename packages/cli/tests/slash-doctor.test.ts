@@ -294,6 +294,57 @@ describe('diagnoseConfig', () => {
     expect(report.findings.some((f) => f.path === 'sync.githubToken')).toBe(false);
     expect(report.fixed['apiKey']).toBe('sk-plain');
   });
+
+  it('scans plaintext secrets inside arrays, drops blank plugin entries, rounds fractional autonomy delays, and marks all extension removals (F118)', () => {
+    const report = diagnoseConfig(
+      {
+        version: 1,
+        autonomy: { autoProceedDelayMs: 100.7 },
+        plugins: [
+          'valid-plugin',
+          '   ',
+          { name: '  ' },
+          { name: 'webhook', options: { apiKey: 'sk-live-secret' } },
+        ],
+        extensions: {
+          myPlugin: {
+            server: { host: 123, port: 'bad' },
+          },
+        },
+      },
+      [
+        {
+          name: 'myPlugin',
+          configSchema: {
+            type: 'object',
+            properties: {
+              server: {
+                type: 'object',
+                properties: {
+                  host: { type: 'string' },
+                  port: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+      ],
+      {},
+    );
+    expect(report.findings.some((f) => f.path === 'plugins[1].options.apiKey')).toBe(true);
+    expect(report.fixed['plugins']).toEqual([
+      'valid-plugin',
+      { name: 'webhook', options: { apiKey: 'sk-live-secret' } },
+    ]);
+    expect((report.fixed['autonomy'] as Record<string, unknown>)['autoProceedDelayMs']).toBe(101);
+    const serverFindings = report.findings.filter((f) =>
+      f.path.startsWith('extensions.myPlugin.server'),
+    );
+    expect(serverFindings).toHaveLength(2);
+    expect(serverFindings.every((f) => f.fix === 'removed "server" (plugin default applies)')).toBe(
+      true,
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

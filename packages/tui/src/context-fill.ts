@@ -63,18 +63,23 @@ interface ContextFillResult {
  */
 export function resolveContextFill(inputs: ContextFillInputs): ContextFillResult {
   const { loopReportedTokens, perRequestTokens, localEstimate, maxContext } = inputs;
-  const ceiling = maxContext > 0 ? maxContext : Number.POSITIVE_INFINITY;
+  const ceiling =
+    Number.isFinite(maxContext) && maxContext > 0 ? maxContext : Number.POSITIVE_INFINITY;
   const clamp = (n: number): number => Math.max(0, Math.min(n, ceiling));
 
-  if (typeof loopReportedTokens === 'number' && loopReportedTokens > 0) {
+  if (
+    typeof loopReportedTokens === 'number' &&
+    Number.isFinite(loopReportedTokens) &&
+    loopReportedTokens > 0
+  ) {
     return { used: clamp(loopReportedTokens), needsLocalEstimate: false, source: 'loop' };
   }
 
-  if (perRequestTokens > 0 && perRequestTokens <= ceiling) {
+  if (Number.isFinite(perRequestTokens) && perRequestTokens > 0 && perRequestTokens <= ceiling) {
     return { used: clamp(perRequestTokens), needsLocalEstimate: false, source: 'provider' };
   }
 
-  if (typeof localEstimate === 'number' && localEstimate > 0) {
+  if (typeof localEstimate === 'number' && Number.isFinite(localEstimate) && localEstimate > 0) {
     return { used: clamp(localEstimate), needsLocalEstimate: true, source: 'local' };
   }
 

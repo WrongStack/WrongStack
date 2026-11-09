@@ -604,6 +604,7 @@ describe('WebUI payload validation', () => {
         { id: '' },
         { id: 1 },
         { id: 'focused', name: 1 },
+        { id: 'focused', name: '   ' },
         { id: 'focused', description: 1 },
         { id: 'focused', thresholds: null },
         { id: 'focused', thresholds: { warn: Number.NaN } },
@@ -612,6 +613,49 @@ describe('WebUI payload validation', () => {
         { id: 'focused', preserveK: Number.NaN },
         { id: 'focused', eliseThreshold: Number.NaN },
       ]);
+    });
+
+    it('trims context mode id/name and ignores whitespace-only mailbox sessionId/replyTo without throwing (F142)', () => {
+      expect(validateContextModeSwitchPayload({ id: '  deep  ' })).toEqual({
+        ok: true,
+        value: { id: 'deep' },
+      });
+      expect(
+        validateMailboxSendPayload({
+          requestId: 'req-0',
+          to: '@session',
+          type: 'note',
+          audience: 'all',
+          subject: 'Hi',
+          body: 'Body',
+          priority: 'normal',
+          sessionId: '   ',
+        }),
+      ).toMatchObject({ ok: false });
+
+      const send = validateMailboxSendPayload({
+        requestId: 'req-1',
+        to: 'leader',
+        type: 'note',
+        audience: 'all',
+        subject: 'Hi',
+        body: 'Body',
+        priority: 'normal',
+        sessionId: '   ',
+        replyTo: '   ',
+      });
+      expect(send).toEqual({
+        ok: true,
+        value: {
+          requestId: 'req-1',
+          to: 'leader',
+          type: 'note',
+          audience: 'all',
+          subject: 'Hi',
+          body: 'Body',
+          priority: 'normal',
+        },
+      });
     });
   });
 

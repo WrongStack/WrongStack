@@ -1,8 +1,10 @@
 import type { Provider, Response } from '@wrongstack/contracts/types';
 import { ProviderError } from '@wrongstack/contracts/types';
 import { describe, expect, it, vi } from 'vitest';
+import { SubscriptionOAuthProvider } from '../../providers/src/subscription-oauth.js';
 import {
   diagnoseProviderModelTestFailure,
+  type ProviderModelTestResult,
   runProviderModelTests,
 } from '../src/server/provider/model-test.js';
 
@@ -25,6 +27,55 @@ describe('provider model test diagnostics', () => {
 });
 
 describe('provider model test runner', () => {
+  it('reports actionable renewal guidance when a real OAuth provider rejects its expired token', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        globalThis.Response.json(
+          { error: 'invalid_grant', error_description: 'private-refresh-placeholder' },
+          { status: 400 },
+        ),
+      );
+    const provider = new SubscriptionOAuthProvider({
+      id: 'expired-chatgpt-account',
+      credential: {
+        label: 'personal',
+        apiKey: 'private-access-placeholder',
+        refreshToken: 'private-refresh-placeholder',
+        createdAt: '',
+        authMethod: 'oauth',
+        oauthStrategyId: 'chatgpt-api',
+        oauthClientId: 'oaiapp_test',
+        oauthSubject: 'test-user',
+        scope: 'openid chatgpt.tokens.use.direct',
+        expiresAt: '2000-01-01T00:00:00.000Z',
+      },
+      fetchImpl,
+    });
+    const results: ProviderModelTestResult[] = [];
+    const summary = await runProviderModelTests({
+      requestId: 'expired-account-check',
+      providerId: provider.id,
+      modelIds: ['account-model'],
+      provider,
+      timeoutMs: 1_000,
+      maxTokens: 32,
+      signal: new AbortController().signal,
+      metadata: async () => ({}),
+      onResult: (result) => results.push(result),
+    });
+    expect(summary).toEqual({ passed: 0, failed: 1, cancelled: 0 });
+    expect(results[0]).toMatchObject({
+      diagnosis: 'authentication',
+      errorKind: 'auth',
+      httpStatus: 400,
+    });
+    expect(results[0]?.error).toMatch(/auth failed.*invalid_grant.*Sign in again/);
+    expect(results[0]?.error).not.toMatch(/private-access|private-refresh/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://auth.openai.com/api/accounts/oauth/token');
+  });
+
   it('tests models sequentially and continues after a classified failure', async () => {
     let active = 0;
     let maxActive = 0;

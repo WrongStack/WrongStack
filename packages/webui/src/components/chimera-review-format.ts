@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, RotateCw, XCircle } from 'lucide-react';
 export function fmtTime(iso: string): string {
   try {
     const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
     return d.toLocaleString();
   } catch {
     return iso;
@@ -12,7 +13,9 @@ export function fmtTime(iso: string): string {
 export function fmtRelative(iso: string): string {
   try {
     const d = new Date(iso);
-    const diff = Date.now() - d.getTime();
+    const ms = d.getTime();
+    if (Number.isNaN(ms)) return iso;
+    const diff = Date.now() - ms;
     if (diff < 60_000) return 'Just now';
     if (diff < 3600_000) return `${Math.round(diff / 60_000)}m ago`;
     if (diff < 86400_000) return `${Math.round(diff / 3600_000)}h ago`;

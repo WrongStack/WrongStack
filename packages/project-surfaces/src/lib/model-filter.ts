@@ -127,7 +127,10 @@ export function buildModelCandidates(
     // Provider-level exclusion first: a parked provider contributes no rows at
     // all, so the per-model scan below never runs for it.
     if (isProviderDisabled(sp.id, disabledProviders)) continue;
-    const models = modelsByProvider[sp.id] ?? [];
+    const models = modelsByProvider[sp.id];
+    // An own array only: `modelsByProvider` is a plain record, so an inherited
+    // key (`toString`, `valueOf`, …) would otherwise be iterated as a model list.
+    if (!Array.isArray(models)) continue;
     for (const m of models) {
       if (isModelDisabled(sp.id, m.id, disabledModels)) continue;
       const isFav = isModelInFavorites(sp.id, m.id, favoriteModels);

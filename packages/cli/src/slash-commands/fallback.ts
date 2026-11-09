@@ -415,7 +415,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
               message: `${color.green('✓')} no fallback profile selected ${color.dim('(explicit chain / smart default apply)')}`,
             };
           }
-          if (!name) {
+          if (!name || name === '__proto__' || name === 'constructor' || name === 'prototype') {
             return { message: `${color.amber('Usage:')} /fallback profile ${action} <name>` };
           }
           const profiles = { ...((config.fallbackProfiles ?? {}) as Record<string, string[]>) };
@@ -451,7 +451,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
               message: `${color.green('✓')} profile ${color.amber(name)} → ${chain.join(' → ')}`,
             };
           }
-          if (!(name in profiles)) {
+          if (!Object.hasOwn(profiles, name)) {
             return { message: `${color.red('Profile not found')}: ${color.amber(name)}` };
           }
           if (action === 'use') {
@@ -520,7 +520,8 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
           }
           if (action === 'add') {
             const ref = normalizeRef(parts.slice(2).join(' '));
-            if (!ref)
+            const parsedRef = parseModelRef(ref);
+            if (!ref || !parsedRef.model)
               return { message: `${color.amber('Usage:')} /fallback fav add <provider/model>` };
             const key = normalizeModelRef(ref, config.provider);
             if (favorites.some((e) => normalizeModelRef(e, config.provider) === key)) {

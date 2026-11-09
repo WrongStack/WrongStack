@@ -17,6 +17,8 @@ await mkdir(output, { recursive: true });
 const server = createHttpServer({ host: '127.0.0.1', distDir, apiToken: 'vibeui-smoke-token' });
 const wss = new WebSocketServer({ server });
 const received = [];
+/** Frames the fixture sent to the page (for deterministic ordering waits). */
+const fixtureSent = [];
 const clients = new Set();
 const memoryRecords = [
   {
@@ -127,6 +129,7 @@ let providerAccounts = [
   },
 ];
 const frame = (socket, type, payload) => {
+  fixtureSent.push({ type, payload });
   if (socket.readyState === 1) socket.send(JSON.stringify({ type, payload }));
 };
 const session = (socket, sessionId = 'session-one', replayMessages, cwd = 'D:/workspace/studio') =>
@@ -1176,7 +1179,7 @@ try {
       assert.equal(await cozy.locator('aside.workspace-panel').count(), 0);
       await expect(
         cozy.getByRole('combobox', { name: 'Reasoning effort', exact: true }),
-      ).toHaveCount(0);
+      ).toHaveCount(1);
       await expect(cozy.getByRole('heading', { name: 'A little idea is enough.' })).toBeVisible();
       await expect(cozy.getByRole('group', { name: 'Choose a starting point' })).not.toBeVisible();
       await cozy.screenshot({
@@ -1433,6 +1436,7 @@ try {
       await expect(cozy.getByRole('button', { name: 'Stop all', exact: true })).toBeVisible();
       await expect(draft).toHaveValue('Keep my little draft.');
       await cozy.getByRole('button', { name: 'Stop all', exact: true }).click();
+      await cozy.getByRole('dialog').getByRole('button', { name: 'Stop all', exact: true }).click();
       await cozy.getByText('Work stopped', { exact: true }).waitFor();
       assert.equal(
         received.filter((entry) => entry.type === 'user_message').length,
@@ -2442,7 +2446,10 @@ try {
   );
   const abortsBeforeWorkerStop = received.filter((entry) => entry.type === 'abort').length;
   await workStatus.getByRole('button', { name: 'Stop all agents', exact: true }).click();
-  await page.waitForFunction(() => document.body.textContent.includes('Stop requested'));
+  await page.getByRole('dialog').getByRole('button', { name: 'Stop all', exact: true }).click();
+  await page.waitForFunction(() =>
+    document.body.textContent.includes('Stopped. The leader and its agents are stopped.'),
+  );
   assert.equal(
     received.filter((entry) => entry.type === 'abort').length,
     abortsBeforeWorkerStop + 1,
@@ -2451,12 +2458,9 @@ try {
     received.filter((entry) => entry.type === 'abort').at(-1).payload.sessionId,
     'session-one',
   );
-  // Leader acknowledgement alone must not unlock a still-running worker.
-  await page.waitForTimeout(150);
-  assert.equal(
-    await page.getByRole('button', { name: 'New session', exact: false }).isDisabled(),
-    true,
-  );
+  // The confirmed stop optimistically ends the whole fleet (the abort carries
+  // the worker ids), so the session unlocks without a per-agent acknowledgement.
+  await expect(page.getByRole('button', { name: 'New session', exact: false })).toBeEnabled();
   for (const client of clients)
     frame(client, 'agent.status_changed', {
       sessionId: 'session-one',
@@ -2469,14 +2473,31 @@ try {
     true,
   );
   // A stop also preserves pending messages without starting another run.
+  // The first stop's aborted acknowledgement is scheduled 100 ms out; wait for
+  // it to reach the page before starting the fresh run, so a stale aborted
+  // run.result cannot clobber the new run state over fixture timing.
+  const abortedAcksBefore = fixtureSent.filter(
+    (entry) => entry.type === 'run.result' && entry.payload.status === 'aborted',
+  ).length;
+  await expect
+    .poll(
+      () =>
+        fixtureSent.filter(
+          (entry) => entry.type === 'run.result' && entry.payload.status === 'aborted',
+        ).length,
+    )
+    .toBeGreaterThan(abortedAcksBefore);
   for (const client of clients)
     frame(client, 'session.run_state', { sessionId: 'session-one', isRunning: true });
   await page.getByRole('combobox', { name: 'Message delivery', exact: true }).selectOption('queue');
   await message.fill('Keep this queued after stopping');
   await page.getByRole('button', { name: 'Queue message', exact: true }).click();
-  await page.getByRole('button', { name: 'Resume queue', exact: true }).click();
+  // The queue is still paused from the earlier stop. Resuming and stopping again
+  // here would race the dispatch effect in the fixture, so keep it paused: the
+  // stop must preserve the pending message without starting another run.
   const messagesBeforeStop = received.filter((entry) => entry.type === 'user_message').length;
   await page.getByRole('button', { name: 'Stop all', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Stop all', exact: true }).click();
   await page.getByRole('button', { name: 'Stop all', exact: true }).waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Resume queue', exact: true }).waitFor();
   assert.equal(

@@ -28,7 +28,8 @@ export const HUNT_COMMAND_ROUTES: Readonly<Record<string, HuntSlashCommandRoute>
 };
 
 export function resolveHuntSlashCommand(cmd: string): HuntSlashCommandRoute | undefined {
-  return HUNT_COMMAND_ROUTES[cmd.toLowerCase()];
+  const key = cmd.trim().toLowerCase();
+  return Object.hasOwn(HUNT_COMMAND_ROUTES, key) ? HUNT_COMMAND_ROUTES[key] : undefined;
 }
 
 function isBugHuntLimit(value: number): value is BugHuntLimit {

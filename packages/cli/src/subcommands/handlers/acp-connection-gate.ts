@@ -38,9 +38,19 @@ interface AcpConnectionGate {
 
 function isLoopbackHostHeader(rawHost: string): boolean {
   const trimmed = rawHost.trim();
-  if (!trimmed) return false;
+  if (!trimmed || /[@/?#\\]/.test(trimmed)) return false;
   try {
-    const hostname = new URL(`http://${trimmed}`).hostname.toLowerCase();
+    const parsed = new URL(`http://${trimmed}`);
+    if (
+      parsed.username !== '' ||
+      parsed.password !== '' ||
+      parsed.pathname !== '/' ||
+      parsed.search !== '' ||
+      parsed.hash !== ''
+    ) {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
     const bare =
       hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     return bare === '127.0.0.1' || bare === 'localhost' || bare === '::1';
@@ -51,7 +61,9 @@ function isLoopbackHostHeader(rawHost: string): boolean {
 
 export function createAcpConnectionGate(opts: AcpConnectionGateOptions): AcpConnectionGate {
   const { host, port, token } = opts;
-  const maxConnections = opts.maxConnections ?? 8;
+  const rawMax = opts.maxConnections;
+  const maxConnections =
+    typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1 ? Math.floor(rawMax) : 8;
   const expected = Buffer.from(token);
 
   const tokenFromRequest = (req: Pick<IncomingMessage, 'headers' | 'url'>): string | undefined => {
@@ -69,7 +81,7 @@ export function createAcpConnectionGate(opts: AcpConnectionGateOptions): AcpConn
   };
 
   const tokenOk = (supplied: string | undefined): boolean => {
-    if (!supplied) return false;
+    if (!supplied || expected.length === 0) return false;
     const a = Buffer.from(supplied);
     // Length is not secret; comparing unequal-length buffers throws.
     if (a.length !== expected.length) return false;

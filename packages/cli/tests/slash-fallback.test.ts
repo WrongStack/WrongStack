@@ -442,5 +442,17 @@ describe('/fallback', () => {
       expect(msg).toContain('anthropic/claude-3-7-sonnet');
       expect(msg).toContain('Failover succeeded');
     });
+
+    it('rejects prototype keys in profile subcommands and model-less refs in fav add (F153)', async () => {
+      const { ctx, readFile } = makeCtx();
+      const cmd = buildFallbackCommand(ctx);
+      const useRes = await cmd.run('profile use toString');
+      expect(stripAnsi(useRes?.message ?? '')).toContain('Profile not found');
+      const setRes = await cmd.run('profile set __proto__ openai/gpt-4o');
+      expect(stripAnsi(setRes?.message ?? '')).toContain('Usage:');
+      const favRes = await cmd.run('fav add openai/');
+      expect(stripAnsi(favRes?.message ?? '')).toContain('Usage:');
+      expect(readFile().favoriteModels).toBeUndefined();
+    });
   });
 });

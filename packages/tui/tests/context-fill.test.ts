@@ -83,4 +83,22 @@ describe('resolveContextFill', () => {
     });
     expect(r).toEqual({ used: 50_000, needsLocalEstimate: false, source: 'loop' });
   });
+
+  it('rejects non-finite token estimates and falls back to finite sources (F139)', () => {
+    expect(
+      resolveContextFill({
+        loopReportedTokens: Number.POSITIVE_INFINITY,
+        perRequestTokens: 25_000,
+        maxContext: MAX,
+      }),
+    ).toEqual({ used: 25_000, needsLocalEstimate: false, source: 'provider' });
+
+    expect(
+      resolveContextFill({
+        perRequestTokens: Number.POSITIVE_INFINITY,
+        localEstimate: 12_000,
+        maxContext: 0,
+      }),
+    ).toEqual({ used: 12_000, needsLocalEstimate: true, source: 'local' });
+  });
 });

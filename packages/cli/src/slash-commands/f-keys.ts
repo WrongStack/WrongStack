@@ -49,7 +49,7 @@ export function buildFKeysCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       // Numeric arg → open the panel
-      const entry = F_PANELS[n];
+      const entry = Object.hasOwn(F_PANELS, n) ? F_PANELS[n] : undefined;
       if (!entry) {
         return { message: `Unknown F-key: ${n}. Use /f to list available panels (1–12).` };
       }

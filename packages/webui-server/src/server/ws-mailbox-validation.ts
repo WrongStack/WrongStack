@@ -202,13 +202,22 @@ export function validateMailboxSendPayload(
   // check matters — `assign`/`steer` addressed to an unnormalized
   // `@session` would pass the guard here and only fail later in the
   // mailbox itself.
-  const senderSessionId =
-    typeof rawSessionId === 'string' && rawSessionId.length > 0 ? rawSessionId : undefined;
+  const trimmedSessionId = typeof rawSessionId === 'string' ? rawSessionId.trim() : '';
+  const senderSessionId = trimmedSessionId.length > 0 ? trimmedSessionId : undefined;
+  const trimmedReplyTo = typeof rawReplyTo === 'string' ? rawReplyTo.trim() : '';
   // `broadcast` targets the project wildcard regardless of the typed
   // recipient (the composer prefills a placeholder); every other recipient
   // goes through the shared normalizer (`all` → `*`, bare `@session` → the
   // sender's session scope).
-  const to = type === 'broadcast' ? '*' : normalizeRecipient(rawTo.trim(), senderSessionId);
+  let to: string;
+  try {
+    to = type === 'broadcast' ? '*' : normalizeRecipient(rawTo.trim(), senderSessionId);
+  } catch (err) {
+    return {
+      ok: false,
+      message: `mailbox.send payload.to is invalid: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
   // The (type, recipient) rule is the SHARED one the agent tools and the HTTP
   // bridge apply (`checkMailboxSendType`). This validator used to re-derive
   // it locally, so the WebSocket surface could accept a pair the mailbox
@@ -244,10 +253,8 @@ export function validateMailboxSendPayload(
       subject: rawSubject.trim(),
       body: rawBody.trim(),
       priority: rawPriority,
-      ...(rawReplyTo !== undefined ? { replyTo: rawReplyTo } : {}),
-      ...(typeof rawSessionId === 'string' && rawSessionId.length > 0
-        ? { sessionId: rawSessionId }
-        : {}),
+      ...(trimmedReplyTo.length > 0 ? { replyTo: trimmedReplyTo } : {}),
+      ...(senderSessionId !== undefined ? { sessionId: senderSessionId } : {}),
     },
   };
 }

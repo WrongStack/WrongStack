@@ -101,6 +101,14 @@ describe('buildReplayPayload — usage', () => {
     });
     expect(out.replayUsage?.cacheWrite).toBe(7);
   });
+
+  it('sanitizes NaN or negative counters without dropping positive replayUsage (F141)', () => {
+    const out = buildReplayPayload({
+      messages: [message('a')],
+      usage: { input: 120, output: 80, cacheRead: Number.NaN, cacheWrite: -5 },
+    });
+    expect(out.replayUsage).toEqual({ input: 120, output: 80, cacheRead: 0, cacheWrite: 0 });
+  });
 });
 
 describe('buildReplayPayload — events / markers', () => {

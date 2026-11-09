@@ -33,4 +33,6 @@ it('gives memory types readable labels and preserves unknown server kinds', () =
   expect(memoryKindLabel('bug_root_cause')).toBe('Solved issue');
   expect(memoryKindLabel('custom_kind')).toBe('custom kind');
   expect(memoryKindLabel(undefined)).toBe('Knowledge');
+  expect(memoryKindLabel('toString')).toBe('toString');
+  expect(memoryKindLabel('___')).toBe('Knowledge');
 });

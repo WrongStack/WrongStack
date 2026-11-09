@@ -15,11 +15,13 @@ export function usePagination<T>(
   resetKey?: string | number | boolean | null,
 ): PaginationState<T> {
   const [page, setPage] = useState(1);
+  const safePageSize = Number.isFinite(pageSize) && pageSize >= 1 ? Math.floor(pageSize) : 20;
   const totalItems = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+  const clampedPage = Math.min(Math.max(1, page), totalPages);
 
   useEffect(() => {
-    setPage((current) => Math.min(current, totalPages));
+    setPage((current) => Math.min(Math.max(1, current), totalPages));
   }, [totalPages]);
 
   useEffect(() => {
@@ -28,9 +30,9 @@ export function usePagination<T>(
   }, [resetKey]);
 
   const pageItems = useMemo(
-    () => Array.from(items.slice((page - 1) * pageSize, page * pageSize)),
-    [items, page, pageSize],
+    () => Array.from(items.slice((clampedPage - 1) * safePageSize, clampedPage * safePageSize)),
+    [items, clampedPage, safePageSize],
   );
 
-  return { page, pageSize, totalItems, pageItems, setPage };
+  return { page: clampedPage, pageSize: safePageSize, totalItems, pageItems, setPage };
 }
