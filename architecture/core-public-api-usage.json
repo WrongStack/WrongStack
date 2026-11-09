@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 265,
+      "files": 266,
       "typeOnly": 26,
-      "runtimeOrMixed": 241
+      "runtimeOrMixed": 242
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -7662,6 +7662,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/acp-leader-confirm.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/acp-permission-bridge.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

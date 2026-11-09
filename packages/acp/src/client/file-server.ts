@@ -276,7 +276,34 @@ export class FileServer {
       throw new FsError('INVALID_PATH', p, 'path must be absolute (ACP requirement)');
     }
     const resolved = path.resolve(p);
-    if (this.allowOutsideRoot) return resolved;
+    if (!this.allowOutsideRoot) await this.checkInside(resolved);
+    return resolved;
+  }
+
+  /** True when paths outside the project root are served (`allowOutsideRoot`). */
+  get servesOutsideRoot(): boolean {
+    return this.allowOutsideRoot;
+  }
+
+  /**
+   * Whether an absolute `p` leaves the project root, by its spelling or
+   * through a symlink. With `allowOutsideRoot` such a path is served, so the
+   * caller must first put it to the permission policy as the read it is: the
+   * host's sensitive-path rules (credentials, agent state) live there.
+   * Malformed paths answer false; the read itself rejects them.
+   */
+  async reachesOutsideRoot(p: string): Promise<boolean> {
+    if (typeof p !== 'string' || !path.isAbsolute(p)) return false;
+    try {
+      await this.checkInside(path.resolve(p));
+      return false;
+    } catch (err) {
+      return err instanceof FsError && err.code === 'OUTSIDE_ROOT';
+    }
+  }
+
+  /** Lexical, then realpath, containment of a resolved absolute path. */
+  private async checkInside(resolved: string): Promise<void> {
     const isWindows = process.platform === 'win32';
     const normResolved = isWindows ? resolved.toLowerCase() : resolved;
     const normRoot = isWindows ? this.root.toLowerCase() : this.root;
@@ -286,8 +313,7 @@ export class FileServer {
     }
 
     // Now resolve symlinks and compare against the canonical root.
-    await this.assertRealInside(resolved);
-    return resolved;
+    await this.realInside(resolved);
   }
 
   /**
@@ -297,6 +323,10 @@ export class FileServer {
    */
   private async assertRealInside(resolvedPath: string): Promise<void> {
     if (this.allowOutsideRoot) return;
+    await this.realInside(resolvedPath);
+  }
+
+  private async realInside(resolvedPath: string): Promise<void> {
     let probe = resolvedPath;
     const isWindows = process.platform === 'win32';
     const normRealRoot = isWindows ? this.realRoot.toLowerCase() : this.realRoot;

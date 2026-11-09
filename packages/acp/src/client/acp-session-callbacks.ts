@@ -122,6 +122,37 @@ export async function handleAcpFsRequest(
       return;
     }
   }
+  // A read inside the project needs no question. One that leaves it (by its
+  // spelling or through a symlink) is put to the policy as the read it is, so
+  // the host's sensitive-path rules decide it: WrongStack's own `read` of
+  // ~/.ssh or ~/.aws asks or refuses, and an agent's read must not skip that.
+  if (
+    msg.method === 'fs/read_text_file' &&
+    fileServer.servesOutsideRoot &&
+    (await fileServer.reachesOutsideRoot(params.path))
+  ) {
+    const authorization = await authorizeAcpCallback(
+      permissionPolicy,
+      {
+        toolCallId: `acp-fs-read-${id}`,
+        title: `Read file outside the project: ${params.path}`,
+        kind: 'read',
+        rawInput: { path: params.path, sessionId: params.sessionId },
+      },
+      callbackOptions,
+    );
+    if (authorization !== 'allowed') {
+      const isCancelled = authorization === 'cancelled';
+      await sender.sendErrorResponse(
+        id,
+        isCancelled ? -32800 : -32602,
+        isCancelled
+          ? 'filesystem read permission request cancelled or timed out'
+          : 'filesystem read outside the project denied by permission policy',
+      );
+      return;
+    }
+  }
   try {
     if (msg.method === 'fs/read_text_file') {
       const result = await fileServer.readTextFile({

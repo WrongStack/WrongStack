@@ -598,10 +598,13 @@ export class AcpLeaderProvider implements Provider {
         ...(cmd.env ? { env: cmd.env } : {}),
         cwd: projectRoot,
         projectRoot,
-        // Same reach as the leader's own file tools (features.allowOutsideProjectRoot).
+        // Same reach as the leader's own file tools (features.allowOutsideProjectRoot),
+        // and only behind the bridge policy: reads outside the project are put
+        // to it, and without it nothing applies the sensitive-path rules.
         allowOutsideProjectRoot:
-          config.features?.allowOutsideProjectRoot ??
-          !(config.tools?.restrictToProjectRoot ?? false),
+          permissionPolicy !== undefined &&
+          (config.features?.allowOutsideProjectRoot ??
+            !(config.tools?.restrictToProjectRoot ?? false)),
         role: agentId,
         ...(permissionPolicy ? { permissionPolicy } : {}),
         ...(mcpServers.length > 0 ? { mcpServers } : {}),

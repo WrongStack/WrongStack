@@ -847,6 +847,70 @@ describe('ACPSession', () => {
     }
   });
 
+  it('puts every read that leaves the project to the permission policy as a read', async () => {
+    // Outside-root reads skip containment, so the host's sensitive-path rules
+    // (~/.ssh, ~/.aws, agent state) must still see them: they live in the
+    // permission policy, which an fs/read_text_file used to bypass entirely.
+    const fsp = await import('node:fs/promises');
+    const os = await import('node:os');
+    const outsideDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-gate-'));
+    const secret = path.join(outsideDir, 'id_rsa');
+    await fsp.writeFile(secret, 'PRIVATE', 'utf8');
+    const inside = path.join(PROJECT_ROOT, 'inside.txt');
+    await fsp.writeFile(inside, 'project text', 'utf8');
+    const link = path.join(PROJECT_ROOT, 'innocent-link');
+    let linked = true;
+    try {
+      await fsp.symlink(secret, link, 'file');
+    } catch {
+      linked = false; // symlinks need privileges on some Windows hosts
+    }
+    const asked: Array<{ kind: string | undefined; path: unknown }> = [];
+    const session = await startSession(undefined, {
+      allowOutsideProjectRoot: true,
+      permissionPolicy: async (req) => {
+        asked.push({
+          kind: req.toolCall.kind ?? undefined,
+          path: (req.toolCall.rawInput as { path?: unknown } | undefined)?.path,
+        });
+        return { outcome: 'selected', optionId: 'reject' };
+      },
+    });
+    const t = lastTransport();
+    const read = async (id: number, p: string) => {
+      t.emit({
+        jsonrpc: '2.0',
+        id,
+        method: 'fs/read_text_file',
+        params: { sessionId: 'sess_abc', path: p },
+      } as never as ACPMessage);
+      await new Promise((r) => setTimeout(r, 50));
+      return t.sent.find((m) => m.id === id);
+    };
+    try {
+      const denied = await read(45, secret);
+      expect(denied?.error?.message).toContain('denied by permission policy');
+      expect(JSON.stringify(denied)).not.toContain('PRIVATE');
+      expect(asked).toEqual([{ kind: 'read', path: secret }]);
+
+      const ok = await read(46, inside);
+      expect((ok?.result as { content: string } | undefined)?.content).toBe('project text');
+      expect(asked).toHaveLength(1); // a read inside the project asks nothing
+
+      if (linked) {
+        const viaLink = await read(47, link);
+        expect(viaLink?.error).toBeDefined();
+        expect(JSON.stringify(viaLink)).not.toContain('PRIVATE');
+        expect(asked.at(-1)).toEqual({ kind: 'read', path: link });
+      }
+    } finally {
+      await session.close();
+      await fsp.rm(outsideDir, { recursive: true, force: true });
+      await fsp.rm(link, { force: true });
+      await fsp.rm(inside, { force: true });
+    }
+  });
+
   it('runs a terminal end-to-end (create → output → wait_for_exit)', async () => {
     const session = await startSession(undefined, { permissionPolicy: defaultPermissionPolicy });
     const t = lastTransport();

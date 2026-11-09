@@ -118,7 +118,9 @@ export function buildAcpSubagentRunner(
   return makeACPSubagentRunner({
     ...cmd,
     ...(projectRoot ? { cwd: projectRoot, projectRoot } : {}),
-    ...(options?.allowOutsideProjectRoot ? { allowOutsideProjectRoot: true } : {}),
+    // Only behind the WrongStack permission bridge: reads outside the project
+    // are put to it, and the auto-approve fallback would wave ~/.ssh through.
+    ...(options?.allowOutsideProjectRoot && permissions ? { allowOutsideProjectRoot: true } : {}),
     permissionPolicy: defaultPermissionPolicy,
     // Claude asks before edits and commands only in `default`; left in the
     // user's own mode (often `auto`) it would never consult the policy.

@@ -302,3 +302,29 @@ describe('wrongstackAcpPermissionPolicy', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 });
+
+describe('reads outside the project through a worker policy', () => {
+  // The ACP client puts an outside-root fs/read_text_file to this bridge as a
+  // read; a fleet worker's AutoApprovePermissionPolicy then applies the same
+  // credential guard a native subagent gets.
+  it('refuses a credential path and lets an ordinary file through', async () => {
+    const { AutoApprovePermissionPolicy, ToolCapabilities } = await import(
+      '@wrongstack/core/security'
+    );
+    const worker = new AutoApprovePermissionPolicy(Object.values(ToolCapabilities));
+    const readTool = { name: 'read', capabilities: [ToolCapabilities.FS_READ] } as unknown as Tool;
+    const policy = wrongstackAcpPermissionPolicy({
+      evaluate: (tool, input, scope) => worker.evaluate(tool, input, scope as never),
+      getTool: (name) => (name === 'read' ? readTool : undefined),
+      projectRoot: ROOT,
+    });
+    await expect(policy(request('read', { path: '/home/u/.ssh/id_rsa' }))).resolves.toEqual({
+      outcome: 'selected',
+      optionId: 'reject',
+    });
+    await expect(policy(request('read', { path: '/tmp/claude-plan.md' }))).resolves.toEqual({
+      outcome: 'selected',
+      optionId: 'allow-once',
+    });
+  });
+});

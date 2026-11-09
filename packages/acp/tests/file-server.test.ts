@@ -550,6 +550,15 @@ describe('FileServer with allowOutsideRoot (features.allowOutsideProjectRoot)', 
     expect(await fsp.readFile(created, 'utf8')).toBe('plan');
   });
 
+  it('reports which paths leave the root, so the caller can ask about them', async () => {
+    const open = new FileServer({ projectRoot, allowOutsideRoot: true });
+    expect(open.servesOutsideRoot).toBe(true);
+    expect(server.servesOutsideRoot).toBe(false);
+    expect(await open.reachesOutsideRoot(path.join(outside, 'x.txt'))).toBe(true);
+    expect(await open.reachesOutsideRoot(path.join(projectRoot, 'new', 'file.ts'))).toBe(false);
+    expect(await open.reachesOutsideRoot('relative.txt')).toBe(false);
+  });
+
   it('still refuses the same paths by default, and relative paths either way', async () => {
     const file = path.join(outside, 'agent-settings.json');
     await fsp.writeFile(file, 'x', 'utf8');

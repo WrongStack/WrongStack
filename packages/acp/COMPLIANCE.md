@@ -35,7 +35,7 @@ through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 | Content | Text, resource links, images and embedded text; unsaved embedded text survives text-only prompts and replay; client gates optional prompt content on negotiated capabilities |
 | Progress | Text, official `agent_thought_chunk` (legacy alias tolerated), plans, tool calls, diffs and usage collected; raw updates available to hosts |
 | Permissions | Requests routed to host policy; cancellation returns `{outcome:{outcome:"cancelled"}}`; CLI agent routes side effects through the editor |
-| Filesystem | Project containment by default; hosts pass `allowOutsideProjectRoot` to match their own file-tool policy (`features.allowOutsideProjectRoot`), and writes still go through the permission policy; read/write and 1-based `line`/`limit` reads, preserving line endings |
+| Filesystem | Project containment by default; hosts pass `allowOutsideProjectRoot` to match their own file-tool policy (`features.allowOutsideProjectRoot`); a read leaving the root (path or symlink) is put to the permission policy as kind `read`, and writes always are; read/write and 1-based `line`/`limit` reads, preserving line endings |
 | Terminals | Create/output/wait/kill/release and bounded output; host permission policy gates execution |
 | MCP | Client-provided stdio/HTTP/SSE MCP servers passed to the CLI agent factory; changing the server list on load/resume resets the agent with replay context |
 | Unsupported client requests | Explicit method-not-found errors, including elicitation; no empty success that falsely claims support |
