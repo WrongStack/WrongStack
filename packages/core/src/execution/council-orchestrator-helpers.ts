@@ -75,6 +75,13 @@ export function distinctTargetKeys(
     const model = vote.model?.trim() ?? '';
     if (profile.distinctness === 'provider') {
       if (provider) keys.push(provider);
+    } else if (profile.distinctness === 'model') {
+      // The contract for 'model' is "seats must use distinct models"
+      // (brain-config.ts). The same model exposed through two provider ids is
+      // one model — keying by provider/model pairs would silently bless a
+      // correlated panel that this policy exists to flag.
+      const key = model || provider;
+      if (key) keys.push(key);
     } else if (provider || model) {
       keys.push(`${provider}/${model}`);
     }
