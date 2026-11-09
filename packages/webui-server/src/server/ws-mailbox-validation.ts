@@ -6,6 +6,7 @@ import {
   type MailboxMessageType,
   normalizeRecipient,
 } from '@wrongstack/coordination';
+import { errMessage } from './ws-utils.js';
 import type { PayloadValidationResult } from './ws-validation-common.js';
 import { isRecord } from './ws-validation-common.js';
 
@@ -215,7 +216,7 @@ export function validateMailboxSendPayload(
   } catch (err) {
     return {
       ok: false,
-      message: `mailbox.send payload.to is invalid: ${err instanceof Error ? err.message : String(err)}`,
+      message: `mailbox.send payload.to is invalid: ${errMessage(err)}`,
     };
   }
   // The (type, recipient) rule is the SHARED one the agent tools and the HTTP

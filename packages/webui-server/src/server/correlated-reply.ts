@@ -10,7 +10,7 @@ export function correlatedReply(ws: WebSocket, payload: unknown, types: readonly
         get(target, key) {
           if (key === 'send')
             return (...args: unknown[]) => {
-              if (!replied && typeof args[0] === 'string') {
+              if (typeof args[0] === 'string') {
                 try {
                   const frame = JSON.parse(args[0]) as {
                     type?: unknown;
