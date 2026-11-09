@@ -189,7 +189,9 @@ jobs:
               # the engine dies at boot (#440).
               entitlements="$(codesign -d --entitlements - --xml "$engine" 2>/dev/null)"
               # Parse the plist: a present key set to false (or a string) grants no JIT.
-              if ! printf '%s' "$entitlements" | python3 -c 'import plistlib, sys; sys.exit(0 if plistlib.load(sys.stdin.buffer).get("com.apple.security.cs.allow-jit") is True else 1)'; then
+              # plistlib.load seeks its input since Python 3.15 and a pipe cannot
+              # seek, so read the bytes first and parse them with loads.
+              if ! printf '%s' "$entitlements" | python3 -c 'import plistlib, sys; sys.exit(0 if plistlib.loads(sys.stdin.buffer.read()).get("com.apple.security.cs.allow-jit") is True else 1)'; then
                 echo "$entitlements"
                 echo "::error::The bundled engine is signed without allow-jit."
                 exit 1
