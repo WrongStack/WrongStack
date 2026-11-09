@@ -12,6 +12,7 @@ import {
 import type { WebSocket } from 'ws';
 import { authorizeWebUIAction } from '../privileged-actions.js';
 import type { WSClientMessage } from '../types.js';
+import { withRequestId } from '../ws-utils.js';
 import { waitForShutdown } from './helpers.js';
 import {
   killChronicleServer,
@@ -38,33 +39,32 @@ export async function handleConnectionsServiceAction(
   context: ConnectionsHealthContext,
 ): Promise<boolean> {
   if (message.type !== 'connections.service_action') return false;
+  const sendReply = (result: ServiceActionResult): void =>
+    context.send(ws, {
+      type: 'connections.service_action_result',
+      payload: withRequestId(message, { ...result }),
+    });
 
   const payload = message.payload as { serviceId?: string; action?: string } | undefined;
   const serviceId = payload?.serviceId;
   const rawAction = payload?.action ?? 'shutdown';
 
   if (!serviceId) {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: null,
-        action: rawAction as 'shutdown' | 'restart',
-        success: false,
-        message: 'Missing serviceId in payload',
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: null,
+      action: rawAction as 'shutdown' | 'restart',
+      success: false,
+      message: 'Missing serviceId in payload',
     });
     return true;
   }
 
   if (rawAction !== 'shutdown' && rawAction !== 'restart') {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: serviceId as ConnectionHealthService['id'],
-        action: rawAction as 'shutdown' | 'restart',
-        success: false,
-        message: `Unsupported action "${rawAction}" — only "shutdown" and "restart" are supported`,
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: serviceId as ConnectionHealthService['id'],
+      action: rawAction as 'shutdown' | 'restart',
+      success: false,
+      message: `Unsupported action "${rawAction}" — only "shutdown" and "restart" are supported`,
     });
     return true;
   }
@@ -72,14 +72,11 @@ export async function handleConnectionsServiceAction(
   const action = rawAction;
 
   if (!context.trustBoundary) {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: serviceId as ConnectionHealthService['id'],
-        action: action as 'shutdown' | 'restart',
-        success: false,
-        message: 'Service control is unavailable: no policy authority is configured.',
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: serviceId as ConnectionHealthService['id'],
+      action: action as 'shutdown' | 'restart',
+      success: false,
+      message: 'Service control is unavailable: no policy authority is configured.',
     });
     return true;
   }
@@ -96,30 +93,24 @@ export async function handleConnectionsServiceAction(
     context.logger,
   );
   if (!authorization.allowed) {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: serviceId as ConnectionHealthService['id'],
-        action: action as 'shutdown' | 'restart',
-        success: false,
-        message: authorization.reason ?? 'Refused by policy.',
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: serviceId as ConnectionHealthService['id'],
+      action: action as 'shutdown' | 'restart',
+      success: false,
+      message: authorization.reason ?? 'Refused by policy.',
     });
     return true;
   }
 
   if (serviceId === 'webui') {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: 'webui',
-        action: action as 'shutdown' | 'restart',
-        success: false,
-        message:
-          action === 'restart'
-            ? 'Cannot restart the WebUI transport itself'
-            : 'Cannot shut down the WebUI transport itself',
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: 'webui',
+      action: action as 'shutdown' | 'restart',
+      success: false,
+      message:
+        action === 'restart'
+          ? 'Cannot restart the WebUI transport itself'
+          : 'Cannot shut down the WebUI transport itself',
     });
     return true;
   }
@@ -131,19 +122,13 @@ export async function handleConnectionsServiceAction(
       context.getProjectRoot(),
       context.getIndexDir(),
     );
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: result satisfies ServiceActionResult,
-    });
+    sendReply(result);
   } catch (error) {
-    context.send(ws, {
-      type: 'connections.service_action_result',
-      payload: {
-        serviceId: serviceId as ConnectionHealthService['id'],
-        action: action as 'shutdown' | 'restart',
-        success: false,
-        message: toErrorMessage(error),
-      } satisfies ServiceActionResult,
+    sendReply({
+      serviceId: serviceId as ConnectionHealthService['id'],
+      action: action as 'shutdown' | 'restart',
+      success: false,
+      message: toErrorMessage(error),
     });
   }
   return true;

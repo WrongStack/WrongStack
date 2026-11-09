@@ -78,7 +78,10 @@ describe('connections health route', () => {
 
     expect(handled).toBe(true);
     expect(sent).toEqual([
-      { type: 'connections.health_error', payload: { message: 'health probe failed' } },
+      {
+        type: 'connections.health_error',
+        payload: { success: false, message: 'health probe failed' },
+      },
     ]);
   });
 
