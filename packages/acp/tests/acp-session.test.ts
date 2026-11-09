@@ -819,6 +819,34 @@ describe('ACPSession', () => {
     await session.close();
   });
 
+  it('serves fs/read_text_file outside projectRoot when the host allows it', async () => {
+    // Claude Code over ACP reads its own settings and temp files; under the
+    // host's default allowOutsideProjectRoot those reads were refused with
+    // "path is outside the project root" (surfaced as "IO Error").
+    const fsp = await import('node:fs/promises');
+    const os = await import('node:os');
+    const outsideDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-outside-'));
+    const outsideFile = path.join(outsideDir, 'agent-settings.json');
+    await fsp.writeFile(outsideFile, '{"ok":true}', 'utf8');
+    const session = await startSession(undefined, { allowOutsideProjectRoot: true });
+    const t = lastTransport();
+    try {
+      t.emit({
+        jsonrpc: '2.0',
+        id: 44,
+        method: 'fs/read_text_file',
+        params: { sessionId: 'sess_abc', path: outsideFile },
+      } as never as ACPMessage);
+      await new Promise((r) => setTimeout(r, 50));
+      const response = t.sent.find((m) => m.id === 44);
+      expect(response?.error).toBeUndefined();
+      expect((response?.result as { content: string } | undefined)?.content).toBe('{"ok":true}');
+    } finally {
+      await session.close();
+      await fsp.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
   it('runs a terminal end-to-end (create → output → wait_for_exit)', async () => {
     const session = await startSession(undefined, { permissionPolicy: defaultPermissionPolicy });
     const t = lastTransport();

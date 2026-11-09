@@ -25,9 +25,12 @@ export interface ACPSubagentRunnerOptions {
   /**
    * Filesystem sandbox root. Defaults to `options.cwd` (when set) or
    * the process's current working directory. All `fs/read_text_file` /
-   * `fs/write_text_file` calls are bounded to this root.
+   * `fs/write_text_file` calls are bounded to this root unless
+   * `allowOutsideProjectRoot` is set.
    */
   projectRoot?: string | undefined;
+  /** See `ACPSessionOptions.allowOutsideProjectRoot`. */
+  allowOutsideProjectRoot?: boolean | undefined;
   /**
    * Live progress callback. Forwarded to `ACPSession.prompt` so the host
    * can render the external agent's tool calls / diffs / text as they

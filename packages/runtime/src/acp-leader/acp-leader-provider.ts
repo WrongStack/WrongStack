@@ -598,6 +598,10 @@ export class AcpLeaderProvider implements Provider {
         ...(cmd.env ? { env: cmd.env } : {}),
         cwd: projectRoot,
         projectRoot,
+        // Same reach as the leader's own file tools (features.allowOutsideProjectRoot).
+        allowOutsideProjectRoot:
+          config.features?.allowOutsideProjectRoot ??
+          !(config.tools?.restrictToProjectRoot ?? false),
         role: agentId,
         ...(permissionPolicy ? { permissionPolicy } : {}),
         ...(mcpServers.length > 0 ? { mcpServers } : {}),

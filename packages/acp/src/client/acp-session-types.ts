@@ -22,6 +22,14 @@ export interface ACPSessionOptions {
   cwd?: string | undefined;
   role?: string | undefined;
   projectRoot: string;
+  /**
+   * Serve `fs/*` calls for absolute paths outside `projectRoot`, matching the
+   * host's `features.allowOutsideProjectRoot` policy for its own file tools.
+   * Without it an agent reading its own config or a temp file got "path is
+   * outside the project root". Writes still go through `permissionPolicy`.
+   * Default false.
+   */
+  allowOutsideProjectRoot?: boolean | undefined;
   /** Cap for each request to the agent other than a prompt turn. Default 5 minutes. */
   timeoutMs?: number | undefined;
   /**

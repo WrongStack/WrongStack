@@ -524,3 +524,41 @@ describe('FileServer', () => {
     ).rejects.toMatchObject({ code: 'OUTSIDE_ROOT' });
   });
 });
+
+describe('FileServer with allowOutsideRoot (features.allowOutsideProjectRoot)', () => {
+  // An external agent (Claude Code over ACP) reads its own settings and temp
+  // files outside the project. Under the host's default policy WrongStack's
+  // own `read` opens them, but this server answered "path is outside the
+  // project root" — the "IO Error" users saw from ACP agents.
+  let outside: string;
+  beforeEach(async () => {
+    outside = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-fs-outside-'));
+  });
+  afterEach(async () => {
+    await fsp.rm(outside, { recursive: true, force: true });
+  });
+
+  it('reads and writes absolute paths outside the root when allowed', async () => {
+    const open = new FileServer({ projectRoot, allowOutsideRoot: true });
+    const file = path.join(outside, 'agent-settings.json');
+    await fsp.writeFile(file, '{"a":1}', 'utf8');
+    expect((await open.readTextFile({ sessionId: 's1', path: file })).content).toBe('{"a":1}');
+
+    const created = path.join(outside, 'nested', 'plan.md');
+    await fsp.mkdir(path.dirname(created));
+    await open.writeTextFile({ sessionId: 's1', path: created, content: 'plan' });
+    expect(await fsp.readFile(created, 'utf8')).toBe('plan');
+  });
+
+  it('still refuses the same paths by default, and relative paths either way', async () => {
+    const file = path.join(outside, 'agent-settings.json');
+    await fsp.writeFile(file, 'x', 'utf8');
+    await expect(server.readTextFile({ sessionId: 's1', path: file })).rejects.toMatchObject({
+      code: 'OUTSIDE_ROOT',
+    });
+    const open = new FileServer({ projectRoot, allowOutsideRoot: true });
+    await expect(
+      open.readTextFile({ sessionId: 's1', path: 'relative/file.txt' }),
+    ).rejects.toMatchObject({ code: 'INVALID_PATH' });
+  });
+});

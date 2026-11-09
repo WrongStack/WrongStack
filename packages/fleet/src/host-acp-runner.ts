@@ -33,17 +33,25 @@ export interface HostAcpRunnerHost {
 }
 
 export function acpCommandOpts(this: HostAcpRunnerHost): BuildAcpSubagentRunnerOptions {
-  let acp: Config['acp'];
+  let config: Config | undefined;
   try {
-    acp = this.deps.configStore.get()?.acp;
+    config = this.deps.configStore.get();
   } catch {
-    acp = undefined;
+    config = undefined;
   }
+  const acp = config?.acp;
+  // The worker reaches the files WrongStack's own tools may: the same rule the
+  // leader and native subagents get (session.ts, host-subagent-factory.ts).
+  // An unreadable config fails closed: the user may have restricted it.
+  const allowOutsideProjectRoot = config
+    ? (config.features?.allowOutsideProjectRoot ?? !(config.tools?.restrictToProjectRoot ?? false))
+    : false;
   const overrides = acp?.agents;
   const gatewayFactory = this.deps.wrongForgeGateway;
   return {
     ...(overrides ? { overrides } : {}),
     projectRoot: this.deps.projectRoot,
+    allowOutsideProjectRoot,
     bridge: { projectRoot: this.deps.projectRoot, config: acp?.bridge },
     // The worker answers to the same rules as WrongStack's own subagents:
     // the user's deny rules, the destructive and credential guards, YOLO+.

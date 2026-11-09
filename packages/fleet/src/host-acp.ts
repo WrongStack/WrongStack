@@ -39,6 +39,11 @@ export type AcpLivePublisher = (
 
 export interface BuildAcpSubagentRunnerOptions {
   /**
+   * Let the worker's `fs/*` calls reach absolute paths outside `projectRoot`,
+   * as the host's own file tools may (`features.allowOutsideProjectRoot`).
+   */
+  allowOutsideProjectRoot?: boolean | undefined;
+  /**
    * The project the worker works in: its cwd and file-access root. Without it
    * the worker ran in the host process's cwd — a subdirectory, or another
    * repository than the session's.
@@ -113,6 +118,7 @@ export function buildAcpSubagentRunner(
   return makeACPSubagentRunner({
     ...cmd,
     ...(projectRoot ? { cwd: projectRoot, projectRoot } : {}),
+    ...(options?.allowOutsideProjectRoot ? { allowOutsideProjectRoot: true } : {}),
     permissionPolicy: defaultPermissionPolicy,
     // Claude asks before edits and commands only in `default`; left in the
     // user's own mode (often `auto`) it would never consult the policy.

@@ -118,11 +118,11 @@ export class ACPSession {
     this.transport = transport;
     this.timeoutMs = opts.timeoutMs ?? 5 * 60_000;
     this.promptIdleTimeoutMs = opts.promptIdleTimeoutMs ?? 10 * 60_000;
-    const fsOpts: ConstructorParameters<typeof FileServer>[0] = {
+    this.fileServer = new FileServer({
       projectRoot: opts.projectRoot,
-    };
-    if (opts.fsTimeoutMs !== undefined) fsOpts.timeoutMs = opts.fsTimeoutMs;
-    this.fileServer = new FileServer(fsOpts);
+      allowOutsideRoot: opts.allowOutsideProjectRoot === true,
+      ...(opts.fsTimeoutMs !== undefined ? { timeoutMs: opts.fsTimeoutMs } : {}),
+    });
     const termOpts: ConstructorParameters<typeof TerminalServer>[0] = {
       projectRoot: opts.projectRoot,
     };

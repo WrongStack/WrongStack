@@ -51,6 +51,26 @@ describe('ACP command options', () => {
     expect(acpCommandOpts.call(h.host)).not.toHaveProperty('overrides');
   });
 
+  it("gives workers the file reach the host's own tools have", () => {
+    // A worker reading its own config or a temp file outside the project got
+    // "path is outside the project root" although WrongStack's read would
+    // open it: the ACP file server ignored features.allowOutsideProjectRoot.
+    const h = harness();
+    h.getConfig.mockReturnValue({} as never);
+    expect(acpCommandOpts.call(h.host).allowOutsideProjectRoot).toBe(true);
+    h.getConfig.mockReturnValue({ tools: { restrictToProjectRoot: true } } as never);
+    expect(acpCommandOpts.call(h.host).allowOutsideProjectRoot).toBe(false);
+    h.getConfig.mockReturnValue({
+      tools: { restrictToProjectRoot: true },
+      features: { allowOutsideProjectRoot: true },
+    } as never);
+    expect(acpCommandOpts.call(h.host).allowOutsideProjectRoot).toBe(true);
+    h.getConfig.mockImplementation(() => {
+      throw new Error('config unavailable');
+    });
+    expect(acpCommandOpts.call(h.host).allowOutsideProjectRoot).toBe(false);
+  });
+
   it('provides live progress even when reading configuration fails', () => {
     const h = harness();
     h.getConfig.mockImplementation(() => {

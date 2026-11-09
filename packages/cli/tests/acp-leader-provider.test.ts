@@ -338,6 +338,8 @@ describe('a leader turn', () => {
       cwd: '/proj',
       initialModeId: 'default',
       requireInitialMode: true,
+      // The leader agent reaches what the leader's own tools may (default open).
+      allowOutsideProjectRoot: true,
     });
     const mcpServers = (acp.starts[0]?.mcpServers ?? []) as Array<{ name: string; args: string[] }>;
     const mailbox = mcpServers.find((server) => server.name === 'wrongstack-mailbox');

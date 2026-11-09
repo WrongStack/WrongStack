@@ -142,6 +142,7 @@ export async function makeACPSubagentRunnerWithStop(
       ...(options.env !== undefined ? { env: options.env } : {}),
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
       projectRoot,
+      ...(options.allowOutsideProjectRoot ? { allowOutsideProjectRoot: true } : {}),
       timeoutMs,
       ...(options.promptIdleTimeoutMs !== undefined
         ? { promptIdleTimeoutMs: options.promptIdleTimeoutMs }

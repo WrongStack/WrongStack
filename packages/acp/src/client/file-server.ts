@@ -9,6 +9,11 @@
  * rejected. This closes the CWE-22/CWE-59 symlink-escape vector that a
  * purely textual containment check leaves open.
  *
+ * A host whose own file tools may leave the project (`allowOutsideRoot`,
+ * the `features.allowOutsideProjectRoot` policy) gives the agent the same
+ * reach, so an external agent is not refused a file the host's own `read`
+ * would open. Writes still pass the session's permission policy first.
+ *
  * The server itself is transport-agnostic: the caller (ACPSession)
  * routes incoming fs/* requests to `readTextFile`/`writeTextFile` and
  * sends the result back. Keeping the routing out of this class lets the
@@ -20,8 +25,13 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 
 export interface FileServerOptions {
-  /** Absolute path; only files under this root are accessible. */
+  /** Absolute path; only files under this root are accessible (see `allowOutsideRoot`). */
   projectRoot: string;
+  /**
+   * Let absolute paths outside `projectRoot` through, as the host's own file
+   * tools do under `features.allowOutsideProjectRoot`. Default false.
+   */
+  allowOutsideRoot?: boolean | undefined;
   /** Per-call timeout, default 30s. */
   timeoutMs?: number;
   /**
@@ -107,9 +117,11 @@ export class FileServer {
   private readonly maxReadBytes: number;
   private readonly maxWriteBytes: number;
   private readonly operations: FileServerOperations;
+  private readonly allowOutsideRoot: boolean;
 
   constructor(opts: FileServerOptions) {
     this.root = path.resolve(opts.projectRoot);
+    this.allowOutsideRoot = opts.allowOutsideRoot === true;
     // Resolve the root itself once — it may be a symlink (macOS /var →
     // /private/var, Windows 8.3 short names, etc.). All realpaths are
     // compared against this canonical root for a like-for-like check.
@@ -264,6 +276,7 @@ export class FileServer {
       throw new FsError('INVALID_PATH', p, 'path must be absolute (ACP requirement)');
     }
     const resolved = path.resolve(p);
+    if (this.allowOutsideRoot) return resolved;
     const isWindows = process.platform === 'win32';
     const normResolved = isWindows ? resolved.toLowerCase() : resolved;
     const normRoot = isWindows ? this.root.toLowerCase() : this.root;
@@ -283,6 +296,7 @@ export class FileServer {
    * nearest existing ancestor and check that instead.
    */
   private async assertRealInside(resolvedPath: string): Promise<void> {
+    if (this.allowOutsideRoot) return;
     let probe = resolvedPath;
     const isWindows = process.platform === 'win32';
     const normRealRoot = isWindows ? this.realRoot.toLowerCase() : this.realRoot;
