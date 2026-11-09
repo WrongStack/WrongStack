@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
+import { healingBusy, type ServiceHealing } from './service-healing';
 import './brain-policy.css';
 
 export interface BackgroundService {
@@ -57,7 +58,13 @@ export function backgroundServices(value: unknown): {
  * mailbox) with their health, and restart or stop for the ones the engine controls. The
  * engine's policy authorizes each action; a stopped service starts again when next needed.
  */
-export function BackgroundServices({ command }: { command: EngineCommand }) {
+export function BackgroundServices({
+  command,
+  autoHeals = {},
+}: {
+  command: EngineCommand;
+  autoHeals?: Record<string, ServiceHealing>;
+}) {
   const { t } = useDesktopText();
   const status = (value: string) => t(`bgServices.status.${value}`, { defaultValue: value });
   const [report, setReport] = useState<ReturnType<typeof backgroundServices> | null>(null),
@@ -67,7 +74,12 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
     [error, setError] = useState('');
   const load = useCallback(async () => {
     setReport(
-      backgroundServices(await command('connections.health', {}, ['connections.health_result'])),
+      backgroundServices(
+        await command('connections.health', {}, [
+          'connections.health_result',
+          'connections.health_error',
+        ]),
+      ),
     );
   }, [command]);
   useEffect(() => {
@@ -75,6 +87,16 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
       setError(failure instanceof Error ? failure.message : String(failure)),
     );
   }, [load]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void load().catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [load]);
+  useEffect(() => {
+    if (Object.values(autoHeals).some((value) => value.phase !== 'restarting'))
+      void load().catch(() => {});
+  }, [autoHeals, load]);
   const act = async (service: BackgroundService, action: 'restart' | 'shutdown') => {
     setBusy(`${service.id}:${action}`);
     setStopping('');
@@ -107,7 +129,10 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
   const running =
     report?.services.filter(
       (service) =>
-        service.controllable && service.status !== 'offline' && service.status !== 'unavailable',
+        service.controllable &&
+        service.status !== 'offline' &&
+        service.status !== 'unavailable' &&
+        !healingBusy(autoHeals[service.id], Date.now()),
     ) ?? [];
   const restartAll = async () => {
     setBusy('all:restart');
@@ -164,12 +189,21 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
               {(service.lastError || service.detail) && (
                 <span>{service.lastError || service.detail}</span>
               )}
+              {autoHeals[service.id] && (
+                <p role="status">
+                  {t(`serviceHealing.${autoHeals[service.id]!.phase}`)} ·{' '}
+                  {autoHeals[service.id]!.message}
+                  {autoHeals[service.id]!.phase === 'restarting' &&
+                    !healingBusy(autoHeals[service.id], Date.now()) &&
+                    ` · ${t('serviceHealing.expired')}`}
+                </p>
+              )}
               {service.controllable && (
                 <span className="jev-actions">
                   <button
                     type="button"
                     className="button secondary small"
-                    disabled={Boolean(busy)}
+                    disabled={Boolean(busy) || healingBusy(autoHeals[service.id], Date.now())}
                     onClick={() => void act(service, 'restart')}
                   >
                     {busy === `${service.id}:restart`
@@ -181,7 +215,7 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
                       <button
                         type="button"
                         className="button danger small"
-                        disabled={Boolean(busy)}
+                        disabled={Boolean(busy) || healingBusy(autoHeals[service.id], Date.now())}
                         onClick={() => void act(service, 'shutdown')}
                       >
                         {busy === `${service.id}:shutdown`
@@ -200,7 +234,7 @@ export function BackgroundServices({ command }: { command: EngineCommand }) {
                     <button
                       type="button"
                       className="button secondary small"
-                      disabled={Boolean(busy)}
+                      disabled={Boolean(busy) || healingBusy(autoHeals[service.id], Date.now())}
                       onClick={() => setStopping(service.id)}
                     >
                       {t('bgServices.stop')}

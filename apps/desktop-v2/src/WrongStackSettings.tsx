@@ -547,7 +547,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
             <>
               <ProviderHealth state={state} command={command} />
               <ProviderDiagnostics state={state} send={send} />
-              <BackgroundServices command={command} />
+              <BackgroundServices command={command} autoHeals={state.serviceHealing} />
               <ConfigDoctor
                 command={command}
                 onApplied={() =>
@@ -579,9 +579,7 @@ function ProfileSettings({ vm }: { vm: DesktopController }) {
                   <p>{headingText?.description}</p>
                 </div>
               </header>
-              <div className="settings-defaults-note">
-                Changes are saved as profile defaults. Existing runs keep their current options.
-              </div>
+              <div className="settings-defaults-note">{t('settings.defaultsNote')}</div>
               <form
                 onSubmit={(event) => {
                   event.preventDefault();

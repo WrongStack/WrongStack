@@ -1,169 +1,32 @@
-import type { UserInputRequest } from '@wrongstack/contracts/types';
-import type { WorktreeTimelineEvent } from '@wrongstack/contracts/types/worktree-timeline';
 import { stripNextStepsBlock } from '@wrongstack/core/utils/next-steps';
 import {
-  type CouncilLog,
   councilDecisionText,
   EMPTY_COUNCIL_LOG,
 } from '@wrongstack/project-surfaces/council/panels';
-import type { CouncilDecisionData } from '@wrongstack/project-surfaces/council/types';
-import {
-  applyFleetEvent,
-  EMPTY_FLEET_FOLD,
-  type FleetFold,
-} from '@wrongstack/project-surfaces/office/fleet-fold';
+import { applyFleetEvent, EMPTY_FLEET_FOLD } from '@wrongstack/project-surfaces/office/fleet-fold';
 import type { SubagentEvent } from '@wrongstack/project-surfaces/office/fleet-transcript';
-import {
-  type ParsedNextStep,
-  parseNextSteps,
-  projectNextStepsToolInput,
-} from '@wrongstack/webui-protocol';
-import {
-  type AgentTranscripts,
-  hydrateAgentTranscripts,
-  reduceAgentTranscripts,
-} from './agent-transcripts';
-import { type ComposerAttachment, transcriptAttachments } from './composer-attachments.js';
-import {
-  type ContextUsage,
-  emptyContextUsage,
-  reduceContextUsage,
-  type TokenTotals,
-  type TurnStats,
-  turnStats,
-} from './context-usage.js';
-import {
-  appendNotice,
-  type ConversationNotice,
-  conversationNotice,
-} from './conversation-notices.js';
+import type { ParsedNextStep } from '@wrongstack/webui-protocol';
+import { parseNextSteps, projectNextStepsToolInput } from '@wrongstack/webui-protocol';
+import { hydrateAgentTranscripts, reduceAgentTranscripts } from './agent-transcripts';
+import { brainMessage } from './brain-message';
+import { transcriptAttachments } from './composer-attachments.js';
+import { emptyContextUsage, reduceContextUsage, turnStats } from './context-usage.js';
+import { appendNotice, conversationNotice } from './conversation-notices.js';
 import { reduceCouncil } from './council-decisions.js';
-import { appendDelegation, type DelegationRecord, delegationRecord } from './delegations.js';
+import { appendDelegation, delegationRecord } from './delegations.js';
+import type { ChatMessage, EngineEvent, EngineState } from './engine-state-types';
 import { contentText, entries, record } from './engine-values.js';
-import { type FleetGauge, fleetGauge } from './fleet-gauge.js';
+import { fleetGauge } from './fleet-gauge.js';
 import { parseInputRequest } from './input-form-model.js';
-import {
-  appendMemoryRun,
-  type MemoryContext,
-  type MemoryInjectorRun,
-  memoryContextSnapshot,
-  memoryInjectorRun,
-} from './memory-injections.js';
-import { emptyMemoryReviews, foldMemoryReviews, type MemoryReviews } from './memory-reviews.js';
-import { reduceWaitingRoom, type WaitingRoom } from './provider-waiting.js';
+import { appendMemoryRun, memoryContextSnapshot, memoryInjectorRun } from './memory-injections.js';
+import { emptyMemoryReviews, foldMemoryReviews } from './memory-reviews.js';
+import { reduceWaitingRoom } from './provider-waiting.js';
 import { appendRunEvent, isRunTimelineEvent } from './run-timeline.js';
+import { serviceHealing } from './service-healing';
 import { reduceWorktreeEvents } from './worktree-history.js';
 
+export type { ChatMessage, EngineEvent, EngineState, ProviderTestRun } from './engine-state-types';
 export { contentText, entries, record } from './engine-values.js';
-export interface EngineEvent {
-  type: string;
-  payload: Record<string, unknown>;
-  /** When the desktop received the frame (epoch ms); token deltas and older journals have none. */
-  at?: number;
-}
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  /** When it was written, from the frame that added it (epoch ms); unknown in older journals. */
-  at?: number;
-  attachments?: ComposerAttachment[];
-  streamId?: string;
-  /** Work that happened after this message, before the next message began. */
-  activityAfter?: EngineEvent[];
-  /** A Brain council's decision, drawn as the WebUI's council card. */
-  council?: CouncilDecisionData;
-}
-export interface ProviderTestRun {
-  id: string;
-  provider: string;
-  total: number;
-  results: Record<string, Record<string, unknown>>;
-  complete: Record<string, unknown> | null;
-}
-export interface EngineState {
-  hydrating: boolean;
-  /** False until a reader first reaches the end of the journal; views wait for it. */
-  synced: boolean;
-  pendingUserMessages: Record<string, ChatMessage>;
-  queue: Array<{ id: string; text: string; addedAt: number; imageCount: number }>;
-  drainedPromptIds: string[];
-  assists: Record<
-    string,
-    {
-      text: string;
-      status: string;
-      error?: string;
-      appliedEdits?: boolean;
-      /** Files the engine captured before an editing run wrote them (null = created). */
-      edits?: { path: string; before: string | null }[];
-      /** Tools or files whose changes the engine could not capture. */
-      uncaptured?: string[];
-    }
-  >;
-  sessionId: string;
-  provider: string;
-  model: string;
-  connected: boolean;
-  running: boolean;
-  needsSetup: boolean;
-  messages: ChatMessage[];
-  /** Work before the first visible message (e.g. a resumed engine-only run). */
-  leadingActivity: EngineEvent[];
-  /** Only this message may still receive text deltas from the current response. */
-  activeTextMessageId: string | null;
-  approvals: Record<string, unknown>[];
-  inputs: UserInputRequest[];
-  providerTests: Record<string, ProviderTestRun>;
-  goalStates: Record<string, Record<string, unknown>>;
-  goalErrors: Record<string, Record<string, unknown>>;
-  sddInterviewId: string;
-  sddAgentText: string;
-  specDetails: Record<string, Record<string, unknown>>;
-  activity: EngineEvent[];
-  /** How full the conversation's context window is. */
-  context: ContextUsage;
-  /** The running turn's tool calls, thinking and retries, every one of them, oldest first. */
-  runTimeline: EngineEvent[];
-  /** Each finished turn's tool events, by the id of the assistant message that ended it. */
-  turnActivity: Record<string, EngineEvent[]>;
-  /** Each finished turn's iterations and token use, by the id of its answer. */
-  turnStats: Record<string, TurnStats>;
-  /** Session token totals when the running turn started. */
-  runStartTotals: TokenTotals | null;
-  /** When the running turn's first iteration started (frame time), for its duration. */
-  runStartAt: number | null;
-  /** This conversation's SAGE injector runs, newest last, and the latest request's memories. */
-  memoryRuns: MemoryInjectorRun[];
-  memoryContext: MemoryContext | null;
-  /** The latest validity check and companion review of each memory, from every conversation. */
-  memoryReviews: MemoryReviews;
-  /** Engine reports about this conversation that need the user's attention, newest last. */
-  notices: ConversationNotice[];
-  /** Notices seen, so each gets a distinct id after older ones fall out of the list. */
-  noticeCount: number;
-  /** Worker delegations this conversation finished, as the engine reported them. */
-  delegations: DelegationRecord[];
-  /** This conversation's Brain council panels, folded from `brain.event` frames. */
-  council: CouncilLog;
-  /** This conversation's subagent fleet, folded from `subagent.event` frames as the WebUI does. */
-  fleet: FleetFold;
-  /** The engine's fleet gauge (`fleet.concurrency_update`); absent until the engine sends one. */
-  fleetGauge?: FleetGauge | undefined;
-  nextSteps: ParsedNextStep[];
-  /** The engine's worktree lifecycle log, oldest first, for the worktree timeline. */
-  worktreeEvents: WorktreeTimelineEvent[];
-  results: Record<string, Record<string, unknown>>;
-  error: string;
-  /** The latest frame time seen, for messages a token delta starts. */
-  lastAt: number;
-  /** Each subagent's own transcript in this conversation. */
-  agents: AgentTranscripts;
-  /** Provider/model pairs the engine's health tracker holds back until their limit resets. */
-  waiting: WaitingRoom;
-  /** How much of the journal a first read has replayed, while it is still replaying. */
-  replay: { read: number; total: number } | null;
-}
 /** Recent activity frames kept for the Activity view; streamed deltas are merged first. */
 export const ACTIVITY_LIMIT = 400;
 export const emptyEngineState: EngineState = {
@@ -205,6 +68,7 @@ export const emptyEngineState: EngineState = {
   memoryContext: null,
   memoryReviews: emptyMemoryReviews,
   notices: [],
+  serviceHealing: {},
   noticeCount: 0,
   delegations: [],
   council: EMPTY_COUNCIL_LOG,
@@ -280,6 +144,16 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     return state;
   let next = { ...state, results: { ...state.results, [event.type]: p } };
   next.context = reduceContextUsage(state.context, event);
+  if (
+    event.type === 'connections.auto_heal_status' &&
+    typeof p['serviceId'] === 'string' &&
+    p['serviceId']
+  ) {
+    const healing = serviceHealing(p),
+      previous = state.serviceHealing[p['serviceId']];
+    if (healing && (!previous || healing.at >= previous.at))
+      next.serviceHealing = { ...state.serviceHealing, [p['serviceId']]: healing };
+  }
   if (event.type === 'prefs.updated')
     next.results['prefs.updated'] = { ...state.results['prefs.updated'], ...p };
   if (event.type === 'goal.state' && typeof p['goalId'] === 'string')
@@ -418,8 +292,44 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
     const delegation = delegationRecord(p, String(state.delegations.length));
     if (delegation) next.delegations = appendDelegation(state.delegations, delegation);
   }
+  if (
+    event.type === 'chimera.report_available' &&
+    state.sessionId &&
+    p['sessionId'] === state.sessionId &&
+    p['hasActionableFindings'] === true &&
+    typeof p['reportId'] === 'string' &&
+    p['reportId']
+  ) {
+    const id = `chimera:${p['reportId']}`;
+    if (!next.messages.some((message) => message.id === id))
+      next.messages = [
+        ...next.messages,
+        {
+          id,
+          role: 'assistant',
+          text: typeof p['message'] === 'string' ? p['message'] : '',
+          ...(event.at === undefined ? {} : { at: event.at }),
+          chimera: { reportId: p['reportId'], sessionId: state.sessionId },
+        },
+      ];
+  }
   // Brain frames reach every conversation of the project; keep this one's councils.
   if (event.type === 'brain.event' && next.sessionId && p['sessionId'] === next.sessionId) {
+    const decision = brainMessage(p);
+    if (decision) {
+      const id = `brain:${decision.id}:${decision.kind}`;
+      const message: ChatMessage = {
+        id,
+        role: 'assistant',
+        text: decision.text ?? decision.reason ?? decision.question ?? '',
+        brain: decision,
+      };
+      const previous = next.messages.findIndex((item) => item.id === id);
+      next.messages =
+        previous < 0
+          ? [...next.messages, message]
+          : next.messages.map((item, index) => (index === previous ? message : item));
+    }
     const fold = reduceCouncil(state.council, p);
     next.council = fold.log;
     if (fold.decision) {
@@ -467,6 +377,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
           id,
           role: 'user',
           text: contentText(p['content']),
+          ...(typeof p['journalRaw'] === 'string' ? { journalRaw: p['journalRaw'] } : {}),
           attachments: transcriptAttachments(p['images']),
         },
       };
@@ -479,6 +390,7 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
           id,
           role: 'user',
           text: contentText(p['content']),
+          ...(typeof p['journalRaw'] === 'string' ? { journalRaw: p['journalRaw'] } : {}),
           attachments: transcriptAttachments(p['images']),
         },
       ];
@@ -670,10 +582,25 @@ function reduceFrame(state: EngineState, event: EngineEvent): EngineState {
       now: event.at ?? (state.lastAt || Date.now()),
       cleanFinalText: stripNextStepsBlock,
     };
-    next.fleet = {
-      ...state.fleet,
-      ...applyFleetEvent(state.fleet, p as unknown as SubagentEvent, options),
-    };
+    const fleetEvent = p as unknown as SubagentEvent;
+    const departing = fleetEvent.subagentId
+      ? state.fleet.agents.get(fleetEvent.subagentId)
+      : undefined;
+    // A conversation journal owns the bounded completed roster, not a mounted Office view.
+    // Routine worker disposal can share a batch with completion, so a render-local cache
+    // never sees the terminal entry. Explicit removal and session shutdown still clear it.
+    const retainCompleted =
+      fleetEvent.kind === 'removed' &&
+      fleetEvent.reason === 'subagent lifecycle completed' &&
+      departing &&
+      !departing.isLeader &&
+      ['completed', 'failed', 'timeout', 'stopped'].includes(departing.status);
+    next.fleet = retainCompleted
+      ? state.fleet
+      : {
+          ...state.fleet,
+          ...applyFleetEvent(state.fleet, fleetEvent, options),
+        };
   }
   next.waiting = reduceWaitingRoom(state.waiting, event.type, p);
   if (event.type === 'iteration.started' && !state.runStartTotals) {

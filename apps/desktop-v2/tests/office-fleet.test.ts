@@ -6,7 +6,12 @@ import {
   type DesktopStoryValue,
   desktopStoryFeed,
 } from '../src/desktop-story-feed';
-import { type EngineState, emptyEngineState, reduceEngine } from '../src/engine-state';
+import {
+  type EngineState,
+  emptyEngineState,
+  reduceEngine,
+  replayEngineBatch,
+} from '../src/engine-state';
 import { mergeOfficeFleet } from '../src/office-fleet';
 
 const subagent = (payload: Record<string, unknown>, at: number, sessionId = 's1') => ({
@@ -41,6 +46,70 @@ function fleetState(): EngineState {
 }
 
 describe('conversation fleet', () => {
+  it('retains a completed worker and transcript when completion and routine disposal replay in one batch', () => {
+    const frames = [
+      subagent({ kind: 'spawned', subagentId: 'finished', name: 'Completed worker' }, 1000),
+      subagent(
+        {
+          kind: 'task_completed',
+          subagentId: 'finished',
+          status: 'success',
+          finalText: 'Worker result',
+        },
+        2000,
+      ),
+      subagent(
+        { kind: 'removed', subagentId: 'finished', reason: 'subagent lifecycle completed' },
+        2001,
+      ),
+    ];
+    const replayed = replayEngineBatch({ ...emptyEngineState, sessionId: 's1' }, frames, false);
+    expect(replayed.fleet.agents.get('finished')).toMatchObject({
+      name: 'Completed worker',
+      status: 'completed',
+      finalText: 'Worker result',
+    });
+    expect(
+      replayed.fleet.agentTranscripts
+        .get('finished')
+        ?.some((entry) => entry.content === 'Worker result'),
+    ).toBe(true);
+    expect(mergeOfficeFleet([replayed]).agents.get('finished')?.status).toBe('completed');
+    expect(
+      reduceEngine(
+        replayed,
+        subagent({ kind: 'session_stopped' }, 3000, 'foreign'),
+      ).fleet.agents.has('finished'),
+    ).toBe(true);
+    expect(
+      reduceEngine(replayed, subagent({ kind: 'session_stopped' }, 3000)).fleet.agents.has(
+        'finished',
+      ),
+    ).toBe(false);
+    expect(
+      reduceEngine(
+        replayed,
+        subagent({ kind: 'removed', subagentId: 'finished', reason: 'operator removal' }, 3000),
+      ).fleet.agents.has('finished'),
+    ).toBe(false);
+  });
+
+  it('does not retain an unfinished worker on routine disposal', () => {
+    const state = reduceEngine(
+      { ...emptyEngineState, sessionId: 's1' },
+      subagent({ kind: 'spawned', subagentId: 'running' }, 1000),
+    );
+    expect(
+      reduceEngine(
+        state,
+        subagent(
+          { kind: 'removed', subagentId: 'running', reason: 'subagent lifecycle completed' },
+          2000,
+        ),
+      ).fleet.agents.has('running'),
+    ).toBe(false);
+  });
+
   it('folds subagent events as the WebUI fleet store does, at the frames’ own times', () => {
     const { fleet } = fleetState();
     expect(fleet.leaderId).toBe('lead');
