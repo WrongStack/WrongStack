@@ -12,7 +12,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -56,6 +56,14 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* An action drawn as a link reads as a control, not a web link: underlined only on hover. */
+button.text-link {
+  text-decoration: none;
+  font-weight: 500;
+}
+button.text-link:not(:disabled):hover {
+  text-decoration: underline;
+}
 /* A link-styled button with an icon keeps the icon on the text's centre line, a step apart. */
 button.text-link:has(> svg) {
   display: inline-flex;
@@ -83,7 +91,7 @@ button.text-link:has(> svg) {
   background: var(--raised);
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .markdown-code-block pre {
   margin: 0;
@@ -109,7 +117,7 @@ button.text-link:has(> svg) {
 .markdown-table table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
 }
 .markdown-table :is(th, td) {
   border: 1px solid var(--border);
@@ -141,7 +149,7 @@ button.text-link:has(> svg) {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 6px 12px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .input-request-card {
   max-width: 850px;
@@ -166,7 +174,7 @@ button.text-link:has(> svg) {
   margin-top: 0;
 }
 .input-request-card p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--muted);
   white-space: pre-wrap;
@@ -180,7 +188,7 @@ button.text-link:has(> svg) {
 }
 .input-request-tabs button {
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -196,14 +204,14 @@ button.text-link:has(> svg) {
   min-width: 0;
 }
 .input-question legend {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.7;
 }
 .input-question small {
   margin-left: 10px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
 }
 .input-options {
@@ -222,7 +230,7 @@ button.text-link:has(> svg) {
   cursor: pointer;
 }
 .input-option strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 450;
 }
 .input-option-description {
@@ -230,7 +238,7 @@ button.text-link:has(> svg) {
   color: var(--muted);
   margin-top: 6px;
   line-height: 1.6;
-  font-size: 11px;
+  font-size: 12px;
 }
 .input-question input {
   accent-color: var(--accent);
@@ -238,7 +246,7 @@ button.text-link:has(> svg) {
 .input-text-label {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 16px;
 }
 .input-text-label textarea {
@@ -260,7 +268,7 @@ button.text-link:has(> svg) {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 14px;
 }
 .input-request-actions {
@@ -282,12 +290,12 @@ button.text-link:has(> svg) {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .input-context-toggle button {
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
 }
 .input-waiting-controls {
   border-bottom: 0;
@@ -344,7 +352,7 @@ button.text-link:has(> svg) {
   border-radius: 8px;
   background: var(--raised);
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: 13px;
   min-width: 0;
 }
 .conversation-notice p {
@@ -361,4 +369,21 @@ button.text-link:has(> svg) {
 }
 .conversation-notice.info {
   border-left-color: var(--accent);
+}
+
+/* Inline code reads as code on both themes: a tinted chip with a hairline edge (the raised
+   colour alone matched the message background). Table headers stand apart from the rows. */
+.markdown-content :not(pre) > code {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  padding: 1px 5px;
+}
+.markdown-table th {
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, var(--raised));
+}
+.code-block-toolbar {
+  font-size: 12px;
 }

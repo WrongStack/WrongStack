@@ -90,6 +90,12 @@ const cases: Array<[string, Record<string, unknown>, string, string]> = [
     '',
   ],
   [
+    'delegation.auto_wake_started',
+    { delegationIds: [], notices: ['timer:wk-1#1'] },
+    'Auto-wake: a timer/watch notice you asked for arrived (timer:wk-1#1); the leader started a new turn.',
+    '',
+  ],
+  [
     'delegation.auto_wake_suppressed',
     { reason: 'chain_cap', pending: 1 },
     'Auto-wake paused: 1 background result held after too many consecutive woken turns — send a message to continue.',

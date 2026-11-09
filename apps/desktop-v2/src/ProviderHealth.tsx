@@ -5,7 +5,9 @@ import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries, record } from './engine-values';
 import './provider-health.css';
+import { quotaWindowLabel } from '@wrongstack/project-surfaces/providers/provider-quota-store';
 import { displayLocale } from './display-dates';
+import { useProviderNames } from './provider-names';
 
 const words = (value: unknown) => (typeof value === 'string' ? value.replaceAll('_', ' ') : '');
 export function quotaPercent(value: unknown, missing = 'Not reported') {
@@ -24,9 +26,27 @@ export function mergeQuotaSnapshots(
 function date(value: unknown, seconds = false, missing = 'Not reported') {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return missing;
   const parsed = new Date(value * (seconds ? 1000 : 1));
-  return Number.isNaN(parsed.getTime()) ? missing : parsed.toLocaleString(displayLocale());
+  return Number.isNaN(parsed.getTime())
+    ? missing
+    : parsed.toLocaleString(displayLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
-export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }) {
+/** A window by its span ("5h", "7d"), as Plan quota names it, not its id ("primary"). */
+const windowName = (window: Record<string, unknown>) =>
+  quotaWindowLabel({
+    id: String(window['id'] ?? ''),
+    label: typeof window['label'] === 'string' ? window['label'] : undefined,
+    windowMinutes:
+      typeof window['windowMinutes'] === 'number' ? window['windowMinutes'] : undefined,
+  } as Parameters<typeof quotaWindowLabel>[0]);
+
+export function QuotaReading({
+  snapshot,
+  providerName,
+}: {
+  snapshot: Record<string, unknown>;
+  /** The provider's catalog name, shown instead of its id. */
+  providerName?: string | undefined;
+}) {
   const { t } = useDesktopText();
   const missing = t('providerHealth.notReported');
   const credits = record(snapshot['credits']);
@@ -40,7 +60,7 @@ export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }
     >
       <header>
         <div>
-          <span className="eyebrow">{String(snapshot['providerId'])}</span>
+          <span className="eyebrow">{providerName ?? String(snapshot['providerId'])}</span>
           <h4>
             {String(
               snapshot['meterLabel'] ?? snapshot['meterId'] ?? t('providerHealth.accountQuota'),
@@ -64,7 +84,7 @@ export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }
             key={String(window['id'])}
           >
             <div>
-              <strong>{String(window['label'] ?? window['id'])}</strong>
+              <strong>{windowName(window)}</strong>
               <span>
                 {t('providerHealth.used', { percent: quotaPercent(percent, missing) })}
                 {reached ? ` · ${t('providerHealth.limitReached')}` : ''}
@@ -76,7 +96,7 @@ export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }
                 max={100}
                 value={Math.min(100, Math.max(0, percent))}
                 aria-label={t('providerHealth.windowUsed', {
-                  window: String(window['label'] ?? window['id']),
+                  window: windowName(window),
                 })}
               />
             )}
@@ -114,6 +134,7 @@ export function QuotaReading({ snapshot }: { snapshot: Record<string, unknown> }
   );
 }
 export function ProviderHealth({ state, command }: { state: EngineState; command: EngineCommand }) {
+  const names = useProviderNames(command);
   const { t } = useDesktopText();
   const missing = t('providerHealth.notReported');
   const stateLabel = (value: unknown) =>
@@ -266,6 +287,7 @@ export function ProviderHealth({ state, command }: { state: EngineState; command
             <QuotaReading
               key={`${snapshot['providerId']}:${snapshot['meterId']}`}
               snapshot={snapshot}
+              providerName={names[String(snapshot['providerId'])]}
             />
           ))}
       </div>

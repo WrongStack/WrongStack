@@ -15,7 +15,7 @@
   background: var(--raised);
   margin: 22px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .instruction-file-meta code {
   color: var(--text);
@@ -28,7 +28,7 @@
   gap: 16px;
   margin: 18px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .instruction-editor {
   width: 100%;
@@ -64,7 +64,7 @@
 }
 .tool-access-counts {
   padding: 18px 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .tool-access-counts strong {
@@ -99,11 +99,11 @@
   box-shadow: none;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 .tool-access-filters select {
   padding: 9px;
-  font-size: 13px;
+  font-size: 14px;
   background: var(--raised);
   color: var(--text);
   border: 1px solid var(--border);
@@ -132,7 +132,7 @@
 }
 
 .tool-access-card strong {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -148,10 +148,10 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .tool-access-card details {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -201,7 +201,7 @@
   padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .schedule-days input {
   width: auto;
@@ -217,7 +217,7 @@
 .schedule-week > header {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-bottom: 12px;
 }
@@ -226,7 +226,7 @@
   align-items: center;
   gap: 12px;
   height: 24px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .schedule-day-row > span {
@@ -270,7 +270,7 @@
 
 .tool-access-card header span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 5px;
   overflow-wrap: anywhere;
@@ -290,7 +290,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 .config-doctor-actions,
 .config-doctor-confirm {
@@ -302,7 +302,7 @@
 .config-doctor-changes {
   max-height: 220px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
 }
 .plugin-toggles {
   display: grid;
@@ -330,5 +330,67 @@
 }
 .plugin-toggle-count {
   color: var(--muted);
+  font-size: 13px;
+}
+
+/* Tool availability: one line per tool (name and owner, badges, the switch) with its details
+   under the name, instead of 140 px cards scrolling inside the already scrolling page. */
+.tool-access-list {
+  max-height: none;
+  overflow: visible;
+  gap: 6px;
+}
+.tool-access-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 9px 14px;
+}
+.tool-access-card header {
+  display: contents;
+}
+.tool-access-card header > svg {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--muted);
+}
+.tool-access-card header > div {
+  grid-column: 2;
+  grid-row: 1;
+}
+.tool-access-card header > div > span {
+  margin-top: 2px;
+}
+.tool-access-card .tool-access-badges {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+  justify-content: flex-end;
+}
+.tool-access-card header > button {
+  grid-column: 4;
+  grid-row: 1;
+}
+.tool-access-card details {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+.tool-access-card summary {
+  color: var(--muted);
   font-size: 12px;
+  list-style: none;
+}
+.tool-access-card summary::-webkit-details-marker {
+  display: none;
+}
+.tool-access-card summary::before {
+  content: "›";
+  display: inline-block;
+  width: 12px;
+  transition: transform 120ms ease;
+}
+.tool-access-card details[open] > summary::before {
+  transform: rotate(90deg);
 }

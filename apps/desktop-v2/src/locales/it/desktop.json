@@ -203,6 +203,7 @@
     "search": "Cerca nelle impostazioni di WrongStack",
     "find": "Trova un'impostazione…",
     "loading": "Caricamento del profilo WrongStack…",
+    "defaultsNote": "Le modifiche vengono salvate come predefiniti del profilo. Le esecuzioni in corso mantengono le opzioni attuali.",
     "sectionPicker": "Sezione delle impostazioni",
     "choose": "Scegli una sezione",
     "groups": {
@@ -311,7 +312,7 @@
       "description": "Scegli quali sistemi WrongStack sono disponibili nelle nuove esecuzioni."
     },
     "routing": {
-      "title": "Agenti e fallback",
+      "title": "Fallback e predefiniti degli agenti",
       "description": "Valori predefiniti condivisi di concorrenza e fallback per il nuovo lavoro."
     },
     "notifications": {
@@ -573,6 +574,23 @@
       "label": "Diagnostica dello stream",
       "description": "Registra ulteriori diagnostiche di streaming del provider mentre indaghi un problema."
     },
+    "titleAnimation": {
+      "label": "Animazione del titolo CLI",
+      "description": "Anima il titolo del terminale CLI mentre l’agente lavora."
+    },
+    "showAgentSwarmPanel": {
+      "label": "Pannello agenti CLI",
+      "description": "Scegli la posizione della flotta e della coda delle attività nel terminale.",
+      "options": {
+        "bottom": "Pannello inferiore",
+        "sidebar": "Barra laterale",
+        "off": "Disattivato"
+      }
+    },
+    "confirmExit": {
+      "label": "Conferma uscita CLI",
+      "description": "Il primo Ctrl+C annulla il lavoro; il secondo conferma l’uscita dal terminale."
+    },
     "enhanceDelayMs": {
       "label": "Ritardo di perfezionamento",
       "description": "Per quanto tempo l’interfaccia del terminale mostra un prompt perfezionato prima di inviarlo da sola. Il desktop e la WebUI attendono la tua scelta."
@@ -732,6 +750,11 @@
     "moment": "L'area di lavoro sarà pronta tra un momento."
   },
   "appearance": {
+    "conversation": {
+      "title": "Visualizzazione della conversazione",
+      "body": "Le preferenze di visualizzazione sono condivise tra le finestre desktop.",
+      "keyboardHint": "Abilita le scorciatoie di navigazione e aiuto. I tasti di modifica e ricerca restano disponibili."
+    },
     "label": "Impostazioni dell'aspetto",
     "body": "Segui il dispositivo o scegli una modalità.",
     "colorMode": "Modalità colore",
@@ -839,10 +862,10 @@
     "saved": "L'approvazione viene salvata per 24 ore quando possibile. Le operazioni protette possono comunque chiedere.",
     "notConfirmed": "Il motore non ha confermato questa decisione. Controlla la connessione prima di riprovare.",
     "sending": "Invio della decisione; in attesa del motore…",
-    "hint": "Nega blocca anche i tentativi corrispondenti finché questo motore conserva il rifiuto in memoria. «Memorizza il rifiuto» salva una regola per il soggetto corrispondente; il selettore di ambito vale per le approvazioni memorizzate.",
+    "hint": "Nega ferma questa richiesta e i tentativi identici in questa sessione. «Memorizza il rifiuto» la blocca d'ora in poi; la scelta sopra stabilisce cosa copre un'approvazione ricordata.",
     "rememberDenialTitle": "Nega questa e le future richieste corrispondenti al soggetto mostrato",
     "rememberDenial": "Memorizza il rifiuto",
-    "denyTitle": "Nega questa richiesta e i tentativi corrispondenti finché il motore conserva il rifiuto in memoria",
+    "denyTitle": "Nega questa richiesta e i tentativi identici in questa sessione",
     "deny": "Nega",
     "allowRemember": "Consenti e memorizza",
     "allowOnce": "Consenti una volta"
@@ -958,7 +981,9 @@
     "providerFallback": "Il motore prova invece {{fallback}}.",
     "tierProposed": "WrongStack propone il livello {{tier}}: {{route}}.",
     "projectedSaving": "Risparmio previsto di circa ${{amount}}.",
-    "switchTier": "Passa a {{tier}}"
+    "switchTier": "Passa a {{tier}}",
+    "autoWakeOneNotice": "un avviso di timer/monitoraggio richiesto",
+    "autoWakeNotices": "avvisi di timer/monitoraggio richiesti"
   },
   "message": {
     "you": "Tu",
@@ -1065,7 +1090,7 @@
     "use": "Usa {{target}}"
   },
   "jobs": {
-    "title": "Attività pianificate",
+    "title": "Risvegli di sessione",
     "status": {
       "paused": "In pausa",
       "overdue": "In ritardo",
@@ -1081,8 +1106,8 @@
     "ago": "{{amount}} fa",
     "active": "{{active}} di {{total}} attive",
     "overdue": "{{count}} in ritardo",
-    "limit": "Fino a {{count}} esecuzioni contemporanee.",
-    "howTo": "Chiedi all'agente di pianificare un'attività con <code>cron_schedule</code> o di rimuoverne una con <code>cron_cancel</code>."
+    "limit": "Fino a {{count}} per sessione.",
+    "howTo": "Chiedi all’agente di impostare un risveglio con <code>session_wakeup</code>; lo rimuove con <code>action=cancel</code>."
   },
   "waiting": {
     "ago": "{{time}} fa",
@@ -1276,6 +1301,10 @@
     "stagePath": "Metti in stage {{path}}",
     "unstagePath": "Togli dallo stage {{path}}",
     "noChanges": "Nessuna modifica senza commit.",
+    "pickChange": "Seleziona un file modificato per esaminarne il diff.",
+    "lineCounts": "{{added}} righe aggiunte, {{deleted}} rimosse",
+    "stageAll": "Metti tutto in stage",
+    "unstageAll": "Togli tutto dallo stage",
     "ignoredIncluded": "File sorgente ignorati inclusi",
     "ignoredExcluded": "I percorsi ignorati sono esclusi",
     "openTabs": "File aperti",
@@ -6658,7 +6687,7 @@
     "refresh": "Aggiorna l’utilizzo del motore",
     "context": "Contesto",
     "contextPercent": "Contesto {{percent}}% · {{tokens}} / {{max}}",
-    "contextTokens": "Contesto {{tokens}} token · finestra non segnalata"
+    "contextTokens": "Contesto {{tokens}} token"
   },
   "referenceChips": {
     "pastEnd_one": "Questo file ha {{count}} riga; l’intervallo inizia dopo la fine.",
@@ -6835,7 +6864,7 @@
     "referencedFiles_one": "{{count}} file di riferimento",
     "one": "1 prompt in coda",
     "many": "{{number}} prompt in coda",
-    "note": "Gestita dal motore · viene eseguita dopo questo turno",
+    "note": "Viene eseguito dopo questo turno",
     "pending": "Prompt in attesa",
     "clear": "Svuota la coda",
     "references": "Riferimenti a file di progetto",
@@ -9233,7 +9262,7 @@
     "steerPlaced": "Istruzione messa prima dei prompt in coda; l’esecuzione corrente si sta fermando.",
     "sessionChanged": "La sessione è cambiata. La tua bozza è conservata.",
     "turnStarted": "È iniziato un turno durante la scelta del contesto dell’argomento. La tua bozza è conservata; rivedila prima di inviare.",
-    "queued": "Prompt accettato dalla coda del motore.",
+    "queued": "In coda. Viene eseguito dopo il turno corrente.",
     "accepted": "Prompt accettato dal motore.",
     "noQueue": "Questo motore non supporta la coda persistente dei prompt. Riapri questa sessione con la build attuale.",
     "refinerMissing": "Il raffinatore non ha restituito questa versione. La tua bozza originale è conservata.",
@@ -9294,6 +9323,18 @@
     "reviewConversation": "Rivedi la conversazione",
     "loading": "Caricamento di questa conversazione…",
     "welcome": "Su cosa lavoriamo?",
+    "welcomeEyebrow": "Nuova conversazione",
+    "welcomeBody": "L'agente può leggere e modificare questo progetto, eseguire comandi, cercare nel codice e ricordare il contesto tra le sessioni. Scegli un punto di partenza o scrivi il tuo; / apre i comandi.",
+    "welcomeModel": "Modello",
+    "welcomeDirectory": "Directory di lavoro",
+    "starterExplainTitle": "Spiegare l'architettura",
+    "starterExplainPrompt": "Fammi fare un giro di questo progetto: le parti principali, come si collegano e da dove iniziare a leggere.",
+    "starterBugTitle": "Trovare e correggere un bug",
+    "starterBugPrompt": "Trova un bug reale in questo progetto, dimostralo con un controllo che fallisce, correggilo e mostrami le prove.",
+    "starterReviewTitle": "Rivedere le mie modifiche",
+    "starterReviewPrompt": "Rivedi le mie modifiche non committate cercando bug, modifiche rischiose e test mancanti.",
+    "starterTestsTitle": "Rafforzare i test",
+    "starterTestsPrompt": "Trova il comportamento non testato più importante di questo progetto e aggiungi test mirati.",
     "showEarlier_one": "Mostra {{count}} messaggio precedente ({{hidden}} non mostrati)",
     "showEarlier": "Mostra {{count}} messaggi precedenti ({{hidden}} non mostrati)",
     "jumpToLatest": "Vai al più recente",
@@ -9591,5 +9632,68 @@
     "toolInvalid": "Inserisci un nome di strumento o un pattern, senza spazi.",
     "menu": "Regole di autorizzazione",
     "close": "Chiudi le regole di autorizzazione"
+  },
+  "chimeraMessage": {
+    "title": "Revisione Chimera",
+    "open": "Apri rapporto",
+    "prepare": "Prepara seguito",
+    "hint": "Salva la bozza, poi inviala dal normale campo di composizione.",
+    "sent": "Seguito già inviato.",
+    "prepared": "Il seguito è nel campo di composizione.",
+    "running": "Attendi la fine dell’esecuzione.",
+    "offline": "Attendi la riconnessione e il ripristino.",
+    "draft": "Prima invia o cancella bozza, riferimenti e allegati."
+  },
+  "brainMessage": {
+    "title": "Decisione Brain",
+    "question": "Domanda",
+    "source": "Origine",
+    "risk": "Rischio",
+    "tier": "Livello",
+    "decisionType": "Decisione",
+    "optionId": "Opzione",
+    "text": "Risposta",
+    "rationale": "Motivazione",
+    "reason": "Motivo",
+    "confidence": "Affidabilità",
+    "waiting": "In attesa della tua risposta.",
+    "closed": "Nessuna richiesta di risposta aperta.",
+    "kind": {
+      "answered": "Risposto",
+      "denied": "Negato",
+      "ask_human": "Valutazione umana",
+      "intervention": "Intervento",
+      "check": "Controllo"
+    }
+  },
+  "messagePins": {
+    "pin": "Fissa messaggio",
+    "unpin": "Sblocca messaggio",
+    "list": "Messaggi fissati ({{count}})",
+    "unavailable": "Messaggio assente dalla trascrizione conservata."
+  },
+  "parityUi": {
+    "performance": "Ciclo di prestazioni",
+    "wholeProject": "Intero progetto"
+  },
+  "serviceHealing": {
+    "restarting": "Riavvio automatico in corso",
+    "restarted": "Riavviato automaticamente",
+    "failed": "Riavvio automatico non riuscito",
+    "escalated": "Inoltrato",
+    "refused": "Riavvio automatico negato",
+    "expired": "Nessun evento di completamento recente; ricontrolla lo stato."
+  },
+  "recoveryIdentity": {
+    "layout": "Layout salvato: progetto / conversazione / pagina",
+    "match": "Le sessioni host e journal corrispondono.",
+    "mismatch": "Le sessioni host e journal sono diverse.",
+    "pending": "Confronto identità in attesa.",
+    "expected": "Sessione Core dell’host: {{id}}"
+  },
+  "recoveryDraft": {
+    "match": "Le revisioni corrispondono alla bozza salvata di questa conversazione.",
+    "changed": "Le revisioni differiscono: salvataggio in corso o modifica da un’altra finestra.",
+    "pending": "Confronto delle revisioni in attesa."
   }
 }

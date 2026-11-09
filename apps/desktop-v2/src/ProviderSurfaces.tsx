@@ -9,6 +9,7 @@ import type {
 import { SetupScreen } from '@wrongstack/project-surfaces/setup/SetupScreen';
 import type { SetupHost } from '@wrongstack/project-surfaces/setup/setup-host';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { profileHttp } from './engine-http';
 import type { EngineCommand } from './engine-operations';
 import type { EngineState } from './engine-state';
@@ -21,6 +22,7 @@ import {
 } from './profile-surface-host';
 import { SurfaceFrame, useSurfaceConfirm } from './SurfaceFrame';
 import './provider-surfaces.css';
+import { useProviderNames } from './provider-names';
 
 const NO_PROFILE_PREFS: Record<string, unknown> = {};
 
@@ -101,6 +103,8 @@ export function ProviderSurfaces({
   command: EngineCommand;
   onConfigured: (provider: string, model: string) => void;
 }) {
+  const { t } = useDesktopText();
+  const names = useProviderNames(command);
   const confirm = useSurfaceConfirm();
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const save = useRef(updatePrefs);
@@ -152,11 +156,11 @@ export function ProviderSurfaces({
         )}
         <div className="provider-surface">
           {page === 'quota' ? (
-            <ProviderQuotaView />
+            <ProviderQuotaView heading={t('settings.section.quota')} />
           ) : page === 'setup' ? (
             <SetupScreen />
           ) : (
-            <ProviderTestView />
+            <ProviderTestView heading={t('settings.section.model-tests')} providerNames={names} />
           )}
         </div>
       </SurfaceFrame>

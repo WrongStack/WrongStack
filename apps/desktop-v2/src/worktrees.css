@@ -1,12 +1,23 @@
 .project-worktrees {
   display: grid;
   gap: 12px;
-  padding: 24px;
+  /* The project page already pads its content; a second 24 px moved this page's edges in from
+     every other tool page's. */
+  padding: 0;
 }
 .project-worktrees h3 {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
+}
+/* An empty section reads as a placeholder for what will appear, not a stray footnote. */
+.project-worktrees > p.field-help {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
 }
 .worktree-list {
   display: grid;
@@ -28,7 +39,7 @@
   min-width: 0;
 }
 .worktree-list span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -42,7 +53,7 @@
 .worktree-diff ul {
   margin: 4px 0 0;
   padding-left: 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .worktree-heading {
   display: flex;
@@ -62,7 +73,7 @@
 .worktree-layouts button {
   padding: 3px 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -85,7 +96,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .worktree-lane code {
   width: 11rem;
@@ -153,7 +164,7 @@
 .worktree-lane > small {
   flex-basis: 100%;
   padding-left: 21px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .worktree-graph {
   overflow-x: auto;
@@ -167,9 +178,9 @@
 .worktree-graph-branch {
   fill: var(--text);
   font-family: var(--user-font-code, var(--mono, monospace));
-  font-size: 12px;
+  font-size: 13px;
 }
 .worktree-graph-muted {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }

@@ -237,7 +237,6 @@ describe('project session history in the display language', () => {
       'Fix login',
       'Untitled conversation',
       'Completed',
-      'Recorded',
       'Return to the work.',
     ])
       expect(page.text).toContain(text);
@@ -275,7 +274,6 @@ describe('project session history in the display language', () => {
       'Boş günlükleri dahil et',
       'Adsız konuşma',
       'Tamamlandı',
-      'Kaydedildi',
       'İşe geri dön.',
     ])
       expect(page.text).toContain(text);

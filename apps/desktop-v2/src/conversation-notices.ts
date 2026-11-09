@@ -174,12 +174,18 @@ function runEventNotice(type: string, payload: Record<string, unknown>): NoticeW
   }
   if (type === 'delegation.auto_wake_started') {
     const delegations = ids(payload['delegationIds']),
+      notices = ids(payload['notices']),
       chain = num(payload['chain']);
+    // A wake carrying only timer/watch/process notices the agent asked for
+    // must not read as "delegation results arrived".
+    const noticeOnly = delegations.length === 0 && notices.length > 0;
     return {
       severity: 'info',
       message: line('autoWake', {
-        results: line(delegations.length === 1 ? 'autoWakeOneResult' : 'autoWakeResults'),
-        ids: idSuffix(delegations),
+        results: noticeOnly
+          ? line(notices.length === 1 ? 'autoWakeOneNotice' : 'autoWakeNotices')
+          : line(delegations.length === 1 ? 'autoWakeOneResult' : 'autoWakeResults'),
+        ids: idSuffix(noticeOnly ? notices : delegations),
         chain: chain !== null && chain > 0 ? line('autoWakeChain', { chain }) : '',
       }),
     };

@@ -62,7 +62,7 @@
   border-radius: 7px;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 14px;
   text-align: center;
 }
@@ -80,7 +80,7 @@
 .explorer .quick-search {
   margin: 0 0 12px;
   padding: 7px 9px;
-  font-size: 12px;
+  font-size: 13px;
 }
 /* A narrow sidebar keeps the search on one line: the label shortens, the shortcut stays whole. */
 .explorer .quick-search span {
@@ -113,7 +113,7 @@
   padding: 7px 9px;
   border-radius: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
 }
 .project-views > button:hover,
@@ -148,7 +148,7 @@
   justify-content: space-between;
   padding: 2px 9px 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .explorer-caption button {
@@ -168,7 +168,7 @@
   min-width: 0;
   padding: 6px 9px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .explorer .project-item.selected {
   background: var(--accent-soft);
@@ -183,7 +183,7 @@
 .explorer .tree-session {
   padding: 5px 9px 5px 33px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .explorer .tree-session.chosen {
   background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
@@ -192,11 +192,11 @@
 .explorer .tree-session small {
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .explorer .add-project {
   padding: 8px 9px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .workspace-shell {
@@ -273,7 +273,7 @@
   margin-left: auto;
   align-self: center;
   padding: 0 14px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .native-chat-welcome {
   align-items: center;
@@ -287,14 +287,14 @@
 }
 .native-usage {
   padding: 6px 16px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .native-usage > span:first-child {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0;
 }
 .chat-message > header {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -302,14 +302,14 @@
 /* Project tools: a plain title and one muted line, the same size on every page. Scoped under the
    shell so lazily loaded page styles cannot win the cascade. */
 .workspace-shell
-:is(
-  .studio-heading,
-  .roster-hero,
-  .history-heading,
-  .sage-page-heading,
-  .wrongstack-settings-heading,
-  .settings-section-heading
-) {
+  :is(
+    .studio-heading,
+    .roster-hero,
+    .history-heading,
+    .sage-page-heading,
+    .wrongstack-settings-heading,
+    .settings-section-heading
+  ) {
   align-items: flex-start;
   margin: 4px 0 18px;
   padding: 0;
@@ -344,7 +344,7 @@
   max-width: 720px;
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 /* The heading's action group: buttons side by side on the title row, whatever class the page
@@ -408,14 +408,14 @@
     border-radius: 5px;
     background: var(--raised);
     color: var(--text);
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 .settings-nav-group {
   display: block;
   padding: 14px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .workspace-shell .settings-section-heading h2 {
@@ -427,20 +427,20 @@
 
 /* Every project tool sits in the same frame: the page content pads it once. */
 .project-page-content
-:is(
-  .project-agent-roster,
-  .project-chimera,
-  .project-chronicle,
-  .project-dead-code,
-  .project-design-studio,
-  .project-goals,
-  .project-kit,
-  .project-sdd,
-  .project-history,
-  .project-techstack,
-  .project-mailbox,
-  .project-live-fleet
-) {
+  :is(
+    .project-agent-roster,
+    .project-chimera,
+    .project-chronicle,
+    .project-dead-code,
+    .project-design-studio,
+    .project-goals,
+    .project-kit,
+    .project-sdd,
+    .project-history,
+    .project-techstack,
+    .project-mailbox,
+    .project-live-fleet
+  ) {
   padding: 0;
 }
 
@@ -449,7 +449,7 @@
   cursor: pointer;
   padding: 8px 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .goal-resume-budget[open] {
   display: flex;
@@ -469,14 +469,63 @@
 /* Session cards: kind, state, title and age; project and folder come from the group. */
 .session-card .card-kind {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .session-card .status-pill {
-  font-size: 11px;
+  font-size: 12px;
 }
 .session-card-title {
   margin: 14px 0 12px;
 }
 .session-card > footer {
+  font-size: 12px;
+}
+
+/* The sidebar is its own stacking context (z-index 3), so the tools menu it opens stayed under
+   the shared surfaces' raised layers (Atlas z-20/z-50): half the menu could not be clicked over
+   Code Atlas. Lift the sidebar only while a menu is open, so full-window overlays such as the
+   Kanban task inspector still cover it otherwise. */
+.sidebar:has(.rail-popover) {
+  z-index: 90;
+}
+
+/* WrongStack settings: one heading scale for every section, whichever component draws it
+   (field sections, provider, catalog, brain policy, tools, integrations…). Five sizes from
+   17 to 26 px read as five different apps. */
+.workspace-shell
+  .settings-detail
+  :is(.settings-section-heading, .provider-heading, .brain-policy > header, .studio-heading)
+  :is(h1, h2) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+}
+.workspace-shell
+  .settings-detail
+  :is(.settings-section-heading, .provider-heading, .brain-policy > header, .studio-heading)
+  .eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
   font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.workspace-shell
+  .settings-detail
+  :is(.settings-section-heading, .provider-heading, .brain-policy > header, .studio-heading)
+  p {
+  max-width: 720px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.workspace-shell .settings-detail :is(.brain-policy > header) :is(h1, h2) > svg {
+  width: 18px;
+  height: 18px;
 }

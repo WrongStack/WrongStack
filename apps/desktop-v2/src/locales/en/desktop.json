@@ -203,6 +203,7 @@
     "search": "Search WrongStack settings",
     "find": "Find a setting…",
     "loading": "Loading your WrongStack profile…",
+    "defaultsNote": "Changes are saved as profile defaults. Existing runs keep their current options.",
     "sectionPicker": "Settings section",
     "choose": "Choose a section",
     "groups": {
@@ -311,7 +312,7 @@
       "description": "Choose which WrongStack systems are available in new runs."
     },
     "routing": {
-      "title": "Agents & fallbacks",
+      "title": "Fallbacks & agent defaults",
       "description": "Shared concurrency and fallback defaults for new work."
     },
     "notifications": {
@@ -573,6 +574,23 @@
       "label": "Stream diagnostics",
       "description": "Record additional provider streaming diagnostics while investigating a problem."
     },
+    "titleAnimation": {
+      "label": "CLI title animation",
+      "description": "Animate the CLI terminal title while the agent runs."
+    },
+    "showAgentSwarmPanel": {
+      "label": "CLI agent swarm panel",
+      "description": "Choose the fleet and mission queue placement in the terminal UI.",
+      "options": {
+        "bottom": "Bottom panel",
+        "sidebar": "Sidebar",
+        "off": "Off"
+      }
+    },
+    "confirmExit": {
+      "label": "CLI exit confirmation",
+      "description": "First Ctrl+C aborts work; a second Ctrl+C confirms terminal exit."
+    },
     "enhanceDelayMs": {
       "label": "Refine delay",
       "description": "How long the terminal interface shows a refined prompt before sending it by itself. The desktop and the WebUI wait for your choice."
@@ -732,6 +750,11 @@
     "moment": "Your workspace will be ready in a moment."
   },
   "appearance": {
+    "conversation": {
+      "title": "Conversation display",
+      "body": "Display preferences are shared by desktop windows.",
+      "keyboardHint": "Enable navigation and help shortcuts. Editing and search keys stay available."
+    },
     "label": "Appearance settings",
     "body": "Follow your device, or choose a mode.",
     "colorMode": "Color mode",
@@ -839,10 +862,10 @@
     "saved": "Approval is saved for 24 hours when possible. Protected operations may still ask.",
     "notConfirmed": "The engine has not confirmed this decision. Check the connection before retrying.",
     "sending": "Sending decision; waiting for the engine…",
-    "hint": "Deny also blocks matching retries while this engine retains its in-memory denial. Remember denial saves a rule for the matching subject; the scope selector applies to remembered approvals.",
+    "hint": "Deny stops this request and identical retries in this session. “Remember denial” blocks it from now on; the choice above sets what a remembered approval covers.",
     "rememberDenialTitle": "Deny this and future requests matching the displayed subject",
     "rememberDenial": "Remember denial",
-    "denyTitle": "Deny this request and matching retries while the engine retains its in-memory denial",
+    "denyTitle": "Deny this request and identical retries in this session",
     "deny": "Deny",
     "allowRemember": "Allow & remember",
     "allowOnce": "Allow once"
@@ -958,7 +981,9 @@
     "providerFallback": "The engine tries {{fallback}} instead.",
     "tierProposed": "WrongStack proposes the {{tier}} tier: {{route}}.",
     "projectedSaving": "Projected saving about ${{amount}}.",
-    "switchTier": "Switch to {{tier}}"
+    "switchTier": "Switch to {{tier}}",
+    "autoWakeOneNotice": "a timer/watch notice you asked for",
+    "autoWakeNotices": "timer/watch notices you asked for"
   },
   "message": {
     "you": "You",
@@ -1065,7 +1090,7 @@
     "use": "Use {{target}}"
   },
   "jobs": {
-    "title": "Scheduled jobs",
+    "title": "Session wakeups",
     "status": {
       "paused": "Paused",
       "overdue": "Overdue",
@@ -1081,8 +1106,8 @@
     "ago": "{{amount}} ago",
     "active": "{{active}} of {{total}} active",
     "overdue": "{{count}} overdue",
-    "limit": "Up to {{count}} run at once.",
-    "howTo": "Ask the agent to schedule a job with <code>cron_schedule</code> or remove one with <code>cron_cancel</code>."
+    "limit": "Up to {{count}} per session.",
+    "howTo": "Ask the agent to set a wakeup with <code>session_wakeup</code>; it removes one with <code>action=cancel</code>."
   },
   "waiting": {
     "ago": "{{time}} ago",
@@ -1276,6 +1301,10 @@
     "stagePath": "Stage {{path}}",
     "unstagePath": "Unstage {{path}}",
     "noChanges": "No uncommitted changes.",
+    "pickChange": "Select a changed file to review its diff.",
+    "lineCounts": "{{added}} lines added, {{deleted}} removed",
+    "stageAll": "Stage all",
+    "unstageAll": "Unstage all",
     "ignoredIncluded": "Ignored source files included",
     "ignoredExcluded": "Ignored paths are excluded",
     "openTabs": "Open files",
@@ -6658,7 +6687,7 @@
     "refresh": "Refresh engine usage",
     "context": "Context",
     "contextPercent": "Context {{percent}}% · {{tokens}} / {{max}}",
-    "contextTokens": "Context {{tokens}} tokens · window not reported"
+    "contextTokens": "Context {{tokens}} tokens"
   },
   "referenceChips": {
     "pastEnd_one": "This file has {{count}} line; the range starts after its end.",
@@ -6835,7 +6864,7 @@
     "referencedFiles_one": "{{count}} referenced file",
     "one": "1 queued prompt",
     "many": "{{number}} queued prompts",
-    "note": "Engine-owned · runs after this turn",
+    "note": "Runs after this turn",
     "pending": "Pending prompts",
     "clear": "Clear queue",
     "references": "Project file references",
@@ -9233,7 +9262,7 @@
     "steerPlaced": "Instruction placed ahead of the queued prompts; the current run is stopping.",
     "sessionChanged": "The session changed. Your draft is kept.",
     "turnStarted": "A turn started while choosing the topic context. Your draft is kept; review it before sending.",
-    "queued": "Prompt accepted by the engine queue.",
+    "queued": "Queued. It runs after the current turn.",
     "accepted": "Prompt accepted by the engine.",
     "noQueue": "This engine does not support the persistent prompt queue. Reopen this session on the current build.",
     "refinerMissing": "The refiner did not return this version. Your original draft is kept.",
@@ -9294,6 +9323,18 @@
     "reviewConversation": "Review conversation",
     "loading": "Loading this conversation…",
     "welcome": "What should we work on?",
+    "welcomeEyebrow": "New conversation",
+    "welcomeBody": "The agent can read and edit this project, run commands, search the code and remember context across sessions. Pick a starting point or write your own; type / for commands.",
+    "welcomeModel": "Model",
+    "welcomeDirectory": "Working directory",
+    "starterExplainTitle": "Explain the architecture",
+    "starterExplainPrompt": "Give me a tour of this project: its main parts, how they fit together and where to start reading.",
+    "starterBugTitle": "Find and fix a bug",
+    "starterBugPrompt": "Find one real bug in this project, prove it with a failing check, fix it and show me the evidence.",
+    "starterReviewTitle": "Review my changes",
+    "starterReviewPrompt": "Review my uncommitted changes for bugs, risky edits and missing tests.",
+    "starterTestsTitle": "Strengthen the tests",
+    "starterTestsPrompt": "Find the most important untested behaviour in this project and add focused tests for it.",
     "showEarlier_one": "Show {{count}} earlier message ({{hidden}} not shown)",
     "showEarlier": "Show {{count}} earlier messages ({{hidden}} not shown)",
     "jumpToLatest": "Jump to latest",
@@ -9591,5 +9632,68 @@
     "toolInvalid": "Enter a tool name or glob, without spaces.",
     "menu": "Permission rules",
     "close": "Close permission rules"
+  },
+  "chimeraMessage": {
+    "title": "Chimera review",
+    "open": "Open report",
+    "prepare": "Prepare follow-up",
+    "hint": "Prepare the saved draft, then send through the normal composer.",
+    "sent": "Follow-up already sent.",
+    "prepared": "Follow-up is in the composer.",
+    "running": "Wait until this run finishes.",
+    "offline": "Wait for the conversation to reconnect and restore.",
+    "draft": "Send or clear the existing draft, references and attachments first."
+  },
+  "brainMessage": {
+    "title": "Brain decision",
+    "question": "Question",
+    "source": "Source",
+    "risk": "Risk",
+    "tier": "Tier",
+    "decisionType": "Decision",
+    "optionId": "Option",
+    "text": "Answer",
+    "rationale": "Rationale",
+    "reason": "Reason",
+    "confidence": "Confidence",
+    "waiting": "Waiting for your response.",
+    "closed": "No open response prompt.",
+    "kind": {
+      "answered": "Answered",
+      "denied": "Denied",
+      "ask_human": "Human judgement",
+      "intervention": "Intervention",
+      "check": "Check"
+    }
+  },
+  "messagePins": {
+    "pin": "Pin message",
+    "unpin": "Unpin message",
+    "list": "Pinned messages ({{count}})",
+    "unavailable": "Message is not in the retained transcript."
+  },
+  "parityUi": {
+    "performance": "Performance round",
+    "wholeProject": "Whole project"
+  },
+  "serviceHealing": {
+    "restarting": "Automatically restarting",
+    "restarted": "Automatically restarted",
+    "failed": "Automatic restart failed",
+    "escalated": "Escalated",
+    "refused": "Automatic restart refused",
+    "expired": "No recent completion event; check health again."
+  },
+  "recoveryIdentity": {
+    "layout": "Saved layout: project / conversation / page",
+    "match": "Host and journal session match.",
+    "mismatch": "Host and journal session differ.",
+    "pending": "Identity comparison pending.",
+    "expected": "Host Core session: {{id}}"
+  },
+  "recoveryDraft": {
+    "match": "Draft revisions match this conversation's saved draft.",
+    "changed": "Draft revisions differ: a save may be pending or another window changed them.",
+    "pending": "Draft revision comparison pending."
   }
 }

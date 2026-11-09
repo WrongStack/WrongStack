@@ -91,6 +91,8 @@ export function SettingRow({
               max={field.max}
               step={field.scale ? 'any' : undefined}
               required={!field.unsetNote}
+              // An empty box that may stay unset reads as the engine's default, not as missing.
+              placeholder={field.unsetNote ? t('limitsPolicy.engineDefault') : undefined}
               value={typeof value === 'number' ? value / (field.scale ?? 1) : ''}
               onChange={(event) =>
                 onChange(

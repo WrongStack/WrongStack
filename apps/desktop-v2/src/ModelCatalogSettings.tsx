@@ -29,6 +29,7 @@ import {
   savedModelProvider,
 } from './model-catalog-editor';
 import type { ModelEditorState } from './model-editor-draft';
+import { useProviderNames } from './provider-names';
 import { sameSetting } from './settings-save-model';
 import { surfaceI18n } from './surface-i18n';
 import { useModelEditorDraft } from './useModelEditorDraft';
@@ -72,6 +73,7 @@ function ProfileModelCatalogSettings({
   profile: ModelProfileIdentity;
 }) {
   const { t } = useDesktopText();
+  const names = useProviderNames(command);
   const [providers, setProviders] = useState<Record<string, unknown>[]>([]);
   const [providerId, setProviderId] = useState('');
   const [provider, setProvider] = useState<Record<string, unknown>>({});
@@ -276,7 +278,9 @@ function ProfileModelCatalogSettings({
             }}
           >
             {providers.map((item) => (
-              <option key={String(item['id'])}>{String(item['id'])}</option>
+              <option key={String(item['id'])} value={String(item['id'])}>
+                {names[String(item['id'])] ?? String(item['id'])}
+              </option>
             ))}
           </select>
         </label>
@@ -419,12 +423,12 @@ function ProfileModelCatalogSettings({
                     }}
                   >
                     <strong>{item.name}</strong>
-                    <span>{item.id}</span>
-                    <small>
-                      {Object.hasOwn(definitions, item.id)
-                        ? t('modelCatalog.savedDefinition')
-                        : t('modelCatalog.providerCatalog')}
-                    </small>
+                    {/* The id only when it says something the name does not. */}
+                    {item.id !== item.name && <span>{item.id}</span>}
+                    {/* Only a saved definition is worth a line; the catalog is the default. */}
+                    {Object.hasOwn(definitions, item.id) && (
+                      <small>{t('modelCatalog.savedDefinition')}</small>
+                    )}
                   </button>
                 ))}
               {!rows.length && <p>{t('modelCatalog.noModels')}</p>}

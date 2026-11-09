@@ -18,7 +18,7 @@
 .history-heading p,
 .history-selection > p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .history-filters {
@@ -45,7 +45,7 @@
   color: var(--text);
   width: 100%;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
   min-height: 0;
   box-shadow: none;
   padding: 0;
@@ -56,7 +56,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   padding: 9px 12px;
   max-width: 100%;
 }
@@ -66,7 +66,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   margin: 13px 0 25px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.6;
 }
@@ -95,15 +95,15 @@
 }
 .history-catalog > button {
   text-align: left;
-  padding: 17px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 5px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -115,7 +115,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .history-row-title svg {
@@ -124,7 +124,7 @@
 .history-catalog small,
 .history-row-status {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .history-catalog :where(p) {
   line-height: 1.6;
@@ -160,7 +160,7 @@
   align-items: center;
   justify-content: center;
   min-height: 430px;
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   color: var(--muted);
   padding: 30px;
@@ -173,7 +173,7 @@
   font-weight: 500;
 }
 .history-empty-reader p {
-  font-size: 12px;
+  font-size: 13px;
   max-width: 360px;
   line-height: 1.8;
 }
@@ -190,7 +190,7 @@
 }
 .history-transcript :where(header p) {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   margin: 0;
 }
@@ -213,7 +213,7 @@
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   padding-bottom: 15px;
 }
@@ -235,12 +235,12 @@
   display: flex;
   gap: 7px;
   flex-direction: column;
-  font-size: 12px;
+  font-size: 13px;
   margin: 10px 0;
 }
 .history-attachment span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .history-tool,
 .history-thinking {
@@ -249,7 +249,7 @@
   border-radius: 6px;
   margin: 10px 0;
   padding: 14px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .history-tool summary,
 .history-thinking summary {
@@ -311,7 +311,7 @@
 }
 .history-page-controls p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .history-image {
   display: block;
@@ -324,7 +324,7 @@
 }
 .project-usage-summary {
   margin: 0 0 16px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .project-usage-summary summary {
   cursor: pointer;
@@ -382,7 +382,7 @@
   border-radius: 6px;
   color: var(--text);
   background: var(--danger-soft);
-  font-size: 12px;
+  font-size: 13px;
 }
 .history-delete-confirm p {
   flex-basis: 100%;
@@ -392,4 +392,13 @@
 /* No provider or model recorded: no empty line in the card. */
 .history-catalog .history-row-model:empty {
   display: none;
+}
+
+.history-catalog .history-row-status:empty {
+  display: none;
+}
+
+.history-catalog .history-row-model {
+  color: var(--muted);
+  font-size: 12px;
 }

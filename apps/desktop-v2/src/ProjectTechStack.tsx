@@ -265,7 +265,7 @@ export function ProjectTechStack({
                 ['findings', summary.findings],
               ] as const
             ).map(([label, value]) => (
-              <div key={label}>
+              <div key={label} data-stat={label} data-alert={Number(value) > 0 || undefined}>
                 <small>{t(`techStack.stat.${label}`)}</small>
                 <strong>{value}</strong>
               </div>

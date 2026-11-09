@@ -1,7 +1,6 @@
 import {
   Activity,
   ArrowLeft,
-  ArrowRight,
   Clock3,
   Download,
   FileCode2,
@@ -13,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChronicleEventRow } from './ChronicleEventRow';
 import { ChronicleInsights } from './ChronicleInsights';
 import { ChronicleManifest } from './ChronicleManifest';
 import {
@@ -25,12 +25,12 @@ import { chronicleManifest, withoutManifest } from './chronicle-manifest';
 import {
   chronicleGraph,
   chronicleQuery,
-  eventTitle,
+  eventHeadline,
   evidenceText,
   initialChronicleFilters,
 } from './chronicle-model';
 import { useDesktopText } from './desktop-i18n';
-import { displayDate, displayDecimal, displayTime } from './display-dates';
+import { displayCost, displayCount, displayDecimal } from './display-dates';
 import type { EngineCommand } from './engine-operations';
 import { entries, record } from './engine-values';
 import { GraphCanvas } from './GraphCanvas';
@@ -275,13 +275,19 @@ export function ProjectChronicle({
           [
             'cost',
             typeof summary['estimatedCostUsd'] === 'number'
-              ? `$${displayDecimal(summary['estimatedCostUsd'], 4)}`
+              ? displayCost(summary['estimatedCostUsd'])
               : undefined,
           ],
         ].map(([label, value]) => (
           <div key={String(label)}>
             <span>{t(`chronicleView.metric.${String(label)}`)}</span>
-            <strong>{value === undefined ? '—' : String(value)}</strong>
+            <strong>
+              {value === undefined
+                ? '—'
+                : typeof value === 'number'
+                  ? displayCount(value)
+                  : String(value)}
+            </strong>
           </div>
         ))}
       </div>
@@ -402,8 +408,8 @@ export function ProjectChronicle({
             <span>
               {view === 'timeline'
                 ? t('chronicleView.loaded', {
-                    loaded: rows.length,
-                    total: String(data['total'] ?? '…'),
+                    loaded: displayCount(rows.length),
+                    total: typeof data['total'] === 'number' ? displayCount(data['total']) : '…',
                   })
                 : t('chronicleView.graphCount', {
                     events: t('counts.events', { count: graph.nodes.length }),
@@ -484,45 +490,15 @@ export function ProjectChronicle({
                 </div>
               )}
               <div className="chronicle-events">
-                {rows.map((event) => {
-                  const resource = record(event['resource']),
-                    scope = record(event['scope']),
-                    runtime = record(event['runtime']);
-                  return (
-                    <button
-                      key={String(event['eventId'])}
-                      type="button"
-                      aria-label={t('chronicleView.inspect', { title: eventTitle(event) })}
-                      className={
-                        event['eventId'] === selected?.['eventId'] ? 'chronicle-event-selected' : ''
-                      }
-                      onClick={() => setSelected(event)}
-                    >
-                      <span
-                        className={`chronicle-outcome outcome-${String(event['outcome'] ?? 'unknown')}`}
-                      />
-                      <time dateTime={String(event['occurredAt'])}>
-                        {displayTime(String(event['occurredAt']))}
-                        <small>{displayDate(String(event['occurredAt']))}</small>
-                      </time>
-                      <div>
-                        <span>{String(event['eventType'])}</span>
-                        <strong>{eventTitle(event)}</strong>
-                        <small>
-                          {String(
-                            resource['path'] ??
-                              resource['id'] ??
-                              runtime['modelId'] ??
-                              scope['agentId'] ??
-                              t('chronicleView.projectEvent'),
-                          )}
-                        </small>
-                      </div>
-                      <span className="chronicle-event-result">{outcome(event['outcome'])}</span>
-                      <ArrowRight size={13} />
-                    </button>
-                  );
-                })}
+                {rows.map((event) => (
+                  <ChronicleEventRow
+                    key={String(event['eventId'])}
+                    event={event}
+                    selected={event['eventId'] === selected?.['eventId']}
+                    outcomeLabel={outcome(event['outcome'])}
+                    onSelect={() => setSelected(event)}
+                  />
+                ))}
               </div>
               {typeof data['nextCursor'] === 'string' && (
                 <button
@@ -534,13 +510,16 @@ export function ProjectChronicle({
                   {busy ? t('chronicleView.loading') : t('chronicleView.loadOlder')}
                 </button>
               )}
-              <p className="chronicle-footnote">
-                {t('chronicleView.scanFacts', {
-                  partitions: String(data['sourceFiles'] ?? 0),
-                  scanned: String(data['scannedEvents'] ?? 0),
-                  invalid: String(data['invalidLines'] ?? 0),
-                })}
-              </p>
+              {/* Zero counts while the first page is still read would read as a finished scan. */}
+              {!(busy && !rows.length) && (
+                <p className="chronicle-footnote">
+                  {t('chronicleView.scanFacts', {
+                    partitions: String(data['sourceFiles'] ?? 0),
+                    scanned: String(data['scannedEvents'] ?? 0),
+                    invalid: String(data['invalidLines'] ?? 0),
+                  })}
+                </p>
+              )}
             </>
           )}
         </div>
@@ -643,7 +622,7 @@ function ChronicleDetail({
           defaultValue: String(event['outcome'] ?? 'unknown'),
         })}
       </span>
-      <h2>{eventTitle(event)}</h2>
+      <h2>{eventHeadline(event).title}</h2>
       <p className="chronicle-event-type">{String(event['eventType'])}</p>
       <button type="button" className="button primary small" onClick={onTrace}>
         <GitBranch size={14} />

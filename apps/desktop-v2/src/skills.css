@@ -39,13 +39,13 @@
 }
 .skill-library-summary span {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .skill-library-summary > small {
   margin-left: auto;
   max-width: 275px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
 }
 .skill-library-layout {
@@ -76,14 +76,14 @@
   color: var(--text);
   border: 0;
   outline: 0;
-  font-size: 12px;
+  font-size: 13px;
   min-height: 0;
   box-shadow: none;
   padding: 0;
 }
 .skill-library-search > select {
   padding: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   background: var(--base);
   border: 1px solid var(--border);
@@ -119,12 +119,12 @@
 }
 .skill-catalog-list strong {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .skill-catalog-list p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.8;
   margin: 8px 0;
@@ -134,12 +134,12 @@
   overflow: hidden;
 }
 .skill-catalog-list :where(div) > span {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--accent);
 }
 .skill-catalog > footer {
   padding: 12px 15px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .skill-reader {
@@ -159,7 +159,7 @@
 }
 .skill-reader :where(header) > span {
   flex: 1;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .skill-reader > h2 {
@@ -170,7 +170,7 @@
   overflow-wrap: anywhere;
 }
 .skill-reader-description {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--muted);
   margin: 10px 0 20px;
@@ -182,23 +182,23 @@
   background: var(--accent-soft);
 }
 .skill-trigger > span {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.8px;
   color: var(--accent);
 }
 .skill-trigger > p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   margin: 7px 0 0;
   color: var(--muted);
 }
 .skill-instructions {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   padding-top: 10px;
 }
 .skill-instructions .markdown-content {
-  font-size: 12px;
+  font-size: 13px;
 }
 .skill-instructions :where(.markdown-content) h1 {
   font-size: 25px;
@@ -210,7 +210,7 @@
   font-size: 15px;
 }
 .skill-instructions table {
-  font-size: 10px;
+  font-size: 11px;
 }
 .skill-document-editor {
   margin: 20px 0;
@@ -225,12 +225,12 @@
   align-items: center;
   padding: 11px;
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   background: var(--base);
 }
 .skill-document-editor :where(header) > button {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
 }
 .skill-document-editor > textarea {
@@ -248,7 +248,7 @@
 }
 .skill-document-editor > .markdown-content {
   padding: 18px;
-  font-size: 12px;
+  font-size: 13px;
   min-height: 300px;
 }
 .skill-document-editor > footer {
@@ -270,12 +270,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   margin: 0 0 12px;
 }
 .skill-evidence code {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   overflow-wrap: anywhere;
   display: block;
@@ -287,14 +287,14 @@
   align-items: center;
   color: var(--accent);
   text-align: left;
-  font-size: 10px;
+  font-size: 11px;
   margin: 7px 0;
   padding: 5px 0;
   overflow-wrap: anywhere;
 }
 .skill-evidence small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 10px;
 }
@@ -302,7 +302,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
 }
@@ -334,7 +334,7 @@
 }
 .skill-empty p,
 .skill-reader-empty p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   margin: 0;
   max-width: 370px;
@@ -362,13 +362,13 @@
   margin: 0;
 }
 .skill-dialog p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--muted);
 }
 .skill-dialog label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin: 20px 0;
 }
@@ -383,7 +383,7 @@
   width: 100%;
   margin-top: 9px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .skill-dialog footer {
@@ -447,7 +447,7 @@
     gap: 6px;
   }
   .skill-library-actions > button {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 .skill-draft-notice {
@@ -458,7 +458,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .skill-draft-notice p {
@@ -471,5 +471,16 @@
 }
 .skill-draft-status {
   color: var(--muted);
+  font-size: 13px;
+}
+
+/* A skill row: name, two lines of description, its source — about 100 px, not 150. */
+.skill-catalog-list > button {
+  padding: 12px 14px;
+}
+.skill-catalog-list p {
+  margin: 4px 0 6px;
   font-size: 12px;
+  line-height: 1.55;
+  -webkit-line-clamp: 2;
 }

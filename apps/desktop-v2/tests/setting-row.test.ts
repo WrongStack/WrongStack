@@ -187,6 +187,9 @@ describe('terminal display settings', () => {
     const fields = (settingsSections.find((item) => item.id === 'terminal-display')?.fields ??
       []) as readonly SettingField[];
     expect(fields.map((item) => item.key)).toEqual([
+      'titleAnimation',
+      'showAgentSwarmPanel',
+      'confirmExit',
       'statuslineMode',
       'thinkingWord',
       'animationStyle',
@@ -194,6 +197,9 @@ describe('terminal display settings', () => {
       'preRefineSeconds',
       'multiDiffSummaryThreshold',
     ]);
+    expect(field('titleAnimation')?.kind).toBe('toggle');
+    expect(field('confirmExit')?.kind).toBe('toggle');
+    expect(field('showAgentSwarmPanel')?.options).toEqual(['bottom', 'sidebar', 'off']);
     expect(field('statuslineMode')?.options).toEqual(['minimum', 'detailed', 'no-color']);
     expect(field('animationStyle')?.options).toHaveLength(7);
   });

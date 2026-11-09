@@ -44,14 +44,14 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .project-home-button {
   display: flex;
   align-items: center;
   gap: 9px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .project-home-button strong {
   overflow: hidden;
@@ -103,7 +103,7 @@
 }
 .runtime-state p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .studio-heading,
 .wrongstack-settings-heading {
@@ -123,7 +123,7 @@
 .studio-heading p,
 .wrongstack-settings-heading p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   margin: 0;
 }
@@ -237,14 +237,14 @@
   color: var(--subtle);
 }
 .destination-copy p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.85;
   min-height: 44px;
   margin: 0 0 22px;
 }
 .destination-copy > strong {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--accent);
 }
@@ -261,7 +261,7 @@
 }
 .project-session-summary p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .project-no-sessions {
@@ -271,7 +271,7 @@
   padding: 25px 20px;
   border: 1px dashed var(--border);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .project-no-sessions > button {
@@ -280,7 +280,7 @@
   gap: 7px;
   margin-left: auto;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
 }
 .project-session-rows > button {
   display: flex;
@@ -291,7 +291,7 @@
   padding: 16px 5px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .project-session-rows strong {
   font-weight: 500;
@@ -299,7 +299,7 @@
 }
 .project-session-rows > button > span:last-of-type {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
 }
 .studio-metrics {
   display: flex;
@@ -334,7 +334,7 @@
   letter-spacing: -0.8px;
 }
 .studio-metrics span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .studio-toolbar {
@@ -352,7 +352,7 @@
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 5px;
 }
@@ -370,7 +370,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   border-radius: 3px;
 }
@@ -383,7 +383,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
   padding: 10px 0;
 }
@@ -433,7 +433,7 @@
 }
 .graph-edges text {
   fill: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
   text-anchor: middle;
   paint-order: stroke;
   stroke: var(--base);
@@ -473,7 +473,7 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,13 +484,13 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
   line-height: 1.5;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .graph-node > span:last-child {
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -544,7 +544,7 @@
   margin: 4px 0 14px;
 }
 .graph-empty p {
-  font-size: 12px;
+  font-size: 13px;
   max-width: 330px;
   color: var(--muted);
   line-height: 1.9;
@@ -571,7 +571,7 @@
   color: var(--muted);
 }
 .graph-controls span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   min-width: 35px;
   text-align: center;
@@ -581,7 +581,7 @@
   bottom: 22px;
   left: 18px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   pointer-events: none;
 }
 .map-legend {
@@ -597,7 +597,7 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 .map-legend i {
   display: inline-block;
@@ -614,7 +614,7 @@
 }
 .map-legend small {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .memory-inspector,
@@ -673,7 +673,7 @@
 }
 .session-tool-choices span {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -682,7 +682,7 @@
 }
 .session-tool-shared p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   margin-bottom: 15px;
 }
@@ -692,11 +692,11 @@
   gap: 10px;
   width: 100%;
   padding: 13px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .session-project-tools-hint {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .session-tool-shared > button > svg:last-child {
@@ -723,12 +723,12 @@
 :is(.memory-inspector, .task-inspector, .modal) label {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-bottom: 18px;
 }
 .field-help {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
   margin-top: 8px;
@@ -745,7 +745,7 @@
   background: var(--base);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
@@ -778,7 +778,7 @@
 }
 .range-value {
   float: right;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .memory-inspector input[type="range"] {
@@ -798,7 +798,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 10px;
+  font-size: 11px;
   margin: 10px 0;
 }
 .memory-provenance dt {
@@ -827,24 +827,24 @@
 }
 .memory-library strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.9;
   font-weight: 500;
   margin: 9px 0;
 }
 .memory-kind {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 .memory-library button > span:last-child {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .modal p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .modal :is(form > footer, footer) {
@@ -859,7 +859,7 @@
   align-items: center;
   gap: 10px;
   margin: 23px 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .authorization-checkbox > input {
   width: auto;
@@ -893,7 +893,7 @@
   max-width: 350px;
 }
 .board-scope {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   letter-spacing: 1.2px;
 }
@@ -901,7 +901,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -924,7 +924,7 @@
   background: var(--accent);
 }
 .board-task-count {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-left: 5px;
   white-space: nowrap;
@@ -949,7 +949,7 @@
   letter-spacing: -0.9px;
 }
 .board-empty p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   max-width: 440px;
   line-height: 1.9;
@@ -987,12 +987,12 @@
   padding: 12px 5px 10px;
 }
 .kanban-column h2 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   margin: 0;
 }
 .kanban-column > header > span:not(.column-dot) {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .kanban-column .column-new-task {
@@ -1050,7 +1050,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
@@ -1065,7 +1065,7 @@
   color: var(--accent);
 }
 .kanban-task-card h3 {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
   line-height: 1.7;
   margin: 12px 0 8px;
@@ -1076,7 +1076,7 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   margin: 0 0 12px;
 }
@@ -1087,7 +1087,7 @@
   margin-bottom: 17px;
 }
 .task-labels > span {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--accent);
   background: var(--accent-soft);
   padding: 3px 6px;
@@ -1099,7 +1099,7 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .task-card-meta,
 .task-card-meta-item {
@@ -1112,7 +1112,7 @@
   align-items: center;
   gap: 7px;
   padding: 9px 7px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   width: 100%;
   text-align: left;
@@ -1123,7 +1123,7 @@
   padding-top: 7px;
 }
 .task-evidence h3 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   margin-top: 19px;
 }
@@ -1132,7 +1132,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.9;
 }
 .task-evidence small {
@@ -1145,7 +1145,7 @@
   padding-top: 18px;
 }
 .task-danger-zone p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .atlas-breadcrumbs {
@@ -1153,7 +1153,7 @@
   align-items: center;
   gap: 9px;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: 12px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 16px;
 }
@@ -1162,7 +1162,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .atlas-breadcrumbs > span {
   color: var(--text);
@@ -1207,7 +1207,7 @@
   overflow-wrap: anywhere;
 }
 .atlas-concept {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--muted);
 }
@@ -1226,7 +1226,7 @@
 }
 .atlas-node-counts span {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 7px;
 }
@@ -1237,7 +1237,7 @@
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 24px;
 }
@@ -1257,13 +1257,13 @@
 .atlas-fragile {
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   padding: 10px;
   border-radius: 4px;
 }
 .atlas-dependency-list h3 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   margin: 26px 0 10px;
 }
@@ -1278,17 +1278,17 @@
 }
 .atlas-dependency-list small {
   grid-column: 1 / -1;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .atlas-dependency-list span {
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .atlas-dependency-list p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.9;
 }
@@ -1299,7 +1299,7 @@
   color: var(--accent);
 }
 .atlas-inspector-empty p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.9;
 }
@@ -1307,7 +1307,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 30px;
 }
@@ -1325,7 +1325,7 @@
   padding: 13px 15px;
   background: var(--raised);
   border: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12px;
   margin-bottom: 17px;
   border-radius: 5px;
 }
@@ -1333,12 +1333,12 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--accent);
   white-space: nowrap;
 }
 .atlas-stale {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .atlas-source {
@@ -1362,7 +1362,7 @@
   padding: 10px 14px;
   background: var(--raised);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12px;
 }
 .atlas-source strong {
   font-weight: 500;
@@ -1370,7 +1370,7 @@
 .atlas-source header > span {
   margin-left: auto;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .atlas-source pre {
   overflow: auto;
@@ -1397,7 +1397,7 @@
   width: 100%;
   text-align: left;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   padding: 12px 10px;
   border-radius: 5px;
   margin-bottom: 3px;
@@ -1432,45 +1432,51 @@
 }
 .settings-section-heading p {
   max-width: 600px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.9;
   margin: 0;
 }
 .settings-defaults-note {
-  padding: 12px 15px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  /* Context under the page title, not a boxed alert repeated on every page: a muted line with
+     a thin accent rule; two notes in a row read as one block. */
+  padding: 2px 0 2px 12px;
+  border: 0;
+  border-left: 2px solid var(--border);
+  border-radius: 0;
   color: var(--muted);
-  background: var(--raised);
-  font-size: 10px;
-  line-height: 1.8;
-  margin: 0 0 15px;
+  background: none;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+.settings-defaults-note + .settings-defaults-note {
+  margin-top: -12px;
 }
 .setting-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 32px;
-  padding: 24px 0;
+  padding: 15px 0;
   border-bottom: 1px solid var(--border);
 }
 .setting-row > div:first-child {
   max-width: 470px;
 }
 .setting-row label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
 }
 .setting-row p {
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1.85;
-  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 4px 0 0;
 }
 .setting-row small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
   display: block;
   margin-top: 5px;
@@ -1494,7 +1500,7 @@
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 5px;
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
@@ -1506,32 +1512,38 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .settings-switch {
   display: flex;
   align-items: center;
-  width: 35px;
-  height: 20px;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
   border-radius: 12px;
   padding: 3px;
-  background: var(--border);
-  border: 1px solid var(--border);
+  /* Off reads as an empty track with a visible edge, not a dark slab on a dark page. */
+  background: color-mix(in srgb, var(--text) 8%, var(--raised));
+  border: 1px solid color-mix(in srgb, var(--text) 28%, var(--border));
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 .settings-switch-thumb {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--muted);
+  background: color-mix(in srgb, var(--text) 70%, transparent);
+  transition: transform 140ms ease;
 }
 .settings-switch[aria-checked="true"] {
   background: var(--accent);
   border-color: var(--accent);
 }
 .settings-switch[aria-checked="true"] > .settings-switch-thumb {
-  transform: translateX(14px);
-  background: var(--on-accent);
+  transform: translateX(16px);
+  background: #fff;
 }
 .settings-save-bar {
   position: sticky;
@@ -1547,13 +1559,13 @@
   z-index: 1;
 }
 .settings-save-summary {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-right: auto;
 }
 .integration-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
   gap: 18px;
 }
 .integration-card {
@@ -1586,7 +1598,7 @@
   margin: 0 0 5px;
 }
 .integration-status {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--accent);
 }
 .integration-status.disabled {
@@ -1594,7 +1606,7 @@
 }
 .integration-endpoint {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   overflow-wrap: anywhere;
   margin-top: 22px;
@@ -1604,11 +1616,12 @@
   align-items: center;
   gap: 7px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   padding: 12px 0;
 }
 .integration-card > footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
   border-top: 1px solid var(--border);
@@ -1619,7 +1632,7 @@
   margin-left: auto;
 }
 .integration-card details {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   padding: 10px 0;
 }
@@ -1633,12 +1646,12 @@
   border-bottom: 1px solid var(--border);
 }
 .integration-tool-list strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
 }
 .integration-tool-list p {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--muted);
 }
@@ -1646,7 +1659,7 @@
   padding-top: 12px;
 }
 .integration-remove p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -1667,7 +1680,7 @@
 }
 .integration-empty p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
   max-width: 420px;
   margin-bottom: 22px;
@@ -1697,7 +1710,7 @@
     gap: 24px;
   }
   .settings-navigation > button {
-    font-size: 10px;
+    font-size: 11px;
     padding: 11px 8px;
     gap: 8px;
   }
@@ -1816,7 +1829,7 @@
     min-width: 160px;
   }
   .studio-metrics span {
-    font-size: 9px;
+    font-size: 11px;
   }
   .studio-metrics strong {
     font-size: 22px;
@@ -1829,7 +1842,7 @@
     gap: 16px;
   }
   .project-session-summary p {
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.8;
   }
   .project-no-sessions {
@@ -1843,7 +1856,7 @@
     font-size: 15px;
   }
   .board-completion {
-    font-size: 10px;
+    font-size: 11px;
   }
   .map-legend small {
     display: none;
@@ -1875,5 +1888,5 @@
 .project-tools-menu.overview .mailbox-unread strong {
   display: inline;
   margin: 0;
-  font-size: 10px;
+  font-size: 11px;
 }

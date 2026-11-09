@@ -1,13 +1,14 @@
-/* The shared provider pages scroll inside the settings column instead of growing it. */
+/* The shared provider pages flow with the settings column, which scrolls. A fixed-height,
+   bordered box clipped the setup grid mid-card, left dead space under short pages and added a
+   second scrollbar inside the page's own. */
 .provider-surface {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 150px);
-  min-height: 520px;
-  overflow: hidden;
-  border: 1px solid hsl(var(--border));
+  min-height: 0;
 }
 .provider-surface > * {
-  flex: 1;
+  flex: 0 0 auto;
+  height: auto;
   min-height: 0;
+  overflow: visible;
 }

@@ -203,6 +203,7 @@
     "search": "WrongStack ayarlarında ara",
     "find": "Bir ayar bul…",
     "loading": "WrongStack profilin yükleniyor…",
+    "defaultsNote": "Değişiklikler profil varsayılanı olarak kaydedilir. Süren çalışmalar mevcut seçeneklerini korur.",
     "sectionPicker": "Ayar bölümü",
     "choose": "Bir bölüm seç",
     "groups": {
@@ -311,7 +312,7 @@
       "description": "Yeni çalışmalarda hangi WrongStack sistemlerinin kullanılabileceğini seç."
     },
     "routing": {
-      "title": "Ajanlar ve yedekler",
+      "title": "Yedekler ve ajan varsayılanları",
       "description": "Yeni işler için ortak eşzamanlılık ve yedek varsayılanları."
     },
     "notifications": {
@@ -573,6 +574,23 @@
       "label": "Akış tanılama",
       "description": "Bir sorunu incelerken sağlayıcı akışı için ek tanılama kaydet."
     },
+    "titleAnimation": {
+      "label": "CLI başlık animasyonu",
+      "description": "Ajan çalışırken CLI terminal başlığını hareketlendir."
+    },
+    "showAgentSwarmPanel": {
+      "label": "CLI ajan sürüsü paneli",
+      "description": "Terminal arayüzündeki filo ve görev kuyruğunun konumunu seç.",
+      "options": {
+        "bottom": "Alt panel",
+        "sidebar": "Kenar çubuğu",
+        "off": "Kapalı"
+      }
+    },
+    "confirmExit": {
+      "label": "CLI çıkış onayı",
+      "description": "İlk Ctrl+C işi iptal eder; ikinci Ctrl+C terminalden çıkışı onaylar."
+    },
     "enhanceDelayMs": {
       "label": "İyileştirme gecikmesi",
       "description": "Terminal arayüzünün iyileştirilmiş bir istemi kendiliğinden göndermeden önce ne kadar gösterdiği. Masaüstü ve WebUI senin seçimini bekler."
@@ -732,6 +750,11 @@
     "moment": "Çalışma alanın birazdan hazır olacak."
   },
   "appearance": {
+    "conversation": {
+      "title": "Görüşme görünümü",
+      "body": "Görünüm tercihleri masaüstü pencerelerinde paylaşılır.",
+      "keyboardHint": "Gezinme ve yardım kısayollarını etkinleştir. Düzenleme ve arama tuşları kullanılabilir kalır."
+    },
     "label": "Görünüm ayarları",
     "body": "Cihazını izle ya da bir kip seç.",
     "colorMode": "Renk kipi",
@@ -839,10 +862,10 @@
     "saved": "Onay mümkünse 24 saat saklanır. Korunan işlemler yine de sorabilir.",
     "notConfirmed": "Motor bu kararı onaylamadı. Yeniden denemeden önce bağlantıyı kontrol et.",
     "sending": "Karar gönderiliyor; motor bekleniyor…",
-    "hint": "Reddet, bu motor bellekteki reddi tuttuğu sürece eşleşen yeniden denemeleri de engeller. Reddi hatırla, eşleşen konu için bir kural kaydeder; kapsam seçicisi hatırlanan onaylara uygulanır.",
+    "hint": "Reddet bu isteği ve bu oturumdaki aynı denemeleri durdurur. «Reddi hatırla» bundan sonra da engeller; yukarıdaki seçim hatırlanan bir onayın neyi kapsayacağını belirler.",
     "rememberDenialTitle": "Bunu ve gösterilen konuyla eşleşen gelecekteki istekleri reddet",
     "rememberDenial": "Reddi hatırla",
-    "denyTitle": "Bu isteği ve motor bellekteki reddi tuttuğu sürece eşleşen yeniden denemeleri reddet",
+    "denyTitle": "Bu isteği ve bu oturumdaki aynı denemeleri reddet",
     "deny": "Reddet",
     "allowRemember": "İzin ver ve hatırla",
     "allowOnce": "Bir kez izin ver"
@@ -958,7 +981,9 @@
     "providerFallback": "Motor bunun yerine {{fallback}} deniyor.",
     "tierProposed": "WrongStack {{tier}} katmanını öneriyor: {{route}}.",
     "projectedSaving": "Öngörülen tasarruf yaklaşık ${{amount}}.",
-    "switchTier": "{{tier}} katmanına geç"
+    "switchTier": "{{tier}} katmanına geç",
+    "autoWakeOneNotice": "istenen bir zamanlayıcı/izleme bildirimi",
+    "autoWakeNotices": "istenen zamanlayıcı/izleme bildirimleri"
   },
   "message": {
     "you": "Sen",
@@ -1065,7 +1090,7 @@
     "use": "{{target}} kullan"
   },
   "jobs": {
-    "title": "Zamanlanmış işler",
+    "title": "Oturum uyandırmaları",
     "status": {
       "paused": "Duraklatıldı",
       "overdue": "Gecikti",
@@ -1081,8 +1106,8 @@
     "ago": "{{amount}} önce",
     "active": "{{total}} işin {{active}} tanesi etkin",
     "overdue": "{{count}} gecikmiş",
-    "limit": "Aynı anda en çok {{count}} çalışma.",
-    "howTo": "Ajandan <code>cron_schedule</code> ile bir iş zamanlamasını ya da <code>cron_cancel</code> ile kaldırmasını iste."
+    "limit": "Oturum başına en çok {{count}}.",
+    "howTo": "Ajandan <code>session_wakeup</code> ile bir uyandırma kurmasını iste; <code>action=cancel</code> ile kaldırır."
   },
   "waiting": {
     "ago": "{{time}} önce",
@@ -1276,6 +1301,10 @@
     "stagePath": "{{path}} hazırla",
     "unstagePath": "{{path}} hazırlıktan çıkar",
     "noChanges": "Commit edilmemiş değişiklik yok.",
+    "pickChange": "Diff'ini incelemek için değişen bir dosya seç.",
+    "lineCounts": "{{added}} satır eklendi, {{deleted}} silindi",
+    "stageAll": "Tümünü hazırla",
+    "unstageAll": "Tümünü hazırlıktan çıkar",
     "ignoredIncluded": "Yok sayılan kaynak dosyaları dahil",
     "ignoredExcluded": "Yok sayılan yollar hariç",
     "openTabs": "Açık dosyalar",
@@ -6658,7 +6687,7 @@
     "refresh": "Motor kullanımını yenile",
     "context": "Bağlam",
     "contextPercent": "Bağlam %{{percent}} · {{tokens}} / {{max}}",
-    "contextTokens": "Bağlam {{tokens}} token · pencere bildirilmedi"
+    "contextTokens": "Bağlam {{tokens}} token"
   },
   "referenceChips": {
     "pastEnd_one": "Bu dosyada {{count}} satır var; aralık dosyanın sonundan sonra başlıyor.",
@@ -6835,7 +6864,7 @@
     "referencedFiles_one": "{{count}} referans dosya",
     "one": "1 sıradaki istem",
     "many": "{{number}} sıradaki istem",
-    "note": "Motorun sırası · bu turdan sonra çalışır",
+    "note": "Bu turdan sonra çalışır",
     "pending": "Bekleyen istemler",
     "clear": "Sırayı temizle",
     "references": "Proje dosyası referansları",
@@ -9233,7 +9262,7 @@
     "steerPlaced": "Talimat kuyruktaki istemlerin önüne alındı; mevcut çalıştırma durduruluyor.",
     "sessionChanged": "Oturum değişti. Taslağınız korunuyor.",
     "turnStarted": "Konu bağlamı seçilirken bir tur başladı. Taslağınız korunuyor; göndermeden önce gözden geçirin.",
-    "queued": "İstem motor kuyruğu tarafından kabul edildi.",
+    "queued": "Sıraya alındı. Mevcut turdan sonra çalışır.",
     "accepted": "İstem motor tarafından kabul edildi.",
     "noQueue": "Bu motor kalıcı istem kuyruğunu desteklemiyor. Bu oturumu güncel sürümde yeniden açın.",
     "refinerMissing": "İyileştirici bu sürümü döndürmedi. Özgün taslağınız korunuyor.",
@@ -9294,6 +9323,18 @@
     "reviewConversation": "Konuşmayı incele",
     "loading": "Bu konuşma yükleniyor…",
     "welcome": "Ne üzerinde çalışalım?",
+    "welcomeEyebrow": "Yeni konuşma",
+    "welcomeBody": "Ajan bu projeyi okuyup düzenleyebilir, komut çalıştırabilir, kodda arama yapabilir ve oturumlar arasında bağlamı hatırlar. Bir başlangıç seç ya da kendin yaz; komutlar için / yaz.",
+    "welcomeModel": "Model",
+    "welcomeDirectory": "Çalışma dizini",
+    "starterExplainTitle": "Mimariyi açıkla",
+    "starterExplainPrompt": "Bu projeyi bana gezdir: ana parçaları, birbirine nasıl bağlandıkları ve okumaya nereden başlamam gerektiği.",
+    "starterBugTitle": "Bir hata bul ve düzelt",
+    "starterBugPrompt": "Bu projede gerçek bir hata bul, başarısız bir kontrolle kanıtla, düzelt ve kanıtı göster.",
+    "starterReviewTitle": "Değişikliklerimi incele",
+    "starterReviewPrompt": "Commitlenmemiş değişikliklerimi hata, riskli düzenleme ve eksik test açısından incele.",
+    "starterTestsTitle": "Testleri güçlendir",
+    "starterTestsPrompt": "Bu projede test edilmemiş en önemli davranışı bul ve ona odaklı testler ekle.",
     "showEarlier_one": "Önceki {{count}} mesajı göster ({{hidden}} gösterilmiyor)",
     "showEarlier": "Önceki {{count}} mesajı göster ({{hidden}} gösterilmiyor)",
     "jumpToLatest": "En sona git",
@@ -9591,5 +9632,68 @@
     "toolInvalid": "Boşluk içermeyen bir araç adı veya desen girin.",
     "menu": "İzin kuralları",
     "close": "İzin kurallarını kapat"
+  },
+  "chimeraMessage": {
+    "title": "Chimera incelemesi",
+    "open": "Raporu aç",
+    "prepare": "Takip mesajı hazırla",
+    "hint": "Taslağı kaydet, ardından normal mesaj kutusundan gönder.",
+    "sent": "Takip mesajı zaten gönderildi.",
+    "prepared": "Takip mesajı mesaj kutusunda.",
+    "running": "Bu çalışmanın bitmesini bekleyin.",
+    "offline": "Konuşmanın bağlanıp geri yüklenmesini bekleyin.",
+    "draft": "Önce mevcut taslağı, referansları ve ekleri gönderin veya temizleyin."
+  },
+  "brainMessage": {
+    "title": "Brain kararı",
+    "question": "Soru",
+    "source": "Kaynak",
+    "risk": "Risk",
+    "tier": "Katman",
+    "decisionType": "Karar",
+    "optionId": "Seçenek",
+    "text": "Yanıt",
+    "rationale": "Gerekçe",
+    "reason": "Neden",
+    "confidence": "Güven",
+    "waiting": "Yanıtınız bekleniyor.",
+    "closed": "Açık bir yanıt formu yok.",
+    "kind": {
+      "answered": "Yanıtlandı",
+      "denied": "Reddedildi",
+      "ask_human": "İnsan değerlendirmesi",
+      "intervention": "Müdahale",
+      "check": "Kontrol"
+    }
+  },
+  "messagePins": {
+    "pin": "Mesajı sabitle",
+    "unpin": "Mesajı sabitlemeden çıkar",
+    "list": "Sabitlenen mesajlar ({{count}})",
+    "unavailable": "Mesaj saklanan konuşmada bulunmuyor."
+  },
+  "parityUi": {
+    "performance": "Performans turu",
+    "wholeProject": "Tüm proje"
+  },
+  "serviceHealing": {
+    "restarting": "Otomatik yeniden başlatılıyor",
+    "restarted": "Otomatik yeniden başlatıldı",
+    "failed": "Otomatik yeniden başlatma başarısız",
+    "escalated": "Üst değerlendirmeye aktarıldı",
+    "refused": "Otomatik yeniden başlatma reddedildi",
+    "expired": "Güncel tamamlanma olayı yok; sağlığı yeniden kontrol edin."
+  },
+  "recoveryIdentity": {
+    "layout": "Kayıtlı düzen: proje / konuşma / sayfa",
+    "match": "Host ve journal oturumu eşleşiyor.",
+    "mismatch": "Host ve journal oturumu farklı.",
+    "pending": "Kimlik karşılaştırması bekleniyor.",
+    "expected": "Host Core oturumu: {{id}}"
+  },
+  "recoveryDraft": {
+    "match": "Taslak sürümleri bu konuşmanın kayıtlı taslağıyla eşleşiyor.",
+    "changed": "Taslak sürümleri farklı: kayıt bekliyor veya başka pencere değiştirmiş olabilir.",
+    "pending": "Taslak sürümü karşılaştırması bekleniyor."
   }
 }

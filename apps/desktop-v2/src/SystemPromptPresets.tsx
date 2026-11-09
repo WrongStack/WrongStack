@@ -87,123 +87,124 @@ export function SystemPromptPresets({ command }: { command: EngineCommand }) {
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      {!catalog ? (
-        <p role="status">{t('systemPrompts.reading')}</p>
-      ) : (
-        PROMPT_VARIANTS.map((variant) => {
-          const current = effectivePreset(variant, catalog.active, catalog.projectActive);
-          const options = presetsFor(variant);
-          return (
-            <fieldset key={variant} className="prompt-preset-variant">
-              <legend>{variantWord(variant)}</legend>
-              <p>
-                {current.scope === 'built-in'
-                  ? t('systemPrompts.inUseBuiltIn')
-                  : t('systemPrompts.inUse', {
-                      name: options.find((preset) => preset.id === current.id)?.name ?? current.id,
-                      scope: t(`systemPrompts.scope.${current.scope}`),
-                    })}
-              </p>
-              {(['profile', 'project'] as const).map((scope) => {
-                const selected =
-                  (scope === 'project' ? catalog.projectActive : catalog.active)[variant] ?? '';
-                return (
-                  <label key={scope}>
-                    {scope === 'profile'
-                      ? t('systemPrompts.profileChoice')
-                      : t('systemPrompts.projectChoice')}
-                    <select
-                      value={selected}
-                      disabled={busy}
-                      onChange={(event) =>
-                        void run(async () => {
-                          await act('activate', {
-                            baseVariant: variant,
-                            scope,
-                            ...(event.target.value ? { id: event.target.value } : {}),
-                          });
-                          setNotice(
-                            t('systemPrompts.choiceSaved', {
-                              variant: variantWord(variant),
-                              scope: t(`systemPrompts.scope.${scope}`),
-                            }),
-                          );
-                        })
-                      }
-                    >
-                      <option value="">
-                        {scope === 'profile'
-                          ? t('systemPrompts.builtIn')
-                          : t('systemPrompts.useProfile')}
-                      </option>
-                      {options.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                );
-              })}
-              {options.length > 0 && (
-                <ul>
-                  {options.map((preset) => (
-                    <li key={preset.id}>
-                      <span>
-                        {preset.name}
-                        {preset.sourceChanged && <em>{t('systemPrompts.sourceChanged')}</em>}
-                      </span>
-                      <button
-                        type="button"
-                        className="button secondary small"
-                        disabled={busy || dirty}
-                        onClick={() => open(preset)}
+      {!catalog
+        ? // Only while the read is in flight; a failed read leaves the error above, not a spinner
+          // line that never ends.
+          busy && <p role="status">{t('systemPrompts.reading')}</p>
+        : PROMPT_VARIANTS.map((variant) => {
+            const current = effectivePreset(variant, catalog.active, catalog.projectActive);
+            const options = presetsFor(variant);
+            return (
+              <fieldset key={variant} className="prompt-preset-variant">
+                <legend>{variantWord(variant)}</legend>
+                <p>
+                  {current.scope === 'built-in'
+                    ? t('systemPrompts.inUseBuiltIn')
+                    : t('systemPrompts.inUse', {
+                        name:
+                          options.find((preset) => preset.id === current.id)?.name ?? current.id,
+                        scope: t(`systemPrompts.scope.${current.scope}`),
+                      })}
+                </p>
+                {(['profile', 'project'] as const).map((scope) => {
+                  const selected =
+                    (scope === 'project' ? catalog.projectActive : catalog.active)[variant] ?? '';
+                  return (
+                    <label key={scope}>
+                      {scope === 'profile'
+                        ? t('systemPrompts.profileChoice')
+                        : t('systemPrompts.projectChoice')}
+                      <select
+                        value={selected}
+                        disabled={busy}
+                        onChange={(event) =>
+                          void run(async () => {
+                            await act('activate', {
+                              baseVariant: variant,
+                              scope,
+                              ...(event.target.value ? { id: event.target.value } : {}),
+                            });
+                            setNotice(
+                              t('systemPrompts.choiceSaved', {
+                                variant: variantWord(variant),
+                                scope: t(`systemPrompts.scope.${scope}`),
+                              }),
+                            );
+                          })
+                        }
                       >
-                        {t('systemPrompts.edit')}
-                      </button>
-                      {deleting === preset.id ? (
-                        <>
-                          <button
-                            type="button"
-                            className="button danger small"
-                            disabled={busy}
-                            onClick={() =>
-                              void run(async () => {
-                                await act('delete', { id: preset.id });
-                                setDeleting('');
-                                if (editing?.id === preset.id) setEditing(null);
-                                setNotice(t('systemPrompts.deleted', { name: preset.name }));
-                              })
-                            }
-                          >
-                            {t('systemPrompts.confirmDelete')}
-                          </button>
-                          <button
-                            type="button"
-                            className="button secondary small"
-                            onClick={() => setDeleting('')}
-                          >
-                            {t('systemPrompts.keep')}
-                          </button>
-                        </>
-                      ) : (
+                        <option value="">
+                          {scope === 'profile'
+                            ? t('systemPrompts.builtIn')
+                            : t('systemPrompts.useProfile')}
+                        </option>
+                        {options.map((preset) => (
+                          <option key={preset.id} value={preset.id}>
+                            {preset.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                })}
+                {options.length > 0 && (
+                  <ul>
+                    {options.map((preset) => (
+                      <li key={preset.id}>
+                        <span>
+                          {preset.name}
+                          {preset.sourceChanged && <em>{t('systemPrompts.sourceChanged')}</em>}
+                        </span>
                         <button
                           type="button"
                           className="button secondary small"
-                          disabled={busy}
-                          onClick={() => setDeleting(preset.id)}
+                          disabled={busy || dirty}
+                          onClick={() => open(preset)}
                         >
-                          {t('systemPrompts.delete')}
+                          {t('systemPrompts.edit')}
                         </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </fieldset>
-          );
-        })
-      )}
+                        {deleting === preset.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="button danger small"
+                              disabled={busy}
+                              onClick={() =>
+                                void run(async () => {
+                                  await act('delete', { id: preset.id });
+                                  setDeleting('');
+                                  if (editing?.id === preset.id) setEditing(null);
+                                  setNotice(t('systemPrompts.deleted', { name: preset.name }));
+                                })
+                              }
+                            >
+                              {t('systemPrompts.confirmDelete')}
+                            </button>
+                            <button
+                              type="button"
+                              className="button secondary small"
+                              onClick={() => setDeleting('')}
+                            >
+                              {t('systemPrompts.keep')}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="button secondary small"
+                            disabled={busy}
+                            onClick={() => setDeleting(preset.id)}
+                          >
+                            {t('systemPrompts.delete')}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </fieldset>
+            );
+          })}
       <form
         className="prompt-preset-new"
         onSubmit={(event) => {

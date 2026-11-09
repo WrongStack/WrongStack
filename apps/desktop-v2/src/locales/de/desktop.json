@@ -203,6 +203,7 @@
     "search": "WrongStack-Einstellungen durchsuchen",
     "find": "Einstellung finden…",
     "loading": "Dein WrongStack-Profil wird geladen…",
+    "defaultsNote": "Änderungen werden als Profilstandards gespeichert. Laufende Ausführungen behalten ihre aktuellen Optionen.",
     "sectionPicker": "Einstellungsbereich",
     "choose": "Bereich wählen",
     "groups": {
@@ -311,7 +312,7 @@
       "description": "Lege fest, welche WrongStack-Systeme in neuen Läufen verfügbar sind."
     },
     "routing": {
-      "title": "Agenten & Fallbacks",
+      "title": "Fallbacks & Agenten-Standards",
       "description": "Gemeinsame Standards für Parallelität und Fallbacks bei neuer Arbeit."
     },
     "notifications": {
@@ -573,6 +574,23 @@
       "label": "Stream-Diagnose",
       "description": "Zeichnet zusätzliche Streaming-Diagnosen des Anbieters auf, während du ein Problem untersuchst."
     },
+    "titleAnimation": {
+      "label": "CLI-Titelanimation",
+      "description": "Animiert den CLI-Terminaltitel, während der Agent arbeitet."
+    },
+    "showAgentSwarmPanel": {
+      "label": "CLI-Agentenschwarm",
+      "description": "Position von Flotte und Aufgabenwarteschlange im Terminal wählen.",
+      "options": {
+        "bottom": "Unteres Panel",
+        "sidebar": "Seitenleiste",
+        "off": "Aus"
+      }
+    },
+    "confirmExit": {
+      "label": "CLI-Exit bestätigen",
+      "description": "Das erste Ctrl+C bricht die Arbeit ab; ein zweites bestätigt das Beenden des Terminals."
+    },
     "enhanceDelayMs": {
       "label": "Verfeinerungsverzögerung",
       "description": "Wie lange die Terminaloberfläche einen verfeinerten Prompt zeigt, bevor sie ihn selbst sendet. Desktop und WebUI warten auf deine Wahl."
@@ -732,6 +750,11 @@
     "moment": "Dein Arbeitsbereich ist gleich bereit."
   },
   "appearance": {
+    "conversation": {
+      "title": "Gesprächsanzeige",
+      "body": "Anzeigeeinstellungen gelten für alle Desktopfenster.",
+      "keyboardHint": "Navigations- und Hilfekürzel aktivieren. Bearbeitungs- und Suchtasten bleiben verfügbar."
+    },
     "label": "Darstellungseinstellungen",
     "body": "Folge deinem Gerät oder wähle einen Modus.",
     "colorMode": "Farbmodus",
@@ -839,10 +862,10 @@
     "saved": "Die Freigabe wird nach Möglichkeit 24 Stunden gespeichert. Geschützte Vorgänge können trotzdem fragen.",
     "notConfirmed": "Die Engine hat diese Entscheidung nicht bestätigt. Prüfe die Verbindung, bevor du es erneut versuchst.",
     "sending": "Entscheidung wird gesendet; warte auf die Engine…",
-    "hint": "Ablehnen blockiert auch passende Wiederholungen, solange diese Engine die Ablehnung im Speicher hält. „Ablehnung merken“ speichert eine Regel für den passenden Gegenstand; die Umfangsauswahl gilt für gemerkte Freigaben.",
+    "hint": "Ablehnen stoppt diese Anfrage und gleiche Wiederholungen in dieser Sitzung. „Ablehnung merken“ blockiert sie ab jetzt; die Auswahl oben legt fest, was eine gemerkte Freigabe abdeckt.",
     "rememberDenialTitle": "Diese und künftige Anfragen zum angezeigten Gegenstand ablehnen",
     "rememberDenial": "Ablehnung merken",
-    "denyTitle": "Diese Anfrage und passende Wiederholungen ablehnen, solange die Engine die Ablehnung im Speicher hält",
+    "denyTitle": "Diese Anfrage und gleiche Wiederholungen in dieser Sitzung ablehnen",
     "deny": "Ablehnen",
     "allowRemember": "Erlauben & merken",
     "allowOnce": "Einmal erlauben"
@@ -958,7 +981,9 @@
     "providerFallback": "Die Engine versucht stattdessen {{fallback}}.",
     "tierProposed": "WrongStack schlägt die Stufe {{tier}} vor: {{route}}.",
     "projectedSaving": "Erwartete Ersparnis etwa ${{amount}}.",
-    "switchTier": "Zu {{tier}} wechseln"
+    "switchTier": "Zu {{tier}} wechseln",
+    "autoWakeOneNotice": "eine angeforderte Timer-/Watch-Meldung",
+    "autoWakeNotices": "angeforderte Timer-/Watch-Meldungen"
   },
   "message": {
     "you": "Du",
@@ -1065,7 +1090,7 @@
     "use": "{{target}} verwenden"
   },
   "jobs": {
-    "title": "Geplante Aufgaben",
+    "title": "Sitzungs-Wakeups",
     "status": {
       "paused": "Pausiert",
       "overdue": "Überfällig",
@@ -1081,8 +1106,8 @@
     "ago": "vor {{amount}}",
     "active": "{{active}} von {{total}} aktiv",
     "overdue": "{{count}} überfällig",
-    "limit": "Bis zu {{count}} Läufe gleichzeitig.",
-    "howTo": "Bitte den Agenten, mit <code>cron_schedule</code> eine Aufgabe zu planen oder mit <code>cron_cancel</code> eine zu entfernen."
+    "limit": "Bis zu {{count}} pro Sitzung.",
+    "howTo": "Bitte den Agenten, mit <code>session_wakeup</code> einen Wakeup zu stellen; mit <code>action=cancel</code> entfernt er ihn."
   },
   "waiting": {
     "ago": "vor {{time}}",
@@ -1276,6 +1301,10 @@
     "stagePath": "{{path}} vormerken",
     "unstagePath": "{{path}} nicht mehr vormerken",
     "noChanges": "Keine nicht committeten Änderungen.",
+    "pickChange": "Wähle eine geänderte Datei, um ihren Diff zu prüfen.",
+    "lineCounts": "{{added}} Zeilen hinzugefügt, {{deleted}} entfernt",
+    "stageAll": "Alle vormerken",
+    "unstageAll": "Alle nicht mehr vormerken",
     "ignoredIncluded": "Ignorierte Quelldateien einbezogen",
     "ignoredExcluded": "Ignorierte Pfade sind ausgeschlossen",
     "openTabs": "Geöffnete Dateien",
@@ -6658,7 +6687,7 @@
     "refresh": "Engine-Nutzung aktualisieren",
     "context": "Kontext",
     "contextPercent": "Kontext {{percent}} % · {{tokens}} / {{max}}",
-    "contextTokens": "Kontext {{tokens}} Tokens · Fenster nicht gemeldet"
+    "contextTokens": "Kontext {{tokens}} Tokens"
   },
   "referenceChips": {
     "pastEnd_one": "Diese Datei hat {{count}} Zeile; der Bereich beginnt nach ihrem Ende.",
@@ -6835,7 +6864,7 @@
     "referencedFiles_one": "{{count}} referenzierte Datei",
     "one": "1 Prompt in der Warteschlange",
     "many": "{{number}} Prompts in der Warteschlange",
-    "note": "Gehört der Engine · läuft nach diesem Zug",
+    "note": "Läuft nach diesem Zug",
     "pending": "Ausstehende Prompts",
     "clear": "Warteschlange leeren",
     "references": "Verweise auf Projektdateien",
@@ -9233,7 +9262,7 @@
     "steerPlaced": "Anweisung vor die wartenden Prompts gesetzt; der aktuelle Lauf wird gestoppt.",
     "sessionChanged": "Die Sitzung hat sich geändert. Ihr Entwurf bleibt erhalten.",
     "turnStarted": "Während der Wahl des Themenkontexts hat ein Zug begonnen. Ihr Entwurf bleibt erhalten; prüfen Sie ihn vor dem Senden.",
-    "queued": "Prompt von der Engine-Warteschlange angenommen.",
+    "queued": "In der Warteschlange. Läuft nach dem aktuellen Zug.",
     "accepted": "Prompt von der Engine angenommen.",
     "noQueue": "Diese Engine unterstützt die dauerhafte Prompt-Warteschlange nicht. Öffnen Sie diese Sitzung mit dem aktuellen Build erneut.",
     "refinerMissing": "Der Verfeinerer hat diese Fassung nicht geliefert. Ihr ursprünglicher Entwurf bleibt erhalten.",
@@ -9294,6 +9323,18 @@
     "reviewConversation": "Unterhaltung ansehen",
     "loading": "Diese Unterhaltung wird geladen…",
     "welcome": "Woran sollen wir arbeiten?",
+    "welcomeEyebrow": "Neue Unterhaltung",
+    "welcomeBody": "Der Agent kann dieses Projekt lesen und bearbeiten, Befehle ausführen, den Code durchsuchen und sich über Sitzungen hinweg Kontext merken. Wähle einen Einstieg oder schreib selbst; / öffnet die Befehle.",
+    "welcomeModel": "Modell",
+    "welcomeDirectory": "Arbeitsverzeichnis",
+    "starterExplainTitle": "Architektur erklären",
+    "starterExplainPrompt": "Gib mir eine Tour durch dieses Projekt: die wichtigsten Teile, wie sie zusammenhängen und wo ich mit dem Lesen anfangen sollte.",
+    "starterBugTitle": "Einen Fehler finden und beheben",
+    "starterBugPrompt": "Finde einen echten Fehler in diesem Projekt, belege ihn mit einer fehlschlagenden Prüfung, behebe ihn und zeig mir den Nachweis.",
+    "starterReviewTitle": "Meine Änderungen prüfen",
+    "starterReviewPrompt": "Prüfe meine nicht committeten Änderungen auf Fehler, riskante Stellen und fehlende Tests.",
+    "starterTestsTitle": "Tests verstärken",
+    "starterTestsPrompt": "Finde das wichtigste ungetestete Verhalten in diesem Projekt und schreib gezielte Tests dafür.",
     "showEarlier_one": "{{count}} frühere Nachricht zeigen ({{hidden}} ausgeblendet)",
     "showEarlier": "{{count}} frühere Nachrichten zeigen ({{hidden}} ausgeblendet)",
     "jumpToLatest": "Zur neuesten",
@@ -9591,5 +9632,68 @@
     "toolInvalid": "Gib einen Toolnamen oder ein Muster ohne Leerzeichen ein.",
     "menu": "Berechtigungsregeln",
     "close": "Berechtigungsregeln schließen"
+  },
+  "chimeraMessage": {
+    "title": "Chimera-Prüfung",
+    "open": "Bericht öffnen",
+    "prepare": "Nachricht vorbereiten",
+    "hint": "Entwurf speichern und über das normale Eingabefeld senden.",
+    "sent": "Nachricht bereits gesendet.",
+    "prepared": "Nachricht ist im Eingabefeld.",
+    "running": "Warten Sie, bis dieser Lauf endet.",
+    "offline": "Warten Sie, bis die Unterhaltung wiederhergestellt ist.",
+    "draft": "Senden oder löschen Sie zuerst den Entwurf, Referenzen und Anhänge."
+  },
+  "brainMessage": {
+    "title": "Brain-Entscheidung",
+    "question": "Frage",
+    "source": "Quelle",
+    "risk": "Risiko",
+    "tier": "Stufe",
+    "decisionType": "Entscheidung",
+    "optionId": "Option",
+    "text": "Antwort",
+    "rationale": "Begründung",
+    "reason": "Grund",
+    "confidence": "Konfidenz",
+    "waiting": "Ihre Antwort wird erwartet.",
+    "closed": "Keine offene Antwortaufforderung.",
+    "kind": {
+      "answered": "Beantwortet",
+      "denied": "Abgelehnt",
+      "ask_human": "Menschliche Beurteilung",
+      "intervention": "Eingriff",
+      "check": "Prüfung"
+    }
+  },
+  "messagePins": {
+    "pin": "Nachricht anheften",
+    "unpin": "Nachricht lösen",
+    "list": "Angeheftete Nachrichten ({{count}})",
+    "unavailable": "Nachricht ist nicht im erhaltenen Verlauf."
+  },
+  "parityUi": {
+    "performance": "Leistungsrunde",
+    "wholeProject": "Ganzes Projekt"
+  },
+  "serviceHealing": {
+    "restarting": "Automatischer Neustart läuft",
+    "restarted": "Automatisch neu gestartet",
+    "failed": "Automatischer Neustart fehlgeschlagen",
+    "escalated": "Eskaliert",
+    "refused": "Automatischer Neustart abgelehnt",
+    "expired": "Kein aktuelles Abschlussereignis; Zustand erneut prüfen."
+  },
+  "recoveryIdentity": {
+    "layout": "Gespeicherte Ansicht: Projekt / Unterhaltung / Seite",
+    "match": "Host und Journal stimmen überein.",
+    "mismatch": "Host und Journal haben verschiedene Sitzungen.",
+    "pending": "Identitätsvergleich ausstehend.",
+    "expected": "Core-Sitzung des Hosts: {{id}}"
+  },
+  "recoveryDraft": {
+    "match": "Entwurfsrevisionen stimmen mit dem gespeicherten Entwurf überein.",
+    "changed": "Entwurfsrevisionen unterscheiden sich: Speichern läuft oder ein anderes Fenster hat sie geändert.",
+    "pending": "Vergleich der Entwurfsrevisionen ausstehend."
   }
 }

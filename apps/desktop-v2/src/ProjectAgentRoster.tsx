@@ -40,7 +40,7 @@ import { rosterInputsToKeep } from './roster-input-draft';
 import { type RosterRecord, rosterBudgetFields, rosterCatalog } from './roster-model';
 import { usePersistedFields } from './usePersistedFields';
 import './project-agent-roster.css';
-import { displayDecimal, displayLocale } from './display-dates';
+import { displayCount as count, displayDecimal, displayLocale } from './display-dates';
 
 const RosterRuntimeEditor = lazy(() =>
   import('./RosterRuntimeEditor').then((module) => ({ default: module.RosterRuntimeEditor })),
@@ -49,11 +49,14 @@ const RosterInheritance = lazy(() =>
   import('./RosterInheritance').then((module) => ({ default: module.RosterInheritance })),
 );
 const string = (value: unknown) => (typeof value === 'string' ? value : '');
-const count = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString(displayLocale()) : '—';
+/** A count for a pluralized phrase: i18next picks `_one` only for a number, never for text. */
+const plural = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
 const date = (value: unknown) => {
   const parsed = new Date(typeof value === 'number' ? value : String(value));
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString(displayLocale());
+  return Number.isNaN(parsed.getTime())
+    ? ''
+    : parsed.toLocaleString(displayLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 };
 type Section = 'overview' | 'learning' | 'skills';
 const chrome = new Map<
@@ -527,7 +530,7 @@ export function ProjectAgentRoster({
                     <span>{t('roster.declaredTools', { count: Number(entry['tools'] ?? 0) })}</span>
                     <span>
                       {t('roster.directivesCount', {
-                        count: count(record(entry['stats'])['entryCount']),
+                        count: plural(record(entry['stats'])['entryCount']),
                       })}
                     </span>
                   </footer>
@@ -859,7 +862,7 @@ export function ProjectAgentRoster({
                       <dt>{t('roster.captureWindow')}</dt>
                       <dd>
                         {t('roster.captures', {
-                          count: count(stats['sessionCaptureCount']),
+                          count: plural(stats['sessionCaptureCount']),
                           cooldown:
                             typeof stats['cooldownRemainingMs'] === 'number'
                               ? `${Math.ceil(stats['cooldownRemainingMs'] / 1000)} s`
@@ -868,7 +871,7 @@ export function ProjectAgentRoster({
                       </dd>
                       <dt>{t('roster.routedSkills')}</dt>
                       <dd>
-                        {t('roster.directivesCount', { count: count(stats['skilledEntryCount']) })}
+                        {t('roster.directivesCount', { count: plural(stats['skilledEntryCount']) })}
                       </dd>
                       <dt>{t('roster.recommendation')}</dt>
                       <dd>

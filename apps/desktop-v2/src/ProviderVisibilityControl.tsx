@@ -5,10 +5,13 @@ import { providerDisabled, providerVisibilityPatch } from './model-visibility';
 
 export function ProviderVisibilityControl({
   provider,
+  name,
   draft,
   change,
 }: {
   provider: string;
+  /** The provider's catalog name; its id when the catalog has none. */
+  name?: string | undefined;
   draft: Record<string, unknown>;
   change: (key: string, value: unknown) => void;
 }) {
@@ -19,7 +22,7 @@ export function ProviderVisibilityControl({
   return (
     <section className="provider-visibility-control" aria-label={t('providerVisibility.label')}>
       <div className="provider-visibility-copy">
-        <strong>{provider}</strong>
+        <strong>{name ?? provider}</strong>
         <p>{off ? t('providerVisibility.disabledNote') : t('providerVisibility.availableNote')}</p>
         <p className="field-help">{t('providerVisibility.retained')}</p>
       </div>
@@ -32,7 +35,7 @@ export function ProviderVisibilityControl({
             {off ? t('providerVisibility.enableTitle') : t('providerVisibility.disableTitle')}
           </h2>
           <p>
-            <strong>{provider}</strong>
+            <strong>{name ?? provider}</strong>
           </p>
           <p>{off ? t('providerVisibility.enableBody') : t('providerVisibility.disableBody')}</p>
           <p className="field-help">{t('providerVisibility.draftNote')}</p>

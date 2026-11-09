@@ -525,7 +525,9 @@ export function ProjectSessionHistory({
                 <span className="history-row-model">
                   {[item['provider'], item['model']].filter(Boolean).map(String).join(' / ')}
                 </span>
-                <p>{String(item['lastUserMessage'] || t('historyView.noPrompt'))}</p>
+                {/* A session without a prompt (an opened, never used one) stays one line high
+                    instead of repeating "no prompt" and "recorded" on every card. */}
+                {item['lastUserMessage'] ? <p>{String(item['lastUserMessage'])}</p> : null}
                 <span className="history-row-status">
                   {live
                     ? t('historyView.openInDesktop')
@@ -538,7 +540,7 @@ export function ProjectSessionHistory({
                           }),
                           i18n.language,
                         )
-                      : t('historyView.recorded')}
+                      : null}
                 </span>
               </button>
             );

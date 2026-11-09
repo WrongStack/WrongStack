@@ -203,6 +203,7 @@
     "search": "Buscar en los ajustes de WrongStack",
     "find": "Buscar un ajuste…",
     "loading": "Cargando tu perfil de WrongStack…",
+    "defaultsNote": "Los cambios se guardan como valores predeterminados del perfil. Las ejecuciones en curso conservan sus opciones actuales.",
     "sectionPicker": "Sección de ajustes",
     "choose": "Elige una sección",
     "groups": {
@@ -311,7 +312,7 @@
       "description": "Elige qué sistemas de WrongStack están disponibles en las nuevas ejecuciones."
     },
     "routing": {
-      "title": "Agentes y alternativas",
+      "title": "Alternativas y valores predeterminados de agentes",
       "description": "Valores predeterminados compartidos de concurrencia y alternativas para el trabajo nuevo."
     },
     "notifications": {
@@ -573,6 +574,23 @@
       "label": "Diagnóstico del flujo",
       "description": "Registra diagnósticos adicionales del streaming del proveedor mientras investigas un problema."
     },
+    "titleAnimation": {
+      "label": "Animación del título de la CLI",
+      "description": "Anima el título del terminal CLI mientras trabaja el agente."
+    },
+    "showAgentSwarmPanel": {
+      "label": "Panel de agentes de la CLI",
+      "description": "Elige dónde aparecen la flota y la cola de tareas en el terminal.",
+      "options": {
+        "bottom": "Panel inferior",
+        "sidebar": "Barra lateral",
+        "off": "Desactivado"
+      }
+    },
+    "confirmExit": {
+      "label": "Confirmación de salida de la CLI",
+      "description": "El primer Ctrl+C cancela el trabajo; el segundo confirma la salida del terminal."
+    },
     "enhanceDelayMs": {
       "label": "Retraso del refinamiento",
       "description": "Cuánto tiempo muestra la interfaz de terminal un prompt refinado antes de enviarlo por sí sola. El escritorio y la WebUI esperan tu elección."
@@ -732,6 +750,11 @@
     "moment": "Tu espacio de trabajo estará listo en un momento."
   },
   "appearance": {
+    "conversation": {
+      "title": "Vista de conversación",
+      "body": "Las preferencias de vista se comparten entre las ventanas de escritorio.",
+      "keyboardHint": "Activa los atajos de navegación y ayuda. Las teclas de edición y búsqueda siguen disponibles."
+    },
     "label": "Ajustes de apariencia",
     "body": "Sigue a tu dispositivo o elige un modo.",
     "colorMode": "Modo de color",
@@ -839,10 +862,10 @@
     "saved": "La aprobación se guarda 24 horas cuando es posible. Las operaciones protegidas pueden seguir preguntando.",
     "notConfirmed": "El motor no ha confirmado esta decisión. Comprueba la conexión antes de reintentar.",
     "sending": "Enviando la decisión; esperando al motor…",
-    "hint": "Denegar también bloquea los reintentos coincidentes mientras este motor conserve la denegación en memoria. «Recordar denegación» guarda una regla para el asunto coincidente; el selector de alcance se aplica a las aprobaciones recordadas.",
+    "hint": "Denegar detiene esta solicitud y los reintentos idénticos en esta sesión. «Recordar denegación» la bloquea a partir de ahora; la opción de arriba define qué cubre una aprobación recordada.",
     "rememberDenialTitle": "Denegar esta y las futuras solicitudes que coincidan con el asunto mostrado",
     "rememberDenial": "Recordar denegación",
-    "denyTitle": "Denegar esta solicitud y los reintentos coincidentes mientras el motor conserve la denegación en memoria",
+    "denyTitle": "Denegar esta solicitud y los reintentos idénticos en esta sesión",
     "deny": "Denegar",
     "allowRemember": "Permitir y recordar",
     "allowOnce": "Permitir una vez"
@@ -958,7 +981,9 @@
     "providerFallback": "El motor prueba {{fallback}} en su lugar.",
     "tierProposed": "WrongStack propone el nivel {{tier}}: {{route}}.",
     "projectedSaving": "Ahorro previsto de unos ${{amount}}.",
-    "switchTier": "Cambiar a {{tier}}"
+    "switchTier": "Cambiar a {{tier}}",
+    "autoWakeOneNotice": "un aviso de temporizador/vigilancia solicitado",
+    "autoWakeNotices": "avisos de temporizador/vigilancia solicitados"
   },
   "message": {
     "you": "Tú",
@@ -1065,7 +1090,7 @@
     "use": "Usar {{target}}"
   },
   "jobs": {
-    "title": "Tareas programadas",
+    "title": "Avisos de sesión",
     "status": {
       "paused": "En pausa",
       "overdue": "Atrasada",
@@ -1081,8 +1106,8 @@
     "ago": "hace {{amount}}",
     "active": "{{active}} de {{total}} activas",
     "overdue": "{{count}} atrasadas",
-    "limit": "Hasta {{count}} ejecuciones a la vez.",
-    "howTo": "Pide al agente que programe una tarea con <code>cron_schedule</code> o que quite una con <code>cron_cancel</code>."
+    "limit": "Hasta {{count}} por sesión.",
+    "howTo": "Pide al agente que programe un aviso con <code>session_wakeup</code>; lo quita con <code>action=cancel</code>."
   },
   "waiting": {
     "ago": "hace {{time}}",
@@ -1276,6 +1301,10 @@
     "stagePath": "Preparar {{path}}",
     "unstagePath": "Quitar de preparados {{path}}",
     "noChanges": "No hay cambios sin confirmar.",
+    "pickChange": "Elige un archivo modificado para revisar su diff.",
+    "lineCounts": "{{added}} líneas añadidas, {{deleted}} eliminadas",
+    "stageAll": "Preparar todo",
+    "unstageAll": "Quitar todo de preparados",
     "ignoredIncluded": "Archivos de código ignorados incluidos",
     "ignoredExcluded": "Las rutas ignoradas están excluidas",
     "openTabs": "Archivos abiertos",
@@ -6658,7 +6687,7 @@
     "refresh": "Actualizar el uso del motor",
     "context": "Contexto",
     "contextPercent": "Contexto {{percent}} % · {{tokens}} / {{max}}",
-    "contextTokens": "Contexto {{tokens}} tokens · ventana no informada"
+    "contextTokens": "Contexto {{tokens}} tokens"
   },
   "referenceChips": {
     "pastEnd_one": "Este archivo tiene {{count}} línea; el rango empieza después de su final.",
@@ -6835,7 +6864,7 @@
     "referencedFiles_one": "{{count}} archivo referenciado",
     "one": "1 prompt en cola",
     "many": "{{number}} prompts en cola",
-    "note": "Gestionada por el motor · se ejecuta tras este turno",
+    "note": "Se ejecuta después de este turno",
     "pending": "Prompts pendientes",
     "clear": "Vaciar la cola",
     "references": "Referencias a archivos del proyecto",
@@ -9233,7 +9262,7 @@
     "steerPlaced": "Instrucción colocada antes de los prompts en cola; la ejecución actual se está deteniendo.",
     "sessionChanged": "La sesión cambió. Tu borrador se conserva.",
     "turnStarted": "Empezó un turno mientras se elegía el contexto del tema. Tu borrador se conserva; revísalo antes de enviar.",
-    "queued": "Prompt aceptado por la cola del motor.",
+    "queued": "En cola. Se ejecuta después del turno actual.",
     "accepted": "Prompt aceptado por el motor.",
     "noQueue": "Este motor no admite la cola persistente de prompts. Vuelve a abrir esta sesión con la versión actual.",
     "refinerMissing": "El refinador no devolvió esta versión. Tu borrador original se conserva.",
@@ -9294,6 +9323,18 @@
     "reviewConversation": "Revisar la conversación",
     "loading": "Cargando esta conversación…",
     "welcome": "¿En qué trabajamos?",
+    "welcomeEyebrow": "Nueva conversación",
+    "welcomeBody": "El agente puede leer y editar este proyecto, ejecutar comandos, buscar en el código y recordar contexto entre sesiones. Elige un punto de partida o escribe el tuyo; / abre los comandos.",
+    "welcomeModel": "Modelo",
+    "welcomeDirectory": "Directorio de trabajo",
+    "starterExplainTitle": "Explicar la arquitectura",
+    "starterExplainPrompt": "Hazme un recorrido por este proyecto: sus partes principales, cómo encajan y por dónde empezar a leer.",
+    "starterBugTitle": "Encontrar y corregir un error",
+    "starterBugPrompt": "Encuentra un error real en este proyecto, demuéstralo con una comprobación que falle, corrígelo y muéstrame la evidencia.",
+    "starterReviewTitle": "Revisar mis cambios",
+    "starterReviewPrompt": "Revisa mis cambios sin confirmar en busca de errores, ediciones arriesgadas y pruebas que falten.",
+    "starterTestsTitle": "Reforzar las pruebas",
+    "starterTestsPrompt": "Encuentra el comportamiento sin pruebas más importante de este proyecto y añade pruebas específicas.",
     "showEarlier_one": "Mostrar {{count}} mensaje anterior ({{hidden}} sin mostrar)",
     "showEarlier": "Mostrar {{count}} mensajes anteriores ({{hidden}} sin mostrar)",
     "jumpToLatest": "Ir a lo más reciente",
@@ -9591,5 +9632,68 @@
     "toolInvalid": "Introduce un nombre de herramienta o patrón, sin espacios.",
     "menu": "Reglas de permisos",
     "close": "Cerrar las reglas de permisos"
+  },
+  "chimeraMessage": {
+    "title": "Revisión Chimera",
+    "open": "Abrir informe",
+    "prepare": "Preparar seguimiento",
+    "hint": "Guarda el borrador y envíalo desde el campo habitual.",
+    "sent": "Seguimiento ya enviado.",
+    "prepared": "El seguimiento está en el campo de composición.",
+    "running": "Espera a que termine esta ejecución.",
+    "offline": "Espera a la reconexión y restauración.",
+    "draft": "Primero envía o borra el borrador, las referencias y los adjuntos."
+  },
+  "brainMessage": {
+    "title": "Decisión Brain",
+    "question": "Pregunta",
+    "source": "Origen",
+    "risk": "Riesgo",
+    "tier": "Nivel",
+    "decisionType": "Decisión",
+    "optionId": "Opción",
+    "text": "Respuesta",
+    "rationale": "Justificación",
+    "reason": "Motivo",
+    "confidence": "Confianza",
+    "waiting": "Esperando tu respuesta.",
+    "closed": "No hay una solicitud de respuesta abierta.",
+    "kind": {
+      "answered": "Respondido",
+      "denied": "Denegado",
+      "ask_human": "Evaluación humana",
+      "intervention": "Intervención",
+      "check": "Comprobación"
+    }
+  },
+  "messagePins": {
+    "pin": "Fijar mensaje",
+    "unpin": "Desfijar mensaje",
+    "list": "Mensajes fijados ({{count}})",
+    "unavailable": "El mensaje no está en la transcripción conservada."
+  },
+  "parityUi": {
+    "performance": "Ronda de rendimiento",
+    "wholeProject": "Todo el proyecto"
+  },
+  "serviceHealing": {
+    "restarting": "Reinicio automático en curso",
+    "restarted": "Reiniciado automáticamente",
+    "failed": "Error en el reinicio automático",
+    "escalated": "Escalado",
+    "refused": "Reinicio automático denegado",
+    "expired": "No hay un evento de finalización reciente; vuelve a comprobar el estado."
+  },
+  "recoveryIdentity": {
+    "layout": "Diseño guardado: proyecto / conversación / página",
+    "match": "Las sesiones del host y del journal coinciden.",
+    "mismatch": "Las sesiones del host y del journal son distintas.",
+    "pending": "Comparación de identidad pendiente.",
+    "expected": "Sesión Core del host: {{id}}"
+  },
+  "recoveryDraft": {
+    "match": "Las revisiones coinciden con el borrador guardado de esta conversación.",
+    "changed": "Las revisiones difieren: guardado pendiente o cambios desde otra ventana.",
+    "pending": "Comparación de revisiones pendiente."
   }
 }

@@ -38,7 +38,7 @@ export function ProjectMailbox({
     const date = new Date(typeof value === 'number' ? value : String(value));
     return Number.isNaN(date.getTime())
       ? t('mailboxPage.timeMissing')
-      : date.toLocaleString(displayLocale());
+      : date.toLocaleString(displayLocale(), { dateStyle: 'medium', timeStyle: 'short' });
   };
   // Engine values: named per language, shown as sent when the catalog has no name for them.
   const named = (group: 'type' | 'priority', value: unknown) =>
@@ -417,7 +417,9 @@ export function ProjectMailbox({
           <label>
             {t('mailboxPage.search')}
             <input
+              type="search"
               aria-label={t('mailboxPage.searchLabel')}
+              placeholder={t('mailboxPage.searchLabel')}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -460,7 +462,9 @@ export function ProjectMailbox({
                 }}
               >
                 <div>
-                  <strong>{text(thread.first['subject']) || t('mailboxPage.untitled')}</strong>
+                  <strong title={text(thread.first['subject']) || undefined}>
+                    {text(thread.first['subject']) || t('mailboxPage.untitled')}
+                  </strong>
                   {thread.items.some(unreadMail) && (
                     <span
                       className="mail-unread-dot"
@@ -471,7 +475,11 @@ export function ProjectMailbox({
                     />
                   )}
                 </div>
-                <p>{markdownExcerpt(text(thread.latest['body']), 140)}</p>
+                {/* A machine payload (a plugin's JSON report) has no readable preview; its
+                    subject already says what it is. */}
+                {!/^\s*[{[]/.test(text(thread.latest['body'])) && (
+                  <p>{markdownExcerpt(text(thread.latest['body']), 140)}</p>
+                )}
                 <small>
                   {String(thread.latest['from'])} → {String(thread.latest['to'])}
                 </small>

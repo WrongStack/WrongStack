@@ -57,6 +57,22 @@ export function eventTitle(event: Record<string, unknown>): string {
     .replaceAll('.', ' · ')
     .replaceAll('_', ' ');
 }
+/**
+ * What an event row shows: its own title, with the event type as a caption; or, for an event
+ * with no title of its own, the type read as words ("file.external.modified" → "File external
+ * modified") and no caption repeating it.
+ */
+export function eventHeadline(event: Record<string, unknown>): {
+  title: string;
+  type: string | null;
+} {
+  const type = String(event['eventType'] ?? '');
+  const title = eventTitle(event);
+  const generic = title === type.replaceAll('.', ' · ').replaceAll('_', ' ');
+  if (!generic) return { title, type: type || null };
+  const words = type.split(/[._]+/).filter(Boolean).join(' ');
+  return { title: words ? words[0]!.toUpperCase() + words.slice(1) : title, type: null };
+}
 export function chronicleGraph(value: unknown): VisualGraph {
   const raw = record(value),
     rows = entries(raw['nodes']);

@@ -11,7 +11,7 @@
   background: var(--raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .tech-analysis-controls,
 .tech-filters {
@@ -24,7 +24,7 @@
 .tech-analysis-controls label {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   flex: 1;
 }
 .tech-job {
@@ -44,7 +44,7 @@
 }
 .tech-job small,
 .tech-job span {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 /* Job states and phases are engine words ("completed", "inventory"); start them like labels. */
@@ -89,7 +89,7 @@
   border-radius: 10px;
 }
 .tech-stats small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .tech-stats strong {
@@ -100,7 +100,7 @@
   display: grid;
   gap: 8px;
   margin: 16px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .tech-views {
@@ -147,7 +147,7 @@
 .project-techstack table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 .project-techstack th {
   text-align: left;
@@ -185,7 +185,7 @@
   border: 1px solid var(--border);
   padding: 4px 7px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .tech-status.status-vulnerable,
@@ -218,7 +218,7 @@
 }
 .tech-dependency-detail p,
 .tech-remediation p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .tech-dependency-detail > section {
@@ -235,12 +235,12 @@
   border-radius: 7px;
 }
 .tech-version-grid dt {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .tech-version-grid dd {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .tech-section-heading {
@@ -267,7 +267,7 @@
   justify-content: space-between;
   align-items: start;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .tech-finding > small {
   display: inline-flex;
@@ -279,11 +279,11 @@
 .tech-finding p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .tech-finding details {
-  font-size: 11px;
+  font-size: 12px;
 }
 .tech-evidence {
   padding: 0;
@@ -294,7 +294,7 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   margin-top: 10px;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   display: grid;
   /* One column no wider than the card: a long manifest path wraps instead of widening it. */
@@ -342,7 +342,7 @@
 }
 .tech-workspaces p,
 .tech-workspaces span {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .tech-plan-item {
@@ -363,7 +363,7 @@
 }
 .tech-plan-item span,
 .tech-plan-item small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .tech-plan-item > small {
@@ -435,7 +435,7 @@
 }
 .tech-report-export p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .tech-report-export details {
   padding: 16px 0;
@@ -461,4 +461,16 @@
   .tech-job {
     flex-wrap: wrap;
   }
+}
+
+/* The WebUI colours the counts that need action; a vulnerable package must not look like a
+   plain total. */
+.tech-stats > [data-stat="vulnerable"][data-alert] strong {
+  color: var(--danger);
+}
+.tech-stats > [data-stat="updates"][data-alert] strong {
+  color: hsl(var(--ws-warning));
+}
+.tech-stats > [data-stat="findings"][data-alert] strong {
+  color: hsl(var(--ws-info));
 }

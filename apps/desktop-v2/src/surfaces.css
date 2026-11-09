@@ -111,3 +111,18 @@
 .ws-surfaces ::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--primary) / 0.6);
 }
+
+/* Kanban columns are fixed 180/310 px in the shared board; the desktop has the sidebar's width
+   less room than the WebUI, so the fifth column was cut off. Let them share the row instead. */
+.ws-surfaces .ws-kanban-column.w-\[180px\] {
+  width: auto;
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 240px;
+}
+.ws-surfaces .ws-kanban-column.w-\[310px\] {
+  width: auto;
+  flex: 1 1 310px;
+  min-width: 250px;
+  max-width: 340px;
+}

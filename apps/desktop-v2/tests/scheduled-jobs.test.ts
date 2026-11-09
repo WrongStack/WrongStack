@@ -68,7 +68,7 @@ describe('scheduled jobs', () => {
     const live = reduceEngine(emptyEngineState, { type: 'cron.snapshot', payload: snapshot });
     act(() => root.render(createElement(ScheduledJobs, { state: live })));
     expect(host.querySelector('summary')?.textContent).toContain(
-      'Scheduled jobs · 1 of 2 active · 1 overdue · 4 runs',
+      'Session wakeups · 1 of 2 active · 1 overdue · 4 runs',
     );
     expect(host.querySelector('.scheduled-jobs.overdue')).not.toBeNull();
     expect(host.textContent).toContain('every 5m · 4 runs · next in 3m · last 2m ago');

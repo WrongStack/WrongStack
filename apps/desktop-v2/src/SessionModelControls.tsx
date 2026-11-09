@@ -1,4 +1,4 @@
-import { ChevronDown, Zap } from 'lucide-react';
+import { ChevronDown, TriangleAlert, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { effortNames, sessionEffort, sessionReasoning } from './composer-model';
 import { useDesktopText } from './desktop-i18n';
@@ -180,8 +180,16 @@ export function SessionModelControls({
           {t('modelControls.leader', { effort: effort.leaderEffort })}
         </small>
       )}
+      {/* An icon with the sentence as its name, not a sentence wedged between the controls. */}
       {effort.unsupported && (
-        <small className="composer-effort-hint">{t('modelControls.unsupported')}</small>
+        <span
+          className="composer-effort-warning"
+          role="img"
+          aria-label={t('modelControls.unsupported')}
+          title={t('modelControls.unsupported')}
+        >
+          <TriangleAlert size={14} />
+        </span>
       )}
       {!open && error && (
         <p className="composer-error" role="alert">

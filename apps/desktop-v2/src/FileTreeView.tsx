@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDesktopText } from './desktop-i18n';
+import { FileKindIcon } from './FileKindIcon';
 import type { FileNode } from './file-model';
 import { treeWindow, visibleTreeRows } from './file-tree-rows';
 
@@ -150,7 +151,7 @@ export function FileTreeView({
                   <Folder size={15} />
                 )
               ) : (
-                <FileCode2 size={14} />
+                <FileKindIcon name={node.name} size={14} />
               )}
               <span>{node.name}</span>
               {Boolean(status) && <b className="file-git-status">{String(status)}</b>}

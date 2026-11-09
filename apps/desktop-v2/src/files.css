@@ -20,13 +20,13 @@
   align-items: center;
   gap: 9px;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
 }
 .file-workspace-location > svg {
   color: var(--accent);
 }
 .file-workspace-location > span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin-left: 8px;
 }
@@ -48,7 +48,7 @@
   border: 0;
   outline: 0;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   padding: 0;
   min-width: 0;
   min-height: 0;
@@ -58,7 +58,7 @@
 .file-workspace-notice {
   margin: 0;
   padding: 9px 18px;
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .file-workspace-error {
@@ -94,7 +94,7 @@
   height: 37px;
   padding: 0 13px;
   border-bottom: 1px solid var(--border);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.1px;
   color: var(--subtle);
   flex-shrink: 0;
@@ -105,14 +105,14 @@
   gap: 8px;
   padding: 11px 12px;
   border-top: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: auto;
   flex-shrink: 0;
 }
 .file-navigation > footer > :where(span) {
   color: var(--subtle);
-  font-size: 8px;
+  font-size: 11px;
 }
 .file-directory-tree,
 .file-change-list {
@@ -130,7 +130,7 @@
   padding-right: 10px;
   width: 100%;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   color: var(--muted);
 }
@@ -188,7 +188,7 @@
   flex-shrink: 0;
   border-right: 1px solid var(--border);
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-open-tabs > button {
   padding: 0 14px;
@@ -223,7 +223,7 @@
   padding: 13px 18px;
   min-height: 43px;
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   flex-shrink: 0;
   overflow-x: auto;
@@ -237,7 +237,7 @@
 }
 .file-folder-breadcrumbs select {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
   background: var(--raised);
   color: var(--muted);
   border: 1px solid var(--border);
@@ -261,14 +261,14 @@
 }
 .file-folder-list-heading {
   padding: 12px 8px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   border-bottom: 1px solid var(--border);
 }
 .file-folder-row {
   padding: 11px 8px;
   border-bottom: 1px solid color-mix(in oklch, var(--border) 45%, transparent);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .file-folder-row:hover {
@@ -286,7 +286,7 @@
 }
 .file-folder-row small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 4px;
 }
@@ -294,7 +294,7 @@
 .file-folder-list-heading > span:last-child {
   text-align: right;
   font-family: var(--user-font-code, Consolas, monospace);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-parent-row {
   display: flex;
@@ -302,7 +302,7 @@
   gap: 10px;
   width: 100%;
   padding: 10px 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .file-document-toolbar {
@@ -312,7 +312,7 @@
   min-height: 38px;
   padding: 0 13px;
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 .file-document-path {
@@ -323,7 +323,7 @@
   color: var(--muted);
 }
 .file-document-language {
-  font-size: 9px;
+  font-size: 11px;
   margin-left: auto;
   white-space: nowrap;
   color: var(--subtle);
@@ -374,7 +374,7 @@
   user-select: none;
   color: var(--subtle);
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-source-line > code {
   display: block;
@@ -432,7 +432,7 @@
   object-fit: contain;
 }
 .file-image-preview > span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .file-quiet-state {
@@ -443,7 +443,7 @@
   gap: 12px;
   min-height: 120px;
   padding: 25px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
   text-align: center;
   line-height: 1.8;
@@ -507,7 +507,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   padding: 0 11px;
   color: var(--subtle);
   white-space: nowrap;
@@ -533,7 +533,7 @@
   grid-template-columns: 28px 1fr;
   align-items: center;
   gap: 7px 13px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .file-overview-path > svg {
   grid-row: span 2;
@@ -545,7 +545,7 @@
 }
 .file-overview-path > small {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-overview-details dl {
   margin: 0;
@@ -554,13 +554,13 @@
   gap: 16px;
 }
 .file-overview-details dt {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 5px;
 }
 .file-overview-details dd {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .file-structure {
@@ -568,7 +568,7 @@
 }
 .file-structure > span,
 .file-evidence-caption {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .file-structure pre {
@@ -583,11 +583,11 @@
 .file-related-memories article {
   border-bottom: 1px solid var(--border);
   padding: 12px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .file-related-memories :where(article) > span {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -601,7 +601,7 @@
   gap: 12px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .file-event-dot {
@@ -621,12 +621,12 @@
   margin: 5px 0 0;
   color: var(--subtle);
   overflow-wrap: anywhere;
-  font-size: 9px;
+  font-size: 11px;
 }
 .file-event-list time {
   margin-left: auto;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 .file-change-list section > h3 {
@@ -635,7 +635,7 @@
   margin: 0;
   padding: 13px 12px 8px;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .file-change-row {
@@ -654,7 +654,7 @@
   min-width: 0;
   flex: 1;
   padding: 10px 11px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-change-row > :where(button:first-child) > span {
   min-width: 0;
@@ -670,7 +670,7 @@
 .file-change-row small {
   display: block;
   margin-top: 4px;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--subtle);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -691,7 +691,7 @@
   flex-direction: column;
   min-height: 0;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
   flex: 1;
 }
 .diff-preview-toolbar {
@@ -705,13 +705,13 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  font-size: 10px;
+  font-size: 11px;
 }
 .diff-preview-toolbar strong {
   font-weight: 500;
 }
 .diff-preview-toolbar > button {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-left: auto;
 }
@@ -753,7 +753,7 @@
 .diff-line-number {
   text-align: right;
   padding-right: 8px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   user-select: none;
   border-right: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
@@ -796,7 +796,7 @@
   text-align: left;
   background: var(--sidebar);
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   border-block: 1px solid var(--border);
 }
 .diff-split .diff-code-line {
@@ -821,7 +821,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .file-review-tray > :where(header) > button {
   display: flex;
@@ -829,7 +829,7 @@
   gap: 7px;
   /* Small accent text: the ink tone keeps 4.5:1 on the card in dark mode. */
   color: var(--accent-ink);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-review-tray > div {
   padding: 0 18px;
@@ -839,7 +839,7 @@
   display: block;
   margin: 0;
   padding: 0 18px 10px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 .file-review-tray > small {
@@ -849,7 +849,7 @@
   position: relative;
   padding: 10px 25px 10px 0;
   border-top: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12px;
 }
 .file-review-tray article > span {
   font: 9px var(--user-font-code, Consolas, monospace);
@@ -868,7 +868,7 @@
   margin-left: auto;
   margin-right: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-review-resolved-text {
   text-decoration: line-through;
@@ -889,7 +889,7 @@
 }
 .file-review-replies time {
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .file-review-note-actions {
   display: flex;
@@ -900,7 +900,7 @@
   align-items: center;
   gap: 4px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
 }
 .file-review-reply {
   display: flex;
@@ -931,7 +931,7 @@
 .file-context-menu > small {
   display: block;
   padding: 8px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -944,7 +944,7 @@
   width: 100%;
   padding: 10px 8px;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 4px;
 }
 .file-context-menu > button:hover {
@@ -968,19 +968,19 @@
   letter-spacing: -0.5px;
 }
 .file-action-dialog form > p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.9;
 }
 .file-action-path {
   overflow-wrap: anywhere;
   font-family: var(--user-font-code, Consolas, monospace);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .file-action-dialog label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   margin: 22px 0;
 }
 .file-action-dialog input,
@@ -994,7 +994,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .file-action-dialog footer {
@@ -1045,7 +1045,7 @@
     width: 155px;
   }
   .file-workspace-location {
-    font-size: 11px;
+    font-size: 12px;
   }
   .file-navigation > footer > :where(span) {
     display: none;
@@ -1076,10 +1076,10 @@
     padding: 0 8px;
   }
   .file-document-path {
-    font-size: 9px;
+    font-size: 11px;
   }
   .file-document-toolbar > button {
-    font-size: 9px;
+    font-size: 11px;
     padding: 4px;
   }
   .file-overview-details {
@@ -1092,7 +1092,7 @@
     max-width: calc(100vw - 40px);
   }
   .diff-preview-toolbar > button {
-    font-size: 8px;
+    font-size: 11px;
   }
   .file-document {
     min-height: 80px;
@@ -1116,7 +1116,7 @@
   margin: 8px 0;
   padding-left: 18px;
   font-family: var(--user-font-code, var(--mono, monospace));
-  font-size: 12px;
+  font-size: 13px;
 }
 .file-bulk-dialog footer {
   display: flex;
@@ -1140,7 +1140,7 @@
   gap: 6px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .editor-find-count {
   min-width: 70px;
@@ -1163,7 +1163,7 @@
 }
 .file-review-reply-actions button {
   color: var(--accent);
-  font-size: 9px;
+  font-size: 11px;
 }
 /* The code editor fills the document area; Monaco lays itself out inside it. */
 .file-document > .file-monaco-editor {
@@ -1175,4 +1175,112 @@
 .file-hunk-review {
   align-self: flex-start;
   margin: 10px 14px 0;
+}
+
+/* Review with nothing open: a quiet prompt where the diff will be, not the project folder. */
+.file-review-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  color: var(--muted);
+  text-align: center;
+}
+.file-review-empty > svg {
+  color: var(--subtle);
+}
+div.file-review-empty > p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Added / removed line counts beside a changed file, as in the WebUI's change list. */
+.file-change-counts {
+  display: inline-flex;
+  gap: 5px;
+  flex-shrink: 0;
+  font: 11px / 1 var(--user-font-code, "Cascadia Code", Consolas, monospace);
+}
+.file-change-counts .git-added {
+  color: hsl(var(--ws-success));
+}
+.file-change-counts .git-deleted {
+  color: var(--danger);
+}
+
+/* File icons tinted by kind, as in the WebUI explorer. */
+.file-kind-ts {
+  color: hsl(212 80% 60%);
+}
+.file-kind-js {
+  color: hsl(48 90% 55%);
+}
+.file-kind-json,
+.file-kind-config {
+  color: hsl(38 90% 58%);
+}
+.file-kind-text {
+  color: hsl(200 70% 60%);
+}
+.file-kind-css {
+  color: hsl(280 60% 66%);
+}
+.file-kind-image {
+  color: hsl(150 50% 52%);
+}
+.file-kind-shell,
+.file-kind-code {
+  color: hsl(160 45% 55%);
+}
+.file-kind-lock,
+.file-kind-archive,
+.file-kind-other {
+  color: var(--muted);
+}
+/* Light mode: darker tints so yellow and green icons keep contrast on a white page. */
+:root:not([data-mode="dark"]) .file-kind-js {
+  color: hsl(42 90% 36%);
+}
+:root:not([data-mode="dark"]) :is(.file-kind-json, .file-kind-config) {
+  color: hsl(30 85% 40%);
+}
+:root:not([data-mode="dark"]) :is(.file-kind-image, .file-kind-shell, .file-kind-code) {
+  color: hsl(155 55% 32%);
+}
+:root:not([data-mode="dark"]) .file-kind-ts {
+  color: hsl(212 75% 45%);
+}
+:root:not([data-mode="dark"]) .file-kind-text {
+  color: hsl(200 70% 38%);
+}
+/* The counts lead the path line, so the file name keeps the row's width. */
+.file-change-row small > .file-change-counts {
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+/* Stage / unstage the whole group, at the right of its heading. */
+.file-change-list section > h3 > .file-stage-all {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.file-change-list section > h3 > .file-stage-all:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.file-change-list section > h3:has(> .file-stage-all) {
+  justify-content: flex-start;
+  align-items: center;
+}
+.file-change-list section > h3:has(> .file-stage-all) > span {
+  margin-left: auto;
 }

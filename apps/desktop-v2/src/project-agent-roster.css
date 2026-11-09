@@ -11,7 +11,7 @@
   background: var(--raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 :where(.project-agent-roster) :where(input, select, textarea):focus-visible {
@@ -33,7 +33,7 @@
 .roster-hero p {
   color: var(--muted);
   max-width: 680px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .roster-hero > div:last-child {
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-summary strong {
   color: var(--text);
@@ -86,7 +86,7 @@
 .roster-catalog > label {
   display: grid;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .roster-catalog :is(input, select) {
@@ -98,7 +98,7 @@
   background: var(--raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-catalog :is(input, select):focus-visible {
   outline: 2px solid var(--accent);
@@ -107,12 +107,12 @@
 .roster-catalog-card {
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 14px;
+  padding: 11px 14px;
   text-align: left;
   background: var(--raised);
   color: var(--text);
   display: grid;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
 }
 .roster-catalog-card[aria-pressed="true"] {
@@ -128,19 +128,21 @@
   flex-wrap: wrap;
 }
 .roster-catalog-card strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .roster-catalog-card :is(small, code, footer) {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
+/* Two lines are enough to tell roles apart; the inspector holds the whole brief. */
 .roster-catalog-card p {
-  font-size: 11px;
-  line-height: 1.6;
+  margin: 2px 0;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--muted);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -148,7 +150,7 @@
   min-width: 0;
 }
 .roster-empty {
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: 12px;
   min-height: 350px;
   display: flex;
@@ -178,7 +180,7 @@
 }
 .roster-role-header p,
 .roster-role-header small {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.7;
 }
@@ -194,7 +196,7 @@
   padding: 9px 13px;
   border-radius: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-sections [aria-current="page"] {
   background: var(--accent-soft);
@@ -232,7 +234,7 @@
   display: grid;
   grid-template-columns: minmax(110px, 0.45fr) minmax(0, 1fr);
   gap: 10px 18px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-resolved > dl {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -251,12 +253,12 @@
   overflow-wrap: anywhere;
 }
 .roster-resolved > dl dt {
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 6px;
 }
 .roster-resolved details {
   margin-top: 14px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-resolved summary,
 .roster-retired summary {
@@ -276,14 +278,14 @@
   display: grid;
   gap: 7px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   margin: 16px 0;
 }
 .roster-teach p,
 .roster-improve p,
 .roster-policy-note,
 .roster-policy-note p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -308,7 +310,7 @@
   font-weight: 550;
 }
 .roster-learning-metrics span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .roster-directives {
@@ -323,12 +325,12 @@
 }
 .roster-directives summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .roster-directives summary span {
   display: inline-block;
-  font-size: 10px;
+  font-size: 11px;
   margin-right: 8px;
   color: var(--accent);
   text-transform: uppercase;
@@ -340,11 +342,11 @@
   padding: 12px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-skill-layer > :where(header) p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .roster-skill-layer article {
@@ -365,7 +367,7 @@
 }
 .roster-skill-layer :is(small, article > p, header > span) {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .roster-skill-layer :where(article) > p {
   margin: 12px 0;
@@ -389,11 +391,11 @@
 .roster-inheritance > p {
   margin-bottom: 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .roster-inheritance :where(.react-flow__node) small {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 6px;
 }
@@ -410,7 +412,7 @@
 }
 :is(.roster-runtime-editor, .roster-document) > p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   margin: 14px 0;
 }
@@ -441,12 +443,12 @@
 .roster-list-override > p {
   color: var(--muted);
   line-height: 1.6;
-  font-size: 11px;
+  font-size: 12px;
 }
 .roster-form-grid .field-label {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 8px;
 }
 .roster-form-grid > :where(div) > button {
@@ -481,11 +483,11 @@
 .roster-model-targets code {
   flex: 1;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-model-targets label {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .roster-weekdays {
   display: flex;
@@ -513,7 +515,7 @@
   border-radius: 6px;
   padding: 8px;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .roster-grant-options small {
@@ -571,7 +573,7 @@
 }
 .roster-capture summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .roster-capture button {
@@ -588,10 +590,10 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .roster-overlap blockquote {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   margin: 12px 0;
   padding: 10px 14px;
@@ -600,7 +602,7 @@
   background: var(--base);
 }
 .roster-overlap small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 :is(.roster-document, .roster-runtime-editor) > footer {
@@ -615,7 +617,7 @@
 :is(.roster-document, .roster-runtime-editor) > footer > span {
   margin-right: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 1000px) {
   .project-agent-roster {
@@ -665,13 +667,13 @@
 }
 .roster-knowledge h4 {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 .roster-knowledge label {
   display: grid;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 /* The map's zoom controls and attribution follow the theme, as on the live fleet map: in dark

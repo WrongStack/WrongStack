@@ -38,8 +38,9 @@
     resize: vertical;
     min-height: 80px;
   }
+  /* Dimmer than a typed value, so a hint ("Engine default", "src/app.ts") is not read as one. */
   :where(input, textarea)::placeholder {
-    color: var(--muted);
+    color: color-mix(in srgb, var(--muted) 72%, transparent);
     opacity: 1;
   }
   :where(input, select, textarea):hover:not(:disabled, :focus) {
@@ -59,6 +60,10 @@
   }
   :where(select) {
     cursor: pointer;
+    /* One line: a long value ("MiniMax Token Plan (minimax.io)") cut with an ellipsis rather
+       than wrapping the control to twice the height of its neighbours. */
+    white-space: nowrap;
+    overflow: hidden;
     text-overflow: ellipsis;
   }
   :where(select option, select optgroup) {
@@ -94,10 +99,23 @@
     align-items: center;
     gap: 12px;
   }
+  /* The same thin chevron as the icon-font selects (model chip, pickers), not a solid ▼. */
   select:not([multiple], [size])::picker-icon {
-    color: var(--muted);
+    content: "";
+    width: 12px;
+    height: 12px;
+    background-color: var(--muted);
+    -webkit-mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      center / contain no-repeat;
     flex-shrink: 0;
-    font-size: 10px;
+    transition: rotate 120ms ease;
+  }
+  select:not([multiple], [size]):open::picker-icon {
+    rotate: 180deg;
   }
   select:not([multiple], [size])::picker(select) {
     min-width: anchor-size(width);
@@ -145,4 +163,141 @@
   :where(input, select, textarea) {
     transition: none;
   }
+}
+
+/* On/off settings drawn as the same switch the settings rows use (SettingRow's
+   .settings-switch), so one page no longer mixes native checkboxes and switches.
+   Still a real checkbox: keyboard, label clicks and form state are unchanged. */
+:is(
+    .policy-toggle,
+    .refinement-policy-toggle,
+    .fleet-policy-switch,
+    .conversation-appearance-toggles label,
+    .jev-toggle
+  )
+  > input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text) 28%, var(--border));
+  background: color-mix(in srgb, var(--text) 8%, var(--raised));
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+:is(
+    .policy-toggle,
+    .refinement-policy-toggle,
+    .fleet-policy-switch,
+    .conversation-appearance-toggles label,
+    .jev-toggle
+  )
+  > input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 70%, transparent);
+  transition: transform 140ms ease;
+}
+:is(
+    .policy-toggle,
+    .refinement-policy-toggle,
+    .fleet-policy-switch,
+    .conversation-appearance-toggles label,
+    .jev-toggle
+  )
+  > input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+:is(
+    .policy-toggle,
+    .refinement-policy-toggle,
+    .fleet-policy-switch,
+    .conversation-appearance-toggles label,
+    .jev-toggle
+  )
+  > input[type="checkbox"]:checked::before {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+/* Disclosure rows ("Tool details", "Run activity", "BTW notes", "Recorded usage"…) get one thin
+   chevron that turns when open, not the browser's solid ▶ triangle. Summaries that draw their
+   own marker or act as buttons are left alone. */
+details
+  > summary:not([class]):not(
+    :is(
+        .next-steps-panel,
+        .activity-entry,
+        .sage-editor-details,
+        .tool-access-card details,
+        .composer-options
+      )
+      > summary
+  ) {
+  list-style: none;
+  cursor: pointer;
+}
+details
+  > summary:not([class]):not(
+    :is(
+        .next-steps-panel,
+        .activity-entry,
+        .sage-editor-details,
+        .tool-access-card details,
+        .composer-options
+      )
+      > summary
+  )::-webkit-details-marker {
+  display: none;
+}
+details
+  > summary:not([class]):not(
+    :is(
+        .next-steps-panel,
+        .activity-entry,
+        .sage-editor-details,
+        .tool-access-card details,
+        .composer-options
+      )
+      > summary
+  )::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  background-color: currentColor;
+  opacity: 0.7;
+  -webkit-mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: transform 120ms ease;
+}
+details[open]
+  > summary:not([class]):not(
+    :is(
+        .next-steps-panel,
+        .activity-entry,
+        .sage-editor-details,
+        .tool-access-card details,
+        .composer-options
+      )
+      > summary
+  )::before {
+  transform: rotate(90deg);
 }

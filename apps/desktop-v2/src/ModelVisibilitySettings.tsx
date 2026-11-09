@@ -11,6 +11,7 @@ import {
   providerDisabled,
 } from './model-visibility';
 import { ProviderVisibilityControl } from './ProviderVisibilityControl';
+import { useProviderNames } from './provider-names';
 import './model-visibility.css';
 
 export function ModelVisibilitySettings({
@@ -27,6 +28,7 @@ export function ModelVisibilitySettings({
   const { t } = useDesktopText();
   const [providers, setProviders] = useState<Record<string, unknown>[]>([]),
     [provider, setProvider] = useState('');
+  const names = useProviderNames(command);
   const [models, setModels] = useState<Record<string, unknown>[]>([]),
     [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all'),
@@ -125,7 +127,7 @@ export function ModelVisibilitySettings({
           >
             {providers.map((item) => (
               <option key={String(item['id'])} value={String(item['id'])}>
-                {String(item['id'])}
+                {names[String(item['id'])] ?? String(item['id'])}
               </option>
             ))}
           </select>
@@ -162,7 +164,13 @@ export function ModelVisibilitySettings({
         </button>
       </div>
       <p className="field-help">{t('modelVisibility.draftNote')}</p>
-      <ProviderVisibilityControl key={provider} provider={provider} draft={draft} change={change} />
+      <ProviderVisibilityControl
+        key={provider}
+        provider={provider}
+        name={names[provider]}
+        draft={draft}
+        change={change}
+      />
       {error && (
         <p role="alert" className="session-error">
           {error}
@@ -185,7 +193,8 @@ export function ModelVisibilitySettings({
             <article key={id} aria-label={t('modelVisibility.item', { id })}>
               <div>
                 <strong>{String(model['name'] ?? id)}</strong>
-                <code>{id}</code>
+                {/* The id only when it differs from the name it would repeat. */}
+                {String(model['name'] ?? id) !== id && <code>{id}</code>}
                 <span>
                   {off
                     ? t('modelVisibility.state.disabled')

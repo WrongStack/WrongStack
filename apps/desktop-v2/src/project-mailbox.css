@@ -15,7 +15,7 @@
   border-radius: 7px;
   padding: 10px 12px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mailbox-composer textarea {
   resize: vertical;
@@ -23,7 +23,7 @@
 }
 .mailbox-scope {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .mailbox-controls {
@@ -37,7 +37,7 @@
   display: grid;
   gap: 7px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mailbox-controls label {
   flex: 1;
@@ -63,10 +63,10 @@
 .mailbox-thread-list > label {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mailbox-thread {
-  padding: 14px;
+  padding: 12px 14px;
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -84,8 +84,19 @@
   gap: 10px;
   align-items: start;
 }
+/* A subject carrying a session id would otherwise wrap to four bold lines; the title has it all. */
+.mailbox-thread > div > strong {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .mailbox-thread p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--muted);
   /* The preview is two lines at most; the thread opens to the whole message. */
@@ -97,7 +108,7 @@
 }
 .mailbox-thread small {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 6px;
   color: var(--muted);
 }
@@ -133,12 +144,12 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .mailbox-message :where(header) small {
   display: block;
   margin-top: 7px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .mailbox-message-tags {
   display: flex;
@@ -151,7 +162,7 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 3px 8px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
   background: var(--sidebar);
@@ -161,11 +172,11 @@
   flex-wrap: wrap;
   gap: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   margin: 18px 0;
 }
 .mailbox-message details {
-  font-size: 11px;
+  font-size: 12px;
   margin-bottom: 14px;
   color: var(--muted);
 }
@@ -197,7 +208,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--sidebar);
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .mailbox-confirm {
@@ -206,7 +217,7 @@
   padding: 14px;
   border-radius: 8px;
   margin: 14px 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .mailbox-composer {
@@ -224,7 +235,7 @@
 }
 .mailbox-composer p,
 .mailbox-composer small {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.6;
 }

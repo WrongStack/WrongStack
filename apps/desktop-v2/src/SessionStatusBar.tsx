@@ -68,9 +68,12 @@ export function SessionStatusBar({
         title={t('statusBar.meterTitle')}
       >
         {zone === 'critical' ? <AlertTriangle size={12} /> : <Gauge size={12} />}
-        <span className="context-meter-bar" aria-hidden="true">
-          <span style={{ width: `${percent ?? 0}%` }} />
-        </span>
+        {/* No bar without a known window: an always-empty bar read as "nothing used". */}
+        {percent !== null && (
+          <span className="context-meter-bar" aria-hidden="true">
+            <span style={{ width: `${percent}%` }} />
+          </span>
+        )}
         <span>{label}</span>
       </button>
       {hit !== null && (

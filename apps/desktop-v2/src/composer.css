@@ -67,7 +67,7 @@
 }
 .composer-chip.model-selector {
   margin-left: 0;
-  font-size: 11px;
+  font-size: 12px;
   max-width: 260px;
 }
 .composer-chip.model-selector > span:nth-child(2) {
@@ -80,8 +80,10 @@
   padding: 0;
   background: transparent;
   color: inherit;
-  max-width: 150px;
-  font-size: 11px;
+  /* One line per chip: a wrapped value made one chip twice as tall as the row. */
+  white-space: nowrap;
+  max-width: 220px;
+  font-size: 12px;
   cursor: pointer;
 }
 .composer-chip select option {
@@ -130,24 +132,24 @@
   align-items: center;
   padding: 9px;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-options button:hover {
   background: var(--raised);
 }
 .composer-options small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 0 9px 6px;
   line-height: 1.7;
 }
 .composer-effort-hint {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .composer-error,
 .composer-notice {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   margin: 8px var(--composer-inline);
   overflow-wrap: anywhere;
@@ -173,7 +175,7 @@
   background: var(--raised);
   color: var(--text);
   font-family: var(--user-font-code, Consolas, "Cascadia Code", monospace);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .composer-restore {
@@ -182,7 +184,7 @@
   align-items: center;
   gap: 10px;
   margin: 8px var(--composer-inline);
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-restore button {
   color: var(--accent);
@@ -191,7 +193,7 @@
   margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-queue > summary {
   cursor: pointer;
@@ -204,7 +206,7 @@
 .composer-queue > :where(summary) small {
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .composer-queue-heading {
   display: flex;
@@ -220,7 +222,7 @@
   gap: 6px;
   padding: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .composer-queue ol {
   margin: 0;
@@ -255,7 +257,7 @@
 .refine-versions button {
   padding: 7px 12px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .refine-versions button[aria-pressed="true"] {
@@ -266,7 +268,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 10px;
 }
@@ -302,7 +304,7 @@
 }
 .refine-options {
   margin-top: 15px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .refine-options summary {
   cursor: pointer;
@@ -355,7 +357,7 @@
   margin: 8px var(--composer-inline);
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .btw-receipts > summary {
   cursor: pointer;
@@ -375,7 +377,7 @@
   justify-content: space-between;
   gap: 9px;
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .model-comparison {
@@ -392,7 +394,7 @@
 .model-comparison table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 .model-comparison :where(th, td) {
   padding: 7px 9px;
@@ -425,7 +427,7 @@
   align-items: center;
   gap: 6px;
   margin: 8px 0;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .composer-model-recents button {
@@ -447,8 +449,17 @@
 .dictation-status {
   max-width: 220px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.composer-effort-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 32px;
+  color: hsl(var(--ws-warning));
+  cursor: help;
 }

@@ -5,7 +5,7 @@
 .project-tools-group h3 {
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -13,11 +13,15 @@
 
 /* Launcher: one column, the open tool marked with a dot, as the WebUI's launcher does. */
 .project-tools-menu.launcher {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 236px;
-  max-height: min(520px, calc(100vh - 120px));
+  /* Two columns of groups: eighteen tools in one 236 px column overflowed a 520 px menu, so
+     the last group was cut off behind a scrollbar. */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px 18px;
+  width: min(470px, calc(100vw - 300px));
+  /* It opens beside the sidebar's tools entry, about 200 px down the window. */
+  max-height: calc(100vh - 230px);
   overflow-y: auto;
 }
 .project-tools-menu.launcher .project-tools-items {
@@ -33,7 +37,7 @@
   padding: 7px 9px;
   border-radius: 6px;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
 }
 .project-tools-menu.launcher .project-tool:hover {
@@ -110,13 +114,13 @@
 .project-tools-menu.overview .project-tool-copy strong {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .project-tools-menu.overview .project-tool-copy span {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.7;
 }
 
@@ -131,7 +135,7 @@
   padding: 9px 13px;
   border-radius: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .agent-workspace-tabs button:hover {
   color: var(--text);

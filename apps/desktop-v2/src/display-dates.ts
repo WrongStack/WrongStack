@@ -47,6 +47,22 @@ export const displayLocale = (): string | undefined => surfaceI18n.language || u
  * always wrote a dot, so a Turkish interface showed "1.5 MB" for "1,5 MB". `trim` drops
  * trailing zeros ("2" rather than "2.0"). No digit grouping, as with `toFixed`.
  */
+/**
+ * A US-dollar amount as people read one: cents for ordinary sums ("$0.00", "$12.40"), and four
+ * decimals only for a sub-cent cost that would otherwise read as zero ("$0.0042").
+ */
+export function displayCost(usd: number): string {
+  const digits = usd > 0 && usd < 0.01 ? 4 : 2;
+  return `$${displayDecimal(usd, digits)}`;
+}
+
+/** A count with the display language's digit grouping ("15,257", "15.257"). */
+export function displayCount(value: unknown): string {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value.toLocaleString(displayLocale())
+    : '—';
+}
+
 export function displayDecimal(value: number, digits: number, trim = false): string {
   const locale = surfaceI18n.language || undefined;
   // No display language yet (nothing registered): keep the toFixed dot, not the OS locale.

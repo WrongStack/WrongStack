@@ -211,7 +211,7 @@ export function BrainPolicySettings({ command }: { command: EngineCommand }) {
           {dirty.length ? t('brainPolicy.reloadDiscard') : t('brainPolicy.refresh')}
         </button>
       </header>
-      <p className="brain-scope-note">{t('brainPolicy.scope')}</p>
+      <p className="brain-scope-note settings-defaults-note">{t('brainPolicy.scope')}</p>
       {error && (
         <p role="alert" className="session-error">
           {error}

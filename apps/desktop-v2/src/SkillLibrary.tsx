@@ -28,6 +28,7 @@ import { MarkdownContent } from './MarkdownContent';
 import { markdownTarget } from './markdown-target';
 import { openExternal } from './platform';
 import { SkillDraftNotice, useSkillDraftBinding } from './SkillDraftNotice';
+import { SkillLibraryHeading } from './SkillLibraryHeading';
 import {
   downloadSkillFile,
   skillInstructions,
@@ -320,13 +321,7 @@ export function SkillLibrary({
       aria-label={scope === 'profile' ? t('skillLib.labelProfile') : t('skillLib.labelProject')}
     >
       <header className="studio-heading">
-        <div>
-          <span className="eyebrow">
-            {scope === 'project' ? t('skillLib.eyebrowProject') : t('skillLib.eyebrowProfile')}
-          </span>
-          <h1>{t('skillLib.title')}</h1>
-          <p>{t('skillLib.intro')}</p>
-        </div>
+        <SkillLibraryHeading scope={scope} />
         <div className="skill-library-actions">
           <button
             type="button"

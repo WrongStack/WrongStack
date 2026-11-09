@@ -10,7 +10,7 @@
 }
 .brain-jump span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   margin-right: 6px;
 }
 .brain-jump button {
@@ -18,7 +18,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: 11px;
   background: var(--raised);
 }
 .brain-policy [data-brain-group] {
@@ -41,15 +41,13 @@
 .brain-policy p,
 .brain-policy small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
 .brain-scope-note {
-  border-left: 3px solid var(--accent);
-  background: var(--accent-soft);
-  padding: 14px;
-  margin: 24px 0;
+  /* Drawn as the other settings pages' note (settings-defaults-note); only its spacing here. */
+  margin: 20px 0;
 }
 .brain-facts {
   display: flex;
@@ -58,7 +56,7 @@
   padding: 20px 0;
   border-block: 1px solid var(--border);
   margin-bottom: 22px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .brain-facts strong {
@@ -95,7 +93,7 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .brain-field small {
   display: block;
@@ -143,11 +141,11 @@
 .brain-save-bar > span {
   flex: 1;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .brain-policy-card li {
   padding: 9px 0;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .brain-policy-card li span {
@@ -156,14 +154,14 @@
 }
 .brain-policy-card :where(dl, dd) {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 .brain-policy-card dt {
   font-weight: 600;
   margin-top: 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .brain-rules > li {
   border-top: 1px solid var(--border);
@@ -191,7 +189,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 .brain-decision-log li {
   display: grid;
@@ -222,7 +220,7 @@
   display: grid;
   gap: 4px;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
 }
 .jev-grid {
   display: grid;
@@ -232,7 +230,7 @@
 .jev-grid label {
   display: grid;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .jev-actions {
   display: flex;
@@ -246,14 +244,14 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .jev-toggle,
 .jev-features label {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .brain-rules > header {
   display: flex;
@@ -271,7 +269,7 @@
   border-radius: 6px;
   color: var(--danger);
   background: var(--danger-soft);
-  font-size: 12px;
+  font-size: 13px;
 }
 .brain-rules-dropped p {
   margin: 4px 0 0;

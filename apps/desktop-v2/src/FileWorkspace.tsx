@@ -37,9 +37,13 @@ import type { EngineCommand, EngineSend } from './engine-operations';
 import type { EngineState } from './engine-state';
 import { entries } from './engine-values';
 import { FileBulkDialog } from './FileBulkDialog';
+import { FileChangeCounts, StageAllButton } from './FileChangeCounts';
 import { FileContentSearch } from './FileContentSearch';
 import { FileContextMenu } from './FileContextMenu';
 import { FileEvidenceDrawer } from './FileEvidenceDrawer';
+import { FileExplorerFooter, FileExplorerTab } from './FileExplorerChrome';
+import { FileKindIcon } from './FileKindIcon';
+import { FileReviewEmpty } from './FileReviewEmpty';
 import { FileTreeView, useTreeChanges } from './FileTreeView';
 import {
   copyTarget,
@@ -64,6 +68,7 @@ import {
   projectRelativePath,
   reviewText,
 } from './file-model';
+import { fileRefreshQueue } from './file-refresh';
 import { selectionReference } from './file-selection-reference';
 import { GitHistory } from './GitHistory';
 import { GitHunkReview } from './GitHunkReview';
@@ -225,25 +230,30 @@ export function FileWorkspace({
   const asGitPath = useCallback((path: string) => `${prefix}${path}`, [prefix]);
   const fromGitPath = (path: string) =>
     prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
-  const refresh = useCallback(async () => {
-    const results = await Promise.allSettled([
-      command('files.tree', { includeIgnored }, ['files.tree']),
-      command('git.changes', {}, ['git.changes']),
-    ]);
-    if (results[0].status === 'fulfilled') {
-      setTree(fileTree(results[0].value['tree']));
-      setTreeReady(true);
-      setTreeFilter(includeIgnored);
-    } else throw results[0].reason;
-    if (results[1].status === 'fulfilled') setGit(results[1].value);
-    else
-      setGit({
-        error:
-          results[1].reason instanceof Error
-            ? results[1].reason.message
-            : String(results[1].reason),
-      });
-  }, [command, includeIgnored]);
+  const refresh = useMemo(
+    () =>
+      fileRefreshQueue(async () => {
+        const results = await Promise.allSettled([
+          command('files.tree', { includeIgnored }, ['files.tree']),
+          command('git.changes', {}, ['git.changes']),
+        ]);
+        if (results[0].status === 'fulfilled') {
+          setTree(fileTree(results[0].value['tree']));
+          setTreeReady(true);
+          setTreeFilter(includeIgnored);
+        } else throw results[0].reason;
+        if (results[1].status === 'fulfilled') setGit(results[1].value);
+        else
+          setGit({
+            error:
+              results[1].reason instanceof Error
+                ? results[1].reason.message
+                : String(results[1].reason),
+          });
+      }),
+    [command, includeIgnored],
+  );
+  useEffect(() => () => refresh.clear(), [refresh]);
   useEffect(() => {
     setLoading('tree');
     void refresh()
@@ -670,11 +680,12 @@ export function FileWorkspace({
       await refresh();
       setAction(null);
     });
-  const stage = (path: string, staged: boolean) =>
+  // `null` is the whole group: the engine reads no paths as "all" (`git add -A -- .`), so a
+  // large working tree never becomes one oversized command line.
+  const stage = (path: string | null, staged: boolean) =>
     run(async () => {
-      await command(staged ? 'git.unstage' : 'git.stage', { paths: [asGitPath(path)] }, [
-        'git.action_result',
-      ]);
+      const paths = path === null ? [] : [asGitPath(path)];
+      await command(staged ? 'git.unstage' : 'git.stage', { paths }, ['git.action_result']);
       await refresh();
       refreshDiff();
     });
@@ -1158,6 +1169,12 @@ export function FileWorkspace({
                       <h3>
                         {group === 'Staged' ? t('fileView.staged') : t('fileView.workingTree')}
                         <span>{rows.length}</span>
+                        <StageAllButton
+                          staged={group === 'Staged'}
+                          shown={rows.length > 0 && !search}
+                          busy={busy}
+                          onClick={() => void stage(null, group === 'Staged')}
+                        />
                       </h3>
                       {rows.map((file) => (
                         <div
@@ -1182,6 +1199,7 @@ export function FileWorkspace({
                                   the last segment before it. */}
                               <strong>{fileName(gitRowPath(file['path']))}</strong>
                               <small>
+                                <FileChangeCounts added={file['added']} deleted={file['deleted']} />
                                 {typeof file['origPath'] === 'string' && file['origPath']
                                   ? t(
                                       file['status'] === 'C'
@@ -1226,23 +1244,19 @@ export function FileWorkspace({
               )}
             </div>
           )}
-          <footer>
-            {t('shellText.visibleFiles', { count: all.filter((n) => n.type === 'file').length })}
-            <span>
-              {includeIgnored ? t('fileView.ignoredIncluded') : t('fileView.ignoredExcluded')}
-            </span>
-          </footer>
+          {mode === 'files' && (
+            <FileExplorerFooter
+              count={all.filter((n) => n.type === 'file').length}
+              includeIgnored={includeIgnored}
+            />
+          )}
         </aside>
         <div className="file-center">
           <nav className="file-open-tabs" aria-label={t('fileView.openTabs')}>
-            <button
-              type="button"
-              className={!active ? 'file-tab-current' : ''}
-              onClick={() => setActive('')}
-            >
-              <FolderOpen size={13} />
-              {t('fileView.explorerTab')}
-            </button>
+            {/* Review has no folder listing: its empty state asks for a change instead. */}
+            {mode === 'files' && (
+              <FileExplorerTab selected={!active} onSelect={() => setActive('')} />
+            )}
             {Object.entries(documents).map(([path, doc]) => (
               <div className={active === path ? 'file-tab-current' : ''} key={path}>
                 <button
@@ -1558,6 +1572,8 @@ export function FileWorkspace({
                 />
               )}
             </>
+          ) : mode === 'changes' ? (
+            <FileReviewEmpty hasChanges={changes.length > 0} />
           ) : (
             <>
               <div className="file-folder-breadcrumbs">
@@ -1710,7 +1726,7 @@ export function FileWorkspace({
                       ) : node.type === 'directory' ? (
                         <Folder size={17} />
                       ) : (
-                        <FileCode2 size={17} />
+                        <FileKindIcon name={node.name} size={17} />
                       )}
                       <span>
                         {node.name} {search && <small>{parentPath(node.path)}</small>}

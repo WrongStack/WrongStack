@@ -14,7 +14,7 @@ import { surfaceI18n } from './surface-i18n';
 import './scheduled-jobs.css';
 
 /**
- * The jobs this conversation's agent scheduled with `cron_schedule`, as the WebUI's cron panel
+ * The wakeups this conversation's agent scheduled with `session_wakeup`, as the WebUI's panel
  * shows them: shown only while there are jobs, kept live by `cron.snapshot`, with times that
  * move on by themselves.
  */
@@ -56,7 +56,10 @@ export function ScheduledJobs({ state }: { state: EngineState }) {
               </div>
               <small>
                 {[
-                  t('jobs.every', { interval: intervalText(job.intervalMs) }),
+                  // A one-shot wakeup has no interval.
+                  ...(job.intervalMs > 0
+                    ? [t('jobs.every', { interval: intervalText(job.intervalMs) })]
+                    : []),
                   words.runs(job.runCount),
                   t('jobs.next', { when: whenText(job.nextRun, now, words) }),
                   t('jobs.last', { when: whenText(job.lastRun, now, words) }),

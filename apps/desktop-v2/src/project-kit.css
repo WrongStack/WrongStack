@@ -4,7 +4,7 @@
 }
 .kit-layout {
   display: grid;
-  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
   gap: 24px;
   margin-top: 24px;
 }
@@ -83,7 +83,7 @@
   padding: 8px;
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .kit-verification.verified {
@@ -115,7 +115,7 @@
   margin: 12px 0;
 }
 .kit-parameters legend {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 .kit-property {
@@ -171,7 +171,7 @@
   min-height: 36px;
   padding: 0 12px;
   margin-right: 8px;
-  font-size: 11px;
+  font-size: 12px;
   vertical-align: middle;
 }
 .kit-request textarea {
@@ -267,7 +267,7 @@ dl.kit-values {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--raised);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .kit-draft-compare {
@@ -287,5 +287,17 @@ dl.kit-values {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+}
+
+/* A kit card reads as a list entry: muted, clamped description under the name, instead of a
+   column of bright body text. */
+.kit-catalog > button p {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

@@ -7,13 +7,14 @@ import type {
 import type { ProviderClient } from '@wrongstack/project-surfaces/providers/provider-host';
 import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
 import type { SetupModelResult } from '@wrongstack/project-surfaces/setup/setup-host';
-import { useRef, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { EngineHttp } from './engine-http';
 import { EngineHttpError } from './engine-http-error';
 import type { EngineCommand } from './engine-operations';
 import type { BackendStream } from './engine-stream';
 import { record } from './engine-values';
 import { emptyMemoryReviews, MemoryReviewStore, type MemoryReviews } from './memory-reviews';
+import { useSurfaceScroll } from './surface-scroll';
 
 /** Strings of a list preference; anything else reads as empty. */
 export function prefList(value: unknown): string[] {
@@ -60,7 +61,8 @@ export function profileSurfaceHost(
     getClient: () => surfaceClient,
     useConnected: () => true,
     useNavigateBack: () => undefined,
-    useScrollRestore: <T extends HTMLElement>(_key: string) => useRef<T | null>(null),
+    useScrollRestore: <T extends HTMLElement>(key: string, enabled?: boolean) =>
+      useSurfaceScroll<T>(stream.identity, key, enabled),
     useValidityReview: (memoryId) =>
       useSyncExternalStore(reviews.subscribe, () => reviews.reviews.validity[memoryId]),
     useCompanionReview: (memoryId) =>

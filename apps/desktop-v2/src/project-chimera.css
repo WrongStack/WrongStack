@@ -14,7 +14,7 @@
   background: var(--raised);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-filters {
   display: flex;
@@ -72,22 +72,22 @@
 }
 .review-report-list :where(header) span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 4px 6px;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
 .review-report-list header strong {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .review-report-list p {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .review-report-list small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   display: block;
   margin-top: 8px;
   overflow-wrap: anywhere;
@@ -97,13 +97,13 @@
   align-items: center;
   gap: 7px;
   flex-wrap: wrap;
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 12px;
 }
 .review-failed {
   display: block;
   color: var(--danger);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 10px;
 }
 .review-report-detail {
@@ -119,12 +119,12 @@
 }
 .review-report-detail > :where(header) p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-report-detail > details {
   border-top: 1px solid var(--border);
   padding: 18px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-report-detail summary {
   cursor: pointer;
@@ -143,11 +143,11 @@
 }
 .review-report-facts dt {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .review-report-facts dd {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .review-incomplete {
@@ -155,7 +155,7 @@
   border: 1px solid var(--accent-border);
   background: var(--accent-soft);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-lifecycle-actions {
   display: flex;
@@ -178,7 +178,7 @@
 }
 .review-evidence-check p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .review-findings > header {
   display: flex;
@@ -193,7 +193,7 @@
 }
 .review-findings > :where(header) small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .review-findings > header > div:last-child {
   display: flex;
@@ -220,7 +220,7 @@
 }
 .review-finding > :where(header) > small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .review-finding-tags {
   display: flex;
@@ -228,7 +228,7 @@
   flex-wrap: wrap;
 }
 .review-finding-tags > span {
-  font-size: 10px;
+  font-size: 11px;
   padding: 4px 6px;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -243,14 +243,14 @@
   color: var(--accent);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   text-align: left;
 }
 .review-finding > details {
   padding: 14px 0;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-citation,
 .review-resolution {
@@ -259,7 +259,7 @@
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .review-citation p,
 .review-resolution p {
@@ -280,7 +280,7 @@
 .review-record-id {
   display: block;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 10px;
   overflow-wrap: anywhere;
 }
@@ -296,7 +296,7 @@
 .review-timeline > article {
   position: relative;
   padding: 12px 0 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .review-timeline > article::before {
   content: "";
@@ -317,7 +317,7 @@
 .review-timeline small,
 .review-timeline time {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .review-timeline small {
   display: block;
@@ -339,7 +339,7 @@
 .review-journal label {
   display: grid;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-journal textarea {
   resize: vertical;
@@ -371,14 +371,14 @@
   margin: 0;
 }
 .review-decision-dialog p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .review-decision-dialog label {
   display: grid;
   gap: 8px;
   margin: 16px 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-decision-dialog footer {
   display: flex;
@@ -390,7 +390,7 @@
   text-align: center;
   padding: 48px 16px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .review-empty h2,
 .review-empty h3 {
@@ -434,4 +434,10 @@
   .review-note-versions {
     grid-template-columns: 1fr;
   }
+}
+
+/* Completed reviews read as done at a glance, as in the WebUI. */
+.review-report-list header span[data-status="completed"] {
+  color: hsl(var(--ws-success));
+  border-color: color-mix(in srgb, hsl(var(--ws-success)) 45%, var(--border));
 }

@@ -14,7 +14,10 @@
   --accent: oklch(0.87 0.11 126);
   background: var(--base);
   color: var(--text);
-  font-size: 13px;
+  /* The root stays the browser's 16 px, as in the WebUI: the shared surfaces size everything in
+     rem (Tailwind), so a smaller root shrank SAGE, Kanban, Atlas and the provider pages below
+     their WebUI size. The desktop's own text is set in px and starts at 14 px on the body. */
+  font-size: 16px;
 }
 /* Element resets sit in the lowest cascade layer: every unlayered desktop rule still wins
    over them as before, and the class styles of the surfaces shared with the WebUI (in the
@@ -27,6 +30,7 @@
   body {
     margin: 0;
     min-width: 620px;
+    font-size: 14px;
   }
   button,
   input,
@@ -107,7 +111,7 @@
 }
 .brand-subtitle {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 450;
   letter-spacing: 3.8px;
   margin-top: 2px;
@@ -117,7 +121,7 @@
   border: 1px solid var(--border);
   padding: 2px 5px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-left: auto;
 }
@@ -133,11 +137,11 @@
   margin-bottom: 29px;
 }
 .quick-search span {
-  font-size: 12px;
+  font-size: 13px;
 }
 kbd {
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
   border: 1px solid var(--border);
   padding: 2px 4px;
   margin-left: auto;
@@ -145,7 +149,7 @@ kbd {
 }
 .nav-caption {
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.5px;
   margin: 0 12px 11px;
   font-weight: 600;
@@ -160,7 +164,7 @@ kbd {
   border-radius: 5px;
   margin-bottom: 3px;
   text-align: left;
-  font-size: 12px;
+  font-size: 13px;
 }
 .nav-item.active {
   background: oklch(0.265 0.014 126);
@@ -172,7 +176,7 @@ kbd {
 .nav-count {
   margin-left: auto;
   background: oklch(0.32 0.01 126);
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -215,7 +219,7 @@ kbd {
   height: 20px;
   display: grid;
   place-items: center;
-  font-size: 10px;
+  font-size: 11px;
   border-radius: 5px;
   flex-shrink: 0;
 }
@@ -238,7 +242,7 @@ kbd {
 .project-count {
   margin-left: auto;
   padding: 0 7px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .tree-session {
@@ -249,7 +253,7 @@ kbd {
   width: 100%;
   color: var(--subtle);
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
 }
 .tree-session span:last-child {
   text-overflow: ellipsis;
@@ -260,7 +264,7 @@ kbd {
   color: var(--text);
 }
 .sidebar-empty {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
   line-height: 1.9;
   margin: 18px 12px;
@@ -271,7 +275,7 @@ kbd {
   gap: 9px;
   color: var(--subtle);
   padding: 13px 12px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .sidebar-bottom {
   border-top: 1px solid var(--border);
@@ -283,7 +287,7 @@ kbd {
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   margin-bottom: 20px;
 }
 .account {
@@ -299,14 +303,14 @@ kbd {
   background: oklch(0.29 0.006 120);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .account strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .account small {
-  font-size: 9px;
+  font-size: 11px;
   display: block;
   color: var(--subtle);
   margin-top: 3px;
@@ -338,7 +342,7 @@ kbd {
   gap: 12px;
 }
 .breadcrumbs {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
 }
 .breadcrumbs strong {
@@ -346,7 +350,7 @@ kbd {
   font-weight: 450;
 }
 .local-badge {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.1px;
   color: var(--muted);
   display: flex;
@@ -394,7 +398,7 @@ kbd {
 }
 .eyebrow {
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.5px;
   font-weight: 550;
 }
@@ -412,7 +416,7 @@ h1 {
 .page-heading p {
   color: var(--muted);
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   word-break: break-word;
 }
@@ -429,7 +433,7 @@ h1 {
   border: 1px solid transparent;
   border-radius: 5px;
   padding: 10px 13px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   white-space: nowrap;
 }
@@ -444,7 +448,7 @@ h1 {
   background: var(--raised);
 }
 .small {
-  font-size: 10px;
+  font-size: 11px;
   padding: 6px 9px;
 }
 .full {
@@ -470,7 +474,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.8px;
   color: var(--muted);
 }
@@ -478,7 +482,7 @@ h1 {
   color: var(--subtle);
 }
 .live-label {
-  font-size: 7px;
+  font-size: 11px;
   letter-spacing: 0.6px;
   color: var(--accent);
   margin-left: auto;
@@ -499,7 +503,7 @@ h1 {
   border-radius: 50%;
 }
 .metric p {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin: 7px 0 0;
   line-height: 1.5;
@@ -525,7 +529,7 @@ h1 {
 .tab-list button {
   padding: 5px 0 18px;
   position: relative;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
   white-space: nowrap;
 }
@@ -542,7 +546,7 @@ h1 {
   background: var(--accent);
 }
 .filter-count {
-  font-size: 9px;
+  font-size: 11px;
   margin-left: 6px;
   border-radius: 4px;
   background: var(--border);
@@ -566,7 +570,7 @@ h1 {
   border: 0;
   padding: 4px 0;
   width: 110px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text);
   min-height: 0;
   box-shadow: none;
@@ -609,7 +613,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: capitalize;
   color: var(--muted);
 }
@@ -663,7 +667,7 @@ h1 {
 .session-card > footer {
   border-top: 1px solid var(--border);
   padding: 10px 17px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .mono {
@@ -673,7 +677,7 @@ h1 {
   display: flex;
   gap: 7px;
   align-items: center;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .empty-state {
@@ -703,7 +707,7 @@ h1 {
   transform: rotate(180deg);
 }
 .empty-state > .eyebrow {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.8px;
 }
 .empty-state h2 {
@@ -715,7 +719,7 @@ h1 {
 .empty-state p {
   max-width: 340px;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   margin: 14px 0 24px;
 }
@@ -723,7 +727,7 @@ h1 {
   display: flex;
   gap: 21px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 29px;
 }
 .empty-features > span {
@@ -743,7 +747,7 @@ h1 {
   min-height: 20px;
 }
 .rail-heading > .eyebrow {
-  font-size: 8px;
+  font-size: 11px;
 }
 .pulse-graphic {
   height: 120px;
@@ -793,7 +797,7 @@ h1 {
 }
 .right-rail > h3 {
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   margin: 6px 0 9px;
   letter-spacing: -0.2px;
@@ -801,7 +805,7 @@ h1 {
 .rail-description {
   text-align: center;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
 }
 .rail-divider {
@@ -820,13 +824,13 @@ h1 {
 }
 .rail-action strong {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 460;
   color: var(--text);
 }
 .rail-action small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 4px;
 }
@@ -843,12 +847,12 @@ h1 {
   width: 100%;
 }
 .recent-session strong {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 450;
 }
 .recent-session small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 4px;
 }
@@ -857,10 +861,11 @@ h1 {
   color: var(--subtle);
 }
 .quiet-state {
-  font-size: 10px;
-  color: var(--subtle);
-  line-height: 1.9;
-  padding: 20px 0;
+  /* Empty states are read, not decoration: muted body text, not an 11 px mid-grey line. */
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 16px 0;
 }
 .quiet-state > svg {
   margin-right: 6px;
@@ -875,18 +880,18 @@ h1 {
   padding: 12px;
   color: var(--subtle);
   margin-top: 28px;
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.7;
 }
 .engine-note strong {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 450;
 }
 .engine-version {
   margin-left: auto;
   font-family: var(--user-font-code, monospace);
-  font-size: 9px;
+  font-size: 11px;
 }
 .session-workspace {
   margin-top: 20px;
@@ -908,12 +913,12 @@ h1 {
   gap: 10px;
 }
 .session-workspace strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 .muted {
   color: var(--subtle);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.7px;
 }
 .terminal-surface {
@@ -928,7 +933,7 @@ h1 {
   background: oklch(0.27 0.035 40);
   color: oklch(0.83 0.08 50);
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .workspace-focused {
@@ -985,7 +990,7 @@ h1 {
   align-items: center;
   gap: 7px;
   padding: 10px 8px 10px 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   min-width: 0;
 }
@@ -1034,7 +1039,7 @@ h1 {
   align-items: center;
   gap: 6px;
   padding: 7px 9px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   border-radius: 4px;
 }
@@ -1053,7 +1058,7 @@ h1 {
   align-items: center;
   gap: 9px;
   padding: 13px 16px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .engine-session-bar strong {
@@ -1063,7 +1068,7 @@ h1 {
 .engine-session-id {
   margin-left: auto;
   font-family: var(--user-font-code, monospace);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .native-chat-messages {
@@ -1099,7 +1104,7 @@ h1 {
   max-width: 390px;
   line-height: 1.8;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   margin: 0;
 }
 .chat-message {
@@ -1110,7 +1115,7 @@ h1 {
   contain-intrinsic-size: auto 160px;
 }
 .chat-message header {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.7px;
   color: var(--accent);
   margin-bottom: 10px;
@@ -1122,7 +1127,7 @@ h1 {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.8;
-  font-size: 13px;
+  font-size: 14px;
 }
 .user-chat-body {
   background: var(--raised);
@@ -1154,7 +1159,7 @@ h1 {
   gap: 12px;
   padding: 9px 12px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .native-usage {
   display: flex;
@@ -1163,7 +1168,7 @@ h1 {
   padding: 10px 16px;
   border-top: 1px solid var(--border);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 .native-usage > button {
   margin-left: auto;
@@ -1171,14 +1176,14 @@ h1 {
 }
 .native-usage > span:first-child {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1px;
 }
 .agent-working {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   padding: 14px 0;
 }
@@ -1191,11 +1196,11 @@ h1 {
 }
 .approval-card p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .approval-card pre {
-  font-size: 11px;
+  font-size: 12px;
   overflow: auto;
   max-height: 200px;
 }
@@ -1220,7 +1225,7 @@ h1 {
   white-space: pre-wrap;
   max-height: 200px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -1241,7 +1246,7 @@ h1 {
   padding: 10px 12px;
   border-radius: 5px;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
 }
 .native-list {
   max-height: 370px;
@@ -1256,20 +1261,20 @@ h1 {
   padding: 12px 8px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .native-list > button > svg:last-child {
   margin-left: auto;
 }
 .native-list p {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
   color: var(--subtle);
   margin-bottom: 0;
 }
 .native-list strong {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
 }
 .native-file-layout {
@@ -1281,7 +1286,7 @@ h1 {
   min-width: 0;
 }
 .native-file-content strong {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .native-file-content pre,
@@ -1304,12 +1309,12 @@ h1 {
   min-width: 0;
 }
 .native-diff span {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1px;
   color: var(--subtle);
 }
 .native-diff pre {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   overflow: auto;
   max-height: 450px;
@@ -1331,12 +1336,12 @@ h1 {
 }
 .native-mailbox h3,
 .native-board h3 {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 .native-mailbox p,
 .native-board p {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--muted);
   white-space: pre-wrap;
@@ -1350,7 +1355,7 @@ h1 {
   background: var(--raised);
   border-bottom: 1px solid var(--border);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .provider-heading {
   display: flex;
@@ -1367,7 +1372,7 @@ h1 {
 .provider-heading p,
 .provider-hint {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
 }
 .provider-grid {
@@ -1399,7 +1404,7 @@ h1 {
 .provider-card label {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin: 16px 0;
 }
 .provider-card input,
@@ -1413,7 +1418,7 @@ h1 {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 13px;
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
 .provider-card select:not([multiple]) {
@@ -1438,7 +1443,7 @@ h1 {
 }
 .provider-mode button {
   padding: 8px;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 4px;
   color: var(--muted);
 }
@@ -1453,7 +1458,7 @@ h1 {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .provider-result.saved {
@@ -1468,7 +1473,7 @@ h1 {
   padding-top: 12px;
 }
 .saved-provider-list h4 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
 }
@@ -1482,7 +1487,7 @@ h1 {
   gap: 12px;
   width: 100%;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
 }
 .saved-provider-family {
   color: var(--subtle);
@@ -1494,10 +1499,10 @@ h1 {
   gap: 8px;
   margin-top: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .saved-key small {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--accent);
 }
 @media (max-width: 1100px) {
@@ -1517,7 +1522,7 @@ h1 {
   justify-content: space-between;
   gap: 15px;
   color: var(--subtle);
-  font-size: 9px;
+  font-size: 11px;
 }
 .statusbar > div {
   display: flex;
@@ -1538,7 +1543,7 @@ h1 {
   color: var(--muted);
   background: var(--raised);
   padding: 9px 20px;
-  font-size: 10px;
+  font-size: 11px;
   border-bottom: 1px solid var(--border);
 }
 .preview-banner code {
@@ -1551,7 +1556,7 @@ h1 {
   background: oklch(0.29 0.04 35);
   color: oklch(0.88 0.07 45);
   padding: 12px 30px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .error-banner > span {
@@ -1585,13 +1590,13 @@ h1 {
 .project-card p {
   overflow-wrap: anywhere;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.8;
 }
 .project-card-stats {
   display: flex;
   gap: 15px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 22px;
 }
@@ -1617,7 +1622,7 @@ h1 {
   font-weight: 500;
 }
 .add-card span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .timeline {
@@ -1634,17 +1639,17 @@ h1 {
 }
 .timeline strong {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
 }
 .timeline p {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin-bottom: 0;
 }
 .timeline time {
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .engine-page {
   display: grid;
@@ -1664,7 +1669,7 @@ h1 {
 }
 .engine-panel p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.9;
 }
 .engine-panel dl {
@@ -1676,7 +1681,7 @@ h1 {
   justify-content: space-between;
   gap: 10px;
   padding: 14px 0;
-  font-size: 10px;
+  font-size: 11px;
 }
 .engine-panel dt {
   color: var(--subtle);
@@ -1687,7 +1692,7 @@ h1 {
   text-align: right;
 }
 .engine-panel p.subtle-note {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   margin-top: 28px;
 }
@@ -1721,13 +1726,13 @@ h1 {
 }
 .modal label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   margin: 18px 0;
   color: var(--muted);
 }
 .field-hint {
   float: right;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--subtle);
 }
 .modal input,
@@ -1740,7 +1745,7 @@ h1 {
   padding: 12px;
   color: var(--text);
   margin-top: 9px;
-  font-size: 12px;
+  font-size: 13px;
 }
 /* A block select stacked its picker arrow under the value; a flex box keeps them on one line. */
 .modal select:not([multiple]) {
@@ -1767,18 +1772,18 @@ h1 {
 }
 .kind-picker strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 13px;
 }
 .kind-picker span {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   margin-top: 5px;
 }
 .form-note {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--subtle);
   display: flex;
   align-items: center;
@@ -1790,7 +1795,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .form-check input {
   width: auto;
@@ -1818,7 +1823,7 @@ h1 {
 .palette > button small {
   margin-left: auto;
   color: var(--subtle);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.5px;
 }
 .palette footer {
@@ -1827,7 +1832,7 @@ h1 {
   gap: 7px;
   margin-top: 20px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: 11px;
 }
 .spin {
   animation: rotate 1s linear infinite;
@@ -1900,7 +1905,7 @@ h1 {
     padding: 17px 13px;
   }
   .metric-label {
-    font-size: 7px;
+    font-size: 11px;
     gap: 5px;
   }
   .metric-label > svg {
@@ -2001,7 +2006,7 @@ h1 {
   }
   .empty-features {
     gap: 10px;
-    font-size: 8px;
+    font-size: 11px;
   }
   .projects-grid {
     grid-template-columns: 1fr;
@@ -2034,7 +2039,7 @@ h1 {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* Session pinning. The pin control is quiet (muted text, not reduced opacity, so it keeps
@@ -2086,4 +2091,32 @@ h1 {
   min-width: 0;
   margin: 0;
   padding-left: 32px;
+}
+
+/* One thin, themed scrollbar for the whole window (the WebUI's look). Without it every desktop
+   page and nested list used the classic OS bar with arrow buttons. */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--muted) 34%, transparent);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+/* An empty timeline has no top rule: it showed a lone hairline above the empty state. */
+.timeline:has(> .empty-state) {
+  border-top: 0;
 }

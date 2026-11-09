@@ -25,7 +25,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   min-width: 0;
 }
@@ -78,21 +78,18 @@
   justify-content: space-between;
 }
 .policy-chain > header > span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .policy-chain-row {
   display: flex;
-  align-items: end;
+  align-items: center;
   gap: 6px;
   margin-bottom: 9px;
   min-width: 0;
 }
 .policy-chain-row > label {
   flex: 1;
-}
-.policy-chain-row .icon-button {
-  margin-bottom: 4px;
 }
 .policy-order {
   align-self: center;
@@ -145,7 +142,7 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text);
   min-height: 0;
   box-shadow: none;
@@ -169,7 +166,7 @@
 }
 .fallback-suggestions > p {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 .fallback-suggestion-actions {
@@ -196,4 +193,25 @@
 .fallback-suggestion p {
   margin: 0 0 8px;
   color: var(--muted);
+}
+
+/* A model route is one row of fields (model, fallback, reasoning, effort, preserve) under its
+   name, not a 325 px card that let one and a half routes fit on screen. */
+.policy-profile.policy-route {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 14px 16px;
+}
+.policy-route > header {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+.policy-route > .policy-field-grid {
+  display: contents;
+}
+@media (max-width: 1100px) {
+  .policy-profile.policy-route {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

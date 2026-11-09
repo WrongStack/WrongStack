@@ -123,7 +123,9 @@ export function OrderedModelChain({
         <div className="policy-chain-row" key={i}>
           <span className="policy-order">{i + 1}</span>
           <ModelReference
-            label={t('modelPolicy.chainModel', { label, number: i + 1 })}
+            // The row number already says which model this is; the full name stays for readers.
+            label=""
+            name={t('modelPolicy.chainModel', { label, number: i + 1 })}
             value={model}
             onChange={(v) => onChange(chain.map((old, n) => (n === i ? v : old)))}
           />
@@ -388,7 +390,7 @@ export function RoutingPolicySettings({ draft, change, command }: PolicyProps) {
         const entry = record(value),
           r = record(record(entry['modelRuntime'])['reasoning']);
         return (
-          <article className="policy-profile" key={id}>
+          <article className="policy-profile policy-route" key={id}>
             <header>
               <div>
                 <span className="eyebrow">

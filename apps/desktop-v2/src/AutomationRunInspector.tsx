@@ -13,7 +13,7 @@ import {
   parseAutomationVerification,
 } from './automation-evidence';
 import { useDesktopText } from './desktop-i18n';
-import { displayDateTime, displayDecimal } from './display-dates';
+import { displayCost, displayDateTime, displayDecimal } from './display-dates';
 import type { EngineHttp } from './engine-http';
 import { record } from './engine-values';
 import { MarkdownContent } from './MarkdownContent';
@@ -120,7 +120,7 @@ export function AutomationRunInspector({
                 <strong>
                   {result.usage.costUsd === null
                     ? t('autoRun.unknown')
-                    : `$${displayDecimal(result.usage.costUsd, 4)}`}
+                    : displayCost(result.usage.costUsd)}
                 </strong>
               </div>
             </div>

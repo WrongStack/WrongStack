@@ -82,6 +82,10 @@ export function ProjectGoals({
   const [selected, setSelected] = useState(initialGoalId);
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
+  const startNew = () => {
+    setCreating(true);
+    setSelected('');
+  };
   const [title, setTitle] = useState('');
   const [pendingStart, setPendingStart] = useState('');
   const [assessment, setAssessment] = useState<Record<string, unknown> | null>(null);
@@ -272,14 +276,7 @@ export function ProjectGoals({
           >
             <RefreshCw size={14} /> {t('goals.refresh')}
           </button>
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => {
-              setCreating(true);
-              setSelected('');
-            }}
-          >
+          <button type="button" className="button primary" onClick={startNew}>
             <Plus size={14} /> {t('goals.new')}
           </button>
         </div>
@@ -1068,6 +1065,11 @@ export function ProjectGoals({
               <Target size={28} />
               <h2>{query ? t('goals.noMatch') : t('goals.none')}</h2>
               <p>{query ? t('goals.tryAnother') : t('goals.createHint')}</p>
+              {!query && (
+                <button type="button" className="button primary" onClick={startNew}>
+                  <Plus size={14} /> {t('goals.new')}
+                </button>
+              )}
             </div>
           )}
         </>

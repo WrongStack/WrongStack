@@ -6,12 +6,45 @@
   color: var(--text);
   margin: 12px 20px;
   padding: 12px 16px;
-  font-size: 12px;
+  font-size: 13px;
 }
-.draft-conflict p { color: var(--muted); margin: 6px 0 10px; line-height: 1.5; }
-.draft-conflict > span { color: var(--muted); }
-.draft-conflict > button:not(.copy-button) { border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--text); padding: 5px 9px; cursor: pointer; }
-.draft-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 10px; margin: 12px 0; }
-.draft-comparison section { border: 1px solid var(--border); border-radius: 6px; min-width: 0; padding: 10px; }
-.draft-comparison h3 { margin: 0 0 6px; font-size: 12px; }
-.draft-comparison pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; margin: 0; font: inherit; }
+.draft-conflict p {
+  color: var(--muted);
+  margin: 6px 0 10px;
+  line-height: 1.5;
+}
+.draft-conflict > span {
+  color: var(--muted);
+}
+.draft-conflict > button:not(.copy-button) {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.draft-comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.draft-comparison section {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+  padding: 10px;
+}
+.draft-comparison h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.draft-comparison pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+  font: inherit;
+}

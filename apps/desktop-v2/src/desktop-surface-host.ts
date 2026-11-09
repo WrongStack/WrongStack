@@ -6,11 +6,12 @@ import type {
   SurfaceSendOptions,
 } from '@wrongstack/project-surfaces/host';
 import { createSageSocket, type SurfaceSend } from '@wrongstack/project-surfaces/sage/socket';
-import { useRef, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import { type EngineHttp, EngineHttpError } from './engine-http';
 import type { BackendStream } from './engine-stream';
 import type { JournalTail } from './journal-tail';
 import { MemoryReviewStore } from './memory-reviews';
+import { useSurfaceScroll } from './surface-scroll';
 
 /** Requests this host sent, newest last; replies carrying other ids belong to other views. */
 const OWN_REQUEST_LIMIT = 500;
@@ -81,7 +82,8 @@ export function desktopSurfaceHost(
     getClient: () => client,
     useConnected: () => true,
     useNavigateBack: () => undefined,
-    useScrollRestore: <T extends HTMLElement>(_key: string) => useRef<T | null>(null),
+    useScrollRestore: <T extends HTMLElement>(key: string, enabled?: boolean) =>
+      useSurfaceScroll<T>(stream.identity, key, enabled),
     useValidityReview: (memoryId) =>
       useSyncExternalStore(reviews.subscribe, () => reviews.reviews.validity[memoryId]),
     useCompanionReview: (memoryId) =>

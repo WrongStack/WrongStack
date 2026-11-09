@@ -1,10 +1,11 @@
-import { Check, Power, RefreshCw, Search, Wrench } from 'lucide-react';
+import { Check, Power, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { useDesktopText } from './desktop-i18n';
 import type { EngineCommand } from './engine-operations';
 import { entries } from './engine-values';
 import { surfaceI18n } from './surface-i18n';
+import { ToolKindIcon } from './ToolKindIcon';
 
 export function ToolAccessSettings({ command }: { command: EngineCommand }) {
   const { t } = useDesktopText();
@@ -161,7 +162,7 @@ export function ToolAccessSettings({ command }: { command: EngineCommand }) {
           {filtered.map((tool) => (
             <article className="tool-access-card" key={String(tool['name'])}>
               <header>
-                <Wrench size={16} />
+                <ToolKindIcon name={String(tool['name'])} size={16} />
                 <div>
                   <strong>{String(tool['name'])}</strong>
                   <span>

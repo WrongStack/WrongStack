@@ -1,5 +1,6 @@
 import { AnalyticsDashboard } from '@wrongstack/project-surfaces/analytics/AnalyticsDashboard';
 import { useEffect, useMemo } from 'react';
+import { useDesktopText } from './desktop-i18n';
 import { desktopSurfaceHost } from './desktop-surface-host';
 import type { EngineHttp } from './engine-http';
 import { backendStream } from './engine-stream';
@@ -11,6 +12,7 @@ import { SurfaceFrame, useSurfaceConfirm } from './SurfaceFrame';
  * and iterations, the active conversation's tokens and cost, and the engine's event buffer.
  */
 export function ProjectAnalytics({ projectId, http }: { projectId: string; http: EngineHttp }) {
+  const { t } = useDesktopText();
   const confirm = useSurfaceConfirm();
   const { host, attach } = useMemo(
     () =>
@@ -26,7 +28,7 @@ export function ProjectAnalytics({ projectId, http }: { projectId: string; http:
   useEffect(() => attach(), [attach]);
   return (
     <SurfaceFrame host={host} confirm={confirm} fill>
-      <AnalyticsDashboard />
+      <AnalyticsDashboard heading={t('pages.analytics')} uiEvents={false} />
     </SurfaceFrame>
   );
 }

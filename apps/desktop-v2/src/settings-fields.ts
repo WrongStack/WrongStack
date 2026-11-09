@@ -409,6 +409,26 @@ export const settingsSections = [
       'How the WrongStack terminal UI shows work in progress. These profile settings do not change the desktop app’s own view.',
     fields: [
       {
+        key: 'titleAnimation',
+        label: 'CLI title animation',
+        description: 'Animate the CLI terminal title while the agent runs.',
+        kind: 'toggle',
+      },
+      {
+        key: 'showAgentSwarmPanel',
+        label: 'CLI agent swarm panel',
+        description: 'Choose the fleet and mission queue placement in the terminal UI.',
+        kind: 'select',
+        options: ['bottom', 'sidebar', 'off'],
+        optionLabels: { bottom: 'Bottom panel', sidebar: 'Sidebar', off: 'Off' },
+      },
+      {
+        key: 'confirmExit',
+        label: 'CLI exit confirmation',
+        description: 'First Ctrl+C aborts work; a second Ctrl+C confirms terminal exit.',
+        kind: 'toggle',
+      },
+      {
         key: 'statuslineMode',
         label: 'Statusline mode',
         description: 'Density of the terminal statusline rail.',

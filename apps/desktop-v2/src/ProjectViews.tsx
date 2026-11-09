@@ -1,4 +1,4 @@
-import { ArrowRight, Folder, FolderPlus, Plus } from 'lucide-react';
+import { Activity, ArrowRight, Folder, FolderPlus, Plus } from 'lucide-react';
 import { AppearanceSettings } from './AppearanceSettings';
 import { useDesktopText } from './desktop-i18n';
 import { displayDateTime } from './display-dates';
@@ -86,7 +86,15 @@ export function ProjectViews({ vm }: { vm: DesktopController }) {
               <ArrowRight size={16} />
             </button>
           ))}
-          {!snapshot.sessions.length && <p className="quiet-state">{t('activity.empty')}</p>}
+          {!snapshot.sessions.length && (
+            // The same empty state as mission control, not a bare line under a divider.
+            <div className="empty-state">
+              <div className="empty-illustration">
+                <Activity size={32} />
+              </div>
+              <p>{t('activity.empty')}</p>
+            </div>
+          )}
         </section>
       )}
       {section === 'engine' && <AppearanceSettings vm={vm} />}
