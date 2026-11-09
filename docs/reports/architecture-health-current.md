@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-09T20:39:45.641Z
+**Generated:** 2026-11-09T21:06:25.504Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,19 +9,19 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6210 |
-| Production source lines | 1271317 |
-| Test files | 5169 |
+| Production source lines | 1271341 |
+| Test files | 5171 |
 | Workspace dependency edges | 250 |
 | Relative module edges | 18297 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 2 |
+| Type-inclusive module cycles | 1 |
 | Tests without TypeScript test-project coverage | 321 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
 
-- 1 unexcepted module cycle(s)
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -44,7 +44,7 @@
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 73 | 51 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/hq-next | 193 | 67 | @wrongstack/contracts, @wrongstack/coordination, @wrongstack/hq, @wrongstack/tools, @wrongstack/webui-protocol |
-| @wrongstack/kanban | 108 | 98 | @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/kanban | 108 | 100 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 6 | 6 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 7 | 11 | @wrongstack/coordination, @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 74 | 99 | @wrongstack/contracts, @wrongstack/core |
@@ -84,7 +84,6 @@ None.
 
 ### Type-inclusive
 
-- packages/acp/src/client/acp-runtime-options.ts ↔ packages/acp/src/client/acp-session.ts
 - packages/contracts/src/types/blocks.ts ↔ packages/contracts/src/types/context.ts ↔ packages/contracts/src/types/conversation-state.ts ↔ packages/contracts/src/types/messages.ts ↔ packages/contracts/src/types/provider.ts ↔ packages/contracts/src/types/run-env.ts ↔ packages/contracts/src/types/session-events.ts ↔ packages/contracts/src/types/session-storage.ts ↔ packages/contracts/src/types/session.ts ↔ packages/contracts/src/types/tool.ts
 
 ## Largest production files

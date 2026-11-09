@@ -29,6 +29,17 @@ export function managementTaskVersion(board: KanbanBoard, task: KanbanTask): str
         children: [...(task.childTaskIds ?? [])].sort(),
         chain: task.chain,
         checks: task.successCriteria,
+        // Metric timestamps alone do not change what the manager reviewed.
+        goalMetrics: task.goalMetrics?.map((metric) => ({
+          id: metric.id,
+          name: metric.name,
+          status: metric.status,
+          target: metric.target,
+          current: metric.current,
+          direction: metric.direction,
+          unit: metric.unit,
+          notes: metric.notes,
+        })),
         notes: task.notes,
         links: task.links,
         park: task.park,

@@ -98,6 +98,12 @@ export async function adoptManagedLifecycle(
     }
     board.updatedAt = at;
     for (const task of board.tasks) {
+      // Legacy Done cards normalize below; tombstones elsewhere must not revive.
+      if (
+        isManagedTombstone(board, task) &&
+        lifecycleStageForColumn(board, task.columnId) !== 'done'
+      )
+        continue;
       if (task.lifecycle !== undefined) {
         const expectedStage = lifecycleStageForColumn(board, task.columnId);
         if (task.lifecycle.currentStage !== expectedStage) {

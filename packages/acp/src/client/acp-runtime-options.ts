@@ -1,11 +1,18 @@
 import type { AcpRuntimeOption, AcpRuntimeValues } from '@wrongstack/contracts/types/acp-runtime';
 import { acpRuntimeValuesError } from '@wrongstack/contracts/types/acp-runtime';
-import type { ACPSession } from './acp-session.js';
+import type { SessionId } from '../types/acp-v1.js';
+
+/** The part of an ACP session that runtime values touch; ACPSession satisfies it. */
+export interface AcpRuntimeSession {
+  openSession(): Promise<{ sessionId: SessionId }>;
+  getConfigOptions(): AcpRuntimeOption[];
+  setConfigOption(sessionId: SessionId, configId: string, value: string): Promise<void>;
+}
 
 const record = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === 'object' && !Array.isArray(x);
 const applied = new WeakMap<
-  ACPSession,
+  AcpRuntimeSession,
   { original: AcpRuntimeValues; requested: AcpRuntimeValues }
 >();
 /** Permission and automation modes are deliberately outside model configuration. */
@@ -61,7 +68,7 @@ export function acpRuntimeOptions(input: unknown): AcpRuntimeOption[] {
 
 /** Apply dependencies first, and re-read the agent's revised vocabulary after every change. */
 export async function applyAcpRuntimeValues(
-  session: ACPSession,
+  session: AcpRuntimeSession,
   values: AcpRuntimeValues,
 ): Promise<AcpRuntimeOption[]> {
   const invalid = acpRuntimeValuesError(values);
