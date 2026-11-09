@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ACP file access outside the project is decided on the real target.** When
+  an ACP agent's read or write leaves the project, through its spelling or a
+  symlinked file or directory inside it, the permission policy is asked about
+  the path it really leads to and the file server then opens exactly that
+  path. A write through an in-project link to agent state no longer passes as
+  an in-project write.
+
 ## [1.5.4] — 2026-11-09
 
 WrongStack becomes an ACP agent any editor can install: it starts and offers a

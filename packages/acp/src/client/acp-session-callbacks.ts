@@ -93,6 +93,13 @@ export async function handleAcpFsRequest(
     await sender.sendErrorResponse(id, -32602, 'path is required');
     return;
   }
+  // When the file server serves paths outside the project, the decision is
+  // made on where the path really leads (a symlinked file or directory inside
+  // the project resolves to its target), and the read or write then goes to
+  // exactly that target, so the host's sensitive-path and agent-state rules
+  // see what is opened, not the spelling the agent sent.
+  const located = fileServer.servesOutsideRoot ? await fileServer.locate(params.path) : null;
+  const target = located?.target ?? params.path;
   if (msg.method === 'fs/write_text_file') {
     // A missing/null content is a malformed request, not "write an empty
     // file": defaulting it to '' truncated the target once authorized.
@@ -104,9 +111,9 @@ export async function handleAcpFsRequest(
       permissionPolicy,
       {
         toolCallId: `acp-fs-write-${id}`,
-        title: `Write file: ${params.path}`,
+        title: `Write file: ${target}`,
         kind: 'edit',
-        rawInput: { path: params.path, sessionId: params.sessionId },
+        rawInput: { path: target, sessionId: params.sessionId },
       },
       callbackOptions,
     );
@@ -126,18 +133,14 @@ export async function handleAcpFsRequest(
   // spelling or through a symlink) is put to the policy as the read it is, so
   // the host's sensitive-path rules decide it: WrongStack's own `read` of
   // ~/.ssh or ~/.aws asks or refuses, and an agent's read must not skip that.
-  if (
-    msg.method === 'fs/read_text_file' &&
-    fileServer.servesOutsideRoot &&
-    (await fileServer.reachesOutsideRoot(params.path))
-  ) {
+  if (msg.method === 'fs/read_text_file' && located?.outside === true) {
     const authorization = await authorizeAcpCallback(
       permissionPolicy,
       {
         toolCallId: `acp-fs-read-${id}`,
-        title: `Read file outside the project: ${params.path}`,
+        title: `Read file outside the project: ${target}`,
         kind: 'read',
-        rawInput: { path: params.path, sessionId: params.sessionId },
+        rawInput: { path: target, sessionId: params.sessionId },
       },
       callbackOptions,
     );
@@ -157,7 +160,7 @@ export async function handleAcpFsRequest(
     if (msg.method === 'fs/read_text_file') {
       const result = await fileServer.readTextFile({
         sessionId: params.sessionId ?? '',
-        path: params.path,
+        path: target,
         line: params.line,
         limit: params.limit,
       });
@@ -165,7 +168,7 @@ export async function handleAcpFsRequest(
     } else {
       await fileServer.writeTextFile({
         sessionId: params.sessionId ?? '',
-        path: params.path,
+        path: target,
         content: params.content as string,
       });
       await sender.sendResult(id, {});

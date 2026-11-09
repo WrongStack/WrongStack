@@ -286,19 +286,45 @@ export class FileServer {
   }
 
   /**
-   * Whether an absolute `p` leaves the project root, by its spelling or
-   * through a symlink. With `allowOutsideRoot` such a path is served, so the
-   * caller must first put it to the permission policy as the read it is: the
-   * host's sensitive-path rules (credentials, agent state) live there.
-   * Malformed paths answer false; the read itself rejects them.
+   * Where an absolute `p` really leads, and whether that leaves the project.
+   *
+   * `target` is canonical: the realpath of the nearest existing ancestor with
+   * the rest appended, so a symlinked file or directory inside the project
+   * resolves to where a read or write would land. With `allowOutsideRoot`
+   * such paths are served, so the caller puts `target` (not the spelling it
+   * was given) to the permission policy, where the host's sensitive-path and
+   * agent-state rules live, and then reads or writes `target` itself, so the
+   * decision covers what is opened. Anything short of a clean "inside",
+   * including a check that fails, counts as outside. Null for a malformed
+   * path; the read or write rejects it.
    */
-  async reachesOutsideRoot(p: string): Promise<boolean> {
-    if (typeof p !== 'string' || !path.isAbsolute(p)) return false;
+  async locate(p: string): Promise<{ target: string; outside: boolean } | null> {
+    if (typeof p !== 'string' || p.length === 0 || !path.isAbsolute(p)) return null;
+    const resolved = path.resolve(p);
+    const target = await this.canonical(resolved);
+    let outside = false;
     try {
-      await this.checkInside(path.resolve(p));
-      return false;
-    } catch (err) {
-      return err instanceof FsError && err.code === 'OUTSIDE_ROOT';
+      await this.checkInside(resolved);
+    } catch {
+      outside = true;
+    }
+    return { target, outside };
+  }
+
+  /** Realpath of the nearest existing ancestor, with the missing tail appended. */
+  private async canonical(resolved: string): Promise<string> {
+    let probe = resolved;
+    const tail: string[] = [];
+    for (;;) {
+      try {
+        const real = await this.operations.realpath(probe);
+        return tail.length > 0 ? path.join(real, ...tail.reverse()) : real;
+      } catch (err) {
+        const parent = path.dirname(probe);
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || parent === probe) return resolved;
+        tail.push(path.basename(probe));
+        probe = parent;
+      }
     }
   }
 

@@ -891,7 +891,7 @@ describe('ACPSession', () => {
       const denied = await read(45, secret);
       expect(denied?.error?.message).toContain('denied by permission policy');
       expect(JSON.stringify(denied)).not.toContain('PRIVATE');
-      expect(asked).toEqual([{ kind: 'read', path: secret }]);
+      expect(asked).toEqual([{ kind: 'read', path: await fsp.realpath(secret) }]);
 
       const ok = await read(46, inside);
       expect((ok?.result as { content: string } | undefined)?.content).toBe('project text');
@@ -901,13 +901,64 @@ describe('ACPSession', () => {
         const viaLink = await read(47, link);
         expect(viaLink?.error).toBeDefined();
         expect(JSON.stringify(viaLink)).not.toContain('PRIVATE');
-        expect(asked.at(-1)).toEqual({ kind: 'read', path: link });
+        // Asked about the file the link opens, not the innocent spelling.
+        expect(asked.at(-1)).toEqual({ kind: 'read', path: await fsp.realpath(secret) });
       }
     } finally {
       await session.close();
       await fsp.rm(outsideDir, { recursive: true, force: true });
       await fsp.rm(link, { force: true });
       await fsp.rm(inside, { force: true });
+    }
+  });
+
+  it('asks about the real target of a write through a symlinked directory, and writes there', async () => {
+    // A directory link inside the project pointing at agent state: the
+    // policy's agent-state guard must see the real target, not the
+    // in-project spelling, and the write must land on what was approved.
+    const fsp = await import('node:fs/promises');
+    const os = await import('node:os');
+    const outsideDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-acp-dirlink-'));
+    const link = path.join(PROJECT_ROOT, 'state-link');
+    await fsp.symlink(outsideDir, link, 'junction');
+    const asked: Array<{ kind: string | undefined; path: unknown }> = [];
+    let allow = false;
+    const session = await startSession(undefined, {
+      allowOutsideProjectRoot: true,
+      permissionPolicy: async (req) => {
+        asked.push({
+          kind: req.toolCall.kind ?? undefined,
+          path: (req.toolCall.rawInput as { path?: unknown } | undefined)?.path,
+        });
+        return { outcome: 'selected', optionId: allow ? 'allow' : 'reject' };
+      },
+    });
+    const t = lastTransport();
+    const write = async (id: number) => {
+      t.emit({
+        jsonrpc: '2.0',
+        id,
+        method: 'fs/write_text_file',
+        params: { sessionId: 'sess_abc', path: path.join(link, 'config.json'), content: 'x' },
+      } as never as ACPMessage);
+      await new Promise((r) => setTimeout(r, 50));
+      return t.sent.find((m) => m.id === id);
+    };
+    try {
+      const realTarget = path.join(await fsp.realpath(outsideDir), 'config.json');
+      const denied = await write(48);
+      expect(denied?.error?.message).toContain('denied by permission policy');
+      expect(asked).toEqual([{ kind: 'edit', path: realTarget }]);
+      await expect(fsp.readFile(realTarget, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+
+      allow = true;
+      const ok = await write(49);
+      expect(ok?.error).toBeUndefined();
+      expect(await fsp.readFile(realTarget, 'utf8')).toBe('x');
+    } finally {
+      await session.close();
+      await fsp.rm(link, { recursive: false, force: true });
+      await fsp.rm(outsideDir, { recursive: true, force: true });
     }
   });
 

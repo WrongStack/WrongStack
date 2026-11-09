@@ -554,9 +554,26 @@ describe('FileServer with allowOutsideRoot (features.allowOutsideProjectRoot)', 
     const open = new FileServer({ projectRoot, allowOutsideRoot: true });
     expect(open.servesOutsideRoot).toBe(true);
     expect(server.servesOutsideRoot).toBe(false);
-    expect(await open.reachesOutsideRoot(path.join(outside, 'x.txt'))).toBe(true);
-    expect(await open.reachesOutsideRoot(path.join(projectRoot, 'new', 'file.ts'))).toBe(false);
-    expect(await open.reachesOutsideRoot('relative.txt')).toBe(false);
+    expect(await open.locate(path.join(outside, 'x.txt'))).toEqual({
+      target: path.join(await fsp.realpath(outside), 'x.txt'),
+      outside: true,
+    });
+    expect((await open.locate(path.join(projectRoot, 'new', 'file.ts')))?.outside).toBe(false);
+    expect(await open.locate('relative.txt')).toBeNull();
+  });
+
+  it('locates a path through a directory link to where it really leads', async () => {
+    const link = path.join(projectRoot, 'dir-link');
+    await fsp.symlink(outside, link, 'junction');
+    try {
+      const open = new FileServer({ projectRoot, allowOutsideRoot: true });
+      expect(await open.locate(path.join(link, 'deep', 'new.txt'))).toEqual({
+        target: path.join(await fsp.realpath(outside), 'deep', 'new.txt'),
+        outside: true,
+      });
+    } finally {
+      await fsp.rm(link, { force: true });
+    }
   });
 
   it('still refuses the same paths by default, and relative paths either way', async () => {
