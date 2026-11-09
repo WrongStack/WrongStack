@@ -55,6 +55,20 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.4
+
+- **WrongStack as an ACP agent for any editor:** `wstack acp` starts without
+  a configured provider and offers a login, so an editor can install it and
+  sign in from the editor; the session's model is picked from the editor's
+  model picker.
+- **ACP agents reach files outside the project** when WrongStack's own tools
+  may (`features.allowOutsideProjectRoot`): no more "path is outside the
+  project root" for an agent's own settings or temp files.
+- **Eternal autonomy, `/permissions` and `/plugin` in the desktop and the
+  WebUI.**
+- **The macOS desktop engine boots**, release downloads retry a passing CDN
+  error, and a spent daily quota parks the whole provider.
+
 ### What's new in 1.5.3
 
 - **Every agent visible in the desktop:** each worker of a conversation gets

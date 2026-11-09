@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.3 → 1.0.0).
+// Changelog — 1.x era (1.5.4 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,22 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.4',
+    date: '2026-11-09',
+    tagline: 'WrongStack as an ACP agent for any editor',
+    latest: true,
+    highlights: [
+      'wstack acp starts without a configured provider and offers a login, so an editor can install WrongStack and sign in from the editor',
+      'Editors pick the session’s model from their own model picker; the choice survives session/load',
+      'ACP errors follow the spec: -32000 only means authentication required',
+      'ACP agents WrongStack drives reach files outside the project when WrongStack’s own tools may',
+      'The desktop and the WebUI run eternal autonomy, /permissions and /plugin; the macOS desktop engine boots again',
+    ],
+  },
+  {
     version: '1.5.3',
     date: '2026-11-08',
     tagline: 'Every agent, the fleet gauge and ACP leaders in the desktop',
-    latest: true,
     highlights: [
       'Every worker of a desktop conversation gets its agent tab beside the leader, with a fleet gauge of running workers and spawns left',
       'An ACP agent such as Claude Code can lead a desktop conversation, as in the CLI',

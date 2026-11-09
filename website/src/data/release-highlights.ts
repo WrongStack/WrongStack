@@ -1,29 +1,29 @@
 /** Curated public release copy; the version guard requires a refresh on every release. */
 export const releaseHighlights = {
-  version: '1.5.3',
-  title: 'The desktop catches up on the rest of what the CLI does.',
+  version: '1.5.4',
+  title: 'Any editor can run WrongStack as its ACP agent.',
   summary:
-    'Every worker of a desktop conversation gets its agent tab beside the leader, with a fleet gauge showing how many run and how many spawns are left. An ACP agent such as Claude Code can lead a conversation, the desktop says once when a newer WrongStack is out, and a configured exec sandbox is now enforced in every host.',
+    'wstack acp starts on a fresh machine and offers a login, so an editor that installs it can sign in without leaving the editor, and the session’s model is chosen from the editor’s own model picker. ACP agents that WrongStack drives now reach files outside the project when WrongStack’s own tools may, and the desktop and the WebUI run eternal autonomy, /permissions and /plugin.',
   socialDescription:
-    'WrongStack 1.5.3: every agent of a desktop conversation gets its tab with a fleet gauge, ACP agents lead desktop conversations, and a configured exec sandbox is enforced.',
+    'WrongStack 1.5.4: editors install WrongStack over ACP, log in and pick its model from the editor, ACP agents reach files outside the project, and the desktop runs eternal autonomy, /permissions and /plugin.',
   cards: [
     {
-      title: 'Every agent gets its tab',
-      body: 'A conversation’s workers each get an agent tab beside the leader, with their transcript or, failing that, their output so far. A fleet gauge shows how many workers run against the ceiling and how many spawns the fleet budget has left.',
-      href: '/fleet',
-      linkLabel: 'See the fleet',
-    },
-    {
-      title: 'ACP agents lead desktop conversations',
-      body: 'A profile whose provider is acp, for example after /model acp/claude-code, now opens in the desktop. The ACP leader appears in the model pickers, tool approvals reach its tab, and its agent sessions close with the engine.',
+      title: 'An ACP agent for any editor',
+      body: 'wstack acp no longer exits when no provider is configured. It answers the handshake, offers a terminal login and a settings login, and opens sessions as soon as wstack auth has run, without a restart. Each session carries a model option the editor shows in its model picker.',
       href: '/acp',
       linkLabel: 'Explore ACP',
     },
     {
-      title: 'tools.sandbox is enforced',
-      body: 'The exec sandbox policy in config.tools.sandbox was declared in the wrong config block and never reached the sandbox. The CLI, the WebUI and the desktop engine now apply the configured mode and tier when they register their tools.',
-      href: '/security',
-      linkLabel: 'Read about security',
+      title: 'ACP agents reach the files they need',
+      body: 'An agent such as Claude Code driven over ACP reads its own settings and temp files through WrongStack. The file server now follows the same allowOutsideProjectRoot policy as WrongStack’s own tools, and writes still pass the permission rules.',
+      href: '/acp',
+      linkLabel: 'See how ACP works',
+    },
+    {
+      title: 'Eternal autonomy in the desktop',
+      body: 'Choosing Eternal in the desktop or the WebUI now runs the loop for that conversation, and /permissions and /plugin run there as in the CLI.',
+      href: '/fleet',
+      linkLabel: 'See the fleet',
     },
   ],
 } as const;

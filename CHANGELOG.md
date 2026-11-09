@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.4] — 2026-11-09
+
+WrongStack becomes an ACP agent any editor can install: it starts and offers a
+login on a fresh machine, editors pick its model from their own model picker,
+and its errors follow the ACP error codes. ACP agents WrongStack drives reach
+files outside the project as its own tools do. The desktop and the WebUI run
+eternal autonomy, `/permissions` and `/plugin`, and the macOS desktop engine
+boots again.
+
 ### Added
 
 - **Pick the model from the editor when WrongStack runs as an ACP agent.** Each `wstack acp` session now carries a `model` config option with `category: "model"`, which ACP clients that support session config options show as their model selector. It lists the same models as `/model` (providers with a usable credential, their catalog models, grouped by provider, minus the providers and models switched off in settings), with the session's model selected. A choice applies from the next prompt, built the way `/model` builds a provider; a model whose provider cannot be built fails that prompt with the reason instead of quietly running on the old one. The choice is saved with the session and survives `session/load` while the model is still offered, and it never changes the default model in your config. For embedders, `ProtocolHandlerOptions.sessionConfigOptions` adds options when a session opens, config values may be grouped, and `makeACPServerAgentTurn` takes `applyConfigOptions` to apply the selection before each turn.
