@@ -179,9 +179,80 @@ jobs:
               grep -Fq 'wrongstack-engine.exe' <<<"$listing"
               ;;
             macOS)
-              app="$(find apps/desktop-v2/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' | head -n1)"
-              test -x "$app/Contents/MacOS/wrongstack-engine"
+              # Keep the bundle path absolute: the smoke launch changes directories.
+              app="$(find "$PWD/apps/desktop-v2/src-tauri/target/release/bundle/macos" -maxdepth 1 -name '*.app' | head -n1)"
+              engine="$app/Contents/MacOS/wrongstack-engine"
+              test -x "$engine"
               codesign --verify --deep "$app"
+              # Tauri signs the engine with the hardened runtime. Without
+              # allow-jit, JavaScriptCore loses its JIT and SharedArrayBuffer and
+              # the engine dies at boot (#440).
+              entitlements="$(codesign -d --entitlements - --xml "$engine" 2>/dev/null)"
+              # Parse the plist: a present key set to false (or a string) grants no JIT.
+              if ! printf '%s' "$entitlements" | python3 -c 'import plistlib, sys; sys.exit(0 if plistlib.load(sys.stdin.buffer).get("com.apple.security.cs.allow-jit") is True else 1)'; then
+                echo "$entitlements"
+                echo "::error::The bundled engine is signed without allow-jit."
+                exit 1
+              fi
+              # Boot the signed engine from inside the bundle; `--version` alone
+              # never reaches the code that failed.
+              smoke="$(mktemp -d)"
+              mkdir -p "$smoke/home" "$smoke/project" "$smoke/dist"
+              port=47911
+              # Kill the engine and every process it spawned: the WebUI server
+              # and engine helpers outlive a plain `kill` of the direct PID and
+              # keep the port bound for whatever runs next.
+              kill_tree() {
+                local target="$1" child
+                for child in $(pgrep -P "$target" 2>/dev/null || true); do
+                  kill_tree "$child"
+                done
+                kill -TERM "$target" 2>/dev/null || true
+              }
+              cleanup_engine() {
+                if [ -n "${pid:-}" ]; then
+                  # Escalate if the engine ignores SIGTERM, so the wait below
+                  # cannot hang the job.
+                  ( sleep 10; kill -KILL "$pid" 2>/dev/null || true ) &
+                  watchdog=$!
+                  kill_tree "$pid" 2>/dev/null || true
+                  # Reap the engine so the next step cannot race a dying
+                  # process for the port.
+                  wait "$pid" 2>/dev/null || true
+                  kill "$watchdog" 2>/dev/null || true
+                  # The EXIT trap must not repeat the work.
+                  pid=''
+                fi
+              }
+              trap cleanup_engine EXIT
+              # `exec` so $! is the engine itself, not a subshell around it.
+              (cd "$smoke/project" && exec env HOME="$smoke/home" WEBUI_TOKEN=desktop-smoke \
+                WRONGSTACK_DESKTOP_EMPTY_DIST="$smoke/dist" \
+                "$engine" --port "$port" >"$smoke/engine.log" 2>&1) &
+              pid=$!
+              booted=''
+              for _ in $(seq 1 90); do
+                if ! kill -0 "$pid" 2>/dev/null; then break; fi
+                code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/" || true)"
+                if [ -n "$code" ] && [ "$code" != '000' ]; then booted=yes; break; fi
+                sleep 1
+              done
+              # Answering once is not enough: a crash in code loaded after the
+              # listener opens would still show here.
+              if [ -n "$booted" ]; then
+                sleep 5
+                kill -0 "$pid" 2>/dev/null || booted=''
+              fi
+              if grep -Fq 'SharedArrayBuffer is not defined' "$smoke/engine.log"; then booted=''; fi
+              # Stop the engine and its children, then reap them before the
+              # next step touches the port.
+              cleanup_engine
+              if [ -z "$booted" ]; then
+                cat "$smoke/engine.log"
+                echo "::error::The bundled engine did not boot from inside the app."
+                exit 1
+              fi
+              echo "Bundled engine booted and answered on port $port."
               ;;
             Linux)
               # Read each listing whole before matching: `grep -q` in a pipe

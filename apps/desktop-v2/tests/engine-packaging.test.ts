@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -60,6 +61,61 @@ describe('desktop installer bundle', () => {
     expect(overlay.bundle.icon).toEqual(
       expect.arrayContaining(['icons/icon.icns', 'icons/icon.ico']),
     );
+  });
+  // #440: Tauri signs the engine with the hardened runtime. Without allow-jit, JavaScriptCore
+  // loses its JIT, turns SharedArrayBuffer off, and the engine dies at boot on macOS.
+  it('signs the macOS engine with the entitlements a Bun executable needs', () => {
+    expect(overlay.bundle.macOS.entitlements).toBe('./Entitlements.plist');
+    const plist = readFileSync(new URL('../src-tauri/Entitlements.plist', import.meta.url), 'utf8');
+    const granted = [...plist.matchAll(/<key>([^<]+)<\/key>\s*<true\/>/g)].map((m) => m[1]);
+    expect(granted).toEqual(
+      expect.arrayContaining([
+        'com.apple.security.cs.allow-jit',
+        'com.apple.security.cs.allow-unsigned-executable-memory',
+        'com.apple.security.cs.disable-library-validation',
+      ]),
+    );
+    expect(granted).not.toContain('com.apple.security.cs.allow-dyld-environment-variables');
+  });
+  it('boots the signed engine from inside the macOS app in CI', () => {
+    const workflow = readFileSync(
+      new URL('../../../.github/workflows/desktop.yml', import.meta.url),
+      'utf8',
+    );
+    expect(workflow).toContain('codesign -d --entitlements - --xml "$engine"');
+    expect(workflow).toContain('find "$PWD/apps/desktop-v2/src-tauri/target/release/bundle/macos"');
+    expect(workflow).toContain('"$engine" --port "$port"');
+  });
+  it.each([
+    ['<true/>', 0],
+    ['<false/>', 1],
+    ['<string>true</string>', 1],
+    ['<integer>1</integer>', 1],
+    ['', 1],
+  ])('validates the signed JIT entitlement value %s in CI', (value, expectedStatus) => {
+    const workflow = readFileSync(
+      new URL('../../../.github/workflows/desktop.yml', import.meta.url),
+      'utf8',
+    );
+    const command = workflow.match(/python3 -c '([^']+)'/);
+    expect(
+      command,
+      'CI must parse the signed entitlements, not just search for the key',
+    ).not.toBeNull();
+    if (!command) return;
+    const entry = value ? `<key>com.apple.security.cs.allow-jit</key>${value}` : '';
+    const result = spawnSync(
+      process.platform === 'win32' ? 'python' : 'python3',
+      ['-c', command[1]],
+      {
+        input: `<?xml version="1.0"?><plist version="1.0"><dict>${entry}</dict></plist>`,
+        encoding: 'utf8',
+        timeout: 10_000,
+      },
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(expectedStatus);
   });
   it('keeps the base config unbundled so development never needs a compiled engine', () => {
     const base = JSON.parse(

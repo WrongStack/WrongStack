@@ -328,6 +328,21 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(tracker.isAvailable('anthropic', 'never-tried'), true);
   });
 
+  // #424: the fallback chain tried all four models of a provider whose daily token
+  // limit (shared by every key) was spent, because the 429 read as a burst limit.
+  it('quarantines the whole provider on a daily-cap 429', () => {
+    const message =
+      'You have exceeded your daily token limit. The limit applies to all of your API keys combined.';
+    // The kind the provider runner records: the real classifier's, not a hand-picked one.
+    const { kind } = new ProviderError(message, 429, true, 'cerebras');
+    tracker.recordSuccess('cerebras', 'qwen-3');
+    tracker.recordFailure('cerebras', 'llama-4', kind, 429, message);
+
+    strictEqual(tracker.getStatus('cerebras', 'llama-4')?.lastErrorKind, 'quota_exhausted');
+    strictEqual(tracker.isAvailable('cerebras', 'qwen-3'), false);
+    strictEqual(tracker.isAvailable('cerebras', 'never-tried'), false);
+  });
+
   it('does NOT quarantine siblings on a different provider', () => {
     tracker.recordSuccess('openai', 'gpt-4o');
     tracker.recordSuccess('anthropic', 'claude-4');

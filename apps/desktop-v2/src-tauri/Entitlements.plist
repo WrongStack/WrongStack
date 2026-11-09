@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Tauri signs every executable in the app, the bundled engine included, with the
+  hardened runtime. The engine is a Bun executable: without allow-jit macOS
+  refuses JavaScriptCore its JIT memory, JSC then turns off SharedArrayBuffer,
+  and the engine dies at boot with "SharedArrayBuffer is not defined" (#440).
+  This is Bun's documented entitlement set for compiled executables, less
+  allow-dyld-environment-variables, which only lets DYLD_* inject code.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-executable-page-protection</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

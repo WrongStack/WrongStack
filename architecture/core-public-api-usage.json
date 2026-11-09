@@ -124,14 +124,14 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 263,
+      "files": 265,
       "typeOnly": 26,
-      "runtimeOrMixed": 239
+      "runtimeOrMixed": 241
     },
     "@wrongstack/core/session-catalog": {
-      "files": 18,
+      "files": 19,
       "typeOnly": 5,
-      "runtimeOrMixed": 14
+      "runtimeOrMixed": 15
     },
     "@wrongstack/core/skill-mentions": {
       "files": 5,
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 174
     },
     "@wrongstack/core/tasking": {
-      "files": 45,
+      "files": 46,
       "typeOnly": 20,
-      "runtimeOrMixed": 27
+      "runtimeOrMixed": 28
     },
     "@wrongstack/core/typesafe": {
       "files": 33,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 971,
+      "files": 973,
       "typeOnly": 74,
-      "runtimeOrMixed": 931
+      "runtimeOrMixed": 933
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -209,9 +209,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
-      "files": 33,
+      "files": 34,
       "typeOnly": 2,
-      "runtimeOrMixed": 31
+      "runtimeOrMixed": 32
     },
     "@wrongstack/core/vcs": {
       "files": 2,
@@ -7259,6 +7259,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "apps/desktop-v2/tests/service-auto-heal-live.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/acp/src/client/acp-session-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8747,6 +8753,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/connections-native-acknowledgement.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/tests/introspection-tool-persistence.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8832,6 +8844,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui/tests/components/yolo-confirm-list.test.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "apps/desktop-v2/tests/service-auto-heal-live.mjs",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10577,6 +10595,12 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
+      "file": "packages/goal/tests/checkpoint.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/src/auto-executor.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11021,6 +11045,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "apps/desktop-v2/tests/service-auto-heal-live.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/acp/src/agent/client-transport.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -11112,6 +11142,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/bench/src/suites/bundled.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/bench/tests/aggregate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14783,7 +14819,7 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/sage/src/wrongmemory-port.ts",
+      "file": "packages/sage/src/wrongmemory-daemon.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -17204,6 +17240,12 @@
       "file": "packages/webui/tests/lib/sage-block.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "apps/desktop-v2/tests/native-smoke.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils/tree-kill",

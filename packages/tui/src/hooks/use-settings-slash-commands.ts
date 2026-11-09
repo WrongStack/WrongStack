@@ -228,10 +228,48 @@ export function useSettingsSlashCommands(
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /settings command. Without this, only Ctrl+S could open the picker.
-    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+    const unregisterSettings = registerSlashCommandLifecycle(slashRegistry, cmd, {
       owner: 'tui',
       official: true,
     });
+    const unregisterSystemPrompt = registerSlashCommandLifecycle(
+      slashRegistry,
+      {
+        name: 'system-prompt',
+        description: 'Choose the system prompt for the next launch (opens the selector).',
+        argsHint: '[lite|standard|pro|scout|quick]',
+        help:
+          '/system-prompt opens Settings on the System prompt row.\n' +
+          '/system-prompt <variant> saves a choice directly.\n' +
+          'Restart WrongStack to apply it; the status badge shows the running prompt.\n' +
+          'Before launching, use wstack --system-prompt <variant> (standard = default).',
+        async run(args: string) {
+          const field = settingsPickerJumpByName('system-prompt');
+          if (field === undefined) return { message: 'System prompt selector unavailable.' };
+          if (!args.trim()) {
+            openSettings();
+            dispatch({ type: 'settingsFieldSet', field });
+            return {
+              message:
+                'Choose the system prompt for the next launch. Restart WrongStack to apply it; the status badge still shows this session’s running prompt.',
+            };
+          }
+          const result = resolveSettingsFieldValue(field, args.trim());
+          if (!result.ok) return { message: result.error };
+          const error = await persist(result.patch);
+          if (error) return { message: `Could not save system prompt: ${error}` };
+          dispatch({ type: 'settingsValueSet', patch: result.patch });
+          return {
+            message: `Saved for the next launch: ${result.displayValue}. Restart WrongStack to apply it; this session’s prompt is unchanged.`,
+          };
+        },
+      },
+      { owner: 'tui', official: true },
+    );
+    return () => {
+      unregisterSystemPrompt();
+      unregisterSettings();
+    };
   }, [part, slashRegistry, getSettings, saveSettings, openSettings, dispatch]);
 
   // Register the TUI-only `/settings-get` command — reads a setting's

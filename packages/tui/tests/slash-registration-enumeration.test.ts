@@ -99,6 +99,7 @@ const EXPECTED_REGISTRATION_ORDER = [
   'f',
   'design',
   'settings',
+  'system-prompt',
   'settings-get',
   'statusline',
   'lite',

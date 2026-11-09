@@ -198,6 +198,32 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(402, { message: 'Payment required' })).toBe('quota_exhausted');
   });
 
+  // #424: a daily cap read as a burst 429 kept every sibling model available, so the
+  // fallback chain tried each of them and the run was resumed as recoverable.
+  it('classifies daily token and request caps as quota_exhausted', () => {
+    for (const message of [
+      'You have exceeded your daily token limit. The limit applies to all of your API keys combined.',
+      'Daily token limit reached',
+      'Daily request limit exceeded',
+      'Tokens per day limit exceeded - too many tokens processed.',
+      'Token limit exceeded for today',
+      'Rate limit reached for model `llama-3.3-70b` on tokens per day (TPD): Limit 100000, Used 99000',
+    ]) {
+      expect(classifyProviderError(429, { message }), message).toBe('quota_exhausted');
+    }
+  });
+
+  it('keeps per-minute and per-hour caps transient', () => {
+    for (const message of [
+      'Rate limit reached for model `llama-3.3-70b` on tokens per minute (TPM): Limit 6000',
+      'Rate limit exceeded: 10 requests per minute',
+      'Too many requests per hour',
+      'Quota violation: GenerateRequestsPerDayPerProjectPerModel',
+    ]) {
+      expect(classifyProviderError(429, { message }), message).toBe('rate_limit');
+    }
+  });
+
   it('still uses the raw body for content-filter classification', () => {
     // raw was removed from the QUOTA scan only; content-filter and
     // context-overflow detection still read the raw body by design.

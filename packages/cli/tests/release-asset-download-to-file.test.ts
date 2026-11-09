@@ -18,7 +18,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import * as os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { downloadReleaseAssetToFile } from '../src/release-asset-download.js';
+import { downloadReleaseAsset, downloadReleaseAssetToFile } from '../src/release-asset-download.js';
 
 const CHUNKS = ['AAAA', 'BBBB', 'CCCC'];
 const BODY = CHUNKS.join('');
@@ -29,6 +29,15 @@ function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
     start(controller) {
       for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
+    },
+  });
+}
+
+function droppedStream(): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('AAAA'));
+      controller.error(new Error('connection dropped'));
     },
   });
 }
@@ -66,29 +75,167 @@ describe('downloadReleaseAssetToFile', () => {
   });
 
   it('removes the target file when the stream fails mid-download', async () => {
+    const fetchMock = vi.fn(async () => new Response(droppedStream(), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      downloadReleaseAssetToFile('https://example.test/asset', file, {
+        timeoutMs: 1000,
+        maxBytes: 1024,
+        retryDelaysMs: [0, 0],
+      }),
+    ).rejects.toThrow('connection dropped');
+    // A dropped connection is retried, and still fails as the drop it was.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // No partial asset may survive a failed self-update download.
+    expect(existsSync(file)).toBe(false);
+  });
+
+  // #438 / #439: GitHub's release CDN answers a passing 504 for a large asset.
+  it('retries a 5xx reply and writes the whole body into a fresh file', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('gateway timeout', { status: 504 }))
+      .mockResolvedValueOnce(new Response(droppedStream(), { status: 200 }))
+      .mockResolvedValueOnce(new Response(streamOf(CHUNKS), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const sha = await downloadReleaseAssetToFile('https://example.test/asset', file, {
+      timeoutMs: 1000,
+      maxBytes: 1024,
+      retryDelaysMs: [0, 0, 0],
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(sha).toBe(createHash('sha256').update(BODY).digest('hex'));
+    // The partial file of the dropped attempt is gone, so `wx` reopened cleanly.
+    expect(readFileSync(file, 'utf8')).toBe(BODY);
+  });
+
+  it('stops at once when the caller aborts', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => {
+      controller.abort(new Error('session closed'));
+      throw new Error('aborted');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      downloadReleaseAssetToFile('https://example.test/asset', file, {
+        timeoutMs: 1000,
+        maxBytes: 1024,
+        signal: controller.signal,
+        retryDelaysMs: [0, 0, 0],
+      }),
+    ).rejects.toThrow('aborted');
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  // A cancellation that lands during the retry backoff is the caller's
+  // decision, not a network hiccup: reporting the 5xx hides the reason the
+  // update was actually stopped.
+  it('reports the caller cancellation, not the transient failure, when aborted during the backoff', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('gateway timeout', { status: 504 })),
+    );
+
+    const pending = downloadReleaseAssetToFile('https://example.test/asset', file, {
+      timeoutMs: 5_000,
+      maxBytes: 1024,
+      signal: controller.signal,
+      retryDelaysMs: [1_000],
+    });
+    // Cancel while the retry backoff is running.
+    setTimeout(() => controller.abort(new Error('cancelled by user')), 20);
+
+    await expect(pending).rejects.toThrow('cancelled by user');
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it('cancels the response body when the declared size exceeds the ceiling', async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(BODY));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(
         async () =>
-          new Response(
-            new ReadableStream<Uint8Array>({
-              start(controller) {
-                controller.enqueue(new TextEncoder().encode('AAAA'));
-                controller.error(new Error('connection dropped'));
-              },
-            }),
-            { status: 200 },
-          ),
+          new Response(body, {
+            status: 200,
+            headers: { 'content-length': String(BODY.length + 1) },
+          }),
       ),
     );
 
     await expect(
       downloadReleaseAssetToFile('https://example.test/asset', file, {
         timeoutMs: 1000,
-        maxBytes: 1024,
+        maxBytes: 4,
+        retryDelaysMs: [0, 0],
       }),
-    ).rejects.toThrow('connection dropped');
-    // No partial asset may survive a failed self-update download.
+    ).rejects.toThrow('is too large');
+    expect(cancelled).toBe(true);
     expect(existsSync(file)).toBe(false);
+  });
+});
+
+describe('downloadReleaseAsset retries', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('retries 5xx and 429 replies until the asset arrives', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 504 }))
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '0' } }))
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(new Response(BODY, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bytes = await downloadReleaseAsset('https://example.test/SUMS', 1000, 1024, {
+      retryDelaysMs: [0, 0, 0],
+    });
+
+    expect(bytes.toString('utf8')).toBe(BODY);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('reports the last status after the retries run out', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 504 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      downloadReleaseAsset('https://example.test/SUMS', 1000, 1024, { retryDelaysMs: [0, 0] }),
+    ).rejects.toThrow('download https://example.test/SUMS responded 504');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry a 404', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 404 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      downloadReleaseAsset('https://example.test/SUMS', 1000, 1024, { retryDelaysMs: [0, 0] }),
+    ).rejects.toThrow('responded 404');
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry an oversized asset', async () => {
+    const fetchMock = vi.fn(async () => new Response(BODY, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      downloadReleaseAsset('https://example.test/SUMS', 1000, 4, { retryDelaysMs: [0, 0] }),
+    ).rejects.toThrow('is too large');
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

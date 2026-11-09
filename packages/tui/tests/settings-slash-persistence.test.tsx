@@ -54,11 +54,63 @@ async function harness(hostSettings?: SlashCommand) {
   return {
     view,
     save,
+    registry,
     state: () => state,
     persisted: () => persisted,
     run: (args: string) => registry.get('settings')!.run(args, {} as never),
   };
 }
+
+it('/system-prompt opens the prompt row without changing the running prompt', async () => {
+  const h = await harness();
+  try {
+    const command = h.registry.get('system-prompt');
+    expect(command).toBeDefined();
+    const result = await command?.run('', {} as never);
+    expect(h.state().settingsPicker.open).toBe(true);
+    expect(h.state().settingsPicker.field).toBe(66);
+    expect(h.save).not.toHaveBeenCalled();
+    expect(result?.message).toContain('next launch');
+    h.view.unmount();
+    expect(h.registry.get('system-prompt')).toBeUndefined();
+  } finally {
+    h.view.unmount();
+  }
+});
+
+it.each(['lite', 'standard', 'pro', 'scout', 'quick'])(
+  '/system-prompt %s saves the next-launch choice',
+  async (variant) => {
+    const h = await harness();
+    try {
+      const command = h.registry.get('system-prompt');
+      expect(command).toBeDefined();
+      const result = await command?.run(variant, {} as never);
+      expect(h.persisted().nextSystemPromptVariant).toBe(
+        variant === 'standard' ? 'default' : variant,
+      );
+      expect(result?.message).toContain('next launch');
+    } finally {
+      h.view.unmount();
+    }
+  },
+);
+
+it('/system-prompt rejects unknown variants and reports save errors', async () => {
+  const h = await harness();
+  try {
+    const command = h.registry.get('system-prompt');
+    expect(command).toBeDefined();
+    await command?.run('unknown', {} as never);
+    expect(h.save).not.toHaveBeenCalled();
+    h.save.mockRejectedValueOnce(new Error('Disk unavailable'));
+    const result = await command?.run('pro', {} as never);
+    expect(result?.message).toContain('Disk unavailable');
+    expect(result?.message).not.toContain('Saved for the next launch');
+  } finally {
+    h.view.unmount();
+  }
+});
 
 it('explicit row navigation wins over a persisted last-visited row', async () => {
   const h = await harness();
