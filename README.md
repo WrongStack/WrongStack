@@ -57,6 +57,9 @@ home to.
 
 ### What's new in 1.5.5
 
+- **Per-agent ACP runtime settings:** an installed ACP agent's model, mode and
+  effort options are saved per agent and per session from the CLI, WebUI,
+  VibeUI, HQ and the desktop, and pickers and monitors badge ACP agents.
 - **ACP permissions check the real file target:** reads and writes outside the
   project, including links inside it, are authorized against the resolved
   target and then open that same path.

@@ -11,7 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ACP file permissions follow the real target outside the project, ordinary edits
 inside a linked project keep their original path, and the macOS installer build
-reads the signed engine’s entitlements correctly.
+reads the signed engine’s entitlements correctly. Installed ACP agents get
+their own runtime settings and a visible identity on every surface.
+
+### Added
+
+- **Per-agent ACP runtime settings.** An installed ACP agent's own config
+  options (model, mode, effort, …) are read over ACP and can be saved per
+  agent and per session from the CLI, the WebUI, VibeUI, HQ and the desktop;
+  a running ACP subagent applies them before its next turn.
+- **ACP agents keep their identity on every surface.** Model and subagent
+  pickers list installed agents under `acp` with a filter for coding agents,
+  and worker cards, transcripts, the Office and topology views and the
+  terminal monitors badge them as ACP agents.
+- **Local compatibility launchers** for agents that send a whole shell line as
+  `terminal/create.command`, MCP clients without modern discovery, and
+  `pi-acp` on Windows (`scripts/acp-shell-compat.mjs`,
+  `scripts/acp-mcp-legacy.mjs`, `scripts/pi-acp-rpc-launch.mjs`).
 
 ### Fixed
 
@@ -31,6 +47,9 @@ reads the signed engine’s entitlements correctly.
   release check now reads the signed entitlement bytes first, so a correctly
   signed engine is not rejected as missing `allow-jit`. The entitlement and
   engine boot checks remain required.
+- **Kanban refuses malformed input at its boundaries:** duplicate board
+  requirements, metric and check identities, retention durations, contract
+  task prefixes, requirement scopes and manual task-graph dependencies.
 
 ## [1.5.4] — 2026-11-09
 
