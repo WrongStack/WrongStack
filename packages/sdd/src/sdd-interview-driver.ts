@@ -269,7 +269,12 @@ export class SddInterviewDriver {
               ? 'task_review'
               : 'questioning');
     const phase = this.builder.rewindTo(target);
-    if (target === 'questioning' || target === 'spec_review' || target === 'implementation') {
+    // Key off the phase actually reached: a refused target leaves the session
+    // (and its task graph) where it was.
+    if (
+      phase !== cur &&
+      (phase === 'questioning' || phase === 'spec_review' || phase === 'implementation')
+    ) {
       this.tracker = null;
       this.graph = null;
     }

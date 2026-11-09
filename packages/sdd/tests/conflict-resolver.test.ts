@@ -59,6 +59,17 @@ describe('resolveConflictText', () => {
     expect(resolveConflictText(malformed, 'base')).toBe(malformed);
     expect(hasConflictMarkers(resolveConflictText(malformed, 'incoming'))).toBe(true);
   });
+
+  it('rejects hunks with duplicate =======, out-of-order |||||||, or nested <<<<<<< markers (F135)', () => {
+    const dup = ['<<<<<<< HEAD', 'ours', '=======', 'mid', '=======', 'theirs', '>>>>>>> b'].join(
+      '\n',
+    );
+    expect(resolveConflictText(dup, 'incoming')).toBe(dup);
+    const nested = ['<<<<<<< HEAD', 'o1', '<<<<<<< INNER', 'o2', '=======', 't', '>>>>>>> b'].join(
+      '\n',
+    );
+    expect(resolveConflictText(nested, 'incoming')).toBe(nested);
+  });
 });
 
 describe('makePreferSideConflictResolver', () => {

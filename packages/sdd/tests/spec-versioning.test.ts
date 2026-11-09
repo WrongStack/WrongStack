@@ -506,4 +506,39 @@ describe('SpecVersioning', () => {
     expect(result.graph.edges.map((e) => `${e.from}->${e.to}`)).toEqual(['task-3->task-2']);
     expect(result.graph.rootNodes.sort()).toEqual(['task-1', 'task-3']);
   });
+
+  it('normalizes blockedBy sets in diff and deduplicates added requirement blockers without self-cycles (F135)', () => {
+    const oldSpec = makeSpec({
+      requirements: [
+        {
+          id: 'REQ-1',
+          type: 'functional',
+          priority: 'high',
+          description: 'Feature A',
+          acceptanceCriteria: ['AC 1'],
+        },
+      ],
+    });
+    const sameDepsSpec = makeSpec({
+      requirements: [{ ...oldSpec.requirements[0]!, blockedBy: [] }],
+    });
+    expect(versioning.diff(oldSpec, sameDepsSpec).modified).toHaveLength(0);
+
+    const addedSpec = makeSpec({
+      requirements: [
+        oldSpec.requirements[0]!,
+        {
+          id: 'REQ-2',
+          type: 'functional',
+          priority: 'medium',
+          description: 'Feature B',
+          acceptanceCriteria: [],
+          blockedBy: ['REQ-1', 'REQ-1', 'REQ-2'],
+        },
+      ],
+    });
+    const graph = makeGraph([]);
+    versioning.updateTaskGraph(graph, { ...oldSpec, requirements: [] }, addedSpec);
+    expect(graph.edges).toHaveLength(1);
+  });
 });

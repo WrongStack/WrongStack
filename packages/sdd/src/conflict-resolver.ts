@@ -72,9 +72,14 @@ export function resolveConflictText(text: string, side: ConflictSide): string {
       }
       continue;
     }
-    if (isMarker(line, '|', size)) state = 'base';
-    else if (isMarker(line, '=', size)) state = 'theirs';
-    else if (isMarker(line, '>', size)) {
+    if (START_LINE.test(line)) return text;
+    if (isMarker(line, '|', size)) {
+      if (state !== 'ours') return text;
+      state = 'base';
+    } else if (isMarker(line, '=', size)) {
+      if (state !== 'ours' && state !== 'base') return text;
+      state = 'theirs';
+    } else if (isMarker(line, '>', size)) {
       if (state !== 'theirs') return text;
       state = 'normal';
     } else if (state === 'ours' && side === 'base') out.push(line);

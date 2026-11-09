@@ -214,14 +214,22 @@ export class SpecVersioning {
     for (const req of specDiff.added) {
       const newTask = addedReqTasks.get(req.id);
       if (!newTask) continue;
-      for (const blockerReqId of req.blockedBy ?? []) {
+      for (const blockerReqId of new Set(req.blockedBy ?? [])) {
+        if (blockerReqId === req.id) continue;
         for (const blockerTask of reqToTasks.get(blockerReqId) ?? []) {
-          graph.edges.push({
-            id: crypto.randomUUID(),
-            from: blockerTask.id,
-            to: newTask.id,
-            type: 'depends_on',
-          });
+          if (blockerTask.id === newTask.id) continue;
+          const exists = graph.edges.some(
+            (edge) =>
+              edge.type === 'depends_on' && edge.from === blockerTask.id && edge.to === newTask.id,
+          );
+          if (!exists) {
+            graph.edges.push({
+              id: crypto.randomUUID(),
+              from: blockerTask.id,
+              to: newTask.id,
+              type: 'depends_on',
+            });
+          }
         }
       }
     }
@@ -297,7 +305,12 @@ export class SpecVersioning {
     if (JSON.stringify(old.acceptanceCriteria) !== JSON.stringify(current.acceptanceCriteria)) {
       changes.push('acceptance criteria');
     }
-    if (JSON.stringify(old.blockedBy) !== JSON.stringify(current.blockedBy)) {
+    const normalizeDeps = (deps?: string[]) =>
+      [...new Set((deps ?? []).map((d) => d.trim()).filter(Boolean))].sort();
+    if (
+      JSON.stringify(normalizeDeps(old.blockedBy)) !==
+      JSON.stringify(normalizeDeps(current.blockedBy))
+    ) {
       changes.push('dependencies');
     }
     return changes;

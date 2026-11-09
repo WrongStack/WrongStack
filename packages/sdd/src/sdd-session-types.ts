@@ -8,6 +8,16 @@ export type AISpecPhase =
   | 'executing'
   | 'done';
 
+/** The interview phases in the order a session moves through them. */
+export const AI_SPEC_PHASE_ORDER: readonly AISpecPhase[] = [
+  'questioning',
+  'spec_review',
+  'implementation',
+  'task_review',
+  'executing',
+  'done',
+];
+
 export interface CollectedAnswer {
   question: string;
   answer: string;

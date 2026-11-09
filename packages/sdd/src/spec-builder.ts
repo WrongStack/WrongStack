@@ -2,6 +2,7 @@ import type { Specification } from '@wrongstack/contracts/types';
 import { ERROR_CODES, SddError } from '@wrongstack/contracts/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
+  AI_SPEC_PHASE_ORDER,
   type AISpecPhase,
   type AISpecSession,
   type AISpecSessionPersistence,
@@ -285,10 +286,17 @@ export class AISpecBuilder {
 
   /**
    * Rewind the session to an earlier phase (e.g. rejecting plan to re-specify,
-   * or moving from spec review back to questioning).
+   * or moving from spec review back to questioning). Only a phase that comes
+   * before the current one is a rewind: the target arrives from the wire
+   * (`sdd.spec.rewind`), and applying it blindly let a client jump a fresh
+   * interview forward to executing/done or persist a phase that does not
+   * exist. Anything else leaves the session unchanged.
    */
   rewindTo(targetPhase: AISpecPhase): AISpecPhase {
-    if (targetPhase === this.session.phase) return this.session.phase;
+    const targetIndex = AI_SPEC_PHASE_ORDER.indexOf(targetPhase);
+    if (targetIndex < 0 || targetIndex >= AI_SPEC_PHASE_ORDER.indexOf(this.session.phase)) {
+      return this.session.phase;
+    }
     this.session.phase = targetPhase;
     this.session.approved = false;
     if (targetPhase === 'questioning') {
