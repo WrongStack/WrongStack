@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T23:54:30.824Z",
+  "generatedAt": "2026-11-09T00:00:21.436Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6151,
-    "testFiles": 5092,
-    "sourceLines": 1264425,
+    "testFiles": 5109,
+    "sourceLines": 1264500,
     "workspaceEdges": 250,
     "moduleEdges": 18108,
     "nonCommandSlashImports": 0,
@@ -24,7 +24,9 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 1028
   },
-  "errors": [],
+  "errors": [
+    "packages/vibeui/src/lib/use-session.ts: hotspot shrunk from 762 to 753 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -715,7 +717,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 25,
-      "testFiles": 20,
+      "testFiles": 37,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -726,7 +728,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 20
+          "testFiles": 37
         }
       ]
     },
@@ -17582,13 +17584,43 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/error-sanitize-escaped-home.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/error-unprintable.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/git-isolation.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/primitives/tests/opaque-media-base64-padding.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/opaque-media-mime-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/redaction-attached-password-argv.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/redaction-authorization-parameters.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17606,13 +17638,31 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/redaction-empty-url-user.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/redaction-header-and-json-secrets.test.ts",
         "projects": [
           "root-node"
         ]
       },
       {
+        "file": "packages/primitives/tests/redaction-json-matching-quotes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/redaction-password-argv.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/redaction-short-cookie.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17654,7 +17704,31 @@
         ]
       },
       {
+        "file": "packages/primitives/tests/regex-empty-classes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/primitives/tests/regex-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/regex-legacy-alphabet.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/regex-surrogate-escape-pairs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/regex-utf16-mode.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17667,6 +17741,36 @@
       },
       {
         "file": "packages/primitives/tests/runtime-version.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/safe-json-browser.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/safe-json-comment-boundaries.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/safe-json-comment-terminators.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/safe-json-fence-length.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/safe-json-getter-reads.test.ts",
         "projects": [
           "root-node"
         ]
