@@ -72,6 +72,10 @@ export function resolveProviderModelList(
   siblingCatalog?: ResolvedProvider | undefined,
   accountOwned = false,
 ): ProviderModelDescriptor[] {
+  const normalizedSaved = savedModels
+    ?.filter((id): id is string => typeof id === 'string')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
   const byId = new Map((catalog?.models ?? []).map((m) => [m.id, m]));
   if (
     accountOwned ||
@@ -79,7 +83,7 @@ export function resolveProviderModelList(
   ) {
     // Account snapshots plus explicitly curated ChatGPT suggestions define
     // membership. Never add generic or sibling OpenAI catalog IDs here.
-    const ids = new Set(savedModels ?? []);
+    const ids = new Set(normalizedSaved ?? []);
     if (['openai-codex', 'openai-chatgpt'].includes(catalog?.id ?? providerHint ?? '')) {
       for (const model of byId.values()) {
         if (
@@ -98,8 +102,9 @@ export function resolveProviderModelList(
   const out: ProviderModelDescriptor[] = [];
 
   // 1. Saved model allowlist — user's explicit preferences come first.
-  if (savedModels && savedModels.length > 0) {
-    for (const id of savedModels) {
+  if (normalizedSaved && normalizedSaved.length > 0) {
+    for (const id of normalizedSaved) {
+      if (seen.has(id)) continue;
       seen.add(id);
       const hit = byId.get(id);
       if (hit) {

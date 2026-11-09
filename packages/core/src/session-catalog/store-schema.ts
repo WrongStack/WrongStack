@@ -140,10 +140,15 @@ export function conflict(message: string): Error {
 
 export function assertId(value: string, label = 'session id'): void {
   if (
+    typeof value !== 'string' ||
     !value ||
+    value.trim() !== value ||
     value.length > 256 ||
+    value.includes('\0') ||
     value.includes('\\') ||
     value.startsWith('/') ||
+    value.endsWith('/') ||
+    value.includes('//') ||
     value.includes('..')
   ) {
     throw new TypeError(`Invalid ${label}`);

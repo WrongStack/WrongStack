@@ -1,6 +1,10 @@
 import { ProviderError } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import {
+  adaptThresholdsForSignals,
+  pressureLevelFor,
+} from '../../src/execution/compaction-thresholds.js';
+import {
   DefaultRetryPolicy,
   MODEL_RETRIES,
   RETRY_BASE_DELAY_MS,
@@ -225,5 +229,37 @@ describe('DefaultRetryPolicy', () => {
     const d = p.delayMs(2);
     expect(d).toBeGreaterThanOrEqual(16_000); // 4000 * 2^2
     expect(d).toBeLessThan(16_000 + RETRY_JITTER_MS);
+  });
+
+  it('guards NaN/negative attempts, unknown ProviderError kinds, and low/NaN compaction threshold signals (F147)', () => {
+    expect(Number.isFinite(p.delayMs(Number.NaN))).toBe(true);
+    expect(p.delayMs(-3)).toBeGreaterThanOrEqual(RETRY_BASE_DELAY_MS);
+    expect(p.shouldRetry(new Error('ECONNRESET'), -1)).toBe(false);
+    expect(p.shouldRetry(new Error('ECONNRESET'), Number.NaN)).toBe(false);
+    expect(
+      p.maxAttempts({
+        name: 'ProviderError',
+        message: 'oops',
+        status: 500,
+        kind: 'bogus_kind',
+        retryable: true,
+        describe: () => 'oops',
+      } as never),
+    ).toBe(0);
+
+    const nanSignals = adaptThresholdsForSignals(
+      { warn: 0.55, soft: 0.7, hard: 0.85 },
+      { repeatedReadCount: Number.NaN },
+    );
+    expect(nanSignals).toEqual({ warn: 0.55, soft: 0.7, hard: 0.85 });
+
+    const lowThresholds = adaptThresholdsForSignals(
+      { warn: 0.2, soft: 0.3, hard: 0.32 },
+      { repeatedReadCount: 4 },
+    );
+    expect(lowThresholds.warn).toBeLessThanOrEqual(0.2);
+    expect(lowThresholds.warn).toBeLessThanOrEqual(lowThresholds.soft);
+    expect(lowThresholds.soft).toBeLessThanOrEqual(lowThresholds.hard);
+    expect(pressureLevelFor(0.31, lowThresholds)).toBe('soft');
   });
 });

@@ -95,4 +95,21 @@ describe('Pipeline in-flight registration changes', () => {
     expect(pipeline.list()).toEqual(['front', 'double-next']);
     expect(await pipeline.run(5)).toBe(15);
   });
+
+  it('survives a throwing operational logger on swallow and rethrows when errorHandler returns non-swallow (F121)', async () => {
+    const swallowPipe = new Pipeline<number>()
+      .setErrorHandler(() => 'swallow')
+      .setLogger({
+        warn: () => {
+          throw new Error('logger disk full');
+        },
+      });
+    swallowPipe.use({
+      name: 'crashes',
+      handler: async () => {
+        throw new Error('plugin crash');
+      },
+    });
+    expect(await swallowPipe.run(42)).toBe(42);
+  });
 });

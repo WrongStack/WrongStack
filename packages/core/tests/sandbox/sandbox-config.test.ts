@@ -1,5 +1,14 @@
 import type { Tool } from '@wrongstack/contracts/types/tool';
 import { afterEach, describe, expect, it } from 'vitest';
+import { runShellHookDetailed } from '../../src/hooks/shell-executor.js';
+import {
+  clearSandboxAgentOverrides,
+  forgetSandboxAgentOverride,
+  getSandboxAgentOverride,
+  sandboxTierForAgent,
+  setSandboxAgentOverride,
+} from '../../src/sandbox/agent-overrides.js';
+import { requestSandboxExpansion } from '../../src/sandbox/audit.js';
 import {
   buildContainerRoute,
   buildWindowsAclPlan,
@@ -219,6 +228,36 @@ describe('sandbox choke point (T2, policy-only backend)', () => {
       expect(aclPlan.grants).toHaveLength(1);
       expect(aclPlan.lowIntegrityDirs).toEqual(['D:\\work']);
     } finally {
+      setSandboxExpansionApprover(undefined);
+    }
+  });
+
+  it('validates sandboxTierForAgent via resolveSandboxConfigForAgent, trims agentId, rejects malformed expansion approver payloads, and guards NaN hook timeoutMs (F148)', async () => {
+    clearSandboxAgentOverrides();
+    try {
+      setSandboxAgentOverride('agent-bad', { tier: 'bogus-tier' as never });
+      expect(() => sandboxTierForAgent('agent-bad')).toThrow(TypeError);
+
+      setSandboxAgentOverride('  agent-ws  ', { tier: 'workspace-write' });
+      expect(getSandboxAgentOverride('agent-ws')?.tier).toBe('workspace-write');
+      expect(sandboxTierForAgent('agent-ws')).toBe('workspace-write');
+      forgetSandboxAgentOverride(' agent-ws ');
+      expect(getSandboxAgentOverride('agent-ws')).toBeUndefined();
+
+      setSandboxExpansionApprover(async () => ({ granted: 'yes' as never, decidedBy: '   ' }));
+      const denied = await requestSandboxExpansion(
+        { tool: 'bash' },
+        { outcome: 'deny', reason: 'denied', missing: [] },
+      );
+      expect(denied).toEqual({ granted: false, decidedBy: 'approver-error:invalid-response' });
+
+      const shellRes = await runShellHookDetailed(
+        { command: 'node -e "setTimeout(() => process.exit(0), 20)"', timeoutMs: Number.NaN },
+        { event: 'PreToolUse', cwd: process.cwd() } as never,
+      );
+      expect(shellRes.failure).toBeUndefined();
+    } finally {
+      clearSandboxAgentOverrides();
       setSandboxExpansionApprover(undefined);
     }
   });

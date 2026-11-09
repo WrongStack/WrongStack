@@ -495,6 +495,27 @@ describe('realAnchoredInputTokens', () => {
     // Anchor said 40 messages, but compaction cut it to 5 → anchor unusable.
     expect(realAnchoredInputTokens([msg('a')], 90_000, 40)).toBeNull();
   });
+
+  it('rejects non-finite or non-safe-integer anchors and sanitizes invalid document pages and cached estimates (F146)', () => {
+    expect(realAnchoredInputTokens([msg('a')], Number.NaN, 1)).toBeNull();
+    expect(realAnchoredInputTokens([msg('a')], Number.POSITIVE_INFINITY, 1)).toBeNull();
+    expect(realAnchoredInputTokens([msg('a')], 100, Number.NaN)).toBeNull();
+    expect(realAnchoredInputTokens([msg('a'), msg('b')], 100, 1.5)).toBeNull();
+
+    const badDocMsg = {
+      role: 'user' as const,
+      content: [{ type: 'document', text: 'hello', pages: Number.NaN }],
+    } as unknown as Message;
+    expect(computeMessageTokens(badDocMsg)).toBe(1002);
+
+    const infCached = {
+      role: 'user' as const,
+      content: 'hello',
+      _estTokens: Number.POSITIVE_INFINITY,
+    } as unknown as Message;
+    expect(estimateMessageTokens([infCached])).toBe(2);
+    expect(estimateRequestTokens([infCached], '', []).messages).toBe(2);
+  });
 });
 
 describe('text content block without `text` (runtime contract: text is optional)', () => {

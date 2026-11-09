@@ -52,4 +52,9 @@ describe('Brain LLM deadlines', () => {
     const call = () => new Promise<string>((resolve) => setTimeout(() => resolve('ok'), 20));
     await expect(callWithDeadline(call, undefined, 3_000_000_000, 'timeout')).resolves.toBe('ok');
   });
+
+  it('does not collapse a NaN timeoutMs into a 1ms immediate abort (F147)', async () => {
+    const call = () => new Promise<string>((resolve) => setTimeout(() => resolve('ok'), 20));
+    await expect(callWithDeadline(call, undefined, Number.NaN, 'timeout')).resolves.toBe('ok');
+  });
 });

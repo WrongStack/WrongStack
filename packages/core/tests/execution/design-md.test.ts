@@ -4,7 +4,12 @@ import * as path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { captureProjectTokens } from '../../src/execution/design-capture.js';
 import { getDesignKitLoader } from '../../src/execution/design-kit-loader.js';
-import { designMdToTokens, parseDesignMd, renderDesignMd } from '../../src/execution/design-md.js';
+import {
+  designMdToTokens,
+  parseDesignMd,
+  renderDesignMd,
+  resolveDesignMdRef,
+} from '../../src/execution/design-md.js';
 
 /** Shaped after the google-labs-code/design.md spec example (alpha, 2026-10). */
 const SPEC_LIKE = `---
@@ -88,6 +93,21 @@ describe('parseDesignMd', () => {
 
   it('reports a file without front matter', () => {
     expect(rules('# Just prose')).toEqual(['error front-matter']);
+  });
+
+  it('resolves chained token references and rejects circular or prototype references (F106)', () => {
+    const parsed = parseDesignMd(`---
+colors:
+  primary: "#1A1C1E"
+  brand: "{colors.primary}"
+  cycleA: "{colors.cycleB}"
+  cycleB: "{colors.cycleA}"
+---
+## Overview
+`);
+    expect(resolveDesignMdRef(parsed.doc!, '{colors.brand}')).toBe('#1A1C1E');
+    expect(resolveDesignMdRef(parsed.doc!, '{colors.cycleA}')).toBeUndefined();
+    expect(resolveDesignMdRef(parsed.doc!, '{colors.toString}')).toBeUndefined();
   });
 });
 

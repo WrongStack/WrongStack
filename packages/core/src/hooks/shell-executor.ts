@@ -284,7 +284,11 @@ export async function runShellHookDetailed(
   logger?: Logger | undefined,
   options: HookExecutionOptions = {},
 ): Promise<HookExecutionResult> {
-  const timeoutMs = Math.max(1, Math.min(spec.timeoutMs ?? DEFAULT_TIMEOUT_MS, 10 * 60_000));
+  const rawTimeoutMs =
+    typeof spec.timeoutMs === 'number' && Number.isFinite(spec.timeoutMs)
+      ? spec.timeoutMs
+      : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = Math.max(1, Math.min(Math.floor(rawTimeoutMs), 10 * 60_000));
 
   if (splitHookCommand(spec.command.trim()) === null) {
     logger?.warn?.(`hook rejected: unterminated quote in command: ${spec.command}`);

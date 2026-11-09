@@ -3,6 +3,7 @@
  * status transitions, filtering, sorting, and change notifications.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { DefaultTaskStore } from '../../src/tasking/task-store.js';
 import type { TaskStore } from '../../src/tasking/task-tracker.js';
 import { TaskTracker } from '../../src/tasking/task-tracker.js';
 
@@ -698,5 +699,46 @@ describe('TaskTracker — transition identity and filtering (BIZ-005)', () => {
     t.removeNode(parent.id);
     expect(child.parentId).toBeUndefined();
     expect(graph.rootNodes).toContain(child.id);
+  });
+
+  it('notifies node_removed before auto-unblock cascades, auto-blocks active tasks on new/reopened blockers, and clones requiredRequirementIds in DefaultTaskStore (F111)', async () => {
+    const t = await withGraph();
+    const blocker = t.addNode(makeNode({ title: 'Blocker' }));
+    const dependent = t.addNode(makeNode({ title: 'Dependent', status: 'blocked' }));
+    t.addDependency(blocker.id, dependent.id);
+    const events: string[] = [];
+    const unsub = t.subscribe((ev) => events.push(`${ev.type}:${ev.nodeId}`));
+    t.removeNode(blocker.id);
+    unsub();
+    expect(events).toEqual([`node_removed:${blocker.id}`, `status_changed:${dependent.id}`]);
+
+    const t2 = await withGraph();
+    const dep = t2.addNode(makeNode({ title: 'Pending Blocker', status: 'pending' }));
+    const active = t2.addNode(makeNode({ title: 'Active Task', status: 'in_progress' }));
+    t2.addDependency(dep.id, active.id);
+    expect(t2.getNode(active.id)?.status).toBe('blocked');
+
+    t2.updateNodeStatus(dep.id, 'completed');
+    t2.updateNodeStatus(active.id, 'in_progress');
+    expect(t2.getNode(active.id)?.status).toBe('in_progress');
+    t2.updateNodeStatus(dep.id, 'pending');
+    expect(t2.getNode(active.id)?.status).toBe('blocked');
+
+    const store = new DefaultTaskStore();
+    const graphWithReqs = {
+      id: 'g-f111',
+      specId: 'spec-f111',
+      requiredRequirementIds: ['REQ-1', 'REQ-2'],
+      title: 'Store Graph',
+      nodes: new Map(),
+      edges: [],
+      rootNodes: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await store.saveGraph(graphWithReqs);
+    graphWithReqs.requiredRequirementIds.push('MUTATED');
+    const loaded = await store.loadGraph('g-f111');
+    expect(loaded?.requiredRequirementIds).toEqual(['REQ-1', 'REQ-2']);
   });
 });

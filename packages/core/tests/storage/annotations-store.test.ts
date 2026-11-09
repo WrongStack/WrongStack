@@ -441,4 +441,15 @@ describe('AnnotationsStore', () => {
       vi.mocked(fs.readFile).mockReset();
     }
   });
+
+  it('clamps non-positive or NaN maxAnnotations to MAX_ANNOTATIONS so add() does not evict newly added annotations (F150)', async () => {
+    for (const maxAnnotations of [0, -3, Number.NaN]) {
+      const s = new AnnotationsStore({ dir, maxAnnotations });
+      const sid = `s-clamp-${String(maxAnnotations)}`;
+      await s.add({ sessionId: sid, atEventIndex: 0, authorId: 'alice', text: 'kept' });
+      const list = await s.list(sid);
+      expect(list).toHaveLength(1);
+      expect(list[0]?.text).toBe('kept');
+    }
+  });
 });

@@ -285,4 +285,26 @@ describe('createContextManagerTool', () => {
     });
     expect(res.summary).toBe('Summarized 2 turns');
   });
+
+  it('rejects NaN/fractional prune and summary indices and clamps negative/NaN add_note afterIndex (F109)', async () => {
+    const tool = createContextManagerTool();
+    const ctx = makeCtx([
+      { role: 'user', content: 'turn 1' },
+      { role: 'assistant', content: 'turn 2' },
+    ]);
+    const pruneNan = await tool.execute({ action: 'prune', from: Number.NaN, to: 0 }, ctx, {
+      signal: new AbortController().signal,
+    });
+    expect(pruneNan.notes).toMatch(/^Invalid range/);
+    const sumFloat = await tool.execute({ action: 'summary', from: 0.5, to: 1, text: 'sum' }, ctx, {
+      signal: new AbortController().signal,
+    });
+    expect(sumFloat.notes).toMatch(/^Invalid range/);
+    expect(ctx.messages).toHaveLength(2);
+
+    await tool.execute({ action: 'add_note', text: 'prepended', afterIndex: -2 }, ctx, {
+      signal: new AbortController().signal,
+    });
+    expect(ctx.messages[0]).toEqual({ role: 'system', content: '[note: prepended]' });
+  });
 });

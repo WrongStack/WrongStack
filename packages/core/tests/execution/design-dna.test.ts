@@ -1,17 +1,17 @@
 import * as vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import {
-  compareDesignDna,
-  dnaToTokenOverrides,
-  renderDesignDnaMarkdown,
-} from '../../src/execution/design-dna-compare.js';
-import { DESIGN_DNA_EXTRACTOR } from '../../src/execution/design-dna-extractor.js';
-import {
   type DesignDnaRaw,
   deltaE,
   hexToOklchString,
   summarizeDesignDna,
 } from '../../src/execution/design-dna.js';
+import {
+  compareDesignDna,
+  dnaToTokenOverrides,
+  renderDesignDnaMarkdown,
+} from '../../src/execution/design-dna-compare.js';
+import { DESIGN_DNA_EXTRACTOR } from '../../src/execution/design-dna-extractor.js';
 
 /**
  * A light page with a half-height dark band, a rose primary button, 12px
@@ -357,6 +357,21 @@ describe('compareDesignDna', () => {
     expect(cmp.findings.find((f) => f.what === 'role surface')?.status).toBe('missing');
     expect(cmp.overall).toBeLessThan(1);
   });
+
+  it('handles zero reference sectionPadY, motion.duration, and display scale without 0/0 NaN false-mismatch (F106)', () => {
+    const zeroRef = {
+      ...ref,
+      type: { ...ref.type, scale: [0] },
+      space: { ...ref.space, sectionPadY: 0 },
+      motion: { ...ref.motion, duration: 0, durations: [0] },
+    };
+    const cmp = compareDesignDna(zeroRef, zeroRef);
+    expect(cmp.findings.find((f) => f.what === 'section vertical padding')?.status).toBe('match');
+    expect(cmp.findings.find((f) => f.what === 'dominant transition duration')?.status).toBe(
+      'match',
+    );
+    expect(cmp.findings.find((f) => f.what === 'largest display size')?.status).toBe('match');
+  });
 });
 
 describe('dnaToTokenOverrides', () => {
@@ -373,6 +388,16 @@ describe('dnaToTokenOverrides', () => {
       'duration-base': '150ms',
       'ease-standard': 'ease-out',
     });
+  });
+
+  it('does not emit an undefined ring override when primary is not a hex color (F106)', () => {
+    const dna = summarizeDesignDna([raw()]);
+    const nonHexPrimary = {
+      ...dna,
+      color: { ...dna.color, roles: { ...dna.color.roles, primary: 'var(--brand)' } },
+    };
+    const out = dnaToTokenOverrides(nonHexPrimary);
+    expect('light.ring' in out).toBe(false);
   });
 
   it('flattens every radius step for a square-cornered reference', () => {

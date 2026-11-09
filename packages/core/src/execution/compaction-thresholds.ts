@@ -101,15 +101,16 @@ export function adaptThresholdsForSignals(
   thresholds: { warn: number; soft: number; hard: number },
   signals: { repeatedReadCount: number },
 ): { warn: number; soft: number; hard: number } {
-  if (signals.repeatedReadCount < 3) return thresholds;
+  if (!Number.isFinite(signals.repeatedReadCount) || signals.repeatedReadCount < 3) {
+    return thresholds;
+  }
   // Re-reading the same file repeatedly is a strong sign of shrinking-spiral
   // behavior. Lower only warn/soft a little so compaction can refresh anchors
   // before the hard overflow path, but keep hard fixed as the safety boundary.
-  return {
-    warn: Math.max(0.25, thresholds.warn - 0.08),
-    soft: Math.max(0.35, thresholds.soft - 0.04),
-    hard: thresholds.hard,
-  };
+  const warn = Math.min(thresholds.warn, Math.max(0.25, thresholds.warn - 0.08));
+  const soft = Math.max(warn, Math.min(thresholds.soft, Math.max(0.35, thresholds.soft - 0.04)));
+  const hard = Math.max(soft, thresholds.hard);
+  return { warn, soft, hard };
 }
 
 export function normalizeTargetLoad(

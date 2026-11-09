@@ -234,7 +234,7 @@ export class Pipeline<T> {
         }
         if (!errorHandler) throw err;
         const policy = await errorHandler({ middleware: mw.name, owner: mw.owner, err });
-        if (policy === 'rethrow') throw err;
+        if (policy !== 'swallow') throw err;
         // Swallow: resolve THIS dispatch with the value that was about to flow
         // into the crashed middleware. Because we return instead of recursing,
         // the crashed middleware and everything downstream of it never run; the
@@ -245,11 +245,15 @@ export class Pipeline<T> {
         // P2 #7 (before-release.md): emit a structured warning so a swallowed
         // crash is never completely silent. Plugin authors debugging a
         // short-circuited middleware would otherwise have no signal.
-        this.logger?.warn('pipeline.error', {
-          middleware: mw.name,
-          owner: mw.owner,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        try {
+          this.logger?.warn('pipeline.error', {
+            middleware: mw.name,
+            owner: mw.owner,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        } catch {
+          // A throwing operational logger must not defeat the swallow error boundary.
+        }
         return value;
       }
     };

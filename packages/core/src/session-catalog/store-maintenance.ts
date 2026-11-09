@@ -265,6 +265,9 @@ export function executeAcquireMaintenance(
   holderPid?: number,
 ): MaintenanceLease {
   assertId(sessionId);
+  if (!holderId?.trim() || holderId.length > 256) {
+    throw new TypeError('Invalid maintenance holder id');
+  }
   reapExpiredCatalogEntries(db);
   const live = getLeaseRow(db, sessionId);
   if (

@@ -136,11 +136,16 @@ export function compileBrainRules(rules: readonly BrainRule[] | undefined): Brai
       if (!rule.then || typeof rule.then !== 'object') throw new Error(`${id}: missing "then"`);
 
       const w = rule.when;
+      const minRiskLevel = riskLevel(w.minRisk, 'minRisk', id);
+      const maxRiskLevel = riskLevel(w.maxRisk, 'maxRisk', id);
+      if (minRiskLevel !== undefined && maxRiskLevel !== undefined && minRiskLevel > maxRiskLevel) {
+        throw new Error(`${id}: minRisk "${w.minRisk}" exceeds maxRisk "${w.maxRisk}"`);
+      }
       const match: CompiledMatch = {
         sources: asSet(w.source),
         risks: asSet(w.risk),
-        minRiskLevel: riskLevel(w.minRisk, 'minRisk', id),
-        maxRiskLevel: riskLevel(w.maxRisk, 'maxRisk', id),
+        minRiskLevel,
+        maxRiskLevel,
         fallbacks: asSet(w.fallback),
         hasOptions: w.hasOptions,
         offersOption: w.offersOption,
@@ -158,10 +163,10 @@ export function compileBrainRules(rules: readonly BrainRule[] | undefined): Brai
         throw new Error(`${id}: an "answer" rule needs an optionId or text`);
       }
 
-      if (rule.maxHits !== undefined && (!Number.isFinite(rule.maxHits) || rule.maxHits <= 0)) {
+      if (rule.maxHits !== undefined && (!Number.isInteger(rule.maxHits) || rule.maxHits <= 0)) {
         throw new Error(`${id}: maxHits must be a positive integer`);
       }
-      if (rule.windowMs !== undefined && (!Number.isFinite(rule.windowMs) || rule.windowMs <= 0)) {
+      if (rule.windowMs !== undefined && (!Number.isInteger(rule.windowMs) || rule.windowMs <= 0)) {
         throw new Error(`${id}: windowMs must be a positive integer`);
       }
 

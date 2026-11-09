@@ -15,10 +15,10 @@ export async function callWithDeadline<T>(
   const forwardAbort = () => controller.abort(parent?.reason);
   parent?.addEventListener('abort', forwardAbort, { once: true });
   if (parent?.aborted) forwardAbort();
-  const timer = setTimeout(
-    () => controller.abort(new Error(timeoutMessage)),
-    Math.min(timeoutMs, MAX_TIMER_DELAY_MS),
-  );
+  const delayMs = Number.isFinite(timeoutMs)
+    ? Math.max(1, Math.min(Math.floor(timeoutMs), MAX_TIMER_DELAY_MS))
+    : MAX_TIMER_DELAY_MS;
+  const timer = setTimeout(() => controller.abort(new Error(timeoutMessage)), delayMs);
   const { signal } = controller;
   let onAbort: (() => void) | undefined;
   try {

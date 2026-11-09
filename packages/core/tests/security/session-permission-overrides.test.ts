@@ -227,11 +227,25 @@ describe('session rules in the journal', () => {
           overrides: [
             { effect: 'maybe', tool: 'bash' },
             { effect: 'deny', tool: '' },
+            { effect: 'allow', tool: 'bash', pattern: '   ' },
           ] as never,
         },
       ],
     });
     expect(meta).not.toHaveProperty('permissionOverrides');
+
+    restoreSessionPermissionOverrides(meta, {
+      events: [
+        {
+          type: 'permission_overrides',
+          ts: ts(),
+          overrides: [{ effect: 'deny', tool: '  bash  ', pattern: '  git push*  ' }],
+        },
+      ],
+    });
+    expect(readSessionPermissionOverrides({ meta })).toEqual([
+      { effect: 'deny', tool: 'bash', pattern: 'git push*' },
+    ]);
   });
 
   it('a rewind past the rule drops it, and a redo brings it back', async () => {

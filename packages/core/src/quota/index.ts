@@ -261,25 +261,29 @@ function paceKey(providerId: string, meterId: string, windowId: string): string 
 const RESET_JITTER_SECONDS = 60;
 
 function resetMoved(previous: number | undefined, next: number | undefined): boolean {
-  if (previous === undefined || next === undefined) return previous !== next;
-  return Math.abs(next - previous) > RESET_JITTER_SECONDS;
+  const prevFinite = previous !== undefined && Number.isFinite(previous) ? previous : undefined;
+  const nextFinite = next !== undefined && Number.isFinite(next) ? next : undefined;
+  if (prevFinite === undefined || nextFinite === undefined) return prevFinite !== nextFinite;
+  return Math.abs(nextFinite - prevFinite) > RESET_JITTER_SECONDS;
 }
 
 function recordPace(providerId: string, snapshot: ProviderQuotaSnapshot, now: number): void {
+  if (!Number.isFinite(now)) return;
   for (const window of snapshot.windows) {
     if (!Number.isFinite(window.usedPercent)) continue;
+    const resetsAt =
+      window.resetsAt !== undefined && Number.isFinite(window.resetsAt)
+        ? window.resetsAt
+        : undefined;
     const key = paceKey(providerId, snapshot.meterId, window.id);
     let samples = _pace.get(key) ?? [];
     const last = samples.at(-1);
     // A new reset time or a falling percentage is a new cycle: the old
     // readings describe spending that no longer counts.
-    if (
-      last &&
-      (resetMoved(last.resetsAt, window.resetsAt) || window.usedPercent < last.usedPercent)
-    ) {
+    if (last && (resetMoved(last.resetsAt, resetsAt) || window.usedPercent < last.usedPercent)) {
       samples = [];
     }
-    samples.push({ at: now, usedPercent: window.usedPercent, resetsAt: window.resetsAt });
+    samples.push({ at: now, usedPercent: window.usedPercent, resetsAt });
     if (samples.length > MAX_PACE_SAMPLES) samples.splice(0, samples.length - MAX_PACE_SAMPLES);
     _pace.set(key, samples);
   }
@@ -296,9 +300,11 @@ export function quotaExhaustionInMs(
   window: ProviderQuotaWindow,
   now: number = Date.now(),
 ): number | undefined {
-  if (!Number.isFinite(window.usedPercent) || window.usedPercent >= 100) return undefined;
+  if (!Number.isFinite(now) || !Number.isFinite(window.usedPercent) || window.usedPercent >= 100) {
+    return undefined;
+  }
   const samples = (_pace.get(paceKey(providerId, meterId, window.id)) ?? []).filter(
-    (s) => now - s.at <= PACE_LOOKBACK_MS,
+    (s) => now >= s.at && now - s.at <= PACE_LOOKBACK_MS,
   );
   const first = samples[0];
   const last = samples.at(-1);
@@ -401,7 +407,9 @@ export interface ProviderQuotaGroup {
  */
 function accountReadingKey(snapshot: ProviderQuotaSnapshot): string | undefined {
   if (snapshot.windows.length === 0) return undefined;
-  if (snapshot.windows.some((w) => w.resetsAt === undefined)) return undefined;
+  if (snapshot.windows.some((w) => w.resetsAt === undefined || !Number.isFinite(w.resetsAt))) {
+    return undefined;
+  }
   return JSON.stringify([
     snapshot.meterId,
     snapshot.meterLabel ?? null,
@@ -492,10 +500,12 @@ export function formatQuotaResetIn(ms: number | undefined): string | undefined {
 
 /** Percentage rendered the way both the chip and the report show it. */
 export function formatQuotaPercent(usedPercent: number): string {
+  if (!Number.isFinite(usedPercent) || usedPercent <= 0) return '0%';
+  if (usedPercent >= 100) return '100%';
   // Rounding must not announce a cut-off that has not happened: 99.6 read as
   // "100%" on a window that still had room. 9.96 rounds to "10%", not "10.0%".
-  if (usedPercent > 99 && usedPercent < 100) return '99%';
-  const digits = usedPercent >= 10 || usedPercent <= 0 ? 0 : 1;
+  if (usedPercent > 99) return '99%';
+  const digits = usedPercent >= 10 ? 0 : 1;
   const text = usedPercent.toFixed(digits);
   return digits === 1 && text === '10.0' ? '10%' : `${text}%`;
 }

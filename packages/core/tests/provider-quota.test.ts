@@ -483,4 +483,64 @@ describe('groupQuotaSnapshots', () => {
     expect(latest?.note).toBeUndefined();
     expect(latest?.providerId).toBe('openai-codex');
   });
+
+  it('clamps formatQuotaPercent, rejects non-finite resetsAt in groupQuotaSnapshots, and validates effectiveDensity (F110)', async () => {
+    const { effectiveDensity } = await import('../src/statusline/index.js');
+    expect(formatQuotaPercent(Number.NaN)).toBe('0%');
+    expect(formatQuotaPercent(-0.4)).toBe('0%');
+    expect(formatQuotaPercent(-5)).toBe('0%');
+    expect(formatQuotaPercent(105)).toBe('100%');
+
+    const groups = groupQuotaSnapshots([
+      snap('prov-a', 10, Number.NaN),
+      snap('prov-b', 10, Number.NaN),
+    ]);
+    expect(groups).toHaveLength(2);
+
+    expect(effectiveDensity('model', { model: 'short' })).toBe('short');
+    expect(effectiveDensity('model', { model: 'invalid' as never })).toBe('auto');
+    expect(effectiveDensity('toString' as never, {})).toBe('auto');
+  });
+
+  it('normalizes NaN resetsAt in pace tracking and excludes future pace samples when now < s.at (F152)', () => {
+    resetProviderQuota();
+    const T0 = 1_800_000_000_000;
+    const MIN = 60_000;
+    recordProviderQuota(
+      'openai-codex',
+      [
+        snapshot({
+          windows: [{ id: 'primary', usedPercent: 40, resetsAt: Number.NaN }],
+          capturedAt: T0,
+        }),
+      ],
+      T0,
+    );
+    recordProviderQuota(
+      'openai-codex',
+      [
+        snapshot({
+          windows: [{ id: 'primary', usedPercent: 50, resetsAt: (T0 + 180 * MIN) / 1000 }],
+          capturedAt: T0 + 20 * MIN,
+        }),
+      ],
+      T0 + 20 * MIN,
+    );
+    expect(
+      quotaExhaustionInMs(
+        'openai-codex',
+        'default',
+        { id: 'primary', usedPercent: 50 },
+        T0 - 60 * MIN,
+      ),
+    ).toBeUndefined();
+    expect(
+      quotaExhaustionInMs(
+        'openai-codex',
+        'default',
+        { id: 'primary', usedPercent: 50, resetsAt: (T0 + 180 * MIN) / 1000 },
+        T0 + 20 * MIN,
+      ),
+    ).toBeUndefined();
+  });
 });

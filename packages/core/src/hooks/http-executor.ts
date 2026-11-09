@@ -58,7 +58,11 @@ export async function runHttpHookDetailed(
     };
   }
 
-  const timeoutMs = Math.max(1, Math.min(spec.timeoutMs ?? DEFAULT_TIMEOUT_MS, 10 * 60_000));
+  const rawTimeoutMs =
+    typeof spec.timeoutMs === 'number' && Number.isFinite(spec.timeoutMs)
+      ? spec.timeoutMs
+      : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = Math.max(1, Math.min(Math.floor(rawTimeoutMs), 10 * 60_000));
   const timeoutController = new AbortController();
   const timer = setTimeout(() => timeoutController.abort(new Error('hook timeout')), timeoutMs);
   timer.unref?.();

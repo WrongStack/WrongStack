@@ -648,4 +648,14 @@ describe('DefaultTokenCounter', () => {
     await Promise.resolve();
     expect(tc.estimateCost().total).toBe(0);
   });
+
+  it('clamps negative usage fields and non-finite/negative setCurrentRequestTokens (F109)', () => {
+    const tc = new DefaultTokenCounter();
+    tc.account({ input: 100, output: 50, cacheRead: 20, cacheWrite: 10 });
+    tc.account({ input: -40, output: -20, cacheRead: -10, cacheWrite: -5 });
+    expect(tc.total()).toEqual({ input: 100, output: 50, cacheRead: 20, cacheWrite: 10 });
+
+    tc.setCurrentRequestTokens(Number.NaN, -10, Number.POSITIVE_INFINITY);
+    expect(tc.currentRequestTokens()).toEqual({ input: 0, cacheRead: 0, cacheWrite: 0 });
+  });
 });

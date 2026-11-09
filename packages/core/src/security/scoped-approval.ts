@@ -15,14 +15,29 @@ export const isPersistentApproval = (decision: string): boolean =>
   ['always', 'always-exact', 'always-command', 'always-tool'].includes(decision);
 export const isScopedApprovalPattern = (pattern: string): boolean => pattern.startsWith(PREFIX);
 
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+function canonical(value: unknown, seen = new Set<object>()): string {
+  if (typeof value === 'bigint') return JSON.stringify(`${value.toString()}n`);
+  if (value instanceof Date) {
+    return JSON.stringify(Number.isFinite(value.getTime()) ? value.toISOString() : 'Invalid Date');
+  }
+  if (value instanceof RegExp) return JSON.stringify(value.toString());
+  if (Array.isArray(value)) {
+    if (seen.has(value)) return '"[Circular]"';
+    seen.add(value);
+    const out = `[${value.map((item) => canonical(item, seen)).join(',')}]`;
+    seen.delete(value);
+    return out;
+  }
   if (value && typeof value === 'object') {
-    return `{${Object.entries(value)
+    if (seen.has(value)) return '"[Circular]"';
+    seen.add(value);
+    const out = `{${Object.entries(value)
       .filter(([, v]) => v !== undefined)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+      .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v, seen)}`)
       .join(',')}}`;
+    seen.delete(value);
+    return out;
   }
   return JSON.stringify(value) ?? 'null';
 }

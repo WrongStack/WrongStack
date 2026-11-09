@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { exactApprovalKey } from '../../src/security/scoped-approval.js';
 import {
   areSubagentCompanionsAllowed,
   areSubagentsAllowed,
@@ -257,6 +258,21 @@ describe('verifyTotp code-shape guard (WS-SEC-LOW)', () => {
     expect(hashRecoveryCode('')).toBe('');
     expect(hashRecoveryCode(' ---  --- ')).toBe('');
     expect(verifyRecoveryCode(' --- ', [emptySha256])).toBe(false);
+  });
+
+  it('rejects corrupted stored recovery hashes with trailing non-hex chars, clamps non-positive secret/code counts, and hashes BigInt/Date/RegExp/circular inputs in exactApprovalKey (F149)', () => {
+    const h = hashRecoveryCode('12345678-9abcdef0');
+    expect(verifyRecoveryCode('12345678-9abcdef0', [`${h}zzzz`])).toBe(false);
+    expect(verifyRecoveryCode('12345678-9abcdef0', [`  ${h.toUpperCase()}  `])).toBe(true);
+    expect(generateTotpSecret(0)).toHaveLength(32);
+    expect(generateRecoveryCodes(0)).toHaveLength(8);
+
+    const ctx = { cwd: '/tmp', projectRoot: '/tmp' } as never;
+    expect(exactApprovalKey({ v: 10n }, ctx)).not.toBe(exactApprovalKey({ v: 20n }, ctx));
+    expect(exactApprovalKey({ d: new Date(1000) }, ctx)).not.toBe(
+      exactApprovalKey({ d: new Date(2000) }, ctx),
+    );
+    expect(exactApprovalKey({ r: /abc/i }, ctx)).not.toBe(exactApprovalKey({ r: /xyz/g }, ctx));
   });
 });
 

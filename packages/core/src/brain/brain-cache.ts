@@ -117,8 +117,16 @@ export class BrainDecisionCache {
 
   constructor(private readonly opts: BrainDecisionCacheOptions = {}) {
     this.enabled = opts.enabled === true;
-    this.ttlMs = opts.ttlMs ?? 300_000;
-    this.maxEntries = opts.maxEntries ?? 200;
+    this.ttlMs =
+      typeof opts.ttlMs === 'number' && Number.isFinite(opts.ttlMs) && opts.ttlMs > 0
+        ? Math.floor(opts.ttlMs)
+        : 300_000;
+    this.maxEntries =
+      typeof opts.maxEntries === 'number' &&
+      Number.isFinite(opts.maxEntries) &&
+      opts.maxEntries >= 1
+        ? Math.floor(opts.maxEntries)
+        : 200;
     this.now = opts.now ?? Date.now;
   }
 

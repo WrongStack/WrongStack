@@ -128,6 +128,7 @@ const MAX_BACKOFF_MS = 30_000;
 
 export class DefaultRetryPolicy implements RetryPolicy {
   shouldRetry(err: Error | ProviderError, attempt: number): boolean {
+    if (!Number.isFinite(attempt) || attempt < 0) return false;
     const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
     if (isProviderErr) {
       if (!(err as ProviderError).retryable) return false;
@@ -144,7 +145,7 @@ export class DefaultRetryPolicy implements RetryPolicy {
   maxAttempts(err: Error | ProviderError): number {
     const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
     if (isProviderErr) {
-      return MAX_ATTEMPTS_BY_KIND[(err as ProviderError).kind];
+      return MAX_ATTEMPTS_BY_KIND[(err as ProviderError).kind] ?? 0;
     }
     return 2;
   }
@@ -174,7 +175,8 @@ export class DefaultRetryPolicy implements RetryPolicy {
       // 60s upper bound.
       return Math.max(0, Math.min(hint, MAX_RETRY_AFTER_MS));
     }
-    const exp = RETRY_BASE_DELAY_MS * 2 ** attempt;
+    const safeAttempt = Number.isFinite(attempt) && attempt >= 0 ? Math.floor(attempt) : 0;
+    const exp = RETRY_BASE_DELAY_MS * 2 ** safeAttempt;
     // crypto.randomInt(min, max) is half-open: returns an integer in
     // [min, max). With (0, RETRY_JITTER_MS) we get integers in [0, 1000),
     // matching the previous Math.random() * 1000 jitter range. Using crypto

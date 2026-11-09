@@ -90,7 +90,8 @@ export function brainDecisionKey(source: string | undefined, question: string): 
 }
 
 function fmtAge(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
+  const safeMs = Number.isFinite(ms) ? Math.max(0, ms) : 0;
+  const s = Math.max(0, Math.round(safeMs / 1000));
   if (s < 60) return `${s}s ago`;
   // Promote at the rounding boundary: 59m50s is "1h ago", not "60m ago".
   const m = Math.round(s / 60);
@@ -131,7 +132,11 @@ export interface LedgerGuardBrainArbiterOptions {
  * very action the history condemned.
  */
 export function createLedgerGuardBrainArbiter(opts: LedgerGuardBrainArbiterOptions): BrainArbiter {
-  const denyAfter = opts.denyAfter ?? 3;
+  const rawDenyAfter = opts.denyAfter ?? 3;
+  const denyAfter =
+    typeof rawDenyAfter === 'number' && Number.isFinite(rawDenyAfter) && rawDenyAfter >= 0
+      ? Math.floor(rawDenyAfter)
+      : 3;
   return {
     async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
       const startedAt = Date.now();
@@ -169,7 +174,7 @@ export class BrainDecisionLedger {
   private readonly pendingBudgetOutcomes = new Map<string, Set<string>>();
   private readonly lastInterventionByKind = new Map<
     string,
-    { requestId: string; at: number; sessionId?: string | undefined }
+    { requestId: string; at: number; kind: string; sessionId?: string | undefined }
   >();
   private readonly unsubscribers: Array<() => void> = [];
   private started = false;
@@ -194,8 +199,18 @@ export class BrainDecisionLedger {
   private readonly now: () => number;
 
   constructor(private readonly opts: BrainDecisionLedgerOptions) {
-    this.maxMemoryEntries = opts.maxMemoryEntries ?? 500;
-    this.retryWindowMs = opts.interventionRetryWindowMs ?? 10 * 60_000;
+    this.maxMemoryEntries =
+      typeof opts.maxMemoryEntries === 'number' &&
+      Number.isFinite(opts.maxMemoryEntries) &&
+      opts.maxMemoryEntries >= 1
+        ? Math.floor(opts.maxMemoryEntries)
+        : 500;
+    this.retryWindowMs =
+      typeof opts.interventionRetryWindowMs === 'number' &&
+      Number.isFinite(opts.interventionRetryWindowMs) &&
+      opts.interventionRetryWindowMs >= 0
+        ? Math.floor(opts.interventionRetryWindowMs)
+        : 10 * 60_000;
     this.now = opts.now ?? Date.now;
   }
 
@@ -203,8 +218,18 @@ export class BrainDecisionLedger {
   reconfigure(
     settings: Pick<BrainDecisionLedgerOptions, 'maxMemoryEntries' | 'interventionRetryWindowMs'>,
   ): void {
-    this.maxMemoryEntries = settings.maxMemoryEntries ?? 500;
-    this.retryWindowMs = settings.interventionRetryWindowMs ?? 10 * 60_000;
+    this.maxMemoryEntries =
+      typeof settings.maxMemoryEntries === 'number' &&
+      Number.isFinite(settings.maxMemoryEntries) &&
+      settings.maxMemoryEntries >= 1
+        ? Math.floor(settings.maxMemoryEntries)
+        : 500;
+    this.retryWindowMs =
+      typeof settings.interventionRetryWindowMs === 'number' &&
+      Number.isFinite(settings.interventionRetryWindowMs) &&
+      settings.interventionRetryWindowMs >= 0
+        ? Math.floor(settings.interventionRetryWindowMs)
+        : 10 * 60_000;
     this.pruneEntries();
   }
 
@@ -291,26 +316,27 @@ export class BrainDecisionLedger {
         this.lastInterventionByKind.set(interventionKey, {
           requestId: e.request.id,
           at: e.at,
+          kind: e.kind,
           sessionId,
         });
       }),
       // ── Outcome correlation: agent run completion ─────────────────────
       events.on('agent.run.completed', (e) => {
-        for (const [kind, entry] of [...this.lastInterventionByKind.entries()]) {
+        for (const [key, entry] of [...this.lastInterventionByKind.entries()]) {
           if (entry.sessionId !== e.sessionId) continue;
-          this.lastInterventionByKind.delete(kind);
+          this.lastInterventionByKind.delete(key);
           if (e.status === 'done') {
             this.recordOutcome(
               entry.requestId,
               'success',
-              `steered agent run completed successfully (${kind})`,
+              `steered agent run completed successfully (${entry.kind})`,
               e.sessionId,
             );
           } else {
             this.recordOutcome(
               entry.requestId,
               'failure',
-              `steered agent run ended with status "${e.status}" (${kind})`,
+              `steered agent run ended with status "${e.status}" (${entry.kind})`,
               e.sessionId,
             );
           }
@@ -407,7 +433,8 @@ export class BrainDecisionLedger {
 
   /** Last `n` ledger rows, oldest first. */
   tail(n: number): BrainLedgerEntry[] {
-    return this.entries.slice(-n);
+    if (!Number.isFinite(n) || n <= 0) return [];
+    return this.entries.slice(-Math.trunc(n));
   }
 
   /**
@@ -482,9 +509,12 @@ export class BrainDecisionLedger {
   // ── Private ───────────────────────────────────────────────────────────
 
   private record(entry: BrainLedgerEntry): void {
-    this.entries.push(entry);
+    const normalized: BrainLedgerEntry = Number.isFinite(entry.at)
+      ? entry
+      : { ...entry, at: this.now() };
+    this.entries.push(normalized);
     this.pruneEntries();
-    this.append(entry);
+    this.append(normalized);
   }
 
   private pruneEntries(): void {
@@ -584,7 +614,12 @@ export class BrainDecisionLedger {
         if (!line.trim()) continue;
         try {
           const parsed = JSON.parse(line) as BrainLedgerEntry;
-          if (typeof parsed?.requestId === 'string' && typeof parsed.at === 'number') {
+          if (
+            typeof parsed?.requestId === 'string' &&
+            parsed.requestId.trim().length > 0 &&
+            typeof parsed.at === 'number' &&
+            Number.isFinite(parsed.at)
+          ) {
             seed.push(parsed);
             if (seed.length > this.maxMemoryEntries) seed.shift();
           }

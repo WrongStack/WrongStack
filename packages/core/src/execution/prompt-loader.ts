@@ -36,6 +36,7 @@ export class DefaultPromptLoader implements PromptLoader {
   private readonly builtinDir?: string | undefined;
   private cache?: PromptEntry[] | undefined;
   private builtinCache?: PromptEntry[] | undefined;
+  private cacheGeneration = 0;
 
   constructor(opts: PromptLoaderOptions) {
     // Guard each layer dir: a partial WstackPaths (or a globalRoot-only test
@@ -53,6 +54,7 @@ export class DefaultPromptLoader implements PromptLoader {
 
   async list(): Promise<PromptEntry[]> {
     if (this.cache) return this.cache;
+    const gen = this.cacheGeneration;
     const seen = new Set<string>();
     const out: PromptEntry[] = [];
     const layers: PromptEntry[][] = [
@@ -70,7 +72,9 @@ export class DefaultPromptLoader implements PromptLoader {
         out.push(e);
       }
     }
-    this.cache = out;
+    if (this.cacheGeneration === gen) {
+      this.cache = out;
+    }
     return out;
   }
 
@@ -95,7 +99,11 @@ export class DefaultPromptLoader implements PromptLoader {
         .sort((a, b) => b.score - a.score)
         .map((r) => r.e);
     }
-    return typeof opts.limit === 'number' ? results.slice(0, opts.limit) : results;
+    if (typeof opts.limit === 'number') {
+      if (!Number.isFinite(opts.limit) || opts.limit <= 0) return [];
+      return results.slice(0, Math.trunc(opts.limit));
+    }
+    return results;
   }
 
   async categories(): Promise<PromptCategoryCount[]> {
@@ -169,12 +177,14 @@ export class DefaultPromptLoader implements PromptLoader {
   }
 
   invalidateCache(): void {
+    this.cacheGeneration += 1;
     this.cache = undefined;
     this.builtinCache = undefined;
   }
 
   private async readBuiltin(): Promise<PromptEntry[]> {
     if (this.builtinCache) return this.builtinCache;
+    const gen = this.cacheGeneration;
     const dir = this.builtinDir;
     if (!dir) {
       this.builtinCache = [];
@@ -192,7 +202,9 @@ export class DefaultPromptLoader implements PromptLoader {
         // skip malformed builtin file
       }
     }
-    this.builtinCache = out;
+    if (this.cacheGeneration === gen) {
+      this.builtinCache = out;
+    }
     return out;
   }
 }

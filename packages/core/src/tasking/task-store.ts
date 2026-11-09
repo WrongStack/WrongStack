@@ -35,6 +35,9 @@ export class DefaultTaskStore implements TaskStore {
   private cloneGraph(graph: TaskGraph): TaskGraph {
     return {
       ...graph,
+      ...(graph.requiredRequirementIds
+        ? { requiredRequirementIds: [...graph.requiredRequirementIds] }
+        : {}),
       nodes: new Map(graph.nodes),
       edges: [...graph.edges],
       rootNodes: [...graph.rootNodes],

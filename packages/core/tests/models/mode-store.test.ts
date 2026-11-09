@@ -181,4 +181,33 @@ describe('loadUserModes', () => {
     expect(modes).toHaveLength(1);
     expect(modes[0]!.id).toBe('user1');
   });
+
+  it('validates mode.json activeMode types and filters malformed modes.json entries (F152)', async () => {
+    await fs.writeFile(path.join(tmpDir, 'mode.json'), JSON.stringify({ activeMode: 123 }), 'utf8');
+    const badTypeStore = new DefaultModeStore({ directory: tmpDir });
+    expect((await badTypeStore.getActiveMode())?.id).toBe('default');
+
+    await fs.writeFile(
+      path.join(tmpDir, 'mode.json'),
+      JSON.stringify({ activeMode: null }),
+      'utf8',
+    );
+    const nullStore = new DefaultModeStore({ directory: tmpDir });
+    expect(await nullStore.getActiveMode()).toBeNull();
+    expect(await nullStore.getActiveMode()).toBeNull();
+
+    await fs.writeFile(
+      path.join(tmpDir, 'modes.json'),
+      JSON.stringify({
+        modes: [
+          null,
+          { id: '   ', name: 'Bad', description: '', prompt: 'p' },
+          { id: 'user-valid', name: 'Valid', description: 'desc', prompt: 'hello' },
+        ],
+      }),
+      'utf8',
+    );
+    const modes = await loadUserModes(tmpDir);
+    expect(modes.map((m) => m.id)).toEqual(['user-valid']);
+  });
 });

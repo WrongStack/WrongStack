@@ -77,7 +77,7 @@ export class Container {
     this.entries.set(token, {
       factory: factory as Factory<unknown>,
       singleton: opts.singleton ?? existing.singleton,
-      decorators: existing.decorators,
+      decorators: [...existing.decorators],
       hasCache: false,
       owner: opts.owner ?? existing.owner,
     });

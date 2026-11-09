@@ -344,7 +344,13 @@ export function createContextManagerTool(
         case 'prune': {
           const from = input.from ?? 0;
           const to = input.to ?? messages.length - 1;
-          if (from < 0 || to >= messages.length || from > to) {
+          if (
+            !Number.isInteger(from) ||
+            !Number.isInteger(to) ||
+            from < 0 ||
+            to >= messages.length ||
+            from > to
+          ) {
             return {
               action: 'prune',
               beforeTokens,
@@ -375,7 +381,11 @@ export function createContextManagerTool(
 
         case 'add_note': {
           const noteText = input.text ?? '(no summary)';
-          const afterIdx = Math.min(input.afterIndex ?? 0, messages.length);
+          const rawIdx = input.afterIndex;
+          const afterIdx =
+            typeof rawIdx === 'number' && Number.isFinite(rawIdx)
+              ? Math.min(Math.max(0, Math.trunc(rawIdx)), messages.length)
+              : 0;
           const noteMsg: Message = {
             role: 'system',
             content: `[note: ${noteText}]`,
@@ -403,7 +413,13 @@ export function createContextManagerTool(
         case 'summary': {
           const from = input.from ?? 0;
           const to = input.to ?? messages.length - 1;
-          if (from < 0 || to >= messages.length || from > to) {
+          if (
+            !Number.isInteger(from) ||
+            !Number.isInteger(to) ||
+            from < 0 ||
+            to >= messages.length ||
+            from > to
+          ) {
             return {
               action: 'summary',
               beforeTokens,

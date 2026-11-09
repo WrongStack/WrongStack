@@ -170,6 +170,45 @@ describe('DefaultPromptLoader', () => {
     expect(all[0]?.source).toBe('user');
     expect(all[0]?.forkedFrom).toBe('imported');
   });
+
+  it('parses model advice with braces in surrounding prose and guards search limits (F107)', async () => {
+    const { TopicShiftAdvisor } = await import('../../src/execution/topic-shift-advisor.js');
+    const messages = Array.from({ length: 10 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `Working on database migration schema step ${i + 1} with index tuning.`,
+    }));
+    const advisor = new TopicShiftAdvisor();
+    const advice = await advisor.advise({
+      prompt: 'Design an audio synthesizer waveform generator in WebAudio.',
+      messages,
+      provider: {
+        id: 'mock',
+        capabilities: {},
+        stream: async function* () {},
+        complete: async () => ({
+          content: [
+            {
+              type: 'text',
+              text: 'Comparing {db} vs {audio}:\n{"decision":"new_context","confidence":0.92,"reason":"   ","nextTopic":"WebAudio"}',
+            },
+          ],
+        }),
+      } as never,
+      model: 'mock-model',
+      contextTokens: 25_000,
+      maxContext: 100_000,
+    });
+    expect(advice.source).toBe('model');
+    expect(advice.suggestNewContext).toBe(true);
+    expect(advice.reason).toBe('Topic continuity check.');
+
+    const loader = new DefaultPromptLoader({ paths, bundledDir });
+    await loader.save(entry('p1'));
+    await loader.save(entry('p2'));
+    expect(await loader.search('', { limit: -1 })).toEqual([]);
+    expect(await loader.search('', { limit: 0 })).toEqual([]);
+    expect(await loader.search('', { limit: Number.NaN })).toEqual([]);
+  });
 });
 
 describe('renderPrompt', () => {

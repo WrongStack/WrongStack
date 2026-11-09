@@ -1,3 +1,4 @@
+import type { ProviderRunnerFn } from '@wrongstack/contracts/types/extension-points';
 import { describe, expect, it, vi } from 'vitest';
 import { ExtensionRegistry } from '../../src/extension/registry.js';
 
@@ -404,5 +405,60 @@ describe('ExtensionRegistry — tool execution hooks', () => {
     expect(calls).toEqual(['A']);
     reg.unregister('ext');
     expect(reg.list()).toEqual([]);
+  });
+
+  it('binds wrapProviderRunner to the extension, skips unregistered wrappers/contributors, and guards non-array beforeToolExecution returns (F108)', async () => {
+    const reg = new ExtensionRegistry();
+    const trace: string[] = [];
+    const extA = {
+      name: 'ext-a',
+      tag: 'A_THIS',
+      async wrapProviderRunner(
+        this: { tag: string },
+        ctx: Parameters<ProviderRunnerFn>[0],
+        req: Parameters<ProviderRunnerFn>[1],
+        next: ProviderRunnerFn,
+      ) {
+        trace.push(this.tag);
+        return next(ctx, req);
+      },
+    };
+    const extB = {
+      name: 'ext-b',
+      async wrapProviderRunner(
+        ctx: Parameters<ProviderRunnerFn>[0],
+        req: Parameters<ProviderRunnerFn>[1],
+        next: ProviderRunnerFn,
+      ) {
+        trace.push('B');
+        return next(ctx, req);
+      },
+    };
+    reg.register(extA);
+    const offB = reg.register(extB);
+    const composed = reg.wrapProviderRunner(async () => 'ok' as never);
+    offB();
+    await composed({} as never, {} as never);
+    expect(trace).toEqual(['A_THIS']);
+
+    const promptReg = new ExtensionRegistry();
+    let offSecond!: () => void;
+    promptReg.registerSystemPromptContributor((async () => {
+      offSecond();
+      return [{ type: 'text', text: 'first' }];
+    }) as never);
+    offSecond = promptReg.registerSystemPromptContributor((async () => [
+      { type: 'text', text: 'second' },
+    ]) as never);
+    const blocks = await promptReg.buildSystemPromptContributions({} as never);
+    expect(blocks).toEqual([{ type: 'text', text: 'first' }]);
+
+    const toolReg = new ExtensionRegistry();
+    toolReg.register({
+      name: 'faulty',
+      beforeToolExecution: async () => undefined as never,
+    });
+    const tools = [{ id: '1' }] as never;
+    expect(await toolReg.runBeforeToolExecution({} as never, tools)).toBe(tools);
   });
 });

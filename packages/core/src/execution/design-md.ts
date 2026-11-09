@@ -152,11 +152,22 @@ const REF_RE = /^\{([a-z]+)\.([\w-]+)\}$/;
 
 /** A `{group.token}` reference resolved against the doc; plain values pass through. */
 export function resolveDesignMdRef(doc: DesignMdDoc, value: string): string | undefined {
-  const m = REF_RE.exec(value.trim());
-  if (!m) return value;
-  const group = record((doc as unknown as Record<string, unknown>)[m[1] ?? '']);
-  const hit = group[m[2] ?? ''];
-  return typeof hit === 'string' || typeof hit === 'number' ? String(hit) : undefined;
+  let current = value;
+  const visited = new Set<string>();
+  while (true) {
+    const m = REF_RE.exec(current.trim());
+    if (!m) return current;
+    const refKey = `${m[1]}.${m[2]}`;
+    if (visited.has(refKey)) return undefined;
+    visited.add(refKey);
+    const groupObj = (doc as unknown as Record<string, unknown>)[m[1] ?? ''];
+    const group = record(groupObj);
+    const tokenKey = m[2] ?? '';
+    if (!Object.hasOwn(group, tokenKey)) return undefined;
+    const hit = group[tokenKey];
+    if (typeof hit !== 'string' && typeof hit !== 'number') return undefined;
+    current = String(hit);
+  }
 }
 
 /** Token-level checks; parse-level ones (YAML, sections) come from parseDesignMd. */

@@ -103,7 +103,7 @@ export function createSessionLease(
   leaseMs?: number,
 ): SessionLeaseCredential {
   assertId(entry.sessionId);
-  if (!ownerInstanceId || ownerInstanceId.length > 256)
+  if (!ownerInstanceId?.trim() || ownerInstanceId.length > 256)
     throw new TypeError('Invalid owner instance id');
   if (!Number.isSafeInteger(entry.pid) || entry.pid <= 0) throw new TypeError('Invalid owner pid');
   const now = Date.now();
@@ -186,6 +186,9 @@ export function executeReserveResume(
   reservationMs?: number,
 ): ResumeReservation {
   assertId(targetSessionId);
+  if (!requesterInstanceId?.trim() || requesterInstanceId.length > 256) {
+    throw new TypeError('Invalid requester instance id');
+  }
   reapExpiredCatalogEntries(db);
   const live = getLeaseRow(db, targetSessionId);
   if (live) {
@@ -310,6 +313,9 @@ export function executePublishAgents(
   boundedAgents: SessionRegistryEntry['agents'],
   bumpGeneration: () => number,
 ): { accepted: boolean; revision: number } {
+  if (!Number.isSafeInteger(revision) || revision < 0) {
+    throw new TypeError('Invalid presence revision');
+  }
   const row = verifyLeaseCredential(db, credential);
   if (revision <= row.agent_revision) return { accepted: false, revision: row.agent_revision };
   const entry = parseJson<SessionRegistryEntry>(row.entry_json);

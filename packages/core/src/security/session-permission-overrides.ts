@@ -45,8 +45,14 @@ export function normalizeSessionPermissionOverrides(raw: unknown): SessionPermis
     const { effect, tool, pattern } = item as Record<string, unknown>;
     if (effect !== 'allow' && effect !== 'deny') continue;
     if (typeof tool !== 'string' || tool.trim() === '') continue;
-    if (pattern !== undefined && (typeof pattern !== 'string' || pattern === '')) continue;
-    out.push({ effect, tool, ...(pattern !== undefined ? { pattern } : {}) });
+    const trimmedTool = tool.trim();
+    if (pattern !== undefined && (typeof pattern !== 'string' || pattern.trim() === '')) continue;
+    const trimmedPattern = typeof pattern === 'string' ? pattern.trim() : undefined;
+    out.push({
+      effect,
+      tool: trimmedTool,
+      ...(trimmedPattern !== undefined ? { pattern: trimmedPattern } : {}),
+    });
   }
   return out;
 }

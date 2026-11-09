@@ -522,4 +522,39 @@ describe('deactivateProxyOnConnectionFailure', () => {
     );
     expect(getProxyConfig().active).toBe(false);
   });
+
+  it('guards malformed/query proxyUrl in rewriteBaseUrl, traverses err.cause in deactivateProxyOnConnectionFailure, and handles NaN timeoutMs in waitForProxyRoutingSettle (F112)', async () => {
+    expect(rewriteBaseUrl('https://api.openai.com/v1', 'http://[::1')).toBe(
+      'https://api.openai.com/v1',
+    );
+    expect(
+      rewriteBaseUrl('https://api.openai.com/v1?x=1#top', 'http://localhost:3444/?token=secret#f'),
+    ).toBe('http://localhost:3444/proxy/api.openai.com/v1?x=1#top');
+
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const nestedErr = new Error('Connection error.', {
+      cause: Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:3444'), {
+        code: 'ECONNREFUSED',
+      }),
+    });
+    expect(deactivateProxyOnConnectionFailure(nestedErr)).toBe(true);
+    expect(getProxyConfig().active).toBe(false);
+
+    __resetProxyConfigForTests();
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    let finished = false;
+    const handle = createProxyInstantApply({
+      getActiveProviderId: () => 'openai',
+      getRawBaseUrl: () => 'https://api.openai.com/v1',
+      rebuildProvider: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        finished = true;
+      },
+      logger: { info: () => {}, warn: () => {} },
+    });
+    applyProxyConfig({ active: false });
+    await waitForProxyRoutingSettle(Number.NaN);
+    expect(finished).toBe(true);
+    handle.dispose();
+  });
 });

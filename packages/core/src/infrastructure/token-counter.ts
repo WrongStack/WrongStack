@@ -77,7 +77,7 @@ export class DefaultTokenCounter implements TokenCounter {
    */
   private static finiteUsage(usage: Usage): Usage {
     const n = (v: number | undefined): number | undefined =>
-      v === undefined ? undefined : Number.isFinite(v) ? v : 0;
+      v === undefined ? undefined : Number.isFinite(v) ? Math.max(0, v) : 0;
     return {
       ...usage,
       input: n(usage.input) ?? 0,
@@ -269,9 +269,11 @@ export class DefaultTokenCounter implements TokenCounter {
   }
 
   setCurrentRequestTokens(input: number, cacheRead?: number, cacheWrite?: number): void {
-    this.lastInput = input;
-    this.lastCacheRead = cacheRead ?? 0;
-    this.lastCacheWrite = cacheWrite ?? 0;
+    const clean = (v: number | undefined): number =>
+      typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0;
+    this.lastInput = clean(input);
+    this.lastCacheRead = clean(cacheRead);
+    this.lastCacheWrite = clean(cacheWrite);
   }
 
   estimateCost(): { input: number; output: number; total: number; currency: 'USD' } {

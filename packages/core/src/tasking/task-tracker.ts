@@ -169,6 +169,10 @@ export class TaskTracker {
     this.persist();
     this.notifyChange({ type: 'node_added', nodeId: newNode.id, node: newNode });
 
+    if (newNode.status === 'in_progress') {
+      this.checkAndBlockIfNeeded(newNode.id);
+    }
+
     return newNode;
   }
 
@@ -217,6 +221,9 @@ export class TaskTracker {
     });
     this.graph.updatedAt = Date.now();
     this.persist();
+    if (type === 'depends_on' && this.graph.nodes.get(to)?.status === 'in_progress') {
+      this.checkAndBlockIfNeeded(to);
+    }
   }
 
   /**
@@ -303,10 +310,10 @@ export class TaskTracker {
         }
       }
     }
-    this.unblockNodesIfReady(dependents, `auto-unblocked: blocker ${id} removed`);
     this.graph.updatedAt = Date.now();
     this.persist();
     this.notifyChange({ type: 'node_removed', nodeId: id, node });
+    this.unblockNodesIfReady(dependents, `auto-unblocked: blocker ${id} removed`);
     return true;
   }
 
@@ -361,6 +368,8 @@ export class TaskTracker {
     // may mutate statuses but cannot re-enter the cascade itself.
     if (status === 'completed' || status === 'failed') {
       this.unblockDependents(id);
+    } else if (from === 'completed' || from === 'failed') {
+      this.blockInProgressDependents(id);
     }
 
     if (status === 'in_progress') {
@@ -551,6 +560,14 @@ export class TaskTracker {
       dependents,
       `auto-unblocked: blocker ${completedId} reached a terminal state`,
     );
+  }
+
+  private blockInProgressDependents(reopenedBlockerId: string): void {
+    for (const depId of this.getDependents(reopenedBlockerId)) {
+      if (this.graph?.nodes.get(depId)?.status === 'in_progress') {
+        this.checkAndBlockIfNeeded(depId);
+      }
+    }
   }
 
   private checkAndBlockIfNeeded(taskId: string): void {

@@ -6,6 +6,7 @@ import { DEFAULT_MODES } from './default-modes.js';
 
 export class DefaultModeStore implements ModeStore {
   private activeModeId: string | null = null;
+  private loaded = false;
   private modes: Mode[];
   private configDir: string;
 
@@ -15,7 +16,7 @@ export class DefaultModeStore implements ModeStore {
   }
 
   async getActiveMode(): Promise<Mode | null> {
-    if (!this.activeModeId) {
+    if (!this.loaded) {
       await this.loadActiveMode();
     }
     if (!this.activeModeId) return null;
@@ -23,7 +24,8 @@ export class DefaultModeStore implements ModeStore {
   }
 
   async setActiveMode(modeId: string | null): Promise<void> {
-    this.activeModeId = modeId;
+    this.activeModeId = typeof modeId === 'string' && modeId.trim() ? modeId.trim() : null;
+    this.loaded = true;
     await this.saveActiveMode();
   }
 
@@ -57,11 +59,22 @@ export class DefaultModeStore implements ModeStore {
   }
 
   private async loadActiveMode(): Promise<void> {
+    this.loaded = true;
     try {
       const configPath = path.join(this.configDir, 'mode.json');
       const content = await fs.readFile(configPath, 'utf8');
-      const data = JSON.parse(content);
-      this.activeModeId = data.activeMode ?? null;
+      const data = JSON.parse(content) as Record<string, unknown> | null;
+      if (data && typeof data === 'object' && 'activeMode' in data) {
+        if (data.activeMode === null) {
+          this.activeModeId = null;
+          return;
+        }
+        if (typeof data.activeMode === 'string' && data.activeMode.trim().length > 0) {
+          this.activeModeId = data.activeMode.trim();
+          return;
+        }
+      }
+      this.activeModeId = 'default';
     } catch {
       this.activeModeId = 'default';
     }
@@ -115,9 +128,20 @@ export async function loadUserModes(modesDir: string): Promise<Mode[]> {
   try {
     const manifestPath = path.join(modesDir, 'modes.json');
     const content = await fs.readFile(manifestPath, 'utf8');
-    const manifest: ModeManifest = JSON.parse(content);
-    for (const mode of manifest.modes) {
-      modes.push(mode);
+    const manifest = JSON.parse(content) as Partial<ModeManifest> | null;
+    if (Array.isArray(manifest?.modes)) {
+      for (const mode of manifest.modes) {
+        if (
+          mode &&
+          typeof mode === 'object' &&
+          typeof mode.id === 'string' &&
+          mode.id.trim().length > 0 &&
+          typeof mode.name === 'string' &&
+          typeof mode.prompt === 'string'
+        ) {
+          modes.push({ ...mode, id: mode.id.trim() });
+        }
+      }
     }
   } catch {
     // no user modes

@@ -229,6 +229,11 @@ export function sanitizeDecision(
         ...decision,
         prompt: applyContentMode(decision.prompt, mode) ?? '',
         rationale: applyContentMode(decision.rationale, mode),
+        options: decision.options?.map((option) => ({
+          ...option,
+          label: applyContentMode(option.label, mode) ?? option.id,
+          consequence: applyContentMode(option.consequence, mode),
+        })),
       };
   }
 }
@@ -276,6 +281,7 @@ export class BrainTraceRecorder {
   }
 
   start(): void {
+    if (this.unsubscribers.length > 0) return;
     const { events } = this.opts;
 
     this.unsubscribers.push(

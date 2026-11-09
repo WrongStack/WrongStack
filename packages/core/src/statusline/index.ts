@@ -311,12 +311,16 @@ export function effectiveLine(
   return override != null ? clampLine(override) : DEFAULT_LINES[item];
 }
 
-/** Resolve a chip's effective density ('auto' when unset). */
+/** Resolve a chip's effective density ('auto' when unset or invalid). */
 export function effectiveDensity(
   item: StatuslineItem,
   densities: StatuslineDensities | undefined,
 ): StatuslineDensity {
-  return densities?.[item] ?? 'auto';
+  if (!densities || !Object.hasOwn(densities, item)) return 'auto';
+  const candidate = densities[item];
+  return candidate !== undefined && STATUSLINE_DENSITY_CYCLE.includes(candidate)
+    ? candidate
+    : 'auto';
 }
 
 /**

@@ -143,4 +143,9 @@ describe('resolveProviderModelList', () => {
     expect(resolveProviderModelList([], undefined, 'openai')).toEqual([]);
     expect(resolveProviderModelList([], catalog([]), 'openai')).toEqual([]);
   });
+
+  it('trims and deduplicates non-empty savedModels (F152)', () => {
+    const list = resolveProviderModelList(['', '   ', '  gpt-5  ', 'gpt-5'], undefined);
+    expect(list.map((m) => m.id)).toEqual(['gpt-5']);
+  });
 });

@@ -151,7 +151,11 @@ export function compareDesignDna(ref: DesignDna, impl: DesignDna): DnaComparison
     push({
       axis: 'type',
       status: impl.type.scale.length
-        ? grade(nearestDiff(refLargest, impl.type.scale) / refLargest, DNA_TOLERANCE.relative)
+        ? refLargest === 0
+          ? nearestDiff(0, impl.type.scale) === 0
+            ? 'match'
+            : 'off'
+          : grade(nearestDiff(refLargest, impl.type.scale) / refLargest, DNA_TOLERANCE.relative)
         : 'missing',
       what: 'largest display size',
       reference: fmt(refLargest, 'px'),
@@ -186,10 +190,14 @@ export function compareDesignDna(ref: DesignDna, impl: DesignDna): DnaComparison
       status:
         impl.space.sectionPadY === null
           ? 'missing'
-          : grade(
-              Math.abs(impl.space.sectionPadY - ref.space.sectionPadY) / ref.space.sectionPadY,
-              0.15,
-            ),
+          : ref.space.sectionPadY === 0
+            ? impl.space.sectionPadY === 0
+              ? 'match'
+              : 'off'
+            : grade(
+                Math.abs(impl.space.sectionPadY - ref.space.sectionPadY) / ref.space.sectionPadY,
+                0.15,
+              ),
       what: 'section vertical padding',
       reference: fmt(ref.space.sectionPadY, 'px'),
       implementation: fmt(impl.space.sectionPadY, 'px'),
@@ -286,10 +294,14 @@ export function compareDesignDna(ref: DesignDna, impl: DesignDna): DnaComparison
       status:
         impl.motion.duration === null
           ? 'missing'
-          : grade(
-              Math.abs(impl.motion.duration - ref.motion.duration) / ref.motion.duration,
-              DNA_TOLERANCE.duration,
-            ),
+          : ref.motion.duration === 0
+            ? impl.motion.duration === 0
+              ? 'match'
+              : 'off'
+            : grade(
+                Math.abs(impl.motion.duration - ref.motion.duration) / ref.motion.duration,
+                DNA_TOLERANCE.duration,
+              ),
       what: 'dominant transition duration',
       reference: fmt(ref.motion.duration, 'ms'),
       implementation: fmt(impl.motion.duration, 'ms'),
@@ -329,7 +341,8 @@ export function dnaToTokenOverrides(dna: DesignDna): Record<string, string> {
     const oklch = hex ? hexToOklchString(hex) : null;
     if (oklch) out[`${scope}${role}`] = oklch;
   }
-  if (dna.color.roles.primary) out[`${scope}ring`] = out[`${scope}primary`] as string;
+  const primaryOklch = out[`${scope}primary`];
+  if (primaryOklch) out[`${scope}ring`] = primaryOklch;
   const font = (name: string | undefined, fallback: string): string | undefined =>
     name ? `${/\s/.test(name) ? `"${name}"` : name}, ${fallback}` : undefined;
   const sans = font(dna.type.text, 'system-ui, sans-serif');

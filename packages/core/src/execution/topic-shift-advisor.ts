@@ -3,6 +3,7 @@ import { isTextBlock, type Message, type Provider } from '@wrongstack/contracts/
 import type { Context } from '../core/context.js';
 import type { TypeSafeJudge } from '../typesafe/judgments.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
+import { parseObject } from './council-response-parser.js';
 
 const TOPIC_ADVISOR_SYSTEM = [
   'You classify whether a new user prompt belongs in the current coding conversation.',
@@ -461,31 +462,25 @@ function sharesSpecificIdentifier(left: Set<string>, right: Set<string>): boolea
 }
 
 function parseModelAdvice(text: string): TopicShiftAdvice | null {
-  const match = /\{[\s\S]*\}/.exec(text);
-  if (!match) return null;
-  try {
-    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
-    if (parsed['decision'] !== 'new_context' && parsed['decision'] !== 'same_context') return null;
-    const confidence =
-      typeof parsed['confidence'] === 'number' && Number.isFinite(parsed['confidence'])
-        ? Math.max(0, Math.min(1, parsed['confidence']))
-        : 0;
-    const reason = compact(
-      typeof parsed['reason'] === 'string' ? parsed['reason'] : 'Topic continuity check.',
-      180,
-    );
-    const nextTopic =
-      typeof parsed['nextTopic'] === 'string' ? compact(parsed['nextTopic'], 80) : undefined;
-    return {
-      suggestNewContext: parsed['decision'] === 'new_context' && confidence >= 0.78,
-      confidence,
-      reason,
-      ...(nextTopic ? { nextTopic } : {}),
-      source: 'model',
-    };
-  } catch {
-    return null;
-  }
+  const obj = parseObject(text);
+  if (!obj.ok) return null;
+  const parsed = obj.value;
+  if (parsed['decision'] !== 'new_context' && parsed['decision'] !== 'same_context') return null;
+  const confidence =
+    typeof parsed['confidence'] === 'number' && Number.isFinite(parsed['confidence'])
+      ? Math.max(0, Math.min(1, parsed['confidence']))
+      : 0;
+  const rawReason = typeof parsed['reason'] === 'string' ? compact(parsed['reason'], 180) : '';
+  const reason = rawReason || 'Topic continuity check.';
+  const nextTopic =
+    typeof parsed['nextTopic'] === 'string' ? compact(parsed['nextTopic'], 80) : undefined;
+  return {
+    suggestNewContext: parsed['decision'] === 'new_context' && confidence >= 0.78,
+    confidence,
+    reason,
+    ...(nextTopic ? { nextTopic } : {}),
+    source: 'model',
+  };
 }
 
 function localSame(reason: string): TopicShiftAdvice {

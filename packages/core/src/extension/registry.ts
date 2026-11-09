@@ -75,8 +75,10 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
     // skipped or duplicate contributor invocations during this phase.
     const snapshot = [...this.promptContributors];
     for (const c of snapshot) {
+      if (!this.promptContributors.includes(c)) continue;
       try {
         const contributed = await c(ctx);
+        if (!this.promptContributors.includes(c)) continue;
         blocks.push(...contributed);
       } catch (err) {
         this.log?.error('SystemPromptContributor failed', err);
@@ -320,7 +322,11 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
     const excluded = new Set(options?.exclude);
     const wrappers = this.extensions
       .filter((e) => e.wrapProviderRunner && !excluded.has(e.name))
-      .map((e) => ({ name: e.name, wrap: expectDefined(e.wrapProviderRunner) }));
+      .map((e) => ({
+        ext: e,
+        name: e.name,
+        wrap: expectDefined(e.wrapProviderRunner).bind(e),
+      }));
 
     if (wrappers.length === 0) return inner;
 
@@ -331,6 +337,9 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
       if (!wrapper) continue;
       const next = composed;
       composed = async (ctx, req) => {
+        if (!this.extensions.includes(wrapper.ext)) {
+          return next(ctx, req);
+        }
         try {
           return await wrapper.wrap(ctx, req, next);
         } catch (err) {
@@ -357,7 +366,15 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
     for (const ext of snapshot) {
       if (!ext.beforeToolExecution) continue;
       try {
-        toolUses = await ext.beforeToolExecution(args[0], toolUses);
+        const nextToolUses = await ext.beforeToolExecution(args[0], toolUses);
+        if (Array.isArray(nextToolUses)) {
+          toolUses = nextToolUses;
+        } else {
+          this.log?.error(
+            `Extension "${ext.name}" beforeToolExecution hook returned non-array`,
+            nextToolUses,
+          );
+        }
       } catch (err) {
         this.log?.error(`Extension "${ext.name}" beforeToolExecution hook failed`, err);
       }

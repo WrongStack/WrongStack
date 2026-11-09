@@ -10,11 +10,19 @@ import {
   EscalationRoutingBrainArbiter,
   ObservableBrainArbiter,
 } from '../../src/brain/brain.js';
-import { brainCacheKey } from '../../src/brain/brain-cache.js';
-import { BrainDecisionLedger } from '../../src/brain/brain-ledger.js';
+import { BrainDecisionCache, brainCacheKey } from '../../src/brain/brain-cache.js';
+import {
+  BrainDecisionLedger,
+  createLedgerGuardBrainArbiter,
+} from '../../src/brain/brain-ledger.js';
 import { BrainMonitor } from '../../src/brain/brain-monitor.js';
+import { compileBrainRules } from '../../src/brain/brain-rules.js';
 import { BrainTierCounter, readDecisionTier } from '../../src/brain/brain-telemetry.js';
-import { BrainTraceRecorder, readBrainTrace } from '../../src/brain/brain-trace.js';
+import {
+  BrainTraceRecorder,
+  readBrainTrace,
+  sanitizeDecision,
+} from '../../src/brain/brain-trace.js';
 import { createEventUserInputAwaiter } from '../../src/core/user-input-awaiter.js';
 import {
   createAutonomyBrain,
@@ -804,5 +812,178 @@ describe('Brain architecture regressions', () => {
     ]).toEqual(['terminal', 'terminal', 'terminal']);
     expect(deniedTiers).toEqual(['terminal', 'terminal', 'terminal']);
     expect(counter.snapshot().byTier.terminal).toBe(3);
+  });
+
+  it('guards ledger tail(), preserves intervention kind on completion, sanitizes ask_human options, and validates rule bounds (F105)', async () => {
+    const { mkdtemp, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = await mkdtemp(join(tmpdir(), 'brain-f105-'));
+    try {
+      const events = new EventBus();
+      const ledger = new BrainDecisionLedger({
+        events,
+        filePath: join(dir, 'ledger.jsonl'),
+      });
+      await ledger.start();
+      ledger.recordOutcome('req-1', 'success', 'ok', 'sess-1');
+      expect(ledger.tail(0)).toEqual([]);
+      expect(ledger.tail(-1)).toEqual([]);
+      expect(ledger.tail(Number.NaN)).toEqual([]);
+      expect(ledger.tail(1.8)).toHaveLength(1);
+
+      events.emit('brain.intervention', {
+        at: 1000,
+        sessionId: 'sess-1',
+        kind: 'agent_stall',
+        intervened: true,
+        request: request({ id: 'req-int-1', sessionId: 'sess-1', source: 'system' }),
+        decision: { type: 'answer', text: 'steer' },
+      });
+      events.emit('agent.run.completed', {
+        ctx: {} as never,
+        sessionId: 'sess-1',
+        status: 'done',
+        iterations: 1,
+        at: new Date().toISOString(),
+        durationMs: 10,
+      });
+      expect(ledger.tail(1)[0]?.detail).toBe(
+        'steered agent run completed successfully (agent_stall)',
+      );
+      await ledger.stop();
+
+      const sanitized = sanitizeDecision(
+        {
+          type: 'ask_human',
+          prompt: 'Secret prompt',
+          options: [{ id: 'opt1', label: 'Secret label', consequence: 'Secret consequence' }],
+        },
+        'none',
+      );
+      expect(sanitized).toEqual({
+        type: 'ask_human',
+        prompt: '',
+        rationale: undefined,
+        options: [{ id: 'opt1', label: 'opt1', consequence: undefined }],
+      });
+
+      const recorder = new BrainTraceRecorder({
+        events,
+        filePath: join(dir, 'trace.jsonl'),
+      });
+      recorder.start();
+      recorder.start();
+      const req = request({ id: 'req-trace-f105' });
+      events.emit('brain.decision_requested', { at: 1000, sessionId: 'sess-1', request: req });
+      events.emit('brain.tier_transition', {
+        requestId: req.id,
+        tier: 'rule',
+        outcome: 'answer',
+        terminal: true,
+        at: 1005,
+      });
+      events.emit('brain.decision_answered', {
+        at: 1010,
+        sessionId: 'sess-1',
+        request: req,
+        decision: { type: 'answer', text: 'A' },
+        tier: 'rule',
+      });
+      await recorder.stop();
+      const traces = await readBrainTrace(join(dir, 'trace.jsonl'));
+      expect(traces).toHaveLength(1);
+      expect(traces[0]?.steps).toHaveLength(1);
+
+      const compiled = compileBrainRules([
+        {
+          id: 'fractional-hits',
+          when: { source: 'goal' },
+          // biome-ignore lint/suspicious/noThenProperty: BrainRule DSL
+          then: { action: 'deny' },
+          maxHits: 0.5,
+        },
+        {
+          id: 'inverted-risk',
+          when: { minRisk: 'high', maxRisk: 'low' },
+          // biome-ignore lint/suspicious/noThenProperty: BrainRule DSL
+          then: { action: 'deny' },
+        },
+      ]);
+      expect(compiled.rules).toHaveLength(0);
+      expect(compiled.errors).toHaveLength(2);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('guards BrainDecisionCache and BrainDecisionLedger against non-positive/NaN bounds and malformed JSONL rows (F151)', async () => {
+    const { mkdtemp, rm, writeFile } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    let clock = 1000;
+    const nanCache = new BrainDecisionCache({
+      enabled: true,
+      ttlMs: Number.NaN,
+      maxEntries: 0,
+      now: () => clock,
+    });
+    nanCache.set(
+      request({ id: 'c1' }),
+      { type: 'answer', optionId: 'approve', text: 'Approve' },
+      'llm',
+    );
+    expect(nanCache.get(request({ id: 'c2' }))?.type).toBe('answer');
+    clock += 10_000_000;
+    expect(nanCache.get(request({ id: 'c3' }))).toBeUndefined();
+
+    const dir = await mkdtemp(join(tmpdir(), 'brain-f151-'));
+    try {
+      const ledgerPath = join(dir, 'ledger.jsonl');
+      await writeFile(
+        ledgerPath,
+        [
+          JSON.stringify({
+            at: 1000,
+            requestId: 'valid-1',
+            kind: 'answered',
+            source: 'system',
+            question: 'Evaluate the proposed action.',
+            optionId: 'approve',
+          }),
+          '{"at":null,"requestId":"bad-null","kind":"answered","source":"system","question":"Evaluate the proposed action."}',
+          '{"at":2000,"requestId":"   ","kind":"answered","source":"system","question":"Evaluate the proposed action."}',
+        ].join('\n') + '\n',
+        'utf8',
+      );
+      const events = new EventBus();
+      const ledger = new BrainDecisionLedger({
+        events,
+        filePath: ledgerPath,
+        maxMemoryEntries: 0,
+        interventionRetryWindowMs: Number.NaN,
+        now: () => 5000,
+      });
+      await ledger.start();
+      expect(ledger.tail(10)).toHaveLength(1);
+      events.emit('brain.decision_answered', {
+        at: Number.NaN,
+        request: request({ id: 'nan-at' }),
+        decision: { type: 'answer', optionId: 'approve', text: 'Approve' },
+      });
+      expect(ledger.digestFor(request({ id: 'query' })) ?? '').not.toContain('NaN');
+
+      const guard = createLedgerGuardBrainArbiter({
+        failureStreakFor: (r) => ledger.failureStreakFor(r),
+        denyAfter: Number.NaN,
+        inner: {
+          decide: async () => ({ type: 'answer', optionId: 'approve', text: 'Approve' }),
+        },
+      });
+      expect((await guard.decide(request({ id: 'g1' }))).type).toBe('answer');
+      await ledger.stop();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

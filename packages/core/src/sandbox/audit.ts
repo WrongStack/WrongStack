@@ -136,7 +136,18 @@ export async function requestSandboxExpansion(
   let result: { granted: boolean; decidedBy: string };
   if (expansionApprover) {
     try {
-      result = await expansionApprover(call, decision, sessionCtx);
+      const raw = await expansionApprover(call, decision, sessionCtx);
+      if (
+        raw &&
+        typeof raw === 'object' &&
+        typeof raw.granted === 'boolean' &&
+        typeof raw.decidedBy === 'string' &&
+        raw.decidedBy.trim().length > 0
+      ) {
+        result = { granted: raw.granted, decidedBy: raw.decidedBy.trim() };
+      } else {
+        result = { granted: false, decidedBy: 'approver-error:invalid-response' };
+      }
     } catch (error) {
       // String(error), not the `instanceof Error ? .message : String()` form —
       // that expression is a security-ratchet pattern and must not spread.

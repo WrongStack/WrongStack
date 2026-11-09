@@ -191,7 +191,11 @@ function mediaBlockTokens(b: { type?: string | undefined }): number | undefined 
     // The base64 file is not what a model is billed for: it reads the text
     // plus a rendering of each page. Counting the JSON would make one 5 MB
     // PDF look like a million tokens and trigger compaction for nothing.
-    return estimateTextTokens(doc.text ?? '') + (doc.pages ?? 1) * DOCUMENT_PAGE_TOKENS;
+    const safePages =
+      typeof doc.pages === 'number' && Number.isFinite(doc.pages) && doc.pages > 0
+        ? Math.ceil(doc.pages)
+        : 1;
+    return estimateTextTokens(doc.text ?? '') + safePages * DOCUMENT_PAGE_TOKENS;
   }
   return undefined;
 }
@@ -233,7 +237,7 @@ export function estimateMessageTokens(messages: readonly Message[]): number {
   if (!Array.isArray(messages)) return 0;
   let total = 0;
   for (const m of messages) {
-    if (typeof m._estTokens === 'number' && m._estTokens > 0) {
+    if (typeof m._estTokens === 'number' && Number.isFinite(m._estTokens) && m._estTokens > 0) {
       total += m._estTokens;
       continue;
     }
@@ -261,8 +265,16 @@ export function realAnchoredInputTokens(
   anchorMsgCount: number | undefined,
 ): number | null {
   if (!Array.isArray(messages)) return null;
-  if (typeof anchorTokens !== 'number' || anchorTokens <= 0) return null;
-  if (typeof anchorMsgCount !== 'number' || anchorMsgCount < 0) return null;
+  if (typeof anchorTokens !== 'number' || !Number.isFinite(anchorTokens) || anchorTokens <= 0) {
+    return null;
+  }
+  if (
+    typeof anchorMsgCount !== 'number' ||
+    !Number.isSafeInteger(anchorMsgCount) ||
+    anchorMsgCount < 0
+  ) {
+    return null;
+  }
   if (messages.length < anchorMsgCount) return null;
   const delta =
     anchorMsgCount === messages.length ? 0 : estimateMessageTokens(messages.slice(anchorMsgCount));
@@ -281,7 +293,7 @@ export function estimateToolDefTokens(tool: {
 }): number {
   // Fast path: pre-computed by ToolRegistry at registration time.
   const cached = (tool as { _estDefTokens?: number | undefined })._estDefTokens;
-  if (typeof cached === 'number' && cached > 0) return cached;
+  if (typeof cached === 'number' && Number.isFinite(cached) && cached > 0) return cached;
 
   const compact = compactToolDefinitionForWire(tool);
   return (
@@ -327,7 +339,7 @@ export function estimateRequestTokens(
         // ConversationState on append/replace). Skips the O(m) content-block
         // walk entirely for cached messages.
         const cached = (m as { _estTokens?: number | undefined })._estTokens;
-        if (typeof cached === 'number' && cached > 0) {
+        if (typeof cached === 'number' && Number.isFinite(cached) && cached > 0) {
           messagesTokens += cached;
           continue;
         }

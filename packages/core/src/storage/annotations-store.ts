@@ -95,7 +95,12 @@ export class AnnotationsStore {
     this.dir = opts.dir;
     this.events = opts.events;
     this.traceId = opts.traceId;
-    this.maxAnnotations = opts.maxAnnotations ?? MAX_ANNOTATIONS;
+    this.maxAnnotations =
+      typeof opts.maxAnnotations === 'number' &&
+      Number.isFinite(opts.maxAnnotations) &&
+      opts.maxAnnotations >= 1
+        ? Math.floor(opts.maxAnnotations)
+        : MAX_ANNOTATIONS;
   }
 
   // ── Reads ──────────────────────────────────────────────────────────────

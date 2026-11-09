@@ -72,7 +72,9 @@ const DEFAULT_WINDOW = 1; // ±1 step (30s before + 30s after)
  * This is the recommended secret length per RFC 6238 §5.1.
  */
 export function generateTotpSecret(byteLength = 20): string {
-  return base32Encode(randomBytes(byteLength));
+  const safeByteLength =
+    Number.isSafeInteger(byteLength) && byteLength > 0 ? Math.min(byteLength, 64) : 20;
+  return base32Encode(randomBytes(safeByteLength));
 }
 
 /**
@@ -252,9 +254,11 @@ const RECOVERY_CODE_BYTES = 8; // 64 bits of entropy per code
  * Format: `xxxxxxxx-xxxxxxxx` (8 hex chars, hyphen, 8 hex chars)
  */
 export function generateRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
+  const safeCount =
+    Number.isSafeInteger(count) && count > 0 ? Math.min(count, 64) : RECOVERY_CODE_COUNT;
   const codes: string[] = [];
   const seen = new Set<string>();
-  while (codes.length < count) {
+  while (codes.length < safeCount) {
     const buf = randomBytes(RECOVERY_CODE_BYTES);
     const hex = buf.toString('hex');
     const formatted = `${hex.slice(0, 8)}-${hex.slice(8)}`;
@@ -289,10 +293,13 @@ export function hashRecoveryCode(code: string): string {
 export function verifyRecoveryCode(code: string, storedHashes: string[]): boolean {
   if (typeof code !== 'string' || !Array.isArray(storedHashes)) return false;
   const candidate = hashRecoveryCode(code);
+  if (!candidate) return false;
+  const b = Buffer.from(candidate, 'hex');
   for (const stored of storedHashes) {
     if (typeof stored !== 'string') continue;
-    const a = Buffer.from(stored, 'hex');
-    const b = Buffer.from(candidate, 'hex');
+    const trimmed = stored.trim();
+    if (!/^[0-9a-f]{64}$/i.test(trimmed)) continue;
+    const a = Buffer.from(trimmed, 'hex');
     if (a.length === b.length && a.length > 0 && timingSafeEqual(a, b)) {
       return true;
     }

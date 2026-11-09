@@ -10,23 +10,31 @@ import { resolveSandboxConfig, type SandboxConfig } from './types.js';
  */
 const overrides = new Map<string, Partial<SandboxConfig>>();
 
+function normalizeAgentId(agentId: string | undefined): string {
+  return typeof agentId === 'string' ? agentId.trim() : '';
+}
+
 export function setSandboxAgentOverride(
   agentId: string,
   override: Partial<SandboxConfig> | undefined,
 ): void {
-  if (override) overrides.set(agentId, override);
-  else overrides.delete(agentId);
+  const key = normalizeAgentId(agentId);
+  if (!key) return;
+  if (override) overrides.set(key, override);
+  else overrides.delete(key);
 }
 
 export function getSandboxAgentOverride(
   agentId: string | undefined,
 ): Partial<SandboxConfig> | undefined {
-  return agentId ? overrides.get(agentId) : undefined;
+  const key = normalizeAgentId(agentId);
+  return key ? overrides.get(key) : undefined;
 }
 
 /** T7 janitor: drop the override when its subagent is removed/retired. */
 export function forgetSandboxAgentOverride(agentId: string | undefined): void {
-  if (agentId) overrides.delete(agentId);
+  const key = normalizeAgentId(agentId);
+  if (key) overrides.delete(key);
 }
 
 /** Test/host seam: drop every override (e.g. between suites). */
@@ -48,5 +56,5 @@ export function resolveSandboxConfigForAgent(agentId: string | undefined): Sandb
 
 /** Compact tier label for status surfaces (override wins, else the global tier). */
 export function sandboxTierForAgent(agentId: string | undefined): string {
-  return getSandboxAgentOverride(agentId)?.tier ?? getResolvedSandboxConfig().tier;
+  return resolveSandboxConfigForAgent(agentId).tier;
 }

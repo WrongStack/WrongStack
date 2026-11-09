@@ -67,12 +67,24 @@ export function rewriteBaseUrl(
   return composeRewrittenUrl(originalBaseUrl, proxyUrl);
 }
 
+function normalizeProxyRoot(proxyUrl: string): string | undefined {
+  if (!proxyUrl.includes('://')) return undefined;
+  try {
+    const parsed = new URL(proxyUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+    return `${parsed.protocol}//${parsed.host}${pathname}`;
+  } catch {
+    return undefined;
+  }
+}
+
 function isProxyEligibleForRewrite(originalBaseUrl: string, proxyUrl: string): boolean {
   if (!originalBaseUrl.includes('://')) return false;
-  if (!proxyUrl.includes('://')) return false;
+  const normalizedProxy = normalizeProxyRoot(proxyUrl);
+  if (!normalizedProxy) return false;
   // Avoid double-wrap if the user already entered a proxy-mounted URL
   // (e.g. http://localhost:3444/proxy/api.openai.com/v1).
-  const normalizedProxy = proxyUrl.replace(/\/+$/, '');
   if (originalBaseUrl.startsWith(`${normalizedProxy}${PROXY_PATH_PREFIX}`)) {
     return false;
   }
@@ -95,6 +107,8 @@ function isProxyEligibleForRewrite(originalBaseUrl: string, proxyUrl: string): b
 }
 
 function composeRewrittenUrl(originalBaseUrl: string, proxyUrl: string): string {
+  const proxyRoot = normalizeProxyRoot(proxyUrl);
+  if (!proxyRoot) return originalBaseUrl;
   let parsedOriginal: URL;
   try {
     parsedOriginal = new URL(originalBaseUrl);
@@ -109,7 +123,6 @@ function composeRewrittenUrl(originalBaseUrl: string, proxyUrl: string): string 
   const hostAndPath = `${parsedOriginal.host}${parsedOriginal.pathname}`;
   const trailingQuery = parsedOriginal.search || '';
   const trailingHash = parsedOriginal.hash || '';
-  const proxyRoot = proxyUrl.replace(/\/+$/, '');
   return `${proxyRoot}${PROXY_PATH_PREFIX}${hostAndPath}${trailingQuery}${trailingHash}`;
 }
 
@@ -276,6 +289,36 @@ export function shouldRewriteFor(providerId: string): boolean {
   return isProxyEligible(providerId);
 }
 
+function flattenErrorText(err: unknown): string {
+  const parts: string[] = [];
+  const seen = new Set<unknown>();
+  let current: unknown = err;
+  for (let depth = 0; depth < 8 && current !== undefined && current !== null; depth++) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    if (current instanceof Error) {
+      const code = (current as { code?: unknown }).code;
+      parts.push(`${current.name} ${current.message} ${typeof code === 'string' ? code : ''}`);
+      current = (current as { cause?: unknown }).cause;
+    } else if (typeof current === 'object') {
+      const rec = current as {
+        name?: unknown;
+        message?: unknown;
+        code?: unknown;
+        cause?: unknown;
+      };
+      parts.push(
+        `${typeof rec.name === 'string' ? rec.name : ''} ${typeof rec.message === 'string' ? rec.message : ''} ${typeof rec.code === 'string' ? rec.code : ''}`,
+      );
+      current = rec.cause;
+    } else {
+      parts.push(String(current));
+      break;
+    }
+  }
+  return parts.join(' ').toLowerCase();
+}
+
 /**
  * Automatically deactivate the proxy if a connection failure occurs while
  * the proxy was marked active. Triggers instant-apply provider rebuilds to
@@ -285,11 +328,7 @@ export function deactivateProxyOnConnectionFailure(err: unknown): boolean {
   const cfg = currentConfig;
   if (!cfg.enabled || !cfg.active) return false;
 
-  const msg = (
-    err instanceof Error
-      ? `${err.name} ${err.message} ${(err as { code?: string }).code ?? ''}`
-      : String(err)
-  ).toLowerCase();
+  const msg = flattenErrorText(err);
 
   let isProxyFail = false;
   if (cfg.url) {
@@ -378,6 +417,9 @@ export async function waitForProxyRoutingSettle(
   // just deactivated the proxy awaits this, the pending chain is registered.
   const chains = [...instantApplyChains].map((get) => get());
   if (chains.length === 0) return;
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs)
+    ? Math.max(0, timeoutMs)
+    : PROXY_ROUTING_SETTLE_CAP_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
   try {
@@ -385,7 +427,7 @@ export async function waitForProxyRoutingSettle(
       Promise.allSettled(chains),
       new Promise<void>((resolve) => {
         onAbort = () => resolve();
-        timer = setTimeout(resolve, Math.max(0, timeoutMs));
+        timer = setTimeout(resolve, effectiveTimeoutMs);
         signal?.addEventListener('abort', onAbort, { once: true });
       }),
     ]);

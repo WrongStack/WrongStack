@@ -583,6 +583,26 @@ describe('SessionCatalogStore', () => {
     store.release(cred);
     store.close();
   });
+
+  it('rejects whitespace/trailing-slash/null-byte session IDs and blank owner/requester/holder IDs (F150)', async () => {
+    const { store } = await fixture();
+    const id = '2026-08-08/sess_f150_id';
+    store.upsertSummary({
+      id,
+      title: 'ok',
+      startedAt: '2026-08-08T00:00:00.000Z',
+      lastActivityAt: '2026-08-08T00:00:00.000Z',
+      model: 'm',
+      provider: 'p',
+      tokenTotal: 0,
+    });
+    expect(() => store.claimNew(entry('   '), 'owner-a')).toThrow(TypeError);
+    expect(() => store.claimNew(entry('2026-08-08/'), 'owner-a')).toThrow(TypeError);
+    expect(() => store.claimNew(entry(id), '   ')).toThrow(TypeError);
+    expect(() => store.reserveResume(id, '   ')).toThrow(TypeError);
+    expect(() => store.acquireMaintenance(id, 'clear', '   ')).toThrow(TypeError);
+    store.close();
+  });
 });
 
 describe('SessionCatalogStore — auto-rebuild ignores sidecar-only directories', () => {
