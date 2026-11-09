@@ -4,6 +4,7 @@ import type {
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
 import { useEffect, useRef, useState } from 'react';
+import { errorText } from '@/lib/error-text';
 import { requestAcpSettings } from './acp-settings-request';
 
 export function AcpSessionSettings({
@@ -50,7 +51,7 @@ export function AcpSessionSettings({
       );
       if (sequence.current === version) setResult(next);
     } catch (e) {
-      if (sequence.current === version) setError(e instanceof Error ? e.message : String(e));
+      if (sequence.current === version) setError(errorText(e));
     } finally {
       if (sequence.current === version) setBusy(false);
     }

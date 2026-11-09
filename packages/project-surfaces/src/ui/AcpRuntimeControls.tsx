@@ -2,6 +2,7 @@ import type {
   AcpRuntimeOptionsResult,
   AcpRuntimeValues,
 } from '@wrongstack/contracts/types/acp-runtime';
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../lib/i18n';
 
@@ -48,7 +49,7 @@ export function AcpRuntimeControls({
       if (save) await onChange(next);
       if (sequence.current === version) setResult(response);
     } catch (e) {
-      if (sequence.current === version) setError(e instanceof Error ? e.message : String(e));
+      if (sequence.current === version) setError(toErrorMessage(e));
     } finally {
       if (sequence.current === version) setBusy(false);
     }

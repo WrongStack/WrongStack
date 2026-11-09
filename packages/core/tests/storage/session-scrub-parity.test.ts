@@ -114,6 +114,8 @@ const JUSTIFIED_RAW_VARIANTS: Record<string, string> = {
   task_updated: 'task id + status enum',
   subagent_policy: 'normalized policy ids/flags',
   subagent_model_plan: 'normalized lanes — provider/model ids only',
+  acp_runtime_settings:
+    "ACP agents' config-option selections (model/mode/effort ids from the agent's own vocabulary), bounded by acpRuntimeSelectionsError and replayed only when they pass it",
   leader_effort: 'normalized override (ids/enums)',
   permission_overrides: 'normalized override ids',
   file_event: 'paths + ids + counters (see file-event-record.ts)',

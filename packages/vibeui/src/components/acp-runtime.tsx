@@ -6,6 +6,7 @@ import type {
   ProtocolEnvelope,
 } from '@wrongstack/webui-protocol';
 import { useEffect, useRef, useState } from 'react';
+import { errorText } from '../lib/error-text';
 import type { SessionState } from '../lib/session';
 
 export function AcpRuntime({
@@ -78,7 +79,7 @@ export function AcpRuntime({
         );
       if (sequence.current === version) setResult(response as unknown as AcpRuntimeOptionsResult);
     } catch (e) {
-      if (sequence.current === version) setError(e instanceof Error ? e.message : String(e));
+      if (sequence.current === version) setError(errorText(e));
     } finally {
       if (sequence.current === version) setBusy(false);
     }

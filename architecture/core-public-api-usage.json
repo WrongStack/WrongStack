@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils/error": {
-      "files": 23,
+      "files": 24,
       "typeOnly": 0,
-      "runtimeOrMixed": 23
+      "runtimeOrMixed": 24
     },
     "@wrongstack/core/utils/expect-defined": {
       "files": 16,
@@ -16968,6 +16968,12 @@
     {
       "specifier": "@wrongstack/core/utils/error",
       "file": "packages/project-surfaces/src/atlas/use-code-map-graph-loader.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/error",
+      "file": "packages/project-surfaces/src/ui/AcpRuntimeControls.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
