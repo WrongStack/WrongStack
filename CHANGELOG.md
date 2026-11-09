@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A modern MCP server that starts slowly over stdio connects.** When
+  `server/discover` had no answer within a second the client gave up on it and
+  sent the legacy `initialize`, so a modern-only server launched through `npx`
+  or `uvx` failed with "initialize failed: Method not found" once its late
+  discovery answer was thrown away. Discovery now keeps waiting while
+  `initialize` goes out, and whichever handshake answers properly decides;
+  legacy servers connect as quickly as before.
+
 ## [1.5.5] — 2026-11-09
 
 ACP file permissions follow the real target outside the project, ordinary edits

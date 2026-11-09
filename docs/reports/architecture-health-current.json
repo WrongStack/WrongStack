@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T22:13:17.838Z",
+  "generatedAt": "2026-11-09T23:20:03.819Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6211,
-    "testFiles": 5173,
-    "sourceLines": 1271357,
+    "testFiles": 5174,
+    "sourceLines": 1271423,
     "workspaceEdges": 250,
     "moduleEdges": 18298,
     "nonCommandSlashImports": 0,
@@ -602,7 +602,7 @@
       "name": "@wrongstack/mcp",
       "dir": "packages/mcp",
       "sourceFiles": 74,
-      "testFiles": 99,
+      "testFiles": 100,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -616,7 +616,7 @@
         {
           "path": "packages/mcp/tsconfig.test.json",
           "error": null,
-          "testFiles": 99
+          "testFiles": 100
         }
       ]
     },
@@ -16335,6 +16335,12 @@
       },
       {
         "file": "packages/mcp/tests/stdio-fault-soak.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/mcp/tests/stdio-slow-start-discovery.test.ts",
         "projects": [
           "root-node"
         ]

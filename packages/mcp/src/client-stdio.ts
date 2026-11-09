@@ -155,36 +155,14 @@ export async function connectStdio(host: ClientStdioHost): Promise<void> {
     host.failPending(`MCP "${host.opts.name}" child error: ${toErrorMessage(err)}`);
   });
 
-  let discovery: JsonRpcResponse | undefined;
-  if (host.opts.protocolMode !== 'legacy') {
-    host._serverMetadata = {
-      protocolVersion: MODERN_PROTOCOL_VERSION,
-      capabilities: {},
-      serverInfo: { name: host.opts.name, version: 'unknown' },
-    };
-    try {
-      discovery = await host.request(
-        'server/discover',
-        {},
-        Math.min(
-          typeof host.opts.startupTimeoutMs === 'number' &&
-            Number.isFinite(host.opts.startupTimeoutMs) &&
-            host.opts.startupTimeoutMs > 0
-            ? host.opts.startupTimeoutMs
-            : 10_000,
-          1000,
-        ),
-      );
-    } catch {
-      // Legacy stdio peers may ignore unknown requests instead of answering.
-      // A process/pipe failure still rejects the initialize below immediately.
-    }
-  }
-  if (discovery && (!discovery.error || isModernError(discovery.error))) {
-    host._serverMetadata = parseDiscovery(host.opts.name, discovery);
-  } else {
-    host._serverMetadata = undefined;
-    const initialize = await host.request(
+  const startupTimeoutMs =
+    typeof host.opts.startupTimeoutMs === 'number' &&
+    Number.isFinite(host.opts.startupTimeoutMs) &&
+    host.opts.startupTimeoutMs > 0
+      ? Math.min(host.opts.startupTimeoutMs, 2_147_483_647)
+      : 10_000;
+  const initialize = (): Promise<JsonRpcResponse> =>
+    host.request(
       'initialize',
       {
         protocolVersion: MCP_CONSTANTS.PROTOCOL_VERSION,
@@ -193,22 +171,49 @@ export async function connectStdio(host: ClientStdioHost): Promise<void> {
         capabilities: host.serverRequests.capabilities(),
         clientInfo: MCP_CONSTANTS.CLIENT_INFO,
       },
-      typeof host.opts.startupTimeoutMs === 'number' &&
-        Number.isFinite(host.opts.startupTimeoutMs) &&
-        host.opts.startupTimeoutMs > 0
-        ? Math.min(host.opts.startupTimeoutMs, 2_147_483_647)
-        : 10_000,
+      startupTimeoutMs,
     );
-    if (initialize.error) {
-      host.state = 'failed';
-      throw new Error(`MCP initialize failed: ${initialize.error.message}`);
-    }
+  const legacyMetadata = (response: JsonRpcResponse): MCPServerMetadata => {
+    if (response.error) throw new Error(`MCP initialize failed: ${response.error.message}`);
     try {
-      host._serverMetadata = parseServerMetadata(initialize.result);
+      return parseServerMetadata(response.result);
     } catch (err) {
-      host.state = 'failed';
       throw new Error(`MCP initialize returned malformed server metadata: ${toErrorMessage(err)}`);
     }
+  };
+
+  let legacy: MCPServerMetadata | undefined;
+  if (host.opts.protocolMode !== 'legacy') {
+    host._serverMetadata = {
+      protocolVersion: MODERN_PROTOCOL_VERSION,
+      capabilities: {},
+      serverInfo: { name: host.opts.name, version: 'unknown' },
+    };
+    // Each request picks its framing when it is sent: discovery goes out as a
+    // modern request, and clearing the metadata first sends initialize as a
+    // plain legacy one. A modern win below sets the metadata again.
+    const outcome = await negotiate(host.request('server/discover', {}, startupTimeoutMs), () => {
+      host._serverMetadata = undefined;
+      return initialize().then(legacyMetadata);
+    });
+    if (outcome.kind === 'modern') {
+      host._serverMetadata = parseDiscovery(host.opts.name, outcome.response);
+    } else if (outcome.kind === 'legacy') {
+      legacy = outcome.metadata;
+    } else {
+      host.state = 'failed';
+      throw outcome.error;
+    }
+  } else {
+    try {
+      legacy = legacyMetadata(await initialize());
+    } catch (err) {
+      host.state = 'failed';
+      throw err;
+    }
+  }
+  if (legacy) {
+    host._serverMetadata = legacy;
     // stdio carries no `MCP-Protocol-Version` header, but the rule is the same:
     // a server that answered with a revision we do not implement is not a server
     // we can talk to. Throwing here means disconnecting — MCPClient.connect's
@@ -299,4 +304,65 @@ export async function notifyStdio(
   } catch (err) {
     throw new Error(`[MCP] notify("${method}") failed: ${toErrorMessage(err)}`);
   }
+}
+
+/** How long `server/discover` runs alone before the legacy handshake also starts. */
+const DISCOVERY_HEAD_START_MS = 1000;
+
+type Negotiation =
+  | { kind: 'modern'; response: JsonRpcResponse }
+  | { kind: 'legacy'; metadata: MCPServerMetadata }
+  | { kind: 'failed'; error: Error };
+
+/**
+ * Settle a stdio server's protocol revision.
+ *
+ * `server/discover` gets a head start. A server that has not answered by then
+ * is either a legacy peer that ignores unknown requests or a modern one still
+ * starting (npx and uvx launches routinely take longer), so the legacy
+ * `initialize` goes out too while discovery keeps waiting: dropping the late
+ * discovery answer is what failed a slow modern-only server. A modern answer
+ * to discovery or a well-formed answer to initialize decides; when one of them
+ * fails, the other can still decide, and initialize's failure is reported only
+ * when discovery did not succeed either.
+ */
+async function negotiate(
+  discover: Promise<JsonRpcResponse>,
+  initialize: () => Promise<MCPServerMetadata>,
+): Promise<Negotiation> {
+  const modern = discover.then(
+    (response): Negotiation | undefined =>
+      !response.error || isModernError(response.error) ? { kind: 'modern', response } : undefined,
+    () => undefined,
+  );
+  const runLegacy = (): Promise<Negotiation> =>
+    initialize().then(
+      (metadata): Negotiation => ({ kind: 'legacy', metadata }),
+      (error: unknown): Negotiation => ({
+        kind: 'failed',
+        error: error instanceof Error ? error : new Error(toErrorMessage(error)),
+      }),
+    );
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const headStart = new Promise<'waiting'>((resolve) => {
+    timer = setTimeout(() => resolve('waiting'), DISCOVERY_HEAD_START_MS);
+  });
+  const early = await Promise.race([
+    discover.then(
+      () => 'answered' as const,
+      () => 'answered' as const,
+    ),
+    headStart,
+  ]);
+  clearTimeout(timer);
+  if (early === 'answered') return (await modern) ?? runLegacy();
+
+  const legacy = runLegacy();
+  return Promise.race([
+    modern.then((outcome) => outcome ?? legacy),
+    legacy.then((outcome) =>
+      outcome.kind === 'legacy' ? outcome : modern.then((m) => m ?? outcome),
+    ),
+  ]);
 }
