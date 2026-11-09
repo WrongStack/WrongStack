@@ -86,30 +86,16 @@ export async function handleSessionNewOp(
   ctx.onSessionNew(state);
   await ctx.persist(state);
 
-  await ctx.sendNotification({
-    sessionId,
-    update: {
-      sessionUpdate: 'current_mode_update',
-      currentModeId: ctx.modes[0]?.id ?? DEFAULT_MODE_ID,
-      modeId: ctx.modes[0]?.id ?? DEFAULT_MODE_ID,
-    },
-  });
-  if (ctx.configOptions.length > 0) {
-    await ctx.sendNotification({
-      sessionId,
-      update: {
-        sessionUpdate: 'config_option_update',
-        configOptions: [...ctx.configOptions],
-      },
-    });
-  }
-  await reportSkippedMcpServers(ctx, sessionId, skipped);
-
+  // The response carries the session's modes and config options, so no
+  // current_mode_update / config_option_update is sent for them. Nothing may
+  // be sent for this session before the response either: until then the
+  // client does not know the id, and strict clients drop such updates.
   await ctx.sendResult(id, {
     sessionId,
     modes: { currentModeId: state.modeId, availableModes: ctx.modes },
     configOptions: state.configOptions,
   });
+  await reportSkippedMcpServers(ctx, sessionId, skipped);
   return false;
 }
 
@@ -194,7 +180,6 @@ export async function handleSessionLoadOp(
           update: {
             sessionUpdate: 'current_mode_update',
             currentModeId: restored.modeId,
-            modeId: restored.modeId,
           },
         });
       await reportSkippedMcpServers(ctx, sessionId, loadSkipped);
@@ -266,7 +251,6 @@ export async function handleSessionLoadOp(
         update: {
           sessionUpdate: 'current_mode_update',
           currentModeId: existing.modeId,
-          modeId: existing.modeId,
         },
       });
     await reportSkippedMcpServers(ctx, sessionId!, loadSkipped);
@@ -348,21 +332,14 @@ export async function handleSessionForkOp(
   ctx.onSessionNew(forked);
   await ctx.persist(forked, history);
 
-  await ctx.sendNotification({
-    sessionId,
-    update: {
-      sessionUpdate: 'current_mode_update',
-      currentModeId: forked.modeId,
-      modeId: forked.modeId,
-    },
-  });
-
-  await reportSkippedMcpServers(ctx, sessionId, forkSkipped);
+  // As in session/new: the response carries the mode, and the client cannot
+  // route an update for the forked id before it has received that id.
   await ctx.sendResult(id, {
     sessionId,
     modes: { currentModeId: forked.modeId, availableModes: ctx.modes },
     configOptions: forked.configOptions,
   });
+  await reportSkippedMcpServers(ctx, sessionId, forkSkipped);
   return false;
 }
 
@@ -485,7 +462,6 @@ export async function handleSetModeOp(
     update: {
       sessionUpdate: 'current_mode_update',
       currentModeId: modeId,
-      modeId,
     },
   });
   // Identity check, as session/prompt does: a session/delete that landed

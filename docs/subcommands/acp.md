@@ -107,12 +107,15 @@ ACP-capable client (Zed, JetBrains, VS Code ACP extension, etc.) gets genuine
 WrongStack responses over stdio JSON-RPC 2.0.
 
 ```
-wstack acp            # serves a real agent (needs `wstack auth` first)
+wstack acp            # serves a real agent (log in with `wstack auth`)
 wstack acp --echo     # no-op turn; connectivity smoke test, no provider needed
 ```
 
-Run `wstack auth` first to configure a provider. If none is configured, the
-server prints an actionable error and exits rather than silently echoing.
+Without a configured provider the server still starts and handshakes, then
+answers `auth_required` to every session request (never silently echoing), so
+the editor offers its login: `wstack acp auth` in the editor terminal, or
+`wstack auth` anywhere. The configuration is re-read on each request, so no
+restart is needed. See [the editor guide](../acp-editor-integration.md).
 
 The per-session `Agent` is built by `buildAcpServerAgentFactory`
 (`packages/cli/src/acp-server-agent.ts`) and driven by

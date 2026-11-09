@@ -14,13 +14,9 @@ import {
   WsBridgeTransport,
 } from '@wrongstack/acp/agent';
 import { leaderDeliveryHub } from '@wrongstack/coordination';
-import { type AcpHqTelemetry, startAcpHqTelemetry } from '../../acp-hq-telemetry.js';
-import {
-  type AcpServerAgentFactory,
-  AcpServerConfigError,
-  buildAcpServerAgentFactory,
-} from '../../acp-server-agent.js';
+import { type AcpServerRuntime, createAcpServerRuntime } from '../../acp-server-runtime.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
+import { CLI_VERSION } from '../../version.js';
 import { WebSocketServer } from '../../ws-runtime.js';
 import type { SubcommandDeps } from '../contracts.js';
 import { createAcpConnectionGate } from './acp-connection-gate.js';
@@ -42,24 +38,11 @@ function parseWsPort(flag: unknown): number | null {
   return Number.isInteger(n) && n > 0 && n < 65_536 ? n : 8889;
 }
 
-/**
- * Chain the turn adapter's per-session teardown with the agent factory's.
- *
- * `turn.dispose` drops the session's Agent; `factory.disposeSession` stops the
- * MCP servers the ACP client supplied for it. Both must run on
- * `session/close`, and neither may throw into the protocol handler.
- */
-function composeDispose(
-  disposeTurn: (sessionId: string) => void,
-  factory: AcpServerAgentFactory | undefined,
-): (sessionId: string) => void {
-  return (sessionId: string): void => {
-    try {
-      disposeTurn(sessionId);
-    } finally {
-      factory?.disposeSession(sessionId);
-    }
-  };
+/** Durable ACP session store under the project's wstack data dir, if known. */
+function sessionStoreFor(deps: SubcommandDeps): ACPSessionStore | undefined {
+  return deps.paths?.projectDir
+    ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
+    : undefined;
 }
 
 /**
@@ -74,41 +57,20 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   const echo = deps.flags?.echo === true || deps.flags?.echo === 'true';
 
   let turnFactory: (() => ReturnType<typeof makeACPServerAgentTurn>) | undefined;
-  // Kept alongside the turn factory so `session/close` can stop the MCP
-  // servers the client supplied — the turn adapter's `dispose` only drops the
-  // Agent, and a dropped Agent leaves its stdio servers running.
-  let wsAgentFactory: AcpServerAgentFactory | undefined;
   let echoTurn: RunTurn | undefined;
   let store: ACPSessionStore | undefined;
-  let hqTelemetry: AcpHqTelemetry | undefined;
+  // Starts without a provider too: sessions answer `auth_required` until one
+  // is configured (see acp-server-runtime.ts). It also owns HQ telemetry and
+  // the client-supplied MCP servers each session's teardown must stop.
+  let runtime: AcpServerRuntime | undefined;
   if (echo) {
     echoTurn = async () => ({ stopReason: 'end_turn' });
   } else {
-    let agentFor;
-    try {
-      agentFor = buildAcpServerAgentFactory(deps);
-    } catch (err) {
-      if (err instanceof AcpServerConfigError) {
-        deps.renderer.writeError(`${err.message}\n`);
-        return 1;
-      }
-      throw err;
-    }
-    // An editor driving WrongStack over ACP runs real turns; HQ never saw
-    // any of them. One publisher for the process, one session node per ACP
-    // session.
-    hqTelemetry = startAcpHqTelemetry({
-      projectRoot: deps.cwd ?? process.cwd(),
-      projectName: path.basename(deps.cwd ?? process.cwd()),
-      appConfig: deps.config,
-    });
-    const tracked = hqTelemetry.wrapAgentFactory(agentFor);
-    wsAgentFactory = agentFor;
+    const rt = createAcpServerRuntime(deps);
+    runtime = rt;
     turnFactory = () =>
-      makeACPServerAgentTurn({ agentFor: tracked, pendingDeliveries: pendingLeaderDeliveries });
-    store = deps.paths?.projectDir
-      ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
-      : undefined;
+      makeACPServerAgentTurn({ agentFor: rt.agentFor, pendingDeliveries: pendingLeaderDeliveries });
+    store = sessionStoreFor(deps);
   }
 
   // WS-006: the WS transport admitted anything — the Origin check was
@@ -182,15 +144,14 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
     const handler = new ACPProtocolHandler({
       transport,
       defaultCwd: deps.cwd ?? process.cwd(),
+      agentVersion: CLI_VERSION,
       runTurn: connectionTurn ?? echoTurn!,
-      ...(connectionTurn
+      ...(connectionTurn && runtime
         ? {
+            authGate: runtime.authGate,
             replayFor: connectionTurn.replay,
             seedFor: connectionTurn.seed,
-            disposeFor: composeDispose(
-              hqTelemetry?.wrapDispose(connectionTurn.dispose) ?? connectionTurn.dispose,
-              wsAgentFactory,
-            ),
+            disposeFor: runtime.composeDispose(connectionTurn.dispose),
           }
         : {}),
       ...(store ? { store } : {}),
@@ -225,7 +186,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   deps.renderer.writeInfo(
     echo
       ? `ACP server (echo, no provider) listening on ${acpUrl}. Press Ctrl+C to stop.\n`
-      : `WrongStack ACP server listening on ${acpUrl} (${deps.config.provider}/${deps.config.model}). Press Ctrl+C to stop.\n`,
+      : `WrongStack ACP server listening on ${acpUrl} (${runtime?.describe() ?? 'no provider yet; run wstack auth'}). Press Ctrl+C to stop.\n`,
   );
 
   await new Promise<void>((resolve) => {
@@ -243,7 +204,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         }
       }
       wss.close();
-      hqTelemetry?.stop();
+      runtime?.stop();
       resolve();
     };
     process.on('SIGINT', shutdown);
@@ -263,62 +224,44 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
   // client without needing a configured provider.
   const echo = deps.flags?.echo === true || deps.flags?.echo === 'true';
 
-  // Declared outside the IIFE so the shutdown path below can stop it.
-  if (!echo && (!deps.config.provider || !deps.config.model)) {
-    deps.renderer.writeError(
-      'No model provider configured. Run `wstack auth` before starting ACP, or use `--echo` for a connectivity test.\n',
-    );
-    return 1;
-  }
-  let stdioHqTelemetry: AcpHqTelemetry | undefined;
+  // A missing provider is not fatal. An editor that installed WrongStack from
+  // the ACP registry must get a handshake and a login method, not a process
+  // that exits before `initialize`; sessions answer `auth_required` until
+  // `wstack auth` has run (see acp-server-runtime.ts).
+  const runtime = echo ? undefined : createAcpServerRuntime(deps);
   const server = new WrongStackACPServer(
-    echo
-      ? {}
-      : (() => {
-          let agentFor;
-          try {
-            agentFor = buildAcpServerAgentFactory(deps);
-          } catch (err) {
-            if (err instanceof AcpServerConfigError) {
-              deps.renderer.writeError(`${err.message}\n`);
-            }
-            throw err;
-          }
-          stdioHqTelemetry = startAcpHqTelemetry({
-            projectRoot: deps.cwd ?? process.cwd(),
-            projectName: path.basename(deps.cwd ?? process.cwd()),
-            appConfig: deps.config,
-          });
-          const stdioAgentFactory = agentFor;
+    runtime
+      ? (() => {
           const turn = makeACPServerAgentTurn({
-            agentFor: stdioHqTelemetry.wrapAgentFactory(agentFor),
+            agentFor: runtime.agentFor,
             pendingDeliveries: pendingLeaderDeliveries,
           });
           // Persist sessions under the project's wstack dir so `session/load`
           // survives a server restart (project-scoped, not in the repo).
-          const store = deps.paths?.projectDir
-            ? new ACPSessionStore({ dir: path.join(deps.paths.projectDir, 'acp-sessions') })
-            : undefined;
+          const store = sessionStoreFor(deps);
           return {
+            agentVersion: CLI_VERSION,
+            authGate: runtime.authGate,
             runTurn: turn,
             replayFor: turn.replay,
             seedFor: turn.seed,
-            disposeFor: composeDispose(
-              stdioHqTelemetry!.wrapDispose(turn.dispose),
-              stdioAgentFactory,
-            ),
+            disposeFor: runtime.composeDispose(turn.dispose),
             ...(store ? { store } : {}),
           };
-        })(),
+        })()
+      : { agentVersion: CLI_VERSION },
   );
 
-  if (echo) {
+  if (!runtime) {
     deps.renderer.writeInfo(
       'ACP server starting in --echo mode (no-op turn; no provider needed).\n',
     );
   } else {
+    const model = runtime.describe();
     deps.renderer.writeInfo(
-      `Starting WrongStack ACP server (${deps.config.provider}/${deps.config.model})…\n`,
+      model
+        ? `Starting WrongStack ACP server (${model})…\n`
+        : 'Starting WrongStack ACP server without a model provider; sessions ask the client to log in until `wstack auth` has run.\n',
     );
     deps.renderer.writeInfo(
       'Waiting for an ACP client connection on stdin/stdout. Press Ctrl+C to stop.\n',
@@ -341,7 +284,7 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
       }
       // Publishes `session.ended` for every live ACP session, so the fleet
       // map loses the nodes on shutdown instead of ageing them out.
-      stdioHqTelemetry?.stop();
+      runtime?.stop();
     },
   }).install();
 

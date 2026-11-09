@@ -53,11 +53,22 @@ vi.mock('@wrongstack/acp', () => ({
     copilot: 'github-copilot-cli',
   },
 }));
+const acpServerOptions = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 vi.mock('@wrongstack/acp/agent', () => ({
   WrongStackACPServer: class {
     start = vi.fn().mockResolvedValue(undefined);
     stop = vi.fn();
+    constructor(opts: Record<string, unknown>) {
+      acpServerOptions.push(opts);
+    }
   },
+  ACPSessionStore: class {},
+  makeACPServerAgentTurn: () =>
+    Object.assign(async () => ({ stopReason: 'end_turn' }), {
+      replay: () => [],
+      seed: () => {},
+      dispose: () => {},
+    }),
 }));
 
 import { acpCmd } from '../src/subcommands/handlers/acp.js';
@@ -179,10 +190,19 @@ beforeEach(() => {
 });
 
 describe('acpCmd — dispatch', () => {
-  it('does not silently start an echo server when provider configuration is missing', async () => {
+  it('starts a gated real server, not an echo server, when no provider is configured', async () => {
+    // An editor that installed WrongStack from the ACP registry must get a
+    // handshake and a login method; exiting 1 before initialize left it with a
+    // dead process. Sessions are gated on the provider instead.
+    acpServerOptions.length = 0;
     const deps = fakeDeps();
-    expect(await acpCmd([], deps)).toBe(1);
-    expect(flattenWriteErrorCalls(deps)).toContain('wstack auth');
+    expect(await acpCmd([], deps)).toBe(0);
+    const opts = acpServerOptions.at(-1);
+    expect(typeof opts?.['authGate']).toBe('function');
+    expect(typeof opts?.['runTurn']).toBe('function');
+    expect(opts?.['agentVersion']).toEqual(expect.any(String));
+    expect(flattenWriteInfoCalls(deps)).toContain('wstack auth');
+    expect(flattenWriteErrorCalls(deps)).toBe('');
   });
 
   it.each([['auth'], ['server', 'auth'], ['serve', 'auth']])(

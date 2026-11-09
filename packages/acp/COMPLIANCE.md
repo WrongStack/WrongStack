@@ -1,6 +1,9 @@
 # ACP v1 interoperability — @wrongstack/acp
 
 Reviewed 2026-09-18 against the official ACP documentation and TypeScript SDK 1.4.0.
+Auth, initialize and session-setup ordering re-checked 2026-11-09 against spec
+v1.16.0 (schema v1.30.0), the ACP registry's `verify_agents.py --auth-check` and
+SDK 2.4.0.
 The runtime is WrongStack's own JSON-RPC implementation; the SDK is also exported
 through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 
@@ -20,7 +23,8 @@ through `@wrongstack/acp/sdk`. Independent SDK peers now test both directions.
 
 | Surface | Implemented behavior and evidence |
 |---|---|
-| Initialization | v1 negotiation; terminal login advertised only for `clientCapabilities.auth.terminal`; no false logout capability |
+| Initialization | v1 negotiation; an `agent`-type login (`wrongstack-config`) always advertised, as the ACP registry requires; terminal login (`wrongstack-auth`) only for `clientCapabilities.auth.terminal` or the legacy `_meta["terminal-auth"]`; `agentInfo.version` is the host's release version; no root `modes`/`configOptions`; no false logout capability |
+| Authentication | `authenticate` and session-opening requests consult the host's credential gate and answer `auth_required` (-32000) until it passes; no unconditional success |
 | Session setup | `modes: {currentModeId, availableModes}` in new/load/resume/fork responses, accepted by the official SDK |
 | Load/resume | Warm and persisted sessions; load replays conversation, resume seeds model context without replaying UI history |
 | List/delete | Includes persisted sessions when the store supplies `list`; filters by cwd; durable deletion when the store supplies `delete`; unknown deletes succeed |
@@ -87,16 +91,21 @@ coverage and `release:check` were not run.
 - No paid external-agent prompt or provider login was performed. Installed
   versions, credentials and model quality remain host-specific; `probe` checks
   handshake and `bench` checks a real prompt.
-- WrongStack was absent from the official agent/registry listings reviewed on
-  this date. Manual editor configuration works independently of registry
-  listing; submitting an entry is a separate distribution step and was not done.
+- WrongStack is not yet in the ACP registry (45 agents, checked 2026-11-09).
+  Releases up to 1.5.3 cannot pass the registry's auth check: they exited
+  before `initialize` without a provider and offered no auth method to a client
+  that does not announce `auth.terminal`. The fix below has to ship in a release
+  before an entry is submitted.
 - Draft v2, structured elicitation, boolean config options, additional workspace
   roots and an editor model selector are not advertised or implemented.
 - Terminal authentication is exposed by the agent to capable clients. WrongStack's
   client gives manual login guidance; it does not advertise interactive terminal
   authentication support or launch a login UI automatically.
-- The CLI requires preconfigured provider/model settings before starting a real
-  agent. Missing configuration now fails rather than silently becoming echo mode.
+- Without a configured provider the CLI agent still starts and handshakes, but
+  every session request answers `auth_required` (it never falls back to echo
+  mode). The saved configuration is re-read on `authenticate` and on each
+  session request, so a login from the client's terminal flow or any terminal
+  takes effect without a restart.
 - `session/fork` is a compatibility extension. The basic fork source must be live;
   cold session discovery/load/resume use the persistent store.
 - Custom stores with only `save`/`load` cannot provide durable listing/deletion;

@@ -1,7 +1,6 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type AnyMessage, client, agent as sdkAgent } from '../src/sdk-unstable.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ACPProtocolHandler, type ProtocolHandlerOptions } from '../src/agent/protocol-handler.js';
 import { serverAgentTurnCoverage } from '../src/agent/server-agent-turn.js';
@@ -11,6 +10,7 @@ import { ACPSession } from '../src/client/acp-session.js';
 import { handleAcpFsRequest } from '../src/client/acp-session-callbacks.js';
 import { createSessionScratch, handleAcpSessionUpdate } from '../src/client/acp-session-updates.js';
 import { FileServer } from '../src/client/file-server.js';
+import { type AnyMessage, client, agent as sdkAgent } from '../src/sdk-unstable.js';
 import type { ACPMessage } from '../src/types/acp-messages.js';
 
 const cleanups: Array<() => void | Promise<void>> = [];
@@ -128,7 +128,10 @@ describe('official SDK v1 interoperability', () => {
   it('only advertises terminal login to capable clients and never promises a no-op logout', async () => {
     const { agent } = connect();
     const init = await agent.request('initialize', { protocolVersion: 1, clientCapabilities: {} });
-    expect(init.authMethods).toEqual([]);
+    // An agent-type method is always offered (the ACP registry requires one);
+    // the terminal method is not, because this client did not announce it.
+    expect((init.authMethods ?? []).map((m) => m.id)).toEqual(['wrongstack-config']);
+    expect((init.authMethods ?? []).some((m) => 'type' in m && m.type === 'terminal')).toBe(false);
     expect(init.agentCapabilities?.auth?.logout).toBeUndefined();
   });
 

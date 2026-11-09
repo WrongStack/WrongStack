@@ -79,9 +79,17 @@ export interface RunTurnPermissionRequest {
   options: PermissionOption[];
 }
 
+/** Outcome of `ProtocolHandlerOptions.authGate`. */
+export type AuthGateResult = { ok: true } | { ok: false; message: string };
+
 /** Client filesystem/terminal capabilities advertised at initialize. */
 export interface ClientCapabilities {
   auth?: { terminal?: boolean | undefined } | undefined;
+  /**
+   * Pre-standard capability flags. The ACP registry's CI still announces
+   * terminal login as `_meta["terminal-auth"]` instead of `auth.terminal`.
+   */
+  _meta?: Record<string, unknown> | undefined;
   fs?: { readTextFile?: boolean | undefined; writeTextFile?: boolean | undefined } | undefined;
   terminal?: boolean | undefined;
 }
@@ -197,6 +205,21 @@ export interface ProtocolHandlerOptions {
   configOptions?: readonly SessionConfigOption[] | undefined;
   /** Agent name advertised in initialize. */
   agentName?: string | undefined;
+  /**
+   * Version advertised as `agentInfo.version`. Hosts pass their own release
+   * version: a standalone binary cannot read this package's package.json, so
+   * the package fallback reports `dev` there.
+   */
+  agentVersion?: string | undefined;
+  /**
+   * Whether the agent can run turns yet. When set, `authenticate` and every
+   * request that opens a session (`session/new`, `load`, `resume`, `fork`)
+   * call it first and answer `auth_required` (-32000) while it reports not
+   * ready. Hosts re-check their credentials here, so a user who logs in from
+   * the client's terminal-auth flow can continue without a restart. Omitted
+   * means always ready.
+   */
+  authGate?: (() => Promise<AuthGateResult>) | undefined;
   /**
    * Optional source of replayable conversation history for `session/load`.
    * Returns the `session/update` payloads (user/agent message chunks) to

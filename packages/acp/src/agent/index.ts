@@ -1,4 +1,5 @@
 export type {
+  AuthGateResult,
   ClientCapabilities,
   McpServer,
   RunTurn,

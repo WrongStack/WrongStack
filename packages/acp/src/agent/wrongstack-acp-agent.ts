@@ -33,6 +33,7 @@ import { timingSafeTokenEqual } from '@wrongstack/primitives';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
   ACPProtocolHandler,
+  type ProtocolHandlerOptions,
   type RunTurn,
   type RunTurnResult,
   type SessionPersistence,
@@ -43,6 +44,10 @@ export interface WrongStackACPServerOptions {
   runTurn?: RunTurn | undefined;
   defaultCwd?: string | undefined;
   agentName?: string | undefined;
+  /** Version advertised as `agentInfo.version`; see `ProtocolHandlerOptions.agentVersion`. */
+  agentVersion?: string | undefined;
+  /** Credential check before sessions open; see `ProtocolHandlerOptions.authGate`. */
+  authGate?: ProtocolHandlerOptions['authGate'];
   /**
    * Transport mode. 'stdio' (default) communicates over stdin/stdout.
    * When a number is provided, the server listens as an HTTP server on
@@ -107,6 +112,8 @@ export class WrongStackACPServer {
       defaultCwd: opts.defaultCwd ?? process.cwd(),
       runTurn,
       agentName: opts.agentName,
+      ...(opts.agentVersion ? { agentVersion: opts.agentVersion } : {}),
+      ...(opts.authGate ? { authGate: opts.authGate } : {}),
       ...(opts.replayFor ? { replayFor: opts.replayFor } : {}),
       ...(opts.seedFor ? { seedFor: opts.seedFor } : {}),
       ...(opts.disposeFor ? { disposeFor: opts.disposeFor } : {}),

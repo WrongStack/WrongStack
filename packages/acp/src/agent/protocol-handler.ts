@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { isAbsolute, resolve } from 'node:path';
 import {
   type ACPMessage,
+  type AuthGateResult,
   type ClientCapabilities,
   type ProtocolHandlerOptions,
   type RunTurn,
@@ -36,6 +37,7 @@ import {
 } from './protocol-session-ops.js';
 
 export type {
+  AuthGateResult,
   ClientCapabilities,
   McpServer,
   ProtocolHandlerOptions,
@@ -56,6 +58,8 @@ export class ACPProtocolHandler {
   private readonly onSessionNew: (state: SessionState) => void;
   private readonly modes: readonly SessionMode[];
   private readonly configOptions: readonly SessionConfigOption[];
+  private readonly agentVersion: string;
+  private readonly authGate: (() => Promise<AuthGateResult>) | undefined;
   private readonly agentName: string;
   private readonly replayFor:
     | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
@@ -94,6 +98,8 @@ export class ACPProtocolHandler {
     this.modes = opts.modes ?? DEFAULT_MODES;
     this.configOptions = opts.configOptions ?? [];
     this.agentName = opts.agentName ?? 'wrongstack';
+    this.agentVersion = opts.agentVersion?.trim() || WRONGSTACK_VERSION;
+    this.authGate = opts.authGate;
     this.replayFor = opts.replayFor;
     this.seedFor = opts.seedFor;
     this.disposeFor = opts.disposeFor;
@@ -275,10 +281,13 @@ export class ACPProtocolHandler {
         case 'logout':
           return await this.handleLogout(id, params);
         case 'session/new':
+          if (!(await this.passAuthGate(id))) return false;
           return await handleSessionNewOp(this.sessionContext(), id, params);
         case 'session/load':
+          if (!(await this.passAuthGate(id))) return false;
           return await handleSessionLoadOp(this.sessionContext(), id, params);
         case 'session/resume':
+          if (!(await this.passAuthGate(id))) return false;
           return await this.handleSessionResume(id, params);
         case 'session/close':
           return await this.handleSessionClose(id, params);
@@ -306,6 +315,7 @@ export class ACPProtocolHandler {
         case 'session/list':
           return await this.handleSessionList(id, params);
         case 'session/fork':
+          if (!(await this.passAuthGate(id))) return false;
           return await handleSessionForkOp(this.sessionContext(), id, params);
         case 'providers/list':
           return await this.handleProvidersList(id, params);
@@ -337,21 +347,38 @@ export class ACPProtocolHandler {
     this.initialized = true;
     await this.sendResult(
       id,
-      buildInitializeResult(
-        this.agentName,
-        this.modes,
-        this.configOptions,
-        this.clientCapabilities,
-      ),
+      buildInitializeResult(this.agentName, this.agentVersion, this.clientCapabilities),
     );
     return false;
   }
 
   private async handleAuthenticate(id: string | number, _params: unknown): Promise<boolean> {
-    // Auth is the host's `wstack auth` provider config, already loaded when
-    // the real agent factory is wired. Returning `unauthenticated` stalled
-    // editors that wait for a successful authenticate before session/new.
+    // Credentials are the host's `wstack auth` provider config. Re-check them
+    // instead of answering success unconditionally: a blind `{}` followed by
+    // `auth_required` on session/new would loop an editor between the two.
+    if (!(await this.passAuthGate(id))) return false;
     await this.sendResult(id, {});
+    return false;
+  }
+
+  /**
+   * Answer `auth_required` and return false while the host cannot run turns.
+   * A gate that throws counts as not ready, with its message.
+   */
+  private async passAuthGate(id: string | number): Promise<boolean> {
+    if (!this.authGate) return true;
+    let result: AuthGateResult;
+    try {
+      result = await this.authGate();
+    } catch (err) {
+      result = { ok: false, message: err instanceof Error ? err.message : String(err) };
+    }
+    if (result.ok) return true;
+    // Same shape as the SDK's `RequestError.authRequired`: clients key on the
+    // code, and most show only the message, so the login hint goes in it.
+    await this.sendError(id, -32000, `Authentication required: ${result.message}`, {
+      details: result.message,
+    });
     return false;
   }
 

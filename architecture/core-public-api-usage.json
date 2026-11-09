@@ -4,14 +4,14 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 511,
-      "typeOnly": 384,
+      "files": 512,
+      "typeOnly": 385,
       "runtimeOrMixed": 159
     },
     "@wrongstack/core/boot": {
-      "files": 5,
+      "files": 6,
       "typeOnly": 0,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 6
     },
     "@wrongstack/core/brain": {
       "files": 22,
@@ -59,9 +59,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/infrastructure": {
-      "files": 68,
+      "files": 69,
       "typeOnly": 8,
-      "runtimeOrMixed": 63
+      "runtimeOrMixed": 64
     },
     "@wrongstack/core/kernel": {
       "files": 1,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 196,
+      "files": 197,
       "typeOnly": 55,
-      "runtimeOrMixed": 174
+      "runtimeOrMixed": 175
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -350,6 +350,12 @@
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/acp-server-runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3293,6 +3299,12 @@
     },
     {
       "specifier": "@wrongstack/core/boot",
+      "file": "packages/cli/src/acp-server-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/boot",
       "file": "packages/cli/src/boot-config.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4494,6 +4506,12 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/src/acp-server-agent.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/src/acp-server-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9456,6 +9474,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/chronicle/src/file-observer-scan.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/acp-server-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

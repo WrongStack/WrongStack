@@ -18,9 +18,22 @@ direction — WrongStack **as a client** driving other agents — see
 ## 1. Prerequisites
 
 ```bash
-wstack auth            # configure a model provider (required for a real agent)
+wstack auth            # configure a model provider (or log in from the editor, below)
 wstack acp --echo      # optional: no-provider connectivity smoke (echo agent)
 ```
+
+`wstack acp` starts even when no provider is configured. It answers
+`initialize` and advertises its login methods; until a provider exists every
+`session/new`, `load`, `resume` and `fork` answers `auth_required` (-32000),
+which editors turn into a login prompt:
+
+| Method id | Type | What the editor does |
+|---|---|---|
+| `wrongstack-auth` | `terminal` | Offered when the client announces `auth.terminal` (or the legacy `_meta["terminal-auth"]`). The editor relaunches the agent with `auth` appended (`wstack acp auth`) in a terminal, then reconnects. |
+| `wrongstack-config` | `agent` (default) | Always offered. `authenticate` re-reads the saved configuration and succeeds once `wstack auth` has configured a provider anywhere. |
+
+The configuration is re-read on each of those requests, so a login finished in
+another terminal takes effect without restarting the agent.
 
 `wstack acp --echo` answers the protocol but runs a no-op turn — use it to
 confirm an editor can *connect and handshake* before involving a model.
@@ -41,12 +54,15 @@ confirm an editor can *connect and handshake* before involving a model.
 
 ### Zed
 
-Zed discovers ACP agents via `agent_servers` in `~/.config/zed/settings.json`:
+Until WrongStack is listed in the [ACP registry](https://agentclientprotocol.com/get-started/registry)
+(where Zed's **Install from Registry** finds it), add it as a custom agent in
+`~/.config/zed/settings.json`:
 
 ```jsonc
 {
   "agent_servers": {
     "WrongStack": {
+      "type": "custom",
       "command": "wstack",
       "args": ["acp"],
       "env": {}
@@ -56,7 +72,22 @@ Zed discovers ACP agents via `agent_servers` in `~/.config/zed/settings.json`:
 ```
 
 Then pick **WrongStack** as the agent in Zed's agent panel. Zed spawns the
-subprocess and speaks ACP v1 over stdio.
+subprocess and speaks ACP v1 over stdio. `dev::OpenAcpLogs` shows the wire.
+
+### JetBrains IDEs
+
+AI Assistant reads custom agents from `~/.jetbrains/acp.json`:
+
+```jsonc
+{
+  "agent_servers": {
+    "WrongStack": { "command": "wstack", "args": ["acp"], "env": {} }
+  }
+}
+```
+
+Pick it from the AI Chat mode selector. JetBrains does not run ACP agents
+inside WSL.
 
 ### Generic ACP client
 
@@ -74,11 +105,20 @@ The agent advertises this in its `initialize` response:
   "agentCapabilities": {
     "loadSession": true,
     "promptCapabilities": { "image": true, "audio": false, "embeddedContext": true },
+    "mcpCapabilities": { "http": true, "sse": true },
     "sessionCapabilities": { "close": {}, "list": {}, "delete": {}, "resume": {}, "fork": {} }
   },
-  "agentInfo": { "name": "wrongstack", "title": "WrongStack", "version": "…" }
+  "agentInfo": { "name": "wrongstack", "title": "WrongStack", "version": "…" },
+  "authMethods": [
+    // only when the client announced terminal login
+    { "id": "wrongstack-auth", "name": "Run wstack auth", "type": "terminal", "args": ["auth"] },
+    { "id": "wrongstack-config", "name": "Use WrongStack provider settings" }
+  ]
 }
 ```
+
+Modes and config options come back in the `session/new` (and `load`, `resume`,
+`fork`) responses, not in `initialize`.
 
 A client that advertises `clientCapabilities.fs.{readTextFile,writeTextFile}`
 and/or `terminal: true` lets WrongStack operate on the **editor's** filesystem
@@ -106,7 +146,7 @@ session ID will be rejected. Normal editor use should launch `wstack acp` after
 ### WebSocket
 
 ```bash
-wstack acp --ws=8889            # terminal 1 (real agent; needs `wstack auth` first)
+wstack acp --ws=8889            # terminal 1 (real agent; sessions need a provider from `wstack auth`)
 wstack acp --ws=8889 --echo     # no-provider connectivity test over WS
 ```
 
@@ -123,7 +163,7 @@ configured. ✅ = expected behavior.
 
 ### Handshake & sessions
 - [ ] **initialize** — editor connects; agent returns `protocolVersion: 1` and the capabilities above.
-- [ ] **session/new** — a fresh session id is returned; a `current_mode_update` arrives.
+- [ ] **session/new** — a fresh session id is returned with the current mode in `modes`. Without a provider it answers `auth_required` and the editor offers login.
 - [ ] **session/prompt** — a simple "say hi" returns `agent_message_chunk`(s) then `stopReason: end_turn`.
 - [ ] **session/cancel** — interrupting a long turn yields `stopReason: cancelled` promptly.
 - [ ] **session/load after restart** — stop and restart `wstack acp`, then `session/load` a prior id: the conversation history is replayed back to the editor **and** the agent resumes the model context (a follow-up prompt remembers the earlier turns), restored from the durable session store.
@@ -160,7 +200,7 @@ configured. ✅ = expected behavior.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Editor can't connect | `wstack` not on PATH / wrong bin | Use the absolute path to your built CLI in the editor config. |
-| "No model provider configured" | no `wstack auth` | Run `wstack auth`, or test wiring with `wstack acp --echo`. |
+| Editor asks to log in / `session/new` returns `auth_required` (-32000) | no provider configured yet | Use the editor's login button (runs `wstack acp auth`), or run `wstack auth` in any terminal and retry; no agent restart needed. |
 | No tool cards, only final text | client not rendering `tool_call` updates | Confirm the editor is an ACP-v1 client that renders tool calls; check it's not using a legacy/draft ACP build. |
 | File edits ignore unsaved buffers | client didn't advertise `fs` caps | Enable the editor's ACP filesystem capability; otherwise the agent uses local disk (correct on the same machine, just buffer-unaware). |
 | WS connection rejected (1008) | cross-origin | The WS server is loopback-only and rejects foreign `Origin` headers; connect from a non-browser client or same origin. |

@@ -6,20 +6,40 @@ import {
   type McpServer,
   type RequestPermissionOutcome,
   type RunTurnApi,
-  type SessionConfigOption,
   type SessionMode,
-  WRONGSTACK_VERSION,
 } from './protocol-contract.js';
 
-const WRONGSTACK_AUTH_METHODS = [
-  {
-    id: 'wrongstack-auth',
-    name: 'Run wstack auth',
-    description: 'Configure a WrongStack model provider in an interactive terminal.',
-    type: 'terminal',
-    args: ['auth'],
-  },
-];
+/**
+ * Login without leaving the client: the client relaunches this agent with
+ * `args` appended (`wstack acp auth`) in a terminal, then reconnects. Offered
+ * only to clients that announce terminal login.
+ */
+const TERMINAL_AUTH_METHOD = {
+  id: 'wrongstack-auth',
+  name: 'Run wstack auth',
+  description: 'Configure a WrongStack model provider in an interactive terminal.',
+  type: 'terminal',
+  args: ['auth'],
+};
+
+/**
+ * Always offered. `authenticate` with this id re-reads the saved provider
+ * configuration (written by `wstack auth`) and succeeds once a model is
+ * configured. The ACP registry lists only agents that advertise a method.
+ */
+const CONFIG_AUTH_METHOD = {
+  id: 'wrongstack-config',
+  name: 'Use WrongStack provider settings',
+  description:
+    'Uses the provider configured with `wstack auth`. Run it in a terminal first if none is set up.',
+};
+
+/** Whether the client can run a terminal-type auth method. */
+function supportsTerminalAuth(clientCapabilities: ClientCapabilities): boolean {
+  if (clientCapabilities.auth?.terminal === true) return true;
+  // Pre-standard flag, still sent by the ACP registry CI and older clients.
+  return clientCapabilities._meta?.['terminal-auth'] === true;
+}
 
 /** Single global mode id, sufficient for v1. */
 export const DEFAULT_MODE_ID = 'code';
@@ -204,10 +224,11 @@ export function createRunTurnApi(
 
 export function buildInitializeResult(
   agentName: string,
-  modes: readonly SessionMode[],
-  configOptions: readonly SessionConfigOption[],
+  agentVersion: string,
   clientCapabilities: ClientCapabilities = {},
 ) {
+  // Modes and config options are per-session; they travel in the session
+  // responses, and InitializeResponse has no field for them.
   return {
     protocolVersion: ACP_PROTOCOL_VERSION,
     agentCapabilities: {
@@ -239,10 +260,10 @@ export function buildInitializeResult(
     agentInfo: {
       name: agentName,
       title: 'WrongStack',
-      version: WRONGSTACK_VERSION,
+      version: agentVersion,
     },
-    authMethods: clientCapabilities.auth?.terminal === true ? WRONGSTACK_AUTH_METHODS : [],
-    modes,
-    configOptions,
+    authMethods: supportsTerminalAuth(clientCapabilities)
+      ? [TERMINAL_AUTH_METHOD, CONFIG_AUTH_METHOD]
+      : [CONFIG_AUTH_METHOD],
   };
 }

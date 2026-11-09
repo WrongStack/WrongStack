@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   ACPProtocolHandler,
+  type ProtocolHandlerOptions,
   type RunTurn,
   type RunTurnResult,
   WRONGSTACK_VERSION,
@@ -74,7 +75,14 @@ const ABORTING_RUN_TURN: RunTurn = async (input) => {
   });
 };
 
-function makeHandler(opts: { runTurn?: RunTurn; defaultCwd?: string } = {}): {
+function makeHandler(
+  opts: {
+    runTurn?: RunTurn;
+    defaultCwd?: string;
+    agentVersion?: string;
+    authGate?: ProtocolHandlerOptions['authGate'];
+  } = {},
+): {
   handler: ACPProtocolHandler;
   transport: FakeTransport;
 } {
@@ -83,6 +91,8 @@ function makeHandler(opts: { runTurn?: RunTurn; defaultCwd?: string } = {}): {
     transport: transport as never as AgentServerTransport,
     defaultCwd: opts.defaultCwd ?? CWD_TEST,
     runTurn: opts.runTurn ?? PASSON_RUN_TURN,
+    ...(opts.agentVersion ? { agentVersion: opts.agentVersion } : {}),
+    ...(opts.authGate ? { authGate: opts.authGate } : {}),
   });
   return { handler, transport };
 }
@@ -399,8 +409,52 @@ describe('ACPProtocolHandler', () => {
             type: 'terminal',
             args: ['auth'],
           },
+          { id: 'wrongstack-config' },
         ],
       });
+      // Modes and config options belong to session responses only.
+      expect(resp.result).not.toHaveProperty('modes');
+      expect(resp.result).not.toHaveProperty('configOptions');
+    });
+
+    it('always offers an agent-type login, and terminal login on the legacy _meta flag', async () => {
+      // The ACP registry lists only agents with a non-empty authMethods, and
+      // its CI announces terminal login as `_meta["terminal-auth"]` rather
+      // than `auth.terminal`. An agent gated on `auth.terminal` alone fails it.
+      const plain = makeHandler();
+      await plain.handler.handleMessage({
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: 1, clientCapabilities: {} },
+      });
+      const plainMethods = (
+        plain.transport.sent[0] as { result: { authMethods: Array<{ id: string; type?: string }> } }
+      ).result.authMethods;
+      expect(plainMethods).toEqual([expect.objectContaining({ id: 'wrongstack-config' })]);
+      expect(plainMethods[0]?.type).toBeUndefined();
+
+      const legacy = makeHandler();
+      await legacy.handler.handleMessage({
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: 1,
+          clientCapabilities: { terminal: true, _meta: { 'terminal-auth': true } },
+        },
+      });
+      const legacyIds = (
+        legacy.transport.sent[0] as { result: { authMethods: Array<{ id: string }> } }
+      ).result.authMethods.map((m) => m.id);
+      expect(legacyIds).toEqual(['wrongstack-auth', 'wrongstack-config']);
+    });
+
+    it('advertises the host-supplied agent version', async () => {
+      const { handler, transport } = makeHandler({ agentVersion: '9.8.7' });
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      expect(
+        (transport.sent[0] as { result: { agentInfo: { version: string } } }).result.agentInfo
+          .version,
+      ).toBe('9.8.7');
     });
 
     it('negotiates down to its supported version when the client requests a newer one', async () => {
@@ -439,27 +493,83 @@ describe('ACPProtocolHandler', () => {
       const resp = transport.sent[0] as { result?: unknown };
       expect(resp.result).toEqual({});
     });
+
+    it('answers auth_required until the host gate passes, then lets sessions open', async () => {
+      // The host re-reads its credentials on each check, so a login done from
+      // the client's terminal-auth flow takes effect without a restart.
+      let configured = false;
+      const authGate = vi.fn(async () =>
+        configured ? { ok: true as const } : { ok: false as const, message: 'run wstack auth' },
+      );
+      const { handler, transport } = makeHandler({ authGate });
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      transport.sent.length = 0;
+
+      await handler.handleMessage({ id: 2, method: 'authenticate', params: { methodId: 'x' } });
+      await handler.handleMessage({ id: 3, method: 'session/new', params: { cwd: CWD_PROJ } });
+      await handler.handleMessage({
+        id: 4,
+        method: 'session/load',
+        params: { sessionId: 'sess_missing', cwd: CWD_PROJ, mcpServers: [] },
+      });
+      await handler.handleMessage({
+        id: 5,
+        method: 'session/resume',
+        params: { sessionId: 'sess_missing', cwd: CWD_PROJ, mcpServers: [] },
+      });
+      for (const msg of transport.sent) {
+        expect(msg).toMatchObject({
+          error: {
+            code: -32000,
+            message: 'Authentication required: run wstack auth',
+            data: { details: 'run wstack auth' },
+          },
+        });
+      }
+      expect(transport.sent).toHaveLength(4);
+
+      configured = true;
+      transport.sent.length = 0;
+      await handler.handleMessage({ id: 6, method: 'authenticate', params: { methodId: 'x' } });
+      await handler.handleMessage({ id: 7, method: 'session/new', params: { cwd: CWD_PROJ } });
+      expect(transport.sent[0]).toMatchObject({ id: 6, result: {} });
+      expect(transport.sent[1]).toMatchObject({
+        id: 7,
+        result: { sessionId: expect.stringMatching(/^sess_/) },
+      });
+    });
+
+    it('treats a throwing gate as not ready', async () => {
+      const { handler, transport } = makeHandler({
+        authGate: async () => {
+          throw new Error('config unreadable');
+        },
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+      transport.sent.length = 0;
+      await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: CWD_PROJ } });
+      expect(transport.sent[0]).toMatchObject({
+        error: { code: -32000, data: { details: 'config unreadable' } },
+      });
+    });
   });
 
   describe('session/new', () => {
-    it('creates a session, emits current_mode_update, returns the id', async () => {
+    it('answers with the id first and sends nothing for the session before it', async () => {
+      // A client cannot route an update for a session id it has not been
+      // given yet; the response already carries the current mode.
       const { handler, transport } = makeHandler();
       await handler.handleMessage({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
       transport.sent.length = 0;
 
       await handler.handleMessage({ id: 2, method: 'session/new', params: { cwd: CWD_PROJ } });
 
-      expect(transport.sent.length).toBe(2);
-      const note = transport.sent[0] as {
-        method?: string;
-        params?: { update?: { sessionUpdate?: string; modeId?: string } };
+      expect(transport.sent.length).toBe(1);
+      const resp = transport.sent[0] as {
+        result?: { sessionId?: string; modes?: { currentModeId?: string } };
       };
-      expect(note.method).toBe('session/update');
-      expect(note.params?.update?.sessionUpdate).toBe('current_mode_update');
-      expect(note.params?.update?.modeId).toBe('code');
-
-      const resp = transport.sent[transport.sent.length - 1] as { result?: { sessionId?: string } };
       expect(resp.result?.sessionId).toMatch(/^sess_/);
+      expect(resp.result?.modes?.currentModeId).toBe('code');
     });
   });
 
@@ -792,8 +902,14 @@ describe('ACPProtocolHandler', () => {
         params: { sessionId, modeId: 'code' },
       });
       expect(transport.sent.length).toBe(2); // notification + result
-      const note = transport.sent[0] as { params?: { update?: { modeId?: string } } };
-      expect(note.params?.update?.modeId).toBe('code');
+      const note = transport.sent[0] as {
+        params?: { update?: { currentModeId?: string; modeId?: string } };
+      };
+      // `currentModeId` is the spec field; the old duplicate `modeId` is gone.
+      expect(note.params?.update).toEqual({
+        sessionUpdate: 'current_mode_update',
+        currentModeId: 'code',
+      });
     });
 
     it('rejects an unknown modeId', async () => {
@@ -1204,20 +1320,10 @@ describe('ACPProtocolHandler', () => {
       });
       await handler.handleMessage({ id: 1, method: 'initialize' });
       await handler.handleMessage({ id: 2, method: 'session/new' });
-      expect(transport.sent).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            method: 'session/update',
-            params: expect.objectContaining({
-              update: expect.objectContaining({
-                sessionUpdate: 'current_mode_update',
-                currentModeId: 'code',
-                modeId: 'code',
-              }),
-            }),
-          }),
-        ]),
-      );
+      expect(transport.sent.at(-1)).toMatchObject({
+        id: 2,
+        result: { modes: { currentModeId: 'code', availableModes: [] } },
+      });
     });
 
     it('handles null params across session request and notification surfaces', async () => {
@@ -1805,14 +1911,18 @@ describe('ACPProtocolHandler', () => {
         params: { sessionId, mcpServers: [{ name: 'no-command-here' }] },
       });
 
-      const notice = transport.sent.find(
+      const noticeAt = transport.sent.findIndex(
         (m) =>
           (m as { method?: string }).method === 'session/update' &&
           JSON.stringify((m as { params?: unknown }).params).includes('malformed mcpServers'),
       );
-      expect(notice, 'the client must be told which entry was dropped').toBeDefined();
-      const forked = transport.sent.at(-1) as { result?: { sessionId?: string } };
+      expect(noticeAt, 'the client must be told which entry was dropped').toBeGreaterThan(-1);
+      const forkedAt = transport.sent.findIndex((m) => (m as { id?: unknown }).id === 3);
+      const forked = transport.sent[forkedAt] as { result?: { sessionId?: string } };
       expect(forked.result?.sessionId).toMatch(/^sess_/);
+      // The notice names the forked session, so it may only follow the
+      // response that tells the client that id.
+      expect(noticeAt).toBeGreaterThan(forkedAt);
     });
 
     // A runTurn that issues a client callback and never resolves: the handler
