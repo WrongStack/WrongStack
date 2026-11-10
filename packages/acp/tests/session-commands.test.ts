@@ -111,7 +111,7 @@ describe('which prompts name a command', () => {
 
 describe('a prompt that names a command', () => {
   function turnWith(runCommand: RunPromptCommand) {
-    const agentRun = vi.fn(async () => ({
+    const agentRun = vi.fn(async (_input: unknown) => ({
       status: 'done',
       iterations: 1,
       finalText: 'model reply',
