@@ -43,7 +43,11 @@ export function buildAgentOwnedRequest(
   const additions: TextBlock[] = requestScopedEntries(ctx).map((entry) => entry.block);
   // The agent never sees WrongStack's system prompt, so the gate carries the
   // whole policy, and it cannot call WrongStack's `nextsteps` tool directly.
-  const gate = buildLiveNextStepsGateBlock({ ...ctx, tools: [] }, readNextStepsMode(a), false);
+  const gate = buildLiveNextStepsGateBlock(
+    { agentId: ctx.agentId, todos: ctx.todos, meta: ctx.meta, tools: [] },
+    readNextStepsMode(a),
+    false,
+  );
   if (gate) additions.push(gate);
   const sessionId = agentSessionKey(ctx);
   const threadId = ctx.activeRunSessionId ?? ctx.session?.id;

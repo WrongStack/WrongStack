@@ -235,7 +235,11 @@ export function buildContextTimeline(
     marks,
     agents,
     maxContext: points.reduce((max, p) => Math.max(max, p.maxContext), 0),
-    peak: points.reduce((max, p) => Math.max(max, p.total, p.usage), 0),
+    // An agent's usage sums its whole turn; its context is `total`.
+    peak: points.reduce(
+      (max, p) => Math.max(max, p.total, p.mechanism === 'agent' ? 0 : p.usage),
+      0,
+    ),
     cacheRate: promptTokens > 0 ? points.reduce((s, p) => s + p.cacheRead, 0) / promptTokens : 0,
     removedTotal: marks.reduce((sum, m) => sum + m.removed, 0),
   };

@@ -208,4 +208,42 @@ describe('ContextTimeline', () => {
     expect(detail?.textContent).not.toContain('Estimated request layout');
     expect(detail?.textContent).not.toContain('layout allows');
   });
+
+  it('draws an agent turn as its context fill, not its turn-long spend', () => {
+    // Claude Code's turn usage sums every model call it made: here 650k
+    // against a 200k window, while its context holds 52k.
+    const agentPoint = (seq: number, total: number) =>
+      event('context.residency', seq * 1_000, {
+        agentId: 'leader',
+        seq,
+        provider: 'acp',
+        model: 'claude-code',
+        mechanism: 'agent',
+        maxContext: 200_000,
+        total,
+        cached: 0,
+        written: 0,
+        uncached: 0,
+        usageInput: 250_000,
+        usageCacheRead: 400_000,
+        usageCacheWrite: 0,
+        verdict: 'agent',
+        breakers: [],
+        segments: [],
+        live: [],
+        historyMessages: 0,
+      });
+    const { container } = render(
+      <ContextTimeline events={[agentPoint(1, 26_000), agentPoint(2, 52_000)]} />,
+    );
+    const stats = container.textContent ?? '';
+    expect(stats).toMatch(/Peak\s*52\.0k/);
+    const barHeight = (seq: number) =>
+      [...screen.getByRole('button', { name: new RegExp(`^#${seq} ·`) }).querySelectorAll('rect')]
+        .map((r) => Number(r.getAttribute('height')))
+        .reduce((sum, h) => sum + h, 0);
+    // Context 26k vs 52k: half the height, both inside the plot.
+    expect(barHeight(1) / barHeight(2)).toBeCloseTo(0.5, 1);
+    expect(barHeight(2)).toBeLessThan(260);
+  });
 });

@@ -104,6 +104,17 @@ function laneTokens(point: ContextPoint, laneId: ContextLane): number {
   if (laneId === 'written') return point.cacheWrite;
   return Math.max(0, point.usage - point.cacheRead - point.cacheWrite);
 }
+/**
+ * A bar's height per lane. An agent keeping its own context reports the sum of
+ * every model call of its turn, which can be several windows long, so its bar
+ * is its context fill split by that turn's cache shares; the spend stays in the
+ * tooltip and the detail panel.
+ */
+function barTokens(point: ContextPoint, laneId: ContextLane): number {
+  if (point.mechanism !== 'agent') return laneTokens(point, laneId);
+  if (point.usage <= 0) return laneId === 'uncached' ? point.total : 0;
+  return Math.round((point.total * laneTokens(point, laneId)) / point.usage);
+}
 
 type LedgerRow = { at: number; point?: ContextPoint; mark?: ContextMark };
 
@@ -293,7 +304,7 @@ export function ContextTimeline({ events }: { events: readonly ChronicleEventVie
                   )}`}
                 </title>
                 {LANE_ORDER.map((laneId) => {
-                  const tokens = laneTokens(point, laneId);
+                  const tokens = barTokens(point, laneId);
                   if (tokens <= 0) return null;
                   const y0 = yAt(base);
                   base += tokens;

@@ -23,8 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message, which these providers forward to the agent, so the agent read them
   as if you had typed them. Their requests now carry the conversation plus two
   deliberate additions: mail delivered to the leader and the next-steps gate
-  that makes the agent offer suggestions. The system prompt, tool schemas,
-  memory recall and skill blocks are no longer built for these turns.
+  that makes the agent offer suggestions. The system prompt and tool schemas
+  are no longer composed into these requests, and the request middleware
+  (memory recall, skill blocks, plugin middleware) does not run for them. The
+  story draws such a turn as the agent's context fill rather than its
+  turn-long spend, which sums every model call the agent made.
 - **A modern MCP server that starts slowly over stdio connects.** When
   `server/discover` had no answer within a second the client gave up on it and
   sent the legacy `initialize`, so a modern-only server launched through `npx`
