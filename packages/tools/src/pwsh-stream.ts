@@ -32,6 +32,8 @@ const STREAM_FLUSH_BYTES = 4 * 1024;
 const MAX_QUEUE_CHUNKS = 500;
 const SPAWN_EPERM_RETRIES = 3;
 const SPAWN_EPERM_BACKOFF_MS = 50;
+/** 0xC0070005 as a signed 32-bit errno: access denied, untranslated by libuv. */
+const SPAWN_ACCESS_DENIED_NTSTATUS = -1073283067;
 
 /**
  * `spawn`, retrying a synchronous EPERM on Windows. PowerShell 7 installed
@@ -39,7 +41,9 @@ const SPAWN_EPERM_BACKOFF_MS = 50;
  * `%LOCALAPPDATA%\Microsoft\WindowsApps`; CreateProcess on that alias fails
  * now and then with ERROR_ACCESS_DENIED (EPERM) while other alias launches
  * are in flight, and the same spawn succeeds a moment later. Without the
- * retry a busy machine turned a valid command into "spawn failed". The caller
+ * retry a busy machine turned a valid command into "spawn failed". The same
+ * denial sometimes reaches libuv untranslated, as the NTSTATUS-style
+ * 0xC0070005 ("Unknown system error -1073283067"), and is retried alike. The caller
  * passes the spawn itself so each call site keeps its buildChildEnv-derived env
  * in view (see spawn-convention.test.ts).
  */
@@ -48,8 +52,9 @@ async function retrySpawnEperm(launch: () => ChildProcess, isWin: boolean): Prom
     try {
       return launch();
     } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (!isWin || code !== 'EPERM' || attempt >= SPAWN_EPERM_RETRIES) throw err;
+      const { code, errno } = err as NodeJS.ErrnoException;
+      const denied = code === 'EPERM' || errno === SPAWN_ACCESS_DENIED_NTSTATUS;
+      if (!isWin || !denied || attempt >= SPAWN_EPERM_RETRIES) throw err;
       await new Promise((resolve) => setTimeout(resolve, SPAWN_EPERM_BACKOFF_MS * (attempt + 1)));
     }
   }
