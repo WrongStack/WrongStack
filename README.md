@@ -55,6 +55,18 @@ suite. Memory, tools, providers, permissions, and the multi-agent runtime are al
 first-party and work together, on your machine, with no upstream agent to phone
 home to.
 
+### What's new in 1.5.6
+
+- **Slash commands in your editor:** `wstack acp` offers WrongStack's slash
+  commands in the editor's `/` menu; read-only ones run at once and every other
+  command asks through the editor's permission prompt.
+- **ACP and WrongForge leaders get only your conversation:** WrongStack's plan,
+  ledger, memory and other scaffolding no longer ride along on your message.
+- **The session story shows a leader's real context** instead of a request
+  that was never sent.
+- **Approved ACP file access is bound to its file**, and **slow-starting
+  modern MCP servers connect**.
+
 ### What's new in 1.5.5
 
 - **Per-agent ACP runtime settings:** an installed ACP agent's model, mode and

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.6] — 2026-11-10
+
+Editors connected over ACP get WrongStack's slash commands, and an ACP or
+WrongForge leader now receives only the conversation instead of WrongStack's
+prompt scaffolding glued to your message. The session story charts what such a
+leader really holds, approved ACP file access is bound to the file it was
+approved for, and a modern MCP server that starts slowly connects.
+
 ### Added
 
 - **Slash commands in editors over ACP.** `wstack acp` announces WrongStack's

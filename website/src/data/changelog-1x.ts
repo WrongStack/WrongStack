@@ -1,4 +1,4 @@
-// Changelog — 1.x era (1.5.5 → 1.0.0).
+// Changelog — 1.x era (1.5.6 → 1.0.0).
 // Historical entries mirror CHANGELOG.md release notes. The 1.0.37 entry was
 // written from committed runtime/source evidence (git history and packages), not
 // the root CHANGELOG, which had not been extended when it landed. 1.1.0 absorbs
@@ -13,10 +13,21 @@ import type { ChangelogEntry } from './changelog-types';
 
 export const changelog1x: ChangelogEntry[] = [
   {
+    version: '1.5.6',
+    date: '2026-11-10',
+    tagline: 'Slash commands over ACP, and ACP leaders that get only your conversation',
+    latest: true,
+    highlights: [
+      'wstack acp offers WrongStack’s slash commands in the editor’s / menu; read-only commands run at once and every other one asks through the editor’s permission prompt',
+      'An ACP or WrongForge leader receives the conversation alone, without WrongStack’s plan, ledger and memory scaffolding on your message',
+      'The session story charts an ACP leader’s real context instead of a request that was never sent',
+      'Approved ACP file access is bound to the file it was approved for, and a slow-starting modern MCP server connects over stdio',
+    ],
+  },
+  {
     version: '1.5.5',
     date: '2026-11-09',
     tagline: 'ACP permissions follow the real file target',
-    latest: true,
     highlights: [
       'ACP reads and writes outside the project, including symlinks inside it, check permission on the resolved target and then open that same path',
       'Ordinary ACP writes inside a linked project keep their original path, avoiding unnecessary outside-project permission prompts on macOS and Windows short paths',
