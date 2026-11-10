@@ -40,6 +40,7 @@ import {
 
 export type {
   AuthGateResult,
+  AvailableCommand,
   ClientCapabilities,
   McpServer,
   ProtocolHandlerOptions,
@@ -64,6 +65,7 @@ export class ACPProtocolHandler {
   private readonly modes: readonly SessionMode[];
   private readonly configOptions: readonly SessionConfigOption[];
   private readonly sessionConfigOptions: ProtocolHandlerOptions['sessionConfigOptions'];
+  private readonly sessionCommands: ProtocolHandlerOptions['sessionCommands'];
   private readonly agentVersion: string;
   private readonly authGate: (() => Promise<AuthGateResult>) | undefined;
   private readonly agentName: string;
@@ -104,6 +106,7 @@ export class ACPProtocolHandler {
     this.modes = opts.modes ?? DEFAULT_MODES;
     this.configOptions = opts.configOptions ?? [];
     this.sessionConfigOptions = opts.sessionConfigOptions;
+    this.sessionCommands = opts.sessionCommands;
     this.agentName = opts.agentName ?? 'wrongstack';
     this.agentVersion = opts.agentVersion?.trim() || WRONGSTACK_VERSION;
     this.authGate = opts.authGate;
@@ -250,6 +253,7 @@ export class ACPProtocolHandler {
       modes: this.modes,
       configOptions: this.configOptions,
       sessionConfigOptions: this.sessionConfigOptions,
+      sessionCommands: this.sessionCommands,
       store: this.store,
       replayFor: this.replayFor,
       seedFor: this.seedFor,

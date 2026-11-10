@@ -133,6 +133,21 @@ the prompt fails with the reason rather than quietly using the old model. The
 choice is saved with the session and restored on `session/load` while the model
 is still offered. It does not change the default model in your config.
 
+### Slash commands
+
+Once a session opens, WrongStack sends the editor its slash commands
+(`available_commands_update`): the commands of the WrongStack terminal that run
+without a terminal, such as `/git`, `/init`, `/security`, `/tuneup`,
+`/permissions`, `/plugin`, `/acp`, the skill and prompt commands and the hunt
+commands. Editors show them in their `/` menu. Typing `/git status` runs the
+command and shows its output instead of sending the text to the model; a
+command that prepares a task (`/bughunt`, `/prompt …`) then runs that task as
+the next model turn. Commands that start background workers (`/spawn`,
+`/delegate`, `/director`, `/supervisor`, `/ensemble`) are not offered over
+ACP. A command that changes something (`/init`, `/commit`, `/push`, `/prune`,
+the skill installers, `/sync`) asks first through the editor's permission
+prompt and does nothing when you cancel.
+
 A client that advertises `clientCapabilities.fs.{readTextFile,writeTextFile}`
 and/or `terminal: true` lets WrongStack operate on the **editor's** filesystem
 and terminal (see §5).

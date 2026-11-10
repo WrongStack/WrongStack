@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T09:51:40.726Z",
+  "generatedAt": "2026-11-10T10:11:36.706Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6213,
-    "testFiles": 5175,
-    "sourceLines": 1271709,
+    "sourceFiles": 6215,
+    "testFiles": 5177,
+    "sourceLines": 1272104,
     "workspaceEdges": 250,
-    "moduleEdges": 18312,
+    "moduleEdges": 18315,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -92,8 +92,8 @@
     {
       "name": "@wrongstack/acp",
       "dir": "packages/acp",
-      "sourceFiles": 56,
-      "testFiles": 66,
+      "sourceFiles": 57,
+      "testFiles": 67,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -109,7 +109,7 @@
         {
           "path": "packages/acp/tsconfig.test.json",
           "error": null,
-          "testFiles": 66
+          "testFiles": 67
         }
       ]
     },
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 633,
-      "testFiles": 697,
+      "sourceFiles": 634,
+      "testFiles": 698,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 697
+          "testFiles": 698
         }
       ]
     },
@@ -3530,6 +3530,12 @@
         ]
       },
       {
+        "file": "packages/acp/tests/session-commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/acp/tests/session-config-options.test.ts",
         "projects": [
           "root-node"
@@ -4689,6 +4695,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-agent.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-server-commands.test.ts",
         "projects": [
           "root-node"
         ]

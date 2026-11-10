@@ -51,6 +51,7 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { McpServer } from '../types/acp-v1.js';
 import type { RunTurn, RunTurnApi, RunTurnResult } from './protocol-handler.js';
+import { type RunPromptCommand, runPromptCommand } from './server-agent-commands.js';
 import {
   extractPlan,
   extractRunError,
@@ -106,6 +107,11 @@ export interface ACPServerAgentTurnOptions {
    * Default 5 minutes.
    */
   timeoutMs?: number | undefined;
+  /**
+   * The session's slash commands (`ProtocolHandlerOptions.sessionCommands`
+   * advertises them): a prompt naming one runs it instead of a model turn.
+   */
+  runCommand?: RunPromptCommand | undefined;
   /** Maximum replay entries retained per session. Default 1000. */
   maxHistoryEntries?: number | undefined;
   /** Maximum serialized replay bytes retained per session. Default 8 MiB. */
@@ -385,7 +391,18 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     }
 
     try {
-      const userInput = promptToAgentInput(input.prompt);
+      const command = opts.runCommand
+        ? await runPromptCommand(opts.runCommand, agent, input, {
+            signal: turnAbort.signal,
+            api,
+            emit,
+          })
+        : { kind: 'none' as const };
+      if (command.kind === 'done')
+        return { stopReason: input.signal.aborted ? 'cancelled' : 'end_turn' };
+      const userInput = promptToAgentInput(
+        command.kind === 'continue' ? command.prompt : input.prompt,
+      );
       const result = await agent.run(userInput, {
         signal: turnAbort.signal,
         inputOrigin: 'user',

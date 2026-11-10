@@ -72,6 +72,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
       makeACPServerAgentTurn({
         agentFor: rt.agentFor,
         applyConfigOptions: rt.applyConfigOptions,
+        runCommand: rt.runCommand,
         pendingDeliveries: pendingLeaderDeliveries,
       });
     store = sessionStoreFor(deps);
@@ -154,6 +155,7 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         ? {
             authGate: runtime.authGate,
             sessionConfigOptions: runtime.sessionConfigOptions,
+            sessionCommands: runtime.sessionCommands,
             replayFor: connectionTurn.replay,
             seedFor: connectionTurn.seed,
             disposeFor: runtime.composeDispose(connectionTurn.dispose),
@@ -240,6 +242,7 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
           const turn = makeACPServerAgentTurn({
             agentFor: runtime.agentFor,
             applyConfigOptions: runtime.applyConfigOptions,
+            runCommand: runtime.runCommand,
             pendingDeliveries: pendingLeaderDeliveries,
           });
           // Persist sessions under the project's wstack dir so `session/load`
@@ -249,6 +252,7 @@ export async function runACPServer(deps: SubcommandDeps): Promise<number> {
             agentVersion: CLI_VERSION,
             authGate: runtime.authGate,
             sessionConfigOptions: runtime.sessionConfigOptions,
+            sessionCommands: runtime.sessionCommands,
             runTurn: turn,
             replayFor: turn.replay,
             seedFor: turn.seed,

@@ -31,6 +31,7 @@ import {
   AcpServerConfigError,
   buildAcpServerAgentFactory,
 } from './acp-server-agent.js';
+import { type AcpServerCommands, createAcpServerCommands } from './acp-server-commands.js';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 
 /** Shown to the user while no provider is configured. */
@@ -57,6 +58,13 @@ export interface AcpServerRuntime {
    * (`ACPServerAgentTurnOptions.applyConfigOptions`).
    */
   applyConfigOptions(agent: Agent, configOptions: readonly SessionConfigOption[]): Promise<void>;
+  /**
+   * The slash commands every session offers (`ProtocolHandlerOptions.sessionCommands`):
+   * WrongStack's portable and plugin commands this host can run.
+   */
+  sessionCommands(sessionId: string): ReturnType<AcpServerCommands['list']>;
+  /** Run the command a prompt names (`ACPServerAgentTurnOptions.runCommand`). */
+  runCommand: AcpServerCommands['run'];
   /** Whether a provider is configured and the real agent is built. */
   ready(): boolean;
   /** Provider/model the agent runs with, once ready. */
@@ -102,6 +110,11 @@ export function createAcpServerRuntime(
   const projectRoot = deps.cwd ?? process.cwd();
   let built: Built | undefined;
   let pending: Promise<AuthGateResult> | undefined;
+  const commands = createAcpServerCommands({
+    paths: deps.paths,
+    vault: deps.vault,
+    projectRoot,
+  });
 
   const build = (config: Config): Built => {
     // Throws AcpServerConfigError only for a missing provider/model, which
@@ -178,9 +191,12 @@ export function createAcpServerRuntime(
         if (built) built.telemetry.wrapDispose(disposeTurn)(sessionId);
         else disposeTurn(sessionId);
       } finally {
+        commands.dispose(sessionId);
         built?.raw.disposeSession(sessionId);
       }
     },
+    sessionCommands: () => commands.list(),
+    runCommand: commands.run,
     sessionConfigOptions: async () => {
       if (!built) return [];
       const option = await (options.buildModelOption ?? buildAcpModelOption)({

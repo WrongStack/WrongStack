@@ -27,6 +27,7 @@ export interface ProtocolSessionContext {
   modes: readonly SessionMode[];
   configOptions: readonly SessionConfigOption[];
   sessionConfigOptions?: ProtocolHandlerOptions['sessionConfigOptions'];
+  sessionCommands?: ProtocolHandlerOptions['sessionCommands'];
   store: SessionPersistence | undefined;
   replayFor:
     | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
@@ -109,7 +110,7 @@ export async function handleSessionNewOp(
     modes: { currentModeId: state.modeId, availableModes: ctx.modes },
     configOptions: state.configOptions,
   });
-  await reportSkippedMcpServers(ctx, sessionId, skipped);
+  await announceSession(ctx, sessionId, skipped);
   return false;
 }
 
@@ -208,7 +209,7 @@ export async function handleSessionLoadOp(
             currentModeId: restored.modeId,
           },
         });
-      await reportSkippedMcpServers(ctx, sessionId, loadSkipped);
+      await announceSession(ctx, sessionId, loadSkipped);
       await ctx.sendResult(id, {
         modes: { currentModeId: restored.modeId, availableModes: ctx.modes },
         configOptions: restored.configOptions,
@@ -287,7 +288,7 @@ export async function handleSessionLoadOp(
           currentModeId: existing.modeId,
         },
       });
-    await reportSkippedMcpServers(ctx, sessionId!, loadSkipped);
+    await announceSession(ctx, sessionId!, loadSkipped);
     await ctx.sendResult(id, {
       modes: {
         currentModeId: existing.modeId,
@@ -381,7 +382,7 @@ export async function handleSessionForkOp(
     modes: { currentModeId: forked.modeId, availableModes: ctx.modes },
     configOptions: forked.configOptions,
   });
-  await reportSkippedMcpServers(ctx, sessionId, forkSkipped);
+  await announceSession(ctx, sessionId, forkSkipped);
   return false;
 }
 
@@ -562,6 +563,38 @@ export async function handleSetConfigOptionOp(
  * believing it has tools it does not have. Best-effort: a notification failure
  * must not fail `session/new`.
  */
+/** What a session learns once it is open: skipped MCP servers, then its commands. */
+async function announceSession(
+  ctx: ProtocolSessionContext,
+  sessionId: string,
+  skipped: readonly string[],
+): Promise<void> {
+  await reportSkippedMcpServers(ctx, sessionId, skipped);
+  await announceCommands(ctx, sessionId);
+}
+
+/** `available_commands_update`; best-effort, like every announcement after the response. */
+async function announceCommands(ctx: ProtocolSessionContext, sessionId: string): Promise<void> {
+  if (!ctx.sessionCommands) return;
+  try {
+    const commands = await ctx.sessionCommands(sessionId);
+    if (commands.length === 0) return;
+    await ctx.sendNotification({
+      sessionId,
+      update: {
+        sessionUpdate: 'available_commands_update',
+        availableCommands: commands.map((command) => ({
+          name: command.name,
+          description: command.description,
+          ...(command.input ? { input: { hint: command.input.hint } } : {}),
+        })),
+      },
+    });
+  } catch {
+    // best-effort: a session without its command list still works
+  }
+}
+
 async function reportSkippedMcpServers(
   ctx: ProtocolSessionContext,
   sessionId: string,

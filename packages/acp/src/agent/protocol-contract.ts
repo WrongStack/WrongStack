@@ -244,6 +244,15 @@ export function configOptionValues(option: SessionConfigOption): SessionConfigSe
   return out;
 }
 
+/** A slash command offered to a session (`available_commands_update`). */
+export interface AvailableCommand {
+  /** Without the leading slash; the client sends `/<name> <args>` as a prompt. */
+  name: string;
+  description: string;
+  /** What to type after the name, shown until the user types it. */
+  input?: { hint: string } | undefined;
+}
+
 export interface ProtocolHandlerOptions {
   transport: AgentServerTransport;
   /** Where the server is running; used for new sessions' default cwd. */
@@ -267,6 +276,13 @@ export interface ProtocolHandlerOptions {
    * no extra options rather than failing the session.
    */
   sessionConfigOptions?: (() => Promise<readonly SessionConfigOption[]>) | undefined;
+  /**
+   * Slash commands offered to a session, announced as
+   * `available_commands_update` once it opens (new, load, resume, fork) and
+   * after the response. An empty list or a failing builder announces nothing.
+   * The turn adapter runs them (`ACPServerAgentTurnOptions.runCommand`).
+   */
+  sessionCommands?: ((sessionId: string) => Promise<readonly AvailableCommand[]>) | undefined;
   /** Agent name advertised in initialize. */
   agentName?: string | undefined;
   /**

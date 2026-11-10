@@ -1,5 +1,6 @@
 export type {
   AuthGateResult,
+  AvailableCommand,
   ClientCapabilities,
   McpServer,
   RunTurn,

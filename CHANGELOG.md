@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Slash commands in editors over ACP.** `wstack acp` announces WrongStack's
+  slash commands to the editor (`available_commands_update`), so they appear in
+  its `/` menu, and runs one when a prompt starts with it: `/git status` answers
+  with the command's output, and a command that prepares a task runs it as the
+  next turn. Commands that change something ask through the editor's
+  permission prompt first; the fleet commands are not offered over ACP.
+
 ### Fixed
 
 - **An ACP agent's approved file access cannot be redirected by a symlink
