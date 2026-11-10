@@ -38,12 +38,21 @@ function fakeStore() {
 }
 
 async function waitForState(): Promise<Record<string, unknown>> {
-  // The write may wait on fs work and on a (faked) retry timer; step both.
-  for (let i = 0; i < 500; i++) {
+  // The write may wait on fs work and on a (faked) rename-retry timer; step
+  // both. The budget is real time (performance is not faked): a count of polls
+  // ran out in ~100ms when a loaded Windows host took longer to land the
+  // write. Fake time stops advancing past the rename retries (~4s), so the
+  // wait never reaches the runner's own interval and fires an extra pass.
+  const deadline = performance.now() + 15_000;
+  let faked = 0;
+  while (performance.now() < deadline) {
     try {
       return JSON.parse(await fs.readFile(statePath, 'utf8')) as Record<string, unknown>;
     } catch {
-      await vi.advanceTimersByTimeAsync(10);
+      if (faked < 5_000) {
+        await vi.advanceTimersByTimeAsync(10);
+        faked += 10;
+      }
       await new Promise((resolve) => setImmediate(resolve));
     }
   }
