@@ -2,9 +2,10 @@
  * A callback listener on port 0 asks the OS for any free port, so a failed
  * bind there is transient (seen under load on Windows), not "the port is
  * taken": the sign-in must not fall back to manual code entry on the first
- * failure.
+ * failure. The spy sits on http.Server: under Bun it does not inherit
+ * listen from net.Server.
  */
-import { Server } from 'node:net';
+import { Server } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startLoopbackServer } from '../../src/oauth/shared.js';
 
