@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T23:20:03.819Z",
+  "generatedAt": "2026-11-10T00:41:01.116Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,15 +14,15 @@
     "packages": 48,
     "sourceFiles": 6211,
     "testFiles": 5174,
-    "sourceLines": 1271423,
+    "sourceLines": 1271515,
     "workspaceEdges": 250,
-    "moduleEdges": 18298,
+    "moduleEdges": 18299,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1035
+    "testOnlyExports": 1036
   },
   "errors": [],
   "packageCycles": [],
@@ -37148,6 +37148,10 @@
     {
       "file": "packages/core/src/core/provider-runner.ts",
       "name": "PROVIDER_FAILURE_TRACKED"
+    },
+    {
+      "file": "packages/core/src/core/request-layout-capture.ts",
+      "name": "publishRequestResidency"
     },
     {
       "file": "packages/core/src/core/streaming-response-builder.ts",

@@ -664,6 +664,9 @@
       "isProviderFailureTracked",
       "PROVIDER_FAILURE_TRACKED"
     ],
+    "packages/core/src/core/request-layout-capture.ts": [
+      "publishRequestResidency"
+    ],
     "packages/core/src/core/streaming-response-builder.ts": [
       "buildResponse",
       "createStreamingState",

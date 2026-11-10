@@ -3,8 +3,12 @@ import type { Message } from '@wrongstack/contracts/types/messages';
 import type { Provider, Request } from '@wrongstack/contracts/types/provider';
 import { describe, expect, it } from 'vitest';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
+import { recordAgentContext } from '../../src/core/agent-owned-context.js';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
-import { publishRequestResidency } from '../../src/core/request-layout-capture.js';
+import {
+  publishRequestResidency,
+  publishResidency,
+} from '../../src/core/request-layout-capture.js';
 import { SYSTEM_BLOCK_SOURCE } from '../../src/core/system-prompt-blocks.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 import {
@@ -138,5 +142,88 @@ describe('publishRequestResidency', () => {
     expect(() =>
       publishRequestResidency(events, { messages: null } as never, undefined),
     ).not.toThrow();
+  });
+});
+
+describe('publishResidency on a route that keeps its own context', () => {
+  // An ACP agent leading the session gets only the user's text and runs its
+  // own system prompt and tools: the request composed here never went on the
+  // wire, so its layout must not be charted as the agent's context.
+  const agent = {
+    id: 'acp',
+    capabilities: { cacheControl: 'none', keepsOwnContext: true, maxContext: 0 },
+  } as unknown as Provider;
+  const collect = () => {
+    const emitted: Array<Record<string, unknown>> = [];
+    const events = {
+      emit: (_type: 'context.residency', payload: unknown) =>
+        emitted.push(payload as Record<string, unknown>),
+    };
+    return { emitted, events };
+  };
+
+  it('publishes the agent’s report, with no lanes or segments from the unsent request', async () => {
+    const { ctx, handler } = harness('native');
+    const req = (await handler.buildAndRunRequestPipeline({})).request;
+    commitRequestLayout(ctx, req, 1_000);
+    const { emitted, events } = collect();
+    publishResidency(events, ctx, agent, { model: 'claude-code' }, {
+      content: [],
+      stopReason: 'end_turn',
+      usage: { input: 1_200, output: 300, cacheRead: 40_000, cacheWrite: 2_000 },
+      agentContext: { used: 52_000, size: 200_000 },
+    } as never);
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]).toMatchObject({
+      sessionId: 'thread',
+      provider: 'acp',
+      model: 'claude-code',
+      mechanism: 'agent',
+      verdict: 'agent',
+      maxContext: 200_000,
+      total: 52_000,
+      cached: 0,
+      written: 0,
+      uncached: 0,
+      usageInput: 1_200,
+      usageCacheRead: 40_000,
+      usageCacheWrite: 2_000,
+      segments: [],
+      live: [],
+      breakers: [],
+      historyMessages: 0,
+    });
+  });
+
+  it('falls back to the agent’s last report when a response carries none', () => {
+    const ctx = {
+      agentId: 'leader',
+      messages: [],
+      provider: agent,
+      session: { id: 'thread' },
+      tokenCounter: { setCurrentRequestTokens: () => {} },
+    } as unknown as AgentInternals['ctx'];
+    recordAgentContext(ctx, { used: 9_000, size: 1_000_000 });
+    const { emitted, events } = collect();
+    publishResidency(events, ctx, agent, { model: 'claude-code' }, {
+      content: [],
+      stopReason: 'end_turn',
+      usage: { input: 10, output: 5 },
+    } as never);
+    expect(emitted[0]).toMatchObject({ total: 9_000, maxContext: 1_000_000, usageCacheRead: 0 });
+  });
+
+  it('keeps the measured request on every other route', async () => {
+    const { ctx, handler } = harness('native');
+    const req = (await handler.buildAndRunRequestPipeline({})).request;
+    commitRequestLayout(ctx, req, 1_000);
+    recordRequestLayoutUsage(req, { input: 300, output: 5, cacheRead: 0, cacheWrite: 200 });
+    const { emitted, events } = collect();
+    publishResidency(events, ctx, ctx.provider, req, {
+      content: [],
+      stopReason: 'end_turn',
+      usage: { input: 300, output: 5 },
+    } as never);
+    expect(emitted[0]).toMatchObject({ mechanism: 'explicit', historyMessages: 1 });
   });
 });

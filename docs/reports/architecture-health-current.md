@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-09T23:20:03.819Z
+**Generated:** 2026-11-10T00:41:01.116Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 48 |
 | Production source files | 6211 |
-| Production source lines | 1271423 |
+| Production source lines | 1271515 |
 | Test files | 5174 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18298 |
+| Relative module edges | 18299 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -143,7 +143,7 @@ None.
 
 ## Exports only tests reference
 
-- 1035 runtime exports are referenced by tests and by no other production file.
+- 1036 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

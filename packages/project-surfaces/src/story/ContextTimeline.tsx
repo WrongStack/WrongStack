@@ -70,6 +70,7 @@ const VERDICT_KEY: Record<string, { labelKey: string }> = {
   partial: { labelKey: 'activity:ctxDash.verdictPartial' },
   miss: { labelKey: 'activity:ctxDash.verdictMiss' },
   unsupported: { labelKey: 'activity:ctxDash.verdictUnsupported' },
+  agent: { labelKey: 'activity:ctxDash.verdictAgent' },
 };
 const BREAKER_KEY: Record<string, { labelKey: string }> = {
   route: { labelKey: 'activity:ctxDash.breakerRoute' },
@@ -442,40 +443,54 @@ export function ContextTimeline({ events }: { events: readonly ChronicleEventVie
                 {t('activity:story.contextUsageHint')}
               </p>
             </div>
-            <h3 className="mb-1 font-medium">{t('activity:story.contextEstimatedLayout')}</h3>
-            <table className="w-full">
-              <tbody>
-                {focus.segments.map((seg) => (
-                  <tr key={seg.kind}>
-                    <td className="py-0.5 pr-2">
-                      <span
-                        className="mr-1.5 inline-block h-2 w-2 rounded-sm"
-                        style={{ background: LANE_FILL[seg.lane] }}
-                      />
-                      {segmentLabel(seg.kind, t)}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right font-mono tabular-nums">
-                      {fmtTok(seg.tokens)}
-                    </td>
-                    <td className="py-0.5 text-right text-muted-foreground">×{seg.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {focus.live.length > 0 && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {focus.live.map((p) => `${p.source} ${fmtTok(p.tokens)}`).join(' · ')}
+            {focus.mechanism === 'agent' ? (
+              // An agent that keeps its own context got only the user's text:
+              // there is no WrongStack layout to show, only what it reported.
+              <p data-testid="context-agent-owned" className="text-[11px] text-muted-foreground">
+                {t('activity:story.contextAgentOwned', {
+                  read: fmtTok(focus.cacheRead),
+                  write: fmtTok(focus.cacheWrite),
+                  fresh: fmtTok(Math.max(0, focus.usage - focus.cacheRead - focus.cacheWrite)),
+                })}
               </p>
+            ) : (
+              <>
+                <h3 className="mb-1 font-medium">{t('activity:story.contextEstimatedLayout')}</h3>
+                <table className="w-full">
+                  <tbody>
+                    {focus.segments.map((seg) => (
+                      <tr key={seg.kind}>
+                        <td className="py-0.5 pr-2">
+                          <span
+                            className="mr-1.5 inline-block h-2 w-2 rounded-sm"
+                            style={{ background: LANE_FILL[seg.lane] }}
+                          />
+                          {segmentLabel(seg.kind, t)}
+                        </td>
+                        <td className="py-0.5 pr-2 text-right font-mono tabular-nums">
+                          {fmtTok(seg.tokens)}
+                        </td>
+                        <td className="py-0.5 text-right text-muted-foreground">×{seg.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {focus.live.length > 0 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {focus.live.map((p) => `${p.source} ${fmtTok(p.tokens)}`).join(' · ')}
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {t('activity:ctxDash.residencyProvider', {
+                    read: fmtTok(focus.cacheRead),
+                    write: fmtTok(focus.cacheWrite),
+                    fresh: fmtTok(Math.max(0, focus.usage - focus.cacheRead - focus.cacheWrite)),
+                    pct: pct(focus.cacheRead, focus.usage),
+                    expected: pct(focus.cached, focus.total),
+                  })}
+                </p>
+              </>
             )}
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {t('activity:ctxDash.residencyProvider', {
-                read: fmtTok(focus.cacheRead),
-                write: fmtTok(focus.cacheWrite),
-                fresh: fmtTok(Math.max(0, focus.usage - focus.cacheRead - focus.cacheWrite)),
-                pct: pct(focus.cacheRead, focus.usage),
-                expected: pct(focus.cached, focus.total),
-              })}
-            </p>
             {focus.breakers.map((b) => (
               <p key={b} className="text-[11px] text-warning">
                 ↯ {BREAKER_KEY[b] ? t(BREAKER_KEY[b].labelKey) : b}

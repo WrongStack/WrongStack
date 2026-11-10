@@ -171,4 +171,41 @@ describe('ContextTimeline', () => {
     expect(detail?.textContent).toContain('4.0k · 13%');
     expect(detail?.textContent).toContain('1.0k · 3%');
   });
+
+  it('shows an ACP agent turn as the agent’s own context, not a WrongStack request layout', () => {
+    const { container } = render(
+      <ContextTimeline
+        events={[
+          event('context.residency', 1_000, {
+            agentId: 'leader',
+            seq: 1,
+            provider: 'acp',
+            model: 'claude-code',
+            mechanism: 'agent',
+            maxContext: 200_000,
+            total: 52_000,
+            cached: 0,
+            written: 0,
+            uncached: 0,
+            usageInput: 1_200,
+            usageCacheRead: 40_000,
+            usageCacheWrite: 2_000,
+            verdict: 'agent',
+            breakers: [],
+            segments: [],
+            live: [],
+            historyMessages: 0,
+          }),
+        ]}
+      />,
+    );
+    const detail = container.querySelector('[data-testid="context-request-detail"]');
+    expect(detail?.textContent).toContain('Context held by the agent');
+    expect(detail?.textContent).toContain('52.0k');
+    expect(container.querySelector('[data-testid="context-agent-owned"]')?.textContent).toMatch(
+      /sent it only your message.*read 40\.0k from its cache, wrote 2\.0k, fresh 1\.2k/,
+    );
+    expect(detail?.textContent).not.toContain('Estimated request layout');
+    expect(detail?.textContent).not.toContain('layout allows');
+  });
 });

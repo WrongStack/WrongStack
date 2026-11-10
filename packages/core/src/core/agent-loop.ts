@@ -37,7 +37,7 @@ import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { injectPendingMailboxMessages } from './mailbox-loop.js';
 import { clearPendingNextSteps } from './next-steps-slot.js';
 import { runProviderWithRetry } from './provider-runner.js';
-import { publishRequestResidency } from './request-layout-capture.js';
+import { publishResidency } from './request-layout-capture.js';
 import { providerBoundToRequest } from './request-provider-binding.js';
 import { addRequestScopedBlock, clearRequestScopedBlocks } from './request-scoped-context.js';
 import { isSealedAgent } from './sealed-agent.js';
@@ -362,7 +362,7 @@ export function createAgentLoopHandler(
           commitRequestLayout(a.ctx, req);
           res = await customRunner(a.ctx, req);
           recordRequestLayoutUsage(req, res.usage);
-          publishRequestResidency(a.events, a.ctx, resolveEventSessionId(a.ctx));
+          publishResidency(a.events, a.ctx, requestProvider, req, res);
           // Usage belongs to the route captured for this request, even if the
           // user switched providers while its response was in flight.
           const key = `${requestProvider.id}/${req.model}`;

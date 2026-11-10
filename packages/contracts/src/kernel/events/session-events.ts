@@ -94,6 +94,12 @@ export interface SessionEventMap {
    * what the prompt cache did with it (`getRequestResidency`). Chronicle keeps
    * `context.*`, so the WebUI session story can chart the window over time.
    * Numbers and short kinds only — Chronicle hashes free-text fields.
+   *
+   * `mechanism: 'agent'` (with `verdict: 'agent'`) is a request answered by
+   * a provider that keeps its own context (an ACP agent): WrongStack's request
+   * never went on the wire, so the point carries only the agent's report —
+   * `total` is its context fill, the usage fields its reported spend — and no
+   * lanes, segments or live blocks.
    */
   'context.residency': {
     sessionId?: string | undefined;
@@ -101,7 +107,7 @@ export interface SessionEventMap {
     seq: number;
     provider: string;
     model: string;
-    mechanism: 'explicit' | 'automatic' | 'implicit' | 'none';
+    mechanism: 'explicit' | 'automatic' | 'implicit' | 'none' | 'agent';
     /** Effective context window (0 = unknown). */
     maxContext: number;
     /** Estimated request tokens and their cache lanes. */
@@ -113,7 +119,7 @@ export interface SessionEventMap {
     usageInput: number;
     usageCacheRead: number;
     usageCacheWrite: number;
-    verdict: 'pending' | 'cold' | 'hit' | 'partial' | 'miss' | 'unsupported';
+    verdict: 'pending' | 'cold' | 'hit' | 'partial' | 'miss' | 'unsupported' | 'agent';
     breakers: Array<'route' | 'tools' | 'system' | 'history' | 'idle' | 'provider'>;
     segments: Array<{
       kind: string;

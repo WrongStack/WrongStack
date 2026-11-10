@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The session story shows an ACP leader's real context.** An ACP agent gets
+  only the user's message and runs its own system prompt and tools, but the
+  story charted the layout of the request WrongStack composed and never sent
+  (system prompt, tool schemas, memory blocks, cache lanes) next to the agent's
+  usage. On a route that keeps its own context the point now carries only what
+  the agent reported: its context fill and window, and the turn's cache reads
+  and writes.
 - **A modern MCP server that starts slowly over stdio connects.** When
   `server/discover` had no answer within a second the client gave up on it and
   sent the legacy `initialize`, so a modern-only server launched through `npx`

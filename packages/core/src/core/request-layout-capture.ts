@@ -1,7 +1,7 @@
 import type { SessionEventMap } from '@wrongstack/contracts/kernel/events/session-events';
 import { isVolatileSystemBlock, type TextBlock } from '@wrongstack/contracts/types/blocks';
 import type { Message } from '@wrongstack/contracts/types/messages';
-import type { Provider, Request } from '@wrongstack/contracts/types/provider';
+import type { Provider, Request, Response } from '@wrongstack/contracts/types/provider';
 import { formatMemoryEvidenceBlock } from '../utils/memory-evidence-fence.js';
 import {
   getRequestResidency,
@@ -9,7 +9,8 @@ import {
   type RequestLayoutTailEntry,
   recordRequestLayout,
 } from '../utils/request-layout.js';
-import type { Context } from './context.js';
+import { keepsOwnContext, readAgentContext } from './agent-owned-context.js';
+import { type Context, resolveEventSessionId } from './context.js';
 
 /**
  * Render memory retrieval as volatile provider evidence, not conversation
@@ -162,6 +163,76 @@ export function publishRequestResidency(
       historyMessages: r.segments
         .filter((s) => s.kind === 'history-prior' || s.kind === 'history-new')
         .reduce((sum, s) => sum + s.count, 0),
+    });
+  } catch {
+    // Residency is observability; never let it disturb the request path.
+  }
+}
+
+/** Publish the answered request's point: the agent's report on a route that keeps its own context. */
+export function publishResidency(
+  events: ResidencyEmitter,
+  ctx: Context,
+  provider: Provider,
+  request: Pick<Request, 'model'>,
+  response: Response,
+): void {
+  const sessionId = resolveEventSessionId(ctx);
+  if (keepsOwnContext(provider)) {
+    publishAgentContextResidency(events, ctx, sessionId, {
+      providerId: provider.id,
+      model: request.model,
+      response,
+    });
+  } else {
+    publishRequestResidency(events, ctx, sessionId);
+  }
+}
+
+/**
+ * The residency point of a request answered by a provider that keeps its own
+ * context (an ACP agent leading the session). WrongStack composed a request
+ * for it, but only the user's text went to the agent, which runs its own
+ * system prompt, tools and history: measuring that composed request would chart
+ * a layout nothing sent. The point carries what the agent reported instead —
+ * its context fill and window, and the turn's usage — with no lanes or
+ * segments, under `mechanism: 'agent'`.
+ */
+export function publishAgentContextResidency(
+  events: ResidencyEmitter,
+  ctx: Context,
+  sessionId: string | undefined,
+  answered: { providerId: string; model: string; response: Response },
+): void {
+  try {
+    const reported = answered.response.agentContext ?? readAgentContext(ctx);
+    const usage = answered.response.usage;
+    const providerMax = ctx.provider?.capabilities?.maxContext;
+    events.emit('context.residency', {
+      sessionId,
+      agentId: ctx.agentId,
+      seq: getRequestResidency(ctx)?.seq ?? 0,
+      provider: answered.providerId,
+      model: answered.model,
+      mechanism: 'agent',
+      maxContext:
+        reported && reported.size > 0
+          ? reported.size
+          : typeof providerMax === 'number' && providerMax > 0
+            ? providerMax
+            : 0,
+      total: reported?.used ?? 0,
+      cached: 0,
+      written: 0,
+      uncached: 0,
+      usageInput: usage?.input ?? 0,
+      usageCacheRead: usage?.cacheRead ?? 0,
+      usageCacheWrite: usage?.cacheWrite ?? 0,
+      verdict: 'agent',
+      breakers: [],
+      segments: [],
+      live: [],
+      historyMessages: 0,
     });
   } catch {
     // Residency is observability; never let it disturb the request path.
