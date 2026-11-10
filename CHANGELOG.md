@@ -59,6 +59,11 @@ approved for, and a modern MCP server that starts slowly connects.
   discovery answer was thrown away. Discovery now keeps waiting while
   `initialize` goes out, and whichever handshake answers properly decides;
   legacy servers connect as quickly as before.
+- **`pwsh` survives the other form of a transient Windows spawn denial.** A
+  Store PowerShell launch that is briefly denied sometimes reports
+  "spawn Unknown system error -1073283067" instead of EPERM, and the tool
+  failed with "spawn failed" where a moment later the command would have run.
+  It is now retried the same way.
 
 ## [1.5.5] — 2026-11-09
 
