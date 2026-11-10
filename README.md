@@ -66,6 +66,8 @@ home to.
   that was never sent.
 - **Approved ACP file access is bound to its file**, and **slow-starting
   modern MCP servers connect**.
+- **WrongForge leads desktop and WebUI conversations**, as it already did in
+  the CLI.
 
 ### What's new in 1.5.5
 

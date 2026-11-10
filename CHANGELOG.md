@@ -13,9 +13,17 @@ Editors connected over ACP get WrongStack's slash commands, and an ACP or
 WrongForge leader now receives only the conversation instead of WrongStack's
 prompt scaffolding glued to your message. The session story charts what such a
 leader really holds, approved ACP file access is bound to the file it was
-approved for, and a modern MCP server that starts slowly connects.
+approved for, a modern MCP server that starts slowly connects, and WrongForge
+can lead desktop and WebUI conversations.
 
 ### Added
+
+- **WrongForge leads desktop and WebUI conversations.** The WrongForge leader
+  lived only in the CLI, so a profile whose provider was `wrongforge` made the
+  desktop engine exit at boot with "needs an explicit family" and the model
+  pickers never offered it. The engine behind desktop and WebUI now registers
+  it beside the ACP leader, lists the models WrongForge serves, and lets an
+  in-flight WrongForge task's cancellation finish on shutdown.
 
 - **Slash commands in editors over ACP.** `wstack acp` announces WrongStack's
   slash commands to the editor (`available_commands_update`), so they appear in

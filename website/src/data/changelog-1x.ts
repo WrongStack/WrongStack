@@ -22,6 +22,7 @@ export const changelog1x: ChangelogEntry[] = [
       'An ACP or WrongForge leader receives the conversation alone, without WrongStack’s plan, ledger and memory scaffolding on your message',
       'The session story charts an ACP leader’s real context instead of a request that was never sent',
       'Approved ACP file access is bound to the file it was approved for, and a slow-starting modern MCP server connects over stdio',
+      'WrongForge can lead desktop and WebUI conversations as it does in the CLI, instead of stopping the engine at boot',
     ],
   },
   {
