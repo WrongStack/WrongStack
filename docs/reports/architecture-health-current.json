@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T00:41:01.116Z",
+  "generatedAt": "2026-11-10T00:56:06.232Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6211,
-    "testFiles": 5174,
-    "sourceLines": 1271515,
+    "sourceFiles": 6213,
+    "testFiles": 5175,
+    "sourceLines": 1271613,
     "workspaceEdges": 250,
-    "moduleEdges": 18299,
+    "moduleEdges": 18312,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -361,8 +361,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 640,
-      "testFiles": 702,
+      "sourceFiles": 642,
+      "testFiles": 703,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 702
+          "testFiles": 703
         }
       ]
     },
@@ -10383,6 +10383,12 @@
       },
       {
         "file": "packages/core/tests/core/agent-owned-context.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/agent-owned-request.test.ts",
         "projects": [
           "root-node"
         ]

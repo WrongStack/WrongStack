@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   usage. On a route that keeps its own context the point now carries only what
   the agent reported: its context fill and window, and the turn's cache reads
   and writes.
+- **An ACP or WrongForge leader no longer receives WrongStack's prompt
+  scaffolding as part of your message.** The live-context tail (plan,
+  glossary, completed-work ledger, mission anchor, continuity, memory
+  evidence) and the request middleware's blocks rode the trailing user
+  message, which these providers forward to the agent, so the agent read them
+  as if you had typed them. Their requests now carry the conversation plus two
+  deliberate additions: mail delivered to the leader and the next-steps gate
+  that makes the agent offer suggestions. The system prompt, tool schemas,
+  memory recall and skill blocks are no longer built for these turns.
 - **A modern MCP server that starts slowly over stdio connects.** When
   `server/discover` had no answer within a second the client gave up on it and
   sent the legacy `initialize`, so a modern-only server launched through `npx`

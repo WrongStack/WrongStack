@@ -189,6 +189,14 @@ export function publishResidency(
   }
 }
 
+/** Agent turns numbered per context: no request layout is measured on that route. */
+const agentTurns = new WeakMap<object, number>();
+function nextAgentTurn(ctx: object): number {
+  const seq = (agentTurns.get(ctx) ?? 0) + 1;
+  agentTurns.set(ctx, seq);
+  return seq;
+}
+
 /**
  * The residency point of a request answered by a provider that keeps its own
  * context (an ACP agent leading the session). WrongStack composed a request
@@ -211,7 +219,7 @@ export function publishAgentContextResidency(
     events.emit('context.residency', {
       sessionId,
       agentId: ctx.agentId,
-      seq: getRequestResidency(ctx)?.seq ?? 0,
+      seq: nextAgentTurn(ctx),
       provider: answered.providerId,
       model: answered.model,
       mechanism: 'agent',
