@@ -282,6 +282,34 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
     return state;
   };
 
+  /** Keep one exchange for `session/load` replay, within the per-session caps. */
+  const recordExchange = (sessionId: string, userText: string, text: string): void => {
+    const hist = history.get(sessionId) ?? [];
+    let retainedHistoryBytes = historyBytes.get(sessionId) ?? 0;
+    for (const [sessionUpdate, chunk] of [
+      ['user_message_chunk', userText],
+      ['agent_message_chunk', text],
+    ] as const) {
+      if (!chunk) continue;
+      const update: SessionReplayUpdate = { sessionUpdate, content: { type: 'text', text: chunk } };
+      hist.push(update);
+      retainedHistoryBytes += replayEntryBytes(update);
+    }
+    retainedHistoryBytes = trimHistory(
+      hist,
+      retainedHistoryBytes,
+      maxHistoryEntries,
+      maxHistoryBytes,
+    );
+    if (hist.length > 0) {
+      history.set(sessionId, hist);
+      historyBytes.set(sessionId, retainedHistoryBytes);
+    } else {
+      history.delete(sessionId);
+      historyBytes.delete(sessionId);
+    }
+  };
+
   const turn = async (
     input: Parameters<RunTurn>[0],
     publish: Parameters<RunTurn>[1],
@@ -398,8 +426,21 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
             emit,
           })
         : { kind: 'none' as const };
-      if (command.kind === 'done')
-        return { stopReason: input.signal.aborted ? 'cancelled' : 'end_turn' };
+      if (command.kind === 'done') {
+        if (input.signal.aborted) return { stopReason: 'cancelled' };
+        // The exchange is part of the conversation: replayed on load, and seen
+        // by the model on the next turn ("what does that output mean?").
+        const userText = promptToText(input.prompt);
+        recordExchange(input.sessionId, userText, command.message);
+        seedAgentContext(agent, [
+          { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: userText } },
+          {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: command.message },
+          },
+        ]);
+        return { stopReason: 'end_turn' };
+      }
       const userInput = promptToAgentInput(
         command.kind === 'continue' ? command.prompt : input.prompt,
       );
@@ -423,38 +464,7 @@ export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServ
       // Record the turn so `session/load` can replay the conversation (not
       // for a session disposed mid-turn: that would outlive the session).
       const record = alive() && !turnAbort.signal.aborted;
-      const userText = promptToText(input.prompt);
-      const hist = history.get(input.sessionId) ?? [];
-      let retainedHistoryBytes = historyBytes.get(input.sessionId) ?? 0;
-      if (record && userText) {
-        const update: SessionReplayUpdate = {
-          sessionUpdate: 'user_message_chunk',
-          content: { type: 'text', text: userText },
-        };
-        hist.push(update);
-        retainedHistoryBytes += replayEntryBytes(update);
-      }
-      if (record && text) {
-        const update: SessionReplayUpdate = {
-          sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text },
-        };
-        hist.push(update);
-        retainedHistoryBytes += replayEntryBytes(update);
-      }
-      retainedHistoryBytes = trimHistory(
-        hist,
-        retainedHistoryBytes,
-        maxHistoryEntries,
-        maxHistoryBytes,
-      );
-      if (hist.length > 0) {
-        history.set(input.sessionId, hist);
-        historyBytes.set(input.sessionId, retainedHistoryBytes);
-      } else {
-        history.delete(input.sessionId);
-        historyBytes.delete(input.sessionId);
-      }
+      if (record) recordExchange(input.sessionId, promptToText(input.prompt), text);
 
       // Emit plan if the agent provided one
       const plan = extractPlan(result);

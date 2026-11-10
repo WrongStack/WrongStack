@@ -144,9 +144,14 @@ command and shows its output instead of sending the text to the model; a
 command that prepares a task (`/bughunt`, `/prompt …`) then runs that task as
 the next model turn. Commands that start background workers (`/spawn`,
 `/delegate`, `/director`, `/supervisor`, `/ensemble`) are not offered over
-ACP. A command that changes something (`/init`, `/commit`, `/push`, `/prune`,
-the skill installers, `/sync`) asks first through the editor's permission
-prompt and does nothing when you cancel.
+ACP. Commands that only read (`/git`, `/gitcheck`, `/tuneup`'s report,
+`/permissions rules`, `/plugin list`, the hunt and prompt commands, …) run at
+once; every other command asks first through the editor's permission prompt
+and does nothing when you cancel. That includes `/permissions allow`,
+`/plugin install` and `/tuneup fix`: a prompt can be written by a model as well
+as by you, so nothing that writes your settings or files runs unasked. A
+command's exchange stays in the conversation: it is replayed on load and the
+model sees it on the next turn.
 
 A client that advertises `clientCapabilities.fs.{readTextFile,writeTextFile}`
 and/or `terminal: true` lets WrongStack operate on the **editor's** filesystem

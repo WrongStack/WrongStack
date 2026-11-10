@@ -55,12 +55,80 @@ describe('the ACP server’s slash commands', () => {
     const commands = createAcpServerCommands({ projectRoot });
     const agent = agentIn(projectRoot);
     const hostFailure = /Cannot read propert|is not a function|undefined is not|of undefined/;
+    // Approved, so the gated commands run too; the ones that write or reach the
+    // network even for `help` are covered by the approval tests below.
+    const sideEffects = new Set([
+      'init',
+      'commit',
+      'push',
+      'prune',
+      'skill-install',
+      'skill-import',
+      'skill-update',
+      'skill-uninstall',
+      'sync',
+      'skill-gen',
+      'prompt-gen',
+    ]);
+    const allow = {
+      requestPermission: vi.fn(async () => ({ outcome: 'selected', optionId: 'allow_once' })),
+    };
     for (const { name } of await commands.list()) {
-      const result = await commands.run(agent, 's1', { name, args: 'help' }, turn().ctx);
+      if (sideEffects.has(name)) continue;
+      const result = await commands.run(agent, 's1', { name, args: 'help' }, turn(allow).ctx);
       expect(result, name).toBeDefined();
       expect(result?.message ?? '', name).not.toMatch(hostFailure);
+      expect(result?.message ?? '', name).not.toMatch(/was not run/);
     }
   }, 120_000);
+
+  it('runs read-only commands without asking and asks before every other one', async () => {
+    // An ACP prompt can be model-written (WrongStack's own ACP client sends a
+    // task as the prompt), so a config or file writer never runs unasked.
+    const commands = createAcpServerCommands({ projectRoot });
+    const agent = agentIn(projectRoot);
+    const ask = vi.fn(async () => ({ outcome: 'selected', optionId: 'reject_once' }));
+    const reads = [
+      ['git', 'status'],
+      ['permissions', 'rules'],
+      ['tuneup', ''],
+      ['acp', 'list'],
+      ['plugin', 'list'],
+      ['bughunt', 'packages/acp'],
+    ] as const;
+    for (const [name, args] of reads) {
+      const result = await commands.run(
+        agent,
+        's1',
+        { name, args },
+        turn({ requestPermission: ask }).ctx,
+      );
+      expect(result?.message ?? '', `${name} ${args}`).not.toMatch(/was not run/);
+    }
+    expect(ask).not.toHaveBeenCalled();
+    const writes = [
+      ['permissions', 'allow bash'],
+      ['plugin', 'install sandbox'],
+      ['tuneup', 'fix'],
+      ['gitid', 'set A a@example.com'],
+      ['acp', 'config claude-code model x'],
+      ['skill-gen', 'x'],
+      ['prompt-gen', 'x'],
+      ['security', 'scan'],
+    ] as const;
+    for (const [name, args] of writes) {
+      const result = await commands.run(
+        agent,
+        's1',
+        { name, args },
+        turn({ requestPermission: ask }).ctx,
+      );
+      expect(result?.message, `${name} ${args}`).toBe(
+        `/${name} was not run: the request was rejected.`,
+      );
+    }
+    expect(ask).toHaveBeenCalledTimes(writes.length);
+  }, 60_000);
 
   it('answers undefined for a name it does not run, so the prompt goes to the model', async () => {
     const commands = createAcpServerCommands({ projectRoot });

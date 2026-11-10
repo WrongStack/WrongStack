@@ -190,4 +190,33 @@ describe('a prompt that names a command', () => {
     await run([{ type: 'text', text: '/git' }]);
     expect(updates[0]?.content?.text).toMatch(/… \(6000 more characters\)$/);
   });
+
+  it('keeps the command exchange for replay and for the model’s next turn', async () => {
+    const appendMessage = vi.fn();
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () =>
+        ({ run: vi.fn(), teardown: vi.fn(), ctx: { state: { appendMessage } } }) as never as Agent,
+      runCommand: async () => ({ message: 'On branch main, clean' }),
+    });
+    await turn(
+      {
+        sessionId: 's2',
+        prompt: [{ type: 'text', text: '/git status' }],
+        signal: new AbortController().signal,
+        cwd: CWD,
+      },
+      () => {},
+    );
+    expect(turn.replay('s2')).toEqual([
+      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: '/git status' } },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'On branch main, clean' },
+      },
+    ]);
+    expect(appendMessage.mock.calls.map(([m]) => m)).toEqual([
+      { role: 'user', content: '/git status' },
+      { role: 'assistant', content: 'On branch main, clean' },
+    ]);
+  });
 });

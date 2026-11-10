@@ -6,8 +6,8 @@
  * The command set is built per ACP session, bound to that session's agent:
  * several commands read their host's conversation, provider and model, and an
  * ACP server runs several sessions at once. The commands that start fleet
- * workers are left out, as this host runs no fleet. A command that changes or
- * deletes something is first put to the user through `session/request_permission`.
+ * workers are left out, as this host runs no fleet. Every command that is not
+ * known to only read is first put to the user through `session/request_permission`.
  */
 import type { AvailableCommand, RunTurnApi } from '@wrongstack/acp/agent';
 import { TOKENS } from '@wrongstack/contracts/kernel';
@@ -24,18 +24,43 @@ import {
 
 /** Commands that start fleet workers; this host has no fleet to start them in. */
 const NEEDS_FLEET = new Set(['spawn', 'delegate', 'director', 'supervisor', 'ensemble']);
-/** Commands that change or delete something; the user approves each run. */
-const DESTRUCTIVE = new Set([
-  'prune',
-  'push',
-  'commit',
-  'init',
-  'skill-install',
-  'skill-import',
-  'skill-update',
-  'skill-uninstall',
-  'sync',
-]);
+/**
+ * The commands that only read, which run without asking. An ACP prompt need not
+ * come from a person — WrongStack's own ACP client sends a model-written task
+ * as the prompt — so every other command is put to the user first. A command
+ * listed with subcommands reads only for those (its first argument); the
+ * prompt-preparing commands only hand a prompt to the next model turn, which
+ * the permission policy governs as any other.
+ */
+const READ_ONLY: Readonly<Record<string, 'any' | readonly string[]>> = {
+  git: 'any',
+  gitcheck: 'any',
+  'scout-stats': 'any',
+  sandbox: 'any',
+  'skill-search': 'any',
+  prompt: 'any',
+  bughunt: 'any',
+  perf: 'any',
+  sechunt: 'any',
+  racehunt: 'any',
+  debloat: 'any',
+  uipolish: 'any',
+  typehunt: 'any',
+  testgap: 'any',
+  prompts: ['', 'list', 'ls', 'view', 'show', 'help'],
+  tuneup: ['', 'deep', 'help'],
+  permissions: ['', 'rules', 'explain', 'help'],
+  acp: ['', 'list', 'help'],
+  gitid: ['', 'help'],
+  plugin: ['', 'list', 'report', 'official', 'help'],
+};
+
+function readsOnly(name: string, args: string): boolean {
+  const rule = READ_ONLY[name];
+  if (rule === undefined) return false;
+  if (rule === 'any') return true;
+  return rule.includes((args.split(/\s+/)[0] ?? '').toLowerCase());
+}
 
 type CommandContext = Parameters<SlashCommand['run']>[1];
 
@@ -82,7 +107,7 @@ export function createAcpServerCommands(deps: AcpServerCommandsDeps): AcpServerC
     async run(agent, sessionId, { name, args }, turn) {
       const command = find(await commandsFor(sessionId, agent), name);
       if (!command) return undefined;
-      if (DESTRUCTIVE.has(command.name) && !(await approved(command, args, turn))) {
+      if (!readsOnly(command.name, args) && !(await approved(command, args, turn))) {
         return { message: `/${command.name} was not run: the request was rejected.` };
       }
       try {

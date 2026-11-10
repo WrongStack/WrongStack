@@ -13,8 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   slash commands to the editor (`available_commands_update`), so they appear in
   its `/` menu, and runs one when a prompt starts with it: `/git status` answers
   with the command's output, and a command that prepares a task runs it as the
-  next turn. Commands that change something ask through the editor's
-  permission prompt first; the fleet commands are not offered over ACP.
+  next turn. Every command that does more than read asks through the
+  editor's permission prompt first, since a prompt can be model-written; the
+  exchange stays in the conversation for replay and for the model's next turn.
+  The fleet commands are not offered over ACP.
 
 ### Fixed
 

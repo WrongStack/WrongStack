@@ -53,7 +53,7 @@ function parsePromptCommand(
 
 /**
  * Run a prompt's command, if it names one. `'done'` ends the turn with the
- * command's message; `'continue'` hands back the prompt to run as a model turn
+ * command's message (sent already, and handed back to record); `'continue'` hands back the prompt to run as a model turn
  * (the command's `runText` in place of its text block, the other blocks kept).
  */
 export async function runPromptCommand(
@@ -62,7 +62,9 @@ export async function runPromptCommand(
   input: RunTurnInput,
   turn: { signal: AbortSignal; api?: RunTurnApi | undefined; emit: (update: unknown) => void },
 ): Promise<
-  { kind: 'done' } | { kind: 'continue'; prompt: RunTurnInput['prompt'] } | { kind: 'none' }
+  | { kind: 'done'; message: string }
+  | { kind: 'continue'; prompt: RunTurnInput['prompt'] }
+  | { kind: 'none' }
 > {
   const command = parsePromptCommand(input.prompt);
   if (!command) return { kind: 'none' };
@@ -80,7 +82,7 @@ export async function runPromptCommand(
   if (message && !turn.signal.aborted) {
     turn.emit({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: message } });
   }
-  if (!result.runText || turn.signal.aborted) return { kind: 'done' };
+  if (!result.runText || turn.signal.aborted) return { kind: 'done', message };
   const prompt = input.prompt.slice();
   prompt[command.index] = { type: 'text', text: result.runText };
   return { kind: 'continue', prompt };
