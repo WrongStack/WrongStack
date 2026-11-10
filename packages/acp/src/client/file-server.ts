@@ -49,8 +49,23 @@ export interface FileServerOptions {
   operations?: FileServerOperations;
 }
 
+/** The part of an open file a bound read uses (`fs.promises.FileHandle` satisfies it). */
+export interface FileServerHandle {
+  stat(): Promise<FileIdentity>;
+  readFile(options: { encoding: 'utf8'; signal: AbortSignal }): Promise<string>;
+  close(): Promise<void>;
+}
+
+export interface FileIdentity {
+  size: number;
+  ino?: number | undefined;
+  dev?: number | undefined;
+}
+
 export interface FileServerOperations {
-  stat(file: string): Promise<{ size: number }>;
+  stat(file: string): Promise<FileIdentity>;
+  /** Without it a read cannot be bound to the file it opened and reads by path. */
+  open?(file: string, flags: 'r'): Promise<FileServerHandle>;
   readFile(file: string, options: { encoding: 'utf8'; signal: AbortSignal }): Promise<string>;
   writeFile(
     file: string,
@@ -64,6 +79,7 @@ export interface FileServerOperations {
 
 const DEFAULT_FILE_OPERATIONS: FileServerOperations = {
   stat: fsp.stat,
+  open: fsp.open,
   readFile: fsp.readFile,
   writeFile: fsp.writeFile,
   realpath: fsp.realpath,
@@ -76,12 +92,20 @@ export interface ReadFileParams {
   path: string;
   line?: number | undefined;
   limit?: number | undefined;
+  /**
+   * `path` is the canonical target a permission decision was made on (see
+   * {@link FileServer.locate}): the read is refused unless it opens exactly
+   * that file, so a symlink swapped in after the decision cannot redirect it.
+   */
+  canonical?: boolean | undefined;
 }
 
 export interface WriteFileParams {
   sessionId: string;
   path: string;
   content: string;
+  /** As for reads: the write must land on the approved canonical target. */
+  canonical?: boolean | undefined;
 }
 
 export type FsErrorCode =
@@ -150,24 +174,7 @@ export class FileServer {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      // Size check before reading to prevent loading a huge file.
-      const stat = await this.operations.stat(safe).catch((err) => {
-        throw mapFsError(err, safe);
-      });
-      if (controller.signal.aborted) {
-        throw new FsError('TIMEOUT', safe, `readTextFile timed out after ${this.timeoutMs}ms`);
-      }
-      if (stat.size > this.maxReadBytes) {
-        throw new FsError(
-          'TOO_LARGE',
-          safe,
-          `file is ${stat.size} bytes, max read is ${this.maxReadBytes} bytes`,
-        );
-      }
-      const content = await this.operations.readFile(safe, {
-        encoding: 'utf8',
-        signal: controller.signal,
-      });
+      const content = await this.readContent(safe, params.canonical === true, controller.signal);
       if (controller.signal.aborted) {
         throw new FsError('TIMEOUT', safe, `readTextFile timed out after ${this.timeoutMs}ms`);
       }
@@ -216,7 +223,9 @@ export class FileServer {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const tmp = `${safe}.${randomBytes(6).toString('hex')}.tmp`;
+    const canonical = params.canonical === true;
     try {
+      if (canonical) await this.assertCanonical(path.dirname(safe));
       await this.operations.writeFile(tmp, params.content, {
         encoding: 'utf8',
         signal: controller.signal,
@@ -232,10 +241,14 @@ export class FileServer {
         throw new FsError('TIMEOUT', safe, `writeTextFile timed out after ${this.timeoutMs}ms`);
       }
       await this.assertRealInside(path.dirname(safe));
+      if (canonical) await this.assertCanonical(path.dirname(safe));
       if (controller.signal.aborted) {
         throw new FsError('TIMEOUT', safe, `writeTextFile timed out after ${this.timeoutMs}ms`);
       }
       await this.operations.rename(tmp, safe);
+      // The rename follows the path once more: a swap at that instant cannot
+      // be undone, but it is reported instead of answered as a success.
+      if (canonical) await this.assertCanonical(safe);
       if (controller.signal.aborted) {
         throw new FsError('TIMEOUT', safe, `writeTextFile timed out after ${this.timeoutMs}ms`);
       }
@@ -325,6 +338,68 @@ export class FileServer {
         tail.push(path.basename(probe));
         probe = parent;
       }
+    }
+  }
+
+  /**
+   * The file's text. A canonical read opens the file, reads that handle, and
+   * then requires the path to still be canonical and to still name the file
+   * it opened (device and inode): a symlink swapped in between the decision
+   * and the open, or in and out again around it, is refused.
+   */
+  private async readContent(
+    safe: string,
+    canonical: boolean,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const open = this.operations.open;
+    if (!canonical || !open) {
+      // Size check before reading to prevent loading a huge file.
+      const stat = await this.operations.stat(safe).catch((err) => {
+        throw mapFsError(err, safe);
+      });
+      this.assertReadableSize(stat.size, safe);
+      return this.operations.readFile(safe, { encoding: 'utf8', signal });
+    }
+    await this.assertCanonical(safe);
+    const handle = await open(safe, 'r').catch((err) => {
+      throw mapFsError(err, safe);
+    });
+    try {
+      const opened = await handle.stat();
+      this.assertReadableSize(opened.size, safe);
+      const content = await handle.readFile({ encoding: 'utf8', signal });
+      await this.assertCanonical(safe);
+      const now = await this.operations.stat(safe).catch((err) => {
+        throw mapFsError(err, safe);
+      });
+      if (now.ino !== opened.ino || now.dev !== opened.dev) {
+        throw new FsError('OUTSIDE_ROOT', safe, 'the file changed while it was being read');
+      }
+      return content;
+    } finally {
+      await handle.close().catch(() => undefined);
+    }
+  }
+
+  private assertReadableSize(size: number, file: string): void {
+    if (size > this.maxReadBytes) {
+      throw new FsError(
+        'TOO_LARGE',
+        file,
+        `file is ${size} bytes, max read is ${this.maxReadBytes} bytes`,
+      );
+    }
+  }
+
+  /** `p` resolves to itself: no symlink has appeared on it since it was approved. */
+  private async assertCanonical(p: string): Promise<void> {
+    const real = await this.operations.realpath(p).catch((err) => {
+      throw mapFsError(err, p);
+    });
+    const same = process.platform === 'win32' ? real.toLowerCase() === p.toLowerCase() : real === p;
+    if (!same) {
+      throw new FsError('OUTSIDE_ROOT', p, 'the path changed after it was approved');
     }
   }
 

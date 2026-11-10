@@ -164,6 +164,7 @@ export async function handleAcpFsRequest(
         path: target,
         line: params.line,
         limit: params.limit,
+        ...(located?.outside === true ? { canonical: true } : {}),
       });
       await sender.sendResult(id, result);
     } else {
@@ -171,6 +172,7 @@ export async function handleAcpFsRequest(
         sessionId: params.sessionId ?? '',
         path: target,
         content: params.content as string,
+        ...(located?.outside === true ? { canonical: true } : {}),
       });
       await sender.sendResult(id, {});
     }

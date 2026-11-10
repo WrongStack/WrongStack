@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An ACP agent's approved file access cannot be redirected by a symlink
+  swapped in afterwards.** A read outside the project now opens the approved
+  target and is refused unless the path still resolves to itself and names
+  the same file once it was read; a write re-checks its directory before the
+  rename and reports a target that changed under it.
 - **The session story shows an ACP leader's real context.** An ACP agent gets
   only the user's message and runs its own system prompt and tools, but the
   story charted the layout of the request WrongStack composed and never sent

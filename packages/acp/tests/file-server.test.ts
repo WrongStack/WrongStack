@@ -588,3 +588,103 @@ describe('FileServer with allowOutsideRoot (features.allowOutsideProjectRoot)', 
     ).rejects.toMatchObject({ code: 'INVALID_PATH' });
   });
 });
+
+describe('FileServer canonical reads and writes (a decision bound to its target)', () => {
+  // The permission policy approved `target`; a symlink swapped in on its path
+  // afterwards must not redirect the read or write to another file.
+  const target = path.join(os.tmpdir(), 'wstack-approved', 'settings.json');
+  const handle = (ino: number, text = 'approved') => ({
+    stat: async () => ({ size: text.length, ino, dev: 1 }),
+    readFile: async () => text,
+    close: async () => {},
+  });
+
+  it('reads the approved file through an open handle', async () => {
+    const open = vi.fn(async () => handle(7));
+    const fs = new FileServer({
+      projectRoot,
+      allowOutsideRoot: true,
+      operations: fakeOperations({
+        realpath: async (p) => p,
+        stat: async () => ({ size: 8, ino: 7, dev: 1 }),
+        open,
+      }),
+    });
+    await expect(
+      fs.readTextFile({ sessionId: 's1', path: target, canonical: true }),
+    ).resolves.toEqual({
+      content: 'approved',
+    });
+    expect(open).toHaveBeenCalledWith(target, 'r');
+  });
+
+  it('refuses when the path no longer resolves to itself', async () => {
+    const open = vi.fn(async () => handle(7));
+    const fs = new FileServer({
+      projectRoot,
+      allowOutsideRoot: true,
+      operations: fakeOperations({ realpath: async () => '/elsewhere/id_rsa', open }),
+    });
+    await expect(
+      fs.readTextFile({ sessionId: 's1', path: target, canonical: true }),
+    ).rejects.toMatchObject({
+      code: 'OUTSIDE_ROOT',
+      message: 'the path changed after it was approved',
+    });
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('refuses a file swapped in for the open and out again', async () => {
+    // The handle is another file (inode 9) while the path names the approved
+    // one (inode 7) before and after: the swap happened around the open.
+    const fs = new FileServer({
+      projectRoot,
+      allowOutsideRoot: true,
+      operations: fakeOperations({
+        realpath: async (p) => p,
+        stat: async () => ({ size: 8, ino: 7, dev: 1 }),
+        open: async () => handle(9, 'PRIVATE'),
+      }),
+    });
+    const read = fs.readTextFile({ sessionId: 's1', path: target, canonical: true });
+    await expect(read).rejects.toMatchObject({
+      code: 'OUTSIDE_ROOT',
+      message: 'the file changed while it was being read',
+    });
+    await expect(read.catch((e: Error) => e.message)).resolves.not.toContain('PRIVATE');
+  });
+
+  it('refuses a write whose directory stopped being canonical before the rename', async () => {
+    let checks = 0;
+    const rename = vi.fn(async () => {});
+    const unlink = vi.fn(async () => {});
+    const fs = new FileServer({
+      projectRoot,
+      allowOutsideRoot: true,
+      operations: fakeOperations({
+        // Canonical at the first check, redirected by the second.
+        realpath: async (p) => (p === path.dirname(target) && ++checks > 1 ? '/elsewhere' : p),
+        rename,
+        unlink,
+      }),
+    });
+    await expect(
+      fs.writeTextFile({ sessionId: 's1', path: target, content: 'x', canonical: true }),
+    ).rejects.toMatchObject({ code: 'OUTSIDE_ROOT' });
+    expect(rename).not.toHaveBeenCalled();
+    expect(unlink).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads by path as before when the caller did not ask for a canonical target', async () => {
+    const open = vi.fn(async () => handle(7));
+    const fs = new FileServer({
+      projectRoot,
+      allowOutsideRoot: true,
+      operations: fakeOperations({ readFile: async () => 'by path', open }),
+    });
+    await expect(fs.readTextFile({ sessionId: 's1', path: target })).resolves.toEqual({
+      content: 'by path',
+    });
+    expect(open).not.toHaveBeenCalled();
+  });
+});
