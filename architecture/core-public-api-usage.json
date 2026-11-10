@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 517,
-      "typeOnly": 389,
+      "files": 513,
+      "typeOnly": 385,
       "runtimeOrMixed": 160
     },
     "@wrongstack/core/boot": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 206,
+      "files": 207,
       "typeOnly": 82,
-      "runtimeOrMixed": 127
+      "runtimeOrMixed": 128
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 977,
+      "files": 976,
       "typeOnly": 74,
-      "runtimeOrMixed": 936
+      "runtimeOrMixed": 935
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -227,12 +227,6 @@
   "usages": [
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/acp/src/agent/server-agent-commands.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/src/agent/server-agent-turn-content.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -258,12 +252,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/acp/tests/server-agent-turn.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/acp/tests/session-commands.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -368,12 +356,6 @@
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/acp-server-commands.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -845,18 +827,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wrongforge-leader/wrongforge-leader-gateway.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wrongforge-leader/wrongforge-leader-provider.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/acp-leader-provider.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -866,12 +836,6 @@
       "file": "packages/cli/tests/acp-server-agent.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/tests/acp-server-commands.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1652,6 +1616,18 @@
       "file": "packages/runtime/src/vision.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-gateway.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -7163,6 +7139,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/standalone-wrongforge-leader.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui/tests/mcp-tasks-browser-smoke.mjs",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11447,12 +11429,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/acp-server-commands.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/acp-server-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13193,18 +13169,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/wrongforge-leader/wrongforge-leader-gateway.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/cli/src/wrongforge-leader/wrongforge-leader-provider.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/acp-server-agent.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14766,6 +14730,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/vision.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-gateway.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/wrongforge-leader/wrongforge-leader-provider.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

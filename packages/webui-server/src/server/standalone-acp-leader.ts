@@ -1,13 +1,14 @@
 /**
  * An ACP agent (Claude Code, through the user's own install) as the leader of
  * a standalone-engine conversation — `provider: "acp"`, `model: "claude-code"`
- * — exactly as the CLI runs it (wiring/provider.ts registers the factory,
+ * — and the machine's WrongForge the same way (`provider: "wrongforge"`),
+ * exactly as the CLI runs them (wiring/provider.ts registers the factory,
  * wiring/lifecycle-plugins.ts binds the host, webui-server.ts resolves each
  * tab's agent, cli-entry-point.ts closes the agent sessions on exit).
  *
- * Without this the engine behind WebUI/desktop had no `acp` factory: a profile
- * whose provider was `acp` failed to boot ("needs an explicit family"), and the
- * pickers never offered it.
+ * Without this the engine behind WebUI/desktop had no `acp` or `wrongforge`
+ * factory: a profile whose provider was either failed to boot ("needs an
+ * explicit family"), and the pickers never offered them.
  */
 import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { Config, Provider } from '@wrongstack/contracts/types';
@@ -26,32 +27,37 @@ import {
   createAcpLeaderProviderFactory,
   setAcpLeaderSessionAgents,
 } from '@wrongstack/runtime/acp-leader';
+import { drainRemoteWork } from '@wrongstack/runtime/acp-leader-host';
+import {
+  createWrongForgeLeaderProviderFactory,
+  wrongForgeLeaderPickable,
+} from '@wrongstack/runtime/wrongforge-leader';
 import type { HostProvider } from './provider/host-providers.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 
 /**
- * Register the ACP leader factory. Inert unless the conversation names `acp`;
- * its side requests (titles, summaries, the refiner, WrongStack subagents) go
- * to `acp.leader.sideModel`, built here the way a model switch builds one.
+ * Register the agent leader factories (ACP, WrongForge). Each is inert unless
+ * the conversation names it; their side requests (titles, summaries, the
+ * refiner, WrongStack subagents) go to `acp.leader.sideModel`, built here the
+ * way a model switch builds one.
  */
 export function registerStandaloneAcpLeaderProvider(
   providerRegistry: ProviderRegistry,
   bootConfig: Config,
 ): void {
-  providerRegistry.register(
-    createAcpLeaderProviderFactory({
-      bootConfig,
-      buildProvider: (providerId, live) => buildSideProvider(providerRegistry, live, providerId),
-    }),
-  );
+  const buildProvider = (providerId: string, live: Config) =>
+    buildSideProvider(providerRegistry, live, providerId);
+  providerRegistry.register(createAcpLeaderProviderFactory({ bootConfig, buildProvider }));
+  providerRegistry.register(createWrongForgeLeaderProviderFactory({ bootConfig, buildProvider }));
 }
 
 /**
  * The providers this engine serves itself, listed beside the saved ones in the
- * pickers: `acp` with one model per ACP agent installed here (none → no row).
+ * pickers: `acp` with one model per ACP agent installed here, and `wrongforge`
+ * with the models the machine's WrongForge serves (none set up → no row).
  */
 export function standaloneHostProviders(config: Config | undefined): HostProvider[] {
-  return acpLeaderPickable(config);
+  return [...acpLeaderPickable(config), ...wrongForgeLeaderPickable()];
 }
 
 /** A side model's provider: its saved entry, through WrongProxy when that is on. */
@@ -83,7 +89,7 @@ export interface StandaloneAcpLeaderHostInput {
 }
 
 export interface StandaloneAcpLeaderHost {
-  /** Close every live agent session and unbind (engine shutdown). */
+  /** Close every live agent session, let task cancellations finish and unbind (engine shutdown). */
   dispose(): Promise<void>;
 }
 
@@ -119,6 +125,8 @@ export function bindStandaloneAcpLeaderHost(
       if (disposed) return;
       disposed = true;
       await closeAcpLeaderSessions();
+      // A WrongForge turn cut off by the shutdown cancels its task over HTTP.
+      await drainRemoteWork();
       // Another host bound in this process since (tests start several): leave it.
       if (acpLeaderHost() === bound) {
         bindAcpLeaderHost(undefined);

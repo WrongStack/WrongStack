@@ -20,6 +20,12 @@
  * process-exit handshake around it.
  */
 
+// Shared with the standalone engine: the WrongForge leader's tasks register here
+// wherever they run. The normal 500ms exit grace follows the drain.
+import { drainRemoteWork } from '@wrongstack/runtime/acp-leader-host';
+
+export { deferShutdownForRemoteWork } from '@wrongstack/runtime/acp-leader-host';
+
 interface ShutdownCleanup {
   /**
    * Async cleanup. Called exactly once across all signals. May throw — errors
@@ -37,38 +43,6 @@ interface ShutdownHandle {
   uninstall: () => void;
   /** True iff cleanup has been kicked off (by any signal). */
   get cleanupStarted(): boolean;
-}
-
-const pendingRemoteWork = new Set<Promise<void>>();
-
-/** Keep signal shutdown from cutting off an owned remote task's cancellation. */
-export function deferShutdownForRemoteWork(): () => void {
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  pendingRemoteWork.add(pending);
-  return () => {
-    pendingRemoteWork.delete(pending);
-    release();
-  };
-}
-
-async function drainRemoteWork(): Promise<void> {
-  if (pendingRemoteWork.size === 0) return;
-  let deadline: ReturnType<typeof setTimeout> | undefined;
-  try {
-    // Remote cancellation has a 2s HTTP deadline; a broken caller must still
-    // not hold the process forever. The normal 500ms exit grace follows this.
-    await Promise.race([
-      Promise.all([...pendingRemoteWork]),
-      new Promise<void>((resolve) => {
-        deadline = setTimeout(resolve, 2500);
-      }),
-    ]);
-  } finally {
-    clearTimeout(deadline);
-  }
 }
 
 /**

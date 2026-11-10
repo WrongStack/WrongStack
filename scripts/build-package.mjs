@@ -405,6 +405,8 @@ const profiles = {
       // Their shared state lives on globalThis (acp-leader/acp-leader-host.ts).
       'acp-leader': 'src/acp-leader.ts',
       'acp-leader-host': 'src/acp-leader-host.ts',
+      // The WrongForge leader reads the same globalThis binding.
+      'wrongforge-leader': 'src/wrongforge-leader.ts',
       'plugin-management': 'src/plugin-management.ts',
     },
     external: [

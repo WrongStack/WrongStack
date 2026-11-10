@@ -102,6 +102,10 @@
       "types": "./dist/acp-leader-host.d.ts",
       "import": "./dist/acp-leader-host.js"
     },
+    "./wrongforge-leader": {
+      "types": "./dist/wrongforge-leader.d.ts",
+      "import": "./dist/wrongforge-leader.js"
+    },
     "./plugin-management": {
       "types": "./dist/plugin-management.d.ts",
       "import": "./dist/plugin-management.js"

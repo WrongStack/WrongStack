@@ -194,6 +194,12 @@ describe('standalone model-runtime middleware', () => {
     expect((await send('plain', 'thinker')).reasoning).toBeUndefined();
   });
 
+  it('applies the effort to a WrongForge-led tab, which has no catalog entry', async () => {
+    const { send } = setup({ reasoning: { mode: 'on', effort: 'xhigh' } });
+
+    expect((await send('wrongforge', 'claude-opus-5-5')).reasoning?.effort).toBe('xhigh');
+  });
+
   it('applies the cache TTL and a setting saved while running', async () => {
     const { send, savePrefs } = setup(undefined);
     expect((await send('reasoner', 'thinker')).cache).toBeUndefined();

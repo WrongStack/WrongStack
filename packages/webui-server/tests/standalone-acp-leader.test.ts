@@ -66,6 +66,8 @@ vi.mock('@wrongstack/fleet', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wrongstack/fleet')>()),
   installedBridgeAgents: (cfg: { agents?: Record<string, unknown> } | undefined) =>
     cfg?.agents ? Object.keys(cfg.agents) : [],
+  // The pickers also list WrongForge: none here, whatever this machine has set up.
+  resolveWrongForgeEndpoint: () => undefined,
 }));
 
 const { AcpLeaderProvider, acpLeaderHost, acpLeaderSessionAgent, bindAcpLeaderHost } = await import(

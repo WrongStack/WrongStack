@@ -582,9 +582,6 @@
     "packages/cli/src/wiring/wrongtrace-telemetry.ts": [
       "buildWrongTraceTelemetryReport"
     ],
-    "packages/cli/src/wrongforge-leader/wrongforge-leader-provider.ts": [
-      "WrongForgeLeaderProvider"
-    ],
     "packages/codebase-index-mcp/src/main.ts": [
       "resolveIndexProjectRoot"
     ],

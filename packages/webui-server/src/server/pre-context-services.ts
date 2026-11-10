@@ -272,7 +272,7 @@ export async function createPreContextServices(
 
   // ── Provider registry ──
   const providerRegistry = new ProviderRegistry();
-  // An ACP agent as the leader (`acp` / `claude-code`): never a catalog entry.
+  // An agent as the leader (`acp` / `claude-code`, `wrongforge`): never a catalog entry.
   registerStandaloneAcpLeaderProvider(providerRegistry, config);
   try {
     const factories = await buildProviderFactoriesFromRegistry({

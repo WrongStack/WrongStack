@@ -20,6 +20,7 @@ import {
   installPipelineErrorBoundaries,
 } from '@wrongstack/core/agent';
 import { createModelRuntimeMiddleware } from '@wrongstack/core/execution';
+import { WRONGFORGE_AGENT_ID, WRONGFORGE_REASONING } from '@wrongstack/fleet';
 import { createPromptJournalToolCallRecorder } from '@wrongstack/runtime/prompt-journal';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import { createStandalonePromptJournalRecorder } from './standalone-prompt-journal.js';
@@ -56,6 +57,9 @@ export function createStandaloneModelRuntimeMiddleware(deps: {
     getReasoningConfig: () => undefined,
     resolveReasoningConfig: async (req, bound) => {
       const provider = bound ?? deps.getProvider();
+      // WrongForge has no catalog entry; it clamps the effort per model itself.
+      const saved = deps.getConfig().providers?.[provider.id];
+      if ((saved?.type ?? provider.id) === WRONGFORGE_AGENT_ID) return WRONGFORGE_REASONING;
       const model = await resolveProviderModelMetadata(
         deps.modelsRegistry,
         provider.id,
