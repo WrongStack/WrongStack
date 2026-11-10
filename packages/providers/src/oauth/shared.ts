@@ -147,6 +147,9 @@ export interface LoopbackOptions {
  * Resolves once listening (or once it fails to bind — in which case `bound`
  * is false and the caller falls back to manual paste).
  */
+const EPHEMERAL_LISTEN_RETRIES = 3;
+const EPHEMERAL_LISTEN_BACKOFF_MS = 25;
+
 export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServer> {
   const { port, fallbackPorts = [], host, path, expectedState, signal } = opts;
   let resolveCode: (v: { code: string; state: string; clientId?: string } | null) => void =
@@ -278,7 +281,16 @@ export function startLoopbackServer(opts: LoopbackOptions): Promise<LoopbackServ
       });
     };
 
+    let ephemeralRetries = 0;
     server.on('error', () => {
+      // Port 0 asks the OS for any free port, so a failure there is transient
+      // (seen on a loaded Windows host) rather than "this port is taken":
+      // ask again a few times before falling back to manual entry.
+      if ((ports[index] ?? port) === 0 && ephemeralRetries < EPHEMERAL_LISTEN_RETRIES) {
+        ephemeralRetries += 1;
+        setTimeout(() => server.listen(0, host), EPHEMERAL_LISTEN_BACKOFF_MS * ephemeralRetries);
+        return;
+      }
       index += 1;
       const nextPort = ports[index];
       if (nextPort !== undefined) {

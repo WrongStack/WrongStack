@@ -72,6 +72,10 @@ can lead desktop and WebUI conversations.
   "spawn Unknown system error -1073283067" instead of EPERM, and the tool
   failed with "spawn failed" where a moment later the command would have run.
   It is now retried the same way.
+- **Browser sign-in keeps its callback listener on a busy machine.** The
+  listener asks the OS for any free port, and one failed attempt there sent
+  ChatGPT, OpenRouter and Antigravity sign-in to manual code entry with "Could
+  not start the callback listener". It now asks again a few times first.
 
 ## [1.5.5] — 2026-11-09
 
