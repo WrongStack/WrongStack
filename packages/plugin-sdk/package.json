@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugin-sdk",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "private": true,
   "description": "Authoring SDK for WrongStack plugins — the plugin contract types, definePlugin, and shared runtime helpers. Third-party plugins should depend on this package only.",
   "license": "MIT",

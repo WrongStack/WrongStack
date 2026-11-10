@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/agent-catalog",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "private": true,
   "license": "MIT",
   "description": "WrongStack agent role catalog: phase agent definitions, capability routing metadata, lazy role prompts (shipped in instructions/agents), dispatch log and project-agent identity, learning and roster files. Sits below @wrongstack/core.",
