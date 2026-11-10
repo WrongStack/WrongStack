@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`grep -n` output is no longer flagged as a Telegram bot token.** The
+  secret scanner's rule took any digits, a colon and 20 or more characters,
+  so a line such as `118:SOME_LONG_IDENTIFIER` was reported and redacted,
+  interrupting automated runs and prompting a needless token revocation
+  (#443). It now takes the real shape: a 6–12 digit bot ID, a colon and
+  exactly 35 secret characters.
+
 ## [1.5.6] — 2026-11-10
 
 Editors connected over ACP get WrongStack's slash commands, and an ACP or

@@ -96,11 +96,13 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   },
   // Twilio
   { type: 'twilio_sid', regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g },
-  // Telegram
+  // Telegram: a bot ID, a colon, then exactly 35 secret characters. Any digit
+  // run and 20+ characters also matched `grep -n` output such as
+  // `118:SOME_LONG_IDENTIFIER` (#443).
   {
     type: 'telegram_bot_token',
     regex:
-      /(?:(?<![A-Za-z0-9_])|(?<=(?:^|[^A-Za-z0-9_])bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+      /(?:(?<![A-Za-z0-9_])|(?<=(?:^|[^A-Za-z0-9_])bot))\d{6,12}:[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])/g,
   },
   // JWT
   {

@@ -175,10 +175,20 @@ describe('postgres_uri query-parameter password detection', () => {
 });
 
 describe('telegram_bot_token detection', () => {
-  const token = '123456:ABCDEFghijklmnopqrstuvwxyz_1234';
+  // Real shape: a bot ID, a colon and exactly 35 secret characters. Built at
+  // runtime so no token-shaped literal sits in the source.
+  const token = ['1234567890', ':', 'AAH', 'x'.repeat(16), '_-', 'Y'.repeat(14)].join('');
 
   it.each([
     ['raw token', token, true],
+    ['env assignment', `TELEGRAM_BOT_TOKEN=${token}`, true],
+    ['quoted', `"${token}"`, true],
+    ['api url', `https://api.telegram.org/bot${token}/getMe`, true],
+    // #443: `grep -n` output is a line number, a colon and the line.
+    ['grep -n output', '118:COMPARISON_TELEMETRY_DATABASE_URL_FOR_TESTS', false],
+    ['grep -n long line', `4242:${'A'.repeat(35)}`, false],
+    ['secret one short', token.slice(0, -1), false],
+    ['secret one long', `${token}Z`, false],
     ['url /bot prefix', '/bot' + token, true],
     ['url t.me/bot prefix', 't.me/bot' + token, true],
     ['space-prefixed bot', ' bot' + token, true],
