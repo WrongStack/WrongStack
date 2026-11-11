@@ -138,7 +138,8 @@
   ],
   "patchedDependencies": {
     "ws@8.22.1": "patches/ws@8.22.1.patch",
-    "jsdom@31.0.0": "patches/jsdom@31.0.0.patch"
+    "jsdom@31.0.0": "patches/jsdom@31.0.0.patch",
+    "ink@8.0.0": "patches/ink@8.0.0.patch"
   },
   "trustedDependencies": [
     "esbuild",

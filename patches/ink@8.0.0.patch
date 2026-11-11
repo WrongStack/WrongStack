@@ -1,0 +1,77 @@
+diff --git a/build/output.js b/build/output.js
+index 10a9456..3562a60 100644
+--- a/build/output.js
++++ b/build/output.js
+@@ -31,6 +31,7 @@ class OutputCaches {
+     widths = new Map();
+     blockWidths = new Map();
+     styledChars = new Map();
++    lines = new Map();
+     getStyledChars(line) {
+         let cached = this.styledChars.get(line);
+         if (cached === undefined) {
+@@ -61,9 +62,26 @@ class OutputCaches {
+         return cached;
+     }
+ }
++// Text repeats from frame to frame, so the tokenized forms are kept for the
++// life of the process instead of being rebuilt for every frame. Entries are
++// never mutated after creation; the maps are emptied when they grow large.
++const sharedCaches = new OutputCaches();
++const SHARED_CACHE_LIMIT = 20000;
++const trimSharedCaches = () => {
++    for (const cache of [
++        sharedCaches.widths,
++        sharedCaches.blockWidths,
++        sharedCaches.styledChars,
++        sharedCaches.lines,
++    ]) {
++        if (cache.size > SHARED_CACHE_LIMIT) {
++            cache.clear();
++        }
++    }
++};
+ export default class Output {
+     operations = [];
+-    caches = new OutputCaches();
++    caches = sharedCaches;
+     width;
+     height;
+     constructor(options) {
+@@ -75,16 +93,20 @@ export default class Output {
+         const { text, transformers } = operation;
+         let { x, y } = operation;
+         // Preserve styles across explicit newlines before clipping individual rows.
+-        const characterLines = [[]];
+-        for (const character of this.caches.getStyledChars(text)) {
+-            if (character.value === '\n') {
+-                characterLines.push([]);
+-            }
+-            else {
+-                characterLines.at(-1).push(character);
++        let lines = this.caches.lines.get(text);
++        if (lines === undefined) {
++            const characterLines = [[]];
++            for (const character of this.caches.getStyledChars(text)) {
++                if (character.value === '\n') {
++                    characterLines.push([]);
++                }
++                else {
++                    characterLines.at(-1).push(character);
++                }
+             }
++            lines = characterLines.map(line => styledCharsToString(line));
++            this.caches.lines.set(text, lines);
+         }
+-        let lines = characterLines.map(line => styledCharsToString(line));
+         if (clip) {
+             // Two nested clips can intersect to nothing. Nothing is visible, so bail out before slicing.
+             if (isClipEmpty(clip)) {
+@@ -228,6 +250,7 @@ export default class Output {
+         return styledCharsToString(result);
+     }
+     get() {
++        trimSharedCaches();
+         // Initialize output array with a specific set of rows, so that margin/padding at the bottom is preserved
+         const output = [];
+         for (let y = 0; y < this.height; y++) {
