@@ -403,10 +403,16 @@ export interface SessionWriter {
    */
   writeInFlightMarker(context: string): Promise<void>;
   /**
-   * Writes an `in_flight_end` event. Call on every clean exit
+  /** Writes an `in_flight_end` event. Call on every clean exit
    * point (after a successful iteration, after the user issues
    * /exit, after a graceful SIGINT, etc.). The `reason` is
    * surfaced in the session log for postmortem review.
    */
   clearInFlightMarker(reason: 'clean' | 'aborted' | 'recovered'): Promise<void>;
+  /** Currently active session tree branch (`'main'` by default). */
+  readonly activeBranchId?: string | undefined;
+  /** Next monotonic event sequence index to be stamped by this writer. */
+  readonly nextSeq?: number | undefined;
+  /** Switch the active branch stamped onto subsequent appended events. */
+  setActiveBranch?(branchId: string): void;
 }

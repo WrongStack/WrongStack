@@ -11,6 +11,19 @@ export interface ContextConfig {
   /** Enable automatic compaction when thresholds are crossed (default: true). */
   autoCompact?: boolean | undefined;
   /**
+   * Cap auto-compaction at the model's long-context PRICE CLIFF (default: true).
+   *
+   * Some providers bill the SAME model at a step-up rate once one request's
+   * context crosses a published boundary (2x above 200K on the Anthropic/Gemini
+   * long-context tiers). When enabled, the compaction ladder fires at
+   * `min(threshold x window, cliff)` — so a 1M-token window does not fill into
+   * the expensive tier — and the post-compaction target lands under it too.
+   * The overflow-safety (hard) line and the real window are unchanged: a 2x
+   * price is not a provider rejection. Set to false to compact purely by
+   * window percentage; models with no published price tier are never capped.
+   */
+  priceCliff?: boolean | undefined;
+  /**
    * Model used for LLM-assisted summarization in IntelligentCompactor.
    * Falls back to the main model when omitted.
    */

@@ -76,4 +76,18 @@ export interface FileEventMap {
     ready: boolean;
     reason: 'index_complete';
   };
+  /**
+   * Fired after a session branch switch or rewind materializes a CAS workspace
+   * snapshot onto disk so file watchers, LSP servers, and CodeMap indexes can
+   * refresh incrementally without full-project rescans.
+   */
+  'workspace.files_materialized': {
+    sessionId: string;
+    branchId: string;
+    targetRoot: string;
+    writtenFiles: readonly string[];
+    deletedFiles: readonly string[];
+    manifestHash: string;
+    at: number;
+  };
 }

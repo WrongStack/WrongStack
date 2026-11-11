@@ -199,6 +199,123 @@ export interface PluginJev {
   ): Promise<import('./typesafe.js').SystemOneResult>;
 }
 
+/** Semantic tone palette shared by TUI and WebUI/Desktop declarative plugin slots. */
+export type PluginUiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent';
+
+export interface PluginStatusChipSpec {
+  id: string;
+  /** Sanitized short label (truncated by the host to <= 24 terminal columns). */
+  text: string;
+  icon?: string | undefined;
+  tone?: PluginUiTone | undefined;
+  tooltip?: string | undefined;
+  /** Sort priority bounded to [-100, 100]; higher renders earlier. Default: 0. */
+  priority?: number | undefined;
+  /** Optional slash command or panel identifier triggered when activated. */
+  command?: string | undefined;
+}
+
+export interface PluginStatusChipHandle {
+  update(patch: Partial<Omit<PluginStatusChipSpec, 'id'>>): void;
+  dispose(): void;
+}
+
+export type PluginViewNode =
+  | {
+      kind: 'text';
+      text: string;
+      tone?: PluginUiTone | undefined;
+      dim?: boolean | undefined;
+      bold?: boolean | undefined;
+    }
+  | {
+      kind: 'kv';
+      items: Array<{ label: string; value: string; tone?: PluginUiTone | undefined }>;
+    }
+  | {
+      kind: 'table';
+      columns: string[];
+      rows: string[][];
+      maxRows?: number | undefined;
+    }
+  | {
+      kind: 'badges';
+      badges: Array<{ label: string; tone?: PluginUiTone | undefined }>;
+    }
+  | {
+      kind: 'progress';
+      label: string;
+      current: number;
+      total: number;
+      tone?: PluginUiTone | undefined;
+    }
+  | {
+      kind: 'code';
+      language?: string | undefined;
+      content: string;
+      maxLines?: number | undefined;
+    }
+  | {
+      kind: 'markdown';
+      content: string;
+    }
+  | {
+      kind: 'log';
+      lines: Array<{
+        ts?: string | undefined;
+        level?: PluginUiTone | undefined;
+        text: string;
+      }>;
+    }
+  | {
+      kind: 'stack';
+      direction: 'vertical' | 'horizontal';
+      gap?: number | undefined;
+      children: PluginViewNode[];
+    };
+
+export interface PluginPanelAction {
+  id: string;
+  label: string;
+  shortcut?: string | undefined;
+  mutating?: boolean | undefined;
+}
+
+export interface PluginPanelSpec {
+  id: string;
+  title: string;
+  render(): PluginViewNode | Promise<PluginViewNode>;
+  actions?: PluginPanelAction[] | undefined;
+  onAction?(actionId: string): void | Promise<void>;
+}
+
+export interface PluginPanelHandle {
+  invalidate(): void;
+  dispose(): void;
+}
+
+export interface PluginPromptOptions<T extends string = string> {
+  title: string;
+  message?: string | undefined;
+  kind: 'select' | 'confirm' | 'input';
+  options?: Array<{ value: T; label: string; hint?: string | undefined }> | undefined;
+  timeoutMs?: number | undefined;
+}
+
+/**
+ * Host-neutral declarative UI extension surface (`api.ui`).
+ * Renders safely in both Ink TUI and WebUI/Desktop without exposing raw React
+ * instances across plugin boundaries. Gated by `capabilities.ui`.
+ */
+export interface PluginUiAPI {
+  registerStatusChip(initial: PluginStatusChipSpec): PluginStatusChipHandle;
+  registerPanel(spec: PluginPanelSpec): PluginPanelHandle;
+  prompt<T extends string = string>(
+    opts: PluginPromptOptions<T>,
+  ): Promise<T | boolean | string | null>;
+  notify(message: string, opts?: { tone?: PluginUiTone | undefined }): void;
+}
+
 export interface PluginPipelines {
   request: ReadonlyPipeline<Request>;
   response: ReadonlyPipeline<Response>;
@@ -314,6 +431,17 @@ export interface PluginAPI {
   llm?: PluginLLM | undefined;
   /** Available to first-party plugins; a call still requires a ready Jev account. */
   jev?: PluginJev | undefined;
+  /**
+   * Host-neutral declarative UI slot surface (status chips, panels, prompts,
+   * notices). Optional on headless/minimal hosts; always guard `if (!api.ui)`.
+   */
+  ui?: PluginUiAPI | undefined;
+  /**
+   * Scoped lifetime signal that aborts automatically when this plugin unloads
+   * or hot-reloads via `/plugin reload`. Pass to timers, `fetch`, or child
+   * processes for zero-boilerplate teardown.
+   */
+  signal?: AbortSignal | undefined;
 }
 
 /**
@@ -360,6 +488,13 @@ export interface PluginCapabilities {
    * `LoadPluginsOptions.enforceCapabilities`.
    */
   hooks?: boolean | undefined;
+  /**
+   * Will register declarative UI status chips, panels, prompts, or notices
+   * via `api.ui`. When explicitly `false` (or omitted under strict capability
+   * enforcement for external plugins when `ui` is gated), `api.ui` calls
+   * warn or throw `PluginError`.
+   */
+  ui?: boolean | undefined;
 }
 
 /**

@@ -13,6 +13,7 @@
 import type { TextBlock, ToolUseBlock } from './blocks.js';
 import type { AgentRunContext } from './context.js';
 import type { Logger } from './logger.js';
+import type { Message } from './messages.js';
 import type { UserInputPayload } from './pipeline-payloads.js';
 import type { Request, Response } from './provider.js';
 import type { RunResult } from './run-result.js';
@@ -135,6 +136,44 @@ export type AfterToolExecutionHook = (
   outputs: ToolExecutionOutput[],
 ) => void | Promise<void>;
 
+// ── Compaction & branch fold extension ──────────────────────────────
+
+/**
+ * Context passed to `beforeCompact` hooks right before context compaction or
+ * exploratory branch fold-back synthesis runs.
+ */
+export interface CompactionHookInput {
+  readonly sessionId?: string | undefined;
+  readonly branchId?: string | undefined;
+  readonly branchName?: string | undefined;
+  readonly messages: readonly Message[];
+  readonly targetTokens?: number | undefined;
+  readonly reason: 'threshold' | 'manual' | 'branch_fold';
+}
+
+/**
+ * Optional directive returned by a `beforeCompact` hook.
+ *
+ * Host invariant: even when a plugin supplies `customSummary` or
+ * `additionalInstructions`, the host scrubs secrets via `SecretScrubber`
+ * before persisting or injecting into context.
+ */
+export interface CompactionHookResult {
+  /** Message indices in `input.messages` that must remain verbatim (not collapsed). */
+  readonly pinnedMessageIndices?: readonly number[] | undefined;
+  /** Extra domain-specific guidance appended to the summarization prompt/digest. */
+  readonly additionalInstructions?: string | undefined;
+  /** Optional custom summary replacing default digest synthesis. */
+  readonly customSummary?: string | undefined;
+}
+
+/**
+ * Called before context compaction or `/tree fold` synthesis.
+ */
+export type BeforeCompactHook = (
+  input: CompactionHookInput,
+) => CompactionHookResult | void | Promise<CompactionHookResult | void>;
+
 // ── Aggregate extension type ────────────────────────────────────────
 
 /**
@@ -170,6 +209,7 @@ export interface AgentExtension {
   wrapProviderRunner?: ProviderRunnerWrapper | undefined;
   beforeToolExecution?: BeforeToolExecutionHook | undefined;
   afterToolExecution?: AfterToolExecutionHook | undefined;
+  beforeCompact?: BeforeCompactHook | undefined;
 }
 
 // ── Registry contract ────────────────────────────────────────────────
@@ -213,4 +253,5 @@ export interface ExtensionRegistryPort {
     ...args: Parameters<BeforeToolExecutionHook>
   ): Promise<Parameters<BeforeToolExecutionHook>[1]>;
   runAfterToolExecution(...args: Parameters<AfterToolExecutionHook>): Promise<void>;
+  runBeforeCompact(input: CompactionHookInput): Promise<CompactionHookResult>;
 }

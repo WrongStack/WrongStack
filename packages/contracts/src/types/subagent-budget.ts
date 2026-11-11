@@ -83,7 +83,13 @@ export interface SubagentBudgetOptions {
 export interface BudgetUsage {
   iterations: number;
   toolCalls: number;
-  tokens: { input: number; output: number; total: number };
+  tokens: {
+    input: number;
+    output: number;
+    cacheRead?: number | undefined;
+    cacheWrite?: number | undefined;
+    total: number;
+  };
   costUsd: number;
   elapsedMs: number;
 }

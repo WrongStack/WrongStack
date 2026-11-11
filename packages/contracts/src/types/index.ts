@@ -366,6 +366,7 @@ export type {
   SubagentRunOutcome,
   SubagentSpawnLineage,
   SubagentStructuredReport,
+  SubagentTaskUsage,
   TaskDelegation,
   TaskResult,
   TaskSpec,
@@ -421,8 +422,17 @@ export type {
   PluginLLM,
   PluginLLMOptions,
   PluginLLMResult,
+  PluginPanelAction,
+  PluginPanelHandle,
+  PluginPanelSpec,
   PluginPipelines,
+  PluginPromptOptions,
   PluginRuntime,
+  PluginStatusChipHandle,
+  PluginStatusChipSpec,
+  PluginUiAPI,
+  PluginUiTone,
+  PluginViewNode,
   ProviderAuthRegistryView,
   ProviderFactory,
   ProviderRegistryView,
@@ -527,6 +537,8 @@ export type {
   ResumeValidation,
   SessionArchiveIdleResult,
   SessionArchiveResult,
+  SessionBranchDescriptor,
+  SessionBranchStatus,
   SessionData,
   SessionEvent,
   SessionForkOptions,
@@ -539,6 +551,7 @@ export type {
   SessionStoragePolicy,
   SessionStore,
   SessionSummary,
+  SessionTreeSnapshot,
   SessionWriter,
   WorkspaceCheckpointRef,
   WorkspaceMaterializationResult,
@@ -616,11 +629,8 @@ export type {
   SystemPromptBuilder,
   SystemPromptRegions,
 } from './system-prompt.js';
-// ── system-prompt (5 symbols) ──
 export { flattenSystemPromptRegions } from './system-prompt.js';
-// ── system-prompt-contributor (1 symbols) ──
 export type { SystemPromptContributor } from './system-prompt-contributor.js';
-// ── task-graph (15 symbols) ──
 export type {
   CriticalPathResult,
   SerializableTaskGraph,
@@ -637,7 +647,6 @@ export type {
   TaskStatus,
   TaskType,
 } from './task-graph.js';
-// ── token-counter (2 symbols) ──
 export type {
   CacheStats,
   LastRequestCacheStats,
@@ -657,7 +666,6 @@ export type {
   ToolSettlement,
   ToolStreamEvent,
 } from './tool.js';
-// ── tool (11 symbols) ──
 export { ToolErrorCategory } from './tool.js';
 export type {
   ConfirmAwaiter,
@@ -670,9 +678,7 @@ export type {
   ToolExecutorLike,
   ToolExecutorStrategy,
 } from './tool-executor.js';
-// ── tool-executor (12 symbols) ──
 export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';
-// ── tool-markers (1 symbols) ──
 export { MALFORMED_ARG_MARKERS } from './tool-markers.js';
 export type {
   UserInputAnswer,
@@ -684,7 +690,5 @@ export type {
   UserInputResponse,
   UserInputTab,
 } from './user-input.js';
-// ── utility-types (1 symbols) ──
 export type { DistributiveOmit } from './utility-types.js';
-// ── worktree (1 symbols) ──
 export type { WorktreeManagerPort } from './worktree.js';

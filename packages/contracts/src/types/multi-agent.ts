@@ -464,6 +464,15 @@ export interface SubagentStructuredReport {
   remaining_work?: string | undefined;
 }
 
+export interface SubagentTaskUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number | undefined;
+  cacheWriteTokens?: number | undefined;
+  totalTokens: number;
+  costUsd: number;
+}
+
 export interface TaskResult<T = unknown> {
   subagentId: string;
   taskId: string;
@@ -478,6 +487,8 @@ export interface TaskResult<T = unknown> {
   report?: SubagentStructuredReport | undefined;
   /** Useful incomplete work captured before timeout/abort/failure. */
   partial?: SubagentPartialResult | undefined;
+  /** Token and USD spend recorded during this task execution. */
+  usage?: SubagentTaskUsage | undefined;
   iterations: number;
   toolCalls: number;
   durationMs: number;
@@ -645,6 +656,7 @@ export interface SubagentRunContext {
 export interface SubagentRunOutcome {
   result?: unknown | undefined;
   report?: SubagentStructuredReport | undefined;
+  usage?: SubagentTaskUsage | undefined;
   iterations: number;
   toolCalls: number;
 }

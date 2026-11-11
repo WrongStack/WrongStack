@@ -165,6 +165,13 @@ export interface SessionEventMap {
       | undefined;
     /** Adaptive trigger signals observed alongside token pressure. */
     signals?: { repeatedReadCount?: number | undefined } | undefined;
+    /**
+     * The long-context price cliff that capped this pass — the published
+     * boundary plus the absolute trigger the ladder actually used. Present only
+     * when the cliff (not window fill) drove the decision, so a subscriber can
+     * tell a cost-driven compaction from a capacity-driven one.
+     */
+    priceCliff?: { cliffTokens: number; triggerTokens: number } | undefined;
     /** Full compaction report from the compactor. */
     report: { before: number; after: number; reductions: { phase: string; saved: number }[] };
     /** Whether aggressive (summary) mode was used. */
@@ -315,6 +322,20 @@ export interface SessionEventMap {
     sessionId?: string | undefined;
     toPromptIndex: number;
     restoredEvents: number;
+  };
+  /** Fired after a live session switches its active branch in the session DAG. */
+  'session.branch_switched': {
+    sessionId: string;
+    fromBranchId: string;
+    toBranchId: string;
+    branchName: string;
+    workspaceRestored: boolean;
+  };
+  /** Fired after a plugin is hot-reloaded or dynamically loaded via `reloadPlugin`. */
+  'plugin.reloaded': {
+    name: string;
+    version?: string | undefined;
+    durationMs: number;
   };
   /**
    * Auto-proceed countdown tick, emitted once per second by the REPL while

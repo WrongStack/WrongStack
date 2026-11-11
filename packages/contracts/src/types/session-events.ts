@@ -64,6 +64,10 @@ export type SessionEvent = SessionEventVariant & SessionEventAttribution;
 export interface SessionEventAttribution {
   /** Subagent that produced this event; absent = the session's leader. */
   agentId?: string | undefined;
+  /** Monotonic 0-indexed sequence counter stamped by the session writer. */
+  seq?: number | undefined;
+  /** Owning branch identifier (absent or `'main'` = root trunk). */
+  branchId?: string | undefined;
 }
 
 type SessionEventVariant =
@@ -137,6 +141,56 @@ type SessionEventVariant =
       /** The child journal is isolated; filesystem state remains shared. */
       workspace: 'shared-current';
       workspaceCheckpointHash?: string | undefined;
+    }
+  | {
+      /**
+       * Creates a new in-session DAG branch (`br_<id>`) rooted at `forkSeq` on
+       * `parentBranchId`. Always persisted (Core Reconstruct set).
+       */
+      type: 'branch_created';
+      ts: string;
+      newBranchId: string;
+      name: string;
+      label?: string | undefined;
+      parentBranchId: string;
+      forkSeq: number;
+      forkPromptIndex?: number | undefined;
+      baseWorkspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
+    }
+  | {
+      /**
+       * Switches the live conversation pointer from `fromBranchId` to `toBranchId`.
+       */
+      type: 'branch_switched';
+      ts: string;
+      fromBranchId: string;
+      toBranchId: string;
+      departureCheckpoint?: WorkspaceCheckpointRef | undefined;
+      workspaceRestored: boolean;
+    }
+  | {
+      /**
+       * Folds a scrubbed synthesis of `sourceBranchId` back into `targetBranchId`
+       * without contaminating `targetBranchId` with raw exploratory turns.
+       */
+      type: 'branch_folded';
+      ts: string;
+      sourceBranchId: string;
+      targetBranchId: string;
+      summary: string;
+      summaryMessage: Message;
+      archiveSource: boolean;
+      sageMemoryIds?: readonly string[] | undefined;
+    }
+  | {
+      /**
+       * Updates branch metadata (`name` or lifecycle `status`: `'active' | 'folded' | 'archived'`).
+       */
+      type: 'branch_status_changed';
+      ts: string;
+      targetBranchId: string;
+      status?: 'active' | 'folded' | 'archived' | undefined;
+      name?: string | undefined;
     }
   | { type: 'user_input'; ts: string; content: string | ContentBlock[] }
   | {
@@ -288,6 +342,13 @@ type SessionEventVariant =
         | undefined;
       /** Adaptive trigger signals observed alongside token pressure. */
       signals?: { repeatedReadCount?: number | undefined } | undefined;
+      /**
+       * The long-context price cliff that capped this pass (boundary + the
+       * trigger the ladder applied). Absent when the compaction was
+       * window-relative, so a resumed session can still explain why it compacted
+       * early on a 1M window.
+       */
+      priceCliff?: { cliffTokens: number; triggerTokens: number } | undefined;
       /**
        * Lossless digest of the range collapsed during this compaction (text
        * content preserved; raw tool I/O omitted). Captures *what* was collapsed

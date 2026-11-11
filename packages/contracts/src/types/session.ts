@@ -90,6 +90,40 @@ export interface ResumeValidation {
   staleFiles: ResumeFileValidationEntry[];
 }
 
+export type SessionBranchStatus = 'active' | 'folded' | 'archived';
+
+export interface SessionBranchDescriptor {
+  /** Stable identifier (`'main'` for the root trunk; `'br_<id>'` for child branches). */
+  id: string;
+  /** Human-readable slug (e.g., `'main'`, `'try-redis-cache'`). */
+  name: string;
+  /** Optional description or hypothesis note for the branch. */
+  label?: string | undefined;
+  /** Parent branch (`null` only for `'main'`). */
+  parentBranchId: string | null;
+  /** Event sequence index in the parent branch from which this branch forked (`0` for `'main'`). */
+  forkSeq: number;
+  /** Optional `checkpoint.promptIndex` matching the fork point. */
+  forkPromptIndex?: number | undefined;
+  createdAt: string;
+  lastActivityAt: string;
+  status: SessionBranchStatus;
+  foldedIntoBranchId?: string | undefined;
+  /** CAS workspace manifest captured when this branch was created. */
+  baseWorkspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
+  /** Latest CAS workspace manifest recorded while working on this branch. */
+  latestWorkspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
+  /** Number of user turns appended directly on this branch. */
+  turnCount: number;
+}
+
+export interface SessionTreeSnapshot {
+  activeBranchId: string;
+  branches: Record<string, SessionBranchDescriptor>;
+  /** Highest sequence number observed in the journal (`-1` when empty). */
+  headSeq: number;
+}
+
 export interface SessionSummary {
   id: string;
   title: string;
@@ -145,6 +179,10 @@ export interface SessionSummary {
   archivedAt?: string | undefined;
   uncompressedBytes?: number | undefined;
   compressedBytes?: number | undefined;
+  /** Total number of branches in the session tree when > 1. */
+  branchCount?: number | undefined;
+  /** Active branch name when the session has branched off `main`. */
+  activeBranchName?: string | undefined;
 }
 
 export interface SessionData {
@@ -190,6 +228,8 @@ export interface SessionData {
    * `messages` is never affected — it is replayed as lines arrive.
    */
   eventsDropped?: number | undefined;
+  /** Reconstructed in-session branch topology and active branch pointer. */
+  tree?: SessionTreeSnapshot | undefined;
 }
 
 export interface ResumedSession {
