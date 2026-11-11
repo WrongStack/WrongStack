@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T18:28:07.557Z",
+  "generatedAt": "2026-11-11T18:42:47.706Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6225,
-    "testFiles": 5184,
+    "testFiles": 5185,
     "sourceLines": 1272745,
     "workspaceEdges": 250,
     "moduleEdges": 18335,
@@ -1036,7 +1036,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 501,
-      "testFiles": 436,
+      "testFiles": 437,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 436
+          "testFiles": 437
         }
       ]
     },
@@ -24501,6 +24501,12 @@
       },
       {
         "file": "packages/tui/tests/fn-keys.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/frame-diff-conpty.test.ts",
         "projects": [
           "root-node"
         ]

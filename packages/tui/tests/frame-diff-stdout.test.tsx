@@ -11,6 +11,7 @@ import {
 } from '../src/frame-diff-stdout.js';
 import { createAppJourney, createJourneyAgent } from './helpers/app-journey-harness.js';
 import { type RealTtyView, renderRealTty } from './helpers/real-tty.js';
+import { mulberry32, VtScreen } from './helpers/vt-screen.js';
 
 const ESC = '\x1b';
 
@@ -34,151 +35,6 @@ const asStream = (terminal: FakeTerminal): NodeJS.WriteStream =>
   terminal as unknown as NodeJS.WriteStream;
 
 const frame = (lines: string[]): string => INK_FULL_FRAME_PREFIX + lines.join('\n');
-
-/**
- * A small VT screen: enough of the terminal to say what a byte stream leaves
- * on the grid. Cursor addressing, the two erases the renderer uses, SGR
- * attributes (so an erase with a stray background shows up), and CR/LF.
- */
-interface Sgr {
-  fg: string;
-  bg: string;
-  bold: boolean;
-  dim: boolean;
-  italic: boolean;
-  underline: boolean;
-  inverse: boolean;
-  strike: boolean;
-}
-const PLAIN: Sgr = {
-  fg: '',
-  bg: '',
-  bold: false,
-  dim: false,
-  italic: false,
-  underline: false,
-  inverse: false,
-  strike: false,
-};
-const sgrKey = (s: Sgr): string =>
-  `${s.fg}|${s.bg}|${Number(s.bold)}${Number(s.dim)}${Number(s.italic)}${Number(s.underline)}${Number(s.inverse)}${Number(s.strike)}`;
-
-function applySgr(state: Sgr, params: number[]): Sgr {
-  let next = { ...state };
-  const codes = params.length === 0 ? [0] : params;
-  for (let i = 0; i < codes.length; i++) {
-    const code = codes[i] as number;
-    if (code === 0) next = { ...PLAIN };
-    else if (code === 1) next.bold = true;
-    else if (code === 2) next.dim = true;
-    else if (code === 22) {
-      next.bold = false;
-      next.dim = false;
-    } else if (code === 3) next.italic = true;
-    else if (code === 23) next.italic = false;
-    else if (code === 4) next.underline = true;
-    else if (code === 24) next.underline = false;
-    else if (code === 7) next.inverse = true;
-    else if (code === 27) next.inverse = false;
-    else if (code === 9) next.strike = true;
-    else if (code === 29) next.strike = false;
-    else if (code === 39) next.fg = '';
-    else if (code === 49) next.bg = '';
-    else if (code === 38 || code === 48) {
-      const mode = codes[i + 1];
-      const span = mode === 2 ? 5 : mode === 5 ? 3 : 1;
-      const value = codes.slice(i, i + span).join(';');
-      if (code === 38) next.fg = value;
-      else next.bg = value;
-      i += span - 1;
-    } else if ((code >= 30 && code <= 37) || (code >= 90 && code <= 97)) next.fg = String(code);
-    else if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) next.bg = String(code);
-  }
-  return next;
-}
-
-class Screen {
-  private cells: string[][];
-  private row = 0;
-  private col = 0;
-  private sgr: Sgr = { ...PLAIN };
-  constructor(
-    private readonly columns: number,
-    private readonly rows: number,
-  ) {
-    this.cells = Array.from({ length: rows }, () => this.blankRow(PLAIN));
-  }
-  private blankRow(state: Sgr): string[] {
-    return Array.from({ length: this.columns }, () => `${state.bg}\u0000 `);
-  }
-  feed(data: string): void {
-    let i = 0;
-    while (i < data.length) {
-      const ch = data[i] as string;
-      if (ch === ESC && data[i + 1] === '[') {
-        const match = /^\x1b\[([?0-9;]*)([A-Za-z])/.exec(data.slice(i));
-        if (!match) throw new Error(`unparsed CSI at ${i}`);
-        this.csi(match[1] as string, match[2] as string);
-        i += match[0].length;
-        continue;
-      }
-      if (ch === ESC && data[i + 1] === ']') {
-        const end = data.slice(i).search(/\x07|\x1b\\/);
-        if (end < 0) throw new Error('unterminated OSC');
-        i += end + (data[i + end] === ESC ? 2 : 1);
-        continue;
-      }
-      if (ch === '\n') {
-        this.row = Math.min(this.rows - 1, this.row + 1);
-        this.col = 0;
-      } else if (ch === '\r') {
-        this.col = 0;
-      } else {
-        const point = data.codePointAt(i) as number;
-        const glyph = String.fromCodePoint(point);
-        if (this.col < this.columns) {
-          (this.cells[this.row] as string[])[this.col] = `${sgrKey(this.sgr)}\u0000${glyph}`;
-          this.col += 1;
-        }
-        i += glyph.length;
-        continue;
-      }
-      i += 1;
-    }
-  }
-  private csi(params: string, final: string): void {
-    if (params.startsWith('?')) return; // private modes do not touch the grid
-    const nums = params === '' ? [] : params.split(';').map((p) => Number(p || 0));
-    if (final === 'm') this.sgr = applySgr(this.sgr, nums);
-    else if (final === 'H') {
-      this.row = Math.min(this.rows - 1, Math.max(0, (nums[0] ?? 1) - 1));
-      this.col = Math.min(this.columns - 1, Math.max(0, (nums[1] ?? 1) - 1));
-    } else if (final === 'J') {
-      if ((nums[0] ?? 0) !== 0) throw new Error(`unsupported ED ${params}`);
-      const current = this.cells[this.row] as string[];
-      for (let c = this.col; c < this.columns; c++) current[c] = `${this.sgr.bg}\u0000 `;
-      for (let r = this.row + 1; r < this.rows; r++) this.cells[r] = this.blankRow(this.sgr);
-    } else if (final === 'K') {
-      if ((nums[0] ?? 0) !== 2) throw new Error(`unsupported EL ${params}`);
-      this.cells[this.row] = this.blankRow(this.sgr);
-    } else throw new Error(`unsupported CSI ${params}${final}`);
-  }
-  snapshot(): string {
-    return this.cells.map((row) => row.join('\u0001')).join('\n');
-  }
-}
-
-/** Deterministic PRNG so a failing sequence can be replayed. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 describe('createFrameDiffStdout', () => {
   afterEach(() => {
@@ -322,8 +178,8 @@ describe('createFrameDiffStdout', () => {
       const whole = new FakeTerminal(columns, rows);
       let clock = 0;
       const { stream } = createFrameDiffStdout(asStream(diffed), { now: () => clock });
-      const diffedScreen = new Screen(columns, rows);
-      const wholeScreen = new Screen(columns, rows);
+      const diffedScreen = new VtScreen(columns, rows);
+      const wholeScreen = new VtScreen(columns, rows);
 
       let lines = Array.from({ length: rows }, makeLine);
       for (let step = 0; step < 150; step++) {
@@ -383,8 +239,8 @@ describe('frame diffing real App frames', () => {
     const diffed = new FakeTerminal(columns, rows);
     let clock = 0;
     const { stream } = createFrameDiffStdout(asStream(diffed), { now: () => clock });
-    const diffedScreen = new Screen(columns, rows);
-    const wholeScreen = new Screen(columns, rows);
+    const diffedScreen = new VtScreen(columns, rows);
+    const wholeScreen = new VtScreen(columns, rows);
     let wholeBytes = 0;
     frames.forEach((raw, index) => {
       clock += 33;
