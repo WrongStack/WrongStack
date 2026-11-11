@@ -46,12 +46,16 @@ async function startServer(): Promise<HqServerHandle> {
 
 /** Every `attribute` of `selector` in the page; each must be a local Next asset. */
 function nextAssetPaths(
-  document: { querySelectorAll: (s: string) => ArrayLike<{ getAttribute: (a: string) => string | null }> },
+  document: {
+    querySelectorAll: (s: string) => ArrayLike<{ getAttribute: (a: string) => string | null }>;
+  },
   selector: string,
   attribute: 'href' | 'src',
   prefix: string,
 ): string[] {
-  const values = Array.from(document.querySelectorAll(selector), (el) => el.getAttribute(attribute));
+  const values = Array.from(document.querySelectorAll(selector), (el) =>
+    el.getAttribute(attribute),
+  );
   expect(values.length).toBeGreaterThan(0);
   for (const value of values) expect(value?.startsWith(prefix)).toBe(true);
   return values as string[];

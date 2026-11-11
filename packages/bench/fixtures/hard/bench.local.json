@@ -7,7 +7,9 @@
       "templateDir": "./fixtures/csv-parser",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_csv-parser" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_csv-parser" }
+      ]
     },
     {
       "id": "topo-sort",
@@ -15,7 +17,9 @@
       "templateDir": "./fixtures/topo-sort",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_topo-sort" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_topo-sort" }
+      ]
     },
     {
       "id": "weighted-lru",
@@ -23,7 +27,9 @@
       "templateDir": "./fixtures/weighted-lru",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_weighted-lru" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_weighted-lru" }
+      ]
     },
     {
       "id": "json-patch",
@@ -31,7 +37,9 @@
       "templateDir": "./fixtures/json-patch",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_json-patch" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_json-patch" }
+      ]
     },
     {
       "id": "async-pool",
@@ -39,7 +47,9 @@
       "templateDir": "./fixtures/async-pool",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_async-pool" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_async-pool" }
+      ]
     },
     {
       "id": "unicode-text",
@@ -47,7 +57,9 @@
       "templateDir": "./fixtures/unicode-text",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_unicode-text" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_unicode-text" }
+      ]
     },
     {
       "id": "config-refactor",
@@ -67,7 +79,9 @@
       "templateDir": "./fixtures/week-report",
       "grader": { "type": "command", "command": "node", "args": ["test.mjs"], "shell": false },
       "protectedFiles": ["test.mjs", "package.json"],
-      "assertions": [{ "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_week-report" }]
+      "assertions": [
+        { "type": "file_contains", "path": "test.mjs", "text": "HARD_SENTINEL_week-report" }
+      ]
     }
   ]
 }

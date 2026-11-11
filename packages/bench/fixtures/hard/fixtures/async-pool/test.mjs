@@ -72,9 +72,18 @@ const flush = () => new Promise((r) => setImmediate(r));
 }
 
 // Invalid limits reject with RangeError.
-await assert.rejects(mapLimit([1], 0, (x) => x), RangeError);
-await assert.rejects(mapLimit([1], 1.5, (x) => x), RangeError);
-await assert.rejects(mapLimit([1], '2', (x) => x), RangeError);
+await assert.rejects(
+  mapLimit([1], 0, (x) => x),
+  RangeError,
+);
+await assert.rejects(
+  mapLimit([1], 1.5, (x) => x),
+  RangeError,
+);
+await assert.rejects(
+  mapLimit([1], '2', (x) => x),
+  RangeError,
+);
 
 // First failure rejects with the same reason and stops starting new items.
 {
@@ -172,10 +181,13 @@ await assert.rejects(mapLimit([1], '2', (x) => x), RangeError);
 // Custom key function, clear(key) and clear().
 {
   let calls = 0;
-  const m = memoizeAsync(async (a, b) => {
-    calls++;
-    return a + b;
-  }, { key: (a, b) => `${a}|${b}` });
+  const m = memoizeAsync(
+    async (a, b) => {
+      calls++;
+      return a + b;
+    },
+    { key: (a, b) => `${a}|${b}` },
+  );
   assert.equal(await m(1, 2), 3);
   assert.equal(await m(1, 3), 4);
   assert.equal(await m(1, 2), 3);

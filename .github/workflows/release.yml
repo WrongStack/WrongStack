@@ -12,12 +12,12 @@ name: Release
 
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ["v*.*.*"]
   # Manual re-run for an existing tag (for example after a failed binary build).
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release (e.g. v1.1.2)'
+        description: "Existing tag to release (e.g. v1.1.2)"
         required: true
         type: string
 

@@ -4,7 +4,14 @@ import * as api from './src/index.js';
 
 // HARD_SENTINEL_config-refactor
 
-const { createConfig, loadConfig, serverSettings, workerSettings, SERVER_DEFAULTS, WORKER_DEFAULTS } = api;
+const {
+  createConfig,
+  loadConfig,
+  serverSettings,
+  workerSettings,
+  SERVER_DEFAULTS,
+  WORKER_DEFAULTS,
+} = api;
 const src = (file) => readFileSync(new URL(`./src/${file}`, import.meta.url), 'utf8');
 
 assert.equal(typeof createConfig, 'function', 'src/index.js must export createConfig');
@@ -37,16 +44,29 @@ assert.deepEqual(serverSettings({}), {
   poolMax: 10,
   cors: ['http://localhost:3000'],
 });
-assert.deepEqual(serverSettings({ APP_TLS: '', APP_PORT: '1e3', APP_CORS: '' }).listen, 'http://127.0.0.1:1000');
+assert.deepEqual(
+  serverSettings({ APP_TLS: '', APP_PORT: '1e3', APP_CORS: '' }).listen,
+  'http://127.0.0.1:1000',
+);
 assert.deepEqual(serverSettings({ APP_CORS: '' }).cors, []);
 {
   const s = serverSettings({});
   s.cors.push('https://extra.example');
-  assert.deepEqual(serverSettings({}).cors, ['http://localhost:3000'], 'callers may mutate the returned cors array');
+  assert.deepEqual(
+    serverSettings({}).cors,
+    ['http://localhost:3000'],
+    'callers may mutate the returned cors array',
+  );
 }
-assert.throws(() => serverSettings({ APP_PORT: 'abc' }), (e) => e instanceof TypeError && /APP_PORT/.test(e.message));
+assert.throws(
+  () => serverSettings({ APP_PORT: 'abc' }),
+  (e) => e instanceof TypeError && /APP_PORT/.test(e.message),
+);
 assert.throws(() => serverSettings({ APP_PORT: '   ' }), TypeError);
-assert.throws(() => serverSettings({ APP_TLS: 'maybe' }), (e) => e instanceof TypeError && /APP_TLS/.test(e.message));
+assert.throws(
+  () => serverSettings({ APP_TLS: 'maybe' }),
+  (e) => e instanceof TypeError && /APP_TLS/.test(e.message),
+);
 
 assert.deepEqual(workerSettings({}), {
   queue: 'jobs',
@@ -73,7 +93,11 @@ for (const file of ['server.js', 'worker.js']) {
   assert.ok(src(file).includes('createConfig'), `${file} must use createConfig`);
   assert.match(src(file), /\bget\(\s*['"`]/, `${file} must read values through get()`);
 }
-assert.equal(src('config.js').split('expected a boolean').length - 1, 1, 'keep a single coercion implementation');
+assert.equal(
+  src('config.js').split('expected a boolean').length - 1,
+  1,
+  'keep a single coercion implementation',
+);
 
 // ---- loadConfig compatibility ----
 {
@@ -90,7 +114,10 @@ assert.equal(src('config.js').split('expected a boolean').length - 1, 1, 'keep a
 
 // ---- createConfig ----
 {
-  const { values, get } = createConfig({ env: { APP_DB__POOL__MAX: '3', APP_CORS: 'a,b' }, defaults: SERVER_DEFAULTS });
+  const { values, get } = createConfig({
+    env: { APP_DB__POOL__MAX: '3', APP_CORS: 'a,b' },
+    defaults: SERVER_DEFAULTS,
+  });
   assert.deepEqual(values, {
     host: '127.0.0.1',
     port: 8080,
@@ -117,13 +144,20 @@ assert.equal(src('config.js').split('expected a boolean').length - 1, 1, 'keep a
 }
 {
   const { get } = createConfig({ defaults: WORKER_DEFAULTS, prefix: 'WORKER_' });
-  assert.equal(get('label', 'fallback'), null, 'an existing null value is returned, not the fallback');
+  assert.equal(
+    get('label', 'fallback'),
+    null,
+    'an existing null value is returned, not the fallback',
+  );
   assert.equal(get('retry.backoffMs'), 250);
   const custom = createConfig({ env: { W_QUEUE: 'z' }, defaults: WORKER_DEFAULTS, prefix: 'W_' });
   assert.equal(custom.get('queue'), 'z');
   const defaultPrefix = createConfig({ env: { APP_QUEUE: 'p' }, defaults: WORKER_DEFAULTS });
   assert.equal(defaultPrefix.get('queue'), 'p');
 }
-assert.throws(() => createConfig({ env: { APP_PORT: 'x1' }, defaults: SERVER_DEFAULTS }), TypeError);
+assert.throws(
+  () => createConfig({ env: { APP_PORT: 'x1' }, defaults: SERVER_DEFAULTS }),
+  TypeError,
+);
 
 console.log('config-refactor: all assertions passed');

@@ -1,18 +1,13 @@
-## Live-tree adjudication
+## Retry and live-tree hygiene
+- On retries, re-read the live call site before editing; if a fix is already present, report it resolved instead of re-applying and corrupting the diff. Use `git status --short -- <path>` to attribute remaining `tsc` diagnostics before counting a non-zero exit against the reviewed change.
+- Re-read `packages/vibeui/src/lib/use-session.ts` immediately before a guarded `edit`; if a peer rewrite blocks the edit, report externally fixed findings with live `file:line` anchors.
+- Adjudicate Chimera file-shape claims (`one-liner`, missing EOF newline) with `[System.IO.File]::ReadAllBytes(...)` on trailing bytes; stale rendered diffs are not authoritative.
 
-- Before editing a co-modified path, re-read the exact file immediately: `exec` `git diff --stat`, then `git diff -U0 -- <path>`, and repeat before a guarded `edit`. If `edit` reports external modification/no-match, re-anchor to live text; report externally fixed findings as resolved with live `file:line` anchors, and never retry unchanged. Re-read `packages/vibeui/src/lib/use-session.ts` immediately before every edit.
-- For one-liner or missing-EOF-newline claims, inspect final bytes with `[System.IO.File]::ReadAllBytes(...)`, not rendered diffs. For trailing delimiters, inspect `(Get-Content <path>)[n][-30..-1] -join ''`. Use guarded `edit`, not PowerShell `String.Replace` with double-quoted backticks.
-- Adjudicate TDZ claims about a `closure over a later-declared let` by checking whether any synchronous path can invoke it during module evaluation. `net` server `'connection'`, timers, and IPC callbacks cannot interleave with synchronous module-body execution. In `packages/sage/src/project-server.ts`, `createSlowOperationReporter(() => ({ pendingRequests, clients: clients.size }))` and the `createHygieneRunner` `isBusy` lambda are intentional startup-safe closures; check `packages/sage/tests/project-server-maintenance.test.ts`.
+## Strict verification commands
+- Use local TypeScript (`node node_modules/typescript/bin/tsc`) and `bunx` because `packageManager` pins Bun `bun@1.4.3`; do not use `pnpm exec`.
+- Verify `packages/webui-server` “missing required property” claims with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/webui-server/tsconfig.json`.
+- For edited packages, run narrow `node node_modules/typescript/bin/tsc --noEmit --pretty false -p <tsconfig>` checks against `packages/webui-server/tsconfig.json`, `packages/sage/tsconfig.json`, and `packages/vibeui/tsconfig.json`, plus relevant `bunx biome check <path>` and `bunx vitest run <test>`.
 
-## Verification
-
-- Use `bunx vitest run …`, `bunx biome check …`, and `node node_modules/typescript/bin/tsc --noEmit --pretty false -p <pkg>/tsconfig.json`; avoid `pnpm exec` because `packageManager` pins Bun `bun@1.4.3`.
-- For Sage, run `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/sage/tsconfig.json`, `bunx biome check packages/sage/src/memory-text.ts`, and `bunx vitest run packages/sage/tests/store-helpers.test.ts`.
-- For VibeUI, run `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/vibeui/tsconfig.json`, `bunx biome check packages/vibeui/src/lib/use-session.ts`, and `bunx vitest run packages/vibeui/tests/session.test.ts`.
-- After run-control changes, run `bunx vitest run packages/webui-server/tests/goal-ws-handler.test.ts packages/webui-server/tests/goal-multiple-runs.integration.test.ts`, typecheck `packages/webui-server/tsconfig.json`, and lint `packages/webui-server/src/server/goal-ws-run-controls.ts`.
-
-## Behavioral contracts
-
-- In `packages/webui-server/src/server/goal-ws-run-controls.ts`, bare `runPromise` subsumes `(stopping && runPromise)`; `handleStop` sets `runStatus='stopped'` before clearing `runPromise`. Gate persistence with `host.releaseRunLease || wasStarting`; avoid ungated parallel `graph.runState` mutations.
-- In `handleResumeGraph`, reject missing graph ids before `acquireGoalRunLease`/`acquireRunLease`; invalid ids must not acquire legacy leases or raise `GoalRunLeaseBusyError`.
-- Before changing `packages/tui/src/app-view.tsx`, verify `useEffect` keyed on `liveSettings?.selectionMode` cannot clear `localSelectionMode` until that dependency changes.
+## Node-daemon TDZ closures
+- Adjudicate `closure over a later-declared let` in `packages/sage/src/project-server.ts` only when a synchronous module-evaluation path invokes the closure; event-loop callbacks (`net` server `'connection'`, timers, IPC) cannot interleave with synchronous module-body execution.
+- Treat `createSlowOperationReporter(() => ({ pendingRequests, clients: clients.size }))` and `createHygieneRunner` `isBusy` as intentional startup-safe forward closures; construct-time TDZ would crash daemon startup and fail `packages/sage/tests/project-server-maintenance.test.ts` — prove with `bunx vitest run packages/sage/tests/project-server-maintenance.test.ts`.

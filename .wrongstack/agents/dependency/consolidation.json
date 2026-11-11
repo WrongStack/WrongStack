@@ -7,8 +7,5 @@
   "model": "glm-5.3-flash",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\dependency\\archive\\learned-2026-10-26T19-31-40-507Z.md",
-  "skills": [
-    "tech-stack",
-    "node-modern"
-  ]
+  "skills": ["tech-stack", "node-modern"]
 }

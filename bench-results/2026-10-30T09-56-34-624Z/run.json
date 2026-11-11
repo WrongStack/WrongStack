@@ -3,14 +3,7 @@
   "startedAt": "2026-10-30T09:56:34.714Z",
   "fingerprint": {
     "cliVersion": "1.3.0",
-    "toolNames": [
-      "bash",
-      "edit",
-      "glob",
-      "grep",
-      "read",
-      "write"
-    ],
+    "toolNames": ["bash", "edit", "glob", "grep", "read", "write"],
     "maxIterations": 40,
     "yolo": true,
     "subsetId": "polyglot:7adc0f98d56c",

@@ -15,7 +15,9 @@ function failsAt(doc, patch, index) {
 // add: object key, array insert (not overwrite), append with '-'.
 assert.deepEqual(applyPatch({ a: 1 }, [{ op: 'add', path: '/b', value: 2 }]), { a: 1, b: 2 });
 assert.deepEqual(applyPatch({ a: 1 }, [{ op: 'add', path: '/a', value: 9 }]), { a: 9 });
-assert.deepEqual(applyPatch({ l: [1, 2, 3] }, [{ op: 'add', path: '/l/1', value: 'x' }]), { l: [1, 'x', 2, 3] });
+assert.deepEqual(applyPatch({ l: [1, 2, 3] }, [{ op: 'add', path: '/l/1', value: 'x' }]), {
+  l: [1, 'x', 2, 3],
+});
 assert.deepEqual(applyPatch({ l: [1] }, [{ op: 'add', path: '/l/1', value: 2 }]), { l: [1, 2] });
 assert.deepEqual(applyPatch({ l: [1] }, [{ op: 'add', path: '/l/-', value: 2 }]), { l: [1, 2] });
 assert.deepEqual(applyPatch({ a: 1 }, [{ op: 'add', path: '', value: [7] }]), [7]);
@@ -26,7 +28,9 @@ failsAt({ a: {} }, [{ op: 'add', path: '/missing/x', value: 0 }], 0);
 assert.deepEqual(applyPatch({}, [{ op: 'add', path: '/a~1b', value: 1 }]), { 'a/b': 1 });
 assert.deepEqual(applyPatch({}, [{ op: 'add', path: '/m~0n', value: 1 }]), { 'm~n': 1 });
 assert.deepEqual(applyPatch({}, [{ op: 'add', path: '/~01', value: 1 }]), { '~1': 1 });
-assert.deepEqual(applyPatch({ '': { '': 5 } }, [{ op: 'replace', path: '//', value: 6 }]), { '': { '': 6 } });
+assert.deepEqual(applyPatch({ '': { '': 5 } }, [{ op: 'replace', path: '//', value: 6 }]), {
+  '': { '': 6 },
+});
 failsAt({}, [{ op: 'add', path: 'a', value: 1 }], 0);
 
 // Array index syntax: no leading zeros, no signs, '-' only for add.
@@ -50,9 +54,14 @@ assert.deepEqual(applyPatch({ a: { x: 1 }, b: {} }, [{ op: 'move', from: '/a/x',
 assert.deepEqual(applyPatch({ l: ['a', 'b', 'c'] }, [{ op: 'move', from: '/l/0', path: '/l/2' }]), {
   l: ['b', 'c', 'a'],
 });
-assert.deepEqual(applyPatch({ a: { b: 1 } }, [{ op: 'move', from: '/a', path: '/a' }]), { a: { b: 1 } });
+assert.deepEqual(applyPatch({ a: { b: 1 } }, [{ op: 'move', from: '/a', path: '/a' }]), {
+  a: { b: 1 },
+});
 failsAt({ a: { b: {} } }, [{ op: 'move', from: '/a', path: '/a/b/c' }], 0);
-assert.deepEqual(applyPatch({ ab: 1, a: {} }, [{ op: 'move', from: '/a', path: '/abc' }]), { ab: 1, abc: {} });
+assert.deepEqual(applyPatch({ ab: 1, a: {} }, [{ op: 'move', from: '/a', path: '/abc' }]), {
+  ab: 1,
+  abc: {},
+});
 {
   const out = applyPatch({ src: { deep: [1] } }, [{ op: 'copy', from: '/src', path: '/dst' }]);
   assert.deepEqual(out, { src: { deep: [1] }, dst: { deep: [1] } });
@@ -61,23 +70,46 @@ assert.deepEqual(applyPatch({ ab: 1, a: {} }, [{ op: 'move', from: '/a', path: '
 }
 
 // test: deep structural equality.
-assert.deepEqual(applyPatch({ o: { a: 1, b: [1, { c: 2 }] } }, [{ op: 'test', path: '/o', value: { b: [1, { c: 2 }], a: 1 } }]), {
-  o: { a: 1, b: [1, { c: 2 }] },
-});
+assert.deepEqual(
+  applyPatch({ o: { a: 1, b: [1, { c: 2 }] } }, [
+    { op: 'test', path: '/o', value: { b: [1, { c: 2 }], a: 1 } },
+  ]),
+  {
+    o: { a: 1, b: [1, { c: 2 }] },
+  },
+);
 failsAt({ v: 1 }, [{ op: 'test', path: '/v', value: '1' }], 0);
 failsAt({ v: [1, 2] }, [{ op: 'test', path: '/v', value: [2, 1] }], 0);
 failsAt({ v: null }, [{ op: 'test', path: '/v', value: {} }], 0);
 failsAt({ v: { a: 1 } }, [{ op: 'test', path: '/v', value: { a: 1, b: undefined } }], 0);
 
 // Unknown op and error index; atomicity across several ops.
-failsAt({ a: 1 }, [{ op: 'add', path: '/b', value: 2 }, { op: 'frobnicate', path: '/a' }], 1);
-failsAt({ a: [1, 2] }, [{ op: 'remove', path: '/a/0' }, { op: 'add', path: '/a/-', value: 3 }, { op: 'test', path: '/a', value: [1, 2, 3] }], 2);
+failsAt(
+  { a: 1 },
+  [
+    { op: 'add', path: '/b', value: 2 },
+    { op: 'frobnicate', path: '/a' },
+  ],
+  1,
+);
+failsAt(
+  { a: [1, 2] },
+  [
+    { op: 'remove', path: '/a/0' },
+    { op: 'add', path: '/a/-', value: 3 },
+    { op: 'test', path: '/a', value: [1, 2, 3] },
+  ],
+  2,
+);
 
 // No input mutation and no shared references with doc or patch values.
 {
   const doc = { keep: { n: 1 }, list: [1, 2] };
   const value = { nested: [1] };
-  const out = applyPatch(doc, [{ op: 'add', path: '/v', value }, { op: 'remove', path: '/list/0' }]);
+  const out = applyPatch(doc, [
+    { op: 'add', path: '/v', value },
+    { op: 'remove', path: '/list/0' },
+  ]);
   assert.deepEqual(doc, { keep: { n: 1 }, list: [1, 2] });
   out.keep.n = 99;
   out.v.nested.push(2);

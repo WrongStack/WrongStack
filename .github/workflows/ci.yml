@@ -462,7 +462,7 @@ jobs:
       - name: Test (vector-memory ONNX integration)
         run: bun x --bun vitest run packages/vector-memory/tests/integration.test.ts
         env:
-          WRONGSTACK_VECTOR_INTEGRATION: '1'
+          WRONGSTACK_VECTOR_INTEGRATION: "1"
           NODE_OPTIONS: --max-old-space-size=4096
 
   # Focused plugin-guard matrix (issues #360 / #363): Windows .cmd shims
@@ -520,10 +520,8 @@ jobs:
       - name: Interactive TUI PTY smoke
         run: bun --bun run vitest run packages/cli/tests/subagent-models-tui-e2e.test.ts
         env:
-          WSTACK_E2E: '1'
+          WSTACK_E2E: "1"
           NODE_OPTIONS: --max-old-space-size=4096
-
-
 
   # -----------------------------------------------------------------
   # Two smokes over the built CLI binary.

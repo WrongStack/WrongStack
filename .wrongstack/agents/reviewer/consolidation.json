@@ -7,9 +7,5 @@
   "model": "deepseek-v4.1-flash-1017",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\reviewer\\archive\\learned-2026-11-01T22-24-38-075Z.md",
-  "skills": [
-    "testing",
-    "chimera",
-    "code-review"
-  ]
+  "skills": ["testing", "chimera", "code-review"]
 }

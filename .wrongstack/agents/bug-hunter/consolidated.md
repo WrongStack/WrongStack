@@ -1,42 +1,33 @@
 # Bug-Hunter Agent Instructions
 
-## Adjudication and Concurrent Work
+## Adjudication and live-source discipline
 
-- Treat findings, proposed patches, and retractions as hypotheses. Validate literal live source, producer-to-consumer flow, covering tests, and explicit owner policy before editing.
-- Before citing or changing a file, reread it and inspect `git status --short -- <path>` and `git diff -U0 -- <path>`. On co-modified trees, compare `git diff --stat` and the exact-path diff again before applying a cascading fix.
-- Reviewer snapshots can lag active work. Falsify “no producer,” missing guard, self-recursion, and stale-dependency claims against live code; report already-fixed findings as resolved rather than duplicating logic.
-- For missing props, search the actual call site case-sensitively, including `packages/tui/src/app-view.tsx`. For `useCallback`/`useMemo` findings, inspect the actual dependency array, including `publishBand` in `packages/tui/src/components/history/use-history-controller.ts`.
-- After external modification or a guarded-edit no-match, reread and re-anchor to current text; never retry an unchanged replacement. Preserve peer changes and obey read-only ownership boundaries.
-- Falsify missing-module, missing-export, duplicate-identifier, and undeclared-identifier claims with package-wide symbol searches and a package typecheck. Clean compilation resolves the compile claim only within the checked scope, not runtime correctness.
-- Separate unrelated peer diagnostics from the reviewed change. Changing failures or test counts indicate an unstable snapshot: inspect affected paths, let concurrent edits settle, and rerun verification.
+- Treat findings, proposed patches, and retractions as hypotheses. Validate live source, producer-to-consumer flow, covering tests, and explicit policy before editing.
+- On retries or co-modified trees, reread the exact live call site before editing. If a fix is already present, or a guarded edit fails after external modification, report the finding as resolved with live anchors instead of reapplying or duplicating the change.
+- Before citing a path, inspect its live state with `git status --short -- <path>` and `git diff -U0 -- <path>`. Separate unrelated peer diagnostics from the reviewed change.
+- Do not infer bypasses, missing guards, stale dependencies, or file-shape problems from rendered diffs alone. For one-liner or missing EOF-newline claims, inspect exact bytes, e.g. `[System.IO.File]::ReadAllBytes(...)` last bytes. For plugin trust pin claims, first check whether the path takes shared-root import-closure hashing or plugin-directory manifest hashing in `packages/core/src/plugin/trust.ts`; single-file pins are not automatically bypasses.
+- For alleged missing props, modules, exports, duplicate identifiers, or undeclared identifiers, search actual call sites and package-wide symbols, then run a scoped typecheck. A clean compile refutes only the compile claim within the checked scope, not runtime behavior.
 
-## Verification
+## Race, lifecycle, and state contracts
 
-- Use Bun-native tooling: `bunx vitest run <covering files>` and `bunx biome check <files>`. Use `bunx biome check --write <files>` only for necessary formatting. The repository pins Bun; stale `pnpm exec` commands can fail.
-- Run `node node_modules/typescript/bin/tsc --noEmit --pretty false -p <package>/tsconfig.json`; use `packages/core/tsconfig.test.json` for core test typing.
-- Run covering tests before accepting deterministic failure claims and after fixes. Search both `.test.ts` and `.test.tsx`. Investigate the earliest parse diagnostic before treating cascaded errors independently.
-- Establish disputed test provenance with `git status --short` and `git log --oneline -5 -- <test file>`; untracked status alone does not establish authority. Preserve unaffected assertions and add focused regressions for restored contracts.
-- For suspicious trailing delimiters, inspect exact characters and run the typecheck rather than trusting rendered output. Prefer guarded edits over PowerShell double-quoted `String.Replace`, where backticks are escapes.
-- In Vitest 5, use `toThrow(/pattern/)` or explicit `try`/`catch`; do not pass arbitrary arrow predicates to `toThrow`.
-- For mocking claims, inspect consumer access style and whether the assertion would fail if the patch missed; require an executed counterexample before rejecting builtin ESM synchronization via `syncBuiltinESMExports()`.
+- Decrement lifecycle refcounts in a `finally` around awaited RPCs, not only on success. In `packages/core/src/session-catalog/registry.ts`, success-only decrement can leave an IPC binding open when `activate_reservation` rejects.
+- Before adding a `close()` path that rejects the in-flight connect promise in `packages/core/src/session-catalog/client.ts`, inspect `connectWithElection()` for an `explicitlyClosed` guard. The election loop can otherwise `spawnDetached()` a catalog daemon after `close()` returns.
+- Resolve tool write-target paths for project-relative gates using `ctx.workingDir ?? ctx.cwd`, matching `resolvePath()` in `packages/tools/src/_util.ts`. Using `ctx.cwd` alone diverges after `set_working_dir()` and can fire path-based gates against the wrong file.
+- In `packages/core/src/hq/approval-bridge.ts`, `tool.confirm_resolved` is emitted synchronously by resolvers, and the `offResolved` listener can announce even when `pending` has already been deleted. New announce sites must dedupe with a bus-announced id flag; do not remove either existing path. Treat a lone `packages/core/src/storage/todos-checkpoint.ts` TS2454 in `packages/core` typecheck output as pre-existing out-of-scope noise unless `git status --short -- packages/core/src/storage/todos-checkpoint.ts` shows the exact path changed.
+- For race and state-transition claims, construct counterexamples from actual suspension points, guard subsumption, and write ordering. A promise-returning function body still executes synchronously until its first `await`.
+- In stop, teardown, and lifecycle paths, capture in-flight flags at entry and inspect the synchronous prefix before the first `await`; synchronous listeners registered only after an await may miss emissions.
+- Validate existence before acquiring leases so invalid input cannot hold a lease or hide a not-found condition.
+- Check React dependency arrays and persisted-state effects before alleging optimistic flicker; an effect keyed to a persisted value does not rerun merely because an unrelated local override changes.
 
-## Race and State-Transition Analysis
+## Verification and ownership
 
-- Construct counterexamples using actual suspension points, guard subsumption, and write ordering. A promise-returning function without `await` executes its body synchronously.
-- Check React dependency-change semantics before alleging optimistic-state flicker: an effect keyed on a persisted value does not rerun merely because an unrelated local override changes.
-- Validate existence before acquiring run leases so invalid input cannot hold a lease or mask not-found as `GoalRunLeaseBusyError`.
-- Acquire leases locally, recheck `!host.stopping` after the last await immediately before assigning `host.releaseRunLease`, then clear local ownership and release leftovers in `finally`.
-- In `handleStop`, capture `startInFlight` at entry to gate terminal persistence; do not substitute lease-field state or leave parallel ungated `graph.runState` mutations.
-- Teardown-membership-gated synchronous listeners need synchronous registration. In `packages/cli/src/wiring/dep-watcher.ts`, register a deferred placeholder before awaiting `multiAgentHost.spawn()`, then adopt completion; account for a director appearing after spawn.
-- In `packages/cli/src/goal-host.ts`, inspect the synchronous prefix of `onGoalStop`: setting stopped state and unsubscribing before the first await can already exclude later completion events.
+- Prefer targeted Bun-native checks: `bunx vitest run <covering files>` and `bunx biome check <files>`. Use `bunx biome check --write <files>` only for necessary formatting. Avoid repo-wide runs for narrow changes.
+- Typecheck the reviewed package with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p <package>/tsconfig.json`. Use `packages/core/tsconfig.test.json` for core test typing. For remaining diagnostics, attribute them to specific files with `git status --short -- <path>` before letting a non-zero exit fail a review gate.
+- Establish disputed test provenance with `git status --short` and `git log --oneline -5 -- <test file>`. Untracked status alone does not establish authority. Preserve unaffected assertions and add focused regressions when restoring a lost contract.
+- If failures or test counts drift after concurrent edits, inspect affected paths, let peer changes settle, and rerun verification rather than treating the unstable snapshot as authoritative.
 
-## Project Contracts
+## Project-specific durable rules
 
-- In `packages/webui/src/hooks/ws-handlers/goal-handlers.ts`, accept keyless broadcasts before goal-id filtering, including `goal.error` and `goal.stopped` when `host.graph` is null.
+- When adding a TUI-picker `Config` field whose parent section is denied for in-project configs, route it through the profile-only path. Check `IN_PROJECT_ALLOWED_KEYS` / `KNOWN_DENIED_IN_PROJECT` in `packages/core/src/storage/config-loader/in-project-policy.ts` and `PROJECT_SAFE_FIELDS` in `packages/cli/src/settings-menu.ts`, then add the key to `hasProfileOnlySettings` and write it in the `forceGlobal` branch of `persistConfigSetting`. A top-level key absent from `PROJECT_SAFE_FIELDS` can be silently stripped under `configScope: 'project'` while the in-memory `ConfigStore` still shows the new value.
+- Before declaring a markdown renderer or ArtifactLink React UI XSS-clean, inspect link components for URL-scheme validation, especially `javascript:` hrefs. Absence of `dangerouslySetInnerHTML` is insufficient. Reuse the `safeLoginUrl` allowlist pattern from `provider-manager.tsx` when rendering agent-controlled hrefs in components such as `markdown-content.tsx`.
 - Sandbox `Tool` gates in `packages/core/src/sandbox/wrap.ts` must fail closed for both `execute` and `executeStream`, resolving per-agent policy on each call.
-- Preserve mutate-then-`appendHistory` ordering and fresh under-lock reads around `generateSuggestions` in `packages/requirement-intake/src/service.ts`.
-- For MCP connection races, verify refusal state clears before suspension, stale-generation writes are blocked, and `stop()` advances generation before clearing `connecting`.
-- MCP transport values are `stdio | sse | streamable-http`. Align TUI validation and error messages with `packages/cli/src/boot/mcp-config-flag.ts`; `packages/cli/src/acp-mcp-servers.ts` canonicalizes `http` to `streamable-http`.
-- Evaluate rotation arithmetic over reachable counts and branches, not expression appearance; confirm parser modifier flags before alleging reverse-navigation bugs.
-- In `packages/plugin-sdk/src/runtime/h1-state.ts`, track released callback identities and test exact cleanup counts. In `packages/vector-memory/src/sage-port-wrapper.ts`, preserve fluent returns with `result === target ? delegated : result`.
-- Inspect `packages/core/src/kernel/events/*.ts` before declaring event fields missing. Lease fencing in `packages/kanban/src/manager/lifecycle/definition-of-done.ts` must compare against live `task.assignment`.

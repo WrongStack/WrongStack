@@ -7,8 +7,5 @@
   "model": "MiniMax-M3.1-Flash",
   "pruned": true,
   "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\document\\archive\\learned-2026-10-25T17-10-06-506Z.md",
-  "skills": [
-    "research-web",
-    "output-standards"
-  ]
+  "skills": ["research-web", "output-standards"]
 }

@@ -1,11 +1,11 @@
 {
-  "consolidatedAt": "2026-10-17T17:48:07.025Z",
+  "consolidatedAt": "2026-11-11T16:53:39.093Z",
   "sourceEntryCount": 0,
   "sourceBytes": 391,
-  "consolidatedBytes": 6642,
+  "consolidatedBytes": 5721,
   "trigger": "automatic",
-  "model": "gpt-6.1-sol",
+  "model": "qwen3.8-flash",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-10-17T17-48-07-025Z.md",
-  "skills": ["typescript-strict", "testing", "bug-hunter"]
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-11-11T16-53-39-093Z.md",
+  "skills": ["security-scanner", "bug-hunter", "testing", "typescript-strict"]
 }
