@@ -1758,6 +1758,10 @@
     "packages/tui/src/file-search.ts": [
       "invalidateFileCache"
     ],
+    "packages/tui/src/frame-diff-stdout.ts": [
+      "DEFAULT_FULL_REPAINT_MS",
+      "INK_FULL_FRAME_PREFIX"
+    ],
     "packages/tui/src/git-info.ts": [
       "branchLabel"
     ],
@@ -1851,6 +1855,11 @@
       "visibleChars",
       "wrappedRows"
     ],
+    "packages/tui/src/live-stream-store.ts": [
+      "EMPTY_LIVE_STREAM",
+      "isLiveStreamOnlyAction",
+      "reduceLiveStream"
+    ],
     "packages/tui/src/markdown-table.ts": [
       "renderMarkdownTables",
       "strWidth"
@@ -1872,6 +1881,10 @@
     ],
     "packages/tui/src/resume-load.ts": [
       "RESUME_SPINNER_FRAMES"
+    ],
+    "packages/tui/src/run-tui-mount.ts": [
+      "tuiRenderMaxFps",
+      "tuiRenderOptions"
     ],
     "packages/tui/src/scroll-anchor.ts": [
       "anchorAtTopRow"

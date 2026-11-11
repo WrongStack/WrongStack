@@ -1,17 +1,8 @@
-import {
-  reduceStreamActivity,
-  startStreamActivity,
-} from '@wrongstack/contracts/types/stream-activity';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import type { HistoryEntry } from '../history-entry.js';
 import { retainTuiHistory } from '../history-retention.js';
-import {
-  closePanels,
-  MAX_ASSISTANT_STREAM_RETAINED_CHARS,
-  pruneToolInput,
-  retainStreamTail,
-} from './helpers.js';
+import { closePanels, pruneToolInput } from './helpers.js';
 
 const conversationActionTypes = [
   'addEntry',
@@ -22,9 +13,6 @@ const conversationActionTypes = [
   'setBuffer',
   'clearInput',
   'clearHistory',
-  'streamDelta',
-  'streamActivityFrame',
-  'streamReset',
   'status',
   'interrupt',
   'steerStart',
@@ -200,9 +188,6 @@ export function reduceConversation(state: State, action: ConversationAction): St
         archiveLoading: false,
         queue: [],
         nextQueueId: 1,
-        streamingText: '',
-        streamActivity: null,
-        toolStream: null,
         runningTools: new Map(),
         status: 'idle',
         interrupts: 0,
@@ -289,29 +274,10 @@ export function reduceConversation(state: State, action: ConversationAction): St
         collabSession: null,
       };
     }
-    case 'streamDelta':
-      return {
-        ...state,
-        streamActivity: reduceStreamActivity(state.streamActivity ?? null, {
-          type: 'provider.text_delta',
-          payload: { text: action.delta },
-        }),
-        streamingText: retainStreamTail(
-          state.streamingText,
-          action.delta,
-          MAX_ASSISTANT_STREAM_RETAINED_CHARS,
-        ),
-      };
-    case 'streamReset':
-      return { ...state, streamingText: '' };
-    case 'streamActivityFrame':
-      return {
-        ...state,
-        streamActivity: reduceStreamActivity(state.streamActivity ?? null, action.frame),
-      };
     case 'status':
       // Going idle means the stream has finished — clear any lingering
       // debug-stream stats so the statusline doesn't show stale "🐛 stream".
+      // The live tails and the activity line end in live-stream-store.ts.
       // Also drop running-tool entries: tools cancelled mid-flight (steering,
       // Esc interrupt, provider errors) never emit `tool.executed`, and their
       // orphaned entries otherwise accumulate for the whole session.
@@ -319,22 +285,11 @@ export function reduceConversation(state: State, action: ConversationAction): St
         return {
           ...state,
           status: 'idle',
-          streamActivity: state.streamActivity
-            ? { ...state.streamActivity, endedAt: state.streamActivity.endedAt ?? Date.now() }
-            : null,
           debugStreamStats: null,
           ...(state.runningTools.size > 0 ? { runningTools: new Map() } : {}),
-          ...(state.toolStream !== null ? { toolStream: null } : {}),
         };
       }
-      return {
-        ...state,
-        status: action.status,
-        streamActivity:
-          state.status === 'idle'
-            ? startStreamActivity(Date.now())
-            : (state.streamActivity ?? null),
-      };
+      return { ...state, status: action.status };
     case 'interrupt':
       return { ...state, interrupts: state.interrupts + 1 };
     case 'steerStart':

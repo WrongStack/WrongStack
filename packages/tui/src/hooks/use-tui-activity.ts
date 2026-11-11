@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Action, State } from '../app-reducer.js';
 import { type HeapSample, startSharedHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
 import { useAnimation } from '../ink.js';
+import { liveStreamStoreOf } from '../live-stream-store.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
 import { recordTuiAppRender, snapshotTuiMemoryCounters } from '../tui-memory-counters.js';
 
@@ -261,7 +262,7 @@ export function useTuiActivity({
           fleetSize: Object.keys(currentState.fleet ?? {}).length,
           queued: currentState.queue?.length ?? 0,
           inputHistory: currentState.inputHistory?.length ?? 0,
-          toolStreamChars: currentState.toolStream?.text.length ?? 0,
+          toolStreamChars: liveStreamStoreOf(dispatch).get().toolStream?.text.length ?? 0,
           ...snapshotTuiMemoryCounters(),
           // RAM retention sentinels — distinguish which layer holds old graphs
           // after /clear so we know where to add cleanup wiring.

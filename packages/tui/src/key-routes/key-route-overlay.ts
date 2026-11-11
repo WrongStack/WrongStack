@@ -8,6 +8,7 @@ import {
 import { escCloseAction, escSelfOwnedPanelOpen } from '../esc-close-panels.js';
 import { actionForFKeyPanel, fKeyEntryFor } from '../f-key-panels.js';
 import type { KeyRouteContext } from '../key-handler-context.js';
+import { liveStreamStoreOf } from '../live-stream-store.js';
 import {
   routeModalOverlayKey,
   routePanelEscapeKey,
@@ -53,7 +54,7 @@ export function routeModalOverlay(ctx: KeyRouteContext, input: string, key: KeyE
           const content = resolveInspectOverlayContent(
             overlay,
             ctx.state.entries,
-            ctx.state.toolStream,
+            liveStreamStoreOf(ctx.dispatch).get().toolStream,
           );
           ctx.detach(
             writeClipboardText(content.body).then((copied) => {

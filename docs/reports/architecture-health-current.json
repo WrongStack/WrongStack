@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-10T17:30:11.932Z",
+  "generatedAt": "2026-11-11T13:44:17.640Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6221,
-    "testFiles": 5179,
-    "sourceLines": 1272254,
+    "sourceFiles": 6225,
+    "testFiles": 5183,
+    "sourceLines": 1272745,
     "workspaceEdges": 250,
-    "moduleEdges": 18320,
+    "moduleEdges": 18335,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1035
+    "testOnlyExports": 1042
   },
   "errors": [],
   "packageCycles": [],
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 497,
-      "testFiles": 431,
+      "sourceFiles": 501,
+      "testFiles": 435,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 431
+          "testFiles": 435
         }
       ]
     },
@@ -23882,6 +23882,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/app-error-boundary.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/app-initial-state.test.ts",
         "projects": [
           "root-node"
@@ -24500,6 +24506,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/frame-diff-stdout.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/git-info-isolation.test.ts",
         "projects": [
           "root-node"
@@ -24837,6 +24849,12 @@
       },
       {
         "file": "packages/tui/tests/lite-full-slash.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/live-stream-store.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -25359,6 +25377,12 @@
       },
       {
         "file": "packages/tui/tests/run-tui-mailbox-integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/run-tui-render-options.test.ts",
         "projects": [
           "root-node"
         ]
@@ -39212,6 +39236,14 @@
       "name": "invalidateFileCache"
     },
     {
+      "file": "packages/tui/src/frame-diff-stdout.ts",
+      "name": "DEFAULT_FULL_REPAINT_MS"
+    },
+    {
+      "file": "packages/tui/src/frame-diff-stdout.ts",
+      "name": "INK_FULL_FRAME_PREFIX"
+    },
+    {
       "file": "packages/tui/src/git-info.ts",
       "name": "branchLabel"
     },
@@ -39376,6 +39408,18 @@
       "name": "wrappedRows"
     },
     {
+      "file": "packages/tui/src/live-stream-store.ts",
+      "name": "EMPTY_LIVE_STREAM"
+    },
+    {
+      "file": "packages/tui/src/live-stream-store.ts",
+      "name": "isLiveStreamOnlyAction"
+    },
+    {
+      "file": "packages/tui/src/live-stream-store.ts",
+      "name": "reduceLiveStream"
+    },
+    {
       "file": "packages/tui/src/markdown-table.ts",
       "name": "renderMarkdownTables"
     },
@@ -39414,6 +39458,14 @@
     {
       "file": "packages/tui/src/resume-load.ts",
       "name": "RESUME_SPINNER_FRAMES"
+    },
+    {
+      "file": "packages/tui/src/run-tui-mount.ts",
+      "name": "tuiRenderMaxFps"
+    },
+    {
+      "file": "packages/tui/src/run-tui-mount.ts",
+      "name": "tuiRenderOptions"
     },
     {
       "file": "packages/tui/src/scroll-anchor.ts",

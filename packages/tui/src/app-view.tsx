@@ -13,16 +13,16 @@ import { AppViewSidebar } from './app-view-sidebar.js';
 import { useBackgroundStrip } from './background-strip-model.js';
 import { BackgroundStrip, backgroundStripRows } from './components/background-strip.js';
 import { ChatSearchBar } from './components/chat-search-bar.js';
+import { LIVE_TOOL_STREAM_COPY_ID } from './components/history/copy-geometry.js';
 import { DEFAULT_INPUT_PROMPT, Input } from './components/input.js';
 import { InspectOverlay, resolveInspectOverlayContent } from './components/inspect-overlay.js';
+import { LiveScrollableHistory, LiveStreamActivityLine } from './components/live-stream-views.js';
 import {
   MonitorViewportProvider,
   PanelInputProvider,
   PanelShortcutsProvider,
 } from './components/monitor-shell.js';
 import { usePlanPanelData } from './components/plan-panel.js';
-import { ScrollableHistory } from './components/scrollable-history.js';
-import { StreamActivityLine } from './components/stream-activity-line.js';
 import { useProviderQuotaCard } from './hooks/use-provider-quota.js';
 import {
   useSidebarConnections,
@@ -32,6 +32,7 @@ import {
 } from './hooks/use-sidebar-panel-data.js';
 import { useTerminalSize } from './hooks/use-terminal-size.js';
 import { Box } from './ink.js';
+import { useLiveStream } from './live-stream-store.js';
 import { setMotionStatic } from './motion.js';
 import { estimateSidebarMaxScroll } from './reducers/workspace-panels.js';
 import { theme } from './theme.js';
@@ -173,12 +174,15 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
 
   const effectiveInputHeight = state.helpPanel.open || viewState.panelOwnsInput ? 0 : inputHeight;
   const backgroundStrip = useBackgroundStrip();
+  // Selected so the App re-renders when the activity row appears or goes,
+  // not on every stream flush that updates its counters.
+  const streamActivityVisible = useLiveStream((live) => live.streamActivity !== null);
   const pickerMaxRows = Math.max(
     8,
     runtime.termRows -
       runtime.statusBarRows -
       effectiveInputHeight -
-      (!hideInput && state.streamActivity ? 1 : 0) -
+      (!hideInput && streamActivityVisible ? 1 : 0) -
       backgroundStripRows(backgroundStrip) -
       1,
   );
@@ -235,8 +239,12 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     sidebarSlotVisible('plan'),
   );
 
+  // Only the live-tool inspect view follows the tool tail; any other overlay
+  // (or none) must not re-render the App as tool output streams.
+  const inspectingLiveTool = state.inspectOverlay?.entryId === LIVE_TOOL_STREAM_COPY_ID;
+  const inspectToolStream = useLiveStream((live) => (inspectingLiveTool ? live.toolStream : null));
   const inspectContent = state.inspectOverlay
-    ? resolveInspectOverlayContent(state.inspectOverlay, state.entries, state.toolStream)
+    ? resolveInspectOverlayContent(state.inspectOverlay, state.entries, inspectToolStream)
     : null;
 
   const onToolResultViewChange = useCallback(
@@ -281,11 +289,9 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   headerRef={runtime.inspectOverlayHeaderRef}
                 />
               ) : (
-                <ScrollableHistory
+                <LiveScrollableHistory
                   key={`history-gen-${state.historyGen}`}
                   entries={state.entries}
-                  toolStream={state.toolStream}
-                  streamingText={state.streamingText}
                   viewportRows={state.viewportRows}
                   bannerAnimationStartedAt={
                     composerAnimationStyle === 'static' ? undefined : bannerAnimation.startedAt
@@ -334,8 +340,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   <BackgroundStrip fleet={state.fleet} width={mainColumnWidth} />
                 ) : null}
                 {!hideInput ? (
-                  <StreamActivityLine
-                    activity={state.streamActivity}
+                  <LiveStreamActivityLine
                     width={mainColumnWidth}
                     running={state.status !== 'idle'}
                   />

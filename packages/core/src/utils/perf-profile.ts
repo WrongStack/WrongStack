@@ -74,9 +74,14 @@ export function SageCachePragmas(): { cacheSizeKiB: number; mmapBytes: number } 
 }
 
 /**
- * TUI stream paint interval. Higher = fewer React dispatches (less CPU/heap
- * churn). Balanced keeps the historical ~10fps; frugal ~6–7fps.
+ * TUI stream paint interval. Higher = fewer paints (less CPU/heap churn).
+ * Balanced paints the live tail at ~20fps; frugal ~6–7fps.
+ *
+ * A paint costs one full Ink frame, and that cost, not the React work, sets
+ * the floor: measured on a 120x40 terminal with a 40-turn history, 50ms held
+ * the CPU the old 100ms spent when each flush also re-rendered the whole App,
+ * while 33ms doubled it.
  */
 export function tuiStreamFlushMs(): number {
-  return isFrugalPerf() ? 150 : 100;
+  return isFrugalPerf() ? 150 : 50;
 }

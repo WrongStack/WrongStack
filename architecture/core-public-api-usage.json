@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 266,
+      "files": 267,
       "typeOnly": 26,
-      "runtimeOrMixed": 242
+      "runtimeOrMixed": 243
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 977,
+      "files": 979,
       "typeOnly": 74,
-      "runtimeOrMixed": 936
+      "runtimeOrMixed": 938
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -8495,6 +8495,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/tui/src/components/app-error-boundary.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/tui/src/hooks/use-input-history-persistence.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16037,6 +16043,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/run-tui-mount.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/run-tui.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16080,6 +16092,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/tests/run-tui-mailbox-integration.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/tests/run-tui-render-options.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

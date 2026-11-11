@@ -60,10 +60,9 @@ export function reduceComposer(state: State, action: ComposerAction): State {
         ? { ...state, bashMode: false, historyIndex: 0, historyDraft: '' }
         : state;
     case 'toolStarted':
-      // Surface the call immediately; partial output may never be emitted.
-      // The pending row is replaced only after the committed result lands.
-      // Keeping this transition atomic also gives runningTools the same clock.
-      return h.startToolStream(state, action.id, action.name);
+      // The output-less live-tail placeholder for this call is started by
+      // the same action in live-stream-store.ts.
+      return h.trackRunningTool(state, action.id, action.name);
     case 'toolEnded': {
       const next = new Map(state.runningTools);
       if (action.id !== undefined && next.has(action.id)) {
@@ -81,49 +80,6 @@ export function reduceComposer(state: State, action: ComposerAction): State {
         }
       }
       return state;
-    }
-    case 'toolStreamAppend': {
-      // Only one tool's stream is shown at a time. If a different tool is
-      // currently streaming, switch — last writer wins. Streams from
-      // not-yet-acknowledged tools take over as soon as data arrives, which
-      // matches user intuition (whatever just produced output is what's
-      // visible).
-      const cur = state.toolStream;
-      if (cur && cur.toolUseId === action.toolUseId) {
-        // Keep only the tail: the live box renders just the last few lines,
-        // but the accumulated string is retained in React state for the whole
-        // life of the tool call — a chatty long-running command (vitest, a
-        // build) would otherwise grow it into the tens of MB.
-        return {
-          ...state,
-          toolStream: {
-            ...cur,
-            text: h.retainStreamTail(cur.text, action.text, h.MAX_TOOL_STREAM_RETAINED_CHARS),
-          },
-        };
-      }
-      return {
-        ...state,
-        toolStream: {
-          toolUseId: action.toolUseId,
-          name: action.name,
-          // The first partial-output event can itself be an oversized chunk,
-          // so apply the same cap used for later appends at initialization.
-          text: h.retainStreamTail('', action.text, h.MAX_TOOL_STREAM_RETAINED_CHARS),
-          startedAt: action.startedAt,
-        },
-      };
-    }
-    case 'toolStreamClear': {
-      if (state.toolStream === null) return state;
-      // Clear only when the finishing tool matches the streaming one. A
-      // stale `tool.executed` for a different tool must not blank the
-      // currently-visible stream.
-      const t = state.toolStream;
-      if (action.toolUseId !== undefined && action.toolUseId !== t.toolUseId) return state;
-      if (action.name !== undefined && action.toolUseId === undefined && action.name !== t.name)
-        return state;
-      return { ...state, toolStream: null };
     }
     case 'enqueue': {
       const item: QueueItem = { ...action.item, id: state.nextQueueId };

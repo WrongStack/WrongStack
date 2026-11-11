@@ -9,8 +9,6 @@ export const composerActionTypes = [
   'pickerMove',
   'toolStarted',
   'toolEnded',
-  'toolStreamAppend',
-  'toolStreamClear',
   'enqueue',
   'dequeueFirst',
   'queueClear',

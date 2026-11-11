@@ -15,13 +15,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { State } from '../src/app.js';
 import {
-  renderRunningTools,
-  selectedSlashCommandLine,
   buildSteeringPreamble,
   reducer,
+  renderRunningTools,
+  selectedSlashCommandLine,
 } from '../src/app.js';
-import type { State } from '../src/app.js';
+import { EMPTY_LIVE_STREAM, reduceLiveStream } from '../src/live-stream-store.js';
 
 // ── Minimal state fixture for reducer tests ──────────────────────────
 function emptyState(): State {
@@ -241,22 +242,27 @@ describe('buildSteeringPreamble', () => {
 describe('reducer', () => {
   describe('streamReset', () => {
     it('clears streamingText but does not change status', () => {
-      const state = { ...emptyState(), streamingText: 'hello', status: 'running' as const };
-      const next = reducer(state, { type: 'streamReset' });
+      const state = { ...EMPTY_LIVE_STREAM, streamingText: 'hello', status: 'running' as const };
+      const next = reduceLiveStream(state, { type: 'streamReset' });
       expect(next.streamingText).toBe('');
       expect(next.status).toBe('running');
     });
 
     it('clears streamingText when already idle', () => {
-      const state = { ...emptyState(), streamingText: 'hello' };
-      const next = reducer(state, { type: 'streamReset' });
+      const state = { ...EMPTY_LIVE_STREAM, streamingText: 'hello' };
+      const next = reduceLiveStream(state, { type: 'streamReset' });
       expect(next.streamingText).toBe('');
+    });
+
+    it('leaves the root state untouched', () => {
+      const state = emptyState();
+      expect(reducer(state, { type: 'streamReset' })).toBe(state);
     });
   });
 
   describe('toolStreamAppend', () => {
     it('caps an oversized first chunk before retaining it in state', () => {
-      const next = reducer(emptyState(), {
+      const next = reduceLiveStream(EMPTY_LIVE_STREAM, {
         type: 'toolStreamAppend',
         toolUseId: 'tool-1',
         name: 'bash',
@@ -270,43 +276,38 @@ describe('reducer', () => {
   });
 
   describe('toolStreamClear', () => {
+    const streaming = {
+      ...EMPTY_LIVE_STREAM,
+      toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'in-flight', startedAt: 1 },
+    };
+
     it('clears toolStream when toolUseId matches', () => {
-      const state = {
-        ...emptyState(),
-        toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'in-flight', startedAt: 1 } as never,
-      };
-      const next = reducer(state, { type: 'toolStreamClear', toolUseId: 'tool-1' });
+      const next = reduceLiveStream(streaming, { type: 'toolStreamClear', toolUseId: 'tool-1' });
       expect(next.toolStream).toBeNull();
     });
 
     it('does not clear toolStream when toolUseId does not match', () => {
-      const state = {
-        ...emptyState(),
-        toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'in-flight', startedAt: 1 },
-      };
-      const next = reducer(state, { type: 'toolStreamClear', toolUseId: 'tool-2' });
+      const next = reduceLiveStream(streaming, { type: 'toolStreamClear', toolUseId: 'tool-2' });
       expect(next.toolStream).not.toBeNull();
     });
 
     it('handles null toolStream gracefully', () => {
-      const state = { ...emptyState(), toolStream: null };
-      const next = reducer(state, { type: 'toolStreamClear' });
+      const next = reduceLiveStream(EMPTY_LIVE_STREAM, { type: 'toolStreamClear' });
       expect(next.toolStream).toBeNull();
     });
   });
 
   describe('resetContextChip', () => {
     it('increments contextChipVersion without touching streamingText or toolStream', () => {
-      const state = {
-        ...emptyState(),
-        streamingText: 'stale',
-        toolStream: { toolUseId: 't1', name: 'bash', text: 'output', startedAt: 1 },
-        contextChipVersion: 0,
-      };
+      const state = { ...emptyState(), contextChipVersion: 0 };
       const next = reducer(state, { type: 'resetContextChip' });
       expect(next.contextChipVersion).toBe(1);
-      expect(next.streamingText).toBe('stale');
-      expect(next.toolStream).not.toBeNull();
+      const live = {
+        ...EMPTY_LIVE_STREAM,
+        streamingText: 'stale',
+        toolStream: { toolUseId: 't1', name: 'bash', text: 'output', startedAt: 1 },
+      };
+      expect(reduceLiveStream(live, { type: 'resetContextChip' })).toBe(live);
     });
   });
 
@@ -373,8 +374,6 @@ describe('reducer', () => {
             provider: 'p',
           },
         ],
-        streamingText: 'stale stream',
-        toolStream: { toolUseId: 't1', name: 'bash', text: 'x', startedAt: 1 },
         status: 'running' as const,
         interrupts: 3,
         steeringPending: true,
@@ -387,8 +386,17 @@ describe('reducer', () => {
         queue: [{ id: 1, displayText: 'q', blocks: [{ type: 'text' as const, text: 'q' }] }],
       };
       const next = reducer(state, { type: 'clearHistory', model: 'm', provider: 'p' });
-      expect(next.streamingText).toBe('');
-      expect(next.toolStream).toBeNull();
+      expect(
+        reduceLiveStream(
+          {
+            ...EMPTY_LIVE_STREAM,
+            status: 'running',
+            streamingText: 'stale stream',
+            toolStream: { toolUseId: 't1', name: 'bash', text: 'x', startedAt: 1 },
+          },
+          { type: 'clearHistory', model: 'm', provider: 'p' },
+        ),
+      ).toEqual(EMPTY_LIVE_STREAM);
       expect(next.status).toBe('idle');
       expect(next.interrupts).toBe(0);
       expect(next.steeringPending).toBe(false);

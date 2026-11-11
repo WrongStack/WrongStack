@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-10T17:30:11.932Z
+**Generated:** 2026-11-11T13:44:17.640Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6221 |
-| Production source lines | 1272254 |
-| Test files | 5179 |
+| Production source files | 6225 |
+| Production source lines | 1272745 |
+| Test files | 5183 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18320 |
+| Relative module edges | 18335 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -65,7 +65,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 44 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
 | @wrongstack/tools | 399 | 384 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 497 | 431 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 501 | 435 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 71 | 25 | @wrongstack/webui-protocol |
 | @wrongstack/webui | 784 | 521 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
@@ -143,7 +143,7 @@ None.
 
 ## Exports only tests reference
 
-- 1035 runtime exports are referenced by tests and by no other production file.
+- 1042 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

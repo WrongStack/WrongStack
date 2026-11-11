@@ -2,6 +2,7 @@ import type React from 'react';
 import type { AppProps } from './app-props.js';
 import { AppView } from './app-view.js';
 import { UserInputPrompt } from './components/user-input-prompt.js';
+import { LiveStreamContext, liveStreamStoreOf } from './live-stream-store.js';
 import { useAppController } from './use-app-controller.js';
 
 export { buildGoalPreamble } from '@wrongstack/core/execution';
@@ -80,58 +81,60 @@ export function App(props0: AppProps): React.ReactElement {
     return <UserInputPrompt pending={pendingUserInput} onInterrupt={runInterruptLadder} />;
 
   return (
-    <AppView
-      host={props}
-      runtime={{
-        state,
-        dispatch,
-        historyScrollRef,
-        onScrollInfo,
-        onRequestOlderEntries,
-        activity,
-        environment,
-        statusbar,
-        mailbox,
-        gitInfo,
-        viewState,
-        mouseMode,
-        termRows,
-        statusBarRows,
-        bottomRegionRef,
-        statusBarWrapRef,
-        belowStatusBarRef,
-        statusBarClickMapRef,
-        inspectOverlayHeaderRef,
-        stableOnKey,
-        liveTodos,
-        liveSettings,
-        liveAnimationStyle,
-        liveStatuslineMode,
-        projectName,
-        workingDirChip,
-        handleRewindTo,
-        activeCtrlRef,
-        clearPendingConfirms,
-        liveDirector,
-        dismissedEscAtRef,
-        enhanceOriginalRef,
-        enhanceStartedAt,
-        enhanceDurationMs,
-        refineProviderId,
-        refineModel,
-        setEnhanceCountdown,
-        enhanceCountdown,
-        nextStepsAutoSubmitCountdown,
-        nextStepsAutoSubmitLabel,
-        nextStepsAutoSubmitDeadlineMs,
-        setDraft,
-        focusedBoardId,
-        getCronJobs,
-        getLeaderTranscript,
-        coordinatorRunning,
-        enhanceDelayMs,
-        layoutStore,
-      }}
-    />
+    <LiveStreamContext.Provider value={liveStreamStoreOf(dispatch)}>
+      <AppView
+        host={props}
+        runtime={{
+          state,
+          dispatch,
+          historyScrollRef,
+          onScrollInfo,
+          onRequestOlderEntries,
+          activity,
+          environment,
+          statusbar,
+          mailbox,
+          gitInfo,
+          viewState,
+          mouseMode,
+          termRows,
+          statusBarRows,
+          bottomRegionRef,
+          statusBarWrapRef,
+          belowStatusBarRef,
+          statusBarClickMapRef,
+          inspectOverlayHeaderRef,
+          stableOnKey,
+          liveTodos,
+          liveSettings,
+          liveAnimationStyle,
+          liveStatuslineMode,
+          projectName,
+          workingDirChip,
+          handleRewindTo,
+          activeCtrlRef,
+          clearPendingConfirms,
+          liveDirector,
+          dismissedEscAtRef,
+          enhanceOriginalRef,
+          enhanceStartedAt,
+          enhanceDurationMs,
+          refineProviderId,
+          refineModel,
+          setEnhanceCountdown,
+          enhanceCountdown,
+          nextStepsAutoSubmitCountdown,
+          nextStepsAutoSubmitLabel,
+          nextStepsAutoSubmitDeadlineMs,
+          setDraft,
+          focusedBoardId,
+          getCronJobs,
+          getLeaderTranscript,
+          coordinatorRunning,
+          enhanceDelayMs,
+          layoutStore,
+        }}
+      />
+    </LiveStreamContext.Provider>
   );
 }

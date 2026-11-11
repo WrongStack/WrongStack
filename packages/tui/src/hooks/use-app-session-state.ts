@@ -1,5 +1,5 @@
 import type { FleetChatVerbosity } from '@wrongstack/contracts/types';
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import {
   buildRestoredCheckpoints,
   buildRestoredEntries,
@@ -8,6 +8,7 @@ import {
 import type { AppProps } from '../app-props.js';
 import { reducer } from '../app-reducer.js';
 import { LayoutStore } from '../layout-store.js';
+import { createLiveStreamDispatch, LiveStreamStore } from '../live-stream-store.js';
 
 interface AppSessionStateOptions {
   agent: AppProps['agent'];
@@ -59,8 +60,9 @@ export function useAppSessionState(options: AppSessionStateOptions) {
     return tokens > 0 ? { tokens, maxContext } : undefined;
   }, [options.agent?.ctx]);
 
-  const [state, dispatch] = useReducer(
-    reducer,
+  // Lazy initializer: an eager `createInitialState(...)` argument is rebuilt
+  // and thrown away on every render of the root.
+  const [state, rootDispatch] = useReducer(reducer, undefined, () =>
     createInitialState({
       banner: options.banner,
       appVersion: options.appVersion,
@@ -80,6 +82,13 @@ export function useAppSessionState(options: AppSessionStateOptions) {
       initialAgentsMonitorOpen: options.initialAgentsMonitorOpen,
       initialFleetChat: options.initialFleetChat,
     }),
+  );
+  // Per-flush stream state (live tails, activity counters) sits beside the
+  // root reducer; `dispatch` routes each action to whichever side owns it.
+  const [liveStream] = useState(() => new LiveStreamStore());
+  const dispatch = useMemo(
+    () => createLiveStreamDispatch(rootDispatch, liveStream),
+    [rootDispatch, liveStream],
   );
 
   const layoutStore = useMemo(

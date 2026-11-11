@@ -8,6 +8,7 @@ import {
 import type { State } from '../src/app-state.js';
 import { SETTINGS_FIELD_COUNT } from '../src/components/settings-picker.js';
 import { TUI_HISTORY_MAX_ENTRIES } from '../src/history-retention.js';
+import { EMPTY_LIVE_STREAM, reduceLiveStream } from '../src/live-stream-store.js';
 
 export function initial(over: Partial<State> = {}): State {
   const state = {
@@ -618,8 +619,6 @@ describe('TUI reducer', () => {
           subagentsTerminated: 0,
           partialAssistantText: 'stale',
         },
-        streamingText: 'partial reply',
-        toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'output', startedAt: 1 },
         runningTools: new Map([['tool-1', { name: 'bash', startedAt: 1 }]]),
         queue: [{ id: 1, displayText: 'later', blocks: [{ type: 'text', text: 'later' }] }],
         confirmQueue: [
@@ -647,8 +646,17 @@ describe('TUI reducer', () => {
     expect(out.interrupts).toBe(0);
     expect(out.steeringPending).toBe(false);
     expect(out.steerSnapshot).toBeNull();
-    expect(out.streamingText).toBe('');
-    expect(out.toolStream).toBeNull();
+    expect(
+      reduceLiveStream(
+        {
+          ...EMPTY_LIVE_STREAM,
+          status: 'running',
+          streamingText: 'partial reply',
+          toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'output', startedAt: 1 },
+        },
+        { type: 'clearHistory' },
+      ),
+    ).toEqual(EMPTY_LIVE_STREAM);
     expect(out.runningTools.size).toBe(0);
     expect(out.queue).toEqual([]);
     expect(out.confirmQueue).toEqual([]);
@@ -678,17 +686,20 @@ describe('TUI reducer', () => {
   });
 
   it('streamDelta concatenates; streamReset clears', () => {
-    let s = initial();
-    s = reducer(s, { type: 'streamDelta', delta: 'Hel' });
-    s = reducer(s, { type: 'streamDelta', delta: 'lo!' });
+    let s = EMPTY_LIVE_STREAM;
+    s = reduceLiveStream(s, { type: 'streamDelta', delta: 'Hel' });
+    s = reduceLiveStream(s, { type: 'streamDelta', delta: 'lo!' });
     expect(s.streamingText).toBe('Hello!');
-    s = reducer(s, { type: 'streamReset' });
+    s = reduceLiveStream(s, { type: 'streamReset' });
     expect(s.streamingText).toBe('');
+    // Stream flushes never reach the root reducer's state.
+    const root = initial();
+    expect(reducer(root, { type: 'streamDelta', delta: 'Hel' })).toBe(root);
   });
 
   it('streamDelta retains only a bounded live tail', () => {
-    let s = initial();
-    s = reducer(s, { type: 'streamDelta', delta: `head-${'x'.repeat(20_000)}` });
+    let s = EMPTY_LIVE_STREAM;
+    s = reduceLiveStream(s, { type: 'streamDelta', delta: `head-${'x'.repeat(20_000)}` });
     expect(s.streamingText.length).toBe(16_384);
     expect(s.streamingText).not.toContain('head-');
     expect(s.streamingText).toBe('x'.repeat(16_384));
@@ -755,7 +766,10 @@ describe('TUI reducer', () => {
     s = reducer(s, { type: 'toolStarted', id: 't1', name: 'read' });
     s = reducer(s, { type: 'toolStarted', id: 't2', name: 'bash' });
     expect(s.runningTools.size).toBe(2);
-    expect(s.toolStream).toMatchObject({ toolUseId: 't2', name: 'bash', text: '' });
+    expect(
+      reduceLiveStream(EMPTY_LIVE_STREAM, { type: 'toolStarted', id: 't2', name: 'bash' })
+        .toolStream,
+    ).toMatchObject({ toolUseId: 't2', name: 'bash', text: '' });
     s = reducer(s, { type: 'toolEnded', id: 't1' });
     expect(s.runningTools.size).toBe(1);
     expect(s.runningTools.has('t2')).toBe(true);

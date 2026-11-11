@@ -5,6 +5,7 @@ import { scrubErrorText } from '@wrongstack/core/security';
 import { TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import React from 'react';
 import { App } from './app.js';
+import { AppErrorBoundary } from './components/app-error-boundary.js';
 import { titleAnimationAllowed } from './motion.js';
 import { ALT_SCREEN_ON } from './mouse.js';
 import { createExitOrchestrator } from './run-tui-exits.js';
@@ -162,6 +163,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     // keep their pre-clear tracker values so the ANSI diff is calculated
     // relative to a cursor that still matches reality.
     const clearTerminal = () => {
+      // This clear does not pass through Ink: the frame differ must not treat
+      // the rows it remembers as still on screen.
+      mount?.invalidateFrame();
       try {
         stdout.write('\x1b[2J\x1b[3J');
       } catch {
@@ -195,7 +199,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // setRawMode call before Ink takes over stdin, closing the Windows ConPTY
       // readline→Ink handoff race (acquire is idempotent).
       lifecycle.acquire(stdin);
-      const appElement = React.createElement(App, {
+      const app = React.createElement(App, {
         agent: opts.agent,
         slashRegistry: opts.slashRegistry,
         skillLoader: opts.skillLoader,
@@ -338,6 +342,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         onCoordinatorStatus: opts.onCoordinatorStatus,
         memoryStore: opts.memoryStore,
       });
+      // A render throw outside a transcript row would otherwise unmount the
+      // whole tree and end a session whose agent and log are still intact.
+      const appElement = React.createElement(AppErrorBoundary, null, app);
       // Render + inkStdin wiring + raw-Ctrl+C arming + resize erase moved
       // verbatim into mountInkApp (decomposition Phase 1 R3 —
       // docs/decomposition-plan.md). Its internal catch reports through

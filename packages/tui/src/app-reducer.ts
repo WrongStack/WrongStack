@@ -75,6 +75,14 @@ export function reducer(state: State, action: Action): State {
     case 'fleetBatch':
       // Fold each batched action through the reducer; one new state, one render.
       return action.actions.reduce((s, a) => reducer(s, a), state);
+    case 'streamDelta':
+    case 'streamReset':
+    case 'streamActivityFrame':
+    case 'toolStreamAppend':
+    case 'toolStreamClear':
+      // Per-flush stream state lives outside the root reducer so a flush does
+      // not re-render the whole App; see live-stream-store.ts.
+      return state;
     default: {
       // Exhaustiveness check: if Action adds a new variant without a matching
       // case, TypeScript will error here instead of silently returning undefined.

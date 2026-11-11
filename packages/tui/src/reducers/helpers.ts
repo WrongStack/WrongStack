@@ -1,16 +1,11 @@
 import type { State } from '../app-state.js';
 import type { ProjectPickerItem } from '../ui-contracts.js';
 
-/** Start tracking a tool and expose its output-less live-tail placeholder. */
-export function startToolStream(state: State, id: string, name: string): State {
-  const startedAt = Date.now();
+/** Start tracking a running tool. Its live tail lives in live-stream-store.ts. */
+export function trackRunningTool(state: State, id: string, name: string): State {
   const runningTools = new Map(state.runningTools);
-  runningTools.set(id, { name, startedAt });
-  return {
-    ...state,
-    runningTools,
-    toolStream: { toolUseId: id, name, text: '', startedAt },
-  };
+  runningTools.set(id, { name, startedAt: Date.now() });
+  return { ...state, runningTools };
 }
 
 // ── Panel helpers ──────────────────────────────────────────────────────────

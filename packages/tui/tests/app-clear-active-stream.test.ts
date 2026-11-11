@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { reducer } from '../src/app.js';
 import type { State } from '../src/app-state.js';
+import { EMPTY_LIVE_STREAM, reduceLiveStream } from '../src/live-stream-store.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 /**
@@ -25,8 +26,6 @@ function streamingState(): State {
     ],
     buffer: '',
     cursor: 0,
-    streamingText: 'partial assistant reply that was mid-stream',
-    toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'in-flight output', startedAt: 1 },
     status: 'running',
     interrupts: 1,
     steeringPending: true,
@@ -156,9 +155,19 @@ describe('/clear during an active TUI stream', () => {
     });
     expect(out.historyGen).toBe(4);
 
-    // No live stream can repopulate the fresh session.
-    expect(out.streamingText).toBe('');
-    expect(out.toolStream).toBeNull();
+    // No live stream can repopulate the fresh session. The live tails sit
+    // beside the root state and take the same `clearHistory` action.
+    expect(
+      reduceLiveStream(
+        {
+          ...EMPTY_LIVE_STREAM,
+          status: 'running',
+          streamingText: 'partial assistant reply that was mid-stream',
+          toolStream: { toolUseId: 'tool-1', name: 'bash', text: 'in-flight output', startedAt: 1 },
+        },
+        { type: 'clearHistory', model: 'current-model', provider: 'live-provider' },
+      ),
+    ).toEqual(EMPTY_LIVE_STREAM);
     expect(out.runningTools.size).toBe(0);
     expect(out.status).toBe('idle');
     expect(out.interrupts).toBe(0);
