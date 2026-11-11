@@ -15,7 +15,12 @@
  */
 
 import type { FindingSource } from './review-finding-types.js';
-import type { CascadeEvidenceCheckResult, CascadeEvidenceStatus } from './review-types.js';
+import type {
+  CascadeEvidenceCheckResult,
+  CascadeEvidenceStatus,
+  ReviewScopeManifest,
+  ReviewUsageMetrics,
+} from './review-types.js';
 
 // ── Lifecycle ──────────────────────────────────────────────────────
 
@@ -103,6 +108,10 @@ export interface ReviewReport {
    * which checks matched.
    */
   evidenceChecks?: CascadeEvidenceCheckResult[] | undefined;
+  /** Token, cache, cost, and iteration/tool telemetry recorded for this review. */
+  usage?: ReviewUsageMetrics | undefined;
+  /** Structured scope manifest describing inspected files, deltas, symbols, and skipped files. */
+  scopeManifest?: ReviewScopeManifest | undefined;
 }
 
 // ── Lifecycle event ────────────────────────────────────────────────

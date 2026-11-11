@@ -2,7 +2,12 @@ import {
   buildReviewerModelPool,
   selectRoundRobinReviewerAssignment,
 } from '@wrongstack/builtin-plugins';
-import type { SubagentConfig, SubagentError, TaskResult } from '@wrongstack/contracts/types';
+import type {
+  SubagentConfig,
+  SubagentError,
+  TaskResult,
+  TextBlock,
+} from '@wrongstack/contracts/types';
 import type { ProviderModelStatusTracker } from '@wrongstack/coordination';
 import { parseModelRef } from '@wrongstack/core/agent';
 
@@ -296,23 +301,49 @@ export function reviewerAttemptTimeoutMs(
   return Math.min(effAttempt, Math.floor(remainingMs));
 }
 
+const PROJECT_CONTEXT_BLOCK =
+  /\s*<!-- wrongstack:project-agent-context:start -->[\s\S]*?<!-- wrongstack:project-agent-context:end -->\s*/g;
+
 /**
- * Chimera reviewers only inspect code and return a report. They never repair
- * files themselves; bug-hunter/security-scanner/fix agents own all mutations.
+ * Chimera reviewers only inspect code and return a structured JSON report.
+ * Diffs and line numbers are embedded directly in the task bundle, so the tool
+ * surface stays focused on targeted verification (`read`, `grep`, `glob`, and
+ * symbol/call-graph queries) rather than broad repo-map/stats dumps.
  */
 export const CHIMERA_REVIEW_READ_ONLY_TOOLS = Object.freeze([
   'read',
   'grep',
   'glob',
-  'tree',
-  'codebase-stats',
-  'codebase-search',
   'codebase-skeleton',
   'codebase-context',
-  'codebase-repo-map',
   'codebase-incoming-calls',
   'codebase-outgoing-calls',
 ] as const);
+
+export function isChimeraReviewerConfig(config: SubagentConfig): boolean {
+  return config.name === 'chimera-review' && config.role === 'reviewer';
+}
+
+export function buildChimeraReviewerSystemPromptBlocks(input: {
+  rolePrompt: string | undefined;
+  projectRoot: string;
+  platform?: NodeJS.Platform | undefined;
+}): TextBlock[] {
+  const brief = (input.rolePrompt ?? '').replace(PROJECT_CONTEXT_BLOCK, '\n').trim();
+  const environment = [
+    '# Environment',
+    `- Project root: ${input.projectRoot}`,
+    `- Platform: ${input.platform ?? process.platform}`,
+    '- Paths in findings are relative to the project root.',
+  ].join('\n');
+  return [
+    {
+      type: 'text',
+      text: brief ? `${brief}\n\n${environment}` : environment,
+      cache_control: { type: 'ephemeral' },
+    },
+  ];
+}
 
 export function applyChimeraReviewerReadOnlyPolicy(config: SubagentConfig): SubagentConfig {
   return {
@@ -322,6 +353,12 @@ export function applyChimeraReviewerReadOnlyPolicy(config: SubagentConfig): Suba
     tools: [...CHIMERA_REVIEW_READ_ONLY_TOOLS],
     allowedCapabilities: ['fs.read'],
     worktree: 'off',
+    // Strip heavy skill pools — CHIMERA_REVIEW_PROMPT carries the full review contract.
+    skillNames: [],
+    skillPool: [],
+    skillContent: undefined,
+    textStream: 'silent',
+    toolStream: 'silent',
     // Mandatory model-driven completion: a reviewer must never be killed by
     // the wall-clock watchdog. At its deadline (or when the leader's session
     // ends and `Director.requestFinish()` fires) it receives an in-band

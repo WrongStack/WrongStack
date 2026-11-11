@@ -5,7 +5,15 @@ import * as path from 'node:path';
 import { createBoard } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ResolvedChimeraConfig } from '../src/chimera-plugin.js';
-import { buildReviewContext, parsePorcelainStatusZ } from '../src/review-context-builder.js';
+import {
+  annotateUnifiedDiffWithLineNumbers,
+  buildReviewContext,
+  computeHybridIncrementalDeltaDiff,
+  isIgnoredReviewNoisePath,
+  parsePorcelainStatusZ,
+  prioritizeReviewCandidates,
+} from '../src/review-context-builder.js';
+import { JsonlFindingStore } from '../src/review-finding-store.js';
 
 const MOCK_CONFIG: ResolvedChimeraConfig = {
   enabled: true,
@@ -473,5 +481,187 @@ describe('buildReviewContext', () => {
       });
       expect(result.cascadeOn).toBe(val);
     }
+  });
+
+  it('annotates unified diffs with exact 1-based post-image line numbers, symbols, headSha, deletedFiles, and pairedTest status', async () => {
+    await writeAndCommit(
+      'src/service.ts',
+      [
+        'export function computeTotal(items: number[]): number {',
+        '  return items.length;',
+        '}',
+        '',
+      ].join('\n'),
+      tmpDir,
+    );
+    await writeAndCommit('tests/service.test.ts', 'export const placeholderTest = true;\n', tmpDir);
+    await writeAndCommit('obsolete.ts', 'export const old = 1;\n', tmpDir);
+
+    // Modify src/service.ts without touching tests/service.test.ts, and delete obsolete.ts
+    const updatedContent = [
+      'export function computeTotal(items: number[]): number {',
+      '  let sum = 0;',
+      '  for (const n of items) sum += n;',
+      '  return sum;',
+      '}',
+      '',
+    ].join('\n');
+    await fsp.writeFile(path.join(tmpDir, 'src/service.ts'), updatedContent);
+    await fsp.rm(path.join(tmpDir, 'obsolete.ts'));
+
+    const bundle = await buildReviewContext({
+      cwd: tmpDir,
+      config: MOCK_CONFIG,
+      files: [{ path: 'src/service.ts', status: 'modified', content: updatedContent }],
+    });
+
+    expect(bundle.headSha).toMatch(/^[0-9a-f]{7,12}$/);
+    expect(bundle.deletedFiles).toContain('obsolete.ts');
+
+    const entry = bundle.files[0]!;
+    expect(entry.hunkCount).toBe(1);
+    expect(entry.addedLines).toBe(3);
+    expect(entry.removedLines).toBe(1);
+    expect(entry.changedSymbols).toContain('computeTotal');
+    expect(entry.pairedTestPath).toBe('tests/service.test.ts');
+    expect(entry.pairedTestUpdated).toBe(false);
+    expect(entry.diff).toContain('   2 | +  let sum = 0;');
+    expect(entry.diff).toContain('   4 | +  return sum;');
+  });
+
+  it('computes a compact hybrid incremental delta diff when previousSnapshots has an earlier reviewed version', async () => {
+    const v0 =
+      Array.from({ length: 20 }, (_, i) => `export const line${i + 1} = ${i + 1};`).join('\n') +
+      '\n';
+    await writeAndCommit('src/mod.ts', v0, tmpDir);
+
+    // Mid-session edit v1 changed line 2
+    const v1 = v0.replace('export const line2 = 2;', 'export const line2 = 200;');
+    const v1Sha = (await import('node:crypto')).createHash('sha256').update(v1).digest('hex');
+
+    // Later edit v2 changed line 18 while keeping line 2 at 200
+    const v2 = v1.replace('export const line18 = 18;', 'export const line18 = 1800;');
+    await fsp.writeFile(path.join(tmpDir, 'src/mod.ts'), v2);
+
+    const prevMap = new Map([['src/mod.ts', { sha256: v1Sha, content: v1 }]]);
+    const bundle = await buildReviewContext({
+      cwd: tmpDir,
+      config: MOCK_CONFIG,
+      files: [{ path: 'src/mod.ts', status: 'modified', content: v2 }],
+      previousSnapshots: prevMap,
+    });
+
+    const entry = bundle.files[0]!;
+    expect(entry.isIncrementalDelta).toBe(true);
+    expect(entry.addedLines).toBe(1);
+    expect(entry.removedLines).toBe(1);
+    expect(entry.diff).toContain('  18 | +export const line18 = 1800;');
+    expect(entry.diff).not.toContain('+export const line2 = 200;');
+    expect(entry.unchangedHunkSummary).toContain('earlier session hunk(s) against HEAD');
+  });
+
+  it('loads active and operator-suppressed prior findings on touched files from projectDir', async () => {
+    const projectDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'review-ctx-proj-'));
+    try {
+      const store = new JsonlFindingStore(projectDir);
+      await store.upsert(
+        [
+          {
+            id: 'f-ignore',
+            fingerprint: 'fp-ignore',
+            severity: 'medium',
+            source: 'chimera',
+            location: { file: 'initial.txt', line: 1 },
+            title: 'Intentional design pattern',
+            description: 'Desc',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            originReport: {
+              reportId: 'r-0',
+              sessionId: 's-0',
+              agentId: 'chimera-review',
+              reviewerModel: 'm',
+            },
+          },
+        ],
+        { sessionId: 's-0', reportId: 'r-0', agentId: 'chimera-review', model: 'm' },
+      );
+      await store.transition(
+        'f-ignore',
+        'ignored',
+        { id: 'op', kind: 'operator' },
+        { reason: 'ok' },
+      );
+
+      const bundle = await buildReviewContext({
+        cwd: tmpDir,
+        projectDir,
+        config: MOCK_CONFIG,
+        files: [{ path: 'initial.txt', status: 'modified', content: 'next\n' }],
+      });
+
+      expect(bundle.priorFindings).toHaveLength(1);
+      expect(bundle.priorFindings![0]).toMatchObject({
+        id: 'f-ignore',
+        status: 'ignored',
+        file: 'initial.txt',
+        title: 'Intentional design pattern',
+      });
+    } finally {
+      await fsp.rm(projectDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('noise filtering, source priority, and pure diff helpers', () => {
+  it('classifies lockfiles, sourcemaps, snapshots, minified bundles, and binaries as noise', () => {
+    expect(isIgnoredReviewNoisePath('bun.lock')).toBe('lockfile');
+    expect(isIgnoredReviewNoisePath('packages/app/pnpm-lock.yaml')).toBe('lockfile');
+    expect(isIgnoredReviewNoisePath('tests/__snapshots__/view.test.tsx.snap')).toBe('snapshot');
+    expect(isIgnoredReviewNoisePath('dist/index.js')).toBe('build_artifact');
+    expect(isIgnoredReviewNoisePath('public/vendor.min.js')).toBe('minified');
+    expect(isIgnoredReviewNoisePath('assets/logo.png')).toBe('binary_asset');
+    expect(isIgnoredReviewNoisePath('.wrongstack/review-claims.jsonl')).toBe('internal_state');
+    expect(isIgnoredReviewNoisePath('packages/core/src/index.ts')).toBeNull();
+  });
+
+  it('prioritizes production source files ahead of tests, styles, configs, and docs', () => {
+    const candidates = [
+      { path: 'README.md', status: 'modified' as const },
+      { path: 'package.json', status: 'modified' as const },
+      { path: 'packages/core/tests/foo.test.ts', status: 'modified' as const },
+      { path: 'packages/core/src/foo.ts', status: 'modified' as const },
+      { path: 'packages/core/src/bar.ts', status: 'added' as const },
+    ];
+    const { selected, capped } = prioritizeReviewCandidates(candidates, 3);
+    expect(selected.map((f) => f.path)).toEqual([
+      'packages/core/src/foo.ts',
+      'packages/core/src/bar.ts',
+      'packages/core/tests/foo.test.ts',
+    ]);
+    expect(capped.map((f) => f.path)).toEqual(['package.json', 'README.md']);
+  });
+
+  it('annotateUnifiedDiffWithLineNumbers preserves removed lines unnumbered and numbers post-image lines', () => {
+    const raw = [
+      '@@ -10,3 +10,4 @@ export function greet(name: string) {',
+      '   const trimmed = name.trim();',
+      '-  return trimmed;',
+      '+  if (!trimmed) return "anon";',
+      '+  return `hi ${trimmed}`;',
+      ' }',
+    ].join('\n');
+    const res = annotateUnifiedDiffWithLineNumbers(raw);
+    expect(res.hunkCount).toBe(1);
+    expect(res.addedLines).toBe(2);
+    expect(res.removedLines).toBe(1);
+    expect(res.changedSymbols).toContain('greet');
+    expect(res.annotatedDiff).toContain('     | -  return trimmed;');
+    expect(res.annotatedDiff).toContain('  11 | +  if (!trimmed) return "anon";');
+    expect(res.annotatedDiff).toContain('  12 | +  return `hi ${trimmed}`;');
+  });
+
+  it('computeHybridIncrementalDeltaDiff returns null when contents match', () => {
+    expect(computeHybridIncrementalDeltaDiff('same\n', 'same\n')).toBeNull();
   });
 });

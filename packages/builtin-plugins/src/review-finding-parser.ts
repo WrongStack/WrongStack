@@ -96,19 +96,17 @@ const FENCED_BLOCK = /```json[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```/gi;
  */
 export function extractStructuredFindingsBlock(reportText: string): StructuredFindingsBlock | null {
   if (!reportText) return null;
-  let best: StructuredFindingsBlock | null = null;
-  for (const match of reportText.matchAll(FENCED_BLOCK)) {
-    const body = match[1];
-    if (!body?.trim()) continue;
+
+  const parseStructuredObject = (candidateText: string): StructuredFindingsBlock | null => {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(body);
+      parsed = JSON.parse(candidateText);
     } catch {
-      continue; // not JSON — not our block
+      return null;
     }
-    if (typeof parsed !== 'object' || parsed === null) continue;
+    if (typeof parsed !== 'object' || parsed === null) return null;
     const findings = (parsed as { findings?: unknown }).findings;
-    if (!Array.isArray(findings)) continue;
+    if (!Array.isArray(findings)) return null;
     const items: StructuredFindingItem[] = [];
     for (const raw of findings) {
       const item = normalizeStructuredItem(raw);
@@ -118,13 +116,29 @@ export function extractStructuredFindingsBlock(reportText: string): StructuredFi
     // NOT an all-clear: skipping it lets the markdown fallback survive so the
     // report's real findings are not silently lost. An empty `findings` array
     // (a true all-clear) still counts as a structured block.
-    if (findings.length > 0 && items.length === 0) continue;
+    if (findings.length > 0 && items.length === 0) return null;
     const durationRaw = (parsed as { durationSeconds?: unknown }).durationSeconds;
     const durationSeconds =
       typeof durationRaw === 'number' && Number.isFinite(durationRaw) && durationRaw > 0
         ? Math.floor(durationRaw)
         : undefined;
-    best = { findings: items, ...(durationSeconds !== undefined ? { durationSeconds } : {}) };
+    return { findings: items, ...(durationSeconds !== undefined ? { durationSeconds } : {}) };
+  };
+
+  // JSON-only output contract: when the entire response is a JSON object (no
+  // Markdown prose or fences), parse it directly.
+  const trimmed = reportText.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    const direct = parseStructuredObject(trimmed);
+    if (direct) return direct;
+  }
+
+  let best: StructuredFindingsBlock | null = null;
+  for (const match of reportText.matchAll(FENCED_BLOCK)) {
+    const body = match[1];
+    if (!body?.trim()) continue;
+    const candidate = parseStructuredObject(body);
+    if (candidate) best = candidate;
   }
   return best;
 }
@@ -161,9 +175,15 @@ function normalizeStructuredItem(raw: unknown): StructuredFindingItem | null {
     ...(typeof item.description === 'string' && item.description.trim().length > 0
       ? { description: item.description.trim() }
       : {}),
-    ...(typeof item.suggestedFix === 'string' && item.suggestedFix.trim().length > 0
-      ? { suggestedFix: item.suggestedFix.trim() }
-      : {}),
+    ...(() => {
+      const fixRaw =
+        typeof item.suggestedFix === 'string' && item.suggestedFix.trim().length > 0
+          ? item.suggestedFix.trim()
+          : typeof item.fix === 'string' && item.fix.trim().length > 0
+            ? item.fix.trim()
+            : undefined;
+      return fixRaw ? { suggestedFix: fixRaw } : {};
+    })(),
   };
 }
 
@@ -468,4 +488,90 @@ function buildFindingFromStructuredItem(
       reviewerModel: context.reviewerModel ?? '',
     },
   };
+}
+
+/**
+ * Deterministically render a canonical human-readable Chimera Markdown report
+ * from verified `ChimeraFinding[]`. Eliminates Markdown-vs-JSON drift and lets
+ * the reviewer LLM emit compact JSON-only output while every downstream UI,
+ * mailbox consumer, and CLI viewer receives clean Markdown without raw JSON clutter.
+ */
+export function renderChimeraReportMarkdown(input: {
+  findings: readonly ChimeraFinding[];
+  fileCount: number;
+  skippedCount?: number | undefined;
+  durationSeconds?: number | undefined;
+  totalTokens?: number | undefined;
+}): string {
+  const { findings, fileCount, skippedCount, durationSeconds, totalTokens } = input;
+  const fileWord = fileCount === 1 ? 'file' : 'files';
+
+  if (findings.length === 0) {
+    const lines = [
+      '## 🦂 Chimera Review — all clear ✅',
+      `No issues found in ${fileCount} changed ${fileWord}${skippedCount ? ` (${skippedCount} skipped)` : ''}.`,
+    ];
+    if (durationSeconds !== undefined && durationSeconds > 0) {
+      lines.push('', `Duration: ${Math.floor(durationSeconds)}s`);
+    }
+    return lines.join('\n');
+  }
+
+  const bySeverity: Record<FindingSeverity, ChimeraFinding[]> = {
+    critical: [],
+    high: [],
+    medium: [],
+    low: [],
+  };
+  const affectedFiles = new Set<string>();
+  for (const finding of findings) {
+    bySeverity[finding.severity].push(finding);
+    if (finding.location?.file) affectedFiles.add(finding.location.file);
+  }
+
+  const renderSection = (heading: string, list: readonly ChimeraFinding[]): string => {
+    const header = `### ${heading} (${list.length})`;
+    if (list.length === 0) return header;
+    const items = list.map((finding, idx) => {
+      const cat = finding.category ? `[${finding.category.toUpperCase()}] ` : '';
+      const loc = finding.location?.file
+        ? `\`${finding.location.file}${finding.location.line ? `:${finding.location.line}` : ''}\` — `
+        : '';
+      const detail =
+        finding.description && finding.description !== finding.title
+          ? `**${finding.title}** — ${finding.description}`
+          : finding.title;
+      const base = `${idx + 1}. ${cat}${loc}${detail}`;
+      return finding.suggestedFix ? `${base}\n   → ${finding.suggestedFix}` : base;
+    });
+    return `${header}\n${items.join('\n')}`;
+  };
+
+  const sections: string[] = [
+    '## 🦂 Chimera Review',
+    '',
+    renderSection('Critical', bySeverity.critical),
+    '',
+    renderSection('High', bySeverity.high),
+    '',
+    renderSection('Medium', bySeverity.medium),
+  ];
+  if (bySeverity.low.length > 0) {
+    sections.push('', renderSection('Low', bySeverity.low));
+  }
+
+  const cleanFiles = Math.max(0, fileCount - affectedFiles.size);
+  const summaryBullets = [
+    `- Files reviewed: ${fileCount}${skippedCount ? ` (${skippedCount} skipped)` : ''}`,
+    `- Findings: ${bySeverity.critical.length} critical, ${bySeverity.high.length} high, ${bySeverity.medium.length} medium${bySeverity.low.length > 0 ? `, ${bySeverity.low.length} low` : ''}`,
+    `- Clean files: ${cleanFiles}`,
+  ];
+  if (totalTokens !== undefined && totalTokens > 0) {
+    summaryBullets.push(`- Tokens: ${totalTokens.toLocaleString('en-US')}`);
+  }
+  sections.push('', '### Summary', ...summaryBullets);
+  if (durationSeconds !== undefined && durationSeconds > 0) {
+    sections.push('', `Duration: ${Math.floor(durationSeconds)}s`);
+  }
+  return sections.join('\n');
 }

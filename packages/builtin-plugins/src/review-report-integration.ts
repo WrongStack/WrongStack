@@ -19,7 +19,52 @@ import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 import { JsonlReportStore, type PersistReportInput } from './review-report-store.js';
 import type { ReviewReportCounts, ReviewReportFile } from './review-report-types.js';
-import type { ChimeraReviewCompletePayload } from './review-types.js';
+import type {
+  ChimeraReviewCompletePayload,
+  ReviewContextBundle,
+  ReviewScopeManifest,
+} from './review-types.js';
+
+/**
+ * Synthesize a structured `ReviewScopeManifest` from a `ReviewContextBundle`
+ * so every persisted report records exact per-file diff/delta/symbol/test and
+ * skipped-file telemetry.
+ */
+export function buildReviewScopeManifest(bundle: ReviewContextBundle): ReviewScopeManifest {
+  const isIncremental = bundle.files.some((f) => f.isIncrementalDelta === true);
+  return {
+    ...(bundle.headSha ? { headSha: bundle.headSha } : {}),
+    ...(isIncremental ? { isIncremental: true } : {}),
+    files: bundle.files.map((f) => ({
+      path: f.path,
+      status: f.status,
+      ...(f.sha256 ? { sha256: f.sha256 } : {}),
+      ...(f.hunkCount !== undefined ? { hunkCount: f.hunkCount } : {}),
+      ...(f.addedLines !== undefined ? { addedLines: f.addedLines } : {}),
+      ...(f.removedLines !== undefined ? { removedLines: f.removedLines } : {}),
+      ...(f.diffTruncated ? { diffTruncated: true } : {}),
+      ...(f.isIncrementalDelta ? { isIncrementalDelta: true } : {}),
+      ...(f.changedSymbols && f.changedSymbols.length > 0
+        ? { changedSymbols: f.changedSymbols }
+        : {}),
+      ...(f.pairedTestPath ? { pairedTestPath: f.pairedTestPath } : {}),
+      ...(f.pairedTestUpdated !== undefined ? { pairedTestUpdated: f.pairedTestUpdated } : {}),
+    })),
+    ...(bundle.deletedFiles && bundle.deletedFiles.length > 0
+      ? { deletedFiles: bundle.deletedFiles }
+      : {}),
+    ...(bundle.skippedFiles && bundle.skippedFiles.length > 0
+      ? { skippedFiles: bundle.skippedFiles }
+      : {}),
+    ...(bundle.kanbanCard?.id ? { kanbanCardId: bundle.kanbanCard.id } : {}),
+    ...(bundle.activeTodos && bundle.activeTodos.length > 0
+      ? { activeTodoCount: bundle.activeTodos.length }
+      : {}),
+    ...(bundle.priorFindings && bundle.priorFindings.length > 0
+      ? { priorFindingCount: bundle.priorFindings.length }
+      : {}),
+  };
+}
 
 /**
  * Result of a report integration run.
@@ -98,6 +143,13 @@ export async function persistReviewReport(
     counts[finding.severity]++;
   }
 
+  const durationSeconds =
+    parsed.durationSeconds ??
+    (payload.usage?.durationMs !== undefined && payload.usage.durationMs > 0
+      ? Math.max(1, Math.round(payload.usage.durationMs / 1000))
+      : undefined);
+  const scopeManifest = payload.scopeManifest ?? buildReviewScopeManifest(payload.bundle);
+
   const input: PersistReportInput = {
     id: reportId,
     sessionId,
@@ -109,7 +161,7 @@ export async function persistReviewReport(
     counts,
     totalFindings: parsed.findings.length,
     unparseableCount: parsed.unparseableCount,
-    durationSeconds: parsed.durationSeconds,
+    durationSeconds,
     rawText: payload.reviewText,
     ...(cascadeDepth !== undefined ? { cascadeDepth } : {}),
     // P0-3: carry the cascade evidence verification (status + per-check
@@ -121,6 +173,8 @@ export async function persistReviewReport(
     ...(payload.bundle.evidenceChecks !== undefined
       ? { evidenceChecks: payload.bundle.evidenceChecks }
       : {}),
+    ...(payload.usage !== undefined ? { usage: payload.usage } : {}),
+    scopeManifest,
   };
 
   await store.persist(input);

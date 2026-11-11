@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 988,
+      "files": 994,
       "typeOnly": 75,
-      "runtimeOrMixed": 947
+      "runtimeOrMixed": 953
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -11435,7 +11435,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/builtin-plugins/src/review-claim-store-lock.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/builtin-plugins/src/review-finding-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11912,6 +11924,12 @@
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/execution-chimera-cascade.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -12546,6 +12564,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/refiner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/review.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14706,6 +14730,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/automation/store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/chimera/chimera-subagent-ladder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

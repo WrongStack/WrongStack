@@ -12,6 +12,7 @@ export * from './acp-runtime-config.js';
 export * from './acp-turn-reminders.js';
 export * from './acp-wrongstack-bridge.js';
 export * from './budget-source.js';
+export * from './chimera-reviewer-policy.js';
 export * from './context-limit.js';
 export * from './dispatch-classifier.js';
 export * from './explore-companion-policy.js';

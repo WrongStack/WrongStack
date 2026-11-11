@@ -2,6 +2,7 @@ import type {
   SubagentConfig,
   SubagentRunContext,
   SubagentRunner,
+  SubagentTaskUsage,
   TaskResult,
   TaskSpec,
 } from '@wrongstack/contracts/types/multi-agent';
@@ -117,6 +118,29 @@ export async function executeSubagentTask(params: ExecuteSubagentTaskParams): Pr
   };
 
   budget.start();
+  const toTaskUsage = (
+    budgetSnapshot: ReturnType<SubagentBudget['usage']>,
+  ): SubagentTaskUsage | undefined => {
+    const hasRecordedTokens =
+      budgetSnapshot.tokens.total > 0 ||
+      (budgetSnapshot.tokens.cacheRead ?? 0) > 0 ||
+      (budgetSnapshot.tokens.cacheWrite ?? 0) > 0 ||
+      budgetSnapshot.costUsd > 0;
+    if (!hasRecordedTokens) return undefined;
+    return {
+      inputTokens: budgetSnapshot.tokens.input,
+      outputTokens: budgetSnapshot.tokens.output,
+      ...(budgetSnapshot.tokens.cacheRead
+        ? { cacheReadTokens: budgetSnapshot.tokens.cacheRead }
+        : {}),
+      ...(budgetSnapshot.tokens.cacheWrite
+        ? { cacheWriteTokens: budgetSnapshot.tokens.cacheWrite }
+        : {}),
+      totalTokens: budgetSnapshot.tokens.total,
+      costUsd: budgetSnapshot.costUsd,
+    };
+  };
+
   try {
     const outcome = await executeSubagentWithTimeout({
       runner,
@@ -129,12 +153,14 @@ export async function executeSubagentTask(params: ExecuteSubagentTaskParams): Pr
       currentSessionId: () => sessionOf(runCtx.subagentId),
     });
 
+    const taskUsage = outcome.usage ?? toTaskUsage(budget.usage());
     return {
       subagentId,
       taskId: task.id,
       status: 'success',
       result: outcome.result,
       ...(outcome.report ? { report: outcome.report } : {}),
+      ...(taskUsage ? { usage: taskUsage } : {}),
       iterations: outcome.iterations,
       toolCalls: outcome.toolCalls,
       durationMs: Date.now() - startTime,
@@ -147,6 +173,7 @@ export async function executeSubagentTask(params: ExecuteSubagentTaskParams): Pr
           ? 'stopped'
           : 'failed';
     const usage = budget.usage();
+    const taskUsage = toTaskUsage(usage);
     return {
       subagentId,
       taskId: task.id,
@@ -155,6 +182,7 @@ export async function executeSubagentTask(params: ExecuteSubagentTaskParams): Pr
         parentAborted: abortController.signal.aborted,
       }),
       ...(latestPartial ? { partial: latestPartial } : {}),
+      ...(taskUsage ? { usage: taskUsage } : {}),
       iterations: usage.iterations,
       toolCalls: usage.toolCalls,
       durationMs: Date.now() - startTime,

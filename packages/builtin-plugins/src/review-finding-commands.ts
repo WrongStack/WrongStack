@@ -6,6 +6,7 @@
  *
  * @module review-finding-commands
  */
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { FINDING_DEFAULT_PAGE_SIZE } from './review-finding-store.js';
 import type { FindingCommandContext } from './review-finding-transition.js';
 import { loadStore, resolveFindingId, transitionFinding } from './review-finding-transition.js';
@@ -308,6 +309,25 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
     `**Review status:** ${report.reviewStatus}`,
     ...(report.cascadeDepth !== undefined ? [`**Cascade depth:** ${report.cascadeDepth}`] : []),
     ...(report.durationSeconds !== undefined ? [`**Duration:** ${report.durationSeconds}s`] : []),
+    ...(report.scopeManifest?.headSha ? [`**HEAD:** \`${report.scopeManifest.headSha}\``] : []),
+    ...(report.usage !== undefined
+      ? [
+          `**Tokens:** ${report.usage.totalTokens.toLocaleString('en-US')} (in ${report.usage.inputTokens.toLocaleString('en-US')}, out ${report.usage.outputTokens.toLocaleString('en-US')}${
+            report.usage.cacheReadTokens
+              ? `, cache read ${report.usage.cacheReadTokens.toLocaleString('en-US')}`
+              : ''
+          }${report.usage.costUsd > 0 ? `, $${report.usage.costUsd.toFixed(4)}` : ''})`,
+          ...(report.usage.iterations !== undefined || report.usage.toolCalls !== undefined
+            ? [
+                `**Execution:** ${report.usage.iterations ?? 0} turn(s), ${report.usage.toolCalls ?? 0} tool call(s)${
+                  report.usage.attemptsUsed && report.usage.attemptsUsed > 1
+                    ? `, ${report.usage.attemptsUsed} model attempts`
+                    : ''
+                }`,
+              ]
+            : []),
+        ]
+      : []),
     ...(report.evidenceStatus !== undefined
       ? [
           `**Evidence:** ${
@@ -341,12 +361,38 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
   ];
 
   if (report.files.length > 0) {
+    const manifestByPath = new Map(
+      (report.scopeManifest?.files ?? []).map((entry) => [entry.path, entry] as const),
+    );
     lines.push('', '**Files reviewed:**');
     for (const f of report.files.slice(0, 20)) {
-      lines.push(`  - \`${f.path}\` (${f.status})`);
+      const m = manifestByPath.get(f.path);
+      const extras: string[] = [];
+      if (m?.isIncrementalDelta) extras.push('delta');
+      if (m?.addedLines !== undefined || m?.removedLines !== undefined) {
+        extras.push(`+${m.addedLines ?? 0}/-${m.removedLines ?? 0}`);
+      }
+      if (m?.changedSymbols && m.changedSymbols.length > 0) {
+        extras.push(`symbols: ${m.changedSymbols.slice(0, 4).join(', ')}`);
+      }
+      if (m?.pairedTestPath) {
+        extras.push(`test: ${m.pairedTestUpdated ? 'updated' : 'not updated'}`);
+      }
+      const suffix = extras.length > 0 ? ` — ${extras.join(' · ')}` : '';
+      lines.push(`  - \`${f.path}\` (${f.status})${suffix}`);
     }
     if (report.files.length > 20) {
       lines.push(`  _...and ${report.files.length - 20} more_`);
+    }
+  }
+
+  if (report.scopeManifest?.skippedFiles && report.scopeManifest.skippedFiles.length > 0) {
+    lines.push('', `**Skipped files (${report.scopeManifest.skippedFiles.length}):**`);
+    for (const s of report.scopeManifest.skippedFiles.slice(0, 15)) {
+      lines.push(`  - \`${s.path}\` (${s.reason}${s.detail ? `: ${s.detail}` : ''})`);
+    }
+    if (report.scopeManifest.skippedFiles.length > 15) {
+      lines.push(`  _...and ${report.scopeManifest.skippedFiles.length - 15} more_`);
     }
   }
 
@@ -425,7 +471,7 @@ export async function transitionReport(
       },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = toErrorMessage(err);
     return `Could not transition report \`${report.id}\` to ${targetStatus}: ${msg}`;
   }
 
@@ -456,7 +502,7 @@ async function addReportNote(
   try {
     await store.addNote(report.id, { id: 'operator', kind: 'operator' }, note);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = toErrorMessage(err);
     return `Could not add note to report ${id}: ${msg}`;
   }
 

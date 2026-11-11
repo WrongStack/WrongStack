@@ -1,3 +1,45 @@
+export interface WSChimeraUsageMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number | undefined;
+  cacheWriteTokens?: number | undefined;
+  totalTokens: number;
+  costUsd: number;
+  iterations?: number | undefined;
+  toolCalls?: number | undefined;
+  durationMs?: number | undefined;
+  attemptsUsed?: number | undefined;
+}
+
+export interface WSChimeraScopeManifest {
+  headSha?: string | undefined;
+  isIncremental?: boolean | undefined;
+  files: Array<{
+    path: string;
+    status: 'added' | 'modified';
+    sha256?: string | undefined;
+    hunkCount?: number | undefined;
+    addedLines?: number | undefined;
+    removedLines?: number | undefined;
+    diffTruncated?: boolean | undefined;
+    isIncrementalDelta?: boolean | undefined;
+    changedSymbols?: string[] | undefined;
+    pairedTestPath?: string | undefined;
+    pairedTestUpdated?: boolean | undefined;
+  }>;
+  deletedFiles?: string[] | undefined;
+  skippedFiles?:
+    | Array<{
+        path: string;
+        reason: string;
+        detail?: string | undefined;
+      }>
+    | undefined;
+  kanbanCardId?: string | undefined;
+  activeTodoCount?: number | undefined;
+  priorFindingCount?: number | undefined;
+}
+
 export type WSChimeraServerMessage =
   | {
       type: 'chimera.report_available';
@@ -28,9 +70,12 @@ export type WSChimeraServerMessage =
           counts?: { critical: number; high: number; medium: number; low: number } | undefined;
           totalFindings: number;
           fileCount?: number | undefined;
+          skippedFileCount?: number | undefined;
+          headSha?: string | undefined;
           durationSeconds?: number | undefined;
           cascadeDepth?: number | undefined;
           evidenceStatus?: string | undefined;
+          usage?: WSChimeraUsageMetrics | undefined;
           hasActionableFindings?: boolean | undefined;
         }>;
       };
@@ -64,6 +109,8 @@ export type WSChimeraServerMessage =
                 actualExitCode?: number | null;
               }>
             | undefined;
+          usage?: WSChimeraUsageMetrics | undefined;
+          scopeManifest?: WSChimeraScopeManifest | undefined;
         } | null;
         findings: Array<{
           finding: {

@@ -164,8 +164,20 @@ export class JsonlFindingStore implements FindingStore {
         const match = existing.find((e) => e.finding.fingerprint === finding.fingerprint);
         if (match) {
           // Materialize current status from events before checking reopen eligibility.
+          // Operator-suppressed findings (`ignored`, or `resolved` as `wontfix` /
+          // `false_positive`) stay suppressed on passive re-scans instead of
+          // resurrecting as noisy false positives; genuinely `fixed` findings
+          // reopen if the exact same fingerprint reappears later.
           const materialized = this._materialize(match);
-          if (materialized.status === 'resolved' || materialized.status === 'ignored') {
+          const suppressedOutcome = materialized.resolution?.outcome;
+          const isOperatorSuppressed =
+            materialized.status === 'ignored' ||
+            (materialized.status === 'resolved' &&
+              (suppressedOutcome === 'wontfix' || suppressedOutcome === 'false_positive'));
+          if (
+            !isOperatorSuppressed &&
+            (materialized.status === 'resolved' || materialized.status === 'ignored')
+          ) {
             const reopenEvent = this._makeEvent(
               match.finding.id,
               'reopened',

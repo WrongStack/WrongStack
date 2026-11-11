@@ -1,6 +1,50 @@
 import { create } from 'zustand';
 import { getWSClient } from '@/lib/ws-client';
 
+export interface ChimeraUsageMetricsItem {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number | undefined;
+  cacheWriteTokens?: number | undefined;
+  totalTokens: number;
+  costUsd: number;
+  iterations?: number | undefined;
+  toolCalls?: number | undefined;
+  durationMs?: number | undefined;
+  attemptsUsed?: number | undefined;
+}
+
+export interface ChimeraScopeFileItem {
+  path: string;
+  status: 'added' | 'modified';
+  sha256?: string | undefined;
+  hunkCount?: number | undefined;
+  addedLines?: number | undefined;
+  removedLines?: number | undefined;
+  diffTruncated?: boolean | undefined;
+  isIncrementalDelta?: boolean | undefined;
+  changedSymbols?: string[] | undefined;
+  pairedTestPath?: string | undefined;
+  pairedTestUpdated?: boolean | undefined;
+}
+
+export interface ChimeraSkippedFileItem {
+  path: string;
+  reason: string;
+  detail?: string | undefined;
+}
+
+export interface ChimeraScopeManifestItem {
+  headSha?: string | undefined;
+  isIncremental?: boolean | undefined;
+  files: ChimeraScopeFileItem[];
+  deletedFiles?: string[] | undefined;
+  skippedFiles?: ChimeraSkippedFileItem[] | undefined;
+  kanbanCardId?: string | undefined;
+  activeTodoCount?: number | undefined;
+  priorFindingCount?: number | undefined;
+}
+
 export interface ChimeraReportSummaryItem {
   reportId: string;
   sessionId: string;
@@ -13,9 +57,12 @@ export interface ChimeraReportSummaryItem {
   counts?: { critical: number; high: number; medium: number; low: number } | undefined;
   totalFindings: number;
   fileCount?: number | undefined;
+  skippedFileCount?: number | undefined;
+  headSha?: string | undefined;
   durationSeconds?: number | undefined;
   cascadeDepth?: number | undefined;
   evidenceStatus?: string | undefined;
+  usage?: ChimeraUsageMetricsItem | undefined;
   hasActionableFindings?: boolean | undefined;
 }
 
@@ -85,6 +132,8 @@ export interface ChimeraReportFullDetail {
           actualExitCode?: number | null;
         }>
       | undefined;
+    usage?: ChimeraUsageMetricsItem | undefined;
+    scopeManifest?: ChimeraScopeManifestItem | undefined;
   } | null;
   findings: FindingDetailItem[];
   events: Array<{

@@ -3,6 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/contracts/kernel/events';
 import type { PluginAPI } from '@wrongstack/contracts/types/plugin';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   CLAIM_STORE_LOCK_TIMEOUT,
   claimsFilePath,
@@ -11,9 +12,35 @@ import {
   warnFallbackOnce,
   withStoreLock,
 } from './review-claim-store-lock.js';
-import type { ReviewContextBundle, ReviewFileEntry } from './review-types.js';
+import type { ReviewContextBundle, ReviewFileEntry, ReviewSkippedFile } from './review-types.js';
 
 export { breakStaleLock } from './review-claim-store-lock.js';
+
+export interface CompletedReviewFileSnapshot {
+  path: string;
+  sha256: string;
+  content: string;
+  reviewedAt: number;
+  reportId?: string | undefined;
+}
+
+const COMPLETED_SNAPSHOT_TTL_MS = 12 * 60 * 60 * 1000;
+const MAX_COMPLETED_SNAPSHOTS_PER_BUS = 500;
+const MAX_SNAPSHOT_CONTENT_CHARS = 256_000;
+
+/**
+ * Per-EventBus completed review snapshots: `claimKey(cwd, path) -> snapshot`.
+ * Recorded ONLY when a review finishes with `status === 'success'` (or
+ * `'completed'`). Enables:
+ *  1. Skipping unchanged files at `session.ended` (0 tokens) when they were
+ *     already reviewed mid-session.
+ *  2. Computing hybrid incremental delta diffs when an already-reviewed file
+ *     receives small subsequent edits later in the same session.
+ */
+const completedSnapshotsByEventBus = new WeakMap<
+  EventBus,
+  Map<string, CompletedReviewFileSnapshot>
+>();
 
 interface ReviewClaim {
   key: string;
@@ -280,7 +307,7 @@ async function acquireClaims(
         } catch (err) {
           // Compaction is best-effort — the appended claims are already valid.
           warnFallbackOnce(
-            `[review-claim-registry] ledger compaction failed (${err instanceof Error ? err.message : String(err)}); will retry on a future acquire`,
+            `[review-claim-registry] ledger compaction failed (${toErrorMessage(err)}); will retry on a future acquire`,
           );
         }
       }
@@ -421,7 +448,7 @@ async function claimFiles(
         return { claims, storeDir };
       } catch (err2) {
         warnFallbackOnce(
-          `[review-claim-registry] claim lock still contended after ${LOCK_WAIT_MS + LOCK_RETRY_BUDGET_MS}ms (${err2 instanceof Error ? err2.message : String(err2)}); falling back to in-memory dedup`,
+          `[review-claim-registry] claim lock still contended after ${LOCK_WAIT_MS + LOCK_RETRY_BUDGET_MS}ms (${toErrorMessage(err2)}); falling back to in-memory dedup`,
         );
         return { claims: claimFilesInMemory(events, cwd, files, ttlMs), storeDir: null };
       }
@@ -430,7 +457,7 @@ async function claimFiles(
     // minimal host; fall back to per-session dedup so a storage problem never
     // turns into duplicate reviews inside one session.
     warnFallbackOnce(
-      `[review-claim-registry] shared claim store unavailable (${err instanceof Error ? err.message : String(err)}); falling back to in-memory dedup`,
+      `[review-claim-registry] shared claim store unavailable (${toErrorMessage(err)}); falling back to in-memory dedup`,
     );
     return { claims: claimFilesInMemory(events, cwd, files, ttlMs), storeDir: null };
   }
@@ -459,7 +486,7 @@ async function releaseClaims(
     // Best-effort: the claim is bounded by its stored expiry and the next
     // acquisition rewrites the ledger, so a failed release degrades gracefully.
     warnFallbackOnce(
-      `[review-claim-registry] shared claim release failed (${err instanceof Error ? err.message : String(err)}); claim will expire via its stored TTL`,
+      `[review-claim-registry] shared claim release failed (${toErrorMessage(err)}); claim will expire via its stored TTL`,
     );
   }
 }
@@ -522,12 +549,127 @@ export async function recordStartedReview(
   }
 }
 
+function ensureCompletedMap(events: EventBus): Map<string, CompletedReviewFileSnapshot> {
+  let map = completedSnapshotsByEventBus.get(events);
+  if (!map) {
+    map = new Map();
+    completedSnapshotsByEventBus.set(events, map);
+  }
+  return map;
+}
+
+function recordSuccessfulSnapshots(events: EventBus, payload: unknown): void {
+  if (!payload || typeof payload !== 'object') return;
+  const status = (payload as { status?: unknown }).status;
+  if (status !== 'success' && status !== 'completed') return;
+  const bundle = (payload as { bundle?: unknown }).bundle as
+    | Partial<ReviewContextBundle>
+    | undefined;
+  if (!bundle || typeof bundle !== 'object') return;
+  const cwd =
+    typeof bundle.cwd === 'string'
+      ? bundle.cwd
+      : typeof (payload as { cwd?: unknown }).cwd === 'string'
+        ? ((payload as { cwd: string }).cwd as string)
+        : undefined;
+  if (!cwd || !Array.isArray(bundle.files)) return;
+  const reportId =
+    typeof (payload as { reportId?: unknown }).reportId === 'string'
+      ? ((payload as { reportId: string }).reportId as string)
+      : undefined;
+  const now = Date.now();
+  const map = ensureCompletedMap(events);
+
+  // Prune expired entries first
+  for (const [k, snap] of map) {
+    if (now - snap.reviewedAt > COMPLETED_SNAPSHOT_TTL_MS) {
+      map.delete(k);
+    }
+  }
+
+  for (const file of bundle.files) {
+    if (
+      !file ||
+      typeof file !== 'object' ||
+      typeof file.path !== 'string' ||
+      typeof file.content !== 'string'
+    ) {
+      continue;
+    }
+    const key = claimKey(cwd, file.path);
+    if (map.has(key)) map.delete(key);
+    map.set(key, {
+      path: file.path,
+      sha256: file.sha256 ?? fingerprint(file.content),
+      content:
+        file.content.length <= MAX_SNAPSHOT_CONTENT_CHARS
+          ? file.content
+          : file.content.slice(0, MAX_SNAPSHOT_CONTENT_CHARS),
+      reviewedAt: now,
+      ...(reportId ? { reportId } : {}),
+    });
+    while (map.size > MAX_COMPLETED_SNAPSHOTS_PER_BUS) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) break;
+      map.delete(oldest);
+    }
+  }
+}
+
+/**
+ * Return all non-expired completed review snapshots for `cwd` on `events`,
+ * keyed by normalized lowercase forward-slash path (matching `file.path` via
+ * case-insensitive lookup on Windows).
+ */
+export function getCompletedReviewSnapshots(
+  events: EventBus,
+  cwd: string,
+): Map<string, CompletedReviewFileSnapshot> {
+  const out = new Map<string, CompletedReviewFileSnapshot>();
+  const map = completedSnapshotsByEventBus.get(events);
+  if (!map) return out;
+  const now = Date.now();
+  const prefix = `${normalizeKeyPart(cwd)}\0`;
+  for (const [key, snap] of map) {
+    if (now - snap.reviewedAt > COMPLETED_SNAPSHOT_TTL_MS) {
+      map.delete(key);
+      continue;
+    }
+    if (!key.startsWith(prefix)) continue;
+    out.set(snap.path, snap);
+    out.set(normalizeKeyPart(snap.path), snap);
+  }
+  return out;
+}
+
+/**
+ * True when `filePath` in `cwd` has already completed a successful review on
+ * `events` with the exact same `content` SHA-256 fingerprint.
+ */
+export function isFileContentAlreadyReviewed(
+  events: EventBus,
+  cwd: string,
+  filePath: string,
+  content: string,
+): boolean {
+  const map = completedSnapshotsByEventBus.get(events);
+  if (!map) return false;
+  const snap = map.get(claimKey(cwd, filePath));
+  if (!snap) return false;
+  if (Date.now() - snap.reviewedAt > COMPLETED_SNAPSHOT_TTL_MS) {
+    map.delete(claimKey(cwd, filePath));
+    return false;
+  }
+  return snap.sha256 === fingerprint(content);
+}
+
 /**
  * Release the exact claims associated with a completed review bundle. Bundle
  * identity prevents an older completion from removing newer in-flight claims.
  */
 export async function recordCompletedReview(events: EventBus, payload: unknown): Promise<void> {
   if (!payload || typeof payload !== 'object') return;
+  recordSuccessfulSnapshots(events, payload);
   const bundle = (payload as { bundle?: unknown }).bundle;
   if (!bundle || typeof bundle !== 'object') return;
 
@@ -543,8 +685,8 @@ export async function recordCompletedReview(events: EventBus, payload: unknown):
   // claims; the events guard keeps a completion on one bus from releasing
   // claims made by another bus in the same process.
   if (!startedReview || startedReview.events !== events) return;
-  await releaseClaims(events, startedReview.claims, startedReview.storeDir);
   startedReviews.delete(bundle as ReviewContextBundle);
+  await releaseClaims(events, startedReview.claims, startedReview.storeDir);
 }
 
 /**
@@ -567,14 +709,27 @@ export async function emitReviewIfChanged(
   if (claims.length === 0) return null;
 
   const claimed = new Set(claims.map((claim) => `${claim.key}\0${claim.fingerprint}`));
+  const claimedFiles: ReviewFileEntry[] = [];
+  const inFlightSkipped: ReviewSkippedFile[] = [];
+  for (const file of bundle.files) {
+    if (claimed.has(`${claimKey(bundle.cwd, file.path)}\0${fingerprint(file.content)}`)) {
+      claimedFiles.push(file);
+    } else {
+      inFlightSkipped.push({ path: file.path, reason: 'in_flight' });
+    }
+  }
+  const mergedSkipped =
+    inFlightSkipped.length > 0 || (bundle.skippedFiles && bundle.skippedFiles.length > 0)
+      ? [...(bundle.skippedFiles ?? []), ...inFlightSkipped]
+      : undefined;
+
   const claimedBundle: ReviewContextBundle = {
     ...bundle,
     // Filter on key+FINGERPRINT pairs, not just key: two entries for the same
     // path in one batch can differ in content, and a fingerprint claimed by
     // another session must not ride along in the emitted bundle.
-    files: bundle.files.filter((file) =>
-      claimed.has(`${claimKey(bundle.cwd, file.path)}\0${fingerprint(file.content)}`),
-    ),
+    files: claimedFiles,
+    ...(mergedSkipped ? { skippedFiles: mergedSkipped } : {}),
   };
 
   startedReviews.set(claimedBundle, {

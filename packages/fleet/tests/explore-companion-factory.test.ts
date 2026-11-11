@@ -165,4 +165,46 @@ describe('explore companion through the real subagent factory', () => {
       await dispose?.();
     }
   });
+
+  it('gives chimera-review an ephemeral cached lean prompt without sealing or invoking systemPromptBuilder.build', async () => {
+    const h = harness();
+    const { agent, dispose } = await h.factory({
+      id: 'chimera-review-test-9999',
+      name: 'chimera-review',
+      role: 'reviewer',
+      prompt:
+        'You are Chimera Reviewer.\n<!-- wrongstack:project-agent-context:start -->\nuntrusted block\n<!-- wrongstack:project-agent-context:end -->',
+      systemPromptOverride:
+        'You are Chimera Reviewer.\n<!-- wrongstack:project-agent-context:start -->\nignored tail\n<!-- wrongstack:project-agent-context:end -->',
+    });
+    try {
+      expect(h.build).not.toHaveBeenCalled();
+      expect(h.recordLearningRole).not.toHaveBeenCalled();
+      // Must NOT set sealedAgent: true so coordinator.assign() & BTW pacing continue working.
+      expect(agent.ctx.meta?.sealedAgent).toBeUndefined();
+      const system = agent.ctx.systemPrompt;
+      expect(system).toHaveLength(1);
+      expect(system[0]?.cache_control).toEqual({ type: 'ephemeral' });
+      const text = system[0]?.text ?? '';
+      expect(text).toContain('You are Chimera Reviewer.');
+      expect(text).toContain(`- Project root: ${process.cwd()}`);
+      expect(text).not.toContain('untrusted block');
+      expect(text).not.toContain('ignored tail');
+      expect(text).not.toContain('wrongstack:project-agent-context');
+      expect(text).not.toContain('GENERAL SUBAGENT PROMPT');
+      expect(agent.ctx.tools.map((t) => t.name)).toEqual([
+        'read',
+        'grep',
+        'glob',
+        'codebase-skeleton',
+        'codebase-context',
+        'codebase-incoming-calls',
+        'codebase-outgoing-calls',
+      ]);
+      expect(agent.ctx.meta?.mailboxSendPolicy).toBe('leaders-only');
+      expect(text.length).toBeLessThan(5_000);
+    } finally {
+      await dispose?.();
+    }
+  });
 });

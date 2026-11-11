@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-11T21:34:17.845Z
+**Generated:** 2026-11-11T21:37:08.121Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6247 |
-| Production source lines | 1282684 |
-| Test files | 5204 |
+| Production source files | 6248 |
+| Production source lines | 1285010 |
+| Test files | 5205 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18390 |
+| Relative module edges | 18398 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -39,7 +39,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/coordination | 192 | 190 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/core | 649 | 708 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop-v2 | 505 | 321 | @wrongstack/contracts, @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/webui-protocol, @wrongstack/webui-server |
-| @wrongstack/fleet | 61 | 3 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
+| @wrongstack/fleet | 62 | 4 | @wrongstack/acp, @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/providers, @wrongstack/sage, @wrongstack/sdd, @wrongstack/worktree |
 | @wrongstack/goal | 24 | 25 | @wrongstack/contracts, @wrongstack/core, @wrongstack/worktree |
 | @wrongstack/governance | 45 | 37 | @wrongstack/persistence |
 | @wrongstack/hq | 73 | 51 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
@@ -96,8 +96,10 @@ None.
 | 1110 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1072 | `apps/desktop-v2/src/SessionComposer.tsx` |
+| 1061 | `packages/builtin-plugins/src/review-context-builder.ts` |
 | 953 | `apps/desktop-v2/src/ProjectRequirements.tsx` |
 | 940 | `apps/desktop-v2/src/ModelCatalogSettings.tsx` |
+| 920 | `packages/webui/src/components/ChimeraReviewsView.tsx` |
 | 903 | `packages/tools/src/codebase-index/infra-parser.ts` |
 | 898 | `apps/desktop-v2/src/SkillLibrary.tsx` |
 | 853 | `apps/desktop-v2/src/AutomationWorkspace.tsx` |
@@ -115,8 +117,10 @@ None.
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 752 | `packages/acp/src/client/acp-session.ts` |
+| 749 | `packages/builtin-plugins/src/review-claim-registry.ts` |
 | 748 | `packages/coordination/src/sqlite-mailbox.ts` |
 | 747 | `apps/desktop-v2/src/ProjectSessionHistory.tsx` |
+| 745 | `packages/runtime/src/chimera/execution-chimera-review.ts` |
 | 744 | `packages/tools/src/process-registry.ts` |
 | 737 | `packages/webui-server/src/server/completion-handlers.ts` |
 | 733 | `packages/vibeui/src/components/provider-manager.tsx` |
@@ -135,15 +139,11 @@ None.
 | 715 | `packages/tools/src/codebase-index/background-indexer.ts` |
 | 714 | `packages/tui/src/reducers/panel-pickers.ts` |
 | 713 | `packages/webui-server/src/server/pref-helpers.ts` |
-| 709 | `packages/vibeui/src/components/memory-browser.tsx` |
-| 708 | `packages/core/src/core/agent-tools.ts` |
-| 708 | `packages/hq/src/commands.ts` |
-| 706 | `packages/chronicle/src/project-server.ts` |
-| 705 | `packages/webui/src/components/ChronicleDashboard.tsx` |
+| 709 | `packages/coordination/src/subagent-budget.ts` |
 
 ## Exports only tests reference
 
-- 1047 runtime exports are referenced by tests and by no other production file.
+- 1046 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

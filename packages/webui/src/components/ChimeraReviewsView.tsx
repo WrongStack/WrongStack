@@ -4,7 +4,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Coins,
   FileCode2,
+  GitCommit,
   History,
   Loader2,
   Plus,
@@ -20,7 +22,15 @@ import { getWSClient } from '@/lib/ws-client';
 import { chatLane, DEFAULT_LANE_ID } from '@/stores/chat-lanes';
 import { useChimeraHubStore } from '@/stores/chimera-hub-store';
 import { ChimeraReviewsHeader } from './ChimeraReviewsHeader';
-import { fmtRelative, fmtTime, LIFECYCLE_BADGE, SEVERITY_COLORS } from './chimera-review-format.js';
+import {
+  fmtCompactTokens,
+  fmtRelative,
+  fmtTime,
+  fmtUsdCost,
+  LIFECYCLE_BADGE,
+  SEVERITY_COLORS,
+  SKIPPED_FILE_REASON_KEY,
+} from './chimera-review-format.js';
 import { EmptyState } from './ui/empty-state';
 
 export function ChimeraReviewsView() {
@@ -47,6 +57,7 @@ export function ChimeraReviewsView() {
 
   const [noteText, setNoteText] = useState('');
   const [showRawText, setShowRawText] = useState(false);
+  const [showSkippedFiles, setShowSkippedFiles] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -206,6 +217,33 @@ export function ChimeraReviewsView() {
                         </div>
                       )}
                     </div>
+
+                    {/* Compact token / cost / HEAD strip */}
+                    {(r.usage?.totalTokens || r.headSha || (r.skippedFileCount ?? 0) > 0) && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-muted-foreground pt-0.5">
+                        {r.headSha && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-muted/70 px-1.5 py-0.5">
+                            <GitCommit className="h-2.5 w-2.5" />
+                            {r.headSha.slice(0, 8)}
+                          </span>
+                        )}
+                        {r.usage && r.usage.totalTokens > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5">
+                            {fmtCompactTokens(r.usage.totalTokens)}{' '}
+                            {t('activity:chimeraReport.tokensShort', { defaultValue: 'tok' })}
+                            {r.usage.costUsd > 0 ? ` · ${fmtUsdCost(r.usage.costUsd)}` : ''}
+                          </span>
+                        )}
+                        {(r.skippedFileCount ?? 0) > 0 && (
+                          <span className="rounded bg-muted/50 px-1.5 py-0.5">
+                            {t('activity:chimeraReport.skippedShort', {
+                              count: r.skippedFileCount,
+                              defaultValue: '{{count}} skipped',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -302,6 +340,246 @@ export function ChimeraReviewsView() {
                     </span>
                   </div>
                 </div>
+
+                {/* Token & Execution Telemetry Strip */}
+                {detail.report.usage && (
+                  <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-xs space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
+                        <Coins className="h-3.5 w-3.5 text-primary" />
+                        {t('activity:chimeraReport.telemetryHeading', {
+                          defaultValue: 'Token & Execution Telemetry',
+                        })}
+                      </span>
+                      {detail.report.usage.costUsd > 0 && (
+                        <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                          {fmtUsdCost(detail.report.usage.costUsd)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[11px]">
+                      <div>
+                        <span className="text-muted-foreground block font-sans text-[10px]">
+                          {t('activity:chimeraReport.totalTokensLabel', {
+                            defaultValue: 'Total Tokens',
+                          })}
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {detail.report.usage.totalTokens.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground ml-1">
+                          ({fmtCompactTokens(detail.report.usage.inputTokens)} in /{' '}
+                          {fmtCompactTokens(detail.report.usage.outputTokens)} out)
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block font-sans text-[10px]">
+                          {t('activity:chimeraReport.cacheReadLabel', {
+                            defaultValue: 'Prompt Cache Read',
+                          })}
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {(detail.report.usage.cacheReadTokens ?? 0).toLocaleString()}
+                        </span>
+                        {(detail.report.usage.cacheReadTokens ?? 0) > 0 &&
+                          detail.report.usage.inputTokens +
+                            (detail.report.usage.cacheReadTokens ?? 0) >
+                            0 && (
+                            <span className="text-success ml-1">
+                              (
+                              {Math.round(
+                                ((detail.report.usage.cacheReadTokens ?? 0) /
+                                  (detail.report.usage.inputTokens +
+                                    (detail.report.usage.cacheReadTokens ?? 0))) *
+                                  100,
+                              )}
+                              %)
+                            </span>
+                          )}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block font-sans text-[10px]">
+                          {t('activity:chimeraReport.executionLabel', {
+                            defaultValue: 'Turns / Tool Calls',
+                          })}
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {detail.report.usage.iterations ?? 0} /{' '}
+                          {detail.report.usage.toolCalls ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block font-sans text-[10px]">
+                          {t('activity:chimeraReport.durationAttemptsLabel', {
+                            defaultValue: 'Duration / Attempts',
+                          })}
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {detail.report.usage.durationMs !== undefined
+                            ? `${(detail.report.usage.durationMs / 1000).toFixed(1)}s`
+                            : detail.report.durationSeconds !== undefined
+                              ? `${detail.report.durationSeconds.toFixed(1)}s`
+                              : '—'}
+                          {detail.report.usage.attemptsUsed
+                            ? ` · ${detail.report.usage.attemptsUsed}x`
+                            : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reviewed Scope & Files Manifest */}
+                {(detail.report.scopeManifest || detail.report.files.length > 0) && (
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-foreground">
+                        {t('activity:chimeraReport.scopeHeading', {
+                          defaultValue: 'Reviewed Scope',
+                        })}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+                        {detail.report.scopeManifest?.headSha && (
+                          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-muted-foreground">
+                            <GitCommit className="h-3 w-3" />
+                            HEAD {detail.report.scopeManifest.headSha}
+                          </span>
+                        )}
+                        {detail.report.scopeManifest?.isIncremental && (
+                          <span className="rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-sans font-semibold text-primary">
+                            {t('activity:chimeraReport.incrementalBadge', {
+                              defaultValue: 'Incremental Delta',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {(detail.report.scopeManifest?.files ?? detail.report.files).map((f) => {
+                        const sf = detail.report?.scopeManifest?.files.find(
+                          (entry) => entry.path === f.path,
+                        );
+                        return (
+                          <div
+                            key={f.path}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/50 bg-background/60 px-2.5 py-1.5"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <span className="font-mono text-[11px] font-medium text-foreground break-all">
+                                {f.path}
+                              </span>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                                {f.status}
+                              </span>
+                              {sf?.isIncrementalDelta && (
+                                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                  {t('activity:chimeraReport.deltaTag', { defaultValue: 'delta' })}
+                                </span>
+                              )}
+                              {sf?.pairedTestPath && (
+                                <span
+                                  className={cn(
+                                    'rounded px-1.5 py-0.5 text-[10px] font-medium border',
+                                    sf.pairedTestUpdated
+                                      ? 'border-success/30 bg-success/10 text-success'
+                                      : 'border-warning/30 bg-warning/10 text-warning',
+                                  )}
+                                  title={sf.pairedTestPath}
+                                >
+                                  {sf.pairedTestUpdated
+                                    ? t('activity:chimeraReport.pairedTestUpdated', {
+                                        defaultValue: 'test updated ✓',
+                                      })
+                                    : t('activity:chimeraReport.pairedTestUntouched', {
+                                        defaultValue: 'test untouched !',
+                                      })}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                              {sf &&
+                                (sf.addedLines !== undefined || sf.removedLines !== undefined) && (
+                                  <span>
+                                    <span className="text-success">+{sf.addedLines ?? 0}</span>{' '}
+                                    <span className="text-destructive">
+                                      -{sf.removedLines ?? 0}
+                                    </span>
+                                  </span>
+                                )}
+                              {sf?.changedSymbols && sf.changedSymbols.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground truncate max-w-xs">
+                                  [{sf.changedSymbols.slice(0, 4).join(', ')}
+                                  {sf.changedSymbols.length > 4 ? '…' : ''}]
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {detail.report.scopeManifest?.deletedFiles &&
+                      detail.report.scopeManifest.deletedFiles.length > 0 && (
+                        <div className="text-[11px] text-muted-foreground pt-1">
+                          <span className="font-semibold text-destructive mr-1.5">
+                            {t('activity:chimeraReport.deletedFilesLabel', {
+                              defaultValue: 'Deleted in worktree:',
+                            })}
+                          </span>
+                          <span className="font-mono">
+                            {detail.report.scopeManifest.deletedFiles.join(', ')}
+                          </span>
+                        </div>
+                      )}
+
+                    {detail.report.scopeManifest?.skippedFiles &&
+                      detail.report.scopeManifest.skippedFiles.length > 0 && (
+                        <div className="pt-1 border-t border-border/50">
+                          <button
+                            type="button"
+                            onClick={() => setShowSkippedFiles((v) => !v)}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                          >
+                            {showSkippedFiles ? (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            )}
+                            {t('activity:chimeraReport.skippedFilesToggle', {
+                              count: detail.report.scopeManifest.skippedFiles.length,
+                              defaultValue: 'Skipped / Filtered Files ({{count}})',
+                            })}
+                          </button>
+                          {showSkippedFiles && (
+                            <div className="mt-1.5 space-y-1 pl-4 text-[11px]">
+                              {detail.report.scopeManifest.skippedFiles.map((sk) => {
+                                const reasonDef = SKIPPED_FILE_REASON_KEY[sk.reason];
+                                const reasonLabel = reasonDef
+                                  ? t(`activity:chimeraReport.${reasonDef.key}`, {
+                                      defaultValue: reasonDef.fallback,
+                                    })
+                                  : sk.reason;
+                                return (
+                                  <div
+                                    key={`${sk.path}:${sk.reason}`}
+                                    className="flex flex-wrap items-center justify-between gap-2 text-muted-foreground"
+                                  >
+                                    <span className="font-mono break-all">{sk.path}</span>
+                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                                      {reasonLabel}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                  </div>
+                )}
 
                 {/* Evidence Verification Block if any */}
                 {detail.report.evidenceStatus && (

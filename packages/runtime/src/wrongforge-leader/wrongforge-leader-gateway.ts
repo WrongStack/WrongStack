@@ -131,7 +131,18 @@ export async function startLeaderGateway(
     }
     const m = /^\/v1\/tools\/([^/]+)\/call$/.exec(url.pathname);
     if (req.method !== 'POST' || !m) return send(res, 404, { ok: false, error: 'not_found' });
-    const name = decodeURIComponent(m[1] ?? '');
+    // Same REST shape as `wstack tools serve` (tool-gateway-http.ts): a
+    // malformed percent escape in the {name} segment throws URIError, and an
+    // exception escaping this synchronous handler takes the connection down
+    // with it (Bun fabricates an empty answer, Node unwinds the host) instead
+    // of returning the canonical 400. Reject it the way every other malformed
+    // request on this surface is rejected — with an HTTP status.
+    let name: string;
+    try {
+      name = decodeURIComponent(m[1] ?? '');
+    } catch {
+      return send(res, 400, { ok: false, error: 'invalid_path_encoding' });
+    }
     const tool = byName.get(name);
     if (!tool) {
       return send(res, 404, { ok: false, tool: name, error: 'not_offered' });

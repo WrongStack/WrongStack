@@ -58,3 +58,29 @@ export const SEVERITY_COLORS: Record<string, { bg: string; text: string; dot: st
   medium: { bg: 'bg-warning/10 border-warning/30', text: 'text-warning', dot: 'bg-warning' },
   low: { bg: 'bg-muted border-border', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
 };
+
+export function fmtCompactTokens(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k`;
+  return String(Math.round(n));
+}
+
+export function fmtUsdCost(usd: number): string {
+  if (!Number.isFinite(usd) || usd <= 0) return '$0';
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
+}
+
+export const SKIPPED_FILE_REASON_KEY: Record<string, { key: string; fallback: string }> = {
+  max_files_cap: { key: 'skipReasonMaxFiles', fallback: 'Max files cap' },
+  already_reviewed: { key: 'skipReasonAlreadyReviewed', fallback: 'Already reviewed (same SHA)' },
+  in_flight: { key: 'skipReasonInFlight', fallback: 'Review in flight' },
+  ignored_non_source: {
+    key: 'skipReasonIgnoredNoise',
+    fallback: 'Filtered non-source / generated',
+  },
+  too_large: { key: 'skipReasonTooLarge', fallback: 'File too large' },
+  unreadable: { key: 'skipReasonUnreadable', fallback: 'Unreadable / deleted' },
+};

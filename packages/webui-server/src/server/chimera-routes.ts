@@ -100,9 +100,12 @@ export interface ChimeraReportSummary {
   counts?: ReviewReportCounts | undefined;
   totalFindings: number;
   fileCount?: number | undefined;
+  skippedFileCount?: number | undefined;
+  headSha?: string | undefined;
   durationSeconds?: number | undefined;
   cascadeDepth?: number | undefined;
   evidenceStatus?: string | undefined;
+  usage?: ReviewReport['usage'] | undefined;
   /** Mirrors `pending`: the client backfills cards for actionable rows. */
   hasActionableFindings: boolean;
 }
@@ -150,9 +153,14 @@ export async function listChimeraReportsForSession(
         counts: r.counts,
         totalFindings: r.totalFindings,
         fileCount: r.files?.length ?? 0,
+        ...(r.scopeManifest?.skippedFiles?.length
+          ? { skippedFileCount: r.scopeManifest.skippedFiles.length }
+          : {}),
+        ...(r.scopeManifest?.headSha ? { headSha: r.scopeManifest.headSha } : {}),
         durationSeconds: r.durationSeconds,
         cascadeDepth: r.cascadeDepth,
         evidenceStatus: r.evidenceStatus,
+        ...(r.usage ? { usage: r.usage } : {}),
         hasActionableFindings: pending,
       };
     });
@@ -191,9 +199,14 @@ export async function queryAllChimeraReports(
       counts: r.counts,
       totalFindings: r.totalFindings,
       fileCount: r.files?.length ?? 0,
+      ...(r.scopeManifest?.skippedFiles?.length
+        ? { skippedFileCount: r.scopeManifest.skippedFiles.length }
+        : {}),
+      ...(r.scopeManifest?.headSha ? { headSha: r.scopeManifest.headSha } : {}),
       durationSeconds: r.durationSeconds,
       cascadeDepth: r.cascadeDepth,
       evidenceStatus: r.evidenceStatus,
+      ...(r.usage ? { usage: r.usage } : {}),
       hasActionableFindings: isPendingChimeraReport(r),
     }));
 }

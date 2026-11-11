@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:34:17.845Z",
+  "generatedAt": "2026-11-11T21:37:08.121Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6247,
-    "testFiles": 5204,
-    "sourceLines": 1282684,
+    "sourceFiles": 6248,
+    "testFiles": 5205,
+    "sourceLines": 1285010,
     "workspaceEdges": 250,
-    "moduleEdges": 18390,
+    "moduleEdges": 18398,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1047
+    "testOnlyExports": 1046
   },
   "errors": [],
   "packageCycles": [],
@@ -408,8 +408,8 @@
     {
       "name": "@wrongstack/fleet",
       "dir": "packages/fleet",
-      "sourceFiles": 61,
-      "testFiles": 3,
+      "sourceFiles": 62,
+      "testFiles": 4,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -430,7 +430,7 @@
         {
           "path": "packages/fleet/tsconfig.test.json",
           "error": null,
-          "testFiles": 3
+          "testFiles": 4
         }
       ]
     },
@@ -14247,6 +14247,12 @@
       },
       {
         "file": "packages/fleet/tests/host-model-pricing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/fleet/tests/wrongforge-http-errors.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35665,6 +35671,16 @@
       "relativeImports": 25
     },
     {
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
+      "lines": 749,
+      "relativeImports": 3
+    },
+    {
+      "file": "packages/builtin-plugins/src/review-context-builder.ts",
+      "lines": 1061,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/chronicle/src/project-server-client.ts",
       "lines": 719,
       "relativeImports": 5
@@ -35698,6 +35714,11 @@
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 748,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/coordination/src/subagent-budget.ts",
+      "lines": 709,
+      "relativeImports": 2
     },
     {
       "file": "packages/core/src/core/agent-tools.ts",
@@ -35758,6 +35779,11 @@
       "file": "packages/requirement-intake/src/service.ts",
       "lines": 716,
       "relativeImports": 17
+    },
+    {
+      "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
+      "lines": 745,
+      "relativeImports": 3
     },
     {
       "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
@@ -35828,6 +35854,11 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 762,
       "relativeImports": 8
+    },
+    {
+      "file": "packages/webui/src/components/ChimeraReviewsView.tsx",
+      "lines": 920,
+      "relativeImports": 3
     },
     {
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
@@ -35967,6 +35998,11 @@
       "relativeImports": 39
     },
     {
+      "file": "packages/builtin-plugins/src/review-context-builder.ts",
+      "lines": 1061,
+      "relativeImports": 2
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectRequirements.tsx",
       "lines": 953,
       "relativeImports": 14
@@ -35975,6 +36011,11 @@
       "file": "apps/desktop-v2/src/ModelCatalogSettings.tsx",
       "lines": 940,
       "relativeImports": 20
+    },
+    {
+      "file": "packages/webui/src/components/ChimeraReviewsView.tsx",
+      "lines": 920,
+      "relativeImports": 3
     },
     {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
@@ -36062,6 +36103,11 @@
       "relativeImports": 25
     },
     {
+      "file": "packages/builtin-plugins/src/review-claim-registry.ts",
+      "lines": 749,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/coordination/src/sqlite-mailbox.ts",
       "lines": 748,
       "relativeImports": 14
@@ -36070,6 +36116,11 @@
       "file": "apps/desktop-v2/src/ProjectSessionHistory.tsx",
       "lines": 747,
       "relativeImports": 16
+    },
+    {
+      "file": "packages/runtime/src/chimera/execution-chimera-review.ts",
+      "lines": 745,
+      "relativeImports": 3
     },
     {
       "file": "packages/tools/src/process-registry.ts",
@@ -36162,29 +36213,9 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/vibeui/src/components/memory-browser.tsx",
+      "file": "packages/coordination/src/subagent-budget.ts",
       "lines": 709,
-      "relativeImports": 12
-    },
-    {
-      "file": "packages/core/src/core/agent-tools.ts",
-      "lines": 708,
-      "relativeImports": 11
-    },
-    {
-      "file": "packages/hq/src/commands.ts",
-      "lines": 708,
-      "relativeImports": 4
-    },
-    {
-      "file": "packages/chronicle/src/project-server.ts",
-      "lines": 706,
-      "relativeImports": 17
-    },
-    {
-      "file": "packages/webui/src/components/ChronicleDashboard.tsx",
-      "lines": 705,
-      "relativeImports": 5
+      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
@@ -36663,10 +36694,6 @@
     {
       "file": "packages/builtin-plugins/src/perf-command.ts",
       "name": "parsePerfArgs"
-    },
-    {
-      "file": "packages/builtin-plugins/src/review-finding-parser.ts",
-      "name": "extractStructuredFindingsBlock"
     },
     {
       "file": "packages/builtin-plugins/src/review-finding-store.ts",

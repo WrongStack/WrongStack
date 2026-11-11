@@ -205,6 +205,8 @@ export class SubagentBudget implements SubagentBudgetPort {
   private toolCalls = 0;
   private tokenInput = 0;
   private tokenOutput = 0;
+  private tokenCacheRead = 0;
+  private tokenCacheWrite = 0;
   private costUsd = 0;
   private startTime: number | null = null;
   /**
@@ -620,6 +622,12 @@ export class SubagentBudget implements SubagentBudgetPort {
   recordUsage(usage: Usage, costUsd = 0): void {
     this.tokenInput += usage.input;
     this.tokenOutput += usage.output;
+    if (typeof usage.cacheRead === 'number' && usage.cacheRead > 0) {
+      this.tokenCacheRead += usage.cacheRead;
+    }
+    if (typeof usage.cacheWrite === 'number' && usage.cacheWrite > 0) {
+      this.tokenCacheWrite += usage.cacheWrite;
+    }
     this.costUsd += costUsd;
     this.markActivity();
     void this.checkLimits();
@@ -689,6 +697,8 @@ export class SubagentBudget implements SubagentBudgetPort {
       tokens: {
         input: this.tokenInput,
         output: this.tokenOutput,
+        ...(this.tokenCacheRead > 0 ? { cacheRead: this.tokenCacheRead } : {}),
+        ...(this.tokenCacheWrite > 0 ? { cacheWrite: this.tokenCacheWrite } : {}),
         total: this.tokenInput + this.tokenOutput,
       },
       costUsd: this.costUsd,

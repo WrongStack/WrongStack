@@ -98,6 +98,10 @@ export interface PersistReportInput {
   evidenceStatus?: CascadeEvidenceStatus | undefined;
   /** P0-3: per-check claimed-vs-observed exit-code comparisons. */
   evidenceChecks?: CascadeEvidenceCheckResult[] | undefined;
+  /** Token, cache, cost, and turn/tool telemetry recorded for this review. */
+  usage?: import('./review-types.js').ReviewUsageMetrics | undefined;
+  /** Structured manifest of reviewed/skipped files, deltas, and symbols. */
+  scopeManifest?: import('./review-types.js').ReviewScopeManifest | undefined;
 }
 
 /** Context for who is creating/transitioning a report. */
@@ -173,6 +177,8 @@ export class JsonlReportStore implements ReportStore {
           files: input.files.length > 0 ? input.files : existing.files,
           ...(input.evidenceStatus !== undefined ? { evidenceStatus: input.evidenceStatus } : {}),
           ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
+          ...(input.usage !== undefined ? { usage: input.usage } : {}),
+          ...(input.scopeManifest !== undefined ? { scopeManifest: input.scopeManifest } : {}),
         };
         await fsp.appendFile(this.filePath, JSON.stringify({ __report: 1, data: updated }) + NL, {
           encoding: 'utf8',
@@ -199,6 +205,8 @@ export class JsonlReportStore implements ReportStore {
         ...(input.cascadeDepth !== undefined ? { cascadeDepth: input.cascadeDepth } : {}),
         ...(input.evidenceStatus !== undefined ? { evidenceStatus: input.evidenceStatus } : {}),
         ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
+        ...(input.usage !== undefined ? { usage: input.usage } : {}),
+        ...(input.scopeManifest !== undefined ? { scopeManifest: input.scopeManifest } : {}),
       };
 
       const createdEvent: ReviewReportEvent = {

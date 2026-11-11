@@ -10,15 +10,23 @@ import { projectSlug, readBundledInstructionText, toErrorMessage } from '@wrongs
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import {
   emitReviewIfChanged,
+  getCompletedReviewSnapshots,
+  isFileContentAlreadyReviewed,
   recordCompletedReview,
   recordStartedReview,
 } from './review-claim-registry.js';
-import { buildReviewContext, statusUnderPrefix } from './review-context-builder.js';
+import {
+  buildReviewContext,
+  isIgnoredReviewNoisePath,
+  prioritizeReviewCandidates,
+  statusUnderPrefix,
+} from './review-context-builder.js';
 import { executeFindingCommand } from './review-finding-commands.js';
 import type {
   ResolvedChimeraConfig,
   ReviewContextBundle,
   ReviewFileEntry,
+  ReviewSkippedFile,
 } from './review-types.js';
 
 // Re-export the shared review types so existing importers keep resolving them
@@ -34,6 +42,12 @@ export type {
   ResolvedChimeraConfig,
   ReviewContextBundle,
   ReviewFileEntry,
+  ReviewPriorFindingSummary,
+  ReviewScopeFileManifest,
+  ReviewScopeManifest,
+  ReviewSkippedFile,
+  ReviewSkippedFileReason,
+  ReviewUsageMetrics,
 } from './review-types.js';
 
 // ---------------------------------------------------------------------------
@@ -396,8 +410,18 @@ export function createChimeraPlugin(): Plugin {
 
             const allChanged = await getChangedFiles(cwd);
             const existing: ChangedFile[] = [];
+            const skippedFiles: ReviewSkippedFile[] = [];
             for (const f of allChanged) {
               if (f.path.startsWith('.wrongstack/')) continue;
+              const noiseDetail = isIgnoredReviewNoisePath(f.path);
+              if (noiseDetail) {
+                skippedFiles.push({
+                  path: f.path,
+                  reason: 'ignored_non_source',
+                  detail: noiseDetail,
+                });
+                continue;
+              }
               try {
                 await fsp.access(path.join(cwd, f.path));
                 existing.push(f);
@@ -411,33 +435,53 @@ export function createChimeraPlugin(): Plugin {
               return;
             }
 
-            const toReview = existing.slice(0, cfg.maxFiles);
+            const prioritized = prioritizeReviewCandidates(existing, cfg.maxFiles);
+            const toReview = prioritized.selected;
             if (existing.length > cfg.maxFiles) {
               api.log.info(
                 `[chimera] capping review at ${cfg.maxFiles} of ${existing.length} files`,
               );
+              for (const capped of prioritized.capped) {
+                skippedFiles.push({ path: capped.path, reason: 'max_files_cap' });
+              }
             }
 
-            // Read file contents
+            // Read file contents & skip unchanged files already reviewed mid-session
             const filesWithContent: ReviewFileEntry[] = [];
+            let alreadyReviewedCount = 0;
             for (const f of toReview) {
               try {
                 const absPath = path.join(cwd, f.path);
                 const content = await fsp.readFile(absPath, 'utf8');
+                if (isFileContentAlreadyReviewed(api.events, cwd, f.path, content)) {
+                  alreadyReviewedCount++;
+                  skippedFiles.push({ path: f.path, reason: 'already_reviewed' });
+                  continue;
+                }
                 filesWithContent.push({ path: f.path, status: f.status, content });
               } catch {
-                /* skip */
+                skippedFiles.push({ path: f.path, reason: 'unreadable' });
               }
             }
 
             if (filesWithContent.length === 0) {
-              api.log.info('[chimera] could not read changed files');
+              if (alreadyReviewedCount > 0) {
+                api.log.info(
+                  '[chimera] skipped — all changed files already reviewed in this session',
+                );
+              } else {
+                api.log.info('[chimera] could not read changed files');
+              }
               return;
             }
 
-            // ── Build enriched review context (diffs, siblings, commits) ──
+            const projectDir = path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
+            // ── Build enriched review context (diffs, deltas, siblings, commits, prior findings) ──
             const bundle: ReviewContextBundle = await buildReviewContext({
               cwd,
+              projectDir,
+              previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
+              skippedFiles,
               fileLineage: resolveChronicleFileLineage(api.container),
               config: cfg,
               files: filesWithContent,

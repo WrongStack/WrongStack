@@ -45,6 +45,12 @@ import { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy, subagentYoloPlus } from '@wrongstack/core/security';
 import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import {
+  CHIMERA_REVIEWER_OUTPUT_CAP_BYTES,
+  chimeraReviewerSystemPrompt,
+  constrainChimeraReviewer,
+  isChimeraReviewer,
+} from './chimera-reviewer-policy.js';
+import {
   constrainExploreCompanion,
   EXPLORE_COMPANION_OUTPUT_CAP_BYTES,
   exploreCompanionSystemPrompt,
@@ -106,6 +112,8 @@ export function createHostSubagentFactory(
     const skillCompanion = !memoryCompanion && isSkillCompanion(subCfg);
     const companion = memoryCompanion || skillCompanion;
     const exploreCompanion = !companion && isExploreCompanion(subCfg);
+    const chimeraReviewer = !companion && !exploreCompanion && isChimeraReviewer(subCfg);
+    const lightweightProbe = exploreCompanion || chimeraReviewer;
     const mergedCfg: SubagentConfig = projectCfg
       ? applyProjectAgentConfig(subCfg, projectCfg, {
           protectSystemRole: isSystemRole,
@@ -117,7 +125,9 @@ export function createHostSubagentFactory(
         ? constrainSkillCompanion(mergedCfg)
         : exploreCompanion
           ? constrainExploreCompanion(mergedCfg)
-          : mergedCfg;
+          : chimeraReviewer
+            ? constrainChimeraReviewer(mergedCfg)
+            : mergedCfg;
 
     // Fixed for this worker's lifetime. `originSessionId` is the spawning
     // tool's stamp — the run-pinned session of the agent that asked — and the
@@ -213,7 +223,7 @@ export function createHostSubagentFactory(
     }
 
     let onlineAgents: MailboxAgentStatus[] = [];
-    if (!companion && !exploreCompanion) {
+    if (!companion && !lightweightProbe) {
       try {
         const subagentMailbox = getSharedProjectMailbox(host.mailboxProjectDir());
         onlineAgents = await subagentMailbox.getAgentStatuses();
@@ -236,36 +246,38 @@ export function createHostSubagentFactory(
       effectiveCfg.systemPromptOverride ??
       effectiveCfg.prompt ??
       (effectiveCfg.role ? host.roster[effectiveCfg.role]?.prompt : undefined);
-    // The explore companion is self-contained: its brief replaces the general
-    // prompt and the code-writing baseline (see explore-companion-policy.ts).
+    // The explore companion and Chimera reviewer are self-contained: their
+    // brief replaces the general prompt and the code-writing baseline.
     const baseSystem: TextBlock[] = exploreCompanion
       ? exploreCompanionSystemPrompt({ rolePrompt: rawRolePrompt, projectRoot })
-      : skillCompanion
-        ? []
-        : memoryCompanion
-          ? [
-              {
-                type: 'text',
-                text: [
-                  '# Environment',
-                  `- Project root: ${projectRoot}`,
-                  `- Platform: ${process.platform}`,
-                  '- Paths in evidence are relative to the project root.',
-                ].join('\n'),
-              },
-            ]
-          : await host.deps.systemPromptBuilder.build({
-              cwd: subCwd,
-              projectRoot: host.deps.projectRoot,
-              tools: providerTools,
-              catalogTools: subagentTools,
-              model: effModel,
-              provider: effProvider,
-              subagent: true,
-              onlineAgents,
-            });
+      : chimeraReviewer
+        ? chimeraReviewerSystemPrompt({ rolePrompt: rawRolePrompt, projectRoot: subCwd })
+        : skillCompanion
+          ? []
+          : memoryCompanion
+            ? [
+                {
+                  type: 'text',
+                  text: [
+                    '# Environment',
+                    `- Project root: ${projectRoot}`,
+                    `- Platform: ${process.platform}`,
+                    '- Paths in evidence are relative to the project root.',
+                  ].join('\n'),
+                },
+              ]
+            : await host.deps.systemPromptBuilder.build({
+                cwd: subCwd,
+                projectRoot: host.deps.projectRoot,
+                tools: providerTools,
+                catalogTools: subagentTools,
+                model: effModel,
+                provider: effProvider,
+                subagent: true,
+                onlineAgents,
+              });
 
-    if (!exploreCompanion) {
+    if (!lightweightProbe) {
       baseSystem.unshift({
         type: 'text',
         text: renderInstructionLayer(DEFAULT_SUBAGENT_BASELINE, {
@@ -279,7 +291,7 @@ export function createHostSubagentFactory(
     if (availabilityNotice) baseSystem.push({ type: 'text', text: availabilityNotice });
 
     const audienceMemory =
-      companion || exploreCompanion
+      companion || lightweightProbe
         ? undefined
         : await retrieveHostSubagentMemory(
             host.deps,
@@ -290,13 +302,15 @@ export function createHostSubagentFactory(
           );
     if (audienceMemory) baseSystem.push({ type: 'text', text: audienceMemory });
 
-    const skillResolution = await resolveHostSubagentSkillResolution(
-      host.deps,
-      host.roster,
-      effectiveCfg,
-      subagentTools.map((tool) => tool.name),
-      task?.description,
-    );
+    const skillResolution = lightweightProbe
+      ? { content: '', selected: [], dropped: {}, trimmed: [], addendumOnly: [] }
+      : await resolveHostSubagentSkillResolution(
+          host.deps,
+          host.roster,
+          effectiveCfg,
+          subagentTools.map((tool) => tool.name),
+          task?.description,
+        );
     if (skillResolution.content) {
       for (let index = baseSystem.length - 1; index >= 0; index--) {
         if (baseSystem[index]?.text.includes('# Active Skills')) baseSystem.splice(index, 1);
@@ -318,19 +332,19 @@ export function createHostSubagentFactory(
     }
 
     const rolePrompt =
-      rawRolePrompt && effectiveCfg.role && !companion
+      rawRolePrompt && effectiveCfg.role && !companion && !lightweightProbe
         ? buildProjectContextualizedPrompt(rawRolePrompt, effectiveCfg.role, projectRoot, {
             identityOverride: effectiveCfg.projectIdentity?.identityOverride,
           })
         : rawRolePrompt;
-    if (rolePrompt && !exploreCompanion) {
+    if (rolePrompt && !lightweightProbe) {
       baseSystem.push({ type: 'text', text: rolePrompt });
     }
 
     const subagentName = effectiveCfg.id ?? effectiveCfg.name ?? `sub_${randomUUID().slice(0, 8)}`;
-    // Sealed host companions are never shown the LEARNED brief, so there is no
-    // capture to attribute — and no consolidation pass to schedule.
-    if (effectiveCfg.role && !companion && !exploreCompanion) {
+    // Lightweight probes & sealed host companions are never shown the LEARNED
+    // brief, so there is no capture to attribute — and no consolidation pass to schedule.
+    if (effectiveCfg.role && !companion && !lightweightProbe) {
       host.recordLearningRole(subagentName, effectiveCfg.role, skillResolution.selected);
     }
     let subSession: SessionWriter;
@@ -406,7 +420,7 @@ export function createHostSubagentFactory(
       cwd: subCwd,
       projectRoot: host.deps.projectRoot,
       allowOutsideProjectRoot:
-        companion || exploreCompanion
+        companion || lightweightProbe
           ? false
           : (config.features?.allowOutsideProjectRoot ??
             !(config.tools?.restrictToProjectRoot ?? false)),
@@ -467,7 +481,9 @@ export function createHostSubagentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: exploreCompanion
         ? (config.tools?.perIterationOutputCapBytes ?? EXPLORE_COMPANION_OUTPUT_CAP_BYTES)
-        : (config.tools?.perIterationOutputCapBytes ?? 100_000),
+        : chimeraReviewer
+          ? (config.tools?.perIterationOutputCapBytes ?? CHIMERA_REVIEWER_OUTPUT_CAP_BYTES)
+          : (config.tools?.perIterationOutputCapBytes ?? 100_000),
       tracer: host.deps.tracer,
       // Kanban tracks work; it does not gate it. Off unless the operator opts
       // in — and then subagents inherit it, because a worker dispatched by
@@ -491,7 +507,7 @@ export function createHostSubagentFactory(
       }),
     );
 
-    if (!companion && !exploreCompanion) {
+    if (!companion && !lightweightProbe) {
       installDesignStudioMiddleware({ pipelines, ctx });
     }
     installSubagentAutoCompaction(pipelines, ctx, config.context, events);
@@ -523,7 +539,7 @@ export function createHostSubagentFactory(
 
     // A subagent without network capability has no design_reference, so the
     // gate stays off for it rather than demanding a check it cannot run.
-    if (!companion && !exploreCompanion) {
+    if (!companion && !lightweightProbe) {
       installDesignTurnGate({
         pipelines,
         extensions: agent.extensions,

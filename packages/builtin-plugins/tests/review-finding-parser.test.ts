@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractStructuredFindingsBlock,
   parseChimeraReviewReport,
+  renderChimeraReportMarkdown,
 } from '../src/review-finding-parser.js';
 
 // ── Helper ──────────────────────────────────────────────────────────
@@ -607,5 +608,84 @@ describe('parseChimeraReviewReport — source normalization', () => {
     const report = '### Medium (1)\n1. src/a.ts:1 — Slow memory leak in loop\n';
     const result = parseChimeraReviewReport(report, { ...SAMPLE_CONTEXT, reviewType: 'manual' });
     expect(result.findings[0]!.source).toBe('chimera');
+  });
+});
+
+describe('JSON-only reviewer output & deterministic Markdown synthesis', () => {
+  it('parses raw JSON-only findings without Markdown fences', () => {
+    const rawJson = JSON.stringify({
+      findings: [
+        {
+          severity: 'high',
+          category: 'bug',
+          confidence: 'high',
+          file: 'src/auth.ts',
+          line: 27,
+          title: 'Missing null guard on session token',
+          description: 'Dereferencing session.token throws when guest visits route.',
+          fix: 'Return 401 when !session?.token',
+        },
+      ],
+    });
+    expect(extractStructuredFindingsBlock(rawJson)).toEqual({
+      findings: [
+        expect.objectContaining({
+          severity: 'high',
+          file: 'src/auth.ts',
+          line: 27,
+        }),
+      ],
+    });
+    const parsed = parseChimeraReviewReport(rawJson, SAMPLE_CONTEXT);
+    expect(parsed.findings).toHaveLength(1);
+    expect(parsed.findings[0]).toMatchObject({
+      severity: 'high',
+      category: 'bug',
+      location: { file: 'src/auth.ts', line: 27 },
+      title: 'Missing null guard on session token',
+      suggestedFix: 'Return 401 when !session?.token',
+    });
+  });
+
+  it('parses raw JSON-only empty findings array as zero findings', () => {
+    const parsed = parseChimeraReviewReport('{"findings":[]}', SAMPLE_CONTEXT);
+    expect(parsed.findings).toEqual([]);
+    expect(parsed.unparseableCount).toBe(0);
+    expect(parsed.structured).toBe(true);
+  });
+
+  it('synthesizes canonical Chimera Markdown for both findings and all-clear', () => {
+    const allClearMd = renderChimeraReportMarkdown({ findings: [], fileCount: 3 });
+    expect(allClearMd).toContain('## 🦂 Chimera Review — all clear ✅');
+    expect(allClearMd).toContain('3 changed files');
+
+    const parsed = parseChimeraReviewReport(
+      JSON.stringify({
+        findings: [
+          {
+            severity: 'critical',
+            category: 'security',
+            file: 'src/db.ts',
+            line: 14,
+            title: 'SQL injection via raw interpolation',
+            description: 'User id concatenated into query.',
+            suggestedFix: 'Use parameterized query ($1)',
+          },
+        ],
+      }),
+      SAMPLE_CONTEXT,
+    );
+    const md = renderChimeraReportMarkdown({
+      findings: parsed.findings,
+      fileCount: 1,
+      skippedCount: 2,
+      totalTokens: 1450,
+    });
+    expect(md).toContain('## 🦂 Chimera Review');
+    expect(md).toContain('### Critical (1)');
+    expect(md).toContain('`src/db.ts:14`');
+    expect(md).toContain('→ Use parameterized query ($1)');
+    expect(md).toContain('(2 skipped)');
+    expect(md).toContain('Tokens: 1,450');
   });
 });

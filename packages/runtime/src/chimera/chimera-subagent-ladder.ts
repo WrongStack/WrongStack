@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { SubagentConfig, TaskResult } from '@wrongstack/contracts/types';
+import type { SubagentConfig, SubagentTaskUsage, TaskResult } from '@wrongstack/contracts/types';
 import type { Director as FleetDirector } from '@wrongstack/coordination';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   REVIEWER_ATTEMPT_TIMEOUT_MS,
   REVIEWER_LADDER_BUDGET_MS,
@@ -43,6 +44,14 @@ interface LadderRunOutcome {
   failures: LadderAttemptFailure[];
   /** Exception from the final rung, when it threw rather than returned. */
   lastError?: unknown;
+  /** Cumulative token & cost spend across all attempted rungs. */
+  accumulatedUsage?: SubagentTaskUsage | undefined;
+  /** Total iterations across all attempted rungs. */
+  totalIterations?: number | undefined;
+  /** Total tool calls across all attempted rungs. */
+  totalToolCalls?: number | undefined;
+  /** Total wall-clock duration across all attempted rungs. */
+  totalDurationMs?: number | undefined;
 }
 
 interface LadderRunOptions {
@@ -101,6 +110,49 @@ export async function runSubagentModelLadder(opts: LadderRunOptions): Promise<La
   const startedAt = now();
   const failures: LadderAttemptFailure[] = [];
   const outcome: LadderRunOutcome = { attemptsUsed: 0, failures };
+  let totalInput = 0;
+  let totalOutput = 0;
+  let totalCacheRead = 0;
+  let totalCacheWrite = 0;
+  let totalCostUsd = 0;
+  let hasUsage = false;
+  let totalIterations = 0;
+  let totalToolCalls = 0;
+  let totalDurationMs = 0;
+
+  const foldAttemptMetrics = (res: TaskResult | undefined): void => {
+    if (!res) return;
+    if (typeof res.iterations === 'number' && Number.isFinite(res.iterations)) {
+      totalIterations += res.iterations;
+    }
+    if (typeof res.toolCalls === 'number' && Number.isFinite(res.toolCalls)) {
+      totalToolCalls += res.toolCalls;
+    }
+    if (typeof res.durationMs === 'number' && Number.isFinite(res.durationMs)) {
+      totalDurationMs += res.durationMs;
+    }
+    if (res.usage) {
+      hasUsage = true;
+      totalInput += res.usage.inputTokens;
+      totalOutput += res.usage.outputTokens;
+      totalCacheRead += res.usage.cacheReadTokens ?? 0;
+      totalCacheWrite += res.usage.cacheWriteTokens ?? 0;
+      totalCostUsd += res.usage.costUsd;
+    }
+    outcome.totalIterations = totalIterations;
+    outcome.totalToolCalls = totalToolCalls;
+    outcome.totalDurationMs = totalDurationMs;
+    if (hasUsage) {
+      outcome.accumulatedUsage = {
+        inputTokens: totalInput,
+        outputTokens: totalOutput,
+        ...(totalCacheRead > 0 ? { cacheReadTokens: totalCacheRead } : {}),
+        ...(totalCacheWrite > 0 ? { cacheWriteTokens: totalCacheWrite } : {}),
+        totalTokens: totalInput + totalOutput,
+        costUsd: totalCostUsd,
+      };
+    }
+  };
 
   for (let rung = 0; rung < ladder.length; rung++) {
     const attempt = ladder[rung]!;
@@ -132,6 +184,7 @@ export async function runSubagentModelLadder(opts: LadderRunOptions): Promise<La
     } catch (err) {
       attemptError = err;
     }
+    foldAttemptMetrics(attemptResult);
 
     if (!attemptError && attemptResult?.status === 'success') {
       outcome.result = attemptResult;
@@ -192,7 +245,7 @@ export function buildRetryPreamble(failures: readonly LadderAttemptFailure[]): s
 }
 
 function errorText(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return toErrorMessage(err);
 }
 
 async function terminateQuietly(dir: Director, subagentId: string): Promise<void> {

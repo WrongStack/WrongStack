@@ -212,4 +212,96 @@ describe('ChimeraReviewsView', () => {
     expect(screen.getByText('Loading report details…')).not.toBeNull();
     expect(screen.queryByText('Select a Chimera Review Report')).toBeNull();
   });
+
+  it('renders token telemetry, prompt cache hit rate, scope manifest, and collapsible skipped files', () => {
+    useChimeraHubStore.setState({
+      reports: [
+        {
+          reportId: 'rep-telemetry-1',
+          sessionId: 'session-alpha',
+          reviewedAt: '2026-08-28T10:00:00Z',
+          reviewerModel: 'claude-sonnet-4-6',
+          source: 'chimera',
+          reviewStatus: 'success',
+          lifecycleStatus: 'open',
+          counts: { critical: 0, high: 0, medium: 0, low: 0 },
+          totalFindings: 0,
+          headSha: 'abc123459999',
+          skippedFileCount: 1,
+          usage: {
+            inputTokens: 1000,
+            outputTokens: 200,
+            cacheReadTokens: 1000,
+            totalTokens: 1200,
+            costUsd: 0.0035,
+            iterations: 2,
+            toolCalls: 3,
+            durationMs: 4200,
+            attemptsUsed: 1,
+          },
+        },
+      ],
+      selectedReportId: 'rep-telemetry-1',
+      detail: {
+        report: {
+          id: 'rep-telemetry-1',
+          reviewedAt: '2026-08-28T10:00:00Z',
+          sessionId: 'session-alpha',
+          agentId: 'chimera-review',
+          reviewerModel: 'claude-sonnet-4-6',
+          source: 'chimera',
+          reviewStatus: 'success',
+          lifecycle: 'open',
+          files: [{ path: 'packages/core/src/index.ts', status: 'modified' }],
+          counts: { critical: 0, high: 0, medium: 0, low: 0 },
+          totalFindings: 0,
+          unparseableCount: 0,
+          rawText: '## 🦂 Chimera Review — all clear ✅',
+          usage: {
+            inputTokens: 1000,
+            outputTokens: 200,
+            cacheReadTokens: 1000,
+            totalTokens: 1200,
+            costUsd: 0.0035,
+            iterations: 2,
+            toolCalls: 3,
+            durationMs: 4200,
+            attemptsUsed: 1,
+          },
+          scopeManifest: {
+            headSha: 'abc12345',
+            isIncremental: true,
+            files: [
+              {
+                path: 'packages/core/src/index.ts',
+                status: 'modified',
+                addedLines: 6,
+                removedLines: 2,
+                isIncrementalDelta: true,
+                changedSymbols: ['initCore'],
+                pairedTestPath: 'packages/core/tests/index.test.ts',
+                pairedTestUpdated: false,
+              },
+            ],
+            skippedFiles: [{ path: 'bun.lock', reason: 'ignored_non_source' }],
+          },
+        },
+        findings: [],
+        events: [],
+      },
+    });
+
+    render(<ChimeraReviewsView />);
+
+    expect(screen.getByText('Token & Execution Telemetry')).not.toBeNull();
+    expect(screen.getByText('(50%)')).not.toBeNull();
+    expect(screen.getByText('Incremental Delta')).not.toBeNull();
+    expect(screen.getByText('test untouched !')).not.toBeNull();
+    expect(screen.getByText('[initCore]')).not.toBeNull();
+
+    const skippedToggle = screen.getByText('Skipped / Filtered Files (1)');
+    fireEvent.click(skippedToggle);
+    expect(screen.getByText('bun.lock')).not.toBeNull();
+    expect(screen.getByText('Filtered non-source / generated')).not.toBeNull();
+  });
 });

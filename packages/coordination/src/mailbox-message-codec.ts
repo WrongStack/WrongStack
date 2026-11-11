@@ -8,11 +8,7 @@ import type {
   MailboxTaskContext,
   ReadReceipts,
 } from './mailbox-types.js';
-import {
-  MAILBOX_MESSAGE_TYPES,
-  normalizeRecipient,
-  validateSendType,
-} from './mailbox-types.js';
+import { MAILBOX_MESSAGE_TYPES, normalizeRecipient, validateSendType } from './mailbox-types.js';
 
 /**
  * The message types this codec accepts when PARSING a persisted message.

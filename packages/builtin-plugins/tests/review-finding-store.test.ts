@@ -144,6 +144,49 @@ describe('upsert', () => {
     expect(reopened?.status).toBe('active');
   });
 
+  it('keeps ignored findings suppressed (relinked, not reopened) on subsequent reviews', async () => {
+    const f1 = makeFinding({ fingerprint: 'ignored-fp' });
+    await store.upsert([f1], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+    await store.transition(f1.id, 'ignored', { id: 'op', kind: 'operator' }, { reason: 'noise' });
+
+    const f2 = makeFinding({ fingerprint: 'ignored-fp' });
+    const result = await store.upsert([f2], {
+      sessionId: 's2',
+      reportId: 'r2',
+      agentId: 'a2',
+      model: 'm1',
+    });
+    expect(result.reopened).toBe(0);
+    expect(result.relinked).toBe(1);
+    expect((await store.get(f1.id))?.status).toBe('ignored');
+  });
+
+  it('keeps wontfix and false_positive resolutions suppressed on subsequent reviews', async () => {
+    for (const outcome of ['wontfix', 'false_positive'] as const) {
+      const f = makeFinding({ fingerprint: `suppressed-${outcome}` });
+      await store.upsert([f], { sessionId: 's1', reportId: 'r1', agentId: 'a1', model: 'm1' });
+      await store.transition(
+        f.id,
+        'resolved',
+        { id: 'op', kind: 'operator' },
+        { outcome, reason: 'intentional' },
+      );
+
+      const again = makeFinding({ fingerprint: `suppressed-${outcome}` });
+      const result = await store.upsert([again], {
+        sessionId: 's2',
+        reportId: 'r2',
+        agentId: 'a2',
+        model: 'm1',
+      });
+      expect(result.reopened).toBe(0);
+      expect(result.relinked).toBe(1);
+      const stored = await store.get(f.id);
+      expect(stored?.status).toBe('resolved');
+      expect(stored?.resolution?.outcome).toBe(outcome);
+    }
+  });
+
   it('is idempotent for empty input', async () => {
     const result = await store.upsert([], {
       sessionId: 's1',

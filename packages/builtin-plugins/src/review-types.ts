@@ -36,6 +36,89 @@ export interface ResolvedChimeraConfig {
 }
 
 /**
+ * Why a candidate file in the working tree was omitted from a review batch.
+ */
+export type ReviewSkippedFileReason =
+  | 'max_files_cap'
+  | 'already_reviewed'
+  | 'in_flight'
+  | 'ignored_non_source'
+  | 'too_large'
+  | 'unreadable';
+
+/**
+ * One candidate file skipped before or during review dispatch.
+ */
+export interface ReviewSkippedFile {
+  path: string;
+  reason: ReviewSkippedFileReason;
+  detail?: string | undefined;
+}
+
+/**
+ * Token, cache, cost, and turn/tool telemetry recorded for one review run.
+ */
+export interface ReviewUsageMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number | undefined;
+  cacheWriteTokens?: number | undefined;
+  totalTokens: number;
+  costUsd: number;
+  iterations?: number | undefined;
+  toolCalls?: number | undefined;
+  durationMs?: number | undefined;
+  attemptsUsed?: number | undefined;
+}
+
+/**
+ * Per-file scope entry persisted on a `ReviewReport` so downstream UIs and
+ * audit queries know exactly what diff/delta/symbols/tests were inspected.
+ */
+export interface ReviewScopeFileManifest {
+  path: string;
+  status: 'added' | 'modified';
+  sha256?: string | undefined;
+  hunkCount?: number | undefined;
+  addedLines?: number | undefined;
+  removedLines?: number | undefined;
+  diffTruncated?: boolean | undefined;
+  isIncrementalDelta?: boolean | undefined;
+  changedSymbols?: string[] | undefined;
+  pairedTestPath?: string | undefined;
+  pairedTestUpdated?: boolean | undefined;
+}
+
+/**
+ * Structured manifest describing what a review run inspected and skipped.
+ */
+export interface ReviewScopeManifest {
+  headSha?: string | undefined;
+  isIncremental?: boolean | undefined;
+  files: ReviewScopeFileManifest[];
+  deletedFiles?: string[] | undefined;
+  skippedFiles?: ReviewSkippedFile[] | undefined;
+  kanbanCardId?: string | undefined;
+  activeTodoCount?: number | undefined;
+  priorFindingCount?: number | undefined;
+}
+
+/**
+ * Compact summary of an existing finding on a reviewed file, supplied to the
+ * reviewer so ignored/wontfix items are not re-raised and cascade fixes can be
+ * verified directly.
+ */
+export interface ReviewPriorFindingSummary {
+  id?: string | undefined;
+  severity: string;
+  status: string;
+  outcome?: string | undefined;
+  file?: string | undefined;
+  line?: number | undefined;
+  title: string;
+}
+
+/**
  * A single changed file with its content and, for modified files, a
  * unified diff against HEAD so the reviewer can focus on what changed.
  */
@@ -44,11 +127,32 @@ export interface ReviewFileEntry {
   status: 'added' | 'modified';
   content: string;
   /**
-   * Unified diff against HEAD for modified files.
+   * Unified diff against HEAD (or incremental delta against last reviewed
+   * snapshot) for modified files, annotated with current disk line numbers.
    * For added files, this is undefined (content is the full file).
    * Capped at a reasonable size to avoid bloating the subagent task.
    */
   diff?: string | undefined;
+  /** SHA-256 hex digest of `content` at review-capture time. */
+  sha256?: string | undefined;
+  /** Number of unified diff hunks included in `diff`. */
+  hunkCount?: number | undefined;
+  /** Post-image `+` lines across `diff`. */
+  addedLines?: number | undefined;
+  /** Pre-image `-` lines across `diff`. */
+  removedLines?: number | undefined;
+  /** True when `diff` exceeded the per-file byte cap and was truncated. */
+  diffTruncated?: boolean | undefined;
+  /** True when `diff` is a delta against an earlier completed review snapshot in this session. */
+  isIncrementalDelta?: boolean | undefined;
+  /** One-line summary of earlier session hunks omitted from an incremental delta. */
+  unchangedHunkSummary?: string | undefined;
+  /** Top-level symbols/declarations touched by the diff hunks. */
+  changedSymbols?: string[] | undefined;
+  /** Repo-relative path to a detected companion test file, when one exists. */
+  pairedTestPath?: string | undefined;
+  /** Whether `pairedTestPath` was also modified/added in the current working tree. */
+  pairedTestUpdated?: boolean | undefined;
 }
 
 /**
@@ -155,6 +259,29 @@ export interface ReviewContextBundle {
     | undefined;
 
   /**
+   * Short git HEAD commit SHA at bundle-creation time, when available.
+   */
+  headSha?: string | undefined;
+
+  /**
+   * Repo-relative paths deleted in the working tree (`D` status).
+   */
+  deletedFiles?: string[] | undefined;
+
+  /**
+   * Files excluded from this review batch (noise, already reviewed, in-flight,
+   * capped by `maxFiles`, or unreadable) so scope omissions are transparent.
+   */
+  skippedFiles?: ReviewSkippedFile[] | undefined;
+
+  /**
+   * Existing findings on the reviewed files (including `ignored` / `wontfix`
+   * items and parent cascade findings) so the reviewer avoids re-raising
+   * suppressed issues and verifies cascade fixes.
+   */
+  priorFindings?: ReviewPriorFindingSummary[] | undefined;
+
+  /**
    * P0-3: machine-evidence verification status of the cascade fix step that
    * preceded this (re-)review. Set by the cascade handler after re-running
    * the fix agents' claimed verification commands against the working tree:
@@ -230,6 +357,10 @@ export interface ChimeraReviewCompletePayload {
    * parsing `reviewText` themselves in that case.
    */
   parsedReport?: ParsedReviewReport | undefined;
+  /** Token, cache, cost, and iteration/tool telemetry recorded for this review. */
+  usage?: ReviewUsageMetrics | undefined;
+  /** Structured scope manifest describing inspected files, deltas, symbols, and skipped files. */
+  scopeManifest?: ReviewScopeManifest | undefined;
 }
 
 export type CascadeAgentKind = 'security-scanner' | 'bug-hunter';

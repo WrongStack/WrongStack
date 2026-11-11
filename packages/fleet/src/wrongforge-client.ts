@@ -174,7 +174,7 @@ export function wrongForgeCall(ep: WrongForgeEndpoint, doFetch: typeof fetch = f
       parsed = {};
     }
     if (!res.ok) {
-      const e = (parsed as { error?: { code?: string; message?: string } }).error;
+      const e = (parsed as { error?: { code?: string; message?: string } } | null)?.error;
       throw new WfHttpError(
         res.status,
         e?.code ?? `http_${res.status}`,

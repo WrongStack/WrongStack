@@ -12,13 +12,48 @@ interface ReviewCompletePayloadView {
   reviewText?: string;
   status?: string;
   sessionId?: string | undefined;
+  parsedReport?:
+    | {
+        findings?: ReadonlyArray<{
+          id?: string;
+          fingerprint: string;
+          severity: string;
+          title: string;
+          location?: { file: string; line?: number | undefined } | undefined;
+          verification?: { status?: string | undefined } | undefined;
+        }>;
+      }
+    | undefined;
+  usage?:
+    | {
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadTokens?: number | undefined;
+        cacheWriteTokens?: number | undefined;
+        totalTokens: number;
+        costUsd: number;
+        iterations?: number | undefined;
+        toolCalls?: number | undefined;
+        durationMs?: number | undefined;
+        attemptsUsed?: number | undefined;
+      }
+    | undefined;
+  scopeManifest?:
+    | {
+        headSha?: string | undefined;
+        isIncremental?: boolean | undefined;
+        skippedFiles?: ReadonlyArray<{ path: string; reason: string }> | undefined;
+      }
+    | undefined;
   bundle?: {
     cwd?: string;
+    headSha?: string | undefined;
     cascadeDepth?: number | undefined;
     fileProvenance?: ReadonlyArray<{ agentId?: string | undefined }>;
     kanbanCard?: { id?: string } | undefined;
     config?: { provider?: string | undefined; model?: string | undefined } | undefined;
-    files?: ReadonlyArray<{ path: string }>;
+    files?: ReadonlyArray<{ path: string; isIncrementalDelta?: boolean | undefined }>;
+    skippedFiles?: ReadonlyArray<{ path: string; reason: string }> | undefined;
   };
 }
 
@@ -58,11 +93,20 @@ export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOpt
       const cascadeDepth = payload.bundle?.cascadeDepth ?? 0;
       const now = new Date().toISOString();
 
-      // Parse structured findings from the review text.
-      // We use a minimal inline parse rather than importing
-      // parseChimeraReviewReport to keep the adapter dependency-free
-      // and avoid importing review-finding-parser types into chronicle.
-      const findings = parseFindings(payload.reviewText);
+      // Prefer pre-parsed + disk-verified structured findings from the runtime
+      // owner when present (dropping failed disk verifications); fall back to
+      // minimal Markdown parsing for legacy callers.
+      const findings: ParsedFinding[] = payload.parsedReport?.findings
+        ? payload.parsedReport.findings
+            .filter((f) => f.verification?.status !== 'failed')
+            .map((f) => ({
+              severity: f.severity.toLowerCase(),
+              ...(f.location?.file ? { file: f.location.file } : {}),
+              ...(f.location?.line !== undefined ? { line: f.location.line } : {}),
+              title: f.title,
+              fingerprint: f.fingerprint,
+            }))
+        : parseFindings(payload.reviewText);
 
       // One Chronicle event per finding
       for (const finding of findings) {
@@ -107,8 +151,17 @@ export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOpt
         options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
       }
 
-      // No findings → no summary either
-      if (findings.length === 0) return;
+      // Legacy callers without parsedReport or usage only emit a summary when
+      // findings were parsed; structured/usage-instrumented runs emit the
+      // summary even on all-clear so token & review frequency telemetry is preserved.
+      if (findings.length === 0 && !payload.parsedReport && !payload.usage) return;
+
+      const headSha = payload.scopeManifest?.headSha ?? payload.bundle?.headSha;
+      const skippedFileCount =
+        payload.scopeManifest?.skippedFiles?.length ?? payload.bundle?.skippedFiles?.length;
+      const isIncremental =
+        payload.scopeManifest?.isIncremental ??
+        payload.bundle?.files?.some((f) => f.isIncrementalDelta === true);
 
       // Summary event per review
       const summaryInput: ChronicleEventInput = {
@@ -126,6 +179,10 @@ export function wireReviewFindingsToChronicle(options: ChronicleReviewAdapterOpt
           totalFindings: findings.length,
           severityCounts: aggregateSeverities(findings),
           files: payload.bundle?.files?.map((f) => f.path),
+          ...(headSha ? { headSha } : {}),
+          ...(skippedFileCount !== undefined ? { skippedFileCount } : {}),
+          ...(isIncremental ? { isIncremental: true } : {}),
+          ...(payload.usage ? { usage: payload.usage } : {}),
           model,
           provider,
           cascadeDepth,

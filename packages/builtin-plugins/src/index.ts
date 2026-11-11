@@ -21,16 +21,37 @@ export {
   createChimeraPlugin,
   type ResolvedChimeraConfig,
   type ReviewContextBundle,
+  type ReviewFileEntry,
+  type ReviewPriorFindingSummary,
+  type ReviewScopeFileManifest,
+  type ReviewScopeManifest,
+  type ReviewSkippedFile,
+  type ReviewSkippedFileReason,
+  type ReviewUsageMetrics,
   resolveChimeraConfig,
 } from './chimera-plugin.js';
 export { createCloudConfigSyncPlugin } from './cloud-config-sync-plugin.js';
 export { createPromptsPlugin } from './prompts-plugin.js';
 export { createChimeraReportSessionResolver } from './report-session-resolver.js';
 export {
+  type CompletedReviewFileSnapshot,
   emitReviewIfChanged,
+  getCompletedReviewSnapshots,
+  isFileContentAlreadyReviewed,
   recordCompletedReview,
   recordStartedReview,
 } from './review-claim-registry.js';
+export {
+  type AnnotatedDiffResult,
+  annotateUnifiedDiffWithLineNumbers,
+  type BuildReviewContextOptions,
+  buildReviewContext,
+  computeHybridIncrementalDeltaDiff,
+  isIgnoredReviewNoisePath,
+  prioritizeReviewCandidates,
+  parsePorcelainStatusZ,
+  statusUnderPrefix,
+} from './review-context-builder.js';
 export {
   executeFindingCommand,
   type FindingCommandContext,
@@ -42,8 +63,10 @@ export {
   integrateFindings,
 } from './review-finding-integration.js';
 export {
+  extractStructuredFindingsBlock,
   type ParsedReviewReport,
   parseChimeraReviewReport,
+  renderChimeraReportMarkdown,
 } from './review-finding-parser.js';
 export {
   FINDING_STORE_FILE,
@@ -75,6 +98,7 @@ export {
   verifyFindingsAgainstDisk,
 } from './review-finding-verification.js';
 export {
+  buildReviewScopeManifest,
   persistReviewReport,
   type ReportIntegrationResult,
   type ReportReopenResult,

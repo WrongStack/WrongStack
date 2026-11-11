@@ -551,4 +551,60 @@ describe('review claim registry', () => {
     ).toBeNull();
     expect(emitCustom).toHaveBeenCalledOnce();
   });
+
+  it('records completed SHA snapshots only on success/completed status, skipping unchanged re-reviews', async () => {
+    const { getCompletedReviewSnapshots, isFileContentAlreadyReviewed } = await import(
+      '../src/review-claim-registry.js'
+    );
+    const sessionBus = {};
+    const emitCustom = vi.fn();
+
+    const first = await emitReviewIfChanged(
+      { events: sessionBus, emitCustom } as never,
+      bundle('const x = 1;\n'),
+      { storeDir },
+    );
+    expect(first).not.toBeNull();
+
+    // Failed completion releases the in-flight claim so retry is allowed,
+    // and MUST NOT mark the file content as already reviewed.
+    await recordCompletedReview(sessionBus as never, { bundle: first, status: 'failed' });
+    expect(
+      isFileContentAlreadyReviewed(
+        sessionBus as never,
+        'C:\\project',
+        'src/file.ts',
+        'const x = 1;\n',
+      ),
+    ).toBe(false);
+
+    // Retry and complete with status: 'success' → records completed SHA snapshot.
+    const second = await emitReviewIfChanged(
+      { events: sessionBus, emitCustom } as never,
+      bundle('const x = 1;\n'),
+      { storeDir },
+    );
+    expect(second).not.toBeNull();
+    await recordCompletedReview(sessionBus as never, { bundle: second, status: 'success' });
+
+    expect(
+      isFileContentAlreadyReviewed(
+        sessionBus as never,
+        'C:\\project',
+        'src/file.ts',
+        'const x = 1;\n',
+      ),
+    ).toBe(true);
+    expect(
+      isFileContentAlreadyReviewed(
+        sessionBus as never,
+        'C:\\project',
+        'src/file.ts',
+        'const x = 2;\n',
+      ),
+    ).toBe(false);
+
+    const snaps = getCompletedReviewSnapshots(sessionBus as never, 'C:\\project');
+    expect(snaps.get('src/file.ts')?.content).toBe('const x = 1;\n');
+  });
 });

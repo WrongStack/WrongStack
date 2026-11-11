@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import {
+  buildReviewScopeManifest,
   CHIMERA_REVIEW_PROMPT,
   type ChimeraReviewCompletePayload,
   type ChimeraReviewNeededPayload,
@@ -10,7 +11,9 @@ import {
   type ParsedReviewReport,
   parseChimeraReviewReport,
   persistReviewReport,
+  type ReviewUsageMetrics,
   recordCompletedReview,
+  renderChimeraReportMarkdown,
   verifyFindingsAgainstDisk,
 } from '@wrongstack/builtin-plugins';
 import type { EventBus } from '@wrongstack/contracts/kernel';
@@ -22,6 +25,7 @@ import {
 } from '@wrongstack/coordination';
 import type { Agent as CoreAgent } from '@wrongstack/core/agent';
 import { effectiveFallbackChain, fallbackProfileChain } from '@wrongstack/core/agent';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   buildChimeraReviewTaskDescription,
   isChimeraAllClearReview,
@@ -186,7 +190,7 @@ export function installChimeraReviewHandler({
             JSON.stringify({
               level: 'warn',
               event: 'execution.chimera_notice_append_failed',
-              message: err instanceof Error ? err.message : String(err),
+              message: toErrorMessage(err),
               timestamp: new Date().toISOString(),
             }),
           );
@@ -216,7 +220,7 @@ export function installChimeraReviewHandler({
             cwd: completion.cwd,
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = toErrorMessage(error);
           events.emitCustom('chimera.review_persistence_failed', {
             reportId: completion.reportId,
             sessionId: completion.sessionId,
@@ -294,9 +298,10 @@ export function installChimeraReviewHandler({
                 applyChimeraReviewerReadOnlyPolicy({
                   name: 'chimera-review',
                   role: 'reviewer',
+                  cwd: p.cwd,
                   systemPromptOverride: CHIMERA_REVIEW_PROMPT,
-                  maxIterations: 50,
-                  maxToolCalls: 250,
+                  maxIterations: 12,
+                  maxToolCalls: 25,
                   timeoutMs,
                   provider: attempt.provider,
                   model: attempt.model,
@@ -343,12 +348,39 @@ export function installChimeraReviewHandler({
 
             subagentId = outcome.subagentId;
             const result = outcome.result;
+            const scopeManifest = buildReviewScopeManifest(p);
+            const usageMetrics: ReviewUsageMetrics | undefined =
+              outcome.accumulatedUsage ||
+              outcome.totalIterations !== undefined ||
+              outcome.totalToolCalls !== undefined ||
+              outcome.totalDurationMs !== undefined
+                ? {
+                    inputTokens: outcome.accumulatedUsage?.inputTokens ?? 0,
+                    outputTokens: outcome.accumulatedUsage?.outputTokens ?? 0,
+                    ...(outcome.accumulatedUsage?.cacheReadTokens
+                      ? { cacheReadTokens: outcome.accumulatedUsage.cacheReadTokens }
+                      : {}),
+                    ...(outcome.accumulatedUsage?.cacheWriteTokens
+                      ? { cacheWriteTokens: outcome.accumulatedUsage.cacheWriteTokens }
+                      : {}),
+                    totalTokens: outcome.accumulatedUsage?.totalTokens ?? 0,
+                    costUsd: outcome.accumulatedUsage?.costUsd ?? 0,
+                    ...(outcome.totalIterations !== undefined
+                      ? { iterations: outcome.totalIterations }
+                      : {}),
+                    ...(outcome.totalToolCalls !== undefined
+                      ? { toolCalls: outcome.totalToolCalls }
+                      : {}),
+                    ...(outcome.totalDurationMs !== undefined
+                      ? { durationMs: outcome.totalDurationMs }
+                      : {}),
+                    attemptsUsed: outcome.attemptsUsed,
+                  }
+                : undefined;
 
             if (result?.status !== 'success') {
               const exhaustedDetail = outcome.lastError
-                ? outcome.lastError instanceof Error
-                  ? outcome.lastError.message
-                  : String(outcome.lastError)
+                ? toErrorMessage(outcome.lastError)
                 : `${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`;
               try {
                 await session.append({
@@ -362,7 +394,7 @@ export function installChimeraReviewHandler({
                   JSON.stringify({
                     level: 'error',
                     event: 'execution.chimera_append_failed',
-                    message: err instanceof Error ? err.message : String(err),
+                    message: toErrorMessage(err),
                     timestamp: new Date().toISOString(),
                   }),
                 );
@@ -374,11 +406,13 @@ export function installChimeraReviewHandler({
                 cwd: p.cwd,
                 sessionId: reviewSessionId,
                 reportId: randomUUID(),
+                ...(usageMetrics ? { usage: usageMetrics } : {}),
+                scopeManifest,
               } satisfies ChimeraReviewCompletePayload);
               return;
             }
 
-            const reviewText =
+            const rawReviewText =
               typeof result.result === 'string'
                 ? result.result.trim()
                 : JSON.stringify(result.result);
@@ -393,7 +427,12 @@ export function installChimeraReviewHandler({
             // claims.
             const reviewSource = classifyChimeraReviewSource(p);
             const winningAttempt = outcome.wonAt ? ladder[outcome.wonAt - 1] : undefined;
-            const parsedReport: ParsedReviewReport = parseChimeraReviewReport(reviewText, {
+            const winningModelLabel =
+              winningAttempt && winningAttempt.tier !== 'inherit'
+                ? winningAttempt.model
+                : p.config?.model;
+
+            const parsedReport: ParsedReviewReport = parseChimeraReviewReport(rawReviewText, {
               sessionId: reviewSessionId,
               agentId:
                 p.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review',
@@ -405,10 +444,47 @@ export function installChimeraReviewHandler({
             const verifiedFindings = await verifyFindingsAgainstDisk(parsedReport.findings, {
               cwd: p.cwd,
             });
+            const computedDurationSeconds =
+              parsedReport.durationSeconds ??
+              (usageMetrics?.durationMs && usageMetrics.durationMs >= 1000
+                ? Math.round(usageMetrics.durationMs / 1000)
+                : undefined);
             const verifiedParsedReport: ParsedReviewReport = {
               ...parsedReport,
+              ...(computedDurationSeconds !== undefined
+                ? { durationSeconds: computedDurationSeconds }
+                : {}),
               findings: verifiedFindings,
             };
+
+            // JSON-only output contract: when the reviewer emitted structured JSON
+            // without Markdown report headings, deterministically synthesize the
+            // canonical `## 🦂 Chimera Review` Markdown report so every downstream
+            // UI, CLI command, and mailbox reader receives clean human Markdown.
+            // If a legacy/hybrid model emitted Markdown + trailing fenced JSON,
+            // strip the trailing JSON fence so raw JSON never clutters report views.
+            const hasMarkdownHeading = /^#{2,3}\s+/m.test(rawReviewText);
+            const reviewText =
+              parsedReport.structured && !hasMarkdownHeading
+                ? renderChimeraReportMarkdown({
+                    findings: verifiedFindings,
+                    fileCount: p.files.length,
+                    skippedCount: p.skippedFiles?.length,
+                    durationSeconds: computedDurationSeconds,
+                    totalTokens: usageMetrics?.totalTokens,
+                  })
+                : parsedReport.structured && hasMarkdownHeading
+                  ? rawReviewText
+                      .replace(/\n*```json[ \t]*\r?\n[\s\S]*?\r?\n[ \t]*```\s*$/i, '')
+                      .trim()
+                  : rawReviewText;
+
+            // Keep bundle identity (`p`) on `completion.bundle` when unchanged so
+            // `recordCompletedReview` matches `startedReviews.get(bundle)`!
+            // Stamp winning model in-place if needed without replacing the object ref.
+            if (winningModelLabel && p.config && p.config.model !== winningModelLabel) {
+              p.config = { ...p.config, model: winningModelLabel };
+            }
 
             await persistAndEmitCompletion({
               bundle: p,
@@ -418,6 +494,8 @@ export function installChimeraReviewHandler({
               sessionId: reviewSessionId,
               reportId,
               parsedReport: verifiedParsedReport,
+              ...(usageMetrics ? { usage: usageMetrics } : {}),
+              scopeManifest,
             } satisfies ChimeraReviewCompletePayload);
 
             if (reviewText) {
@@ -554,7 +632,7 @@ export function installChimeraReviewHandler({
                       JSON.stringify({
                         level: 'warn',
                         event: 'execution.chimera_mailbox_completion_failed',
-                        message: ackError instanceof Error ? ackError.message : String(ackError),
+                        message: toErrorMessage(ackError),
                         messageId: reviewMailMessageId,
                         timestamp: new Date().toISOString(),
                       }),
@@ -562,7 +640,7 @@ export function installChimeraReviewHandler({
                   }
                 }
               } catch (mailErr) {
-                const errMsg = mailErr instanceof Error ? mailErr.message : String(mailErr);
+                const errMsg = toErrorMessage(mailErr);
                 console.error(
                   JSON.stringify({
                     level: 'error',
@@ -605,7 +683,7 @@ export function installChimeraReviewHandler({
               await session.append({
                 type: 'error',
                 ts: new Date().toISOString(),
-                message: `🦂 Chimera review failed: ${err instanceof Error ? err.message : String(err)}`,
+                message: `🦂 Chimera review failed: ${toErrorMessage(err)}`,
                 phase: 'agent',
               });
             } catch (appendErr) {
@@ -613,7 +691,7 @@ export function installChimeraReviewHandler({
                 JSON.stringify({
                   level: 'error',
                   event: 'execution.chimera_review_append_failed',
-                  message: appendErr instanceof Error ? appendErr.message : String(appendErr),
+                  message: toErrorMessage(appendErr),
                   timestamp: new Date().toISOString(),
                 }),
               );
@@ -658,7 +736,7 @@ async function persistChimeraReview(
       JSON.stringify({
         level: 'warn',
         event: 'execution.chimera_store_maintenance_failed',
-        message: error instanceof Error ? error.message : String(error),
+        message: toErrorMessage(error),
         timestamp: new Date().toISOString(),
       }),
     );

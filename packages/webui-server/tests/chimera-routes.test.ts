@@ -248,4 +248,66 @@ describe('createChimeraRouteHandlers operations', () => {
     const updatedReport = await reportStore.get('r9');
     expect(updatedReport?.lifecycle).toBe('completed');
   });
+
+  it('surfaces usage, headSha, skippedFileCount, and scopeManifest in list and detail payloads', async () => {
+    const reportStore = new JsonlReportStore(projectDir);
+    await reportStore.persist({
+      id: 'r-telemetry',
+      sessionId: 'sess-9',
+      totalFindings: 0,
+      agentId: 'chimera-review',
+      reviewerModel: 'claude-sonnet-4-6',
+      source: 'chimera',
+      reviewStatus: 'success',
+      files: [{ path: 'src/app.ts', status: 'modified' }],
+      counts: { critical: 0, high: 0, medium: 0, low: 0 },
+      unparseableCount: 0,
+      rawText: '## 🦂 Chimera Review — all clear ✅',
+      usage: {
+        inputTokens: 1400,
+        outputTokens: 220,
+        cacheReadTokens: 1000,
+        totalTokens: 1620,
+        costUsd: 0.0031,
+        iterations: 1,
+        toolCalls: 0,
+      },
+      scopeManifest: {
+        headSha: 'cafebabe1234',
+        isIncremental: true,
+        files: [
+          {
+            path: 'src/app.ts',
+            status: 'modified',
+            addedLines: 4,
+            removedLines: 1,
+            isIncrementalDelta: true,
+            changedSymbols: ['bootApp'],
+          },
+        ],
+        skippedFiles: [{ path: 'bun.lock', reason: 'ignored_non_source' }],
+      },
+    });
+
+    const summaries = await queryAllChimeraReports(projectDir, { sessionId: 'sess-9' });
+    const summary = summaries.find((s) => s.reportId === 'r-telemetry');
+    expect(summary).toMatchObject({
+      headSha: 'cafebabe1234',
+      skippedFileCount: 1,
+      usage: expect.objectContaining({ totalTokens: 1620, cacheReadTokens: 1000 }),
+    });
+
+    const { send, handlers, ws } = makeHarness();
+    await handlers.getReport?.(ws, {
+      type: 'chimera.report.get',
+      payload: { reportId: 'r-telemetry' },
+    });
+    const detailFrame = send.mock.calls[0]?.[1] as {
+      payload: {
+        report: { usage?: { totalTokens: number }; scopeManifest?: { headSha?: string } };
+      };
+    };
+    expect(detailFrame.payload.report.usage?.totalTokens).toBe(1620);
+    expect(detailFrame.payload.report.scopeManifest?.headSha).toBe('cafebabe1234');
+  });
 });

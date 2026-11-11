@@ -1,10 +1,18 @@
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ReviewContextBundle } from '@wrongstack/builtin-plugins';
-import { emitReviewIfChanged } from '@wrongstack/builtin-plugins';
+import type { ReviewContextBundle, ReviewSkippedFile } from '@wrongstack/builtin-plugins';
+import {
+  buildReviewContext,
+  emitReviewIfChanged,
+  getCompletedReviewSnapshots,
+  isIgnoredReviewNoisePath,
+  prioritizeReviewCandidates,
+} from '@wrongstack/builtin-plugins';
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
+import { projectSlug } from '@wrongstack/core/utils';
 import { gitIsolationEnv } from '@wrongstack/primitives';
 import type { SlashCommandContext } from './command-context.js';
 
@@ -115,9 +123,21 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
 
       const allChanged = await getChangedFiles(cwd);
       const existing: Array<{ path: string; status: 'added' | 'modified' }> = [];
+      const skippedFiles: ReviewSkippedFile[] = [];
       for (const f of allChanged) {
         if (f.path.startsWith('.wrongstack/')) continue;
         if (fileFilter && !f.path.toLowerCase().includes(fileFilter)) continue;
+        if (!fileFilter) {
+          const noiseDetail = isIgnoredReviewNoisePath(f.path);
+          if (noiseDetail) {
+            skippedFiles.push({
+              path: f.path,
+              reason: 'ignored_non_source',
+              detail: noiseDetail,
+            });
+            continue;
+          }
+        }
         try {
           await fsp.access(path.join(cwd, f.path));
           existing.push(f);
@@ -134,27 +154,37 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         };
       }
 
+      const prioritized = prioritizeReviewCandidates(existing, limit);
       const truncated = existing.length > limit;
-      // Read files and emit chimera.review_needed event
+      for (const capped of prioritized.capped) {
+        skippedFiles.push({ path: capped.path, reason: 'max_files_cap' });
+      }
+      // Read files and build full enriched ReviewContextBundle (diffs, deltas, symbols, prior findings)
       const filesWithContent: Array<{
         path: string;
         status: 'added' | 'modified';
         content: string;
       }> = [];
-      for (const f of existing.slice(0, limit)) {
+      for (const f of prioritized.selected) {
         try {
           const content = await fsp.readFile(path.join(cwd, f.path), 'utf8');
           filesWithContent.push({ ...f, content });
         } catch {
-          /* skip */
+          skippedFiles.push({ path: f.path, reason: 'unreadable' });
         }
       }
 
+      const projectDir = path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
       // Emit custom event — execution.ts picks this up. Claims are installed
       // in the shared ledger BEFORE the event fires (like the automatic
       // paths), so a concurrent session cannot review the same content and the
       // execution owner can release the claims if no Director is present.
-      const payload: ReviewContextBundle = {
+      const payload: ReviewContextBundle = await buildReviewContext({
+        cwd,
+        projectDir,
+        previousSnapshots: getCompletedReviewSnapshots(opts.events, cwd),
+        skippedFiles,
+        activeTodos: ctx.todos,
         config: {
           enabled: true,
           provider: ctx.provider.id,
@@ -166,9 +196,8 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
           fallbackModels: [],
           fallbackProfile: undefined,
         },
-        cwd,
         files: filesWithContent,
-      };
+      });
 
       const emitted = await emitReviewIfChanged(
         { events: opts.events, emitCustom: opts.events.emitCustom.bind(opts.events) },

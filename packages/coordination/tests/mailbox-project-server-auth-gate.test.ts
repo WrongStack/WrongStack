@@ -33,9 +33,7 @@ import type { MailboxProjectServerMetadata } from '../src/mailbox-project-server
 // `dist/` entry points. `dist/` is gitignored and the CI test job runs from
 // source with no build step, so — like the repo's other dist-dependent daemon
 // tests — the suite skips unless the artifacts exist.
-const SERVER_ENTRY = fileURLToPath(
-  new URL('../dist/mailbox-project-server.js', import.meta.url),
-);
+const SERVER_ENTRY = fileURLToPath(new URL('../dist/mailbox-project-server.js', import.meta.url));
 const CORE_INDEX = fileURLToPath(new URL('../dist/index.js', import.meta.url));
 const distReady = existsSync(SERVER_ENTRY) && existsSync(CORE_INDEX);
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type {
@@ -6,9 +7,11 @@ import type {
   CascadeEvidenceStatus,
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
+  ReviewPriorFindingSummary,
 } from '@wrongstack/builtin-plugins';
-import { emitReviewIfChanged } from '@wrongstack/builtin-plugins';
+import { buildReviewContext, emitReviewIfChanged } from '@wrongstack/builtin-plugins';
 import type { StopReason } from '@wrongstack/contracts/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS,
   type CascadeEvidence,
@@ -185,9 +188,7 @@ export function installChimeraCascadeHandler({
               });
             } else {
               const detail = outcome.lastError
-                ? outcome.lastError instanceof Error
-                  ? outcome.lastError.message
-                  : String(outcome.lastError)
+                ? toErrorMessage(outcome.lastError)
                 : `${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`;
               await session.append({
                 type: 'error',
@@ -200,7 +201,7 @@ export function installChimeraCascadeHandler({
             await session.append({
               type: 'error',
               ts: new Date().toISOString(),
-              message: `🦂 Chimera cascade (${agentKind}) failed: ${err instanceof Error ? err.message : String(err)}`,
+              message: `🦂 Chimera cascade (${agentKind}) failed: ${toErrorMessage(err)}`,
               phase: 'agent',
             });
           }
@@ -221,6 +222,7 @@ export function installChimeraCascadeHandler({
           session,
           bundle: p.bundle,
           reportId: p.reportId,
+          verifiedFindings: p.verifiedFindings,
           claimedEvidence: accumulatedEvidence,
           verifyEvidence,
           persistEvidence,
@@ -242,6 +244,7 @@ async function maybeReReviewCascade({
   session,
   bundle,
   reportId,
+  verifiedFindings,
   claimedEvidence,
   verifyEvidence,
   persistEvidence,
@@ -250,6 +253,7 @@ async function maybeReReviewCascade({
   session: Session;
   bundle: ChimeraCascadeNeededPayload['bundle'];
   reportId?: string | undefined;
+  verifiedFindings?: ChimeraCascadeNeededPayload['verifiedFindings'] | undefined;
   verifyEvidence: NonNullable<InstallChimeraCascadeHandlerOptions['verifyEvidence']>;
   persistEvidence?: InstallChimeraCascadeHandlerOptions['persistEvidence'];
   /**
@@ -339,12 +343,53 @@ async function maybeReReviewCascade({
       }
 
       if (reReadFiles.length > 0) {
-        // Spread evidenceBundle (not bundle) so the evidenceStatus /
-        // evidenceChecks fields ride into the re-review payload and onto the
-        // persisted report when it completes.
+        const previousSnapshots = new Map<string, { sha256: string; content: string }>();
+        for (const prev of evidenceBundle.files) {
+          if (typeof prev.path === 'string' && typeof prev.content === 'string') {
+            const sha256 = prev.sha256 ?? createHash('sha256').update(prev.content).digest('hex');
+            previousSnapshots.set(prev.path, { sha256, content: prev.content });
+            previousSnapshots.set(prev.path.replaceAll('\\', '/').toLowerCase(), {
+              sha256,
+              content: prev.content,
+            });
+          }
+        }
+        const parentPriorFindings: ReviewPriorFindingSummary[] | undefined =
+          verifiedFindings && verifiedFindings.length > 0
+            ? [
+                ...(evidenceBundle.priorFindings ?? []),
+                ...verifiedFindings.map(
+                  (f): ReviewPriorFindingSummary => ({
+                    id: f.id,
+                    severity: f.severity,
+                    status: 'active',
+                    ...(f.location?.file ? { file: f.location.file } : {}),
+                    ...(f.location?.line !== undefined ? { line: f.location.line } : {}),
+                    title: f.title,
+                  }),
+                ),
+              ]
+            : evidenceBundle.priorFindings;
+
+        const enrichedReReview = await buildReviewContext({
+          cwd: evidenceBundle.cwd,
+          config: evidenceBundle.config,
+          files: reReadFiles,
+          previousSnapshots: previousSnapshots.size > 0 ? previousSnapshots : undefined,
+          priorFindings: parentPriorFindings,
+          activeTodos: evidenceBundle.activeTodos,
+          cascadeOn: evidenceBundle.cascadeOn,
+          cascadeDepth: currentDepth + 1,
+          maxCascadeDepth: evidenceBundle.maxCascadeDepth,
+        });
+
+        // Spread evidenceBundle + enrichedReReview so both the cascade evidence
+        // fields AND the newly computed fix diffs/deltas ride into the re-review.
         const reReviewBundle: ChimeraReviewNeededPayload = {
           ...evidenceBundle,
-          files: reReadFiles,
+          ...enrichedReReview,
+          evidenceStatus: evidenceBundle.evidenceStatus,
+          evidenceChecks: evidenceBundle.evidenceChecks,
           cascadeDepth: currentDepth + 1,
         };
 
@@ -387,7 +432,7 @@ async function maybeReReviewCascade({
       await session.append({
         type: 'error',
         ts: new Date().toISOString(),
-        message: `🦂 Chimera cascade re-review failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `🦂 Chimera cascade re-review failed: ${toErrorMessage(err)}`,
         phase: 'agent',
       });
     }
@@ -419,5 +464,5 @@ function renderEvidenceSummary(
 }
 
 function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return toErrorMessage(error);
 }

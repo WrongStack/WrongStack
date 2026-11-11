@@ -296,9 +296,6 @@
       "buildPerfRunText",
       "parsePerfArgs"
     ],
-    "packages/builtin-plugins/src/review-finding-parser.ts": [
-      "extractStructuredFindingsBlock"
-    ],
     "packages/builtin-plugins/src/review-finding-store.ts": [
       "FINDING_IGNORED_RETENTION_MS",
       "FINDING_RESOLVED_RETENTION_MS"

@@ -1,11 +1,12 @@
 import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { EventMap } from '@wrongstack/contracts/kernel/events';
 import type { Plugin } from '@wrongstack/contracts/types/plugin';
 import type { SlashCommand } from '@wrongstack/contracts/types/slash-command';
 import { resolveChronicleFileLineage } from '@wrongstack/core/agent';
 import { areSubagentsAllowed } from '@wrongstack/core/security';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { projectSlug, toErrorMessage } from '@wrongstack/core/utils';
 import {
   type AutoReviewConfig,
   buildReviewerModelPool,
@@ -35,8 +36,18 @@ import type {
   ChimeraReviewCompletePayload,
   ChimeraReviewNeededPayload,
 } from './chimera-plugin.js';
-import { emitReviewIfChanged } from './review-claim-registry.js';
-import { buildReviewContext } from './review-context-builder.js';
+import {
+  emitReviewIfChanged,
+  getCompletedReviewSnapshots,
+  isFileContentAlreadyReviewed,
+  recordCompletedReview,
+} from './review-claim-registry.js';
+import {
+  buildReviewContext,
+  isIgnoredReviewNoisePath,
+  prioritizeReviewCandidates,
+} from './review-context-builder.js';
+import type { ReviewSkippedFile } from './review-types.js';
 
 export {
   buildReviewerModelPool,
@@ -287,11 +298,22 @@ export function createAutoReviewPlugin(): Plugin {
         timer.unref();
       };
 
+      const skippedNoisePaths = new Map<string, string>();
+      const resolveProjectDir = (cwd: string): string =>
+        path.join(os.homedir(), '.wrongstack', 'projects', projectSlug(cwd));
+
       const refreshPendingFiles = (snapshots: ChangedFileSnapshot[]): boolean => {
         let pendingChanged = false;
         const observedPaths = new Set<string>();
         for (const file of snapshots) {
           if (file.path.startsWith('.wrongstack/')) continue;
+          const noiseReason = isIgnoredReviewNoisePath(file.path);
+          if (noiseReason) {
+            skippedNoisePaths.set(file.path, noiseReason);
+            if (pendingFiles.delete(file.path)) pendingChanged = true;
+            continue;
+          }
+          skippedNoisePaths.delete(file.path);
           observedPaths.add(file.path);
           if (knownFingerprints.get(file.path) !== file.fingerprint) {
             if (pendingFiles.get(file.path)?.fingerprint !== file.fingerprint) {
@@ -365,8 +387,26 @@ export function createAutoReviewPlugin(): Plugin {
             return;
           }
 
-          const toReview = [...pendingFiles.values()].slice(0, cfg.maxFilesPerBatch);
+          const pendingValues = [...pendingFiles.values()];
+          const prioritizedPending = prioritizeReviewCandidates(
+            pendingValues,
+            cfg.maxFilesPerBatch,
+          );
+          const toReview = prioritizedPending.selected;
           if (toReview.length === 0) return;
+
+          const iterSkipped: ReviewSkippedFile[] = [
+            ...[...skippedNoisePaths.entries()].map(
+              ([p, detail]): ReviewSkippedFile => ({
+                path: p,
+                reason: 'ignored_non_source',
+                detail,
+              }),
+            ),
+            ...prioritizedPending.capped.map(
+              (c): ReviewSkippedFile => ({ path: c.path, reason: 'max_files_cap' }),
+            ),
+          ];
 
           const filesWithContent: ChimeraReviewNeededPayload['files'] = toReview.map((file) => ({
             path: file.path,
@@ -378,6 +418,9 @@ export function createAutoReviewPlugin(): Plugin {
 
           const bundle = await buildReviewContext({
             cwd,
+            projectDir: resolveProjectDir(cwd),
+            previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
+            skippedFiles: iterSkipped,
             fileLineage: resolveChronicleFileLineage(api.container),
             config: {
               enabled: true,
@@ -470,8 +513,18 @@ export function createAutoReviewPlugin(): Plugin {
 
             const allChanged = await getChangedFiles(cwd);
             const existing: ChangedFile[] = [];
+            const sessionEndSkipped: ReviewSkippedFile[] = [];
             for (const f of allChanged) {
               if (f.path.startsWith('.wrongstack/')) continue;
+              const noiseDetail = isIgnoredReviewNoisePath(f.path);
+              if (noiseDetail) {
+                sessionEndSkipped.push({
+                  path: f.path,
+                  reason: 'ignored_non_source',
+                  detail: noiseDetail,
+                });
+                continue;
+              }
               try {
                 await fsp.access(path.join(cwd, f.path));
                 existing.push(f);
@@ -482,20 +535,37 @@ export function createAutoReviewPlugin(): Plugin {
 
             if (existing.length === 0) return;
 
-            const toReview = existing.slice(0, cfg.maxFilesPerBatch);
+            const prioritized = prioritizeReviewCandidates(existing, cfg.maxFilesPerBatch);
+            const toReview = prioritized.selected;
+            for (const capped of prioritized.capped) {
+              sessionEndSkipped.push({ path: capped.path, reason: 'max_files_cap' });
+            }
 
             const filesWithContent: ChimeraReviewNeededPayload['files'] = [];
+            let alreadyReviewedCount = 0;
             for (const f of toReview) {
               try {
                 const absPath = path.join(cwd, f.path);
                 const content = await fsp.readFile(absPath, 'utf8');
+                if (isFileContentAlreadyReviewed(api.events, cwd, f.path, content)) {
+                  alreadyReviewedCount++;
+                  sessionEndSkipped.push({ path: f.path, reason: 'already_reviewed' });
+                  continue;
+                }
                 filesWithContent.push({ path: f.path, status: f.status, content });
               } catch {
-                /* skip */
+                sessionEndSkipped.push({ path: f.path, reason: 'unreadable' });
               }
             }
 
-            if (filesWithContent.length === 0) return;
+            if (filesWithContent.length === 0) {
+              if (alreadyReviewedCount > 0) {
+                api.log.info(
+                  '[auto-review] session end — all changed files already reviewed in this session',
+                );
+              }
+              return;
+            }
 
             if (inFlight.length >= cfg.maxConcurrentReviews) {
               api.log.info(
@@ -506,6 +576,9 @@ export function createAutoReviewPlugin(): Plugin {
 
             const bundle = await buildReviewContext({
               cwd,
+              projectDir: resolveProjectDir(cwd),
+              previousSnapshots: getCompletedReviewSnapshots(api.events, cwd),
+              skippedFiles: sessionEndSkipped,
               fileLineage: resolveChronicleFileLineage(api.container),
               config: {
                 enabled: true,
@@ -558,6 +631,7 @@ export function createAutoReviewPlugin(): Plugin {
 
       api.onPattern('chimera.review_complete', (_event, payload) => {
         try {
+          void recordCompletedReview(api.events, payload).catch(() => undefined);
           const p = payload as ChimeraReviewCompletePayload;
           if (
             releaseInFlight(p?.bundle) &&

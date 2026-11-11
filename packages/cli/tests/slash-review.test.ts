@@ -85,9 +85,14 @@ function fakeChild(
  * repository root (empty prefix) with a fresh child of its own.
  */
 function gitStatusReturns(child: unknown): void {
-  mockSpawn.mockImplementation((_bin: string, args: string[]) =>
-    args[0] === 'rev-parse' ? fakeChild([''], 0) : child,
-  );
+  let usedStatus = false;
+  mockSpawn.mockImplementation((_bin: string, args: string[]) => {
+    if (args[0] === 'status' && args.includes('--untracked-files=all') && !usedStatus) {
+      usedStatus = true;
+      return child;
+    }
+    return fakeChild([''], 0);
+  });
 }
 
 function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {

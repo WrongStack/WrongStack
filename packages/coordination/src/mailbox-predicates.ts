@@ -68,10 +68,7 @@ export type MailboxSendTypeCheck = { ok: true } | { ok: false; error: string };
  *
  * @returns `{ ok: true }` when the (type, recipient) pair may be sent.
  */
-export function checkMailboxSendType(
-  type: MailboxMessageType,
-  to: string,
-): MailboxSendTypeCheck {
+export function checkMailboxSendType(type: MailboxMessageType, to: string): MailboxSendTypeCheck {
   if (type === 'control') {
     return {
       ok: false,

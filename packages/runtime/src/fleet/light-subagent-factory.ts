@@ -57,6 +57,10 @@ import {
   rewriteBaseUrl,
   shouldRewriteFor,
 } from '@wrongstack/core/wiring/proxy-rewrite';
+import {
+  buildChimeraReviewerSystemPromptBlocks,
+  isChimeraReviewerConfig,
+} from '../chimera/chimera-reviewer-policy.js';
 
 export interface LightSubagentFactoryDeps {
   /** DI container — used to resolve configStore / tokenCounter / scrubber / prompt builder. */
@@ -184,18 +188,26 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
     for (const t of allowed) subRegistry.register(t);
     const providerTools = provider.selectToolsForRequest?.(allowed) ?? allowed;
 
-    const baseSystem: TextBlock[] = await systemPromptBuilder.build({
-      cwd: subCwd,
-      projectRoot: deps.projectRoot,
-      tools: providerTools,
-      catalogTools: allowed,
-      model: effModel,
-      provider: effProvider,
-      subagent: true,
-    });
-    baseSystem.unshift({ type: 'text', text: SUBAGENT_BASELINE });
-    if (subCfg.systemPromptOverride) {
-      baseSystem.push({ type: 'text', text: subCfg.systemPromptOverride });
+    const chimeraReviewer = isChimeraReviewerConfig(subCfg);
+    const baseSystem: TextBlock[] = chimeraReviewer
+      ? buildChimeraReviewerSystemPromptBlocks({
+          rolePrompt: subCfg.systemPromptOverride ?? subCfg.prompt,
+          projectRoot: subCwd,
+        })
+      : await systemPromptBuilder.build({
+          cwd: subCwd,
+          projectRoot: deps.projectRoot,
+          tools: providerTools,
+          catalogTools: allowed,
+          model: effModel,
+          provider: effProvider,
+          subagent: true,
+        });
+    if (!chimeraReviewer) {
+      baseSystem.unshift({ type: 'text', text: SUBAGENT_BASELINE });
+      if (subCfg.systemPromptOverride) {
+        baseSystem.push({ type: 'text', text: subCfg.systemPromptOverride });
+      }
     }
 
     const agentName = subCfg.name ?? subCfg.id ?? `sub_${cryptoId()}`;

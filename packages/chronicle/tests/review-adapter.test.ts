@@ -541,4 +541,96 @@ blah blah nonsense
     const title = String((finding!.attributes as Record<string, unknown>).title);
     expect(title).toContain('`notACitation`');
   });
+
+  it('consumes pre-verified parsedReport, drops failed verifications, and records token usage & scope telemetry on review.completed', () => {
+    const trigger = wireAndCapture();
+    trigger(
+      makePayload({
+        bundle: {
+          config: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-6',
+            maxFiles: 15,
+            autoFix: 'off',
+            cascadeOn: 'off',
+            maxCascadeDepth: 2,
+            enabled: true,
+          },
+          cwd: '/test/project',
+          headSha: 'deadbeef1234',
+          skippedFiles: [{ path: 'bun.lock', reason: 'ignored_non_source' }],
+          files: [{ path: 'src/auth.ts', status: 'modified', isIncrementalDelta: true }],
+        },
+        reviewText: '## 🦂 Chimera Review — all clear ✅',
+        parsedReport: {
+          unparseableCount: 0,
+          findings: [
+            {
+              id: 'f-verified',
+              fingerprint: 'fp-v',
+              severity: 'high',
+              source: 'chimera',
+              location: { file: 'src/auth.ts', line: 12 },
+              title: 'Verified bug',
+              description: 'Real defect',
+              verification: { status: 'verified', reason: 'anchor_found' },
+              createdAt: new Date().toISOString(),
+              status: 'active',
+              originReport: {
+                reportId: 'r-1',
+                sessionId: 'sess-123',
+                agentId: 'chimera-review',
+                reviewerModel: 'claude-sonnet-4-6',
+              },
+            },
+            {
+              id: 'f-dropped',
+              fingerprint: 'fp-d',
+              severity: 'critical',
+              source: 'chimera',
+              location: { file: 'src/ghost.ts', line: 99 },
+              title: 'Hallucinated citation',
+              description: 'Should be dropped',
+              verification: { status: 'failed', reason: 'file_missing' },
+              createdAt: new Date().toISOString(),
+              status: 'active',
+              originReport: {
+                reportId: 'r-1',
+                sessionId: 'sess-123',
+                agentId: 'chimera-review',
+                reviewerModel: 'claude-sonnet-4-6',
+              },
+            },
+          ],
+        },
+        usage: {
+          inputTokens: 1200,
+          outputTokens: 300,
+          cacheReadTokens: 900,
+          totalTokens: 1500,
+          costUsd: 0.0042,
+          iterations: 2,
+          toolCalls: 1,
+        },
+      }),
+    );
+
+    const findingEvents = appended.filter((e) => e.eventType.startsWith('finding.'));
+    expect(findingEvents).toHaveLength(1);
+    expect(findingEvents[0]!.eventType).toBe('finding.high');
+
+    const summary = appended.find((e) => e.eventType === 'review.completed');
+    expect(summary).toBeDefined();
+    expect(summary!.attributes).toMatchObject({
+      totalFindings: 1,
+      headSha: 'deadbeef1234',
+      skippedFileCount: 1,
+      isIncremental: true,
+      usage: expect.objectContaining({
+        totalTokens: 1500,
+        cacheReadTokens: 900,
+        costUsd: 0.0042,
+      }),
+    });
+  });
 });

@@ -566,11 +566,28 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
         context: { tool: lastToolFailed, iterations: result.iterations },
       });
     }
+    const hasRecordedTokens =
+      usage.tokens.total > 0 ||
+      (usage.tokens.cacheRead ?? 0) > 0 ||
+      (usage.tokens.cacheWrite ?? 0) > 0 ||
+      usage.costUsd > 0;
     return {
       result: result.finalText,
       report: readSubagentStructuredReport(agentContext),
       iterations: result.iterations,
       toolCalls: usage.toolCalls,
+      ...(hasRecordedTokens
+        ? {
+            usage: {
+              inputTokens: usage.tokens.input,
+              outputTokens: usage.tokens.output,
+              ...(usage.tokens.cacheRead ? { cacheReadTokens: usage.tokens.cacheRead } : {}),
+              ...(usage.tokens.cacheWrite ? { cacheWriteTokens: usage.tokens.cacheWrite } : {}),
+              totalTokens: usage.tokens.total,
+              costUsd: usage.costUsd,
+            },
+          }
+        : {}),
     };
   };
 }
