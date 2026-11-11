@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T13:44:17.640Z",
+  "generatedAt": "2026-11-11T18:28:07.557Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,7 +13,7 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6225,
-    "testFiles": 5183,
+    "testFiles": 5184,
     "sourceLines": 1272745,
     "workspaceEdges": 250,
     "moduleEdges": 18335,
@@ -1036,7 +1036,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 501,
-      "testFiles": 435,
+      "testFiles": 436,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 435
+          "testFiles": 436
         }
       ]
     },
@@ -24669,6 +24669,12 @@
       },
       {
         "file": "packages/tui/tests/ink-ascii-mode.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/ink-shared-output-cache.test.ts",
         "projects": [
           "root-node"
         ]
