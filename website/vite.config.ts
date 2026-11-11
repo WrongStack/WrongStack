@@ -277,8 +277,9 @@ function validateProductCatalog() {
         if (/^\s*\*|^\s*\/\//.test(line)) continue;
         if (/from 58 to 59|changelog|version|consolidat/i.test(line)) continue;
         if (/^(export const|import|const|let|var)\s/.test(line.trim())) continue;
+        const lineNumber = fileContent.slice(0, lineStart).split('\n').length;
         throw new Error(
-          `Hardcoded ${label} count drift in ${relPath}:${lineStart}. ` +
+          `Hardcoded ${label} count drift in ${relPath}:${lineNumber}. ` +
             `Found "${stated}" but the canonical source has ${expected}. ` +
             `Line: ${line.trim().slice(0, 120)}`,
         );
