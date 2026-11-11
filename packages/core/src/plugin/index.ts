@@ -32,11 +32,27 @@ export {
   loadPlugins,
   type PluginHostHandle,
   type PluginLoadFailure,
+  type PluginReloadResult,
   unloadPlugins,
 } from './loader.js';
 export {
+  DEFAULT_STATUS_CHIP_THROTTLE_MS,
+  MAX_PLUGIN_STATUS_CHIP_CHARS,
+  MAX_PLUGIN_VIEW_BYTES,
+  MAX_PLUGIN_VIEW_DEPTH,
+  makePluginUi,
+  type PluginUiNotifyHandler,
+  type PluginUiPromptHandler,
+  PluginUiRegistry,
+  type PluginUiRegistryOptions,
+  type RegisteredPluginPanel,
+  type RegisteredPluginStatusChip,
+} from './plugin-ui.js';
+export {
   defaultPluginTrustPath,
   hashFileContents,
+  hashPluginClosure,
+  hashPluginDirectoryClosure,
   normalizeTrustKey,
   type PluginTrustEntry,
   type PluginTrustStore,

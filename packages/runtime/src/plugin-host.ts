@@ -8,4 +8,6 @@
 export * from './plugin-host/external-plugins.js';
 export * from './plugin-host/host-hooks.js';
 export * from './plugin-host/plugin-llm.js';
+export * from './plugin-host/plugin-quiescence.js';
 export * from './plugin-host/setup-plugins.js';
+export * from './plugin-host/ts-module-loader.js';

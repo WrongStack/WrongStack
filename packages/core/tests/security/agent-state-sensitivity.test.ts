@@ -43,6 +43,8 @@ describe('isSensitiveAgentStateRelPath', () => {
     'profiles/default/memory.md',
     'memory.md',
     'AGENTS.md',
+    'adversary.md',
+    'profiles/default/adversary.md',
     '',
     'PROFILES/Default/SKILLS/x.md',
   ])('gates %j', (rel) => {

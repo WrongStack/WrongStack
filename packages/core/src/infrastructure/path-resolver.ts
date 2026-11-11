@@ -21,9 +21,9 @@ export class DefaultPathResolver implements PathResolver {
   readonly projectRoot: string;
   readonly cwd: string;
 
-  constructor(cwd: string = process.cwd()) {
+  constructor(cwd: string = process.cwd(), useCwdAsProjectRoot = false) {
     this.cwd = path.resolve(cwd);
-    this.projectRoot = this.detectProjectRoot(this.cwd);
+    this.projectRoot = useCwdAsProjectRoot ? this.cwd : this.detectProjectRoot(this.cwd);
   }
 
   detectProjectRoot(start: string): string {

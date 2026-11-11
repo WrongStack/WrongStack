@@ -1,9 +1,11 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import { ERROR_CODES, PluginError } from '@wrongstack/contracts/types/errors';
 import type { Logger } from '@wrongstack/contracts/types/logger';
-import type { Plugin, PluginAPI, PluginDependency } from '@wrongstack/contracts/types/plugin';
+import type { Plugin, PluginAPI } from '@wrongstack/contracts/types/plugin';
 import { toErrorMessage } from '../utils/error.js';
 import { validateAgainstSchema } from '../utils/json-schema-validate.js';
 import { resolvePluginManifestConfig, validatePluginConfigMetadata } from './config.js';
+import { normalizeDep, satisfies, topoSort } from './loader-semver.js';
 import { wrapApiForCapabilityCheck } from './plugin-capability-wrap.js';
 
 interface PluginRegistration {
@@ -27,10 +29,25 @@ export interface PluginLoadFailure {
   err: unknown;
 }
 
+export interface PluginReloadResult {
+  status: 'reloaded' | 'loaded';
+  previousVersion?: string | undefined;
+  version?: string | undefined;
+}
+
 export interface PluginHostHandle {
   loaded: Plugin[];
   failed: PluginLoadFailure[];
   readonly disposed: boolean;
+  /**
+   * Atomically hot-swap an already-loaded plugin (or load a newly discovered
+   * plugin) without restarting the session. Validates metadata/schema before
+   * tearing down the previous instance, and rolls back to the previous
+   * instance if `setup()` fails.
+   */
+  reloadPlugin(plugin: Plugin): Promise<PluginReloadResult>;
+  /** Unload a single active plugin by name, draining all owned registrations. */
+  unloadPlugin(name: string): Promise<boolean>;
   /** Dispose successfully loaded plugins in reverse dependency order. */
   dispose(): Promise<void>;
 }
@@ -103,157 +120,15 @@ export interface LoadPluginsOptions {
    * failure (logged but not propagated). Default: 10 000 ms.
    */
   teardownTimeoutMs?: number | undefined;
-}
-
-function parseSemver(v: string): [number, number, number] {
-  const parts = v
-    .replace(/^[^0-9]*/, '')
-    .split('.')
-    .map((s) => Number.parseInt(s, 10) || 0);
-  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
-}
-
-function compareSemver(a: [number, number, number], b: [number, number, number]): number {
-  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
-}
-
-const COMPARATOR_RE =
-  /^(\^|~|>=|<=|>|<|=)?v?(\d+|[xX*])(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?(?:[-+].*)?$/;
-
-/** One comparator (`^1.2`, `>=0.1.0`, `0.1.x`, `*`) against a version. */
-function satisfiesComparator(token: string, version: [number, number, number]): boolean {
-  if (token === '' || token === '*' || token === 'x' || token === 'X') return true;
-  const match = COMPARATOR_RE.exec(token);
-  if (!match) return false;
-  const op = match[1] ?? '=';
-  const parts = [match[2], match[3], match[4]];
-  // How many leading components are concrete numbers; the rest are wildcards.
-  const fixed = parts.findIndex((part) => part === undefined || !/^\d+$/.test(part));
-  const specified = fixed === -1 ? 3 : fixed;
-  const [rMaj, rMin, rPatch] = parts.map((part) =>
-    part !== undefined && /^\d+$/.test(part) ? Number.parseInt(part, 10) : 0,
-  ) as [number, number, number];
-  const [vMaj, vMin, vPatch] = version;
-  const cmp = compareSemver(version, [rMaj, rMin, rPatch]);
-  switch (op) {
-    case '^':
-      if (rMaj === 0) return vMaj === 0 && vMin === rMin && vPatch >= rPatch;
-      return vMaj === rMaj && (vMin > rMin || (vMin === rMin && vPatch >= rPatch));
-    case '~':
-      return vMaj === rMaj && vMin === rMin && vPatch >= rPatch;
-    case '>=':
-      return cmp >= 0;
-    case '>':
-      return cmp > 0;
-    case '<=':
-      return cmp <= 0;
-    case '<':
-      return cmp < 0;
-    default:
-      // A full version is an exact pin; a partial one (`0.1`, `0.1.x`) is an
-      // x-range that matches every version sharing the given prefix.
-      return [vMaj, vMin, vPatch]
-        .slice(0, specified)
-        .every((component, index) => component === [rMaj, rMin, rPatch][index]);
-  }
-}
-
-/**
- * Whether `version` satisfies a semver range.
- *
- * The documented contract is a "semver range", but this used to understand
- * only `^`, `~` and an exact pin: every other operator fell through to the
- * exact branch with the operator stripped, so `>=0.1.0` meant `=0.1.0`, `*`
- * meant `=0.0.0`, and a plugin declaring either was refused with
- * `PLUGIN_API_MISMATCH` against a kernel it supports. Alternatives (`||`) and
- * space-separated comparator sets (`>=0.1.0 <0.3.0`) are now honoured too.
- */
-function satisfies(range: string, version: string): boolean {
-  const parsed = parseSemver(version);
-  // `>= 1.2.0` and `>=1.2.0` are the same comparator.
-  const normalized = range.trim().replace(/(\^|~|>=|<=|>|<|=)\s+/g, '$1');
-  return normalized.split('||').some((set) =>
-    set
-      .trim()
-      .split(/\s+/)
-      .every((token) => satisfiesComparator(token, parsed)),
-  );
-}
-
-/** Normalize either `string` or `PluginDependency` into the structured form. */
-function normalizeDep(d: string | PluginDependency): PluginDependency {
-  return typeof d === 'string' ? { name: d } : d;
-}
-
-/**
- * Shallow-merge defaults with overrides. Override keys take precedence;
- * defaults fill in where overrides are missing. Nested objects are
- * NOT deep-merged — the override value replaces wholesale.
- */
-function topoSort(plugins: Plugin[]): Plugin[] {
-  const map = new Map<string, Plugin>();
-  for (const p of plugins) map.set(p.name, p);
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-  const order: Plugin[] = [];
-
-  const visit = (p: Plugin, stack: string[]) => {
-    if (visited.has(p.name)) return;
-    if (visiting.has(p.name)) {
-      throw new PluginError({
-        message: `Plugin dependency cycle: ${[...stack, p.name].join(' -> ')}`,
-        code: ERROR_CODES.PLUGIN_LOAD_FAILED,
-        pluginName: p.name,
-      });
-    }
-    visiting.add(p.name);
-    for (const raw of p.dependsOn ?? []) {
-      const dep = normalizeDep(raw);
-      const d = map.get(dep.name);
-      if (!d) {
-        throw new PluginError({
-          message: `Plugin "${p.name}" depends on missing plugin "${dep.name}"`,
-          code: ERROR_CODES.PLUGIN_MISSING_DEPENDENCY,
-          pluginName: p.name,
-          context: { dependency: dep.name },
-        });
-      }
-      // Version constraint check — only when both declared range and the
-      // dependency's actual version are available. Missing either side is
-      // tolerated: plugins without `version` are treated as wildcard.
-      if (dep.version && d.version && !satisfies(dep.version, d.version)) {
-        throw new PluginError({
-          message: `Plugin "${p.name}" requires "${dep.name}@${dep.version}", found ${d.version}`,
-          code: ERROR_CODES.PLUGIN_LOAD_FAILED,
-          pluginName: p.name,
-          context: { dependency: dep.name, required: dep.version, found: d.version },
-        });
-      }
-      visit(d, [...stack, p.name]);
-    }
-    // Optional deps are silently skipped if the plugin is not loaded.
-    for (const raw of p.optionalDeps ?? []) {
-      const dep = normalizeDep(raw);
-      const d = map.get(dep.name);
-      if (d) {
-        if (dep.version && d.version && !satisfies(dep.version, d.version)) {
-          throw new PluginError({
-            message: `Plugin "${p.name}" optional dep "${dep.name}@${dep.version}" found ${d.version}`,
-            code: ERROR_CODES.PLUGIN_LOAD_FAILED,
-            pluginName: p.name,
-            context: { dependency: dep.name, required: dep.version, found: d.version },
-          });
-        }
-        visit(d, [...stack, p.name]);
-      }
-    }
-    visiting.delete(p.name);
-    visited.add(p.name);
-    order.push(p);
-  };
-
-  for (const p of plugins) visit(p, []);
-  return order;
+  /** Optional typed EventBus notified when `reloadPlugin` completes. */
+  events?: EventBus | undefined;
+  /**
+   * Optional quiescence gate awaited before `reloadPlugin` tears down an
+   * active plugin generation (e.g. waiting for in-flight tool calls owned by
+   * `pluginName` to settle). Default deadline: `quiescenceTimeoutMs` (5 000 ms).
+   */
+  waitForQuiescence?: ((pluginName: string, timeoutMs: number) => Promise<void>) | undefined;
+  quiescenceTimeoutMs?: number | undefined;
 }
 
 function lifecycleTimeoutMs(
@@ -318,7 +193,7 @@ function drainCleanup(registration: PluginRegistration, log: Logger): void {
 async function disposeRegistration(
   registration: PluginRegistration,
   opts: LoadPluginsOptions,
-  context: 'shutdown' | 'setup rollback',
+  context: 'shutdown' | 'setup rollback' | 'reload' | 'unload',
 ): Promise<void> {
   if (registration.disposed) return;
   registration.disposed = true;
@@ -469,9 +344,10 @@ export async function loadPlugins(
         typeof opts.enforceCapabilities === 'function'
           ? opts.enforceCapabilities(plugin)
           : (opts.enforceCapabilities ?? false);
-      const api = plugin.capabilities
-        ? wrapApiForCapabilityCheck(plugin, rawApi, opts.log, enforceForPlugin)
-        : rawApi;
+      const api =
+        plugin.capabilities !== undefined || enforceForPlugin
+          ? wrapApiForCapabilityCheck(plugin, rawApi, opts.log, enforceForPlugin)
+          : rawApi;
       registration = {
         plugin,
         api,
@@ -499,11 +375,212 @@ export async function loadPlugins(
   }
   let disposed = false;
   let disposePromise: Promise<void> | undefined;
+
+  const activateSinglePlugin = async (plugin: Plugin): Promise<PluginRegistration> => {
+    const resolution = resolvePluginManifestConfig(
+      plugin,
+      undefined,
+      opts.pluginOptions?.[plugin.name],
+    );
+    const hasResolvedOptions = plugin.defaultConfig !== undefined || resolution.configured;
+    if (opts.pluginOptions && hasResolvedOptions) {
+      opts.pluginOptions[plugin.name] = resolution.options;
+    }
+    const rawApi = opts.apiFactory(plugin, resolution.options) as PluginRegistration['cleanupApi'];
+    const enforceForPlugin =
+      typeof opts.enforceCapabilities === 'function'
+        ? opts.enforceCapabilities(plugin)
+        : (opts.enforceCapabilities ?? false);
+    const api =
+      plugin.capabilities !== undefined || enforceForPlugin
+        ? wrapApiForCapabilityCheck(plugin, rawApi, opts.log, enforceForPlugin)
+        : rawApi;
+    const reg: PluginRegistration = {
+      plugin,
+      api,
+      cleanupApi: rawApi,
+      cleanupDrained: false,
+      disposed: false,
+    };
+    try {
+      const setupTimeoutMs = lifecycleTimeoutMs(opts.setupTimeoutMs, 30_000, 'setup');
+      await runWithDeadline(plugin, 'setup', setupTimeoutMs, (signal) =>
+        plugin.setup(api, { signal }),
+      );
+      return reg;
+    } catch (err) {
+      await disposeRegistration(reg, opts, 'setup rollback');
+      throw err;
+    }
+  };
+
+  const validateSinglePluginPreFlight = (plugin: Plugin): void => {
+    if (!satisfies(plugin.apiVersion, kernelVersion)) {
+      throw new PluginError({
+        message: `Plugin "${plugin.name}" requires apiVersion ${plugin.apiVersion}; kernel is ${kernelVersion}`,
+        code: ERROR_CODES.PLUGIN_API_MISMATCH,
+        pluginName: plugin.name,
+        context: { required: plugin.apiVersion, kernel: kernelVersion },
+      });
+    }
+    const metadataIssues = validatePluginConfigMetadata(plugin);
+    if (metadataIssues.length > 0) {
+      throw new PluginError({
+        message: `Plugin "${plugin.name}" config metadata invalid — ${metadataIssues.join('; ')}`,
+        code: ERROR_CODES.PLUGIN_LOAD_FAILED,
+        pluginName: plugin.name,
+        context: { issues: metadataIssues },
+      });
+    }
+    const resolution = resolvePluginManifestConfig(
+      plugin,
+      undefined,
+      opts.pluginOptions?.[plugin.name],
+    );
+    const hasResolvedOptions = plugin.defaultConfig !== undefined || resolution.configured;
+    if (plugin.configSchema && hasResolvedOptions) {
+      const result = validateAgainstSchema(resolution.options, plugin.configSchema);
+      if (!result.ok) {
+        const firstErr = result.errors[0];
+        const detail = firstErr ? `${firstErr.path}: ${firstErr.message}` : 'config invalid';
+        throw new PluginError({
+          message: `Plugin "${plugin.name}" config invalid — ${detail}`,
+          code: ERROR_CODES.PLUGIN_LOAD_FAILED,
+          pluginName: plugin.name,
+          context: { errors: result.errors },
+        });
+      }
+    }
+    for (const conflict of plugin.conflictsWith ?? []) {
+      if (conflict !== plugin.name && loadedNames.has(conflict)) {
+        throw new PluginError({
+          message: `Plugin "${plugin.name}" conflicts with loaded plugin "${conflict}"`,
+          code: ERROR_CODES.PLUGIN_LOAD_FAILED,
+          pluginName: plugin.name,
+          context: { conflictsWith: conflict },
+        });
+      }
+    }
+    const missingDep = (plugin.dependsOn ?? [])
+      .map(normalizeDep)
+      .find((dep) => dep.name !== plugin.name && !loadedNames.has(dep.name));
+    if (missingDep) {
+      throw new PluginError({
+        message: `Plugin "${plugin.name}" depends on unloaded plugin "${missingDep.name}"`,
+        code: ERROR_CODES.PLUGIN_MISSING_DEPENDENCY,
+        pluginName: plugin.name,
+        context: { dependency: missingDep.name },
+      });
+    }
+  };
+
   return {
     loaded,
     failed,
     get disposed() {
       return disposed;
+    },
+    async reloadPlugin(nextPlugin: Plugin): Promise<PluginReloadResult> {
+      const startedAt = Date.now();
+      if (disposed) {
+        throw new PluginError({
+          message: `Cannot reload plugin "${nextPlugin.name}" after plugin host disposal`,
+          code: ERROR_CODES.PLUGIN_LOAD_FAILED,
+          pluginName: nextPlugin.name,
+        });
+      }
+      // Phase 1: Pre-flight validation BEFORE touching any running instance.
+      validateSinglePluginPreFlight(nextPlugin);
+
+      const existingIdx = registrations.findIndex(
+        (r) => !r.disposed && r.plugin.name === nextPlugin.name,
+      );
+      const previousReg = existingIdx >= 0 ? registrations[existingIdx] : undefined;
+      const previousLoadedIdx = loaded.findIndex((p) => p.name === nextPlugin.name);
+
+      // Phase 2: Await optional quiescence gate, then drain old registration if active.
+      if (previousReg) {
+        if (typeof opts.waitForQuiescence === 'function') {
+          const quiesceMs = opts.quiescenceTimeoutMs ?? 5_000;
+          await opts.waitForQuiescence(nextPlugin.name, quiesceMs);
+        }
+        await disposeRegistration(previousReg, opts, 'reload');
+        registrations.splice(existingIdx, 1);
+        if (previousLoadedIdx >= 0) loaded.splice(previousLoadedIdx, 1);
+        loadedNames.delete(nextPlugin.name);
+      }
+
+      // Phase 3: Activate new plugin; roll back to previous plugin on failure.
+      try {
+        const nextReg = await activateSinglePlugin(nextPlugin);
+        if (existingIdx >= 0 && existingIdx <= registrations.length) {
+          registrations.splice(existingIdx, 0, nextReg);
+        } else {
+          registrations.push(nextReg);
+        }
+        registerLegacy(nextReg);
+        if (previousLoadedIdx >= 0 && previousLoadedIdx <= loaded.length) {
+          loaded.splice(previousLoadedIdx, 0, nextPlugin);
+        } else {
+          loaded.push(nextPlugin);
+        }
+        loadedNames.add(nextPlugin.name);
+        const durationMs = Math.max(0, Date.now() - startedAt);
+        opts.log.info(
+          `Plugin "${nextPlugin.name}" ${previousReg ? 'reloaded' : 'loaded dynamically'}`,
+        );
+        opts.events?.emit('plugin.reloaded', {
+          name: nextPlugin.name,
+          version: nextPlugin.version,
+          durationMs,
+        });
+        return {
+          status: previousReg ? 'reloaded' : 'loaded',
+          previousVersion: previousReg?.plugin.version,
+          version: nextPlugin.version,
+        };
+      } catch (setupErr) {
+        if (previousReg) {
+          try {
+            const restoredReg = await activateSinglePlugin(previousReg.plugin);
+            if (existingIdx >= 0 && existingIdx <= registrations.length) {
+              registrations.splice(existingIdx, 0, restoredReg);
+            } else {
+              registrations.push(restoredReg);
+            }
+            registerLegacy(restoredReg);
+            if (previousLoadedIdx >= 0 && previousLoadedIdx <= loaded.length) {
+              loaded.splice(previousLoadedIdx, 0, previousReg.plugin);
+            } else {
+              loaded.push(previousReg.plugin);
+            }
+            loadedNames.add(previousReg.plugin.name);
+            opts.log.warn(
+              `Plugin "${nextPlugin.name}" reload failed; rolled back to previous active instance`,
+            );
+          } catch (rollbackErr) {
+            opts.log.error(
+              `Plugin "${nextPlugin.name}" rollback after reload failure also failed`,
+              {
+                rollbackErr,
+              },
+            );
+          }
+        }
+        throw setupErr;
+      }
+    },
+    async unloadPlugin(name: string): Promise<boolean> {
+      if (disposed) return false;
+      const idx = registrations.findIndex((r) => !r.disposed && r.plugin.name === name);
+      if (idx < 0) return false;
+      const reg = registrations[idx]!;
+      await disposeRegistration(reg, opts, 'unload');
+      registrations.splice(idx, 1);
+      const loadedIdx = loaded.findIndex((p) => p.name === name);
+      if (loadedIdx >= 0) loaded.splice(loadedIdx, 1);
+      loadedNames.delete(name);
+      return true;
     },
     dispose() {
       if (!disposePromise) {

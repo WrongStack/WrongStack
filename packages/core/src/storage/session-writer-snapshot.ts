@@ -18,6 +18,10 @@ export const CRITICAL_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
   'checkpoint',
   'workspace_checkpoint',
   'rewound',
+  'branch_created',
+  'branch_switched',
+  'branch_folded',
+  'branch_status_changed',
   'in_flight_start',
   'in_flight_end',
   // Background delegation bookkeeping: losing the completion or the delivery

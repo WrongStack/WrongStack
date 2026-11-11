@@ -170,6 +170,32 @@ export function wrapApiForCapabilityCheck(
           },
         });
 
+  const wrappedUi =
+    !api.ui || caps.ui === true || (caps.ui !== false && !enforce)
+      ? api.ui
+      : new Proxy(api.ui, {
+          get(target, prop, receiver) {
+            if (
+              prop === 'registerStatusChip' ||
+              prop === 'registerPanel' ||
+              prop === 'prompt' ||
+              prop === 'notify'
+            ) {
+              return (...args: unknown[]) => {
+                const first = args[0] as { id?: string; title?: string } | string | undefined;
+                const label =
+                  typeof first === 'string'
+                    ? `${first.length} chars`
+                    : (first?.id ?? first?.title ?? '<slot>');
+                violate('ui', `${String(prop)}(${label})`);
+                const method = Reflect.get(target, prop, receiver) as (...a: unknown[]) => unknown;
+                return method.apply(target, args);
+              };
+            }
+            return Reflect.get(target, prop, receiver);
+          },
+        });
+
   return new Proxy(api, {
     get(target, prop, receiver) {
       switch (prop) {
@@ -185,6 +211,8 @@ export function wrapApiForCapabilityCheck(
           return wrappedMcp;
         case 'llm':
           return wrappedLlm;
+        case 'ui':
+          return wrappedUi;
         case 'registerHook':
           // The hooks gate wraps the API itself (because registerHook is on
           // the API, not on a sub-registry). Forward to wrappedHooks so the

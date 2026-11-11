@@ -73,7 +73,7 @@
         "export { readBundledInstructionText, renderInstructionTemplate, } from './utils/instruction-file.js';",
         "export { runProviderWithRetry } from './core/provider-runner.js';",
         "export { safeParse, safeStringify, sanitizeJsonString, stripCodeFences, } from './utils/safe-json.js';",
-        "export { type AfterIterationHook, type AfterRunHook, type AfterToolExecutionHook, type AgentExtension, type BeforeIterationHook, type BeforeRunHook, type BeforeToolExecutionHook, type BeforeTurnEndHook, ExtensionRegistry, type OnErrorHook, type ProviderRunnerWrapper, } from './extension/index.js';",
+        "export { type AfterIterationHook, type AfterRunHook, type AfterToolExecutionHook, type AgentExtension, type BeforeCompactHook, type BeforeIterationHook, type BeforeRunHook, type BeforeToolExecutionHook, type BeforeTurnEndHook, type CompactionHookInput, type CompactionHookResult, ExtensionRegistry, type OnErrorHook, type ProviderRunnerWrapper, } from './extension/index.js';",
         "export { type ContinuationInput, type ContinuationSource, detectContinueIntent, type ResolvedContinuation, resolveContinuation, } from './core/continue-intent.js';",
         "export { type ContinueDirective, makeContinueToNextIterationTool, parseContinueDirective, } from './core/continue-to-next-iteration.js';",
         "export { type DomainGlossaryOptions, renderDomainGlossary, } from './core/system-prompt-glossary.js';",
@@ -548,7 +548,7 @@
       },
       "source": "packages/core/src/extension/index.ts",
       "declarations": [
-        "export type { AfterIterationHook, AfterRunHook, AfterToolExecutionHook, AgentExtension, BeforeIterationHook, BeforeRunHook, BeforeToolExecutionHook, BeforeTurnEndHook, OnErrorHook, ProviderRunnerFn, ProviderRunnerWrapper, } from '@wrongstack/contracts/types/extension-points';",
+        "export type { AfterIterationHook, AfterRunHook, AfterToolExecutionHook, AgentExtension, BeforeCompactHook, BeforeIterationHook, BeforeRunHook, BeforeToolExecutionHook, BeforeTurnEndHook, CompactionHookInput, CompactionHookResult, OnErrorHook, ProviderRunnerFn, ProviderRunnerWrapper, } from '@wrongstack/contracts/types/extension-points';",
         "export { ExtensionRegistry } from './registry.js';"
       ]
     },
@@ -562,9 +562,10 @@
       "declarations": [
         "export type { PluginAPI, PluginJev } from '@wrongstack/contracts/types/plugin';",
         "export { DEFAULT_PLUGIN_DISCOVERY_IO, type DiscoveryIo, discoverExternalPlugins, type ExternalPluginCandidate, type PluginDiscoveryResult, resolvePluginEntryPath, resolvePluginTarget, type SkippedPluginCandidate, } from './discovery.js';",
+        "export { DEFAULT_STATUS_CHIP_THROTTLE_MS, MAX_PLUGIN_STATUS_CHIP_CHARS, MAX_PLUGIN_VIEW_BYTES, MAX_PLUGIN_VIEW_DEPTH, makePluginUi, type PluginUiNotifyHandler, type PluginUiPromptHandler, PluginUiRegistry, type PluginUiRegistryOptions, type RegisteredPluginPanel, type RegisteredPluginStatusChip, } from './plugin-ui.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './api.js';",
-        "export { KERNEL_API_VERSION, type LoadPluginsOptions, loadPlugins, type PluginHostHandle, type PluginLoadFailure, unloadPlugins, } from './loader.js';",
-        "export { defaultPluginTrustPath, hashFileContents, normalizeTrustKey, type PluginTrustEntry, type PluginTrustStore, type PluginTrustVerification, pinPluginTrust, readPluginTrustStore, unpinPluginTrust, verifyPluginTrust, writePluginTrustStore, } from './trust.js';",
+        "export { KERNEL_API_VERSION, type LoadPluginsOptions, loadPlugins, type PluginHostHandle, type PluginLoadFailure, type PluginReloadResult, unloadPlugins, } from './loader.js';",
+        "export { defaultPluginTrustPath, hashFileContents, hashPluginClosure, hashPluginDirectoryClosure, normalizeTrustKey, type PluginTrustEntry, type PluginTrustStore, type PluginTrustVerification, pinPluginTrust, readPluginTrustStore, unpinPluginTrust, verifyPluginTrust, writePluginTrustStore, } from './trust.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type PluginEnablementSource, pluginEntryMatchesName, type ResolvedPluginConfig, type ResolvedPluginEnablement, type ResolvePluginConfigInput, type ResolvePluginEnablementInput, redactPluginConfig, resolvePluginConfig, resolvePluginEnablement, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';"
       ]
     },
@@ -583,6 +584,7 @@
         "export type { VcsAdapter, VcsKind, VcsOptions } from '../vcs/vcs-adapter.js';",
         "export type { VcsRunner, VcsRunResult } from '../vcs/vcs-runner.js';",
         "export { ALL_SYNC_CATEGORIES, CloudSync, type SyncResult, } from './cloud-sync.js';",
+        "export { BRANCH_NAME_PATTERN, type BranchFoldInsightContext, type CreateBranchOptions, type CreateBranchResult, type FoldBranchOptions, type FoldBranchResult, SessionTreeCoordinator, type SessionTreeCoordinatorOptions, type SwitchBranchOptions, type SwitchBranchResult, } from './session-tree-coordinator.js';",
         "export { CONFIG_BEHAVIOR_DEFAULTS, type ConfigDefaultRepair, type ConfigDefaultRepairReport, type ConfigLoaderOptions, type ConfigSource, DefaultConfigLoader, listInProjectDeniedPaths, repairConfigDefaults, } from './config-loader.js';",
         "export { DefaultConfigStore } from './config-store.js';",
         "export { DefaultPromptStore, migratePromptEntry, type PromptEntry, type PromptStore, promptChecksum, } from './prompt-store.js';",
@@ -622,6 +624,7 @@
         "export { type AuditEntry, ToolAuditLog, type ToolAuditLogOptions, type VerifyResult, } from './tool-audit-log.js';",
         "export { type AuditLevel, CORE_RECONSTRUCT_EVENTS, createSessionEventBridge, resolveAuditLevel, resolveSessionLoggingConfig, type SessionEventBridge, type SessionEventBridgeOptions, type SessionSamplingOptions, STANDARD_AUDIT_EVENTS, type ToolProgressSamplingOptions, } from './session-event-bridge.js';",
         "export { type BoardStorePort, boardStore, setBoardStorePort, } from './board-store-port.js';",
+        "export { type BranchReplayState, buildBranchLineageSegments, eventBelongsToLineage, getSessionTreeSnapshot, type LineageSegment, MAIN_BRANCH_ID, reconstructSessionTree, SessionTreeTracker, } from './session-store/tree-replay.js';",
         "export { type CatalogSessionRecord, type MaintenanceLease, type ResumeReservation, type SessionCatalogHealth, SessionCatalogProjectClient, type SessionCatalogProjectClientOptions, type SessionLeaseCredential, type SessionResumeClaim, } from '../session-catalog/index.js';",
         "export { type CheckpointGcResult, collectReachableManifestHashes, sweepCheckpointCas, } from './session-checkpoint-gc.js';",
         "export { type CompletedWorkCheckpointFile, loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, } from './completed-work-checkpoint.js';",
@@ -1097,7 +1100,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin/extension contract",
       "sourceFiles": 2,
-      "sourceLines": 412
+      "sourceLines": 460
     },
     {
       "directory": "hooks",
@@ -1145,8 +1148,8 @@
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
-      "sourceFiles": 10,
-      "sourceLines": 2712
+      "sourceFiles": 13,
+      "sourceLines": 3691
     },
     {
       "directory": "prompts",
@@ -1215,8 +1218,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 119,
-      "sourceLines": 26775
+      "sourceFiles": 122,
+      "sourceLines": 28497
     },
     {
       "directory": "tasking",
@@ -1237,7 +1240,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 96,
-      "sourceLines": 15041
+      "sourceLines": 15146
     },
     {
       "directory": "vcs",

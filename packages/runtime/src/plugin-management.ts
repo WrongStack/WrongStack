@@ -21,6 +21,11 @@ export {
   runPluginManagementCommand,
 } from './plugin-management/management.js';
 export { installPluginPackage } from './plugin-management/package-install.js';
+export {
+  normalizePluginReloadTarget,
+  PluginDevWatchController,
+  type PluginDevWatchOptions,
+} from './plugin-management/plugin-watch.js';
 export type {
   PackageManagerRunResult,
   PluginManagementDeps,

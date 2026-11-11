@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 517,
-      "typeOnly": 389,
+      "files": 518,
+      "typeOnly": 390,
       "runtimeOrMixed": 160
     },
     "@wrongstack/core/boot": {
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 25,
-      "typeOnly": 14,
-      "runtimeOrMixed": 12
+      "files": 31,
+      "typeOnly": 16,
+      "runtimeOrMixed": 16
     },
     "@wrongstack/core/prompts": {
       "files": 11,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 207,
-      "typeOnly": 82,
-      "runtimeOrMixed": 128
+      "files": 209,
+      "typeOnly": 83,
+      "runtimeOrMixed": 131
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/security": {
-      "files": 267,
+      "files": 269,
       "typeOnly": 26,
-      "runtimeOrMixed": 243
+      "runtimeOrMixed": 245
     },
     "@wrongstack/core/session-catalog": {
       "files": 19,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 197,
-      "typeOnly": 55,
-      "runtimeOrMixed": 175
+      "files": 200,
+      "typeOnly": 56,
+      "runtimeOrMixed": 177
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 979,
+      "files": 984,
       "typeOnly": 74,
-      "runtimeOrMixed": 938
+      "runtimeOrMixed": 943
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -1590,6 +1590,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/src/plugin-host/plugin-llm.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/src/plugin-host/plugin-quiescence.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5423,7 +5429,37 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-host/ts-module-loader.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/runtime/src/plugin-management/management.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/plugin-management/plugin-watch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/portable-commands/host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/src/portable-commands/panel.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5432,6 +5468,12 @@
       "file": "packages/runtime/tests/pack.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/runtime/tests/panel-and-image-commands.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -6695,6 +6737,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/src/plugin-host/plugin-quiescence.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/runtime/src/plugin-host/setup-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6716,6 +6764,12 @@
       "file": "packages/runtime/src/vision.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -8225,6 +8279,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/plugins/src/adversary-mode/policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/plugins/src/dep-guard/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8328,6 +8388,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/portable-commands/permissions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/portable-commands/tree.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10103,9 +10169,21 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/portable-commands/host.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/portable-commands/prune.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/portable-commands/tree.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10128,6 +10206,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/tests/runtime-100-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/tests/tree-command.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14273,6 +14357,18 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/adversary-mode/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/adversary-mode/policy.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/plugins/src/context-pins/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -14693,7 +14789,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/image.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/init.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/panel.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14730,6 +14838,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/portable-commands/scout-stats.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/runtime/src/portable-commands/tree.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

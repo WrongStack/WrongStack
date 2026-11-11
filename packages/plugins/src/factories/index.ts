@@ -91,6 +91,7 @@ export const OFFICIAL_PLUGIN_SPECIFIERS = [
   '@wrongstack/plugins/service-topology-inspector',
   '@wrongstack/plugins/decision-journal',
   '@wrongstack/plugins/plugin-workbench',
+  '@wrongstack/plugins/adversary-mode',
 ] as const;
 
 const loadDefault = async (module: Promise<{ default: Plugin }>): Promise<Plugin> =>
@@ -186,4 +187,5 @@ export const OFFICIAL_PLUGIN_FACTORIES: readonly (() => Promise<Plugin>)[] = [
   () => loadDefault(import('@wrongstack/plugins/service-topology-inspector')),
   () => loadDefault(import('@wrongstack/plugins/decision-journal')),
   () => loadDefault(import('@wrongstack/plugins/plugin-workbench')),
+  () => loadDefault(import('@wrongstack/plugins/adversary-mode')),
 ];

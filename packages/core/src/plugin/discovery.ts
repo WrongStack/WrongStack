@@ -67,7 +67,20 @@ export const DEFAULT_PLUGIN_DISCOVERY_IO: DiscoveryIo = {
   },
 };
 
-const ENTRY_EXTENSIONS = ['.js', '.mjs', '.cjs'] as const;
+const ENTRY_EXTENSIONS = ['.ts', '.mts', '.js', '.mjs', '.cjs'] as const;
+const IGNORED_FILE_SUFFIXES = [
+  '.d.ts',
+  '.d.mts',
+  '.d.cts',
+  '.test.ts',
+  '.spec.ts',
+  '.test.mts',
+  '.spec.mts',
+  '.test.js',
+  '.spec.js',
+  '.test.mjs',
+  '.spec.mjs',
+] as const;
 const SKIP_DIR_NAMES = new Set(['node_modules']);
 
 function isDotEntry(name: string): boolean {
@@ -75,7 +88,9 @@ function isDotEntry(name: string): boolean {
 }
 
 function hasEntryExtension(name: string): boolean {
-  return ENTRY_EXTENSIONS.some((ext) => name.endsWith(ext));
+  const lower = name.toLowerCase();
+  if (IGNORED_FILE_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return false;
+  return ENTRY_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 async function isFile(io: DiscoveryIo, path: string): Promise<boolean> {

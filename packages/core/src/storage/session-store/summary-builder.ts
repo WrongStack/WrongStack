@@ -67,6 +67,8 @@ async function summarizeSessionEventSequence(opts: {
     let sawStart = false;
     let forkedFrom: string | undefined;
     let checkout: string | undefined;
+    const branchNames = new Map<string, string>([['main', 'main']]);
+    let activeBranchId = 'main';
 
     for await (const e of events) {
       lastEventType = e.type;
@@ -155,10 +157,15 @@ async function summarizeSessionEventSequence(opts: {
       } else if (e.type === 'tool_result' && e.isError) toolErrorCount++;
       else if (e.type === 'file_snapshot') fileChangeCount += e.files.length;
       else if (e.type === 'session_forked') forkedFrom = e.parentSessionId;
-      else if (isSessionErrorEvent(e)) hasError = true;
+      else if (e.type === 'branch_created') branchNames.set(e.newBranchId, e.name);
+      else if (e.type === 'branch_switched') activeBranchId = e.toBranchId;
+      else if (e.type === 'branch_status_changed' && e.name) {
+        branchNames.set(e.targetBranchId, e.name);
+      } else if (isSessionErrorEvent(e)) hasError = true;
     }
 
     const outcome = resolveSessionOutcome(lastEventType, hasError);
+    const activeBranchName = branchNames.get(activeBranchId) ?? 'main';
 
     return {
       id,
@@ -177,6 +184,8 @@ async function summarizeSessionEventSequence(opts: {
       toolCallCount: toolCallCount > 0 ? toolCallCount : undefined,
       toolErrorCount: toolErrorCount > 0 ? toolErrorCount : undefined,
       fileChangeCount: fileChangeCount > 0 ? fileChangeCount : undefined,
+      ...(branchNames.size > 1 ? { branchCount: branchNames.size } : {}),
+      ...(branchNames.size > 1 && activeBranchName !== 'main' ? { activeBranchName } : {}),
       toolBreakdown: Object.keys(toolBreakdown).length > 0 ? toolBreakdown : {},
       outcome,
     };

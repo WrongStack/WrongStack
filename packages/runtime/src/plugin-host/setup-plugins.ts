@@ -19,7 +19,7 @@ import type { PluginAPI, PluginAPIInit, PluginHostHandle } from '@wrongstack/cor
 import {
   DefaultPluginAPI,
   loadPlugins,
-  resolvePluginConfig,
+  PluginUiRegistry,
   resolvePluginEnablement,
 } from '@wrongstack/core/plugin';
 import type {
@@ -34,7 +34,9 @@ import {
   OFFICIAL_PLUGIN_SPECIFIERS,
 } from '@wrongstack/plugins/factories';
 import { PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/plugin-audit-catalog';
-import { loadExternalPlugins } from './external-plugins.js';
+import { normalizePluginReloadTarget } from '../plugin-management/plugin-watch.js';
+import { buildPluginOptions, loadExternalPlugins } from './external-plugins.js';
+import { installPluginToolQuiescence } from './plugin-quiescence.js';
 
 // ---------------------------------------------------------------------------
 // The host plugin set, shared by the CLI and the standalone WebUI server (the
@@ -233,6 +235,8 @@ export interface PluginsWiringDeps {
   };
   /** Builds each plugin's API. The CLI passes its own factory; others get `DefaultPluginAPI`. */
   apiFactory?: PluginApiFactory | undefined;
+  /** Optional shared declarative UI slot registry for `api.ui`. */
+  uiRegistry?: PluginUiRegistry | undefined;
   /**
    * Built-ins this host serves through its own wiring instead of the shared
    * loader, keyed by plugin name, valued by the reason. They are skipped with
@@ -240,6 +244,17 @@ export interface PluginsWiringDeps {
    * so a disabled one stays as quiet as it is on every other host.
    */
   hostOwnedBuiltins?: Readonly<Record<string, string>> | undefined;
+}
+
+export interface ExternalPluginReloadReport {
+  reloaded: string[];
+  unloaded: string[];
+  failed: string[];
+}
+
+export interface ManagedPluginHostHandle extends PluginHostHandle {
+  uiRegistry?: PluginUiRegistry | undefined;
+  reloadExternal?: ((targetName?: string) => Promise<ExternalPluginReloadReport>) | undefined;
 }
 
 /**
@@ -340,7 +355,7 @@ const defaultApiFactory: PluginApiFactory = (ownerName, base) =>
 
 export async function setupPlugins(
   params: PluginsWiringDeps,
-): Promise<PluginHostHandle | undefined> {
+): Promise<ManagedPluginHostHandle | undefined> {
   const {
     config,
     container,
@@ -440,6 +455,16 @@ export async function setupPlugins(
   // discovery under `<globalRoot>/plugins` and `<projectRoot>/.wrongstack/
   // plugins`. Every external plugin passes a pre-import TOFU trust gate and
   // a shape/spoof check — see ./external-plugins.ts for the pipeline.
+  const reservedExternalNames = new Set<string>([
+    ...BUILTIN_PLUGIN_CONFIG_NAMES,
+    ...builtinPlugins.map((p) => p.name),
+  ]);
+  const externalHooks = {
+    nameFromSpec: pluginNameFromSpec,
+    isBuiltinSpec: (spec: string) => builtinPluginNameFromSpec(spec) !== null,
+    warnIfDeprecated: (name: string) => name !== '' && warnIfDeprecatedPluginName(name, log),
+  };
+
   const userPlugins: Plugin[] =
     config.features?.plugins === false || safeMode === true
       ? []
@@ -449,22 +474,16 @@ export async function setupPlugins(
             log,
             globalRoot: paths?.globalRoot,
             projectRoot: paths?.projectRoot ?? process.cwd(),
-            reservedNames: new Set<string>([
-              ...BUILTIN_PLUGIN_CONFIG_NAMES,
-              ...builtinPlugins.map((p) => p.name),
-            ]),
+            reservedNames: reservedExternalNames,
           },
-          {
-            nameFromSpec: pluginNameFromSpec,
-            isBuiltinSpec: (spec) => builtinPluginNameFromSpec(spec) !== null,
-            warnIfDeprecated: (name) => name !== '' && warnIfDeprecatedPluginName(name, log),
-          },
+          externalHooks,
         );
 
   // ── 3. Merge: builtins first (they set up infrastructure), then user plugins
   const allPlugins = [...builtinPlugins, ...userPlugins];
   if (allPlugins.length === 0) return;
 
+  const uiRegistry = params.uiRegistry ?? new PluginUiRegistry();
   const pluginOptions = buildPluginOptions(config, allPlugins);
 
   // Workspace plugins that persist project-scoped state read ONLY their own
@@ -502,9 +521,13 @@ export async function setupPlugins(
     promptLoader,
   }) as Config;
 
+  const waitForQuiescence = installPluginToolQuiescence(pipelines, toolRegistry);
+
   const pluginHost = await loadPlugins(allPlugins, {
     log,
+    events,
     pluginOptions,
+    waitForQuiescence,
     // First-party plugins keep the historical warn-only capability checks;
     // external (third-party) plugins are held to their declared
     // capabilities strictly — an undeclared API call rejects the plugin.
@@ -515,6 +538,7 @@ export async function setupPlugins(
         // ("official") so they can claim bare slash command names (/prompts,
         // /sync) and override built-ins. User plugins stay namespaced.
         official: builtinPlugins.includes(plugin),
+        capabilities: plugin.capabilities,
         container,
         events,
         pipelines: pipelines as never as PluginAPIInit['pipelines'],
@@ -531,6 +555,7 @@ export async function setupPlugins(
         mailbox,
         notifier: params.notifier,
         llm: params.llm,
+        uiRegistry,
         sessionWriter: {
           transcriptPath: sessionWriter.transcriptPath,
           // Plugins declare an open event shape, so this crosses from an
@@ -547,27 +572,117 @@ export async function setupPlugins(
       }),
   });
 
+  const activeExternalNames = new Set<string>(
+    userPlugins.filter((p) => !pluginHost.failed?.some((f) => f.plugin === p)).map((p) => p.name),
+  );
+  let reloadGeneration = 0;
+
+  const reloadExternal = async (targetName?: string): Promise<ExternalPluginReloadReport> => {
+    const trimmedTarget = normalizePluginReloadTarget(targetName);
+    if (safeMode === true) {
+      return { reloaded: [], unloaded: [], failed: [] };
+    }
+    reloadGeneration += 1;
+    const liveConfig =
+      typeof (configStore as { get?: (() => Config) | undefined } | undefined)?.get === 'function'
+        ? configStore.get()
+        : config;
+
+    const reloaded: string[] = [];
+    const unloaded: string[] = [];
+    const failedSet = new Set<string>();
+
+    if (liveConfig.features?.plugins === false) {
+      const toUnload =
+        trimmedTarget !== undefined
+          ? activeExternalNames.has(trimmedTarget)
+            ? [trimmedTarget]
+            : []
+          : [...activeExternalNames];
+      for (const name of toUnload) {
+        if (typeof pluginHost.unloadPlugin === 'function') {
+          const didUnload = await pluginHost.unloadPlugin(name);
+          if (didUnload) unloaded.push(name);
+        }
+        activeExternalNames.delete(name);
+      }
+      return { reloaded, unloaded, failed: [] };
+    }
+
+    const nextPlugins = await loadExternalPlugins(
+      {
+        config: liveConfig,
+        log,
+        globalRoot: paths?.globalRoot,
+        projectRoot: paths?.projectRoot ?? process.cwd(),
+        reservedNames: reservedExternalNames,
+        reloadGeneration,
+        onlyName: trimmedTarget,
+        onFailure: (label) => {
+          failedSet.add(label);
+        },
+      },
+      externalHooks,
+    );
+
+    Object.assign(pluginOptions, buildPluginOptions(liveConfig, nextPlugins));
+
+    const nextNames = new Set<string>();
+    for (const nextPlugin of nextPlugins) {
+      nextNames.add(nextPlugin.name);
+      if (typeof pluginHost.reloadPlugin !== 'function') continue;
+      try {
+        await pluginHost.reloadPlugin(nextPlugin);
+        activeExternalNames.add(nextPlugin.name);
+        reloaded.push(nextPlugin.name);
+      } catch (err) {
+        log.warn(`[setupPlugins] external plugin "${nextPlugin.name}" reload failed`, err);
+        failedSet.add(nextPlugin.name);
+      }
+    }
+
+    if (trimmedTarget === undefined) {
+      for (const prevName of [...activeExternalNames]) {
+        if (nextNames.has(prevName) || failedSet.has(prevName)) continue;
+        if (typeof pluginHost.unloadPlugin === 'function') {
+          const didUnload = await pluginHost.unloadPlugin(prevName);
+          if (didUnload) unloaded.push(prevName);
+        }
+        activeExternalNames.delete(prevName);
+      }
+    } else if (
+      nextPlugins.length === 0 &&
+      failedSet.size === 0 &&
+      activeExternalNames.has(trimmedTarget)
+    ) {
+      if (typeof pluginHost.unloadPlugin === 'function') {
+        const didUnload = await pluginHost.unloadPlugin(trimmedTarget);
+        if (didUnload) unloaded.push(trimmedTarget);
+      }
+      activeExternalNames.delete(trimmedTarget);
+    }
+
+    return {
+      reloaded,
+      unloaded,
+      failed: [...failedSet],
+    };
+  };
+
+  if (pluginHost && typeof pluginHost === 'object' && Object.isExtensible(pluginHost)) {
+    Object.defineProperties(pluginHost, {
+      uiRegistry: { value: uiRegistry, configurable: true, writable: true, enumerable: false },
+      reloadExternal: {
+        value: reloadExternal,
+        configurable: true,
+        writable: true,
+        enumerable: false,
+      },
+    });
+  }
+
   log.info(
     `[setupPlugins] loaded ${builtinPlugins.length} built-in, ${userPlugins.length} user plugin(s)`,
   );
-  return pluginHost;
-}
-
-function buildPluginOptions(
-  config: Config,
-  plugins: readonly Plugin[],
-): Record<string, Record<string, unknown>> {
-  const options: Record<string, Record<string, unknown>> = {};
-  for (const [name, value] of Object.entries(config.extensions ?? {})) {
-    options[name] = { ...value };
-  }
-  for (const plugin of plugins) {
-    const resolved = resolvePluginConfig({
-      name: plugin.name,
-      aliases: plugin.configAliases,
-      config,
-    });
-    if (resolved.configured) options[plugin.name] = resolved.options;
-  }
-  return options;
+  return pluginHost as ManagedPluginHostHandle;
 }

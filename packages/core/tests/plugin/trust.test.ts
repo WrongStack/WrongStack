@@ -1,10 +1,11 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   defaultPluginTrustPath,
   hashFileContents,
+  hashPluginDirectoryClosure,
   pinPluginTrust,
   readPluginTrustStore,
   unpinPluginTrust,
@@ -179,5 +180,109 @@ describe('defaultPluginTrustPath', () => {
     await unpinPluginTrust(validPath, 'C:\\plugins\\my-plugin.js');
     const afterUnpin = await readPluginTrustStore(validPath);
     expect(afterUnpin.pinned['C:/plugins/my-plugin.js']).toBeUndefined();
+  });
+});
+
+describe('hashPluginDirectoryClosure — single-file plugins in a discovery root', () => {
+  it('covers imported local helpers but ignores sibling plugins', async () => {
+    const root = await tempDir();
+    const entry = join(root, 'alpha.ts');
+    const helper = join(root, 'helper.ts');
+    const sibling = join(root, 'beta.ts');
+
+    await writeFile(helper, 'export const MSG: string = "v1";\n', 'utf8');
+    await writeFile(
+      entry,
+      'import { MSG } from "./helper.ts";\nexport default { name: "alpha", msg: MSG, setup() {} };\n',
+      'utf8',
+    );
+    await writeFile(sibling, 'export default { name: "beta", setup() {} };\n', 'utf8');
+
+    const before = await hashPluginDirectoryClosure(entry, [root]);
+
+    // An unrelated sibling plugin must not invalidate this plugin's pin.
+    await writeFile(
+      sibling,
+      'export default { name: "beta", setup() {}, tampered: true };\n',
+      'utf8',
+    );
+    expect(await hashPluginDirectoryClosure(entry, [root])).toBe(before);
+
+    // Tampering with the imported helper MUST invalidate the pin.
+    await writeFile(helper, 'export const MSG: string = "tampered";\n', 'utf8');
+    expect(await hashPluginDirectoryClosure(entry, [root])).not.toBe(before);
+  });
+
+  it('keeps the legacy single-file digest for plugins without local imports', async () => {
+    const root = await tempDir();
+    const entry = join(root, 'solo.ts');
+    await writeFile(entry, 'export default { name: "solo", setup() {} };\n', 'utf8');
+
+    expect(await hashPluginDirectoryClosure(entry, [root])).toBe(await hashFileContents(entry));
+  });
+
+  it('covers a helper imported with a NodeNext ".js" specifier', async () => {
+    // The runtime resolves "./helper.js" to the on-disk helper.ts — the pin
+    // must hash the same file, or a rewritten helper keeps the old pin valid.
+    const root = await tempDir();
+    const entry = join(root, 'alpha.ts');
+    const helper = join(root, 'helper.ts');
+    await writeFile(helper, 'export const MSG: string = "v1";\n', 'utf8');
+    await writeFile(
+      entry,
+      'import { MSG } from "./helper.js";\nexport default { name: "alpha", msg: MSG, setup() {} };\n',
+      'utf8',
+    );
+
+    const before = await hashPluginDirectoryClosure(entry, [root]);
+    await writeFile(helper, 'export const MSG: string = "tampered";\n', 'utf8');
+    expect(await hashPluginDirectoryClosure(entry, [root])).not.toBe(before);
+  });
+
+  it('covers local dependencies imported from outside the plugin directory', async () => {
+    // foo/index.ts imports ../shared/util.ts — the helper is executed code
+    // even though it lives outside the plugin's own directory.
+    const root = await tempDir();
+    const pkgDir = join(root, 'foo');
+    const sharedDir = join(root, 'shared');
+    await mkdir(pkgDir, { recursive: true });
+    await mkdir(sharedDir, { recursive: true });
+    const entry = join(pkgDir, 'index.ts');
+    const helper = join(sharedDir, 'util.ts');
+    await writeFile(helper, 'export const U: string = "v1";\n', 'utf8');
+    await writeFile(
+      entry,
+      'import { U } from "../shared/util.ts";\nexport default { name: "foo", u: U, setup() {} };\n',
+      'utf8',
+    );
+
+    const before = await hashPluginDirectoryClosure(entry, [root]);
+    await writeFile(helper, 'export const U: string = "tampered";\n', 'utf8');
+    expect(await hashPluginDirectoryClosure(entry, [root])).not.toBe(before);
+  });
+
+  it('still keeps unrelated sibling plugins out of a directory-mode pin', async () => {
+    // A shared helper must be covered, but an unrelated sibling plugin
+    // directory must not invalidate this plugin's pin.
+    const root = await tempDir();
+    const pkgDir = join(root, 'foo');
+    const siblingDir = join(root, 'bar');
+    await mkdir(pkgDir, { recursive: true });
+    await mkdir(siblingDir, { recursive: true });
+    const entry = join(pkgDir, 'index.ts');
+    await writeFile(entry, 'export default { name: "foo", setup() {} };\n', 'utf8');
+    await writeFile(
+      join(siblingDir, 'index.ts'),
+      'export default { name: "bar", setup() {} };\n',
+      'utf8',
+    );
+
+    const before = await hashPluginDirectoryClosure(entry, [root]);
+    await writeFile(
+      join(siblingDir, 'index.ts'),
+      'export default { name: "bar", setup() {}, tampered: true };\n',
+      'utf8',
+    );
+    expect(await hashPluginDirectoryClosure(entry, [root])).toBe(before);
   });
 });

@@ -17,6 +17,7 @@ import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { extractToolCallEnds } from '../session-tool-call-ends.js';
 import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
 import { createTranscriptLineReader } from './transcript-io.js';
+import { MAIN_BRANCH_ID, SessionTreeTracker } from './tree-replay.js';
 
 type UsageTotals = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
@@ -71,8 +72,9 @@ export async function loadSessionDataFromFile(params: {
   const evictTo = Math.floor(eventBudget * EVICT_TO_FRACTION);
   let retainedBytes = 0;
   let eventsDropped = 0;
-  /** Absolute index (across evictions) of the newest snapshot still in `events`. */
-  let lastSnapshotAbsIndex = -1;
+  let parsedEventIndex = 0;
+  /** Per-branch newest snapshot still in `events` (O(1) on unbranched journals). */
+  const lastSnapshotByBranch = new Map<string, { event: SnapshotEvent; absIndex: number }>();
   let sessionStartEvent: SessionEvent | undefined;
   let sessionEndEvent: SessionEvent | undefined;
   let sessionModel: string | undefined;
@@ -87,8 +89,11 @@ export async function loadSessionDataFromFile(params: {
   let exactJournalActive = false;
   let messageIndexOffset = 0;
   let usage: UsageTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-  /** Newest snapshot seen so far; its predecessor is stripped when it arrives. */
-  let lastSnapshot: SnapshotEvent | undefined;
+  const treeTracker = new SessionTreeTracker({
+    sessionId: params.id,
+    replayMessages: params.full,
+    events: params.events,
+  });
   /**
    * Conversation length before the newest prompt, for a `rewound` event to cut
    * back to. Null once a snapshot or eviction has rebased the array.
@@ -145,18 +150,22 @@ export async function loadSessionDataFromFile(params: {
         // the final state, so it stays available for anything that later wants
         // to inspect it — and strip the ones it superseded. Retention becomes
         // O(1) snapshots instead of O(session length).
+        const eventSeq = typeof ev.seq === 'number' ? ev.seq : parsedEventIndex;
+        parsedEventIndex += 1;
         events.push(ev);
         eventBytes.push(line.length);
         retainedBytes += line.length;
         if (isSnapshotEvent(ev)) {
-          if (lastSnapshot !== undefined) {
-            stripSnapshotPayload(lastSnapshot);
+          const snapBranch = ev.branchId ?? MAIN_BRANCH_ID;
+          const prevSnap = lastSnapshotByBranch.get(snapBranch);
+          if (prevSnap !== undefined) {
+            stripSnapshotPayload(prevSnap.event);
             // Refund the stripped payload to the retention budget. Without
             // this the budget would be charged for bytes that are no longer
             // resident, and on a snapshot-heavy session (where source bytes
             // exceed live bytes by an order of magnitude) it would evict
             // events that cost almost nothing to keep.
-            const slot = lastSnapshotAbsIndex - eventsDropped;
+            const slot = prevSnap.absIndex - eventsDropped;
             if (slot >= 0 && slot < eventBytes.length) {
               const refund = eventBytes[slot]! - SNAPSHOT_ENVELOPE_BYTES;
               if (refund > 0) {
@@ -165,8 +174,10 @@ export async function loadSessionDataFromFile(params: {
               }
             }
           }
-          lastSnapshot = ev;
-          lastSnapshotAbsIndex = eventsDropped + events.length - 1;
+          lastSnapshotByBranch.set(snapBranch, {
+            event: ev,
+            absIndex: eventsDropped + events.length - 1,
+          });
         }
         if (retainedBytes > eventBudget) {
           // Drop from the front in one batch down to `evictTo` — a per-line
@@ -201,7 +212,27 @@ export async function loadSessionDataFromFile(params: {
           permissionOverrides = normalizeSessionPermissionOverrides(ev.overrides);
         }
 
-        if (params.full && messages !== undefined && openToolUses !== undefined) {
+        treeTracker.observe(
+          ev,
+          eventSeq,
+          events,
+          eventsDropped,
+          params.full && messages !== undefined && openToolUses !== undefined
+            ? {
+                messages,
+                openToolUses,
+                exactJournalActive,
+                messageIndexOffset,
+                lengthBeforeInput,
+              }
+            : undefined,
+        );
+
+        if (treeTracker.hasBranched) {
+          if (ev.type === 'llm_response' || ev.type === 'enhance_usage') {
+            usage = accumulateUsage(usage, ev);
+          }
+        } else if (params.full && messages !== undefined && openToolUses !== undefined) {
           if (ev.type === 'user_input') {
             lengthBeforeInput = messages.length;
           } else if (
@@ -247,14 +278,20 @@ export async function loadSessionDataFromFile(params: {
   }
 
   let finalMessages: Message[] = [];
-  if (params.full && messages !== undefined && openToolUses !== undefined) {
-    if (openToolUses.size > 0) {
+  const activeBranchState = treeTracker.hasBranched
+    ? treeTracker.getBranchState(treeTracker.activeBranchId)
+    : undefined;
+  const replayMessagesOut = activeBranchState ? activeBranchState.messages : messages;
+  const replayOpenToolsOut = activeBranchState ? activeBranchState.openToolUses : openToolUses;
+
+  if (params.full && replayMessagesOut !== undefined && replayOpenToolsOut !== undefined) {
+    if (replayOpenToolsOut.size > 0) {
       params.events?.emit('session.damaged', {
         sessionId: params.id,
-        detail: `${openToolUses.size} tool_use blocks without matching results - replay repaired`,
+        detail: `${replayOpenToolsOut.size} tool_use blocks without matching results - replay repaired`,
       });
     }
-    const repaired = repairToolUseAdjacency(messages, { preserveTrailingToolUse: true });
+    const repaired = repairToolUseAdjacency(replayMessagesOut, { preserveTrailingToolUse: true });
     if (repaired.report.changed) {
       params.events?.emit('session.damaged', {
         sessionId: params.id,
@@ -286,7 +323,8 @@ export async function loadSessionDataFromFile(params: {
   };
 
   const toolCallEnds = extractToolCallEnds(events);
-  const pendingToolUseCount = openToolUses && openToolUses.size > 0 ? openToolUses.size : undefined;
+  const pendingToolUseCount =
+    replayOpenToolsOut && replayOpenToolsOut.size > 0 ? replayOpenToolsOut.size : undefined;
   return {
     metadata: meta,
     events,
@@ -298,6 +336,7 @@ export async function loadSessionDataFromFile(params: {
     toolCallEnds,
     ...(pendingToolUseCount !== undefined ? { pendingToolUseCount } : {}),
     ...(eventsDropped > 0 ? { eventsDropped } : {}),
+    ...(treeTracker.hasBranched ? { tree: treeTracker.snapshot() } : {}),
   };
 }
 

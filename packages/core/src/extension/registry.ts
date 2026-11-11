@@ -18,6 +18,8 @@ import type {
   BeforeRunHook,
   BeforeToolExecutionHook,
   BeforeTurnEndHook,
+  CompactionHookInput,
+  CompactionHookResult,
   ExtensionRegistryPort,
   OnErrorHook,
   ProviderRunnerFn,
@@ -392,5 +394,48 @@ export class ExtensionRegistry implements ExtensionRegistryPort {
         this.log?.error(`Extension "${ext.name}" afterToolExecution hook failed`, err);
       }
     }
+  }
+
+  /**
+   * Run `beforeCompact` hooks in registration order, merging pinned message
+   * indices, concatenating `additionalInstructions`, and selecting the first
+   * non-empty `customSummary`.
+   */
+  async runBeforeCompact(input: CompactionHookInput): Promise<CompactionHookResult> {
+    const snapshot = [...this.extensions];
+    const pinned = new Set<number>();
+    const instructions: string[] = [];
+    let customSummary: string | undefined;
+
+    for (const ext of snapshot) {
+      if (!ext.beforeCompact) continue;
+      try {
+        const result = await ext.beforeCompact(input);
+        if (!result) continue;
+        if (Array.isArray(result.pinnedMessageIndices)) {
+          for (const idx of result.pinnedMessageIndices) {
+            if (Number.isInteger(idx) && idx >= 0 && idx < input.messages.length) {
+              pinned.add(idx);
+            }
+          }
+        }
+        if (typeof result.additionalInstructions === 'string') {
+          const trimmed = result.additionalInstructions.trim();
+          if (trimmed.length > 0) instructions.push(trimmed);
+        }
+        if (customSummary === undefined && typeof result.customSummary === 'string') {
+          const trimmed = result.customSummary.trim();
+          if (trimmed.length > 0) customSummary = trimmed;
+        }
+      } catch (err) {
+        this.log?.error(`Extension "${ext.name}" beforeCompact hook failed`, err);
+      }
+    }
+
+    return {
+      ...(pinned.size > 0 ? { pinnedMessageIndices: [...pinned].sort((a, b) => a - b) } : {}),
+      ...(instructions.length > 0 ? { additionalInstructions: instructions.join('\n') } : {}),
+      ...(customSummary !== undefined ? { customSummary } : {}),
+    };
   }
 }

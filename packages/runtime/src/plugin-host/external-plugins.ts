@@ -26,21 +26,24 @@
  * First-party/built-in plugins never enter this module.
  */
 
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Config, Logger, Plugin } from '@wrongstack/contracts/types';
 import {
   defaultPluginTrustPath,
   discoverExternalPlugins,
-  hashFileContents,
+  hashPluginClosure,
+  hashPluginDirectoryClosure,
   normalizeTrustKey,
   type PluginTrustStore,
   pinPluginTrust,
   readPluginTrustStore,
+  resolvePluginConfig,
   resolvePluginEnablement,
   resolvePluginTarget,
   verifyPluginTrust,
 } from '@wrongstack/core/plugin';
+import { importExternalPluginModule } from './ts-module-loader.js';
 
 /** Policy for the external-plugin trust gate. See FeaturesConfig.pluginsTrust. */
 export type ExternalPluginTrustMode = 'off' | 'required' | 'tofu' | 'advisory';
@@ -103,6 +106,12 @@ interface LoadExternalPluginsContext {
   trustStorePath?: string | undefined;
   /** Override for tests. Defaults to native dynamic import. */
   importModule?: ((url: string) => Promise<unknown>) | undefined;
+  /** Monotonic reload counter (> 0 busts ESM cache for hot reload). */
+  reloadGeneration?: number | undefined;
+  /** Optional filter: load/reload only the matching candidate or plugin name. */
+  onlyName?: string | undefined;
+  /** Optional callback invoked when a candidate fails trust, import, or validation. */
+  onFailure?: ((label: string, reason: string) => void) | undefined;
 }
 
 type ExternalSource =
@@ -137,7 +146,6 @@ export async function loadExternalPlugins(
   const { config, log } = ctx;
   if (config.features?.plugins === false) return [];
 
-  const importModule = ctx.importModule ?? ((url: string) => import(url));
   const trustMode = resolveExternalPluginTrustMode(config.features?.pluginsTrust);
   if (
     trustMode === 'required' &&
@@ -195,24 +203,35 @@ export async function loadExternalPlugins(
 
   const sources: ExternalSource[] = [];
   const configNames = new Set<string>();
+  const targetFilter = ctx.onlyName?.trim() ? ctx.onlyName.trim() : undefined;
 
   // ── 1+2. config.plugins entries (specifier or explicit path) ──────────
   for (const p of config.plugins ?? []) {
     const spec = typeof p === 'string' ? p : p.name;
+    const bareSpecName = hooks.nameFromSpec(spec);
+    const resolvedEntryName = bareSpecName ?? (typeof p === 'string' ? spec : p.name);
     const configuredPath = typeof p === 'string' || p.path === undefined ? undefined : p.path;
     // Same resolver the built-in path uses: `extensions.<name>.enabled`,
     // explicit plugin entries, and the feature flag must all agree.
     const { enabled } = resolvePluginEnablement({
-      name: hooks.nameFromSpec(spec) ?? (typeof p === 'string' ? spec : p.name),
+      name: resolvedEntryName,
       aliases: [spec],
       defaultState: 'active',
       config,
       matches: (configuredName) => configuredName === spec,
     });
     if (!enabled) continue;
-    if (hooks.warnIfDeprecated(hooks.nameFromSpec(spec) ?? '')) continue;
+    if (hooks.warnIfDeprecated(bareSpecName ?? '')) continue;
     if (hooks.isBuiltinSpec(spec)) continue;
     if (configuredPath !== undefined) {
+      if (typeof p !== 'string') configNames.add(p.name);
+      if (
+        targetFilter !== undefined &&
+        resolvedEntryName !== targetFilter &&
+        spec !== targetFilter
+      ) {
+        continue;
+      }
       const target = normalizeConfigPath(configuredPath, ctx.projectRoot);
       const entryPath = await resolvePluginTarget(target);
       if (entryPath === null) {
@@ -222,11 +241,16 @@ export async function loadExternalPlugins(
         continue;
       }
       sources.push({ kind: 'path', spec, entryPath, label: spec });
-      if (typeof p !== 'string') configNames.add(p.name);
     } else {
+      if (bareSpecName) configNames.add(bareSpecName);
+      if (
+        targetFilter !== undefined &&
+        resolvedEntryName !== targetFilter &&
+        spec !== targetFilter
+      ) {
+        continue;
+      }
       sources.push({ kind: 'spec', spec, label: spec });
-      const bare = hooks.nameFromSpec(spec);
-      if (bare) configNames.add(bare);
     }
   }
 
@@ -242,13 +266,18 @@ export async function loadExternalPlugins(
       defaultState: 'inactive' as const,
     },
   ].filter((r): r is { dir: string; defaultState: 'active' | 'inactive' } => r !== undefined);
-  const discovery = await discoverExternalPlugins(roots.map((r) => r.dir));
+  const discoveryRootDirs = roots.map((r) => r.dir);
+  const normalizedDiscoveryRoots = new Set(discoveryRootDirs.map((d) => normalizeTrustKey(d)));
+
+  const discovery = await discoverExternalPlugins(discoveryRootDirs);
   for (const skipped of discovery.skipped) {
+    if (targetFilter !== undefined && skipped.name !== targetFilter) continue;
     log.warn(
       `[plugins] discovered candidate "${skipped.name}" in ${skipped.root} skipped — ${skipped.reason}`,
     );
   }
   for (const candidate of discovery.candidates) {
+    if (targetFilter !== undefined && candidate.name !== targetFilter) continue;
     const root = roots.find((r) => r.dir === candidate.root);
     const defaultState = root?.defaultState ?? 'inactive';
     const { enabled, source: enablementSource } = resolvePluginEnablement({
@@ -281,6 +310,7 @@ export async function loadExternalPlugins(
   // ── import + trust gate + validation ───────────────────────────────────
   const loaded: Plugin[] = [];
   const seenNames = new Set<string>();
+  const reloadGen = ctx.reloadGeneration ?? 0;
   for (const source of sources) {
     // Entry resolution without executing module code.
     const entryPath: string | undefined =
@@ -295,14 +325,19 @@ export async function loadExternalPlugins(
         storePath: trustStorePath,
         mode: trustMode,
         log,
+        discoveryRoots: discoveryRootDirs,
       });
-      if (!gate.ok) continue;
+      if (!gate.ok) {
+        ctx.onFailure?.(source.label, 'trust-gate');
+        continue;
+      }
       if (gate.pinned) trustStore = gate.store;
     } else if (trustUsable && entryPath === undefined) {
       if (trustMode === 'required') {
         log.error(
           `[plugins] REFUSING external plugin "${source.label}" — features.pluginsTrust is 'required' and its entry file could not be resolved pre-import (spec "${source.spec}"). Install it so its entry file resolves, or load it by explicit path.`,
         );
+        ctx.onFailure?.(source.label, 'trust-unresolved');
         continue;
       }
       log.warn(
@@ -312,16 +347,31 @@ export async function loadExternalPlugins(
 
     const importTarget =
       source.kind === 'spec' ? source.spec : pathToFileURL(source.entryPath).href;
+    const containingDir = source.kind === 'spec' ? undefined : dirname(source.entryPath);
+    const pluginDirectory =
+      containingDir !== undefined && !normalizedDiscoveryRoots.has(normalizeTrustKey(containingDir))
+        ? containingDir
+        : undefined;
+
     let mod: unknown;
     try {
-      mod = await importModule(importTarget);
+      if (ctx.importModule) {
+        mod = await ctx.importModule(importTarget);
+      } else {
+        mod = await importExternalPluginModule(importTarget, {
+          reloadGeneration: reloadGen,
+          pluginDirectory,
+        });
+      }
     } catch (err) {
       log.warn(`[plugins] external plugin "${source.label}" failed to load`, err);
+      ctx.onFailure?.(source.label, err instanceof Error ? err.message : String(err));
       continue;
     }
     const validated = validateExternalPluginModule(mod);
     if ('error' in validated) {
       log.warn(`[plugins] external plugin "${source.label}" invalid — ${validated.error}`);
+      ctx.onFailure?.(source.label, validated.error);
       continue;
     }
     const plugin = validated.plugin;
@@ -329,6 +379,7 @@ export async function loadExternalPlugins(
       log.warn(
         `[plugins] external plugin "${source.label}" declares reserved name "${plugin.name}" — built-in plugins own that name; rename the plugin`,
       );
+      ctx.onFailure?.(source.label, `reserved-name:${plugin.name}`);
       continue;
     }
     if (seenNames.has(plugin.name)) {
@@ -356,8 +407,9 @@ async function gateExternalPluginTrust(args: {
   storePath: string;
   mode: ExternalPluginTrustMode;
   log: Logger;
+  discoveryRoots?: readonly string[] | undefined;
 }): Promise<TrustGateResult> {
-  const { spec, label, store, storePath, mode, log } = args;
+  const { spec, label, store, storePath, mode, log, discoveryRoots } = args;
   // Pin keys are canonical forward-slash paths regardless of how the entry
   // was resolved (config path, discovery, module resolution).
   const entryPath = normalizeTrustKey(args.entryPath);
@@ -367,14 +419,13 @@ async function gateExternalPluginTrust(args: {
   // the same directory could be re-written at any time and the
   // trust gate would still say "trusted". Hash the entire directory
   // closure (sorted list of relative-path:size:content-hash
-  // triples, hashed together) when the entry has a containing
-  // directory. For bare specifiers (no containing directory) the
-  // single-file hash remains the only signal we can compute here;
-  // the lockfile-based check in `installCommand` is the matching
-  // defence.
+  // triples, hashed together) when the entry has a dedicated plugin
+  // directory. For single-file plugins directly inside a discovery
+  // root (`~/.wrongstack/plugins/foo.ts`), hash only `entryPath` so
+  // sibling single-file plugins remain independent.
   let integrity: string;
   try {
-    integrity = await hashPluginClosure(entryPath);
+    integrity = await hashPluginClosure(entryPath, discoveryRoots);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (mode === 'required') {
@@ -423,83 +474,23 @@ async function gateExternalPluginTrust(args: {
   return { ok: false, pinned: false };
 }
 
-/**
- * I3 (TS-005): compute an integrity hash that covers the entire plugin
- * closure, not just the entry file. The previous single-file hash let a
- * plugin whose entry was `dist/index.js` have its sibling `dist/impl.js`
- * rewritten with the entry byte-identical — the trust gate reported
- * "trusted" while the loaded code was new.
- *
- * When the entry's parent directory exists, walk the directory and
- * produce a sorted list of `relative-path:size:sha256` triples, then
- * SHA-256 the concatenation. When the entry has no containing directory
- * (bare specifier, or a path outside the working tree), fall back to
- * hashing the entry alone — the lockfile-based check in `installCommand`
- * is the matching defence for that case.
- */
-import { createHash } from 'node:crypto';
-import { readdir, stat } from 'node:fs/promises';
-import { basename, dirname, relative, sep } from 'node:path';
-
-const CLOSURE_HASH_LIMIT = 2000;
-const CLOSURE_FILE_LIMIT = 16 * 1024 * 1024; // 16 MiB per file
-
-export async function hashPluginClosure(entryPath: string): Promise<string> {
-  const dir = dirname(entryPath);
-  let dirStat;
-  try {
-    dirStat = await stat(dir);
-  } catch {
-    return hashFileContents(entryPath);
+export function buildPluginOptions(
+  config: Config,
+  plugins: readonly Plugin[],
+): Record<string, Record<string, unknown>> {
+  const options: Record<string, Record<string, unknown>> = {};
+  for (const [name, value] of Object.entries(config.extensions ?? {})) {
+    options[name] = { ...value };
   }
-  if (!dirStat.isDirectory()) return hashFileContents(entryPath);
-  const entryBase = basename(entryPath);
-  // Collect every regular file under the directory (recursive). Sort by
-  // relative POSIX path so the closure hash is path-order-independent.
-  const files: string[] = [];
-  async function walk(d: string): Promise<void> {
-    if (files.length > CLOSURE_HASH_LIMIT) return;
-    const entries = await readdir(d, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) {
-      const full = d + sep + e.name;
-      if (e.isDirectory()) {
-        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
-        await walk(full);
-      } else if (e.isFile()) {
-        files.push(full);
-      }
-    }
+  for (const plugin of plugins) {
+    const resolved = resolvePluginConfig({
+      name: plugin.name,
+      aliases: plugin.configAliases,
+      config,
+    });
+    if (resolved.configured) options[plugin.name] = resolved.options;
   }
-  await walk(dir);
-  files.sort();
-  // Manifest: each line `relpath\0size\0sha256` joined by `\n`, then hashed.
-  const manifest: string[] = [];
-  for (const full of files) {
-    const rel = relative(dir, full).split(sep).join('/');
-    let bytes: Buffer;
-    try {
-      const st = await stat(full);
-      if (!st.isFile() || st.size > CLOSURE_FILE_LIMIT) continue;
-      bytes = await readFile(full);
-    } catch {
-      continue;
-    }
-    const sha = createHash('sha256').update(bytes).digest('hex');
-    manifest.push(`${rel}\0${bytes.length}\0${sha}`);
-  }
-  // The entry must be present in the manifest; if the walk missed it
-  // (entry outside the walked root), append it explicitly.
-  if (!manifest.some((line) => line.startsWith(`${entryBase}\0`))) {
-    const entryBytes = await readFile(entryPath);
-    const entrySha = createHash('sha256').update(entryBytes).digest('hex');
-    manifest.push(`${entryBase}\0${entryBytes.length}\0${entrySha}`);
-  }
-  manifest.sort();
-  const outer = createHash('sha256');
-  outer.update(manifest.join('\n'));
-  return outer.digest('hex');
+  return options;
 }
 
-// Lightweight wrapper kept separate from the closure walk so a single-file
-// entry (e.g. a bare specifier) still produces a stable hash.
-import { readFile } from 'node:fs/promises';
+export { hashPluginClosure, hashPluginDirectoryClosure };

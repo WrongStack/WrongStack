@@ -67,14 +67,100 @@ export async function collectReachableManifestHashes(storeDir: string): Promise<
         input = raw.pipe(gunzip);
       }
       const lines = readline.createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
+      const branchStatuses = new Map<string, 'active' | 'folded' | 'archived'>([
+        ['main', 'active'],
+      ]);
+      const branchHashes = new Map<string, Set<string>>();
+      const addBranchHash = (branchId: string, hash: string): void => {
+        if (!HASH_RE.test(hash)) return;
+        let bucket = branchHashes.get(branchId);
+        if (!bucket) {
+          bucket = new Set<string>();
+          branchHashes.set(branchId, bucket);
+        }
+        bucket.add(hash);
+      };
       try {
         for await (const line of lines) {
-          // Cheap reject first: the substring test skips the regex for the
-          // overwhelming majority of lines, which carry no checkpoint at all.
-          if (!line.includes('manifestHash')) continue;
-          for (const match of line.matchAll(MANIFEST_HASH_IN_TRANSCRIPT)) {
-            if (match[1]) reachable.add(match[1]);
+          const hasManifestHash = line.includes('manifestHash');
+          const hasBranchLifecycle = line.includes('"branch_');
+          // Cheap reject first: the substring tests skip JSON/regex work for the
+          // overwhelming majority of lines, which carry neither checkpoints nor branch state.
+          if (!hasManifestHash && !hasBranchLifecycle) continue;
+
+          let parsed: Record<string, unknown> | undefined;
+          try {
+            const candidate: unknown = JSON.parse(line);
+            if (candidate !== null && typeof candidate === 'object') {
+              parsed = candidate as Record<string, unknown>;
+            }
+          } catch {
+            // Malformed line: fall back to conservative root retention below.
           }
+
+          if (parsed) {
+            const eventType = parsed.type;
+            if (eventType === 'branch_created' && typeof parsed.newBranchId === 'string') {
+              branchStatuses.set(parsed.newBranchId, 'active');
+              const baseCp = parsed.baseWorkspaceCheckpoint as
+                | { manifestHash?: unknown }
+                | undefined;
+              if (typeof baseCp?.manifestHash === 'string') {
+                addBranchHash(parsed.newBranchId, baseCp.manifestHash);
+              }
+              continue;
+            }
+            if (eventType === 'branch_switched') {
+              const fromBranchId =
+                typeof parsed.fromBranchId === 'string' && parsed.fromBranchId.length > 0
+                  ? parsed.fromBranchId
+                  : 'main';
+              const depCp = parsed.departureCheckpoint as { manifestHash?: unknown } | undefined;
+              if (typeof depCp?.manifestHash === 'string') {
+                addBranchHash(fromBranchId, depCp.manifestHash);
+              }
+              continue;
+            }
+            if (
+              eventType === 'branch_folded' &&
+              typeof parsed.sourceBranchId === 'string' &&
+              parsed.sourceBranchId !== 'main'
+            ) {
+              branchStatuses.set(
+                parsed.sourceBranchId,
+                parsed.archiveSource === true ? 'archived' : 'folded',
+              );
+              continue;
+            }
+            if (
+              eventType === 'branch_status_changed' &&
+              typeof parsed.targetBranchId === 'string' &&
+              parsed.targetBranchId !== 'main'
+            ) {
+              if (
+                parsed.status === 'active' ||
+                parsed.status === 'folded' ||
+                parsed.status === 'archived'
+              ) {
+                branchStatuses.set(parsed.targetBranchId, parsed.status);
+              }
+              continue;
+            }
+          }
+
+          if (!hasManifestHash) continue;
+          const ownerBranchId =
+            parsed && typeof parsed.branchId === 'string' && parsed.branchId.length > 0
+              ? parsed.branchId
+              : 'main';
+          for (const match of line.matchAll(MANIFEST_HASH_IN_TRANSCRIPT)) {
+            if (match[1]) addBranchHash(ownerBranchId, match[1]);
+          }
+        }
+        for (const [branchId, hashes] of branchHashes) {
+          const status = branchStatuses.get(branchId) ?? 'active';
+          if (status === 'archived') continue;
+          for (const hash of hashes) reachable.add(hash);
         }
       } finally {
         lines.close();

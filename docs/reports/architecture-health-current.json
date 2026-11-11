@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:28:02.661Z",
+  "generatedAt": "2026-11-11T21:31:34.159Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6226,
-    "testFiles": 5191,
-    "sourceLines": 1273779,
+    "sourceFiles": 6245,
+    "testFiles": 5197,
+    "sourceLines": 1281253,
     "workspaceEdges": 250,
-    "moduleEdges": 18341,
+    "moduleEdges": 18385,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -361,8 +361,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 642,
-      "testFiles": 703,
+      "sourceFiles": 648,
+      "testFiles": 705,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -379,7 +379,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 703
+          "testFiles": 705
         }
       ]
     },
@@ -688,8 +688,8 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 151,
-      "testFiles": 130,
+      "sourceFiles": 154,
+      "testFiles": 131,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/coordination",
@@ -707,7 +707,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 130
+          "testFiles": 131
         }
       ]
     },
@@ -733,7 +733,7 @@
     {
       "name": "@wrongstack/project-surfaces",
       "dir": "packages/project-surfaces",
-      "sourceFiles": 255,
+      "sourceFiles": 259,
       "testFiles": 0,
       "workspaceDependencies": [
         "@wrongstack/contracts",
@@ -819,8 +819,8 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 118,
-      "testFiles": 46,
+      "sourceFiles": 124,
+      "testFiles": 49,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -854,7 +854,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 46
+          "testFiles": 49
         }
       ]
     },
@@ -11978,6 +11978,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/plugin/ts-discovery-reload-ui.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/project-server-client-sync-write-failure.test.ts",
         "projects": [
           "root-node"
@@ -14043,6 +14049,12 @@
       },
       {
         "file": "packages/core/tests/utils/term.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/terminal-capability-graphics.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17150,6 +17162,12 @@
         ]
       },
       {
+        "file": "packages/plugins/tests/adversary-mode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/plugins/tests/agent-handoff.test.ts",
         "projects": [
           "root-node"
@@ -19214,6 +19232,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/external-ts-plugin-reload.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/fallback-gate.test.ts",
         "projects": [
           "root-node"
@@ -19274,6 +19298,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/panel-and-image-commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/runtime/tests/plugin-commands.test.ts",
         "projects": [
           "root-node"
@@ -19305,6 +19335,12 @@
       },
       {
         "file": "packages/runtime/tests/tool-wire-budget.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/runtime/tests/tree-command.test.ts",
         "projects": [
           "root-node"
         ]
@@ -35633,7 +35669,7 @@
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 709,
+      "lines": 704,
       "relativeImports": 12
     },
     {
@@ -35652,8 +35688,18 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/plugins/src/adversary-mode/evaluator.ts",
+      "lines": 853,
+      "relativeImports": 2
+    },
+    {
+      "file": "packages/plugins/src/adversary-mode/index.ts",
+      "lines": 763,
+      "relativeImports": 5
+    },
+    {
       "file": "packages/plugins/src/audit/index.ts",
-      "lines": 708,
+      "lines": 716,
       "relativeImports": 0
     },
     {
@@ -35904,6 +35950,11 @@
       "relativeImports": 17
     },
     {
+      "file": "packages/plugins/src/adversary-mode/evaluator.ts",
+      "lines": 853,
+      "relativeImports": 2
+    },
+    {
       "file": "apps/desktop-v2/src/ProjectMailbox.tsx",
       "lines": 832,
       "relativeImports": 12
@@ -35942,6 +35993,11 @@
       "file": "apps/desktop-v2/src/ProjectChimera.tsx",
       "lines": 766,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/plugins/src/adversary-mode/index.ts",
+      "lines": 763,
+      "relativeImports": 5
     },
     {
       "file": "packages/vibeui/src/lib/use-session.ts",
@@ -36034,6 +36090,11 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/plugins/src/audit/index.ts",
+      "lines": 716,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/requirement-intake/src/service.ts",
       "lines": 716,
       "relativeImports": 17
@@ -36054,11 +36115,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/core/src/storage/file-session-writer.ts",
-      "lines": 709,
-      "relativeImports": 12
-    },
-    {
       "file": "packages/vibeui/src/components/memory-browser.tsx",
       "lines": 709,
       "relativeImports": 12
@@ -36074,11 +36130,6 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/plugins/src/audit/index.ts",
-      "lines": 708,
-      "relativeImports": 0
-    },
-    {
       "file": "packages/chronicle/src/project-server.ts",
       "lines": 706,
       "relativeImports": 17
@@ -36092,11 +36143,6 @@
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 704,
       "relativeImports": 18
-    },
-    {
-      "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
-      "lines": 703,
-      "relativeImports": 6
     }
   ],
   "testOnlyExports": [

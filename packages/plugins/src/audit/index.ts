@@ -704,4 +704,12 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     defaultState: 'inactive',
     canDisable: true,
   },
+  {
+    name: 'adversary-mode',
+    risk: 'medium',
+    summary:
+      'Natural-language pre-tool intent and task-drift reviewer (adversary.md) backed by Brain, Jev, Council, and LLM tiers',
+    defaultState: 'active',
+    canDisable: true,
+  },
 ] as const;

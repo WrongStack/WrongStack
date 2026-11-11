@@ -5,6 +5,8 @@ export interface PluginManagementDeps {
   configPath: string;
   /** Override `~/.wrongstack` for tests. Defaults to the real home dir. */
   globalRoot?: string | undefined;
+  /** Project root used for project-local plugin discovery (`<projectRoot>/.wrongstack/plugins`). */
+  projectRoot?: string | undefined;
   /**
    * Back the profile config up before a write (the CLI keeps `.last` and
    * timestamped copies). Hosts without a backup scheme leave it out.

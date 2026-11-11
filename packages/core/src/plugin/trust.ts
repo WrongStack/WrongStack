@@ -12,8 +12,9 @@
  *   - hash mismatch    → plugin is REFUSED until the user re-pins it with
  *                        `wstack plugin trust <name>`
  *
- * The pin covers the entry file only (not the whole dependency tree) —
- * it catches swapped/updated plugin builds, not deep transitive changes.
+ * The pin covers the plugin's local source closure (entry file plus the
+ * relative modules it imports) — it catches swapped/updated plugin builds
+ * and tampered local helpers, not deep transitive package changes.
  * It is a tamper signal, not a signature scheme.
  *
  * Disable entirely with `features.pluginsTrust: false`. `'required'`
@@ -24,8 +25,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ERROR_CODES, FsError } from '@wrongstack/contracts/types/errors';
 import { withFileLock } from '../utils/atomic-write.js';
 
@@ -68,11 +69,273 @@ export async function hashFileContents(
   readFileFn: (path: string) => Promise<Buffer> = defaultReadFile,
 ): Promise<string> {
   const contents = await readFileFn(entryPath);
-  // Bare hex — must match hashPluginClosure's single-file digest format in the
-  // CLI wiring so a plugin pinned via one access shape (directory closure)
-  // still verifies when loaded via the other (bare specifier fallback).
+  // Bare hex — must match hashPluginDirectoryClosure's single-file digest format
+  // so a plugin pinned via one access shape still verifies when loaded via the other.
   return createHash('sha256').update(contents).digest('hex');
 }
+
+const CLOSURE_HASH_LIMIT = 2000;
+const CLOSURE_FILE_LIMIT = 16 * 1024 * 1024; // 16 MiB per file
+
+/** Extensions probed when a local import omits one. */
+const LOCAL_RESOLVE_EXTENSIONS = ['', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
+
+/**
+ * TypeScript "NodeNext" import style: the specifier carries the *output*
+ * extension (`./helper.js`) while the file on disk is the source (`.ts`).
+ * Without this mapping the helper resolves to nothing and its content is
+ * never hashed — a changed helper would keep the old pin valid.
+ */
+const JS_EXTENSION_TO_SOURCE: Record<string, readonly string[]> = {
+  '.js': ['.ts', '.tsx'],
+  '.jsx': ['.tsx'],
+  '.mjs': ['.mts'],
+  '.cjs': ['.cts'],
+};
+
+/**
+ * Matches relative (local) module specifiers in ESM/CJS source text:
+ * `import ... from './x'`, `export ... from './x'`, `import './x'`,
+ * `import('./x')` and `require('./x')`.
+ */
+const LOCAL_SPECIFIER_RE =
+  /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)(['"])(\.\.?\/[^'"]+)\1/g;
+
+/** Collect the distinct relative specifiers referenced by a source file. */
+function extractLocalImportSpecifiers(source: string): string[] {
+  const found = new Set<string>();
+  LOCAL_SPECIFIER_RE.lastIndex = 0;
+  let match: RegExpExecArray | null = LOCAL_SPECIFIER_RE.exec(source);
+  while (match !== null) {
+    found.add(match[2] ?? '');
+    match = LOCAL_SPECIFIER_RE.exec(source);
+  }
+  found.delete('');
+  return [...found];
+}
+
+/** Resolve a relative specifier to an existing file, or undefined. */
+async function resolveLocalImport(
+  fromFile: string,
+  specifier: string,
+): Promise<string | undefined> {
+  const base = resolve(dirname(fromFile), specifier);
+  for (const ext of LOCAL_RESOLVE_EXTENSIONS) {
+    const candidate = base + ext;
+    const st = await stat(candidate).catch(() => undefined);
+    if (st?.isFile()) return candidate;
+  }
+  // TypeScript source with a NodeNext-style specifier: `./helper.js` on disk
+  // is `helper.ts`. Probe the source extension so the helper is hashed.
+  const dot = base.lastIndexOf('.');
+  if (dot > base.lastIndexOf(sep)) {
+    const mapped = JS_EXTENSION_TO_SOURCE[base.slice(dot).toLowerCase()];
+    if (mapped) {
+      const stem = base.slice(0, dot);
+      for (const ext of mapped) {
+        const candidate = stem + ext;
+        const st = await stat(candidate).catch(() => undefined);
+        if (st?.isFile()) return candidate;
+      }
+    }
+  }
+  for (const ext of LOCAL_RESOLVE_EXTENSIONS) {
+    if (ext === '') continue;
+    const candidate = join(base, `index${ext}`);
+    const st = await stat(candidate).catch(() => undefined);
+    if (st?.isFile()) return candidate;
+  }
+  return undefined;
+}
+
+/**
+ * Digest for a single-file plugin that lives directly in a shared discovery
+ * root: the entry file plus the local (relative) modules it imports,
+ * transitively. Sibling plugins in the same root are NOT included, so
+ * unrelated plugins never taint each other's pins — but a helper the
+ * plugin actually imports IS, so editing it invalidates the pin.
+ */
+async function hashLocalImportClosure(entryPath: string, rootDir: string): Promise<string> {
+  const visited = new Set<string>();
+  const manifest: string[] = [];
+  const queue: string[] = [entryPath];
+  while (queue.length > 0) {
+    const file = queue.shift() as string;
+    if (visited.has(file)) continue;
+    visited.add(file);
+    let bytes: Buffer;
+    try {
+      const st = await stat(file);
+      if (!st.isFile() || st.size > CLOSURE_FILE_LIMIT) continue;
+      bytes = await readFile(file);
+    } catch {
+      continue;
+    }
+    const rel = relative(rootDir, file).split(sep).join('/');
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    manifest.push(`${rel}\0${bytes.length}\0${sha}`);
+    for (const specifier of extractLocalImportSpecifiers(bytes.toString('utf8'))) {
+      const resolved = await resolveLocalImport(file, specifier);
+      if (resolved) {
+        queue.push(resolved);
+        continue;
+      }
+      // Unresolvable local import: record the specifier so adding/removing
+      // the file still changes the digest.
+      const relMissing = relative(rootDir, resolve(dirname(file), specifier))
+        .split(sep)
+        .join('/');
+      manifest.push(`${relMissing}\0-1\0unresolved`);
+    }
+  }
+  if (visited.size === 1 && manifest.length === 1) {
+    // No local imports at all — keep the legacy single-file digest so
+    // existing pins for dependency-free plugins stay valid.
+    return hashFileContents(entryPath);
+  }
+  manifest.sort();
+  return createHash('sha256').update(manifest.join('\n')).digest('hex');
+}
+
+/**
+ * Traverse the local (relative) import closure of `entryPath`.
+ *
+ * Returns every file reachable through relative imports (the entry included).
+ */
+async function collectLocalImportClosure(entryPath: string): Promise<Map<string, Buffer>> {
+  const files = new Map<string, Buffer>();
+  const visited = new Set<string>();
+  const queue: string[] = [entryPath];
+  while (queue.length > 0) {
+    const file = queue.shift() as string;
+    if (visited.has(file)) continue;
+    visited.add(file);
+    let bytes: Buffer;
+    try {
+      const st = await stat(file);
+      if (!st.isFile() || st.size > CLOSURE_FILE_LIMIT) continue;
+      bytes = await readFile(file);
+    } catch {
+      continue;
+    }
+    files.set(file, bytes);
+    for (const specifier of extractLocalImportSpecifiers(bytes.toString('utf8'))) {
+      const resolved = await resolveLocalImport(file, specifier);
+      if (resolved) {
+        queue.push(resolved);
+      }
+    }
+  }
+  return files;
+}
+
+/** True when `file` sits under `root` (or is `root` itself). */
+function isInside(root: string, file: string): boolean {
+  const rel = relative(root, file);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/**
+ * Local dependencies that a plugin imports from OUTSIDE its own directory
+ * (e.g. `foo/index.ts` importing `../shared/util.ts`).
+ *
+ * The directory manifest only covers files inside the plugin directory, so
+ * these helpers are executed code that the pin must cover too — otherwise a
+ * rewritten helper keeps the old pin valid.
+ */
+async function collectExternalLocalDependencies(
+  entryPath: string,
+  dir: string,
+): Promise<Map<string, Buffer>> {
+  const external = new Map<string, Buffer>();
+  const files = await collectLocalImportClosure(entryPath);
+  for (const [file, bytes] of files) {
+    if (isInside(dir, file)) continue;
+    if (file.split(/[\\/]/).includes('node_modules')) continue;
+    external.set(file, bytes);
+  }
+  return external;
+}
+
+/**
+ * Compute a deterministic integrity digest covering a plugin's source closure:
+ * - When `rawEntryPath` sits directly inside one of `discoveryRoots` (a shared
+ *   single-file plugins folder such as `~/.wrongstack/plugins/foo.ts`), hashes
+ *   the entry file plus the local (relative) modules it imports, transitively,
+ *   so editing an imported helper invalidates the pin while sibling plugins
+ *   in the same root stay independent.
+ * - When `rawEntryPath` lives in its own plugin directory (`foo/index.ts`),
+ *   hashes a sorted Merkle manifest (`relpath\0size\0sha256`) of all files in
+ *   the directory (skipping `node_modules` and dot-directories) so editing a
+ *   helper `.ts`/`.js` file is caught by TOFU verification. Local imports
+ *   that reach outside the plugin directory are added to the same manifest.
+ */
+export async function hashPluginDirectoryClosure(
+  rawEntryPath: string,
+  discoveryRoots?: readonly string[] | undefined,
+): Promise<string> {
+  const entryPath = resolve(rawEntryPath);
+  const dir = dirname(entryPath);
+  if (discoveryRoots?.some((root) => normalizeTrustKey(dir) === normalizeTrustKey(resolve(root)))) {
+    return hashLocalImportClosure(entryPath, dir);
+  }
+  let dirStat: Awaited<ReturnType<typeof stat>>;
+  try {
+    dirStat = await stat(dir);
+  } catch {
+    return hashFileContents(entryPath);
+  }
+  if (!dirStat.isDirectory()) return hashFileContents(entryPath);
+  const entryBase = basename(entryPath);
+  const files: string[] = [];
+  async function walk(d: string): Promise<void> {
+    if (files.length > CLOSURE_HASH_LIMIT) return;
+    const entries = await readdir(d, { withFileTypes: true }).catch(() => []);
+    for (const e of entries) {
+      const full = d + sep + e.name;
+      if (e.isDirectory()) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+        await walk(full);
+      } else if (e.isFile()) {
+        files.push(full);
+      }
+    }
+  }
+  await walk(dir);
+  files.sort();
+  const manifest: string[] = [];
+  for (const full of files) {
+    const rel = relative(dir, full).split(sep).join('/');
+    let bytes: Buffer;
+    try {
+      const st = await stat(full);
+      if (!st.isFile() || st.size > CLOSURE_FILE_LIMIT) continue;
+      bytes = await readFile(full);
+    } catch {
+      continue;
+    }
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    manifest.push(`${rel}\0${bytes.length}\0${sha}`);
+  }
+  if (!manifest.some((line) => line.startsWith(`${entryBase}\0`))) {
+    const entryBytes = await readFile(entryPath);
+    const entrySha = createHash('sha256').update(entryBytes).digest('hex');
+    manifest.push(`${entryBase}\0${entryBytes.length}\0${entrySha}`);
+  }
+  // Local dependencies outside the plugin directory are part of the executed
+  // code — they belong in the digest, keyed by their path relative to the
+  // plugin directory so the manifest stays deterministic.
+  const external = await collectExternalLocalDependencies(entryPath, dir);
+  for (const [full, bytes] of external) {
+    const rel = relative(dir, full).split(sep).join('/');
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    manifest.push(`${rel}\0${bytes.length}\0${sha}`);
+  }
+  manifest.sort();
+  return createHash('sha256').update(manifest.join('\n')).digest('hex');
+}
+
+export const hashPluginClosure = hashPluginDirectoryClosure;
 
 async function defaultReadFile(path: string): Promise<Buffer> {
   return readFile(path);

@@ -49,6 +49,8 @@ export class SessionSummaryTracker {
   /** Type of the newest observed event; the terminal-marker signal. */
   private lastEventType: SessionEvent['type'] | undefined;
   private openToolUses = new Set<string>();
+  private branchNames = new Map<string, string>([['main', 'main']]);
+  private activeBranchId = 'main';
   /**
    * finalize() could not read the manifest's name (unreadable, not missing).
    * A rename lives only in the manifest and the catalog, so the writer must not
@@ -93,6 +95,31 @@ export class SessionSummaryTracker {
     // observe; carrying the prior 'error' forward is what made the verdict
     // unclearable across resumes.
     this.hadSessionError = this.resumed ? false : this.summary.outcome === 'error';
+    const activeName = opts.initialSummary?.activeBranchName;
+    const resumedActiveName = activeName && activeName !== 'main' ? activeName : undefined;
+    if (opts.initialSummary?.branchCount && opts.initialSummary.branchCount > 1) {
+      // The resumed active branch occupies one of the placeholder slots, so
+      // synthesize only the remaining ones. Adding it on top made
+      // branchSummaryFields() report one branch too many (a 2-branch resumed
+      // session published branchCount: 3).
+      const placeholderCount = opts.initialSummary.branchCount - 1 - (resumedActiveName ? 1 : 0);
+      for (let i = 1; i <= placeholderCount; i++) {
+        this.branchNames.set(`__resumed_${i}`, `branch-${i}`);
+      }
+    }
+    if (resumedActiveName) {
+      this.activeBranchId = '__resumed_active';
+      this.branchNames.set('__resumed_active', resumedActiveName);
+    }
+  }
+
+  private branchSummaryFields(): Pick<SessionSummary, 'branchCount' | 'activeBranchName'> {
+    if (this.branchNames.size <= 1) return {};
+    const activeName = this.branchNames.get(this.activeBranchId) ?? 'main';
+    return {
+      branchCount: this.branchNames.size,
+      ...(activeName !== 'main' ? { activeBranchName: activeName } : {}),
+    };
   }
 
   get currentSummary(): Readonly<SessionSummary> {
@@ -107,7 +134,13 @@ export class SessionSummaryTracker {
    * pretending the session ended cleanly.
    */
   snapshot(): SessionSummary {
-    const { lastUserMessage: _lastUserMessage, outcome: _outcome, ...rest } = this.summary;
+    const {
+      lastUserMessage: _lastUserMessage,
+      outcome: _outcome,
+      branchCount: _branchCount,
+      activeBranchName: _activeBranchName,
+      ...rest
+    } = this.summary;
     return {
       ...rest,
       messageCount: this.messageCount,
@@ -119,6 +152,7 @@ export class SessionSummaryTracker {
       compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
       toolBreakdown: { ...this.toolBreakdown },
       lastActivityAt: this.lastActivityAt,
+      ...this.branchSummaryFields(),
       ...(() => {
         const outcome = resolveSessionOutcome(this.lastEventType, this.hadSessionError);
         return outcome !== undefined ? { outcome } : {};
@@ -162,6 +196,14 @@ export class SessionSummaryTracker {
       this.compactionCount++;
     } else if (event.type === 'session_forked') {
       this.summary = { ...this.summary, forkedFrom: event.parentSessionId };
+    } else if (event.type === 'branch_created') {
+      this.branchNames.set(event.newBranchId, event.name);
+    } else if (event.type === 'branch_switched') {
+      this.activeBranchId = event.toBranchId;
+    } else if (event.type === 'branch_status_changed') {
+      if (event.name) {
+        this.branchNames.set(event.targetBranchId, event.name);
+      }
     } else if (
       (event.type === 'session_start' ||
         event.type === 'session_resumed' ||
@@ -239,12 +281,16 @@ export class SessionSummaryTracker {
     this.hadSessionError = false;
     this.lastEventType = undefined;
     this.openToolUses = new Set<string>();
+    this.branchNames = new Map([['main', 'main']]);
+    this.activeBranchId = 'main';
     this.tokenIn = 0;
     this.tokenOut = 0;
     this.baseTokenTotal = 0;
     const {
       lastUserMessage: _lastUserMessage,
       outcome: _outcome,
+      branchCount: _branchCount,
+      activeBranchName: _activeBranchName,
       ...summaryWithoutPreview
     } = this.summary;
     this.summary = {
@@ -285,6 +331,8 @@ export class SessionSummaryTracker {
     const {
       lastUserMessage: _lastUserMessage,
       name: _name,
+      branchCount: _branchCount,
+      activeBranchName: _activeBranchName,
       ...summaryWithoutDisplay
     } = this.summary;
 
@@ -301,6 +349,7 @@ export class SessionSummaryTracker {
       fileChangeCount: this.fileChangeCount,
       compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
       toolBreakdown: { ...this.toolBreakdown },
+      ...this.branchSummaryFields(),
       outcome: resolveSessionOutcome(this.lastEventType, this.hadSessionError),
     };
 
@@ -338,6 +387,8 @@ export class SessionSummaryTracker {
     this.hadSessionError = false;
     this.lastEventType = undefined;
     this.openToolUses = new Set<string>();
+    this.branchNames = new Map([['main', 'main']]);
+    this.activeBranchId = 'main';
     this.summary = {
       id: this.id,
       title: '(empty session)',

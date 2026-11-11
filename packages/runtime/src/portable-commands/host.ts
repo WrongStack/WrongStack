@@ -1,15 +1,32 @@
 import type { runOneAcpTask } from '@wrongstack/acp';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   Config,
   ConfigStore,
+  Message,
   PermissionPolicy,
   Provider,
+  SessionBranchDescriptor,
   SessionStore,
+  SessionWriter,
   Tool,
 } from '@wrongstack/contracts/types';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
 import type { DispatchClassifier, FleetSupervisor } from '@wrongstack/coordination';
+import type { PluginUiRegistry } from '@wrongstack/core/plugin';
+import type { SessionTreeCoordinator } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuneupUpdateInfo } from './tuneup-types.js';
+
+export interface CommandSessionContext {
+  session?: { id?: string | undefined } | undefined;
+  messages?: Message[] | undefined;
+  state?:
+    | {
+        replaceMessages(messages: Message[]): void;
+      }
+    | undefined;
+}
 
 /**
  * What the portable slash commands need from the process running them. The TUI passes its
@@ -17,6 +34,21 @@ import type { TuneupUpdateInfo } from './tuneup-types.js';
  */
 export interface SessionCommandHost {
   sessionStore?: SessionStore | undefined;
+  sessionRef?: { current?: SessionWriter | undefined } | undefined;
+  context?: CommandSessionContext | undefined;
+  paths?: WstackPaths | undefined;
+  events?: EventBus | undefined;
+  extensionRegistry?: ExtensionRegistryPort | undefined;
+  treeCoordinator?: SessionTreeCoordinator | (() => SessionTreeCoordinator | undefined) | undefined;
+  onTreeMessagesReplaced?:
+    | ((messages: Message[], branch: SessionBranchDescriptor) => void)
+    | undefined;
+  onPanelOpen?: { current: ((action: string) => boolean) | null } | undefined;
+}
+
+/** Host surface accepted by `/tree` (allows omitting `projectRoot` in standalone tests). */
+export interface TreeCommandHost extends SessionCommandHost {
+  projectRoot?: string | undefined;
 }
 
 /** Where a command reports progress while it runs, besides its returned message. */
@@ -130,7 +162,7 @@ export interface GitCommandHost {
   cwd: string;
   projectRoot: string;
   /** The conversation whose id a commit-safety check records. */
-  context?: { session?: { id?: string | undefined } | undefined } | undefined;
+  context?: CommandSessionContext | undefined;
   llmProvider?: Provider | undefined;
   llmModel?: string | undefined;
 }
@@ -159,16 +191,27 @@ export interface PluginManagementCommandHost {
   configStore?: ConfigStore | undefined;
   getProfileConfigPath?: (() => string | undefined) | undefined;
   paths?: WstackPaths | undefined;
+  projectRoot?: string | undefined;
   /** Back the profile config up before a write. */
   backupConfig?: ((configPath: string) => Promise<void>) | undefined;
   /** Apply the written change to the live config (default: `configStore.update`). */
   applyConfigPatch?: ((patch: Partial<Config>) => void) | undefined;
+  /** Hot-reload external plugins in the running session without restarting. */
+  reloadPlugins?:
+    | ((name?: string) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
+    | undefined;
+  /** Declarative `api.ui` slot registry owned by the live plugin host (used by `/panel`). */
+  pluginUiRegistry?: PluginUiRegistry | (() => PluginUiRegistry | undefined) | undefined;
+  /** Optional shared developer watch controller for `/plugin watch <name|off>`. */
+  pluginWatchController?:
+    | import('../plugin-management/plugin-watch.js').PluginDevWatchController
+    | undefined;
 }
 
 export interface PortableCommandHost
   extends SessionCommandHost,
     PermissionsCommandHost,
-    PluginManagementCommandHost,
+    Omit<PluginManagementCommandHost, 'projectRoot'>,
     InitCommandHost,
     GitCommandHost,
     GitIdCommandHost,

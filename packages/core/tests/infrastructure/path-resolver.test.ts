@@ -42,6 +42,16 @@ describe('DefaultPathResolver', () => {
     expect(path.isAbsolute(pr.cwd)).toBe(true);
   });
 
+  it('uses the selected directory as the project root for a host that already chose one', async () => {
+    const nested = path.join(tmp, 'registered');
+    await fs.mkdir(nested);
+    expect(new DefaultPathResolver(nested).projectRoot).toBe(tmp);
+    const resolver = new DefaultPathResolver(nested, true);
+    expect(resolver.projectRoot).toBe(nested);
+    expect(resolver.isInsideRoot(path.join(nested, 'file.ts'))).toBe(true);
+    expect(resolver.isInsideRoot(path.join(tmp, 'parent-only.ts'))).toBe(false);
+  });
+
   it('resolve handles relative paths', () => {
     const pr = new DefaultPathResolver(tmp);
     const r = pr.resolve('src/a.ts');

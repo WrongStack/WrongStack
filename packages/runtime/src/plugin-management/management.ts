@@ -4,7 +4,7 @@ import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/cont
 import {
   defaultPluginTrustPath,
   discoverExternalPlugins,
-  hashFileContents,
+  hashPluginDirectoryClosure,
   normalizeTrustKey,
   type PluginEnablementSource,
   pinPluginTrust,
@@ -474,7 +474,7 @@ async function resolveExternalPluginEntry(
   name: string,
   deps: PluginManagementDeps,
 ): Promise<string | undefined> {
-  const projectRoot = process.cwd();
+  const projectRoot = deps.projectRoot ?? process.cwd();
   for (const p of deps.config.plugins ?? []) {
     if (typeof p === 'object' && p.name === name && p.path !== undefined) {
       const target = normalizeConfigPath(p.path, projectRoot);
@@ -557,9 +557,11 @@ async function runPluginTrustCommand(
     );
   }
   const canonical = normalizeTrustKey(entry);
+  const projectRoot = deps.projectRoot ?? process.cwd();
+  const discoveryRoots = [globalPluginsRoot(deps), join(projectRoot, '.wrongstack', 'plugins')];
   let integrity: string;
   try {
-    integrity = await hashFileContents(canonical);
+    integrity = await hashPluginDirectoryClosure(entry, discoveryRoots);
   } catch (err) {
     return errorResult(
       `Could not read "${canonical}" (${err instanceof Error ? err.message : String(err)}).`,

@@ -35,4 +35,8 @@ export interface FileSessionWriterOptions {
    * under its manifest lock; this callback covers the index side.
    */
   onMetadataCheckpoint?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
+  /** Initial active branch identifier on resume (`'main'` when omitted). */
+  initialBranchId?: string | undefined;
+  /** Next monotonic event sequence index on resume (`0` when omitted). */
+  initialSeq?: number | undefined;
 }

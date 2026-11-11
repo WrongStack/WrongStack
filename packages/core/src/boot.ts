@@ -56,6 +56,8 @@ const TOKEN_SAVING_TIER_FLAG_VALUES: ReadonlySet<string> = new Set<TokenSavingTi
  * plaintext-secret migration notice and whether CLI flags are supplied.
  */
 export interface BootConfigOptions {
+  /** The host has already selected the project root as its working directory. */
+  useCwdAsProjectRoot?: boolean | undefined;
   /**
    * Parsed CLI flags. `cwd` relocates path resolution; `provider`/`model`/
    * `log-level`/`verbose`/`trace`/`yolo` are patched into the
@@ -122,7 +124,7 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
   } = options;
 
   const cwd = typeof flags['cwd'] === 'string' ? path.resolve(flags['cwd']) : process.cwd();
-  const pathResolver = new DefaultPathResolver(cwd);
+  const pathResolver = new DefaultPathResolver(cwd, options.useCwdAsProjectRoot);
   const projectRoot = pathResolver.projectRoot;
   const projectIdentityRoot = canonicalProjectRoot(projectRoot);
   const userHome = os.homedir();

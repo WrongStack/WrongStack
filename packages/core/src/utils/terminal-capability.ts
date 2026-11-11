@@ -28,6 +28,16 @@ export type ColorDepth = 0 | 1 | 2 | 3;
 export type MouseProtocol = 'none' | 'x10' | 'urxvt' | 'sgr';
 
 /**
+ * Best inline image rendering protocol supported by the attached terminal.
+ *
+ *   'kitty'     — Kitty graphics protocol (`APC G ... ST`, Kitty & Ghostty)
+ *   'iterm2'    — iTerm2 `OSC 1337` inline images (iTerm2, WezTerm, Warp, Rio, Mintty)
+ *   'halfblock' — 24-bit truecolor Unicode half-block (`▀`) cell mosaic
+ *   'none'      — text metadata card only (dumb, piped, legacy conhost, frugal)
+ */
+export type TerminalGraphicsProtocol = 'kitty' | 'iterm2' | 'halfblock' | 'none';
+
+/**
  * A snapshot of the terminal's capabilities and identity, computed once at
  * startup. Call {@link detectTerminal} once and pass the result through your
  * app — never re-detect mid-session.
@@ -91,6 +101,16 @@ export interface TerminalCapability {
    * (ConPTY exposes color depth; conhost does not). Also false on non-Windows.
    */
   isWindowsConhost: boolean;
+  /**
+   * Whether the terminal safely accepts DECSET 2026 synchronized output framing
+   * (`\x1b[?2026h` ... `\x1b[?2026l`). Respects `WRONGSTACK_TUI_SYNC=0|1`.
+   */
+  supportsSyncOutput: boolean;
+  /**
+   * Best inline graphics protocol available on this terminal.
+   * Respects `WRONGSTACK_TUI_GRAPHICS=auto|kitty|iterm2|halfblock|off`.
+   */
+  graphicsProtocol: TerminalGraphicsProtocol;
 }
 
 /**
@@ -173,6 +193,76 @@ function parseMouseProtocol(term: string): MouseProtocol {
   return 'sgr';
 }
 
+function parseSupportsSyncOutput(
+  isRealTTY: boolean,
+  isWindowsConhost: boolean,
+  term: string,
+  env: typeof process.env,
+): boolean {
+  if (!isRealTTY || term.toLowerCase() === 'dumb') return false;
+  const override = env.WRONGSTACK_TUI_SYNC?.trim().toLowerCase();
+  if (override === '0' || override === 'false' || override === 'off') return false;
+  if (override === '1' || override === 'true' || override === 'on') return true;
+  return !isWindowsConhost;
+}
+
+function parseGraphicsProtocol(
+  isRealTTY: boolean,
+  isWindowsConhost: boolean,
+  isTmux: boolean,
+  colorDepth: ColorDepth,
+  term: string,
+  env: typeof process.env,
+): TerminalGraphicsProtocol {
+  const t = term.toLowerCase();
+  if (!isRealTTY || t === 'dumb' || isWindowsConhost) return 'none';
+
+  const override = env.WRONGSTACK_TUI_GRAPHICS?.trim().toLowerCase();
+  if (override === '0' || override === 'false' || override === 'off' || override === 'none') {
+    return 'none';
+  }
+  if (override === 'kitty' || override === 'iterm2' || override === 'halfblock') {
+    return override;
+  }
+
+  const perfProfile = (env.WRONGSTACK_PERF_PROFILE ?? env.WSTACK_PERF_PROFILE ?? '')
+    .trim()
+    .toLowerCase();
+  if (perfProfile === 'frugal') return 'none';
+
+  // Inside tmux, raw APC/OSC image payloads are dropped unless the user enabled
+  // `allow-passthrough` in tmux.conf. Default to truecolor half-block cells
+  // unless passthrough is explicitly opted in.
+  if (isTmux && env.WRONGSTACK_TUI_TMUX_PASSTHROUGH !== '1') {
+    return colorDepth >= 3 ? 'halfblock' : 'none';
+  }
+
+  if (
+    env.KITTY_WINDOW_ID ||
+    t.includes('kitty') ||
+    env.GHOSTTY_RESOURCES_DIR ||
+    t.includes('ghostty')
+  ) {
+    return 'kitty';
+  }
+
+  const termProgram = (env.TERM_PROGRAM ?? '').trim().toLowerCase();
+  const lcTerminal = (env.LC_TERMINAL ?? '').trim().toLowerCase();
+  if (
+    env.WEZTERM_PANE ||
+    termProgram === 'wezterm' ||
+    termProgram === 'iterm.app' ||
+    lcTerminal === 'iterm2' ||
+    termProgram === 'warpterminal' ||
+    termProgram === 'rio' ||
+    termProgram === 'mintty'
+  ) {
+    return 'iterm2';
+  }
+
+  return colorDepth >= 3 ? 'halfblock' : 'none';
+}
+
 /**
  * Detect the terminal's capabilities and identity at startup.
  *
@@ -204,14 +294,24 @@ export function detectTerminal(
     process.platform === 'win32' &&
     typeof (stdout as NodeJS.WriteStream & { getColorDepth?: unknown }).getColorDepth !==
       'function';
+  const colorDepth: ColorDepth = isRealTTY ? parseColorDepth(env) : 0;
 
   return {
     isRealTTY,
-    colorDepth: isRealTTY ? parseColorDepth(env) : 0,
+    colorDepth,
     stdoutWritable,
     mouseProtocol: parseMouseProtocol(term),
     canSetTitle: isRealTTY && term !== 'dumb',
     isTmux,
     isWindowsConhost,
+    supportsSyncOutput: parseSupportsSyncOutput(isRealTTY, isWindowsConhost, term, env),
+    graphicsProtocol: parseGraphicsProtocol(
+      isRealTTY,
+      isWindowsConhost,
+      isTmux,
+      colorDepth,
+      term,
+      env,
+    ),
   };
 }

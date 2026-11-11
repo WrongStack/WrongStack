@@ -22,7 +22,27 @@ export function scrubSessionWriterEvent(
   if (event.type === 'message_appended' || event.type === 'message_updated') {
     return { ...event, message: persistMessage(event.message) };
   }
+  if (event.type === 'branch_folded') {
+    return {
+      ...event,
+      summary: secretScrubber ? secretScrubber.scrub(event.summary) : event.summary,
+      summaryMessage: persistMessage(event.summaryMessage),
+    };
+  }
   if (!secretScrubber) return event;
+  if (event.type === 'branch_created') {
+    return {
+      ...event,
+      name: secretScrubber.scrub(event.name),
+      ...(typeof event.label === 'string' ? { label: secretScrubber.scrub(event.label) } : {}),
+    };
+  }
+  if (event.type === 'branch_status_changed') {
+    return {
+      ...event,
+      ...(typeof event.name === 'string' ? { name: secretScrubber.scrub(event.name) } : {}),
+    };
+  }
   if (event.type === 'user_input') {
     return {
       ...event,

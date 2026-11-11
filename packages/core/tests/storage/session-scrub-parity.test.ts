@@ -76,6 +76,9 @@ const SCRUBBED_FREE_TEXT_FIELDS: Record<string, readonly string[]> = {
   delegate_completed: ['task', 'summary'],
   provider_error: ['description'],
   provider_retry: ['description'],
+  branch_created: ['name', 'label'],
+  branch_folded: ['summary', 'summaryMessage'],
+  branch_status_changed: ['name'],
 };
 
 /**
@@ -90,6 +93,7 @@ const JUSTIFIED_RAW_VARIANTS: Record<string, string> = {
   session_start: 'ids, model/provider names, cwd — no free text',
   session_resumed: 'ids + resume counters',
   session_forked: 'ids + lineage references',
+  branch_switched: 'branch ids + workspace checkpoint manifest hashes/counts',
   session_moved: 'project paths + ids',
   workspace_checkpoint: 'prompt index + content hashes and counts of the workspace manifest',
   session_end: 'ids + counters + pending tool-use ids',

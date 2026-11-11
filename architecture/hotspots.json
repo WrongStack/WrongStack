@@ -43,7 +43,7 @@
       "relativeImports": 18
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 709,
+      "lines": 704,
       "relativeImports": 12
     },
     "packages/fleet/src/host-skill-companion.ts": {
@@ -58,8 +58,16 @@
       "lines": 719,
       "relativeImports": 3
     },
+    "packages/plugins/src/adversary-mode/evaluator.ts": {
+      "lines": 853,
+      "relativeImports": 2
+    },
+    "packages/plugins/src/adversary-mode/index.ts": {
+      "lines": 763,
+      "relativeImports": 5
+    },
     "packages/plugins/src/audit/index.ts": {
-      "lines": 708,
+      "lines": 716,
       "relativeImports": 0
     },
     "packages/project-surfaces/src/atlas/codemap-model.ts": {

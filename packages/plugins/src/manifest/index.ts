@@ -102,6 +102,7 @@ const OFFICIAL_PLUGIN_NAMES = [
   'service-topology-inspector',
   'decision-journal',
   'plugin-workbench',
+  'adversary-mode',
 ] as const;
 
 const MEDIUM_RISK_PLUGINS = new Set<string>([
@@ -143,6 +144,7 @@ const MEDIUM_RISK_PLUGINS = new Set<string>([
   'public-api-auditor',
   'lockfile-consistency-guard',
   'change-risk-classifier',
+  'adversary-mode',
 ]);
 
 const HIGH_RISK_PLUGINS = new Set<string>([
@@ -203,8 +205,9 @@ const HIGH_RISK_PLUGINS = new Set<string>([
  *    memory tools and `todo` + `kanban` already own this ground.
  *
  * What stayed: the bounded safety checks (`secret-scanner`,
- * `injection-shield`, `dep-guard`), plus two passive, near-free
- * diagnostics (`error-lens`, `context-pins`).
+ * `injection-shield`, `dep-guard`, and `adversary-mode` — which stays
+ * zero-LLM-cost/dormant until an `adversary.md` file exists), plus two
+ * passive, near-free diagnostics (`error-lens`, `context-pins`).
  */
 const DEFAULT_ACTIVE_PLUGINS = new Set<string>([
   'secret-scanner',
@@ -212,6 +215,7 @@ const DEFAULT_ACTIVE_PLUGINS = new Set<string>([
   'error-lens',
   'dep-guard',
   'injection-shield',
+  'adversary-mode',
 ]);
 
 function auditRisk(name: string): 'low' | 'medium' | 'high' {

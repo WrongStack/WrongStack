@@ -93,3 +93,4 @@
 | service-topology-inspector | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/service-topology-inspector` | Probes declared loopback service health endpoints, maps dependency failures and reports missing services and topology cycles |
 | decision-journal | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/decision-journal` | Appends explicit architectural decisions and rationales to a project JSONL journal and retrieves decisions linked to changed files |
 | plugin-workbench | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/plugin-workbench` | Loads a built plugin in a bounded child-process harness and measures duplicate tool registration, hook cleanup and setup/teardown lifecycle behavior |
+| adversary-mode | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/adversary-mode` | Natural-language pre-tool intent and task-drift reviewer (adversary.md) backed by Brain, Jev, Council, and LLM tiers |

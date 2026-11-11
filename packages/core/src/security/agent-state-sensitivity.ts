@@ -32,7 +32,7 @@ import { wstackGlobalRoot } from '../utils/wstack-paths.js';
 
 /** Basenames that are sensitive wherever they sit under the root. */
 const SENSITIVE_BASENAMES =
-  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|plugin-trust\.json|auth\.json|sync\.json|\.key)$/i;
+  /^(?:config(?:\.local)?\.json(?:\..+)?|trust\.json|plugin-trust\.json|auth\.json|sync\.json|adversary\.md|\.key)$/i;
 
 /** Subtrees (root-relative, forward slashes) whose every write is sensitive. */
 const SENSITIVE_SUBTREES: readonly RegExp[] = [

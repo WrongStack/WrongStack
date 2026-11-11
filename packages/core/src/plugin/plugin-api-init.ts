@@ -21,6 +21,7 @@ import type { ProviderAuthRegistry } from '../registry/provider-auth-registry.js
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { SlashCommandRegistry } from '../registry/slash-command-registry.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
+import type { PluginUiRegistry } from './plugin-ui.js';
 
 export interface PluginAPIInit {
   ownerName: string;
@@ -128,4 +129,9 @@ export interface PluginAPIInit {
    * authorization checks (e.g. tool mutation permissions).
    */
   capabilities?: PluginCapabilities | undefined;
+  /**
+   * Host-scoped declarative UI slot registry (`api.ui`). When omitted on
+   * headless/minimal hosts, `api.ui` remains `undefined`.
+   */
+  uiRegistry?: PluginUiRegistry | undefined;
 }

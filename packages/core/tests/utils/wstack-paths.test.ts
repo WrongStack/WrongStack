@@ -103,7 +103,10 @@ describe('wstack-paths', () => {
 
       // A worktree entry that records another checkout (a moved worktree that
       // was not repaired) no longer shares the identity either.
-      await fs.writeFile(path.join(linkedGitDir, 'gitdir'), `${path.join(tmp, 'elsewhere', '.git')}\n`);
+      await fs.writeFile(
+        path.join(linkedGitDir, 'gitdir'),
+        `${path.join(tmp, 'elsewhere', '.git')}\n`,
+      );
       expect(canonicalProjectRoot(linked)).toBe(path.resolve(linked));
     } finally {
       await fs.rm(tmp, { recursive: true, force: true });
@@ -118,7 +121,10 @@ describe('wstack-paths', () => {
     try {
       await fs.mkdir(linkedGitDir, { recursive: true });
       await fs.mkdir(linked, { recursive: true });
-      await fs.writeFile(path.join(linked, '.git'), 'gitdir: ../main-repo/.git/worktrees/task-checkout\n');
+      await fs.writeFile(
+        path.join(linked, '.git'),
+        'gitdir: ../main-repo/.git/worktrees/task-checkout\n',
+      );
       await fs.writeFile(path.join(linkedGitDir, 'commondir'), '../..\n');
       await fs.writeFile(path.join(linkedGitDir, 'gitdir'), '../../../../task-checkout/.git\n');
       expect(canonicalProjectRoot(linked)).toBe(path.resolve(main));

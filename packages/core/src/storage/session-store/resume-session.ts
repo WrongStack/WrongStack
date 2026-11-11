@@ -216,6 +216,10 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
       {
         resumed: true,
         initialSummary,
+        initialBranchId: data.tree?.activeBranchId,
+        initialSeq: data.tree
+          ? data.tree.headSeq + 1
+          : data.events.length + (data.eventsDropped ?? 0),
         dir: path.dirname(file),
         filePath: file,
         secretScrubber,

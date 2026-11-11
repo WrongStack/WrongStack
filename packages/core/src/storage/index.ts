@@ -298,10 +298,32 @@ export {
   type SessionRewinderOptions,
 } from './session-rewinder.js';
 export {
+  type BranchReplayState,
+  buildBranchLineageSegments,
+  eventBelongsToLineage,
+  getSessionTreeSnapshot,
+  type LineageSegment,
+  MAIN_BRANCH_ID,
+  reconstructSessionTree,
+  SessionTreeTracker,
+} from './session-store/tree-replay.js';
+export {
   DefaultSessionStore,
   type SessionStoreOptions,
 } from './session-store.js';
 export { orderSessionTree, type SessionTreeRow, sessionTreePrefix } from './session-tree.js';
+export {
+  BRANCH_NAME_PATTERN,
+  type BranchFoldInsightContext,
+  type CreateBranchOptions,
+  type CreateBranchResult,
+  type FoldBranchOptions,
+  type FoldBranchResult,
+  SessionTreeCoordinator,
+  type SessionTreeCoordinatorOptions,
+  type SwitchBranchOptions,
+  type SwitchBranchResult,
+} from './session-tree-coordinator.js';
 export { mapWithConcurrency } from './storage-concurrency.js';
 export {
   emptyTaskFile,

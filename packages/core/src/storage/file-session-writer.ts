@@ -14,7 +14,14 @@ import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { SessionSummaryTracker } from './session-summary-tracker.js';
 import { SessionWriteBuffer } from './session-write-buffer.js';
 import { isClosedHandleError } from './session-writer/session-writer-flush.js';
-import { flushAfterAppend, pushOrWriteThrough } from './session-writer-append.js';
+import {
+  appendInFlightEnd,
+  appendInFlightStart,
+  flushAfterAppend,
+  pushOrWriteThrough,
+  stampBranchAndSeq,
+  warnMissingMetadataCheckpointSink,
+} from './session-writer-append.js';
 import {
   executeClearSession,
   persistSessionCloseSummary,
@@ -98,6 +105,28 @@ export class FileSessionWriter implements SessionWriter {
   private metadataCheckpointInFlight: Promise<void> | null = null;
   /** Implements SessionWriter.traceId — propagated from ContextInit.traceId. */
   traceId: string | undefined;
+  private _activeBranchId: string;
+  private _nextSeq: number;
+
+  get activeBranchId(): string {
+    return this._activeBranchId;
+  }
+
+  get nextSeq(): number {
+    return this._nextSeq;
+  }
+
+  setActiveBranch(branchId: string): void {
+    const trimmed = branchId.trim();
+    this._activeBranchId = trimmed || 'main';
+  }
+
+  private stampBranchAndAdvanceSeq(event: SessionEvent): SessionEvent {
+    // `_nextSeq` is monotonic 0-indexed (lifecycle preamble occupies index 0).
+    const seq = this._nextSeq;
+    this._nextSeq += 1;
+    return stampBranchAndSeq(event, seq, this._activeBranchId);
+  }
 
   /**
    * Set or replace the onAppend callback. Used by telemetry bridges that
@@ -132,7 +161,8 @@ export class FileSessionWriter implements SessionWriter {
     void this.ensureInit();
     // Keep this path equivalent to append(): synchronous callbacks must not
     // bypass scrubbing merely because they cannot await the writer.
-    const appendEvent = scrubSessionWriterEvent(event, this.secretScrubber);
+    const stamped = this.stampBranchAndAdvanceSeq(event);
+    const appendEvent = scrubSessionWriterEvent(stamped, this.secretScrubber);
     this.summaryTracker.observe(appendEvent);
     this.metadataDirty = true;
     this.scheduleMetadataCheckpoint();
@@ -253,6 +283,8 @@ export class FileSessionWriter implements SessionWriter {
     // storage events carry the run-level trace ID without needing a Context
     // handle in every storage operation.
     this.traceId = traceId;
+    this._activeBranchId = opts.initialBranchId?.trim() || 'main';
+    this._nextSeq = opts.initialSeq ?? 0;
   }
 
   get pendingToolUses(): string[] {
@@ -264,6 +296,8 @@ export class FileSessionWriter implements SessionWriter {
     // reconstruct event. Writing it through a separate one-shot append meant
     // an ENOSPC/transient handle failure could permanently lose session_start
     // while later events survived, leaving an unidentifiable transcript.
+    const preambleSeq = this._nextSeq;
+    this._nextSeq += 1;
     this.buffer.push({
       type: this.resumed ? 'session_resumed' : 'session_start',
       ts: this.lifecyclePreambleTs,
@@ -271,6 +305,7 @@ export class FileSessionWriter implements SessionWriter {
       model: this.meta.model ?? 'unknown',
       provider: this.meta.provider ?? 'unknown',
       ...(this.meta.checkout ? { checkout: this.meta.checkout } : {}),
+      seq: preambleSeq,
     });
   }
 
@@ -283,21 +318,9 @@ export class FileSessionWriter implements SessionWriter {
     if (this.closed || this.metadataTimer) return;
     if (this.metadataCheckpointMs <= 0) return;
     if (!this.onMetadataCheckpointCb && !this.manifestFile) {
-      // One-time diagnostic: an interval was configured but nothing can
-      // consume checkpoints, so arming a timer would be a silent no-op
-      // (chimera HIGH — foot-gun where callers believe durability exists).
       if (!this._checkpointNoSinkWarned) {
         this._checkpointNoSinkWarned = true;
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'session.metadata_checkpoint_no_sink',
-            sessionId: this.id,
-            message:
-              'metadataCheckpointMs set but neither onMetadataCheckpoint nor manifestFile configured; mid-session checkpoints disabled.',
-            timestamp: new Date().toISOString(),
-          }),
-        );
+        warnMissingMetadataCheckpointSink(this.id);
       }
       return;
     }
@@ -347,10 +370,11 @@ export class FileSessionWriter implements SessionWriter {
   async append(event: SessionEvent): Promise<void> {
     if (this.closed) return;
     await this.ensureInit();
+    const stamped = this.stampBranchAndAdvanceSeq(event);
     // Scrub before observing (the summary title is derived from user_input
     // content) and before buffering, so neither the JSONL nor the sidecar
     // ever holds a cleartext secret.
-    const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
+    const scrubbed = scrubSessionWriterEvent(stamped, this.secretScrubber);
     // observe MUST run synchronously here — the summary counters
     // (toolCallCount, tokenIn/Out, outcome) drive the .summary.json sidecar
     // and the session index. Deferring observation to flush time would leave
@@ -375,7 +399,8 @@ export class FileSessionWriter implements SessionWriter {
     await this.ensureInit();
     const scrubbedBatch: SessionEvent[] = [];
     for (const event of events) {
-      const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
+      const stamped = this.stampBranchAndAdvanceSeq(event);
+      const scrubbed = scrubSessionWriterEvent(stamped, this.secretScrubber);
       this.summaryTracker.observe(scrubbed);
       // Fire the per-event callback so subscribers to onAppend (rather than
       // onAppendBatch) also receive batch events individually.
@@ -651,6 +676,8 @@ export class FileSessionWriter implements SessionWriter {
       onCleared: () => {
         this.metadataDirty = true;
         this.activePromptIndex = null;
+        this._activeBranchId = 'main';
+        this._nextSeq = 1;
         this.snapshotTracker.clear();
       },
     });
@@ -661,48 +688,16 @@ export class FileSessionWriter implements SessionWriter {
     this.handle = await fsp.open(this.filePath, 'a', 0o600);
   }
 
-  /**
-   * Write an in-flight marker. The agent loop should call
-   * this at the start of each long-running operation; a matching
-   * `clearInFlightMarker` follows on clean exit. A stale marker
-   * (no end) is what `SessionRecovery.detectStale` looks for.
-   */
+  /** Write an in-flight marker closed on clean exit by `clearInFlightMarker`. */
   async writeInFlightMarker(context: string): Promise<void> {
-    if (!context || context.length > 500) {
-      throw new Error('In-flight context must be 1..500 chars');
-    }
-    await this.append({
-      type: 'in_flight_start',
-      ts: new Date().toISOString(),
-      context,
-    });
-    this.events?.emit('in_flight.started', {
-      sessionId: this.id,
-      context,
-      ts: new Date().toISOString(),
-    });
+    await appendInFlightStart(this.id, context, (ev) => this.append(ev), this.events);
   }
 
-  /**
-   * Close the in-flight marker. Idempotent in spirit
-   * (you can call it after a successful iteration even if you
-   * didn't open one this round) — but the session log records
-   * every call so postmortem tooling can see "the agent finished
-   * cleanly X times, then died without finishing Y".
-   */
+  /** Close the in-flight marker, flushing any pending file snapshots first. */
   async clearInFlightMarker(reason: 'clean' | 'aborted' | 'recovered'): Promise<void> {
     if (this.snapshotTracker.length > 0) {
       await this.writeFileSnapshot(this.activePromptIndex ?? 0, this.snapshotTracker.takePending());
     }
-    await this.append({
-      type: 'in_flight_end',
-      ts: new Date().toISOString(),
-      reason,
-    });
-    this.events?.emit('in_flight.ended', {
-      sessionId: this.id,
-      reason,
-      ts: new Date().toISOString(),
-    });
+    await appendInFlightEnd(this.id, reason, (ev) => this.append(ev), this.events);
   }
 }

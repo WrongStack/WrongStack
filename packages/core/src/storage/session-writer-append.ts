@@ -5,8 +5,79 @@
  */
 import type * as fsp from 'node:fs/promises';
 import type { SessionEvent } from '@wrongstack/contracts/types/session';
+import type { EventBus } from './event-bus-port.js';
 import type { SessionWriteBuffer } from './session-write-buffer.js';
 import { isCriticalEvent } from './session-writer-snapshot.js';
+
+export function stampBranchAndSeq(
+  event: SessionEvent,
+  seq: number,
+  activeBranchId: string,
+): SessionEvent {
+  if (
+    event.branchId === undefined &&
+    activeBranchId !== 'main' &&
+    event.type !== 'branch_created' &&
+    event.type !== 'branch_switched' &&
+    event.type !== 'branch_folded' &&
+    event.type !== 'branch_status_changed'
+  ) {
+    return { ...event, seq, branchId: activeBranchId };
+  }
+  return { ...event, seq };
+}
+
+export function warnMissingMetadataCheckpointSink(sessionId: string): void {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'session.metadata_checkpoint_no_sink',
+      sessionId,
+      message:
+        'metadataCheckpointMs set but neither onMetadataCheckpoint nor manifestFile configured; mid-session checkpoints disabled.',
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
+export async function appendInFlightStart(
+  sessionId: string,
+  context: string,
+  append: (ev: SessionEvent) => Promise<void>,
+  events?: EventBus | undefined,
+): Promise<void> {
+  if (!context || context.length > 500) {
+    throw new Error('In-flight context must be 1..500 chars');
+  }
+  await append({
+    type: 'in_flight_start',
+    ts: new Date().toISOString(),
+    context,
+  });
+  events?.emit('in_flight.started', {
+    sessionId,
+    context,
+    ts: new Date().toISOString(),
+  });
+}
+
+export async function appendInFlightEnd(
+  sessionId: string,
+  reason: 'clean' | 'aborted' | 'recovered',
+  append: (ev: SessionEvent) => Promise<void>,
+  events?: EventBus | undefined,
+): Promise<void> {
+  await append({
+    type: 'in_flight_end',
+    ts: new Date().toISOString(),
+    reason,
+  });
+  events?.emit('in_flight.ended', {
+    sessionId,
+    reason,
+    ts: new Date().toISOString(),
+  });
+}
 
 /**
  * Push one scrubbed event into the write buffer. When the buffer refuses it,
