@@ -123,4 +123,36 @@ describe('gatherProjectContext', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('accepts a leading UTF-8 BOM without dropping the manifest', async () => {
+    // Windows editors write BOM-prefixed package.json files and npm runs them;
+    // the raw JSON.parse throw used to fall into the missing-file catch, so
+    // every manifest section silently vanished from the interview context.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-bom-'));
+    try {
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        `\uFEFF${JSON.stringify({ name: 'bom-app', description: 'BOM', dependencies: { a: '1' } })}`,
+      );
+      const ctx = await gatherProjectContext(dir);
+      expect(ctx).toContain('Project: bom-app');
+      expect(ctx).toContain('Description: BOM');
+      expect(ctx).toContain('Dependencies:');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stays best-effort for genuinely corrupt JSON (never throws)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-corrupt-'));
+    try {
+      await fs.writeFile(path.join(dir, 'package.json'), '{ not json');
+      await fs.writeFile(path.join(dir, 'tsconfig.json'), '{}');
+      const ctx = await gatherProjectContext(dir);
+      expect(ctx).not.toContain('Project:');
+      expect(ctx).toContain('Language: TypeScript');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

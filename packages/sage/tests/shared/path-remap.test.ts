@@ -70,7 +70,10 @@ describe('path-remap', () => {
   });
 
   it('resolves a move into a directory (trailing separator) to the file inside it', () => {
-    expect(parseRenameCommand('git mv src/a.ts lib/')).toEqual({ from: 'src/a.ts', to: 'lib/a.ts' });
+    expect(parseRenameCommand('git mv src/a.ts lib/')).toEqual({
+      from: 'src/a.ts',
+      to: 'lib/a.ts',
+    });
     expect(parseRenameCommand('mv src/a.ts lib/')).toEqual({ from: 'src/a.ts', to: 'lib/a.ts' });
     expect(parseRenameCommand(`Move-Item 'src\\a.ts' 'lib\\'`)).toEqual({
       from: 'src\\a.ts',

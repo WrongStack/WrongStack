@@ -158,8 +158,18 @@ async function applyPermissions(
   } else {
     try {
       await getChmod()(targetPath, isDir ? SECRET_DIR_MODE : SECRET_FILE_MODE);
-    } catch {
-      // Best-effort
+    } catch (error) {
+      // The documented contract is "failures are warned, never thrown", and
+      // silence here is not a no-op: EPERM (a bind-mounted or NFS file owned
+      // by another uid) or EOPNOTSUPP (exotic mounts) leaves the secret
+      // group/world-readable with no operator signal. Same settle semantics
+      // as the Windows branch above — a path that vanished mid-hardening has
+      // nothing left to protect, a live one gets the warning.
+      if (await pathIsGone(targetPath)) return;
+      const reason = error instanceof Error ? error.message : String(error);
+      warn(
+        `[${label}] Could not restrict permissions on ${targetPath} (${reason}) — it may be readable by other users on this system.`,
+      );
     }
   }
 }

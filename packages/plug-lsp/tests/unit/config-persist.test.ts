@@ -105,4 +105,25 @@ describe('persistServerConfig', () => {
     await fs.mkdir(target, { recursive: true });
     await expect(persistServerConfig(project, 'typescript', entry)).rejects.toThrow();
   });
+
+  it('serializes concurrent persists — both updates land, neither crashes', async () => {
+    // Two /lsp writes racing in one process (CLI + WebUI session) used to
+    // share one `${target}.${pid}.tmp` path: one update was silently lost, or
+    // a rename consumed the temp mid-write and the second rename threw ENOENT
+    // — against a file that also carries the project's credentials. The
+    // documented RMW contract ("every other key preserved verbatim") requires
+    // both changes to land when the calls overlap. Red pre-fix (see round
+    // r6-20261111-pluglsp-rmw-race-c7x2 proof: lost update AND torn JSON).
+    await persistServerConfig(project, 'typescript', entry);
+    const results = await Promise.allSettled([
+      persistServerConfig(project, 'typescript', null),
+      persistServerConfig(project, 'gopls', { command: 'gopls', languages: ['go'] }),
+    ]);
+    for (const result of results) {
+      expect(result.status).toBe('fulfilled');
+    }
+    const servers = (await read()).extensions['@wrongstack/plug-lsp'].servers;
+    expect(servers.typescript).toBeUndefined();
+    expect(servers.gopls).toMatchObject({ command: 'gopls' });
+  });
 });

@@ -89,26 +89,25 @@ describe('rejectSqliteCandidate claim race', () => {
     // stale pending row: claim + annotate, the terminal state accept ends in.
     const landAccept = (candidateId: string): void => {
       acceptLanded = true;
-      realStmt("UPDATE candidates SET data = ?, status = 'accepted', updated_at = ? WHERE id = ?")
-        .run(
-          JSON.stringify({
-            ...candidate,
-            status: 'accepted',
-            memoryId: 'mem_concurrent_accept',
-            updatedAt: new Date().toISOString(),
-          }),
-          new Date().toISOString(),
-          candidateId,
-        );
+      realStmt(
+        "UPDATE candidates SET data = ?, status = 'accepted', updated_at = ? WHERE id = ?",
+      ).run(
+        JSON.stringify({
+          ...candidate,
+          status: 'accepted',
+          memoryId: 'mem_concurrent_accept',
+          updatedAt: new Date().toISOString(),
+        }),
+        new Date().toISOString(),
+        candidateId,
+      );
     };
     const racingStmt = ((sql: string) => {
       const prepared = realStmt(sql);
       if (/^SELECT[\s\S]*status = 'pending'/.test(sql)) {
         return {
           get: (...args: unknown[]) => {
-            const row = (
-              prepared.get as (...getArgs: unknown[]) => unknown
-            )(...args);
+            const row = (prepared.get as (...getArgs: unknown[]) => unknown)(...args);
             if (row) landAccept(args[0] as string);
             return row;
           },

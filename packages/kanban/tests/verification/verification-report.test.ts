@@ -633,6 +633,40 @@ describe('renderVerificationReportMarkdown', () => {
     expect(md).not.toContain(longStr);
   });
 
+  it('never splits a surrogate pair when truncating evidence', () => {
+    // The high surrogate of an astral character lands exactly on the last
+    // retained unit of the 300-unit cut. markdownSummary is persisted on the
+    // card's verification report and serialized over the board's JSON IPC —
+    // a lone half is ill-formed text in both (U+FFFD in JS consumers,
+    // rejected by strict parsers).
+    const straddling = `${'x'.repeat(299)}\u{1F389}tail`;
+    const summary = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test',
+      boardId: 'b1',
+      checks: [checkWithEvidence('c1', 'command', { stdout: straddling })],
+    }).markdownSummary;
+    for (let i = 0; i < summary.length; i++) {
+      const code = summary.charCodeAt(i);
+      if (code >= 0xd800 && code <= 0xdbff) {
+        const next = summary.charCodeAt(i + 1);
+        expect(next >= 0xdc00 && next <= 0xdfff, `lone high surrogate at index ${i}`).toBe(true);
+      } else if (code >= 0xdc00 && code <= 0xdfff) {
+        const prev = summary.charCodeAt(i - 1);
+        expect(prev >= 0xd800 && prev <= 0xdbff, `lone low surrogate at index ${i}`).toBe(true);
+      }
+    }
+    // BMP-only evidence keeps the exact previous behavior: cut at 300 units,
+    // ellipsis appended.
+    const bmp = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test',
+      boardId: 'b1',
+      checks: [checkWithEvidence('c1', 'command', { stdout: 'y'.repeat(301) })],
+    }).markdownSummary;
+    expect(bmp).toContain(`${'y'.repeat(300)}…`);
+  });
+
   it('summarizes long evidence arrays', () => {
     const longArray = Array.from({ length: 20 }, (_, i) => `item-${i}`);
     const md = renderVerificationReportMarkdown({

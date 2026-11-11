@@ -156,7 +156,15 @@ export function createProjectAgentRoster(
             : {}),
         };
     return applyProjectAgentConfig(base, loadProjectAgentConfig(role, projectRoot), {
-      protectSystemRole: isBuiltIn && !profile,
+      // A built-in role is protected by its membership in the base roster,
+      // exactly as the per-spawn fleet path computes it
+      // (`isSystemRole = role in FLEET_ROSTER`, host-subagent-factory.ts).
+      // A stray profile.json — whose contents are otherwise ignored for a
+      // built-in role (the template above stays the built-in config) — must
+      // not be able to drop the budget floors, the worktree downgrade, the
+      // advisory availability mode or the strict-model refusal that "built-in
+      // roles keep their safety floors" (module doc) promises.
+      protectSystemRole: isBuiltIn,
     });
   };
 

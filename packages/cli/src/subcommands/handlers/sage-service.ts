@@ -541,7 +541,8 @@ export async function runSageServiceCommand(
           out('  Restart running wstack sessions to pick it up.');
         } else if (choice) {
           out(`  SAGE memory service stays "${choice.mode}" (set in ${choice.configFile})`);
-          if (choice.mode !== 'wrongmemory') out('  Switch with: wstack sage service use wrongmemory');
+          if (choice.mode !== 'wrongmemory')
+            out('  Switch with: wstack sage service use wrongmemory');
         } else {
           out('  Next: wstack sage service use wrongmemory');
         }

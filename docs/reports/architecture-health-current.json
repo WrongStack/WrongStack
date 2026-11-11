@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:20:43.969Z",
+  "generatedAt": "2026-11-11T21:23:30.211Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 48,
     "sourceFiles": 6225,
-    "testFiles": 5185,
-    "sourceLines": 1272745,
+    "testFiles": 5188,
+    "sourceLines": 1272914,
     "workspaceEdges": 250,
     "moduleEdges": 18335,
     "nonCommandSlashImports": 0,
@@ -209,7 +209,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 634,
-      "testFiles": 698,
+      "testFiles": 699,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 698
+          "testFiles": 699
         }
       ]
     },
@@ -754,7 +754,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 138,
-      "testFiles": 124,
+      "testFiles": 125,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core"
@@ -768,7 +768,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 124
+          "testFiles": 125
         }
       ]
     },
@@ -1009,7 +1009,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 399,
-      "testFiles": 384,
+      "testFiles": 385,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 384
+          "testFiles": 385
         }
       ]
     },
@@ -8265,6 +8265,12 @@
       },
       {
         "file": "packages/cli/tests/tui-session-stub-enrich.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/tui-session-stub-whitespace.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18326,6 +18332,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/error-parse-fractional-compound-retry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/error-parse-reset-milliseconds.test.ts",
         "projects": [
           "root-node"
@@ -22659,6 +22671,12 @@
       },
       {
         "file": "packages/tools/tests/glob-alias-paths.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/glob-nested-braces.test.ts",
         "projects": [
           "root-node"
         ]

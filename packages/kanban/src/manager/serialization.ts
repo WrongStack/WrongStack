@@ -17,9 +17,23 @@ import { listBoards } from './boards.js';
 export const generateBoardFromDescription = createBoardFromText;
 
 export function createBoardFromText(input: KanbanGenerationInput): CreateKanbanBoardInput {
-  const title =
-    input.title ??
-    `Kanban: ${input.description.slice(0, 60)}${input.description.length > 60 ? '...' : ''}`;
+  let title = input.title;
+  if (title === undefined) {
+    const desc = input.description;
+    if (desc.length > 60) {
+      // Never cut through an astral character: this title is persisted
+      // verbatim (normalizeBoard) and reaches strict JSON consumers, and a
+      // lone surrogate there is ill-formed text (the repo-pinned walk-back,
+      // same rule as primitives.truncate / the kanban evidence cut). BMP-only
+      // input is unaffected.
+      let end = 60;
+      const last = desc.charCodeAt(end - 1);
+      if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+      title = `Kanban: ${desc.slice(0, end)}...`;
+    } else {
+      title = `Kanban: ${desc}`;
+    }
+  }
   // Columns are locked to the 5 standard columns. The former column-count /
   // column-title derivation (which also had a bug: `columnCount ?? 4` dropped
   // the "done" column) is gone — every generated board gets the full set.

@@ -191,6 +191,26 @@ describe('a prompt that names a command', () => {
     expect(updates[0]?.content?.text).toMatch(/… \(6000 more characters\)$/);
   });
 
+  it('never splits an astral character at the message-limit cut', async () => {
+    // Round r4-20261111-acp-surrogate-cut-b7e2: the raw
+    // message.slice(0, MESSAGE_LIMIT) used to cut between the two UTF-16
+    // units of an emoji straddling the boundary, leaving a lone high
+    // surrogate in the emitted frame. JSON carries it to the wire as a
+    // \udXXX escape, and strict ACP client parsers reject such a frame
+    // outright — the editor lost the WHOLE message, not the tail. The cut
+    // now walks back one unit, the same no-lone-surrogate contract the
+    // shared primitives.truncate pins.
+    const message = `${'a'.repeat(63_999)}\u{1F600}${'b'.repeat(10)}`;
+    const { run, updates } = turnWith(async () => ({ message }));
+    await run([{ type: 'text', text: '/git' }]);
+    const text = updates[0]?.content?.text ?? '';
+    expect(text).toMatch(/\n… \(12 more characters\)$/);
+    expect(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(text),
+      'emitted message must carry no unpaired surrogate',
+    ).toBe(false);
+  });
+
   it('keeps the command exchange for replay and for the model’s next turn', async () => {
     const appendMessage = vi.fn();
     const turn = makeACPServerAgentTurn({

@@ -213,4 +213,50 @@ describe('file-permissions', () => {
       Object.assign(_filePermOps, origOps);
     }
   });
+
+  it('warns on a POSIX chmod failure of a live secret, and stays silent when the path vanished', async () => {
+    // Round r3-20261111-perms-posix-warn-8d2c: the module doc promises
+    // "Failures are warned, never thrown", and the Windows branch above
+    // implements exactly that. The POSIX branch used to swallow every chmod
+    // error — EPERM on a bind-mounted/NFS file owned by another uid left the
+    // secret group/world-readable with no operator signal on the hardening
+    // path every secret writer (vault key, HQ auth.json, daemon tokens) uses.
+    const { _filePermOps } = await import('../src/file-permissions.js');
+    const origOps = { ..._filePermOps };
+    try {
+      _filePermOps.platform = 'linux';
+      const warnings: string[] = [];
+      _filePermOps.chmod = async () => {
+        throw Object.assign(new Error('EPERM: operation not permitted, chmod'), { code: 'EPERM' });
+      };
+      _filePermOps.stat = async () => ({ mode: 0o644 });
+      await restrictFilePermissions('/tmp/live.key', {
+        label: 'vault',
+        warn: (m) => warnings.push(m),
+      });
+      expect(warnings).toEqual([
+        '[vault] Could not restrict permissions on /tmp/live.key (EPERM: operation not permitted, chmod) — it may be readable by other users on this system.',
+      ]);
+
+      // Boundary: a file that vanished mid-hardening has nothing left to
+      // protect — same silence as the Windows pathIsGone branch.
+      warnings.length = 0;
+      _filePermOps.chmod = async () => {
+        throw Object.assign(new Error('ENOENT: no such file or directory, chmod'), {
+          code: 'ENOENT',
+        });
+      };
+      _filePermOps.stat = async () => {
+        throw Object.assign(new Error('ENOENT: no such file or directory, stat'), {
+          code: 'ENOENT',
+        });
+      };
+      await expect(
+        restrictFilePermissions('/tmp/gone.key', { warn: (m) => warnings.push(m) }),
+      ).resolves.toBeUndefined();
+      expect(warnings).toEqual([]);
+    } finally {
+      Object.assign(_filePermOps, origOps);
+    }
+  });
 });

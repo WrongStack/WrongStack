@@ -17,7 +17,14 @@ export async function gatherProjectContext(projectRoot: string): Promise<string>
   try {
     const pkgPath = path.join(root, 'package.json');
     const pkgRaw = await fsp.readFile(pkgPath, 'utf8');
-    const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
+    // npm accepts a leading UTF-8 BOM (Windows editors write one); JSON.parse
+    // does not, and the throw used to land in the missing-file catch below, so
+    // an existing, npm-valid manifest vanished from the interview context
+    // entirely (same contract manifest-parser.ts / project-verifier.ts pin).
+    const pkg = JSON.parse(pkgRaw.charCodeAt(0) === 0xfeff ? pkgRaw.slice(1) : pkgRaw) as Record<
+      string,
+      unknown
+    >;
     parts.push(`Project: ${String(pkg.name ?? 'unknown')}`);
     parts.push(`Description: ${String(pkg.description ?? 'none')}`);
     if (pkg.dependencies && typeof pkg.dependencies === 'object') {

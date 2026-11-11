@@ -531,4 +531,75 @@ Req 3`);
       expect(parsed.version).toBe('2.0.0');
     });
   });
+
+  describe('HTML comments are invisible to structure extraction', () => {
+    const parse = (text: string) => new SpecParser().parse(text);
+
+    it('does not read the title from inside a commented-out heading', () => {
+      const parsed = parse(
+        [
+          '<!--',
+          '# Draft Title',
+          '-->',
+          '# Real Title',
+          '',
+          '## Overview',
+          'Something worth building.',
+        ].join('\n'),
+      );
+      expect(parsed.title).toBe('Real Title');
+    });
+
+    it('does not read the version from a commented-out version line', () => {
+      const parsed = parse(
+        ['<!--', 'Version: 9.9.9', '-->', '# Real Title', '', 'Version: 2.0.0'].join('\n'),
+      );
+      expect(parsed.version).toBe('2.0.0');
+    });
+
+    it('does not materialize a section from a commented-out heading', () => {
+      const parser = new SpecParser();
+      const parsed = parse(
+        [
+          '# Real Title',
+          '',
+          '## Overview',
+          'Something worth building.',
+          '',
+          '## Requirements',
+          '- [ ] the app works',
+          '',
+          '<!--',
+          '## Acceptance Criteria',
+          '- [ ] drafted later',
+          '-->',
+        ].join('\n'),
+      );
+      expect(parsed.sections.map((s) => s.title)).toEqual(['Overview', 'Requirements']);
+      expect(parser.analyze(parsed).gaps).toContain('Missing Acceptance Criteria section');
+    });
+
+    it('drops an inline trailing comment from the captured title', () => {
+      expect(parse('# Real Title <!-- drafted out -->\n\n## Overview\nx.').title).toBe(
+        'Real Title',
+      );
+    });
+
+    it('never lets a fence-comment inside a code block open a comment region', () => {
+      const parsed = parse(
+        [
+          '# Real Title',
+          '',
+          '## Overview',
+          '```html',
+          '<!-- nav -->',
+          '```',
+          '',
+          '## Requirements',
+          '- [ ] the app works',
+        ].join('\n'),
+      );
+      expect(parsed.sections.map((s) => s.title)).toEqual(['Overview', 'Requirements']);
+    });
+  });
 });

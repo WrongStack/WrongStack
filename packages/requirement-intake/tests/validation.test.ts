@@ -246,6 +246,40 @@ describe('deterministic normalization', () => {
     expect(summary.length).toBeLessThanOrEqual(100);
     expect(summary.endsWith('…')).toBe(true);
   });
+
+  // Regression (round-9 hunt): the ellipsis truncations used a raw
+  // `slice(0, limit - 1)`; an astral character straddling the cut left a LONE
+  // HIGH SURROGATE at the end of the persisted title/normalizedSummary.
+  // These fields are re-serialized over the MCP/ACP JSON-RPC wire, where a
+  // `\udXXX` escape is rejected outright by strict client parsers. The fix
+  // walks the boundary back one unit (the `primitives/string.ts` truncate
+  // pattern); BMP outputs are byte-identical.
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+  it('never emits a lone surrogate when an astral char straddles the summary cut', () => {
+    // Pair sits at units 238/239 with limit 240 — the boundary falls INSIDE it.
+    const summary = deterministicSummary(`${'x'.repeat(238)}\u{1F600}tail extra text`, 240);
+    expect(summary).not.toMatch(LONE_SURROGATE);
+    expect(summary.endsWith('…')).toBe(true);
+    expect(summary.length).toBeLessThanOrEqual(240);
+  });
+
+  it('never emits a lone surrogate when an astral char straddles the title cut', () => {
+    // MAX_TITLE_LENGTH = 200; pair at units 198/199 straddles the cut.
+    const title = deterministicTitle(`${'y'.repeat(198)}\u{1F600}rest of the line`);
+    expect(title).not.toMatch(LONE_SURROGATE);
+    expect(title.endsWith('…')).toBe(true);
+  });
+
+  it('keeps a surrogate pair fully inside the window intact', () => {
+    const title = deterministicTitle(`${'b'.repeat(197)}\u{1F600}tail past the limit here`);
+    expect(title).toContain('\u{1F600}');
+    expect(title).not.toMatch(LONE_SURROGATE);
+  });
+
+  it('keeps BMP truncation output byte-identical at the boundary', () => {
+    expect(deterministicSummary('a'.repeat(244), 240)).toBe(`${'a'.repeat(239)}…`);
+  });
 });
 
 describe('schema exports', () => {

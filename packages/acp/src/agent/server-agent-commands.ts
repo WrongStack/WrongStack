@@ -75,10 +75,18 @@ export async function runPromptCommand(
     turn,
   );
   if (!result) return { kind: 'none' };
-  const message =
-    result.message.length > MESSAGE_LIMIT
-      ? `${result.message.slice(0, MESSAGE_LIMIT)}\n… (${result.message.length - MESSAGE_LIMIT} more characters)`
-      : result.message;
+  let message = result.message;
+  if (message.length > MESSAGE_LIMIT) {
+    // The cut must never land between the two units of an astral character:
+    // a lone high surrogate goes out on the ACP JSON-RPC wire as a `\udXXX`
+    // escape, and strict client JSON/UTF-8 parsers reject such a frame
+    // outright — the editor loses the WHOLE message, not the tail. Same
+    // walk-back contract the shared primitives.truncate pins.
+    let cut = MESSAGE_LIMIT;
+    const last = message.charCodeAt(cut - 1);
+    if (last >= 0xd800 && last <= 0xdbff) cut -= 1;
+    message = `${message.slice(0, cut)}\n… (${message.length - cut} more characters)`;
+  }
   if (message && !turn.signal.aborted) {
     turn.emit({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: message } });
   }

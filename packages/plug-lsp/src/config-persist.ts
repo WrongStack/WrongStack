@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, withFileLock } from '@wrongstack/core/utils';
 import { PLUGIN_NAME } from './config.js';
 import type { ServerConfig } from './types.js';
 
@@ -23,6 +23,13 @@ type ServerPatch = { readonly [K in keyof ServerConfig]?: ServerConfig[K] };
  * `extensions["@wrongstack/plug-lsp"].servers`. Passing `null` removes it.
  * Every other key in the file is preserved verbatim — this file also carries
  * the project's credentials.
+ *
+ * The RMW is serialized per target with `withFileLock` (the repo-standard for
+ * credential-bearing JSON stores, see requirement-intake/store.ts): concurrent
+ * persists here used to share one `${target}.${process.pid}.tmp` path, so a
+ * rename could consume the temp while another call was still writing it —
+ * one update silently vanished, or a torn document landed on disk and every
+ * later read failed on the corrupt JSON.
  */
 export async function persistServerConfig(
   cwd: string,
@@ -30,39 +37,41 @@ export async function persistServerConfig(
   patch: ServerPatch | null,
 ): Promise<string> {
   const target = serverConfigPath(cwd);
-  const config = await readConfigFile(target);
+  return withFileLock(target, async () => {
+    const config = await readConfigFile(target);
 
-  const extensions = asRecord(config.extensions) ?? {};
-  const section = asRecord(extensions[PLUGIN_NAME]) ?? {};
-  const servers = asRecord(section.servers) ?? {};
+    const extensions = asRecord(config.extensions) ?? {};
+    const section = asRecord(extensions[PLUGIN_NAME]) ?? {};
+    const servers = asRecord(section.servers) ?? {};
 
-  if (patch === null) {
-    delete servers[name];
-  } else {
-    const existing = Object.hasOwn(servers, name) ? asRecord(servers[name]) : undefined;
-    Object.defineProperty(servers, name, {
-      value: { ...(existing ?? {}), ...patch },
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    });
-  }
+    if (patch === null) {
+      delete servers[name];
+    } else {
+      const existing = Object.hasOwn(servers, name) ? asRecord(servers[name]) : undefined;
+      Object.defineProperty(servers, name, {
+        value: { ...(existing ?? {}), ...patch },
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
 
-  section.servers = servers;
-  extensions[PLUGIN_NAME] = section;
-  config.extensions = extensions;
-  if (typeof config.version !== 'number') config.version = 1;
+    section.servers = servers;
+    extensions[PLUGIN_NAME] = section;
+    config.extensions = extensions;
+    if (typeof config.version !== 'number') config.version = 1;
 
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  const tmp = `${target}.${process.pid}.tmp`;
-  await fs.writeFile(
-    tmp,
-    `${JSON.stringify(config, null, 2)}
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    const tmp = `${target}.${process.pid}.tmp`;
+    await fs.writeFile(
+      tmp,
+      `${JSON.stringify(config, null, 2)}
 `,
-    { encoding: 'utf8', mode: 0o600 },
-  );
-  await fs.rename(tmp, target);
-  return target;
+      { encoding: 'utf8', mode: 0o600 },
+    );
+    await fs.rename(tmp, target);
+    return target;
+  });
 }
 
 async function readConfigFile(target: string): Promise<Record<string, unknown>> {

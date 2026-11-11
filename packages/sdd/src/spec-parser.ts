@@ -12,16 +12,29 @@ export class SpecParser {
     // fence matcher's `(.*)$` cannot cross it — fenced code then parsed as
     // requirements and a `##` inside the fence ended the section early.
     const lines = content.split(/\r\n?|\n/);
-    const sections = this.extractSections(lines);
+    // "An HTML comment is invisible content, not document structure" is the
+    // parser's stated invariant (see extractRequirements), but the structural
+    // extractors below matched raw lines — so a multi-line `<!-- ... -->` block
+    // (a commented-out old title, a drafted-out section) was promoted to
+    // structure: the title/version flow into the board, the task graph, and
+    // `/sdd show`, and a ghost `## Acceptance Criteria` section silenced
+    // analyze()'s gap and could clear fromSpec's completeness gate on content
+    // the author had explicitly commented out. One pre-pass computes, per line,
+    // the text visible outside comment regions (fence precedence identical to
+    // extractRequirements: a fence region never opens or closes a comment);
+    // structure matching reads this view, while content is still collected from
+    // the raw lines.
+    const structure = this.visibleStructureLines(lines);
+    const sections = this.extractSections(lines, structure);
     const requirements = this.extractRequirements(lines);
     const now = Date.now();
 
     return {
       id: crypto.randomUUID(),
-      title: this.extractTitle(lines),
-      version: this.extractVersion(lines),
+      title: this.extractTitle(lines, structure),
+      version: this.extractVersion(lines, structure),
       status: 'draft',
-      overview: this.extractOverview(lines),
+      overview: this.extractOverview(lines, structure),
       sections,
       requirements,
       createdAt: now,
@@ -29,38 +42,68 @@ export class SpecParser {
     };
   }
 
-  private extractTitle(lines: string[]): string {
+  private extractTitle(lines: readonly string[], structure: readonly string[]): string {
     let fence: string | undefined;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
       // A fenced code block is verbatim content, not document structure: a `#`
-      // comment inside a snippet is not the spec's title.
+      // comment inside a snippet is not the spec's title. The same holds for
+      // text inside an HTML comment (see visibleStructureLines).
       const nextFence = this.updateFence(line, fence);
       const inFence = fence !== undefined || nextFence !== undefined;
       fence = nextFence;
       if (inFence) continue;
 
-      const m = /^#\s+(.+)/.exec(line.trim());
+      const m = /^#\s+(.+)/.exec((structure[i] ?? '').trim());
       if (m?.[1]) return m[1];
     }
     return 'Untitled Specification';
   }
 
-  private extractVersion(lines: string[]): string {
+  private extractVersion(lines: readonly string[], structure: readonly string[]): string {
     let fence: string | undefined;
 
-    for (const line of lines) {
-      // Same rule as the title: a `Version:` line inside a fenced block is
-      // sample content, not the spec's version.
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      // Same rule as the title: a `Version:` line inside a fenced block or an
+      // HTML comment is sample content, not the spec's version.
       const nextFence = this.updateFence(line, fence);
       const inFence = fence !== undefined || nextFence !== undefined;
       fence = nextFence;
       if (inFence) continue;
 
-      const m = /version[:\s]+(\d+\.\d+\.\d+)/i.exec(line.trim());
+      const m = /version[:\s]+(\d+\.\d+\.\d+)/i.exec((structure[i] ?? '').trim());
       if (m?.[1]) return m[1];
     }
     return '0.0.1';
+  }
+
+  /**
+   * Per-line text visible outside HTML comment regions, for structural
+   * matching only — content extraction keeps the raw lines. Precedence mirrors
+   * extractRequirements: inside a fence region a line is verbatim content and
+   * can neither open nor close a comment; a comment region spans lines until
+   * its closing marker.
+   */
+  private visibleStructureLines(lines: readonly string[]): string[] {
+    const out: string[] = new Array(lines.length);
+    let inComment = false;
+    let fence: string | undefined;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const nextFence = this.updateFence(line, fence);
+      const inFence = fence !== undefined || nextFence !== undefined;
+      fence = nextFence;
+      if (!inComment && inFence) {
+        out[i] = line;
+        continue;
+      }
+      const comment = this.stripHtmlComments(line, inComment);
+      inComment = comment.inComment;
+      out[i] = comment.hadComment ? comment.visible : line;
+    }
+    return out;
   }
 
   private updateFence(line: string, fence: string | undefined): string | undefined {
@@ -80,23 +123,25 @@ export class SpecParser {
     return markerRun;
   }
 
-  private extractOverview(lines: string[]): string {
+  private extractOverview(lines: readonly string[], structure: readonly string[]): string {
     const overviewLines: string[] = [];
     let inOverview = false;
     let foundHeading = false;
     let fence: string | undefined;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
       const nextFence = this.updateFence(line, fence);
       const inFence = fence !== undefined || nextFence !== undefined;
       fence = nextFence;
       if (!inFence) {
-        if (/^##\s+Overview/i.test(line.trim())) {
+        const visibleLine = (structure[i] ?? '').trim();
+        if (/^##\s+Overview/i.test(visibleLine)) {
           inOverview = true;
           foundHeading = true;
           continue;
         }
-        if (foundHeading && /^##\s+/.test(line.trim())) break;
+        if (foundHeading && /^##\s+/.test(visibleLine)) break;
       }
       if (inOverview) overviewLines.push(line);
     }
@@ -104,21 +149,23 @@ export class SpecParser {
     return overviewLines.join('\n').trim() || 'No overview provided';
   }
 
-  private extractSections(lines: string[]): SpecSection[] {
+  private extractSections(lines: readonly string[], structure: readonly string[]): SpecSection[] {
     const sections: SpecSection[] = [];
     let currentSection: Partial<SpecSection> | null = null;
     let currentLines: string[] = [];
     let depth = 1;
     let fence: string | undefined;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
       const nextFence = this.updateFence(line, fence);
       const inFence = fence !== undefined || nextFence !== undefined;
       fence = nextFence;
 
       if (!inFence) {
-        const h2 = /^##\s+(.+)/.exec(line.trim());
-        const h3 = /^###\s+(.+)/.exec(line.trim());
+        const visibleLine = (structure[i] ?? '').trim();
+        const h2 = /^##\s+(.+)/.exec(visibleLine);
+        const h3 = /^###\s+(.+)/.exec(visibleLine);
 
         if (h2) {
           if (currentSection && currentLines.length > 0) {

@@ -61,11 +61,12 @@ export function containedJsonlPath(sessionsDir: string, id: string): string | un
 }
 
 /** Strip C0/C1 control characters and ANSI escape sequences from derived
- * display text — transcript content is untrusted picker input. */
+ * display text — transcript content is untrusted picker input. Preserve tabs
+ * and line breaks so truncate can normalize them without joining words. */
 function stripControlChars(text: string): string {
   // eslint-disable-next-line no-control-regex
   return text.replaceAll(
-    /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)|[\u0000-\u001f\u007f-\u009f]/g,
+    /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)|[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g,
     '',
   );
 }

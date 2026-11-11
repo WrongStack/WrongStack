@@ -289,13 +289,27 @@ export function validateFieldSource(value: unknown): IntakeFieldSource {
   throw new IntakeValidationError([{ field: 'source', message: 'invalid field source' }]);
 }
 
+/**
+ * UTF-16-safe cut end for the `slice(0, end)` + ellipsis truncations below.
+ * When the last retained unit is a high surrogate, its low partner falls at
+ * or beyond the cut, and the result would be persisted and re-serialized as
+ * ill-formed text — a lone surrogate escapes as `\udXXX`, which strict JSON
+ * consumers reject outright. Walk back one unit instead (the same boundary
+ * rule `primitives/string.ts` truncate pins). BMP text is unaffected: the
+ * check only fires on a straddling surrogate pair.
+ */
+function safeTruncateEnd(text: string, end: number): number {
+  const lastRetained = text.charCodeAt(end - 1);
+  return lastRetained >= 0xd800 && lastRetained <= 0xdbff ? end - 1 : end;
+}
+
 /** Deterministic fallback summary derived from the original request. */
 export function deterministicSummary(originalRequest: string, maxLength = 240): string {
   const limit = Number.isFinite(maxLength) ? Math.max(0, Math.floor(maxLength)) : 0;
   if (limit === 0) return '';
   const collapsed = originalRequest.replace(/\s+/g, ' ').trim();
   if (collapsed.length <= limit) return collapsed;
-  return `${collapsed.slice(0, limit - 1).trimEnd()}…`;
+  return `${collapsed.slice(0, safeTruncateEnd(collapsed, limit - 1)).trimEnd()}…`;
 }
 
 /** Deterministic fallback title derived from the original request. */
@@ -308,5 +322,5 @@ export function deterministicTitle(originalRequest: string, maxLength = MAX_TITL
   ).trim();
   const title = firstLine.length === 0 ? 'Untitled request' : firstLine;
   if (title.length <= limit) return title;
-  return `${title.slice(0, limit - 1).trimEnd()}…`;
+  return `${title.slice(0, safeTruncateEnd(title, limit - 1)).trimEnd()}…`;
 }

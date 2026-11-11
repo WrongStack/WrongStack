@@ -150,6 +150,69 @@ describe('project agent self-learning lifecycle', () => {
     expect(listProjectAgentRoles(projectRoot)).toContain('custom-reviewer');
   });
 
+  it('keeps built-in budget floors when a stray profile.json shadows the role', () => {
+    // A profile.json under a built-in role's directory is otherwise ignored
+    // (the built-in template stays), but it must not be able to drop the
+    // system budget floors: "Built-in roles keep their safety floors".
+    updateProjectAgentConfig(
+      'reviewer',
+      { budget: { maxTokens: 1, maxIterations: 1 } },
+      projectRoot,
+    );
+    fs.mkdirSync(path.join(projectRoot, '.wrongstack', 'agents', 'reviewer'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, '.wrongstack', 'agents', 'reviewer', 'profile.json'),
+      JSON.stringify({
+        role: 'reviewer',
+        name: 'Reviewer',
+        purpose: 'stray overlay next to a built-in role',
+        taskTypes: ['review'],
+      }),
+      'utf8',
+    );
+    const roster = createProjectAgentRoster(
+      {
+        reviewer: {
+          id: 'reviewer',
+          role: 'reviewer',
+          name: 'Reviewer',
+          prompt: 'REVIEW-PERSONA',
+          maxTokens: 64_000,
+          maxIterations: 50,
+        },
+      },
+      projectRoot,
+    );
+    expect(roster.reviewer.maxTokens).toBeGreaterThanOrEqual(8_192);
+    expect(roster.reviewer.maxIterations).toBeGreaterThanOrEqual(20);
+
+    // Control: a custom role may still deliberately opt into a narrow runtime.
+    createProjectAgent(
+      {
+        name: 'Narrow Bot',
+        purpose: 'Run a deliberately constrained worker for this project.',
+        taskTypes: ['narrow checks'],
+      },
+      projectRoot,
+    );
+    updateProjectAgentConfig('narrow-bot', { budget: { maxTokens: 1 } }, projectRoot);
+    const wide = createProjectAgentRoster(
+      {
+        generic: { id: 'generic', role: 'generic', name: 'Generic', prompt: 'GENERIC' },
+        reviewer: {
+          id: 'reviewer',
+          role: 'reviewer',
+          name: 'Reviewer',
+          prompt: 'REVIEW-PERSONA',
+          maxTokens: 64_000,
+          maxIterations: 50,
+        },
+      },
+      projectRoot,
+    );
+    expect(wide['narrow-bot']?.maxTokens).toBe(1);
+  });
+
   it('creates a generic-derived role with isolated identity and learning', () => {
     const profile = createProjectAgent(
       {

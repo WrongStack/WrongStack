@@ -14,6 +14,22 @@ describe('Vitest worker CLI spellings', () => {
     expect(getVitestMaxWorkers(argv)).toBe(expected);
   });
 
+  it.each([
+    ['run', '-w=true'],
+    ['-w=true', 'run'],
+    ['--run', '-w=true'],
+    ['--watch=false', '-w=true'],
+    ['run', '--watch=true'],
+    ['run', '-w'],
+  ])('prioritizes explicit watch intent in %s %s', (...argv) => {
+    expect(getVitestMaxWorkers(argv)).toBe(2);
+  });
+
+  it('lets the explicit worker override win over conflicting run and short watch modes', () => {
+    vi.stubEnv('WRONGSTACK_VITEST_MAX_WORKERS', '3');
+    expect(getVitestMaxWorkers(['run', '-w=true'])).toBe(3);
+  });
+
   it('lets the explicit worker override win for the short watch-disable alias', () => {
     vi.stubEnv('WRONGSTACK_VITEST_MAX_WORKERS', '8');
     expect(getVitestMaxWorkers(['-w=false'])).toBe(8);

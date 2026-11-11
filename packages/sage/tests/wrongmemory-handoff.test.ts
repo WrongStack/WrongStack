@@ -84,7 +84,10 @@ describe('handOffSageToWrongMemory', () => {
     await expect(
       handOffSageToWrongMemory({
         projectRoot: root,
-        service: { mode: 'wrongmemory', daemonPath: path.join(root, 'missing', 'wrongmemoryd.exe') },
+        service: {
+          mode: 'wrongmemory',
+          daemonPath: path.join(root, 'missing', 'wrongmemoryd.exe'),
+        },
         apply: true,
         local,
         connect: async (options) => {

@@ -20,7 +20,7 @@
  */
 
 /** Argv tokens that put Vitest in watch mode. */
-const WATCH_ARGS = new Set(['--watch', '-w', '--watch=true']);
+const WATCH_ARGS = new Set(['--watch', '-w', '--watch=true', '-w=true']);
 
 /** Argv tokens that put Vitest in single-run mode. */
 const RUN_ARGS = new Set(['run', '--run', '--run=true', '--watch=false', '-w=false']);

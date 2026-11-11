@@ -157,6 +157,21 @@ export interface MarkdownRenderInput {
   subtasks?: KanbanVerificationSubtasks | undefined;
 }
 
+/**
+ * Cut at `max` UTF-16 code units, but never between the halves of a surrogate
+ * pair. A raw slice could leave a lone high surrogate at the end — and this
+ * text lands in `markdownSummary`, which is persisted on the card's
+ * verification report and serialized over the board's JSON IPC, where an
+ * escaped lone surrogate is ill-formed data every consumer renders as U+FFFD
+ * (and strict parsers reject). Same invariant as primitives' `truncate`
+ * walk-back and Telegram's `sliceUtf16Safe`. BMP-only input is unchanged.
+ */
+function truncateEvidence(value: string, max: number): string {
+  const last = value.charCodeAt(max - 1);
+  const end = last >= 0xd800 && last <= 0xdbff ? max - 1 : max;
+  return value.slice(0, end);
+}
+
 /** Status icon for a check. */
 function statusIcon(status: string): string {
   switch (status) {
@@ -250,7 +265,7 @@ export function renderVerificationReportMarkdown(input: MarkdownRenderInput): st
       for (const [key, value] of Object.entries(check.evidence)) {
         const display =
           typeof value === 'string' && value.length > 300
-            ? `${value.slice(0, 300)}…`
+            ? `${truncateEvidence(value, 300)}…`
             : Array.isArray(value) && value.length > 10
               ? `[${value.length} items]`
               : JSON.stringify(value, null, 0);

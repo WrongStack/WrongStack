@@ -103,7 +103,10 @@ export function parseRenameCommand(command: string): { from: string; to: string 
   // `mv a.ts lib/` moves INTO the directory: the real target is `lib/a.ts`.
   // Without this the anchor was rewritten to the directory path itself.
   if (/[\\/]$/.test(parsed.to)) {
-    const base = parsed.from.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+    const base = parsed.from
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop();
     if (base) return { from: parsed.from, to: `${parsed.to}${base}` };
   }
   return parsed;

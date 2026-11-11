@@ -82,8 +82,10 @@ describe('file-permissions', () => {
   });
 
   it('labels its warnings so operators can tell which subsystem failed', async () => {
-    // Only the Windows branch warns; on POSIX chmod failures are silent by
-    // design (the caller already wrote the file with the right mode).
+    // Both branches warn on a live failure now (r3-20261111: the POSIX chmod
+    // catch was aligned with the documented "failures are warned" contract);
+    // this mocked-outage fixture drives the Windows icacls path specifically,
+    // so POSIX still exits early.
     if (POSIX) return;
     // Force an icacls failure on a LIVE path: the missing-path case is now
     // silent by design, so the warning contract needs a real outage.

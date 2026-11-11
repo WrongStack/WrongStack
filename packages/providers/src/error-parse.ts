@@ -314,8 +314,10 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
 
   // 3. Relative duration: "retry after X seconds/minutes/hours", "retry_after X",
   //    "try again in X seconds", "please retry in X minutes", "back in X seconds/minutes", "wait X ms"
+  // Do not backtrack into a decimal prefix (1.5h30m → 1 second); leave the
+  // complete compound duration for pattern 3b, while allowing sentence periods.
   const retryRe =
-    /(?:retry[_\s-]*(?:after|in)|(?:try|retry|back|wait)\s*(?:again)?\s*(?:in|for|after)?)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|milliseconds?|millis?|msecs?|ms|minutes?|mins?|m|seconds?|secs?|s)?(?!\w)/i;
+    /(?:retry[_\s-]*(?:after|in)|(?:try|retry|back|wait)\s*(?:again)?\s*(?:in|for|after)?)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|milliseconds?|millis?|msecs?|ms|minutes?|mins?|m|seconds?|secs?|s)?(?!\w|\.\d)/i;
   const retryMatch = retryRe.exec(text);
   if (retryMatch) {
     const num = Number.parseFloat(retryMatch[1] ?? '');

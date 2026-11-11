@@ -318,6 +318,27 @@ describe('createBoardFromText', () => {
     expect(result.title).toBe(`Kanban: ${'a'.repeat(60)}...`);
   });
 
+  it('never splits an astral character at the auto-title cut', () => {
+    // The generated title is persisted verbatim (normalizeBoard) and reaches
+    // strict JSON consumers; a lone surrogate there is ill-formed text (the
+    // repo-pinned walk-back rule — same class as primitives.truncate and the
+    // evidence-truncation guard). An emoji straddling the 60-unit boundary is
+    // dropped whole; BMP-only output stays byte-identical.
+    const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    const straddling = createBoardFromText({
+      description: `${'a'.repeat(59)}\u{1F680} launch board follow-up text`,
+    });
+    expect(straddling.title).not.toMatch(LONE_SURROGATE);
+    expect(straddling.title).toBe(`Kanban: ${'a'.repeat(59)}...`);
+
+    // Boundary control: a pair ending exactly at the cut is kept whole.
+    const within = createBoardFromText({
+      description: `${'a'.repeat(57)}\u{1F680}${'b'.repeat(5)} tail text`,
+    });
+    expect(within.title).not.toMatch(LONE_SURROGATE);
+    expect(within.title).toContain('\u{1F680}');
+  });
+
   it('includes context when provided', () => {
     const result = createBoardFromText({
       description: 'Do the thing',
