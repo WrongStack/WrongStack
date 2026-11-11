@@ -1,7 +1,7 @@
 {
   "name": "wrongstack-monorepo",
   "private": true,
-  "version": "1.5.6",
+  "version": "1.6.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "bun@1.4.3",
@@ -12,6 +12,7 @@
   "scripts": {
     "skill:route": "bun scripts/wrongstack-skill-engine.ts",
     "skill:list": "bun scripts/wrongstack-skill-engine.ts --list",
+    "design:md": "bun scripts/design-md.mts",
     "skill:check-bundle": "bun packages/core/skills/skill-creator/scripts/check-bundle.ts",
     "skill:check-versions": "bun packages/core/skills/tech-stack/scripts/sync-versions.mjs --check",
     "skill:sync-versions": "bun packages/core/skills/tech-stack/scripts/sync-versions.mjs --write",

@@ -69,6 +69,26 @@
       "compact": "riduci il contesto",
       "clear": "cancella il contesto corrente",
       "new": "nuova sessione"
+    },
+    "design": {
+      "studioShortcut": "Design Studio",
+      "title": "Sintesi Design DNA e DESIGN.md",
+      "body": "Misura un URL di riferimento o file HTML locale su 5 breakpoint e fino a 8 sottopagine per sintetizzare una specifica DESIGN.md in 10 sezioni.",
+      "stageCrawl": "Misura 5 breakpoint",
+      "stageSubpages": "Sottopagine",
+      "stageSynthesis": "Sintesi DNA",
+      "stageSpec": "DESIGN.md (10 sezioni)",
+      "sourceLabel": "URL di riferimento o file HTML locale",
+      "pagesLabel": "Pagine",
+      "workflowLabel": "Flusso",
+      "workflowExtract": "Estrai DESIGN.md",
+      "workflowMaterializeWeb": "Estrai + Materializza tema Web",
+      "workflowMaterializeRn": "Estrai + Materializza React Native",
+      "presets": "Esempi:",
+      "start": "Estrai DESIGN.md",
+      "openDesignMd": "Apri DESIGN.md",
+      "openStudio": "Design Studio",
+      "panelQuickTitle": "Sito di riferimento → DESIGN.md"
     }
   },
   "provider": {

@@ -4,6 +4,7 @@ import {
   FolderOpen,
   KeyRound,
   Loader2,
+  Palette,
   ShieldOff,
   SlidersHorizontal,
   Sparkles,
@@ -43,6 +44,7 @@ import { useBugHuntRunStore } from '@/stores/bug-hunt-run-store';
 import type { TreeNode } from '@/stores/file-store';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
+import { WelcomeDesignLauncher } from './WelcomeDesignLauncher';
 import { LauncherArt, WorkbenchArt } from './WorkbenchArt';
 
 /**
@@ -132,14 +134,15 @@ export function WelcomeScreen() {
   const [perfScope, setPerfScope] = useState('');
   const [perfMode, setPerfMode] = useState<PerfRunMode>('ratchet');
   const [perfMetric, setPerfMetric] = useState<PerfRunMetric | ''>('');
-  // Calm chrome folds the two launcher forms; at most one is open at a time.
+  // Calm chrome folds the launcher forms; at most one is open at a time.
   // A launch in flight or a failed one keeps its card open so its state shows.
   const fullChrome = useIsFullChrome();
-  const [openLauncher, setOpenLauncher] = useState<'bug' | 'perf' | null>(null);
-  const toggleLauncher = (which: 'bug' | 'perf') =>
+  const [openLauncher, setOpenLauncher] = useState<'bug' | 'perf' | 'design' | null>(null);
+  const toggleLauncher = (which: 'bug' | 'perf' | 'design') =>
     setOpenLauncher((current) => (current === which ? null : which));
   const bugOpen = fullChrome || openLauncher === 'bug' || bugHuntState !== 'idle';
   const perfOpen = fullChrome || openLauncher === 'perf' || perfState !== 'idle';
+  const designOpen = fullChrome || openLauncher === 'design';
   const scopeDirectories = directoryPaths(projectTree);
   const heroSubtitle = !wsConnected
     ? t('setup:welcome.heroSubtitleDisconnected')
@@ -365,6 +368,11 @@ Record the baseline, every attempt, and every keep/revert verdict in \`PERF_LOG.
         <button type="button" className="ws-welcome-shortcut" onClick={() => showPanel('skills')}>
           <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
           <span>{t('activity:nav.skills')}</span>
+          <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        </button>
+        <button type="button" className="ws-welcome-shortcut" onClick={() => showPanel('design')}>
+          <Palette className="h-4 w-4 shrink-0" aria-hidden />
+          <span>{t('setup:welcome.design.studioShortcut')}</span>
           <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
         </button>
         <button
@@ -600,6 +608,12 @@ Record the baseline, every attempt, and every keep/revert verdict in \`PERF_LOG.
               </p>
             )}
           </div>
+          <WelcomeDesignLauncher
+            foldable={!fullChrome}
+            expanded={designOpen}
+            onToggle={() => toggleLauncher('design')}
+            savedCount={savedCount}
+          />
         </div>
       </div>
 

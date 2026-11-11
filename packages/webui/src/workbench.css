@@ -343,6 +343,12 @@
   .ws-launcher-card--perf .ws-launcher-art {
     color: hsl(var(--brand-orange));
   }
+  .ws-launcher-card--design {
+    grid-column: 1 / -1;
+  }
+  .ws-launcher-card--design .ws-launcher-art {
+    color: hsl(var(--primary));
+  }
   .ws-launcher-fields {
     animation: ws-reveal 220ms var(--ws-ease) both;
   }

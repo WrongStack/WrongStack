@@ -69,6 +69,26 @@
       "compact": "bağlamı daralt",
       "clear": "mevcut bağlamı sil",
       "new": "temiz oturum"
+    },
+    "design": {
+      "studioShortcut": "Tasarım Stüdyosu",
+      "title": "Tasarım DNA ve DESIGN.md Sentezi",
+      "body": "Canlı bir kaynak siteyi veya yerel HTML dosyasını 5 kırılım noktasında ve 8 alt sayfaya kadar ölçerek 10 bölümlü DESIGN.md spesifikasyonu üretin.",
+      "stageCrawl": "5 Kırılımlı Ölçüm",
+      "stageSubpages": "Alt Sayfa Keşfi",
+      "stageSynthesis": "DNA Sentezi",
+      "stageSpec": "10 Bölümlü DESIGN.md",
+      "sourceLabel": "Kaynak URL veya yerel HTML dosyası",
+      "pagesLabel": "Sayfa",
+      "workflowLabel": "İş akışı",
+      "workflowExtract": "DESIGN.md Üret",
+      "workflowMaterializeWeb": "Üret + Web Temasına Dönüştür",
+      "workflowMaterializeRn": "Üret + React Native Teması",
+      "presets": "Örnekler:",
+      "start": "DESIGN.md Üret",
+      "openDesignMd": "DESIGN.md Aç",
+      "openStudio": "Tasarım Stüdyosu",
+      "panelQuickTitle": "Kaynak Site → DESIGN.md"
     }
   },
   "provider": {

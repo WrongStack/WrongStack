@@ -69,6 +69,26 @@
       "compact": "reducir contexto",
       "clear": "borrar el contexto actual",
       "new": "sesión nueva"
+    },
+    "design": {
+      "studioShortcut": "Estudio de diseño",
+      "title": "Síntesis de ADN de diseño y DESIGN.md",
+      "body": "Mide cualquier URL de referencia o archivo HTML local en 5 puntos de corte y hasta 8 subpáginas para sintetizar una especificación DESIGN.md de 10 secciones.",
+      "stageCrawl": "Medición en 5 vistas",
+      "stageSubpages": "Subpáginas",
+      "stageSynthesis": "Síntesis de ADN",
+      "stageSpec": "DESIGN.md (10 secciones)",
+      "sourceLabel": "URL de referencia o archivo HTML local",
+      "pagesLabel": "Páginas",
+      "workflowLabel": "Flujo",
+      "workflowExtract": "Extraer DESIGN.md",
+      "workflowMaterializeWeb": "Extraer + Materializar tema web",
+      "workflowMaterializeRn": "Extraer + Materializar React Native",
+      "presets": "Ejemplos:",
+      "start": "Extraer DESIGN.md",
+      "openDesignMd": "Abrir DESIGN.md",
+      "openStudio": "Estudio de diseño",
+      "panelQuickTitle": "Sitio de referencia → DESIGN.md"
     }
   },
   "provider": {

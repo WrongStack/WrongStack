@@ -126,6 +126,7 @@ export const TOOL_OVERVIEW_REGISTRY: Readonly<Record<string, OverviewKind>> = {
   outdated: 'packages',
   logs: 'observability',
   design: 'design',
+  design_reference: 'design',
   tool_search: 'catalog',
   tool_use: 'catalog',
 };
@@ -253,6 +254,23 @@ function signalsFor(
         ? { label: 'Events', value: singular(lines, 'line') }
         : { label: 'Errors', value: String(errors), tone: errors ? 'danger' : 'success' },
     );
+  } else if (kind === 'design') {
+    const pagesAnalyzed = countMatches(result, /\b(\d+)\s+page\(s\)\s+analyzed\b/i);
+    const hasDesignMd = /\bDESIGN\.md\b/.test(result);
+    const overallMatch = result.match(/overall\s+(?:fidelity\s+)?(\d+(?:\.\d+)?)%/i)?.[1];
+    if (pagesAnalyzed !== undefined) {
+      signals.push({
+        label: 'Analyzed',
+        value: singular(pagesAnalyzed, 'page'),
+        tone: 'success',
+      });
+    }
+    if (hasDesignMd) {
+      signals.push({ label: 'Spec', value: 'DESIGN.md (10 sections)', tone: 'success' });
+    } else if (overallMatch) {
+      signals.push({ label: 'Fidelity', value: `${overallMatch}%`, tone: 'success' });
+    }
+    if (signals.length === 0) signals.push({ label: 'Output', value: singular(lines, 'line') });
   } else if (kind !== 'generic') {
     signals.push({ label: 'Output', value: singular(lines, 'line') });
   }
@@ -470,11 +488,30 @@ function fieldsFor(kind: OverviewKind, input: unknown): Array<[string, string]> 
             'Supported patterns',
         ],
       ];
-    case 'design':
+    case 'design': {
+      const action = valueAt(input, ['action', 'operation']) ?? 'Preview';
+      const refTarget = valueAt(input, ['url', 'file', 'reference']);
+      if (refTarget) {
+        const maxPages = valueAt(input, ['maxPages']);
+        const against = valueAt(input, ['against']);
+        const surface = valueAt(input, ['surface']);
+        const scope = against
+          ? `vs ${against}`
+          : maxPages
+            ? `Up to ${maxPages} pages · 5 breakpoints`
+            : surface
+              ? `${surface} profile`
+              : '5-breakpoint matrix';
+        return [
+          ['Source', refTarget],
+          ['Pipeline', `${action} · ${scope}`],
+        ];
+      }
       return [
-        ['Action', valueAt(input, ['action', 'operation']) ?? 'Preview'],
-        ['Kit', valueAt(input, ['kit', 'name', 'path']) ?? 'Active stack'],
+        ['Action', action],
+        ['Kit', valueAt(input, ['kit', 'name', 'out', 'path']) ?? 'Active stack'],
       ];
+    }
     case 'catalog':
       return [
         ['Request', valueAt(input, ['query', 'name', 'toolName']) ?? 'Tool catalog'],

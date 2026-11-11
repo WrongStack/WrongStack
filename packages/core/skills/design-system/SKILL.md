@@ -78,17 +78,22 @@ Materialize after final tuning, inspect its actual token exports, and import
 the output through the real app entry/theme provider. A force overwrite requires
 checking the owned target and preserving existing project customization.
 
-### DESIGN.md (interchange)
+### DESIGN.md (interchange & 10-section specification)
 
-`DESIGN.md` (google design.md format, alpha) carries the system between tools:
-YAML tokens (colors with `dark-<role>` for the dark theme, typography, rounded,
-spacing, components) plus prose sections. `design {action:"document"}` writes
-it from the pinned kit with overrides, or from captured tokens, and lints it.
-`design {action:"capture"}` reads a project's `DESIGN.md` first — before
-inferred CSS/TS/Dart — so verify works for a project that never pinned a kit;
-a file with lint errors (broken references, duplicate keys) is refused with the
-reason. Rewrite the generated prose with the product's real direction; the
-tokens stay normative.
+`DESIGN.md` (compatible with both Google `design.md` alpha and the 10-section
+`designmd.me` agent prompt specification) carries the system between tools:
+- **Export from project:** `design {action:"document"}` (or `/design document`)
+  writes the pinned kit with overrides, or captured tokens, as a linted `DESIGN.md`.
+- **Extract from live reference:** `design_reference {action:"extract", url, maxPages:6}`
+  (or `/design extract <url> 6`) synthesizes `.design/references/<slug>/DESIGN.md`
+  with full YAML frontmatter (`colors` incl. `canvas`/`ink`/`body` + decorative
+  ramps, `typography` role specs, `rounded`, `spacing`, `shadows`, `themes`
+  measured + derived, `gradients`, `components` with `{colors.*}`/`{rounded.*}`/`{typography.*}`
+  refs, `states`, `breakpoints`, `coverage`) and the 10-section prompt guide.
+- **Import / capture:** `design {action:"capture"}` (or `/design capture [file]`)
+  reads `DESIGN.md` first — supporting both `dark-<role>` keys and `themes.dark`
+  maps — before inferred CSS/TS/Dart, refusing files with lint errors (broken
+  references, duplicate keys/sections).
 
 Before changing a committed DESIGN.md, keep the old version and run
 `design {action:"diff", files:["<before>", "DESIGN.md"]}` (one file compares

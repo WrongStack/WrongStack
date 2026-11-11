@@ -425,3 +425,45 @@ describe('renderDesignDnaMarkdown', () => {
     expect(md).toContain('## Limits of this measurement');
   });
 });
+
+describe('multi-page and 5-breakpoint synthesis', () => {
+  it('merges multi-page measurements per viewport and builds the 5-breakpoint matrix', () => {
+    const viewports = [1440, 1280, 1024, 768, 375];
+    const homeRaws = viewports.map((vw) =>
+      raw({
+        url: 'https://stripe.com/',
+        vw,
+        grids: vw >= 1024 ? [[4, 16, 4, vw - 64, 600]] : [[1, 16, 4, vw - 24, 600]],
+      }),
+    );
+    const pricingRaw = raw({
+      url: 'https://stripe.com/pricing',
+      vw: 1440,
+      fullGradients: [
+        {
+          context: 'section',
+          kind: 'radial',
+          value: 'radial-gradient(circle, rgb(127, 125, 252), rgb(244, 75, 204))',
+        },
+      ],
+      states: {
+        'button-hover': { target: 'button', state: 'hover', opacity: 0.6 },
+      },
+      statesFound: 12,
+    });
+    const docsRaw = raw({
+      url: 'https://stripe.com/docs',
+      vw: 1440,
+      statesFound: 8,
+    });
+
+    const dna = summarizeDesignDna([...homeRaws, pricingRaw, docsRaw], '2026-11-08T00:00:00.000Z');
+    expect(dna.source.pagesAnalyzed).toBe(3);
+    expect(dna.source.viewports).toEqual([1440, 1280, 1024, 768, 375]);
+    expect(dna.breakpoints?.map((b) => b.width)).toEqual([375, 768, 1024, 1280, 1440]);
+    expect(dna.coverage?.statesFound).toBe(20);
+    expect(dna.gradients?.[0]?.kind).toBe('radial');
+    expect(dna.color.palette?.primary).toBe('#e11d48');
+    expect(dna.type.roles?.['display-lg']?.fontSize).toBe('56px');
+  });
+});

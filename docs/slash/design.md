@@ -24,9 +24,15 @@ Design Studio activates automatically when the model is building a UI:
 ```
 /design                       List available kits and the active one
 /design <kit-id> [stack]      Pin a kit and load its full spec next turn
+/design extract <url|file> [maxPages]   Measure a live site or local HTML into DESIGN.md + DNA
+/design compare <ref> <url|file>        Score an implementation against an extracted reference
+/design inspect <url|file>              Run rendered overflow/contrast/target-size gate
+/design document [out]        Export the active kit or captured tokens as DESIGN.md
 /design off                   Clear the active kit (detection stays on)
 /design foundations           Print the mandatory baseline (responsive/a11y/theming/motion)
 /design set <k=v> …           Override the active kit's colors/tokens
+/design tune <k=v> …          High-level knobs (radius/density/font/motion)
+/design swap <kit-id> [stack] Switch to a different kit, dropping old overrides
 /design materialize [stack] [path]   Write the active kit's tokens to a real theme file
 /design capture [files…]      Snapshot the project's own token source for kit-less verify
 /design verify                Scan UI files for off-palette colors
@@ -38,12 +44,22 @@ Stacks: `web` · `react-native` · `flutter` · `swiftui` · `compose`.
 
 ```
 /design                     # see the menu
+/design extract https://stripe.com 6
+/design compare stripe-com index.html
+/design inspect index.html
 /design minimal-clarity web
 /design set primary=oklch(62% 0.2 25) dark.bg=#111
 /design materialize web src/styles/tokens.css
+/design document
 /design verify
 /design off
 ```
+
+## Extracting a live site into `DESIGN.md` (`/design extract`)
+
+`/design extract <url|file> [maxPages]` routes to `design_reference {action:"extract"}` across the 5-breakpoint responsive matrix (`1440`, `1280`, `1024`, `768`, `375`) and optionally crawls up to `maxPages` (`1`–`8`) same-origin subpages. It writes `.design/references/<slug>/{DESIGN.md, dna.json, dna.md, raw.json, <width>.png}` — including the full YAML frontmatter (`colors`, `typography`, `rounded`, `spacing`, `shadows`, `themes`, `gradients`, `components`, `states`, `breakpoints`, `coverage`) and 10-section Agent Prompt specification.
+
+See the [Design DNA & DESIGN.md Synthesis Engine guide](../design-dna-engine.md) for the complete schema, programmatic API, and fidelity comparison workflow.
 
 ## Enforcing a kit — overrides, materialize, verify
 
@@ -78,10 +94,13 @@ those tokens into
 against the project's OWN tokens while no kit is pinned:
 
 ```
-design {action:"capture"}                                  # conventional-path discovery
-design {action:"capture", files:["src/theme/tokens.css"]}  # explicit source
+design {action:"capture"}                                  # conventional-path or DESIGN.md discovery
+design {action:"capture", files:["DESIGN.md"]}             # explicit DESIGN.md or CSS source
+design {action:"materialize", stack:"web", out:"src/styles/tokens.css"}  # compile captured tokens without a kit
 design {action:"verify"}                                   # pinned kit, else the capture
 ```
+
+`/design materialize` and `design {action:"materialize"}` also work **without a pinned kit** once `/design capture` has snapshotted a `DESIGN.md` (or existing CSS/Tailwind theme) into `.design/captured-tokens.json` — turning an extracted `DESIGN.md` directly into `:root` / `.dark` + Tailwind v4 `@theme` tokens (or React Native, Flutter, SwiftUI, Compose theme files).
 
 Precedence: a pinned kit always wins; if a pinned kit's tokens are unreadable,
 verify reports nothing rather than silently switching basis. Capture is
@@ -159,6 +178,8 @@ so it stays out of the repo in any project.
 | `.design/brief.md` | Product task, content hierarchy, visual direction, references and acceptance checks. Written by the design workflow; the first 6,000 bytes are refreshed in each active UI request, including after a kit change. Longer briefs include an explicit truncation notice. |
 | `.design/review.md` | Workflow-authored evidence of rendered review: route/artifact, viewport, theme, state, corrections and unverified checks. Not automatically generated or treated as proof by the scanner. |
 | `.design/captured-tokens.json` | The project's own token snapshot (`design {action:"capture"}`) — the verify basis when no kit is pinned. |
+| `.design/references/<slug>/DESIGN.md` | Full 10-section `DESIGN.md` specification + YAML token frontmatter synthesized by `/design extract` (`design_reference {action:"extract"}`). |
+| `.design/references/<slug>/dna.json` | Structured `DesignDna` record, raw viewport measurements (`raw.json`), screenshots (`<width>.png`), and `compare` fidelity scores (`fidelity.md`). |
 
 Picking a kit (via the `design` tool, `/design <kit>`, or the WebUI panel)
 records the choice; `/design off` clears the pin (the decision log is kept).

@@ -1,6 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { ImageBlock, Tool } from '@wrongstack/contracts/types';
+import type {
+  ImageBlock,
+  Tool,
+  ToolProgressEvent,
+  ToolStreamEvent,
+} from '@wrongstack/contracts/types';
 import { attachToolImages, getToolImages, ToolValidationError } from '@wrongstack/contracts/types';
 import type { Context } from '@wrongstack/core/agent';
 import {
@@ -17,7 +22,7 @@ import {
   type InspectSurface,
   inspectDesign,
   renderDesignDnaMarkdown,
-  renderDesignMd,
+  renderDesignMdFromDna,
   renderDnaComparisonMarkdown,
   renderInspectMarkdown,
   summarizeDesignDna,
@@ -47,8 +52,8 @@ import { withServedProjectFile } from './design-reference-serve.js';
  * same numbers instead of re-describing a screenshot.
  */
 
-/** Desktop, tablet, phone — tablet is where layouts most often break. */
-const DEFAULT_DNA_VIEWPORTS = [1440, 768, 390] as const;
+/** 5-breakpoint responsive matrix (designmd.me standard: 1440, 1280, 1024, 768, 375). */
+const DEFAULT_DNA_VIEWPORTS = [1440, 1280, 1024, 768, 375] as const;
 const VIEWPORT_HEIGHT = 900;
 
 function referencesDir(projectRoot: string): string {
@@ -109,12 +114,12 @@ function normalizeViewports(viewports: unknown): number[] {
   const list = (Array.isArray(viewports) ? viewports : [viewports]).map(Number);
   if (
     list.length === 0 ||
-    list.length > 4 ||
+    list.length > 6 ||
     list.some((w) => !Number.isInteger(w) || w < 320 || w > 3840)
   ) {
     throw new ToolValidationError({
       message:
-        'design_reference: "viewports" takes 1–4 integer widths between 320 and 3840, e.g. [1440, 390].',
+        'design_reference: "viewports" takes 1–6 integer widths between 320 and 3840, e.g. [1440, 1280, 1024, 768, 375].',
       field: 'viewports',
     });
   }
@@ -151,6 +156,8 @@ async function measure<T extends { v: 1 }>(
   outDir: string,
   signal: AbortSignal,
   script: string = DESIGN_DNA_EXTRACTOR,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
+  stagePrefix = '',
 ): Promise<Measured<T>> {
   const manager = managerFor(ctx);
   const ownerId = owner(ctx);
@@ -158,8 +165,13 @@ async function measure<T extends { v: 1 }>(
   // Screenshots of someone else's site must never become tracked repo files.
   await ensureDesignDir(ctx.projectRoot);
   await fs.mkdir(outDir, { recursive: true });
-  for (const width of viewports) {
+  for (let idx = 0; idx < viewports.length; idx++) {
+    const width = viewports[idx]!;
     signal.throwIfAborted();
+    onProgress?.({
+      type: 'log',
+      text: `${stagePrefix}Measuring ${url} @ ${width}×${VIEWPORT_HEIGHT}px (breakpoint ${idx + 1}/${viewports.length})…`,
+    });
     const session = await manager.open(
       ownerId,
       {
@@ -202,14 +214,81 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 const rel = (projectRoot: string, file: string): string =>
   path.relative(projectRoot, file).replace(/\\/g, '/');
 
+/**
+ * A discovered link may only be crawled when it stays on the measured page's
+ * origin: the page content controls these URLs, so a cross-origin target
+ * would smuggle another site's system into the reference DNA.
+ */
+function isSameOriginHttp(candidate: string, base: string): boolean {
+  try {
+    const target = new URL(candidate);
+    const origin = new URL(base);
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') return false;
+    return target.origin === origin.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pick the subpages to measure: the explicitly requested ones plus
+ * same-origin links discovered on the measured page, bounded by the
+ * `maxPages` total budget (the measured page itself counts as one).
+ */
+export function selectReferenceSubpages(args: {
+  url: string;
+  extraPages: string[];
+  discovered: string[];
+  maxPages: number;
+}): string[] {
+  const budget = Math.max(0, args.maxPages - 1);
+  const sameOrigin = args.discovered.filter((u) => isSameOriginHttp(u, args.url));
+  const merged = [...new Set([...args.extraPages, ...sameOrigin])].filter((u) => u !== args.url);
+  return merged.slice(0, budget);
+}
+
+function normalizeMaxPages(maxPages: unknown, extraPageCount = 0): number {
+  if (maxPages === undefined) return Math.min(8, 1 + extraPageCount);
+  const n = Number(maxPages);
+  if (!Number.isInteger(n) || n < 1 || n > 8) {
+    throw new ToolValidationError({
+      message: 'design_reference: "maxPages" must be an integer between 1 and 8.',
+      field: 'maxPages',
+    });
+  }
+  return n;
+}
+
+function normalizeExtraPages(pages: unknown): string[] {
+  if (pages === undefined) return [];
+  if (!Array.isArray(pages) || pages.length > 7) {
+    throw new ToolValidationError({
+      message: 'design_reference: "pages" takes an array of 1–7 additional http(s) URLs.',
+      field: 'pages',
+    });
+  }
+  return pages.map((p) => assertHttpUrl(typeof p === 'string' ? p : ''));
+}
+
 async function extractReference(
   ctx: Context,
-  input: { url?: string | undefined; name?: string | undefined; viewports?: unknown },
+  input: {
+    url?: string | undefined;
+    name?: string | undefined;
+    viewports?: unknown;
+    pages?: unknown;
+    maxPages?: unknown;
+  },
   signal: AbortSignal,
   page?: PageLabel,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
 ): Promise<{ slug: string; dna: DesignDna; output: string; path: string; images: ImageBlock[] }> {
   const url = assertHttpUrl(input.url);
   const viewports = normalizeViewports(input.viewports);
+  const extraPages = normalizeExtraPages(input.pages);
+  // `maxPages` is the total page budget; the explicitly requested subpages
+  // count against it, so the default covers them.
+  const maxPages = normalizeMaxPages(input.maxPages, extraPages.length);
   const slug = input.name
     ? assertSlug(input.name.trim(), 'name')
     : (page?.slug ?? referenceSlug(url));
@@ -220,38 +299,79 @@ async function extractReference(
     viewports,
     dir,
     signal,
+    DESIGN_DNA_EXTRACTOR,
+    onProgress,
+    '[1/4] ',
   );
-  const dna = summarizeDesignDna(raws);
-  await writeJson(path.join(dir, 'raw.json'), raws);
+  const allRaws = [...raws];
+  const discovered = raws[0]?.internalLinks ?? [];
+  const subpages = selectReferenceSubpages({ url, extraPages, discovered, maxPages });
+  if (extraPages.length > subpages.length) {
+    onProgress?.({
+      type: 'log',
+      text: `[2/4] maxPages ${maxPages} leaves room for ${subpages.length} of the ${extraPages.length} requested subpage(s); the rest are not measured.`,
+    });
+  }
+  const widest = [viewports[0] ?? 1440];
+  if (subpages.length > 0) {
+    for (let i = 0; i < subpages.length; i++) {
+      const subUrl = subpages[i] as string;
+      onProgress?.({
+        type: 'log',
+        text: `[2/4] Crawling subpage ${i + 2}/${subpages.length + 1}: ${subUrl} @ ${widest[0]}px…`,
+      });
+      try {
+        const subDir = path.join(dir, `page-${i + 2}`);
+        const subMeasured = await measure<DesignDnaRaw>(ctx, subUrl, widest, subDir, signal);
+        allRaws.push(...subMeasured.raws);
+      } catch (err) {
+        // A cancelled run must not keep going and write artifacts as if it succeeded.
+        if (signal.aborted) throw err;
+        // A single failing subpage does not abort primary extraction, but it is reported.
+        onProgress?.({
+          type: 'log',
+          text: `[2/4] subpage skipped (${subUrl}): ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    }
+    signal.throwIfAborted();
+  } else {
+    onProgress?.({
+      type: 'log',
+      text: '[2/4] Single-page extraction (subpage crawl skipped)…',
+    });
+  }
+  onProgress?.({
+    type: 'log',
+    text: `[3/4] Synthesizing Design DNA across ${allRaws.length} measurement(s) (palette, typography roles, 14 component archetypes, responsive matrix)…`,
+  });
+  const dna = summarizeDesignDna(allRaws);
+  await writeJson(path.join(dir, 'raw.json'), allRaws);
   await writeJson(path.join(dir, 'dna.json'), dna);
   const markdown = renderDesignDnaMarkdown(dna);
+  const dnaMdRel = rel(ctx.projectRoot, path.join(dir, 'dna.md'));
   await atomicWrite(path.join(dir, 'dna.md'), markdown);
+  const designMdRel = rel(ctx.projectRoot, path.join(dir, 'DESIGN.md'));
+  onProgress?.({
+    type: 'log',
+    text: `[4/4] Writing 10-section DESIGN.md specification → ${designMdRel}`,
+  });
+  const designMdText = renderDesignMdFromDna(dna, {
+    name: input.name?.trim(),
+  });
+  await atomicWrite(path.join(dir, 'DESIGN.md'), designMdText);
+  onProgress?.({ type: 'file_changed', path: designMdRel, operation: 'write' });
+  onProgress?.({ type: 'file_changed', path: dnaMdRel, operation: 'write' });
   const overrides = dnaToTokenOverrides(dna);
-  // The measured system in the interchange format, for tools that read DESIGN.md.
-  const light: Record<string, string> = {};
-  const dark: Record<string, string> = {};
-  for (const [key, value] of Object.entries(overrides)) {
-    if (key.startsWith('light.')) light[key.slice(6)] = value;
-    else if (key.startsWith('dark.')) dark[key.slice(5)] = value;
-    else light[key] = dark[key] = value;
-  }
-  await atomicWrite(
-    path.join(dir, 'DESIGN.md'),
-    renderDesignMd({
-      name: dna.source.title || slug,
-      description: `Measured from ${dna.source.url} on ${dna.source.capturedAt.slice(0, 10)}; reference only — not a licence to copy the brand.`,
-      tokens: dna.theme === 'dark' ? { light: dark, dark } : { light, dark: { ...light, ...dark } },
-      overview: `Measured reference. Signals: ${dna.signals.join(', ') || 'none'}.`,
-    }),
-  );
   const output = [
     markdown.trimEnd(),
     '',
-    `Saved: ${rel(ctx.projectRoot, dir)}/{dna.md,dna.json,raw.json,DESIGN.md} · screenshots ${screenshots
+    `Saved: ${rel(ctx.projectRoot, dir)}/{dna.md,dna.json,raw.json,DESIGN.md} (${dna.source.pagesAnalyzed ?? 1} page(s) analyzed across [${viewports.join(', ')}]px) · screenshots ${screenshots
       .map((s) => rel(ctx.projectRoot, s.file))
       .join(
         ', ',
       )} — read the screenshots before naming patterns; numbers do not show imagery or tone.`,
+    `Full 10-section DESIGN.md specification: ${rel(ctx.projectRoot, path.join(dir, 'DESIGN.md'))}.`,
     `Reference name for compare: "${slug}".`,
     '',
     'Carry the measured system into Design Studio (after pinning the closest kit with `design {action:"use"}`):',
@@ -286,6 +406,7 @@ async function compareReference(
   },
   signal: AbortSignal,
   page?: PageLabel,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
 ): Promise<{ output: string; overall: number; path: string; images: ImageBlock[] }> {
   const refSlug = input.reference?.trim();
   if (!refSlug) {
@@ -308,17 +429,32 @@ async function compareReference(
     const viewports =
       input.viewports === undefined ? ref.source.viewports : normalizeViewports(input.viewports);
     const dir = path.join(referencesDir(ctx.projectRoot), refSlug, 'implementation');
-    const measured = await measure<DesignDnaRaw>(ctx, url, viewports, dir, signal);
+    const measured = await measure<DesignDnaRaw>(
+      ctx,
+      url,
+      viewports,
+      dir,
+      signal,
+      DESIGN_DNA_EXTRACTOR,
+      onProgress,
+      '[1/2] ',
+    );
     images = measured.images;
     impl = summarizeDesignDna(measured.raws);
     await writeJson(path.join(dir, 'dna.json'), impl);
     implLabel = page?.name ?? url;
   }
+  onProgress?.({
+    type: 'log',
+    text: `[2/2] Scoring per-axis fidelity (${refSlug} ↔ ${implLabel})…`,
+  });
   const cmp = compareDesignDna(ref, impl);
   const markdown = renderDnaComparisonMarkdown(cmp, refSlug, implLabel);
   const file = path.join(referencesDir(ctx.projectRoot), refSlug, 'fidelity.md');
+  const fidelityRel = rel(ctx.projectRoot, file);
   await atomicWrite(file, `${markdown}\n`);
-  return { output: markdown, overall: cmp.overall, path: rel(ctx.projectRoot, file), images };
+  onProgress?.({ type: 'file_changed', path: fidelityRel, operation: 'write' });
+  return { output: markdown, overall: cmp.overall, path: fidelityRel, images };
 }
 
 /**
@@ -331,6 +467,7 @@ async function inspectPage(
   input: { url?: string | undefined; viewports?: unknown; surface?: string | undefined },
   signal: AbortSignal,
   page?: PageLabel,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
 ): Promise<{ output: string; fails: number; warns: number; path: string; images: ImageBlock[] }> {
   const url = assertHttpUrl(input.url);
   const viewports = normalizeViewports(input.viewports);
@@ -354,14 +491,22 @@ async function inspectPage(
     dir,
     signal,
     DESIGN_INSPECT_EXTRACTOR,
+    onProgress,
+    '[1/2] ',
   );
+  onProgress?.({
+    type: 'log',
+    text: `[2/2] Evaluating rendered layout, WCAG contrast & touch-target rules (${surface})…`,
+  });
   const report = inspectDesign(
     raws.map((raw, i) => ({ raw, runtime: runtime[i] })),
     surface,
   );
   const markdown = renderInspectMarkdown(report);
   await writeJson(path.join(dir, 'inspect.json'), report);
+  const inspectRel = rel(ctx.projectRoot, path.join(dir, 'inspect.md'));
   await atomicWrite(path.join(dir, 'inspect.md'), markdown);
+  onProgress?.({ type: 'file_changed', path: inspectRel, operation: 'write' });
   const output = [
     markdown.trimEnd(),
     '',
@@ -373,7 +518,7 @@ async function inspectPage(
     output,
     fails: report.fails,
     warns: report.warns,
-    path: rel(ctx.projectRoot, path.join(dir, 'inspect.md')),
+    path: inspectRel,
     images,
   };
 }
@@ -386,8 +531,12 @@ export interface DesignReferenceInput {
   file?: string | undefined;
   /** extract: reference name (slug) to save under; defaults from the URL. */
   name?: string | undefined;
-  /** Viewport widths, default [1440, 768, 390]. */
+  /** Viewport widths, default [1440, 1280, 1024, 768, 375]. */
   viewports?: number[] | undefined;
+  /** extract: additional subpage URLs to analyze and merge into the reference DNA. */
+  pages?: string[] | undefined;
+  /** extract: total number of pages (1–8) to analyze, auto-discovering same-origin internal links when > 1. */
+  maxPages?: number | undefined;
   /** compare: the extracted reference slug to score against. */
   reference?: string | undefined;
   /** compare: another extracted slug instead of measuring `url`. */
@@ -419,7 +568,7 @@ export const designReferenceTool: Tool<DesignReferenceInput, DesignReferenceOutp
     '.design/references; "compare" scores an implementation against it per axis; "inspect" is a ' +
     'reference-free FAIL/WARN gate (overflow, contrast, target size, type, broken media).',
   usageHint:
-    '`design_reference {action:"extract", url:"https://example.com"}` → build → ' +
+    '`design_reference {action:"extract", url:"https://example.com", maxPages:6}` writes `.design/references/example-com/{DESIGN.md,dna.md}` → build → ' +
     '`design_reference {action:"compare", reference:"example-com", url:"http://localhost:5173/"}`; ' +
     '`design_reference {action:"inspect", url:"http://localhost:5173/", surface:"app"}` before calling UI work done; ' +
     'a static page needs no server: `design_reference {action:"inspect", file:"index.html"}`.',
@@ -460,7 +609,20 @@ export const designReferenceTool: Tool<DesignReferenceInput, DesignReferenceOutp
       viewports: {
         type: 'array',
         items: { type: 'integer', minimum: 320, maximum: 3840 },
-        description: 'Viewport widths, 1–4 (default [1440, 768, 390]).',
+        description: 'Viewport widths, 1–6 (default [1440, 1280, 1024, 768, 375]).',
+      },
+      pages: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'extract: additional http(s) subpage URLs (1–7) to analyze and merge into the reference DNA.',
+      },
+      maxPages: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 8,
+        description:
+          'extract: total number of pages (1–8) to analyze, auto-discovering same-origin internal links when > 1.',
       },
       reference: { type: 'string', description: 'compare: slug of the extracted reference.' },
       against: {
@@ -477,35 +639,81 @@ export const designReferenceTool: Tool<DesignReferenceInput, DesignReferenceOutp
     required: ['action'],
   },
   async execute(input, ctx, opts): Promise<DesignReferenceOutput> {
-    const signal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
-    signal.throwIfAborted();
-    if (input.file !== undefined) {
-      if (input.url !== undefined) {
-        throw new ToolValidationError({
-          message: 'design_reference: pass url or file, not both.',
-          field: 'file',
+    return executeDesignReference(input, ctx, opts?.signal ?? ctx?.signal);
+  },
+  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<DesignReferenceOutput>> {
+    const queue: ToolProgressEvent[] = [];
+    let wake: (() => void) | undefined;
+    let settled = false;
+    const onProgress = (event: ToolProgressEvent) => {
+      queue.push(event);
+      wake?.();
+    };
+    const task = executeDesignReference(input, ctx, opts?.signal ?? ctx?.signal, onProgress);
+    void task.then(
+      () => {
+        settled = true;
+        wake?.();
+      },
+      () => {
+        settled = true;
+        wake?.();
+      },
+    );
+    while (!settled || queue.length > 0) {
+      if (queue.length > 0) {
+        yield queue.shift()!;
+      } else {
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+          if (settled || queue.length > 0) resolve();
         });
+        wake = undefined;
       }
-      const file = String(input.file).trim();
-      return withServedProjectFile(ctx.projectRoot, file, (url) =>
-        runAction({ ...input, file: undefined, url }, ctx, signal, {
-          slug: fileSlug(file),
-          name: file,
-        }),
-      );
     }
-    return runAction(input, ctx, signal);
+    const output = await task;
+    yield { type: 'final', output };
   },
 };
+
+async function executeDesignReference(
+  input: DesignReferenceInput,
+  ctx: Context,
+  rawSignal?: AbortSignal | undefined,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
+): Promise<DesignReferenceOutput> {
+  const signal = rawSignal ?? new AbortController().signal;
+  signal.throwIfAborted();
+  if (input.file !== undefined) {
+    if (input.url !== undefined) {
+      throw new ToolValidationError({
+        message: 'design_reference: pass url or file, not both.',
+        field: 'file',
+      });
+    }
+    const file = String(input.file).trim();
+    return withServedProjectFile(ctx.projectRoot, file, (url) =>
+      runAction(
+        { ...input, file: undefined, url },
+        ctx,
+        signal,
+        { slug: fileSlug(file), name: file },
+        onProgress,
+      ),
+    );
+  }
+  return runAction(input, ctx, signal, undefined, onProgress);
+}
 
 async function runAction(
   input: DesignReferenceInput,
   ctx: Context,
   signal: AbortSignal,
   page?: PageLabel,
+  onProgress?: ((event: ToolProgressEvent) => void) | undefined,
 ): Promise<DesignReferenceOutput> {
   if (input.action === 'extract') {
-    const result = await extractReference(ctx, input, signal, page);
+    const result = await extractReference(ctx, input, signal, page, onProgress);
     return attachToolImages(
       {
         action: input.action,
@@ -517,7 +725,7 @@ async function runAction(
     );
   }
   if (input.action === 'compare') {
-    const result = await compareReference(ctx, input, signal, page);
+    const result = await compareReference(ctx, input, signal, page, onProgress);
     return attachToolImages(
       {
         action: input.action,
@@ -529,7 +737,7 @@ async function runAction(
     );
   }
   if (input.action === 'inspect') {
-    const result = await inspectPage(ctx, input, signal, page);
+    const result = await inspectPage(ctx, input, signal, page, onProgress);
     return attachToolImages(
       {
         action: input.action,

@@ -13,9 +13,9 @@ metadata:
 # Design Reference Read — WrongStack
 
 ## Selection card
-- Task: Turn a supplied reference (URL or screenshot) into measured design decisions.
-- Start: Classify the intent (match, borrow or analyze), then measure: `design_reference {action:"extract", url, viewports:[1440, 768, 390]}` for a URL, or the screenshot procedure for an image.
-- Finish: `.design/references/<slug>/dna.md` read and cited, patterns named by id, lessons recorded in the brief, no brand assets copied.
+- Task: Turn a supplied reference (URL or screenshot) into measured design decisions and a 10-section `DESIGN.md` specification.
+- Start: Classify the intent (match, borrow or analyze), then measure: `design_reference {action:"extract", url, viewports:[1440, 1280, 1024, 768, 375], maxPages:3}` for a URL, or the screenshot procedure for an image.
+- Finish: `.design/references/<slug>/dna.md` and `.design/references/<slug>/DESIGN.md` read and cited, patterns named by id, lessons recorded in the brief, no brand assets copied.
 
 ## Overview
 
@@ -44,17 +44,17 @@ owns the reference.
 With browser capability:
 
 ```
-design_reference {action:"extract", url:"https://example.com", viewports:[1440, 768, 390]}
+design_reference {action:"extract", url:"https://example.com", viewports:[1440, 1280, 1024, 768, 375], maxPages:3}
 ```
 
 - It opens one isolated browser session per viewport under the same network
   policy as browser_open, scrolls the page, samples the visible color area,
-  measures computed type/spacing/radius/shadow/motion, finds the section
-  rhythm, takes a first-screen screenshot per width, and writes
+  measures computed type/spacing/radius/shadow/motion/components/states/gradients,
+  finds the section rhythm, takes a first-screen screenshot per width, and writes
   `.design/references/<slug>/{dna.md, dna.json, raw.json, DESIGN.md, <width>.png}`
   (`.design/` is self-ignored by git).
-- Keep `768` when tablet behavior matters; `[1440, 390]` is the minimum pair. Measure each page
-  type separately (home, pricing, docs, app screen); one URL is one page.
+- `DESIGN.md` contains the full `designmd.me`-style YAML front matter (`colors`, `typography`, `rounded`, `spacing`, `borderWidths`, `shadows`, `themes`, `gradients`, `components`, `states`, `breakpoints`, `coverage`) plus the 10-section architectural prompt guide.
+- Default viewports are `[1440, 1280, 1024, 768, 375]`. Pass `maxPages` (1–8) or `pages:[...]` to merge multiple subpages into `pagesAnalyzed`.
 - A localhost or private address needs `/browser allow <origin>` first.
 - The tool is hidden wherever outbound network is denied (restricted mode, a
   subagent without network capability): use the screenshot path below.
@@ -136,12 +136,12 @@ as an opinion.
 
 ## Acceptance checks
 
-- [ ] `dna.md` exists for every cited reference page, with its extraction date and viewports (`1440`, `768`, `390`) recorded in `.design/brief.md`.
-- [ ] Every cited measurement comes directly from `dna.md` or is explicitly labeled `measured-from-image` with its pixel scale anchor.
+- [ ] `dna.md` and `DESIGN.md` exist for every cited reference page, with extraction date, `pagesAnalyzed`, and viewports (`1440`, `1280`, `1024`, `768`, `375`) recorded in `.design/brief.md`.
+- [ ] Every cited measurement comes directly from `dna.md` / `DESIGN.md` or is explicitly labeled `measured-from-image` with its pixel scale anchor.
 - [ ] Layout and section patterns are named by canonical `design-patterns` ids backed by at least two observed signals each.
 - [ ] Extracted lessons follow the `<slug>: <decision> — evidence: <measured value> — apply as: <change>` format without vague adjectives.
 - [ ] When intent is **Borrow**, the primary hue, display typeface, logo, imagery, and copy remain original to our product.
-- [ ] Measurement caveats from `dna.md` ("Limits of this measurement") are carried into the brief wherever they affect design decisions.
+- [ ] Measurement caveats from `dna.md` ("Limits of this measurement") and `DESIGN.md` ("10. Known Gaps") are carried into the brief wherever they affect design decisions.
 
 ## Failure modes
 
@@ -149,7 +149,7 @@ as an opinion.
 |---|---|
 | Describing the screenshot instead of measuring | Run extract, or measure the image per the reference file |
 | Treating the first screen as the page | The record samples up to 8 screens; read the rhythm line |
-| One viewport only | Measure 390px too; reflow is half of a layout |
+| One viewport only | Measure across the 5-breakpoint matrix (`1440` down to `375px`); reflow is half of a layout |
 | Copying the palette for "inspired by" | Borrow ratios and strategy, not hues |
 | Trusting a declared font that never loaded | Check `loaded`; the notes say when it is uncertain |
 | Naming bento/glass/brutalism from one cue | Two observed signals or "resembles" |

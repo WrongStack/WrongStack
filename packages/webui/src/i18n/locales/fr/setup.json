@@ -69,6 +69,26 @@
       "compact": "réduire le contexte",
       "clear": "effacer le contexte actuel",
       "new": "nouvelle session"
+    },
+    "design": {
+      "studioShortcut": "Studio design",
+      "title": "Synthèse ADN design & DESIGN.md",
+      "body": "Mesurez une URL de référence ou un fichier HTML local sur 5 points de rupture et jusqu’à 8 sous-pages pour générer une spécification DESIGN.md en 10 sections.",
+      "stageCrawl": "Mesure 5 tailles",
+      "stageSubpages": "Sous-pages",
+      "stageSynthesis": "Synthèse ADN",
+      "stageSpec": "DESIGN.md (10 sections)",
+      "sourceLabel": "URL de référence ou fichier HTML local",
+      "pagesLabel": "Pages",
+      "workflowLabel": "Flux",
+      "workflowExtract": "Extraire DESIGN.md",
+      "workflowMaterializeWeb": "Extraire + Matérialiser thème Web",
+      "workflowMaterializeRn": "Extraire + Matérialiser React Native",
+      "presets": "Exemples :",
+      "start": "Extraire DESIGN.md",
+      "openDesignMd": "Ouvrir DESIGN.md",
+      "openStudio": "Studio design",
+      "panelQuickTitle": "Site source → DESIGN.md"
     }
   },
   "provider": {

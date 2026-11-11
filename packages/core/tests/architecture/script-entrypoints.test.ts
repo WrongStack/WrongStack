@@ -29,6 +29,7 @@ const executableScripts = [
   'scripts/coverage-lock.mjs',
   'scripts/coverage-matrix.mjs',
   'scripts/coverage-tmp-guard.mjs',
+  'scripts/design-md.mts',
   'scripts/generate-plugin-projections.mjs',
   'scripts/generate-provider-catalog.mjs',
   'scripts/guard-against-corruption.mjs',
@@ -85,6 +86,8 @@ describe('executable script inventory', () => {
     ['scripts/check-test-skips.mjs', ['--invalid'], 2, 'Usage:'],
     ['scripts/sync-core-public-api-snapshot.mjs', ['--invalid'], 1, 'does not accept arguments'],
     ['scripts/sync-core-public-api-snapshot.mjs', ['--help'], 0, 'Usage:'],
+    ['scripts/design-md.mts', ['--help'], 0, 'Usage:'],
+    ['scripts/design-md.mts', ['--invalid'], 2, 'Unknown argument'],
   ] as const)(
     '%s exposes a deterministic safe CLI contract',
     (relativePath, args, expectedStatus, expectedText) => {

@@ -82,4 +82,18 @@ describe('/design capture', () => {
     expect(res?.message).toMatch(/found no tokens/i);
     expect(res?.message).toContain('Pass files explicitly');
   });
+
+  it('routes "/design extract" and "/design compare" to design_reference via runText', async () => {
+    const cmd = registeredDesignCommand(tmp);
+
+    const ext = await cmd.run('extract https://stripe.com 6');
+    expect(ext?.runText).toBe(
+      'design_reference {"action":"extract","url":"https://stripe.com","maxPages":6}',
+    );
+
+    const cmp = await cmd.run('compare stripe-com index.html');
+    expect(cmp?.runText).toBe(
+      'design_reference {"action":"compare","reference":"stripe-com","file":"index.html"}',
+    );
+  });
 });

@@ -1567,6 +1567,9 @@
       "resetWrongIndexConnection",
       "toIndexResult"
     ],
+    "packages/tools/src/design-reference.ts": [
+      "selectReferenceSubpages"
+    ],
     "packages/tools/src/diff.ts": [
       "refLooksLikeOutsidePath"
     ],

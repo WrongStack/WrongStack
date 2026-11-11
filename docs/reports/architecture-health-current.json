@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:39:58.271Z",
+  "generatedAt": "2026-11-11T21:42:05.131Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6264,
-    "testFiles": 5213,
-    "sourceLines": 1289075,
+    "sourceFiles": 6267,
+    "testFiles": 5215,
+    "sourceLines": 1291800,
     "workspaceEdges": 250,
-    "moduleEdges": 18450,
+    "moduleEdges": 18454,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
     "testsWithoutTypecheck": 321,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 1046
+    "testOnlyExports": 1047
   },
   "errors": [],
   "packageCycles": [],
@@ -1009,7 +1009,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 400,
-      "testFiles": 388,
+      "testFiles": 389,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/contracts",
@@ -1028,7 +1028,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 388
+          "testFiles": 389
         }
       ]
     },
@@ -1117,8 +1117,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 788,
-      "testFiles": 523,
+      "sourceFiles": 791,
+      "testFiles": 524,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 523
+          "testFiles": 524
         }
       ]
     },
@@ -22538,6 +22538,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/design-reference-crawl.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/design-reference-serve.test.ts",
         "projects": [
           "root-node"
@@ -31040,6 +31046,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/welcome-screen-design-dna.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/welcome-screen-perf-ratchet.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -35779,6 +35791,16 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/core/src/execution/design-dna.ts",
+      "lines": 1519,
+      "relativeImports": 2
+    },
+    {
+      "file": "packages/core/src/execution/design-md.ts",
+      "lines": 1162,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 704,
       "relativeImports": 12
@@ -35846,6 +35868,11 @@
     {
       "file": "packages/tools/src/codebase-index/infra-parser.ts",
       "lines": 903,
+      "relativeImports": 2
+    },
+    {
+      "file": "packages/tools/src/design-reference.ts",
+      "lines": 757,
       "relativeImports": 2
     },
     {
@@ -36026,9 +36053,19 @@
       "relativeImports": 18
     },
     {
+      "file": "packages/core/src/execution/design-dna.ts",
+      "lines": 1519,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/vibeui/src/components/workspace.tsx",
       "lines": 1216,
       "relativeImports": 35
+    },
+    {
+      "file": "packages/core/src/execution/design-md.ts",
+      "lines": 1162,
+      "relativeImports": 2
     },
     {
       "file": "packages/project-surfaces/src/atlas/codemap-model.ts",
@@ -36134,6 +36171,11 @@
       "file": "packages/vibeui/src/lib/use-session.ts",
       "lines": 762,
       "relativeImports": 8
+    },
+    {
+      "file": "packages/tools/src/design-reference.ts",
+      "lines": 757,
+      "relativeImports": 2
     },
     {
       "file": "packages/fleet/src/host-skill-companion.ts",
@@ -36249,21 +36291,6 @@
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "lines": 715,
       "relativeImports": 17
-    },
-    {
-      "file": "packages/tui/src/reducers/panel-pickers.ts",
-      "lines": 714,
-      "relativeImports": 5
-    },
-    {
-      "file": "packages/webui-server/src/server/pref-helpers.ts",
-      "lines": 713,
-      "relativeImports": 3
-    },
-    {
-      "file": "packages/coordination/src/subagent-budget.ts",
-      "lines": 709,
-      "relativeImports": 2
     }
   ],
   "testOnlyExports": [
@@ -39130,6 +39157,10 @@
     {
       "file": "packages/tools/src/codebase-index/wrongindex/service.ts",
       "name": "toIndexResult"
+    },
+    {
+      "file": "packages/tools/src/design-reference.ts",
+      "name": "selectReferenceSubpages"
     },
     {
       "file": "packages/tools/src/diff.ts",

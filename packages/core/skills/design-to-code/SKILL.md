@@ -32,7 +32,7 @@ Implementing a supplied design is finished only when the match is measured: read
 
 | Reference | First step |
 |---|---|
-| Live URL | `design_reference {action:"extract", url, viewports:[1440, 768, 390]}` (see design-reference-read) |
+| Live URL | `design_reference {action:"extract", url, viewports:[1440, 1280, 1024, 768, 375], maxPages:3}` (writes `dna.md` + 10-section `DESIGN.md`; see design-reference-read) |
 | Screenshot / mockup image | design-reference-read `references/screenshot-measurement.md`; record the scale anchor |
 | Figma file | Use an available Figma integration to read frame sizes, styles and variables. Without one, ask for an export; never claim to have inspected an inaccessible file |
 | Written spec | Turn each stated value into a token; list unspecified values as assumptions |
@@ -122,7 +122,7 @@ form is not done.
 - [ ] Reference access, viewports, and literal-match vs. adaptation decisions are recorded in `.design/brief.md`.
 - [ ] `fidelity.md` exists from the final comparison round with its overall score and lowest axis reported.
 - [ ] Every remaining `off` or `near` property is either resolved via tokens/components or documented as a justified adaptation.
-- [ ] Reference and implementation screenshots were compared side by side at each target viewport (`1440`, `768`, `390`).
+- [ ] Reference and implementation screenshots were compared side by side at each target viewport (`1440`, `1280`, `1024`, `768`, `375`).
 - [ ] Font and asset substitutions and licenses are explicitly recorded.
 - [ ] Interactive flows, keyboard navigation, focus states, and loading/empty/error states were exercised beyond static visual fidelity.
 

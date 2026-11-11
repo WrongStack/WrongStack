@@ -9,6 +9,7 @@ import {
   materializeTokens,
   recordOverrides,
   resolveSemanticTune,
+  resolveVerifyTokens,
   saveCapturedTokens,
   setActiveKit,
   setDesignOverrides,
@@ -33,7 +34,7 @@ export function useDesignKitSlashCommands(deps: TuiSlashCommandOptions): void {
     const cmd = {
       name: 'design',
       description:
-        'Design Studio: /design (picker) | <kit> [stack] | off | foundations | set <k=v> | tune <k=v> | swap <kit> | materialize [stack] [path] | capture [files…] | verify.',
+        'Design Studio: /design (picker) | <kit> [stack] | extract <url|file> [pages] | compare <ref> <url|file> | inspect <url|file> | document [out] | off | foundations | set <k=v> | tune <k=v> | swap <kit> | materialize [stack] [path] | capture [files…] | verify.',
       async run(args: string) {
         const loader = getDesignKitLoader(projectRoot);
         const tokens = (args ?? '').trim().split(/\s+/).filter(Boolean);
@@ -62,6 +63,60 @@ export function useDesignKitSlashCommands(deps: TuiSlashCommandOptions): void {
         }
         if (sub === 'verify') {
           return { runText: 'design verify' };
+        }
+        if (sub === 'document') {
+          const out = tokens[1];
+          const payload = out ? { action: 'document', out, force: true } : { action: 'document' };
+          return { runText: `design ${JSON.stringify(payload)}` };
+        }
+        if (sub === 'extract') {
+          const target = tokens[1];
+          if (!target) {
+            return { message: 'Usage: /design extract <url-or-file> [maxPages]' };
+          }
+          const rawPages = tokens[2]?.replace(/^pages=/i, '');
+          const maxPages = rawPages ? Number(rawPages) : undefined;
+          if (
+            maxPages !== undefined &&
+            (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 8)
+          ) {
+            return {
+              message: 'Usage: /design extract <url-or-file> [maxPages] (maxPages must be 1–8)',
+            };
+          }
+          const isHttp = /^https?:\/\//i.test(target);
+          const payload = {
+            action: 'extract',
+            ...(isHttp ? { url: target } : { file: target }),
+            ...(maxPages !== undefined ? { maxPages } : {}),
+          };
+          return { runText: `design_reference ${JSON.stringify(payload)}` };
+        }
+        if (sub === 'compare') {
+          const ref = tokens[1];
+          const target = tokens[2];
+          if (!ref || !target) {
+            return { message: 'Usage: /design compare <reference-slug> <url-or-file>' };
+          }
+          const isHttp = /^https?:\/\//i.test(target);
+          const payload = {
+            action: 'compare',
+            reference: ref,
+            ...(isHttp ? { url: target } : { file: target }),
+          };
+          return { runText: `design_reference ${JSON.stringify(payload)}` };
+        }
+        if (sub === 'inspect') {
+          const target = tokens[1];
+          if (!target) {
+            return { message: 'Usage: /design inspect <url-or-file>' };
+          }
+          const isHttp = /^https?:\/\//i.test(target);
+          const payload = {
+            action: 'inspect',
+            ...(isHttp ? { url: target } : { file: target }),
+          };
+          return { runText: `design_reference ${JSON.stringify(payload)}` };
         }
         if (sub === 'set') {
           const patch: Record<string, string> = {};
@@ -126,21 +181,35 @@ export function useDesignKitSlashCommands(deps: TuiSlashCommandOptions): void {
         }
         if (sub === 'materialize') {
           const active = await loadActiveKit(projectRoot);
-          if (!active) return { message: 'No active kit. Pin one first: /design <kit-id>.' };
+          const captured = active ? undefined : await resolveVerifyTokens(projectRoot);
+          if (!active && !captured) {
+            return {
+              message: 'No active kit or captured tokens. Pin a kit or run /design capture first.',
+            };
+          }
           const stackArg2 = tokens[1]?.toLowerCase();
           const matStack =
             stackArg2 && isDesignStack(stackArg2)
               ? stackArg2
-              : active.stack && isDesignStack(active.stack)
+              : active?.stack && isDesignStack(active.stack)
                 ? active.stack
                 : 'web';
           const outPath = stackArg2 && !isDesignStack(stackArg2) ? tokens[1] : tokens[2];
-          const raw = await loader.readTokens(active.kit);
-          if (!raw) return { message: `Kit "${active.kit}" has no tokens.json.` };
+          let matTokens: import('@wrongstack/contracts/types').DesignKitTokens;
+          let kitId: string;
+          if (active) {
+            const raw = await loader.readTokens(active.kit);
+            if (!raw) return { message: `Kit "${active.kit}" has no tokens.json.` };
+            matTokens = applyTokenOverrides(raw, active.overrides);
+            kitId = active.kit;
+          } else {
+            matTokens = captured!.tokens;
+            kitId = 'captured-design';
+          }
           const result = materializeTokens({
-            tokens: applyTokenOverrides(raw, active.overrides),
+            tokens: matTokens,
             stack: matStack,
-            kitId: active.kit,
+            kitId,
             outPath,
           });
           const fsp = await import('node:fs/promises');

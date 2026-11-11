@@ -498,6 +498,19 @@ describe('designTool', () => {
       const verify = await designTool.execute({ action: 'verify' }, octx, opts);
       expect(verify.source).toBe('captured');
       expect(verify.output).toContain('[color.generic-utility]');
+
+      // Kit-less materialize compiles the captured DESIGN.md tokens directly into CSS.
+      const mat = await designTool.execute(
+        { action: 'materialize', stack: 'web', out: 'src/styles/tokens.css' },
+        octx,
+        opts,
+      );
+      expect(mat.kit).toBeUndefined();
+      expect(mat.path).toBe('src/styles/tokens.css');
+      expect(mat.output).toContain('captured palette');
+      const css = await fs.readFile(path.join(other, 'src', 'styles', 'tokens.css'), 'utf8');
+      expect(css).toContain(':root');
+      expect(css).toContain('.dark');
     } finally {
       await fs.rm(src, { recursive: true, force: true });
       await fs.rm(other, { recursive: true, force: true });

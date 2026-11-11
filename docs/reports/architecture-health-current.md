@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-11-11T21:39:58.271Z
+**Generated:** 2026-11-11T21:42:05.131Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 48 |
-| Production source files | 6264 |
-| Production source lines | 1289075 |
-| Test files | 5213 |
+| Production source files | 6267 |
+| Production source lines | 1291800 |
+| Test files | 5215 |
 | Workspace dependency edges | 250 |
-| Relative module edges | 18450 |
+| Relative module edges | 18454 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 1 |
@@ -64,11 +64,11 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/security-scanner | 21 | 34 | @wrongstack/contracts, @wrongstack/core |
 | @wrongstack/techstack | 55 | 65 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 28 | 44 | @wrongstack/contracts, @wrongstack/core, @wrongstack/primitives |
-| @wrongstack/tools | 400 | 388 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/tools | 400 | 389 | @wrongstack/agent-catalog, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 510 | 441 | @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 18 | 29 | @wrongstack/contracts, @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/vibeui | 71 | 25 | @wrongstack/webui-protocol |
-| @wrongstack/webui | 788 | 523 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
+| @wrongstack/webui | 791 | 524 | @wrongstack/contracts, @wrongstack/core, @wrongstack/goal, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/project-surfaces, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol |
 | @wrongstack/webui-protocol | 29 | 15 | @wrongstack/contracts, @wrongstack/core, @wrongstack/hq |
 | @wrongstack/webui-server | 351 | 395 | @wrongstack/agent-catalog, @wrongstack/builtin-plugins, @wrongstack/chronicle, @wrongstack/contracts, @wrongstack/coordination, @wrongstack/core, @wrongstack/fleet, @wrongstack/goal, @wrongstack/hq, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/worktree, @wrongstack/wrongtrace |
 | @wrongstack/worktree | 10 | 4 | @wrongstack/contracts, @wrongstack/core |
@@ -92,7 +92,9 @@ None.
 |---:|---|
 | 2069 | `apps/desktop-v2/src/FileWorkspace.tsx` |
 | 1589 | `apps/desktop-v2/src/ProjectAgentRoster.tsx` |
+| 1519 | `packages/core/src/execution/design-dna.ts` |
 | 1216 | `packages/vibeui/src/components/workspace.tsx` |
+| 1162 | `packages/core/src/execution/design-md.ts` |
 | 1110 | `packages/project-surfaces/src/atlas/codemap-model.ts` |
 | 1080 | `apps/desktop-v2/src/ProjectGoals.tsx` |
 | 1072 | `apps/desktop-v2/src/SessionComposer.tsx` |
@@ -114,6 +116,7 @@ None.
 | 766 | `apps/desktop-v2/src/ProjectChimera.tsx` |
 | 763 | `packages/plugins/src/adversary-mode/index.ts` |
 | 762 | `packages/vibeui/src/lib/use-session.ts` |
+| 757 | `packages/tools/src/design-reference.ts` |
 | 756 | `packages/fleet/src/host-skill-companion.ts` |
 | 755 | `apps/desktop-v2/src/ProjectSdd.tsx` |
 | 752 | `packages/acp/src/client/acp-session.ts` |
@@ -137,13 +140,10 @@ None.
 | 716 | `packages/plugins/src/audit/index.ts` |
 | 716 | `packages/requirement-intake/src/service.ts` |
 | 715 | `packages/tools/src/codebase-index/background-indexer.ts` |
-| 714 | `packages/tui/src/reducers/panel-pickers.ts` |
-| 713 | `packages/webui-server/src/server/pref-helpers.ts` |
-| 709 | `packages/coordination/src/subagent-budget.ts` |
 
 ## Exports only tests reference
 
-- 1046 runtime exports are referenced by tests and by no other production file.
+- 1047 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

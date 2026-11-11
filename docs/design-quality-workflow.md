@@ -64,7 +64,7 @@ copy voice) and cite rule ids instead of restating rules.
 | Layer | Mechanism | Enforced by |
 | --- | --- | --- |
 | Source | `design verify`: token drift + generated-UI patterns, on every UI write | `design-verify.ts`, write middleware |
-| Reference | `design_reference extract`: in-page script measures visible color area (point sampling with layer compositing), type scale/ratio, spacing unit, radii, elevation, motion, section rhythm, buttons, declared tokens at 1440/768/390 → `.design/references/<slug>/` | `design-dna-extractor.ts`, `design-dna.ts` |
+| Reference | `design_reference extract`: in-page script measures visible color area (point sampling with layer compositing), type scale/ratio, spacing unit, radii, elevation, full CSS gradients, 14+ component archetypes, `:hover`/`:focus`/`:active`/`:focus-visible` states, and declared tokens across 5 breakpoints (`1440/1280/1024/768/375`) and 1–8 pages → `.design/references/<slug>/{dna.md,DESIGN.md}` | `design-dna-extractor.ts`, `design-dna.ts`, `design-md.ts` |
 | Fidelity | `design_reference compare`: per-axis score with tolerances (OKLab ΔE ≤ 0.02, ±0.5px body, ±4% container…); overall = lowest axis | `design-dna-compare.ts` |
 | Rendered quality | `design_reference inspect`: reference-free FAIL/WARN gate — overflow, edge text, WCAG contrast against the background actually behind the text, WCAG 2.2 target size with the spacing exception, type counts, heading order, broken/unsized media, stuck-hidden text, blank bands, console errors | `design-inspect-extractor.ts`, `design-inspect.ts` |
 | Structure | 62 patterns by stable id with anatomy, ranges and DNA signals | `design-patterns` skill |
@@ -125,13 +125,19 @@ were rejected. An A/B run against the previous engine lost none of its 2055
 findings and kept the palette score identical. Exceptions are waived in the
 file with `design-ignore: <id>` (`-next-line`, `-file`; `*` for all).
 
-DESIGN.md interchange (google-labs-code/design.md, alpha, checked 2026-10-19):
+DESIGN.md interchange (`google-labs-code/design.md` & `designmd.me` 10-section
+format, alpha — see [Design DNA & DESIGN.md Synthesis Engine](design-dna-engine.md)):
 `design document` writes the pinned kit with its overrides, or the captured
 tokens, as a spec-ordered DESIGN.md (dark values as `dark-<role>` colors) and
 lints it; `design capture` reads a project's DESIGN.md before inferring from
-CSS/TS/Dart and refuses one with lint errors (broken references, duplicate
-keys or sections); `design_reference extract` writes the measured reference as
-DESIGN.md beside its DNA record. A round trip keeps both themes.
+CSS/TS/Dart (supporting both classic `dark-<role>` keys and `designmd.me`
+`canvas`/`ink`/`body` + `themes.dark` maps) and refuses one with lint errors
+(broken references, duplicate keys or sections); `design_reference extract`
+(or `/design extract <url> [maxPages]`) writes the measured reference as a
+complete 10-section `DESIGN.md` beside its DNA record, including full CSS
+gradients, component catalog with `{colors.*}`/`{rounded.*}`/`{typography.*}`
+references, interaction states, 5-breakpoint matrix, and coverage telemetry.
+A round trip keeps both themes.
 
 Dealt direction: shown the whole catalogue, models keep choosing the same few
 kits. Once a UI request activates Design Studio without a pinned kit, the

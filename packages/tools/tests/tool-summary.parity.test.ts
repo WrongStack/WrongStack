@@ -186,6 +186,47 @@ const cases: readonly Case[] = [
   { label: 'read offset only', tool: 'read', input: { path: 'file.ts', offset: 5 } },
   { label: 'read limit only', tool: 'read', input: { path: 'file.ts', limit: 100 } },
   { label: 'read plain', tool: 'read', input: { path: 'file.ts' } },
+  // design_reference & design
+  {
+    label: 'design_reference extract url multi-page',
+    tool: 'design_reference',
+    input: { action: 'extract', url: 'https://stripe.com', maxPages: 6 },
+  },
+  {
+    label: 'design_reference extract local file custom viewports',
+    tool: 'design_reference',
+    input: { action: 'extract', file: 'index.html', viewports: [1440, 375] },
+  },
+  {
+    label: 'design_reference compare',
+    tool: 'design_reference',
+    input: { action: 'compare', reference: 'stripe-com', file: 'index.html' },
+  },
+  {
+    label: 'design_reference inspect app',
+    tool: 'design_reference',
+    input: { action: 'inspect', url: 'http://localhost:5173', surface: 'app' },
+  },
+  {
+    label: 'design materialize web',
+    tool: 'design',
+    input: { action: 'materialize', stack: 'web', out: 'src/styles/tokens.css' },
+  },
+  {
+    label: 'design capture DESIGN.md',
+    tool: 'design',
+    input: { action: 'capture', files: ['DESIGN.md'] },
+  },
+  {
+    label: 'design use kit',
+    tool: 'design',
+    input: { action: 'use', kit: 'minimal-clarity', stack: 'web' },
+  },
+  {
+    label: 'design document',
+    tool: 'design',
+    input: { action: 'document' },
+  },
   // fallback head fields
   { label: 'fallback path', tool: 'unknown_tool', input: { path: '/foo/bar' } },
   { label: 'fallback file_path', tool: 'mcp__x__y', input: { file_path: '/foo/bar' } },

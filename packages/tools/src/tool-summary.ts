@@ -263,6 +263,62 @@ export function summarizeToolInput(toolName: string | undefined, input: unknown)
     if (fp) return `read ${fp}`;
   }
 
+  // ---- design_reference (DESIGN.md & Design DNA synthesis/compare/inspect) --
+  if (name === 'design_reference') {
+    const act = typeof obj.action === 'string' ? obj.action : 'extract';
+    const target =
+      typeof obj.url === 'string' && obj.url
+        ? clip(obj.url, 60)
+        : typeof obj.file === 'string' && obj.file
+          ? clip(obj.file, 60)
+          : typeof obj.against === 'string' && obj.against
+            ? clip(obj.against, 40)
+            : '';
+    if (act === 'extract') {
+      const mp =
+        typeof obj.maxPages === 'number' && obj.maxPages > 1
+          ? ` · up to ${obj.maxPages} pages`
+          : '';
+      const vps = Array.isArray(obj.viewports) ? obj.viewports.length : 5;
+      return `extract DESIGN.md${target ? ` · ${target}` : ''}${mp} · ${vps} breakpoints`;
+    }
+    if (act === 'compare') {
+      const ref = typeof obj.reference === 'string' && obj.reference ? obj.reference : 'ref';
+      return `compare fidelity · ${ref}${target ? ` ↔ ${target}` : ''}`;
+    }
+    if (act === 'inspect') {
+      const surf = typeof obj.surface === 'string' && obj.surface ? ` (${obj.surface})` : '';
+      return `inspect rendered quality${target ? ` · ${target}` : ''}${surf}`;
+    }
+  }
+
+  // ---- design (Design Studio kits, capture, materialize, document) ---
+  if (name === 'design') {
+    const act = typeof obj.action === 'string' && obj.action ? obj.action : 'list';
+    const kit = typeof obj.kit === 'string' && obj.kit ? obj.kit : '';
+    const stk = typeof obj.stack === 'string' && obj.stack ? obj.stack : '';
+    const out = typeof obj.out === 'string' && obj.out ? obj.out : '';
+    if (act === 'materialize') {
+      return `materialize${stk ? ` ${stk}` : ''}${out ? ` → ${clip(out, 60)}` : ''}`;
+    }
+    if (act === 'use') {
+      return `use ${kit || '(kit)'}${stk ? ` (${stk})` : ''}`;
+    }
+    if (act === 'capture') {
+      const f =
+        typeof obj.files === 'string'
+          ? obj.files
+          : Array.isArray(obj.files) && typeof obj.files[0] === 'string'
+            ? obj.files[0]
+            : '';
+      return `capture${f ? ` · ${clip(f, 60)}` : ' tokens'}`;
+    }
+    if (act === 'document') {
+      return `document → ${out ? clip(out, 60) : 'DESIGN.md'}`;
+    }
+    return `design ${act}${kit ? ` · ${kit}` : ''}`;
+  }
+
   // ---- Fallback: first non-empty headline string field --------------
   for (const k of FALLBACK_HEAD_FIELDS) {
     const v = obj[k];
@@ -392,6 +448,37 @@ export const SUMMARIZE_TOOL_INPUT_BROWSER_SRC: string = [
   '      if(typeof off==="number" || typeof lim==="number"){ var start=(typeof off==="number"?off:0); var end=(typeof lim==="number"?(start+lim):""); return "read "+fp+" ("+start+"\\u2026"+end+")"; }',
   '      return "read "+fp;',
   '    }',
+  '  }',
+  '  if(n==="design_reference"){',
+  '    var drAct=typeof obj.action==="string"?obj.action:"extract";',
+  '    var drTgt=(typeof obj.url==="string"&&obj.url)?__clip(obj.url,60):((typeof obj.file==="string"&&obj.file)?__clip(obj.file,60):((typeof obj.against==="string"&&obj.against)?__clip(obj.against,40):""));',
+  '    if(drAct==="extract"){',
+  '      var drMp=(typeof obj.maxPages==="number"&&obj.maxPages>1)?(" \\u00b7 up to "+obj.maxPages+" pages"):"";',
+  '      var drVps=Array.isArray(obj.viewports)?obj.viewports.length:5;',
+  '      return "extract DESIGN.md"+(drTgt?(" \\u00b7 "+drTgt):"")+drMp+" \\u00b7 "+drVps+" breakpoints";',
+  '    }',
+  '    if(drAct==="compare"){',
+  '      var drRef=(typeof obj.reference==="string"&&obj.reference)?obj.reference:"ref";',
+  '      return "compare fidelity \\u00b7 "+drRef+(drTgt?(" \\u2194 "+drTgt):"");',
+  '    }',
+  '    if(drAct==="inspect"){',
+  '      var drSurf=(typeof obj.surface==="string"&&obj.surface)?(" ("+obj.surface+")"):"";',
+  '      return "inspect rendered quality"+(drTgt?(" \\u00b7 "+drTgt):"")+drSurf;',
+  '    }',
+  '  }',
+  '  if(n==="design"){',
+  '    var dAct=(typeof obj.action==="string"&&obj.action)?obj.action:"list";',
+  '    var dKit=(typeof obj.kit==="string"&&obj.kit)?obj.kit:"";',
+  '    var dStk=(typeof obj.stack==="string"&&obj.stack)?obj.stack:"";',
+  '    var dOut=(typeof obj.out==="string"&&obj.out)?obj.out:"";',
+  '    if(dAct==="materialize") return "materialize"+(dStk?(" "+dStk):"")+(dOut?(" \\u2192 "+__clip(dOut,60)):"");',
+  '    if(dAct==="use") return "use "+(dKit||"(kit)")+(dStk?(" ("+dStk+")"):"");',
+  '    if(dAct==="capture"){',
+  '      var dFile=typeof obj.files==="string"?obj.files:((Array.isArray(obj.files)&&typeof obj.files[0]==="string")?obj.files[0]:"");',
+  '      return "capture"+(dFile?(" \\u00b7 "+__clip(dFile,60)):" tokens");',
+  '    }',
+  '    if(dAct==="document") return "document \\u2192 "+(dOut?__clip(dOut,60):"DESIGN.md");',
+  '    return "design "+dAct+(dKit?(" \\u00b7 "+dKit):"");',
   '  }',
   '  var HEAD=["path","file_path","pattern","symbol","command","cmd","url","query","description","content"], hi;',
   '  for(hi=0; hi<HEAD.length; hi++){ var hv=obj[HEAD[hi]]; if(typeof hv==="string" && hv.length>0){ return HEAD[hi]+": "+__clip(hv,100); } }',

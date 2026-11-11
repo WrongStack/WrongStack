@@ -10,6 +10,7 @@ import { diffFromToolInput, ToolDiffView } from '../DiffView';
 import { ToolResult } from '../ToolResult';
 import { BrowserOriginApproval, browserBlockedOrigin } from './BrowserOriginApproval.js';
 import { CopyButton } from './CopyButton.js';
+import { DesignReferenceCard } from './DesignReferenceCard.js';
 import { GeneratedImagePreview } from './GeneratedImagePreview.js';
 import { ToolCallOverview } from './ToolCallOverview.js';
 import { ToolInputView } from './ToolInputView.js';
@@ -182,6 +183,16 @@ export const ToolLedgerCard = memo(function ToolLedgerCard({
       {/* ── What image_generate drew, visible without opening the card. ─── */}
       {status === 'ok' && toolName === 'image_generate' && (
         <GeneratedImagePreview result={message.toolResult} messageId={message.id} />
+      )}
+
+      {/* ── Design DNA & DESIGN.md 4-stage pipeline stepper + artifact links ── */}
+      {toolName === 'design_reference' && (
+        <DesignReferenceCard
+          status={status}
+          input={message.toolInput}
+          result={message.toolResult}
+          progressLines={message.progressLines}
+        />
       )}
 
       {/* ── Live progress lines (while running) ────────────────────────── */}

@@ -430,17 +430,26 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
 
     if (action === 'materialize') {
       const active = await loadActiveKit(ctx.projectRoot);
-      if (!active) throw new Error(NO_ACTIVE_KIT);
+      const source = active ? undefined : await resolveVerifyTokens(ctx.projectRoot);
+      if (!active && !source) throw new Error(NO_ACTIVE_KIT);
       const resolvedStack: DesignStack =
-        stack ?? (active.stack && isDesignStack(active.stack) ? active.stack : 'web');
-      const rawTokens = await loader.readTokens(active.kit);
-      if (!rawTokens) throw new Error(`design: kit "${active.kit}" has no tokens.json.`);
-      const tokens = applyTokenOverrides(rawTokens, active.overrides);
+        stack ?? (active?.stack && isDesignStack(active.stack) ? active.stack : 'web');
+      let tokens: import('@wrongstack/contracts/types/design-kit').DesignKitTokens;
+      let kitId: string;
+      if (active) {
+        const rawTokens = await loader.readTokens(active.kit);
+        if (!rawTokens) throw new Error(`design: kit "${active.kit}" has no tokens.json.`);
+        tokens = applyTokenOverrides(rawTokens, active.overrides);
+        kitId = active.kit;
+      } else {
+        tokens = source!.tokens;
+        kitId = 'captured-design';
+      }
       const contrastWarn = contrastWarning(kitContrastIssues(tokens));
       const result = materializeTokens({
         tokens,
         stack: resolvedStack,
-        kitId: active.kit,
+        kitId,
         outPath: input.out,
       });
       // Containment: result.path derives from caller-supplied input.out and
@@ -495,12 +504,11 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       await atomicWrite(abs, result.content);
       return {
         action,
-        kit: active.kit,
+        kit: active?.kit,
         stack: resolvedStack,
         path: result.path,
         output:
-          `Wrote ${result.format} to ${result.path}. Import these tokens in your UI so the kit ` +
-          `palette is the source of truth. ${exists ? '(overwrote existing file)' : ''}` +
+          `Wrote ${result.format} to ${result.path}. Import these tokens in your UI so the ${active ? 'kit ' : 'captured '}palette is the source of truth. ${exists ? '(overwrote existing file)' : ''}` +
           contrastWarn,
       };
     }

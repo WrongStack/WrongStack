@@ -47,7 +47,7 @@ export function WorkbenchArt() {
   );
 }
 
-export function LauncherArt({ kind }: { kind: 'audit' | 'performance' }) {
+export function LauncherArt({ kind }: { kind: 'audit' | 'performance' | 'design' }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
       <path d="M5 16V5h11M32 5h11v11M43 32v11H32M16 43H5V32" stroke="currentColor" opacity="0.35" />
@@ -58,6 +58,15 @@ export function LauncherArt({ kind }: { kind: 'audit' | 'performance' }) {
           <circle cx="24" cy="24" r="5" />
           <path d="M24 9v6m0 18v6M9 24h6m18 0h6" />
           <path d="m21.5 24 1.7 1.7 3.5-3.5" />
+        </g>
+      ) : kind === 'design' ? (
+        <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="10" y="11" width="28" height="26" rx="3" />
+          <path d="M10 18h28M18 18v19" />
+          <circle cx="14" cy="14.5" r="1" fill="currentColor" stroke="none" />
+          <circle cx="17.5" cy="14.5" r="1" fill="currentColor" stroke="none" />
+          <rect x="22" y="22" width="12" height="5" rx="1.5" />
+          <path d="M22 31h7m3 0h2" />
         </g>
       ) : (
         <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

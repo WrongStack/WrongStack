@@ -54,6 +54,14 @@
       "lines": 732,
       "relativeImports": 19
     },
+    "packages/core/src/execution/design-dna.ts": {
+      "lines": 1519,
+      "relativeImports": 2
+    },
+    "packages/core/src/execution/design-md.ts": {
+      "lines": 1162,
+      "relativeImports": 2
+    },
     "packages/core/src/storage/file-session-writer.ts": {
       "lines": 704,
       "relativeImports": 12
@@ -108,6 +116,10 @@
     },
     "packages/tools/src/codebase-index/infra-parser.ts": {
       "lines": 903,
+      "relativeImports": 2
+    },
+    "packages/tools/src/design-reference.ts": {
+      "lines": 757,
       "relativeImports": 2
     },
     "packages/tools/src/process-registry.ts": {

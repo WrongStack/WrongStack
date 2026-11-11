@@ -158,6 +158,20 @@ describe('design_reference extract / compare / inspect', () => {
         opts,
       ),
     ).rejects.toThrow(/not a reference name/);
+    await expect(
+      designTool.execute(
+        { action: 'extract', url: 'https://example.com', maxPages: 20 },
+        ctx,
+        opts,
+      ),
+    ).rejects.toThrow(/maxPages/);
+    await expect(
+      designTool.execute(
+        { action: 'extract', url: 'https://example.com', pages: ['ftp://bad.url'] },
+        ctx,
+        opts,
+      ),
+    ).rejects.toThrow(/http\(s\) URL/);
   });
 
   it('validates inspect input before opening a browser', async () => {
@@ -210,6 +224,40 @@ describe('design_reference extract / compare / inspect', () => {
     await expect(
       designTool.execute({ action: 'verify' as never }, makeCtx(), opts),
     ).rejects.toThrow(/unknown action "verify"/);
+  });
+
+  it('streams progress and file_changed events before final output via executeStream', async () => {
+    await saveReference('stream-a', raw('#533afd', '6'));
+    await saveReference('stream-b', raw('#0a2540', '4'));
+    expect(typeof designTool.executeStream).toBe('function');
+    const events: unknown[] = [];
+    for await (const ev of designTool.executeStream!(
+      { action: 'compare', reference: 'stream-a', against: 'stream-b' },
+      makeCtx(),
+      opts,
+    )) {
+      events.push(ev);
+    }
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'log',
+          text: expect.stringContaining('Scoring per-axis fidelity'),
+        }),
+        expect.objectContaining({
+          type: 'file_changed',
+          operation: 'write',
+          path: '.design/references/stream-a/fidelity.md',
+        }),
+        expect.objectContaining({
+          type: 'final',
+          output: expect.objectContaining({
+            action: 'compare',
+            path: '.design/references/stream-a/fidelity.md',
+          }),
+        }),
+      ]),
+    );
   });
 });
 

@@ -14,16 +14,21 @@
  * this second surface had not.
  */
 
-import { Check, LayoutGrid, Loader2, Palette } from 'lucide-react';
+import { ArrowRight, Check, Globe, LayoutGrid, Loader2, Palette } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { usePagination } from '@/hooks/usePagination';
-import { cn } from '@/lib/utils';
-import { useActiveSessionId } from '@/stores';
-import { useAppTranslation } from '@/i18n';
-import { showPanel } from '@/lib/view-navigation';
-import { Pagination } from '@/components/ui/pagination';
 import { ContrastBadges, type ContrastIssue } from '@/components/ContrastBadges';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
+import {
+  buildDesignExtractPrompt,
+  DESIGN_EXTRACT_PAGES,
+  type DesignExtractPageCount,
+} from '@/lib/design-dna-message';
+import { cn } from '@/lib/utils';
+import { showPanel } from '@/lib/view-navigation';
+import { useActiveSessionId, useChatStore } from '@/stores';
 
 interface KitSummary {
   id: string;
@@ -68,6 +73,8 @@ export function DesignStudioPanel({ className }: { className?: string }) {
   const [stack, setStack] = useState<string>('web');
   const [busyKit, setBusyKit] = useState<string | null>(null);
   const [contrastIssues, setContrastIssues] = useState<ContrastIssue[]>([]);
+  const [extractSource, setExtractSource] = useState('https://stripe.com');
+  const [extractPages, setExtractPages] = useState<DesignExtractPageCount>(6);
   const sessionId = useActiveSessionId();
 
   useEffect(() => {
@@ -127,6 +134,20 @@ export function DesignStudioPanel({ className }: { className?: string }) {
     [client, stack],
   );
 
+  const startExtractFromPanel = useCallback(() => {
+    if (!client || !extractSource.trim()) return;
+    const content = buildDesignExtractPrompt({
+      source: extractSource,
+      maxPages: extractPages,
+      workflow: 'extract',
+    });
+    const id = client.sendMessage(content);
+    const chat = useChatStore.getState();
+    chat.addMessage({ id, role: 'user', content });
+    chat.setLoading(true);
+    showPanel('chat');
+  }, [client, extractPages, extractSource]);
+
   const sortedKits = useMemo(() => [...kits].sort((a, b) => a.name.localeCompare(b.name)), [kits]);
   const kitPage = usePagination(sortedKits, 10, stack);
 
@@ -157,6 +178,46 @@ export function DesignStudioPanel({ className }: { className?: string }) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="border-b border-border/50 bg-primary/[0.03] px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+          <Globe className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden />
+          <span className="truncate">{t('setup:welcome.design.panelQuickTitle')}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={extractSource}
+            onChange={(e) => setExtractSource(e.target.value)}
+            placeholder="https://stripe.com"
+            aria-label={t('setup:welcome.design.sourceLabel')}
+            className="min-w-0 flex-1 rounded border border-border/70 bg-background px-2 py-1 font-mono text-[11px]"
+          />
+          <select
+            value={extractPages}
+            onChange={(e) => setExtractPages(Number(e.target.value) as DesignExtractPageCount)}
+            aria-label={t('setup:welcome.design.pagesLabel')}
+            className="rounded border border-border/70 bg-background px-1.5 py-1 text-[11px]"
+            title={t('setup:welcome.design.pagesLabel')}
+          >
+            {DESIGN_EXTRACT_PAGES.map((n) => (
+              <option key={n} value={n}>
+                {n}p
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={startExtractFromPanel}
+            disabled={!client || !extractSource.trim()}
+            className="inline-flex shrink-0 items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            title={t('setup:welcome.design.start')}
+          >
+            <span>DESIGN.md</span>
+            <ArrowRight className="w-3 h-3" aria-hidden />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-2 space-y-2">

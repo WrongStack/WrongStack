@@ -3,11 +3,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { captureProjectTokens } from '../../src/execution/design-capture.js';
+import { summarizeDesignDna } from '../../src/execution/design-dna.js';
 import { getDesignKitLoader } from '../../src/execution/design-kit-loader.js';
 import {
   designMdToTokens,
   parseDesignMd,
   renderDesignMd,
+  renderDesignMdFromDna,
   resolveDesignMdRef,
 } from '../../src/execution/design-md.js';
 
@@ -171,5 +173,281 @@ describe('capture from DESIGN.md', () => {
     const broken = await captureProjectTokens(root);
     expect(broken.files).not.toContain('DESIGN.md');
     expect(broken.notes.join(' ')).toMatch(/DESIGN\.md: not used — \[broken-ref\]/);
+  });
+});
+
+describe('renderDesignMdFromDna (designmd.me engine)', () => {
+  it('generates the full 10-section designmd.me prompt specification and parses cleanly', () => {
+    const dna = summarizeDesignDna(
+      [
+        {
+          v: 1,
+          url: 'https://stripe.com/',
+          title: 'Stripe | Financial Infrastructure',
+          vw: 1440,
+          vh: 900,
+          docH: 3600,
+          screens: 4,
+          rootBg: '#f6f9fc',
+          colorScheme: 'light',
+          themeColor: '#533afd',
+          generator: null,
+          samples: {
+            points: 1000,
+            media: 50,
+            gradient: 120,
+            area: [
+              ['#f6f9fc', 650],
+              ['#e5edf5', 200],
+              ['#0a2540', 80],
+              ['#533afd', 30],
+            ],
+          },
+          text: [
+            ['56|500|67.76|-1.12|sohne-var||h1', 45],
+            ['38|500|47.88|-0.2|sohne-var||h2', 80],
+            ['15|300|22.5|0|sohne-var||p', 1200],
+            ['12|500|15|0.2|sohne-var|uppercase|span', 60],
+          ],
+          textColor: [
+            ['#000000', 400],
+            ['#3f4b66', 900],
+            ['#4f5b76', 200],
+          ],
+          families: [['sohne-var', 1385]],
+          fontsLoaded: ['sohne-var'],
+          padding: [
+            ['16', 20],
+            ['24', 18],
+            ['40', 8],
+          ],
+          gap: [['16', 10]],
+          vmargin: [['24', 10]],
+          radius: [
+            ['4', 12],
+            ['6', 8],
+            ['8', 4],
+          ],
+          shadow: [
+            ['rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px', 6],
+          ],
+          borderW: [['1', 8]],
+          borderColor: [['#d8dbde', 8]],
+          duration: [['200', 5]],
+          easing: [['ease-out', 5]],
+          gradients: [['radial-gradient', 2]],
+          fullGradients: [
+            {
+              context: 'hero',
+              kind: 'radial',
+              value: 'radial-gradient(circle, rgb(127, 125, 252), rgb(244, 75, 204) 33%)',
+            },
+          ],
+          effects: { animated: 2 },
+          grids: [[4, 16, 4, 1248, 600]],
+          buttons: [
+            {
+              h: 48,
+              w: 148,
+              padX: 24,
+              pad: '15.5px 24px 16.5px 24px',
+              r: 4,
+              bg: '#533afd',
+              fg: '#ffffff',
+              border: null,
+              fw: '400',
+              fs: 16,
+              lh: 1,
+              ff: 'sohne-var',
+              tt: 'none',
+              y: 320,
+            },
+          ],
+          cards: [
+            {
+              h: 220,
+              w: 400,
+              pad: '24px 24px 24px 24px',
+              r: 6,
+              bg: '#e5edf5',
+              fg: '#000000',
+              border: null,
+              fw: '400',
+              fs: 16,
+              ff: 'sohne-var',
+            },
+          ],
+          links: [
+            {
+              h: 20,
+              w: 80,
+              r: 0,
+              bg: null,
+              fg: '#0000ee',
+              border: null,
+              fw: '400',
+              fs: 16,
+              ff: 'sohne-var',
+            },
+          ],
+          badges: [
+            {
+              h: 36,
+              w: 150,
+              pad: '7px 10px 7px 10px',
+              r: 6,
+              bg: '#ffffff',
+              fg: '#0a2540',
+              border: '#e5edf5',
+              bw: 1,
+              fw: '425',
+              fs: 13,
+              lh: 1.15,
+              ff: 'sohne-var',
+            },
+          ],
+          inputs: [],
+          nav: {
+            h: 64,
+            w: 1262,
+            pos: 'sticky',
+            bg: null,
+            fg: '#000000',
+            pad: '10px 16px 10px 16px',
+            r: 6,
+            fs: 16,
+            ff: 'sohne-var',
+            fw: '400',
+            backdrop: false,
+            links: 4,
+            linksVis: 4,
+            menuToggle: false,
+            buttons: 2,
+          },
+          footer: {
+            h: 320,
+            w: 1248,
+            bg: '#f8fafd',
+            fg: '#000000',
+            pad: '0px 16px 0px 16px',
+            fs: 16,
+            ff: 'sohne-var',
+            fw: '400',
+          },
+          sections: [
+            {
+              tag: 'section',
+              y: 64,
+              h: 600,
+              bg: null,
+              padY: [40, 40],
+              padX: [16, 16],
+              cols: 2,
+              media: 'right',
+              container: 1248,
+              align: 'start',
+              sticky: false,
+            },
+          ],
+          states: {
+            'button-hover': { target: 'button', state: 'hover', opacity: 0.6 },
+          },
+          statesFound: 14,
+          sheetsBlocked: 1,
+          images: 3,
+          imgRatios: [],
+          icons: [],
+          vars: {},
+          elements: 250,
+        },
+      ],
+      '2026-11-08T00:00:00.000Z',
+    );
+
+    const md = renderDesignMdFromDna(dna);
+    expect(md).toContain('# Design System Inspired by Stripe');
+    expect(md).toContain('## 1. Visual Theme & Atmosphere');
+    expect(md).toContain('## 2. Color Palette & Roles');
+    expect(md).toContain('## 3. Typography Rules');
+    expect(md).toContain('## 4. Component Stylings');
+    expect(md).toContain('## 5. Layout Principles');
+    expect(md).toContain('## 6. Depth & Elevation');
+    expect(md).toContain("## 7. Do's and Don'ts");
+    expect(md).toContain('## 8. Responsive Behavior');
+    expect(md).toContain('## 9. Agent Prompt Guide');
+    expect(md).toContain('## 10. Known Gaps');
+
+    const parsed = parseDesignMd(md);
+    expect(parsed.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(parsed.doc?.source).toMatchObject({
+      url: 'https://stripe.com/',
+      pagesAnalyzed: 1,
+      extractedAt: '2026-11-08',
+      tokensMeasured: true,
+    });
+    expect(parsed.doc?.colors.primary).toBe('#533AFD');
+    expect(parsed.doc?.colors.canvas).toBe('#F6F9FC');
+    expect(parsed.doc?.themes?.derived).toBe('dark');
+    expect(parsed.doc?.gradients?.[0]).toMatchObject({ context: 'hero', kind: 'radial' });
+    expect(parsed.doc?.coverage?.statesFound).toBe(14);
+
+    // Verify designMdToTokens maps canvas->bg, ink->fg, themes, shadows, and typography roles
+    const tokens = designMdToTokens(parsed.doc!);
+    expect(tokens.light?.bg).toBe('#F6F9FC');
+    expect(tokens.light?.fg).toBe('#000000');
+    expect(tokens.light?.['on-primary']).toBe('#FFFFFF');
+    expect(tokens.light?.ring).toBe('#533AFD');
+    expect(tokens.dark?.bg).toBe('#0B0B14');
+    expect(tokens.dark?.surface).toBe('#1A1A22');
+    expect(tokens.dark?.raised).toBe('#26262E');
+    expect(tokens.light?.['text-5xl']).toBe('56px');
+    expect(tokens.light?.['text-3xl']).toBe('38px');
+    expect(tokens.light?.['text-base']).toBe('15px');
+    expect(tokens.light?.['text-xs']).toBe('12px');
+    expect(Object.keys(tokens.light ?? {}).some((k) => k.startsWith('shadow-'))).toBe(true);
+  });
+
+  it('resolves {typography.*} component references without broken-ref errors', () => {
+    const md = `---
+version: alpha
+name: Stripe
+colors:
+  primary: "#533AFD"
+typography:
+  body-sm-2:
+    fontFamily: sohne-var
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1
+rounded:
+  sm: 4px
+spacing:
+  md: 16px
+components:
+  button-primary-sm:
+    typography: "{typography.body-sm-2}"
+    textColor: "rgb(255, 255, 255)"
+    rounded: "{rounded.sm}"
+    backgroundColor: "{colors.primary}"
+---
+
+## 1. Visual Theme & Atmosphere
+Modern financial infrastructure.
+
+## 2. Color Palette & Roles
+Primary purple.
+
+## 3. Typography Rules
+Sohne variable.
+
+## 4. Component Stylings
+Buttons and cards.
+
+## 5. Layout Principles
+8px scale.
+`;
+    const parsed = parseDesignMd(md);
+    expect(parsed.issues).toEqual([]);
+    expect(resolveDesignMdRef(parsed.doc!, '{typography.body-sm-2}')).toContain('sohne-var');
   });
 });

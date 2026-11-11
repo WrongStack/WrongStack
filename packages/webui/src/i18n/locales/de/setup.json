@@ -69,6 +69,26 @@
       "compact": "Kontext verkleinern",
       "clear": "aktuellen Kontext löschen",
       "new": "neue Sitzung"
+    },
+    "design": {
+      "studioShortcut": "Design Studio",
+      "title": "Design-DNA & DESIGN.md-Synthese",
+      "body": "Messen Sie jede Referenz-URL oder lokale HTML-Datei über 5 Breakpoints und bis zu 8 Unterseiten, um eine 10-teilige DESIGN.md-Spezifikation zu erzeugen.",
+      "stageCrawl": "5-Breakpoint-Messung",
+      "stageSubpages": "Unterseiten-Analyse",
+      "stageSynthesis": "DNA-Synthese",
+      "stageSpec": "10-teilige DESIGN.md",
+      "sourceLabel": "Referenz-URL oder lokale HTML-Datei",
+      "pagesLabel": "Seiten",
+      "workflowLabel": "Ablauf",
+      "workflowExtract": "DESIGN.md extrahieren",
+      "workflowMaterializeWeb": "Extrahieren + Web-Theme erzeugen",
+      "workflowMaterializeRn": "Extrahieren + React-Native-Theme",
+      "presets": "Beispiele:",
+      "start": "DESIGN.md extrahieren",
+      "openDesignMd": "DESIGN.md öffnen",
+      "openStudio": "Design Studio",
+      "panelQuickTitle": "Referenzseite → DESIGN.md"
     }
   },
   "provider": {

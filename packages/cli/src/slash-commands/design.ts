@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { SlashCommand } from '@wrongstack/contracts/types';
 import {
   applyTokenOverrides,
+  captureProjectTokens,
   clearActiveKit,
   clearPersistedActiveKit,
   getDesignKitLoader,
@@ -13,7 +14,9 @@ import {
   recordOverrides,
   resolveMaterializeTarget,
   resolveSemanticTune,
+  resolveVerifyTokens,
   type SemanticTune,
+  saveCapturedTokens,
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
@@ -47,20 +50,27 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
     name: 'design',
     category: 'Config',
     description: 'Browse/pin a curated UI design kit (Design Studio)',
-    argsHint: '[<kit-id> [stack] | off | foundations]',
+    argsHint: '[<kit-id> [stack] | extract <url> [pages] | off | foundations]',
     help: [
       'Usage:',
       '  /design                    List available design kits + the active one',
       '  /design <kit-id> [stack]   Pin a kit and load its full spec (stack: web|react-native|flutter|swiftui|compose)',
+      '  /design extract <url|file> [maxPages]  Extract DESIGN.md + design DNA across 5 breakpoints',
+      '  /design compare <ref> <url|file>       Compare an implementation against an extracted reference',
+      '  /design inspect <url|file>             Inspect a rendered page for layout/contrast defects',
+      '  /design document [out]     Write the active kit or captured tokens as DESIGN.md',
       '  /design off                Clear the active kit',
       '  /design foundations        Print the mandatory responsive/a11y/theming/motion baseline',
       '  /design set <k=v> …        Override kit colors/tokens (e.g. primary=oklch(62% 0.2 25) dark.bg=#111)',
       '  /design tune <k=v> …       High-level knobs (radius=lg density=compact font="Space Grotesk" motion=snappy)',
       '  /design swap <kit-id> [stack]  Switch to a different kit, dropping the old kit overrides',
-      '  /design materialize [stack] [path]  Write the active kit tokens to a real theme file',
+      '  /design capture [files…]   Extract tokens from DESIGN.md or existing CSS/Tailwind into .design/captured.json',
+      '  /design materialize [stack] [path]  Write the active kit or captured tokens to a real theme file',
       '  /design verify             Scan UI files for token drift (color/radius/spacing)',
       '',
       'Examples:',
+      '  /design extract https://stripe.com 6',
+      '  /design compare stripe-com index.html',
       '  /design minimal-clarity web',
       '  /design set primary=oklch(62% 0.2 25)',
       '  /design tune radius=lg density=compact',
@@ -96,6 +106,64 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
 
       if (sub === 'verify') {
         return { runText: 'design verify' };
+      }
+
+      if (sub === 'document') {
+        const out = tokens[1];
+        const payload = out ? { action: 'document', out, force: true } : { action: 'document' };
+        return { runText: `design ${JSON.stringify(payload)}` };
+      }
+
+      if (sub === 'extract') {
+        const target = tokens[1];
+        if (!target) {
+          return { message: 'Usage: /design extract <url-or-file> [maxPages]' };
+        }
+        const rawPages = tokens[2]?.replace(/^pages=/i, '');
+        const maxPages = rawPages ? Number(rawPages) : undefined;
+        if (
+          maxPages !== undefined &&
+          (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 8)
+        ) {
+          return {
+            message: 'Usage: /design extract <url-or-file> [maxPages] (maxPages must be 1–8)',
+          };
+        }
+        const isHttp = /^https?:\/\//i.test(target);
+        const payload = {
+          action: 'extract',
+          ...(isHttp ? { url: target } : { file: target }),
+          ...(maxPages !== undefined ? { maxPages } : {}),
+        };
+        return { runText: `design_reference ${JSON.stringify(payload)}` };
+      }
+
+      if (sub === 'compare') {
+        const ref = tokens[1];
+        const target = tokens[2];
+        if (!ref || !target) {
+          return { message: 'Usage: /design compare <reference-slug> <url-or-file>' };
+        }
+        const isHttp = /^https?:\/\//i.test(target);
+        const payload = {
+          action: 'compare',
+          reference: ref,
+          ...(isHttp ? { url: target } : { file: target }),
+        };
+        return { runText: `design_reference ${JSON.stringify(payload)}` };
+      }
+
+      if (sub === 'inspect') {
+        const target = tokens[1];
+        if (!target) {
+          return { message: 'Usage: /design inspect <url-or-file>' };
+        }
+        const isHttp = /^https?:\/\//i.test(target);
+        const payload = {
+          action: 'inspect',
+          ...(isHttp ? { url: target } : { file: target }),
+        };
+        return { runText: `design_reference ${JSON.stringify(payload)}` };
       }
 
       if (sub === 'set') {
@@ -165,24 +233,35 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
 
       if (sub === 'materialize') {
         const active = await loadActiveKit(opts.projectRoot);
-        if (!active) {
-          return { message: 'No active kit. Pin one first: /design <kit-id>.' };
+        const captured = active ? undefined : await resolveVerifyTokens(opts.projectRoot);
+        if (!active && !captured) {
+          return {
+            message: 'No active kit or captured tokens. Pin a kit or run /design capture first.',
+          };
         }
         const stackArg2 = tokens[1]?.toLowerCase();
         const matStack =
           stackArg2 && isDesignStack(stackArg2)
             ? stackArg2
-            : active.stack && isDesignStack(active.stack)
+            : active?.stack && isDesignStack(active.stack)
               ? active.stack
               : 'web';
         const outPath = stackArg2 && !isDesignStack(stackArg2) ? tokens[1] : tokens[2];
-        const raw = await loader.readTokens(active.kit);
-        if (!raw) return { message: `Kit "${active.kit}" has no tokens.json.` };
-        const merged = applyTokenOverrides(raw, active.overrides);
+        let merged: import('@wrongstack/contracts/types').DesignKitTokens;
+        let kitId: string;
+        if (active) {
+          const raw = await loader.readTokens(active.kit);
+          if (!raw) return { message: `Kit "${active.kit}" has no tokens.json.` };
+          merged = applyTokenOverrides(raw, active.overrides);
+          kitId = active.kit;
+        } else {
+          merged = captured!.tokens;
+          kitId = 'captured-design';
+        }
         const result = materializeTokens({
           tokens: merged,
           stack: matStack,
-          kitId: active.kit,
+          kitId,
           outPath,
         });
         // WS-052: share the containment resolver with the tool and WS paths.
@@ -201,6 +280,33 @@ export function buildDesignCommand(opts: SlashCommandContext): SlashCommand {
         return {
           message: color.green(`Wrote ${result.format} → ${result.path}`),
           metadata: { designMaterialize: result.path },
+        };
+      }
+
+      if (sub === 'capture') {
+        const files = tokens.slice(1).filter(Boolean);
+        const result = await captureProjectTokens(opts.projectRoot, {
+          files: files.length > 0 ? files : undefined,
+        });
+        const lightN = Object.keys(result.tokens.light ?? {}).length;
+        const darkN = Object.keys(result.tokens.dark ?? {}).length;
+        if (lightN + darkN === 0) {
+          return {
+            message:
+              `Design capture found no tokens.${result.notes.length ? ` ${result.notes.join(' ')}` : ''}` +
+              ' Pass files explicitly: /design capture DESIGN.md',
+          };
+        }
+        const rel = await saveCapturedTokens(opts.projectRoot, {
+          stack: result.stack,
+          files: result.files,
+          tokens: result.tokens,
+          palettes: result.palettes,
+        });
+        return {
+          message: color.green(
+            `Captured ${lightN + darkN} token value(s) (${lightN} light / ${darkN} dark) from ${result.files.join(', ')} → ${rel}.`,
+          ),
         };
       }
 

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 524,
-      "typeOnly": 395,
+      "files": 526,
+      "typeOnly": 397,
       "runtimeOrMixed": 161
     },
     "@wrongstack/core/boot": {
@@ -2189,6 +2189,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/design-reference-crawl.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/exec.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3366,6 +3372,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui/src/types/runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "scripts/design-md.mts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
