@@ -96,6 +96,6 @@ export interface GoalWsHandlerInternals extends GoalWsRunControlsHost {
   afterBoardMutation(): void;
   startBroadcast(): void;
   sendState(client: WSClient): void;
-  broadcastCatalog(): Promise<void>;
+  broadcastCatalog(options?: { onlyIfChanged?: boolean }): Promise<void>;
   orchestrator: PhaseOrchestrator | null;
 }

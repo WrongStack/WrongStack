@@ -1,6 +1,7 @@
 import { toolDisplayName, toolFlowMetricsLabel } from '@wrongstack/tools/tool-summary';
 import type React from 'react';
 import { useMemo } from 'react';
+import { extractToolImageArtifactPath } from '../../graphics/image-preview-cache.js';
 import { langFromPath } from '../../highlight.js';
 import { Box, Text } from '../../ink.js';
 import { sanitizeTerminalText } from '../../terminal-width.js';
@@ -18,6 +19,7 @@ import {
 } from './code-block.js';
 import { SageMemoryBlock } from './sage-memory-block.js';
 import { ToolCard } from './tool-card.js';
+import { ToolImagePreview } from './tool-image-preview.js';
 import type { HistoryEntry } from './types.js';
 import {
   fmtBytes,
@@ -60,6 +62,7 @@ export function ToolEntry({
   // even though the entry data never changes.
   const {
     argSummary,
+    outputForFormatting,
     outLines,
     sageLines,
     visualLines,
@@ -196,6 +199,7 @@ export function ToolEntry({
     })();
     return {
       argSummary,
+      outputForFormatting,
       outLines,
       sageLines,
       visualLines,
@@ -249,6 +253,15 @@ export function ToolEntry({
               <Text dimColor>{statsText}</Text>
             </Text>
           ) : null}
+          {expandedBody && entry.ok ? (
+            <ToolImagePreview
+              toolName={entry.name}
+              output={outputForFormatting}
+              input={entry.input}
+              termWidth={termWidth}
+              useTruecolor={theme.supportsBackground}
+            />
+          ) : null}
           {expandedBody && multiDiffs ? (
             <Box flexDirection="column">
               {(() => {
@@ -290,11 +303,17 @@ export function ToolEntry({
     );
   }
   const toolContentWidth = Math.max(1, termWidth - 2);
+  const hasImageArtifact = Boolean(
+    expandedBody &&
+      entry.ok &&
+      extractToolImageArtifactPath(entry.name, outputForFormatting, entry.input),
+  );
   const hasToolBody = Boolean(
     !minimal &&
-      (full
-        ? fullOutputLines.length > 0 || diff || multiDiffs
-        : (visualLines && visualLines.length > 0) || (expandedBody && outLines.length > 0)),
+      (hasImageArtifact ||
+        (full
+          ? fullOutputLines.length > 0 || diff || multiDiffs
+          : (visualLines && visualLines.length > 0) || (expandedBody && outLines.length > 0))),
   );
   return (
     <Box flexDirection="column">
@@ -343,6 +362,15 @@ export function ToolEntry({
             );
           })
         )}
+        {expandedBody && entry.ok ? (
+          <ToolImagePreview
+            toolName={entry.name}
+            output={outputForFormatting}
+            input={entry.input}
+            termWidth={termWidth}
+            useTruecolor={theme.supportsBackground}
+          />
+        ) : null}
         {expandedBody && multiDiffs ? (
           <Box flexDirection="column">
             {(() => {

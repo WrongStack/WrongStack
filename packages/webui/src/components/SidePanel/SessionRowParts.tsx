@@ -1,4 +1,4 @@
-import { AlertTriangle, FileCode2, Loader2, Wrench } from 'lucide-react';
+import { AlertTriangle, FileCode2, GitBranch, Loader2, Wrench } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import type { SessionHistoryEntry } from '@/stores';
 import {
@@ -83,6 +83,22 @@ export function SessionRowStats({
       {entry.tokenTotal > 0 ? <span>{formatCompactNumber(entry.tokenTotal)} tok</span> : null}
       {(entry.messageCount ?? 0) > 0 ? (
         <span>{formatCompactNumber(entry.messageCount ?? 0)} msg</span>
+      ) : null}
+      {(entry.branchCount ?? 1) > 1 ? (
+        <span
+          className="inline-flex items-center gap-1 text-primary"
+          title={
+            entry.activeBranchName
+              ? `Active branch: ${entry.activeBranchName} (${entry.branchCount} branches)`
+              : `${entry.branchCount} branches`
+          }
+          data-testid="session-row-branch-badge"
+        >
+          <GitBranch className="h-3 w-3" />
+          {entry.activeBranchName && entry.activeBranchName !== 'main'
+            ? `${entry.activeBranchName} (${entry.branchCount})`
+            : entry.branchCount}
+        </span>
       ) : null}
       {(entry.toolCallCount ?? 0) > 0 ? (
         <span className="inline-flex items-center gap-1">

@@ -433,6 +433,11 @@ export interface StatusBarProps {
    */
   sideEffectCount?: number | undefined;
   /**
+   * Declarative status chips contributed by plugins via `api.ui.registerStatusChip`.
+   * Rendered on a compact supplementary strip only when non-empty.
+   */
+  pluginChips?: readonly import('@wrongstack/core/plugin').RegisteredPluginStatusChip[] | undefined;
+  /**
    * Optional cap on the column width used for layout adaptation. When set,
    * the status bar treats this as its effective terminal width instead of
    * `stdout.columns` — needed when the bar sits in a column narrower than

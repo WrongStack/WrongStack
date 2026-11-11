@@ -46,7 +46,9 @@ export function attachGoalClient(self: GoalWsHandlerInternals, ws: WebSocket): v
     for (const goal of self.goals.values()) goal.addClient(ws);
     if (!self.catalogTimer) {
       self.catalogTimer = setInterval(() => {
-        void self.broadcastCatalog();
+        // Only news goes out on the timer; an identical catalog every two seconds was noise
+        // that every client (and the desktop's on-disk journal) had to take.
+        void self.broadcastCatalog({ onlyIfChanged: true });
       }, 2000);
       self.catalogTimer.unref?.();
     }

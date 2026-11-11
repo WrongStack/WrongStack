@@ -27,6 +27,8 @@ export interface WSClientMessage {
 }
 
 export interface WebUIOptions {
+  /** Start at the exact host-selected directory without searching for a parent project. */
+  useCwdAsProjectRoot?: boolean | undefined;
   /**
    * The version of the released executable this server runs in (the desktop engine). When given,
    * the server checks GitHub releases for a newer one, once a day through the profile's update

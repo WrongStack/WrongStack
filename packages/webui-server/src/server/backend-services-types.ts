@@ -151,6 +151,16 @@ export interface AgentServices {
   closeAcpLeader?: () => Promise<void>;
   /** Dispose the plugin host and stop the user-hook hot reload and lifecycle bridge. */
   closePlugins?: () => Promise<void>;
+  /** Declarative `api.ui` slot registry owned by the standalone plugin host. */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
+  /** Live slash-command registry populated by external and built-in plugins. */
+  pluginSlashRegistry?: import('@wrongstack/core/registry').SlashCommandRegistry | undefined;
+  /** Atomic hot-reload entry point for external plugins (`/plugin reload`). */
+  reloadPlugins?:
+    | ((
+        targetName?: string,
+      ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
+    | undefined;
   permissionPolicy: PermissionPolicy;
   pipelines: AgentPipelines;
   brain: ObservableBrainArbiter;

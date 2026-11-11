@@ -247,6 +247,7 @@ export async function runCliExecution(params: {
         flags,
         positional,
         updateInfo,
+        pluginUiRegistry: pluginHost?.uiRegistry,
       },
       session: {
         attachments,

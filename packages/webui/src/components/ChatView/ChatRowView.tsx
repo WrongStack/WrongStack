@@ -1,3 +1,4 @@
+import { GitBranch } from 'lucide-react';
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { MessageBubble } from '../MessageBubble';
@@ -15,6 +16,8 @@ export const ChatRowView = memo(function ChatRowView({
   groupToolCalls,
   sessionId,
   readOnly = false,
+  promptIndex,
+  onBranchFromPrompt,
 }: {
   row: ChatRow;
   isLoading: boolean;
@@ -25,6 +28,9 @@ export const ChatRowView = memo(function ChatRowView({
   sessionId: string;
   /** Observation-only rendering (the subagent tabs) — see MessageBubble. */
   readOnly?: boolean | undefined;
+  /** 0-based user prompt turn index for `/tree branch --at <N>`. */
+  promptIndex?: number | undefined;
+  onBranchFromPrompt?: ((promptIndex: number) => void) | undefined;
 }) {
   const wrap = cn(
     'mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6',
@@ -44,8 +50,23 @@ export const ChatRowView = memo(function ChatRowView({
   }
   if (row.kind === 'user') {
     return (
-      <div className={wrap}>
+      <div className={cn(wrap, 'group/user-turn')}>
         <MessageBubble message={row.message} isFirst />
+        {!readOnly && promptIndex !== undefined && onBranchFromPrompt ? (
+          <div className="mt-1 flex justify-end opacity-0 transition-opacity focus-within:opacity-100 group-hover/user-turn:opacity-100">
+            <button
+              type="button"
+              disabled={isLoading}
+              data-testid={`branch-from-prompt-${promptIndex}`}
+              title={`Fork a new session branch from prompt #${promptIndex}`}
+              onClick={() => onBranchFromPrompt(promptIndex)}
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            >
+              <GitBranch className="h-3 w-3" />
+              <span>Branch from here</span>
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }

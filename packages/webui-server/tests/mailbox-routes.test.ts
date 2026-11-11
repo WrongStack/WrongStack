@@ -102,7 +102,8 @@ describe('handleMailboxRoute', () => {
         payload: {
           requestId: 'request-invalid',
           success: false,
-          error: 'mailbox.send payload.type is invalid: Type "assign" requires a specific recipient — multi-recipient target "*" is ambiguous',
+          error:
+            'mailbox.send payload.type is invalid: Type "assign" requires a specific recipient — multi-recipient target "*" is ambiguous',
         },
       },
     ]);

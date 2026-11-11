@@ -1,10 +1,11 @@
 import type { TerminalLifecycle } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
+import { clearImagePreviewCache } from './graphics/image-preview-cache.js';
 import { ALT_SCREEN_OFF, MOUSE_OFF } from './mouse.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { setupTuiSession } from './run-tui-session.js';
 import { createDurableTeardown } from './run-tui-teardown.js';
-import { BRACKETED_PASTE_OFF } from './terminal-modes.js';
+import { BRACKETED_PASTE_OFF, SYNC_OUTPUT_OFF } from './terminal-modes.js';
 import { unsilenceTerminal } from './terminal-silence.js';
 
 /** Everything runTui needs from the exit wiring after handing it over. */
@@ -41,6 +42,8 @@ export interface ExitOrchestratorDeps {
   stopTitle: () => void;
   /** No-op-when-null wrapper over runTui's trace-tee restore handle. */
   restoreTrace: () => void;
+  /** Flush and detach DECSET 2026 synchronized output wrapper before restoring modes. */
+  disposeSyncStdout?: (() => void) | undefined;
 }
 
 /**
@@ -56,7 +59,7 @@ export interface ExitOrchestratorDeps {
  * resolve (attachResolve from the run promise's executor).
  */
 export function createExitOrchestrator(deps: ExitOrchestratorDeps): ExitOrchestrator {
-  const { opts, stdout, inkStdin, lifecycle, stopTitle, restoreTrace } = deps;
+  const { opts, stdout, inkStdin, lifecycle, stopTitle, restoreTrace, disposeSyncStdout } = deps;
 
   // Take over EVERY keystroke. Raw mode (Ink turns this on when render
   // mounts) already disables ICANON/ECHO/ISIG/IXON on Linux+macOS, so
@@ -97,6 +100,15 @@ export function createExitOrchestrator(deps: ExitOrchestratorDeps): ExitOrchestr
       // title controller already torn down — ignore.
     }
     try {
+      disposeSyncStdout?.();
+    } catch {
+      // sync stream already disposed — ignore.
+    }
+    clearImagePreviewCache();
+    try {
+      // Unconditionally close any DECSET 2026 synchronized frame before leaving
+      // TUI modes so a mid-frame exit can never strand the terminal buffered.
+      stdout.write(SYNC_OUTPUT_OFF);
       stdout.write(BRACKETED_PASTE_OFF);
       // Disabling unset modes is a no-op, so this is safe even when mouse
       // tracking was never enabled — guarantees no leaked mouse reporting.

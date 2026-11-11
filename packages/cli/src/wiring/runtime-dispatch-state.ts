@@ -81,6 +81,7 @@ export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
     pipelines: input.pipelines,
     projectRoot: input.projectRoot,
     logger: input.logger,
+    events: input.events,
   });
   process.once('exit', disposeIndexing);
 

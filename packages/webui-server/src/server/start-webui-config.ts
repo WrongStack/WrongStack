@@ -37,7 +37,7 @@ export interface PreparedWebuiConfig {
  */
 export async function prepareWebuiConfig(opts: WebUIOptions): Promise<PreparedWebuiConfig> {
   // Boot configuration
-  const boot = await bootConfig();
+  const boot = await bootConfig(opts.useCwdAsProjectRoot);
   const { config: baseConfig, wpaths, logger } = boot;
   // Seed the WrongProxy / WrongTrace singleton from the persisted
   // `tools.wrongProxy.{enabled,url}` block and await the first probe BEFORE

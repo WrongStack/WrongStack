@@ -4,9 +4,14 @@ import { useGoalRunStore, useSessionStore, useUIStore } from '@/stores';
 import { useGoalCatalogStore } from '@/stores/goal-catalog-store';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { downloadChatAsMarkdown } from '../CommandPalette/export-utils.js';
+import { openPluginUiModal } from '../PluginUiModal.js';
 import { SLASH_COMMANDS } from './slash-commands.js';
 
-import { engineSlashCommands, runEngineSlashCommand } from './slash-routing-engine.js';
+import {
+  engineSlashCommands,
+  runDirectEngineSlashCommand,
+  runEngineSlashCommand,
+} from './slash-routing-engine.js';
 import { runFKeyPanelCommand } from './slash-routing-fkeys.js';
 import { runGoalSlashCommand } from './slash-routing-goal.js';
 import { runHuntSlashCommand } from './slash-routing-hunt.js';
@@ -485,6 +490,46 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/f11':
     case '/f12':
       return runFKeyPanelCommand(cmd, args, client, ws, addMessage);
+    case '/design': {
+      const sub = args.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
+      if (sub === 'gallery' || sub === 'studio' || sub === 'open') {
+        showPanel('design');
+        return true;
+      }
+      if (runEngineSlashCommand(cmd, args, client, addMessage, sendMsg)) return true;
+      // Fallback if engine command catalog hasn't hydrated yet: open studio on bare `/design`,
+      // or forward `/design extract|compare|inspect ...` directly as a structured agent prompt.
+      if (!sub) {
+        showPanel('design');
+        return true;
+      }
+      if (sub === 'extract' || sub === 'compare' || sub === 'inspect') {
+        sendMsg(`/${cmd.slice(1)} ${args}`);
+        return true;
+      }
+      return false;
+    }
+    case '/panel': {
+      const tokens = args.trim().split(/\s+/).filter(Boolean);
+      const sub = tokens[0]?.toLowerCase() ?? '';
+      if (!sub || sub === 'open') {
+        const targetId = sub === 'open' ? tokens[1] : undefined;
+        if (openPluginUiModal(targetId)) return true;
+      }
+      return (
+        runEngineSlashCommand(cmd, args, client, addMessage, sendMsg) ||
+        runDirectEngineSlashCommand('panel', args, client, addMessage, sendMsg)
+      );
+    }
+    case '/tree':
+    case '/plugin':
+    case '/image': {
+      const bare = cmd.slice(1);
+      return (
+        runEngineSlashCommand(cmd, args, client, addMessage, sendMsg) ||
+        runDirectEngineSlashCommand(bare, args, client, addMessage, sendMsg)
+      );
+    }
     default:
       // The engine's own commands (the TUI's that need no terminal) before the model.
       return runEngineSlashCommand(cmd, args, client, addMessage, sendMsg);

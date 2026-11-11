@@ -43,6 +43,10 @@ export interface ResumeSessionEntry {
   outcome?: 'completed' | 'error' | 'timeout' | 'aborted' | undefined;
   /** Parent session id when this session is a fork; the picker nests it. */
   forkedFrom?: string | undefined;
+  /** Number of non-archived DAG branches inside the session tree (>1 renders badge). */
+  branchCount?: number | undefined;
+  /** Human-readable name of the active DAG branch when `branchCount > 1`. */
+  activeBranchName?: string | undefined;
   /**
    * Set when the session belongs to another git worktree of this repository
    * (its own project directory). Choosing it switches to that worktree first.

@@ -444,7 +444,7 @@ export class GoalWebSocketHandler {
     return this as unknown as GoalWsHandlerInternals;
   }
 
-  private async broadcastCatalog(): Promise<void> {
-    return broadcastGoalCatalog(this.internals());
+  private async broadcastCatalog(options?: { onlyIfChanged?: boolean }): Promise<void> {
+    return broadcastGoalCatalog(this.internals(), options);
   }
 }

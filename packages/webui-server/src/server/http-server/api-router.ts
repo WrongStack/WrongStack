@@ -55,6 +55,7 @@ import {
   handleApiSessionMailbox,
   handleApiSessionMessage,
   handleApiSessions,
+  handleApiSessionTree,
 } from './api-handlers.js';
 import { handleProjectAutomation } from './automation-handler.js';
 import { handleMemorySearchPage } from './memory-search-page.js';
@@ -196,6 +197,23 @@ export async function handleApiRoutes(
     const sessionId = sessionIdOrReject(agentsMatch[1]!, res);
     if (sessionId === null) return true;
     await handleApiSessionAgents(res, deps.globalRoot, sessionId);
+    return true;
+  }
+
+  const treeMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/tree$/);
+  if (treeMatch && req.method === 'GET') {
+    if (requireAccessToken && !accessTokenOk) return unauthorized(res);
+    const sessionId = sessionIdOrReject(treeMatch[1]!, res);
+    if (sessionId === null) return true;
+    await handleApiSessionTree(
+      res,
+      {
+        globalRoot: deps.globalRoot,
+        projectRoot: deps.projectRoot,
+        getSessionProjectRoot: deps.getSessionProjectRoot,
+      },
+      sessionId,
+    );
     return true;
   }
 

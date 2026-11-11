@@ -1,6 +1,9 @@
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { registerSetupEventsFleetBroadcaster } from '../src/server/setup-events-fleet-broadcaster.js';
+import {
+  createSnapshotGate,
+  registerSetupEventsFleetBroadcaster,
+} from '../src/server/setup-events-fleet-broadcaster.js';
 
 const mocks = vi.hoisted(() => {
   const mockList = vi.fn();
@@ -150,8 +153,9 @@ describe('registerSetupEventsFleetBroadcaster', () => {
     await onFleetCallback?.();
     expect(broadcast).toHaveBeenCalledWith(clients, expect.anything());
 
-    // Test subscription event debounced trigger
+    // Test subscription event debounced trigger (a snapshot with news goes out at once)
     broadcast.mockClear();
+    mocks.mockList.mockResolvedValue([{ ...testSessions[0], status: 'idle' }]);
     subscribeCallback?.();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(broadcast).toHaveBeenCalledWith(clients, expect.anything());
@@ -253,6 +257,26 @@ describe('registerSetupEventsFleetBroadcaster', () => {
     // A registry read failure must not push a (wrong, empty) status update.
     expect(broadcast).not.toHaveBeenCalled();
     dispose?.();
+  });
+
+  it('the snapshot gate drops beats that only moved heartbeats, but never news or a ping', () => {
+    const shouldSend = createSnapshotGate(10_000);
+    const session = (beat: number, status = 'idle') => ({
+      sessionId: 's',
+      status,
+      lastHeartbeatAt: beat,
+    });
+    expect(shouldSend([session(1000)], { now: 0 })).toBe(true);
+    // Heartbeats every few seconds: only the beat time moved.
+    expect(shouldSend([session(6000)], { now: 5000 })).toBe(false);
+    expect(shouldSend([session(9000)], { now: 9000 })).toBe(false);
+    // Real news goes out at once.
+    expect(shouldSend([session(9500, 'active')], { now: 9500 })).toBe(true);
+    // An explicit ping is always answered.
+    expect(shouldSend([session(9600, 'active')], { now: 9600, force: true })).toBe(true);
+    // An unchanged snapshot is still re-sent once the window has passed, as a keepalive.
+    expect(shouldSend([session(15000, 'active')], { now: 15000 })).toBe(false);
+    expect(shouldSend([session(20000, 'active')], { now: 19700 })).toBe(true);
   });
 
   it('bails out early if disposed', async () => {

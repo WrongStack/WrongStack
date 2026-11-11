@@ -1,5 +1,5 @@
-import type { PluginHostHandle } from '@wrongstack/core/plugin';
 import {
+  type ManagedPluginHostHandle,
   type PluginsWiringDeps,
   setupPlugins as setupHostPlugins,
 } from '@wrongstack/runtime/plugin-host';
@@ -14,12 +14,16 @@ export {
   BUILTIN_PLUGIN_NAME_HINTS,
   builtinPluginNameFromSpec,
   DEPRECATED_PLUGIN_NAMES,
+  type ExternalPluginReloadReport,
+  type ManagedPluginHostHandle,
   type PluginsWiringDeps,
   pluginNameFromSpec,
   warnIfDeprecatedPluginName,
 } from '@wrongstack/runtime/plugin-host';
 
 /** The CLI host's plugin setup: the shared loader with the CLI's plugin API factory. */
-export function setupPlugins(params: PluginsWiringDeps): Promise<PluginHostHandle | undefined> {
+export function setupPlugins(
+  params: PluginsWiringDeps,
+): Promise<ManagedPluginHostHandle | undefined> {
   return setupHostPlugins({ ...params, apiFactory: params.apiFactory ?? createApi });
 }

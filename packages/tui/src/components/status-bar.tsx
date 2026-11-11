@@ -14,6 +14,7 @@ import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
 import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
+import { PluginStatusStrip } from './plugin-panel-overlay.js';
 import { layoutRail, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
 import {
@@ -133,6 +134,7 @@ export const StatusBar = memo(function StatusBar({
   toolCount,
   visibleChips = [],
   sideEffectCount = 0,
+  pluginChips,
   maxWidth,
   clickMapRef,
 }: StatusBarProps): React.ReactElement {
@@ -463,6 +465,12 @@ export const StatusBar = memo(function StatusBar({
           budget={railBudget}
           monochrome={isNoColor}
         />
+        {pluginChips && pluginChips.length > 0 ? (
+          <PluginStatusStrip
+            chips={pluginChips}
+            maxColumns={Math.max(12, Math.floor(railBudget * 0.3))}
+          />
+        ) : null}
       </Box>
     );
   }
@@ -487,6 +495,12 @@ export const StatusBar = memo(function StatusBar({
           />
         ) : null,
       )}
+      {pluginChips && pluginChips.length > 0 ? (
+        <PluginStatusStrip
+          chips={pluginChips}
+          maxColumns={Math.max(12, Math.floor(railBudget * 0.3))}
+        />
+      ) : null}
     </Box>
   );
 });

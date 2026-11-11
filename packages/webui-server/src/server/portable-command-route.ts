@@ -1,9 +1,17 @@
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type {
   ConfigStore,
+  Logger,
+  Message,
   Provider,
+  SessionBranchDescriptor,
   SessionStore,
+  SessionWriter,
   SlashCommand,
 } from '@wrongstack/contracts/types';
+import type { ExtensionRegistryPort } from '@wrongstack/contracts/types/extension-points';
+import type { PluginUiRegistry } from '@wrongstack/core/plugin';
+import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { getActiveFleetSupervisor, wrongstackBridgeSetup } from '@wrongstack/fleet';
 import {
@@ -15,9 +23,11 @@ import {
   type PortableCommandHost,
   type TuneupHooks,
 } from '@wrongstack/runtime/commands';
+import { buildReplayPayload } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
-import type { CommandRouteContext } from './command-routes.js';
+import { type CommandRouteContext, catalogEntry } from './command-routes.js';
 import type { WSServerMessage } from './types.js';
+import { errMessage } from './ws-utils.js';
 
 type CommandContext = Parameters<SlashCommand['run']>[1];
 /** The MCP servers as `/tuneup` sees them. */
@@ -29,7 +39,9 @@ export type FleetCallbacks = Pick<FleetCommandHost, 'onSpawn' | 'onFleetSpawn' |
 interface LeaderContext {
   provider?: Provider | undefined;
   model?: string | undefined;
-  session?: { id?: string | undefined } | undefined;
+  session?: SessionWriter | { id?: string | undefined } | undefined;
+  messages?: Message[] | undefined;
+  state?: { replaceMessages(messages: Message[]): void } | undefined;
 }
 
 /**
@@ -60,6 +72,16 @@ export function portableCommandRoute(host: {
   /** `/plugin`: back the profile config up before a write, and apply a change live. */
   backupConfig?: PortableCommandHost['backupConfig'];
   applyConfigPatch?: PortableCommandHost['applyConfigPatch'];
+  reloadPlugins?: PortableCommandHost['reloadPlugins'];
+  pluginUiRegistry?: PluginUiRegistry | (() => PluginUiRegistry | undefined) | undefined;
+  pluginSlashRegistry?: SlashCommandRegistry | (() => SlashCommandRegistry | undefined) | undefined;
+  events?: EventBus | (() => EventBus | undefined) | undefined;
+  extensionRegistry?: ExtensionRegistryPort | (() => ExtensionRegistryPort | undefined) | undefined;
+  onTreeMessagesReplaced?:
+    | ((messages: Message[], branch: SessionBranchDescriptor) => void)
+    | undefined;
+  /** Broadcasts updated `command.catalog` frames whenever `plugin.reloaded` fires. */
+  broadcast?: ((message: WSServerMessage) => void) | undefined;
   /** Commands the hosting process runs itself; they replace the engine's of the same name. */
   hostCommands?: (() => readonly SlashCommand[]) | undefined;
   /** The active profile's config file, which `/tuneup fix` writes. */
@@ -86,6 +108,21 @@ export function portableCommandRoute(host: {
     get context() {
       return leader();
     },
+    get sessionRef() {
+      const s = leader()?.session;
+      return s && typeof (s as SessionWriter).append === 'function'
+        ? { current: s as SessionWriter }
+        : undefined;
+    },
+    get events() {
+      return typeof host.events === 'function' ? host.events() : host.events;
+    },
+    get extensionRegistry() {
+      return typeof host.extensionRegistry === 'function'
+        ? host.extensionRegistry()
+        : host.extensionRegistry;
+    },
+    onTreeMessagesReplaced: host.onTreeMessagesReplaced,
     get llmProvider() {
       return leader()?.provider;
     },
@@ -114,6 +151,8 @@ export function portableCommandRoute(host: {
     },
     backupConfig: host.backupConfig,
     applyConfigPatch: host.applyConfigPatch,
+    reloadPlugins: host.reloadPlugins,
+    pluginUiRegistry: host.pluginUiRegistry,
     get paths() {
       return host.getPaths?.();
     },
@@ -135,9 +174,16 @@ export function portableCommandRoute(host: {
       })),
     renderer: quiet,
   };
-  return {
-    getCommands: () =>
-      (commands ??= buildCommands(
+  const resolveSlashRegistry = (): SlashCommandRegistry | undefined =>
+    typeof host.pluginSlashRegistry === 'function'
+      ? host.pluginSlashRegistry()
+      : host.pluginSlashRegistry;
+
+  let subscribedBus: EventBus | undefined;
+  const getCommands = (): Promise<SlashCommand[]> => {
+    ensureReloadSubscription();
+    if (!commands) {
+      commands = buildCommands(
         portable,
         {
           skillLoader: host.skillLoader,
@@ -146,7 +192,33 @@ export function portableCommandRoute(host: {
           vault: host.vault,
         },
         host.hostCommands?.() ?? [],
-      )),
+        resolveSlashRegistry(),
+      );
+    }
+    return commands;
+  };
+  const ensureReloadSubscription = (): void => {
+    const bus = portable.events;
+    if (!bus || bus === subscribedBus) return;
+    subscribedBus = bus;
+    bus.on('plugin.reloaded', () => {
+      commands = undefined;
+      if (host.broadcast) {
+        void getCommands()
+          .then((list) => {
+            host.broadcast?.({
+              type: 'command.catalog',
+              payload: { commands: list.map(catalogEntry) },
+            });
+          })
+          .catch(() => {});
+      }
+    });
+  };
+  ensureReloadSubscription();
+
+  return {
+    getCommands,
     getContext: (sessionId) => host.getContext(sessionId) as CommandContext,
     send: host.send,
   };
@@ -157,6 +229,7 @@ async function buildCommands(
   portable: PortableCommandHost,
   plugins: PluginCommandHost,
   hosted: readonly SlashCommand[],
+  pluginSlashRegistry?: SlashCommandRegistry,
 ): Promise<SlashCommand[]> {
   const replaced = new Set(hosted.map((command) => command.name));
   const own = [
@@ -164,6 +237,49 @@ async function buildCommands(
     ...buildPortableCommands(portable).filter((command) => !replaced.has(command.name)),
   ];
   const taken = new Set(own.flatMap((command) => [command.name, ...(command.aliases ?? [])]));
-  const extra = await buildPluginCommands(plugins).catch(() => []);
-  return [...own, ...extra.filter((command) => !taken.has(command.name))];
+  const extra = (await buildPluginCommands(plugins).catch(() => [])).filter(
+    (command) => !taken.has(command.name),
+  );
+  for (const command of extra) {
+    taken.add(command.name);
+    for (const alias of command.aliases ?? []) taken.add(alias);
+  }
+  const dynamic = (pluginSlashRegistry?.listWithOwner() ?? [])
+    .map(({ cmd, fullName }) => (cmd.name === fullName ? cmd : { ...cmd, name: fullName }))
+    .filter((command) => !taken.has(command.name));
+  return [...own, ...extra, ...dynamic];
+}
+
+/**
+ * Broadcast a `session.start` reset payload carrying the newly materialized
+ * branch transcript whenever `/tree switch` or `/tree fold` mutates messages.
+ */
+export function broadcastBranchReplay(opts: {
+  sessionId: string;
+  messages: Message[];
+  sessionStartPayload?:
+    | ((opts?: { reset?: boolean; sessionId?: string }) => unknown | Promise<unknown>)
+    | undefined;
+  broadcast: (msg: WSServerMessage) => void;
+  logger: Logger;
+  label?: string | undefined;
+}): void {
+  if (!opts.sessionStartPayload) return;
+  const replay = buildReplayPayload({ messages: opts.messages });
+  void Promise.resolve(opts.sessionStartPayload({ reset: true, sessionId: opts.sessionId }))
+    .then((base) => {
+      opts.broadcast({
+        type: 'session.start',
+        payload: {
+          ...(base && typeof base === 'object' ? base : {}),
+          ...replay,
+          replayMessages: replay.replayMessages ?? [],
+        } as never,
+      });
+    })
+    .catch((error: unknown) => {
+      opts.logger.warn(
+        `${opts.label ?? 'webui'}: branch replay payload failed (session ${opts.sessionId}): ${errMessage(error)}`,
+      );
+    });
 }

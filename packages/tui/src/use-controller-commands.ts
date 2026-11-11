@@ -105,6 +105,14 @@ export function useControllerCommands({
     onToolToggle: controllerProps.onToolToggle,
     setLiveToolCount,
     getActiveModelReasoningEffortLevels: props.getActiveModelReasoningEffortLevels,
+    canOpenTreeOverlay: () =>
+      Boolean(
+        typeof props.treeCoordinator === 'function'
+          ? props.treeCoordinator()
+          : props.treeCoordinator,
+      ),
+    canOpenPluginPanel: () =>
+      Boolean(props.pluginUiRegistry && props.pluginUiRegistry.listPanels().length > 0),
   });
   return { panelControllers, getCronJobs, runSteerSequence };
 }

@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { fmtTok } from './utils.js';
+import { WebuiSessionBranchControl } from './WebuiSessionBranchControl';
 
 export function ChatHeader({
   sidebarOpen,
@@ -220,6 +221,7 @@ export function ChatHeader({
                 </span>
               </button>
             ))}
+          {sessionId && <WebuiSessionBranchControl sessionId={sessionId} />}
         </div>
 
         <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center justify-end gap-1.5">

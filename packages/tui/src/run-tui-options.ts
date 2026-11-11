@@ -228,6 +228,13 @@ export interface RunTuiOptions extends RunTuiSurfaceOptions {
     | undefined;
   /** Called on App unmount — restores the default stderr debug-stream callback. */
   restoreDebugStreamCallback?: (() => void) | undefined;
+  /** Optional session tree coordinator (or lazy resolver) for the `/tree` modal. */
+  treeCoordinator?:
+    | import('@wrongstack/core/storage').SessionTreeCoordinator
+    | (() => import('@wrongstack/core/storage').SessionTreeCoordinator | undefined)
+    | undefined;
+  /** Optional declarative plugin UI registry for status chips and `/panel`. */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
   /** Called from /clear so the TUI can wipe its history entries while agent.ctx + memory are cleared separately. */
   onClearHistory?:
     | ((

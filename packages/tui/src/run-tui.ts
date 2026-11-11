@@ -6,6 +6,7 @@ import { TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import React from 'react';
 import { App } from './app.js';
 import { AppErrorBoundary } from './components/app-error-boundary.js';
+import { clearImagePreviewCache } from './graphics/image-preview-cache.js';
 import { titleAnimationAllowed } from './motion.js';
 import { ALT_SCREEN_ON } from './mouse.js';
 import { createExitOrchestrator } from './run-tui-exits.js';
@@ -13,6 +14,7 @@ import { resolveTuiLaunchPlan } from './run-tui-launch.js';
 import { mountInkApp } from './run-tui-mount.js';
 import type { RunTuiOptions } from './run-tui-options.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
+import { createSynchronizedStdout, stripTerminalGraphicsResponses } from './sync-stdout.js';
 import { BRACKETED_PASTE_ON } from './terminal-modes.js';
 
 // Re-export autonomy stage types from core for backward compatibility
@@ -96,6 +98,29 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // the terminal is never left reporting mouse events after exit.
 
   const inkStdin: NodeJS.ReadStream = stdin;
+  let restoreStdinGraphicsFilter: (() => void) | undefined;
+  if (capability.graphicsProtocol === 'kitty') {
+    // Filter asynchronous Kitty APC responses (`\x1b_Gi=...;OK\x1b\\`) out of
+    // stdin.read() in-place rather than attaching a pre-mount `'data'` listener
+    // (which would prematurely switch stdin into flowing mode and drop boot keys).
+    const rawStdinRead = inkStdin.read;
+    const origStdinRead = rawStdinRead.bind(inkStdin);
+    const wrappedRead: typeof inkStdin.read = ((size?: number) => {
+      const chunk = origStdinRead(size);
+      if (chunk === null) return null;
+      if (typeof chunk === 'string' || Buffer.isBuffer(chunk)) {
+        const stripped = stripTerminalGraphicsResponses(chunk);
+        return stripped.length > 0 ? stripped : null;
+      }
+      return chunk;
+    }) as typeof inkStdin.read;
+    inkStdin.read = wrappedRead;
+    restoreStdinGraphicsFilter = () => {
+      if (inkStdin.read === wrappedRead) {
+        inkStdin.read = rawStdinRead;
+      }
+    };
+  }
 
   // Animated window/tab title: a braille spinner + live status (thinking /
   // running a tool) driven by the EventBus, scrolling the app name when idle.
@@ -117,6 +142,13 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   });
   if (titleAnimationAllowed(opts.titleAnimation)) startTitle();
 
+  // Coalesce burst writes within the same microtask into atomic DECSET 2026
+  // synchronized output frames (`\x1b[?2026h ... \x1b[?2026l`). Layered above
+  // the trace tee so `WRONGSTACK_TUI_TRACE=1` records exact wire bytes.
+  const syncStdout = createSynchronizedStdout(stdout, {
+    enabled: capability.supportsSyncOutput,
+  });
+
   // Exit orchestration (idempotent cleanup, durable teardown, the six exit
   // paths, registration lifecycle) moved verbatim into createExitOrchestrator
   // (decomposition Phase 1 R4 — docs/decomposition-plan.md). The cleaned and
@@ -130,6 +162,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     stopTitle,
     restoreTrace: () => {
       restoreTrace?.();
+    },
+    disposeSyncStdout: () => {
+      restoreStdinGraphicsFilter?.();
+      syncStdout.dispose();
     },
   });
 
@@ -163,11 +199,12 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     // keep their pre-clear tracker values so the ANSI diff is calculated
     // relative to a cursor that still matches reality.
     const clearTerminal = () => {
+      clearImagePreviewCache();
       // This clear does not pass through Ink: the frame differ must not treat
       // the rows it remembers as still on screen.
       mount?.invalidateFrame();
       try {
-        stdout.write('\x1b[2J\x1b[3J');
+        syncStdout.stream.write('\x1b[2J\x1b[3J');
       } catch {
         // stdout may be closed mid-teardown — ignore.
       }
@@ -325,6 +362,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         listSessions: opts.listSessions,
         forkSession: opts.forkSession,
         onResumeSession: opts.onResumeSession,
+        treeCoordinator: opts.treeCoordinator,
+        pluginUiRegistry: opts.pluginUiRegistry,
         getProjectPickerItems: opts.getProjectPickerItems,
         onProjectSelect: opts.onProjectSelect,
         requestExit: opts.requestExit,
@@ -353,7 +392,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       mount = mountInkApp({
         appElement,
         inkStdin,
-        stdout,
+        stdout: syncStdout.stream,
         onRawCtrlC: exits.onRawCtrlC,
         onStartupFailure: reportStartupFailure,
       });

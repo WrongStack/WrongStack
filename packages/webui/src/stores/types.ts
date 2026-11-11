@@ -228,6 +228,8 @@ export interface SessionHistoryEntry {
   toolBreakdown?: Record<string, number> | undefined;
   compactionCount?: number | undefined;
   outcome?: 'completed' | 'error' | 'timeout' | 'aborted' | undefined;
+  branchCount?: number | undefined;
+  activeBranchName?: string | undefined;
   isCurrent: boolean;
 }
 

@@ -101,6 +101,7 @@ describe('standalone host plugin set', () => {
 
     for (const name of [
       'injection-shield',
+      'adversary-mode',
       'secret-scanner',
       'dep-guard',
       'error-lens',

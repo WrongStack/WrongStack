@@ -1,11 +1,18 @@
+import * as path from 'node:path';
 import { normalizeTokenSavingTier } from '@wrongstack/contracts/types';
 import { type CoordinatorEvent, LeaderAutoWakeController } from '@wrongstack/coordination';
 import { setQueuedMessagesSnapshot } from '@wrongstack/core/agent';
 import { activeLeaderEffort } from '@wrongstack/core/execution';
-import { noOpVault } from '@wrongstack/core/security';
-import { attachTodosCheckpoint, QueueStore } from '@wrongstack/core/storage';
+import { DefaultSecretScrubber, noOpVault } from '@wrongstack/core/security';
+import {
+  attachTodosCheckpoint,
+  QueueStore,
+  SessionCheckpointCas,
+  SessionTreeCoordinator,
+} from '@wrongstack/core/storage';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { createToolVisionAdapters } from '@wrongstack/runtime/vision';
+import { clearImagePreviewCache } from '@wrongstack/tui';
 import { confirmAcpLeaderThroughEvents } from './acp-leader/acp-leader-host.js';
 import { runTuiDispatch } from './boot/dispatch-tui.js';
 import { createTuiCoordinatorCallbacks } from './boot/tui-coordinator-callbacks.js';
@@ -84,6 +91,7 @@ export async function runExecutionTui(
       tokenCounter,
       sessionRef,
       activateSessionIdentity,
+      pluginUiRegistry,
     },
     session: {
       session,
@@ -204,6 +212,19 @@ export async function runExecutionTui(
     coordinatorRun: null,
     coordinatorEvents: new Set(),
   };
+
+  // Reused across renders so the `/tree` modal does not get a brand-new
+  // coordinator (and therefore a brand-new getTree() effect) on every
+  // parent render. Replaced only when the active writer, session store,
+  // or project root changes.
+  let treeCoordinatorCache:
+    | {
+        writer: object;
+        store: object;
+        projectRoot: string | undefined;
+        coordinator: SessionTreeCoordinator;
+      }
+    | undefined;
 
   const banneredFamily = savedProviderCfg?.family ?? resolvedProvider?.family;
   const banneredKey =
@@ -417,6 +438,7 @@ export async function runExecutionTui(
         ) => void,
       ) => {
         void attachments.clear().catch(() => {});
+        clearImagePreviewCache();
         // `/clear` from the slash command lands here. Pass the three
         // boot-resume sources as explicit `null` so the reducer also
         // resets `historyBudget`, `autoProceedHold`, and `nextId` —
@@ -533,6 +555,57 @@ export async function runExecutionTui(
       toolCount: agent.tools.list().length,
       onPanelOpen,
       memoryStore,
+      pluginUiRegistry,
+      treeCoordinator: () => {
+        const writer = sessionRef?.current ?? agent.ctx.session;
+        const store = state.activeSessionStore;
+        const currentSessionId = writer?.id;
+        if (!writer || !store || !currentSessionId) return undefined;
+        const cached = treeCoordinatorCache;
+        if (
+          cached &&
+          cached.writer === writer &&
+          cached.store === store &&
+          cached.projectRoot === state.projectRoot
+        ) {
+          return cached.coordinator;
+        }
+        const checkpointCas =
+          state.wpaths.projectSessions && state.projectRoot
+            ? new SessionCheckpointCas({
+                rootDir: path.join(state.wpaths.projectSessions, '_cas'),
+                projectRoot: state.projectRoot,
+              })
+            : undefined;
+        const coordinator = new SessionTreeCoordinator({
+          sessionId: currentSessionId,
+          writer,
+          getEvents: async () => {
+            await writer.flush?.();
+            const loaded = await store.load(currentSessionId);
+            return loaded.events;
+          },
+          checkpointCas,
+          projectRoot: state.projectRoot,
+          secretScrubber: new DefaultSecretScrubber(),
+          events,
+          extensionRegistry: agent.extensions,
+          onMessagesReplaced: (messages) => {
+            if (agent.ctx.state) {
+              agent.ctx.state.replaceMessages(messages);
+            } else if (Array.isArray(agent.ctx.messages)) {
+              agent.ctx.messages.splice(0, agent.ctx.messages.length, ...messages);
+            }
+          },
+        });
+        treeCoordinatorCache = {
+          writer,
+          store,
+          projectRoot: state.projectRoot,
+          coordinator,
+        };
+        return coordinator;
+      },
     } as never as import('@wrongstack/tui').RunTuiOptions);
 
     const spawnResult = await handleProjectSwitchSpawn({

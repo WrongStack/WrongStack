@@ -21,6 +21,38 @@ interface SetupEventsFleetBroadcasterDeps {
   isDisposed: () => boolean;
 }
 
+/**
+ * How often a registry snapshot that only moved its heartbeats is re-sent. Every session
+ * heartbeats every five seconds and each heartbeat fires the registry subscription, so a
+ * project with a few live sessions broadcast its whole snapshot (tens of kilobytes with the
+ * agents' recent mail and tools) every one to two seconds, and the desktop host journals
+ * every frame: that was the largest share of a conversation's on-disk journal. Ten seconds
+ * keeps a client's newest heartbeat under the office's twenty-second "verified" window.
+ */
+export const HEARTBEAT_ONLY_REBROADCAST_MS = 10_000;
+
+/** A snapshot's content without the heartbeat times that change on every beat. */
+function snapshotKey(sessions: readonly Record<string, unknown>[]): string {
+  return JSON.stringify(sessions.map(({ lastHeartbeatAt: _beat, ...content }) => content));
+}
+
+/**
+ * Decides which registry snapshots go out: any whose content changed, a forced one, and an
+ * unchanged one (only heartbeats moved) once per {@link HEARTBEAT_ONLY_REBROADCAST_MS}.
+ */
+export function createSnapshotGate(windowMs = HEARTBEAT_ONLY_REBROADCAST_MS) {
+  let last: { key: string; at: number } | undefined;
+  return (
+    sessions: readonly Record<string, unknown>[],
+    { force = false, now = Date.now() }: { force?: boolean; now?: number } = {},
+  ): boolean => {
+    const key = snapshotKey(sessions);
+    if (!force && last?.key === key && now - last.at < windowMs) return false;
+    last = { key, at: now };
+    return true;
+  };
+}
+
 export function registerSetupEventsFleetBroadcaster(
   deps: SetupEventsFleetBroadcasterDeps,
 ): (() => void) | undefined {
@@ -30,7 +62,8 @@ export function registerSetupEventsFleetBroadcaster(
   if (!globalRoot) return undefined;
 
   const disposers: Array<() => void> = [];
-  const broadcastSessions = async () => {
+  const shouldSend = createSnapshotGate();
+  const broadcastSessions = async (options: { force?: boolean } = {}) => {
     // A poll timer or event debounce can fire after the server is disposed;
     // pushing status to torn-down clients is pointless.
     if (isDisposed()) return;
@@ -82,13 +115,15 @@ export function registerSetupEventsFleetBroadcaster(
           })),
         }));
       if (isDisposed()) return;
+      if (!shouldSend(live, { force: options.force === true })) return;
       broadcast(clients, { type: 'sessions.status_update', payload: { sessions: live } });
     } catch {
       // Best-effort — never crash for status broadcasting errors.
     }
   };
 
-  onFleetBroadcaster?.(broadcastSessions);
+  // An explicit ping (`POST /api/fleet/ping`) asks for the snapshot now, changed or not.
+  onFleetBroadcaster?.(() => broadcastSessions({ force: true }));
 
   let subscriptionLive = false;
   let statusTimer: ReturnType<typeof setTimeout> | undefined;

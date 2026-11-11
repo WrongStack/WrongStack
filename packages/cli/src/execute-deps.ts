@@ -154,6 +154,8 @@ interface CoreDeps {
    * is consumed; the TUI reuses the result without making a second request.
    */
   updateInfo?: UpdateInfo | undefined;
+  /** Declarative plugin UI registry for status chips and `/panel`. */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
 }
 
 /** Session + state stores. */

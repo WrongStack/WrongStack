@@ -94,4 +94,11 @@ export interface TuiSessionProps {
   initialAsk?: string | undefined;
   /** Directory for session JSONL files. Passed to App for /rewind. */
   sessionsDir?: string | undefined;
+  /** Optional session tree coordinator (or lazy resolver) for the `/tree` modal. */
+  treeCoordinator?:
+    | import('@wrongstack/core/storage').SessionTreeCoordinator
+    | (() => import('@wrongstack/core/storage').SessionTreeCoordinator | undefined)
+    | undefined;
+  /** Optional declarative plugin UI registry for status chips and `/panel`. */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
 }

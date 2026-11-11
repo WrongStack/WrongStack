@@ -1,10 +1,11 @@
 import { ArrowDown, ArrowUp, Bot, ChevronDown, ChevronUp, Square } from 'lucide-react';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
 import { useIsFullChrome } from '@/hooks/useChromeLevel';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
+import { invokePortableCommand } from '@/lib/portable-command-rpc';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import {
@@ -26,6 +27,7 @@ import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
 import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
+import { PluginUiBarAndModal } from '../PluginUiModal';
 import { ProviderWaitingRoom } from '../ProviderWaitingRoom';
 import { SearchOverlay } from '../SearchOverlay';
 import { StreamMeter } from '../StreamMeter';
@@ -62,6 +64,33 @@ export function ChatView() {
   const focusedAgentBelongsToCurrentSession =
     !focusedAgent || agentBelongsToSession(focusedAgent.sessionId, currentSessionId);
   const focusedAgentExists = Boolean(focusedAgent) && focusedAgentBelongsToCurrentSession;
+
+  const userPromptIndexByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    let idx = 0;
+    for (const row of state.rows) {
+      if (row.kind === 'user') {
+        map.set(row.key, idx);
+        idx += 1;
+      }
+    }
+    return map;
+  }, [state.rows]);
+
+  const handleBranchFromPrompt = useCallback(
+    (promptIndex: number) => {
+      const sid = state.sessionId;
+      if (!sid) return;
+      const suffix = Math.random().toString(36).slice(2, 6);
+      const branchName = `fork-p${promptIndex}-${suffix}`;
+      void invokePortableCommand('tree', `branch "${branchName}" --at ${promptIndex}`, {
+        sessionId: sid,
+      }).then(() => {
+        getWSClient().listSessions(50);
+      });
+    },
+    [state.sessionId],
+  );
   // The leader owns the main pane — a focus pointing at it (e.g. a stray
   // "open chat" on the leader's roster card) just means plain leader chat.
   const subagentMode =
@@ -161,6 +190,7 @@ export function ChatView() {
         formatDuration={state.formatDuration}
         onToggleAutoCollapse={state.handleToggleAutoCollapse}
       />
+      <PluginUiBarAndModal />
       {/* Messages.
           Both panes stay MOUNTED; the one not in front is parked. The leader
           transcript is virtualized, so swapping it out for a subagent tab used
@@ -307,6 +337,8 @@ export function ChatView() {
                   isFirstRow={i === 0}
                   groupToolCalls={state.groupToolCallsPref}
                   sessionId={state.sessionId ?? DEFAULT_LANE_ID}
+                  promptIndex={row.kind === 'user' ? userPromptIndexByKey.get(row.key) : undefined}
+                  onBranchFromPrompt={state.sessionId ? handleBranchFromPrompt : undefined}
                 />
               ))}
 

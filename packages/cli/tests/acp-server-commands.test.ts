@@ -26,12 +26,12 @@ const agentIn = (root: string) =>
     permission: undefined,
   }) as unknown as Agent;
 
-const turn = (api?: { requestPermission: ReturnType<typeof vi.fn> }) => {
+const turn = (api?: { requestPermission: ReturnType<typeof vi.fn> }, signal?: AbortSignal) => {
   const updates: Array<Record<string, unknown>> = [];
   return {
     updates,
     ctx: {
-      signal: new AbortController().signal,
+      signal: signal ?? new AbortController().signal,
       api: api as never,
       emit: (u: unknown) => updates.push(u as Record<string, unknown>),
     },
@@ -135,6 +135,31 @@ describe('the ACP server’s slash commands', () => {
     await expect(
       commands.run(agentIn(projectRoot), 's1', { name: 'spawn', args: 'x' }, turn().ctx),
     ).resolves.toBeUndefined();
+  });
+
+  it('settles an unanswered permission request when the client cancels the turn', async () => {
+    // Round r2-20261111-acp-cancel-permission-a3f7: approved() awaited
+    // session/request_permission without observing turn.signal, so a cancel
+    // while the dialog was open left the prompt unsettled until the transport
+    // timed the request out (SESSION_BUSY meanwhile, card left pending).
+    const commands = createAcpServerCommands({ projectRoot });
+    const ac = new AbortController();
+    const { ctx, updates } = turn(
+      { requestPermission: vi.fn(() => new Promise(() => {})) },
+      ac.signal,
+    );
+    const pending = commands.run(agentIn(projectRoot), 's1', { name: 'init', args: '' }, ctx);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(updates[0]).toMatchObject({ sessionUpdate: 'tool_call', status: 'pending' });
+    ac.abort();
+    const settled = await Promise.race([
+      pending,
+      new Promise<'stuck'>((resolve) => setTimeout(() => resolve('stuck'), 2_000)),
+    ]);
+    if (settled === 'stuck')
+      throw new Error('FAIL: cancelled turn never settled the permission gate');
+    expect(settled?.message).toBe('/init was not run: the request was rejected.');
+    expect(updates.at(-1)).toMatchObject({ sessionUpdate: 'tool_call_update', status: 'failed' });
   });
 
   it('asks before a command that changes something, and runs it only when allowed', async () => {

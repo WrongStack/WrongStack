@@ -92,6 +92,8 @@ export interface SlashCommandContext extends SlashFleetCommandContext, SlashSddG
   onDirector?: (() => Promise<string | null>) | undefined;
   /** Manage plugin config from the interactive slash menu. */
   onPlugin?: ((args: string) => Promise<string>) | undefined;
+  /** Declarative `api.ui` slot registry owned by the live plugin host (used by `/panel`). */
+  pluginUiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
   /** Set/query the effective context window for this session. */
   onContextLimit?: ((tokens?: number) => number) | undefined;
   /** Toggle or query YOLO mode at runtime. Pass undefined to query, boolean to set. */

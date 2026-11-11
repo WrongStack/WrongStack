@@ -228,6 +228,11 @@ export function wireStandaloneWebuiRuntime(
     runLock: runLockControl,
     pendingConfirms,
     updateGlobalConfig: cb.updateGlobalConfig,
+    events,
+    pluginUiRegistry: agentServices.pluginUiRegistry,
+    pluginSlashRegistry: agentServices.pluginSlashRegistry,
+    reloadPlugins: agentServices.reloadPlugins,
+    sessionStartPayload,
     onDispose: (dispose) => {
       kanbanSupervisorDispose = dispose;
     },

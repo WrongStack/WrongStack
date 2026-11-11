@@ -83,7 +83,19 @@ export function AppStatusRegion({
     onCoordinatorStop,
     tokenCounter,
     tokenSavingMode,
+    pluginUiRegistry,
   } = host;
+  const [pluginChips, setPluginChips] = useState(() => pluginUiRegistry?.listStatusChips());
+  useEffect(() => {
+    if (!pluginUiRegistry) {
+      setPluginChips(undefined);
+      return undefined;
+    }
+    setPluginChips(pluginUiRegistry.listStatusChips());
+    return pluginUiRegistry.subscribe(() => {
+      setPluginChips(pluginUiRegistry.listStatusChips());
+    });
+  }, [pluginUiRegistry]);
   const {
     state,
     dispatch,
@@ -261,6 +273,7 @@ export function AppStatusRegion({
           tokenSavingMode={liveSettings?.featureTokenSaving ?? tokenSavingMode}
           toolCount={liveToolCount}
           sideEffectCount={agent.ctx.sideEffects?.length ?? 0}
+          pluginChips={pluginChips}
           maxWidth={mainColumnWidth}
           clickMapRef={statusBarClickMapRef}
         />

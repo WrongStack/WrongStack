@@ -73,6 +73,8 @@ export function createExecutionSessionCallbacks({
           toolErrorCount: s.toolErrorCount ?? 0,
           outcome: s.outcome,
           forkedFrom: s.forkedFrom,
+          branchCount: s.branchCount,
+          activeBranchName: s.activeBranchName,
           ...(worktree ? { worktree } : {}),
           isCurrent: s.id === currentId,
           // The session this process owns is `isCurrent`, not "live

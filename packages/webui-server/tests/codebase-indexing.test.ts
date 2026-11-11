@@ -309,4 +309,30 @@ describe('WebUI codebase indexing', () => {
 
     controller.dispose();
   });
+
+  it('invalidates external publications even without an observed indexing phase', async () => {
+    const { clearCodemapGraphCache } = await import('../src/server/codemap-cache.js');
+    vi.mocked(clearCodemapGraphCache).mockClear();
+    const { setupWebUICodebaseIndexing } = await loadSetup();
+    const controller = setupWebUICodebaseIndexing({
+      config: {},
+      context: { signal: new AbortController().signal, meta: {} } as never,
+      projectRoot,
+      logger: logger as never,
+    });
+    const emit = (daemonInstanceId: string, generation: number, graphStamp: string) => {
+      const state = {
+        ready: true,
+        indexing: false,
+        server: { publication: { daemonInstanceId, graphStamp }, activity: { generation } },
+      } as unknown as IndexState;
+      for (const listener of indexStateListeners) listener(state);
+    };
+    emit('one', 1, 'a');
+    emit('one', 1, 'a');
+    emit('one', 2, 'b');
+    emit('two', 1, 'a');
+    expect(clearCodemapGraphCache).toHaveBeenCalledTimes(3);
+    controller.dispose();
+  });
 });

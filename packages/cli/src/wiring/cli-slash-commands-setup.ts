@@ -277,6 +277,8 @@ export function setupCliSlashCommands(params: {
     ...(agentsMonitorController ? { agentsMonitorController } : {}),
     ...(agentMonitor ? { agentMonitor } : {}),
     onPanelOpen,
+    ...(pluginHost?.uiRegistry ? { pluginUiRegistry: pluginHost.uiRegistry } : {}),
+    ...(agent.extensions ? { extensionRegistry: agent.extensions } : {}),
     configStore,
     onActiveProfileChange: params.onActiveProfileChange,
     reader,

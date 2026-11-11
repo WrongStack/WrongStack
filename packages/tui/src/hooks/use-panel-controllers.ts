@@ -36,6 +36,8 @@ interface PanelControllersOptions {
   setLiveToolCount: Dispatch<SetStateAction<number | undefined>>;
   /** Effort levels the active model documents (model-aware settings cycle). */
   getActiveModelReasoningEffortLevels?: AppProps['getActiveModelReasoningEffortLevels'];
+  canOpenTreeOverlay?: (() => boolean) | undefined;
+  canOpenPluginPanel?: (() => boolean) | undefined;
 }
 
 /** Owns panel openers and extension picker refresh/toggle controllers. */
@@ -65,6 +67,8 @@ export function usePanelControllers({
   onToolToggle,
   setLiveToolCount,
   getActiveModelReasoningEffortLevels,
+  canOpenTreeOverlay,
+  canOpenPluginPanel,
 }: PanelControllersOptions): {
   openModelPicker: () => Promise<void>;
   openProjectPicker: () => Promise<void>;
@@ -132,6 +136,8 @@ export function usePanelControllers({
       openShadowPanel,
       openSubagentModelsPanel,
       openHelpPanel,
+      canOpenTreeOverlay,
+      canOpenPluginPanel,
     });
     onPanelOpen.current = dispatcher;
     return () => {
@@ -148,6 +154,8 @@ export function usePanelControllers({
     openShadowPanel,
     openSubagentModelsPanel,
     openHelpPanel,
+    canOpenTreeOverlay,
+    canOpenPluginPanel,
   ]);
   // Keep the F10 sessions panel live: refresh every 5s while open
   useEffect(() => {

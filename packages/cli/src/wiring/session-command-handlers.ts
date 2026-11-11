@@ -10,6 +10,11 @@ import type { MultiAgentHost } from '@wrongstack/fleet';
 import { makeDispatchClassifier } from '@wrongstack/fleet';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { gitIsolationEnv } from '@wrongstack/primitives';
+import { extractPinnedTrustTarget, formatPluginReloadReport } from '@wrongstack/runtime/commands';
+import {
+  normalizePluginReloadTarget,
+  PluginDevWatchController,
+} from '@wrongstack/runtime/plugin-management';
 import { runPluginManagementCommand } from '../plugin-management.js';
 import type { CommitLLMProvider } from '../services/commit-message.js';
 import { generateCommitMessageWithLLM } from '../services/commit-message.js';
@@ -69,7 +74,17 @@ interface SessionCommandHandlersInput {
   setCurrentSuggestions: (suggestions: string[]) => void;
   teardownHandlers: Array<() => void>;
   multiAgentHost: MultiAgentHost;
-  pluginHost?: { dispose(): Promise<void> } | undefined;
+  pluginHost?:
+    | {
+        dispose(): Promise<void>;
+        uiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
+        reloadExternal?:
+          | ((
+              targetName?: string,
+            ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
+          | undefined;
+      }
+    | undefined;
   logger: { warn(message: string): void };
   projectRoot: string;
   flags: Record<string, string | boolean>;
@@ -82,19 +97,53 @@ interface SessionCommandHandlersInput {
 export function createSessionCommandHandlers(
   input: SessionCommandHandlersInput,
 ): SessionCommandHandlers {
+  const pluginWatch = new PluginDevWatchController();
+  input.teardownHandlers.push(() => pluginWatch.dispose());
+
   return {
     onPlugin: async (args) => {
-      const result = await runPluginManagementCommand(
-        args.length === 0 ? [] : args.split(/\s+/).filter(Boolean),
-        { config: input.getConfig(), configPath: input.profileConfigPath },
-      );
+      const tokens = args.length === 0 ? [] : args.split(/\s+/).filter(Boolean);
+      if (tokens[0] === 'reload') {
+        if (!input.pluginHost?.reloadExternal) {
+          return 'Live plugin reload is not available in this session.\nRestart WrongStack to load or unload plugin code in this session.';
+        }
+        const targetName = normalizePluginReloadTarget(tokens[1]);
+        const report = await input.pluginHost.reloadExternal(targetName);
+        return formatPluginReloadReport(report, targetName);
+      }
+      if (tokens[0] === 'watch') {
+        if (!input.pluginHost?.reloadExternal) {
+          return 'Live plugin watch is not available in this session.\nRestart WrongStack to load or unload plugin code in this session.';
+        }
+        const reloadExternal = input.pluginHost.reloadExternal;
+        return pluginWatch.handleCommand(tokens.slice(1), {
+          projectRoot: input.projectRoot,
+          onReload: reloadExternal,
+          onError: (name, err) =>
+            input.logger.warn(
+              `[plugin watch] reload failed for "${name}": ${err instanceof Error ? err.message : String(err)}`,
+            ),
+        });
+      }
+      const result = await runPluginManagementCommand(tokens, {
+        config: input.getConfig(),
+        configPath: input.profileConfigPath,
+        projectRoot: input.projectRoot,
+      });
       if (result.patch) {
         const configPatch = result.patch as never as Partial<Config>;
         input.setConfig(patchConfig(input.getConfig(), configPatch));
         input.configStore.update(configPatch);
       }
-      if (result.restartRequired && result.code === 0) {
-        return `${result.message}\nRestart WrongStack to load or unload plugin code in this session.`;
+      const trustTarget = result.code === 0 ? extractPinnedTrustTarget(tokens) : undefined;
+      if ((result.restartRequired || trustTarget !== undefined) && result.code === 0) {
+        if (input.pluginHost?.reloadExternal) {
+          const report = await input.pluginHost.reloadExternal(trustTarget);
+          return `${result.message}\n${formatPluginReloadReport(report, trustTarget)}`;
+        }
+        if (result.restartRequired) {
+          return `${result.message}\nRestart WrongStack to load or unload plugin code in this session.`;
+        }
       }
       return result.message;
     },

@@ -1,5 +1,9 @@
 import { TOKENS } from '@wrongstack/contracts/kernel';
-import { DEFAULT_TOOLS_CONFIG, resolveContextWindowPolicy } from '@wrongstack/contracts/types';
+import {
+  DEFAULT_TOOLS_CONFIG,
+  type ModelsDevModel,
+  resolveContextWindowPolicy,
+} from '@wrongstack/contracts/types';
 import {
   CollaborationBus as CollaborationBusCtor,
   collabInjectMiddleware,
@@ -32,28 +36,23 @@ import { installVibeProtocol } from '@wrongstack/sdd';
 import { createBackendBrain } from './backend-brain.js';
 import type { AgentServices, AgentServicesInput } from './backend-services-types.js';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
-import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { installConversationFallback } from './conversation-fallback.js';
 import { createSessionAgentManager } from './create-session-agent-manager.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
-import { createGoalUsagePricer } from './goal-usage-pricer.js';
-import { GoalWebSocketHandler } from './goal-ws-handler.js';
-import { createKanbanRunMirror } from './kanban-run-mirror.js';
 import { registerLeaderEffortTool } from './leader-effort-tool.js';
-import { createMaxContextUpdater, positiveWindow } from './max-context-updater.js';
+import {
+  createMaxContextUpdater,
+  positiveWindow,
+  publishRoutePriceCliff,
+} from './max-context-updater.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
-import { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
-import { buildSddWizardDeps } from './sdd-wizard-wiring.js';
-import { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
-import { SpecsWebSocketHandler } from './specs-ws-handler.js';
+import { createBackendRealtimeHandlers } from './realtime-ws-handlers.js';
 import { bindStandaloneAcpLeaderHost } from './standalone-acp-leader.js';
 import { createStandaloneChimera } from './standalone-chimera.js';
 import { createStandaloneAutoWake, installStandaloneDelegation } from './standalone-delegation.js';
 import { createStandaloneHooks } from './standalone-hooks.js';
 import { loadStandalonePlugins, type StandalonePlugins } from './standalone-plugins.js';
 import { installStandaloneProviderTools } from './standalone-provider-tools.js';
-import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
-import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { errMessage } from './ws-utils.js';
 
 /**
@@ -219,6 +218,12 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // (a stale 128k there collapsed 1M-window models across the whole config).
   // It stays as the fallback for models nothing published a window for.
   let effectiveMaxContext = 0;
+  let catalogCost: ModelsDevModel['cost'] | undefined;
+  // "No published tier" and "could not read the tier" are different states:
+  // only the first may clear the cap. A throw leaves pricing UNKNOWN, so the
+  // helper preserves whatever the route had instead of silently disabling the
+  // protection for the rest of the session.
+  let catalogCostKnown = false;
   try {
     const m = await resolveProviderModelMetadata(
       modelsRegistry,
@@ -227,6 +232,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       config.providers?.[config.provider],
     );
     effectiveMaxContext = positiveWindow(m?.capabilities?.maxContext) ?? 0;
+    catalogCost = m?.cost;
+    catalogCostKnown = true;
   } catch {
     // best-effort: fall through to the configured value / provider capability
   }
@@ -234,6 +241,22 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     effectiveMaxContext = positiveWindow(config.context?.effectiveMaxContext) ?? 0;
   }
   if (!effectiveMaxContext) effectiveMaxContext = provider.capabilities.maxContext;
+
+  // Publish the long-context price cliff for this session's route from the
+  // catalog pricing already fetched above. Boot is a required stamp point: a
+  // WebUI tab that opens on a cliffed model (e.g. 1M window, 2x above 200K) and
+  // never switches would otherwise compact purely window-relative and fill into
+  // the billed region the cap exists to avoid. Shares one helper with the model
+  // switch below, so the two can never disagree about when the cap is cleared.
+  context.meta ??= {};
+  publishRoutePriceCliff({
+    meta: context.meta,
+    catalogCost,
+    maxContext: effectiveMaxContext,
+    routeCtx: context,
+    enabled: config.context?.priceCliff !== false,
+    costKnown: catalogCostKnown,
+  });
 
   const initialContextPolicy = resolveContextWindowPolicy(
     config.context,
@@ -450,105 +473,32 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     hookRunner: hooks.workerHookRunner,
     ...(input.installToolBoundary ? { installToolBoundary: input.installToolBoundary } : {}),
   });
-  // Goal and SDD runs mirror into project boards, so a run can be followed and steered from Kanban.
-  const broadcastToClients = input.broadcastToClients;
-  const kanbanRunMirror =
-    projectRoot && broadcastToClients
-      ? createKanbanRunMirror({
-          projectRoot,
-          events,
-          broadcast: broadcastToClients,
-          log: (message) => logger.debug(`[KanbanRunMirror] ${message}`),
-        })
-      : null;
-  const goalHandler = new GoalWebSocketHandler(
+  const {
+    goalHandler,
+    kanbanRunMirror,
+    specsHandler,
+    sddBoardHandler,
+    sddWizardHandler,
+    worktreeHandler,
+    terminalHandler,
+    collabHandler,
+    disposeRealtimeHandlers,
+  } = createBackendRealtimeHandlers({
+    input,
     agent,
-    context,
-    logger,
-    wpaths.projectAutophase,
-    events,
-    projectRoot,
-    kanbanRunMirror ? (graphId, state) => kanbanRunMirror.onGoalState(graphId, state) : undefined,
-    subagentFactory,
-    undefined,
-    // Goal cost budgets price each task agent response with the same catalog rates as `stats.get`;
-    // a model without a catalog price stays unpriced (null), never $0.
-    createGoalUsagePricer(input),
-  );
-  const specsHandler = new SpecsWebSocketHandler(wpaths.projectSpecs, wpaths.projectTaskGraphs);
-  const sddBoardHandler = new SddBoardWebSocketHandler(
-    wpaths.projectSddBoards,
-    undefined,
-    {
-      projectRoot,
-      paths: {
-        projectSpecs: wpaths.projectSpecs,
-        projectTaskGraphs: wpaths.projectTaskGraphs,
-        projectSddSession: wpaths.projectSddSession,
-        projectSddBoards: wpaths.projectSddBoards,
-      },
-    },
-    { trustBoundary: input.trustBoundary, logger },
-  );
-  const sddWizardHandler = new SddWizardWebSocketHandler(
-    buildSddWizardDeps({
-      agent,
-      events,
-      projectRoot,
-      brain,
-      // Shared factory, fresh Agent/Context per task. Goal and SDD workers use
-      // the same provider health, hook, and tool-boundary policy.
-      subagentFactory,
-      paths: {
-        projectSpecs: wpaths.projectSpecs,
-        projectTaskGraphs: wpaths.projectTaskGraphs,
-        projectSddBoards: wpaths.projectSddBoards,
-        projectDir: wpaths.projectDir,
-        projectSddSession: wpaths.projectSddSession,
-      },
-    }),
-  );
-  const worktreeHandler = new WorktreeWebSocketHandler(events, logger, {
-    projectRoot,
-    boardsDir: wpaths.projectSddBoards,
-  });
-  const terminalHandler = new TerminalWebSocketHandler(
-    () => workingDir,
-    logger,
-    undefined,
-    undefined,
-    input.trustBoundary,
-  );
-  const collabHandler = new CollaborationWebSocketHandler(
-    events,
-    logger,
-    input.sessionReader,
-    input.annotationsStore,
+    brain,
     collabBus,
-    {
-      getActiveSessionId: () => context.session.id,
-      scrubPayload: (value) => secretScrubber.scrubObject(value),
+    secretScrubber,
+    subagentFactory,
+    onDisposeExtra: () => {
+      brainServices.dispose();
+      void delegation?.dispose().catch((err: unknown) => {
+        logger.warn('delegation host dispose failed', { err: errMessage(err) });
+      });
+      autoWakeWithoutDelegation?.dispose();
+      providerTools.dispose();
     },
-  );
-  let realtimeHandlersDisposed = false;
-  const disposeRealtimeHandlers = () => {
-    if (realtimeHandlersDisposed) return;
-    realtimeHandlersDisposed = true;
-    brainServices.dispose();
-    goalHandler.dispose();
-    kanbanRunMirror?.dispose();
-    sddBoardHandler.dispose();
-    sddWizardHandler.dispose();
-    specsHandler.dispose();
-    worktreeHandler.dispose();
-    terminalHandler.dispose();
-    collabHandler.dispose();
-    void delegation?.dispose().catch((err: unknown) => {
-      logger.warn('delegation host dispose failed', { err: errMessage(err) });
-    });
-    autoWakeWithoutDelegation?.dispose();
-    providerTools.dispose();
-  };
+  });
 
   const chimera = createStandaloneChimera({
     container,
@@ -669,6 +619,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         hooks.dispose();
       }
     },
+    pluginUiRegistry: plugins?.uiRegistry,
+    pluginSlashRegistry: plugins?.slashRegistry,
+    reloadPlugins: plugins?.reloadExternal,
     permissionPolicy,
     pipelines,
     brain,

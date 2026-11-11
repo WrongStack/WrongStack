@@ -48,6 +48,12 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
     aliases: ['/resume'],
     description: 'Resume a previous session from disk',
   },
+  {
+    name: '/tree',
+    category: 'Session',
+    description:
+      'In-session conversation DAG: /tree [list | branch <name> | switch <target> | fold [source]]',
+  },
   { name: '/export', category: 'Session', description: 'Download the current chat as markdown' },
 
   // Inspect
@@ -80,6 +86,11 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
     name: '/diag',
     category: 'Inspect',
     description: 'Runtime diagnostics (provider, tools, mode, usage)',
+  },
+  {
+    name: '/panel',
+    category: 'Inspect',
+    description: 'Open or inspect declarative plugin UI panels (/panel [list|open|show|action])',
   },
   { name: '/agents', category: 'Inspect', description: 'Show status of spawned subagents' },
   {
@@ -247,9 +258,20 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
       'Allow private/localhost origins for browser & fetch: /browser allow <origin> · /browser allow loopback',
   },
   {
+    name: '/design',
+    category: 'Config',
+    description:
+      'Design Studio & DESIGN.md engine: /design extract <url|file> [pages] · compare · capture · materialize',
+  },
+  {
     name: '/doctor',
     category: 'Config',
     description: 'Check config defaults; use /doctor fix to repair and back up',
+  },
+  {
+    name: '/plugin',
+    category: 'Config',
+    description: 'Inspect, trust, or live hot-reload plugins (/plugin [list|reload|trust])',
   },
   { name: '/enhance', category: 'Config', description: 'Toggle prompt refinement before sending' },
   {

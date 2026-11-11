@@ -124,8 +124,25 @@ export async function routeToSelectedGoal(
   return true;
 }
 
-/** Broadcast the saved-graph list plus live Goal summaries to every client. */
-export async function broadcastGoalCatalog(host: GoalWsHandlerInternals): Promise<void> {
+/**
+ * How often an unchanged catalog is re-sent by the root timer. The timer polls every two
+ * seconds so a Goal started elsewhere shows up quickly, but broadcasting an identical catalog
+ * each time sent every client a `goal.list` every two seconds, and the desktop host journals
+ * every frame it receives: an idle project accumulated tens of thousands of them, all of
+ * which a reopened conversation had to read again.
+ */
+export const UNCHANGED_CATALOG_REBROADCAST_MS = 5 * 60_000;
+const lastCatalog = new WeakMap<object, { key: string; at: number }>();
+
+/**
+ * Broadcast the saved-graph list plus live Goal summaries to every client. With
+ * `onlyIfChanged` (the periodic timer) an identical catalog is not re-sent until
+ * {@link UNCHANGED_CATALOG_REBROADCAST_MS} has passed; an explicit `goal.list` always answers.
+ */
+export async function broadcastGoalCatalog(
+  host: GoalWsHandlerInternals,
+  options: { onlyIfChanged?: boolean } = {},
+): Promise<void> {
   if (host.disposed || host.catalogInFlight) return;
   host.catalogInFlight = true;
   try {
@@ -142,7 +159,18 @@ export async function broadcastGoalCatalog(host: GoalWsHandlerInternals): Promis
       if (index >= 0) goals[index] = summary;
       else goals.unshift(summary);
     }
-    host.broadcast({ type: 'goal.list', payload: { graphs, goals } });
+    const payload = { graphs, goals };
+    const key = JSON.stringify(payload);
+    const now = Date.now();
+    const last = lastCatalog.get(host);
+    if (
+      options.onlyIfChanged &&
+      last?.key === key &&
+      now - last.at < UNCHANGED_CATALOG_REBROADCAST_MS
+    )
+      return;
+    lastCatalog.set(host, { key, at: now });
+    host.broadcast({ type: 'goal.list', payload });
   } catch (err) {
     host.logger.warn(`[Goal] Catalog refresh failed: ${toErrorMessage(err)}`);
   } finally {

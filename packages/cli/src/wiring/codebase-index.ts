@@ -17,6 +17,7 @@
  */
 
 import * as path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { IndexingConfig, Logger } from '@wrongstack/contracts/types';
 import type { AgentPipelines, Context, ToolCallPipelinePayload } from '@wrongstack/core/agent';
 import {
@@ -80,6 +81,7 @@ interface CodebaseIndexingDeps {
   pipelines: AgentPipelines;
   projectRoot: string;
   logger: Logger;
+  events?: EventBus | undefined;
 }
 
 /**
@@ -87,7 +89,7 @@ interface CodebaseIndexingDeps {
  * cancels pending reindexes — call it on process teardown.
  */
 export async function setupCodebaseIndexing(deps: CodebaseIndexingDeps): Promise<() => void> {
-  const { config, context, pipelines, projectRoot, logger } = deps;
+  const { config, context, pipelines, projectRoot, logger, events } = deps;
   const idx = config.indexing;
   // No config block (e.g. --bare) → opt out entirely.
   if (!idx) return () => {};
@@ -175,11 +177,36 @@ export async function setupCodebaseIndexing(deps: CodebaseIndexingDeps): Promise
     });
   }
 
+  // 3. Reindex files materialized or deleted by `/tree switch` / `/tree fold`.
+  const sameRoot = (a: string, b: string) =>
+    process.platform === 'win32'
+      ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+      : path.resolve(a) === path.resolve(b);
+
+  const offMaterialized =
+    idx.onEdit || idx.watchExternal
+      ? events?.on('workspace.files_materialized', ({ targetRoot, writtenFiles, deletedFiles }) => {
+          if (!sameRoot(targetRoot, projectRoot)) return;
+          const files = [...writtenFiles, ...deletedFiles]
+            .map((rel) => path.resolve(targetRoot, rel))
+            .filter((abs) => {
+              const rel = path.relative(targetRoot, abs);
+              const inside =
+                rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+              return inside && isIndexableFile(abs);
+            });
+          if (files.length > 0) {
+            enqueueReindex({ projectRoot: targetRoot, files, debounceMs, onError });
+          }
+        })
+      : undefined;
+
   // Reference context so the binding is used even when onEdit is off (keeps the
   // dependency explicit; ctx.cwd is read inside the middleware).
   void context;
 
   return () => {
+    offMaterialized?.();
     cancelPendingReindexes();
     // Disconnect only this host. The detached project server remains available
     // to other surfaces and exits on its own idle timeout.

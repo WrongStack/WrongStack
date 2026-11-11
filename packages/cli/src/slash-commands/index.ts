@@ -47,6 +47,7 @@ import { buildGoalCommand } from './goal.js';
 import { buildGoalsCommand } from './goals.js';
 import { buildHealthCommand } from './health.js';
 import { buildHelpCommand } from './help.js';
+import { buildImageCommand } from './image.js';
 import { buildInitCommand } from './init.js';
 import { buildIntakeCommand } from './intake.js';
 import { buildInterruptCommand } from './interrupt.js';
@@ -64,6 +65,7 @@ import { buildModelsCommand } from './models.js';
 import { buildNextCommand } from './next.js';
 import { buildNextStepsModeCommand } from './nextsteps-mode.js';
 import { buildOpenAIQuotaCommand, buildProviderQuotaCommand } from './openai-quota.js';
+import { buildPanelCommand } from './panel.js';
 import { buildPermissionsCommand } from './permissions.js';
 import { buildPlanCommand } from './plan.js';
 import { buildPluginCommand } from './plugin.js';
@@ -105,6 +107,7 @@ import { buildTelegramSetupCommand } from './telegram-setup.js';
 import { buildTodosCommand } from './todos.js';
 import { buildToolCommand } from './tool.js';
 import { buildToolsCommand } from './tools.js';
+import { buildTreeCommand } from './tree.js';
 import { buildTuneupCommand } from './tuneup.js';
 import { buildWorkingDirCommand } from './working-dir.js';
 import { buildWorktreeCommand } from './worktree.js';
@@ -134,7 +137,10 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildToolCommand(opts),
     buildToolsCommand(opts),
     buildPluginCommand(opts),
+    buildPanelCommand(opts),
+    buildImageCommand(opts),
     buildPruneCommand(opts),
+    buildTreeCommand(opts),
     buildMcpSlashCommand(opts),
     buildBrowserCommand(),
     buildSuggestCommand(opts),

@@ -566,3 +566,57 @@ export async function handleApiFleetBroadcast(
     res.end(JSON.stringify({ error: sanitizeApiError(err) }));
   }
 }
+
+export async function handleApiSessionTree(
+  res: http.ServerResponse,
+  opts: {
+    globalRoot?: string | undefined;
+    projectRoot?: string | undefined;
+    getSessionProjectRoot?: ((sessionId: string) => string | undefined) | undefined;
+  },
+  sessionId: string,
+): Promise<void> {
+  try {
+    const { DefaultSessionStore, getSessionRegistry, reconstructSessionTree } = await import(
+      '@wrongstack/core/storage'
+    );
+    const { resolveWstackPaths } = await import('@wrongstack/core/utils');
+
+    let targetProjectRoot = opts.getSessionProjectRoot?.(sessionId);
+    if (!targetProjectRoot && opts.globalRoot) {
+      const entry = await getSessionRegistry(opts.globalRoot).get(sessionId);
+      targetProjectRoot = entry?.projectRoot;
+    }
+    targetProjectRoot ??= opts.projectRoot;
+
+    if (!targetProjectRoot) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Session not found', sessionId }));
+      return;
+    }
+
+    const paths = resolveWstackPaths({
+      projectRoot: targetProjectRoot,
+      ...(opts.globalRoot ? { globalRoot: opts.globalRoot } : {}),
+    });
+    const store = new DefaultSessionStore({
+      dir: paths.projectSessions,
+      projectRoot: targetProjectRoot,
+    });
+    const data = await store.load(sessionId);
+    const tree = data.tree ?? reconstructSessionTree(data.events).tree;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ sessionId, tree }));
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException | null)?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    if (code === 'ENOENT' || /not found|enoent/i.test(message)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Session not found', sessionId }));
+      return;
+    }
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
+  }
+}

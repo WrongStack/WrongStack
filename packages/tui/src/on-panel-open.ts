@@ -11,6 +11,7 @@
 // `tests/on-panel-open-bridge.test.ts`.
 
 import type { Action } from './app-reducer.js';
+import { standaloneModalStoreOf } from './standalone-modal-store.js';
 
 export interface PanelOpenDeps {
   /**
@@ -51,6 +52,10 @@ export interface PanelOpenDeps {
    * command registry and dispatches helpOpen with the populated list.
    */
   openHelpPanel?: (() => void | Promise<unknown>) | undefined;
+  /** Guard returning true when a live `SessionTreeCoordinator` is mounted for `/tree`. */
+  canOpenTreeOverlay?: (() => boolean) | undefined;
+  /** Guard returning true when at least one declarative plugin panel is registered for `/panel`. */
+  canOpenPluginPanel?: (() => boolean) | undefined;
 }
 
 /**
@@ -123,6 +128,18 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
           return true;
         }
         return false;
+      case 'tree':
+        if (!deps.canOpenTreeOverlay?.()) {
+          return false;
+        }
+        standaloneModalStoreOf(dispatch).set({ kind: 'tree' });
+        return true;
+      case 'plugin-panel':
+        if (!deps.canOpenPluginPanel?.()) {
+          return false;
+        }
+        standaloneModalStoreOf(dispatch).set({ kind: 'plugin-panel' });
+        return true;
       case 'toggleMonitor':
         dispatch({ type: 'toggleMonitor' });
         return true;
@@ -150,6 +167,23 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
         dispatch({ type: action } as Action);
         return true;
       default:
+        if (action.startsWith('plugin-panel:')) {
+          if (!deps.canOpenPluginPanel?.()) {
+            return false;
+          }
+          const panelId = action.slice('plugin-panel:'.length).trim();
+          standaloneModalStoreOf(dispatch).set({
+            kind: 'plugin-panel',
+            ...(panelId ? { panelId } : {}),
+          });
+          return true;
+        }
+        if (action.startsWith('image:')) {
+          const filePath = action.slice('image:'.length).trim();
+          if (!filePath) return false;
+          standaloneModalStoreOf(dispatch).set({ kind: 'image', filePath });
+          return true;
+        }
         // Unknown action — let the slash command fall back to text.
         return false;
     }

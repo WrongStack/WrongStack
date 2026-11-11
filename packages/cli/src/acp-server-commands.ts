@@ -53,6 +53,9 @@ const READ_ONLY: Readonly<Record<string, 'any' | readonly string[]>> = {
   acp: ['', 'list', 'help'],
   gitid: ['', 'help'],
   plugin: ['', 'list', 'report', 'official', 'help'],
+  tree: ['', 'list', 'ls', 'status', 'help'],
+  panel: ['', 'list', 'ls', 'show', 'help'],
+  image: 'any',
 };
 
 function readsOnly(name: string, args: string): boolean {
@@ -86,9 +89,22 @@ export interface AcpServerCommands {
 
 export function createAcpServerCommands(deps: AcpServerCommandsDeps): AcpServerCommands {
   const sessions = new Map<string, { agent: Agent; commands: Promise<SlashCommand[]> }>();
+  const watchedAgents = new WeakSet<Agent>();
   let listed: Promise<AvailableCommand[]> | undefined;
 
+  const ensureAgentReloadHook = (agent: Agent): void => {
+    if (watchedAgents.has(agent) || typeof agent.events?.on !== 'function') return;
+    watchedAgents.add(agent);
+    agent.events.on('plugin.reloaded', () => {
+      listed = undefined;
+      for (const [sid, entry] of sessions.entries()) {
+        if (entry.agent === agent) sessions.delete(sid);
+      }
+    });
+  };
+
   const commandsFor = (sessionId: string, agent: Agent): Promise<SlashCommand[]> => {
+    ensureAgentReloadHook(agent);
     const known = sessions.get(sessionId);
     if (known && known.agent === agent) return known.commands;
     const commands = buildCommands(hostFor(agent, deps), agent, deps);
@@ -146,24 +162,44 @@ function availableCommand(command: SlashCommand): AvailableCommand {
 async function approved(
   command: SlashCommand,
   args: string,
-  turn: { api?: RunTurnApi | undefined; emit: (update: unknown) => void },
+  turn: {
+    signal: AbortSignal;
+    api?: RunTurnApi | undefined;
+    emit: (update: unknown) => void;
+  },
 ): Promise<boolean> {
   if (!turn.api) return false;
   const toolCallId = `cmd_${command.name}_${Date.now()}`;
   const title = `/${command.name}${args ? ` ${args}` : ''}`;
   turn.emit({ sessionUpdate: 'tool_call', toolCallId, title, kind: 'execute', status: 'pending' });
   let allowed = false;
+  // A cancelled turn must settle this gate now, not when the transport times
+  // out `session/request_permission` 60s later: until it settles, the prompt
+  // response is stuck behind it, `session.prompting` stays true (every later
+  // prompt answers SESSION_BUSY), and the editor keeps a live permission
+  // dialog for a turn that is already over. An unanswered request is refused
+  // exactly like the rejection paths above — close the card, never run.
+  let onAbort: (() => void) | undefined;
   try {
-    const outcome = await turn.api.requestPermission({
-      toolCall: { toolCallId, title, kind: 'execute' },
-      options: [
-        { optionId: 'allow_once', name: 'Run', kind: 'allow_once' },
-        { optionId: 'reject_once', name: 'Cancel', kind: 'reject_once' },
-      ],
-    });
+    const outcome = await Promise.race([
+      turn.api.requestPermission({
+        toolCall: { toolCallId, title, kind: 'execute' },
+        options: [
+          { optionId: 'allow_once', name: 'Run', kind: 'allow_once' },
+          { optionId: 'reject_once', name: 'Cancel', kind: 'reject_once' },
+        ],
+      }),
+      new Promise<never>((_, reject) => {
+        onAbort = () => reject(new Error('turn cancelled'));
+        if (turn.signal.aborted) onAbort();
+        else turn.signal.addEventListener('abort', onAbort, { once: true });
+      }),
+    ]);
     allowed = outcome.outcome === 'selected' && outcome.optionId.startsWith('allow');
   } catch {
     allowed = false;
+  } finally {
+    if (onAbort) turn.signal.removeEventListener('abort', onAbort);
   }
   turn.emit({
     sessionUpdate: 'tool_call_update',
@@ -190,6 +226,15 @@ function hostFor(agent: Agent | undefined, deps: AcpServerCommandsDeps): Portabl
     },
     get context() {
       return ctx;
+    },
+    get sessionRef() {
+      return ctx?.session ? { current: ctx.session } : undefined;
+    },
+    get events() {
+      return agent?.events;
+    },
+    get extensionRegistry() {
+      return agent?.extensions;
     },
     get llmProvider() {
       return ctx?.provider;

@@ -1,5 +1,9 @@
+import type { SessionTreeSnapshot } from '@wrongstack/contracts/types';
+import type { SessionTreeCoordinator } from '@wrongstack/core/storage';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { Action } from './app-action-type.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { BrainDecisionPrompt } from './components/brain-decision-prompt.js';
 import { BugHuntContinuePanel } from './components/bug-hunt-continue-panel.js';
@@ -12,18 +16,163 @@ import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { ExitConfirmPanel } from './components/exit-confirm-panel.js';
 import { FallbackOverlay } from './components/fallback-overlay.js';
+import { replaySessionMessages } from './components/history/replay.js';
+import { ImagePreviewModal } from './components/image-preview-modal.js';
+import { PluginPanelOverlay } from './components/plugin-panel-overlay.js';
+import { PluginPromptModal } from './components/plugin-prompt-modal.js';
 import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { SendModePicker } from './components/send-mode-picker.js';
+import { SessionTreeOverlay } from './components/session-tree-overlay.js';
 import {
   ShellCommandWarning,
   type ShellCommandWarningDecision,
 } from './components/shell-command-warning.js';
 import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { TopicCheckPanel } from './components/topic-check-panel.js';
-import { Box } from './ink.js';
+import { Box, Text, useInput } from './ink.js';
 import { showRewind } from './rewind-prompt.js';
+import { standaloneModalStoreOf, useStandaloneModal } from './standalone-modal-store.js';
+import { sanitizeTerminalText } from './terminal-width.js';
 import type { PanelId, SendMode } from './ui-contracts.js';
+
+function LiveSessionTreeModal({
+  coordinator,
+  dispatch,
+  maxRows,
+  onClose,
+}: {
+  coordinator: SessionTreeCoordinator;
+  dispatch: (action: Action) => void;
+  maxRows: number;
+  onClose: () => void;
+}): React.ReactElement {
+  const [tree, setTree] = useState<SessionTreeSnapshot | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | undefined>(undefined);
+
+  useInput((_input, key) => {
+    if (!tree && key.escape) {
+      onClose();
+    }
+  });
+
+  const refreshTree = useCallback(async (): Promise<boolean> => {
+    try {
+      const next = await coordinator.getTree();
+      setTree(next);
+      return true;
+    } catch (err) {
+      setStatusMessage(`Failed to load tree: ${toErrorMessage(err)}`);
+      return false;
+    }
+  }, [coordinator]);
+
+  useEffect(() => {
+    void refreshTree();
+  }, [refreshTree]);
+
+  if (!tree) {
+    return (
+      <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+        <Text color={statusMessage ? 'red' : 'cyan'}>
+          {statusMessage ?? 'Loading session tree… (Esc to close)'}
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <SessionTreeOverlay
+      tree={tree}
+      maxRows={maxRows}
+      busy={busy}
+      statusMessage={statusMessage}
+      onSwitch={(branch, opts) => {
+        setBusy(true);
+        setStatusMessage(undefined);
+        void coordinator
+          .switchBranch(branch.id, {
+            keepFiles: opts.keepFiles,
+            reactivateArchived: branch.status === 'archived',
+          })
+          .then(async (res) => {
+            const entries = replaySessionMessages(res.messages, [], 1);
+            dispatch({ type: 'replaceHistory', entries, nextId: entries.length + 1 });
+            const reloaded = await refreshTree();
+            if (reloaded) {
+              setStatusMessage(
+                `Switched to ${res.toBranch.name}${res.workspaceRestored ? ' (workspace restored)' : ''}.`,
+              );
+            }
+          })
+          .catch((err: unknown) => {
+            setStatusMessage(`Switch failed: ${toErrorMessage(err)}`);
+          })
+          .finally(() => setBusy(false));
+      }}
+      onFold={(branch) => {
+        setBusy(true);
+        setStatusMessage(undefined);
+        void coordinator
+          .foldBranch({ sourceBranch: branch.id })
+          .then(async (res) => {
+            const entries = replaySessionMessages(res.messages, [], 1);
+            dispatch({ type: 'replaceHistory', entries, nextId: entries.length + 1 });
+            const reloaded = await refreshTree();
+            if (reloaded) {
+              setStatusMessage(`Folded ${res.sourceBranch.name} → ${res.targetBranch.name}.`);
+            }
+          })
+          .catch((err: unknown) => {
+            setStatusMessage(`Fold failed: ${toErrorMessage(err)}`);
+          })
+          .finally(() => setBusy(false));
+      }}
+      onArchive={(branch) => {
+        setBusy(true);
+        setStatusMessage(undefined);
+        void coordinator
+          .archiveBranch(branch.id)
+          .then(async () => {
+            const reloaded = await refreshTree();
+            if (reloaded) {
+              setStatusMessage(`Archived branch ${branch.name}.`);
+            }
+          })
+          .catch((err: unknown) => {
+            setStatusMessage(`Archive failed: ${toErrorMessage(err)}`);
+          })
+          .finally(() => setBusy(false));
+      }}
+      onCreateBranch={(name, fromBranch) => {
+        setBusy(true);
+        setStatusMessage(undefined);
+        void coordinator
+          .createBranch({
+            name,
+            fromBranch: fromBranch.id,
+            switchImmediately: true,
+          })
+          .then(async (res) => {
+            if (res.messages) {
+              const entries = replaySessionMessages(res.messages, [], 1);
+              dispatch({ type: 'replaceHistory', entries, nextId: entries.length + 1 });
+            }
+            const reloaded = await refreshTree();
+            if (reloaded) {
+              setStatusMessage(`Created and switched to branch ${res.branch.name}.`);
+            }
+          })
+          .catch((err: unknown) => {
+            setStatusMessage(`Create branch failed: ${toErrorMessage(err)}`);
+          })
+          .finally(() => setBusy(false));
+      }}
+      onClose={onClose}
+    />
+  );
+}
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
 
@@ -68,9 +217,105 @@ export function AppViewPrompts({
   } = runtime;
   const { enhanceDots } = activity;
   const { setYoloLive } = environment;
+  const { modal: standaloneModal, closeModal: closeStandaloneModal } = useStandaloneModal(dispatch);
+
+  useEffect(() => {
+    const registry = host.pluginUiRegistry;
+    if (!registry) return undefined;
+    const modalStore = standaloneModalStoreOf(dispatch);
+    registry.setHandlers({
+      onNotify: (owner, message, tone) => {
+        const cleanOwner = sanitizeTerminalText(owner);
+        const cleanMsg = sanitizeTerminalText(message);
+        const entryKind = tone === 'danger' ? 'error' : tone === 'warning' ? 'warn' : 'info';
+        dispatch({
+          type: 'addEntry',
+          entry: {
+            kind: entryKind,
+            text: `[${cleanOwner}] ${cleanMsg}`,
+          },
+        });
+      },
+      onPrompt: (owner, opts, signal) =>
+        new Promise((resolvePrompt) => {
+          if (signal.aborted) {
+            resolvePrompt(null);
+            return;
+          }
+          let settled = false;
+          const finish = (val: string | boolean | null) => {
+            if (settled) return;
+            settled = true;
+            signal.removeEventListener('abort', onAbort);
+            const cur = modalStore.get();
+            if (cur?.kind === 'plugin-prompt' && cur.resolve === finish) {
+              modalStore.close();
+            }
+            resolvePrompt(val as never);
+          };
+          const onAbort = () => finish(null);
+          signal.addEventListener('abort', onAbort, { once: true });
+          // A second prompt can arrive before the first is answered. Resolve the
+          // displaced one (as cancelled) instead of replacing it silently —
+          // otherwise the first plugin's promise stays pending forever.
+          const previous = modalStore.get();
+          if (previous?.kind === 'plugin-prompt') {
+            previous.resolve(null);
+          }
+          modalStore.set({
+            kind: 'plugin-prompt',
+            owner,
+            opts: opts as never,
+            resolve: finish,
+          });
+        }),
+    });
+    return () => {
+      const cur = modalStore.get();
+      if (cur?.kind === 'plugin-prompt') {
+        cur.resolve(null);
+      }
+      registry.setHandlers({ onNotify: undefined, onPrompt: undefined });
+    };
+  }, [host.pluginUiRegistry, dispatch]);
 
   return (
     <>
+      {standaloneModal?.kind === 'tree' ? (
+        (() => {
+          const coordinator =
+            typeof host.treeCoordinator === 'function'
+              ? host.treeCoordinator()
+              : host.treeCoordinator;
+          if (!coordinator) return null;
+          return (
+            <LiveSessionTreeModal
+              coordinator={coordinator}
+              dispatch={dispatch}
+              maxRows={pickerMaxRows}
+              onClose={closeStandaloneModal}
+            />
+          );
+        })()
+      ) : standaloneModal?.kind === 'plugin-panel' && host.pluginUiRegistry ? (
+        <PluginPanelOverlay
+          registry={host.pluginUiRegistry}
+          initialPanelId={standaloneModal.panelId}
+          onClose={closeStandaloneModal}
+        />
+      ) : standaloneModal?.kind === 'plugin-prompt' ? (
+        <PluginPromptModal
+          owner={standaloneModal.owner}
+          opts={standaloneModal.opts}
+          onResolve={standaloneModal.resolve}
+        />
+      ) : standaloneModal?.kind === 'image' ? (
+        <ImagePreviewModal
+          filePath={standaloneModal.filePath}
+          capability={host.capability}
+          onClose={closeStandaloneModal}
+        />
+      ) : null}
       {state.rewindOverlay
         ? (() => {
             const overlay = state.rewindOverlay;

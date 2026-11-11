@@ -15,6 +15,7 @@ import {
   routeSettingsOverlayKey,
 } from '../overlay-key-router.js';
 import { sddLifecycleEntry } from '../sdd-lifecycle-entry.js';
+import { standaloneModalStoreOf } from '../standalone-modal-store.js';
 
 const ESC_DOUBLE_PRESS_MS = 1000;
 
@@ -33,6 +34,9 @@ const ESC_DOUBLE_PRESS_MS = 1000;
 /** Modal overlays with their own dedicated UI (confirmQueue, enhance,
  * modelPicker, autonomyPicker, settingsPicker, rewindOverlay, helpOpen). */
 export function routeModalOverlay(ctx: KeyRouteContext, input: string, key: KeyEvent): boolean {
+  if (standaloneModalStoreOf(ctx.dispatch).get() !== null) {
+    return true;
+  }
   if (
     routeModalOverlayKey(
       {

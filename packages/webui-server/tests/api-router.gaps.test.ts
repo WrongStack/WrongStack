@@ -8,6 +8,7 @@ vi.mock('../src/server/http-server/api-handlers.js', () => ({
   handleApiSessions: vi.fn(),
   handleApiSessionAgents: vi.fn(),
   handleApiSessionEvents: vi.fn(),
+  handleApiSessionTree: vi.fn(),
   handleApiSessionMessage: vi.fn(),
   handleApiSessionMailbox: vi.fn(),
   handleApiSessionInterrupt: vi.fn(),
@@ -175,6 +176,13 @@ describe('handleApiRoutes — session and fleet routes', () => {
       'my-session',
     );
 
+    await route('GET', '/api/sessions/my-session/tree');
+    expect(api['handleApiSessionTree']).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ globalRoot: '/global', projectRoot: '/proj' }),
+      'my-session',
+    );
+
     await route('GET', '/api/sessions/encoded%2Fid/mailbox');
     expect(api['handleApiSessionMailbox']).toHaveBeenCalledWith(
       expect.anything(),
@@ -241,6 +249,7 @@ describe('handleApiRoutes — session and fleet routes', () => {
       ['POST', '/api/fleet/ping'],
       ['GET', '/api/sessions'],
       ['GET', '/api/sessions/s1/agents'],
+      ['GET', '/api/sessions/s1/tree'],
       ['GET', '/api/sessions/s1/events'],
       ['POST', '/api/sessions/s1/message'],
       ['GET', '/api/sessions/s1/mailbox'],

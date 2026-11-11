@@ -123,6 +123,9 @@ vi.mock('@wrongstack/plugins/changelog-writer', () => ({
 vi.mock('@wrongstack/plugins/injection-shield', () => ({
   default: { name: 'injection-shield', register: vi.fn() },
 }));
+vi.mock('@wrongstack/plugins/adversary-mode', () => ({
+  default: { name: 'adversary-mode', register: vi.fn() },
+}));
 vi.mock('@wrongstack/plugins/llm-cache', () => ({
   default: { name: 'llm-cache', register: vi.fn() },
 }));

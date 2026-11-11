@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-11T21:37:08.121Z",
+  "generatedAt": "2026-11-11T21:39:58.271Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 48,
-    "sourceFiles": 6248,
-    "testFiles": 5205,
-    "sourceLines": 1285010,
+    "sourceFiles": 6264,
+    "testFiles": 5213,
+    "sourceLines": 1289075,
     "workspaceEdges": 250,
-    "moduleEdges": 18398,
+    "moduleEdges": 18450,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 1,
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 634,
-      "testFiles": 699,
+      "sourceFiles": 637,
+      "testFiles": 700,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/agent-catalog",
@@ -261,7 +261,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 699
+          "testFiles": 700
         }
       ]
     },
@@ -1035,8 +1035,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 501,
-      "testFiles": 437,
+      "sourceFiles": 510,
+      "testFiles": 441,
       "workspaceDependencies": [
         "@wrongstack/chronicle",
         "@wrongstack/contracts",
@@ -1065,7 +1065,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 437
+          "testFiles": 441
         }
       ]
     },
@@ -1117,8 +1117,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 785,
-      "testFiles": 522,
+      "sourceFiles": 788,
+      "testFiles": 523,
       "workspaceDependencies": [
         "@wrongstack/contracts",
         "@wrongstack/core",
@@ -1144,7 +1144,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 522
+          "testFiles": 523
         }
       ]
     },
@@ -1174,8 +1174,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 350,
-      "testFiles": 393,
+      "sourceFiles": 351,
+      "testFiles": 395,
       "workspaceDependencies": [
         "@wrongstack/agent-catalog",
         "@wrongstack/builtin-plugins",
@@ -1210,7 +1210,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 393
+          "testFiles": 395
         }
       ]
     },
@@ -4713,6 +4713,12 @@
       },
       {
         "file": "packages/cli/tests/acp-server-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/acp-tree-and-panel-commands.test.ts",
         "projects": [
           "root-node"
         ]
@@ -25250,6 +25256,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/plugin-panel-and-image-modal.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/plugin-picker-component.test.ts",
         "projects": [
           "root-node"
@@ -25478,6 +25490,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/run-tui-exits.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/run-tui-extracted-facades.test.ts",
         "projects": [
           "root-node"
@@ -25635,6 +25653,12 @@
       },
       {
         "file": "packages/tui/tests/session-rewound-bridge.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/session-tree-overlay.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -26097,6 +26121,12 @@
       },
       {
         "file": "packages/tui/tests/swarm-panel-slash.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tui/tests/sync-stdout-and-graphics.test.tsx",
         "projects": [
           "root-node"
         ]
@@ -28730,6 +28760,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/session-inspect-branches.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/session-live-resume.test.ts",
         "projects": [
           "root-node"
@@ -28797,6 +28833,12 @@
       },
       {
         "file": "packages/webui-server/tests/session-transcript.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/session-tree-and-history-wire.test.ts",
         "projects": [
           "root-node"
         ]
@@ -32049,6 +32091,12 @@
       },
       {
         "file": "packages/webui/tests/server/worktree-ws-handler.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/session-tree-and-plugin-ui.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -39804,10 +39852,6 @@
       "name": "fleetBroadcastTargets"
     },
     {
-      "file": "packages/webui-server/src/server/max-context-updater.ts",
-      "name": "publishRoutePriceCliff"
-    },
-    {
       "file": "packages/webui-server/src/server/mcp-tool-handlers.ts",
       "name": "conversationNote"
     },
@@ -39834,6 +39878,10 @@
     {
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
       "name": "seedWrongProxyFromConfig"
+    },
+    {
+      "file": "packages/webui-server/src/server/setup-events-fleet-broadcaster.ts",
+      "name": "createSnapshotGate"
     },
     {
       "file": "packages/webui-server/src/server/standalone-plugins.ts",

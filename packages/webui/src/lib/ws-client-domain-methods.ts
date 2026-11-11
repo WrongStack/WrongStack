@@ -133,7 +133,10 @@ const domainMethods = {
    * an ordinary persisted preference on the server; the server answers with a
    * fresh `system_prompt.info` broadcast once the live prompt is rebuilt.
    */
-  setSystemPromptVariant(this: WsClientDomainHost, variant: 'lite' | 'default' | 'pro' | 'scout' | 'quick') {
+  setSystemPromptVariant(
+    this: WsClientDomainHost,
+    variant: 'lite' | 'default' | 'pro' | 'scout' | 'quick',
+  ) {
     this.send({
       type: 'prefs.update',
       payload: this.withSession({ systemPromptVariant: variant }),

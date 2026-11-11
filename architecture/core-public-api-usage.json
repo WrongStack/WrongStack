@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 523,
-      "typeOnly": 394,
+      "files": 524,
+      "typeOnly": 395,
       "runtimeOrMixed": 161
     },
     "@wrongstack/core/boot": {
@@ -89,9 +89,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/plugin": {
-      "files": 31,
-      "typeOnly": 16,
-      "runtimeOrMixed": 16
+      "files": 42,
+      "typeOnly": 18,
+      "runtimeOrMixed": 25
     },
     "@wrongstack/core/prompts": {
       "files": 11,
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 58
     },
     "@wrongstack/core/registry": {
-      "files": 209,
-      "typeOnly": 83,
-      "runtimeOrMixed": 131
+      "files": 212,
+      "typeOnly": 84,
+      "runtimeOrMixed": 134
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 30
     },
     "@wrongstack/core/storage": {
-      "files": 200,
-      "typeOnly": 56,
-      "runtimeOrMixed": 177
+      "files": 204,
+      "typeOnly": 57,
+      "runtimeOrMixed": 184
     },
     "@wrongstack/core/tasking": {
       "files": 46,
@@ -164,9 +164,9 @@
       "runtimeOrMixed": 25
     },
     "@wrongstack/core/utils": {
-      "files": 994,
-      "typeOnly": 75,
-      "runtimeOrMixed": 953
+      "files": 998,
+      "typeOnly": 76,
+      "runtimeOrMixed": 958
     },
     "@wrongstack/core/utils/child-env": {
       "files": 1,
@@ -3041,6 +3041,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/realtime-ws-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/route-contracts.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -5405,7 +5411,19 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/execute-deps.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/plugin-api-factory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/slash-commands/command-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5417,9 +5435,15 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
-      "file": "packages/cli/src/wiring/plugins.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "file": "packages/cli/src/wiring/runtime-lifecycle-deps.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/wiring/session-command-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -5567,9 +5591,57 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/tui/src/app-session-props.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/tui/src/components/plugin-panel-overlay.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/tui/src/components/status-bar-types.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/tui/src/run-tui-options.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/tui/tests/plugin-panel-and-image-modal.test.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/backend-services-types.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/src/server/context-meta.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/message-dispatcher.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/portable-command-route.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -7045,7 +7117,7 @@
       "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/backend-services-types.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/registry",
@@ -7085,7 +7157,19 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/message-dispatcher.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/mode-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/portable-command-route.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7200,6 +7284,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/tests/session-agent-registry-variant-seed.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/tests/session-tree-and-history-wire.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9869,6 +9959,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/acp-tree-and-panel-commands.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/codex-prompt-prefix-stability.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10367,6 +10463,18 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/tui/src/app-session-props.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tui/src/app-view-prompts.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/tui/src/hooks/use-app-picker-keys.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10441,7 +10549,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tui/src/run-tui-options.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10525,7 +10633,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10724,6 +10832,12 @@
       "file": "packages/webui-server/tests/session-redo-flush.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/session-tree-and-history-wire.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -16001,7 +16115,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/components/image-preview-modal.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/components/plan-panel.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/components/plugin-panel-overlay.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16032,6 +16158,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/git-info.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/graphics/image-preview-cache.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16609,7 +16741,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -17142,6 +17274,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/session-swap-lifecycle.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/session-tree-and-history-wire.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

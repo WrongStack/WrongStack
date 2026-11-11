@@ -18,7 +18,9 @@
  */
 
 import path from 'node:path';
+import type { EventBus } from '@wrongstack/contracts/kernel';
 import type { ProviderConfig } from '@wrongstack/contracts/types';
+import type { PluginUiRegistry } from '@wrongstack/core/plugin';
 import { backupConfigFile, resolveWstackPaths } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
@@ -48,7 +50,7 @@ import { handleKanbanRoute } from './kanban-routes.js';
 import { createKanbanRunStart } from './kanban-run-start.js';
 import { createKanbanSupervisor } from './kanban-supervisor.js';
 import type { PendingConfirm } from './pending-confirms.js';
-import { portableCommandRoute } from './portable-command-route.js';
+import { broadcastBranchReplay, portableCommandRoute } from './portable-command-route.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import {
   handleProcessKill,
@@ -118,6 +120,20 @@ interface MessageDispatcherOptions {
    * — the dispatcher itself never invokes the disposer.
    */
   onDispose?: ((disposer: () => void) => void) | undefined;
+  events?: EventBus | undefined;
+  pluginUiRegistry?: PluginUiRegistry | undefined;
+  pluginSlashRegistry?: import('@wrongstack/core/registry').SlashCommandRegistry | undefined;
+  reloadPlugins?:
+    | ((
+        targetName?: string,
+      ) => Promise<{ reloaded: string[]; unloaded: string[]; failed: string[] }>)
+    | undefined;
+  sessionStartPayload?:
+    | ((opts?: {
+        reset?: boolean;
+        sessionId?: string;
+      }) => Promise<Record<string, unknown>> | Record<string, unknown>)
+    | undefined;
 }
 
 /**
@@ -613,6 +629,20 @@ export function createMessageDispatcher(
       getProfileConfigPath: () => deps.profileConfigPath,
       getMcpRegistry: () => deps.mcpRegistry,
       tuneup: deps.tuneupHooks,
+      events: opts.events,
+      extensionRegistry: () => deps.agent.extensions,
+      pluginUiRegistry: opts.pluginUiRegistry,
+      pluginSlashRegistry: opts.pluginSlashRegistry,
+      reloadPlugins: opts.reloadPlugins,
+      broadcast: (m) => broadcast(state.getClients(), m),
+      onTreeMessagesReplaced: (messages) =>
+        broadcastBranchReplay({
+          sessionId: state.getSession().id,
+          messages,
+          sessionStartPayload: opts.sessionStartPayload,
+          broadcast: (m) => broadcast(state.getClients(), m),
+          logger: deps.logger,
+        }),
       send,
     }),
     getKanbanContext: kanbanContext,
@@ -624,55 +654,22 @@ export function createMessageDispatcher(
     },
   });
 
+  const connCtx = {
+    trustBoundary: deps.trustBoundary,
+    logger: deps.logger,
+    getProjectRoot: state.getProjectRoot,
+    getIndexDir: () =>
+      typeof deps.context.meta['codebaseIndexDir'] === 'string'
+        ? deps.context.meta['codebaseIndexDir']
+        : undefined,
+    send,
+    backend: 'standalone' as const,
+  };
+
   return async (ws, _client, msg) => {
-    if (
-      await handleConnectionsHealthRoute(
-        {
-          getProjectRoot: state.getProjectRoot,
-          getIndexDir: () =>
-            typeof deps.context.meta['codebaseIndexDir'] === 'string'
-              ? deps.context.meta['codebaseIndexDir']
-              : undefined,
-          send,
-          backend: 'standalone',
-        },
-        ws,
-        msg,
-      )
-    )
-      return;
-    // Registered here too. Only the CLI-embedded router had it, so on the
-    // standalone server the browser sent `connections.service_action`, nothing
-    // handled it, no `connections.service_action_result` ever came back, and
-    // the Settings → Connections row sat in its pending state forever.
-    if (
-      await handleConnectionsServiceAction(ws, msg, {
-        trustBoundary: deps.trustBoundary,
-        logger: deps.logger,
-        getProjectRoot: state.getProjectRoot,
-        getIndexDir: () =>
-          typeof deps.context.meta['codebaseIndexDir'] === 'string'
-            ? deps.context.meta['codebaseIndexDir']
-            : undefined,
-        send,
-        backend: 'standalone',
-      })
-    )
-      return;
-    if (
-      await handleCodebaseIndexServerControl(ws, msg, {
-        trustBoundary: deps.trustBoundary,
-        logger: deps.logger,
-        getProjectRoot: state.getProjectRoot,
-        getIndexDir: () =>
-          typeof deps.context.meta['codebaseIndexDir'] === 'string'
-            ? deps.context.meta['codebaseIndexDir']
-            : undefined,
-        send,
-        backend: 'standalone',
-      })
-    )
-      return;
+    if (await handleConnectionsHealthRoute(connCtx, ws, msg)) return;
+    if (await handleConnectionsServiceAction(ws, msg, connCtx)) return;
+    if (await handleCodebaseIndexServerControl(ws, msg, connCtx)) return;
     await dispatch(ws, msg);
   };
 }

@@ -20,9 +20,10 @@ interface BootResult {
  * migration, and config load/merge — lives in core so the WebUI server and the
  * CLI can't drift. Only the secret-migration notice label (`WebUI`) differs.
  */
-export async function bootConfig(): Promise<BootResult> {
+export async function bootConfig(useCwdAsProjectRoot = false): Promise<BootResult> {
   const { config, vault, globalConfigPath, projectRoot, wpaths, logger } = await coreBootConfig({
     appLabel: 'WebUI',
+    ...(useCwdAsProjectRoot ? { useCwdAsProjectRoot } : {}),
   });
   return { config, vault, globalConfigPath, projectRoot, wpaths, logger };
 }

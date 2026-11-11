@@ -149,6 +149,9 @@ export function ResumePicker({
                     {outcomeBadge}
                     {s.tokenTotal.toLocaleString()} tok
                     {(s.messageCount ?? 0) > 0 ? ` · ${s.messageCount} msg` : ''}
+                    {(s.branchCount ?? 0) > 1
+                      ? ` · ⎇ ${s.branchCount} branches${s.activeBranchName ? ` (${s.activeBranchName})` : ''}`
+                      : ''}
                     {toolStr ? ` · ${toolStr}` : ''}
                     {iterStr ? ` · ${iterStr}` : ''}
                     {s.toolErrorCount > 0 ? (

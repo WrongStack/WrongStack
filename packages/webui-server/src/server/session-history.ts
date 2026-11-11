@@ -33,6 +33,8 @@ export interface SessionHistoryWireEntry {
   toolBreakdown?: Record<string, number> | undefined;
   compactionCount?: number | undefined;
   outcome?: SessionSummary['outcome'];
+  branchCount?: number | undefined;
+  activeBranchName?: string | undefined;
   isCurrent: boolean;
 }
 
@@ -135,6 +137,14 @@ interface SessionInspectPayload {
 
 function labelForEvent(e: SessionEvent): string {
   switch (e.type) {
+    case 'branch_created':
+      return `Branch created: ${e.name}`;
+    case 'branch_switched':
+      return 'Branch switched';
+    case 'branch_folded':
+      return 'Branch folded';
+    case 'branch_status_changed':
+      return 'Branch updated';
     case 'session_start':
       return 'Session started';
     case 'subagent_policy':
@@ -268,6 +278,16 @@ function labelForEvent(e: SessionEvent): string {
 
 function detailForEvent(e: SessionEvent): string {
   switch (e.type) {
+    case 'branch_created':
+      return `${e.parentBranchId} → ${e.newBranchId} at event #${e.forkSeq}`;
+    case 'branch_switched':
+      return `${e.fromBranchId} → ${e.toBranchId} · workspace ${e.workspaceRestored ? 'restored' : 'not restored'}`;
+    case 'branch_folded':
+      return `${e.sourceBranchId} → ${e.targetBranchId}: ${e.summary}${e.archiveSource ? ' · source archived' : ''}`;
+    case 'branch_status_changed':
+      return [e.targetBranchId, e.name === undefined ? undefined : `name: ${e.name}`, e.status]
+        .filter((value) => value !== undefined)
+        .join(' · ');
     case 'session_start':
       return `${e.model} @ ${e.provider}`;
     case 'subagent_policy':
@@ -538,6 +558,10 @@ export function toSessionHistoryEntry(
     ...(summary.toolBreakdown !== undefined ? { toolBreakdown: summary.toolBreakdown } : {}),
     ...(summary.compactionCount !== undefined ? { compactionCount: summary.compactionCount } : {}),
     ...(summary.outcome !== undefined ? { outcome: summary.outcome } : {}),
+    ...(summary.branchCount !== undefined ? { branchCount: summary.branchCount } : {}),
+    ...(summary.activeBranchName !== undefined
+      ? { activeBranchName: summary.activeBranchName }
+      : {}),
     isCurrent: summary.id === currentSessionId,
   };
 }

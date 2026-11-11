@@ -29,7 +29,12 @@ interface RuntimeLifecycleDepsInput {
   eternalListeners: Set<(entry: JournalEntry) => void>;
   stageListeners: Set<(stage: AutonomyStage) => void>;
   runSageSessionHygiene: () => Promise<void>;
-  pluginHost?: { dispose(): Promise<void> } | undefined;
+  pluginHost?:
+    | {
+        dispose(): Promise<void>;
+        uiRegistry?: import('@wrongstack/core/plugin').PluginUiRegistry | undefined;
+      }
+    | undefined;
   teardownHandlers: Array<() => void>;
   stats: SessionStats;
   events: EventBus;

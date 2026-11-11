@@ -1981,9 +1981,6 @@
     "packages/webui-server/src/server/http-server/api-handlers.ts": [
       "fleetBroadcastTargets"
     ],
-    "packages/webui-server/src/server/max-context-updater.ts": [
-      "publishRoutePriceCliff"
-    ],
     "packages/webui-server/src/server/mcp-tool-handlers.ts": [
       "conversationNote"
     ],
@@ -2000,6 +1997,9 @@
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
+    ],
+    "packages/webui-server/src/server/setup-events-fleet-broadcaster.ts": [
+      "createSnapshotGate"
     ],
     "packages/webui-server/src/server/standalone-plugins.ts": [
       "STANDALONE_HOST_OWNED_PLUGINS"

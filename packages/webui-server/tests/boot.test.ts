@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const mockBootConfig = vi.hoisted(() => vi.fn());
 vi.mock('@wrongstack/core/boot', () => ({
@@ -24,6 +24,15 @@ describe('boot', () => {
 
       expect(mockBootConfig).toHaveBeenCalledWith({ appLabel: 'WebUI' });
       expect(result).toEqual(mockResult);
+    });
+
+    it('passes the host-selected root mode through to core boot', async () => {
+      mockBootConfig.mockResolvedValue({ projectRoot: '/tmp/project/nested' });
+      await bootConfig(true);
+      expect(mockBootConfig).toHaveBeenLastCalledWith({
+        appLabel: 'WebUI',
+        useCwdAsProjectRoot: true,
+      });
     });
   });
 

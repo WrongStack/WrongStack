@@ -80,6 +80,66 @@ function findEngineCommand(name: string): EngineCommandEntry | undefined {
 }
 
 /**
+ * The portable engine commands the WebUI may dispatch directly over
+ * `command.run` before `command.catalog` has hydrated. Only names the hosting
+ * process really implements (`buildPortableCommands` in
+ * `@wrongstack/runtime/commands`) belong here: a name outside this set is
+ * never sent, so an unimplemented command can never be answered with the
+ * "finished." confirmation of a command that never ran.
+ */
+export const DIRECT_ENGINE_COMMANDS: ReadonlySet<string> = new Set([
+  'panel',
+  'tree',
+  'plugin',
+  'image',
+]);
+
+/**
+ * Dispatches a known portable engine command directly over `command.run` even
+ * when `command.catalog` has not yet hydrated on cold startup.
+ *
+ * Returns false for a name outside `DIRECT_ENGINE_COMMANDS` — nothing is sent
+ * and the caller falls back to the model prompt.
+ */
+export function runDirectEngineSlashCommand(
+  bareName: string,
+  args: string,
+  client: SlashRoutingClient | null | undefined,
+  addMessage: (message: ChatAssistantMessage) => void,
+  sendMsg?: ((content: string) => void) | undefined,
+): boolean {
+  if (!DIRECT_ENGINE_COMMANDS.has(bareName.replace(/^\//, '').toLowerCase())) return false;
+  if (!client?.on || !client.send) return false;
+  const requestId = safeId();
+  const off = client.on('command.result', (message) => {
+    const payload = message.payload as Record<string, unknown> | undefined;
+    if (payload?.['requestId'] !== requestId) return;
+    off?.();
+    const error = typeof payload['error'] === 'string' ? payload['error'] : '';
+    const text = typeof payload['message'] === 'string' ? payload['message'].trim() : '';
+    addMessage({
+      role: 'assistant',
+      content: error
+        ? `⚠️ /${bareName}: ${error}`
+        : text
+          ? `\`\`\`text\n${text}\n\`\`\``
+          : `/${bareName} finished.`,
+    });
+    const followUp = typeof payload['runText'] === 'string' ? payload['runText'].trim() : '';
+    if (!error && followUp) sendMsg?.(followUp);
+  });
+  client.send({
+    type: 'command.run',
+    payload: client.withSession?.({ name: bareName, args, requestId }) ?? {
+      name: bareName,
+      args,
+      requestId,
+    },
+  });
+  return true;
+}
+
+/**
  * Runs an engine command and writes what it printed into the chat. A command that changes or
  * deletes data asks first; `--dry-run` runs at once. False when the engine has no such command.
  */

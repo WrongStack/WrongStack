@@ -518,6 +518,8 @@ export function createEmbeddedMessageRouter(
       getProfileConfigPath: () => opts.profileConfigPath,
       getMcpRegistry: () => opts.mcpRegistry,
       tuneup: opts.tuneupHooks,
+      events: () => opts.agent.events,
+      extensionRegistry: () => opts.agent.extensions,
       send,
     }),
     getKanbanContext: () => ({

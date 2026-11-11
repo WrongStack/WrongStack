@@ -96,6 +96,24 @@ describe('engine commands in the WebUI chat', () => {
     expect(followUps).toEqual(['Plan the fixes.']);
   });
 
+  it('never dispatches a direct command the engine does not implement', async () => {
+    // The direct `command.run` path exists for the portable commands the
+    // hosting process runs itself. An unknown name must not be sent: the
+    // client would otherwise confirm a command that never ran.
+    const bridge = await load();
+    const { client, sent } = fakeClient();
+    expect(bridge.runDirectEngineSlashCommand('tree', '', client, () => undefined)).toBe(true);
+    expect(sent.filter((message) => message.type === 'command.run')).toHaveLength(1);
+    expect(sent.find((message) => message.type === 'command.run')?.payload).toMatchObject({
+      name: 'tree',
+    });
+
+    const before = sent.length;
+    expect(bridge.runDirectEngineSlashCommand('nonsense', '', client, () => undefined)).toBe(false);
+    expect(bridge.runDirectEngineSlashCommand('rm-rf', '', client, () => undefined)).toBe(false);
+    expect(sent).toHaveLength(before);
+  });
+
   it('leaves unknown names to the model and confirms destructive commands', async () => {
     const bridge = await load();
     const { client, sent, emit } = fakeClient();

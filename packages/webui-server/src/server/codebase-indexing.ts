@@ -177,12 +177,24 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
   // mode) there is no generation, and every completed run invalidates.
   let wasIndexing = false;
   let publishedGeneration: number | undefined;
+  let externalPublication: string | undefined;
   const unsubscribeIndexState = onIndexStateChange((state) => {
     if (disposed) return;
+    if (state.server?.projectRoot) {
+      const key = (value: string) =>
+        process.platform === 'win32' ? path.resolve(value).toLowerCase() : path.resolve(value);
+      if (key(state.server.projectRoot) !== key(deps.projectRoot)) return;
+    }
     const generation = state.server?.activity?.generation;
+    const external = state.server?.publication;
+    const identity = external
+      ? JSON.stringify([external.daemonInstanceId, generation, external.graphStamp])
+      : undefined;
+    const externallyPublished = identity !== undefined && identity !== externalPublication;
+    if (identity !== undefined) externalPublication = identity;
     const published = generation === undefined || generation !== publishedGeneration;
     if (!state.indexing && generation !== undefined) publishedGeneration = generation;
-    if (wasIndexing && !state.indexing && published) {
+    if ((wasIndexing && !state.indexing && published) || externallyPublished) {
       clearCodemapGraphCache();
       deps.events?.emit('codemap.index_updated', {
         at: Date.now(),
@@ -193,6 +205,47 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
     }
     wasIndexing = state.indexing;
   });
+
+  const sameRoot = (a: string, b: string) =>
+    process.platform === 'win32'
+      ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+      : path.resolve(a) === path.resolve(b);
+
+  const unsubscribeMaterialized = deps.events?.on(
+    'workspace.files_materialized',
+    ({ targetRoot, writtenFiles, deletedFiles, sessionId, at }) => {
+      if (disposed || !sameRoot(targetRoot, deps.projectRoot)) return;
+      if (writtenFiles.length > 0 || deletedFiles.length > 0) {
+        clearCodemapGraphCache();
+      }
+      for (const rel of writtenFiles) {
+        const abs = path.resolve(deps.projectRoot, rel);
+        deps.events?.emit('file.activity', {
+          filePath: abs,
+          operation: 'write',
+          phase: 'completed',
+          source: 'editor',
+          at,
+          sessionId,
+          agentId: 'session-tree',
+          agentName: 'Session Tree',
+        });
+        enqueueFile(abs);
+      }
+      for (const rel of deletedFiles) {
+        const abs = path.resolve(deps.projectRoot, rel);
+        deps.events?.emit('file.activity', {
+          filePath: abs,
+          operation: 'delete',
+          phase: 'changed',
+          source: 'watcher',
+          at,
+          sessionId,
+        });
+        enqueueFile(abs);
+      }
+    },
+  );
 
   return {
     onFileWritten(filePath) {
@@ -215,6 +268,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
     dispose() {
       if (disposed) return;
       disposed = true;
+      unsubscribeMaterialized?.();
       unsubscribeIndexState();
       lastWatcherEvent.clear();
       try {

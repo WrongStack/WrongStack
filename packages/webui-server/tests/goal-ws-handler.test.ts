@@ -273,6 +273,29 @@ describe('GoalWebSocketHandler', () => {
       expect(sentMessages(ws)).toEqual([{ type: 'goal.list', payload: { graphs: [], goals: [] } }]);
     });
 
+    it('the catalog timer re-sends an unchanged catalog only every few minutes', async () => {
+      vi.useFakeTimers();
+      try {
+        const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
+        const ws = makeMockWs();
+        handler.addClient(ws);
+        // The first timer pass broadcasts; the identical catalogs after it are not news.
+        await vi.advanceTimersByTimeAsync(2000 * 30);
+        const catalogs = () =>
+          sentMessages(ws).filter((message) => (message as { type: string }).type === 'goal.list');
+        expect(catalogs()).toHaveLength(1);
+        // An explicit request is always answered, changed or not.
+        await handler.handleMessage(ws, { type: 'goal.list', payload: {} });
+        expect(catalogs()).toHaveLength(2);
+        // Past the rebroadcast window the timer sends the unchanged catalog once more.
+        await vi.advanceTimersByTimeAsync(5 * 60_000);
+        expect(catalogs()).toHaveLength(3);
+        handler.dispose();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('goal.load with unknown id: broadcasts goal.error', async () => {
       const handler = new GoalWebSocketHandler(agent, context, logger, '/tmp/store');
       const ws = makeMockWs();

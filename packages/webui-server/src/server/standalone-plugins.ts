@@ -11,7 +11,7 @@ import { getSharedProjectMailbox } from '@wrongstack/coordination';
 import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
 import type { HookRegistry } from '@wrongstack/core/hooks';
 import { NotifierImpl } from '@wrongstack/core/notifications';
-import type { PluginHostHandle } from '@wrongstack/core/plugin';
+import type { PluginUiRegistry } from '@wrongstack/core/plugin';
 import {
   type ProviderRegistry,
   SlashCommandRegistry,
@@ -19,7 +19,13 @@ import {
 } from '@wrongstack/core/registry';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
-import { createPluginLlm, pluginHostPaths, setupPlugins } from '@wrongstack/runtime/plugin-host';
+import {
+  createPluginLlm,
+  type ExternalPluginReloadReport,
+  type ManagedPluginHostHandle,
+  pluginHostPaths,
+  setupPlugins,
+} from '@wrongstack/runtime/plugin-host';
 import { buildSavedProvider } from './saved-provider.js';
 import { PluginExtensionFanout } from './standalone-plugin-extensions.js';
 
@@ -61,7 +67,9 @@ export interface StandalonePluginsInput {
 }
 
 export interface StandalonePlugins {
-  host: PluginHostHandle | undefined;
+  host: ManagedPluginHostHandle | undefined;
+  uiRegistry: PluginUiRegistry | undefined;
+  reloadExternal: ((targetName?: string) => Promise<ExternalPluginReloadReport>) | undefined;
   /** Plugin slash commands land here; like the CLI-hosted WebUI, no route lists them. */
   slashRegistry: SlashCommandRegistry;
   /** Gives a conversation's agent the plugins' agent extensions. */
@@ -96,7 +104,7 @@ export async function loadStandalonePlugins(
   const buildProvider = (providerId: string) =>
     buildSavedProvider(input.providerRegistry, input.getConfig(), providerId);
   const session = input.getSession();
-  let host: PluginHostHandle | undefined;
+  let host: ManagedPluginHostHandle | undefined;
   if (!configStore) {
     logger.warn('[WebUI] Plugins not loaded: the engine container has no ConfigStore');
   } else {
@@ -144,6 +152,15 @@ export async function loadStandalonePlugins(
         : undefined,
       hostOwnedBuiltins: STANDALONE_HOST_OWNED_PLUGINS,
     });
+    host?.uiRegistry?.setHandlers({
+      onNotify: (owner, message, tone) => {
+        if (tone === 'danger' || tone === 'warning') {
+          logger.warn(`[plugin:${owner}] ${message}`);
+        } else {
+          logger.info(`[plugin:${owner}] ${message}`);
+        }
+      },
+    });
     console.log(
       `[WebUI] Plugins loaded: ${host?.loaded.length ?? 0}${
         host?.failed.length ? `, ${host.failed.length} failed` : ''
@@ -153,6 +170,8 @@ export async function loadStandalonePlugins(
   let disposed: Promise<void> | undefined;
   return {
     host,
+    uiRegistry: host?.uiRegistry,
+    reloadExternal: host?.reloadExternal,
     slashRegistry,
     attach: (next) => extensions.attach(next.extensions),
     dispose() {
